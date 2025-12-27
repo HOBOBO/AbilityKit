@@ -1,0 +1,7 @@
+
+**/obj/
+**/Bin/
+**/.idea
+**/Temp
+
+.vs/
