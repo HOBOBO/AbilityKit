@@ -5,7 +5,7 @@ namespace AbilityKit.Ability.World.DI
 {
     internal static class WorldActivator
     {
-        public static object Create(Type implType, IWorldResolver resolver)
+        public static object Create(Type implType, IWorldServices resolver)
         {
             if (implType == null) throw new ArgumentNullException(nameof(implType));
             if (resolver == null) throw new ArgumentNullException(nameof(resolver));

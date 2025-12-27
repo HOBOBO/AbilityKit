@@ -6,9 +6,9 @@ namespace AbilityKit.Ability.World.DI
     {
         public readonly Type ServiceType;
         public readonly WorldLifetime Lifetime;
-        public readonly Func<IWorldResolver, object> Factory;
+        public readonly Func<IWorldServices, object> Factory;
 
-        public WorldServiceDescriptor(Type serviceType, WorldLifetime lifetime, Func<IWorldResolver, object> factory)
+        public WorldServiceDescriptor(Type serviceType, WorldLifetime lifetime, Func<IWorldServices, object> factory)
         {
             ServiceType = serviceType ?? throw new ArgumentNullException(nameof(serviceType));
             Lifetime = lifetime;

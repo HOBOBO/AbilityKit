@@ -29,16 +29,14 @@ namespace AbilityKit.Ability.World.Entitas
         public global::Contexts Contexts { get; }
         public global::Entitas.Systems Systems { get; }
 
-        public IWorldResolver Services => _scope;
+        public IWorldServices Services => _scope;
 
         public void Initialize()
         {
             if (_initialized) return;
             _initialized = true;
 
-            var builder = _options.ServiceBuilder ?? new WorldContainerBuilder();
-
-            builder.AddModule(new DefaultWorldServicesModule());
+            var builder = _options.ServiceBuilder ?? WorldServiceContainerFactory.CreateDefaultOnly();
 
             builder.RegisterInstance<WorldId>(Id);
             builder.RegisterInstance<string>(WorldType);
@@ -47,6 +45,9 @@ namespace AbilityKit.Ability.World.Entitas
 
             builder.RegisterInstance<global::Contexts>(Contexts);
             builder.RegisterInstance<global::Entitas.Systems>(Systems);
+
+            builder.Register<IEntitasWorldContext>(WorldLifetime.Scoped, r => new EntitasWorldContext(Id, WorldType, Contexts, Systems, (IWorldServices)r));
+            builder.Register<IWorldContext>(WorldLifetime.Scoped, r => r.Resolve<IEntitasWorldContext>());
 
             if (_options.Modules != null)
             {

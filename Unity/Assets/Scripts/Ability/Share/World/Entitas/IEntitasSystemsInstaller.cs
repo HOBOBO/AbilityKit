@@ -4,6 +4,6 @@ namespace AbilityKit.Ability.World.Entitas
 {
     public interface IEntitasSystemsInstaller
     {
-        void Install(global::Contexts contexts, global::Entitas.Systems systems, IWorldResolver resolver);
+        void Install(global::Contexts contexts, global::Entitas.Systems systems, IWorldServices services);
     }
 }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Ability.World.DI
 {
-    public sealed class WorldContainer : IWorldResolver, IDisposable
+    public sealed class WorldContainer : IWorldServices, IWorldServiceContainer, IDisposable
     {
         private readonly Dictionary<Type, WorldServiceDescriptor> _map;
         private readonly Dictionary<Type, object> _singletons = new Dictionary<Type, object>();
@@ -18,6 +18,17 @@ namespace AbilityKit.Ability.World.DI
             }
         }
 
+        public IReadOnlyCollection<Type> RegisteredServiceTypes => _map.Keys;
+
+        public bool IsRegistered(Type serviceType)
+        {
+            if (serviceType == null) return false;
+            if (serviceType == typeof(IWorldServices)) return true;
+            if (serviceType == typeof(IWorldServiceContainer)) return true;
+            if (serviceType == typeof(WorldContainer)) return true;
+            return _map.ContainsKey(serviceType);
+        }
+
         public WorldScope CreateScope()
         {
             ThrowIfDisposed();
@@ -29,7 +40,8 @@ namespace AbilityKit.Ability.World.DI
             ThrowIfDisposed();
             if (serviceType == null) throw new ArgumentNullException(nameof(serviceType));
 
-            if (serviceType == typeof(IWorldResolver)) return this;
+            if (serviceType == typeof(IWorldServices)) return this;
+            if (serviceType == typeof(IWorldServiceContainer)) return this;
             if (serviceType == typeof(WorldContainer)) return this;
 
             if (!_map.TryGetValue(serviceType, out var descriptor))
@@ -58,6 +70,11 @@ namespace AbilityKit.Ability.World.DI
             return (T)Resolve(typeof(T));
         }
 
+        public T Get<T>()
+        {
+            return Resolve<T>();
+        }
+
         public bool TryResolve(Type serviceType, out object instance)
         {
             try
@@ -82,6 +99,11 @@ namespace AbilityKit.Ability.World.DI
 
             instance = default;
             return false;
+        }
+
+        public bool TryGet<T>(out T instance)
+        {
+            return TryResolve(out instance);
         }
 
         internal object ResolveScoped(Type serviceType, WorldScope scope)

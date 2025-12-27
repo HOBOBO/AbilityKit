@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Ability.World.DI
 {
-    public sealed class WorldScope : IWorldScope
+    public sealed class WorldScope : IWorldScope, IWorldServices
     {
         private readonly WorldContainer _root;
         private readonly Dictionary<Type, object> _scoped = new Dictionary<Type, object>();
@@ -14,14 +14,15 @@ namespace AbilityKit.Ability.World.DI
             _root = root ?? throw new ArgumentNullException(nameof(root));
         }
 
-        public IWorldResolver Root => _root;
+        public IWorldServices Root => _root;
 
         public object Resolve(Type serviceType)
         {
             ThrowIfDisposed();
             if (serviceType == null) throw new ArgumentNullException(nameof(serviceType));
 
-            if (serviceType == typeof(IWorldResolver)) return this;
+            if (serviceType == typeof(IWorldServices)) return this;
+            if (serviceType == typeof(IWorldServiceContainer)) return _root;
             if (serviceType == typeof(IWorldScope)) return this;
             if (serviceType == typeof(WorldScope)) return this;
 
@@ -31,6 +32,11 @@ namespace AbilityKit.Ability.World.DI
         public T Resolve<T>()
         {
             return (T)Resolve(typeof(T));
+        }
+
+        public T Get<T>()
+        {
+            return Resolve<T>();
         }
 
         public bool TryResolve(Type serviceType, out object instance)
@@ -57,6 +63,11 @@ namespace AbilityKit.Ability.World.DI
 
             instance = default;
             return false;
+        }
+
+        public bool TryGet<T>(out T instance)
+        {
+            return TryResolve(out instance);
         }
 
         internal object GetOrCreate(Type type, Func<object> factory)

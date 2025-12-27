@@ -14,13 +14,13 @@ namespace AbilityKit.Ability.World.DI
             return this;
         }
 
-        public WorldContainerBuilder Register(Type serviceType, WorldLifetime lifetime, Func<IWorldResolver, object> factory)
+        public WorldContainerBuilder Register(Type serviceType, WorldLifetime lifetime, Func<IWorldServices, object> factory)
         {
             _map[serviceType] = new WorldServiceDescriptor(serviceType, lifetime, factory);
             return this;
         }
 
-        public WorldContainerBuilder TryRegister(Type serviceType, WorldLifetime lifetime, Func<IWorldResolver, object> factory)
+        public WorldContainerBuilder TryRegister(Type serviceType, WorldLifetime lifetime, Func<IWorldServices, object> factory)
         {
             if (!_map.ContainsKey(serviceType))
             {
@@ -29,12 +29,12 @@ namespace AbilityKit.Ability.World.DI
             return this;
         }
 
-        public WorldContainerBuilder Register<TService>(WorldLifetime lifetime, Func<IWorldResolver, TService> factory)
+        public WorldContainerBuilder Register<TService>(WorldLifetime lifetime, Func<IWorldServices, TService> factory)
         {
             return Register(typeof(TService), lifetime, r => factory(r));
         }
 
-        public WorldContainerBuilder TryRegister<TService>(WorldLifetime lifetime, Func<IWorldResolver, TService> factory)
+        public WorldContainerBuilder TryRegister<TService>(WorldLifetime lifetime, Func<IWorldServices, TService> factory)
         {
             return TryRegister(typeof(TService), lifetime, r => factory(r));
         }
@@ -50,10 +50,24 @@ namespace AbilityKit.Ability.World.DI
             return Register(typeof(TService), lifetime, r => WorldActivator.Create(typeof(TImpl), r));
         }
 
+        public WorldContainerBuilder RegisterType(Type serviceType, Type implType, WorldLifetime lifetime)
+        {
+            if (serviceType == null) throw new ArgumentNullException(nameof(serviceType));
+            if (implType == null) throw new ArgumentNullException(nameof(implType));
+            return Register(serviceType, lifetime, r => WorldActivator.Create(implType, r));
+        }
+
         public WorldContainerBuilder TryRegisterType<TService, TImpl>(WorldLifetime lifetime)
             where TImpl : TService
         {
             return TryRegister(typeof(TService), lifetime, r => WorldActivator.Create(typeof(TImpl), r));
+        }
+
+        public WorldContainerBuilder TryRegisterType(Type serviceType, Type implType, WorldLifetime lifetime)
+        {
+            if (serviceType == null) throw new ArgumentNullException(nameof(serviceType));
+            if (implType == null) throw new ArgumentNullException(nameof(implType));
+            return TryRegister(serviceType, lifetime, r => WorldActivator.Create(implType, r));
         }
 
         public WorldContainer Build()
