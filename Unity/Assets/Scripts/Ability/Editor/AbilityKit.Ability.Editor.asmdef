@@ -1,0 +1,19 @@
+{
+  "name": "AbilityKit.Ability.Editor",
+  "rootNamespace": "",
+  "references": [
+    "AbilityKit.Ability.Runtime",
+    "AbilityKit.Ability.Unity"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

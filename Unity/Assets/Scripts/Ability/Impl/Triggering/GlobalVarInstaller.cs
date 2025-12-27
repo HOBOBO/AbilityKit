@@ -1,5 +1,5 @@
-using AbilityKit.Configs;
-using AbilityKit.Triggering;
+using AbilityKit.Ability.Configs;
+using AbilityKit.Ability.Triggering;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.Triggering

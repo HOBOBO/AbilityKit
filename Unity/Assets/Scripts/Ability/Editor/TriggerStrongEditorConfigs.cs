@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Configs;
-using AbilityKit.Triggering;
-using AbilityKit.Triggering.Runtime;
+using AbilityKit.Ability.Configs;
+using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Triggering.Runtime;
 using Sirenix.OdinInspector;
 using UnityEditor;
 using UnityEngine;
@@ -186,7 +186,7 @@ namespace AbilityKit.Ability.Editor
         private bool ShowLegacyThreshold => IsThresholdRefEmpty;
         private bool IsThresholdRefEmpty => ThresholdRef == null
                                            || (ThresholdRef.Source == ValueSourceKind.Const
-                                               && (ThresholdRef.ConstValue == null || ThresholdRef.ConstValue.Kind == AbilityKit.Configs.ArgValueKind.None));
+                                               && (ThresholdRef.ConstValue == null || ThresholdRef.ConstValue.Kind == ArgValueKind.None));
 
         protected override string GetTitleSuffix()
         {
@@ -195,8 +195,8 @@ namespace AbilityKit.Ability.Editor
             {
                 return Key + " > " + (ThresholdRef.FromScope == VarScope.Local ? "局部" : "全局") + ":" + (string.IsNullOrEmpty(ThresholdRef.FromKey) ? "<空>" : ThresholdRef.FromKey);
             }
-            var constKind = ThresholdRef != null ? ThresholdRef.GetExpectedKind() : AbilityKit.Configs.ArgValueKind.None;
-            if (constKind == AbilityKit.Configs.ArgValueKind.Float || constKind == AbilityKit.Configs.ArgValueKind.Int)
+            var constKind = ThresholdRef != null ? ThresholdRef.GetExpectedKind() : ArgValueKind.None;
+            if (constKind == ArgValueKind.Float || constKind == ArgValueKind.Int)
             {
                 var boxed = ThresholdRef != null ? ThresholdRef.GetConstBoxedValue() : null;
                 if (boxed != null)
@@ -210,7 +210,7 @@ namespace AbilityKit.Ability.Editor
                     }
                 }
             }
-            if (ThresholdRef != null && ThresholdRef.ConstValue != null && ThresholdRef.ConstValue.Kind != AbilityKit.Configs.ArgValueKind.None)
+            if (ThresholdRef != null && ThresholdRef.ConstValue != null && ThresholdRef.ConstValue.Kind != ArgValueKind.None)
             {
                 return Key + " > " + StrongEditorTitleUtil.FormatArg(ThresholdRef.ConstValue);
             }

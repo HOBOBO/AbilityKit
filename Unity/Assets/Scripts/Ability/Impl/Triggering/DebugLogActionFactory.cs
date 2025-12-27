@@ -1,5 +1,5 @@
-using AbilityKit.Triggering.Definitions;
-using AbilityKit.Triggering.Runtime;
+using AbilityKit.Ability.Triggering.Definitions;
+using AbilityKit.Ability.Triggering.Runtime;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {

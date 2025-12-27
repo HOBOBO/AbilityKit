@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Configs;
+using AbilityKit.Ability.Configs;
 using Sirenix.OdinInspector;
 using UnityEngine;
 

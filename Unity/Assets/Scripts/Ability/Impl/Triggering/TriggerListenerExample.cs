@@ -1,8 +1,8 @@
-using System.Collections.Generic;
-using AbilityKit.Triggering;
-using AbilityKit.Triggering.Definitions;
-using AbilityKit.Triggering.Runtime;
-using AbilityKit.Triggering.Runtime.Builtins;
+﻿using System.Collections.Generic;
+using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Triggering.Definitions;
+using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Ability.Triggering.Runtime.Builtins;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.Triggering

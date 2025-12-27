@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using AbilityKit.Triggering;
+using AbilityKit.Ability.Triggering;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.Triggering

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Triggering;
-using AbilityKit.Triggering.Runtime;
+using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Triggering.Runtime;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {

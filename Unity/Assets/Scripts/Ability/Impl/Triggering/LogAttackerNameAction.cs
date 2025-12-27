@@ -1,7 +1,7 @@
-using System;
-using AbilityKit.Triggering;
-using AbilityKit.Triggering.Definitions;
-using AbilityKit.Triggering.Runtime;
+﻿using System;
+using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Triggering.Definitions;
+using AbilityKit.Ability.Triggering.Runtime;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.Triggering
