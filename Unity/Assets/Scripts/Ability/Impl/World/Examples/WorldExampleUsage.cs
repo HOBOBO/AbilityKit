@@ -1,5 +1,7 @@
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World.Entitas.Systems;
 using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
@@ -8,7 +10,7 @@ namespace AbilityKit.Ability.Impl.World.Examples
 {
     public static class WorldExampleUsage
     {
-        public static IWorldManager CreateOneBattleWorld()
+        public static WorldManagerFrameDriver CreateOneBattleWorldDriver()
         {
             var registry = new WorldTypeRegistry()
                 .RegisterEntitasWorld("battle");
@@ -21,19 +23,17 @@ namespace AbilityKit.Ability.Impl.World.Examples
                 new[] { "AbilityKit" }
             );
 
+            envBuilder.AddModule(new TickCounterWorldModule());
+
             manager.Create(new WorldCreateOptions(new WorldId("room_1"), "battle")
             {
-                ServiceBuilder = envBuilder,
-                Modules =
-                {
-                    new BattleWorldModule()
-                }
+                ServiceBuilder = envBuilder
             });
 
-            return manager;
+            return new WorldManagerFrameDriver(manager);
         }
 
-        public static IWorldManager CreateTwoRooms()
+        public static WorldManagerFrameDriver CreateTwoRoomsDriver()
         {
             var registry = new WorldTypeRegistry()
                 .RegisterEntitasWorld("battle")
@@ -41,12 +41,16 @@ namespace AbilityKit.Ability.Impl.World.Examples
 
             var manager = new WorldManager(new RegistryWorldFactory(registry));
 
-            var envBuilder = WorldServiceContainerFactory.CreateDefaultOnly();
+            var battleBuilder = WorldServiceContainerFactory.CreateDefaultOnly();
+            var townBuilder = WorldServiceContainerFactory.CreateDefaultOnly();
 
-            manager.Create(new WorldCreateOptions(new WorldId("room_1"), "battle") { ServiceBuilder = envBuilder });
-            manager.Create(new WorldCreateOptions(new WorldId("room_2"), "town") { ServiceBuilder = envBuilder });
+            battleBuilder.AddModule(new TickCounterWorldModule());
+            townBuilder.AddModule(new TickCounterWorldModule());
 
-            return manager;
+            manager.Create(new WorldCreateOptions(new WorldId("room_1"), "battle") { ServiceBuilder = battleBuilder });
+            manager.Create(new WorldCreateOptions(new WorldId("room_2"), "town") { ServiceBuilder = townBuilder });
+
+            return new WorldManagerFrameDriver(manager);
         }
     }
 }
