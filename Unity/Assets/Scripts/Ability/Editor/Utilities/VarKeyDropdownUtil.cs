@@ -35,7 +35,7 @@ namespace AbilityKit.Ability.Editor
                 foreach (var k in localKeys)
                 {
                     if (string.IsNullOrEmpty(k)) continue;
-                    var path = "灞€閮?" + GetKindGroup(VarScope.Local, k) + "/" + k;
+                    var path = "局部/" + GetKindGroup(VarScope.Local, k) + "/" + k;
                     list.Add(new ValueDropdownItem<ScopedVarKey>(path, new ScopedVarKey(VarScope.Local, k)));
                 }
             }

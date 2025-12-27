@@ -18,74 +18,31 @@ MonoBehaviour:
   - Enabled: 1
     EventId: 
     Note: 
-    LocalVars:
-    - Key: AASD
-      Kind: 1
-      ReadOnly: 0
-      IntValue: 2
-      FloatValue: 0
-      BoolValue: 0
-      StringValue: 
-      ObjectValue: {fileID: 0}
+    LocalVars: []
     ConditionsStrong:
-    - rid: 7895930050824110091
-    - rid: 7895930053498765391
+    - rid: 7895930064832036864
     ActionsStrong:
-    - rid: 7895930050824110096
-    - rid: 7895930050824110127
+    - rid: 7895930064832036865
   references:
     version: 2
     RefIds:
-    - rid: 7895930050824110091
-      type: {class: ArgEqConditionEditorConfig, ns: AbilityKit.Ability.Editor, asm: Assembly-CSharp-Editor}
+    - rid: 7895930064832036864
+      type: {class: ArgEqConditionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         Key: 
         Expected:
           Source: 0
           ConstValue:
             Key: 
-            Kind: 3
+            Kind: 2
             IntValue: 0
             FloatValue: 0
             BoolValue: 0
             StringValue: 
             ObjectValue: {fileID: 0}
           FromScope: 0
-          FromKey: AAA
-    - rid: 7895930050824110096
-      type: {class: LogAttackerNameActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: Assembly-CSharp-Editor}
+          FromKey: 
+    - rid: 7895930064832036865
+      type: {class: LogAttackerNameActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         Format: "{0}\u53D1\u52A8\u4E86\u653B\u51FB"
-    - rid: 7895930050824110127
-      type: {class: SetVarActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: Assembly-CSharp-Editor}
-      data:
-        Scope: 0
-        ValueSource: 0
-        Key: AAA
-        Value:
-          Key: 
-          Kind: 3
-          IntValue: 0
-          FloatValue: 0
-          BoolValue: 0
-          StringValue: 
-          ObjectValue: {fileID: 0}
-        ValueFromScope: 1
-        ValueFromKey: AAA
-    - rid: 7895930053498765391
-      type: {class: ArgGreaterThanConditionEditorConfig, ns: AbilityKit.Ability.Editor, asm: Assembly-CSharp-Editor}
-      data:
-        Key: 
-        Threshold: 0
-        ThresholdRef:
-          Source: 1
-          ConstValue:
-            Key: 
-            Kind: 0
-            IntValue: 0
-            FloatValue: 0
-            BoolValue: 0
-            StringValue: 
-            ObjectValue: {fileID: 0}
-          FromScope: 1
-          FromKey: AAA

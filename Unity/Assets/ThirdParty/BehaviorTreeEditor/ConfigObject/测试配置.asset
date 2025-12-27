@@ -1,0 +1,83 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6995431eb9f43e1812d1d9ee4e99740, type: 3}
+  m_Name: "\u6D4B\u8BD5\u914D\u7F6E"
+  m_EditorClassIdentifier: 
+  serializationData:
+    SerializedFormat: 2
+    SerializedBytes: 
+    ReferencedUnityObjects: []
+    SerializedBytesString: 
+    Prefab: {fileID: 0}
+    PrefabModificationsReferencedUnityObjects: []
+    PrefabModifications: []
+    SerializationNodes: []
+  Name: test_ai_1
+  source:
+    TreeJson: "{\r\n  \"$type\": \"BTCore.Runtime.BTree, BTRuntime\",\r\n  \"TreeState\":
+      0,\r\n  \"BTData\": {\r\n    \"$type\": \"BTCore.Runtime.BTData, BTRuntime\",\r\n   
+      \"EntryNode\": {\r\n      \"$type\": \"BTCore.Runtime.EntryNode, BTRuntime\",\r\n     
+      \"State\": 0,\r\n      \"ChildGuid\": \"382319ee-034d-4734-9afc-dda8b28b67d8\",\r\n     
+      \"Name\": \"EntryNode\",\r\n      \"Guid\": \"beb5b472-240e-4fcb-b826-ae8d2ca6293d\",\r\n     
+      \"Comment\": null,\r\n      \"PosX\": 225.0,\r\n      \"PosY\": 150.0\r\n   
+      },\r\n    \"Nodes\": {\r\n      \"$type\": \"System.Collections.Generic.List`1[[BTCore.Runtime.BTNode,
+      BTRuntime]], mscorlib\",\r\n      \"$values\": [\r\n        {\r\n         
+      \"$type\": \"BTCore.Runtime.EntryNode, BTRuntime\",\r\n          \"State\":
+      0,\r\n          \"ChildGuid\": \"382319ee-034d-4734-9afc-dda8b28b67d8\",\r\n         
+      \"Name\": \"EntryNode\",\r\n          \"Guid\": \"beb5b472-240e-4fcb-b826-ae8d2ca6293d\",\r\n         
+      \"Comment\": null,\r\n          \"PosX\": 225.0,\r\n          \"PosY\": 150.0\r\n       
+      },\r\n        {\r\n          \"$type\": \"BTCore.Runtime.Composites.Selector,
+      BTRuntime\",\r\n          \"AbortType\": 0,\r\n          \"State\": 0,\r\n         
+      \"Index\": 0,\r\n          \"ChildrenGuids\": {\r\n            \"$type\": \"System.Collections.Generic.List`1[[System.String,
+      mscorlib]], mscorlib\",\r\n            \"$values\": [\r\n              \"1b9ea3b1-6719-4122-89d4-569abf306dc7\",\r\n             
+      \"caffa844-6c5b-4f04-97e8-48271a70f349\"\r\n            ]\r\n          },\r\n         
+      \"Name\": \"Selector\",\r\n          \"Guid\": \"382319ee-034d-4734-9afc-dda8b28b67d8\",\r\n         
+      \"Comment\": null,\r\n          \"PosX\": 225.0,\r\n          \"PosY\": 264.0\r\n       
+      },\r\n        {\r\n          \"$type\": \"BTCore.Runtime.Composites.Sequence,
+      BTRuntime\",\r\n          \"AbortType\": 2,\r\n          \"State\": 0,\r\n         
+      \"Index\": 0,\r\n          \"ChildrenGuids\": {\r\n            \"$type\": \"System.Collections.Generic.List`1[[System.String,
+      mscorlib]], mscorlib\",\r\n            \"$values\": [\r\n              \"75dc256f-bc24-429a-a288-dadb1ca76dbf\",\r\n             
+      \"1ba3f238-2c59-41d5-8e75-8b62bc13f5b7\",\r\n              \"394ac67b-0362-4a01-b394-e6d0144ecfec\"\r\n           
+      ]\r\n          },\r\n          \"Name\": \"Sequence\",\r\n          \"Guid\":
+      \"1b9ea3b1-6719-4122-89d4-569abf306dc7\",\r\n          \"Comment\": null,\r\n         
+      \"PosX\": 140.0,\r\n          \"PosY\": 395.0\r\n        },\r\n        {\r\n         
+      \"$type\": \"BTCore.Runtime.Unity.Conditions.IsKeyDown, BTRuntime.Unity\",\r\n         
+      \"KeyCode\": 97,\r\n          \"State\": 0,\r\n          \"Name\": \"IsKeyDown\",\r\n         
+      \"Guid\": \"75dc256f-bc24-429a-a288-dadb1ca76dbf\",\r\n          \"Comment\":
+      null,\r\n          \"PosX\": 52.0,\r\n          \"PosY\": 560.0\r\n       
+      },\r\n        {\r\n          \"$type\": \"Examples.AbortType.ActionWork, Assembly-CSharp\",\r\n         
+      \"State\": 0,\r\n          \"Name\": \"ActionWork\",\r\n          \"Guid\":
+      \"1ba3f238-2c59-41d5-8e75-8b62bc13f5b7\",\r\n          \"Comment\": null,\r\n         
+      \"PosX\": 246.0,\r\n          \"PosY\": 560.0\r\n        },\r\n        {\r\n         
+      \"$type\": \"Examples.AbortType.ActionSkill, Assembly-CSharp\",\r\n         
+      \"State\": 0,\r\n          \"Name\": \"ActionSkill\",\r\n          \"Guid\":
+      \"caffa844-6c5b-4f04-97e8-48271a70f349\",\r\n          \"Comment\": null,\r\n         
+      \"PosX\": 376.0,\r\n          \"PosY\": 395.0\r\n        },\r\n        {\r\n         
+      \"$type\": \"BTCore.Runtime.Actions.Log, BTRuntime\",\r\n          \"State\":
+      0,\r\n          \"Message\": {\r\n            \"$type\": \"BTCore.Runtime.SharedValue`1[[System.String,
+      mscorlib]], BTRuntime\",\r\n            \"ValueName\": \"TestBB\",\r\n           
+      \"RawValue\": \"\u554A\u54C8\u95EE\u5BA2\u670D\u54C8\u5E08\u5927\",\r\n           
+      \"Value\": \"TESTBB_STRING\"\r\n          },\r\n          \"Name\": \"Log\",\r\n         
+      \"Guid\": \"394ac67b-0362-4a01-b394-e6d0144ecfec\",\r\n          \"Comment\":
+      null,\r\n          \"PosX\": 409.677551,\r\n          \"PosY\": 560.0\r\n       
+      }\r\n      ]\r\n    },\r\n    \"StickNotes\": {\r\n      \"$type\": \"System.Collections.Generic.List`1[[BTCore.Runtime.OtherNodes.StickNoteNode,
+      BTRuntime]], mscorlib\",\r\n      \"$values\": []\r\n    },\r\n    \"NodeGroups\":
+      {\r\n      \"$type\": \"System.Collections.Generic.List`1[[BTCore.Runtime.OtherNodes.GroupNode,
+      BTRuntime]], mscorlib\",\r\n      \"$values\": []\r\n    }\r\n  },\r\n  \"Blackboard\":
+      {\r\n    \"$type\": \"BTCore.Runtime.Blackboards.Blackboard, BTRuntime\",\r\n   
+      \"Values\": {\r\n      \"$type\": \"System.Collections.Generic.List`1[[BTCore.Runtime.Blackboards.BlackboardValue,
+      BTRuntime]], mscorlib\",\r\n      \"$values\": [\r\n        {\r\n         
+      \"$type\": \"BTCore.Runtime.Blackboards.StringValue, BTRuntime\",\r\n         
+      \"Value\": \"TESTBB_STRING\",\r\n          \"Name\": \"TestBB\",\r\n         
+      \"Type\": \"System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089\"\r\n       
+      }\r\n      ]\r\n    }\r\n  },\r\n  \"Settings\": {\r\n    \"$type\": \"BTCore.Runtime.BTSettings,
+      BTRuntime\",\r\n    \"RestartWhenComplete\": false\r\n  }\r\n}"

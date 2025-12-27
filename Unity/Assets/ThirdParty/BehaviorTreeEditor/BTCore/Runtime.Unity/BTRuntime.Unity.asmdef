@@ -1,0 +1,16 @@
+{
+    "name": "BTRuntime.Unity",
+    "rootNamespace": "",
+    "references": [
+        "GUID:16a6c8a30b87ea844a4b0c5eb1fa6caa"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

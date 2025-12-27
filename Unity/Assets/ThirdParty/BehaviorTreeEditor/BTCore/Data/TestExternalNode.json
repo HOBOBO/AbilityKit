@@ -1,0 +1,131 @@
+{
+  "$type": "BTCore.Runtime.BTree, BTRuntime",
+  "TreeState": 0,
+  "BTData": {
+    "$type": "BTCore.Runtime.BTData, BTRuntime",
+    "EntryNode": {
+      "$type": "BTCore.Runtime.EntryNode, BTRuntime",
+      "State": 0,
+      "ChildGuid": "122ead23-d314-4124-ae9d-8a5b07832dd6",
+      "Name": "EntryNode",
+      "Guid": "8290a172-5bd7-4aa7-ad1c-4dc204f47251",
+      "Comment": null,
+      "PosX": 225.0,
+      "PosY": 150.0
+    },
+    "Nodes": {
+      "$type": "System.Collections.Generic.List`1[[BTCore.Runtime.BTNode, BTRuntime]], mscorlib",
+      "$values": [
+        {
+          "$type": "BTCore.Runtime.EntryNode, BTRuntime",
+          "State": 0,
+          "ChildGuid": "122ead23-d314-4124-ae9d-8a5b07832dd6",
+          "Name": "EntryNode",
+          "Guid": "8290a172-5bd7-4aa7-ad1c-4dc204f47251",
+          "Comment": null,
+          "PosX": 225.0,
+          "PosY": 150.0
+        },
+        {
+          "$type": "BTCore.Runtime.Composites.Sequence, BTRuntime",
+          "AbortType": 0,
+          "State": 0,
+          "Index": 0,
+          "ChildrenGuids": {
+            "$type": "System.Collections.Generic.List`1[[System.String, mscorlib]], mscorlib",
+            "$values": [
+              "2d283464-3414-4baf-9193-33e113e08edf",
+              "3979f92d-7dac-4901-a0ab-d1e37e386ccc",
+              "f8134943-187f-49ff-a14b-ca28790bfdfc",
+              "9f99d609-a0fa-4618-ade5-81d36168fd7e"
+            ]
+          },
+          "Name": "Sequence",
+          "Guid": "122ead23-d314-4124-ae9d-8a5b07832dd6",
+          "Comment": null,
+          "PosX": 225.0,
+          "PosY": 278.0
+        },
+        {
+          "$type": "BTCore.Runtime.Externals.ExternalAction, BTRuntime",
+          "State": 0,
+          "TypeName": "MyAction",
+          "Properties": {
+            "$type": "System.Collections.Generic.Dictionary`2[[System.String, mscorlib],[System.String, mscorlib]], mscorlib",
+            "Name": "Saroce"
+          },
+          "Name": "MyAction",
+          "Guid": "2d283464-3414-4baf-9193-33e113e08edf",
+          "Comment": null,
+          "PosX": 18.0,
+          "PosY": 446.0
+        },
+        {
+          "$type": "BTCore.Runtime.Actions.Wait, BTRuntime",
+          "State": 0,
+          "Duration": 3000,
+          "Name": "Wait",
+          "Guid": "3979f92d-7dac-4901-a0ab-d1e37e386ccc",
+          "Comment": null,
+          "PosX": 176.0,
+          "PosY": 446.0
+        },
+        {
+          "$type": "BTCore.Runtime.Externals.ExternalCondition, BTRuntime",
+          "State": 0,
+          "TypeName": "MyCondition",
+          "Properties": {
+            "$type": "System.Collections.Generic.Dictionary`2[[System.String, mscorlib],[System.String, mscorlib]], mscorlib",
+            "CanPass": "true"
+          },
+          "Name": "MyCondition",
+          "Guid": "f8134943-187f-49ff-a14b-ca28790bfdfc",
+          "Comment": null,
+          "PosX": 340.0,
+          "PosY": 446.0
+        },
+        {
+          "$type": "BTCore.Runtime.Actions.Log, BTRuntime",
+          "State": 0,
+          "Message": {
+            "$type": "BTCore.Runtime.SharedValue`1[[System.String, mscorlib]], BTRuntime",
+            "ValueName": "LogTest",
+            "RawValue": "Hello",
+            "Value": "LogFromBlackboard"
+          },
+          "Name": "Log",
+          "Guid": "9f99d609-a0fa-4618-ade5-81d36168fd7e",
+          "Comment": null,
+          "PosX": 500.0,
+          "PosY": 446.0
+        }
+      ]
+    },
+    "StickNotes": {
+      "$type": "System.Collections.Generic.List`1[[BTCore.Runtime.OtherNodes.StickNoteNode, BTRuntime]], mscorlib",
+      "$values": []
+    },
+    "NodeGroups": {
+      "$type": "System.Collections.Generic.List`1[[BTCore.Runtime.OtherNodes.GroupNode, BTRuntime]], mscorlib",
+      "$values": []
+    }
+  },
+  "Blackboard": {
+    "$type": "BTCore.Runtime.Blackboards.Blackboard, BTRuntime",
+    "Values": {
+      "$type": "System.Collections.Generic.List`1[[BTCore.Runtime.Blackboards.BlackboardValue, BTRuntime]], mscorlib",
+      "$values": [
+        {
+          "$type": "BTCore.Runtime.Blackboards.StringValue, BTRuntime",
+          "Value": "LogFromBlackboard",
+          "Name": "LogTest",
+          "Type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+        }
+      ]
+    }
+  },
+  "Settings": {
+    "$type": "BTCore.Runtime.BTSettings, BTRuntime",
+    "RestartWhenComplete": false
+  }
+}
