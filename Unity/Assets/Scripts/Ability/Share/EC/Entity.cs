@@ -42,9 +42,19 @@ namespace AbilityKit.Ability.EC
             return _world.CreateChild(Id);
         }
 
+        public Entity AddChild(string name)
+        {
+            return _world.CreateChild(Id, name);
+        }
+
         public Entity AddChild(int childId)
         {
             return _world.CreateChild(Id, childId);
+        }
+
+        public Entity AddChild(int childId, string name)
+        {
+            return _world.CreateChild(Id, childId, name);
         }
 
         public Entity AddChild<T1>(int childId, T1 arg1, Action<Entity, T1> init)
@@ -127,6 +137,21 @@ namespace AbilityKit.Ability.EC
         public void Destroy()
         {
             _world.Destroy(Id);
+        }
+
+        public bool TryGetName(out string name)
+        {
+            return _world.TryGetName(Id, out name);
+        }
+
+        public string GetName()
+        {
+            return _world.GetName(Id);
+        }
+
+        public void SetName(string name)
+        {
+            _world.SetName(Id, name);
         }
 
         public bool Equals(Entity other)

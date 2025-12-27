@@ -10,6 +10,10 @@ namespace AbilityKit.Ability.EC
         private int[] _versions = Array.Empty<int>();
         private bool[] _alive = Array.Empty<bool>();
 
+#if UNITY_EDITOR
+        private string[] _names = Array.Empty<string>();
+#endif
+
         private int[] _parentIndex = Array.Empty<int>();
         private List<int>[] _children = Array.Empty<List<int>>();
         private List<int>[] _childIds = Array.Empty<List<int>>();
@@ -17,7 +21,23 @@ namespace AbilityKit.Ability.EC
 
         private object[][] _components = Array.Empty<object[]>();
 
+        public event Action<Entity> EntityCreated;
+        public event Action<EntityId> EntityDestroyed;
+        public event Action<EntityId, EntityId, EntityId> ParentChanged;
+        public event Action<EntityId, int, object> ComponentSet;
+        public event Action<EntityId, int> ComponentRemoved;
+
         public Entity Create()
+        {
+            return CreateInternal(null);
+        }
+
+        public Entity Create(string name)
+        {
+            return CreateInternal(name);
+        }
+
+        private Entity CreateInternal(string name)
         {
             var index = _free.Count > 0 ? _free.Pop() : AllocateNewIndex();
             var version = _versions[index];
@@ -27,7 +47,13 @@ namespace AbilityKit.Ability.EC
             _children[index]?.Clear();
             _components[index] = null;
 
-            return new Entity(this, new EntityId(index, version));
+#if UNITY_EDITOR
+            _names[index] = name;
+#endif
+
+            var e = new Entity(this, new EntityId(index, version));
+            EntityCreated?.Invoke(e);
+            return e;
         }
 
         public Entity CreateChild(EntityId parent)
@@ -38,10 +64,26 @@ namespace AbilityKit.Ability.EC
             return child;
         }
 
+        public Entity CreateChild(EntityId parent, string name)
+        {
+            EnsureAlive(parent);
+            var child = Create(name);
+            SetParent(child.Id, parent);
+            return child;
+        }
+
         public Entity CreateChild(EntityId parent, int childId)
         {
             EnsureAlive(parent);
             var child = Create();
+            SetParent(child.Id, parent, childId);
+            return child;
+        }
+
+        public Entity CreateChild(EntityId parent, int childId, string name)
+        {
+            EnsureAlive(parent);
+            var child = Create(name);
             SetParent(child.Id, parent, childId);
             return child;
         }
@@ -143,9 +185,54 @@ namespace AbilityKit.Ability.EC
             }
 
             _components[index] = null;
+
+#if UNITY_EDITOR
+            _names[index] = null;
+#endif
             _alive[index] = false;
             _versions[index]++;
             _free.Push(index);
+
+            EntityDestroyed?.Invoke(id);
+        }
+
+        public bool TryGetName(EntityId id, out string name)
+        {
+#if UNITY_EDITOR
+            if (!IsAlive(id))
+            {
+                name = null;
+                return false;
+            }
+
+            name = _names[id.Index];
+            return !string.IsNullOrEmpty(name);
+#else
+            name = null;
+            return false;
+#endif
+        }
+
+        public string GetName(EntityId id)
+        {
+            if (TryGetName(id, out var name)) return name;
+            return null;
+        }
+
+        public void SetName(EntityId id, string name)
+        {
+#if UNITY_EDITOR
+            EnsureAlive(id);
+            _names[id.Index] = name;
+#endif
+        }
+
+        public void ClearName(EntityId id)
+        {
+#if UNITY_EDITOR
+            EnsureAlive(id);
+            _names[id.Index] = null;
+#endif
         }
 
         public void DestroyRecursive(EntityId id)
@@ -232,6 +319,12 @@ namespace AbilityKit.Ability.EC
                 _children[parent.Index] = list;
             }
             list.Add(child.Index);
+
+            ParentChanged?.Invoke(
+                child,
+                oldParent == -1 ? default : new EntityId(oldParent, _versions[oldParent]),
+                parent
+            );
         }
 
         public void SetParent(EntityId child, EntityId parent, int childId)
@@ -275,6 +368,12 @@ namespace AbilityKit.Ability.EC
             list.Add(child.Index);
             ids.Add(childId);
             map[childId] = idx;
+
+            ParentChanged?.Invoke(
+                child,
+                oldParent == -1 ? default : new EntityId(oldParent, _versions[oldParent]),
+                parent
+            );
         }
 
         public bool TryGetChildById(EntityId parent, int childId, out Entity child)
@@ -308,6 +407,32 @@ namespace AbilityKit.Ability.EC
         {
             if (TryGetChildById(parent, childId, out var child)) return child;
             throw new KeyNotFoundException($"Child not found: parent={parent} childId={childId}");
+        }
+
+        public bool TryGetChildId(EntityId parent, EntityId child, out int childId)
+        {
+            if (!IsAlive(parent) || !IsAlive(child))
+            {
+                childId = default;
+                return false;
+            }
+
+            var list = _children[parent.Index];
+            var ids = _childIds[parent.Index];
+            if (list == null || ids == null) {
+                childId = default;
+                return false;
+            }
+
+            for (int i = 0; i < list.Count && i < ids.Count; i++)
+            {
+                if (list[i] != child.Index) continue;
+                childId = ids[i];
+                return true;
+            }
+
+            childId = default;
+            return false;
         }
 
         public int GetChildCount(EntityId id)
@@ -346,6 +471,7 @@ namespace AbilityKit.Ability.EC
             }
 
             store[typeId] = component;
+            ComponentSet?.Invoke(id, typeId, component);
         }
 
         public T GetComponent<T>(EntityId id) where T : class
@@ -389,7 +515,43 @@ namespace AbilityKit.Ability.EC
 
             if (store[typeId] == null) return false;
             store[typeId] = null;
+            ComponentRemoved?.Invoke(id, typeId);
             return true;
+        }
+
+        public void ForEachAlive(Action<Entity> visitor)
+        {
+            if (visitor == null) throw new ArgumentNullException(nameof(visitor));
+
+            for (int i = 0; i < _alive.Length; i++)
+            {
+                if (!_alive[i]) continue;
+                var id = new EntityId(i, _versions[i]);
+                if (!IsAlive(id)) continue;
+                visitor(new Entity(this, id));
+            }
+        }
+
+        public void ForEachComponent(EntityId id, Action<int, object> visitor)
+        {
+            EnsureAlive(id);
+            if (visitor == null) throw new ArgumentNullException(nameof(visitor));
+
+            var store = _components[id.Index];
+            if (store == null) return;
+
+            for (int typeId = 0; typeId < store.Length; typeId++)
+            {
+                var c = store[typeId];
+                if (c == null) continue;
+                visitor(typeId, c);
+            }
+        }
+
+        public Entity Wrap(EntityId id)
+        {
+            EnsureAlive(id);
+            return new Entity(this, id);
         }
 
         private int AllocateNewIndex()
@@ -399,6 +561,9 @@ namespace AbilityKit.Ability.EC
 
             Array.Resize(ref _versions, newLen);
             Array.Resize(ref _alive, newLen);
+#if UNITY_EDITOR
+            Array.Resize(ref _names, newLen);
+#endif
             Array.Resize(ref _parentIndex, newLen);
             Array.Resize(ref _children, newLen);
             Array.Resize(ref _childIds, newLen);
