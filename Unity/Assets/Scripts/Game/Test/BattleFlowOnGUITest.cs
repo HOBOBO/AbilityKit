@@ -33,7 +33,7 @@ namespace AbilityKit.Game.Test
 
         private void OnEnable()
         {
-            Application.targetFrameRate = 30;
+            Application.targetFrameRate = 60;
             Log("[BattleFlowOnGUITest] Enabled");
         }
 
