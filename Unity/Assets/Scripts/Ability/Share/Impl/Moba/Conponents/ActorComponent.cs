@@ -1,7 +1,7 @@
 using AbilityKit.Ability.Share.Math;
 using Entitas;
 
-namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Conponents
+namespace AbilityKit.Ability.Impl.Moba.Conponents
 {
     [Actor]
     public sealed class TransformComponent : IComponent

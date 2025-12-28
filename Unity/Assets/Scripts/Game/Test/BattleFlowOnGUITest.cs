@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Impl.Moba.Systems;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Requests;
 using UnityEngine;
@@ -12,6 +15,8 @@ namespace AbilityKit.Game.Test
     public sealed class BattleFlowOnGUITest : MonoBehaviour
     {
         private Battle.BattleLogicSession _session;
+
+        private GameObject _firstActorGo;
 
         private bool _useRemote;
         private bool _autoTick = true;
@@ -218,7 +223,18 @@ namespace AbilityKit.Game.Test
                 _session = null;
             }
 
+            DestroyFirstActorView();
+
             Log("Session stopped");
+        }
+
+        private void DestroyFirstActorView()
+        {
+            if (_firstActorGo != null)
+            {
+                Destroy(_firstActorGo);
+                _firstActorGo = null;
+            }
         }
 
         private void CreateWorld()
@@ -240,7 +256,21 @@ namespace AbilityKit.Game.Test
                 ServiceBuilder = builder
             };
 
-            _session.CreateWorld(new CreateWorldRequest(options));
+            var req = new EnterMobaGameReq(
+                playerId: new PlayerId(_playerId),
+                matchId: _worldId,
+                mapId: 1,
+                teamId: 1,
+                heroId: 101,
+                randomSeed: 12345,
+                tickRate: 30,
+                inputDelayFrames: 2,
+                opCode: 0,
+                payload: null
+            );
+
+            var initPayload = EnterMobaGameCodec.SerializeReq(req);
+            _session.CreateWorld(new CreateWorldRequest(options, MobaWorldBootstrapModule.InitOpCode, initPayload));
             Log($"CreateWorld: {options.Id.Value}, type={options.WorldType}");
         }
 
@@ -258,12 +288,38 @@ namespace AbilityKit.Game.Test
         {
             _lastFrame = packet.Frame.Value;
 
+            if (packet.Snapshot.HasValue && packet.Snapshot.Value.OpCode == MobaEnterGameSnapshotService.SnapshotOpCode)
+            {
+                ApplyEnterGameResSnapshot(packet.Snapshot.Value.Payload);
+            }
+
             var inputsCount = packet.Inputs?.Count ?? 0;
             var snapshotInfo = packet.Snapshot.HasValue
                 ? $"snapshot(op={packet.Snapshot.Value.OpCode}, bytes={(packet.Snapshot.Value.Payload?.Length ?? 0)})"
                 : "snapshot(null)";
 
             Log($"OnFrame: world={packet.WorldId.Value}, frame={packet.Frame.Value}, inputs={inputsCount}, {snapshotInfo}");
+        }
+
+        private void ApplyEnterGameResSnapshot(byte[] payload)
+        {
+            if (payload == null || payload.Length == 0) return;
+
+            var res = EnterMobaGameCodec.DeserializeRes(payload);
+            if (res.Payload == null || res.Payload.Length < 12) return;
+
+            var x = BitConverter.ToSingle(res.Payload, 0);
+            var y = BitConverter.ToSingle(res.Payload, 4);
+            var z = BitConverter.ToSingle(res.Payload, 8);
+
+            if (_firstActorGo == null)
+            {
+                _firstActorGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                _firstActorGo.name = "FirstActor";
+                _firstActorGo.transform.localScale = new Vector3(1f, 2f, 1f);
+            }
+
+            _firstActorGo.transform.position = new Vector3(x, y, z);
         }
 
         private void Log(string msg)

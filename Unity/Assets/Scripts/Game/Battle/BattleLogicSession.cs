@@ -97,6 +97,11 @@ namespace AbilityKit.Game.Battle
 
         public WorldId WorldId => _client.WorldId;
 
+        public bool TryGetWorld(out IWorld world)
+        {
+            return _worldManager.TryGet(_client.WorldId, out world);
+        }
+
         public void Connect()
         {
             _client.Connect();

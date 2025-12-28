@@ -1,6 +1,8 @@
 using System;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Impl.Moba.Systems;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Game.Battle.Requests;
 
 namespace AbilityKit.Game.Battle
@@ -32,7 +34,12 @@ namespace AbilityKit.Game.Battle
 
         public void SendCreateWorld(CreateWorldRequest request)
         {
-            _server.CreateWorld(request.Options);
+            var options = request.Options;
+            options.ServiceBuilder ??= AbilityKit.Ability.World.Services.WorldServiceContainerFactory.CreateDefaultOnly();
+            options.ServiceBuilder.RegisterInstance(new WorldInitData(request.OpCode, request.Payload));
+            options.Modules.Add(new MobaWorldBootstrapModule());
+
+            _server.CreateWorld(options);
         }
 
         public void SendJoin(JoinWorldRequest request)
