@@ -6,8 +6,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class MobaEnterGameSnapshotService : IWorldStateSnapshotProvider
     {
-        public const int SnapshotOpCode = 2001;
-
         private bool _hasSnapshot;
         private bool _sent;
         private byte[] _snapshotPayload;
@@ -27,7 +25,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 return false;
             }
 
-            snapshot = new WorldStateSnapshot(SnapshotOpCode, _snapshotPayload);
+            snapshot = new WorldStateSnapshot((int)MobaOpCode.EnterGameSnapshot, _snapshotPayload);
             _sent = true;
             return true;
         }

@@ -1,8 +1,16 @@
 using AbilityKit.Ability.Share.Math;
 using Entitas;
+using Entitas.CodeGeneration.Attributes;
 
 namespace AbilityKit.Ability.Impl.Moba.Conponents
 {
+    [Actor]
+    [PrimaryEntityIndex]
+    public sealed class ActorIdComponent : IComponent
+    {
+        public int Value;
+    }
+
     [Actor]
     public sealed class TransformComponent : IComponent
     {

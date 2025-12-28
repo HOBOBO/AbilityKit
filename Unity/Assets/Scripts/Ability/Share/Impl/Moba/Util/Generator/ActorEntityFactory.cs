@@ -37,6 +37,14 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
         // 获取当前实体
         public ActorEntity Entity => _entity;
 
+        // 初始化或替换 ActorId（用于逻辑/表现层映射的稳定 ID）
+        public ActorEntityBuilder WithActorId(int actorId)
+        {
+            if (_entity.hasActorId) _entity.ReplaceActorId(actorId);
+            else _entity.AddActorId(actorId);
+            return this;
+        }
+
         // 初始化或替换 Transform 组件
         public ActorEntityBuilder WithTransform(in Transform3 transform)
         {

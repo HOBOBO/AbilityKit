@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Management;
 
@@ -76,6 +77,15 @@ namespace AbilityKit.Ability.Server
             if (!Contains(session.Players, playerId))
             {
                 session.Players.Add(playerId);
+
+                if (_worlds.TryGet(worldId, out var world) && world.Services != null)
+                {
+                    if (world.Services.TryGet<MobaLobbyStateService>(out var lobby) && lobby != null)
+                    {
+                        lobby.OnPlayerJoined(playerId);
+                    }
+                }
+
                 foreach (var c in _clients.Values)
                 {
                     c.OnPlayerJoined(worldId, playerId);
@@ -94,6 +104,14 @@ namespace AbilityKit.Ability.Server
             {
                 if (session.Players[i].Value != playerId.Value) continue;
                 session.Players.RemoveAt(i);
+
+                if (_worlds.TryGet(worldId, out var world) && world.Services != null)
+                {
+                    if (world.Services.TryGet<MobaLobbyStateService>(out var lobby) && lobby != null)
+                    {
+                        lobby.OnPlayerLeft(playerId);
+                    }
+                }
 
                 foreach (var c in _clients.Values)
                 {

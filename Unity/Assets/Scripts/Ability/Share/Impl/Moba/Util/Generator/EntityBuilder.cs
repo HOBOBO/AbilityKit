@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Math;
 
@@ -7,23 +8,30 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 {
     public static class EntityBuilder
     {
-        public static BuildEnterGameResult BuildEnterGameActors(ActorContext actorContext, in EnterMobaGameReq req)
+        public static BuildEnterGameResult BuildEnterGameActors(ActorContext actorContext, ActorIdAllocator actorIds, MobaActorRegistry registry, in EnterMobaGameReq req)
         {
             if (actorContext == null) throw new ArgumentNullException(nameof(actorContext));
+            if (actorIds == null) throw new ArgumentNullException(nameof(actorIds));
+            if (registry == null) throw new ArgumentNullException(nameof(registry));
 
             var spawnPos = GetSpawnPosition(req.TeamId, spawnIndex: 0);
             var transform = new Transform3(spawnPos, Quat.Identity, Vec3.One);
 
-            ActorEntityFactory.Create(actorContext)
+            var actorId = actorIds.Next();
+
+            var entity = ActorEntityFactory.Create(actorContext)
+                .WithActorId(actorId)
                 .WithTransform(transform)
                 .Build();
+
+            registry.Register(actorId, entity);
 
             var players = new[]
             {
                 new MobaPlayerEntry(req.PlayerId, req.TeamId, req.HeroId, spawnIndex: 0)
             };
 
-            return new BuildEnterGameResult(localActorId: 1, players: players, localActorTransform: transform);
+            return new BuildEnterGameResult(localActorId: actorId, players: players, localActorTransform: transform);
         }
 
         private static Vec3 GetSpawnPosition(int teamId, int spawnIndex)

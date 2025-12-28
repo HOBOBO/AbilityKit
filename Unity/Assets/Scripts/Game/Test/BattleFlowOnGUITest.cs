@@ -16,7 +16,7 @@ namespace AbilityKit.Game.Test
     {
         private Battle.BattleLogicSession _session;
 
-        private GameObject _firstActorGo;
+        private readonly Dictionary<int, GameObject> _actorViews = new Dictionary<int, GameObject>();
 
         private bool _useRemote;
         private bool _autoTick = true;
@@ -202,6 +202,7 @@ namespace AbilityKit.Game.Test
             _session.Connect();
             CreateWorld();
             _session.Join(new JoinWorldRequest(new WorldId(_worldId), new PlayerId(_playerId)));
+            _session.SubmitInput(new SubmitInputRequest(new WorldId(_worldId), new PlayerInputCommand(new FrameIndex(_lastFrame + 1), new PlayerId(_playerId), (int)MobaOpCode.Ready, Array.Empty<byte>())));
             Log("One-Click Start done: Connect + CreateWorld + Join");
         }
 
@@ -230,11 +231,12 @@ namespace AbilityKit.Game.Test
 
         private void DestroyFirstActorView()
         {
-            if (_firstActorGo != null)
+            foreach (var kv in _actorViews)
             {
-                Destroy(_firstActorGo);
-                _firstActorGo = null;
+                if (kv.Value != null) Destroy(kv.Value);
             }
+
+            _actorViews.Clear();
         }
 
         private void CreateWorld()
@@ -288,9 +290,16 @@ namespace AbilityKit.Game.Test
         {
             _lastFrame = packet.Frame.Value;
 
-            if (packet.Snapshot.HasValue && packet.Snapshot.Value.OpCode == MobaEnterGameSnapshotService.SnapshotOpCode)
+            if (packet.Snapshot.HasValue)
             {
-                ApplyEnterGameResSnapshot(packet.Snapshot.Value.Payload);
+                if (packet.Snapshot.Value.OpCode == (int)MobaOpCode.EnterGameSnapshot)
+                {
+                    ApplyEnterGameResSnapshot(packet.Snapshot.Value.Payload);
+                }
+                else if (packet.Snapshot.Value.OpCode == (int)MobaOpCode.LobbySnapshot)
+                {
+                    ApplyLobbySnapshot(packet.Snapshot.Value.Payload);
+                }
             }
 
             var inputsCount = packet.Inputs?.Count ?? 0;
@@ -299,6 +308,22 @@ namespace AbilityKit.Game.Test
                 : "snapshot(null)";
 
             Log($"OnFrame: world={packet.WorldId.Value}, frame={packet.Frame.Value}, inputs={inputsCount}, {snapshotInfo}");
+        }
+
+        private void ApplyLobbySnapshot(byte[] payload)
+        {
+            if (payload == null || payload.Length == 0) return;
+            var snap = MobaLobbyCodec.DeserializeSnapshot(payload);
+            var count = snap.Players == null ? 0 : snap.Players.Length;
+            var readyCount = 0;
+            if (snap.Players != null)
+            {
+                for (int i = 0; i < snap.Players.Length; i++)
+                {
+                    if (snap.Players[i].Ready) readyCount++;
+                }
+            }
+            Log($"LobbySnapshot: version={snap.Version}, started={snap.Started}, joined={count}, ready={readyCount}");
         }
 
         private void ApplyEnterGameResSnapshot(byte[] payload)
@@ -312,14 +337,15 @@ namespace AbilityKit.Game.Test
             var y = BitConverter.ToSingle(res.Payload, 4);
             var z = BitConverter.ToSingle(res.Payload, 8);
 
-            if (_firstActorGo == null)
+            if (!_actorViews.TryGetValue(res.LocalActorId, out var go) || go == null)
             {
-                _firstActorGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                _firstActorGo.name = "FirstActor";
-                _firstActorGo.transform.localScale = new Vector3(1f, 2f, 1f);
+                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.name = $"Actor_{res.LocalActorId}";
+                go.transform.localScale = new Vector3(1f, 2f, 1f);
+                _actorViews[res.LocalActorId] = go;
             }
 
-            _firstActorGo.transform.position = new Vector3(x, y, z);
+            go.transform.position = new Vector3(x, y, z);
         }
 
         private void Log(string msg)
