@@ -1,9 +1,9 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Management;
-using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Server.Examples
@@ -56,19 +56,19 @@ namespace AbilityKit.Ability.Server.Examples
 
             public ServerClientId ClientId { get; }
 
-            public void OnWorldCreated(AbilityKit.Ability.World.Abstractions.WorldId worldId, string worldType)
+            public void OnWorldCreated(WorldId worldId, string worldType)
             {
             }
 
-            public void OnWorldDestroyed(AbilityKit.Ability.World.Abstractions.WorldId worldId)
+            public void OnWorldDestroyed(WorldId worldId)
             {
             }
 
-            public void OnPlayerJoined(AbilityKit.Ability.World.Abstractions.WorldId worldId, PlayerId player)
+            public void OnPlayerJoined(WorldId worldId, PlayerId player)
             {
             }
 
-            public void OnPlayerLeft(AbilityKit.Ability.World.Abstractions.WorldId worldId, PlayerId player)
+            public void OnPlayerLeft(WorldId worldId, PlayerId player)
             {
             }
 
@@ -89,13 +89,13 @@ namespace AbilityKit.Ability.Server.Examples
             builder.AddModule(new AbilityKit.Ability.World.Entitas.Systems.TickCounterWorldModule());
             builder.AddModule(new DebugServerWorldModule());
 
-            server.CreateWorld(new WorldCreateOptions(new AbilityKit.Ability.World.Abstractions.WorldId("room_1"), "battle")
+            server.CreateWorld(new WorldCreateOptions(new WorldId("room_1"), "battle")
             {
                 ServiceBuilder = builder
             });
 
-            server.JoinWorld(new ServerClientId("client_1"), new AbilityKit.Ability.World.Abstractions.WorldId("room_1"), new PlayerId("p1"));
-            server.SubmitInput(new ServerClientId("client_1"), new AbilityKit.Ability.World.Abstractions.WorldId("room_1"), new PlayerInputCommand(new FrameIndex(0), new PlayerId("p1"), 1, new byte[] { 1, 2, 3 }));
+            server.JoinWorld(new ServerClientId("client_1"), new WorldId("room_1"), new PlayerId("p1"));
+            server.SubmitInput(new ServerClientId("client_1"), new WorldId("room_1"), new PlayerInputCommand(new FrameIndex(0), new PlayerId("p1"), 1, new byte[] { 1, 2, 3 }));
 
             server.Tick(0.016f);
             return server;
