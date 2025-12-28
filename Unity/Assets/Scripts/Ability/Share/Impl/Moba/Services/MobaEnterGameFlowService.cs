@@ -15,14 +15,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly IWorldContext _worldContext;
         private readonly ActorIdAllocator _actorIds;
         private readonly MobaActorRegistry _registry;
+        private readonly MobaPlayerActorMapService _playerActorMap;
 
-        public MobaEnterGameFlowService(MobaLobbyStateService lobby, MobaEnterGameSnapshotService snapshot, IWorldContext worldContext, ActorIdAllocator actorIds, MobaActorRegistry registry)
+        public MobaEnterGameFlowService(MobaLobbyStateService lobby, MobaEnterGameSnapshotService snapshot, IWorldContext worldContext, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaPlayerActorMapService playerActorMap)
         {
             _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
             _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
             _worldContext = worldContext ?? throw new ArgumentNullException(nameof(worldContext));
             _actorIds = actorIds ?? throw new ArgumentNullException(nameof(actorIds));
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            _playerActorMap = playerActorMap ?? throw new ArgumentNullException(nameof(playerActorMap));
         }
 
         public bool TryStartGame(ActorContext actorContext)
@@ -35,6 +37,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (!_lobby.TryGetEnterGameReq(out var req)) return false;
 
             var built = EntityBuilder.BuildEnterGameActors(actorContext, _actorIds, _registry, req);
+
+            _playerActorMap.Bind(req.PlayerId, built.LocalActorId);
 
             var payload = new byte[12];
             var p = built.LocalActorTransform.Position;

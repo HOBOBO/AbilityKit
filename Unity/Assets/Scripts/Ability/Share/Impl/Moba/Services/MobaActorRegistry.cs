@@ -7,6 +7,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     {
         private readonly Dictionary<int, global::ActorEntity> _byId = new Dictionary<int, global::ActorEntity>();
 
+        public IEnumerable<KeyValuePair<int, global::ActorEntity>> Entries => _byId;
+
         public void Register(int actorId, global::ActorEntity entity)
         {
             if (actorId <= 0) throw new ArgumentOutOfRangeException(nameof(actorId));

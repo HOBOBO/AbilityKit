@@ -23,6 +23,9 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.RegisterType<ActorIdIndex, ActorIdIndex>(WorldLifetime.Scoped);
             builder.RegisterType<MobaActorLookupService, MobaActorLookupService>(WorldLifetime.Scoped);
 
+            builder.RegisterType<MobaPlayerActorMapService, MobaPlayerActorMapService>(WorldLifetime.Scoped);
+            builder.RegisterType<MobaActorTransformSnapshotService, MobaActorTransformSnapshotService>(WorldLifetime.Scoped);
+
             builder.RegisterType<MobaEnterGameSnapshotService, MobaEnterGameSnapshotService>(WorldLifetime.Scoped);
 
             builder.RegisterType<MobaLobbySnapshotService, MobaLobbySnapshotService>(WorldLifetime.Scoped);

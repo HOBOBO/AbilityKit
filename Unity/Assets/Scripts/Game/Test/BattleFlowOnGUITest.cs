@@ -9,6 +9,9 @@ using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Requests;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace AbilityKit.Game.Test
 {
@@ -20,6 +23,9 @@ namespace AbilityKit.Game.Test
 
         private bool _useRemote;
         private bool _autoTick = true;
+        private bool _wasdMove;
+        private bool _logToConsole = true;
+        private bool _logFrames;
 
         private string _worldId = "room_1";
         private string _worldType = "battle";
@@ -32,6 +38,11 @@ namespace AbilityKit.Game.Test
         private int _lastFrame;
         private Vector2 _scroll;
         private readonly List<string> _logs = new List<string>(256);
+
+        private float _moveLogCooldown;
+        private float _snapshotLogCooldown;
+        private float _frameLogCooldown;
+        private float _inputDiagCooldown;
 
         private const float FixedDelta = 1f / 30f;
         private float _tickAccumulator;
@@ -58,6 +69,58 @@ namespace AbilityKit.Game.Test
                     _tickAccumulator -= FixedDelta;
                 }
             }
+
+            if (_wasdMove && _session != null)
+            {
+                GetMoveInput(out var dx, out var dz);
+
+                if (Math.Abs(dx) > 0.0001f || Math.Abs(dz) > 0.0001f)
+                {
+                    var payload = MobaMoveCodec.Serialize(dx, dz);
+                    var cmd = new PlayerInputCommand(new FrameIndex(_lastFrame + 1), new PlayerId(_playerId), (int)MobaOpCode.Move, payload);
+                    _session.SubmitInput(new SubmitInputRequest(new WorldId(_worldId), cmd));
+
+                    _moveLogCooldown -= Time.deltaTime;
+                    if (_moveLogCooldown <= 0f)
+                    {
+                        _moveLogCooldown = 0.2f;
+                        Log($"SendMove: frame={cmd.Frame.Value}, dx={dx}, dz={dz}");
+                    }
+                }
+                else
+                {
+                    _inputDiagCooldown -= Time.deltaTime;
+                    if (_inputDiagCooldown <= 0f)
+                    {
+                        _inputDiagCooldown = 1f;
+                        Log($"WASD idle: focused={Application.isFocused}, dx={dx}, dz={dz}. If dx/dz always 0, check GameView focus or Active Input Handling (New Input System). ");
+                    }
+                }
+            }
+        }
+
+        private static void GetMoveInput(out float dx, out float dz)
+        {
+            dx = 0f;
+            dz = 0f;
+
+#if ENABLE_INPUT_SYSTEM
+            var kb = Keyboard.current;
+            if (kb != null)
+            {
+                if (kb.aKey.isPressed) dx -= 1f;
+                if (kb.dKey.isPressed) dx += 1f;
+                if (kb.wKey.isPressed) dz += 1f;
+                if (kb.sKey.isPressed) dz -= 1f;
+                return;
+            }
+#endif
+
+            // Legacy input
+            if (Input.GetKey(KeyCode.A)) dx -= 1f;
+            if (Input.GetKey(KeyCode.D)) dx += 1f;
+            if (Input.GetKey(KeyCode.W)) dz += 1f;
+            if (Input.GetKey(KeyCode.S)) dz -= 1f;
         }
 
         private void OnGUI()
@@ -70,6 +133,9 @@ namespace AbilityKit.Game.Test
 
             _useRemote = GUILayout.Toggle(_useRemote, "Remote Mode (In-Memory Transport)");
             _autoTick = GUILayout.Toggle(_autoTick, "Auto Tick (Update)");
+            _wasdMove = GUILayout.Toggle(_wasdMove, "WASD Move (Send Move Input)");
+            _logToConsole = GUILayout.Toggle(_logToConsole, "Log To Console (Debug.Log)");
+            _logFrames = GUILayout.Toggle(_logFrames, "Log Every Frame (Noisy)");
 
             GUILayout.Space(6);
 
@@ -300,6 +366,10 @@ namespace AbilityKit.Game.Test
                 {
                     ApplyLobbySnapshot(packet.Snapshot.Value.Payload);
                 }
+                else if (packet.Snapshot.Value.OpCode == (int)MobaOpCode.ActorTransformSnapshot)
+                {
+                    ApplyActorTransformSnapshot(packet.Snapshot.Value.Payload);
+                }
             }
 
             var inputsCount = packet.Inputs?.Count ?? 0;
@@ -307,7 +377,19 @@ namespace AbilityKit.Game.Test
                 ? $"snapshot(op={packet.Snapshot.Value.OpCode}, bytes={(packet.Snapshot.Value.Payload?.Length ?? 0)})"
                 : "snapshot(null)";
 
-            Log($"OnFrame: world={packet.WorldId.Value}, frame={packet.Frame.Value}, inputs={inputsCount}, {snapshotInfo}");
+            if (_logFrames)
+            {
+                Log($"OnFrame: world={packet.WorldId.Value}, frame={packet.Frame.Value}, inputs={inputsCount}, {snapshotInfo}");
+            }
+            else
+            {
+                _frameLogCooldown -= FixedDelta;
+                if (_frameLogCooldown <= 0f)
+                {
+                    _frameLogCooldown = 1f;
+                    Log($"OnFrame: world={packet.WorldId.Value}, frame={packet.Frame.Value}, inputs={inputsCount}, {snapshotInfo}");
+                }
+            }
         }
 
         private void ApplyLobbySnapshot(byte[] payload)
@@ -348,11 +430,48 @@ namespace AbilityKit.Game.Test
             go.transform.position = new Vector3(x, y, z);
         }
 
+        private void ApplyActorTransformSnapshot(byte[] payload)
+        {
+            var entries = MobaActorTransformSnapshotCodec.Deserialize(payload);
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var e = entries[i];
+                if (!_actorViews.TryGetValue(e.actorId, out var go) || go == null)
+                {
+                    go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    go.name = $"Actor_{e.actorId}";
+                    go.transform.localScale = new Vector3(1f, 2f, 1f);
+                    _actorViews[e.actorId] = go;
+                }
+
+                go.transform.position = new Vector3(e.x, e.y, e.z);
+            }
+
+            _snapshotLogCooldown -= Time.deltaTime;
+            if (_snapshotLogCooldown <= 0f)
+            {
+                _snapshotLogCooldown = 0.5f;
+                if (entries.Length > 0)
+                {
+                    Log($"RecvTransformSnapshot: count={entries.Length}, first=({entries[0].actorId}:{entries[0].x:F2},{entries[0].y:F2},{entries[0].z:F2})");
+                }
+                else
+                {
+                    Log("RecvTransformSnapshot: count=0");
+                }
+            }
+        }
+
         private void Log(string msg)
         {
             if (_logs.Count > 800) _logs.RemoveRange(0, 200);
             _logs.Add($"[{DateTime.Now:HH:mm:ss.fff}] {msg}");
             _scroll.y = float.MaxValue;
+
+            if (_logToConsole)
+            {
+                UnityEngine.Debug.Log(msg);
+            }
         }
     }
 }
