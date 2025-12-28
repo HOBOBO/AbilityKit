@@ -1,0 +1,12 @@
+[
+  {
+    "Id": 10001,
+    "Name": "测试1",
+    "ModelId": 10001,
+    "AttributeTemplateId": 10001,
+    "SkillIds": [
+      10001,
+      10002
+    ]
+  }
+]

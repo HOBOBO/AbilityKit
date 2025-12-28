@@ -1,0 +1,1 @@
+{"TimeStepMode":0,"SnapInterval":0.009999999776482582,"FrameRate":30,"AutoSaveSeconds":0,"SavePath":"Assets/","ScrollWheelZooms":true,"MagnetSnapping":true,"TrackListLeftMargin":180.0}
