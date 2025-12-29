@@ -2,7 +2,7 @@ using System;
 using Entitas;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
-{
+{ 
     public sealed class MobaActorLookupService
     {
         private readonly ActorIdIndex _index;

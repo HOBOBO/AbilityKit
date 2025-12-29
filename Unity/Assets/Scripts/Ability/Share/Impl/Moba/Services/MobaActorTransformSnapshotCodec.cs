@@ -1,6 +1,5 @@
 using System;
-using System.IO;
-using System.Text;
+using AbilityKit.Ability.Share;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -15,43 +14,57 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         {
             entries ??= Array.Empty<(int, float, float, float)>();
 
-            using var ms = new MemoryStream(64 + entries.Length * 20);
-            using var bw = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true);
-
-            bw.Write(entries.Length);
+            var items = new Entry[entries.Length];
             for (int i = 0; i < entries.Length; i++)
             {
-                bw.Write(entries[i].actorId);
-                bw.Write(entries[i].x);
-                bw.Write(entries[i].y);
-                bw.Write(entries[i].z);
+                items[i] = new Entry(entries[i].actorId, entries[i].x, entries[i].y, entries[i].z);
             }
 
-            bw.Flush();
-            return ms.ToArray();
+            var payload = new SnapshotPayload(items);
+            return BinaryObjectCodec.Encode(payload);
         }
 
         public static (int actorId, float x, float y, float z)[] Deserialize(byte[] payload)
         {
             if (payload == null || payload.Length < 4) return Array.Empty<(int, float, float, float)>();
 
-            using var ms = new MemoryStream(payload);
-            using var br = new BinaryReader(ms, Encoding.UTF8, leaveOpen: true);
+            var p = BinaryObjectCodec.Decode<SnapshotPayload>(payload);
+            if (p.Entries == null || p.Entries.Length == 0) return Array.Empty<(int, float, float, float)>();
 
-            var count = br.ReadInt32();
-            if (count <= 0) return Array.Empty<(int, float, float, float)>();
-
-            var arr = new (int actorId, float x, float y, float z)[count];
-            for (int i = 0; i < count; i++)
+            var arr = new (int actorId, float x, float y, float z)[p.Entries.Length];
+            for (int i = 0; i < p.Entries.Length; i++)
             {
-                var id = br.ReadInt32();
-                var x = br.ReadSingle();
-                var y = br.ReadSingle();
-                var z = br.ReadSingle();
-                arr[i] = (id, x, y, z);
+                var e = p.Entries[i];
+                arr[i] = (e.ActorId, e.X, e.Y, e.Z);
             }
 
             return arr;
+        }
+
+        public readonly struct SnapshotPayload
+        {
+            [BinaryMember(0)] public readonly Entry[] Entries;
+
+            public SnapshotPayload(Entry[] entries)
+            {
+                Entries = entries;
+            }
+        }
+
+        public readonly struct Entry
+        {
+            [BinaryMember(0)] public readonly int ActorId;
+            [BinaryMember(1)] public readonly float X;
+            [BinaryMember(2)] public readonly float Y;
+            [BinaryMember(3)] public readonly float Z;
+
+            public Entry(int actorId, float x, float y, float z)
+            {
+                ActorId = actorId;
+                X = x;
+                Y = y;
+                Z = z;
+            }
         }
     }
 }

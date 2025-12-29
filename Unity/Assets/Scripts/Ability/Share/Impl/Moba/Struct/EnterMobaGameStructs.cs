@@ -1,14 +1,15 @@
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.Share;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Struct
 {
     public readonly struct MobaPlayerEntry
     {
-        public readonly PlayerId PlayerId;
-        public readonly int TeamId;
-        public readonly int HeroId;
-        public readonly int SpawnIndex;
+        [BinaryMember(0)] public readonly PlayerId PlayerId;
+        [BinaryMember(1)] public readonly int TeamId;
+        [BinaryMember(2)] public readonly int HeroId;
+        [BinaryMember(3)] public readonly int SpawnIndex;
 
         public MobaPlayerEntry(PlayerId playerId, int teamId, int heroId, int spawnIndex)
         {
@@ -21,18 +22,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
 
     public readonly struct EnterMobaGameReq
     {
-        public readonly PlayerId PlayerId;
-        public readonly string MatchId;
-        public readonly int MapId;
-        public readonly int TeamId;
-        public readonly int HeroId;
+        [BinaryMember(0)] public readonly PlayerId PlayerId;
+        [BinaryMember(1)] public readonly string MatchId;
+        [BinaryMember(2)] public readonly int MapId;
+        [BinaryMember(3)] public readonly int TeamId;
+        [BinaryMember(4)] public readonly int HeroId;
 
-        public readonly int RandomSeed;
-        public readonly int TickRate;
-        public readonly int InputDelayFrames;
+        [BinaryMember(5)] public readonly int RandomSeed;
+        [BinaryMember(6)] public readonly int TickRate;
+        [BinaryMember(7)] public readonly int InputDelayFrames;
 
-        public readonly int OpCode;
-        public readonly byte[] Payload;
+        [BinaryMember(8)] public readonly int OpCode;
+        [BinaryMember(9)] public readonly byte[] Payload;
 
         public EnterMobaGameReq(
             PlayerId playerId,
@@ -61,18 +62,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
 
     public readonly struct EnterMobaGameRes
     {
-        public readonly WorldId WorldId;
-        public readonly PlayerId PlayerId;
-        public readonly int LocalActorId;
+        [BinaryMember(0)] public readonly WorldId WorldId;
+        [BinaryMember(1)] public readonly PlayerId PlayerId;
+        [BinaryMember(2)] public readonly int LocalActorId;
 
-        public readonly int RandomSeed;
-        public readonly int TickRate;
-        public readonly int InputDelayFrames;
+        [BinaryMember(3)] public readonly int RandomSeed;
+        [BinaryMember(4)] public readonly int TickRate;
+        [BinaryMember(5)] public readonly int InputDelayFrames;
 
-        public readonly MobaPlayerEntry[] Players;
+        [BinaryMember(6)] public readonly MobaPlayerEntry[] Players;
 
-        public readonly int OpCode;
-        public readonly byte[] Payload;
+        [BinaryMember(7)] public readonly int OpCode;
+        [BinaryMember(8)] public readonly byte[] Payload;
 
         public EnterMobaGameRes(
             WorldId worldId,

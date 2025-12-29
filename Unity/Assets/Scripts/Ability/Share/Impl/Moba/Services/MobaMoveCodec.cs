@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.Share;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -7,10 +8,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         // Payload: float x, float z
         public static byte[] Serialize(float x, float z)
         {
-            var payload = new byte[8];
-            Buffer.BlockCopy(BitConverter.GetBytes(x), 0, payload, 0, 4);
-            Buffer.BlockCopy(BitConverter.GetBytes(z), 0, payload, 4, 4);
-            return payload;
+            var payload = new MovePayload(x, z);
+            return BinaryObjectCodec.Encode(payload);
         }
 
         public static void Deserialize(byte[] payload, out float x, out float z)
@@ -22,8 +21,21 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 return;
             }
 
-            x = BitConverter.ToSingle(payload, 0);
-            z = BitConverter.ToSingle(payload, 4);
+            var p = BinaryObjectCodec.Decode<MovePayload>(payload);
+            x = p.X;
+            z = p.Z;
+        }
+
+        public readonly struct MovePayload
+        {
+            [BinaryMember(0)] public readonly float X;
+            [BinaryMember(1)] public readonly float Z;
+
+            public MovePayload(float x, float z)
+            {
+                X = x;
+                Z = z;
+            }
         }
     }
 }
