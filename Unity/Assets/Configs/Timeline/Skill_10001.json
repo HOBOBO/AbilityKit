@@ -1,9 +1,40 @@
 {
-    "groups": [],
-    "length": 0.1,
+    "groups": [
+        {
+            "name": "Group",
+            "tracks": [
+                {
+                    "actionClips": [
+                        {
+                            "log": "\u6d4b\u8bd5\u65e5\u5fd7",
+                            "startTime": 1.08,
+                            "length": 1.0,
+                            "name": "TriggerLog",
+                            "$type": "NBC.ActionEditorExample.TriggerLog"
+                        }
+                    ],
+                    "name": "SignalTrack",
+                    "active": true,
+                    "isLocked": false,
+                    "color": {
+                        "r": 1.0,
+                        "g": 1.0,
+                        "b": 1.0,
+                        "a": 1.0
+                    },
+                    "$type": "NBC.ActionEditorExample.SignalTrack"
+                }
+            ],
+            "isCollapsed": false,
+            "active": true,
+            "isLocked": false,
+            "ActorId": 0
+        }
+    ],
+    "length": 1.08,
     "viewTimeMin": 0.0,
-    "viewTimeMax": 5.0,
+    "viewTimeMax": 3.659803,
     "rangeMin": 0.0,
     "rangeMax": 5.0,
-    "$type": "AbilityKit.Game.Ability.AbilityTimelineAsset"
+    "$type": "NBC.ActionEditorExample.SkillAsset"
 }
