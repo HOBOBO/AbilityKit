@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.EC;
 using UnityEngine;
 
-namespace AbilityKit.Game.Debug
+namespace AbilityKit.Game.EntityDebug
 {
     [ExecuteAlways]
     public sealed class EntityDebugVisualizer : MonoBehaviour

@@ -6,11 +6,11 @@
                 {
                     "actionClips": [
                         {
-                            "log": "\u6d4b\u8bd5\u65e5\u5fd7",
-                            "startTime": 1.08,
+                            "log": "aaa",
+                            "startTime": 1.54,
                             "length": 1.0,
                             "name": "TriggerLog",
-                            "$type": "NBC.ActionEditorExample.TriggerLog"
+                            "$type": "AbilityKit.ActionEditorImpl.TriggerLog"
                         }
                     ],
                     "name": "SignalTrack",
@@ -22,7 +22,7 @@
                         "b": 1.0,
                         "a": 1.0
                     },
-                    "$type": "NBC.ActionEditorExample.SignalTrack"
+                    "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
                 }
             ],
             "isCollapsed": false,
@@ -31,10 +31,10 @@
             "ActorId": 0
         }
     ],
-    "length": 1.08,
+    "length": 1.54,
     "viewTimeMin": 0.0,
-    "viewTimeMax": 3.659803,
+    "viewTimeMax": 5.0,
     "rangeMin": 0.0,
     "rangeMax": 5.0,
-    "$type": "NBC.ActionEditorExample.SkillAsset"
+    "$type": "AbilityKit.ActionEditorImpl.SkillAsset"
 }

@@ -1,5 +1,7 @@
 ﻿using NBC.ActionEditor;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
 
 namespace AbilityKit.ActionEditorImpl
@@ -8,10 +10,12 @@ namespace AbilityKit.ActionEditorImpl
     [Description("播放一个动画剪辑的行为")]
     [Color(0.48f, 0.71f, 0.84f)]
     [Attachable(typeof(AnimationTrack))]
-    public class PlayAnimation : Clip, ISubClipContainable
+    public class PlayAnimation : Clip, ISubClipContainable, ILogicJsonExportable
     {
         [SerializeField] [HideInInspector] private float blendIn = 0.25f;
         [SerializeField] [HideInInspector] private float blendOut = 0.25f;
+
+        [MenuName("Addressables Key")] public string clipKey = "";
 
         [MenuName("播放音频")] [SelectObjectPath(typeof(AnimationClip))]
         public string resPath = "";
@@ -76,6 +80,22 @@ namespace AbilityKit.ActionEditorImpl
 
         public override string Info => IsValid ? animationClip.name : base.Info;
 
-        public AudioTrack Track => (AudioTrack)Parent;
+        public AnimationTrack Track => (AnimationTrack)Parent;
+
+        public void FillLogicArgs(System.Collections.Generic.Dictionary<string, string> args)
+        {
+            if (args == null) return;
+
+            var key = clipKey;
+            if (string.IsNullOrEmpty(key))
+            {
+                key = resPath;
+            }
+
+            args["clipKey"] = key ?? string.Empty;
+            args["clipLength"] = (animationClip != null ? animationClip.length : 0f).ToString("R");
+            args["playbackSpeed"] = playbackSpeed.ToString("R");
+            args["clipOffset"] = clipOffset.ToString("R");
+        }
     }
 }

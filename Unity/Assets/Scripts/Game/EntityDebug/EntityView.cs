@@ -2,7 +2,7 @@ using System;
 using AbilityKit.Ability.EC;
 using UnityEngine;
 
-namespace AbilityKit.Game.Debug
+namespace AbilityKit.Game.EntityDebug
 {
     public sealed class EntityView : MonoBehaviour
     {

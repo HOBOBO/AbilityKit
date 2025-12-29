@@ -67,6 +67,8 @@ namespace NBC.ActionEditor
             var path = AssetDatabase.GetAssetPath(TextAsset);
             var json = Json.Serialize(AssetData);
             System.IO.File.WriteAllText(path, json);
+
+            LogicJsonExporter.ExportLogicJson(AssetData, path);
         }
 
         public static void OnGUIEnd()

@@ -1,4 +1,4 @@
-namespace AbilityKit.Game.Debug
+namespace AbilityKit.Game.EntityDebug
 {
     public interface IDebugNameProvider
     {

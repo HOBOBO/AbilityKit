@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace AbilityKit.Game.Debug
+namespace AbilityKit.Game.EntityDebug
 {
     public sealed class EntityComponentView : MonoBehaviour
     {

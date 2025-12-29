@@ -2,7 +2,7 @@ using System;
 using System.Reflection;
 using AbilityKit.Ability.EC;
 
-namespace AbilityKit.Game.Debug
+namespace AbilityKit.Game.EntityDebug
 {
     public static class EntityDebugNameUtility
     {

@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Ability.EC;
-using AbilityKit.Game.Debug;
+using AbilityKit.Game.EntityDebug;
 using UnityEditor;
 using UnityEngine;
 
-namespace AbilityKit.Game.Debug.Editor
+namespace AbilityKit.Game.EntityDebug.Editor
 {
     [CustomEditor(typeof(EntityComponentView))]
     public sealed class EntityComponentViewEditor : UnityEditor.Editor
