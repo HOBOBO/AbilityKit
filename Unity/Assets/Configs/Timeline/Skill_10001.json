@@ -1,0 +1,9 @@
+{
+    "groups": [],
+    "length": 0.1,
+    "viewTimeMin": 0.0,
+    "viewTimeMax": 5.0,
+    "rangeMin": 0.0,
+    "rangeMax": 5.0,
+    "$type": "AbilityKit.Game.Ability.AbilityTimelineAsset"
+}

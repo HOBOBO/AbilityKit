@@ -1,0 +1,222 @@
+{
+    "groups": [
+        {
+            "name": "Group",
+            "tracks": [
+                {
+                    "actionClips": [
+                        {
+                            "log": "hello",
+                            "startTime": 0.76,
+                            "length": 1.0,
+                            "name": "TriggerLog",
+                            "$type": "NBC.ActionEditorExample.TriggerLog"
+                        },
+                        {
+                            "eventName": 1,
+                            "calculateType": 0,
+                            "calculateArgs": 0,
+                            "kill": 0,
+                            "startTime": 1.29,
+                            "length": 1.0,
+                            "name": "TriggerEvent",
+                            "$type": "NBC.ActionEditorExample.TriggerEvent"
+                        },
+                        {
+                            "shakeType": 1,
+                            "duration": 0.5,
+                            "range": 5,
+                            "vibrationDuration": 0.5,
+                            "vibrationForce": 8,
+                            "startTime": 2.04,
+                            "length": 1.0,
+                            "name": "TriggerShake",
+                            "$type": "NBC.ActionEditorExample.TriggerShake"
+                        }
+                    ],
+                    "name": "SignalTrack",
+                    "active": true,
+                    "isLocked": false,
+                    "color": {
+                        "r": 1.0,
+                        "g": 1.0,
+                        "b": 1.0,
+                        "a": 1.0
+                    },
+                    "$type": "NBC.ActionEditorExample.SignalTrack"
+                },
+                {
+                    "actionClips": [
+                        {
+                            "blendIn": 0.25,
+                            "blendOut": 0.25,
+                            "resPath": "Assets/ResRaw/Model/Skeleton/Ani/Skeleton@Attack.FBX",
+                            "playbackSpeed": 1.0,
+                            "clipOffset": 0.0,
+                            "startTime": 0.76,
+                            "length": 2.766667,
+                            "name": "PlayAnimation",
+                            "$type": "NBC.ActionEditorExample.PlayAnimation"
+                        }
+                    ],
+                    "name": "AnimationTrack",
+                    "active": true,
+                    "isLocked": false,
+                    "color": {
+                        "r": 1.0,
+                        "g": 1.0,
+                        "b": 1.0,
+                        "a": 1.0
+                    },
+                    "$type": "NBC.ActionEditorExample.AnimationTrack"
+                },
+                {
+                    "Layer": 0,
+                    "actionClips": [
+                        {
+                            "resPath": "Assets/ResRaw/Effects/Prefabs/VFX_Fire Magic Array 004.prefab",
+                            "scale": false,
+                            "startTime": 0.29,
+                            "length": 1.0,
+                            "name": "PlayParticle",
+                            "$type": "NBC.ActionEditorExample.PlayParticle"
+                        }
+                    ],
+                    "name": "EffectTrack",
+                    "active": true,
+                    "isLocked": false,
+                    "color": {
+                        "r": 1.0,
+                        "g": 1.0,
+                        "b": 1.0,
+                        "a": 1.0
+                    },
+                    "$type": "NBC.ActionEditorExample.EffectTrack"
+                },
+                {
+                    "Test1": 0,
+                    "Test2": 0.0,
+                    "Test3": null,
+                    "actionClips": [
+                        {
+                            "interpolation": "QuadInOut",
+                            "targetRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "startTime": 0.48,
+                            "length": 1.0,
+                            "name": "RotateTo",
+                            "$type": "NBC.ActionEditorExample.RotateTo"
+                        },
+                        {
+                            "visible": true,
+                            "startTime": 2.04,
+                            "length": 1.0,
+                            "name": "VisibleTo",
+                            "$type": "NBC.ActionEditorExample.VisibleTo"
+                        }
+                    ],
+                    "name": "ActionTrack",
+                    "active": true,
+                    "isLocked": false,
+                    "color": {
+                        "r": 1.0,
+                        "g": 1.0,
+                        "b": 1.0,
+                        "a": 1.0
+                    },
+                    "$type": "NBC.ActionEditorExample.ActionTrack"
+                },
+                {
+                    "actionClips": [
+                        {
+                            "blendIn": 0.25,
+                            "blendOut": 0.11,
+                            "resPath": "Assets/ResRaw/Sound/open_door.wav",
+                            "volume": 1.0,
+                            "clipOffset": 0.0,
+                            "startTime": 0.4,
+                            "length": 1.0,
+                            "name": "PlayAudio",
+                            "$type": "NBC.ActionEditorExample.PlayAudio"
+                        },
+                        {
+                            "blendIn": 0.11,
+                            "blendOut": 0.25,
+                            "resPath": "Assets/ResRaw/Sound/open_door.wav",
+                            "volume": 1.0,
+                            "clipOffset": 0.0,
+                            "startTime": 1.29,
+                            "length": 1.0,
+                            "name": "PlayAudio",
+                            "$type": "NBC.ActionEditorExample.PlayAudio"
+                        }
+                    ],
+                    "name": "AudioTrack",
+                    "active": true,
+                    "isLocked": false,
+                    "color": {
+                        "r": 1.0,
+                        "g": 1.0,
+                        "b": 1.0,
+                        "a": 1.0
+                    },
+                    "$type": "NBC.ActionEditorExample.AudioTrack"
+                }
+            ],
+            "isCollapsed": false,
+            "active": true,
+            "isLocked": false,
+            "ActorId": 0
+        },
+        {
+            "name": "Group",
+            "tracks": [
+                {
+                    "Test1": 0,
+                    "Test2": 0.0,
+                    "Test3": null,
+                    "actionClips": [],
+                    "name": "ActionTrack",
+                    "active": true,
+                    "isLocked": false,
+                    "color": {
+                        "r": 1.0,
+                        "g": 1.0,
+                        "b": 1.0,
+                        "a": 1.0
+                    },
+                    "$type": "NBC.ActionEditorExample.ActionTrack"
+                }
+            ],
+            "isCollapsed": false,
+            "active": true,
+            "isLocked": false,
+            "ActorId": 0
+        },
+        {
+            "name": "Group",
+            "tracks": [],
+            "isCollapsed": true,
+            "active": true,
+            "isLocked": false,
+            "ActorId": 0
+        },
+        {
+            "name": "Group",
+            "tracks": [],
+            "isCollapsed": false,
+            "active": true,
+            "isLocked": false,
+            "ActorId": 0
+        }
+    ],
+    "length": 3.526667,
+    "viewTimeMin": 0.0,
+    "viewTimeMax": 5.0,
+    "rangeMin": 0.0,
+    "rangeMax": 5.0,
+    "$type": "NBC.ActionEditorExample.BuffAsset"
+}
