@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 
 namespace AbilityKit.Ability
 {
@@ -33,24 +32,29 @@ namespace AbilityKit.Ability
         public const string ParallelName = "Parallel";
         
         
-        public static AbilityPipelinePhaseId And =
+        public static AbilityPipelinePhaseId And =>
             AbilityPipelinePhaseIdManager.Instance.Register(AndName);
-        public static AbilityPipelinePhaseId Or =
+        public static AbilityPipelinePhaseId Or =>
             AbilityPipelinePhaseIdManager.Instance.Register(OrName);
-        public static AbilityPipelinePhaseId Not =
+        public static AbilityPipelinePhaseId Not =>
             AbilityPipelinePhaseIdManager.Instance.Register(NotName);
-        public static AbilityPipelinePhaseId Sequence =
+        public static AbilityPipelinePhaseId Sequence =>
             AbilityPipelinePhaseIdManager.Instance.Register(SequenceName);
-        public static AbilityPipelinePhaseId Parallel =
+        public static AbilityPipelinePhaseId Parallel =>
             AbilityPipelinePhaseIdManager.Instance.Register(ParallelName);
     }
 
-    public class AbilityPipelinePhaseIdManager : GenericIdManager<string, AbilityPipelinePhaseId>
+    public class AbilityPipelinePhaseIdManager
     {
-        public static AbilityPipelinePhaseIdManager Instance = new AbilityPipelinePhaseIdManager(null);
+        public static readonly AbilityPipelinePhaseIdManager Instance = new AbilityPipelinePhaseIdManager();
 
-        public AbilityPipelinePhaseIdManager(Func<AbilityPipelinePhaseId, AbilityPipelinePhaseId> incrementFunc) : base(incrementFunc)
-        {
-        }
+        private readonly StableStringEnumIdManager<AbilityPipelinePhaseId> _impl =
+            new StableStringEnumIdManager<AbilityPipelinePhaseId>(raw => new AbilityPipelinePhaseId(raw));
+
+        public AbilityPipelinePhaseId Register(string name) => _impl.Register(name);
+
+        public bool TryGetId(string name, out AbilityPipelinePhaseId id) => _impl.TryGetId(name, out id);
+
+        public bool TryGetName(AbilityPipelinePhaseId id, out string name) => _impl.TryGetName(id, out name);
     }
 }

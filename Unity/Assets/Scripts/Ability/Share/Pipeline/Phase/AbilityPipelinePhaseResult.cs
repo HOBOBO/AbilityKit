@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 
 namespace AbilityKit.Ability
 {
@@ -16,17 +15,20 @@ namespace AbilityKit.Ability
         /// </summary>
         public const string SuccessName = "Success";
         
-        public static AbilityPipelinePhaseResult Success =
+        public static AbilityPipelinePhaseResult Success =>
             AbilityPipelinePhaseResultManager.Instance.Register(SuccessName);
         
     }
     
-    public class AbilityPipelinePhaseResultManager : GenericIdManager<string, AbilityPipelinePhaseResult>
+    public class AbilityPipelinePhaseResultManager
     {
-        public static AbilityPipelinePhaseResultManager Instance = new AbilityPipelinePhaseResultManager(null);
+        private static readonly Lazy<AbilityPipelinePhaseResultManager> _instance = new Lazy<AbilityPipelinePhaseResultManager>(() => new AbilityPipelinePhaseResultManager());
 
-        public AbilityPipelinePhaseResultManager(Func<AbilityPipelinePhaseResult, AbilityPipelinePhaseResult> incrementFunc) : base(incrementFunc)
-        {
-        }
+        public static AbilityPipelinePhaseResultManager Instance => _instance.Value;
+
+        private readonly StableStringEnumIdManager<AbilityPipelinePhaseResult> _impl =
+            new StableStringEnumIdManager<AbilityPipelinePhaseResult>(raw => new AbilityPipelinePhaseResult(raw));
+
+        public AbilityPipelinePhaseResult Register(string name) => _impl.Register(name);
     }
 }
