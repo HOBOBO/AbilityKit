@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.Impl.Moba.Move;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -12,16 +13,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaPlayerActorMapService _playerActorMap;
         private readonly MobaActorLookupService _actorLookup;
         private readonly global::Contexts _contexts;
+        private readonly MobaMoveService _moves;
 
         private readonly Dictionary<int, Action<PlayerInputCommand>> _handlers;
 
-        public MobaLobbyInputSink(MobaLobbyStateService lobby, MobaEnterGameFlowService enterGame, MobaPlayerActorMapService playerActorMap, MobaActorLookupService actorLookup, global::Contexts contexts)
+        public MobaLobbyInputSink(MobaLobbyStateService lobby, MobaEnterGameFlowService enterGame, MobaPlayerActorMapService playerActorMap, MobaActorLookupService actorLookup, global::Contexts contexts, MobaMoveService moves)
         {
             _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
             _enterGame = enterGame ?? throw new ArgumentNullException(nameof(enterGame));
             _playerActorMap = playerActorMap ?? throw new ArgumentNullException(nameof(playerActorMap));
             _actorLookup = actorLookup ?? throw new ArgumentNullException(nameof(actorLookup));
             _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
+            _moves = moves ?? throw new ArgumentNullException(nameof(moves));
 
             _handlers = new Dictionary<int, Action<PlayerInputCommand>>
             {
@@ -41,12 +44,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             MobaMoveCodec.Deserialize(cmd.Payload, out var dx, out var dz);
             if (AbilityKit.Ability.Share.Math.MathUtil.Abs(dx) < 0.0001f && AbilityKit.Ability.Share.Math.MathUtil.Abs(dz) < 0.0001f) return;
 
-            const float step = 0.15f;
-            var t = entity.transform.Value;
-            var p = t.Position;
-            var np = new AbilityKit.Ability.Share.Math.Vec3(p.X + dx * step, p.Y, p.Z + dz * step);
-            var nt = new AbilityKit.Ability.Share.Math.Transform3(np, t.Rotation, t.Scale);
-            entity.ReplaceTransform(nt);
+            _moves.SetInput(actorId, dx, dz);
         }
 
         public void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)

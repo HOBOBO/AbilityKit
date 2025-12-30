@@ -11,6 +11,7 @@ namespace AbilityKit.Ability.World.Entitas
         private WorldContainer _container;
         private WorldScope _scope;
         private bool _initialized;
+        private IWorldClock _clock;
 
         public EntitasWorld(WorldCreateOptions options)
         {
@@ -78,6 +79,13 @@ namespace AbilityKit.Ability.World.Entitas
         public void Tick(float deltaTime)
         {
             if (!_initialized) return;
+
+            if (_clock == null)
+            {
+                _clock = _scope?.Get<IWorldClock>();
+            }
+            _clock?.Tick(deltaTime);
+
             Systems.Execute();
             Systems.Cleanup();
         }

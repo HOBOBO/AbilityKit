@@ -9,5 +9,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         LobbySnapshot = 4001,
         EnterGameSnapshot = 4002,
         ActorTransformSnapshot = 4003,
+        StateHashSnapshot = 4004,
     }
 }

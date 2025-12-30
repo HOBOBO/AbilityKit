@@ -8,6 +8,8 @@ namespace AbilityKit.Ability.FrameSync
         private readonly IWorldManager _worlds;
         private FrameIndex _frame;
 
+        public Action<FrameIndex, float> PostStep;
+
         public WorldManagerFrameDriver(IWorldManager worlds)
         {
             _worlds = worlds ?? throw new ArgumentNullException(nameof(worlds));
@@ -20,6 +22,8 @@ namespace AbilityKit.Ability.FrameSync
         {
             _worlds.Tick(deltaTime);
             _frame = new FrameIndex(_frame.Value + 1);
+
+            PostStep?.Invoke(_frame, deltaTime);
         }
     }
 }

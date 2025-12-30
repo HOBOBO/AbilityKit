@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Requests;
@@ -252,6 +253,19 @@ namespace AbilityKit.Game.Test.FrameSync
             TrimList(_frames, maxFrames);
 
             Log($"OnFrame world={packet.WorldId.Value}, frame={packet.Frame.Value}, inputs={(packet.Inputs?.Count ?? 0)}, snapshot={(packet.Snapshot.HasValue ? packet.Snapshot.Value.OpCode.ToString() : "null")}");
+
+            if (packet.Snapshot.HasValue && packet.Snapshot.Value.OpCode == (int)MobaOpCode.StateHashSnapshot)
+            {
+                try
+                {
+                    var p = MobaStateHashSnapshotCodec.Deserialize(packet.Snapshot.Value.Payload);
+                    Log($"StateHashSnapshot: v={p.Version}, frame={p.Frame}, hash={p.Hash}");
+                }
+                catch (Exception e)
+                {
+                    Log($"StateHashSnapshot decode failed: {e.GetType().Name}: {e.Message}");
+                }
+            }
         }
 
         private void Log(string msg)
