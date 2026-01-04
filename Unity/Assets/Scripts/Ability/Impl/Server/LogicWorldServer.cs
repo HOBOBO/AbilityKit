@@ -9,6 +9,167 @@ namespace AbilityKit.Ability.Server
 {
     public sealed class LogicWorldServer : ILogicWorldServer
     {
+        private interface IFrameScheduler
+        {
+            FrameIndex GetNextFrame(FrameIndex current);
+        }
+
+        private interface IInputModule
+        {
+            List<(WorldId worldId, PlayerInputCommand[] inputs)> FlushPendingAndDispatchInputs(FrameIndex nextFrame);
+        }
+
+        private interface ISnapshotModule
+        {
+            WorldStateSnapshot? TryGetSnapshot(WorldId worldId, FrameIndex frame);
+        }
+
+        private sealed class DefaultFrameScheduler : IFrameScheduler
+        {
+            public FrameIndex GetNextFrame(FrameIndex current) => new FrameIndex(current.Value + 1);
+        }
+
+        private sealed class DefaultInputModule : IInputModule
+        {
+            private readonly IWorldManager _worlds;
+            private readonly Dictionary<WorldId, WorldSession> _sessions;
+            private readonly LogicWorldServerOptions _options;
+
+            public DefaultInputModule(IWorldManager worlds, Dictionary<WorldId, WorldSession> sessions, LogicWorldServerOptions options)
+            {
+                _worlds = worlds ?? throw new ArgumentNullException(nameof(worlds));
+                _sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
+                _options = options;
+            }
+
+            public List<(WorldId worldId, PlayerInputCommand[] inputs)> FlushPendingAndDispatchInputs(FrameIndex nextFrame)
+            {
+                var perWorldInputs = new List<(WorldId worldId, PlayerInputCommand[] inputs)>(_sessions.Count);
+                foreach (var kv in _sessions)
+                {
+                    var worldId = kv.Key;
+                    var session = kv.Value;
+                    if (session.PendingInputs.Count == 0) continue;
+                    var inputs = session.PendingInputs.ToArray();
+                    session.PendingInputs.Clear();
+                    perWorldInputs.Add((worldId, inputs));
+
+                    _options?.OnInputsFlushed?.Invoke(worldId, nextFrame, inputs);
+
+                    if (_worlds.TryGet(worldId, out var world) && world.Services != null)
+                    {
+                        if (world.Services.TryGet<IWorldInputSink>(out var sink) && sink != null)
+                        {
+                            sink.Submit(nextFrame, inputs);
+                        }
+                    }
+                }
+
+                return perWorldInputs;
+            }
+        }
+
+        private sealed class DefaultSnapshotModule : ISnapshotModule
+        {
+            private readonly IWorldManager _worlds;
+
+            public DefaultSnapshotModule(IWorldManager worlds)
+            {
+                _worlds = worlds ?? throw new ArgumentNullException(nameof(worlds));
+            }
+
+            public WorldStateSnapshot? TryGetSnapshot(WorldId worldId, FrameIndex frame)
+            {
+                if (_worlds.TryGet(worldId, out var world) && world.Services != null)
+                {
+                    if (world.Services.TryGet<IWorldStateSnapshotProvider>(out var provider) && provider != null)
+                    {
+                        if (provider.TryGetSnapshot(frame, out var snapshot))
+                        {
+                            return snapshot;
+                        }
+                    }
+                }
+
+                return null;
+            }
+        }
+
+        private sealed class FramePipeline
+        {
+            private readonly IWorldManager _worlds;
+            private readonly WorldManagerFrameDriver _driver;
+            private readonly Dictionary<WorldId, WorldSession> _sessions;
+            private readonly Dictionary<ServerClientId, ILogicServerClient> _clients;
+            private readonly LogicWorldServerOptions _options;
+
+            private readonly IFrameScheduler _scheduler;
+            private readonly IInputModule _input;
+            private readonly ISnapshotModule _snapshot;
+
+            private FrameIndex _frame;
+
+            public FramePipeline(
+                IWorldManager worlds,
+                WorldManagerFrameDriver driver,
+                Dictionary<WorldId, WorldSession> sessions,
+                Dictionary<ServerClientId, ILogicServerClient> clients,
+                IFrameScheduler scheduler,
+                IInputModule input,
+                ISnapshotModule snapshot,
+                LogicWorldServerOptions options)
+            {
+                _worlds = worlds ?? throw new ArgumentNullException(nameof(worlds));
+                _driver = driver ?? throw new ArgumentNullException(nameof(driver));
+                _sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
+                _clients = clients ?? throw new ArgumentNullException(nameof(clients));
+                _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
+                _input = input ?? throw new ArgumentNullException(nameof(input));
+                _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
+                _options = options;
+                _frame = _driver.Frame;
+            }
+
+            public FrameIndex Frame => _frame;
+
+            public void Tick(float deltaTime)
+            {
+                var nextFrame = _scheduler.GetNextFrame(_frame);
+                var perWorldInputs = _input.FlushPendingAndDispatchInputs(nextFrame);
+
+                _driver.Step(deltaTime);
+                _frame = _driver.Frame;
+
+                _options?.OnPostStep?.Invoke(_frame, deltaTime);
+
+                foreach (var kv in _sessions)
+                {
+                    var worldId = kv.Key;
+                    PlayerInputCommand[] inputs = Array.Empty<PlayerInputCommand>();
+                    for (int i = 0; i < perWorldInputs.Count; i++)
+                    {
+                        if (perWorldInputs[i].worldId.Value != worldId.Value) continue;
+                        inputs = perWorldInputs[i].inputs;
+                        break;
+                    }
+
+                    var state = _snapshot.TryGetSnapshot(worldId, _frame);
+                    var packet = new FramePacket(worldId, _frame, inputs, state);
+                    _options?.OnBeforeBroadcastFrame?.Invoke(packet);
+                    BroadcastFrame(packet);
+                    _options?.OnAfterBroadcastFrame?.Invoke(packet);
+                }
+            }
+
+            private void BroadcastFrame(FramePacket packet)
+            {
+                foreach (var c in _clients.Values)
+                {
+                    c.OnFrame(packet);
+                }
+            }
+        }
+
         private sealed class WorldSession
         {
             public readonly List<PlayerId> Players = new List<PlayerId>();
@@ -17,6 +178,8 @@ namespace AbilityKit.Ability.Server
 
         private readonly IWorldManager _worlds;
         private readonly WorldManagerFrameDriver _driver;
+        private readonly FramePipeline _pipeline;
+        private readonly LogicWorldServerOptions _options;
 
         private readonly Dictionary<ServerClientId, ILogicServerClient> _clients = new Dictionary<ServerClientId, ILogicServerClient>();
         private readonly Dictionary<WorldId, WorldSession> _sessions = new Dictionary<WorldId, WorldSession>();
@@ -24,10 +187,21 @@ namespace AbilityKit.Ability.Server
         private FrameIndex _frame;
 
         public LogicWorldServer(IWorldManager worlds)
+            : this(worlds, null)
+        {
+        }
+
+        public LogicWorldServer(IWorldManager worlds, LogicWorldServerOptions options)
         {
             _worlds = worlds ?? throw new ArgumentNullException(nameof(worlds));
             _driver = new WorldManagerFrameDriver(_worlds);
-            _frame = _driver.Frame;
+            _options = options;
+
+            var scheduler = new DefaultFrameScheduler();
+            var input = new DefaultInputModule(_worlds, _sessions, options);
+            var snapshot = new DefaultSnapshotModule(_worlds);
+            _pipeline = new FramePipeline(_worlds, _driver, _sessions, _clients, scheduler, input, snapshot, options);
+            _frame = _pipeline.Frame;
         }
 
         public IWorldManager Worlds => _worlds;
@@ -48,6 +222,8 @@ namespace AbilityKit.Ability.Server
             var world = _worlds.Create(options);
             _sessions[world.Id] = new WorldSession();
 
+            _options?.OnWorldCreated?.Invoke(world);
+
             foreach (var c in _clients.Values)
             {
                 c.OnWorldCreated(world.Id, world.WorldType);
@@ -60,6 +236,8 @@ namespace AbilityKit.Ability.Server
         {
             if (!_worlds.Destroy(id)) return false;
             _sessions.Remove(id);
+
+            _options?.OnWorldDestroyed?.Invoke(id);
 
             foreach (var c in _clients.Values)
             {
@@ -135,63 +313,8 @@ namespace AbilityKit.Ability.Server
 
         public void Tick(float deltaTime)
         {
-            var nextFrame = new FrameIndex(_frame.Value + 1);
-
-            var perWorldInputs = new List<(WorldId worldId, PlayerInputCommand[] inputs)>(_sessions.Count);
-            foreach (var kv in _sessions)
-            {
-                var worldId = kv.Key;
-                var session = kv.Value;
-                if (session.PendingInputs.Count == 0) continue;
-                var inputs = session.PendingInputs.ToArray();
-                session.PendingInputs.Clear();
-                perWorldInputs.Add((worldId, inputs));
-
-                if (_worlds.TryGet(worldId, out var world) && world.Services != null)
-                {
-                    if (world.Services.TryGet<IWorldInputSink>(out var sink) && sink != null)
-                    {
-                        sink.Submit(nextFrame, inputs);
-                    }
-                }
-            }
-
-            _driver.Step(deltaTime);
-            _frame = _driver.Frame;
-
-            foreach (var kv in _sessions)
-            {
-                var worldId = kv.Key;
-                PlayerInputCommand[] inputs = Array.Empty<PlayerInputCommand>();
-                for (int i = 0; i < perWorldInputs.Count; i++)
-                {
-                    if (perWorldInputs[i].worldId.Value != worldId.Value) continue;
-                    inputs = perWorldInputs[i].inputs;
-                    break;
-                }
-
-                WorldStateSnapshot? state = null;
-                if (_worlds.TryGet(worldId, out var world) && world.Services != null)
-                {
-                    if (world.Services.TryGet<IWorldStateSnapshotProvider>(out var provider) && provider != null)
-                    {
-                        if (provider.TryGetSnapshot(_frame, out var snapshot))
-                        {
-                            state = snapshot;
-                        }
-                    }
-                }
-
-                BroadcastFrame(new FramePacket(worldId, _frame, inputs, state));
-            }
-        }
-
-        private void BroadcastFrame(FramePacket packet)
-        {
-            foreach (var c in _clients.Values)
-            {
-                c.OnFrame(packet);
-            }
+            _pipeline.Tick(deltaTime);
+            _frame = _pipeline.Frame;
         }
 
         private static bool Contains(List<PlayerId> list, PlayerId id)
