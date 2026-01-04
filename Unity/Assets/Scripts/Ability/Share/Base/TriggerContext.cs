@@ -7,6 +7,8 @@ namespace AbilityKit.Ability.Triggering
     {
         private readonly Dictionary<string, object> _vars;
 
+        private IVarStore _globalVars;
+
         public TriggerContext(IServiceProvider services = null, object source = null, object target = null, IReadOnlyDictionary<string, object> vars = null)
         {
             Services = services;
@@ -43,6 +45,30 @@ namespace AbilityKit.Ability.Triggering
         public object Target { get; }
         public TriggerEvent Event { get; internal set; }
 
+        private IVarStore GetGlobalVars()
+        {
+            if (_globalVars != null) return _globalVars;
+
+            if (Services != null)
+            {
+                try
+                {
+                    var s = Services.GetService(typeof(IVarStore));
+                    if (s is IVarStore store)
+                    {
+                        _globalVars = store;
+                        return _globalVars;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            _globalVars = GlobalVarStoreAdapter.Instance;
+            return _globalVars;
+        }
+
         public bool TryGetVar<T>(string key, out T value)
         {
             return TryGetVar(VarScope.Local, key, out value);
@@ -58,7 +84,7 @@ namespace AbilityKit.Ability.Triggering
 
             if (scope == VarScope.Global)
             {
-                return GlobalVarStore.TryGet(key, out value);
+                return GetGlobalVars().TryGet(key, out value);
             }
 
             if (_vars.TryGetValue(key, out var obj) && obj is T t)
@@ -81,7 +107,7 @@ namespace AbilityKit.Ability.Triggering
 
             if (scope == VarScope.Global)
             {
-                return GlobalVarStore.TryGet(key, out value);
+                return GetGlobalVars().TryGet(key, out value);
             }
 
             if (_vars.TryGetValue(key, out var obj))
@@ -105,7 +131,7 @@ namespace AbilityKit.Ability.Triggering
 
             if (scope == VarScope.Global)
             {
-                GlobalVarStore.Set(key, value);
+                GetGlobalVars().Set(key, value);
                 return;
             }
 

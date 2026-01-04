@@ -28,9 +28,18 @@ namespace AbilityKit.Ability.Triggering
 
             if (_handlersByEventId.TryGetValue(evt.Id, out var handlers))
             {
-                for (int i = 0; i < handlers.Count; i++)
+                var snapshot = handlers.Count == 0 ? null : handlers.ToArray();
+                if (snapshot == null) return;
+
+                for (int i = 0; i < snapshot.Length; i++)
                 {
-                    handlers[i]?.Handle(in evt);
+                    try
+                    {
+                        snapshot[i]?.Handle(in evt);
+                    }
+                    catch
+                    {
+                    }
                 }
             }
         }
