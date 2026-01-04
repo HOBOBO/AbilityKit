@@ -1,0 +1,132 @@
+using System;
+using System.Collections.Generic;
+
+namespace AbilityKit.Ability.Share.Common.AttributeSystem
+{
+    public sealed class AttributeRegistry
+    {
+        private sealed class Node
+        {
+            public string Name;
+            public AttributeDef Def;
+        }
+
+        private readonly Dictionary<string, int> _byName = new Dictionary<string, int>(StringComparer.Ordinal);
+        private readonly List<Node> _nodes = new List<Node>(128);
+
+        private bool _frozen;
+
+        public static AttributeRegistry Instance { get; } = new AttributeRegistry();
+
+        private AttributeRegistry()
+        {
+            _nodes.Add(new Node { Name = string.Empty, Def = null });
+            _byName[string.Empty] = 0;
+        }
+
+        public bool IsFrozen => _frozen;
+
+        public void Freeze()
+        {
+            _frozen = true;
+        }
+
+        public AttributeId Register(AttributeDef def)
+        {
+            if (def == null) throw new ArgumentNullException(nameof(def));
+            if (string.IsNullOrEmpty(def.Name)) throw new ArgumentException("AttributeDef.Name is required", nameof(def));
+
+            if (_frozen)
+            {
+                throw new InvalidOperationException($"AttributeRegistry is frozen. Register is not allowed at runtime. name={def.Name}");
+            }
+
+            if (_byName.TryGetValue(def.Name, out var existing) && existing != 0)
+            {
+                def.Id = new AttributeId(existing);
+                _nodes[existing].Def = def;
+                return def.Id;
+            }
+
+            var id = _nodes.Count;
+            def.Id = new AttributeId(id);
+            _nodes.Add(new Node { Name = def.Name, Def = def });
+            _byName[def.Name] = id;
+            return def.Id;
+        }
+
+        public AttributeId Request(string name)
+        {
+            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+
+            if (_byName.TryGetValue(name, out var id) && id != 0)
+            {
+                return new AttributeId(id);
+            }
+
+            if (_frozen)
+            {
+                throw new InvalidOperationException($"AttributeRegistry is frozen. Attribute is not registered: {name}");
+            }
+
+            var def = new AttributeDef(name);
+            return Register(def);
+        }
+
+        public bool TryRequest(string name, out AttributeId id)
+        {
+            id = default;
+            return TryGet(name, out id);
+        }
+
+        public bool TryGet(string name, out AttributeId id)
+        {
+            id = default;
+            if (string.IsNullOrEmpty(name)) return false;
+            if (_byName.TryGetValue(name, out var v) && v != 0)
+            {
+                id = new AttributeId(v);
+                return true;
+            }
+            return false;
+        }
+
+        public string GetName(AttributeId id)
+        {
+            if (!id.IsValid) return string.Empty;
+            if (id.Id <= 0 || id.Id >= _nodes.Count) return string.Empty;
+            return _nodes[id.Id].Name ?? string.Empty;
+        }
+
+        public AttributeDef GetDef(AttributeId id)
+        {
+            if (!id.IsValid) return null;
+            if (id.Id <= 0 || id.Id >= _nodes.Count) return null;
+            return _nodes[id.Id].Def;
+        }
+
+        public IAttributeFormula GetFormula(AttributeId id)
+        {
+            var def = GetDef(id);
+            return def?.Formula ?? DefaultAttributeFormula.Instance;
+        }
+
+        public IAttributeConstraint GetConstraint(AttributeId id)
+        {
+            var def = GetDef(id);
+            return def?.Constraint;
+        }
+
+        public float GetDefaultBaseValue(AttributeId id)
+        {
+            var def = GetDef(id);
+            return def != null ? def.DefaultBaseValue : 0f;
+        }
+
+        public string GetGroup(AttributeId id)
+        {
+            var def = GetDef(id);
+            return def?.Group;
+        }
+    }
+}
