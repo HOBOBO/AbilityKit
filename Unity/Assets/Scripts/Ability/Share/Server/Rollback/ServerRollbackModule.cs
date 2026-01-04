@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
+using AbilityKit.Ability.Server.Modules;
 using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Ability.Server.Rollback
 {
-    public sealed class ServerRollbackModule
+    public sealed class ServerRollbackModule : ILogicWorldServerModule
     {
         private sealed class WorldContext
         {
@@ -22,6 +23,11 @@ namespace AbilityKit.Ability.Server.Rollback
         private readonly Func<IWorld, RollbackRegistry> _buildRegistry;
         private readonly Dictionary<WorldId, WorldContext> _contexts = new Dictionary<WorldId, WorldContext>();
 
+        private readonly Action<IWorld> _onWorldCreated;
+        private readonly Action<WorldId> _onWorldDestroyed;
+        private readonly Action<WorldId, FrameIndex, PlayerInputCommand[]> _onInputsFlushed;
+        private readonly Action<FrameIndex, float> _onPostStep;
+
         public ServerRollbackModule(int historyFrames, int captureEveryNFrames, Func<IWorld, RollbackRegistry> buildRegistry)
         {
             if (historyFrames <= 0) throw new ArgumentOutOfRangeException(nameof(historyFrames));
@@ -30,16 +36,31 @@ namespace AbilityKit.Ability.Server.Rollback
             _historyFrames = historyFrames;
             _captureEveryNFrames = captureEveryNFrames;
             _buildRegistry = buildRegistry;
+
+            _onWorldCreated = OnWorldCreated;
+            _onWorldDestroyed = OnWorldDestroyed;
+            _onInputsFlushed = OnInputsFlushed;
+            _onPostStep = OnPostStep;
         }
 
-        public void Attach(LogicWorldServerOptions options)
+        public void Install(LogicWorldServerOptions options)
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
 
-            options.OnWorldCreated = Combine(options.OnWorldCreated, OnWorldCreated);
-            options.OnWorldDestroyed = Combine(options.OnWorldDestroyed, OnWorldDestroyed);
-            options.OnInputsFlushed = Combine(options.OnInputsFlushed, OnInputsFlushed);
-            options.OnPostStep = Combine(options.OnPostStep, OnPostStep);
+            options.WorldCreated.Add(_onWorldCreated);
+            options.WorldDestroyed.Add(_onWorldDestroyed);
+            options.InputsFlushed.Add(_onInputsFlushed);
+            options.PostStep.Add(_onPostStep);
+        }
+
+        public void Uninstall(LogicWorldServerOptions options)
+        {
+            if (options == null) throw new ArgumentNullException(nameof(options));
+
+            options.WorldCreated.Remove(_onWorldCreated);
+            options.WorldDestroyed.Remove(_onWorldDestroyed);
+            options.InputsFlushed.Remove(_onInputsFlushed);
+            options.PostStep.Remove(_onPostStep);
         }
 
         public bool TryRollbackAndReplay(WorldId worldId, FrameIndex rollbackFrame, FrameIndex replayToFrame, float deltaTimePerFrame)
@@ -116,21 +137,6 @@ namespace AbilityKit.Ability.Server.Rollback
                 if (ctx.CaptureCounter % _captureEveryNFrames != 0) continue;
                 ctx.Coordinator.CaptureAndStore(frame);
             }
-        }
-
-        private static Action<T> Combine<T>(Action<T> a, Action<T> b)
-        {
-            return a == null ? b : (Action<T>)Delegate.Combine(a, b);
-        }
-
-        private static Action<T1, T2, T3> Combine<T1, T2, T3>(Action<T1, T2, T3> a, Action<T1, T2, T3> b)
-        {
-            return a == null ? b : (Action<T1, T2, T3>)Delegate.Combine(a, b);
-        }
-
-        private static Action<T1, T2> Combine<T1, T2>(Action<T1, T2> a, Action<T1, T2> b)
-        {
-            return a == null ? b : (Action<T1, T2>)Delegate.Combine(a, b);
         }
     }
 }

@@ -54,7 +54,11 @@ namespace AbilityKit.Ability.Server
                     session.PendingInputs.Clear();
                     perWorldInputs.Add((worldId, inputs));
 
-                    _options?.OnInputsFlushed?.Invoke(worldId, nextFrame, inputs);
+                    if (_options != null)
+                    {
+                        _options.InputsFlushed.Invoke(worldId, nextFrame, inputs);
+                        _options.OnInputsFlushed?.Invoke(worldId, nextFrame, inputs);
+                    }
 
                     if (_worlds.TryGet(worldId, out var world) && world.Services != null)
                     {
@@ -140,7 +144,11 @@ namespace AbilityKit.Ability.Server
                 _driver.Step(deltaTime);
                 _frame = _driver.Frame;
 
-                _options?.OnPostStep?.Invoke(_frame, deltaTime);
+                if (_options != null)
+                {
+                    _options.PostStep.Invoke(_frame, deltaTime);
+                    _options.OnPostStep?.Invoke(_frame, deltaTime);
+                }
 
                 foreach (var kv in _sessions)
                 {
@@ -155,9 +163,17 @@ namespace AbilityKit.Ability.Server
 
                     var state = _snapshot.TryGetSnapshot(worldId, _frame);
                     var packet = new FramePacket(worldId, _frame, inputs, state);
-                    _options?.OnBeforeBroadcastFrame?.Invoke(packet);
+                    if (_options != null)
+                    {
+                        _options.BeforeBroadcastFrame.Invoke(packet);
+                        _options.OnBeforeBroadcastFrame?.Invoke(packet);
+                    }
                     BroadcastFrame(packet);
-                    _options?.OnAfterBroadcastFrame?.Invoke(packet);
+                    if (_options != null)
+                    {
+                        _options.AfterBroadcastFrame.Invoke(packet);
+                        _options.OnAfterBroadcastFrame?.Invoke(packet);
+                    }
                 }
             }
 
@@ -219,10 +235,20 @@ namespace AbilityKit.Ability.Server
 
         public IWorld CreateWorld(WorldCreateOptions options)
         {
+            if (_options != null)
+            {
+                _options.BeforeCreateWorld.Invoke(options);
+                _options.OnBeforeCreateWorld?.Invoke(options);
+            }
+
             var world = _worlds.Create(options);
             _sessions[world.Id] = new WorldSession();
 
-            _options?.OnWorldCreated?.Invoke(world);
+            if (_options != null)
+            {
+                _options.WorldCreated.Invoke(world);
+                _options.OnWorldCreated?.Invoke(world);
+            }
 
             foreach (var c in _clients.Values)
             {
@@ -237,7 +263,11 @@ namespace AbilityKit.Ability.Server
             if (!_worlds.Destroy(id)) return false;
             _sessions.Remove(id);
 
-            _options?.OnWorldDestroyed?.Invoke(id);
+            if (_options != null)
+            {
+                _options.WorldDestroyed.Invoke(id);
+                _options.OnWorldDestroyed?.Invoke(id);
+            }
 
             foreach (var c in _clients.Values)
             {
