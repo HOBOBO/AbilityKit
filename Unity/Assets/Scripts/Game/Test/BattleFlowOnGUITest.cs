@@ -378,7 +378,7 @@ namespace AbilityKit.Game.Test
                 matchId: _worldId,
                 mapId: 1,
                 teamId: 1,
-                heroId: 101,
+                heroId: 10001,
                 randomSeed: 12345,
                 tickRate: 30,
                 inputDelayFrames: 2,
