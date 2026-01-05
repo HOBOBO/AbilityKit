@@ -2,6 +2,7 @@ using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Common.AttributeSystem;
 using AbilityKit.Ability.Share.Common.TagSystem;
+using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Triggering;
 
 namespace AbilityKit.Ability.Share.Effect
@@ -14,8 +15,10 @@ namespace AbilityKit.Ability.Share.Effect
         public readonly object Source;
         public readonly object Target;
 
-        public readonly GameplayTagContainer TargetTags;
-        public readonly AttributeContext TargetAttributes;
+        public readonly IUnitFacade TargetUnit;
+
+        public GameplayTagContainer TargetTags => TargetUnit.Tags;
+        public AttributeContext TargetAttributes => TargetUnit.Attributes;
         public readonly IEventBus EventBus;
 
         public EffectExecutionContext(
@@ -23,16 +26,14 @@ namespace AbilityKit.Ability.Share.Effect
             IFrameTime time,
             object source,
             object target,
-            GameplayTagContainer targetTags,
-            AttributeContext targetAttributes,
+            IUnitFacade targetUnit,
             IEventBus eventBus)
         {
             Services = services;
             Time = time;
             Source = source;
             Target = target;
-            TargetTags = targetTags;
-            TargetAttributes = targetAttributes;
+            TargetUnit = targetUnit ?? throw new ArgumentNullException(nameof(targetUnit));
             EventBus = eventBus;
         }
     }
