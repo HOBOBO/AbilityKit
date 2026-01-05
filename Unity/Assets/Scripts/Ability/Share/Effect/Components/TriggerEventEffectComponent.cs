@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Share.Effect;
 
 namespace AbilityKit.Ability.Share.Effect.Components
 {
@@ -26,35 +27,49 @@ namespace AbilityKit.Ability.Share.Effect.Components
 
         public void OnApply(in EffectExecutionContext context, EffectInstance instance)
         {
-            Publish(context.EventBus, _applyEventId, context.Source, context.Target);
+            Publish(context.EventBus, _applyEventId, context.Source, context.Target, instance);
         }
 
         public void OnTick(in EffectExecutionContext context, EffectInstance instance)
         {
-            Publish(context.EventBus, _tickEventId, context.Source, context.Target);
+            Publish(context.EventBus, _tickEventId, context.Source, context.Target, instance);
         }
 
         public void OnRemove(in EffectExecutionContext context, EffectInstance instance)
         {
-            Publish(context.EventBus, _removeEventId, context.Source, context.Target);
+            Publish(context.EventBus, _removeEventId, context.Source, context.Target, instance);
         }
 
-        private void Publish(IEventBus bus, string eventId, object source, object target)
+        private void Publish(IEventBus bus, string eventId, object source, object target, EffectInstance instance)
         {
             if (bus == null) return;
             if (string.IsNullOrEmpty(eventId)) return;
 
-            IReadOnlyDictionary<string, object> args = _args;
-            if (args == null)
+            Dictionary<string, object> args;
+            if (_args == null)
             {
-                args = new Dictionary<string, object>(StringComparer.Ordinal)
+                args = new Dictionary<string, object>(StringComparer.Ordinal);
+            }
+            else
+            {
+                args = new Dictionary<string, object>(_args.Count, StringComparer.Ordinal);
+                foreach (var kv in _args)
                 {
-                    ["source"] = source,
-                    ["target"] = target,
-                };
+                    if (kv.Key == null) continue;
+                    args[kv.Key] = kv.Value;
+                }
             }
 
-            bus.Publish(new TriggerEvent(eventId, null, args));
+            args[EffectTriggering.Args.Source] = source;
+            args[EffectTriggering.Args.Target] = target;
+            args[EffectTriggering.Args.Spec] = instance?.Spec;
+            args[EffectTriggering.Args.Instance] = instance;
+            args[EffectTriggering.Args.InstanceId] = instance != null ? instance.Id : 0;
+            args[EffectTriggering.Args.StackCount] = instance != null ? instance.StackCount : 0;
+            args[EffectTriggering.Args.ElapsedSeconds] = instance != null ? instance.ElapsedSeconds : 0f;
+            args[EffectTriggering.Args.RemainingSeconds] = instance != null ? instance.RemainingSeconds : 0f;
+
+            bus.Publish(new TriggerEvent(eventId, instance, args));
         }
     }
 }

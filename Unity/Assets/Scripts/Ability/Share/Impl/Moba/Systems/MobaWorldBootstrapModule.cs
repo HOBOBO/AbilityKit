@@ -1,9 +1,11 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Ability.Share.Impl.Moba.Systems;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
@@ -39,6 +41,9 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.RegisterType<IWorldInputSink, MobaLobbyInputSink>(WorldLifetime.Scoped);
 
             builder.RegisterType<MobaMoveService, MobaMoveService>(WorldLifetime.Scoped);
+
+            builder.RegisterType<MobaSkillLoadoutService, MobaSkillLoadoutService>(WorldLifetime.Scoped);
+            builder.RegisterType<MobaSkillRuntimeService, MobaSkillRuntimeService>(WorldLifetime.Scoped);
         }
 
         public void Install(global::Contexts contexts, global::Entitas.Systems systems, IWorldServices services)
@@ -52,6 +57,13 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 && services.TryGet<IWorldClock>(out var clock) && clock != null)
             {
                 systems.Add(new MobaMoveSystem(contexts, lobby, moves, clock));
+            }
+
+            if (services.TryGet<IUnitResolver>(out var units) && units != null
+                && services.TryGet<IFrameTime>(out var time) && time != null
+                && services.TryGet<AbilityKit.Ability.Triggering.IEventBus>(out var eventBus))
+            {
+                systems.Add(new MobaEffectsStepSystem(contexts, services, time, eventBus, units));
             }
 
             if (!services.TryGet<WorldInitData>(out var init) || init.Payload == null || init.Payload.Length == 0)

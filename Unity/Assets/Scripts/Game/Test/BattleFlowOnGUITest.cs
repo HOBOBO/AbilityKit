@@ -8,6 +8,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Requests;
+using AbilityKit.Game.Battle.Moba.Config;
 using UnityEngine;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -23,7 +24,8 @@ namespace AbilityKit.Game.Test
 
         private bool _useRemote;
         private bool _autoTick = true;
-        private bool _wasdMove;
+        private bool _wasdMove = true;
+        private bool _jklSkill = true;
         private bool _logToConsole = true;
         private bool _logFrames;
 
@@ -43,6 +45,9 @@ namespace AbilityKit.Game.Test
         private float _snapshotLogCooldown;
         private float _frameLogCooldown;
         private float _inputDiagCooldown;
+
+        private float _lastMoveDx;
+        private float _lastMoveDz;
 
         private const float FixedDelta = 1f / 30f;
         private float _tickAccumulator;
@@ -74,11 +79,17 @@ namespace AbilityKit.Game.Test
             {
                 GetMoveInput(out var dx, out var dz);
 
-                if (Math.Abs(dx) > 0.0001f || Math.Abs(dz) > 0.0001f)
+                var wasMoving = Math.Abs(_lastMoveDx) > 0.0001f || Math.Abs(_lastMoveDz) > 0.0001f;
+                var isMoving = Math.Abs(dx) > 0.0001f || Math.Abs(dz) > 0.0001f;
+
+                if (isMoving || (wasMoving && !isMoving))
                 {
                     var payload = MobaMoveCodec.Serialize(dx, dz);
                     var cmd = new PlayerInputCommand(new FrameIndex(_lastFrame + 1), new PlayerId(_playerId), (int)MobaOpCode.Move, payload);
                     _session.SubmitInput(new SubmitInputRequest(new WorldId(_worldId), cmd));
+
+                    _lastMoveDx = dx;
+                    _lastMoveDz = dz;
 
                     _moveLogCooldown -= Time.deltaTime;
                     if (_moveLogCooldown <= 0f)
@@ -89,6 +100,9 @@ namespace AbilityKit.Game.Test
                 }
                 else
                 {
+                    _lastMoveDx = dx;
+                    _lastMoveDz = dz;
+
                     _inputDiagCooldown -= Time.deltaTime;
                     if (_inputDiagCooldown <= 0f)
                     {
@@ -97,6 +111,38 @@ namespace AbilityKit.Game.Test
                     }
                 }
             }
+
+            if (_jklSkill && _session != null)
+            {
+                if (GetSkillKeyDown(out var slot))
+                {
+                    var op = slot == 1 ? (int)MobaOpCode.Skill1 : slot == 2 ? (int)MobaOpCode.Skill2 : (int)MobaOpCode.Skill3;
+                    var cmd = new PlayerInputCommand(new FrameIndex(_lastFrame + 1), new PlayerId(_playerId), op, Array.Empty<byte>());
+                    _session.SubmitInput(new SubmitInputRequest(new WorldId(_worldId), cmd));
+                    Log($"SendSkill: frame={cmd.Frame.Value}, slot={slot}, op={op}");
+                }
+            }
+        }
+
+        private static bool GetSkillKeyDown(out int slot)
+        {
+            slot = 0;
+
+#if ENABLE_INPUT_SYSTEM
+            var kb = Keyboard.current;
+            if (kb != null)
+            {
+                if (kb.jKey.wasPressedThisFrame) { slot = 1; return true; }
+                if (kb.kKey.wasPressedThisFrame) { slot = 2; return true; }
+                if (kb.lKey.wasPressedThisFrame) { slot = 3; return true; }
+                return false;
+            }
+#endif
+
+            if (Input.GetKeyDown(KeyCode.J)) { slot = 1; return true; }
+            if (Input.GetKeyDown(KeyCode.K)) { slot = 2; return true; }
+            if (Input.GetKeyDown(KeyCode.L)) { slot = 3; return true; }
+            return false;
         }
 
         private static void GetMoveInput(out float dx, out float dz)
@@ -134,6 +180,7 @@ namespace AbilityKit.Game.Test
             _useRemote = GUILayout.Toggle(_useRemote, "Remote Mode (In-Memory Transport)");
             _autoTick = GUILayout.Toggle(_autoTick, "Auto Tick (Update)");
             _wasdMove = GUILayout.Toggle(_wasdMove, "WASD Move (Send Move Input)");
+            _jklSkill = GUILayout.Toggle(_jklSkill, "JKL Skill (Send Skill1/2/3)");
             _logToConsole = GUILayout.Toggle(_logToConsole, "Log To Console (Debug.Log)");
             _logFrames = GUILayout.Toggle(_logFrames, "Log Every Frame (Noisy)");
 
@@ -318,6 +365,8 @@ namespace AbilityKit.Game.Test
                 },
                 new[] { "AbilityKit" }
             );
+
+            builder.AddModule(new MobaConfigWorldModule());
 
             var options = new WorldCreateOptions(new WorldId(_worldId), _worldType)
             {

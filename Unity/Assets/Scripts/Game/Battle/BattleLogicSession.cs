@@ -1,5 +1,7 @@
 using System;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Server.Modules;
+using AbilityKit.Ability.Server.Time;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
@@ -23,7 +25,11 @@ namespace AbilityKit.Game.Battle
             var registry = new WorldTypeRegistry().RegisterEntitasWorld(_options.WorldType);
             _worldManager = new WorldManager(new RegistryWorldFactory(registry));
 
-            _server = new AbilityKit.Ability.Server.LogicWorldServer(_worldManager);
+            var serverOptions = new LogicWorldServerOptions();
+            var modules = new LogicWorldServerModuleHost()
+                .Add(new ServerFrameTimeModule());
+            modules.InstallAll(serverOptions);
+            _server = new AbilityKit.Ability.Server.LogicWorldServer(_worldManager, serverOptions);
 
             if (_options.Mode == BattleLogicMode.Remote)
             {

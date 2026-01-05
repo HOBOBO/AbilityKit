@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Triggering;
 
 namespace AbilityKit.Ability.Share.Effect
 {
@@ -23,6 +24,8 @@ namespace AbilityKit.Ability.Share.Effect
             }
 
             var inst = new EffectInstance(_nextId++, spec);
+
+            PublishDefaultEvent(context.EventBus, EffectTriggering.Events.Apply, in context, inst);
 
             if (targetTags != null && spec.GrantedTags != null)
             {
@@ -121,6 +124,8 @@ namespace AbilityKit.Ability.Share.Effect
 
         private void TickInstance(EffectInstance inst, in EffectExecutionContext context)
         {
+            PublishDefaultEvent(context.EventBus, EffectTriggering.Events.Tick, in context, inst);
+
             var components = inst.Spec.Components;
             for (int i = 0; i < components.Count; i++)
             {
@@ -133,6 +138,8 @@ namespace AbilityKit.Ability.Share.Effect
             var inst = _active[index];
             _active.RemoveAt(index);
             if (inst == null) return;
+
+            PublishDefaultEvent(context.EventBus, EffectTriggering.Events.Remove, in context, inst);
 
             (inst.Spec.Cue ?? NullGameplayEffectCue.Instance).OnRemove(in context, inst);
 
@@ -150,6 +157,41 @@ namespace AbilityKit.Ability.Share.Effect
                     targetTags.Remove(tag);
                 }
             }
+        }
+
+        private static void PublishDefaultEvent(IEventBus bus, string eventId, in EffectExecutionContext context, EffectInstance instance)
+        {
+            if (bus == null) return;
+            if (string.IsNullOrEmpty(eventId)) return;
+
+            if (context.Services != null)
+            {
+                try
+                {
+                    var sw = context.Services.GetService(typeof(IEffectTriggeringSwitch));
+                    if (sw is IEffectTriggeringSwitch s && !s.Enabled)
+                    {
+                        return;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            var args = new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                [EffectTriggering.Args.Source] = context.Source,
+                [EffectTriggering.Args.Target] = context.Target,
+                [EffectTriggering.Args.Spec] = instance?.Spec,
+                [EffectTriggering.Args.Instance] = instance,
+                [EffectTriggering.Args.InstanceId] = instance != null ? instance.Id : 0,
+                [EffectTriggering.Args.StackCount] = instance != null ? instance.StackCount : 0,
+                [EffectTriggering.Args.ElapsedSeconds] = instance != null ? instance.ElapsedSeconds : 0f,
+                [EffectTriggering.Args.RemainingSeconds] = instance != null ? instance.RemainingSeconds : 0f,
+            };
+
+            bus.Publish(new TriggerEvent(eventId, instance, args));
         }
     }
 }
