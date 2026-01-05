@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.Share.ECS.Entitas;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -49,6 +50,8 @@ namespace AbilityKit.Ability.World.Entitas
 
             builder.Register<IEntitasWorldContext>(WorldLifetime.Scoped, r => new EntitasWorldContext(Id, WorldType, Contexts, Systems, (IWorldServices)r));
             builder.Register<IWorldContext>(WorldLifetime.Scoped, r => r.Resolve<IEntitasWorldContext>());
+
+            builder.AddModule(new EntitasEcsWorldModule());
 
             if (_options.Modules != null)
             {
