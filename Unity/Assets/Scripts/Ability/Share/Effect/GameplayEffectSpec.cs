@@ -8,29 +8,33 @@ namespace AbilityKit.Ability.Share.Effect
     {
         public GameplayEffectSpec(
             EffectDurationPolicy durationPolicy,
-            int durationFrames,
-            int periodFrames,
+            float durationSeconds,
+            float periodSeconds,
             GameplayTagRequirements applicationRequirements,
             GameplayTagContainer grantedTags,
             IReadOnlyList<IEffectComponent> components,
-            bool executePeriodicOnApply = false)
+            bool executePeriodicOnApply = false,
+            IGameplayEffectCue cue = null)
         {
             DurationPolicy = durationPolicy;
-            DurationFrames = durationFrames;
-            PeriodFrames = periodFrames;
+            DurationSeconds = durationSeconds;
+            PeriodSeconds = periodSeconds;
             ApplicationRequirements = applicationRequirements;
             GrantedTags = grantedTags;
             Components = components ?? Array.Empty<IEffectComponent>();
             ExecutePeriodicOnApply = executePeriodicOnApply;
+            Cue = cue;
         }
 
         public EffectDurationPolicy DurationPolicy { get; }
-        public int DurationFrames { get; }
-        public int PeriodFrames { get; }
+        public float DurationSeconds { get; }
+        public float PeriodSeconds { get; }
         public bool ExecutePeriodicOnApply { get; }
 
         public GameplayTagRequirements ApplicationRequirements { get; }
         public GameplayTagContainer GrantedTags { get; }
+
+        public IGameplayEffectCue Cue { get; }
 
         public IReadOnlyList<IEffectComponent> Components { get; }
     }

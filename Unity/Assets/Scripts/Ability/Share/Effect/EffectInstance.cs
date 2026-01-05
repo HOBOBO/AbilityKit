@@ -5,13 +5,15 @@ namespace AbilityKit.Ability.Share.Effect
 {
     public sealed class EffectInstance
     {
-        internal EffectInstance(int id, GameplayEffectSpec spec, int startFrame, int endFrame)
+        internal EffectInstance(int id, GameplayEffectSpec spec)
         {
             Id = id;
             Spec = spec ?? throw new ArgumentNullException(nameof(spec));
-            StartFrame = startFrame;
-            EndFrame = endFrame;
-            NextTickFrame = startFrame;
+
+            ElapsedSeconds = 0f;
+            RemainingSeconds = spec.DurationPolicy == EffectDurationPolicy.Duration ? System.Math.Max(0f, spec.DurationSeconds) : -1f;
+            NextTickInSeconds = spec.PeriodSeconds > 0f ? System.Math.Max(0f, spec.PeriodSeconds) : -1f;
+
             StackCount = 1;
             State = new Dictionary<object, object>();
         }
@@ -19,9 +21,9 @@ namespace AbilityKit.Ability.Share.Effect
         public int Id { get; }
         public GameplayEffectSpec Spec { get; }
 
-        public int StartFrame { get; }
-        public int EndFrame { get; internal set; }
-        public int NextTickFrame { get; internal set; }
+        public float ElapsedSeconds { get; internal set; }
+        public float RemainingSeconds { get; internal set; }
+        public float NextTickInSeconds { get; internal set; }
 
         public int StackCount { get; internal set; }
 

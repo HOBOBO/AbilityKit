@@ -22,14 +22,7 @@ namespace AbilityKit.Ability.Share.Effect
                 if (!spec.ApplicationRequirements.IsSatisfiedBy(targetTags)) return null;
             }
 
-            var startFrame = context.Time.Frame.Value;
-            var endFrame = int.MaxValue;
-            if (spec.DurationPolicy == EffectDurationPolicy.Duration)
-            {
-                endFrame = startFrame + System.Math.Max(0, spec.DurationFrames);
-            }
-
-            var inst = new EffectInstance(_nextId++, spec, startFrame, endFrame);
+            var inst = new EffectInstance(_nextId++, spec);
 
             if (targetTags != null && spec.GrantedTags != null)
             {
@@ -45,6 +38,8 @@ namespace AbilityKit.Ability.Share.Effect
                 components[i]?.OnApply(in context, inst);
             }
 
+            (spec.Cue ?? NullGameplayEffectCue.Instance).OnActive(in context, inst);
+
             _active.Add(inst);
 
             if (spec.DurationPolicy == EffectDurationPolicy.Instant)
@@ -53,14 +48,14 @@ namespace AbilityKit.Ability.Share.Effect
                 return inst;
             }
 
-            if (spec.PeriodFrames > 0 && spec.ExecutePeriodicOnApply)
+            if (spec.PeriodSeconds > 0f && spec.ExecutePeriodicOnApply)
             {
-                TickInstance(inst, in context, startFrame);
+                TickInstance(inst, in context);
             }
 
-            if (spec.PeriodFrames > 0)
+            if (spec.PeriodSeconds > 0f)
             {
-                inst.NextTickFrame = startFrame + System.Math.Max(1, spec.PeriodFrames);
+                inst.NextTickInSeconds = System.Math.Max(0f, spec.PeriodSeconds);
             }
 
             return inst;
@@ -84,7 +79,9 @@ namespace AbilityKit.Ability.Share.Effect
         {
             if (context.Time == null) throw new ArgumentNullException(nameof(context.Time));
 
-            var frame = context.Time.Frame.Value;
+            var dt = context.Time.DeltaTime;
+            if (dt <= 0f) return;
+
             for (int i = _active.Count - 1; i >= 0; i--)
             {
                 var inst = _active[i];
@@ -96,25 +93,33 @@ namespace AbilityKit.Ability.Share.Effect
 
                 var spec = inst.Spec;
 
-                if (spec.PeriodFrames > 0 && frame >= inst.NextTickFrame)
-                {
-                    TickInstance(inst, in context, frame);
+                inst.ElapsedSeconds += dt;
 
-                    var period = System.Math.Max(1, spec.PeriodFrames);
-                    while (inst.NextTickFrame <= frame)
+                (spec.Cue ?? NullGameplayEffectCue.Instance).WhileActive(in context, inst);
+
+                if (spec.DurationPolicy == EffectDurationPolicy.Duration)
+                {
+                    inst.RemainingSeconds -= dt;
+                }
+
+                if (spec.PeriodSeconds > 0f)
+                {
+                    inst.NextTickInSeconds -= dt;
+                    while (inst.NextTickInSeconds <= 0f)
                     {
-                        inst.NextTickFrame += period;
+                        TickInstance(inst, in context);
+                        inst.NextTickInSeconds += System.Math.Max(0.0001f, spec.PeriodSeconds);
                     }
                 }
 
-                if (spec.DurationPolicy == EffectDurationPolicy.Duration && frame >= inst.EndFrame)
+                if (spec.DurationPolicy == EffectDurationPolicy.Duration && inst.RemainingSeconds <= 0f)
                 {
                     RemoveAt(i, in context);
                 }
             }
         }
 
-        private void TickInstance(EffectInstance inst, in EffectExecutionContext context, int frame)
+        private void TickInstance(EffectInstance inst, in EffectExecutionContext context)
         {
             var components = inst.Spec.Components;
             for (int i = 0; i < components.Count; i++)
@@ -128,6 +133,8 @@ namespace AbilityKit.Ability.Share.Effect
             var inst = _active[index];
             _active.RemoveAt(index);
             if (inst == null) return;
+
+            (inst.Spec.Cue ?? NullGameplayEffectCue.Instance).OnRemove(in context, inst);
 
             var components = inst.Spec.Components;
             for (int i = 0; i < components.Count; i++)
