@@ -43,7 +43,8 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.RegisterType<MobaMoveService, MobaMoveService>(WorldLifetime.Scoped);
 
             builder.RegisterType<MobaSkillLoadoutService, MobaSkillLoadoutService>(WorldLifetime.Scoped);
-            builder.RegisterType<MobaSkillRuntimeService, MobaSkillRuntimeService>(WorldLifetime.Scoped);
+            builder.RegisterType<IMobaSkillPipelineLibrary, DefaultMobaSkillPipelineLibrary>(WorldLifetime.Scoped);
+            builder.RegisterType<SkillExecutor, SkillExecutor>(WorldLifetime.Scoped);
         }
 
         public void Install(global::Contexts contexts, global::Entitas.Systems systems, IWorldServices services)
@@ -52,18 +53,19 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             if (systems == null) throw new ArgumentNullException(nameof(systems));
             if (services == null) throw new ArgumentNullException(nameof(services));
 
+            AutoSystemInstaller.Install(
+                contexts,
+                systems,
+                services,
+                assemblies: new[] { typeof(MobaWorldBootstrapModule).Assembly },
+                namespacePrefixes: new[] { "AbilityKit.Ability.Share.Impl.Moba" }
+            );
+
             if (services.TryGet<MobaLobbyStateService>(out var lobby) && lobby != null
                 && services.TryGet<MobaMoveService>(out var moves) && moves != null
                 && services.TryGet<IWorldClock>(out var clock) && clock != null)
             {
                 systems.Add(new MobaMoveSystem(contexts, lobby, moves, clock));
-            }
-
-            if (services.TryGet<IUnitResolver>(out var units) && units != null
-                && services.TryGet<IFrameTime>(out var time) && time != null
-                && services.TryGet<AbilityKit.Ability.Triggering.IEventBus>(out var eventBus))
-            {
-                systems.Add(new MobaEffectsStepSystem(contexts, services, time, eventBus, units));
             }
 
             if (!services.TryGet<WorldInitData>(out var init) || init.Payload == null || init.Payload.Length == 0)

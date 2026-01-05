@@ -428,7 +428,7 @@ namespace AbilityKit.Game.Test
 
             if (_logFrames)
             {
-                Log($"OnFrame: world={packet.WorldId.Value}, frame={packet.Frame.Value}, inputs={inputsCount}, {snapshotInfo}");
+                //Log($"OnFrame: world={packet.WorldId.Value}, frame={packet.Frame.Value}, inputs={inputsCount}, {snapshotInfo}");
             }
             else
             {
@@ -436,7 +436,7 @@ namespace AbilityKit.Game.Test
                 if (_frameLogCooldown <= 0f)
                 {
                     _frameLogCooldown = 1f;
-                    Log($"OnFrame: world={packet.WorldId.Value}, frame={packet.Frame.Value}, inputs={inputsCount}, {snapshotInfo}");
+                    //Log($"OnFrame: world={packet.WorldId.Value}, frame={packet.Frame.Value}, inputs={inputsCount}, {snapshotInfo}");
                 }
             }
         }
@@ -454,7 +454,7 @@ namespace AbilityKit.Game.Test
                     if (snap.Players[i].Ready) readyCount++;
                 }
             }
-            Log($"LobbySnapshot: version={snap.Version}, started={snap.Started}, joined={count}, ready={readyCount}");
+            //Log($"LobbySnapshot: version={snap.Version}, started={snap.Started}, joined={count}, ready={readyCount}");
         }
 
         private void ApplyEnterGameResSnapshot(byte[] payload)

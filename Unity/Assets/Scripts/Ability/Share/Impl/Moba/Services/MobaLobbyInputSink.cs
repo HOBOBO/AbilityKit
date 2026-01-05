@@ -15,11 +15,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaActorLookupService _actorLookup;
         private readonly global::Contexts _contexts;
         private readonly MobaMoveService _moves;
-        private readonly MobaSkillRuntimeService _skills;
+        private readonly SkillExecutor _skills;
 
         private readonly Dictionary<int, Action<PlayerInputCommand>> _handlers;
 
-        public MobaLobbyInputSink(MobaLobbyStateService lobby, MobaEnterGameFlowService enterGame, MobaPlayerActorMapService playerActorMap, MobaActorLookupService actorLookup, global::Contexts contexts, MobaMoveService moves, MobaSkillRuntimeService skills)
+        public MobaLobbyInputSink(MobaLobbyStateService lobby, MobaEnterGameFlowService enterGame, MobaPlayerActorMapService playerActorMap, MobaActorLookupService actorLookup, global::Contexts contexts, MobaMoveService moves, SkillExecutor skills)
         {
             _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
             _enterGame = enterGame ?? throw new ArgumentNullException(nameof(enterGame));

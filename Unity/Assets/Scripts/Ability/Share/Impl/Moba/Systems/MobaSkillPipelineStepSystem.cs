@@ -1,0 +1,45 @@
+using System;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World.Services;
+
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
+{
+    [WorldSystem(order: MobaSystemOrder.SkillPipelines, Phase = WorldSystemPhase.Execute)]
+    public sealed class MobaSkillPipelineStepSystem : WorldSystemBase
+    {
+        private SkillExecutor _skills;
+        private IWorldClock _clock;
+
+        private Entitas.IGroup<global::ActorEntity> _group;
+
+        public MobaSkillPipelineStepSystem(global::Contexts contexts, IWorldServices services)
+            : base(contexts, services)
+        {
+        }
+
+        protected override void OnInit()
+        {
+            Services.TryGet(out _skills);
+            Services.TryGet(out _clock);
+            _group = Contexts.actor.GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId));
+        }
+
+        protected override void OnExecute()
+        {
+            if (_skills == null || _clock == null) return;
+            if (_clock.DeltaTime <= 0f) return;
+
+            var entities = _group.GetEntities();
+            if (entities == null || entities.Length == 0) return;
+
+            for (int i = 0; i < entities.Length; i++)
+            {
+                var e = entities[i];
+                if (e == null || !e.hasActorId) continue;
+                _skills.Step(e.actorId.Value);
+            }
+        }
+    }
+}

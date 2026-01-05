@@ -4,36 +4,40 @@ using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Entitas;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
-    public sealed class MobaEffectsStepSystem : global::Entitas.IExecuteSystem
+    [WorldSystem(order: MobaSystemOrder.EffectsStep)]
+    public sealed class MobaEffectsStepSystem : WorldSystemBase
     {
-        private readonly IWorldServices _services;
-        private readonly IFrameTime _time;
-        private readonly IEventBus _eventBus;
-        private readonly IUnitResolver _units;
+        private IFrameTime _time;
+        private IEventBus _eventBus;
+        private IUnitResolver _units;
 
-        private readonly global::Contexts _contexts;
-        private readonly Entitas.IGroup<global::ActorEntity> _group;
+        private Entitas.IGroup<global::ActorEntity> _group;
 
-        public MobaEffectsStepSystem(global::Contexts contexts, IWorldServices services, IFrameTime time, IEventBus eventBus, IUnitResolver units)
+        public MobaEffectsStepSystem(global::Contexts contexts, IWorldServices services)
+            : base(contexts, services)
         {
-            _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
-            _services = services ?? throw new ArgumentNullException(nameof(services));
-            _time = time ?? throw new ArgumentNullException(nameof(time));
-            _eventBus = eventBus;
-            _units = units ?? throw new ArgumentNullException(nameof(units));
-
-            _group = _contexts.actor.GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId));
         }
 
-        public void Execute()
+        protected override void OnInit()
         {
+            Services.TryGet(out _units);
+            Services.TryGet(out _time);
+            Services.TryGet(out _eventBus);
+            _group = Contexts.actor.GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId));
+        }
+
+        protected override void OnExecute()
+        {
+            if (_units == null || _time == null) return;
+
             var entities = _group.GetEntities();
             if (entities == null || entities.Length == 0) return;
 
-            var sp = new WorldServiceProviderAdapter(_services);
+            var sp = new WorldServiceProviderAdapter(Services);
 
             for (int i = 0; i < entities.Length; i++)
             {
