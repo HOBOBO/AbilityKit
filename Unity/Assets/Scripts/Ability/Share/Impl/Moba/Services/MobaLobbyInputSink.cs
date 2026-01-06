@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Impl.Moba.Move;
+using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Math;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
@@ -45,9 +46,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 { (int)MobaOpCode.Ready, cmd => _lobby.SetReady(cmd.Player, true) },
                 { (int)MobaOpCode.Unready, cmd => _lobby.SetReady(cmd.Player, false) },
                 { (int)MobaOpCode.Move, HandleMove },
-                { (int)MobaOpCode.Skill1, cmd => HandleSkill(cmd, 1) },
-                { (int)MobaOpCode.Skill2, cmd => HandleSkill(cmd, 2) },
-                { (int)MobaOpCode.Skill3, cmd => HandleSkill(cmd, 3) },
+                { (int)MobaOpCode.Skill1, cmd => HandleSkillLegacy(cmd, 1) },
+                { (int)MobaOpCode.Skill2, cmd => HandleSkillLegacy(cmd, 2) },
+                { (int)MobaOpCode.Skill3, cmd => HandleSkillLegacy(cmd, 3) },
+                { (int)MobaOpCode.SkillInput, HandleSkillInput },
             };
         }
 
@@ -62,14 +64,27 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _moves.SetInput(actorId, dx, dz);
         }
 
-        private void HandleSkill(PlayerInputCommand cmd, int slot)
+        private void HandleSkillLegacy(PlayerInputCommand cmd, int slot)
         {
             if (!_lobby.Started) return;
             if (!_playerActorMap.TryGetActorId(cmd.Player, out var actorId)) return;
             if (!_actorLookup.TryGetActorEntity(actorId, out var entity) || entity == null) return;
             if (!entity.hasTransform) return;
 
-            _skills?.CastBySlot(actorId, slot);
+            var evt = new SkillInputEvent(slot: slot, phase: SkillInputPhase.Press);
+            _skills?.HandleInput(actorId, in evt);
+        }
+
+        private void HandleSkillInput(PlayerInputCommand cmd)
+        {
+            if (!_lobby.Started) return;
+            if (!_playerActorMap.TryGetActorId(cmd.Player, out var actorId)) return;
+            if (!_actorLookup.TryGetActorEntity(actorId, out var entity) || entity == null) return;
+            if (!entity.hasTransform) return;
+
+            if (cmd.Payload == null || cmd.Payload.Length == 0) return;
+            var evt = SkillInputCodec.Deserialize(cmd.Payload);
+            _skills?.HandleInput(actorId, in evt);
         }
 
         public void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)

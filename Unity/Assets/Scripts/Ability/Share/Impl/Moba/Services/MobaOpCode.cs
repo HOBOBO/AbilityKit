@@ -10,6 +10,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         Skill2 = 3012,
         Skill3 = 3013,
 
+        SkillInput = 3020,
+
         LobbySnapshot = 4001,
         EnterGameSnapshot = 4002,
         ActorTransformSnapshot = 4003,

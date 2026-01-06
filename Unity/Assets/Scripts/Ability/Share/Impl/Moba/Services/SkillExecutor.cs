@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.ECS.Entitas;
+using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
@@ -62,6 +63,24 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             }
 
             return CastSkill(actorId, skillId, slot);
+        }
+
+        public bool HandleInput(int actorId, in SkillInputEvent evt)
+        {
+            if (actorId <= 0) return false;
+            if (evt.Slot <= 0) return false;
+
+            switch (evt.Phase)
+            {
+                case SkillInputPhase.Press:
+                    return CastBySlot(actorId, evt.Slot);
+                case SkillInputPhase.Hold:
+                case SkillInputPhase.Release:
+                case SkillInputPhase.Cancel:
+                default:
+                    // Not implemented yet: reserved for charge/channel/confirm/cancel.
+                    return false;
+            }
         }
 
         public bool CastSkill(int actorId, int skillId)
