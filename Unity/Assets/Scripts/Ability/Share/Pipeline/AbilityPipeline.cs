@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace AbilityKit.Ability
 {
@@ -44,7 +43,7 @@ namespace AbilityKit.Ability
         /// </summary>
         protected IAbilityPipelineContext _context;
         
-        private readonly List<IAbilityPipelinePhase> _phases = new List<IAbilityPipelinePhase>();
+        private readonly List<IAbilityPipelinePhase> _phases = new List<IAbilityPipelinePhase>(8);
 
         /// <summary>
         /// 统一处理管线执行流程
@@ -63,9 +62,9 @@ namespace AbilityKit.Ability
                 _currentParallelPhase = null;
                 
                 // 重置所有阶段状态
-                foreach (var phase in _phases)
+                for (int i = 0; i < _phases.Count; i++)
                 {
-                    phase.Reset();
+                    _phases[i].Reset();
                 }
             
                 // 执行管线初始化
@@ -140,8 +139,10 @@ namespace AbilityKit.Ability
             // 中断并行阶段的子阶段
             if (_currentParallelPhase != null)
             {
-                foreach (var phase in _currentParallelPhase.SubPhases)
+                var subPhases = _currentParallelPhase.SubPhases;
+                for (int i = 0; i < subPhases.Count; i++)
                 {
+                    var phase = subPhases[i];
                     if (phase is IInterruptiblePhase subInterruptible)
                     {
                         subInterruptible.OnInterrupt(_context);
@@ -168,9 +169,9 @@ namespace AbilityKit.Ability
             _config = null;
             
             // 重置所有阶段
-            foreach (var phase in _phases)
+            for (int i = 0; i < _phases.Count; i++)
             {
-                phase.Reset();
+                _phases[i].Reset();
             }
             
             if (_context != null)
@@ -297,10 +298,13 @@ namespace AbilityKit.Ability
 
         public void RemovePhase(AbilityPipelinePhaseId phaseId)
         {
-            var phase = _phases.FirstOrDefault(p => p.PhaseId == phaseId);
-            if (phase != null)
+            for (int i = 0; i < _phases.Count; i++)
             {
-                _phases.Remove(phase);
+                if (_phases[i].PhaseId == phaseId)
+                {
+                    _phases.RemoveAt(i);
+                    return;
+                }
             }
         }
         

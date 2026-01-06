@@ -10,6 +10,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Game.Battle.Moba.Config;
 using UnityEngine;
+using AbilityKit.Ability.World.DI;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
@@ -45,6 +46,7 @@ namespace AbilityKit.Game.Test
         private float _snapshotLogCooldown;
         private float _frameLogCooldown;
         private float _inputDiagCooldown;
+        private float _frameInputLogCooldown;
 
         private float _lastMoveDx;
         private float _lastMoveDz;
@@ -314,6 +316,16 @@ namespace AbilityKit.Game.Test
 
             _session.Connect();
             CreateWorld();
+
+            if (_session.TryGetWorld(out var w) && w != null)
+            {
+                Log($"World exists after CreateWorld: id={w.Id.Value}, type={w.WorldType}");
+            }
+            else
+            {
+                Log("World NOT found after CreateWorld (TryGetWorld=false)");
+            }
+
             _session.Join(new JoinWorldRequest(new WorldId(_worldId), new PlayerId(_playerId)));
             _session.SubmitInput(new SubmitInputRequest(new WorldId(_worldId), new PlayerInputCommand(new FrameIndex(_lastFrame + 1), new PlayerId(_playerId), (int)MobaOpCode.Ready, Array.Empty<byte>())));
             Log("One-Click Start done: Connect + CreateWorld + Join");
@@ -357,10 +369,11 @@ namespace AbilityKit.Game.Test
             if (_session == null) return;
 
             var builder = AbilityKit.Ability.World.Services.WorldServiceContainerFactory.CreateWithAttributes(
-                AbilityKit.Ability.World.Services.Attributes.WorldServiceProfile.Client,
+                AbilityKit.Ability.World.Services.Attributes.WorldServiceProfile.All,
                 new[]
                 {
                     typeof(AbilityKit.Ability.World.Services.WorldServiceContainerFactory).Assembly,
+                    typeof(AbilityKit.Ability.Impl.Moba.Systems.MobaWorldBootstrapModule).Assembly,
                     typeof(BattleFlowOnGUITest).Assembly
                 },
                 new[] { "AbilityKit" }
@@ -383,12 +396,76 @@ namespace AbilityKit.Game.Test
                 tickRate: 30,
                 inputDelayFrames: 2,
                 opCode: 0,
-                payload: null
+                payload: null,
+                extraPlayerId: new PlayerId("p2"),
+                extraTeamId: 2,
+                extraHeroId: 10002,
+                extraSpawnIndex: 0
             );
 
             var initPayload = EnterMobaGameCodec.SerializeReq(req);
             _session.CreateWorld(new CreateWorldRequest(options, MobaWorldBootstrapModule.InitOpCode, initPayload));
             Log($"CreateWorld: {options.Id.Value}, type={options.WorldType}");
+
+            if (_session.TryGetWorld(out var w) && w != null)
+            {
+                if (w.Services != null)
+                {
+                    var hasSink = w.Services.TryGet<IWorldInputSink>(out var sink) && sink != null;
+                    Log($"WorldServices: IWorldInputSink={(hasSink ? sink.GetType().Name : "null")}");
+
+                    try
+                    {
+                        var container = w.Services.Resolve<IWorldServiceContainer>();
+                        Log($"WorldServices: IWorldInputSink registered={container.IsRegistered(typeof(IWorldInputSink))}");
+                    }
+                    catch (Exception e)
+                    {
+                        Log($"WorldServices: resolve IWorldServiceContainer failed: {e.GetType().Name}: {e.Message}");
+                    }
+
+                    if (!hasSink)
+                    {
+                        try
+                        {
+                            var resolved = w.Services.Resolve(typeof(IWorldInputSink));
+                            Log($"WorldServices: Resolve(IWorldInputSink) ok: {resolved?.GetType().Name}");
+                        }
+                        catch (Exception e)
+                        {
+                            Log($"WorldServices: Resolve(IWorldInputSink) failed: {e.GetType().Name}: {e.Message}");
+
+                            TryLogResolve(w.Services, typeof(AbilityKit.Ability.Share.Impl.Moba.Services.MobaLobbyStateService));
+                            TryLogResolve(w.Services, typeof(AbilityKit.Ability.Share.Impl.Moba.Services.MobaEnterGameFlowService));
+                            TryLogResolve(w.Services, typeof(AbilityKit.Ability.Share.Impl.Moba.Services.MobaPlayerActorMapService));
+                            TryLogResolve(w.Services, typeof(AbilityKit.Ability.Share.Impl.Moba.Services.MobaActorLookupService));
+                            TryLogResolve(w.Services, typeof(global::Contexts));
+                            TryLogResolve(w.Services, typeof(AbilityKit.Ability.Share.Impl.Moba.Move.MobaMoveService));
+                        }
+                    }
+
+                    var hasLobby = w.Services.TryGet<MobaLobbyStateService>(out var lobby) && lobby != null;
+                    Log($"WorldServices: MobaLobbyStateService={(hasLobby ? "ok" : "null")}");
+                }
+                else
+                {
+                    Log("WorldServices: null");
+                }
+            }
+        }
+
+        private void TryLogResolve(IWorldServices services, Type type)
+        {
+            if (services == null || type == null) return;
+            try
+            {
+                var ok = services.TryResolve(type, out var inst) && inst != null;
+                Log($"WorldServices: dep {type.Name}={(ok ? "ok" : "null")}");
+            }
+            catch (Exception e)
+            {
+                Log($"WorldServices: dep {type.Name} resolve exception: {e.GetType().Name}: {e.Message}");
+            }
         }
 
         private void SubmitInput()
@@ -405,23 +482,77 @@ namespace AbilityKit.Game.Test
         {
             _lastFrame = packet.Frame.Value;
 
+            var inputsCount = packet.Inputs?.Count ?? 0;
+            _frameInputLogCooldown -= FixedDelta;
+            if (_frameInputLogCooldown <= 0f)
+            {
+                _frameInputLogCooldown = 1f;
+                if (inputsCount == 0)
+                {
+                    Log($"OnFrameInputs: frame={packet.Frame.Value}, inputs=0");
+                }
+                else
+                {
+                    var sb = new StringBuilder(64);
+                    sb.Append("OnFrameInputs: frame=").Append(packet.Frame.Value).Append(", inputs=").Append(inputsCount).Append(", op=");
+                    var take = inputsCount < 5 ? inputsCount : 5;
+                    for (int i = 0; i < take; i++)
+                    {
+                        if (i > 0) sb.Append(',');
+                        sb.Append(packet.Inputs[i].OpCode);
+                    }
+                    Log(sb.ToString());
+                }
+            }
+
+            if (packet.Snapshot.HasValue)
+            {
+                var opCode = packet.Snapshot.Value.OpCode;
+                _snapshotLogCooldown -= FixedDelta;
+                if (_snapshotLogCooldown <= 0f)
+                {
+                    _snapshotLogCooldown = 0.5f;
+                    Log($"OnFrame: frame={packet.Frame.Value}, snapshotOp={opCode}, bytes={(packet.Snapshot.Value.Payload?.Length ?? 0)}");
+                }
+            }
+
             if (packet.Snapshot.HasValue)
             {
                 if (packet.Snapshot.Value.OpCode == (int)MobaOpCode.EnterGameSnapshot)
                 {
-                    ApplyEnterGameResSnapshot(packet.Snapshot.Value.Payload);
+                    try
+                    {
+                        ApplyEnterGameResSnapshot(packet.Snapshot.Value.Payload);
+                    }
+                    catch (Exception e)
+                    {
+                        Log($"ApplyEnterGameResSnapshot exception: {e.GetType().Name}: {e.Message}");
+                    }
                 }
                 else if (packet.Snapshot.Value.OpCode == (int)MobaOpCode.LobbySnapshot)
                 {
-                    ApplyLobbySnapshot(packet.Snapshot.Value.Payload);
+                    try
+                    {
+                        ApplyLobbySnapshot(packet.Snapshot.Value.Payload);
+                    }
+                    catch (Exception e)
+                    {
+                        Log($"ApplyLobbySnapshot exception: {e.GetType().Name}: {e.Message}");
+                    }
                 }
                 else if (packet.Snapshot.Value.OpCode == (int)MobaOpCode.ActorTransformSnapshot)
                 {
-                    ApplyActorTransformSnapshot(packet.Snapshot.Value.Payload);
+                    try
+                    {
+                        ApplyActorTransformSnapshot(packet.Snapshot.Value.Payload);
+                    }
+                    catch (Exception e)
+                    {
+                        Log($"ApplyActorTransformSnapshot exception: {e.GetType().Name}: {e.Message}");
+                    }
                 }
             }
 
-            var inputsCount = packet.Inputs?.Count ?? 0;
             var snapshotInfo = packet.Snapshot.HasValue
                 ? $"snapshot(op={packet.Snapshot.Value.OpCode}, bytes={(packet.Snapshot.Value.Payload?.Length ?? 0)})"
                 : "snapshot(null)";
@@ -454,7 +585,12 @@ namespace AbilityKit.Game.Test
                     if (snap.Players[i].Ready) readyCount++;
                 }
             }
-            //Log($"LobbySnapshot: version={snap.Version}, started={snap.Started}, joined={count}, ready={readyCount}");
+            _frameLogCooldown -= Time.deltaTime;
+            if (_frameLogCooldown <= 0f)
+            {
+                _frameLogCooldown = 1f;
+                Log($"LobbySnapshot: version={snap.Version}, started={snap.Started}, joined={count}, ready={readyCount}");
+            }
         }
 
         private void ApplyEnterGameResSnapshot(byte[] payload)

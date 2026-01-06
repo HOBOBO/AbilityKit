@@ -26,22 +26,22 @@ namespace AbilityKit.Ability.Impl
             var contextFactory = new UnityTriggerContextFactory();
             _runner = new TriggerRunner(_eventBus, registry, contextFactory);
 
+            var condArgs = PooledDefArgs.Rent();
+            condArgs["key"] = "damage";
+            condArgs["value"] = 0;
+
+            var actArgs = PooledDefArgs.Rent();
+            actArgs["message"] = "UnitDamaged fired and damage>0";
+
             var trigger = new TriggerDef(
                 eventId: "UnitDamaged",
                 conditions: new List<ConditionDef>
                 {
-                    new ConditionDef("arg_gt", new Dictionary<string, object>
-                    {
-                        {"key", "damage"},
-                        {"value", 0}
-                    })
+                    new ConditionDef("arg_gt", condArgs)
                 },
                 actions: new List<ActionDef>
                 {
-                    new ActionDef("debug_log", new Dictionary<string, object>
-                    {
-                        {"message", "UnitDamaged fired and damage>0"}
-                    })
+                    new ActionDef("debug_log", actArgs)
                 }
             );
 
@@ -50,16 +50,11 @@ namespace AbilityKit.Ability.Impl
 
         private void Start()
         {
-            _eventBus.Publish(new TriggerEvent(
-                id: "UnitDamaged",
-                payload: null,
-                args: new Dictionary<string, object>
-                {
-                    {"damage", 10},
-                    {"source", gameObject},
-                    {"target", gameObject}
-                }
-            ));
+            var args = PooledTriggerArgs.Rent();
+            args["damage"] = 10;
+            args["source"] = gameObject;
+            args["target"] = gameObject;
+            _eventBus.Publish(new TriggerEvent(id: "UnitDamaged", payload: null, args: args));
         }
 
         private void OnDestroy()

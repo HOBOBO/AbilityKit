@@ -78,7 +78,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             var servicesProvider = new WorldServiceProviderAdapter(_services);
 
-            var args = new Dictionary<string, object>(StringComparer.Ordinal)
+            var args = new Dictionary<string, object>(6, StringComparer.Ordinal)
             {
                 [TriggerArgs.SkillId] = skillId,
                 [TriggerArgs.SkillSlot] = slot,

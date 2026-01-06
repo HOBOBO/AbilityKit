@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using AbilityKit.Ability.Triggering;
 using UnityEngine;
 
@@ -12,14 +11,9 @@ namespace AbilityKit.Ability.Impl.Triggering
         {
             if (!Input.GetKeyDown(Key)) return;
 
-            UnityGlobalEventBus.Instance.Publish(new TriggerEvent(
-                id: "Attack",
-                payload: null,
-                args: new Dictionary<string, object>
-                {
-                    {"source", gameObject}
-                }
-            ));
+            var args = PooledTriggerArgs.Rent();
+            args["source"] = gameObject;
+            UnityGlobalEventBus.Instance.Publish(new TriggerEvent(id: "Attack", payload: null, args: args));
         }
     }
 }

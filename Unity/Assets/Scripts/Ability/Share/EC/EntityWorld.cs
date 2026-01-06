@@ -1,10 +1,18 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Common.Pool;
 
 namespace AbilityKit.Ability.EC
 {
     public sealed class EntityWorld
     {
+        private static readonly ObjectPool<List<int>> s_intListPool = Pools.GetPool(
+            createFunc: () => new List<int>(16),
+            onRelease: list => list.Clear(),
+            defaultCapacity: 16,
+            maxSize: 256,
+            collectionCheck: false);
+
         private readonly Stack<int> _free = new Stack<int>();
 
         private int[] _versions = Array.Empty<int>();
@@ -243,14 +251,22 @@ namespace AbilityKit.Ability.EC
             var childList = _children[index];
             if (childList != null && childList.Count > 0)
             {
-                var snapshot = childList.ToArray();
-                for (int i = 0; i < snapshot.Length; i++)
+                var snapshot = s_intListPool.Get();
+                snapshot.AddRange(childList);
+                try
                 {
-                    var cIndex = snapshot[i];
-                    if (cIndex < 0 || cIndex >= _versions.Length) continue;
-                    var cid = new EntityId(cIndex, _versions[cIndex]);
-                    if (!IsAlive(cid)) continue;
-                    DestroyRecursive(cid);
+                    for (int i = 0; i < snapshot.Count; i++)
+                    {
+                        var cIndex = snapshot[i];
+                        if (cIndex < 0 || cIndex >= _versions.Length) continue;
+                        var cid = new EntityId(cIndex, _versions[cIndex]);
+                        if (!IsAlive(cid)) continue;
+                        DestroyRecursive(cid);
+                    }
+                }
+                finally
+                {
+                    s_intListPool.Release(snapshot);
                 }
             }
 

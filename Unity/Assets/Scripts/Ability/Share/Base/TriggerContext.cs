@@ -1,13 +1,37 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Common.Pool;
 
 namespace AbilityKit.Ability.Triggering
 {
-    public sealed class TriggerContext
+    public sealed class TriggerContext : IPoolable, IDisposable
     {
-        private readonly Dictionary<string, object> _vars;
+        private static readonly ObjectPool<TriggerContext> _pool = Pools.GetPool(
+            createFunc: () => new TriggerContext(),
+            defaultCapacity: 64,
+            maxSize: 1024,
+            collectionCheck: false);
+
+        private static readonly ObjectPool<Dictionary<string, object>> _varsPool = Pools.GetPool(
+            createFunc: () => new Dictionary<string, object>(StringComparer.Ordinal),
+            onRelease: dict => dict.Clear(),
+            defaultCapacity: 32,
+            maxSize: 1024,
+            collectionCheck: false);
+
+        private Dictionary<string, object> _vars;
+
+        private bool _ownsVars;
 
         private IVarStore _globalVars;
+
+        private bool _fromPool;
+
+        private TriggerContext()
+        {
+            _fromPool = false;
+            _ownsVars = false;
+        }
 
         public TriggerContext(IServiceProvider services = null, object source = null, object target = null, IReadOnlyDictionary<string, object> vars = null)
         {
@@ -15,14 +39,17 @@ namespace AbilityKit.Ability.Triggering
             Source = source;
             Target = target;
             Event = default;
+            _fromPool = false;
+
+            _ownsVars = true;
 
             if (vars == null)
             {
-                _vars = new Dictionary<string, object>(StringComparer.Ordinal);
+                _vars = _varsPool.Get();
             }
             else
             {
-                _vars = new Dictionary<string, object>(vars.Count, StringComparer.Ordinal);
+                _vars = _varsPool.Get();
                 foreach (var kv in vars)
                 {
                     _vars[kv.Key] = kv.Value;
@@ -36,14 +63,61 @@ namespace AbilityKit.Ability.Triggering
             Source = source;
             Target = target;
             Event = default;
+            _fromPool = false;
 
-            _vars = sharedLocalVars ?? new Dictionary<string, object>(StringComparer.Ordinal);
+            if (sharedLocalVars != null)
+            {
+                _vars = sharedLocalVars;
+                _ownsVars = false;
+            }
+            else
+            {
+                _vars = _varsPool.Get();
+                _ownsVars = true;
+            }
         }
 
-        public IServiceProvider Services { get; }
-        public object Source { get; }
-        public object Target { get; }
+        public IServiceProvider Services { get; private set; }
+        public object Source { get; private set; }
+        public object Target { get; private set; }
         public TriggerEvent Event { get; internal set; }
+
+        public static TriggerContext Rent()
+        {
+            return _pool.Get();
+        }
+
+        public static void Return(TriggerContext context)
+        {
+            if (context == null) return;
+            if (!context._fromPool) return;
+            _pool.Release(context);
+        }
+
+        public void Init(IServiceProvider services, object source, object target, Dictionary<string, object> sharedLocalVars)
+        {
+            Services = services;
+            Source = source;
+            Target = target;
+            Event = default;
+            _globalVars = null;
+
+            if (_ownsVars && _vars != null)
+            {
+                _varsPool.Release(_vars);
+            }
+
+            if (sharedLocalVars != null)
+            {
+                _vars = sharedLocalVars;
+                _ownsVars = false;
+            }
+            else
+            {
+                _vars = _varsPool.Get();
+                _ownsVars = true;
+            }
+        }
 
         private IVarStore GetGlobalVars()
         {
@@ -87,6 +161,12 @@ namespace AbilityKit.Ability.Triggering
                 return GetGlobalVars().TryGet(key, out value);
             }
 
+            if (_vars == null)
+            {
+                value = default;
+                return false;
+            }
+
             if (_vars.TryGetValue(key, out var obj) && obj is T t)
             {
                 value = t;
@@ -108,6 +188,12 @@ namespace AbilityKit.Ability.Triggering
             if (scope == VarScope.Global)
             {
                 return GetGlobalVars().TryGet(key, out value);
+            }
+
+            if (_vars == null)
+            {
+                value = null;
+                return false;
             }
 
             if (_vars.TryGetValue(key, out var obj))
@@ -135,6 +221,8 @@ namespace AbilityKit.Ability.Triggering
                 return;
             }
 
+            if (_vars == null) throw new InvalidOperationException("Local vars store is not initialized.");
+
             _vars[key] = value;
         }
 
@@ -149,6 +237,50 @@ namespace AbilityKit.Ability.Triggering
 
             value = default;
             return false;
+        }
+
+        public void OnPoolGet()
+        {
+            _fromPool = true;
+        }
+
+        public void OnPoolRelease()
+        {
+            Services = null;
+            Source = null;
+            Target = null;
+            Event = default;
+
+            if (_ownsVars && _vars != null)
+            {
+                _varsPool.Release(_vars);
+            }
+
+            _vars = null;
+            _ownsVars = false;
+            _globalVars = null;
+        }
+
+        public void OnPoolDestroy()
+        {
+            OnPoolRelease();
+        }
+
+        public void Dispose()
+        {
+            if (_ownsVars && _vars != null)
+            {
+                _varsPool.Release(_vars);
+                _vars = null;
+                _ownsVars = false;
+            }
+
+            _globalVars = null;
+
+            if (_fromPool)
+            {
+                Return(this);
+            }
         }
     }
 }

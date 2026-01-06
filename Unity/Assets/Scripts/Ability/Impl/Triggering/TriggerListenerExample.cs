@@ -26,27 +26,24 @@ namespace AbilityKit.Ability.Impl.Triggering
             var conditions = new List<ConditionDef>();
             if (OnlyWhenSelfAttacked)
             {
-                conditions.Add(new ConditionDef("arg_eq", new Dictionary<string, object>
-                {
-                    {"key", "source"},
-                    {"value", gameObject}
-                }));
+                var condArgs = PooledDefArgs.Rent();
+                condArgs["key"] = "source";
+                condArgs["value"] = gameObject;
+                conditions.Add(new ConditionDef("arg_eq", condArgs));
             }
 
             var actions = new List<ActionDef>();
             if (OnlyWhenSelfAttacked)
             {
-                actions.Add(new ActionDef("debug_log", new Dictionary<string, object>
-                {
-                    {"message", "我自己发动了攻击"}
-                }));
+                var actArgs = PooledDefArgs.Rent();
+                actArgs["message"] = "我自己发动了攻击";
+                actions.Add(new ActionDef("debug_log", actArgs));
             }
             else
             {
-                actions.Add(new ActionDef("log_attacker", new Dictionary<string, object>
-                {
-                    {"format", "{0}发动了攻击"}
-                }));
+                var actArgs = PooledDefArgs.Rent();
+                actArgs["format"] = "{0}发动了攻击";
+                actions.Add(new ActionDef("log_attacker", actArgs));
             }
 
             var trigger = new TriggerDef(

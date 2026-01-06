@@ -179,17 +179,15 @@ namespace AbilityKit.Ability.Share.Effect
                 }
             }
 
-            var args = new Dictionary<string, object>(StringComparer.Ordinal)
-            {
-                [EffectTriggering.Args.Source] = context.Source,
-                [EffectTriggering.Args.Target] = context.Target,
-                [EffectTriggering.Args.Spec] = instance?.Spec,
-                [EffectTriggering.Args.Instance] = instance,
-                [EffectTriggering.Args.InstanceId] = instance != null ? instance.Id : 0,
-                [EffectTriggering.Args.StackCount] = instance != null ? instance.StackCount : 0,
-                [EffectTriggering.Args.ElapsedSeconds] = instance != null ? instance.ElapsedSeconds : 0f,
-                [EffectTriggering.Args.RemainingSeconds] = instance != null ? instance.RemainingSeconds : 0f,
-            };
+            var args = PooledTriggerArgs.Rent();
+            args[EffectTriggering.Args.Source] = context.Source;
+            args[EffectTriggering.Args.Target] = context.Target;
+            args[EffectTriggering.Args.Spec] = instance?.Spec;
+            args[EffectTriggering.Args.Instance] = instance;
+            args[EffectTriggering.Args.InstanceId] = instance != null ? instance.Id : 0;
+            args[EffectTriggering.Args.StackCount] = instance != null ? instance.StackCount : 0;
+            args[EffectTriggering.Args.ElapsedSeconds] = instance != null ? instance.ElapsedSeconds : 0f;
+            args[EffectTriggering.Args.RemainingSeconds] = instance != null ? instance.RemainingSeconds : 0f;
 
             bus.Publish(new TriggerEvent(eventId, instance, args));
         }

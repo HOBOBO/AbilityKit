@@ -31,11 +31,14 @@ namespace AbilityKit.Ability
                 }
             }
         
-            return new AbilityPipelineNodeExecuteResult
+            var _result = PooledAbilityPipelineNodeExecuteResult.Rent();
+            _result.IsCompleted = allCompleted;
+            if (allCompleted)
             {
-                IsCompleted = allCompleted,
-                ActiveOutputPorts = allCompleted ? new List<string> { "Complete" } : null
-            };
+                _result.EnsureActiveOutputPorts();
+                _result.ActiveOutputPorts.Add("Complete");
+            }
+            return _result;
         }
     }
 }

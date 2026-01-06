@@ -19,6 +19,17 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         private readonly Dictionary<int, Action<PlayerInputCommand>> _handlers;
 
+        public MobaLobbyInputSink(
+            MobaLobbyStateService lobby,
+            MobaEnterGameFlowService enterGame,
+            MobaPlayerActorMapService playerActorMap,
+            MobaActorLookupService actorLookup,
+            global::Contexts contexts,
+            MobaMoveService moves)
+            : this(lobby, enterGame, playerActorMap, actorLookup, contexts, moves, skills: null)
+        {
+        }
+
         public MobaLobbyInputSink(MobaLobbyStateService lobby, MobaEnterGameFlowService enterGame, MobaPlayerActorMapService playerActorMap, MobaActorLookupService actorLookup, global::Contexts contexts, MobaMoveService moves, SkillExecutor skills)
         {
             _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));

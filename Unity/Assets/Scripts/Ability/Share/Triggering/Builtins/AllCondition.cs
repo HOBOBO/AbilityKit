@@ -14,6 +14,12 @@ namespace AbilityKit.Ability.Triggering.Runtime.Builtins
             _children = new List<ITriggerCondition>(children);
         }
 
+        private AllCondition(List<ITriggerCondition> children)
+        {
+            if (children == null) throw new ArgumentNullException(nameof(children));
+            _children = children;
+        }
+
         public static AllCondition FromDef(ConditionDef def, IConditionCompiler compiler)
         {
             if (def == null) throw new ArgumentNullException(nameof(def));

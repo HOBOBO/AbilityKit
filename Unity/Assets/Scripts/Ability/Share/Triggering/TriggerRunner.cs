@@ -1,11 +1,19 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Triggering.Definitions;
+using AbilityKit.Ability.Share.Common.Pool;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
     public sealed class TriggerRunner
     {
+        private static readonly ObjectPool<Dictionary<string, object>> _localVarsPool = Pools.GetPool(
+            createFunc: () => new Dictionary<string, object>(StringComparer.Ordinal),
+            onRelease: dict => dict.Clear(),
+            defaultCapacity: 32,
+            maxSize: 1024,
+            collectionCheck: false);
+
         private readonly IEventBus _eventBus;
         private readonly TriggerCompiler _compiler;
         private readonly ITriggerContextFactory _contextFactory;
@@ -42,7 +50,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
             return _eventBus.Subscribe(instance.EventId, new TriggerEventHandler(instance, _contextFactory, initialLocalVars));
         }
 
-        private sealed class TriggerEventHandler : IEventHandler
+        private sealed class TriggerEventHandler : IEventHandler, IDisposable
         {
             private readonly TriggerInstance _trigger;
             private readonly ITriggerContextFactory _contextFactory;
@@ -52,7 +60,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
             {
                 _trigger = trigger ?? throw new ArgumentNullException(nameof(trigger));
                 _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
-                _localVars = new Dictionary<string, object>(StringComparer.Ordinal);
+                _localVars = _localVarsPool.Get();
             }
 
             public TriggerEventHandler(TriggerInstance trigger, ITriggerContextFactory contextFactory, System.Collections.Generic.IReadOnlyDictionary<string, object> initialLocalVars)
@@ -69,29 +77,41 @@ namespace AbilityKit.Ability.Triggering.Runtime
             public void Handle(in TriggerEvent evt)
             {
                 var context = _contextFactory.CreateContext(in evt, _localVars);
-                context.Event = evt;
-
-                for (int i = 0; i < _trigger.Conditions.Count; i++)
+                try
                 {
-                    if (!_trigger.Conditions[i].Evaluate(context)) return;
-                }
+                    context.Event = evt;
 
-                for (int i = 0; i < _trigger.Actions.Count; i++)
-                {
-                    var a = _trigger.Actions[i];
-                    if (a is ITriggerActionV2 v2)
+                    for (int i = 0; i < _trigger.Conditions.Count; i++)
                     {
-                        var running = v2.Start(context);
-                        if (running != null)
-                        {
-                            var runner = GetRunner(context);
-                            runner?.Add(running, context.Source);
-                        }
-                        continue;
+                        if (!_trigger.Conditions[i].Evaluate(context)) return;
                     }
 
-                    a.Execute(context);
+                    for (int i = 0; i < _trigger.Actions.Count; i++)
+                    {
+                        var a = _trigger.Actions[i];
+                        if (a is ITriggerActionV2 v2)
+                        {
+                            var running = v2.Start(context);
+                            if (running != null)
+                            {
+                                var runner = GetRunner(context);
+                                runner?.Add(running, context.Source);
+                            }
+                            continue;
+                        }
+
+                        a.Execute(context);
+                    }
                 }
+                finally
+                {
+                    TriggerContext.Return(context);
+                }
+            }
+
+            public void Dispose()
+            {
+                _localVarsPool.Release(_localVars);
             }
 
             private static ITriggerActionRunner GetRunner(TriggerContext context)

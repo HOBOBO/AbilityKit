@@ -1,10 +1,18 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Common.Pool;
 
 namespace AbilityKit.Ability.FrameSync.Rollback
 {
     public sealed class RollbackCoordinator
     {
+        private static readonly ObjectPool<List<WorldRollbackSnapshotEntry>> s_entriesListPool = Pools.GetPool(
+            createFunc: () => new List<WorldRollbackSnapshotEntry>(16),
+            onRelease: list => list.Clear(),
+            defaultCapacity: 16,
+            maxSize: 256,
+            collectionCheck: false);
+
         private readonly RollbackRegistry _registry;
         private readonly RollbackSnapshotRingBuffer _buffer;
 
@@ -29,17 +37,27 @@ namespace AbilityKit.Ability.FrameSync.Rollback
         public WorldRollbackSnapshot Capture(FrameIndex frame)
         {
             var providers = _registry.Providers;
-            var entries = new List<WorldRollbackSnapshotEntry>(providers.Count);
+            var entries = s_entriesListPool.Get();
+            if (entries.Capacity < providers.Count) entries.Capacity = providers.Count;
 
-            for (int i = 0; i < providers.Count; i++)
+            try
             {
-                var p = providers[i];
-                if (p == null) continue;
-                var payload = p.Export(frame) ?? Array.Empty<byte>();
-                entries.Add(new WorldRollbackSnapshotEntry(p.Key, payload));
-            }
+                for (int i = 0; i < providers.Count; i++)
+                {
+                    var p = providers[i];
+                    if (p == null) continue;
+                    var payload = p.Export(frame) ?? Array.Empty<byte>();
+                    entries.Add(new WorldRollbackSnapshotEntry(p.Key, payload));
+                }
 
-            return new WorldRollbackSnapshot(WorldRollbackSnapshotCodec.CurrentVersion, frame, entries.ToArray());
+                var arr = RollbackEntriesArrayPool.Rent(entries.Count);
+                entries.CopyTo(arr, 0);
+                return new WorldRollbackSnapshot(WorldRollbackSnapshotCodec.CurrentVersion, frame, arr);
+            }
+            finally
+            {
+                s_entriesListPool.Release(entries);
+            }
         }
 
         public bool TryRestore(FrameIndex frame)

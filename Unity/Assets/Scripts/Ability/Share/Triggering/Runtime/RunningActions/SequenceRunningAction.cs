@@ -1,10 +1,18 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Common.Pool;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
     public sealed class SequenceRunningAction : IRunningAction
     {
+        private static readonly ObjectPool<List<IRunningAction>> _listPool = Pools.GetPool(
+            createFunc: () => new List<IRunningAction>(4),
+            onRelease: list => list.Clear(),
+            defaultCapacity: 64,
+            maxSize: 1024,
+            collectionCheck: false);
+
         private readonly List<IRunningAction> _steps;
         private int _index;
         private bool _done;
@@ -13,7 +21,8 @@ namespace AbilityKit.Ability.Triggering.Runtime
         public SequenceRunningAction(IReadOnlyList<IRunningAction> steps)
         {
             if (steps == null) throw new ArgumentNullException(nameof(steps));
-            _steps = new List<IRunningAction>(steps.Count);
+            _steps = _listPool.Get();
+            if (_steps.Capacity < steps.Count) _steps.Capacity = steps.Count;
             for (int i = 0; i < steps.Count; i++)
             {
                 if (steps[i] != null) _steps.Add(steps[i]);
@@ -78,7 +87,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
                 TryDispose(_steps[i]);
             }
 
-            _steps.Clear();
+            _listPool.Release(_steps);
         }
 
         private static void TryDispose(IRunningAction a)

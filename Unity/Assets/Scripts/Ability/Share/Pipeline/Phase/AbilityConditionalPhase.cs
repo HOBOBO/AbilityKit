@@ -7,7 +7,7 @@ namespace AbilityKit.Ability
     /// </summary>
     public class AbilityConditionalPhase : AbilityCompositePhase, IDurationalPhase
     {
-        private List<AbilityConditionalBranch> _branches = new();
+        private List<AbilityConditionalBranch> _branches = new List<AbilityConditionalBranch>(4);
         private AbilityConditionalBranch _currentBranch;
         
         /// <summary>
@@ -81,8 +81,9 @@ namespace AbilityKit.Ability
 
         private bool EvaluateAndSelectBranch(IAbilityPipelineContext context)
         {
-            foreach (var branch in _branches)
+            for (int i = 0; i < _branches.Count; i++)
             {
+                var branch = _branches[i];
                 if (branch.Condition.Evaluate(context))
                 {
                     ExecuteBranch(branch, context);
@@ -94,8 +95,9 @@ namespace AbilityKit.Ability
 
         private bool TrySwitchToNewBranch(IAbilityPipelineContext context)
         {
-            foreach (var branch in _branches)
+            for (int i = 0; i < _branches.Count; i++)
             {
+                var branch = _branches[i];
                 if (branch != _currentBranch && branch.Condition.Evaluate(context))
                 {
                     InterruptCurrentBranch(context);
@@ -150,9 +152,9 @@ namespace AbilityKit.Ability
         {
             base.Reset();
             _currentBranch = null;
-            foreach (var branch in _branches)
+            for (int i = 0; i < _branches.Count; i++)
             {
-                branch.Phase.Reset();
+                _branches[i].Phase.Reset();
             }
         }
     }

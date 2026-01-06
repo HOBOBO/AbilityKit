@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using AbilityKit.Ability.Share.Common.Pool;
 
 namespace AbilityKit.Ability.Share
 {
@@ -18,6 +19,13 @@ namespace AbilityKit.Ability.Share
     public static class BinaryObjectCodec
     {
         private static readonly ConcurrentDictionary<Type, TypeModel> s_models = new ConcurrentDictionary<Type, TypeModel>();
+
+        private static readonly ObjectPool<Dictionary<string, object>> s_valuesByNamePool = Pools.GetPool(
+            createFunc: () => new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            onRelease: dict => dict.Clear(),
+            defaultCapacity: 32,
+            maxSize: 256,
+            collectionCheck: false);
 
         public static byte[] Encode<T>(in T value)
         {
@@ -132,26 +140,33 @@ namespace AbilityKit.Ability.Share
             }
 
             var model = GetModel(type);
-            var valuesByName = new Dictionary<string, object>(model.Members.Length, StringComparer.OrdinalIgnoreCase);
-            for (int i = 0; i < model.Members.Length; i++)
+            var valuesByName = s_valuesByNamePool.Get();
+            try
             {
-                var m = model.Members[i];
-                valuesByName[m.Name] = ReadValue(br, m.MemberType);
-            }
-
-            var args = new object[model.CtorParams.Length];
-            for (int i = 0; i < model.CtorParams.Length; i++)
-            {
-                var p = model.CtorParams[i];
-                if (!valuesByName.TryGetValue(p.Name, out var v))
+                for (int i = 0; i < model.Members.Length; i++)
                 {
-                    throw new InvalidOperationException($"Cannot map binary member to ctor param '{type.FullName}.{p.Name}'.");
+                    var m = model.Members[i];
+                    valuesByName[m.Name] = ReadValue(br, m.MemberType);
                 }
 
-                args[i] = v;
-            }
+                var args = new object[model.CtorParams.Length];
+                for (int i = 0; i < model.CtorParams.Length; i++)
+                {
+                    var p = model.CtorParams[i];
+                    if (!valuesByName.TryGetValue(p.Name, out var v))
+                    {
+                        throw new InvalidOperationException($"Cannot map binary member to ctor param '{type.FullName}.{p.Name}'.");
+                    }
 
-            return model.Constructor.Invoke(args);
+                    args[i] = v;
+                }
+
+                return model.Constructor.Invoke(args);
+            }
+            finally
+            {
+                s_valuesByNamePool.Release(valuesByName);
+            }
         }
 
         private static bool TryWriteSingleValueWrapper(BinaryWriter bw, Type type, object value)

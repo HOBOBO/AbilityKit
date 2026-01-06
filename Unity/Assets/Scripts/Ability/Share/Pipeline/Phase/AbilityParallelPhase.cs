@@ -8,7 +8,7 @@ namespace AbilityKit.Ability
     /// </summary>
     public class AbilityParallelPhase : AbilityCompositePhase
     {
-        private List<int> _activePhases = new();
+        private List<int> _activePhases = new List<int>(8);
     
         public override void Execute(IAbilityPipelineContext context)
         {

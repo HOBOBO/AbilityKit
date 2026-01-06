@@ -26,6 +26,29 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 
             registry.Register(actorId, entity);
 
+            if (req.ExtraHeroId > 0)
+            {
+                var extraTeamId = req.ExtraTeamId != 0 ? req.ExtraTeamId : req.TeamId;
+                var extraSpawnIndex = req.ExtraSpawnIndex;
+
+                var extraPos = GetSpawnPosition(extraTeamId, extraSpawnIndex);
+                var extraTransform = new Transform3(extraPos, Quat.Identity, Vec3.One);
+                var extraActorId = actorIds.Next();
+                var extra = ActorEntityFactory.Create(actorContext)
+                    .WithActorId(extraActorId)
+                    .WithTransform(extraTransform)
+                    .Build();
+                registry.Register(extraActorId, extra);
+
+                var players2 = new[]
+                {
+                    new MobaPlayerEntry(req.PlayerId, req.TeamId, req.HeroId, spawnIndex: 0),
+                    new MobaPlayerEntry(req.ExtraPlayerId, extraTeamId, req.ExtraHeroId, extraSpawnIndex)
+                };
+
+                return new BuildEnterGameResult(localActorId: actorId, players: players2, localActorTransform: transform);
+            }
+
             var players = new[]
             {
                 new MobaPlayerEntry(req.PlayerId, req.TeamId, req.HeroId, spawnIndex: 0)

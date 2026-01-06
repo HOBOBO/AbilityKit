@@ -9,11 +9,9 @@ namespace AbilityKit.Ability
     
         protected override IAbilityPipelineNodeExecuteResult OnExecute(IAbilityPipelineContext context)
         {
-            var result = new AbilityPipelineNodeExecuteResult
-            {
-                IsCompleted = true,
-                ActiveOutputPorts = new List<string>()
-            };
+            var result = PooledAbilityPipelineNodeExecuteResult.Rent();
+            result.IsCompleted = true;
+            result.EnsureActiveOutputPorts();
         
             // 根据条件激活不同的输出端口
             result.ActiveOutputPorts.Add(_condition(context) ? "True" : "False");

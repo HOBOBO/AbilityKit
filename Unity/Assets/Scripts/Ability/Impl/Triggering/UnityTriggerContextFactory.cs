@@ -26,7 +26,9 @@ namespace AbilityKit.Ability.Impl.Triggering
                 args.TryGetValue("target", out target);
             }
 
-            return new TriggerContext(_services, source, target, sharedLocalVars);
+            var ctx = TriggerContext.Rent();
+            ctx.Init(_services, source, target, sharedLocalVars);
+            return ctx;
         }
     }
 }

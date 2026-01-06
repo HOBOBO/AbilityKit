@@ -13,7 +13,7 @@ namespace AbilityKit.Ability
         public bool IsComplete { get; protected set; }
         
         protected int _currentSubPhaseIndex = 0;
-        protected List<IAbilityPipelinePhase> _subPhases = new();
+        protected List<IAbilityPipelinePhase> _subPhases = new List<IAbilityPipelinePhase>(4);
         public IReadOnlyList<IAbilityPipelinePhase> SubPhases => _subPhases;
 
         protected AbilityCompositePhase() { }
@@ -106,9 +106,9 @@ namespace AbilityKit.Ability
         {
             IsComplete = false;
             _currentSubPhaseIndex = 0;
-            foreach (var phase in _subPhases)
+            for (int i = 0; i < _subPhases.Count; i++)
             {
-                phase.Reset();
+                _subPhases[i].Reset();
             }
         }
     }

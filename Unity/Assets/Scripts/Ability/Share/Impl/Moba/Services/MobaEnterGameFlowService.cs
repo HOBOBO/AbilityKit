@@ -20,6 +20,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaSkillLoadoutService _skills;
         private readonly MobaConfigDatabase _config;
 
+        public MobaEnterGameFlowService(
+            MobaLobbyStateService lobby,
+            MobaEnterGameSnapshotService snapshot,
+            IWorldContext worldContext,
+            ActorIdAllocator actorIds,
+            MobaActorRegistry registry,
+            MobaPlayerActorMapService playerActorMap,
+            MobaSkillLoadoutService skills)
+            : this(lobby, snapshot, worldContext, actorIds, registry, playerActorMap, skills, config: null)
+        {
+        }
+
         public MobaEnterGameFlowService(MobaLobbyStateService lobby, MobaEnterGameSnapshotService snapshot, IWorldContext worldContext, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaPlayerActorMapService playerActorMap, MobaSkillLoadoutService skills, MobaConfigDatabase config)
         {
             _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));

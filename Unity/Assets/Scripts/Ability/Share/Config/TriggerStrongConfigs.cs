@@ -36,10 +36,8 @@ namespace AbilityKit.Ability.Configs
 
         public override ConditionDef ToConditionDef()
         {
-            var dict = new Dictionary<string, object>(4, StringComparer.Ordinal)
-            {
-                {"key", Key},
-            };
+            var dict = PooledDefArgs.Rent();
+            dict["key"] = Key;
 
             if (ValueSource == ValueSourceKind.Var)
             {
@@ -76,10 +74,8 @@ namespace AbilityKit.Ability.Configs
 
         public override ConditionDef ToConditionDef()
         {
-            var dict = new Dictionary<string, object>(4, StringComparer.Ordinal)
-            {
-                {"key", Key},
-            };
+            var dict = PooledDefArgs.Rent();
+            dict["key"] = Key;
 
             if (ValueSource == ValueSourceKind.Var)
             {
@@ -124,10 +120,8 @@ namespace AbilityKit.Ability.Configs
 
         public override ActionDef ToActionDef()
         {
-            var dict = new Dictionary<string, object>(5, StringComparer.Ordinal)
-            {
-                {"key", Key},
-            };
+            var dict = PooledDefArgs.Rent();
+            dict["key"] = Key;
 
             if (ValueSource == ValueSourceKind.Var)
             {
@@ -162,10 +156,8 @@ namespace AbilityKit.Ability.Configs
 
         public override ActionDef ToActionDef()
         {
-            var dict = new Dictionary<string, object>(1, StringComparer.Ordinal)
-            {
-                {"message", Message}
-            };
+            var dict = PooledDefArgs.Rent();
+            dict["message"] = Message;
 
             return new ActionDef(Type, dict);
         }
@@ -180,10 +172,8 @@ namespace AbilityKit.Ability.Configs
 
         public override ActionDef ToActionDef()
         {
-            var dict = new Dictionary<string, object>(1, StringComparer.Ordinal)
-            {
-                {"format", Format}
-            };
+            var dict = PooledDefArgs.Rent();
+            dict["format"] = Format;
 
             return new ActionDef(Type, dict);
         }

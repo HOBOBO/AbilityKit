@@ -7,7 +7,7 @@ namespace AbilityKit.Ability
     /// </summary>
     public class AbilityOrCondition : AbilityConditionNodeBase
     {
-        private readonly IAbilityConditionNode[] _conditions;
+        private readonly IReadOnlyList<IAbilityConditionNode> _conditions;
         /// <summary>
         /// 默认持续执行
         /// </summary>
@@ -20,14 +20,14 @@ namespace AbilityKit.Ability
 
         public AbilityOrCondition(List<IAbilityConditionNode> conditions)
         {
-            _conditions = conditions.ToArray();
+            _conditions = conditions;
         }
     
         public override bool Evaluate(IAbilityPipelineContext context)
         {
-            foreach (var condition in _conditions)
+            for (int i = 0; i < _conditions.Count; i++)
             {
-                if (condition.Evaluate(context))
+                if (_conditions[i].Evaluate(context))
                     return true;
             }
             return false;

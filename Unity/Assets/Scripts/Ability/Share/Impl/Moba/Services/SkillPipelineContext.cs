@@ -18,7 +18,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public float StartTime { get; set; }
         public float ElapsedTime { get; private set; }
 
-        public Dictionary<string, object> SharedData { get; } = new Dictionary<string, object>();
+        public Dictionary<string, object> SharedData { get; } = new Dictionary<string, object>(16);
 
         public int SkillId { get; private set; }
         public int SkillSlot { get; private set; }

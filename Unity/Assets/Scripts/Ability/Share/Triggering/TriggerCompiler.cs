@@ -21,13 +21,49 @@ namespace AbilityKit.Ability.Triggering.Runtime
             var conditions = new List<ITriggerCondition>(def.Conditions.Count);
             for (int i = 0; i < def.Conditions.Count; i++)
             {
-                conditions.Add(Compile(def.Conditions[i]));
+                var cdef = def.Conditions[i];
+                if (cdef == null) continue;
+                try
+                {
+                    conditions.Add(Compile(cdef));
+                }
+                finally
+                {
+                    if (cdef.Args is IDisposable d)
+                    {
+                        try
+                        {
+                            d.Dispose();
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
             }
 
             var actions = new List<ITriggerAction>(def.Actions.Count);
             for (int i = 0; i < def.Actions.Count; i++)
             {
-                actions.Add(_registry.CreateAction(def.Actions[i]));
+                var adef = def.Actions[i];
+                if (adef == null) continue;
+                try
+                {
+                    actions.Add(_registry.CreateAction(adef));
+                }
+                finally
+                {
+                    if (adef.Args is IDisposable d)
+                    {
+                        try
+                        {
+                            d.Dispose();
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
             }
 
             return new TriggerInstance(def.EventId, conditions, actions);

@@ -45,14 +45,9 @@ namespace AbilityKit.Ability.Share.Effect.Components
             if (bus == null) return;
             if (string.IsNullOrEmpty(eventId)) return;
 
-            Dictionary<string, object> args;
-            if (_args == null)
+            var args = PooledTriggerArgs.Rent();
+            if (_args != null)
             {
-                args = new Dictionary<string, object>(StringComparer.Ordinal);
-            }
-            else
-            {
-                args = new Dictionary<string, object>(_args.Count, StringComparer.Ordinal);
                 foreach (var kv in _args)
                 {
                     if (kv.Key == null) continue;

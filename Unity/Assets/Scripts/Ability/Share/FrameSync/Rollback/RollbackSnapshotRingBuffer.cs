@@ -23,6 +23,13 @@ namespace AbilityKit.Ability.FrameSync.Rollback
         public void Store(in WorldRollbackSnapshot snapshot)
         {
             var idx = Mod(snapshot.Frame.Value, _capacity);
+
+            if (_has[idx])
+            {
+                var old = _snapshots[idx];
+                RollbackEntriesArrayPool.Release(old.Entries);
+            }
+
             _frames[idx] = snapshot.Frame;
             _snapshots[idx] = snapshot;
             _has[idx] = true;
@@ -43,6 +50,14 @@ namespace AbilityKit.Ability.FrameSync.Rollback
 
         public void Clear()
         {
+            for (int i = 0; i < _has.Length; i++)
+            {
+                if (_has[i])
+                {
+                    RollbackEntriesArrayPool.Release(_snapshots[i].Entries);
+                }
+            }
+
             Array.Clear(_has, 0, _has.Length);
         }
 

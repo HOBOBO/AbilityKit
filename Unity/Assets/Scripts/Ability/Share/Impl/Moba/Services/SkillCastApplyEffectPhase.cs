@@ -51,7 +51,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (!_units.TryResolve(new EcsEntityId(casterActorId), out var caster) || caster == null) return;
             if (!_units.TryResolve(new EcsEntityId(targetActorId), out var target) || target == null) return;
 
-            var args = new Dictionary<string, object>(StringComparer.Ordinal)
+            var args = new Dictionary<string, object>(6, StringComparer.Ordinal)
             {
                 [MobaSkillTriggerArgs.SkillId] = skillId,
                 [MobaSkillTriggerArgs.SkillSlot] = slot,

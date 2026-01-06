@@ -35,6 +35,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
         [BinaryMember(8)] public readonly int OpCode;
         [BinaryMember(9)] public readonly byte[] Payload;
 
+        [BinaryMember(10)] public readonly PlayerId ExtraPlayerId;
+        [BinaryMember(11)] public readonly int ExtraTeamId;
+        [BinaryMember(12)] public readonly int ExtraHeroId;
+        [BinaryMember(13)] public readonly int ExtraSpawnIndex;
+
         public EnterMobaGameReq(
             PlayerId playerId,
             string matchId,
@@ -45,7 +50,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
             int tickRate,
             int inputDelayFrames,
             int opCode = 0,
-            byte[] payload = null)
+            byte[] payload = null,
+            PlayerId extraPlayerId = default,
+            int extraTeamId = 0,
+            int extraHeroId = 0,
+            int extraSpawnIndex = 0)
         {
             PlayerId = playerId;
             MatchId = matchId;
@@ -57,6 +66,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
             InputDelayFrames = inputDelayFrames;
             OpCode = opCode;
             Payload = payload;
+
+            ExtraPlayerId = extraPlayerId;
+            ExtraTeamId = extraTeamId;
+            ExtraHeroId = extraHeroId;
+            ExtraSpawnIndex = extraSpawnIndex;
         }
     }
 

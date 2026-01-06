@@ -8,24 +8,26 @@ namespace AbilityKit.Ability
     /// </summary>
     public abstract partial class AbilityPipeline
     {
-        private Dictionary<AbilityPipelinePhaseId, List<IAbilityPipelineExtensionPoint>> _extensionPoints = new();
+        private Dictionary<AbilityPipelinePhaseId, List<IAbilityPipelineExtensionPoint>> _extensionPoints =
+            new Dictionary<AbilityPipelinePhaseId, List<IAbilityPipelineExtensionPoint>>(8);
     
         public void AddExtensionPoint(AbilityPipelinePhaseId phaseId, IAbilityPipelineExtensionPoint extension,int order = 0)
         {
-            if (!_extensionPoints.ContainsKey(phaseId))
+            if (!_extensionPoints.TryGetValue(phaseId, out var list))
             {
-                _extensionPoints[phaseId] = new List<IAbilityPipelineExtensionPoint>();
+                list = new List<IAbilityPipelineExtensionPoint>(4);
+                _extensionPoints[phaseId] = list;
             }
-            _extensionPoints[phaseId].Add(extension);
+            list.Add(extension);
         }
     
         protected void ExecuteExtensionPhaseStart(AbilityPipelinePhaseId phaseId, IAbilityPipelineContext context,IAbilityPipelinePhase phase)
         {
             if (_extensionPoints.TryGetValue(phaseId, out var extensions))
             {
-                foreach (var extension in extensions)
+                for (int i = 0; i < extensions.Count; i++)
                 {
-                    extension.OnPhaseStart(context,phase);
+                    extensions[i].OnPhaseStart(context,phase);
                 }
             }
         }
@@ -34,9 +36,9 @@ namespace AbilityKit.Ability
         {
             if (_extensionPoints.TryGetValue(phaseId, out var extensions))
             {
-                foreach (var extension in extensions)
+                for (int i = 0; i < extensions.Count; i++)
                 {
-                    extension.OnPhaseComplete(context,phase);
+                    extensions[i].OnPhaseComplete(context,phase);
                 }
             }
         }

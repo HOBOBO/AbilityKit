@@ -1,10 +1,18 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Common.Pool;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
     public sealed class ParallelRunningAction : IRunningAction
     {
+        private static readonly ObjectPool<List<IRunningAction>> _listPool = Pools.GetPool(
+            createFunc: () => new List<IRunningAction>(4),
+            onRelease: list => list.Clear(),
+            defaultCapacity: 64,
+            maxSize: 1024,
+            collectionCheck: false);
+
         private readonly List<IRunningAction> _actions;
         private bool _done;
         private bool _disposed;
@@ -12,7 +20,8 @@ namespace AbilityKit.Ability.Triggering.Runtime
         public ParallelRunningAction(IReadOnlyList<IRunningAction> actions)
         {
             if (actions == null) throw new ArgumentNullException(nameof(actions));
-            _actions = new List<IRunningAction>(actions.Count);
+            _actions = _listPool.Get();
+            if (_actions.Capacity < actions.Count) _actions.Capacity = actions.Count;
             for (int i = 0; i < actions.Count; i++)
             {
                 if (actions[i] != null) _actions.Add(actions[i]);
@@ -76,7 +85,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
                 TryDispose(_actions[i]);
             }
 
-            _actions.Clear();
+            _listPool.Release(_actions);
         }
 
         private static void TryDispose(IRunningAction a)
