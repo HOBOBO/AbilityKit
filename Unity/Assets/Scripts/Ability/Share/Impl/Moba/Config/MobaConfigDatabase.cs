@@ -10,6 +10,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         private readonly Dictionary<int, SkillMO> _skills = new Dictionary<int, SkillMO>();
         private readonly Dictionary<int, BattleAttributeTemplateMO> _attributes = new Dictionary<int, BattleAttributeTemplateMO>();
         private readonly Dictionary<int, ModelMO> _models = new Dictionary<int, ModelMO>();
+        private readonly Dictionary<int, BuffMO> _buffs = new Dictionary<int, BuffMO>();
 
         public void Load(IMobaConfigSource source)
         {
@@ -25,6 +26,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             _skills.Clear();
             _attributes.Clear();
             _models.Clear();
+            _buffs.Clear();
 
             if (snapshot.Characters != null)
             {
@@ -65,6 +67,16 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
                     _models[dto.Id] = new ModelMO(dto);
                 }
             }
+
+            if (snapshot.Buffs != null)
+            {
+                for (var i = 0; i < snapshot.Buffs.Length; i++)
+                {
+                    var dto = snapshot.Buffs[i];
+                    if (dto == null) continue;
+                    _buffs[dto.Id] = new BuffMO(dto);
+                }
+            }
         }
 
         public CharacterMO GetCharacter(int id)
@@ -87,9 +99,15 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             return _models.TryGetValue(id, out var v) ? v : throw new KeyNotFoundException($"Model not found: {id}");
         }
 
+        public BuffMO GetBuff(int id)
+        {
+            return _buffs.TryGetValue(id, out var v) ? v : throw new KeyNotFoundException($"Buff not found: {id}");
+        }
+
         public bool TryGetCharacter(int id, out CharacterMO mo) => _characters.TryGetValue(id, out mo);
         public bool TryGetSkill(int id, out SkillMO mo) => _skills.TryGetValue(id, out mo);
         public bool TryGetAttributeTemplate(int id, out BattleAttributeTemplateMO mo) => _attributes.TryGetValue(id, out mo);
         public bool TryGetModel(int id, out ModelMO mo) => _models.TryGetValue(id, out mo);
+        public bool TryGetBuff(int id, out BuffMO mo) => _buffs.TryGetValue(id, out mo);
     }
 }

@@ -3,6 +3,7 @@ using AbilityKit.Ability.Share.ECS.Entitas;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Ability.Triggering.Runtime;
 
 namespace AbilityKit.Ability.World.Entitas
 {
@@ -13,6 +14,7 @@ namespace AbilityKit.Ability.World.Entitas
         private WorldScope _scope;
         private bool _initialized;
         private IWorldClock _clock;
+        private ITriggerActionRunner _triggerActions;
 
         public EntitasWorld(WorldCreateOptions options)
         {
@@ -88,6 +90,12 @@ namespace AbilityKit.Ability.World.Entitas
                 _clock = _scope?.Get<IWorldClock>();
             }
             _clock?.Tick(deltaTime);
+
+            if (_triggerActions == null)
+            {
+                _triggerActions = _scope?.Get<ITriggerActionRunner>();
+            }
+            _triggerActions?.Tick(deltaTime);
 
             Systems.Execute();
             Systems.Cleanup();

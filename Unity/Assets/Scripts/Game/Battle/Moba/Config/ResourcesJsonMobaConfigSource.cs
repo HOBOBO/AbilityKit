@@ -22,7 +22,8 @@ namespace AbilityKit.Game.Battle.Moba.Config
                 Characters = LoadArray<CharacterDTO>(Combine(MobaConfigPaths.CharactersFile)),
                 Skills = LoadArray<SkillDTO>(Combine(MobaConfigPaths.SkillsFile)),
                 AttributeTemplates = LoadArray<BattleAttributeTemplateDTO>(Combine(MobaConfigPaths.AttributeTemplatesFile)),
-                Models = LoadArray<ModelDTO>(Combine(MobaConfigPaths.ModelsFile))
+                Models = LoadArray<ModelDTO>(Combine(MobaConfigPaths.ModelsFile)),
+                Buffs = LoadArray<BuffDTO>(Combine(MobaConfigPaths.BuffsFile))
             };
         }
 

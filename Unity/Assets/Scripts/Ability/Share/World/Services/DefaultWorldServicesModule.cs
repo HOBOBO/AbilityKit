@@ -1,6 +1,7 @@
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Triggering.Runtime;
 
 namespace AbilityKit.Ability.World.Services
 {
@@ -13,6 +14,7 @@ namespace AbilityKit.Ability.World.Services
             builder.TryRegisterType<IWorldRandom, DefaultWorldRandom>(WorldLifetime.Scoped);
             builder.TryRegisterType<IEffectTriggeringSwitch, DefaultEffectTriggeringSwitch>(WorldLifetime.Singleton);
             builder.TryRegisterType<IEventBus, EventBus>(WorldLifetime.Scoped);
+            builder.TryRegisterType<ITriggerActionRunner, TriggerActionRunner>(WorldLifetime.Scoped);
         }
     }
 }

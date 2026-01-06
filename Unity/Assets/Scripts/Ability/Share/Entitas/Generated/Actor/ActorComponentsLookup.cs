@@ -9,15 +9,19 @@
 public static class ActorComponentsLookup {
 
     public const int ActorId = 0;
-    public const int Collider = 1;
-    public const int CollisionId = 2;
-    public const int CollisionLayer = 3;
-    public const int Transform = 4;
+    public const int ApplyBuffRequest = 1;
+    public const int Buffs = 2;
+    public const int Collider = 3;
+    public const int CollisionId = 4;
+    public const int CollisionLayer = 5;
+    public const int Transform = 6;
 
-    public const int TotalComponents = 5;
+    public const int TotalComponents = 7;
 
     public static readonly string[] componentNames = {
         "ActorId",
+        "ApplyBuffRequest",
+        "Buffs",
         "Collider",
         "CollisionId",
         "CollisionLayer",
@@ -26,6 +30,8 @@ public static class ActorComponentsLookup {
 
     public static readonly System.Type[] componentTypes = {
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ActorIdComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.BuffsComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ColliderComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.CollisionIdComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.CollisionLayerComponent),

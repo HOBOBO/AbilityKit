@@ -78,7 +78,34 @@ namespace AbilityKit.Ability.Triggering.Runtime
 
                 for (int i = 0; i < _trigger.Actions.Count; i++)
                 {
-                    _trigger.Actions[i].Execute(context);
+                    var a = _trigger.Actions[i];
+                    if (a is ITriggerActionV2 v2)
+                    {
+                        var running = v2.Start(context);
+                        if (running != null)
+                        {
+                            var runner = GetRunner(context);
+                            runner?.Add(running, context.Source);
+                        }
+                        continue;
+                    }
+
+                    a.Execute(context);
+                }
+            }
+
+            private static ITriggerActionRunner GetRunner(TriggerContext context)
+            {
+                var sp = context?.Services;
+                if (sp == null) return null;
+
+                try
+                {
+                    return sp.GetService(typeof(ITriggerActionRunner)) as ITriggerActionRunner;
+                }
+                catch
+                {
+                    return null;
                 }
             }
         }

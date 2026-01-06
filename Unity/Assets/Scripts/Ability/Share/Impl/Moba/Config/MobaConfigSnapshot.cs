@@ -9,6 +9,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public SkillDTO[] Skills;
         public BattleAttributeTemplateDTO[] AttributeTemplates;
         public ModelDTO[] Models;
+        public BuffDTO[] Buffs;
     }
 
     [Serializable]
@@ -49,5 +50,14 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public int Id;
         public string PrefabPath;
         public float Scale = 1f;
+    }
+
+    [Serializable]
+    public sealed class BuffDTO
+    {
+        public int Id;
+        public string Name;
+        public int DurationMs;
+        public int[] Tags;
     }
 }
