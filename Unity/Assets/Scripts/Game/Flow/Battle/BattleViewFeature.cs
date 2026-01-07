@@ -9,23 +9,23 @@ namespace AbilityKit.Game.Flow
 {
     public sealed class BattleViewFeature : IGamePhaseFeature
     {
-        private BattleSessionFeature _session;
+        private BattleContext _ctx;
         private readonly Dictionary<int, GameObject> _views = new Dictionary<int, GameObject>();
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Root.TryGetComponent(out _session);
-            if (_session?.Session != null)
+            ctx.Root.TryGetComponent(out _ctx);
+            if (_ctx?.Session != null)
             {
-                _session.Session.FrameReceived += OnFrame;
+                _ctx.Session.FrameReceived += OnFrame;
             }
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            if (_session?.Session != null)
+            if (_ctx?.Session != null)
             {
-                _session.Session.FrameReceived -= OnFrame;
+                _ctx.Session.FrameReceived -= OnFrame;
             }
 
             foreach (var kv in _views)
@@ -33,7 +33,7 @@ namespace AbilityKit.Game.Flow
                 if (kv.Value != null) UnityEngine.Object.Destroy(kv.Value);
             }
             _views.Clear();
-            _session = null;
+            _ctx = null;
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)

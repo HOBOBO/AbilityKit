@@ -15,6 +15,7 @@ namespace AbilityKit.Game.Flow
         {
             var flow = ctx.Entry.Get<GameFlowDomain>();
 
+            flow.Attach(new BattleContextFeature());
             flow.Attach(new BattleSessionFeature(_bootstrapper));
             flow.Attach(new BattleInputFeature());
             flow.Attach(new BattleViewFeature());

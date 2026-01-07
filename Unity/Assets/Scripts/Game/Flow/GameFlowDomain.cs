@@ -52,7 +52,7 @@ namespace AbilityKit.Game.Flow
         {
             if (next == null) throw new ArgumentNullException(nameof(next));
 
-            for (int i = 0; i < _features.Count; i++)
+            for (int i = _features.Count - 1; i >= 0; i--)
             {
                 Detach(_features[i]);
             }

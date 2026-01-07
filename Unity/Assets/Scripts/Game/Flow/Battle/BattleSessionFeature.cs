@@ -21,6 +21,8 @@ namespace AbilityKit.Game.Flow
         private BattleLogicSession _session;
         private BattleStartPlan _plan;
 
+        private BattleContext _ctx;
+
         private int _lastFrame;
         private float _tickAcc;
 
@@ -35,8 +37,17 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
+            ctx.Root.TryGetComponent(out _ctx);
+
             _plan = _bootstrapper?.Build() ?? default;
             StartSession();
+
+            if (_ctx != null)
+            {
+                _ctx.Plan = _plan;
+                _ctx.Session = _session;
+                _ctx.LastFrame = _lastFrame;
+            }
 
             if (_plan.AutoConnect) _session?.Connect();
             if (_plan.AutoCreateWorld) CreateWorld();
@@ -51,6 +62,13 @@ namespace AbilityKit.Game.Flow
         public void OnDetach(in GamePhaseContext ctx)
         {
             StopSession();
+
+            if (_ctx != null)
+            {
+                _ctx.Session = null;
+            }
+
+            _ctx = null;
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
@@ -94,6 +112,12 @@ namespace AbilityKit.Game.Flow
 
             _lastFrame = 0;
             _tickAcc = 0f;
+
+            if (_ctx != null)
+            {
+                _ctx.Session = _session;
+                _ctx.LastFrame = _lastFrame;
+            }
         }
 
         private void StopSession()
@@ -143,6 +167,11 @@ namespace AbilityKit.Game.Flow
         private void OnFrame(FramePacket packet)
         {
             _lastFrame = packet.Frame.Value;
+
+            if (_ctx != null)
+            {
+                _ctx.LastFrame = _lastFrame;
+            }
         }
     }
 }

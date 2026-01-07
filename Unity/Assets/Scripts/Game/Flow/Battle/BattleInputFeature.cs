@@ -13,7 +13,7 @@ namespace AbilityKit.Game.Flow
 {
     public sealed class BattleInputFeature : IGamePhaseFeature
     {
-        private BattleSessionFeature _session;
+        private BattleContext _ctx;
         private float _inputDiagCooldown;
 
         private float _lastMoveDx;
@@ -21,19 +21,19 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Root.TryGetComponent(out _session);
+            ctx.Root.TryGetComponent(out _ctx);
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            _session = null;
+            _ctx = null;
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
         {
-            if (_session == null || _session.Session == null) return;
+            if (_ctx == null || _ctx.Session == null) return;
 
-            var plan = _session.Plan;
+            var plan = _ctx.Plan;
             var playerId = new PlayerId(string.IsNullOrEmpty(plan.PlayerId) ? "p1" : plan.PlayerId);
             var worldId = new AbilityKit.Ability.World.Abstractions.WorldId(string.IsNullOrEmpty(plan.WorldId) ? "room_1" : plan.WorldId);
 
@@ -44,8 +44,8 @@ namespace AbilityKit.Game.Flow
             if (isMoving || (wasMoving && !isMoving))
             {
                 var payload = MobaMoveCodec.Serialize(dx, dz);
-                var cmd = new PlayerInputCommand(new FrameIndex(_session.LastFrame + 1), playerId, (int)MobaOpCode.Move, payload);
-                _session.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
+                var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, (int)MobaOpCode.Move, payload);
+                _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
 
                 _lastMoveDx = dx;
                 _lastMoveDz = dz;
@@ -65,8 +65,8 @@ namespace AbilityKit.Game.Flow
             if (GetSkillKeyDown(out var slot))
             {
                 var op = slot == 1 ? (int)MobaOpCode.Skill1 : slot == 2 ? (int)MobaOpCode.Skill2 : (int)MobaOpCode.Skill3;
-                var cmd = new PlayerInputCommand(new FrameIndex(_session.LastFrame + 1), playerId, op, Array.Empty<byte>());
-                _session.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
+                var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, op, Array.Empty<byte>());
+                _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
             }
         }
 
