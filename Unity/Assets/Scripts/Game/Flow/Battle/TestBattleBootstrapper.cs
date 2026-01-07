@@ -2,6 +2,11 @@ using AbilityKit.Ability.Impl.Moba.Systems;
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using UnityEngine;
+
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace AbilityKit.Game.Flow
 {
@@ -9,40 +14,37 @@ namespace AbilityKit.Game.Flow
     {
         public BattleStartPlan Build()
         {
-            var worldId = "room_1";
-            var playerId = "p1";
+            var cfg = LoadConfig();
 
-            var req = new EnterMobaGameReq(
-                playerId: new PlayerId(playerId),
-                matchId: worldId,
-                mapId: 1,
-                teamId: 1,
-                heroId: 10001,
-                randomSeed: 12345,
-                tickRate: 30,
-                inputDelayFrames: 2,
-                opCode: 0,
-                payload: null,
-                extraPlayerId: new PlayerId("p2"),
-                extraTeamId: 2,
-                extraHeroId: 10002,
-                extraSpawnIndex: 0
-            );
-
+            var req = cfg.BuildEnterMobaGameReq();
             var payload = EnterMobaGameCodec.SerializeReq(req);
 
             return new BattleStartPlan(
-                worldId: worldId,
-                worldType: "battle",
-                clientId: "battle_client",
-                playerId: playerId,
-                autoConnect: true,
-                autoCreateWorld: true,
-                autoJoin: true,
-                autoReady: true,
+                worldId: cfg.WorldId,
+                worldType: cfg.WorldType,
+                clientId: cfg.ClientId,
+                playerId: cfg.PlayerId,
+                autoConnect: cfg.AutoConnect,
+                autoCreateWorld: cfg.AutoCreateWorld,
+                autoJoin: cfg.AutoJoin,
+                autoReady: cfg.AutoReady,
                 createWorldOpCode: MobaWorldBootstrapModule.InitOpCode,
                 createWorldPayload: payload
             );
+        }
+
+        private static TestBattleStartConfig LoadConfig()
+        {
+#if UNITY_EDITOR
+            var guids = AssetDatabase.FindAssets($"t:{nameof(TestBattleStartConfig)}");
+            for (int i = 0; i < guids.Length; i++)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                var asset = AssetDatabase.LoadAssetAtPath<TestBattleStartConfig>(path);
+                if (asset != null) return asset;
+            }
+#endif
+            return ScriptableObject.CreateInstance<TestBattleStartConfig>();
         }
     }
 }

@@ -1,13 +1,49 @@
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.Common.Pool;
 using AbilityKit.Game.Battle;
 
 namespace AbilityKit.Game.Flow
 {
-    public sealed class BattleContext
+    public sealed class BattleContext : IPoolable
     {
+        private static readonly ObjectPool<BattleContext> Pool = Pools.GetPool(
+            key: "BattleContext",
+            createFunc: () => new BattleContext(),
+            defaultCapacity: 1,
+            maxSize: 8);
+
         public BattleLogicSession Session;
         public BattleStartPlan Plan;
         public int LastFrame;
+
+        public static BattleContext Rent()
+        {
+            return Pool.Get();
+        }
+
+        public static void Return(BattleContext ctx)
+        {
+            if (ctx == null) return;
+            Pool.Release(ctx);
+        }
+
+        void IPoolable.OnPoolGet()
+        {
+        }
+
+        void IPoolable.OnPoolRelease()
+        {
+            Session = null;
+            Plan = default;
+            LastFrame = 0;
+        }
+
+        void IPoolable.OnPoolDestroy()
+        {
+            Session = null;
+            Plan = default;
+            LastFrame = 0;
+        }
     }
 
     public sealed class BattleContextFeature : IGamePhaseFeature
@@ -15,14 +51,22 @@ namespace AbilityKit.Game.Flow
         public void OnAttach(in GamePhaseContext ctx)
         {
             if (ctx.Root.TryGetComponent(out BattleContext existing) && existing != null) return;
-            ctx.Root.AddComponent(new BattleContext());
+            ctx.Root.AddComponent(BattleContext.Rent());
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
             if (ctx.Root.IsValid)
             {
-                ctx.Root.RemoveComponent(typeof(BattleContext));
+                if (ctx.Root.TryGetComponent(out BattleContext existing) && existing != null)
+                {
+                    ctx.Root.RemoveComponent(typeof(BattleContext));
+                    BattleContext.Return(existing);
+                }
+                else
+                {
+                    ctx.Root.RemoveComponent(typeof(BattleContext));
+                }
             }
         }
 
