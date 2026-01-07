@@ -1,0 +1,117 @@
+using System;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Game.Battle.Requests;
+using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
+
+namespace AbilityKit.Game.Flow
+{
+    public sealed class BattleInputFeature : IGamePhaseFeature
+    {
+        private BattleSessionFeature _session;
+        private float _inputDiagCooldown;
+
+        private float _lastMoveDx;
+        private float _lastMoveDz;
+
+        public void OnAttach(in GamePhaseContext ctx)
+        {
+            ctx.Root.TryGetComponent(out _session);
+        }
+
+        public void OnDetach(in GamePhaseContext ctx)
+        {
+            _session = null;
+        }
+
+        public void Tick(in GamePhaseContext ctx, float deltaTime)
+        {
+            if (_session == null || _session.Session == null) return;
+
+            var plan = _session.Plan;
+            var playerId = new PlayerId(string.IsNullOrEmpty(plan.PlayerId) ? "p1" : plan.PlayerId);
+            var worldId = new AbilityKit.Ability.World.Abstractions.WorldId(string.IsNullOrEmpty(plan.WorldId) ? "room_1" : plan.WorldId);
+
+            GetMoveInput(out var dx, out var dz);
+            var wasMoving = Math.Abs(_lastMoveDx) > 0.0001f || Math.Abs(_lastMoveDz) > 0.0001f;
+            var isMoving = Math.Abs(dx) > 0.0001f || Math.Abs(dz) > 0.0001f;
+
+            if (isMoving || (wasMoving && !isMoving))
+            {
+                var payload = MobaMoveCodec.Serialize(dx, dz);
+                var cmd = new PlayerInputCommand(new FrameIndex(_session.LastFrame + 1), playerId, (int)MobaOpCode.Move, payload);
+                _session.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
+
+                _lastMoveDx = dx;
+                _lastMoveDz = dz;
+            }
+            else
+            {
+                _lastMoveDx = dx;
+                _lastMoveDz = dz;
+
+                _inputDiagCooldown -= deltaTime;
+                if (_inputDiagCooldown <= 0f)
+                {
+                    _inputDiagCooldown = 1f;
+                }
+            }
+
+            if (GetSkillKeyDown(out var slot))
+            {
+                var op = slot == 1 ? (int)MobaOpCode.Skill1 : slot == 2 ? (int)MobaOpCode.Skill2 : (int)MobaOpCode.Skill3;
+                var cmd = new PlayerInputCommand(new FrameIndex(_session.LastFrame + 1), playerId, op, Array.Empty<byte>());
+                _session.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
+            }
+        }
+
+        private static bool GetSkillKeyDown(out int slot)
+        {
+            slot = 0;
+
+#if ENABLE_INPUT_SYSTEM
+            var kb = Keyboard.current;
+            if (kb != null)
+            {
+                if (kb.jKey.wasPressedThisFrame) { slot = 1; return true; }
+                if (kb.kKey.wasPressedThisFrame) { slot = 2; return true; }
+                if (kb.lKey.wasPressedThisFrame) { slot = 3; return true; }
+                return false;
+            }
+#endif
+
+            if (Input.GetKeyDown(KeyCode.J)) { slot = 1; return true; }
+            if (Input.GetKeyDown(KeyCode.K)) { slot = 2; return true; }
+            if (Input.GetKeyDown(KeyCode.L)) { slot = 3; return true; }
+            return false;
+        }
+
+        private static void GetMoveInput(out float dx, out float dz)
+        {
+            dx = 0f;
+            dz = 0f;
+
+#if ENABLE_INPUT_SYSTEM
+            var kb = Keyboard.current;
+            if (kb != null)
+            {
+                if (kb.aKey.isPressed) dx -= 1f;
+                if (kb.dKey.isPressed) dx += 1f;
+                if (kb.wKey.isPressed) dz += 1f;
+                if (kb.sKey.isPressed) dz -= 1f;
+                return;
+            }
+#endif
+
+            if (Input.GetKey(KeyCode.A)) dx -= 1f;
+            if (Input.GetKey(KeyCode.D)) dx += 1f;
+            if (Input.GetKey(KeyCode.W)) dz += 1f;
+            if (Input.GetKey(KeyCode.S)) dz -= 1f;
+        }
+    }
+}

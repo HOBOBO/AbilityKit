@@ -490,6 +490,29 @@ namespace AbilityKit.Ability.EC
             ComponentSet?.Invoke(id, typeId, component);
         }
 
+        public void SetComponent(EntityId id, Type componentType, object component)
+        {
+            if (componentType == null) throw new ArgumentNullException(nameof(componentType));
+            EnsureAlive(id);
+            var typeId = ComponentTypeId.Get(componentType);
+
+            var store = _components[id.Index];
+            if (store == null || store.Length <= typeId)
+            {
+                var newSize = Math.Max(typeId + 1, store?.Length ?? 0);
+                if (newSize < 8) newSize = 8;
+                while (newSize <= typeId) newSize *= 2;
+
+                var next = new object[newSize];
+                if (store != null) Array.Copy(store, next, store.Length);
+                store = next;
+                _components[id.Index] = store;
+            }
+
+            store[typeId] = component;
+            ComponentSet?.Invoke(id, typeId, component);
+        }
+
         public T GetComponent<T>(EntityId id) where T : class
         {
             EnsureAlive(id);
@@ -528,6 +551,26 @@ namespace AbilityKit.Ability.EC
             var typeId = ComponentTypeId.Get<T>();
             var store = _components[id.Index];
             if (store == null || typeId >= store.Length) return false;
+
+            if (store[typeId] == null) return false;
+            store[typeId] = null;
+            ComponentRemoved?.Invoke(id, typeId);
+            return true;
+        }
+
+        public bool RemoveComponent(EntityId id, Type componentType)
+        {
+            if (componentType == null) throw new ArgumentNullException(nameof(componentType));
+            EnsureAlive(id);
+            var typeId = ComponentTypeId.Get(componentType);
+            return RemoveComponentById(id, typeId);
+        }
+
+        internal bool RemoveComponentById(EntityId id, int typeId)
+        {
+            EnsureAlive(id);
+            var store = _components[id.Index];
+            if (store == null || typeId <= 0 || typeId >= store.Length) return false;
 
             if (store[typeId] == null) return false;
             store[typeId] = null;

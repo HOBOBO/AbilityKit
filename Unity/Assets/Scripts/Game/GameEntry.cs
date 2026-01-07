@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.EC;
+using AbilityKit.Game.Flow;
 using UnityEngine;
 
 namespace AbilityKit.Game
@@ -43,6 +44,39 @@ namespace AbilityKit.Game
 
             World = new EntityWorld();
             Root = EntityGenerator.CreateRoot(World, "GameRoot");
+
+            if (!Root.TryGetComponent(out GameFlowDomain flow) || flow == null)
+            {
+                flow = new GameFlowDomain(this);
+                Root.AddComponent(flow);
+            }
+        }
+
+        private void Start()
+        {
+            if (!Root.IsValid) return;
+            if (Root.TryGetComponent(out GameFlowDomain flow) && flow != null)
+            {
+                flow.Start();
+            }
+        }
+
+        private void Update()
+        {
+            if (!Root.IsValid) return;
+            if (Root.TryGetComponent(out GameFlowDomain flow) && flow != null)
+            {
+                flow.Tick(Time.deltaTime);
+            }
+        }
+
+        private void OnGUI()
+        {
+            if (!Root.IsValid) return;
+            if (Root.TryGetComponent(out GameFlowDomain flow) && flow != null)
+            {
+                flow.OnGUI();
+            }
         }
 
         private void OnDestroy()

@@ -114,6 +114,12 @@ namespace AbilityKit.Ability.EC
             _world.SetComponent(Id, component);
         }
 
+        public void AddComponent(object component)
+        {
+            if (component == null) throw new ArgumentNullException(nameof(component));
+            _world.SetComponent(Id, component.GetType(), component);
+        }
+
         public T GetComponent<T>() where T : class
         {
             return _world.GetComponent<T>(Id);
@@ -132,6 +138,11 @@ namespace AbilityKit.Ability.EC
         public bool RemoveComponent<T>() where T : class
         {
             return _world.RemoveComponent<T>(Id);
+        }
+
+        public bool RemoveComponent(Type componentType)
+        {
+            return _world.RemoveComponent(Id, componentType);
         }
 
         public void Destroy()

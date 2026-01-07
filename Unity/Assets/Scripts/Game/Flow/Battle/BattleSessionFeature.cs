@@ -1,0 +1,148 @@
+using System;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services;
+using AbilityKit.Game.Battle;
+using AbilityKit.Game.Battle.Moba.Config;
+using AbilityKit.Game.Battle.Requests;
+
+namespace AbilityKit.Game.Flow
+{
+    public sealed class BattleSessionFeature : IGamePhaseFeature
+    {
+        private const float FixedDelta = 1f / 30f;
+
+        private readonly IBattleBootstrapper _bootstrapper;
+
+        private BattleLogicSession _session;
+        private BattleStartPlan _plan;
+
+        private int _lastFrame;
+        private float _tickAcc;
+
+        public BattleSessionFeature(IBattleBootstrapper bootstrapper)
+        {
+            _bootstrapper = bootstrapper;
+        }
+
+        public BattleLogicSession Session => _session;
+        public int LastFrame => _lastFrame;
+        public BattleStartPlan Plan => _plan;
+
+        public void OnAttach(in GamePhaseContext ctx)
+        {
+            _plan = _bootstrapper?.Build() ?? default;
+            StartSession();
+
+            if (_plan.AutoConnect) _session?.Connect();
+            if (_plan.AutoCreateWorld) CreateWorld();
+            if (_plan.AutoJoin) _session?.Join(new JoinWorldRequest(new WorldId(_plan.WorldId), new PlayerId(_plan.PlayerId)));
+            if (_plan.AutoReady)
+            {
+                var cmd = new PlayerInputCommand(new FrameIndex(_lastFrame + 1), new PlayerId(_plan.PlayerId), opCode: (int)MobaOpCode.Ready, payload: Array.Empty<byte>());
+                _session?.SubmitInput(new SubmitInputRequest(new WorldId(_plan.WorldId), cmd));
+            }
+        }
+
+        public void OnDetach(in GamePhaseContext ctx)
+        {
+            StopSession();
+        }
+
+        public void Tick(in GamePhaseContext ctx, float deltaTime)
+        {
+            if (_session == null) return;
+
+            _tickAcc += deltaTime;
+            while (_tickAcc >= FixedDelta)
+            {
+                _session.Tick(FixedDelta);
+                _tickAcc -= FixedDelta;
+            }
+        }
+
+        private void StartSession()
+        {
+            StopSession();
+
+            var opts = new BattleLogicSessionOptions
+            {
+                Mode = BattleLogicMode.Local,
+                WorldId = new WorldId(string.IsNullOrEmpty(_plan.WorldId) ? "room_1" : _plan.WorldId),
+                WorldType = string.IsNullOrEmpty(_plan.WorldType) ? "battle" : _plan.WorldType,
+                ClientId = string.IsNullOrEmpty(_plan.ClientId) ? "battle_client" : _plan.ClientId,
+                PlayerId = string.IsNullOrEmpty(_plan.PlayerId) ? "p1" : _plan.PlayerId,
+                AutoConnect = false,
+                AutoCreateWorld = false,
+                AutoJoin = false,
+                ScanAssemblies = new[]
+                {
+                    typeof(WorldServiceContainerFactory).Assembly,
+                    typeof(BattleLogicSession).Assembly,
+                    typeof(AbilityKit.Ability.Impl.Moba.Systems.MobaWorldBootstrapModule).Assembly,
+                    typeof(BattleSessionFeature).Assembly
+                },
+                NamespacePrefixes = new[] { "AbilityKit" }
+            };
+
+            _session = new BattleLogicSession(opts);
+            _session.FrameReceived += OnFrame;
+
+            _lastFrame = 0;
+            _tickAcc = 0f;
+        }
+
+        private void StopSession()
+        {
+            if (_session == null) return;
+
+            try
+            {
+                _session.FrameReceived -= OnFrame;
+                _session.Dispose();
+            }
+            catch
+            {
+            }
+            finally
+            {
+                _session = null;
+            }
+        }
+
+        private void CreateWorld()
+        {
+            if (_session == null) return;
+
+            var builder = WorldServiceContainerFactory.CreateWithAttributes(
+                AbilityKit.Ability.World.Services.Attributes.WorldServiceProfile.All,
+                new[]
+                {
+                    typeof(WorldServiceContainerFactory).Assembly,
+                    typeof(AbilityKit.Ability.Impl.Moba.Systems.MobaWorldBootstrapModule).Assembly,
+                    typeof(BattleSessionFeature).Assembly
+                },
+                new[] { "AbilityKit" }
+            );
+
+            builder.AddModule(new MobaConfigWorldModule());
+
+            var options = new WorldCreateOptions(new WorldId(_plan.WorldId), _plan.WorldType)
+            {
+                ServiceBuilder = builder
+            };
+
+            var req = new CreateWorldRequest(options, _plan.CreateWorldOpCode, _plan.CreateWorldPayload);
+            _session.CreateWorld(req);
+        }
+
+        private void OnFrame(FramePacket packet)
+        {
+            _lastFrame = packet.Frame.Value;
+        }
+    }
+}
