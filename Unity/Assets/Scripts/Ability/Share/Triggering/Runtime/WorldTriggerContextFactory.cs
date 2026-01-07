@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Effect;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
@@ -20,8 +21,8 @@ namespace AbilityKit.Ability.Triggering.Runtime
             var args = evt.Args;
             if (args != null)
             {
-                args.TryGetValue("source", out source);
-                args.TryGetValue("target", out target);
+                args.TryGetValue(EffectTriggering.Args.Source, out source);
+                args.TryGetValue(EffectTriggering.Args.Target, out target);
             }
 
             var ctx = TriggerContext.Rent();

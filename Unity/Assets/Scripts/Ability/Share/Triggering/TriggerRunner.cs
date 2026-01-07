@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Share.Common.Pool;
+using AbilityKit.Ability.Share.Effect;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
@@ -26,6 +27,11 @@ namespace AbilityKit.Ability.Triggering.Runtime
             _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
         }
 
+        public TriggerInstance Compile(TriggerDef def)
+        {
+            return _compiler.Compile(def);
+        }
+
         public IEventSubscription Register(TriggerDef def)
         {
             var instance = _compiler.Compile(def);
@@ -36,6 +42,141 @@ namespace AbilityKit.Ability.Triggering.Runtime
         {
             var instance = _compiler.Compile(def);
             return Register(instance, initialLocalVars);
+        }
+
+        public bool EvaluateOnce(TriggerDef def, object source = null, object target = null, object payload = null, System.Collections.Generic.IReadOnlyDictionary<string, object> args = null, System.Collections.Generic.IReadOnlyDictionary<string, object> initialLocalVars = null)
+        {
+            if (def == null) throw new ArgumentNullException(nameof(def));
+            return EvaluateOnce(_compiler.Compile(def), source, target, payload, args, initialLocalVars);
+        }
+
+        public bool EvaluateOnce(TriggerInstance instance, object source = null, object target = null, object payload = null, System.Collections.Generic.IReadOnlyDictionary<string, object> args = null, System.Collections.Generic.IReadOnlyDictionary<string, object> initialLocalVars = null)
+        {
+            if (instance == null) throw new ArgumentNullException(nameof(instance));
+
+            var localVars = _localVarsPool.Get();
+            try
+            {
+                if (initialLocalVars != null)
+                {
+                    foreach (var kv in initialLocalVars)
+                    {
+                        if (kv.Key == null) continue;
+                        localVars[kv.Key] = kv.Value;
+                    }
+                }
+
+                var evt = new TriggerEvent(instance.EventId, payload, args);
+                // WorldTriggerContextFactory reads source/target from evt.Args, so ensure they exist.
+                if (evt.Args is Dictionary<string, object> dictArgs)
+                {
+                    dictArgs[EffectTriggering.Args.Source] = source;
+                    dictArgs[EffectTriggering.Args.Target] = target;
+                }
+                else if (evt.Args != null)
+                {
+                    // Args is read-only; fall back to putting source/target into local vars.
+                    localVars[EffectTriggering.Args.Source] = source;
+                    localVars[EffectTriggering.Args.Target] = target;
+                }
+                else
+                {
+                    localVars[EffectTriggering.Args.Source] = source;
+                    localVars[EffectTriggering.Args.Target] = target;
+                }
+
+                return ExecuteInternal(instance, in evt, localVars, runActions: false);
+            }
+            finally
+            {
+                _localVarsPool.Release(localVars);
+            }
+        }
+
+        public bool RunOnce(TriggerDef def, object source = null, object target = null, object payload = null, System.Collections.Generic.IReadOnlyDictionary<string, object> args = null, System.Collections.Generic.IReadOnlyDictionary<string, object> initialLocalVars = null)
+        {
+            if (def == null) throw new ArgumentNullException(nameof(def));
+            return RunOnce(_compiler.Compile(def), source, target, payload, args, initialLocalVars);
+        }
+
+        public bool RunOnce(TriggerInstance instance, object source = null, object target = null, object payload = null, System.Collections.Generic.IReadOnlyDictionary<string, object> args = null, System.Collections.Generic.IReadOnlyDictionary<string, object> initialLocalVars = null)
+        {
+            if (instance == null) throw new ArgumentNullException(nameof(instance));
+
+            var localVars = _localVarsPool.Get();
+            try
+            {
+                if (initialLocalVars != null)
+                {
+                    foreach (var kv in initialLocalVars)
+                    {
+                        if (kv.Key == null) continue;
+                        localVars[kv.Key] = kv.Value;
+                    }
+                }
+
+                var evt = new TriggerEvent(instance.EventId, payload, args);
+                if (evt.Args is Dictionary<string, object> dictArgs)
+                {
+                    dictArgs[EffectTriggering.Args.Source] = source;
+                    dictArgs[EffectTriggering.Args.Target] = target;
+                }
+                else if (evt.Args != null)
+                {
+                    localVars[EffectTriggering.Args.Source] = source;
+                    localVars[EffectTriggering.Args.Target] = target;
+                }
+                else
+                {
+                    localVars[EffectTriggering.Args.Source] = source;
+                    localVars[EffectTriggering.Args.Target] = target;
+                }
+
+                return ExecuteInternal(instance, in evt, localVars, runActions: true);
+            }
+            finally
+            {
+                _localVarsPool.Release(localVars);
+            }
+        }
+
+        private bool ExecuteInternal(TriggerInstance instance, in TriggerEvent evt, Dictionary<string, object> localVars, bool runActions)
+        {
+            var context = _contextFactory.CreateContext(in evt, localVars);
+            try
+            {
+                context.Event = evt;
+
+                for (int i = 0; i < instance.Conditions.Count; i++)
+                {
+                    if (!instance.Conditions[i].Evaluate(context)) return false;
+                }
+
+                if (!runActions) return true;
+
+                for (int i = 0; i < instance.Actions.Count; i++)
+                {
+                    var a = instance.Actions[i];
+                    if (a is ITriggerActionV2 v2)
+                    {
+                        var running = v2.Start(context);
+                        if (running != null)
+                        {
+                            var runner = TriggerEventHandler.GetRunner(context);
+                            runner?.Add(running, context.Source);
+                        }
+                        continue;
+                    }
+
+                    a.Execute(context);
+                }
+
+                return true;
+            }
+            finally
+            {
+                TriggerContext.Return(context);
+            }
         }
 
         public IEventSubscription Register(TriggerInstance instance)
@@ -114,7 +255,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
                 _localVarsPool.Release(_localVars);
             }
 
-            private static ITriggerActionRunner GetRunner(TriggerContext context)
+            public static ITriggerActionRunner GetRunner(TriggerContext context)
             {
                 var sp = context?.Services;
                 if (sp == null) return null;
