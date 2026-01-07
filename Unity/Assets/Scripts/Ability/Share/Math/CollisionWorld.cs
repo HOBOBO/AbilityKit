@@ -41,6 +41,7 @@ namespace AbilityKit.Ability.Share.Math
 
         bool UpdateTransform(ColliderId id, in Transform3 transform);
         bool UpdateShape(ColliderId id, in ColliderShape localShape);
+        bool UpdateLayer(ColliderId id, int layerMask);
         bool Update(ColliderId id, in Transform3 transform, in ColliderShape localShape);
 
         bool Raycast(in Ray3 ray, float maxDistance, int layerMask, out RaycastHit hit);
@@ -96,6 +97,17 @@ namespace AbilityKit.Ability.Share.Math
             var e = _entries[idx];
             if (!e.Alive) return false;
             e.LocalShape = localShape;
+            _entries[idx] = e;
+            return true;
+        }
+
+        public bool UpdateLayer(ColliderId id, int layerMask)
+        {
+            var idx = id.Value - 1;
+            if (idx < 0 || idx >= _entries.Count) return false;
+            var e = _entries[idx];
+            if (!e.Alive) return false;
+            e.LayerMask = layerMask;
             _entries[idx] = e;
             return true;
         }

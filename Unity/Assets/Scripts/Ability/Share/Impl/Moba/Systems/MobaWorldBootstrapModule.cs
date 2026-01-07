@@ -6,6 +6,8 @@ using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Impl.Moba.Systems;
+using AbilityKit.Ability.Share.Common.Projectile;
+using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
@@ -42,6 +44,10 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
 
             builder.RegisterType<MobaMoveService, MobaMoveService>(WorldLifetime.Scoped);
 
+            builder.RegisterType<ICollisionService, CollisionService>(WorldLifetime.Scoped);
+
+            builder.TryRegisterType<IProjectileService, ProjectileService>(WorldLifetime.Scoped);
+
             builder.RegisterType<MobaSkillLoadoutService, MobaSkillLoadoutService>(WorldLifetime.Scoped);
             builder.RegisterType<IMobaSkillPipelineLibrary, DefaultMobaSkillPipelineLibrary>(WorldLifetime.Scoped);
             builder.RegisterType<SkillExecutor, SkillExecutor>(WorldLifetime.Scoped);
@@ -60,6 +66,10 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 assemblies: new[] { typeof(MobaWorldBootstrapModule).Assembly },
                 namespacePrefixes: new[] { "AbilityKit.Ability.Share.Impl.Moba" }
             );
+
+            // Projectile framework lives outside AbilityKit.Ability.Share.Impl.Moba namespace,
+            // so AutoSystemInstaller won't pick it up. Install explicitly.
+            systems.Add(new ProjectileTickSystem(contexts, services));
 
             if (services.TryGet<MobaLobbyStateService>(out var lobby) && lobby != null
                 && services.TryGet<MobaMoveService>(out var moves) && moves != null
