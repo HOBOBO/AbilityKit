@@ -1,20 +1,29 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Server;
-using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Game.Battle.Component;
+using AbilityKit.Game.Battle.Entity;
 using UnityEngine;
+using EC = AbilityKit.Ability.EC;
 
 namespace AbilityKit.Game.Flow
 {
     public sealed class BattleViewFeature : IGamePhaseFeature
     {
         private BattleContext _ctx;
-        private readonly Dictionary<int, GameObject> _views = new Dictionary<int, GameObject>();
+        private IBattleEntityQuery _query;
+        private readonly Dictionary<EC.EntityId, GameObject> _views = new Dictionary<EC.EntityId, GameObject>();
 
         public void OnAttach(in GamePhaseContext ctx)
         {
             ctx.Root.TryGetComponent(out _ctx);
+            _query = _ctx != null ? _ctx.EntityQuery : null;
+
+            if (_ctx?.EntityWorld != null)
+            {
+                _ctx.EntityWorld.EntityDestroyed += OnEntityDestroyed;
+            }
+
             if (_ctx?.Session != null)
             {
                 _ctx.Session.FrameReceived += OnFrame;
@@ -28,12 +37,18 @@ namespace AbilityKit.Game.Flow
                 _ctx.Session.FrameReceived -= OnFrame;
             }
 
+            if (_ctx?.EntityWorld != null)
+            {
+                _ctx.EntityWorld.EntityDestroyed -= OnEntityDestroyed;
+            }
+
             foreach (var kv in _views)
             {
                 if (kv.Value != null) UnityEngine.Object.Destroy(kv.Value);
             }
             _views.Clear();
             _ctx = null;
+            _query = null;
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
@@ -42,53 +57,61 @@ namespace AbilityKit.Game.Flow
 
         private void OnFrame(FramePacket packet)
         {
+            if (_query?.World == null) return;
+
             if (!packet.Snapshot.HasValue) return;
-
             var snap = packet.Snapshot.Value;
-            if (snap.OpCode == (int)MobaOpCode.EnterGameSnapshot)
+            if (snap.OpCode != (int)AbilityKit.Ability.Share.Impl.Moba.Services.MobaOpCode.ActorTransformSnapshot
+                && snap.OpCode != (int)AbilityKit.Ability.Share.Impl.Moba.Services.MobaOpCode.EnterGameSnapshot)
             {
-                ApplyEnterGameSnapshot(snap.Payload);
+                return;
             }
-            else if (snap.OpCode == (int)MobaOpCode.ActorTransformSnapshot)
+
+            var dirty = _ctx != null ? _ctx.DirtyEntities : null;
+            if (dirty == null || dirty.Count == 0) return;
+
+            // Sync layer (BattleSyncFeature) updates EC model + produces dirty ids.
+            for (int i = 0; i < dirty.Count; i++)
             {
-                ApplyTransformSnapshot(snap.Payload);
+                var id = dirty[i];
+                if (!_query.World.IsAlive(id)) continue;
+                ApplyEntityView(_query.World.Wrap(id));
             }
+
+            dirty.Clear();
         }
 
-        private void ApplyEnterGameSnapshot(byte[] payload)
+        private void ApplyEntityView(EC.Entity entity)
         {
-            if (payload == null || payload.Length == 0) return;
+            if (!entity.TryGetComponent(out BattleNetIdComponent netIdComp) || netIdComp == null) return;
+            if (!entity.TryGetComponent(out BattleTransformComponent t) || t == null) return;
 
-            var res = EnterMobaGameCodec.DeserializeRes(payload);
-            if (res.Payload == null || res.Payload.Length < 12) return;
-
-            var x = BitConverter.ToSingle(res.Payload, 0);
-            var y = BitConverter.ToSingle(res.Payload, 4);
-            var z = BitConverter.ToSingle(res.Payload, 8);
-
-            var go = GetOrCreate(res.LocalActorId);
-            go.transform.position = new Vector3(x, y, z);
-        }
-
-        private void ApplyTransformSnapshot(byte[] payload)
-        {
-            var entries = MobaActorTransformSnapshotCodec.Deserialize(payload);
-            for (int i = 0; i < entries.Length; i++)
+            var shell = entity.TryGetComponent(out BattleViewShellComponent existing) ? existing : null;
+            if (shell == null || shell.GameObject == null)
             {
-                var e = entries[i];
-                var go = GetOrCreate(e.actorId);
-                go.transform.position = new Vector3(e.x, e.y, e.z);
+                var go = CreateShellGameObject(netIdComp.NetId.Value);
+                shell = new BattleViewShellComponent { GameObject = go };
+                entity.AddComponent(shell);
+                _views[entity.Id] = go;
             }
+
+            shell.GameObject.transform.position = t.Position;
         }
 
-        private GameObject GetOrCreate(int actorId)
+        private void OnEntityDestroyed(EC.EntityId id)
         {
-            if (_views.TryGetValue(actorId, out var go) && go != null) return go;
+            if (_views.TryGetValue(id, out var go) && go != null)
+            {
+                UnityEngine.Object.Destroy(go);
+            }
+            _views.Remove(id);
+        }
 
-            go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        private static GameObject CreateShellGameObject(int actorId)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = $"Actor_{actorId}";
             go.transform.localScale = new Vector3(1f, 2f, 1f);
-            _views[actorId] = go;
             return go;
         }
     }

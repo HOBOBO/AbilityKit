@@ -17,6 +17,8 @@ namespace AbilityKit.Game.Flow
 
             flow.Attach(new BattleContextFeature());
             flow.Attach(new BattleSessionFeature(_bootstrapper));
+            flow.Attach(new BattleEntityFeature());
+            flow.Attach(new BattleSyncFeature());
             flow.Attach(new BattleInputFeature());
             flow.Attach(new BattleViewFeature());
             flow.Attach(new BattleDebugOnGUIFeature());

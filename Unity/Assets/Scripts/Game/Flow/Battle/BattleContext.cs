@@ -1,6 +1,9 @@
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Common.Pool;
+using AbilityKit.Game.Battle.Entity;
+using EC = AbilityKit.Ability.EC;
 using AbilityKit.Game.Battle;
+using System.Collections.Generic;
 
 namespace AbilityKit.Game.Flow
 {
@@ -15,6 +18,14 @@ namespace AbilityKit.Game.Flow
         public BattleLogicSession Session;
         public BattleStartPlan Plan;
         public int LastFrame;
+
+        public EC.Entity EntityNode;
+        public EC.EntityWorld EntityWorld;
+        public BattleEntityLookup EntityLookup;
+        public BattleEntityFactory EntityFactory;
+        public IBattleEntityQuery EntityQuery;
+
+        public List<EC.EntityId> DirtyEntities;
 
         public static BattleContext Rent()
         {
@@ -36,6 +47,14 @@ namespace AbilityKit.Game.Flow
             Session = null;
             Plan = default;
             LastFrame = 0;
+
+            EntityNode = default;
+            EntityWorld = null;
+            EntityLookup = null;
+            EntityFactory = null;
+            EntityQuery = null;
+
+            DirtyEntities?.Clear();
         }
 
         void IPoolable.OnPoolDestroy()
@@ -43,6 +62,14 @@ namespace AbilityKit.Game.Flow
             Session = null;
             Plan = default;
             LastFrame = 0;
+
+            EntityNode = default;
+            EntityWorld = null;
+            EntityLookup = null;
+            EntityFactory = null;
+            EntityQuery = null;
+
+            DirtyEntities = null;
         }
     }
 
