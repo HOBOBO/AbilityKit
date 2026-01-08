@@ -6,7 +6,7 @@ namespace AbilityKit.Ability.Share.Common.Pool
     public sealed class ObjectPool<T> where T : class
     {
         private readonly Func<T> _createFunc;
-        private readonly Action<T> _onGet;
+        private Action<T> _onGet;
         private readonly Action<T> _onRelease;
         private readonly Action<T> _onDestroy;
         private readonly bool _collectionCheck;
@@ -49,6 +49,12 @@ namespace AbilityKit.Ability.Share.Common.Pool
         public int ActiveCount => _createdTotal - _stack.Count;
 
         public PoolStats Stats => new PoolStats(_createdTotal, _getTotal, _releaseTotal, InactiveCount, ActiveCount);
+
+        internal void AppendOnGet(Action<T> onGet)
+        {
+            if (onGet == null) return;
+            _onGet += onGet;
+        }
 
         public T Get()
         {

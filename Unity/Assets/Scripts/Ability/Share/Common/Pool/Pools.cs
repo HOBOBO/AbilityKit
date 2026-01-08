@@ -25,7 +25,9 @@ namespace AbilityKit.Ability.Share.Common.Pool
                 CollectionCheck = collectionCheck,
             };
 
-            return _manager.GetOrCreate(key, options);
+            var pool = _manager.GetOrCreate(key, options);
+            _manager.RegisterForObjectRelease(pool);
+            return pool;
         }
 
         public static T Get<T>(Func<T> createFunc, Action<T> onGet = null, Action<T> onRelease = null, Action<T> onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true) where T : class
@@ -71,6 +73,18 @@ namespace AbilityKit.Ability.Share.Common.Pool
             if (!_manager.TryGet<T>(key, out var pool)) return false;
             pool.Release(element);
             return true;
+        }
+
+        public static void Release(object element)
+        {
+            if (element == null) return;
+            if (!_manager.TryRelease(element)) throw new InvalidOperationException($"Pool not found for instance: type={element.GetType().FullName}");
+        }
+
+        public static bool TryRelease(object element)
+        {
+            if (element == null) return true;
+            return _manager.TryRelease(element);
         }
 
         public static bool DestroyPool<T>(bool destroy = true) where T : class

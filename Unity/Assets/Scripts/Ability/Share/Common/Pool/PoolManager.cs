@@ -1,11 +1,21 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace AbilityKit.Ability.Share.Common.Pool
 {
     public sealed class PoolManager
     {
         private readonly Dictionary<(Type type, PoolKey key), object> _pools = new Dictionary<(Type, PoolKey), object>();
+
+        private readonly ConditionalWeakTable<object, ReleaseHandle> _releaseHandles = new ConditionalWeakTable<object, ReleaseHandle>();
+
+        private readonly HashSet<object> _registeredPools = new HashSet<object>();
+
+        private sealed class ReleaseHandle
+        {
+            public Action<object> Release;
+        }
 
         public ObjectPool<T> GetOrCreate<T>(PoolKey key, ObjectPoolOptions<T> options) where T : class
         {
@@ -16,6 +26,35 @@ namespace AbilityKit.Ability.Share.Common.Pool
             var pool = new ObjectPool<T>(options);
             _pools.Add(k, pool);
             return pool;
+        }
+
+        public void RegisterForObjectRelease<T>(ObjectPool<T> pool) where T : class
+        {
+            if (pool == null) throw new ArgumentNullException(nameof(pool));
+
+            if (_registeredPools.Contains(pool)) return;
+            _registeredPools.Add(pool);
+
+            pool.AppendOnGet(obj =>
+            {
+                if (obj == null) return;
+
+                // Update in case the object was reused with a different pool instance.
+                _releaseHandles.Remove(obj);
+                _releaseHandles.Add(obj, new ReleaseHandle { Release = o => pool.Release((T)o) });
+            });
+        }
+
+        public bool TryRelease(object element)
+        {
+            if (element == null) return true;
+            if (_releaseHandles.TryGetValue(element, out var handle) && handle?.Release != null)
+            {
+                handle.Release(element);
+                return true;
+            }
+
+            return false;
         }
 
         public bool TryGet<T>(PoolKey key, out ObjectPool<T> pool) where T : class
