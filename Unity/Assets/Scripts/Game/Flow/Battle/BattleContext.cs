@@ -21,6 +21,8 @@ namespace AbilityKit.Game.Flow
         public int LastFrame;
 
         public FrameSnapshotDispatcher FrameSnapshots;
+        public BattleSnapshotPipeline SnapshotPipeline;
+        public BattleCmdHandler CmdHandler;
 
         public EC.Entity EntityNode;
         public EC.EntityWorld EntityWorld;
@@ -52,6 +54,8 @@ namespace AbilityKit.Game.Flow
             LastFrame = 0;
 
             FrameSnapshots = null;
+            SnapshotPipeline = null;
+            CmdHandler = null;
 
             EntityNode = default;
             EntityWorld = null;
@@ -69,6 +73,8 @@ namespace AbilityKit.Game.Flow
             LastFrame = 0;
 
             FrameSnapshots = null;
+            SnapshotPipeline = null;
+            CmdHandler = null;
 
             EntityNode = default;
             EntityWorld = null;

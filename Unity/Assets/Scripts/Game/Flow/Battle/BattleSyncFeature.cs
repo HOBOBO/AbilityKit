@@ -22,7 +22,6 @@ namespace AbilityKit.Game.Flow
         private int _localActorId;
 
         private IDisposable _subLobby;
-        private IDisposable _subEnterGame;
         private IDisposable _subActorTransform;
         private IDisposable _subStateHash;
 
@@ -37,7 +36,6 @@ namespace AbilityKit.Game.Flow
             if (_ctx?.FrameSnapshots != null)
             {
                 _subLobby = _ctx.FrameSnapshots.Subscribe<LobbySnapshot>((int)MobaOpCode.LobbySnapshot, OnLobbySnapshot);
-                _subEnterGame = _ctx.FrameSnapshots.Subscribe<EnterMobaGameRes>((int)MobaOpCode.EnterGameSnapshot, OnEnterGameSnapshot);
                 _subActorTransform = _ctx.FrameSnapshots.Subscribe<(int actorId, float x, float y, float z)[]>((int)MobaOpCode.ActorTransformSnapshot, OnActorTransformSnapshot);
                 _subStateHash = _ctx.FrameSnapshots.Subscribe<MobaStateHashSnapshotCodec.SnapshotPayload>((int)MobaOpCode.StateHashSnapshot, OnStateHashSnapshot);
             }
@@ -50,13 +48,11 @@ namespace AbilityKit.Game.Flow
             if (_ctx?.FrameSnapshots != null)
             {
                 _subLobby?.Dispose();
-                _subEnterGame?.Dispose();
                 _subActorTransform?.Dispose();
                 _subStateHash?.Dispose();
             }
 
             _subLobby = null;
-            _subEnterGame = null;
             _subActorTransform = null;
             _subStateHash = null;
 
@@ -80,11 +76,6 @@ namespace AbilityKit.Game.Flow
         private void OnStateHashSnapshot(FramePacket packet, MobaStateHashSnapshotCodec.SnapshotPayload snap)
         {
             ApplyStateHashSnapshot(snap);
-        }
-
-        private void OnEnterGameSnapshot(FramePacket packet, EnterMobaGameRes res)
-        {
-            ApplyEnterGameSnapshot(res);
         }
 
         private void OnActorTransformSnapshot(FramePacket packet, (int actorId, float x, float y, float z)[] entries)
@@ -122,56 +113,6 @@ namespace AbilityKit.Game.Flow
             comp.Version = p.Version;
             comp.Frame = p.Frame;
             comp.Hash = p.Hash;
-        }
-
-        private void ApplyEnterGameSnapshot(EnterMobaGameRes res)
-        {
-            if (_world == null || _lookup == null || _factory == null) return;
-
-            var dirty = _ctx != null ? _ctx.DirtyEntities : null;
-            if (dirty == null)
-            {
-                dirty = new System.Collections.Generic.List<EC.EntityId>(8);
-                if (_ctx != null) _ctx.DirtyEntities = dirty;
-            }
-            else
-            {
-                dirty.Clear();
-            }
-
-            _localActorId = res.LocalActorId;
-
-            // Current demo uses payload as 3 floats x,y,z.
-            Vector3 pos = default;
-            if (res.Payload != null && res.Payload.Length >= 12)
-            {
-                var x = BitConverter.ToSingle(res.Payload, 0);
-                var y = BitConverter.ToSingle(res.Payload, 4);
-                var z = BitConverter.ToSingle(res.Payload, 8);
-                pos = new Vector3(x, y, z);
-            }
-
-            var netId = new BattleNetId(res.LocalActorId);
-            if (!_lookup.TryResolve(_world, netId, out var e))
-            {
-                e = _factory.CreateCharacter(netId);
-            }
-
-            if (!e.TryGetComponent(out BattleTransformComponent t) || t == null)
-            {
-                t = new BattleTransformComponent();
-                e.AddComponent(t);
-            }
-
-            t.Position = pos;
-            if (t.Forward == default) t.Forward = Vector3.forward;
-
-            dirty.Add(e.Id);
-
-            if (e.TryGetComponent(out BattleCharacterComponent c) && c != null)
-            {
-                // Optionally set team/model from config later.
-            }
         }
 
         private void ApplyTransformSnapshot((int actorId, float x, float y, float z)[] entries)
