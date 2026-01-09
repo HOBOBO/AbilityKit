@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.Common.SnapshotRouting;
 using AbilityKit.Game.Flow;
 
 namespace AbilityKit.Game.Flow.Snapshot
 {
-    public sealed class BattleCmdHandler : IDisposable
+    public sealed class BattleCmdHandler : IDisposable, ISnapshotCmdHandlerRegistry
     {
         private readonly BattleContext _ctx;
         private readonly FrameSnapshotDispatcher _dispatcher;
@@ -47,6 +48,12 @@ namespace AbilityKit.Game.Flow.Snapshot
             });
 
             _subscriptions[opCode] = sub;
+        }
+
+        void ISnapshotCmdHandlerRegistry.RegisterCmdHandler<T>(int opCode, Action<object, FramePacket, T> handler)
+        {
+            if (handler == null) throw new ArgumentNullException(nameof(handler));
+            Register<T>(opCode, (ctx, packet, payload) => handler(ctx, packet, payload));
         }
     }
 }

@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.Common.SnapshotRouting;
 using AbilityKit.Game.Battle;
 
 namespace AbilityKit.Game.Flow.Snapshot
 {
-    public sealed class FrameSnapshotDispatcher : IDisposable
+    public sealed class FrameSnapshotDispatcher : IDisposable, ISnapshotDecoderRegistry
     {
         private readonly BattleLogicSession _session;
         private readonly Dictionary<int, IRoute> _routes = new Dictionary<int, IRoute>();
@@ -20,6 +21,12 @@ namespace AbilityKit.Game.Flow.Snapshot
         public event Action<FramePacket, WorldStateSnapshot> SnapshotReceived;
 
         public delegate bool TryDecode<T>(in WorldStateSnapshot snap, out T value);
+
+        void ISnapshotDecoderRegistry.RegisterDecoder<T>(int opCode, ISnapshotDecoderRegistry.TryDecode<T> decoder)
+        {
+            if (decoder == null) throw new ArgumentNullException(nameof(decoder));
+            Register<T>(opCode, (in WorldStateSnapshot snap, out T value) => decoder(in snap, out value));
+        }
 
         public void Register<T>(int opCode, TryDecode<T> decoder)
         {

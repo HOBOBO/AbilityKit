@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.Common.SnapshotRouting;
 using AbilityKit.Game.Flow;
 
 namespace AbilityKit.Game.Flow.Snapshot
 {
-    public sealed class BattleSnapshotPipeline : IDisposable
+    public sealed class BattleSnapshotPipeline : IDisposable, ISnapshotDecoderRegistry, ISnapshotPipelineStageRegistry
     {
         private readonly BattleContext _ctx;
         private readonly FrameSnapshotDispatcher _dispatcher;
@@ -31,6 +32,12 @@ namespace AbilityKit.Game.Flow.Snapshot
         }
 
         public delegate bool TryDecode<T>(in WorldStateSnapshot snap, out T value);
+
+        void ISnapshotDecoderRegistry.RegisterDecoder<T>(int opCode, ISnapshotDecoderRegistry.TryDecode<T> decoder)
+        {
+            if (decoder == null) throw new ArgumentNullException(nameof(decoder));
+            Register<T>(opCode, (in WorldStateSnapshot snap, out T value) => decoder(in snap, out value));
+        }
 
         public void Register<T>(int opCode, TryDecode<T> decoder)
         {
@@ -67,6 +74,12 @@ namespace AbilityKit.Game.Flow.Snapshot
             var stage = new Stage<T>(order, handler);
             route.Add(stage);
             return new Subscription(() => route.Remove(stage));
+        }
+
+        IDisposable ISnapshotPipelineStageRegistry.AddPipelineStage<T>(int opCode, int order, Action<object, FramePacket, T> handler)
+        {
+            if (handler == null) throw new ArgumentNullException(nameof(handler));
+            return AddStage<T>(opCode, order, (ctx, packet, payload) => handler(ctx, packet, payload));
         }
 
         private void OnSnapshot(FramePacket packet, WorldStateSnapshot snap)
