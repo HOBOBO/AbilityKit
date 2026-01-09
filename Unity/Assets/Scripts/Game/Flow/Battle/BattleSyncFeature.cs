@@ -4,6 +4,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Flow.Snapshot;
 using UnityEngine;
 using EC = AbilityKit.Ability.EC;
 
@@ -20,6 +21,11 @@ namespace AbilityKit.Game.Flow
 
         private int _localActorId;
 
+        private IDisposable _subLobby;
+        private IDisposable _subEnterGame;
+        private IDisposable _subActorTransform;
+        private IDisposable _subStateHash;
+
         public void OnAttach(in GamePhaseContext ctx)
         {
             ctx.Root.TryGetComponent(out _ctx);
@@ -28,9 +34,12 @@ namespace AbilityKit.Game.Flow
             _factory = _ctx?.EntityFactory;
             _node = _ctx != null ? _ctx.EntityNode : default;
 
-            if (_ctx?.Session != null)
+            if (_ctx?.FrameSnapshots != null)
             {
-                _ctx.Session.FrameReceived += OnFrame;
+                _subLobby = _ctx.FrameSnapshots.Subscribe<LobbySnapshot>((int)MobaOpCode.LobbySnapshot, OnLobbySnapshot);
+                _subEnterGame = _ctx.FrameSnapshots.Subscribe<EnterMobaGameRes>((int)MobaOpCode.EnterGameSnapshot, OnEnterGameSnapshot);
+                _subActorTransform = _ctx.FrameSnapshots.Subscribe<(int actorId, float x, float y, float z)[]>((int)MobaOpCode.ActorTransformSnapshot, OnActorTransformSnapshot);
+                _subStateHash = _ctx.FrameSnapshots.Subscribe<MobaStateHashSnapshotCodec.SnapshotPayload>((int)MobaOpCode.StateHashSnapshot, OnStateHashSnapshot);
             }
 
             _localActorId = 0;
@@ -38,10 +47,18 @@ namespace AbilityKit.Game.Flow
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            if (_ctx?.Session != null)
+            if (_ctx?.FrameSnapshots != null)
             {
-                _ctx.Session.FrameReceived -= OnFrame;
+                _subLobby?.Dispose();
+                _subEnterGame?.Dispose();
+                _subActorTransform?.Dispose();
+                _subStateHash?.Dispose();
             }
+
+            _subLobby = null;
+            _subEnterGame = null;
+            _subActorTransform = null;
+            _subStateHash = null;
 
             _ctx = null;
             _world = null;
@@ -55,35 +72,29 @@ namespace AbilityKit.Game.Flow
         {
         }
 
-        private void OnFrame(FramePacket packet)
+        private void OnLobbySnapshot(FramePacket packet, LobbySnapshot snap)
         {
-            if (!packet.Snapshot.HasValue) return;
-
-            var snap = packet.Snapshot.Value;
-            if (snap.OpCode == (int)MobaOpCode.EnterGameSnapshot)
-            {
-                ApplyEnterGameSnapshot(snap.Payload);
-            }
-            else if (snap.OpCode == (int)MobaOpCode.ActorTransformSnapshot)
-            {
-                ApplyTransformSnapshot(snap.Payload);
-            }
-            else if (snap.OpCode == (int)MobaOpCode.LobbySnapshot)
-            {
-                ApplyLobbySnapshot(snap.Payload);
-            }
-            else if (snap.OpCode == (int)MobaOpCode.StateHashSnapshot)
-            {
-                ApplyStateHashSnapshot(snap.Payload);
-            }
+            ApplyLobbySnapshot(snap);
         }
 
-        private void ApplyLobbySnapshot(byte[] payload)
+        private void OnStateHashSnapshot(FramePacket packet, MobaStateHashSnapshotCodec.SnapshotPayload snap)
+        {
+            ApplyStateHashSnapshot(snap);
+        }
+
+        private void OnEnterGameSnapshot(FramePacket packet, EnterMobaGameRes res)
+        {
+            ApplyEnterGameSnapshot(res);
+        }
+
+        private void OnActorTransformSnapshot(FramePacket packet, (int actorId, float x, float y, float z)[] entries)
+        {
+            ApplyTransformSnapshot(entries);
+        }
+
+        private void ApplyLobbySnapshot(LobbySnapshot snap)
         {
             if (!_node.IsValid) return;
-            if (payload == null || payload.Length == 0) return;
-
-            var snap = MobaLobbyCodec.DeserializeSnapshot(payload);
 
             var comp = _node.TryGetComponent(out BattleLobbySnapshotComponent existing) ? existing : null;
             if (comp == null)
@@ -97,12 +108,9 @@ namespace AbilityKit.Game.Flow
             comp.Players = snap.Players;
         }
 
-        private void ApplyStateHashSnapshot(byte[] payload)
+        private void ApplyStateHashSnapshot(MobaStateHashSnapshotCodec.SnapshotPayload p)
         {
             if (!_node.IsValid) return;
-            if (payload == null || payload.Length == 0) return;
-
-            var p = MobaStateHashSnapshotCodec.Deserialize(payload);
 
             var comp = _node.TryGetComponent(out BattleStateHashSnapshotComponent existing) ? existing : null;
             if (comp == null)
@@ -116,10 +124,9 @@ namespace AbilityKit.Game.Flow
             comp.Hash = p.Hash;
         }
 
-        private void ApplyEnterGameSnapshot(byte[] payload)
+        private void ApplyEnterGameSnapshot(EnterMobaGameRes res)
         {
             if (_world == null || _lookup == null || _factory == null) return;
-            if (payload == null || payload.Length == 0) return;
 
             var dirty = _ctx != null ? _ctx.DirtyEntities : null;
             if (dirty == null)
@@ -132,7 +139,6 @@ namespace AbilityKit.Game.Flow
                 dirty.Clear();
             }
 
-            var res = EnterMobaGameCodec.DeserializeRes(payload);
             _localActorId = res.LocalActorId;
 
             // Current demo uses payload as 3 floats x,y,z.
@@ -168,7 +174,7 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private void ApplyTransformSnapshot(byte[] payload)
+        private void ApplyTransformSnapshot((int actorId, float x, float y, float z)[] entries)
         {
             if (_world == null || _lookup == null || _factory == null) return;
 
@@ -183,7 +189,7 @@ namespace AbilityKit.Game.Flow
                 dirty.Clear();
             }
 
-            var entries = MobaActorTransformSnapshotCodec.Deserialize(payload);
+            if (entries == null || entries.Length == 0) return;
             for (int i = 0; i < entries.Length; i++)
             {
                 var en = entries[i];

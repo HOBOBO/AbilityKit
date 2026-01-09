@@ -1,6 +1,7 @@
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Common.Pool;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Flow.Snapshot;
 using EC = AbilityKit.Ability.EC;
 using AbilityKit.Game.Battle;
 using System.Collections.Generic;
@@ -18,6 +19,8 @@ namespace AbilityKit.Game.Flow
         public BattleLogicSession Session;
         public BattleStartPlan Plan;
         public int LastFrame;
+
+        public FrameSnapshotDispatcher FrameSnapshots;
 
         public EC.Entity EntityNode;
         public EC.EntityWorld EntityWorld;
@@ -48,6 +51,8 @@ namespace AbilityKit.Game.Flow
             Plan = default;
             LastFrame = 0;
 
+            FrameSnapshots = null;
+
             EntityNode = default;
             EntityWorld = null;
             EntityLookup = null;
@@ -62,6 +67,8 @@ namespace AbilityKit.Game.Flow
             Session = null;
             Plan = default;
             LastFrame = 0;
+
+            FrameSnapshots = null;
 
             EntityNode = default;
             EntityWorld = null;

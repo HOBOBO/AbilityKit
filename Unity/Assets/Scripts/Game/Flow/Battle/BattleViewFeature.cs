@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Flow.Snapshot;
 using UnityEngine;
 using EC = AbilityKit.Ability.EC;
 
@@ -14,6 +17,9 @@ namespace AbilityKit.Game.Flow
         private IBattleEntityQuery _query;
         private readonly Dictionary<EC.EntityId, GameObject> _views = new Dictionary<EC.EntityId, GameObject>();
 
+        private IDisposable _subEnterGame;
+        private IDisposable _subActorTransform;
+
         public void OnAttach(in GamePhaseContext ctx)
         {
             ctx.Root.TryGetComponent(out _ctx);
@@ -24,18 +30,23 @@ namespace AbilityKit.Game.Flow
                 _ctx.EntityWorld.EntityDestroyed += OnEntityDestroyed;
             }
 
-            if (_ctx?.Session != null)
+            if (_ctx?.FrameSnapshots != null)
             {
-                _ctx.Session.FrameReceived += OnFrame;
+                _subEnterGame = _ctx.FrameSnapshots.Subscribe<EnterMobaGameRes>((int)MobaOpCode.EnterGameSnapshot, OnEnterGameSnapshot);
+                _subActorTransform = _ctx.FrameSnapshots.Subscribe<(int actorId, float x, float y, float z)[]>((int)MobaOpCode.ActorTransformSnapshot, OnActorTransformSnapshot);
             }
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            if (_ctx?.Session != null)
+            if (_ctx?.FrameSnapshots != null)
             {
-                _ctx.Session.FrameReceived -= OnFrame;
+                _subEnterGame?.Dispose();
+                _subActorTransform?.Dispose();
             }
+
+            _subEnterGame = null;
+            _subActorTransform = null;
 
             if (_ctx?.EntityWorld != null)
             {
@@ -55,22 +66,23 @@ namespace AbilityKit.Game.Flow
         {
         }
 
-        private void OnFrame(FramePacket packet)
+        private void OnEnterGameSnapshot(FramePacket packet, EnterMobaGameRes res)
+        {
+            RefreshDirtyViews();
+        }
+
+        private void OnActorTransformSnapshot(FramePacket packet, (int actorId, float x, float y, float z)[] entries)
+        {
+            RefreshDirtyViews();
+        }
+
+        private void RefreshDirtyViews()
         {
             if (_query?.World == null) return;
-
-            if (!packet.Snapshot.HasValue) return;
-            var snap = packet.Snapshot.Value;
-            if (snap.OpCode != (int)AbilityKit.Ability.Share.Impl.Moba.Services.MobaOpCode.ActorTransformSnapshot
-                && snap.OpCode != (int)AbilityKit.Ability.Share.Impl.Moba.Services.MobaOpCode.EnterGameSnapshot)
-            {
-                return;
-            }
 
             var dirty = _ctx != null ? _ctx.DirtyEntities : null;
             if (dirty == null || dirty.Count == 0) return;
 
-            // Sync layer (BattleSyncFeature) updates EC model + produces dirty ids.
             for (int i = 0; i < dirty.Count; i++)
             {
                 var id = dirty[i];

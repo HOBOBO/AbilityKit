@@ -9,6 +9,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Game.Battle.Requests;
+using AbilityKit.Game.Flow.Snapshot;
 
 namespace AbilityKit.Game.Flow
 {
@@ -22,6 +23,8 @@ namespace AbilityKit.Game.Flow
         private BattleStartPlan _plan;
 
         private BattleContext _ctx;
+
+        private FrameSnapshotDispatcher _snapshots;
 
         private int _lastFrame;
         private float _tickAcc;
@@ -110,6 +113,48 @@ namespace AbilityKit.Game.Flow
             _session = new BattleLogicSession(opts);
             _session.FrameReceived += OnFrame;
 
+            _snapshots = new FrameSnapshotDispatcher(_session);
+            _snapshots.Register<LobbySnapshot>((int)MobaOpCode.LobbySnapshot, (in WorldStateSnapshot snap, out LobbySnapshot lobby) =>
+            {
+                if (snap.Payload == null || snap.Payload.Length == 0)
+                {
+                    lobby = default;
+                    return false;
+                }
+                lobby = MobaLobbyCodec.DeserializeSnapshot(snap.Payload);
+                return true;
+            });
+            _snapshots.Register<EnterMobaGameRes>((int)MobaOpCode.EnterGameSnapshot, (in WorldStateSnapshot snap, out EnterMobaGameRes res) =>
+            {
+                if (snap.Payload == null || snap.Payload.Length == 0)
+                {
+                    res = default;
+                    return false;
+                }
+                res = EnterMobaGameCodec.DeserializeRes(snap.Payload);
+                return true;
+            });
+            _snapshots.Register<(int actorId, float x, float y, float z)[]>((int)MobaOpCode.ActorTransformSnapshot, (in WorldStateSnapshot snap, out (int actorId, float x, float y, float z)[] entries) =>
+            {
+                if (snap.Payload == null || snap.Payload.Length == 0)
+                {
+                    entries = null;
+                    return false;
+                }
+                entries = MobaActorTransformSnapshotCodec.Deserialize(snap.Payload);
+                return true;
+            });
+            _snapshots.Register<MobaStateHashSnapshotCodec.SnapshotPayload>((int)MobaOpCode.StateHashSnapshot, (in WorldStateSnapshot snap, out MobaStateHashSnapshotCodec.SnapshotPayload payload) =>
+            {
+                if (snap.Payload == null || snap.Payload.Length == 0)
+                {
+                    payload = default;
+                    return false;
+                }
+                payload = MobaStateHashSnapshotCodec.Deserialize(snap.Payload);
+                return true;
+            });
+
             _lastFrame = 0;
             _tickAcc = 0f;
 
@@ -117,6 +162,7 @@ namespace AbilityKit.Game.Flow
             {
                 _ctx.Session = _session;
                 _ctx.LastFrame = _lastFrame;
+                _ctx.FrameSnapshots = _snapshots;
             }
         }
 
@@ -127,6 +173,7 @@ namespace AbilityKit.Game.Flow
             try
             {
                 _session.FrameReceived -= OnFrame;
+                _snapshots?.Dispose();
                 _session.Dispose();
             }
             catch
@@ -134,6 +181,8 @@ namespace AbilityKit.Game.Flow
             }
             finally
             {
+                if (_ctx != null) _ctx.FrameSnapshots = null;
+                _snapshots = null;
                 _session = null;
             }
         }
