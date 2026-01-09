@@ -16,6 +16,8 @@ namespace AbilityKit.Ability.World.Entitas
         private IWorldClock _clock;
         private ITriggerActionRunner _triggerActions;
 
+        private global::Contexts _contexts;
+
         public EntitasWorld(WorldCreateOptions options)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -23,14 +25,14 @@ namespace AbilityKit.Ability.World.Entitas
             Id = _options.Id;
             WorldType = _options.WorldType;
 
-            Contexts = new global::Contexts();
+            _contexts = EntitasContextsPool.Rent();
             Systems = new global::Feature(WorldType);
         }
 
         public WorldId Id { get; }
         public string WorldType { get; }
 
-        public global::Contexts Contexts { get; }
+        public global::Contexts Contexts => _contexts;
         public global::Entitas.Systems Systems { get; }
 
         public IWorldServices Services => _scope;
@@ -121,11 +123,15 @@ namespace AbilityKit.Ability.World.Entitas
 
             try
             {
-                Contexts.Reset();
+                _contexts?.Reset();
             }
             catch
             {
             }
+
+            var returned = _contexts;
+            _contexts = null;
+            EntitasContextsPool.Return(returned);
         }
     }
 }
