@@ -1,0 +1,11 @@
+using AbilityKit.Ability.Share.ECS;
+
+namespace AbilityKit.Ability.Share.Battle.SearchTarget
+{
+    public interface ITargetRule
+    {
+        bool Test(in SearchQuery query, SearchContext context, EcsEntityId candidate);
+
+        bool RequiresPosition { get; }
+    }
+}
