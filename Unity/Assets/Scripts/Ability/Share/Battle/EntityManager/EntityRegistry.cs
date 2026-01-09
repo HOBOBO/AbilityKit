@@ -49,6 +49,26 @@ namespace AbilityKit.Ability.Battle.EntityManager
             return true;
         }
 
+        public int AddRange(IEnumerable<TId> ids)
+        {
+            if (ids == null) return 0;
+
+            var added = 0;
+            foreach (var id in ids)
+            {
+                if (_entities.Add(id))
+                {
+                    added++;
+                    for (var i = 0; i < _indices.Count; i++)
+                    {
+                        _indices[i].OnEntityAdded(id);
+                    }
+                }
+            }
+
+            return added;
+        }
+
         public bool Remove(TId id)
         {
             if (!_entities.Remove(id)) return false;
@@ -61,14 +81,57 @@ namespace AbilityKit.Ability.Battle.EntityManager
             return true;
         }
 
+        public int RemoveRange(IEnumerable<TId> ids)
+        {
+            if (ids == null) return 0;
+
+            var removed = 0;
+            foreach (var id in ids)
+            {
+                if (_entities.Remove(id))
+                {
+                    removed++;
+                    for (var i = 0; i < _indices.Count; i++)
+                    {
+                        _indices[i].OnEntityRemoved(id);
+                    }
+                }
+            }
+
+            return removed;
+        }
+
         public void NotifyUpdated(TId id, EntityUpdate update)
         {
             if (!_entities.Contains(id)) return;
 
             for (var i = 0; i < _indices.Count; i++)
             {
-                _indices[i].OnEntityUpdated(id, update);
+                var index = _indices[i];
+                if (index is IUpdateTypeAwareIndex<TId> aware && !aware.Accepts(update.Type)) continue;
+                index.OnEntityUpdated(id, update);
             }
+        }
+
+        public int NotifyUpdatedBatch(IEnumerable<(TId id, EntityUpdate update)> updates)
+        {
+            if (updates == null) return 0;
+
+            var count = 0;
+            foreach (var (id, update) in updates)
+            {
+                if (!_entities.Contains(id)) continue;
+                count++;
+
+                for (var i = 0; i < _indices.Count; i++)
+                {
+                    var index = _indices[i];
+                    if (index is IUpdateTypeAwareIndex<TId> aware && !aware.Accepts(update.Type)) continue;
+                    index.OnEntityUpdated(id, update);
+                }
+            }
+
+            return count;
         }
 
         public TIndex GetIndex<TIndex>() where TIndex : class, IEntityIndex<TId>

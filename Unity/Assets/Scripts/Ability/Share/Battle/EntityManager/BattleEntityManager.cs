@@ -17,9 +17,19 @@ namespace AbilityKit.Ability.Battle.EntityManager
             Registry.Add(id);
         }
 
+        public int AddRange(System.Collections.Generic.IEnumerable<TId> ids)
+        {
+            return Registry.AddRange(ids);
+        }
+
         public void Remove(TId id)
         {
             Registry.Remove(id);
+        }
+
+        public int RemoveRange(System.Collections.Generic.IEnumerable<TId> ids)
+        {
+            return Registry.RemoveRange(ids);
         }
 
         public KeyedEntityIndex<TKey, TId> CreateKeyedIndex<TKey>(System.Collections.Generic.IEqualityComparer<TKey> keyComparer = null)
@@ -39,6 +49,11 @@ namespace AbilityKit.Ability.Battle.EntityManager
         public void NotifyUpdated(TId id, EntityUpdate update)
         {
             Registry.NotifyUpdated(id, update);
+        }
+
+        public int NotifyUpdatedBatch(System.Collections.Generic.IEnumerable<(TId id, EntityUpdate update)> updates)
+        {
+            return Registry.NotifyUpdatedBatch(updates);
         }
     }
 }
