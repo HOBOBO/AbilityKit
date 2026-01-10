@@ -4,6 +4,7 @@ using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Impl.Moba.Systems;
 using AbilityKit.Ability.Share.Common.Projectile;
@@ -28,6 +29,8 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.RegisterType<MobaActorRegistry, MobaActorRegistry>(WorldLifetime.Scoped);
             builder.RegisterType<ActorIdIndex, ActorIdIndex>(WorldLifetime.Scoped);
             builder.RegisterType<MobaActorLookupService, MobaActorLookupService>(WorldLifetime.Scoped);
+
+            builder.RegisterType<MobaEntityManager, MobaEntityManager>(WorldLifetime.Scoped);
 
             builder.RegisterType<MobaPlayerActorMapService, MobaPlayerActorMapService>(WorldLifetime.Scoped);
             builder.RegisterType<MobaActorTransformSnapshotService, MobaActorTransformSnapshotService>(WorldLifetime.Scoped);

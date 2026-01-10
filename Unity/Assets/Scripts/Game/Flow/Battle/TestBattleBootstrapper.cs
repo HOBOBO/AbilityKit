@@ -19,15 +19,17 @@ namespace AbilityKit.Game.Flow
             var req = cfg.BuildEnterMobaGameReq();
             var payload = EnterMobaGameCodec.SerializeReq(req);
 
+            var plan = cfg.StartPlan;
+
             return new BattleStartPlan(
-                worldId: cfg.WorldId,
-                worldType: cfg.WorldType,
-                clientId: cfg.ClientId,
-                playerId: cfg.PlayerId,
-                autoConnect: cfg.AutoConnect,
-                autoCreateWorld: cfg.AutoCreateWorld,
-                autoJoin: cfg.AutoJoin,
-                autoReady: cfg.AutoReady,
+                worldId: plan != null ? plan.WorldId : "room_1",
+                worldType: plan != null ? plan.WorldType : "battle",
+                clientId: plan != null ? plan.ClientId : "battle_client",
+                playerId: req.PlayerId.Value,
+                autoConnect: plan != null && plan.AutoConnect,
+                autoCreateWorld: plan != null && plan.AutoCreateWorld,
+                autoJoin: plan != null && plan.AutoJoin,
+                autoReady: plan != null && plan.AutoReady,
                 createWorldOpCode: MobaWorldBootstrapModule.InitOpCode,
                 createWorldPayload: payload
             );

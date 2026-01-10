@@ -1,5 +1,6 @@
 using System;
 using Entitas;
+using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 { 
@@ -7,12 +8,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     {
         private readonly ActorIdIndex _index;
         private readonly MobaActorRegistry _registry;
+        private readonly MobaEntityManager _entities;
         private readonly IGroup<global::ActorEntity> _group;
 
-        public MobaActorLookupService(ActorIdIndex index, MobaActorRegistry registry, global::Contexts contexts)
+        public MobaActorLookupService(ActorIdIndex index, MobaActorRegistry registry, MobaEntityManager entities, global::Contexts contexts)
         {
             _index = index ?? throw new ArgumentNullException(nameof(index));
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            _entities = entities ?? throw new ArgumentNullException(nameof(entities));
             if (contexts == null) throw new ArgumentNullException(nameof(contexts));
             _group = contexts.actor.GetGroup(global::ActorMatcher.ActorId);
         }
@@ -23,6 +26,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 entity = null;
                 return false;
+            }
+
+            if (_entities != null && _entities.TryGetActorEntity(actorId, out entity) && entity != null)
+            {
+                return true;
             }
 
             if (_index.TryGet(actorId, out entity))

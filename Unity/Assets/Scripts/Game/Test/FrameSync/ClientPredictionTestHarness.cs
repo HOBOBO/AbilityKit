@@ -8,6 +8,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Rollback;
 using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Management;
@@ -152,13 +153,15 @@ namespace AbilityKit.Game.Test.FrameSync
                 playerId: new PlayerId(playerId),
                 matchId: "test",
                 mapId: 1,
-                teamId: 1,
-                heroId: 1,
                 randomSeed: 123,
                 tickRate: 30,
                 inputDelayFrames: 0,
                 opCode: 0,
-                payload: Array.Empty<byte>());
+                payload: Array.Empty<byte>(),
+                players: new[]
+                {
+                    new MobaPlayerLoadout(new PlayerId(playerId), teamId: 1, heroId: 1, level: 1, basicAttackSkillId: 1, skillIds: null, spawnIndex: 0, unitSubType: (int)UnitSubType.Hero, mainType: (int)EntityMainType.Unit)
+                });
 
             var builder = WorldServiceContainerFactory.CreateWithAttributes(
                 WorldServiceProfile.Client,

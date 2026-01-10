@@ -4,6 +4,32 @@ using AbilityKit.Ability.Share;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Struct
 {
+    public readonly struct MobaPlayerLoadout
+    {
+        [BinaryMember(0)] public readonly PlayerId PlayerId;
+        [BinaryMember(1)] public readonly int TeamId;
+        [BinaryMember(2)] public readonly int HeroId;
+        [BinaryMember(3)] public readonly int Level;
+        [BinaryMember(4)] public readonly int BasicAttackSkillId;
+        [BinaryMember(5)] public readonly int[] SkillIds;
+        [BinaryMember(6)] public readonly int SpawnIndex;
+        [BinaryMember(7)] public readonly int UnitSubType;
+        [BinaryMember(8)] public readonly int MainType;
+
+        public MobaPlayerLoadout(PlayerId playerId, int teamId, int heroId, int level, int basicAttackSkillId, int[] skillIds, int spawnIndex, int unitSubType = 1, int mainType = 1)
+        {
+            PlayerId = playerId;
+            TeamId = teamId;
+            HeroId = heroId;
+            Level = level;
+            BasicAttackSkillId = basicAttackSkillId;
+            SkillIds = skillIds;
+            SpawnIndex = spawnIndex;
+            UnitSubType = unitSubType;
+            MainType = mainType;
+        }
+    }
+
     public readonly struct MobaPlayerEntry
     {
         [BinaryMember(0)] public readonly PlayerId PlayerId;
@@ -25,52 +51,38 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
         [BinaryMember(0)] public readonly PlayerId PlayerId;
         [BinaryMember(1)] public readonly string MatchId;
         [BinaryMember(2)] public readonly int MapId;
-        [BinaryMember(3)] public readonly int TeamId;
-        [BinaryMember(4)] public readonly int HeroId;
 
-        [BinaryMember(5)] public readonly int RandomSeed;
-        [BinaryMember(6)] public readonly int TickRate;
-        [BinaryMember(7)] public readonly int InputDelayFrames;
+        [BinaryMember(3)] public readonly int RandomSeed;
+        [BinaryMember(4)] public readonly int TickRate;
+        [BinaryMember(5)] public readonly int InputDelayFrames;
 
-        [BinaryMember(8)] public readonly int OpCode;
-        [BinaryMember(9)] public readonly byte[] Payload;
+        [BinaryMember(6)] public readonly int OpCode;
+        [BinaryMember(7)] public readonly byte[] Payload;
 
-        [BinaryMember(10)] public readonly PlayerId ExtraPlayerId;
-        [BinaryMember(11)] public readonly int ExtraTeamId;
-        [BinaryMember(12)] public readonly int ExtraHeroId;
-        [BinaryMember(13)] public readonly int ExtraSpawnIndex;
+        [BinaryMember(8)] public readonly MobaPlayerLoadout[] Players;
 
         public EnterMobaGameReq(
             PlayerId playerId,
             string matchId,
             int mapId,
-            int teamId,
-            int heroId,
             int randomSeed,
             int tickRate,
             int inputDelayFrames,
             int opCode = 0,
             byte[] payload = null,
-            PlayerId extraPlayerId = default,
-            int extraTeamId = 0,
-            int extraHeroId = 0,
-            int extraSpawnIndex = 0)
+            MobaPlayerLoadout[] players = null)
         {
             PlayerId = playerId;
             MatchId = matchId;
             MapId = mapId;
-            TeamId = teamId;
-            HeroId = heroId;
+
             RandomSeed = randomSeed;
             TickRate = tickRate;
             InputDelayFrames = inputDelayFrames;
             OpCode = opCode;
             Payload = payload;
 
-            ExtraPlayerId = extraPlayerId;
-            ExtraTeamId = extraTeamId;
-            ExtraHeroId = extraHeroId;
-            ExtraSpawnIndex = extraSpawnIndex;
+            Players = players;
         }
     }
 
@@ -86,6 +98,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
 
         [BinaryMember(6)] public readonly MobaPlayerEntry[] Players;
 
+        [BinaryMember(9)] public readonly MobaPlayerLoadout[] PlayersLoadout;
+
         [BinaryMember(7)] public readonly int OpCode;
         [BinaryMember(8)] public readonly byte[] Payload;
 
@@ -98,7 +112,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
             int inputDelayFrames,
             MobaPlayerEntry[] players = null,
             int opCode = 0,
-            byte[] payload = null)
+            byte[] payload = null,
+            MobaPlayerLoadout[] playersLoadout = null)
         {
             WorldId = worldId;
             PlayerId = playerId;
@@ -109,6 +124,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
             Players = players;
             OpCode = opCode;
             Payload = payload;
+            PlayersLoadout = playersLoadout;
         }
     }
 }

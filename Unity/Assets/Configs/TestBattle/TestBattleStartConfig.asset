@@ -12,21 +12,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 92417acb6298b404a9db324e4836ab40, type: 3}
   m_Name: TestBattleStartConfig
   m_EditorClassIdentifier: 
-  WorldId: room_1
-  WorldType: battle
-  ClientId: battle_client
-  PlayerId: p1
-  AutoConnect: 1
-  AutoCreateWorld: 1
-  AutoJoin: 1
-  AutoReady: 1
-  MapId: 1
-  TeamId: 1
-  HeroId: 10001
-  RandomSeed: 12345
-  TickRate: 30
-  InputDelayFrames: 2
-  ExtraPlayerId: p2
-  ExtraTeamId: 2
-  ExtraHeroId: 10002
-  ExtraSpawnIndex: 0
+  StartPlan:
+    WorldId: room_1
+    WorldType: battle
+    ClientId: battle_client
+    AutoConnect: 1
+    AutoCreateWorld: 1
+    AutoJoin: 1
+    AutoReady: 1
+  EnterGame:
+    MapId: 1
+    RandomSeed: 12345
+    TickRate: 30
+    InputDelayFrames: 2
+  Players:
+    LocalPlayerId: p1
+    Team1Players:
+    - PlayerId: p1
+      TeamId: 1
+      HeroId: 10001
+      Level: 1
+      BasicAttackSkillId: 1
+      SkillIds: 11270000
+      SpawnIndex: 0
+    Team2Players:
+    - PlayerId: p2
+      TeamId: 2
+      HeroId: 10002
+      Level: 1
+      BasicAttackSkillId: 1
+      SkillIds: 11270000
+      SpawnIndex: 0

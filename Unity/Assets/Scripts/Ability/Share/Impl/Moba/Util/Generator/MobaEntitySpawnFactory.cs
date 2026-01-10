@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Math;
 
 namespace AbilityKit.Ability.Impl.Moba.Util.Generator
@@ -18,27 +20,33 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
         public readonly MobaEntityKind Kind;
         public readonly Transform3 Transform;
 
-        public readonly int TeamId;
-        public readonly int TemplateId;
+        public readonly Team Team;
+        public readonly EntityMainType MainType;
+        public readonly UnitSubType UnitSubType;
+        public readonly PlayerId OwnerPlayer;
 
+        public readonly int TemplateId;
 
         public MobaEntityInfo(
             int actorId,
             MobaEntityKind kind,
             in Transform3 transform,
-            int teamId = 0,
-            int templateId = 0,
-            bool hasCollider = false,
-            in ColliderShape collider = default,
-            bool hasCollisionLayer = false,
-            int collisionLayerMask = 0)
+            Team team,
+            EntityMainType mainType,
+            UnitSubType unitSubType,
+            PlayerId ownerPlayer,
+            int templateId = 0)
         {
             ActorId = actorId;
             Kind = kind;
             Transform = transform;
-            TeamId = teamId;
-            TemplateId = templateId;
 
+            Team = team;
+            MainType = mainType;
+            UnitSubType = unitSubType;
+            OwnerPlayer = ownerPlayer;
+
+            TemplateId = templateId;
         }
     }
 
@@ -79,6 +87,22 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             throw new InvalidOperationException($"No spawn handler registered for kind={info.Kind}");
         }
 
+        public static MobaEntityKind CreateKindFromType(EntityMainType mainType, UnitSubType unitSubType)
+        {
+            if (mainType != EntityMainType.Unit) return MobaEntityKind.Hero;
+
+            switch (unitSubType)
+            {
+                case UnitSubType.Minion:
+                    return MobaEntityKind.Minion;
+                case UnitSubType.Neutral:
+                case UnitSubType.Boss:
+                    return MobaEntityKind.Monster;
+                default:
+                    return MobaEntityKind.Hero;
+            }
+        }
+
         private static ActorEntity CreateHero(ActorContext context, in MobaEntityInfo info)
         {
             var b = ActorEntityFactory.Create(context)
@@ -87,8 +111,9 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
                 .WithMotion()
                 .WithMoveInput();
 
-            //其他组件
-            return b.Build();
+            var e = b.Build();
+            ApplyMeta(e, in info);
+            return e;
         }
 
         private static ActorEntity CreateMinion(ActorContext context, in MobaEntityInfo info)
@@ -98,8 +123,9 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
                 .WithTransform(info.Transform)
                 .WithMotion();
 
-            //其他组件
-            return b.Build();
+            var e = b.Build();
+            ApplyMeta(e, in info);
+            return e;
         }
 
         private static ActorEntity CreateMonster(ActorContext context, in MobaEntityInfo info)
@@ -109,8 +135,26 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
                 .WithTransform(info.Transform)
                 .WithMotion();
 
-            //其他组件
-            return b.Build();
+            var e = b.Build();
+            ApplyMeta(e, in info);
+            return e;
+        }
+
+        private static void ApplyMeta(ActorEntity e, in MobaEntityInfo info)
+        {
+            if (e == null) return;
+
+            if (e.hasTeam) e.ReplaceTeam(info.Team);
+            else e.AddTeam(info.Team);
+
+            if (e.hasEntityMainType) e.ReplaceEntityMainType(info.MainType);
+            else e.AddEntityMainType(info.MainType);
+
+            if (e.hasUnitSubType) e.ReplaceUnitSubType(info.UnitSubType);
+            else e.AddUnitSubType(info.UnitSubType);
+
+            if (e.hasOwnerPlayerId) e.ReplaceOwnerPlayerId(info.OwnerPlayer);
+            else e.AddOwnerPlayerId(info.OwnerPlayer);
         }
     }
 }

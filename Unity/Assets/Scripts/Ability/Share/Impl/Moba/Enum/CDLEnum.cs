@@ -47,6 +47,27 @@ namespace AbilityKit.Ability.Impl.Moba
         Base = 6
     }
 
+    // 队伍/阵营类型
+    public enum Team
+    {
+        None = 0,
+        Team1 = 1,
+        Team2 = 2,
+        Neutral = 3,
+    }
+
+    // 技能槽位类型（普通攻击+多个技能槽）
+    public enum SkillSlot
+    {
+        None = 0,
+        BasicAttack = 1,
+        Skill1 = 2,
+        Skill2 = 3,
+        Skill3 = 4,
+        Skill4 = 5,
+        Skill5 = 6,
+    }
+
     // 技能类型（用于技能系统/冷却/施法流程区分）
     public enum SkillType
     {
