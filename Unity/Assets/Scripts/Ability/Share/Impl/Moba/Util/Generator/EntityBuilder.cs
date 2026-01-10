@@ -22,21 +22,18 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             var players = new MobaPlayerEntry[loadouts.Length];
             var localActorId = 0;
             var localTransform = Transform3.Identity;
-            var firstActorId = 0;
-            var firstTransform = Transform3.Identity;
 
             for (int i = 0; i < loadouts.Length; i++)
             {
                 var p = loadouts[i];
-                var spawnPos = GetSpawnPosition(p.TeamId, p.SpawnIndex);
+                if (p.HasSpawnPosition == 0)
+                {
+                    throw new InvalidOperationException($"PlayerLoadout spawn position is required. playerId={p.PlayerId.Value} teamId={p.TeamId} spawnIndex={p.SpawnIndex}");
+                }
+
+                var spawnPos = new Vec3(p.SpawnX, p.SpawnY, p.SpawnZ);
                 var transform = new Transform3(spawnPos, Quat.Identity, Vec3.One);
                 var actorId = actorIds.Next();
-
-                if (firstActorId == 0)
-                {
-                    firstActorId = actorId;
-                    firstTransform = transform;
-                }
 
                 var info = new MobaEntityInfo(
                     actorId: actorId,
@@ -59,20 +56,12 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
                 }
             }
 
-            if (localActorId == 0 && loadouts.Length > 0)
+            if (localActorId == 0)
             {
-                // Fallback: first entry is local.
-                localActorId = firstActorId;
-                localTransform = firstTransform;
+                throw new InvalidOperationException($"EnterMobaGameReq.PlayerId not found in Players. playerId={req.PlayerId.Value}");
             }
 
             return new BuildEnterGameResult(localActorId: localActorId, players: players, localActorTransform: localTransform);
-        }
-
-        private static Vec3 GetSpawnPosition(int teamId, int spawnIndex)
-        {
-            var x = teamId * 6f + spawnIndex * 2f;
-            return new Vec3(x, 0f, 0f);
         }
     }
 

@@ -88,11 +88,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             _playerActorMap.Bind(req.PlayerId, built.LocalActorId);
 
-            var payload = new byte[12];
             var p = built.LocalActorTransform.Position;
-            Buffer.BlockCopy(BitConverter.GetBytes(p.X), 0, payload, 0, 4);
-            Buffer.BlockCopy(BitConverter.GetBytes(p.Y), 0, payload, 4, 4);
-            Buffer.BlockCopy(BitConverter.GetBytes(p.Z), 0, payload, 8, 4);
+            var payload = EnterMobaGamePayloadCodec.Serialize(in p);
 
             var res = new EnterMobaGameRes(
                 worldId: _worldContext.Id,
@@ -102,7 +99,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 tickRate: req.TickRate,
                 inputDelayFrames: req.InputDelayFrames,
                 players: built.Players,
-                opCode: 0,
+                opCode: EnterMobaGamePayloadCodec.PayloadOpCode,
                 payload: payload,
                 playersLoadout: req.Players
             );

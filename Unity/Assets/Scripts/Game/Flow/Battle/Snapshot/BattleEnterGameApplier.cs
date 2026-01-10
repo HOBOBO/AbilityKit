@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow;
@@ -30,14 +31,12 @@ namespace AbilityKit.Game.Flow.Snapshot
                 dirty.Clear();
             }
 
-            Vector3 pos = default;
-            if (res.Payload != null && res.Payload.Length >= 12)
+            if (!EnterMobaGamePayloadCodec.TryDeserializePosition(res.OpCode, res.Payload, out var p))
             {
-                var x = BitConverter.ToSingle(res.Payload, 0);
-                var y = BitConverter.ToSingle(res.Payload, 4);
-                var z = BitConverter.ToSingle(res.Payload, 8);
-                pos = new Vector3(x, y, z);
+                return;
             }
+
+            var pos = new Vector3(p.X, p.Y, p.Z);
 
             var netId = new BattleNetId(res.LocalActorId);
             if (!lookup.TryResolve(world, netId, out var e))

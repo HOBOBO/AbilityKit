@@ -3,11 +3,12 @@ using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Impl.Moba;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 namespace AbilityKit.Game.Flow
 {
-    [CreateAssetMenu(menuName = "AbilityKit/Game/Test Battle Start Config", fileName = "TestBattleStartConfig")]
-    public sealed class TestBattleStartConfig : ScriptableObject
+    [CreateAssetMenu(menuName = "AbilityKit/Game/Battle Start Config", fileName = "BattleStartConfig")]
+    public sealed class BattleStartConfig : ScriptableObject
     {
         [System.Serializable]
         public sealed class BattleStartPlanConfig
@@ -43,6 +44,7 @@ namespace AbilityKit.Game.Flow
             public int BasicAttackSkillId = 1;
             public int[] SkillIds;
             public int SpawnIndex = 0;
+            public Vector3 SpawnPosition = default;
         }
 
         [System.Serializable]
@@ -92,7 +94,20 @@ namespace AbilityKit.Game.Flow
                 {
                     var p = cfg.Team1Players[i];
                     if (p == null || string.IsNullOrEmpty(p.PlayerId)) continue;
-                    list.Add(new MobaPlayerLoadout(new PlayerId(p.PlayerId), (int)p.TeamId, p.HeroId, p.Level, p.BasicAttackSkillId, p.SkillIds, p.SpawnIndex, (int)p.UnitSubType, (int)p.MainType));
+                    list.Add(new MobaPlayerLoadout(
+                        new PlayerId(p.PlayerId),
+                        (int)p.TeamId,
+                        p.HeroId,
+                        p.Level,
+                        p.BasicAttackSkillId,
+                        p.SkillIds,
+                        p.SpawnIndex,
+                        (int)p.UnitSubType,
+                        (int)p.MainType,
+                        hasSpawnPosition: 1,
+                        spawnX: p.SpawnPosition.x,
+                        spawnY: p.SpawnPosition.y,
+                        spawnZ: p.SpawnPosition.z));
                 }
             }
 
@@ -102,7 +117,20 @@ namespace AbilityKit.Game.Flow
                 {
                     var p = cfg.Team2Players[i];
                     if (p == null || string.IsNullOrEmpty(p.PlayerId)) continue;
-                    list.Add(new MobaPlayerLoadout(new PlayerId(p.PlayerId), (int)p.TeamId, p.HeroId, p.Level, p.BasicAttackSkillId, p.SkillIds, p.SpawnIndex, (int)p.UnitSubType, (int)p.MainType));
+                    list.Add(new MobaPlayerLoadout(
+                        new PlayerId(p.PlayerId),
+                        (int)p.TeamId,
+                        p.HeroId,
+                        p.Level,
+                        p.BasicAttackSkillId,
+                        p.SkillIds,
+                        p.SpawnIndex,
+                        (int)p.UnitSubType,
+                        (int)p.MainType,
+                        hasSpawnPosition: 1,
+                        spawnX: p.SpawnPosition.x,
+                        spawnY: p.SpawnPosition.y,
+                        spawnZ: p.SpawnPosition.z));
                 }
             }
 

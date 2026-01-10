@@ -9,8 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 92417acb6298b404a9db324e4836ab40, type: 3}
-  m_Name: TestBattleStartConfig
+  m_Script: {fileID: 11500000, guid: 817406b655394cd428a1ec4c7a61e9fc, type: 3}
+  m_Name: BattleStartConfig
   m_EditorClassIdentifier: 
   StartPlan:
     WorldId: room_1
@@ -30,16 +30,22 @@ MonoBehaviour:
     Team1Players:
     - PlayerId: p1
       TeamId: 1
+      MainType: 1
+      UnitSubType: 1
       HeroId: 10001
       Level: 1
       BasicAttackSkillId: 1
       SkillIds: 11270000
       SpawnIndex: 0
+      SpawnPosition: {x: 0, y: 0, z: 0}
     Team2Players:
     - PlayerId: p2
       TeamId: 2
+      MainType: 1
+      UnitSubType: 1
       HeroId: 10002
       Level: 1
       BasicAttackSkillId: 1
       SkillIds: 11270000
       SpawnIndex: 0
+      SpawnPosition: {x: 6, y: 0, z: 0}

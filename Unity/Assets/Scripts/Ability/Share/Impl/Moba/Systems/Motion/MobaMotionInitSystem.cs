@@ -9,7 +9,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Motion
     [WorldSystem(order: MobaSystemOrder.MotionInit, Phase = WorldSystemPhase.PreExecute)]
     public sealed class MobaMotionInitSystem : WorldSystemBase
     {
-        private IWorldClock _clock;
         private Entitas.IGroup<global::ActorEntity> _group;
 
         public MobaMotionInitSystem(global::Contexts contexts, IWorldServices services)
@@ -19,7 +18,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Motion
 
         protected override void OnInit()
         {
-            Services.TryGet(out _clock);
             _group = Contexts.actor.GetGroup(global::ActorMatcher.AllOf(
                 global::ActorComponentsLookup.ActorId,
                 global::ActorComponentsLookup.Transform,

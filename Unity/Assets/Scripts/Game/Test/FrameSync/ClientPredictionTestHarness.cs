@@ -160,7 +160,20 @@ namespace AbilityKit.Game.Test.FrameSync
                 payload: Array.Empty<byte>(),
                 players: new[]
                 {
-                    new MobaPlayerLoadout(new PlayerId(playerId), teamId: 1, heroId: 1, level: 1, basicAttackSkillId: 1, skillIds: null, spawnIndex: 0, unitSubType: (int)UnitSubType.Hero, mainType: (int)EntityMainType.Unit)
+                    new MobaPlayerLoadout(
+                        new PlayerId(playerId),
+                        teamId: 1,
+                        heroId: 1,
+                        level: 1,
+                        basicAttackSkillId: 1,
+                        skillIds: null,
+                        spawnIndex: 0,
+                        unitSubType: (int)UnitSubType.Hero,
+                        mainType: (int)EntityMainType.Unit,
+                        hasSpawnPosition: 1,
+                        spawnX: 0f,
+                        spawnY: 0f,
+                        spawnZ: 0f)
                 });
 
             var builder = WorldServiceContainerFactory.CreateWithAttributes(

@@ -14,6 +14,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Motion
         private Entitas.IGroup<global::ActorEntity> _group;
 
         private readonly Dictionary<int, LocomotionMotionSource> _locomotionByActorId = new Dictionary<int, LocomotionMotionSource>(128);
+        private readonly Dictionary<int, int> _seenStampByActorId = new Dictionary<int, int>(128);
+        private readonly List<int> _tmpRemoveActorIds = new List<int>(64);
+        private int _stamp;
 
         public MobaMotionLocomotionInputSystem(global::Contexts contexts, IWorldServices services)
             : base(contexts, services)
@@ -33,6 +36,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Motion
         {
             if (_clock == null) return;
 
+            _stamp++;
+            if (_stamp == int.MaxValue) _stamp = 1;
+
             var entities = _group.GetEntities();
             if (entities == null || entities.Length == 0) return;
 
@@ -47,6 +53,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Motion
 
                 var actorId = e.actorId.Value;
                 if (actorId <= 0) continue;
+
+                _seenStampByActorId[actorId] = _stamp;
 
                 if (!_locomotionByActorId.TryGetValue(actorId, out var loco) || loco == null)
                 {
@@ -65,6 +73,25 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Motion
                     newPolicy: m.Policy,
                     newEvents: m.Events,
                     newInitialized: m.Initialized);
+            }
+
+            if (_locomotionByActorId.Count > 0)
+            {
+                _tmpRemoveActorIds.Clear();
+                foreach (var kv in _locomotionByActorId)
+                {
+                    if (!_seenStampByActorId.TryGetValue(kv.Key, out var s) || s != _stamp)
+                    {
+                        _tmpRemoveActorIds.Add(kv.Key);
+                    }
+                }
+
+                for (int i = 0; i < _tmpRemoveActorIds.Count; i++)
+                {
+                    var id = _tmpRemoveActorIds[i];
+                    _locomotionByActorId.Remove(id);
+                    _seenStampByActorId.Remove(id);
+                }
             }
         }
     }

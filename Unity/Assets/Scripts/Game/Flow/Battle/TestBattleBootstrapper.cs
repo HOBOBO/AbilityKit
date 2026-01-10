@@ -35,18 +35,18 @@ namespace AbilityKit.Game.Flow
             );
         }
 
-        private static TestBattleStartConfig LoadConfig()
+        private static BattleStartConfig LoadConfig()
         {
 #if UNITY_EDITOR
-            var guids = AssetDatabase.FindAssets($"t:{nameof(TestBattleStartConfig)}");
+            var guids = AssetDatabase.FindAssets($"t:{nameof(BattleStartConfig)}");
             for (int i = 0; i < guids.Length; i++)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guids[i]);
-                var asset = AssetDatabase.LoadAssetAtPath<TestBattleStartConfig>(path);
+                var asset = AssetDatabase.LoadAssetAtPath<BattleStartConfig>(path);
                 if (asset != null) return asset;
             }
 #endif
-            return ScriptableObject.CreateInstance<TestBattleStartConfig>();
+            return ScriptableObject.CreateInstance<BattleStartConfig>();
         }
     }
 }

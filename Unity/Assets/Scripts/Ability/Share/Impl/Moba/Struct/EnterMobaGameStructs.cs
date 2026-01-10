@@ -15,8 +15,25 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
         [BinaryMember(6)] public readonly int SpawnIndex;
         [BinaryMember(7)] public readonly int UnitSubType;
         [BinaryMember(8)] public readonly int MainType;
+        [BinaryMember(9)] public readonly int HasSpawnPosition;
+        [BinaryMember(10)] public readonly float SpawnX;
+        [BinaryMember(11)] public readonly float SpawnY;
+        [BinaryMember(12)] public readonly float SpawnZ;
 
-        public MobaPlayerLoadout(PlayerId playerId, int teamId, int heroId, int level, int basicAttackSkillId, int[] skillIds, int spawnIndex, int unitSubType = 1, int mainType = 1)
+        public MobaPlayerLoadout(
+            PlayerId playerId,
+            int teamId,
+            int heroId,
+            int level,
+            int basicAttackSkillId,
+            int[] skillIds,
+            int spawnIndex,
+            int unitSubType = 1,
+            int mainType = 1,
+            int hasSpawnPosition = 0,
+            float spawnX = 0f,
+            float spawnY = 0f,
+            float spawnZ = 0f)
         {
             PlayerId = playerId;
             TeamId = teamId;
@@ -27,6 +44,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
             SpawnIndex = spawnIndex;
             UnitSubType = unitSubType;
             MainType = mainType;
+
+            HasSpawnPosition = hasSpawnPosition;
+            SpawnX = spawnX;
+            SpawnY = spawnY;
+            SpawnZ = spawnZ;
         }
     }
 
