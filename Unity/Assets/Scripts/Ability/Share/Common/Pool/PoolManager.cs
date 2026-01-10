@@ -98,5 +98,27 @@ namespace AbilityKit.Ability.Share.Common.Pool
 
             _pools.Clear();
         }
+
+#if UNITY_EDITOR
+        public IReadOnlyList<PoolDebugSnapshot> GetDebugSnapshots()
+        {
+            if (_pools.Count == 0) return Array.Empty<PoolDebugSnapshot>();
+
+            var list = new List<PoolDebugSnapshot>(_pools.Count);
+            foreach (var kv in _pools)
+            {
+                if (kv.Value is IObjectPoolDebug debug)
+                {
+                    list.Add(new PoolDebugSnapshot(kv.Key.type, kv.Key.key, debug.Stats, debug.MaxSize));
+                }
+                else
+                {
+                    list.Add(new PoolDebugSnapshot(kv.Key.type, kv.Key.key, default, maxSize: 0));
+                }
+            }
+
+            return list;
+        }
+#endif
     }
 }

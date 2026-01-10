@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace AbilityKit.Ability.Share.Common.Pool
 {
@@ -101,5 +102,12 @@ namespace AbilityKit.Ability.Share.Common.Pool
         {
             _manager.ClearAll(destroy);
         }
+
+#if UNITY_EDITOR
+        public static IReadOnlyList<PoolDebugSnapshot> GetDebugSnapshots()
+        {
+            return _manager.GetDebugSnapshots();
+        }
+#endif
     }
 }

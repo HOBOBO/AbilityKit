@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Ability.Share.Common.Pool
 {
-    public sealed class ObjectPool<T> where T : class
+    public sealed class ObjectPool<T> : IObjectPoolDebug where T : class
     {
         private readonly Func<T> _createFunc;
         private Action<T> _onGet;
@@ -48,7 +48,15 @@ namespace AbilityKit.Ability.Share.Common.Pool
         public int InactiveCount => _stack.Count;
         public int ActiveCount => _createdTotal - _stack.Count;
 
+        public int MaxSize => _maxSize;
+
         public PoolStats Stats => new PoolStats(_createdTotal, _getTotal, _releaseTotal, InactiveCount, ActiveCount);
+
+#if UNITY_EDITOR
+        Type IObjectPoolDebug.ElementType => typeof(T);
+        PoolStats IObjectPoolDebug.Stats => Stats;
+        int IObjectPoolDebug.MaxSize => _maxSize;
+#endif
 
         internal void AppendOnGet(Action<T> onGet)
         {

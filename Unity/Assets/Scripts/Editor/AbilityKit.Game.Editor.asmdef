@@ -1,0 +1,22 @@
+{
+    "name": "AbilityKit.Game.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:c6f9803a660395145bf9bd450424b4c7",
+        "GUID:1d3ec721cfa348042b02a280589f9811",
+        "GUID:7d31d11ba62f20b4d89380d87c02f0e4",
+        "GUID:a65e97bc6b8576642bb25059ad62fcc5",
+        "GUID:b8bfb59d257e2424db15eef5b9c62332"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
