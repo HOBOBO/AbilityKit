@@ -18,6 +18,13 @@ namespace AbilityKit.Ability.Impl.Moba.Conponents
     }
 
     [Actor]
+    public sealed class MoveInputComponent : IComponent
+    {
+        public float Dx;
+        public float Dz;
+    }
+
+    [Actor]
     public sealed class ColliderComponent : IComponent
     {
         public ColliderShape LocalShape;

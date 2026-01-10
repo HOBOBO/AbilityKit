@@ -61,7 +61,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (!entity.hasTransform) return;
 
             MobaMoveCodec.Deserialize(cmd.Payload, out var dx, out var dz);
-            _moves.SetInput(actorId, dx, dz);
+
+            if (!entity.hasMoveInput)
+            {
+                entity.AddMoveInput(dx, dz);
+            }
+            else
+            {
+                entity.ReplaceMoveInput(dx, dz);
+            }
         }
 
         private void HandleSkillLegacy(PlayerInputCommand cmd, int slot)

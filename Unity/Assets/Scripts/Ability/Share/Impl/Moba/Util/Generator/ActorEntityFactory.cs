@@ -1,3 +1,6 @@
+using AbilityKit.Ability.Share.Common.MotionSystem.Collision;
+using AbilityKit.Ability.Share.Common.MotionSystem.Core;
+using AbilityKit.Ability.Share.Common.MotionSystem.Events;
 using AbilityKit.Ability.Share.Math;
 
 namespace AbilityKit.Ability.Impl.Moba.Util.Generator
@@ -50,6 +53,41 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
         {
             if (_entity.hasTransform) _entity.ReplaceTransform(transform);
             else _entity.AddTransform(transform);
+            return this;
+        }
+
+        public ActorEntityBuilder WithMotion()
+        {
+            var pipeline = default(MotionPipeline);
+            var state = new MotionState(Vec3.Zero);
+            var output = default(MotionOutput);
+            var solver = default(IMotionSolver);
+            var policy = default(MotionPipelinePolicy);
+            var events = default(IMotionEventSink);
+
+            if (_entity.hasTransform)
+            {
+                var t = _entity.transform.Value;
+                state = new MotionState(t.Position);
+                state.Forward = t.Forward;
+            }
+
+            if (_entity.hasMotion)
+            {
+                _entity.ReplaceMotion(pipeline, state, output, solver, policy, events, newInitialized: false);
+            }
+            else
+            {
+                _entity.AddMotion(pipeline, state, output, solver, policy, events, newInitialized: false);
+            }
+
+            return this;
+        }
+
+        public ActorEntityBuilder WithMoveInput(float dx = 0f, float dz = 0f)
+        {
+            if (_entity.hasMoveInput) _entity.ReplaceMoveInput(dx, dz);
+            else _entity.AddMoveInput(dx, dz);
             return this;
         }
 

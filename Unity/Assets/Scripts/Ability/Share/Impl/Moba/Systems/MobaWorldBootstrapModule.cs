@@ -64,19 +64,12 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 systems,
                 services,
                 assemblies: new[] { typeof(MobaWorldBootstrapModule).Assembly },
-                namespacePrefixes: new[] { "AbilityKit.Ability.Share.Impl.Moba" }
+                namespacePrefixes: new[]
+                {
+                    "AbilityKit.Ability.Share.Impl.Moba",
+                    "AbilityKit.Ability.Share.Common.Projectile",
+                }
             );
-
-            // Projectile framework lives outside AbilityKit.Ability.Share.Impl.Moba namespace,
-            // so AutoSystemInstaller won't pick it up. Install explicitly.
-            systems.Add(new ProjectileTickSystem(contexts, services));
-
-            if (services.TryGet<MobaLobbyStateService>(out var lobby) && lobby != null
-                && services.TryGet<MobaMoveService>(out var moves) && moves != null
-                && services.TryGet<IWorldClock>(out var clock) && clock != null)
-            {
-                systems.Add(new MobaMoveSystem(contexts, lobby, moves, clock));
-            }
 
             if (!services.TryGet<WorldInitData>(out var init) || init.Payload == null || init.Payload.Length == 0)
             {

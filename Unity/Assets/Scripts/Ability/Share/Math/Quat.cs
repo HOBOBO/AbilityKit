@@ -28,6 +28,70 @@ namespace AbilityKit.Ability.Share.Math
             return new Quat(ax.X * s, ax.Y * s, ax.Z * s, c);
         }
 
+        public static Quat LookRotation(in Vec3 forward, in Vec3 up)
+        {
+            var f = forward.Normalized;
+            if (f.SqrMagnitude <= MathUtil.Epsilon) return Identity;
+
+            var r = Vec3.Cross(up, f).Normalized;
+            if (r.SqrMagnitude <= MathUtil.Epsilon)
+            {
+                r = Vec3.Cross(Vec3.Up, f).Normalized;
+                if (r.SqrMagnitude <= MathUtil.Epsilon) return Identity;
+            }
+
+            var u = Vec3.Cross(f, r);
+
+            // Rotation matrix columns: r,u,f
+            var m00 = r.X; var m01 = u.X; var m02 = f.X;
+            var m10 = r.Y; var m11 = u.Y; var m12 = f.Y;
+            var m20 = r.Z; var m21 = u.Z; var m22 = f.Z;
+
+            var trace = m00 + m11 + m22;
+            if (trace > 0f)
+            {
+                var s = System.MathF.Sqrt(trace + 1f) * 2f;
+                var inv = 1f / s;
+                return new Quat(
+                    (m21 - m12) * inv,
+                    (m02 - m20) * inv,
+                    (m10 - m01) * inv,
+                    0.25f * s).Normalized;
+            }
+
+            if (m00 > m11 && m00 > m22)
+            {
+                var s = System.MathF.Sqrt(1f + m00 - m11 - m22) * 2f;
+                var inv = 1f / s;
+                return new Quat(
+                    0.25f * s,
+                    (m01 + m10) * inv,
+                    (m02 + m20) * inv,
+                    (m21 - m12) * inv).Normalized;
+            }
+
+            if (m11 > m22)
+            {
+                var s = System.MathF.Sqrt(1f + m11 - m00 - m22) * 2f;
+                var inv = 1f / s;
+                return new Quat(
+                    (m01 + m10) * inv,
+                    0.25f * s,
+                    (m12 + m21) * inv,
+                    (m02 - m20) * inv).Normalized;
+            }
+
+            {
+                var s = System.MathF.Sqrt(1f + m22 - m00 - m11) * 2f;
+                var inv = 1f / s;
+                return new Quat(
+                    (m02 + m20) * inv,
+                    (m12 + m21) * inv,
+                    0.25f * s,
+                    (m10 - m01) * inv).Normalized;
+            }
+        }
+
         public Quat Normalized
         {
             get

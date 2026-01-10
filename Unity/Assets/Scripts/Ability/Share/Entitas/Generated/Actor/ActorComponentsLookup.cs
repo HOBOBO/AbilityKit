@@ -14,9 +14,11 @@ public static class ActorComponentsLookup {
     public const int Collider = 3;
     public const int CollisionId = 4;
     public const int CollisionLayer = 5;
-    public const int Transform = 6;
+    public const int Motion = 6;
+    public const int MoveInput = 7;
+    public const int Transform = 8;
 
-    public const int TotalComponents = 7;
+    public const int TotalComponents = 9;
 
     public static readonly string[] componentNames = {
         "ActorId",
@@ -25,6 +27,8 @@ public static class ActorComponentsLookup {
         "Collider",
         "CollisionId",
         "CollisionLayer",
+        "Motion",
+        "MoveInput",
         "Transform"
     };
 
@@ -35,6 +39,8 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ColliderComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.CollisionIdComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.CollisionLayerComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.TransformComponent)
     };
 }

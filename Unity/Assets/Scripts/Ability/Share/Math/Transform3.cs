@@ -17,6 +17,12 @@ namespace AbilityKit.Ability.Share.Math
 
         public static Transform3 Identity => new Transform3(Vec3.Zero, Quat.Identity, Vec3.One);
 
+        public Vec3 Forward => TransformDirection(Vec3.Forward);
+
+        public Vec3 Right => TransformDirection(Vec3.Right);
+
+        public Vec3 Up => TransformDirection(Vec3.Up);
+
         public Vec3 TransformPoint(in Vec3 localPoint)
         {
             var scaled = new Vec3(localPoint.X * Scale.X, localPoint.Y * Scale.Y, localPoint.Z * Scale.Z);
