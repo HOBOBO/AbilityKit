@@ -138,8 +138,7 @@ namespace AbilityKit.Game.Flow
 
                 if (!_lookup.TryResolve(_world, netId, out var e))
                 {
-                    // For now, default unknown actor to Character.
-                    e = _factory.CreateCharacter(netId);
+                    continue;
                 }
 
                 if (!e.TryGetComponent(out BattleTransformComponent t) || t == null)

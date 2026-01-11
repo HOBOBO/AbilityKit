@@ -60,11 +60,31 @@ namespace AbilityKit.Game.Flow.Snapshot
             return true;
         }
 
+        [SnapshotDecoder("battle", (int)MobaOpCode.ActorSpawnSnapshot, typeof(MobaActorSpawnSnapshotCodec.Entry[]))]
+        internal static bool DecodeActorSpawn(in WorldStateSnapshot snap, out MobaActorSpawnSnapshotCodec.Entry[] entries)
+        {
+            if (snap.Payload == null || snap.Payload.Length == 0)
+            {
+                entries = null;
+                return false;
+            }
+
+            entries = MobaActorSpawnSnapshotCodec.Deserialize(snap.Payload);
+            return true;
+        }
+
         [SnapshotCmdHandler("battle", (int)MobaOpCode.EnterGameSnapshot, typeof(EnterMobaGameRes))]
         internal static void HandleEnterGame(object ctx, FramePacket packet, EnterMobaGameRes res)
         {
             if (ctx is not BattleContext battleCtx) return;
             BattleEnterGameApplier.Apply(battleCtx, res);
+        }
+
+        [SnapshotCmdHandler("battle", (int)MobaOpCode.ActorSpawnSnapshot, typeof(MobaActorSpawnSnapshotCodec.Entry[]))]
+        internal static void HandleActorSpawn(object ctx, FramePacket packet, MobaActorSpawnSnapshotCodec.Entry[] entries)
+        {
+            if (ctx is not BattleContext battleCtx) return;
+            BattleActorSpawnApplier.Apply(battleCtx, entries);
         }
     }
 }

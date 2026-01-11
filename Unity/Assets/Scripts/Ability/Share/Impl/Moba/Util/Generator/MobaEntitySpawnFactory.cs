@@ -155,6 +155,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 
             if (e.hasOwnerPlayerId) e.ReplaceOwnerPlayerId(info.OwnerPlayer);
             else e.AddOwnerPlayerId(info.OwnerPlayer);
+
         }
     }
 }

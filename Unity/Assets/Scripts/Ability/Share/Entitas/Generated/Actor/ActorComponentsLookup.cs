@@ -10,23 +10,26 @@ public static class ActorComponentsLookup {
 
     public const int ActorId = 0;
     public const int ApplyBuffRequest = 1;
-    public const int Buffs = 2;
-    public const int Collider = 3;
-    public const int CollisionId = 4;
-    public const int CollisionLayer = 5;
-    public const int EntityMainType = 6;
-    public const int Motion = 7;
-    public const int MoveInput = 8;
-    public const int OwnerPlayerId = 9;
-    public const int Team = 10;
-    public const int Transform = 11;
-    public const int UnitSubType = 12;
+    public const int AttributeGroup = 2;
+    public const int Buffs = 3;
+    public const int Collider = 4;
+    public const int CollisionId = 5;
+    public const int CollisionLayer = 6;
+    public const int EntityMainType = 7;
+    public const int Motion = 8;
+    public const int MoveInput = 9;
+    public const int OwnerPlayerId = 10;
+    public const int ResourceContainer = 11;
+    public const int Team = 12;
+    public const int Transform = 13;
+    public const int UnitSubType = 14;
 
-    public const int TotalComponents = 13;
+    public const int TotalComponents = 15;
 
     public static readonly string[] componentNames = {
         "ActorId",
         "ApplyBuffRequest",
+        "AttributeGroup",
         "Buffs",
         "Collider",
         "CollisionId",
@@ -35,6 +38,7 @@ public static class ActorComponentsLookup {
         "Motion",
         "MoveInput",
         "OwnerPlayerId",
+        "ResourceContainer",
         "Team",
         "Transform",
         "UnitSubType"
@@ -43,6 +47,7 @@ public static class ActorComponentsLookup {
     public static readonly System.Type[] componentTypes = {
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ActorIdComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.AttributeGroupComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.BuffsComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ColliderComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.CollisionIdComponent),
@@ -51,6 +56,7 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainerComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.TeamComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.TransformComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.UnitSubTypeComponent)

@@ -40,6 +40,7 @@ namespace AbilityKit.Game.Flow
             public EntityMainType MainType = EntityMainType.Unit;
             public UnitSubType UnitSubType = UnitSubType.Hero;
             public int HeroId = 10001;
+            public int AttributeTemplateId = 0;
             public int Level = 1;
             public int BasicAttackSkillId = 1;
             public int[] SkillIds;
@@ -98,6 +99,7 @@ namespace AbilityKit.Game.Flow
                         new PlayerId(p.PlayerId),
                         (int)p.TeamId,
                         p.HeroId,
+                        p.AttributeTemplateId,
                         p.Level,
                         p.BasicAttackSkillId,
                         p.SkillIds,
@@ -121,6 +123,7 @@ namespace AbilityKit.Game.Flow
                         new PlayerId(p.PlayerId),
                         (int)p.TeamId,
                         p.HeroId,
+                        p.AttributeTemplateId,
                         p.Level,
                         p.BasicAttackSkillId,
                         p.SkillIds,

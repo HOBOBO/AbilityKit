@@ -164,6 +164,7 @@ namespace AbilityKit.Game.Test.FrameSync
                         new PlayerId(playerId),
                         teamId: 1,
                         heroId: 1,
+                        attributeTemplateId: 0,
                         level: 1,
                         basicAttackSkillId: 1,
                         skillIds: null,

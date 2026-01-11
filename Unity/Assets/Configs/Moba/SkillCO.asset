@@ -13,10 +13,12 @@ MonoBehaviour:
   m_Name: SkillCO
   m_EditorClassIdentifier: 
   dataList:
-  - _id: 10001
-    _name: "\u6D4B\u8BD51"
-    _cooldownMs: 1000
-    _range: 5
-    _iconId: 0
-    _category: 1
-    _tags: 
+  - Id: 10001
+    Name: "\u6D4B\u8BD51"
+    CooldownMs: 0
+    Range: 0
+    IconId: 0
+    Category: 0
+    Tags: 
+    LevelTableId: 0
+    Effects: []

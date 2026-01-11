@@ -19,11 +19,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
         [BinaryMember(10)] public readonly float SpawnX;
         [BinaryMember(11)] public readonly float SpawnY;
         [BinaryMember(12)] public readonly float SpawnZ;
+        [BinaryMember(13)] public readonly int AttributeTemplateId;
 
         public MobaPlayerLoadout(
             PlayerId playerId,
             int teamId,
             int heroId,
+            int attributeTemplateId,
             int level,
             int basicAttackSkillId,
             int[] skillIds,
@@ -38,6 +40,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
             PlayerId = playerId;
             TeamId = teamId;
             HeroId = heroId;
+            AttributeTemplateId = attributeTemplateId;
             Level = level;
             BasicAttackSkillId = basicAttackSkillId;
             SkillIds = skillIds;

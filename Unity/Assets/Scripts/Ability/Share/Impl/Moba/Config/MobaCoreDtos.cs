@@ -31,10 +31,29 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
     public sealed class BattleAttributeTemplateDTO
     {
         public int Id;
+        public int Hp;
         public int MaxHp;
-        public int Attack;
-        public int Defense;
+        public int ExtraHp;
+        public int PhysicsAttack;
+        public int MagicAttack;
+        public int ExtraPhysicsAttack;
+        public int ExtraMagicAttack;
+        public int PhysicsDefense;
+        public int MagicDefense;
+        public int Mana;
+        public int MaxMana;
+        public int CriticalR;
+        public int AttackSpeedR;
+        public int CooldownReduceR;
+        public int PhysicsPenetrationR;
+        public int MagicPenetrationR;
         public int MoveSpeed;
+        public int PhysicsBloodsuckingR;
+        public int MagicBloodsuckingR;
+        public int AttackRange;
+        public int PerSecondBloodR;
+        public int PerSecondManaR;
+        public int ResilienceR;
     }
 
     [Serializable]

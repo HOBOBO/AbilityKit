@@ -86,4 +86,80 @@ namespace AbilityKit.Ability.Impl.Moba
         // 终极技能
         Ultimate = 4
     }
+
+    public enum BattleAttributeType
+    {
+        // 未定义
+        None = 0,
+
+        // 当前生命
+        HP = 1,
+
+        // 最大生命
+        MAX_HP = 2,
+
+        // 额外生命（加成值）
+        EXTRA_HP = 3,
+
+        // 物理攻击
+        PHYSICS_ATTACK = 4,
+
+        // 法术攻击
+        MAGIC_ATTACK = 5,
+
+        // 额外物理攻击（加成值）
+        EXTRA_PHYSICS_ATTACK = 6,
+
+        // 额外法术攻击（加成值）
+        EXTRA_MAGIC_ATTACK = 7,
+
+        // 物理防御
+        PHYSICS_DEFENSE = 8,
+
+        // 法术防御
+        MAGIC_DEFENSE = 9,
+
+        // 当前法力
+        MANA = 10,
+
+        // 最大法力
+        MAX_MANA = 11,
+
+        // 暴击率
+        CRITICAL_R = 12,
+
+        // 攻速加成
+        ATTACK_SPEED_R = 13,
+
+        // 冷却缩减
+        COOLDOWN_REDUCE_R = 14,
+
+        // 物理穿透
+        PHYSICS_PENETRATION_R = 15,
+
+        // 法术穿透
+        MAGIC_PENETRATION_R = 16,
+
+        // 移动速度
+        MOVE_SPEED = 17,
+
+        // 物理吸血
+        PHYSICS_BLOODSUCKING_R = 18,
+
+        // 法术吸血
+        MAGIC_BLOODSUCKING_R = 19,
+
+        // 攻击范围
+        ATTACK_RANGE = 20,
+
+        // 每秒生命回复
+        PER_SECOND_BLOOD_R = 21,
+
+        // 每秒法力回复
+        PER_SECOND_MANA_R = 22,
+        /// <summary>
+        /// 韧性
+        /// </summary>
+        RESILIENCE_R = 23,
+    }
 }

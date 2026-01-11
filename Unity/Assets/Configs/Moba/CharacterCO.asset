@@ -13,13 +13,13 @@ MonoBehaviour:
   m_Name: CharacterCO
   m_EditorClassIdentifier: 
   dataList:
-  - _id: 10001
-    _name: "\u6D4B\u8BD51"
-    _modelId: 10001
-    _attributeTemplateId: 10001
-    _skillIds: 1127000012270000
-  - _id: 10002
-    _name: "\u6D4B\u8BD52"
-    _modelId: 10002
-    _attributeTemplateId: 10001
-    _skillIds: 1127000012270000
+  - Id: 10001
+    Name: "\u6D4B\u8BD51"
+    ModelId: 10001
+    AttributeTemplateId: 10001
+    SkillIds: 11270000
+  - Id: 10002
+    Name: "\u6D4B\u8BD52"
+    ModelId: 10002
+    AttributeTemplateId: 10001
+    SkillIds: 11270000

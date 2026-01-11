@@ -2,10 +2,12 @@
   {
     "Id": 10001,
     "Name": "测试1",
-    "CooldownMs": 1000,
-    "Range": 5,
+    "CooldownMs": 0,
+    "Range": 0,
     "IconId": 0,
-    "Category": 1,
-    "Tags": []
+    "Category": 0,
+    "Tags": [],
+    "LevelTableId": 0,
+    "Effects": []
   }
 ]

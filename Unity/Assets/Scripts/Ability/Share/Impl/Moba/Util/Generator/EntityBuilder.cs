@@ -9,7 +9,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 {
     public static class EntityBuilder
     {
-        public static BuildEnterGameResult BuildEnterGameActors(ActorContext actorContext, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaEntityManager entities, in EnterMobaGameReq req)
+        public static BuildEnterGameResult BuildEnterGameActors(ActorContext actorContext, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaEntityManager entities, in EnterMobaGameReq req, Action<ActorEntity, MobaPlayerLoadout> onActorBuilt = null)
         {
             if (actorContext == null) throw new ArgumentNullException(nameof(actorContext));
             if (actorIds == null) throw new ArgumentNullException(nameof(actorIds));
@@ -42,9 +42,11 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
                     team: (Team)p.TeamId,
                     mainType: (EntityMainType)p.MainType,
                     unitSubType: (UnitSubType)p.UnitSubType,
-                    ownerPlayer: p.PlayerId);
+                    ownerPlayer: p.PlayerId,
+                    templateId: p.AttributeTemplateId);
 
                 var built = MobaEntitySpawnFactory.Create(actorContext, in info);
+                onActorBuilt?.Invoke(built, p);
                 registry.Register(actorId, built);
 
                 players[i] = new MobaPlayerEntry(p.PlayerId, p.TeamId, p.HeroId, p.SpawnIndex);

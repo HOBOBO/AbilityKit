@@ -7,6 +7,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Impl.Moba.Systems;
+using AbilityKit.Ability.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Share.Common.Projectile;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.World.Abstractions;
@@ -34,6 +35,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
 
             builder.RegisterType<MobaPlayerActorMapService, MobaPlayerActorMapService>(WorldLifetime.Scoped);
             builder.RegisterType<MobaActorTransformSnapshotService, MobaActorTransformSnapshotService>(WorldLifetime.Scoped);
+            builder.RegisterType<MobaActorSpawnSnapshotService, MobaActorSpawnSnapshotService>(WorldLifetime.Scoped);
             builder.RegisterType<MobaStateHashSnapshotService, MobaStateHashSnapshotService>(WorldLifetime.Scoped);
 
             builder.RegisterType<MobaEnterGameSnapshotService, MobaEnterGameSnapshotService>(WorldLifetime.Scoped);
@@ -44,6 +46,8 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
 
             builder.RegisterType<MobaEnterGameFlowService, MobaEnterGameFlowService>(WorldLifetime.Scoped);
             builder.RegisterType<IWorldInputSink, MobaLobbyInputSink>(WorldLifetime.Scoped);
+
+            builder.RegisterType<MobaActorEntityGenerator, MobaActorEntityGenerator>(WorldLifetime.Scoped);
 
             builder.RegisterType<MobaMoveService, MobaMoveService>(WorldLifetime.Scoped);
 

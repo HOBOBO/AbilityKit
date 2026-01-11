@@ -1,6 +1,8 @@
 using System;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Game.Battle.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow;
@@ -38,10 +40,10 @@ namespace AbilityKit.Game.Flow.Snapshot
 
             var pos = new Vector3(p.X, p.Y, p.Z);
 
-            var netId = new BattleNetId(res.LocalActorId);
-            if (!lookup.TryResolve(world, netId, out var e))
+            var localNetId = new BattleNetId(res.LocalActorId);
+            if (!lookup.TryResolve(world, localNetId, out var e))
             {
-                e = factory.CreateCharacter(netId);
+                return;
             }
 
             if (!e.TryGetComponent(out BattleTransformComponent t) || t == null)

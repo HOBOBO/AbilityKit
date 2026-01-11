@@ -21,30 +21,36 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaPlayerActorMapService _playerActorMap;
         private readonly MobaSkillLoadoutService _skills;
         private readonly MobaConfigDatabase _config;
+        private readonly MobaActorEntityGenerator _generator;
+        private readonly MobaActorSpawnSnapshotService _spawn;
 
         public MobaEnterGameFlowService(
             MobaLobbyStateService lobby,
             MobaEnterGameSnapshotService snapshot,
+            MobaActorSpawnSnapshotService spawn,
             IWorldContext worldContext,
             ActorIdAllocator actorIds,
             MobaActorRegistry registry,
             MobaEntityManager entities,
             MobaPlayerActorMapService playerActorMap,
-            MobaSkillLoadoutService skills)
-            : this(lobby, snapshot, worldContext, actorIds, registry, entities, playerActorMap, skills, config: null)
+            MobaSkillLoadoutService skills,
+            MobaActorEntityGenerator generator)
+            : this(lobby, snapshot, spawn, worldContext, actorIds, registry, entities, playerActorMap, skills, generator, config: null)
         {
         }
 
-        public MobaEnterGameFlowService(MobaLobbyStateService lobby, MobaEnterGameSnapshotService snapshot, IWorldContext worldContext, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaEntityManager entities, MobaPlayerActorMapService playerActorMap, MobaSkillLoadoutService skills, MobaConfigDatabase config)
+        public MobaEnterGameFlowService(MobaLobbyStateService lobby, MobaEnterGameSnapshotService snapshot, MobaActorSpawnSnapshotService spawn, IWorldContext worldContext, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaEntityManager entities, MobaPlayerActorMapService playerActorMap, MobaSkillLoadoutService skills, MobaActorEntityGenerator generator, MobaConfigDatabase config)
         {
             _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
             _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
+            _spawn = spawn ?? throw new ArgumentNullException(nameof(spawn));
             _worldContext = worldContext ?? throw new ArgumentNullException(nameof(worldContext));
             _actorIds = actorIds ?? throw new ArgumentNullException(nameof(actorIds));
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
             _playerActorMap = playerActorMap ?? throw new ArgumentNullException(nameof(playerActorMap));
             _skills = skills ?? throw new ArgumentNullException(nameof(skills));
+            _generator = generator;
             _config = config;
         }
 
@@ -57,7 +63,38 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             if (!_lobby.TryGetEnterGameReq(out var req)) return false;
 
-            var built = EntityBuilder.BuildEnterGameActors(actorContext, _actorIds, _registry, _entities, req);
+            var spawnEntries = new System.Collections.Generic.List<MobaActorSpawnSnapshotCodec.Entry>(req.Players != null ? req.Players.Length : 4);
+
+            var built = EntityBuilder.BuildEnterGameActors(
+                actorContext,
+                _actorIds,
+                _registry,
+                _entities,
+                req,
+                onActorBuilt: (entity, loadout) =>
+                {
+                    if (_generator == null) return;
+                    _generator.InitializeFromLoadout(entity, loadout);
+
+                    try
+                    {
+                        var actorId = entity != null && entity.hasActorId ? entity.actorId.Value : 0;
+                        if (actorId > 0)
+                        {
+                            spawnEntries.Add(new MobaActorSpawnSnapshotCodec.Entry(
+                                netId: actorId,
+                                kind: (int)SpawnEntityKind.Character,
+                                code: loadout.HeroId,
+                                ownerNetId: 0,
+                                x: loadout.SpawnX,
+                                y: loadout.SpawnY,
+                                z: loadout.SpawnZ));
+                        }
+                    }
+                    catch
+                    {
+                    }
+                });
 
             if (_config != null)
             {
@@ -105,6 +142,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             );
 
             _snapshot.PublishEnterGameResPayload(EnterMobaGameCodec.SerializeRes(res));
+
+            try
+            {
+                var payload2 = MobaActorSpawnSnapshotCodec.Serialize(spawnEntries.ToArray());
+                _spawn.PublishSpawnPayload(payload2);
+            }
+            catch
+            {
+            }
             return true;
         }
     }

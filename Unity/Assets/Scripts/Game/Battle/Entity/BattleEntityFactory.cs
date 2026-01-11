@@ -17,11 +17,11 @@ namespace AbilityKit.Game.Battle.Entity
             _parent = parent;
         }
 
-        public EC.Entity CreateCharacter(BattleNetId netId, int configId = 0)
+        public EC.Entity CreateCharacter(BattleNetId netId, int entityCode = 0)
         {
             var e = _parent.IsValid ? _parent.AddChild($"Actor_{netId.Value}") : _world.Create();
             e.AddComponent(new BattleNetIdComponent { NetId = netId });
-            e.AddComponent(new BattleEntityMetaComponent { Kind = BattleEntityKind.Character, ConfigId = configId });
+            e.AddComponent(new BattleEntityMetaComponent { Kind = BattleEntityKind.Character, EntityCode = entityCode });
             e.AddComponent(new BattleTransformComponent());
             e.AddComponent(new BattleCharacterComponent());
             e.AddComponent(new SkillListComponent());
@@ -31,11 +31,11 @@ namespace AbilityKit.Game.Battle.Entity
             return e;
         }
 
-        public EC.Entity CreateProjectile(BattleNetId netId, BattleNetId ownerNetId, int configId = 0)
+        public EC.Entity CreateProjectile(BattleNetId netId, BattleNetId ownerNetId, int entityCode = 0)
         {
             var e = _parent.IsValid ? _parent.AddChild($"Projectile_{netId.Value}") : _world.Create();
             e.AddComponent(new BattleNetIdComponent { NetId = netId });
-            e.AddComponent(new BattleEntityMetaComponent { Kind = BattleEntityKind.Projectile, ConfigId = configId });
+            e.AddComponent(new BattleEntityMetaComponent { Kind = BattleEntityKind.Projectile, EntityCode = entityCode });
             e.AddComponent(new BattleTransformComponent());
             e.AddComponent(new BattleProjectileComponent { OwnerNetId = ownerNetId });
 

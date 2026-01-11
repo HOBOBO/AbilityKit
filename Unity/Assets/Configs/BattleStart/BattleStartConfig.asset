@@ -33,6 +33,7 @@ MonoBehaviour:
       MainType: 1
       UnitSubType: 1
       HeroId: 10001
+      AttributeTemplateId: 1001
       Level: 1
       BasicAttackSkillId: 1
       SkillIds: 11270000
@@ -44,6 +45,7 @@ MonoBehaviour:
       MainType: 1
       UnitSubType: 1
       HeroId: 10002
+      AttributeTemplateId: 1001
       Level: 1
       BasicAttackSkillId: 1
       SkillIds: 11270000
