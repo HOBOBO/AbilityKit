@@ -6,12 +6,12 @@ using UnityEngine;
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 {
     [CreateAssetMenu(menuName = "AbilityKit/Moba/CO/AttrType", fileName = "AttrTypeCO")]
-    public sealed class AttrTypeSO : ScriptableObject, IMobaConfigTableAsset
+    public sealed class AttrTypeSO : MobaConfigTableAssetSO
     {
         public AttrTypeDTO[] dataList;
 
-        public string FileWithoutExt => MobaConfigPaths.AttributeTypesFile;
-        public Type EntryType => typeof(AttrTypeDTO);
-        public IEnumerable GetEntries() => dataList;
+        public override string FileWithoutExt => MobaConfigPaths.AttributeTypesFile;
+        public override Type EntryType => typeof(AttrTypeDTO);
+        public override IEnumerable GetEntries() => dataList;
     }
 }

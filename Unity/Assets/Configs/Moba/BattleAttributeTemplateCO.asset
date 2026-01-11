@@ -30,7 +30,7 @@ MonoBehaviour:
     CooldownReduceR: 0
     PhysicsPenetrationR: 0
     MagicPenetrationR: 0
-    MoveSpeed: 0
+    MoveSpeed: 5
     PhysicsBloodsuckingR: 0
     MagicBloodsuckingR: 0
     AttackRange: 0

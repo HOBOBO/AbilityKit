@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Impl.Moba.Attributes;
 using AbilityKit.Ability.Share.Common.MotionSystem.Core;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
@@ -56,11 +57,17 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Motion
 
                 _seenStampByActorId[actorId] = _stamp;
 
+                var speed = new MobaAttrs(e).MoveSpeed;
+
                 if (!_locomotionByActorId.TryGetValue(actorId, out var loco) || loco == null)
                 {
-                    loco = new LocomotionMotionSource(speed: 4.5f, space: MotionInputSpace.Local, priority: 0);
+                    loco = new LocomotionMotionSource(speed: speed, space: MotionInputSpace.Local, priority: 0);
                     _locomotionByActorId[actorId] = loco;
                     m.Pipeline.AddSource(loco);
+                }
+                else
+                {
+                    loco.Speed = speed;
                 }
 
                 loco.SetInput(e.moveInput.Dx, e.moveInput.Dz);
