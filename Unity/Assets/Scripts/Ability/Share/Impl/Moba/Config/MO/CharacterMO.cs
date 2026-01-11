@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.CO;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
 {
@@ -11,16 +10,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         public int ModelId { get; }
         public int AttributeTemplateId { get; }
         public IReadOnlyList<int> SkillIds { get; }
-
-        public CharacterMO(ICharacterCO co)
-        {
-            if (co == null) throw new ArgumentNullException(nameof(co));
-            Id = co.Key;
-            Name = co.Name;
-            ModelId = co.ModelId;
-            AttributeTemplateId = co.AttributeTemplateId;
-            SkillIds = co.SkillIds ?? Array.Empty<int>();
-        }
 
         public CharacterMO(CharacterDTO dto)
         {

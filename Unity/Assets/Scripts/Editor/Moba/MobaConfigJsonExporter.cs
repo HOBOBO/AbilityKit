@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Collections;
+using System.Reflection;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using Newtonsoft.Json;
 using UnityEditor;
@@ -26,20 +28,14 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             var outputDir = Path.Combine(projectAssetsPath, "Resources", "moba");
             Directory.CreateDirectory(outputDir);
 
-            var characters = LoadAndMerge<CharacterSO, CharacterSO.CharacterData>(assetFolder, x => x.dataList);
-            var skills = LoadAndMerge<SkillSO, SkillSO.SkillData>(assetFolder, x => x.dataList);
-            var attributes = LoadAndMerge<BattleAttributeTemplateSO, BattleAttributeTemplateSO.BattleAttributeTemplateData>(assetFolder, x => x.dataList);
-            var models = LoadAndMerge<ModelSO, ModelSO.ModelData>(assetFolder, x => x.dataList);
-
-            ValidateUnique(characters, nameof(characters));
-            ValidateUnique(skills, nameof(skills));
-            ValidateUnique(attributes, nameof(attributes));
-            ValidateUnique(models, nameof(models));
-
-            WriteArray(outputDir, MobaConfigPaths.CharactersFile, Convert(characters));
-            WriteArray(outputDir, MobaConfigPaths.SkillsFile, Convert(skills));
-            WriteArray(outputDir, MobaConfigPaths.AttributeTemplatesFile, Convert(attributes));
-            WriteArray(outputDir, MobaConfigPaths.ModelsFile, Convert(models));
+            var tables = LoadTables(assetFolder);
+            for (var i = 0; i < tables.Count; i++)
+            {
+                var table = tables[i];
+                var entries = MergeEntries(table);
+                ValidateUniqueById(entries, table.EntryType, table.FileWithoutExt);
+                WriteArray(outputDir, table.FileWithoutExt, entries, table.EntryType);
+            }
 
             AssetDatabase.Refresh();
             Debug.Log($"[MobaConfigJsonExporter] Exported to: {outputDir}");
@@ -59,131 +55,91 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             return string.IsNullOrEmpty(dir) ? "Assets" : dir.Replace('\\', '/');
         }
 
-        private static TEntry[] LoadAndMerge<TAsset, TEntry>(string assetFolder, Func<TAsset, TEntry[]> getList)
-            where TAsset : UnityEngine.Object
-            where TEntry : class
+        private static List<IMobaConfigTableAsset> LoadTables(string assetFolder)
         {
-            var guids = AssetDatabase.FindAssets($"t:{typeof(TAsset).Name}", new[] { assetFolder });
-            if (guids == null || guids.Length == 0) return Array.Empty<TEntry>();
+            var result = new List<IMobaConfigTableAsset>(16);
 
-            var list = new List<TEntry>(64);
-            for (var i = 0; i < guids.Length; i++)
+            var types = MobaConfigTableRegistry.TableAssetTypes;
+            for (var i = 0; i < types.Length; i++)
             {
-                var assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
-                var table = AssetDatabase.LoadAssetAtPath<TAsset>(assetPath);
-                if (table == null) continue;
+                var t = types[i];
+                var guids = AssetDatabase.FindAssets($"t:{t.Name}", new[] { assetFolder });
+                if (guids == null || guids.Length == 0) continue;
 
-                var arr = getList(table);
-                if (arr == null) continue;
-                for (var j = 0; j < arr.Length; j++)
+                for (var j = 0; j < guids.Length; j++)
                 {
-                    if (arr[j] == null) continue;
-                    list.Add(arr[j]);
+                    var assetPath = AssetDatabase.GUIDToAssetPath(guids[j]);
+                    var obj = AssetDatabase.LoadAssetAtPath(assetPath, t);
+                    if (obj == null) continue;
+                    if (obj is IMobaConfigTableAsset table)
+                    {
+                        result.Add(table);
+                    }
                 }
             }
 
-            return list.ToArray();
+            return result;
         }
 
-        private static void ValidateUnique<T>(T[] items, string name) where T : IKeyedSO<int>
+        private static Array MergeEntries(IMobaConfigTableAsset table)
         {
-            if (items == null) return;
+            var entryType = table.EntryType;
+            var list = new List<object>(64);
+            var enumerable = table.GetEntries();
+            if (enumerable != null)
+            {
+                foreach (var e in enumerable)
+                {
+                    if (e == null) continue;
+                    list.Add(e);
+                }
+            }
+
+            var arr = Array.CreateInstance(entryType, list.Count);
+            for (var i = 0; i < list.Count; i++) arr.SetValue(list[i], i);
+            return arr;
+        }
+
+        private static void ValidateUniqueById(Array entries, Type entryType, string name)
+        {
+            if (entries == null) return;
+            var idGetter = CreateIdGetter(entryType);
+
             var set = new HashSet<int>();
-            for (var i = 0; i < items.Length; i++)
+            for (var i = 0; i < entries.Length; i++)
             {
-                if (items[i] == null) continue;
-                if (!set.Add(items[i].Key))
+                var e = entries.GetValue(i);
+                if (e == null) continue;
+                var id = idGetter(e);
+                if (!set.Add(id))
                 {
-                    throw new InvalidOperationException($"Duplicate key in {name}: {items[i].Key}");
+                    throw new InvalidOperationException($"Duplicate Id in {name}: {id}");
                 }
             }
         }
 
-        private static void WriteArray<T>(string outputDir, string fileWithoutExt, T[] data)
+        private static Func<object, int> CreateIdGetter(Type entryType)
         {
-            var json = JsonConvert.SerializeObject(data ?? Array.Empty<T>(), Formatting.Indented);
+            var field = entryType.GetField("Id", BindingFlags.Public | BindingFlags.Instance);
+            if (field != null && field.FieldType == typeof(int))
+            {
+                return o => (int)field.GetValue(o);
+            }
+
+            var prop = entryType.GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
+            if (prop != null && prop.PropertyType == typeof(int) && prop.GetMethod != null)
+            {
+                return o => (int)prop.GetValue(o);
+            }
+
+            throw new InvalidOperationException($"Config entry must have public int Id field/property. type={entryType.FullName}");
+        }
+
+        private static void WriteArray(string outputDir, string fileWithoutExt, Array data, Type entryType)
+        {
+            var json = JsonConvert.SerializeObject(data ?? Array.CreateInstance(entryType, 0), Formatting.Indented);
             var outputPath = Path.Combine(outputDir, $"{fileWithoutExt}.json");
             File.WriteAllText(outputPath, json);
-        }
-
-        private static CharacterDTO[] Convert(CharacterSO.CharacterData[] arr)
-        {
-            if (arr == null) return Array.Empty<CharacterDTO>();
-            var list = new CharacterDTO[arr.Length];
-            for (var i = 0; i < arr.Length; i++)
-            {
-                var so = arr[i];
-                if (so == null) continue;
-                list[i] = new CharacterDTO
-                {
-                    Id = so.Key,
-                    Name = so.Name,
-                    ModelId = so.ModelId,
-                    AttributeTemplateId = so.AttributeTemplateId,
-                    SkillIds = so.SkillIds
-                };
-            }
-            return list;
-        }
-
-        private static SkillDTO[] Convert(SkillSO.SkillData[] arr)
-        {
-            if (arr == null) return Array.Empty<SkillDTO>();
-            var list = new SkillDTO[arr.Length];
-            for (var i = 0; i < arr.Length; i++)
-            {
-                var so = arr[i];
-                if (so == null) continue;
-                list[i] = new SkillDTO
-                {
-                    Id = so.Key,
-                    Name = so.Name,
-                    CooldownMs = so.CooldownMs,
-                    Range = so.Range,
-                    IconId = so.IconId,
-                    Category = so.Category,
-                    Tags = so.GetTagsCopy()
-                };
-            }
-            return list;
-        }
-
-        private static BattleAttributeTemplateDTO[] Convert(BattleAttributeTemplateSO.BattleAttributeTemplateData[] arr)
-        {
-            if (arr == null) return Array.Empty<BattleAttributeTemplateDTO>();
-            var list = new BattleAttributeTemplateDTO[arr.Length];
-            for (var i = 0; i < arr.Length; i++)
-            {
-                var so = arr[i];
-                if (so == null) continue;
-                list[i] = new BattleAttributeTemplateDTO
-                {
-                    Id = so.Key,
-                    MaxHp = so.MaxHp,
-                    Attack = so.Attack,
-                    Defense = so.Defense,
-                    MoveSpeed = so.MoveSpeed
-                };
-            }
-            return list;
-        }
-
-        private static ModelDTO[] Convert(ModelSO.ModelData[] arr)
-        {
-            if (arr == null) return Array.Empty<ModelDTO>();
-            var list = new ModelDTO[arr.Length];
-            for (var i = 0; i < arr.Length; i++)
-            {
-                var so = arr[i];
-                if (so == null) continue;
-                list[i] = new ModelDTO
-                {
-                    Id = so.Key,
-                    PrefabPath = so.PrefabPath,
-                    Scale = so.Scale
-                };
-            }
-            return list;
         }
     }
 }

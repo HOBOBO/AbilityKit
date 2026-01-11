@@ -3,16 +3,6 @@ using System;
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 {
     [Serializable]
-    public sealed class MobaConfigSnapshot
-    {
-        public CharacterDTO[] Characters;
-        public SkillDTO[] Skills;
-        public BattleAttributeTemplateDTO[] AttributeTemplates;
-        public ModelDTO[] Models;
-        public BuffDTO[] Buffs;
-    }
-
-    [Serializable]
     public sealed class CharacterDTO
     {
         public int Id;
@@ -32,6 +22,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public int IconId;
         public int Category;
         public int[] Tags;
+
+        public int LevelTableId;
+        public SkillEffectDTO[] Effects;
     }
 
     [Serializable]
@@ -49,7 +42,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
     {
         public int Id;
         public string PrefabPath;
-        public float Scale = 1f;
+        public float Scale;
     }
 
     [Serializable]

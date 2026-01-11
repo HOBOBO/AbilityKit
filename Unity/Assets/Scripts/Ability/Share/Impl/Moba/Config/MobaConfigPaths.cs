@@ -9,5 +9,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public const string AttributeTemplatesFile = "attribute_templates";
         public const string ModelsFile = "models";
         public const string BuffsFile = "buffs";
+        public const string SkillLevelTablesFile = "skill_level_tables";
+        public const string AttributeTypesFile = "attr_types";
     }
 }

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.CO;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
 {
@@ -12,23 +11,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         public int Range { get; }
         public int IconId { get; }
         public int Category { get; }
+        public int LevelTableId { get; }
+        public IReadOnlyList<SkillEffectDTO> Effects { get; }
         public IReadOnlyList<int> Tags { get; }
-
-        public SkillMO(ISkillCO co)
-        {
-            if (co == null) throw new ArgumentNullException(nameof(co));
-            Id = co.Key;
-            Name = co.Name;
-            CooldownMs = co.CooldownMs;
-            Range = co.Range;
-            IconId = co.IconId;
-            Category = co.Category;
-
-            var tags = new List<int>();
-            var span = co.Tags;
-            for (var i = 0; i < span.Length; i++) tags.Add(span[i]);
-            Tags = tags;
-        }
 
         public SkillMO(SkillDTO dto)
         {
@@ -39,6 +24,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
             Range = dto.Range;
             IconId = dto.IconId;
             Category = dto.Category;
+            LevelTableId = dto.LevelTableId;
+            Effects = dto.Effects ?? Array.Empty<SkillEffectDTO>();
             Tags = dto.Tags ?? Array.Empty<int>();
         }
     }

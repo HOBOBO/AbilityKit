@@ -1,5 +1,4 @@
 using System;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.CO;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
 {
@@ -10,16 +9,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         public int Attack { get; }
         public int Defense { get; }
         public int MoveSpeed { get; }
-
-        public BattleAttributeTemplateMO(IBattleAttributeTemplateCO co)
-        {
-            if (co == null) throw new ArgumentNullException(nameof(co));
-            Id = co.Key;
-            MaxHp = co.MaxHp;
-            Attack = co.Attack;
-            Defense = co.Defense;
-            MoveSpeed = co.MoveSpeed;
-        }
 
         public BattleAttributeTemplateMO(BattleAttributeTemplateDTO dto)
         {

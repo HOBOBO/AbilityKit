@@ -1,113 +1,146 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
+using Newtonsoft.Json;
+using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 {
     public sealed class MobaConfigDatabase
     {
-        private readonly Dictionary<int, CharacterMO> _characters = new Dictionary<int, CharacterMO>();
-        private readonly Dictionary<int, SkillMO> _skills = new Dictionary<int, SkillMO>();
-        private readonly Dictionary<int, BattleAttributeTemplateMO> _attributes = new Dictionary<int, BattleAttributeTemplateMO>();
-        private readonly Dictionary<int, ModelMO> _models = new Dictionary<int, ModelMO>();
-        private readonly Dictionary<int, BuffMO> _buffs = new Dictionary<int, BuffMO>();
+        private readonly Dictionary<Type, object> _tables = new Dictionary<Type, object>();
 
-        public void Load(IMobaConfigSource source)
+        public void LoadFromResources(string resourcesDir)
         {
-            if (source == null) throw new ArgumentNullException(nameof(source));
-            Load(source.Load());
+            if (string.IsNullOrEmpty(resourcesDir)) throw new ArgumentException(nameof(resourcesDir));
+
+            _tables.Clear();
+
+            var tables = MobaRuntimeConfigTableRegistry.Tables;
+            for (var i = 0; i < tables.Length; i++)
+            {
+                var t = tables[i];
+                var path = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
+                var asset = Resources.Load<TextAsset>(path);
+                if (asset == null) throw new InvalidOperationException($"Config json not found in Resources: {path}");
+                var json = asset.text;
+                if (string.IsNullOrEmpty(json)) throw new InvalidOperationException($"Config json is empty: {path}");
+
+                try
+                {
+                    var dtoArrayType = t.DtoType.MakeArrayType();
+                    var arr = (Array)JsonConvert.DeserializeObject(json, dtoArrayType);
+                    var tableObj = CreateTableFromDtos(t.DtoType, t.MoType, arr);
+                    _tables[t.MoType] = tableObj;
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Failed to parse config json: {path}", ex);
+                }
+            }
         }
 
-        public void Load(MobaConfigSnapshot snapshot)
+
+        private static object CreateTableFromDtos(Type dtoType, Type moType, Array dtoArray)
         {
-            if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
+            var tableType = typeof(ConfigTable<>).MakeGenericType(moType);
+            var table = Activator.CreateInstance(tableType);
+            var addFromDto = tableType.GetMethod("AddFromDto", BindingFlags.Instance | BindingFlags.Public);
+            if (addFromDto == null) throw new InvalidOperationException($"AddFromDto not found. tableType={tableType.FullName}");
 
-            _characters.Clear();
-            _skills.Clear();
-            _attributes.Clear();
-            _models.Clear();
-            _buffs.Clear();
-
-            if (snapshot.Characters != null)
+            if (dtoArray != null)
             {
-                for (var i = 0; i < snapshot.Characters.Length; i++)
+                for (var i = 0; i < dtoArray.Length; i++)
                 {
-                    var dto = snapshot.Characters[i];
+                    var dto = dtoArray.GetValue(i);
                     if (dto == null) continue;
-                    _characters[dto.Id] = new CharacterMO(dto);
+                    addFromDto.Invoke(table, new[] { dto });
                 }
             }
 
-            if (snapshot.Skills != null)
+            return table;
+        }
+
+        private sealed class ConfigTable<TMO>
+        {
+            private readonly Dictionary<int, TMO> _byId = new Dictionary<int, TMO>();
+
+            public void AddFromDto(object dto)
             {
-                for (var i = 0; i < snapshot.Skills.Length; i++)
-                {
-                    var dto = snapshot.Skills[i];
-                    if (dto == null) continue;
-                    _skills[dto.Id] = new SkillMO(dto);
-                }
+                if (dto == null) return;
+                var id = ReadId(dto);
+                var mo = (TMO)Activator.CreateInstance(typeof(TMO), dto);
+                _byId[id] = mo;
             }
 
-            if (snapshot.AttributeTemplates != null)
+            public TMO Get(int id)
             {
-                for (var i = 0; i < snapshot.AttributeTemplates.Length; i++)
-                {
-                    var dto = snapshot.AttributeTemplates[i];
-                    if (dto == null) continue;
-                    _attributes[dto.Id] = new BattleAttributeTemplateMO(dto);
-                }
+                return _byId.TryGetValue(id, out var v) ? v : throw new KeyNotFoundException($"Config not found: type={typeof(TMO).Name} id={id}");
             }
 
-            if (snapshot.Models != null)
-            {
-                for (var i = 0; i < snapshot.Models.Length; i++)
-                {
-                    var dto = snapshot.Models[i];
-                    if (dto == null) continue;
-                    _models[dto.Id] = new ModelMO(dto);
-                }
-            }
+            public bool TryGet(int id, out TMO mo) => _byId.TryGetValue(id, out mo);
+        }
 
-            if (snapshot.Buffs != null)
-            {
-                for (var i = 0; i < snapshot.Buffs.Length; i++)
-                {
-                    var dto = snapshot.Buffs[i];
-                    if (dto == null) continue;
-                    _buffs[dto.Id] = new BuffMO(dto);
-                }
-            }
+        private static int ReadId(object dto)
+        {
+            var t = dto.GetType();
+            var f = t.GetField("Id");
+            if (f != null && f.FieldType == typeof(int)) return (int)f.GetValue(dto);
+            var p = t.GetProperty("Id");
+            if (p != null && p.PropertyType == typeof(int)) return (int)p.GetValue(dto);
+            throw new InvalidOperationException($"DTO must have int Id field/property. type={t.FullName}");
+        }
+
+        private ConfigTable<TMO> GetTable<TMO>()
+        {
+            if (_tables.TryGetValue(typeof(TMO), out var o) && o is ConfigTable<TMO> t) return t;
+            t = new ConfigTable<TMO>();
+            _tables[typeof(TMO)] = t;
+            return t;
         }
 
         public CharacterMO GetCharacter(int id)
         {
-            return _characters.TryGetValue(id, out var v) ? v : throw new KeyNotFoundException($"Character not found: {id}");
+            return GetTable<CharacterMO>().Get(id);
         }
 
         public SkillMO GetSkill(int id)
         {
-            return _skills.TryGetValue(id, out var v) ? v : throw new KeyNotFoundException($"Skill not found: {id}");
+            return GetTable<SkillMO>().Get(id);
+        }
+
+        public SkillLevelTableMO GetSkillLevelTable(int id)
+        {
+            return GetTable<SkillLevelTableMO>().Get(id);
+        }
+
+        public AttrTypeMO GetAttrType(int id)
+        {
+            return GetTable<AttrTypeMO>().Get(id);
         }
 
         public BattleAttributeTemplateMO GetAttributeTemplate(int id)
         {
-            return _attributes.TryGetValue(id, out var v) ? v : throw new KeyNotFoundException($"AttributeTemplate not found: {id}");
+            return GetTable<BattleAttributeTemplateMO>().Get(id);
         }
 
         public ModelMO GetModel(int id)
         {
-            return _models.TryGetValue(id, out var v) ? v : throw new KeyNotFoundException($"Model not found: {id}");
+            return GetTable<ModelMO>().Get(id);
         }
 
         public BuffMO GetBuff(int id)
         {
-            return _buffs.TryGetValue(id, out var v) ? v : throw new KeyNotFoundException($"Buff not found: {id}");
+            return GetTable<BuffMO>().Get(id);
         }
 
-        public bool TryGetCharacter(int id, out CharacterMO mo) => _characters.TryGetValue(id, out mo);
-        public bool TryGetSkill(int id, out SkillMO mo) => _skills.TryGetValue(id, out mo);
-        public bool TryGetAttributeTemplate(int id, out BattleAttributeTemplateMO mo) => _attributes.TryGetValue(id, out mo);
-        public bool TryGetModel(int id, out ModelMO mo) => _models.TryGetValue(id, out mo);
-        public bool TryGetBuff(int id, out BuffMO mo) => _buffs.TryGetValue(id, out mo);
+        public bool TryGetCharacter(int id, out CharacterMO mo) => GetTable<CharacterMO>().TryGet(id, out mo);
+        public bool TryGetSkill(int id, out SkillMO mo) => GetTable<SkillMO>().TryGet(id, out mo);
+        public bool TryGetSkillLevelTable(int id, out SkillLevelTableMO mo) => GetTable<SkillLevelTableMO>().TryGet(id, out mo);
+        public bool TryGetAttrType(int id, out AttrTypeMO mo) => GetTable<AttrTypeMO>().TryGet(id, out mo);
+        public bool TryGetAttributeTemplate(int id, out BattleAttributeTemplateMO mo) => GetTable<BattleAttributeTemplateMO>().TryGet(id, out mo);
+        public bool TryGetModel(int id, out ModelMO mo) => GetTable<ModelMO>().TryGet(id, out mo);
+        public bool TryGetBuff(int id, out BuffMO mo) => GetTable<BuffMO>().TryGet(id, out mo);
     }
 }
