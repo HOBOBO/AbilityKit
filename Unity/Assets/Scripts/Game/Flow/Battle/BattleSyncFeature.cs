@@ -147,7 +147,9 @@ namespace AbilityKit.Game.Flow
                     e.AddComponent(t);
                 }
 
-                t.Position = new Vector3(en.x, en.y, en.z);
+                t.Position.x = en.x;
+                t.Position.y = en.y;
+                t.Position.z = en.z;
                 if (t.Forward == default) t.Forward = Vector3.forward;
 
                 dirty.Add(e.Id);
