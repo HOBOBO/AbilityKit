@@ -54,7 +54,11 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.TryRegisterService<IProjectileService, ProjectileService>();
 
             builder.RegisterService<MobaSkillLoadoutService, MobaSkillLoadoutService>();
-            builder.RegisterService<IMobaSkillPipelineLibrary, DefaultMobaSkillPipelineLibrary>();
+            builder.RegisterService<MobaEffectExecutionService, MobaEffectExecutionService>();
+            builder.RegisterService<MobaEffectExecuteSubscriber, MobaEffectExecuteSubscriber>();
+            builder.RegisterService<MobaEffectExecuteDemoSubscriber, MobaEffectExecuteDemoSubscriber>();
+            builder.RegisterService<MobaEffectApplyDemoSubscriber, MobaEffectApplyDemoSubscriber>();
+            builder.RegisterService<IMobaSkillPipelineLibrary, TableDrivenMobaSkillPipelineLibrary>();
             builder.RegisterService<SkillExecutor, SkillExecutor>();
         }
 

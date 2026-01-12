@@ -6,7 +6,7 @@ using UnityEngine;
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 {
     [CustomEditor(typeof(MobaConfigTableAssetSO), true)]
-    public sealed class MobaConfigTableAssetSOEditor : UnityEditor.Editor
+    public sealed class MobaConfigTableAssetSOEditor : EditorBase
     {
         public override void OnInspectorGUI()
         {
@@ -20,8 +20,26 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 MobaConfigJsonExporter.ExportFromFolder(folder);
             }
 
+            DrawInspectorBody();
+        }
+    }
+
+#if ODIN_INSPECTOR
+    public abstract class EditorBase : Sirenix.OdinInspector.Editor.OdinEditor
+    {
+        protected void DrawInspectorBody()
+        {
+            base.OnInspectorGUI();
+        }
+    }
+#else
+    public abstract class EditorBase : UnityEditor.Editor
+    {
+        protected void DrawInspectorBody()
+        {
             DrawDefaultInspector();
         }
     }
+#endif
 }
 #endif

@@ -9,20 +9,23 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 781d76d5279f6eb4eb1324555988c488, type: 3}
-  m_Name: AbilityRuntime
+  m_Script: {fileID: 11500000, guid: 9c92ca45d1a30a34e8cc871c3c837e5a, type: 3}
+  m_Name: 10001
   m_EditorClassIdentifier: 
   AbilityId: AbilityEditor
+  RuntimeAsset: {fileID: 11400000, guid: 995f5edaddd4a0141beef3207f7ee395, type: 2}
   Triggers:
-  - EventId: skill.cast.start
+  - Enabled: 1
+    EventId: skill.cast.start
+    Note: 
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 3080489919452282886
+    - rid: 3080489919452282882
   references:
     version: 2
     RefIds:
-    - rid: 3080489919452282886
-      type: {class: DebugLogActionConfig, ns: AbilityKit.Ability.Configs, asm: AbilityKit.Ability.Runtime}
+    - rid: 3080489919452282882
+      type: {class: DebugLogActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         Message: "\u6D4B\u8BD5\u65E5\u5FD7\u8F93\u51FA11111"

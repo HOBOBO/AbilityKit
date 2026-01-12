@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SkillLevelTableCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 1001
+  - Id: 10001
     Levels:
     - CooldownMs: 0
       Cost: 0

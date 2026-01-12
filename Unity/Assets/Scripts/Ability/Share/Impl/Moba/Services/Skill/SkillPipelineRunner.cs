@@ -9,6 +9,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly int _actorId;
         private readonly List<Entry> _running = new List<Entry>(4);
 
+        public string LastFailReason { get; private set; }
+
         public SkillPipelineRunner(int actorId)
         {
             _actorId = actorId;
@@ -26,6 +28,37 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             object abilityInstance,
             in SkillCastRequest request)
         {
+            return Start(preCastConfig, preCastPhases, castConfig, castPhases, abilityInstance, in request, out _);
+        }
+
+        public bool Start(
+            IAbilityPipelineConfig preCastConfig,
+            IReadOnlyList<IAbilityPipelinePhase> preCastPhases,
+            IAbilityPipelineConfig castConfig,
+            IReadOnlyList<IAbilityPipelinePhase> castPhases,
+            object abilityInstance,
+            in SkillCastRequest request,
+            out string failReason,
+            bool allowParallel = false,
+            bool interruptRunning = false)
+        {
+            failReason = null;
+            LastFailReason = null;
+
+            if (!allowParallel && _running.Count > 0)
+            {
+                if (interruptRunning)
+                {
+                    CancelAll();
+                }
+                else
+                {
+                    failReason = "Skill is already running.";
+                    LastFailReason = failReason;
+                    return false;
+                }
+            }
+
             if (castConfig == null) return false;
             if (castPhases == null || castPhases.Count == 0) return false;
 
@@ -41,11 +74,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             // If PreCast is missing, go straight to Cast.
             if (preCastConfig == null || preCastPhases == null || preCastPhases.Count == 0)
             {
-                return StartCast(ref entry);
+                var ok = StartCast(ref entry);
+                failReason = entry.FailReason;
+                LastFailReason = entry.FailReason;
+                return ok;
             }
 
             var started = StartPreCast(ref entry);
             if (started) _running.Add(entry);
+            failReason = entry.FailReason;
+            LastFailReason = entry.FailReason;
             return started;
         }
 
@@ -58,14 +96,19 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 entry.Pipeline.AddPhase(entry.PreCastPhases[i]);
             }
 
+            MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.PreCastStart, in entry.Request);
+
             var state = entry.Pipeline.Execute(entry.PreCastConfig, entry.AbilityInstance, entry.Request);
             if (state == EAbilityPipelineState.Executing) return true;
             if (state == EAbilityPipelineState.Completed)
             {
+                MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.PreCastComplete, in entry.Request);
                 // Immediately chain to Cast.
                 return StartCast(ref entry);
             }
 
+            entry.FailReason = TryGetFailReason(entry.Pipeline);
+            MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.PreCastFail, in entry.Request, entry.FailReason);
             return false;
         }
 
@@ -78,6 +121,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 entry.Pipeline.AddPhase(entry.CastPhases[i]);
             }
 
+            MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.CastStart, in entry.Request);
+
             var state = entry.Pipeline.Execute(entry.CastConfig, entry.AbilityInstance, entry.Request);
             if (state == EAbilityPipelineState.Executing)
             {
@@ -85,7 +130,46 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 return true;
             }
 
+            if (state != EAbilityPipelineState.Completed)
+            {
+                entry.FailReason = TryGetFailReason(entry.Pipeline);
+                MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.CastFail, in entry.Request, entry.FailReason);
+            }
+            else
+            {
+                MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.CastComplete, in entry.Request);
+            }
+
             return state == EAbilityPipelineState.Completed;
+        }
+
+        private static string TryGetFailReason(IAbilityPipeline pipeline)
+        {
+            if (pipeline?.Context == null) return null;
+            if (pipeline.Context.SharedData == null) return null;
+            return pipeline.Context.GetData<string>(MobaSkillPipelineSharedKeys.FailReason, null);
+        }
+
+        public void CancelAll()
+        {
+            if (_running.Count == 0) return;
+            for (int i = 0; i < _running.Count; i++)
+            {
+                var e = _running[i];
+                var p = e.Pipeline;
+
+                if (e.Stage == EntryStage.PreCast)
+                {
+                    MobaSkillTriggering.Publish(e.Request.EventBus, MobaSkillTriggering.Events.PreCastInterrupt, in e.Request);
+                }
+                else
+                {
+                    MobaSkillTriggering.Publish(e.Request.EventBus, MobaSkillTriggering.Events.CastInterrupt, in e.Request);
+                }
+
+                p?.Interrupt();
+            }
+            _running.Clear();
         }
 
         public void Step(float deltaTime)
@@ -111,11 +195,32 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 {
                     if (p.State == EAbilityPipelineState.Completed && entry.Stage == EntryStage.PreCast)
                     {
+                        MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.PreCastComplete, in entry.Request);
                         // Chain to Cast.
                         if (StartCast(ref entry))
                         {
                             _running[i] = entry;
                             continue;
+                        }
+                    }
+
+                    if (p.State == EAbilityPipelineState.Completed && entry.Stage == EntryStage.Cast)
+                    {
+                        MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.CastComplete, in entry.Request);
+                    }
+
+                    if (p.State != EAbilityPipelineState.Completed)
+                    {
+                        entry.FailReason = entry.FailReason ?? TryGetFailReason(p);
+                        LastFailReason = entry.FailReason;
+
+                        if (entry.Stage == EntryStage.PreCast)
+                        {
+                            MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.PreCastFail, in entry.Request, entry.FailReason);
+                        }
+                        else
+                        {
+                            MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.CastFail, in entry.Request, entry.FailReason);
                         }
                     }
 
@@ -134,6 +239,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         {
             public EntryStage Stage;
             public IAbilityPipeline Pipeline;
+            public string FailReason;
 
             public readonly IAbilityPipelineConfig PreCastConfig;
             public readonly IReadOnlyList<IAbilityPipelinePhase> PreCastPhases;
@@ -152,6 +258,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 Stage = EntryStage.PreCast;
                 Pipeline = null;
+                FailReason = null;
                 PreCastConfig = preCastConfig;
                 PreCastPhases = preCastPhases;
                 CastConfig = castConfig;

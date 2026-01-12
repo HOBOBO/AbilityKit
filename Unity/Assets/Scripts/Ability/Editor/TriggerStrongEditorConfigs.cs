@@ -405,4 +405,27 @@ namespace AbilityKit.Ability.Editor
             };
         }
     }
+
+    [Serializable]
+    [TriggerActionType("effect_execute", "执行效果", "行为/效果", 0)]
+    public sealed class ExecuteEffectActionEditorConfig : ActionEditorConfigBase
+    {
+        public override string Type => "effect_execute";
+
+        [LabelText("效果Id")]
+        public int EffectId;
+
+        protected override string GetTitleSuffix()
+        {
+            return EffectId > 0 ? EffectId.ToString() : null;
+        }
+
+        public override ActionRuntimeConfigBase ToRuntimeStrong()
+        {
+            return new ExecuteEffectActionConfig
+            {
+                EffectId = EffectId
+            };
+        }
+    }
 }

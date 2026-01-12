@@ -178,4 +178,19 @@ namespace AbilityKit.Ability.Configs
             return new ActionDef(Type, dict);
         }
     }
+
+    [Serializable]
+    public sealed class ExecuteEffectActionConfig : ActionRuntimeConfigBase
+    {
+        public override string Type => "effect_execute";
+
+        public int EffectId;
+
+        public override ActionDef ToActionDef()
+        {
+            var dict = PooledDefArgs.Rent();
+            dict["effectId"] = EffectId;
+            return new ActionDef(Type, dict);
+        }
+    }
 }

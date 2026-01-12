@@ -6,6 +6,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 
         public const string CharactersFile = "characters";
         public const string SkillsFile = "skills";
+        public const string SkillFlowsFile = "skill_flows";
         public const string AttributeTemplatesFile = "attribute_templates";
         public const string ModelsFile = "models";
         public const string BuffsFile = "buffs";

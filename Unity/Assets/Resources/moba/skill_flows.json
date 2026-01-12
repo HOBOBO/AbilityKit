@@ -1,0 +1,22 @@
+[
+  {
+    "Id": 10001,
+    "Name": "",
+    "Phases": [
+      {
+        "Type": 2,
+        "Checks": null,
+        "Timeline": {
+          "DurationMs": 3000,
+          "Events": [
+            {
+              "AtMs": 1000,
+              "EffectId": 10001,
+              "EventTag": null
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

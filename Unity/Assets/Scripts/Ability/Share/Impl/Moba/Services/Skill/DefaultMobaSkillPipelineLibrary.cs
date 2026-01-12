@@ -9,6 +9,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class DefaultMobaSkillPipelineLibrary : IMobaSkillPipelineLibrary
     {
+        private static readonly AbilityPipelinePhaseId PreCastPhaseId = AbilityPipelinePhaseIdManager.Instance.Register("precast.check");
+        private static readonly AbilityPipelinePhaseId CastPhaseId = AbilityPipelinePhaseIdManager.Instance.Register("skill.cast");
+
         private readonly IWorldServices _services;
         private readonly IFrameTime _time;
         private readonly IEventBus _eventBus;
@@ -38,18 +41,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 return false;
             }
 
-            preCastConfig = new AbilityKit.Ability.Share.Impl.Pipeline.Skill.SkillPipelineConfig(skillId * 10 + 1, $"Skill_{skillId}_PreCast");
-            var prePhaseId = AbilityPipelinePhaseIdManager.Instance.Register("precast.check");
+            preCastConfig = new AbilityKit.Ability.Share.Impl.Pipeline.Skill.SkillPipelineConfig((skillId << 1) | 0, $"Skill_{skillId}_PreCast");
             preCastPhases = new IAbilityPipelinePhase[]
             {
-                new SkillPreCastCheckPhase(prePhaseId, _ => true),
+                new SkillPreCastCheckPhase(PreCastPhaseId, _ => true),
             };
 
-            castConfig = new AbilityKit.Ability.Share.Impl.Pipeline.Skill.SkillPipelineConfig(skillId * 10 + 2, $"Skill_{skillId}_Cast");
-            var castPhaseId = AbilityPipelinePhaseIdManager.Instance.Register("skill.cast");
+            castConfig = new AbilityKit.Ability.Share.Impl.Pipeline.Skill.SkillPipelineConfig((skillId << 1) | 1, $"Skill_{skillId}_Cast");
             castPhases = new IAbilityPipelinePhase[]
             {
-                new SkillCastApplyEffectPhase(castPhaseId, _services, _time, _eventBus, _units),
+                new SkillCastApplyEffectPhase(CastPhaseId, _services, _time, _eventBus, _units),
             };
             return true;
         }

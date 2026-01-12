@@ -1,8 +1,8 @@
 using System;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
-using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {
@@ -33,7 +33,14 @@ namespace AbilityKit.Ability.Impl.Triggering
                 ? $"[Trigger] event={eventId}, payloadType={payloadType}"
                 : _message;
 
-            Debug.Log(msg);
+            var sink = context?.Services?.GetService(typeof(ILogSink)) as ILogSink;
+            if (sink != null)
+            {
+                sink.Info(msg);
+                return;
+            }
+
+            Log.Info(msg);
         }
     }
 }

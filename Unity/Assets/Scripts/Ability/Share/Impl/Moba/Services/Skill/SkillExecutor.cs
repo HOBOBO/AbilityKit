@@ -24,6 +24,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         private readonly Dictionary<int, SkillPipelineRunner> _runners = new Dictionary<int, SkillPipelineRunner>();
 
+        public bool AllowParallel { get; set; }
+        public bool InterruptRunning { get; set; }
+
         public SkillExecutor(
             IWorldServices services,
             IWorldClock clock,
@@ -57,12 +60,20 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public bool CastBySlot(int actorId, int slot)
         {
+            return CastBySlot(actorId, slot, out _);
+        }
+
+        public bool CastBySlot(int actorId, int slot, out string failReason)
+        {
+            failReason = null;
+
             if (!_loadout.TryGetSkillId(actorId, slot, out var skillId))
             {
+                failReason = "Skill not found in slot.";
                 return false;
             }
 
-            return CastSkill(actorId, skillId, slot);
+            return CastSkill(actorId, skillId, slot, out failReason);
         }
 
         public bool HandleInput(int actorId, in SkillInputEvent evt)
@@ -85,16 +96,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public bool CastSkill(int actorId, int skillId)
         {
-            return CastSkill(actorId, skillId, slot: 0);
+            return CastSkill(actorId, skillId, slot: 0, out _);
         }
 
-        private bool CastSkill(int actorId, int skillId, int slot)
+        public bool CastSkill(int actorId, int skillId, int slot, out string failReason)
         {
+            failReason = null;
             if (actorId <= 0) return false;
             if (skillId <= 0) return false;
 
             if (!_units.TryResolve(new EcsEntityId(actorId), out var caster) || caster == null)
             {
+                failReason = "Caster not found.";
                 return false;
             }
 
@@ -110,6 +123,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             if (!_library.TryGet(skillId, out var preConfig, out var prePhases, out var castConfig, out var castPhases))
             {
+                failReason = "Skill pipeline not found.";
                 return false;
             }
 
@@ -127,7 +141,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             );
 
             var runner = GetOrCreateRunner(actorId);
-            return runner.Start(preConfig, prePhases, castConfig, castPhases, abilityInstance: this, in req);
+            return runner.Start(preConfig, prePhases, castConfig, castPhases, abilityInstance: this, in req, out failReason, allowParallel: AllowParallel, interruptRunning: InterruptRunning);
+        }
+
+        public void CancelAll(int actorId)
+        {
+            if (actorId <= 0) return;
+            if (_runners.TryGetValue(actorId, out var r) && r != null)
+            {
+                r.CancelAll();
+            }
         }
 
         public void Step(int actorId)
@@ -143,6 +166,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public void Dispose()
         {
+            foreach (var kv in _runners)
+            {
+                kv.Value?.CancelAll();
+            }
             _runners.Clear();
         }
     }

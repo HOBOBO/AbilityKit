@@ -3,6 +3,10 @@
     "Id": 0,
     "Name": "",
     "DurationMs": 0,
+    "EffectId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 0,
+    "MaxStacks": 0,
     "Tags": [
       0
     ]

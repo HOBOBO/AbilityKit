@@ -110,6 +110,11 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             return GetTable<SkillMO>().Get(id);
         }
 
+        public SkillFlowMO GetSkillFlow(int id)
+        {
+            return GetTable<SkillFlowMO>().Get(id);
+        }
+
         public SkillLevelTableMO GetSkillLevelTable(int id)
         {
             return GetTable<SkillLevelTableMO>().Get(id);
@@ -137,6 +142,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 
         public bool TryGetCharacter(int id, out CharacterMO mo) => GetTable<CharacterMO>().TryGet(id, out mo);
         public bool TryGetSkill(int id, out SkillMO mo) => GetTable<SkillMO>().TryGet(id, out mo);
+        public bool TryGetSkillFlow(int id, out SkillFlowMO mo) => GetTable<SkillFlowMO>().TryGet(id, out mo);
         public bool TryGetSkillLevelTable(int id, out SkillLevelTableMO mo) => GetTable<SkillLevelTableMO>().TryGet(id, out mo);
         public bool TryGetAttrType(int id, out AttrTypeMO mo) => GetTable<AttrTypeMO>().TryGet(id, out mo);
         public bool TryGetAttributeTemplate(int id, out BattleAttributeTemplateMO mo) => GetTable<BattleAttributeTemplateMO>().TryGet(id, out mo);

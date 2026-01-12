@@ -25,7 +25,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 context.SetData(MobaSkillPipelineSharedKeys.FailReason, _failReason);
             }
 
-            throw new InvalidOperationException(_failReason ?? $"PreCast check failed: {PhaseId}");
+            context.IsAborted = true;
         }
     }
 }

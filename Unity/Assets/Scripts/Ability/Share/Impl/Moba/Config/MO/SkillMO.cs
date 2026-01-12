@@ -12,7 +12,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         public int IconId { get; }
         public int Category { get; }
         public int LevelTableId { get; }
-        public IReadOnlyList<SkillEffectDTO> Effects { get; }
+        public int PreCastFlowId { get; }
+        public int CastFlowId { get; }
         public IReadOnlyList<int> Tags { get; }
 
         public SkillMO(SkillDTO dto)
@@ -25,7 +26,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
             IconId = dto.IconId;
             Category = dto.Category;
             LevelTableId = dto.LevelTableId;
-            Effects = dto.Effects ?? Array.Empty<SkillEffectDTO>();
+            PreCastFlowId = dto.PreCastFlowId;
+            CastFlowId = dto.CastFlowId;
             Tags = dto.Tags ?? Array.Empty<int>();
         }
     }

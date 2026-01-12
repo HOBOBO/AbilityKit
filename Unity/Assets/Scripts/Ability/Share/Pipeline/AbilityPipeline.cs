@@ -192,6 +192,12 @@ namespace AbilityKit.Ability
             // 按顺序执行所有阶段
             while (_currentPhaseIndex < _phases.Count && _state == EAbilityPipelineState.Executing)
             {
+                if (context != null && context.IsAborted)
+                {
+                    _state = EAbilityPipelineState.Failed;
+                    return;
+                }
+
                 var phase = _phases[_currentPhaseIndex];
             
                 // 检查阶段是否应该执行
@@ -205,6 +211,12 @@ namespace AbilityKit.Ability
                 {
                     // 执行阶段
                     ExecutePhase(phase, context);
+
+                    if (context != null && context.IsAborted)
+                    {
+                        _state = EAbilityPipelineState.Failed;
+                        return;
+                    }
                     
                     // 如果阶段未完成，保存当前阶段并退出，等待 Update 驱动
                     if (!phase.IsComplete)
@@ -256,6 +268,14 @@ namespace AbilityKit.Ability
             if (_currentPhase == null)
                 return;
 
+            if (context != null && context.IsAborted)
+            {
+                _state = EAbilityPipelineState.Failed;
+                ReleaseContext(_context);
+                return;
+            }
+
+
             try
             {
                 // 更新当前阶段
@@ -276,6 +296,12 @@ namespace AbilityKit.Ability
                 
                     // 继续执行后续阶段
                     ExecutePipeline(context);
+                }
+
+                if (context != null && context.IsAborted)
+                {
+                    _state = EAbilityPipelineState.Failed;
+                    ReleaseContext(_context);
                 }
             }
             catch (Exception e)

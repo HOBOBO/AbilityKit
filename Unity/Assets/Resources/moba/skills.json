@@ -7,7 +7,8 @@
     "IconId": 0,
     "Category": 0,
     "Tags": [],
-    "LevelTableId": 0,
-    "Effects": []
+    "LevelTableId": 10001,
+    "PreCastFlowId": 0,
+    "CastFlowId": 10001
   }
 ]
