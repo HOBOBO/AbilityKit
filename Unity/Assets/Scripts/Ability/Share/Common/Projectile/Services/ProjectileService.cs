@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Common.Pool;
 using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Common.Projectile
 {
@@ -257,6 +258,22 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             _areaExpireEvents.Clear();
 
             // Scheduled emissions are transient controller state; clear on rollback restore.
+            _schedules.Clear();
+        }
+
+        public void Dispose()
+        {
+            _spawnEvents.Clear();
+            _hitEvents.Clear();
+            _exitEvents.Clear();
+            _tickEvents.Clear();
+
+            _areaSpawnEvents.Clear();
+            _areaEnterEvents.Clear();
+            _areaStayEvents.Clear();
+            _areaExitEvents.Clear();
+            _areaExpireEvents.Clear();
+
             _schedules.Clear();
         }
     }

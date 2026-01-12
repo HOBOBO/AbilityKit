@@ -8,10 +8,11 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using UnityEngine;
 using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 {
-    public sealed class MobaActorEntityGenerator
+    public sealed class MobaActorEntityGenerator : IService
     {
         private static readonly HashSet<int> LoggedMissingCharacterIds = new HashSet<int>();
         private static readonly HashSet<int> LoggedMissingAttributeTemplateIds = new HashSet<int>();
@@ -237,6 +238,10 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             s.MaxAttribute = maxAttr;
             s.Current = current;
             s.LastMax = lastMax;
+        }
+
+        public void Dispose()
+        {
         }
     }
 }

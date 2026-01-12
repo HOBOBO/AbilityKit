@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class MobaStateHashSnapshotService
+    public sealed class MobaStateHashSnapshotService : IService
     {
         private readonly MobaLobbyStateService _lobby;
         private readonly MobaActorRegistry _registry;
@@ -112,6 +113,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         {
             var bits = BitConverter.SingleToInt32Bits(v);
             AddInt(ref h, bits);
+        }
+
+        public void Dispose()
+        {
+            _lastFrame = new FrameIndex(-999999);
         }
     }
 }

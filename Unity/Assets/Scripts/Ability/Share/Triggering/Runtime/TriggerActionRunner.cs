@@ -9,6 +9,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
         {
             public IRunningAction Action;
             public object Owner;
+            public long OwnerKey;
         }
 
         private readonly List<Entry> _running = new List<Entry>(64);
@@ -18,7 +19,13 @@ namespace AbilityKit.Ability.Triggering.Runtime
         public void Add(IRunningAction action, object owner = null)
         {
             if (action == null) throw new ArgumentNullException(nameof(action));
-            _running.Add(new Entry { Action = action, Owner = owner });
+            _running.Add(new Entry { Action = action, Owner = owner, OwnerKey = 0 });
+        }
+
+        public void Add(IRunningAction action, long ownerKey)
+        {
+            if (action == null) throw new ArgumentNullException(nameof(action));
+            _running.Add(new Entry { Action = action, Owner = null, OwnerKey = ownerKey });
         }
 
         public void Tick(float deltaTime)
@@ -59,6 +66,30 @@ namespace AbilityKit.Ability.Triggering.Runtime
             {
                 var e = _running[i];
                 if (!ReferenceEquals(e.Owner, owner)) continue;
+
+                var a = e.Action;
+                if (a != null)
+                {
+                    a.Cancel();
+                    TryDispose(a);
+                }
+
+                _running.RemoveAt(i);
+                count++;
+            }
+
+            return count;
+        }
+
+        public int CancelByOwnerKey(long ownerKey)
+        {
+            if (ownerKey == 0) return 0;
+            var count = 0;
+
+            for (int i = _running.Count - 1; i >= 0; i--)
+            {
+                var e = _running[i];
+                if (e.OwnerKey != ownerKey) continue;
 
                 var a = e.Action;
                 if (a != null)

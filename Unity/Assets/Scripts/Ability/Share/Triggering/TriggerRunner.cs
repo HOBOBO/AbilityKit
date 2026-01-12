@@ -163,7 +163,14 @@ namespace AbilityKit.Ability.Triggering.Runtime
                         if (running != null)
                         {
                             var runner = TriggerEventHandler.GetRunner(context);
-                            runner?.Add(running, context.Event.Payload ?? context.Source);
+                            if (TryGetOwnerKey(context.Event.Args, out var ownerKey))
+                            {
+                                runner?.Add(running, ownerKey);
+                            }
+                            else
+                            {
+                                runner?.Add(running, context.Event.Payload ?? context.Source);
+                            }
                         }
                         continue;
                     }
@@ -236,7 +243,14 @@ namespace AbilityKit.Ability.Triggering.Runtime
                             if (running != null)
                             {
                                 var runner = GetRunner(context);
-                                runner?.Add(running, context.Event.Payload ?? context.Source);
+                                if (TryGetOwnerKey(context.Event.Args, out var ownerKey))
+                                {
+                                    runner?.Add(running, ownerKey);
+                                }
+                                else
+                                {
+                                    runner?.Add(running, context.Event.Payload ?? context.Source);
+                                }
                             }
                             continue;
                         }
@@ -269,6 +283,34 @@ namespace AbilityKit.Ability.Triggering.Runtime
                     return null;
                 }
             }
+        }
+
+        private static bool TryGetOwnerKey(System.Collections.Generic.IReadOnlyDictionary<string, object> args, out long ownerKey)
+        {
+            ownerKey = 0;
+            if (args == null) return false;
+
+            if (!args.TryGetValue("effect.sourceContextId", out var v) || v == null) return false;
+
+            if (v is long l)
+            {
+                ownerKey = l;
+                return ownerKey != 0;
+            }
+
+            if (v is int i)
+            {
+                ownerKey = i;
+                return ownerKey != 0;
+            }
+
+            if (v is string s && !string.IsNullOrEmpty(s) && long.TryParse(s, out var parsed))
+            {
+                ownerKey = parsed;
+                return ownerKey != 0;
+            }
+
+            return false;
         }
     }
 }

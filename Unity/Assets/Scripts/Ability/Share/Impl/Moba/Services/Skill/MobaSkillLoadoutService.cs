@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class MobaSkillLoadoutService
+    public sealed class MobaSkillLoadoutService : IService
     {
         private readonly Dictionary<int, int[]> _skillIdsByActorId = new Dictionary<int, int[]>();
 
@@ -30,6 +31,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             }
 
             return false;
+        }
+
+        public void Dispose()
+        {
+            _skillIdsByActorId.Clear();
         }
     }
 }

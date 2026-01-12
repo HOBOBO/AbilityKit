@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Move
 {
-    public sealed class MobaMoveService
+    public sealed class MobaMoveService : IService
     {
         private readonly Dictionary<int, MoveController> _controllers = new Dictionary<int, MoveController>();
         private readonly MovePolicy _policy = new MovePolicy();
@@ -101,6 +102,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Move
         public void RemoveActor(int actorId)
         {
             _controllers.Remove(actorId);
+        }
+
+        public void Dispose()
+        {
+            _controllers.Clear();
         }
     }
 }

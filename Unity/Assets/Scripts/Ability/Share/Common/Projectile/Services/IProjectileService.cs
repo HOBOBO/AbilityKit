@@ -1,9 +1,10 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Common.Projectile
 {
-    public interface IProjectileService
+    public interface IProjectileService : IService
     {
         int ActiveCount { get; }
 

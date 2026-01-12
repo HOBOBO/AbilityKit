@@ -19,6 +19,11 @@ namespace AbilityKit.Ability.Server.Examples
                 _lastCount = inputs == null ? 0 : inputs.Count;
             }
 
+            public void Dispose()
+            {
+
+            }
+
             public int LastCount => _lastCount;
         }
 
@@ -29,6 +34,11 @@ namespace AbilityKit.Ability.Server.Examples
             public DebugSnapshotProvider(DebugInputSink sink)
             {
                 _sink = sink;
+            }
+
+            public void Dispose()
+            {
+
             }
 
             public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)

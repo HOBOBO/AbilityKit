@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class MobaLobbyStateService
+    public sealed class MobaLobbyStateService : IService
     {
         private readonly Dictionary<string, bool> _players = new Dictionary<string, bool>();
         private bool _started;
@@ -153,6 +154,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             }
 
             return false;
+        }
+
+        public void Dispose()
+        {
+            _players.Clear();
+            _pendingEnterReq = null;
         }
     }
 

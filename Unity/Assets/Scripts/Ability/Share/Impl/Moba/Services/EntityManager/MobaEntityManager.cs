@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Battle.EntityManager;
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager
 {
-    public sealed class MobaEntityManager
+    public sealed class MobaEntityManager : IService
     {
         private readonly Dictionary<int, global::ActorEntity> _byActorId = new Dictionary<int, global::ActorEntity>();
 
@@ -112,6 +113,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager
             }
 
             Index.Registry.RemoveRange(tmp);
+        }
+
+        public void Dispose()
+        {
+            Clear();
         }
     }
 }

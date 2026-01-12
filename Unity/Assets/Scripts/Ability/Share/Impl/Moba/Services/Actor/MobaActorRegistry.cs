@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class MobaActorRegistry
+    public sealed class MobaActorRegistry : IService
     {
         private readonly Dictionary<int, global::ActorEntity> _byId = new Dictionary<int, global::ActorEntity>();
 
@@ -22,6 +23,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         }
 
         public void Clear()
+        {
+            _byId.Clear();
+        }
+
+        public void Dispose()
         {
             _byId.Clear();
         }

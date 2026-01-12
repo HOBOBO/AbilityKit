@@ -29,5 +29,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _sent = true;
             return true;
         }
+
+        public void Dispose()
+        {
+            _hasSnapshot = false;
+            _sent = false;
+            _snapshotPayload = null;
+        }
     }
 }

@@ -1,10 +1,11 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class MobaActorTransformSnapshotService
+    public sealed class MobaActorTransformSnapshotService : IService
     {
         private readonly MobaLobbyStateService _lobby;
         private readonly MobaActorRegistry _registry;
@@ -63,6 +64,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             }
 
             return tmp.ToArray();
+        }
+
+        public void Dispose()
+        {
         }
     }
 }

@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using Entitas;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     // ECS 内 ActorId 唯一索引：维护 actorId -> ActorEntity 的快速映射
-    public sealed class ActorIdIndex : IDisposable
+    public sealed class ActorIdIndex : IService
     {
         private readonly Dictionary<int, global::ActorEntity> _map = new Dictionary<int, global::ActorEntity>();
         private readonly IGroup<global::ActorEntity> _group;

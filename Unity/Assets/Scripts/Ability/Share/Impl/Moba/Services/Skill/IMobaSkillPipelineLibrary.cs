@@ -1,9 +1,10 @@
 using System.Collections.Generic;
 using AbilityKit.Ability;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public interface IMobaSkillPipelineLibrary
+    public interface IMobaSkillPipelineLibrary : IService
     {
         bool TryGet(
             int skillId,

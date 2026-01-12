@@ -1,6 +1,8 @@
+using AbilityKit.Ability.World.Services;
+
 namespace AbilityKit.Ability.Share.Math
 {
-    public interface ICollisionService
+    public interface ICollisionService : IService
     {
         ICollisionWorld World { get; }
     }
@@ -10,5 +12,9 @@ namespace AbilityKit.Ability.Share.Math
         private readonly ICollisionWorld _world = new NaiveCollisionWorld();
 
         public ICollisionWorld World => _world;
+
+        public void Dispose()
+        {
+        }
     }
 }

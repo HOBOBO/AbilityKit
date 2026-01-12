@@ -16,5 +16,6 @@ namespace AbilityKit.Ability.Impl.Moba.Conponents
         public float Remaining;
         public int SourceId;
         public int StackCount;
+        public long SourceContextId;
     }
 }

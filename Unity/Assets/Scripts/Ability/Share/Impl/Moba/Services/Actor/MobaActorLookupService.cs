@@ -1,10 +1,11 @@
 using System;
 using Entitas;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 { 
-    public sealed class MobaActorLookupService
+    public sealed class MobaActorLookupService : IService
     {
         private readonly ActorIdIndex _index;
         private readonly MobaActorRegistry _registry;
@@ -58,6 +59,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             entity = null;
             return false;
+        }
+
+        public void Dispose()
+        {
         }
     }
 }

@@ -1,10 +1,11 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class MobaLobbySnapshotService
+    public sealed class MobaLobbySnapshotService : IService
     {
         private readonly MobaLobbyStateService _lobby;
         private int _lastVersion;
@@ -36,6 +37,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             var payload = MobaLobbyCodec.SerializeSnapshot(_lobby.Started, players, version);
             snapshot = new WorldStateSnapshot((int)MobaOpCode.LobbySnapshot, payload);
             return true;
+        }
+
+        public void Dispose()
+        {
+            _lastVersion = -1;
+            _lastFrame = new FrameIndex(-999999);
         }
     }
 }

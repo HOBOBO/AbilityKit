@@ -29,5 +29,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (_transform.TryGetSnapshot(frame, out snapshot)) return true;
             return _lobby.TryGetSnapshot(frame, out snapshot);
         }
+
+        public void Dispose()
+        {
+        }
     }
 }

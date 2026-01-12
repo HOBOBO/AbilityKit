@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class MobaPlayerActorMapService
+    public sealed class MobaPlayerActorMapService : IService
     {
         private readonly Dictionary<string, int> _map = new Dictionary<string, int>();
 
@@ -27,6 +28,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         }
 
         public void Clear()
+        {
+            _map.Clear();
+        }
+
+        public void Dispose()
         {
             _map.Clear();
         }

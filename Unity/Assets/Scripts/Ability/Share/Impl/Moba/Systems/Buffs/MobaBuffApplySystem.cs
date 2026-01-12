@@ -4,9 +4,12 @@ using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Moba.Conponents;
+using AbilityKit.Ability.Impl.Moba.EffectSource;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 
@@ -18,6 +21,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
         private MobaConfigDatabase _configs;
         private IUnitResolver _units;
         private IEventBus _eventBus;
+        private ITriggerActionRunner _actionRunner;
+        private EffectSourceRegistry _effectSource;
+        private IFrameTime _frameTime;
 
         private Entitas.IGroup<global::ActorEntity> _group;
 
@@ -31,6 +37,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             Services.TryGet(out _configs);
             Services.TryGet(out _units);
             Services.TryGet(out _eventBus);
+            Services.TryGet(out _actionRunner);
+            Services.TryGet(out _effectSource);
+            Services.TryGet(out _frameTime);
             _group = Contexts.actor.GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.ApplyBuffRequest));
         }
 
@@ -75,12 +84,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                 var existingIndex = FindExistingBuffIndex(list, buff.Id);
                 if (existingIndex >= 0)
                 {
-                    ApplyToExisting(list[existingIndex], buff, req, durationSeconds);
-                    PublishBuffEvent(_eventBus, BuffTriggering.Events.ApplyOrRefresh, buff, req.SourceId, targetActorId, durationSeconds, list[existingIndex]);
+                    var rt = list[existingIndex];
+                    ApplyToExisting(rt, buff, req, durationSeconds, _effectSource, _actionRunner, GetFrame(), req.SourceId, targetActorId);
+                    EnsureBuffContext(rt, buff.Id, req.SourceId, targetActorId, _effectSource, GetFrame());
+                    PublishBuffEvent(_eventBus, BuffTriggering.Events.ApplyOrRefresh, buff, req.SourceId, targetActorId, durationSeconds, rt);
                 }
                 else
                 {
                     var rt = CreateNewRuntime(buff, req, durationSeconds);
+                    EnsureBuffContext(rt, buff.Id, req.SourceId, targetActorId, _effectSource, GetFrame());
                     list.Add(rt);
                     PublishBuffEvent(_eventBus, BuffTriggering.Events.ApplyOrRefresh, buff, req.SourceId, targetActorId, durationSeconds, rt);
                 }
@@ -101,7 +113,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             return -1;
         }
 
-        private static void ApplyToExisting(BuffRuntime existing, BuffMO buff, ApplyBuffRequestComponent req, float durationSeconds)
+        private static void ApplyToExisting(BuffRuntime existing, BuffMO buff, ApplyBuffRequestComponent req, float durationSeconds, EffectSourceRegistry effectSource, ITriggerActionRunner actionRunner, int frame, int sourceActorId, int targetActorId)
         {
             if (existing == null) return;
 
@@ -110,6 +122,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                 case BuffStackingPolicy.IgnoreIfExists:
                     return;
                 case BuffStackingPolicy.Replace:
+                    CancelAndEnd(existing, effectSource, actionRunner, frame);
                     existing.SourceId = req.SourceId;
                     existing.StackCount = 0;
                     existing.Remaining = durationSeconds;
@@ -138,6 +151,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                 Remaining = durationSeconds,
                 SourceId = req.SourceId,
                 StackCount = 0,
+                SourceContextId = 0,
             };
 
             AddStack(rt, buff.MaxStacks);
@@ -200,8 +214,62 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             args[BuffTriggering.Args.EffectId] = buff.EffectId;
             args[BuffTriggering.Args.DurationSeconds] = durationSeconds;
             args[BuffTriggering.Args.StackCount] = runtime != null ? runtime.StackCount : 0;
+            if (runtime != null && runtime.SourceContextId != 0)
+            {
+                args[EffectSourceKeys.SourceContextId] = runtime.SourceContextId;
+            }
 
             bus.Publish(new TriggerEvent(eventId, payload: runtime, args: args));
+        }
+
+        private int GetFrame()
+        {
+            try
+            {
+                return _frameTime != null ? _frameTime.Frame.Value : 0;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private static void EnsureBuffContext(BuffRuntime rt, int buffId, int sourceActorId, int targetActorId, EffectSourceRegistry effectSource, int frame)
+        {
+            if (rt == null) return;
+            if (rt.SourceContextId != 0) return;
+            if (effectSource == null) return;
+
+            rt.SourceContextId = effectSource.CreateRoot(
+                kind: EffectSourceKind.Buff,
+                configId: buffId,
+                sourceActorId: sourceActorId,
+                targetActorId: targetActorId,
+                frame: frame);
+        }
+
+        private static void CancelAndEnd(BuffRuntime rt, EffectSourceRegistry effectSource, ITriggerActionRunner actionRunner, int frame)
+        {
+            if (rt == null) return;
+            if (rt.SourceContextId == 0) return;
+
+            try
+            {
+                actionRunner?.CancelByOwnerKey(rt.SourceContextId);
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                effectSource?.End(rt.SourceContextId, frame, EffectSourceEndReason.Cancelled);
+            }
+            catch
+            {
+            }
+
+            rt.SourceContextId = 0;
         }
 
         private static class BuffTriggering

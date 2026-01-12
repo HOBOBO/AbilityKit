@@ -7,10 +7,11 @@ using AbilityKit.Ability.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class MobaEnterGameFlowService
+    public sealed class MobaEnterGameFlowService : IService
     {
         private readonly MobaLobbyStateService _lobby;
         private readonly MobaEnterGameSnapshotService _snapshot;
@@ -152,6 +153,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
             }
             return true;
+        }
+
+        public void Dispose()
+        {
         }
     }
 }

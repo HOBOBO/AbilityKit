@@ -119,5 +119,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             entity = null;
             return false;
         }
+
+        public void Dispose()
+        {
+            _handlers?.Clear();
+        }
     }
 }

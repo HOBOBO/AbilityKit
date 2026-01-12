@@ -11,7 +11,7 @@ using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class SkillExecutor
+    public sealed class SkillExecutor : IService
     {
         private readonly IWorldServices _services;
         private readonly IWorldClock _clock;
@@ -139,6 +139,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (dt <= 0f) return;
 
             r.Step(dt);
+        }
+
+        public void Dispose()
+        {
+            _runners.Clear();
         }
     }
 }

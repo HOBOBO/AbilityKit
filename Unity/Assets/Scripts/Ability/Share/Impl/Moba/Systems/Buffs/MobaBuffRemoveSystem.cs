@@ -1,29 +1,29 @@
 using System;
-using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Entitas;
-using AbilityKit.Ability.World.Services;
-using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.Moba.Conponents;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.Impl.Moba;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
 {
-    [WorldSystem(order: MobaSystemOrder.BuffsTick, Phase = WorldSystemPhase.Execute)]
-    public sealed class MobaBuffTickSystem : WorldSystemBase
+    [WorldSystem(order: MobaSystemOrder.BuffsRemove, Phase = WorldSystemPhase.Execute)]
+    public sealed class MobaBuffRemoveSystem : WorldSystemBase
     {
         private MobaConfigDatabase _configs;
-        private IWorldClock _clock;
         private IEventBus _eventBus;
         private ITriggerActionRunner _actionRunner;
         private EffectSourceRegistry _effectSource;
         private IFrameTime _frameTime;
+
         private Entitas.IGroup<global::ActorEntity> _group;
 
-        public MobaBuffTickSystem(global::Contexts contexts, IWorldServices services)
+        public MobaBuffRemoveSystem(global::Contexts contexts, IWorldServices services)
             : base(contexts, services)
         {
         }
@@ -31,27 +31,28 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
         protected override void OnInit()
         {
             Services.TryGet(out _configs);
-            Services.TryGet(out _clock);
             Services.TryGet(out _eventBus);
             Services.TryGet(out _actionRunner);
             Services.TryGet(out _effectSource);
             Services.TryGet(out _frameTime);
-            _group = Contexts.actor.GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.Buffs));
+            _group = Contexts.actor.GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.RemoveBuffRequest));
         }
 
         protected override void OnExecute()
         {
-            if (_clock == null) return;
-            var dt = _clock.DeltaTime;
-            if (dt <= 0f) return;
-
             var entities = _group.GetEntities();
             if (entities == null || entities.Length == 0) return;
 
             for (int i = 0; i < entities.Length; i++)
             {
                 var e = entities[i];
-                if (e == null || !e.hasBuffs) continue;
+                if (e == null || !e.hasActorId || !e.hasRemoveBuffRequest) continue;
+
+                var req = e.removeBuffRequest;
+                e.RemoveRemoveBuffRequest();
+
+                if (req.BuffId <= 0) continue;
+                if (!e.hasBuffs) continue;
 
                 var list = e.buffs.Active;
                 if (list == null || list.Count == 0) continue;
@@ -59,14 +60,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                 for (int j = list.Count - 1; j >= 0; j--)
                 {
                     var b = list[j];
-                    if (b == null)
-                    {
-                        list.RemoveAt(j);
-                        continue;
-                    }
-
-                    b.Remaining -= dt;
-                    if (b.Remaining > 0f) continue;
+                    if (b == null) continue;
+                    if (b.BuffId != req.BuffId) continue;
 
                     try
                     {
@@ -83,7 +78,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                     {
                         if (b.SourceContextId != 0)
                         {
-                            _effectSource?.End(b.SourceContextId, GetFrame(), EffectSourceEndReason.Expired);
+                            var reason = req.Reason;
+                            if (reason == EffectSourceEndReason.None) reason = EffectSourceEndReason.Dispelled;
+                            _effectSource?.End(b.SourceContextId, GetFrame(), reason);
                         }
                     }
                     catch
@@ -94,7 +91,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                     {
                         if (_configs.TryGetBuff(b.BuffId, out var buff) && buff != null)
                         {
-                            PublishBuffRemove(_eventBus, buff.EffectId, b.SourceId, e.actorId.Value, b.BuffId, b.StackCount, b.SourceContextId, EffectSourceEndReason.Expired);
+                            var reason = req.Reason;
+                            if (reason == EffectSourceEndReason.None) reason = EffectSourceEndReason.Dispelled;
+                            PublishBuffRemove(_eventBus, buff.EffectId, req.SourceId, e.actorId.Value, b.BuffId, b.StackCount, b.SourceContextId, reason);
                         }
                     }
 

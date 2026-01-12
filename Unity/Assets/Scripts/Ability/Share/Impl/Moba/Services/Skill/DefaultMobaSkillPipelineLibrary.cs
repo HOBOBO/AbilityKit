@@ -54,5 +54,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             return true;
         }
 
+        public void Dispose()
+        {
+        }
+
     }
 }

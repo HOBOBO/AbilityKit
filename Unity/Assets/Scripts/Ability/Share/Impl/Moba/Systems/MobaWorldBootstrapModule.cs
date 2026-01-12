@@ -1,19 +1,14 @@
 using System;
-using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Server;
-using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Ability.Share.Impl.Moba.Systems;
 using AbilityKit.Ability.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Share.Common.Projectile;
 using AbilityKit.Ability.Share.Math;
-using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
-using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Impl.Moba.Systems
 {
@@ -24,40 +19,43 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
         public void Configure(WorldContainerBuilder builder)
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
-            builder.RegisterType<MobaLobbyStateService, MobaLobbyStateService>(WorldLifetime.Scoped);
+            builder.RegisterService<MobaLobbyStateService, MobaLobbyStateService>();
 
-            builder.RegisterType<ActorIdAllocator, ActorIdAllocator>(WorldLifetime.Scoped);
-            builder.RegisterType<MobaActorRegistry, MobaActorRegistry>(WorldLifetime.Scoped);
-            builder.RegisterType<ActorIdIndex, ActorIdIndex>(WorldLifetime.Scoped);
-            builder.RegisterType<MobaActorLookupService, MobaActorLookupService>(WorldLifetime.Scoped);
+            builder.TryRegisterService<EffectSourceRegistry, EffectSourceRegistry>();
+            builder.TryRegisterService<MobaBuffService, MobaBuffService>();
 
-            builder.RegisterType<MobaEntityManager, MobaEntityManager>(WorldLifetime.Scoped);
+            builder.RegisterService<ActorIdAllocator, ActorIdAllocator>();
+            builder.RegisterService<MobaActorRegistry, MobaActorRegistry>();
+            builder.RegisterService<ActorIdIndex, ActorIdIndex>();
+            builder.RegisterService<MobaActorLookupService, MobaActorLookupService>();
 
-            builder.RegisterType<MobaPlayerActorMapService, MobaPlayerActorMapService>(WorldLifetime.Scoped);
-            builder.RegisterType<MobaActorTransformSnapshotService, MobaActorTransformSnapshotService>(WorldLifetime.Scoped);
-            builder.RegisterType<MobaActorSpawnSnapshotService, MobaActorSpawnSnapshotService>(WorldLifetime.Scoped);
-            builder.RegisterType<MobaStateHashSnapshotService, MobaStateHashSnapshotService>(WorldLifetime.Scoped);
+            builder.RegisterService<MobaEntityManager, MobaEntityManager>();
 
-            builder.RegisterType<MobaEnterGameSnapshotService, MobaEnterGameSnapshotService>(WorldLifetime.Scoped);
+            builder.RegisterService<MobaPlayerActorMapService, MobaPlayerActorMapService>();
+            builder.RegisterService<MobaActorTransformSnapshotService, MobaActorTransformSnapshotService>();
+            builder.RegisterService<MobaActorSpawnSnapshotService, MobaActorSpawnSnapshotService>();
+            builder.RegisterService<MobaStateHashSnapshotService, MobaStateHashSnapshotService>();
 
-            builder.RegisterType<MobaLobbySnapshotService, MobaLobbySnapshotService>(WorldLifetime.Scoped);
-            builder.RegisterType<MobaSnapshotRouter, MobaSnapshotRouter>(WorldLifetime.Scoped);
-            builder.Register<IWorldStateSnapshotProvider>(WorldLifetime.Scoped, r => r.Resolve<MobaSnapshotRouter>());
+            builder.RegisterService<MobaEnterGameSnapshotService, MobaEnterGameSnapshotService>();
 
-            builder.RegisterType<MobaEnterGameFlowService, MobaEnterGameFlowService>(WorldLifetime.Scoped);
-            builder.RegisterType<IWorldInputSink, MobaLobbyInputSink>(WorldLifetime.Scoped);
+            builder.RegisterService<MobaLobbySnapshotService, MobaLobbySnapshotService>();
+            builder.RegisterService<MobaSnapshotRouter, MobaSnapshotRouter>();
+            builder.RegisterServiceAlias<IWorldStateSnapshotProvider, MobaSnapshotRouter>();
 
-            builder.RegisterType<MobaActorEntityGenerator, MobaActorEntityGenerator>(WorldLifetime.Scoped);
+            builder.RegisterService<MobaEnterGameFlowService, MobaEnterGameFlowService>();
+            builder.RegisterService<IWorldInputSink, MobaLobbyInputSink>();
 
-            builder.RegisterType<MobaMoveService, MobaMoveService>(WorldLifetime.Scoped);
+            builder.RegisterService<MobaActorEntityGenerator, MobaActorEntityGenerator>();
 
-            builder.RegisterType<ICollisionService, CollisionService>(WorldLifetime.Scoped);
+            builder.RegisterService<MobaMoveService, MobaMoveService>();
 
-            builder.TryRegisterType<IProjectileService, ProjectileService>(WorldLifetime.Scoped);
+            builder.RegisterService<ICollisionService, CollisionService>();
 
-            builder.RegisterType<MobaSkillLoadoutService, MobaSkillLoadoutService>(WorldLifetime.Scoped);
-            builder.RegisterType<IMobaSkillPipelineLibrary, DefaultMobaSkillPipelineLibrary>(WorldLifetime.Scoped);
-            builder.RegisterType<SkillExecutor, SkillExecutor>(WorldLifetime.Scoped);
+            builder.TryRegisterService<IProjectileService, ProjectileService>();
+
+            builder.RegisterService<MobaSkillLoadoutService, MobaSkillLoadoutService>();
+            builder.RegisterService<IMobaSkillPipelineLibrary, DefaultMobaSkillPipelineLibrary>();
+            builder.RegisterService<SkillExecutor, SkillExecutor>();
         }
 
         public void Install(global::Contexts contexts, global::Entitas.Systems systems, IWorldServices services)
