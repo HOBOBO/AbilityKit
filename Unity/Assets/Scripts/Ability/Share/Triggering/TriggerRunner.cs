@@ -163,7 +163,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
                         if (running != null)
                         {
                             var runner = TriggerEventHandler.GetRunner(context);
-                            runner?.Add(running, context.Source);
+                            runner?.Add(running, context.Event.Payload ?? context.Source);
                         }
                         continue;
                     }
@@ -236,7 +236,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
                             if (running != null)
                             {
                                 var runner = GetRunner(context);
-                                runner?.Add(running, context.Source);
+                                runner?.Add(running, context.Event.Payload ?? context.Source);
                             }
                             continue;
                         }

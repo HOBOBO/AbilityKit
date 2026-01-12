@@ -2,13 +2,19 @@ using System;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
 {
     [WorldSystem(order: MobaSystemOrder.BuffsTick, Phase = WorldSystemPhase.Execute)]
     public sealed class MobaBuffTickSystem : WorldSystemBase
     {
+        private MobaConfigDatabase _configs;
         private IWorldClock _clock;
+        private IEventBus _eventBus;
+        private AbilityKit.Ability.Triggering.Runtime.ITriggerActionRunner _actionRunner;
         private Entitas.IGroup<global::ActorEntity> _group;
 
         public MobaBuffTickSystem(global::Contexts contexts, IWorldServices services)
@@ -18,7 +24,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
 
         protected override void OnInit()
         {
+            Services.TryGet(out _configs);
             Services.TryGet(out _clock);
+            Services.TryGet(out _eventBus);
+            Services.TryGet(out _actionRunner);
             _group = Contexts.actor.GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.Buffs));
         }
 
@@ -53,16 +62,48 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
 
                     try
                     {
-                        b.Handle?.Dispose();
+                        _actionRunner?.CancelByOwner(b);
                     }
                     catch
                     {
                     }
 
-                    b.Handle = null;
+                    if (_configs != null)
+                    {
+                        if (_configs.TryGetBuff(b.BuffId, out var buff) && buff != null)
+                        {
+                            PublishBuffRemove(_eventBus, buff.EffectId, b.SourceId, e.actorId.Value, b.BuffId, b.StackCount);
+                        }
+                    }
+
                     list.RemoveAt(j);
                 }
             }
+        }
+
+        private static void PublishBuffRemove(IEventBus bus, int effectId, int sourceActorId, int targetActorId, int buffId, int stackCount)
+        {
+            if (bus == null) return;
+
+            PublishOnce(bus, "buff.remove", effectId, sourceActorId, targetActorId, buffId, stackCount);
+            if (effectId > 0)
+            {
+                PublishOnce(bus, $"buff.remove.{effectId}", effectId, sourceActorId, targetActorId, buffId, stackCount);
+            }
+        }
+
+        private static void PublishOnce(IEventBus bus, string eventId, int effectId, int sourceActorId, int targetActorId, int buffId, int stackCount)
+        {
+            if (bus == null) return;
+            if (string.IsNullOrEmpty(eventId)) return;
+
+            var args = PooledTriggerArgs.Rent();
+            args[EffectTriggering.Args.Source] = sourceActorId;
+            args[EffectTriggering.Args.Target] = targetActorId;
+            args["buff.id"] = buffId;
+            args["buff.effectId"] = effectId;
+            args["buff.stackCount"] = stackCount;
+            bus.Publish(new TriggerEvent(eventId, payload: null, args: args));
         }
     }
 }

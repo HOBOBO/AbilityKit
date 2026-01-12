@@ -70,6 +70,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public int Id;
         public string Name;
         public int DurationMs;
+        public int EffectId;
+        public int StackingPolicy;
+        public int RefreshPolicy;
+        public int MaxStacks;
         public int[] Tags;
     }
 }

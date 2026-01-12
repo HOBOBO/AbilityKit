@@ -11,23 +11,21 @@ public partial class ActorEntity {
     public AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent applyBuffRequest { get { return (AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent)GetComponent(ActorComponentsLookup.ApplyBuffRequest); } }
     public bool hasApplyBuffRequest { get { return HasComponent(ActorComponentsLookup.ApplyBuffRequest); } }
 
-    public void AddApplyBuffRequest(int newBuffId, int newSourceId, int newDurationOverrideMs, AbilityKit.Ability.Share.Common.AttributeSystem.AttributeEffect newEffect) {
+    public void AddApplyBuffRequest(int newBuffId, int newSourceId, int newDurationOverrideMs) {
         var index = ActorComponentsLookup.ApplyBuffRequest;
         var component = (AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent));
         component.BuffId = newBuffId;
         component.SourceId = newSourceId;
         component.DurationOverrideMs = newDurationOverrideMs;
-        component.Effect = newEffect;
         AddComponent(index, component);
     }
 
-    public void ReplaceApplyBuffRequest(int newBuffId, int newSourceId, int newDurationOverrideMs, AbilityKit.Ability.Share.Common.AttributeSystem.AttributeEffect newEffect) {
+    public void ReplaceApplyBuffRequest(int newBuffId, int newSourceId, int newDurationOverrideMs) {
         var index = ActorComponentsLookup.ApplyBuffRequest;
         var component = (AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent));
         component.BuffId = newBuffId;
         component.SourceId = newSourceId;
         component.DurationOverrideMs = newDurationOverrideMs;
-        component.Effect = newEffect;
         ReplaceComponent(index, component);
     }
 

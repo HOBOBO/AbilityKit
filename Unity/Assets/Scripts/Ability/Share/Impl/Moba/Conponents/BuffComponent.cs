@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.AttributeSystem;
 using Entitas;
 using Entitas.CodeGeneration.Attributes;
 
@@ -16,6 +15,6 @@ namespace AbilityKit.Ability.Impl.Moba.Conponents
         public int BuffId;
         public float Remaining;
         public int SourceId;
-        public AttributeEffectHandle Handle;
+        public int StackCount;
     }
 }

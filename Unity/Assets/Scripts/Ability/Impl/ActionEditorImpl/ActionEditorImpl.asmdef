@@ -1,5 +1,5 @@
 {
-    "name": "NewAssembly",
+    "name": "ActionEditorImpl",
     "rootNamespace": "",
     "references": [
         "GUID:a65e97bc6b8576642bb25059ad62fcc5",
