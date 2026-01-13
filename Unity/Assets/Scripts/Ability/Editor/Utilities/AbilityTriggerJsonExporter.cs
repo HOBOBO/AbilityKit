@@ -14,6 +14,7 @@ namespace AbilityKit.Ability.Editor.Utilities
     {
         private const string OutputResourcesDir = "ability";
         private const string OutputFileWithoutExt = "ability_triggers";
+        private const string DefaultAbilityConfigFolder = "Assets/Configs/Ability";
 
         [MenuItem("AbilityKit/Ability/Export Trigger Json")]
         public static void ExportSelectedFolder()
@@ -22,14 +23,30 @@ namespace AbilityKit.Ability.Editor.Utilities
             ExportFromFolder(folder);
         }
 
+        [MenuItem("AbilityKit/Ability/Export Trigger Json (Configs/Ability)")]
+        public static void ExportDefaultFolder()
+        {
+            ExportFromFolder(DefaultAbilityConfigFolder);
+        }
+
         public static void ExportFromFolder(string assetFolder)
         {
             if (string.IsNullOrEmpty(assetFolder)) assetFolder = "Assets";
 
+            Debug.Log($"[AbilityTriggerJsonExporter] ExportFromFolder: {assetFolder}");
+
             var outputDir = Path.Combine(Application.dataPath, "Resources", OutputResourcesDir);
             Directory.CreateDirectory(outputDir);
 
-            var dto = BuildDto(assetFolder);
+            var dto = BuildDto(assetFolder, out var moduleCount, out var exportedTriggerCount, out var skippedDisabledCount, out var skippedInvalidIdCount);
+            if (assetFolder != "Assets" && (moduleCount == 0 || exportedTriggerCount == 0))
+            {
+                Debug.Log($"[AbilityTriggerJsonExporter] No triggers exported from '{assetFolder}'. Fallback to scan whole 'Assets'.");
+                dto = BuildDto("Assets", out moduleCount, out exportedTriggerCount, out skippedDisabledCount, out skippedInvalidIdCount);
+            }
+
+            Debug.Log($"[AbilityTriggerJsonExporter] Modules={moduleCount}, ExportedTriggers={exportedTriggerCount}, SkippedDisabled={skippedDisabledCount}, SkippedTriggerId<=0={skippedInvalidIdCount}");
+
             var json = JsonConvert.SerializeObject(dto, Formatting.Indented);
             var outputPath = Path.Combine(outputDir, OutputFileWithoutExt + ".json");
             File.WriteAllText(outputPath, json);
@@ -38,9 +55,18 @@ namespace AbilityKit.Ability.Editor.Utilities
             Debug.Log($"[AbilityTriggerJsonExporter] Exported to: {outputPath}");
         }
 
-        private static AbilityTriggerDatabaseDTO BuildDto(string assetFolder)
+        private static AbilityTriggerDatabaseDTO BuildDto(
+            string assetFolder,
+            out int moduleCount,
+            out int exportedTriggerCount,
+            out int skippedDisabledCount,
+            out int skippedInvalidIdCount)
         {
             var db = new AbilityTriggerDatabaseDTO();
+            moduleCount = 0;
+            exportedTriggerCount = 0;
+            skippedDisabledCount = 0;
+            skippedInvalidIdCount = 0;
 
             var guids = AssetDatabase.FindAssets("t:AbilityModuleSO", new[] { assetFolder });
             if (guids == null || guids.Length == 0) return db;
@@ -50,35 +76,40 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var path = AssetDatabase.GUIDToAssetPath(guids[i]);
                 var asset = AssetDatabase.LoadAssetAtPath<AbilityModuleSO>(path);
                 if (asset == null) continue;
-                if (string.IsNullOrEmpty(asset.AbilityId)) continue;
 
-                var entry = new AbilityTriggerEntryDTO
-                {
-                    AbilityId = asset.AbilityId,
-                    Triggers = new List<TriggerDTO>()
-                };
+                moduleCount++;
 
                 if (asset.Triggers != null)
                 {
                     for (int t = 0; t < asset.Triggers.Count; t++)
                     {
                         var tr = asset.Triggers[t];
-                        if (tr == null || !tr.Enabled) continue;
-                        if (string.IsNullOrEmpty(tr.EventId)) continue;
+                        if (tr == null) continue;
+                        if (!tr.Enabled)
+                        {
+                            skippedDisabledCount++;
+                            continue;
+                        }
+
+                        if (tr.TriggerId <= 0)
+                        {
+                            skippedInvalidIdCount++;
+                            continue;
+                        }
 
                         var runtime = tr.ToRuntime();
                         var triggerDto = new TriggerDTO
                         {
+                            TriggerId = tr.TriggerId,
                             EventId = runtime.EventId,
                             InitialLocalVars = BuildInitialLocalVars(runtime),
                             Conditions = BuildConditions(runtime),
                             Actions = BuildActions(runtime)
                         };
-                        entry.Triggers.Add(triggerDto);
+                        db.Triggers.Add(triggerDto);
+                        exportedTriggerCount++;
                     }
                 }
-
-                db.Abilities.Add(entry);
             }
 
             return db;

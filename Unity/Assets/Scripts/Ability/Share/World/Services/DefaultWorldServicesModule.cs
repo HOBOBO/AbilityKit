@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.Share.Effect;
@@ -35,6 +36,7 @@ namespace AbilityKit.Ability.World.Services
                 return NullLogSink.Instance;
             });
             builder.TryRegisterType<IWorldClock, WorldClock>(WorldLifetime.Scoped);
+            builder.TryRegisterType<IFrameTime, FrameTime>(WorldLifetime.Scoped);
             builder.TryRegisterType<IWorldRandom, DefaultWorldRandom>(WorldLifetime.Scoped);
             builder.TryRegisterType<IEffectTriggeringSwitch, DefaultEffectTriggeringSwitch>(WorldLifetime.Singleton);
             builder.TryRegisterType<IEventBus, EventBus>(WorldLifetime.Scoped);

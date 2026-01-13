@@ -16,7 +16,8 @@ MonoBehaviour:
   RuntimeAsset: {fileID: 11400000, guid: 995f5edaddd4a0141beef3207f7ee395, type: 2}
   Triggers:
   - Enabled: 1
-    EventId: skill.cast.start
+    TriggerId: 10001
+    EventId: 
     Note: 
     LocalVars: []
     ConditionsStrong: []

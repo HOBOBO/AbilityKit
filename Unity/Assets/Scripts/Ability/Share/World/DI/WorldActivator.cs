@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
 
 namespace AbilityKit.Ability.World.DI
 {
@@ -20,12 +22,15 @@ namespace AbilityKit.Ability.World.DI
             object[] bestArgs = null;
             var bestScore = -1;
 
+            StringBuilder diag = null;
+
             for (int i = 0; i < ctors.Length; i++)
             {
                 var ctor = ctors[i];
                 var ps = ctor.GetParameters();
                 var args = new object[ps.Length];
                 var ok = true;
+                List<string> missing = null;
 
                 for (int p = 0; p < ps.Length; p++)
                 {
@@ -36,8 +41,35 @@ namespace AbilityKit.Ability.World.DI
                     else
                     {
                         ok = false;
+                        missing ??= new List<string>(4);
+                        missing.Add(ps[p].ParameterType.FullName ?? ps[p].ParameterType.Name);
                         break;
                     }
+                }
+
+                if (!ok)
+                {
+                    diag ??= new StringBuilder(256);
+                    diag.Append("  ctor(");
+                    for (int p = 0; p < ps.Length; p++)
+                    {
+                        if (p > 0) diag.Append(", ");
+                        diag.Append(ps[p].ParameterType.Name);
+                    }
+                    diag.Append(") missing: ");
+                    if (missing == null || missing.Count == 0)
+                    {
+                        diag.Append("unknown");
+                    }
+                    else
+                    {
+                        for (int m = 0; m < missing.Count; m++)
+                        {
+                            if (m > 0) diag.Append(", ");
+                            diag.Append(missing[m]);
+                        }
+                    }
+                    diag.AppendLine();
                 }
 
                 if (!ok) continue;
@@ -52,7 +84,12 @@ namespace AbilityKit.Ability.World.DI
 
             if (best == null)
             {
-                throw new InvalidOperationException($"No suitable constructor found for type: {implType.FullName}. Make sure dependencies are registered.");
+                var msg = $"No suitable constructor found for type: {implType.FullName}. Make sure dependencies are registered.";
+                if (diag != null)
+                {
+                    msg += "\nMissing dependencies by constructor:\n" + diag.ToString();
+                }
+                throw new InvalidOperationException(msg);
             }
 
             return best.Invoke(bestArgs);

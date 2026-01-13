@@ -75,6 +75,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (preCastConfig == null || preCastPhases == null || preCastPhases.Count == 0)
             {
                 var ok = StartCast(ref entry);
+                if (ok && entry.Pipeline != null && entry.Pipeline.State == EAbilityPipelineState.Executing)
+                {
+                    _running.Add(entry);
+                }
                 failReason = entry.FailReason;
                 LastFailReason = entry.FailReason;
                 return ok;

@@ -10,11 +10,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     {
         private readonly IEventBus _eventBus;
         private readonly TriggerRunner _triggers;
+        private readonly MobaTriggerIndexService _index;
 
-        public MobaEffectExecutionService(IEventBus eventBus, TriggerRunner triggers)
+        public MobaEffectExecutionService(IEventBus eventBus, TriggerRunner triggers, MobaTriggerIndexService index)
         {
             _eventBus = eventBus;
             _triggers = triggers;
+            _index = index;
         }
 
         public void Execute(int effectId, SkillPipelineContext context, EffectExecuteMode mode = EffectExecuteMode.InternalOnly)
@@ -43,8 +45,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 var args = PooledTriggerArgs.Rent();
                 FillArgs(args, effectId, context);
-                _triggers.Dispatch(new TriggerEvent(MobaTriggerEventIds.EffectExecute, payload: context, args: args), disposeArgs: false);
-                _triggers.Dispatch(new TriggerEvent(MobaTriggerEventIds.EffectExecuteById(effectId), payload: context, args: args), disposeArgs: false);
+                RunByTriggerId(effectId, args, context);
                 args.Dispose();
             }
 
@@ -57,6 +58,22 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 var args2 = PooledTriggerArgs.Rent();
                 FillArgs(args2, effectId, context);
                 _eventBus.Publish(new TriggerEvent(MobaTriggerEventIds.EffectExecuteById(effectId), payload: context, args: args2));
+            }
+        }
+
+        private void RunByTriggerId(int triggerId, PooledTriggerArgs args, SkillPipelineContext context)
+        {
+            if (_triggers == null) return;
+            if (_index == null) return;
+            if (!_index.TryGetByTriggerId(triggerId, out var list) || list == null) return;
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                var e = list[i];
+                var def = e.Def;
+                if (def == null) continue;
+
+                _triggers.RunOnce(def, source: null, target: null, payload: context, args: args, initialLocalVars: e.InitialLocalVars);
             }
         }
 

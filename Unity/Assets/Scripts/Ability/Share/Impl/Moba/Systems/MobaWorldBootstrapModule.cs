@@ -3,10 +3,12 @@ using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Ability.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Share.Common.Projectile;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
+using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 
@@ -19,7 +21,17 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
         public void Configure(WorldContainerBuilder builder)
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
+
+            builder.AddModule(new TriggeringWorldModule());
+
             builder.RegisterService<MobaLobbyStateService, MobaLobbyStateService>();
+
+            builder.TryRegister<MobaConfigDatabase>(WorldLifetime.Singleton, _ =>
+            {
+                var db = new MobaConfigDatabase();
+                db.LoadFromResources(MobaConfigPaths.DefaultResourcesDir);
+                return db;
+            });
 
             builder.TryRegisterService<EffectSourceRegistry, EffectSourceRegistry>();
             builder.TryRegisterService<MobaBuffService, MobaBuffService>();
@@ -54,6 +66,12 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.TryRegisterService<IProjectileService, ProjectileService>();
 
             builder.RegisterService<MobaSkillLoadoutService, MobaSkillLoadoutService>();
+            builder.TryRegister<MobaTriggerIndexService>(WorldLifetime.Singleton, _ =>
+            {
+                var s = new MobaTriggerIndexService();
+                s.LoadFromResources();
+                return s;
+            });
             builder.RegisterService<MobaEffectExecutionService, MobaEffectExecutionService>();
             builder.RegisterService<MobaEffectExecuteSubscriber, MobaEffectExecuteSubscriber>();
             builder.RegisterService<MobaEffectExecuteDemoSubscriber, MobaEffectExecuteDemoSubscriber>();

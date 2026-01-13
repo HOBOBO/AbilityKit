@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using AbilityKit.Ability.Configs;
+using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
@@ -25,9 +28,19 @@ namespace AbilityKit.Ability.Editor
         internal AbilityModuleSO Owner;
 
         [HorizontalGroup("Row", Width = 60)]
+        [HideLabel]
         public bool Enabled = true;
 
+        [HorizontalGroup("Row", Width = 140)]
+        [LabelText("TriggerId")]
+        [LabelWidth(55)]
+        [Delayed]
+        public int TriggerId;
+
         [HorizontalGroup("Row")]
+        [LabelText("EventId")]
+        [LabelWidth(50)]
+        [ValueDropdown(nameof(GetEventIdOptions), IsUniqueList = true, DropdownTitle = "EventId")]
         public string EventId;
 
         [TextArea]
@@ -59,6 +72,44 @@ namespace AbilityKit.Ability.Editor
         public TriggerRuntimeConfig ToRuntime()
         {
             return TriggerRuntimeCompiler.Compile(this);
+        }
+
+        private static IEnumerable<string> GetEventIdOptions()
+        {
+            var set = new HashSet<string>(StringComparer.Ordinal);
+            try
+            {
+                CollectConstStrings(set, typeof(MobaTriggerEventIds));
+                CollectConstStrings(set, typeof(MobaSkillTriggering.Events));
+                CollectConstStrings(set, typeof(EffectTriggering.Events));
+                CollectConstStrings(set, typeof(AreaTriggering.Events));
+                CollectConstStrings(set, typeof(ProjectileTriggering.Events));
+            }
+            catch
+            {
+                // ignored
+            }
+
+            var list = new List<string>(set);
+            list.Sort(StringComparer.Ordinal);
+            return list;
+        }
+
+        private static void CollectConstStrings(HashSet<string> output, Type type)
+        {
+            if (output == null || type == null) return;
+
+            var fields = type.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
+            for (int i = 0; i < fields.Length; i++)
+            {
+                var f = fields[i];
+                if (f == null) continue;
+                if (f.FieldType != typeof(string)) continue;
+                if (!f.IsLiteral || f.IsInitOnly) continue;
+                var v = f.GetRawConstantValue() as string;
+                if (string.IsNullOrEmpty(v)) continue;
+                output.Add(v);
+            }
         }
 
         private void AddLocalVar()

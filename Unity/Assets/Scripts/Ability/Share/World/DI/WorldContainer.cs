@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.World.DI
 {
@@ -7,6 +8,7 @@ namespace AbilityKit.Ability.World.DI
     {
         private readonly Dictionary<Type, WorldServiceDescriptor> _map;
         private readonly Dictionary<Type, object> _singletons = new Dictionary<Type, object>();
+        private readonly HashSet<object> _initialized = new HashSet<object>(ReferenceEqualityComparer.Instance);
         private bool _disposed;
 
         public WorldContainer(IEnumerable<WorldServiceDescriptor> descriptors)
@@ -53,13 +55,16 @@ namespace AbilityKit.Ability.World.DI
             {
                 if (_singletons.TryGetValue(serviceType, out var cached)) return cached;
                 var created = descriptor.Factory(this);
+                TryInit(created, this);
                 _singletons[serviceType] = created;
                 return created;
             }
 
             if (descriptor.Lifetime == WorldLifetime.Transient)
             {
-                return descriptor.Factory(this);
+                var created = descriptor.Factory(this);
+                TryInit(created, this);
+                return created;
             }
 
             throw new InvalidOperationException($"Cannot resolve scoped service from root container: {serviceType.FullName}");
@@ -119,12 +124,38 @@ namespace AbilityKit.Ability.World.DI
                 case WorldLifetime.Singleton:
                     return Resolve(serviceType);
                 case WorldLifetime.Scoped:
-                    return scope.GetOrCreate(serviceType, () => descriptor.Factory(scope));
+                    return scope.GetOrCreate(serviceType, () =>
+                    {
+                        var created = descriptor.Factory(scope);
+                        TryInit(created, scope);
+                        return created;
+                    });
                 case WorldLifetime.Transient:
-                    return descriptor.Factory(scope);
+                    var created = descriptor.Factory(scope);
+                    TryInit(created, scope);
+                    return created;
                 default:
                     throw new InvalidOperationException($"Unknown lifetime: {descriptor.Lifetime}");
             }
+        }
+
+        private void TryInit(object instance, IWorldServices services)
+        {
+            if (instance == null) return;
+            if (!_initialized.Add(instance)) return;
+
+            if (instance is IWorldInitializable init)
+            {
+                init.OnInit(services);
+            }
+        }
+
+        private sealed class ReferenceEqualityComparer : IEqualityComparer<object>
+        {
+            public static readonly ReferenceEqualityComparer Instance = new ReferenceEqualityComparer();
+
+            public new bool Equals(object x, object y) => ReferenceEquals(x, y);
+            public int GetHashCode(object obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
         }
 
         private void ThrowIfDisposed()

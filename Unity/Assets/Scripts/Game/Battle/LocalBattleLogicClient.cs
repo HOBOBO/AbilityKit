@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Impl.Moba.Systems;
 using AbilityKit.Ability.World.Abstractions;
@@ -43,6 +44,10 @@ namespace AbilityKit.Game.Battle
             var options = request.Options;
             options.ServiceBuilder ??= AbilityKit.Ability.World.Services.WorldServiceContainerFactory.CreateDefaultOnly();
             options.ServiceBuilder.RegisterInstance(new WorldInitData(request.OpCode, request.Payload));
+
+            // Ensure SkillExecutor dependencies are resolvable in local/in-memory worlds.
+            // Server worlds typically register IFrameTime via ServerFrameTimeModule.
+            options.ServiceBuilder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new FrameTime());
             options.Modules.Add(new MobaWorldBootstrapModule());
 
             _server.CreateWorld(options);
