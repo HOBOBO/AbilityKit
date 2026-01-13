@@ -1,52 +1,10 @@
 using System;
-using System.Collections.Generic;
-using AbilityKit.Ability.Triggering.Definitions;
 using Sirenix.OdinInspector;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace AbilityKit.Ability.Configs
 {
-    [Serializable]
-    public sealed class TriggerRuntimeConfig
-    {
-        public string EventId;
-
-        public List<ArgRuntimeEntry> LocalVars = new List<ArgRuntimeEntry>();
-
-        [SerializeReference]
-        public List<ConditionRuntimeConfigBase> ConditionsStrong = new List<ConditionRuntimeConfigBase>();
-
-        [SerializeReference]
-        public List<ActionRuntimeConfigBase> ActionsStrong = new List<ActionRuntimeConfigBase>();
-
-        public TriggerDef ToTriggerDef()
-        {
-            var conditions = new List<ConditionDef>(ConditionsStrong != null ? ConditionsStrong.Count : 0);
-            if (ConditionsStrong != null)
-            {
-                for (int i = 0; i < ConditionsStrong.Count; i++)
-                {
-                    var c = ConditionsStrong[i];
-                    if (c == null) continue;
-                    conditions.Add(c.ToConditionDef());
-                }
-            }
-
-            var actions = new List<ActionDef>(ActionsStrong != null ? ActionsStrong.Count : 0);
-            if (ActionsStrong != null)
-            {
-                for (int i = 0; i < ActionsStrong.Count; i++)
-                {
-                    var a = ActionsStrong[i];
-                    if (a == null) continue;
-                    actions.Add(a.ToActionDef());
-                }
-            }
-
-            return new TriggerDef(EventId, conditions, actions);
-        }
-    }
-
     public enum ArgValueKind
     {
         None = 0,
@@ -76,7 +34,7 @@ namespace AbilityKit.Ability.Configs
         public string StringValue;
 
         [ShowIf(nameof(IsObject))]
-        public UnityEngine.Object ObjectValue;
+        public Object ObjectValue;
 
         private bool IsInt => Kind == ArgValueKind.Int;
         private bool IsFloat => Kind == ArgValueKind.Float;

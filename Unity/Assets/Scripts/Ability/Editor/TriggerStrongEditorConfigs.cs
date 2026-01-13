@@ -55,7 +55,9 @@ namespace AbilityKit.Ability.Editor
                 case ArgValueKind.String:
                     return QuoteAndTruncate(e.StringValue, 32);
                 case ArgValueKind.Object:
-                    return e.ObjectValue != null ? e.ObjectValue.name : "null";
+                    if (e.ObjectValue == null) return "null";
+                    if (e.ObjectValue is UnityEngine.Object uo) return uo != null ? uo.name : "null";
+                    return e.ObjectValue.ToString();
                 default:
                     return "null";
             }

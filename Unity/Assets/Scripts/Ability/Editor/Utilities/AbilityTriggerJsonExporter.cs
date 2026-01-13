@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using AbilityKit.Ability.Editor;
-using AbilityKit.Ability.Triggering.Json;
+using AbilityKit.Ability.Share.CoreDtos;
 using Newtonsoft.Json;
 using UnityEditor;
 using UnityEngine;
@@ -97,14 +97,13 @@ namespace AbilityKit.Ability.Editor.Utilities
                             continue;
                         }
 
-                        var runtime = tr.ToRuntime();
                         var triggerDto = new TriggerDTO
                         {
                             TriggerId = tr.TriggerId,
-                            EventId = runtime.EventId,
-                            InitialLocalVars = BuildInitialLocalVars(runtime),
-                            Conditions = BuildConditions(runtime),
-                            Actions = BuildActions(runtime)
+                            EventId = tr.EventId,
+                            InitialLocalVars = BuildInitialLocalVars(tr),
+                            Conditions = BuildConditions(tr),
+                            Actions = BuildActions(tr)
                         };
                         db.Triggers.Add(triggerDto);
                         exportedTriggerCount++;
@@ -115,31 +114,33 @@ namespace AbilityKit.Ability.Editor.Utilities
             return db;
         }
 
-        private static Dictionary<string, object> BuildInitialLocalVars(Configs.TriggerRuntimeConfig runtime)
+        private static Dictionary<string, object> BuildInitialLocalVars(TriggerEditorConfig editor)
         {
-            if (runtime == null || runtime.LocalVars == null || runtime.LocalVars.Count == 0) return null;
+            if (editor == null || editor.LocalVars == null || editor.LocalVars.Count == 0) return null;
 
             var dict = new Dictionary<string, object>(StringComparer.Ordinal);
-            for (int i = 0; i < runtime.LocalVars.Count; i++)
+            for (int i = 0; i < editor.LocalVars.Count; i++)
             {
-                var e = runtime.LocalVars[i];
+                var e = editor.LocalVars[i];
                 if (e == null || string.IsNullOrEmpty(e.Key)) continue;
-                dict[e.Key] = e.GetBoxedValue();
+                dict[e.Key] = e.ToArgRuntimeEntry().GetBoxedValue();
             }
             return dict.Count > 0 ? dict : null;
         }
 
-        private static List<ConditionDTO> BuildConditions(Configs.TriggerRuntimeConfig runtime)
+        private static List<ConditionDTO> BuildConditions(TriggerEditorConfig editor)
         {
             var list = new List<ConditionDTO>();
-            if (runtime?.ConditionsStrong == null) return list;
+            if (editor?.ConditionsStrong == null) return list;
 
-            for (int i = 0; i < runtime.ConditionsStrong.Count; i++)
+            for (int i = 0; i < editor.ConditionsStrong.Count; i++)
             {
-                var c = runtime.ConditionsStrong[i];
+                var c = editor.ConditionsStrong[i];
                 if (c == null) continue;
 
-                var def = c.ToConditionDef();
+                var rt = c.ToRuntimeStrong();
+                if (rt == null) continue;
+                var def = rt.ToConditionDef();
                 list.Add(new ConditionDTO
                 {
                     Type = def.Type,
@@ -150,17 +151,19 @@ namespace AbilityKit.Ability.Editor.Utilities
             return list;
         }
 
-        private static List<ActionDTO> BuildActions(Configs.TriggerRuntimeConfig runtime)
+        private static List<ActionDTO> BuildActions(TriggerEditorConfig editor)
         {
             var list = new List<ActionDTO>();
-            if (runtime?.ActionsStrong == null) return list;
+            if (editor?.ActionsStrong == null) return list;
 
-            for (int i = 0; i < runtime.ActionsStrong.Count; i++)
+            for (int i = 0; i < editor.ActionsStrong.Count; i++)
             {
-                var a = runtime.ActionsStrong[i];
+                var a = editor.ActionsStrong[i];
                 if (a == null) continue;
 
-                var def = a.ToActionDef();
+                var rt = a.ToRuntimeStrong();
+                if (rt == null) continue;
+                var def = rt.ToActionDef();
                 list.Add(new ActionDTO
                 {
                     Type = def.Type,

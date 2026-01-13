@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using AbilityKit.Ability.Configs;
+using AbilityKit.Ability.Editor.Utilities;
 using Sirenix.OdinInspector;
 using Sirenix.OdinInspector.Editor;
 using Sirenix.Utilities.Editor;
@@ -119,7 +120,7 @@ namespace AbilityKit.Ability.Editor
                     var now = EditorApplication.timeSinceStartup;
                     if (now >= _nextAutoExportAt)
                     {
-                        AbilityEditorExporter.Export(selected);
+                        AbilityTriggerJsonExporter.ExportFromFolder(RootFolder);
                         EditorUtility.ClearDirty(selected);
                         _nextAutoExportAt = now + AutoExportDebounceSeconds;
                     }
@@ -146,12 +147,12 @@ namespace AbilityKit.Ability.Editor
         internal void ExecuteExportSelected(AbilityModuleSO selected)
         {
             if (selected == null) return;
-            AbilityEditorExporter.Export(selected);
+            AbilityTriggerJsonExporter.ExportFromFolder(RootFolder);
         }
 
         internal void ExecuteExportAll()
         {
-            AbilityEditorExporter.ExportAll(RootFolder);
+            AbilityTriggerJsonExporter.ExportFromFolder(RootFolder);
         }
 
         private void CreateAbilityModuleAsset()

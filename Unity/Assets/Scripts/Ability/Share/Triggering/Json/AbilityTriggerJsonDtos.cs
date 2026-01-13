@@ -1,8 +1,15 @@
 using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Ability.Triggering.Json
+namespace AbilityKit.Ability.Share.CoreDtos
 {
+    [Serializable]
+    public sealed class TriggerHeaderDTO
+    {
+        public int TriggerId;
+        public string EventId;
+    }
+
     [Serializable]
     public sealed class AbilityTriggerDatabaseDTO
     {

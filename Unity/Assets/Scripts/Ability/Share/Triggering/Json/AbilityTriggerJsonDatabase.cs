@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.CoreDtos;
 using AbilityKit.Ability.Triggering.Definitions;
 using Newtonsoft.Json;
 using UnityEngine;

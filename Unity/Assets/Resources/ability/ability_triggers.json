@@ -2,14 +2,14 @@
   "Triggers": [
     {
       "TriggerId": 10001,
-      "EventId": "",
+      "EventId": null,
       "InitialLocalVars": null,
       "Conditions": [],
       "Actions": [
         {
           "Type": "debug_log",
           "Args": {
-            "message": "测试日志输出111112222"
+            "message": "测试日志输出1111122223333"
           }
         }
       ]

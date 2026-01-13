@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Ability.Configs;
+using AbilityKit.Ability.Share.CoreDtos;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using Sirenix.OdinInspector;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace AbilityKit.Ability.Editor
 {
@@ -14,18 +16,17 @@ namespace AbilityKit.Ability.Editor
         [HorizontalGroup("Top", Width = 220)]
         public string AbilityId;
 
-        [HorizontalGroup("Top")]
-        public AbilityRuntimeSO RuntimeAsset;
-
         [ListDrawerSettings(Expanded = true)]
         public List<TriggerEditorConfig> Triggers = new List<TriggerEditorConfig>();
     }
 
     [System.Serializable]
-    public sealed class TriggerEditorConfig
+    public sealed class TriggerEditorConfig : ISerializationCallbackReceiver
     {
         [NonSerialized]
         internal AbilityModuleSO Owner;
+
+        public TriggerHeaderDTO Core = new TriggerHeaderDTO();
 
         [HorizontalGroup("Row", Width = 60)]
         [HideLabel]
@@ -34,14 +35,39 @@ namespace AbilityKit.Ability.Editor
         [HorizontalGroup("Row", Width = 140)]
         [LabelText("TriggerId")]
         [LabelWidth(55)]
-        [Delayed]
-        public int TriggerId;
+        [ShowInInspector]
+        public int TriggerId
+        {
+            get => Core != null ? Core.TriggerId : 0;
+            set
+            {
+                if (Core == null) Core = new TriggerHeaderDTO();
+                Core.TriggerId = value;
+            }
+        }
 
         [HorizontalGroup("Row")]
         [LabelText("EventId")]
         [LabelWidth(50)]
         [ValueDropdown(nameof(GetEventIdOptions), IsUniqueList = true, DropdownTitle = "EventId")]
-        public string EventId;
+        [ShowInInspector]
+        public string EventId
+        {
+            get => Core != null ? Core.EventId : null;
+            set
+            {
+                if (Core == null) Core = new TriggerHeaderDTO();
+                Core.EventId = value;
+            }
+        }
+
+        [HideInInspector]
+        [FormerlySerializedAs("TriggerId")]
+        public int LegacyTriggerId;
+
+        [HideInInspector]
+        [FormerlySerializedAs("EventId")]
+        public string LegacyEventId;
 
         [TextArea]
         public string Note;
@@ -69,9 +95,23 @@ namespace AbilityKit.Ability.Editor
         [ListDrawerSettings(Expanded = true, ListElementLabelName = "DisplayTitle", CustomAddFunction = nameof(AddActionStrong))]
         public List<ActionEditorConfigBase> ActionsStrong = new List<ActionEditorConfigBase>();
 
-        public TriggerRuntimeConfig ToRuntime()
+        public void OnBeforeSerialize()
         {
-            return TriggerRuntimeCompiler.Compile(this);
+        }
+
+        public void OnAfterDeserialize()
+        {
+            if (Core == null) Core = new TriggerHeaderDTO();
+
+            if (Core.TriggerId <= 0 && LegacyTriggerId > 0)
+            {
+                Core.TriggerId = LegacyTriggerId;
+            }
+
+            if (string.IsNullOrEmpty(Core.EventId) && !string.IsNullOrEmpty(LegacyEventId))
+            {
+                Core.EventId = LegacyEventId;
+            }
         }
 
         private static IEnumerable<string> GetEventIdOptions()
