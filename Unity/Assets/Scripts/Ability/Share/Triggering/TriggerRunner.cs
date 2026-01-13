@@ -19,6 +19,8 @@ namespace AbilityKit.Ability.Triggering.Runtime
         private readonly TriggerCompiler _compiler;
         private readonly ITriggerContextFactory _contextFactory;
 
+        private readonly Dictionary<string, List<IEventHandler>> _handlersByEventId = new Dictionary<string, List<IEventHandler>>(StringComparer.Ordinal);
+
         public TriggerRunner(IEventBus eventBus, TriggerRegistry registry, ITriggerContextFactory contextFactory)
         {
             _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
@@ -189,13 +191,130 @@ namespace AbilityKit.Ability.Triggering.Runtime
         public IEventSubscription Register(TriggerInstance instance)
         {
             if (instance == null) throw new ArgumentNullException(nameof(instance));
-            return _eventBus.Subscribe(instance.EventId, new TriggerEventHandler(instance, _contextFactory));
+            var h = new TriggerEventHandler(instance, _contextFactory);
+            AddLocalHandler(instance.EventId, h);
+            var sub = _eventBus.Subscribe(instance.EventId, h);
+            return new Subscription(this, instance.EventId, h, sub);
         }
 
         public IEventSubscription Register(TriggerInstance instance, System.Collections.Generic.IReadOnlyDictionary<string, object> initialLocalVars)
         {
             if (instance == null) throw new ArgumentNullException(nameof(instance));
-            return _eventBus.Subscribe(instance.EventId, new TriggerEventHandler(instance, _contextFactory, initialLocalVars));
+            var h = new TriggerEventHandler(instance, _contextFactory, initialLocalVars);
+            AddLocalHandler(instance.EventId, h);
+            var sub = _eventBus.Subscribe(instance.EventId, h);
+            return new Subscription(this, instance.EventId, h, sub);
+        }
+
+        public void Dispatch(in TriggerEvent evt, bool disposeArgs = true)
+        {
+            if (evt.Id == null) return;
+
+            try
+            {
+                if (_handlersByEventId.TryGetValue(evt.Id, out var handlers))
+                {
+                    if (handlers.Count == 0) return;
+
+                    if (handlers.Count == 1)
+                    {
+                        try
+                        {
+                            handlers[0]?.Handle(in evt);
+                        }
+                        catch
+                        {
+                        }
+                        return;
+                    }
+
+                    // Snapshot to avoid issues if handlers list is modified during dispatch.
+                    var snapshot = new List<IEventHandler>(handlers);
+                    for (int i = 0; i < snapshot.Count; i++)
+                    {
+                        try
+                        {
+                            snapshot[i]?.Handle(in evt);
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeArgs && evt.Args is IDisposable d)
+                {
+                    try
+                    {
+                        d.Dispose();
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+        }
+
+        private void AddLocalHandler(string eventId, IEventHandler handler)
+        {
+            if (eventId == null) throw new ArgumentNullException(nameof(eventId));
+            if (handler == null) throw new ArgumentNullException(nameof(handler));
+
+            if (!_handlersByEventId.TryGetValue(eventId, out var handlers))
+            {
+                handlers = new List<IEventHandler>(4);
+                _handlersByEventId[eventId] = handlers;
+            }
+
+            handlers.Add(handler);
+        }
+
+        private void RemoveLocalHandler(string eventId, IEventHandler handler)
+        {
+            if (eventId == null || handler == null) return;
+
+            if (_handlersByEventId.TryGetValue(eventId, out var handlers))
+            {
+                handlers.Remove(handler);
+                if (handlers.Count == 0)
+                {
+                    _handlersByEventId.Remove(eventId);
+                }
+            }
+        }
+
+        private sealed class Subscription : IEventSubscription
+        {
+            private readonly TriggerRunner _runner;
+            private readonly string _eventId;
+            private readonly IEventHandler _handler;
+            private IEventSubscription _eventBusSub;
+
+            public Subscription(TriggerRunner runner, string eventId, IEventHandler handler, IEventSubscription eventBusSub)
+            {
+                _runner = runner;
+                _eventId = eventId;
+                _handler = handler;
+                _eventBusSub = eventBusSub;
+            }
+
+            public void Unsubscribe()
+            {
+                var sub = _eventBusSub;
+                if (sub == null) return;
+                _eventBusSub = null;
+
+                try
+                {
+                    sub.Unsubscribe();
+                }
+                finally
+                {
+                    _runner.RemoveLocalHandler(_eventId, _handler);
+                }
+            }
         }
 
         private sealed class TriggerEventHandler : IEventHandler, IDisposable

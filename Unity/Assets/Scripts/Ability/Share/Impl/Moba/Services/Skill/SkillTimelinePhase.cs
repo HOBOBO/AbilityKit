@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.Moba;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -54,7 +55,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
                     if (elapsedMs < e.AtMs) break;
 
-                    _effects?.Execute(e.EffectId, c);
+                    var mode = EffectExecuteMode.InternalOnly;
+                    var raw = e.ExecuteMode;
+                    if (raw == (int)EffectExecuteMode.PublishEventOnly || raw == (int)EffectExecuteMode.InternalThenPublishEvent)
+                    {
+                        mode = (EffectExecuteMode)raw;
+                    }
+                    _effects?.Execute(e.EffectId, c, mode);
                     _nextIndex++;
                 }
             }

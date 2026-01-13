@@ -97,6 +97,29 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                         }
                     }
 
+                    if (b.SourceContextId != 0 && e.hasEffectListeners)
+                    {
+                        var listeners = e.effectListeners.Active;
+                        if (listeners != null && listeners.Count > 0)
+                        {
+                            for (int k = listeners.Count - 1; k >= 0; k--)
+                            {
+                                var l = listeners[k];
+                                if (l == null) continue;
+                                if (l.SourceContextId != b.SourceContextId) continue;
+                                try
+                                {
+                                    l.Sub?.Unsubscribe();
+                                }
+                                catch
+                                {
+                                }
+                                l.Sub = null;
+                                listeners.RemoveAt(k);
+                            }
+                        }
+                    }
+
                     list.RemoveAt(j);
                 }
             }

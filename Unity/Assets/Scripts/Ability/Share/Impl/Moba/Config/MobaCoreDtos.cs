@@ -71,6 +71,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
     {
         public int AtMs;
         public int EffectId;
+        public int ExecuteMode;
         public string EventTag;
     }
 

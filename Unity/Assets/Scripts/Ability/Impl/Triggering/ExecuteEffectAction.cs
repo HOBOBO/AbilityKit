@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
@@ -10,10 +11,12 @@ namespace AbilityKit.Ability.Impl.Triggering
     public sealed class ExecuteEffectAction : ITriggerAction
     {
         private readonly int _effectId;
+        private readonly EffectExecuteMode _mode;
 
-        public ExecuteEffectAction(int effectId)
+        public ExecuteEffectAction(int effectId, EffectExecuteMode mode = EffectExecuteMode.InternalOnly)
         {
             _effectId = effectId;
+            _mode = mode;
         }
 
         public static ExecuteEffectAction FromDef(ActionDef def)
@@ -22,14 +25,23 @@ namespace AbilityKit.Ability.Impl.Triggering
             var args = def.Args;
             if (args == null) return new ExecuteEffectAction(0);
 
-            if (args.TryGetValue("effectId", out var idObj))
+            var mode = EffectExecuteMode.InternalOnly;
+            if (args.TryGetValue("executeMode", out var modeObj) && modeObj != null)
             {
-                if (idObj is int i) return new ExecuteEffectAction(i);
-                if (idObj is long l) return new ExecuteEffectAction((int)l);
-                if (idObj is string s && int.TryParse(s, out var parsed)) return new ExecuteEffectAction(parsed);
+                if (modeObj is EffectExecuteMode em) mode = em;
+                else if (modeObj is int mi) mode = (EffectExecuteMode)mi;
+                else if (modeObj is long ml) mode = (EffectExecuteMode)(int)ml;
+                else if (modeObj is string ms && int.TryParse(ms, out var parsedMode)) mode = (EffectExecuteMode)parsedMode;
             }
 
-            return new ExecuteEffectAction(0);
+            if (args.TryGetValue("effectId", out var idObj))
+            {
+                if (idObj is int i) return new ExecuteEffectAction(i, mode);
+                if (idObj is long l) return new ExecuteEffectAction((int)l, mode);
+                if (idObj is string s && int.TryParse(s, out var parsed)) return new ExecuteEffectAction(parsed, mode);
+            }
+
+            return new ExecuteEffectAction(0, mode);
         }
 
         public void Execute(TriggerContext context)
@@ -60,7 +72,7 @@ namespace AbilityKit.Ability.Impl.Triggering
                 return;
             }
 
-            svc.Execute(_effectId, ctx);
+            svc.Execute(_effectId, ctx, _mode);
         }
     }
 }

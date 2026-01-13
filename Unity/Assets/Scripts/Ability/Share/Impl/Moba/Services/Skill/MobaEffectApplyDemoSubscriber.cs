@@ -15,7 +15,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         {
             _eventBus = eventBus;
             _log = log;
-            _sub = _eventBus?.Subscribe("effect.apply.10001", this);
+            _sub = _eventBus?.Subscribe(MobaTriggerEventIds.EffectApplyById(10001), this);
         }
 
         public void Handle(in TriggerEvent evt)

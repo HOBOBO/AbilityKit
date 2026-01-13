@@ -199,4 +199,11 @@ namespace AbilityKit.Ability.Impl.Moba
         Dispelled = 4,
         Dead = 5,
     }
+
+    public enum EffectExecuteMode
+    {
+        InternalOnly = 0,
+        PublishEventOnly = 1,
+        InternalThenPublishEvent = 2,
+    }
 }

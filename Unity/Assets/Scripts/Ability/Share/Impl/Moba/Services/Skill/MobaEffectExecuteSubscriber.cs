@@ -12,7 +12,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public MobaEffectExecuteSubscriber(IEventBus eventBus)
         {
             _eventBus = eventBus;
-            _sub = _eventBus?.Subscribe("effect.execute", this);
+            _sub = _eventBus?.Subscribe(MobaTriggerEventIds.EffectExecute, this);
         }
 
         public void Handle(in TriggerEvent evt)
@@ -26,8 +26,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 return;
             }
 
-            Publish(bus, "effect.apply", in evt, effectId);
-            Publish(bus, $"effect.apply.{effectId}", in evt, effectId);
+            Publish(bus, MobaTriggerEventIds.EffectApply, in evt, effectId);
+            Publish(bus, MobaTriggerEventIds.EffectApplyById(effectId), in evt, effectId);
         }
 
         private static void Publish(IEventBus bus, string eventId, in TriggerEvent evt, int effectId)

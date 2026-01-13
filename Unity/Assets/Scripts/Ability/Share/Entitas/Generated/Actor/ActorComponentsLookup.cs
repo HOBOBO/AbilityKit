@@ -15,17 +15,18 @@ public static class ActorComponentsLookup {
     public const int Collider = 4;
     public const int CollisionId = 5;
     public const int CollisionLayer = 6;
-    public const int EntityMainType = 7;
-    public const int Motion = 8;
-    public const int MoveInput = 9;
-    public const int OwnerPlayerId = 10;
-    public const int ResourceContainer = 11;
-    public const int Team = 12;
-    public const int Transform = 13;
-    public const int UnitSubType = 14;
-    public const int RemoveBuffRequest = 15;
+    public const int EffectListeners = 7;
+    public const int EntityMainType = 8;
+    public const int Motion = 9;
+    public const int MoveInput = 10;
+    public const int OwnerPlayerId = 11;
+    public const int RemoveBuffRequest = 12;
+    public const int ResourceContainer = 13;
+    public const int Team = 14;
+    public const int Transform = 15;
+    public const int UnitSubType = 16;
 
-    public const int TotalComponents = 16;
+    public const int TotalComponents = 17;
 
     public static readonly string[] componentNames = {
         "ActorId",
@@ -35,15 +36,16 @@ public static class ActorComponentsLookup {
         "Collider",
         "CollisionId",
         "CollisionLayer",
+        "EffectListeners",
         "EntityMainType",
         "Motion",
         "MoveInput",
         "OwnerPlayerId",
+        "RemoveBuffRequest",
         "ResourceContainer",
         "Team",
         "Transform",
-        "UnitSubType",
-        "RemoveBuffRequest"
+        "UnitSubType"
     };
 
     public static readonly System.Type[] componentTypes = {
@@ -54,14 +56,15 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ColliderComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.CollisionIdComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.CollisionLayerComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.EffectListenersComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.EntityMainTypeComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.RemoveBuffRequestComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainerComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.TeamComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.TransformComponent),
-        typeof(AbilityKit.Ability.Impl.Moba.Conponents.UnitSubTypeComponent),
-        typeof(AbilityKit.Ability.Impl.Moba.Conponents.RemoveBuffRequestComponent)
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.UnitSubTypeComponent)
     };
 }

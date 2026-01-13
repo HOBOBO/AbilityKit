@@ -15,7 +15,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         {
             _eventBus = eventBus;
             _log = log;
-            _sub = _eventBus?.Subscribe("effect.execute", this);
+            _sub = _eventBus?.Subscribe(MobaTriggerEventIds.EffectExecute, this);
         }
 
         public void Handle(in TriggerEvent evt)

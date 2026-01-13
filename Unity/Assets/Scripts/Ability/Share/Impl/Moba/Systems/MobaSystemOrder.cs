@@ -11,6 +11,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
         public const int MotionLocomotionInput = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Normal + 50;
         public const int MotionTick = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Late + 20;
 
+        public const int EffectListeners = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Normal + 90;
         public const int SkillPipelines = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Normal + 100;
         public const int EffectsStep = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Normal + 200;
         public const int BuffsApply = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Normal + 300;
