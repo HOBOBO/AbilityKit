@@ -6,11 +6,13 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
     public sealed class AttributeGroup
     {
         private readonly string _name;
+        private readonly AttributeContext _ctx;
         private readonly Dictionary<int, AttributeInstance> _attrs = new Dictionary<int, AttributeInstance>(64);
 
-        public AttributeGroup(string name)
+        public AttributeGroup(string name, AttributeContext ctx)
         {
             _name = name;
+            _ctx = ctx;
         }
 
         public string Name => _name;
@@ -27,7 +29,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             }
 
             var baseValue = AttributeRegistry.Instance.GetDefaultBaseValue(id);
-            inst = new AttributeInstance(id, baseValue);
+            inst = new AttributeInstance(id, baseValue, _ctx);
             inst.Changed += (a, oldV, newV) => AttributeChanged?.Invoke(a, oldV, newV);
             _attrs[id.Id] = inst;
             return inst;
@@ -65,6 +67,15 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         {
             if (!TryGet(id, out var inst) || inst == null) return;
             inst.ClearModifiers(sourceId);
+        }
+
+        internal void MarkDirty(AttributeId id)
+        {
+            if (!id.IsValid) return;
+            if (_attrs.TryGetValue(id.Id, out var inst) && inst != null)
+            {
+                inst.MarkDirtyByDependency();
+            }
         }
     }
 }

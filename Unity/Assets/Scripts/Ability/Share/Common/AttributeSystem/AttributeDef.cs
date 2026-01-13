@@ -10,6 +10,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         public float DefaultBaseValue;
         public IAttributeFormula Formula;
         public IAttributeConstraint Constraint;
+        public AttributeId[] DependsOn;
 
         public AttributeDef(string name, string group = null, float defaultBaseValue = 0f, IAttributeFormula formula = null, IAttributeConstraint constraint = null)
         {

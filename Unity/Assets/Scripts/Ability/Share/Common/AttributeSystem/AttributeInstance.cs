@@ -6,6 +6,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
     public sealed class AttributeInstance
     {
         private readonly AttributeId _id;
+        private readonly AttributeContext _ctx;
 
         private float _baseValue;
         private float _cached;
@@ -20,11 +21,12 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         private float _override;
         private bool _hasOverride;
 
-        public AttributeInstance(AttributeId id, float baseValue)
+        public AttributeInstance(AttributeId id, float baseValue, AttributeContext ctx)
         {
             if (!id.IsValid) throw new ArgumentException("Invalid AttributeId", nameof(id));
             _id = id;
             _baseValue = baseValue;
+            _ctx = ctx;
             _dirty = true;
             _nextHandle = 1;
         }
@@ -112,12 +114,18 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             _dirty = true;
         }
 
+        internal void MarkDirtyByDependency()
+        {
+            _dirty = true;
+        }
+
         private void Recompute()
         {
             var old = _cached;
 
             var formula = AttributeRegistry.Instance.GetFormula(_id);
-            var v = formula.Evaluate(_baseValue, GetModifierSet());
+            var modifiers = GetModifierSet();
+            var v = formula.Evaluate(_ctx, _id, _baseValue, in modifiers);
 
             var constraint = AttributeRegistry.Instance.GetConstraint(_id);
             if (constraint != null)

@@ -9,6 +9,7 @@ namespace AbilityKit.Ability.Impl.Moba.Conponents
     public sealed class AttributeGroupComponent : IComponent
     {
         public AttributeGroup Group;
+        public AttributeContext Ctx;
     }
 
     public enum ResourceType

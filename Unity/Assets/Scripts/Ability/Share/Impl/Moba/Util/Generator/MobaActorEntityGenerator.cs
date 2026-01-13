@@ -166,14 +166,27 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 
         private static AttributeGroup EnsureAttributeGroup(global::ActorEntity entity)
         {
-            if (entity.hasAttributeGroup && entity.attributeGroup.Group != null)
+            if (entity.hasAttributeGroup)
             {
-                return entity.attributeGroup.Group;
+                if (entity.attributeGroup.Ctx == null)
+                {
+                    entity.attributeGroup.Ctx = new AttributeContext();
+                }
+
+                if (entity.attributeGroup.Group != null)
+                {
+                    return entity.attributeGroup.Group;
+                }
+
+                var existingCtx = entity.attributeGroup.Ctx;
+                var existingGroup = existingCtx.GetOrCreateGroup("moba");
+                entity.ReplaceAttributeGroup(existingGroup, existingCtx);
+                return existingGroup;
             }
 
-            var g = new AttributeGroup("moba");
-            if (entity.hasAttributeGroup) entity.ReplaceAttributeGroup(g);
-            else entity.AddAttributeGroup(g);
+            var ctx = new AttributeContext();
+            var g = ctx.GetOrCreateGroup("moba");
+            entity.AddAttributeGroup(g, ctx);
 
             g.GetOrCreate(MobaAttributeIds.HP);
             g.GetOrCreate(MobaAttributeIds.MAX_HP);
@@ -204,8 +217,16 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 
         private static void MarkAttributeGroupInitialized(global::ActorEntity entity, AttributeGroup group)
         {
-            if (entity.hasAttributeGroup) entity.ReplaceAttributeGroup(group);
-            else entity.AddAttributeGroup(group);
+            if (entity.hasAttributeGroup)
+            {
+                var ctx = entity.attributeGroup.Ctx;
+                entity.ReplaceAttributeGroup(group, ctx);
+            }
+            else
+            {
+                var ctx = new AttributeContext();
+                entity.AddAttributeGroup(group, ctx);
+            }
         }
 
         private static ResourceContainer EnsureResourceContainer(global::ActorEntity entity)

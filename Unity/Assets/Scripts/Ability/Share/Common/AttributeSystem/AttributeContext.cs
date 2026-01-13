@@ -14,10 +14,31 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             group ??= string.Empty;
             if (_groups.TryGetValue(group, out var g) && g != null) return g;
 
-            g = new AttributeGroup(group);
-            g.AttributeChanged += (id, oldV, newV) => AttributeChanged?.Invoke(group, id, oldV, newV);
+            g = new AttributeGroup(group, this);
+            g.AttributeChanged += (id, oldV, newV) =>
+            {
+                AttributeChanged?.Invoke(group, id, oldV, newV);
+                OnAttributeValueChanged(id);
+            };
             _groups[group] = g;
             return g;
+        }
+
+        private void OnAttributeValueChanged(AttributeId id)
+        {
+            var reg = AttributeRegistry.Instance;
+            if (reg == null) return;
+
+            var dependents = reg.GetDependents(id);
+            if (dependents == null || dependents.Count == 0) return;
+
+            for (int i = 0; i < dependents.Count; i++)
+            {
+                var dep = dependents[i];
+                if (!dep.IsValid) continue;
+                var g = GetGroupFor(dep);
+                g?.MarkDirty(dep);
+            }
         }
 
         public AttributeGroup GetGroupFor(AttributeId id)

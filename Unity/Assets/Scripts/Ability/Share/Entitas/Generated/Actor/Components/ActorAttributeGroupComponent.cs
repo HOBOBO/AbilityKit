@@ -11,17 +11,19 @@ public partial class ActorEntity {
     public AbilityKit.Ability.Impl.Moba.Conponents.AttributeGroupComponent attributeGroup { get { return (AbilityKit.Ability.Impl.Moba.Conponents.AttributeGroupComponent)GetComponent(ActorComponentsLookup.AttributeGroup); } }
     public bool hasAttributeGroup { get { return HasComponent(ActorComponentsLookup.AttributeGroup); } }
 
-    public void AddAttributeGroup(AbilityKit.Ability.Share.Common.AttributeSystem.AttributeGroup newGroup) {
+    public void AddAttributeGroup(AbilityKit.Ability.Share.Common.AttributeSystem.AttributeGroup newGroup, AbilityKit.Ability.Share.Common.AttributeSystem.AttributeContext newCtx) {
         var index = ActorComponentsLookup.AttributeGroup;
         var component = (AbilityKit.Ability.Impl.Moba.Conponents.AttributeGroupComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.AttributeGroupComponent));
         component.Group = newGroup;
+        component.Ctx = newCtx;
         AddComponent(index, component);
     }
 
-    public void ReplaceAttributeGroup(AbilityKit.Ability.Share.Common.AttributeSystem.AttributeGroup newGroup) {
+    public void ReplaceAttributeGroup(AbilityKit.Ability.Share.Common.AttributeSystem.AttributeGroup newGroup, AbilityKit.Ability.Share.Common.AttributeSystem.AttributeContext newCtx) {
         var index = ActorComponentsLookup.AttributeGroup;
         var component = (AbilityKit.Ability.Impl.Moba.Conponents.AttributeGroupComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.AttributeGroupComponent));
         component.Group = newGroup;
+        component.Ctx = newCtx;
         ReplaceComponent(index, component);
     }
 

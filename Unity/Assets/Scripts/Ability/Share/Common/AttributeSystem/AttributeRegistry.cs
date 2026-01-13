@@ -14,6 +14,8 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         private readonly Dictionary<string, int> _byName = new Dictionary<string, int>(StringComparer.Ordinal);
         private readonly List<Node> _nodes = new List<Node>(128);
 
+        private readonly Dictionary<int, List<AttributeId>> _dependents = new Dictionary<int, List<AttributeId>>(128);
+
         private bool _frozen;
 
         public static AttributeRegistry Instance { get; } = new AttributeRegistry();
@@ -28,7 +30,135 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
 
         public void Freeze()
         {
+            BuildDependencyGraphOrThrow();
             _frozen = true;
+        }
+
+        public IReadOnlyList<AttributeId> GetDependents(AttributeId id)
+        {
+            if (!id.IsValid) return null;
+            if (_dependents.TryGetValue(id.Id, out var list)) return list;
+            return null;
+        }
+
+        private void BuildDependencyGraphOrThrow()
+        {
+            _dependents.Clear();
+
+            var depsById = new Dictionary<int, List<AttributeId>>(_nodes.Count);
+            for (int i = 1; i < _nodes.Count; i++)
+            {
+                var def = _nodes[i].Def;
+                if (def == null) continue;
+
+                var deps = CollectDependencies(def);
+                if (deps == null || deps.Count == 0) continue;
+
+                for (int j = deps.Count - 1; j >= 0; j--)
+                {
+                    var d = deps[j];
+                    if (!d.IsValid)
+                    {
+                        deps.RemoveAt(j);
+                        continue;
+                    }
+                    if (d.Id == i)
+                    {
+                        throw new InvalidOperationException($"Attribute depends on itself: {def.Name}");
+                    }
+                }
+
+                if (deps.Count > 0)
+                {
+                    depsById[i] = deps;
+                }
+            }
+
+            var visiting = new bool[_nodes.Count];
+            var visited = new bool[_nodes.Count];
+
+            for (int i = 1; i < _nodes.Count; i++)
+            {
+                if (visited[i]) continue;
+                if (depsById.ContainsKey(i))
+                {
+                    DfsDetectCycle(i, depsById, visiting, visited);
+                }
+                else
+                {
+                    visited[i] = true;
+                }
+            }
+
+            foreach (var kv in depsById)
+            {
+                var to = new AttributeId(kv.Key);
+                var fromList = kv.Value;
+                for (int j = 0; j < fromList.Count; j++)
+                {
+                    var from = fromList[j];
+                    if (!from.IsValid) continue;
+                    if (!_dependents.TryGetValue(from.Id, out var list))
+                    {
+                        list = new List<AttributeId>(4);
+                        _dependents[from.Id] = list;
+                    }
+                    list.Add(to);
+                }
+            }
+        }
+
+        private static void DfsDetectCycle(int id, Dictionary<int, List<AttributeId>> depsById, bool[] visiting, bool[] visited)
+        {
+            if (visited[id]) return;
+            if (visiting[id])
+            {
+                throw new InvalidOperationException($"Attribute dependency cycle detected at id={id}");
+            }
+
+            visiting[id] = true;
+            if (depsById.TryGetValue(id, out var deps))
+            {
+                for (int i = 0; i < deps.Count; i++)
+                {
+                    var d = deps[i];
+                    if (!d.IsValid) continue;
+                    DfsDetectCycle(d.Id, depsById, visiting, visited);
+                }
+            }
+            visiting[id] = false;
+            visited[id] = true;
+        }
+
+        private static List<AttributeId> CollectDependencies(AttributeDef def)
+        {
+            if (def == null) return null;
+
+            List<AttributeId> deps = null;
+
+            if (def.DependsOn != null && def.DependsOn.Length > 0)
+            {
+                deps = new List<AttributeId>(def.DependsOn.Length);
+                for (int i = 0; i < def.DependsOn.Length; i++)
+                {
+                    deps.Add(def.DependsOn[i]);
+                }
+            }
+
+            if (def.Formula is IAttributeDependencyProvider p)
+            {
+                var fromFormula = p.GetDependencies();
+                if (fromFormula != null)
+                {
+                    deps ??= new List<AttributeId>(4);
+                    foreach (var d in fromFormula)
+                    {
+                        deps.Add(d);
+                    }
+                }
+            }
+
+            return deps;
         }
 
         public AttributeId Register(AttributeDef def)
