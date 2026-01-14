@@ -10,6 +10,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         public int ModelId { get; }
         public int AttributeTemplateId { get; }
         public IReadOnlyList<int> SkillIds { get; }
+        public IReadOnlyList<int> PassiveSkillIds { get; }
 
         public CharacterMO(CharacterDTO dto)
         {
@@ -19,6 +20,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
             ModelId = dto.ModelId;
             AttributeTemplateId = dto.AttributeTemplateId;
             SkillIds = dto.SkillIds ?? Array.Empty<int>();
+            PassiveSkillIds = dto.PassiveSkillIds ?? Array.Empty<int>();
         }
     }
 }

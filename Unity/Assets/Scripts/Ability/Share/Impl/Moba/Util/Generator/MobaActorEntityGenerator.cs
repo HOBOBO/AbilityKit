@@ -162,6 +162,68 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             }
 
             InitializeFromAttributeTemplate(entity, templateId);
+
+            InitializeSkillLoadout(entity, in loadout);
+        }
+
+        private void InitializeSkillLoadout(global::ActorEntity entity, in MobaPlayerLoadout loadout)
+        {
+            if (entity == null) return;
+
+            if (_config == null && !TryResolveConfig())
+            {
+                return;
+            }
+
+            try
+            {
+                var character = _config != null ? _config.GetCharacter(loadout.HeroId) : null;
+                var activeSkillIds = loadout.SkillIds;
+                if (activeSkillIds == null)
+                {
+                    activeSkillIds = ToArray(character != null ? character.SkillIds : null);
+                }
+
+                var passiveSkillIds = ToArray(character != null ? character.PassiveSkillIds : null);
+
+                var activeSkills = CreateSkillRuntimes(activeSkillIds);
+                var passiveSkills = CreateSkillRuntimes(passiveSkillIds);
+
+                if (entity.hasSkillLoadout)
+                {
+                    entity.ReplaceSkillLoadout(activeSkills, passiveSkills);
+                }
+                else
+                {
+                    entity.AddSkillLoadout(activeSkills, passiveSkills);
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private static SkillRuntime[] CreateSkillRuntimes(int[] skillIds)
+        {
+            if (skillIds == null || skillIds.Length == 0) return Array.Empty<SkillRuntime>();
+            var list = new List<SkillRuntime>(skillIds.Length);
+            for (int i = 0; i < skillIds.Length; i++)
+            {
+                var id = skillIds[i];
+                if (id <= 0) continue;
+                list.Add(new SkillRuntime { SkillId = id, Level = 1, CooldownEndTimeMs = 0L });
+            }
+
+            return list.Count == 0 ? Array.Empty<SkillRuntime>() : list.ToArray();
+        }
+
+        private static int[] ToArray(IReadOnlyList<int> list)
+        {
+            if (list == null || list.Count == 0) return Array.Empty<int>();
+            if (list is int[] arr) return arr;
+            var result = new int[list.Count];
+            for (int i = 0; i < list.Count; i++) result[i] = list[i];
+            return result;
         }
 
         private static AttributeGroup EnsureAttributeGroup(global::ActorEntity entity)

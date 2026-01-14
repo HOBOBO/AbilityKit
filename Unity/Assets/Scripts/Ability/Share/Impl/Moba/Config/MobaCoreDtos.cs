@@ -10,6 +10,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public int ModelId;
         public int AttributeTemplateId;
         public int[] SkillIds;
+        public int[] PassiveSkillIds;
     }
 
     [Serializable]
@@ -26,6 +27,15 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public int LevelTableId;
         public int PreCastFlowId;
         public int CastFlowId;
+    }
+
+    [Serializable]
+    public sealed class PassiveSkillDTO
+    {
+        public int Id;
+        public string Name;
+        public int CooldownMs;
+        public int[] TriggerIds;
     }
 
     [Serializable]

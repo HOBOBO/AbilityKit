@@ -18,8 +18,10 @@ MonoBehaviour:
     ModelId: 10001
     AttributeTemplateId: 10001
     SkillIds: 11270000
+    PassiveSkillIds: 214e0000
   - Id: 10002
     Name: "\u6D4B\u8BD52"
     ModelId: 10002
     AttributeTemplateId: 10001
     SkillIds: 11270000
+    PassiveSkillIds: 

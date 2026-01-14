@@ -22,11 +22,12 @@ public static class ActorComponentsLookup {
     public const int OwnerPlayerId = 11;
     public const int RemoveBuffRequest = 12;
     public const int ResourceContainer = 13;
-    public const int Team = 14;
-    public const int Transform = 15;
-    public const int UnitSubType = 16;
+    public const int SkillLoadout = 14;
+    public const int Team = 15;
+    public const int Transform = 16;
+    public const int UnitSubType = 17;
 
-    public const int TotalComponents = 17;
+    public const int TotalComponents = 18;
 
     public static readonly string[] componentNames = {
         "ActorId",
@@ -43,6 +44,7 @@ public static class ActorComponentsLookup {
         "OwnerPlayerId",
         "RemoveBuffRequest",
         "ResourceContainer",
+        "SkillLoadout",
         "Team",
         "Transform",
         "UnitSubType"
@@ -63,6 +65,7 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.RemoveBuffRequestComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainerComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillLoadoutComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.TeamComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.TransformComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.UnitSubTypeComponent)

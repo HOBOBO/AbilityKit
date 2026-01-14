@@ -79,6 +79,34 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
                     try
                     {
+                        if (entity == null) return;
+                        var actorId = entity.hasActorId ? entity.actorId.Value : 0;
+                        if (actorId <= 0) return;
+
+                        if (entity.hasSkillLoadout)
+                        {
+                            var skills = entity.skillLoadout.ActiveSkills;
+                            if (skills == null || skills.Length == 0)
+                            {
+                                _skills.SetLoadout(actorId, Array.Empty<int>());
+                            }
+                            else
+                            {
+                                var ids = new int[skills.Length];
+                                for (int i = 0; i < skills.Length; i++)
+                                {
+                                    ids[i] = skills[i] != null ? skills[i].SkillId : 0;
+                                }
+                                _skills.SetLoadout(actorId, ids);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                    }
+
+                    try
+                    {
                         var actorId = entity != null && entity.hasActorId ? entity.actorId.Value : 0;
                         if (actorId > 0)
                         {

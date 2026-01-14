@@ -12,7 +12,8 @@
             {
               "AtMs": 1000,
               "EffectId": 10001,
-              "EventTag": null
+              "ExecuteMode": 0,
+              "EventTag": ""
             }
           ]
         }
