@@ -6,6 +6,7 @@ using AbilityKit.Ability.Triggering.Runtime;
 using Sirenix.OdinInspector;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace AbilityKit.Ability.Editor
 {
@@ -35,6 +36,108 @@ namespace AbilityKit.Ability.Editor
             }
             title += "  [" + Type + "]";
             return title;
+        }
+    }
+
+    [Serializable]
+    [TriggerConditionType("all", "全部满足(AND)", "条件/复合", 0)]
+    public sealed class AllConditionEditorConfig : ConditionEditorConfigBase
+    {
+        public override string Type => "all";
+
+        [SerializeReference]
+        [HideReferenceObjectPicker]
+        [LabelText("子条件")]
+        [ListDrawerSettings(Expanded = true, ListElementLabelName = "DisplayTitle", CustomAddFunction = nameof(AddChild))]
+        public List<ConditionEditorConfigBase> Items = new List<ConditionEditorConfigBase>();
+
+        private void AddChild()
+        {
+            StrongConfigTypeSelector.ShowAddConditionSelector(Items, null);
+        }
+
+        public override ConditionRuntimeConfigBase ToRuntimeStrong()
+        {
+            var list = new List<ConditionRuntimeConfigBase>(Items != null ? Items.Count : 0);
+            if (Items != null)
+            {
+                for (int i = 0; i < Items.Count; i++)
+                {
+                    var c = Items[i];
+                    if (c == null) continue;
+                    var rt = c.ToRuntimeStrong();
+                    if (rt != null) list.Add(rt);
+                }
+            }
+            return new AllConditionConfig
+            {
+                Items = list
+            };
+        }
+    }
+
+    [Serializable]
+    [TriggerConditionType("any", "任意满足(OR)", "条件/复合", 10)]
+    public sealed class AnyConditionEditorConfig : ConditionEditorConfigBase
+    {
+        public override string Type => "any";
+
+        [SerializeReference]
+        [HideReferenceObjectPicker]
+        [LabelText("子条件")]
+        [ListDrawerSettings(Expanded = true, ListElementLabelName = "DisplayTitle", CustomAddFunction = nameof(AddChild))]
+        public List<ConditionEditorConfigBase> Items = new List<ConditionEditorConfigBase>();
+
+        private void AddChild()
+        {
+            StrongConfigTypeSelector.ShowAddConditionSelector(Items, null);
+        }
+
+        public override ConditionRuntimeConfigBase ToRuntimeStrong()
+        {
+            var list = new List<ConditionRuntimeConfigBase>(Items != null ? Items.Count : 0);
+            if (Items != null)
+            {
+                for (int i = 0; i < Items.Count; i++)
+                {
+                    var c = Items[i];
+                    if (c == null) continue;
+                    var rt = c.ToRuntimeStrong();
+                    if (rt != null) list.Add(rt);
+                }
+            }
+            return new AnyConditionConfig
+            {
+                Items = list
+            };
+        }
+    }
+
+    [Serializable]
+    [TriggerConditionType("not", "取反(NOT)", "条件/复合", 20)]
+    public sealed class NotConditionEditorConfig : ConditionEditorConfigBase
+    {
+        public override string Type => "not";
+
+        [SerializeReference]
+        [HideReferenceObjectPicker]
+        [LabelText("子条件")]
+        [ListDrawerSettings(Expanded = true, ListElementLabelName = "DisplayTitle", CustomAddFunction = nameof(AddChild), DraggableItems = false)]
+        public List<ConditionEditorConfigBase> Items = new List<ConditionEditorConfigBase>();
+
+        private void AddChild()
+        {
+            if (Items == null) Items = new List<ConditionEditorConfigBase>();
+            if (Items.Count > 0) return;
+            StrongConfigTypeSelector.ShowAddConditionSelector(Items, null);
+        }
+
+        public override ConditionRuntimeConfigBase ToRuntimeStrong()
+        {
+            return new NotConditionConfig
+            {
+                Item = Items != null && Items.Count > 0 && Items[0] != null ? Items[0].ToRuntimeStrong() : null
+            };
         }
     }
 
@@ -100,6 +203,43 @@ namespace AbilityKit.Ability.Editor
             }
             title += "  [" + Type + "]";
             return title;
+        }
+    }
+
+    [Serializable]
+    [TriggerActionType("seq", "顺序组", "行为/流程", 0)]
+    public sealed class SequenceActionEditorConfig : ActionEditorConfigBase
+    {
+        public override string Type => "seq";
+
+        [SerializeReference]
+        [HideReferenceObjectPicker]
+        [LabelText("子行为")]
+        [ListDrawerSettings(Expanded = true, ListElementLabelName = "DisplayTitle", CustomAddFunction = nameof(AddChild))]
+        public List<ActionEditorConfigBase> Items = new List<ActionEditorConfigBase>();
+
+        private void AddChild()
+        {
+            StrongConfigTypeSelector.ShowAddActionSelector(Items, null);
+        }
+
+        public override ActionRuntimeConfigBase ToRuntimeStrong()
+        {
+            var list = new List<ActionRuntimeConfigBase>(Items != null ? Items.Count : 0);
+            if (Items != null)
+            {
+                for (int i = 0; i < Items.Count; i++)
+                {
+                    var a = Items[i];
+                    if (a == null) continue;
+                    var rt = a.ToRuntimeStrong();
+                    if (rt != null) list.Add(rt);
+                }
+            }
+            return new SequenceActionConfig
+            {
+                Items = list
+            };
         }
     }
 
@@ -178,17 +318,8 @@ namespace AbilityKit.Ability.Editor
         [LabelText("参数名")]
         public string Key;
 
-        [LabelText("旧阈值")]
-        [ShowIf(nameof(ShowLegacyThreshold))]
-        public float Threshold;
-
         [LabelText("阈值")]
         public ArgValueRefEditor ThresholdRef = new ArgValueRefEditor();
-
-        private bool ShowLegacyThreshold => IsThresholdRefEmpty;
-        private bool IsThresholdRefEmpty => ThresholdRef == null
-                                           || (ThresholdRef.Source == ValueSourceKind.Const
-                                               && (ThresholdRef.ConstValue == null || ThresholdRef.ConstValue.Kind == ArgValueKind.None));
 
         protected override string GetTitleSuffix()
         {
@@ -216,7 +347,7 @@ namespace AbilityKit.Ability.Editor
             {
                 return Key + " > " + StrongEditorTitleUtil.FormatArg(ThresholdRef.ConstValue);
             }
-            return Key + " > " + Threshold.ToString("0.###");
+            return null;
         }
 
         public override ConditionRuntimeConfigBase ToRuntimeStrong()
@@ -227,8 +358,7 @@ namespace AbilityKit.Ability.Editor
                 ValueSource = ThresholdRef != null ? ThresholdRef.Source : ValueSourceKind.Const,
                 ValueFromScope = ThresholdRef != null ? ThresholdRef.FromScope : VarScope.Local,
                 ValueFromKey = ThresholdRef != null ? ThresholdRef.FromKey : null,
-                ThresholdValue = ThresholdRef != null && ThresholdRef.ConstValue != null ? ThresholdRef.ConstValue.Clone() : null,
-                Threshold = Threshold
+                ThresholdValue = ThresholdRef != null && ThresholdRef.ConstValue != null ? ThresholdRef.ConstValue.Clone() : null
             };
         }
     }

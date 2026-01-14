@@ -141,11 +141,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var rt = c.ToRuntimeStrong();
                 if (rt == null) continue;
                 var def = rt.ToConditionDef();
-                list.Add(new ConditionDTO
-                {
-                    Type = def.Type,
-                    Args = CopyArgs(def.Args)
-                });
+                list.Add(BuildConditionDto(def));
             }
 
             return list;
@@ -164,14 +160,84 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var rt = a.ToRuntimeStrong();
                 if (rt == null) continue;
                 var def = rt.ToActionDef();
-                list.Add(new ActionDTO
-                {
-                    Type = def.Type,
-                    Args = CopyArgs(def.Args)
-                });
+                list.Add(BuildActionDto(def));
             }
 
             return list;
+        }
+
+        private static ConditionDTO BuildConditionDto(AbilityKit.Ability.Triggering.Definitions.ConditionDef def)
+        {
+            if (def == null) return null;
+
+            var dto = new ConditionDTO
+            {
+                Type = def.Type
+            };
+
+            var args = def.Args;
+            if (string.Equals(def.Type, "all", StringComparison.Ordinal) || string.Equals(def.Type, "any", StringComparison.Ordinal))
+            {
+                if (args == null) throw new InvalidOperationException($"Condition '{def.Type}' requires args");
+                if (!args.TryGetValue("items", out var itemsObj) || !(itemsObj is IList<AbilityKit.Ability.Triggering.Definitions.ConditionDef> items))
+                {
+                    throw new InvalidOperationException($"Condition '{def.Type}' requires args['items'] as IList<ConditionDef>");
+                }
+
+                dto.Items = new List<ConditionDTO>(items.Count);
+                for (int i = 0; i < items.Count; i++)
+                {
+                    var child = BuildConditionDto(items[i]);
+                    if (child != null) dto.Items.Add(child);
+                }
+                return dto;
+            }
+
+            if (string.Equals(def.Type, "not", StringComparison.Ordinal))
+            {
+                if (args == null) throw new InvalidOperationException("Condition 'not' requires args");
+                if (!args.TryGetValue("item", out var itemObj) || !(itemObj is AbilityKit.Ability.Triggering.Definitions.ConditionDef item))
+                {
+                    throw new InvalidOperationException("Condition 'not' requires args['item'] as ConditionDef");
+                }
+
+                dto.Item = BuildConditionDto(item);
+                return dto;
+            }
+
+            dto.Args = CopyArgs(def.Args);
+            return dto;
+        }
+
+        private static ActionDTO BuildActionDto(AbilityKit.Ability.Triggering.Definitions.ActionDef def)
+        {
+            if (def == null) return null;
+
+            var dto = new ActionDTO
+            {
+                Type = def.Type
+            };
+
+            var args = def.Args;
+            if (string.Equals(def.Type, "seq", StringComparison.Ordinal))
+            {
+                if (args == null) throw new InvalidOperationException("Action 'seq' requires args");
+                if (!args.TryGetValue("items", out var itemsObj) || !(itemsObj is IList<AbilityKit.Ability.Triggering.Definitions.ActionDef> items))
+                {
+                    throw new InvalidOperationException("Action 'seq' requires args['items'] as IList<ActionDef>");
+                }
+
+                dto.Items = new List<ActionDTO>(items.Count);
+                for (int i = 0; i < items.Count; i++)
+                {
+                    var child = BuildActionDto(items[i]);
+                    if (child != null) dto.Items.Add(child);
+                }
+                return dto;
+            }
+
+            dto.Args = CopyArgs(def.Args);
+            return dto;
         }
 
         private static Dictionary<string, object> CopyArgs(IReadOnlyDictionary<string, object> args)

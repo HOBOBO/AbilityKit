@@ -26,12 +26,7 @@ namespace AbilityKit.Ability.Triggering.Runtime.Builtins
                 return new NotCondition(compiler.Compile(item));
             }
 
-            if (args.TryGetValue("items", out var itemsObj) && itemsObj is IList<ConditionDef> items && items.Count > 0)
-            {
-                return new NotCondition(compiler.Compile(items[0]));
-            }
-
-            throw new InvalidOperationException("not condition requires args['item'] as ConditionDef or args['items'][0]");
+            throw new InvalidOperationException("not condition requires args['item'] as ConditionDef");
         }
 
         public bool Evaluate(TriggerContext context)

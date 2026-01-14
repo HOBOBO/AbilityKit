@@ -22,6 +22,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
                 registry.RegisterCondition("arg_eq", new ArgEqualsConditionFactory());
                 registry.RegisterCondition("arg_gt", new ArgGreaterThanConditionFactory());
                 registry.RegisterAction("set_var", new SetVarActionFactory());
+                registry.RegisterAction("seq", new SequenceActionFactory(registry));
                 registry.RegisterAction("attr_effect_duration", CreateFactory("AbilityKit.Ability.Triggering.Runtime.Builtins.AddAttributeEffectForDurationActionFactory"));
                 registry.RegisterAction("debug_log", CreateFactory("AbilityKit.Ability.Impl.Triggering.DebugLogActionFactory, AbilityKit.Ability.Unity"));
                 registry.RegisterAction("log_attacker", CreateFactory("AbilityKit.Ability.Impl.Triggering.LogAttackerNameActionFactory, AbilityKit.Ability.Unity"));

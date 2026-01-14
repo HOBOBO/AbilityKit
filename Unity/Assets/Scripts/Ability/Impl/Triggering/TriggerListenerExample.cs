@@ -18,6 +18,7 @@ namespace AbilityKit.Ability.Impl.Triggering
         {
             var registry = new TriggerRegistry();
             registry.RegisterCondition("arg_eq", new ArgEqualsConditionFactory());
+            registry.RegisterAction("seq", new SequenceActionFactory(registry));
             registry.RegisterAction("debug_log", new DebugLogActionFactory());
             registry.RegisterAction("log_attacker", new LogAttackerNameActionFactory());
 

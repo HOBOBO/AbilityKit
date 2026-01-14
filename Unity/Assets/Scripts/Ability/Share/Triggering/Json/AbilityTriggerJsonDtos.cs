@@ -31,6 +31,8 @@ namespace AbilityKit.Ability.Share.CoreDtos
     {
         public string Type;
         public Dictionary<string, object> Args;
+        public List<ConditionDTO> Items;
+        public ConditionDTO Item;
     }
 
     [Serializable]
@@ -38,5 +40,6 @@ namespace AbilityKit.Ability.Share.CoreDtos
     {
         public string Type;
         public Dictionary<string, object> Args;
+        public List<ActionDTO> Items;
     }
 }

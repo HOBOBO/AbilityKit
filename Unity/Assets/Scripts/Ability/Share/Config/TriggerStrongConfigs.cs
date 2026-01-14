@@ -21,6 +21,71 @@ namespace AbilityKit.Ability.Configs
     }
 
     [Serializable]
+    public sealed class AllConditionConfig : ConditionRuntimeConfigBase
+    {
+        public override string Type => "all";
+
+        public List<ConditionRuntimeConfigBase> Items = new List<ConditionRuntimeConfigBase>();
+
+        public override ConditionDef ToConditionDef()
+        {
+            var dict = PooledDefArgs.Rent();
+            var items = new List<ConditionDef>(Items != null ? Items.Count : 0);
+            if (Items != null)
+            {
+                for (int i = 0; i < Items.Count; i++)
+                {
+                    var c = Items[i];
+                    if (c == null) continue;
+                    items.Add(c.ToConditionDef());
+                }
+            }
+            dict["items"] = items;
+            return new ConditionDef(Type, dict);
+        }
+    }
+
+    [Serializable]
+    public sealed class AnyConditionConfig : ConditionRuntimeConfigBase
+    {
+        public override string Type => "any";
+
+        public List<ConditionRuntimeConfigBase> Items = new List<ConditionRuntimeConfigBase>();
+
+        public override ConditionDef ToConditionDef()
+        {
+            var dict = PooledDefArgs.Rent();
+            var items = new List<ConditionDef>(Items != null ? Items.Count : 0);
+            if (Items != null)
+            {
+                for (int i = 0; i < Items.Count; i++)
+                {
+                    var c = Items[i];
+                    if (c == null) continue;
+                    items.Add(c.ToConditionDef());
+                }
+            }
+            dict["items"] = items;
+            return new ConditionDef(Type, dict);
+        }
+    }
+
+    [Serializable]
+    public sealed class NotConditionConfig : ConditionRuntimeConfigBase
+    {
+        public override string Type => "not";
+
+        public ConditionRuntimeConfigBase Item;
+
+        public override ConditionDef ToConditionDef()
+        {
+            var dict = PooledDefArgs.Rent();
+            dict["item"] = Item != null ? Item.ToConditionDef() : null;
+            return new ConditionDef(Type, dict);
+        }
+    }
+
+    [Serializable]
     public sealed class ArgEqConditionConfig : ConditionRuntimeConfigBase
     {
         public override string Type => "arg_eq";
@@ -68,8 +133,6 @@ namespace AbilityKit.Ability.Configs
 
         public VarScope ValueFromScope = VarScope.Local;
         public string ValueFromKey;
-
-        public float Threshold;
         public ArgRuntimeEntry ThresholdValue = new ArgRuntimeEntry();
 
         public override ConditionDef ToConditionDef()
@@ -95,7 +158,7 @@ namespace AbilityKit.Ability.Configs
                 }
                 else
                 {
-                    dict["value"] = Threshold;
+                    throw new InvalidOperationException("arg_gt requires const threshold value");
                 }
             }
 
@@ -143,6 +206,31 @@ namespace AbilityKit.Ability.Configs
                 dict["scope"] = "global";
             }
 
+            return new ActionDef(Type, dict);
+        }
+    }
+
+    [Serializable]
+    public sealed class SequenceActionConfig : ActionRuntimeConfigBase
+    {
+        public override string Type => "seq";
+
+        public List<ActionRuntimeConfigBase> Items = new List<ActionRuntimeConfigBase>();
+
+        public override ActionDef ToActionDef()
+        {
+            var dict = PooledDefArgs.Rent();
+            var items = new List<ActionDef>(Items != null ? Items.Count : 0);
+            if (Items != null)
+            {
+                for (int i = 0; i < Items.Count; i++)
+                {
+                    var a = Items[i];
+                    if (a == null) continue;
+                    items.Add(a.ToActionDef());
+                }
+            }
+            dict["items"] = items;
             return new ActionDef(Type, dict);
         }
     }

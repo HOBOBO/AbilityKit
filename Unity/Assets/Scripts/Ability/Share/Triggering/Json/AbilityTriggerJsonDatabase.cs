@@ -46,7 +46,8 @@ namespace AbilityKit.Ability.Triggering.Json
                         {
                             var cd = t.Conditions[c];
                             if (cd == null || string.IsNullOrEmpty(cd.Type)) continue;
-                            conditions.Add(new ConditionDef(cd.Type, cd.Args != null ? new Dictionary<string, object>(cd.Args, StringComparer.Ordinal) : null));
+                            var cdef = BuildConditionDef(cd);
+                            if (cdef != null) conditions.Add(cdef);
                         }
                     }
 
@@ -57,7 +58,8 @@ namespace AbilityKit.Ability.Triggering.Json
                         {
                             var ad = t.Actions[a];
                             if (ad == null || string.IsNullOrEmpty(ad.Type)) continue;
-                            actions.Add(new ActionDef(ad.Type, ad.Args != null ? new Dictionary<string, object>(ad.Args, StringComparer.Ordinal) : null));
+                            var adef = BuildActionDef(ad);
+                            if (adef != null) actions.Add(adef);
                         }
                     }
 
@@ -66,6 +68,62 @@ namespace AbilityKit.Ability.Triggering.Json
                     yield return new TriggerRecord(t.TriggerId, eventId, def, locals);
                 }
             }
+        }
+
+        private static ConditionDef BuildConditionDef(ConditionDTO dto)
+        {
+            if (dto == null || string.IsNullOrEmpty(dto.Type)) return null;
+
+            if (string.Equals(dto.Type, "all", StringComparison.Ordinal) || string.Equals(dto.Type, "any", StringComparison.Ordinal))
+            {
+                if (dto.Items == null) throw new InvalidOperationException($"Condition '{dto.Type}' requires dto.Items");
+
+                var list = new List<ConditionDef>(dto.Items.Count);
+                for (int i = 0; i < dto.Items.Count; i++)
+                {
+                    var child = BuildConditionDef(dto.Items[i]);
+                    if (child != null) list.Add(child);
+                }
+
+                var args = new Dictionary<string, object>(StringComparer.Ordinal);
+                args["items"] = list;
+                return new ConditionDef(dto.Type, args);
+            }
+
+            if (string.Equals(dto.Type, "not", StringComparison.Ordinal))
+            {
+                if (dto.Item == null) throw new InvalidOperationException("Condition 'not' requires dto.Item");
+
+                var child = BuildConditionDef(dto.Item);
+                var args = new Dictionary<string, object>(StringComparer.Ordinal);
+                args["item"] = child;
+                return new ConditionDef(dto.Type, args);
+            }
+
+            return new ConditionDef(dto.Type, dto.Args != null ? new Dictionary<string, object>(dto.Args, StringComparer.Ordinal) : null);
+        }
+
+        private static ActionDef BuildActionDef(ActionDTO dto)
+        {
+            if (dto == null || string.IsNullOrEmpty(dto.Type)) return null;
+
+            if (string.Equals(dto.Type, "seq", StringComparison.Ordinal))
+            {
+                if (dto.Items == null) throw new InvalidOperationException("Action 'seq' requires dto.Items");
+
+                var list = new List<ActionDef>(dto.Items.Count);
+                for (int i = 0; i < dto.Items.Count; i++)
+                {
+                    var child = BuildActionDef(dto.Items[i]);
+                    if (child != null) list.Add(child);
+                }
+
+                var args = new Dictionary<string, object>(StringComparer.Ordinal);
+                args["items"] = list;
+                return new ActionDef(dto.Type, args);
+            }
+
+            return new ActionDef(dto.Type, dto.Args != null ? new Dictionary<string, object>(dto.Args, StringComparer.Ordinal) : null);
         }
 
         public void LoadFromResources(string resourcesPathWithoutExt)

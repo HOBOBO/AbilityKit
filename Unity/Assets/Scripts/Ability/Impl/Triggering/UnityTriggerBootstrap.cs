@@ -21,6 +21,7 @@ namespace AbilityKit.Ability.Impl
             var registry = new TriggerRegistry();
             registry.RegisterCondition("arg_gt", new ArgGreaterThanConditionFactory());
             registry.RegisterAction("set_var", new SetVarActionFactory());
+            registry.RegisterAction("seq", new SequenceActionFactory(registry));
             registry.RegisterAction("debug_log", new DebugLogActionFactory());
 
             var contextFactory = new UnityTriggerContextFactory();

@@ -7,7 +7,6 @@ using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using Sirenix.OdinInspector;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace AbilityKit.Ability.Editor
 {
@@ -61,14 +60,6 @@ namespace AbilityKit.Ability.Editor
             }
         }
 
-        [HideInInspector]
-        [FormerlySerializedAs("TriggerId")]
-        public int LegacyTriggerId;
-
-        [HideInInspector]
-        [FormerlySerializedAs("EventId")]
-        public string LegacyEventId;
-
         [TextArea]
         public string Note;
 
@@ -102,16 +93,6 @@ namespace AbilityKit.Ability.Editor
         public void OnAfterDeserialize()
         {
             if (Core == null) Core = new TriggerHeaderDTO();
-
-            if (Core.TriggerId <= 0 && LegacyTriggerId > 0)
-            {
-                Core.TriggerId = LegacyTriggerId;
-            }
-
-            if (string.IsNullOrEmpty(Core.EventId) && !string.IsNullOrEmpty(LegacyEventId))
-            {
-                Core.EventId = LegacyEventId;
-            }
         }
 
         private static IEnumerable<string> GetEventIdOptions()
