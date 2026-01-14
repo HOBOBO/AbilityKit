@@ -11,6 +11,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     {
         private const string TriggerJsonResourcesPath = "ability/ability_triggers";
 
+        private readonly ITextLoader _loader;
+
         public readonly struct Entry
         {
             public readonly TriggerDef Def;
@@ -26,13 +28,20 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly Dictionary<string, List<Entry>> _byEventId = new Dictionary<string, List<Entry>>(StringComparer.Ordinal);
         private readonly Dictionary<int, List<Entry>> _byTriggerId = new Dictionary<int, List<Entry>>();
 
+        public MobaTriggerIndexService(ITextLoader loader)
+        {
+            _loader = loader;
+        }
+
         public void LoadFromResources()
         {
             _byEventId.Clear();
             _byTriggerId.Clear();
 
+            if (_loader == null) throw new InvalidOperationException("ITextLoader not provided.");
+
             var db = new AbilityTriggerJsonDatabase();
-            db.LoadFromResources(TriggerJsonResourcesPath);
+            db.Load(_loader, TriggerJsonResourcesPath);
 
             var triggerCount = 0;
             foreach (var r in db.EnumerateAll())

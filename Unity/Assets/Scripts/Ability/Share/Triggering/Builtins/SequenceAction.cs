@@ -26,7 +26,7 @@ namespace AbilityKit.Ability.Triggering.Runtime.Builtins
 
             var args = def.Args;
             if (args == null) throw new InvalidOperationException("seq action requires args");
-            if (!args.TryGetValue("items", out var itemsObj) || !(itemsObj is IList<ActionDef> items))
+            if (!args.TryGetValue(TriggerDefArgKeys.Items, out var itemsObj) || !(itemsObj is IList<ActionDef> items))
             {
                 throw new InvalidOperationException("seq action requires args['items'] as IList<ActionDef>");
             }

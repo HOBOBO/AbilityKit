@@ -71,19 +71,24 @@ namespace AbilityKit.Ability.Triggering.Runtime
 
         public ITriggerCondition Compile(ConditionDef def)
         {
+            return CompileCondition(def);
+        }
+
+        private ITriggerCondition CompileCondition(ConditionDef def)
+        {
             if (def == null) throw new ArgumentNullException(nameof(def));
 
-            if (string.Equals(def.Type, "all", StringComparison.Ordinal))
+            if (string.Equals(def.Type, TriggerConditionTypes.All, StringComparison.Ordinal))
             {
                 return AllCondition.FromDef(def, this);
             }
 
-            if (string.Equals(def.Type, "any", StringComparison.Ordinal))
+            if (string.Equals(def.Type, TriggerConditionTypes.Any, StringComparison.Ordinal))
             {
                 return AnyCondition.FromDef(def, this);
             }
 
-            if (string.Equals(def.Type, "not", StringComparison.Ordinal))
+            if (string.Equals(def.Type, TriggerConditionTypes.Not, StringComparison.Ordinal))
             {
                 return NotCondition.FromDef(def, this);
             }

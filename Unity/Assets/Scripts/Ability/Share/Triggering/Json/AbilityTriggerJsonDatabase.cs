@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.CoreDtos;
 using AbilityKit.Ability.Triggering.Definitions;
+using AbilityKit.Ability.Triggering.Runtime;
 using Newtonsoft.Json;
-using UnityEngine;
 
 namespace AbilityKit.Ability.Triggering.Json
 {
@@ -74,7 +74,7 @@ namespace AbilityKit.Ability.Triggering.Json
         {
             if (dto == null || string.IsNullOrEmpty(dto.Type)) return null;
 
-            if (string.Equals(dto.Type, "all", StringComparison.Ordinal) || string.Equals(dto.Type, "any", StringComparison.Ordinal))
+            if (string.Equals(dto.Type, TriggerConditionTypes.All, StringComparison.Ordinal) || string.Equals(dto.Type, TriggerConditionTypes.Any, StringComparison.Ordinal))
             {
                 if (dto.Items == null) throw new InvalidOperationException($"Condition '{dto.Type}' requires dto.Items");
 
@@ -86,17 +86,17 @@ namespace AbilityKit.Ability.Triggering.Json
                 }
 
                 var args = new Dictionary<string, object>(StringComparer.Ordinal);
-                args["items"] = list;
+                args[TriggerDefArgKeys.Items] = list;
                 return new ConditionDef(dto.Type, args);
             }
 
-            if (string.Equals(dto.Type, "not", StringComparison.Ordinal))
+            if (string.Equals(dto.Type, TriggerConditionTypes.Not, StringComparison.Ordinal))
             {
                 if (dto.Item == null) throw new InvalidOperationException("Condition 'not' requires dto.Item");
 
                 var child = BuildConditionDef(dto.Item);
                 var args = new Dictionary<string, object>(StringComparer.Ordinal);
-                args["item"] = child;
+                args[TriggerDefArgKeys.Item] = child;
                 return new ConditionDef(dto.Type, args);
             }
 
@@ -107,7 +107,7 @@ namespace AbilityKit.Ability.Triggering.Json
         {
             if (dto == null || string.IsNullOrEmpty(dto.Type)) return null;
 
-            if (string.Equals(dto.Type, "seq", StringComparison.Ordinal))
+            if (string.Equals(dto.Type, TriggerActionTypes.Seq, StringComparison.Ordinal))
             {
                 if (dto.Items == null) throw new InvalidOperationException("Action 'seq' requires dto.Items");
 
@@ -119,7 +119,7 @@ namespace AbilityKit.Ability.Triggering.Json
                 }
 
                 var args = new Dictionary<string, object>(StringComparer.Ordinal);
-                args["items"] = list;
+                args[TriggerDefArgKeys.Items] = list;
                 return new ActionDef(dto.Type, args);
             }
 
@@ -128,15 +128,26 @@ namespace AbilityKit.Ability.Triggering.Json
 
         public void LoadFromResources(string resourcesPathWithoutExt)
         {
-            if (string.IsNullOrEmpty(resourcesPathWithoutExt)) throw new ArgumentException(nameof(resourcesPathWithoutExt));
+            throw new NotSupportedException("Use Load(ITextLoader, id) or LoadFromJson(json) instead.");
+        }
 
+        public void Load(ITextLoader loader, string id)
+        {
+            if (loader == null) throw new ArgumentNullException(nameof(loader));
+            if (string.IsNullOrEmpty(id)) throw new ArgumentException(nameof(id));
+
+            if (!loader.TryLoad(id, out var json) || string.IsNullOrEmpty(json))
+            {
+                throw new InvalidOperationException($"Trigger json not found or empty: {id}");
+            }
+
+            LoadFromJson(json, id);
+        }
+
+        public void LoadFromJson(string json, string sourceName = null)
+        {
             _flatTriggers.Clear();
-
-            var ta = Resources.Load<TextAsset>(resourcesPathWithoutExt);
-            if (ta == null) throw new InvalidOperationException($"Trigger json not found in Resources: {resourcesPathWithoutExt}");
-
-            var json = ta.text;
-            if (string.IsNullOrEmpty(json)) throw new InvalidOperationException($"Trigger json is empty: {resourcesPathWithoutExt}");
+            if (string.IsNullOrEmpty(json)) throw new InvalidOperationException($"Trigger json is empty: {sourceName ?? "<json>"}");
 
             AbilityTriggerDatabaseDTO dto;
             try
@@ -145,7 +156,7 @@ namespace AbilityKit.Ability.Triggering.Json
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Failed to parse trigger json: {resourcesPathWithoutExt}", ex);
+                throw new InvalidOperationException($"Failed to parse trigger json: {sourceName ?? "<json>"}", ex);
             }
 
             if (dto == null) return;

@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.Triggering.Runtime.Builtins;
 
@@ -19,14 +20,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
             builder.TryRegister<TriggerRegistry>(WorldLifetime.Scoped, _ =>
             {
                 var registry = new TriggerRegistry();
-                registry.RegisterCondition("arg_eq", new ArgEqualsConditionFactory());
-                registry.RegisterCondition("arg_gt", new ArgGreaterThanConditionFactory());
-                registry.RegisterAction("set_var", new SetVarActionFactory());
-                registry.RegisterAction("seq", new SequenceActionFactory(registry));
-                registry.RegisterAction("attr_effect_duration", CreateFactory("AbilityKit.Ability.Triggering.Runtime.Builtins.AddAttributeEffectForDurationActionFactory"));
-                registry.RegisterAction("debug_log", CreateFactory("AbilityKit.Ability.Impl.Triggering.DebugLogActionFactory, AbilityKit.Ability.Unity"));
-                registry.RegisterAction("log_attacker", CreateFactory("AbilityKit.Ability.Impl.Triggering.LogAttackerNameActionFactory, AbilityKit.Ability.Unity"));
-                registry.RegisterAction("effect_execute", CreateFactory("AbilityKit.Ability.Impl.Triggering.ExecuteEffectActionFactory, AbilityKit.Ability.Unity"));
+                registry.AutoRegisterFromAssemblies(AppDomain.CurrentDomain.GetAssemblies());
                 return registry;
             });
 
@@ -39,22 +33,5 @@ namespace AbilityKit.Ability.Triggering.Runtime
             });
         }
 
-        private static IActionFactory CreateFactory(string typeName)
-        {
-            if (string.IsNullOrEmpty(typeName)) throw new ArgumentNullException(nameof(typeName));
-
-            var type = Type.GetType(typeName);
-            if (type == null)
-            {
-                throw new InvalidOperationException($"Trigger action factory type not found: {typeName}");
-            }
-
-            if (!(Activator.CreateInstance(type) is IActionFactory factory))
-            {
-                throw new InvalidOperationException($"Type is not an IActionFactory: {typeName}");
-            }
-
-            return factory;
-        }
     }
 }

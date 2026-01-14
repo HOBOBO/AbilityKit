@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using AbilityKit.Ability.Editor;
 using AbilityKit.Ability.Share.CoreDtos;
+using AbilityKit.Ability.Triggering.Runtime;
 using Newtonsoft.Json;
 using UnityEditor;
 using UnityEngine;
@@ -170,42 +171,49 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (def == null) return null;
 
-            var dto = new ConditionDTO
+            if (string.Equals(def.Type, TriggerConditionTypes.All, StringComparison.Ordinal) || string.Equals(def.Type, TriggerConditionTypes.Any, StringComparison.Ordinal))
             {
-                Type = def.Type
-            };
+                var node = new ConditionDTO
+                {
+                    Type = def.Type,
+                    Items = new List<ConditionDTO>()
+                };
 
-            var args = def.Args;
-            if (string.Equals(def.Type, "all", StringComparison.Ordinal) || string.Equals(def.Type, "any", StringComparison.Ordinal))
-            {
-                if (args == null) throw new InvalidOperationException($"Condition '{def.Type}' requires args");
-                if (!args.TryGetValue("items", out var itemsObj) || !(itemsObj is IList<AbilityKit.Ability.Triggering.Definitions.ConditionDef> items))
+                if (def.Args == null || !def.Args.TryGetValue(TriggerDefArgKeys.Items, out var itemsObj) || !(itemsObj is IList<AbilityKit.Ability.Triggering.Definitions.ConditionDef> items))
                 {
                     throw new InvalidOperationException($"Condition '{def.Type}' requires args['items'] as IList<ConditionDef>");
                 }
 
-                dto.Items = new List<ConditionDTO>(items.Count);
+                node.Items = new List<ConditionDTO>(items.Count);
                 for (int i = 0; i < items.Count; i++)
                 {
                     var child = BuildConditionDto(items[i]);
-                    if (child != null) dto.Items.Add(child);
+                    if (child != null) node.Items.Add(child);
                 }
-                return dto;
+                return node;
             }
 
-            if (string.Equals(def.Type, "not", StringComparison.Ordinal))
+            if (string.Equals(def.Type, TriggerConditionTypes.Not, StringComparison.Ordinal))
             {
-                if (args == null) throw new InvalidOperationException("Condition 'not' requires args");
-                if (!args.TryGetValue("item", out var itemObj) || !(itemObj is AbilityKit.Ability.Triggering.Definitions.ConditionDef item))
+                var node = new ConditionDTO
+                {
+                    Type = def.Type
+                };
+
+                if (def.Args == null || !def.Args.TryGetValue(TriggerDefArgKeys.Item, out var itemObj) || !(itemObj is AbilityKit.Ability.Triggering.Definitions.ConditionDef item))
                 {
                     throw new InvalidOperationException("Condition 'not' requires args['item'] as ConditionDef");
                 }
 
-                dto.Item = BuildConditionDto(item);
-                return dto;
+                node.Item = BuildConditionDto(item);
+                return node;
             }
 
-            dto.Args = CopyArgs(def.Args);
+            var dto = new ConditionDTO
+            {
+                Type = def.Type,
+                Args = CopyArgs(def.Args)
+            };
             return dto;
         }
 
@@ -213,18 +221,17 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (def == null) return null;
 
-            var dto = new ActionDTO
+            if (string.Equals(def.Type, TriggerActionTypes.Seq, StringComparison.Ordinal))
             {
-                Type = def.Type
-            };
-
-            var args = def.Args;
-            if (string.Equals(def.Type, "seq", StringComparison.Ordinal))
-            {
-                if (args == null) throw new InvalidOperationException("Action 'seq' requires args");
-                if (!args.TryGetValue("items", out var itemsObj) || !(itemsObj is IList<AbilityKit.Ability.Triggering.Definitions.ActionDef> items))
+                var dto = new ActionDTO
                 {
-                    throw new InvalidOperationException("Action 'seq' requires args['items'] as IList<ActionDef>");
+                    Type = def.Type,
+                    Items = new List<ActionDTO>()
+                };
+
+                if (def.Args == null || !def.Args.TryGetValue(TriggerDefArgKeys.Items, out var itemsObj) || !(itemsObj is IList<AbilityKit.Ability.Triggering.Definitions.ActionDef> items))
+                {
+                    throw new InvalidOperationException("seq action requires args['items'] as IList<ActionDef>");
                 }
 
                 dto.Items = new List<ActionDTO>(items.Count);
@@ -236,8 +243,12 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return dto;
             }
 
-            dto.Args = CopyArgs(def.Args);
-            return dto;
+            var node = new ActionDTO
+            {
+                Type = def.Type,
+                Args = CopyArgs(def.Args)
+            };
+            return node;
         }
 
         private static Dictionary<string, object> CopyArgs(IReadOnlyDictionary<string, object> args)

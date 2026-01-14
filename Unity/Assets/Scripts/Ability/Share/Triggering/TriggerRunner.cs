@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Triggering.Definitions;
-using AbilityKit.Ability.Share.Common.Pool;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Share.Common.Pool;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
@@ -222,8 +223,9 @@ namespace AbilityKit.Ability.Triggering.Runtime
                         {
                             handlers[0]?.Handle(in evt);
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            Log.Exception(ex, $"TriggerRunner.Dispatch handler exception (eventId={evt.Id})");
                         }
                         return;
                     }
@@ -236,8 +238,9 @@ namespace AbilityKit.Ability.Triggering.Runtime
                         {
                             snapshot[i]?.Handle(in evt);
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            Log.Exception(ex, $"TriggerRunner.Dispatch handler exception (eventId={evt.Id})");
                         }
                     }
                 }
@@ -250,8 +253,9 @@ namespace AbilityKit.Ability.Triggering.Runtime
                     {
                         d.Dispose();
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, $"TriggerRunner.Dispatch dispose args exception (eventId={evt.Id})");
                     }
                 }
             }

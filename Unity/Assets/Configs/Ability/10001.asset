@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: 10001
   m_EditorClassIdentifier: 
   AbilityId: AbilityEditor
-  RuntimeAsset: {fileID: 11400000, guid: 995f5edaddd4a0141beef3207f7ee395, type: 2}
   Triggers:
-  - Enabled: 1
-    TriggerId: 10001
-    EventId: 
+  - Core:
+      TriggerId: 10001
+      EventId: 
+    Enabled: 1
     Note: 
     LocalVars: []
     ConditionsStrong: []
@@ -29,4 +29,4 @@ MonoBehaviour:
     - rid: 3080489919452282882
       type: {class: DebugLogActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
-        Message: "\u6D4B\u8BD5\u65E5\u5FD7\u8F93\u51FA11111"
+        Message: "\u6D4B\u8BD5\u65E5\u5FD7\u8F93\u51FA11111222"

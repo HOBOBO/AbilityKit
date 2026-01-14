@@ -2,6 +2,31 @@ using System;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
+    public static class TriggerConditionTypes
+    {
+        public const string All = "all";
+        public const string Any = "any";
+        public const string Not = "not";
+        public const string ArgEq = "arg_eq";
+        public const string ArgGt = "arg_gt";
+    }
+
+    public static class TriggerActionTypes
+    {
+        public const string Seq = "seq";
+        public const string SetVar = "set_var";
+        public const string AttrEffectDuration = "attr_effect_duration";
+        public const string DebugLog = "debug_log";
+        public const string LogAttacker = "log_attacker";
+        public const string EffectExecute = "effect_execute";
+    }
+
+    public static class TriggerDefArgKeys
+    {
+        public const string Items = "items";
+        public const string Item = "item";
+    }
+
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class TriggerConditionTypeAttribute : Attribute
     {

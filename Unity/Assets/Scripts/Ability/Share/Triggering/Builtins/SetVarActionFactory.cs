@@ -1,9 +1,11 @@
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
+using UnityEngine.Scripting;
 
 namespace AbilityKit.Ability.Triggering.Runtime.Builtins
 {
     [TriggerActionType("set_var", "设置变量", "行为/变量", 0)]
+    [Preserve]
     public sealed class SetVarActionFactory : IActionFactory
     {
         public ITriggerAction Create(ActionDef def)

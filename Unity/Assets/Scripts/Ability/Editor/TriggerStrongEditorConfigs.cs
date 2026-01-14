@@ -40,10 +40,10 @@ namespace AbilityKit.Ability.Editor
     }
 
     [Serializable]
-    [TriggerConditionType("all", "全部满足(AND)", "条件/复合", 0)]
+    [TriggerConditionType(AbilityKit.Ability.Triggering.Runtime.TriggerConditionTypes.All, "全部满足(AND)", "条件/复合", 0)]
     public sealed class AllConditionEditorConfig : ConditionEditorConfigBase
     {
-        public override string Type => "all";
+        public override string Type => AbilityKit.Ability.Triggering.Runtime.TriggerConditionTypes.All;
 
         [SerializeReference]
         [HideReferenceObjectPicker]
@@ -77,10 +77,10 @@ namespace AbilityKit.Ability.Editor
     }
 
     [Serializable]
-    [TriggerConditionType("any", "任意满足(OR)", "条件/复合", 10)]
+    [TriggerConditionType(AbilityKit.Ability.Triggering.Runtime.TriggerConditionTypes.Any, "任意满足(OR)", "条件/复合", 10)]
     public sealed class AnyConditionEditorConfig : ConditionEditorConfigBase
     {
-        public override string Type => "any";
+        public override string Type => AbilityKit.Ability.Triggering.Runtime.TriggerConditionTypes.Any;
 
         [SerializeReference]
         [HideReferenceObjectPicker]
@@ -114,10 +114,10 @@ namespace AbilityKit.Ability.Editor
     }
 
     [Serializable]
-    [TriggerConditionType("not", "取反(NOT)", "条件/复合", 20)]
+    [TriggerConditionType(AbilityKit.Ability.Triggering.Runtime.TriggerConditionTypes.Not, "取反(NOT)", "条件/复合", 20)]
     public sealed class NotConditionEditorConfig : ConditionEditorConfigBase
     {
-        public override string Type => "not";
+        public override string Type => AbilityKit.Ability.Triggering.Runtime.TriggerConditionTypes.Not;
 
         [SerializeReference]
         [HideReferenceObjectPicker]
@@ -207,10 +207,10 @@ namespace AbilityKit.Ability.Editor
     }
 
     [Serializable]
-    [TriggerActionType("seq", "顺序组", "行为/流程", 0)]
+    [TriggerActionType(AbilityKit.Ability.Triggering.Runtime.TriggerActionTypes.Seq, "顺序组", "行为/流程", 0)]
     public sealed class SequenceActionEditorConfig : ActionEditorConfigBase
     {
-        public override string Type => "seq";
+        public override string Type => AbilityKit.Ability.Triggering.Runtime.TriggerActionTypes.Seq;
 
         [SerializeReference]
         [HideReferenceObjectPicker]
@@ -275,10 +275,10 @@ namespace AbilityKit.Ability.Editor
     }
 
     [Serializable]
-    [TriggerConditionType("arg_eq", "参数等于", "条件/参数", 0)]
+    [TriggerConditionType(AbilityKit.Ability.Triggering.Runtime.TriggerConditionTypes.ArgEq, "参数等于", "条件/参数", 0)]
     public sealed class ArgEqConditionEditorConfig : ConditionEditorConfigBase
     {
-        public override string Type => "arg_eq";
+        public override string Type => AbilityKit.Ability.Triggering.Runtime.TriggerConditionTypes.ArgEq;
 
         [LabelText("参数名")]
         public string Key;
@@ -310,10 +310,10 @@ namespace AbilityKit.Ability.Editor
     }
 
     [Serializable]
-    [TriggerConditionType("arg_gt", "参数大于", "条件/参数", 10)]
+    [TriggerConditionType(AbilityKit.Ability.Triggering.Runtime.TriggerConditionTypes.ArgGt, "参数大于", "条件/参数", 10)]
     public sealed class ArgGreaterThanConditionEditorConfig : ConditionEditorConfigBase
     {
-        public override string Type => "arg_gt";
+        public override string Type => AbilityKit.Ability.Triggering.Runtime.TriggerConditionTypes.ArgGt;
 
         [LabelText("参数名")]
         public string Key;
@@ -364,10 +364,10 @@ namespace AbilityKit.Ability.Editor
     }
 
     [Serializable]
-    [TriggerActionType("set_var", "设置变量", "行为/数据", 0)]
+    [TriggerActionType(AbilityKit.Ability.Triggering.Runtime.TriggerActionTypes.SetVar, "设置变量", "行为/数据", 0)]
     public sealed class SetVarActionEditorConfig : ActionEditorConfigBase
     {
-        public override string Type => "set_var";
+        public override string Type => AbilityKit.Ability.Triggering.Runtime.TriggerActionTypes.SetVar;
 
         [LabelText("作用域")]
         [ValueDropdown(nameof(GetScopeOptions))]
@@ -492,10 +492,10 @@ namespace AbilityKit.Ability.Editor
     }
 
     [Serializable]
-    [TriggerActionType("debug_log", "输出日志", "行为/调试", 0)]
+    [TriggerActionType(AbilityKit.Ability.Triggering.Runtime.TriggerActionTypes.DebugLog, "输出日志", "行为/调试", 0)]
     public sealed class DebugLogActionEditorConfig : ActionEditorConfigBase
     {
-        public override string Type => "debug_log";
+        public override string Type => AbilityKit.Ability.Triggering.Runtime.TriggerActionTypes.DebugLog;
 
         [LabelText("日志内容")]
         [TextArea]
@@ -516,10 +516,10 @@ namespace AbilityKit.Ability.Editor
     }
 
     [Serializable]
-    [TriggerActionType("log_attacker", "输出攻击者名字", "行为/调试", 10)]
+    [TriggerActionType(AbilityKit.Ability.Triggering.Runtime.TriggerActionTypes.LogAttacker, "输出攻击者名字", "行为/调试", 10)]
     public sealed class LogAttackerNameActionEditorConfig : ActionEditorConfigBase
     {
-        public override string Type => "log_attacker";
+        public override string Type => AbilityKit.Ability.Triggering.Runtime.TriggerActionTypes.LogAttacker;
 
         [LabelText("格式")]
         public string Format = "{0}发动了攻击";
@@ -539,10 +539,10 @@ namespace AbilityKit.Ability.Editor
     }
 
     [Serializable]
-    [TriggerActionType("effect_execute", "执行效果", "行为/效果", 0)]
+    [TriggerActionType(AbilityKit.Ability.Triggering.Runtime.TriggerActionTypes.EffectExecute, "执行效果", "行为/效果", 0)]
     public sealed class ExecuteEffectActionEditorConfig : ActionEditorConfigBase
     {
-        public override string Type => "effect_execute";
+        public override string Type => AbilityKit.Ability.Triggering.Runtime.TriggerActionTypes.EffectExecute;
 
         [LabelText("效果Id")]
         public int EffectId;

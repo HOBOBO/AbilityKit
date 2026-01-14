@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Triggering.Runtime;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Configs
@@ -23,7 +24,7 @@ namespace AbilityKit.Ability.Configs
     [Serializable]
     public sealed class AllConditionConfig : ConditionRuntimeConfigBase
     {
-        public override string Type => "all";
+        public override string Type => TriggerConditionTypes.All;
 
         public List<ConditionRuntimeConfigBase> Items = new List<ConditionRuntimeConfigBase>();
 
@@ -40,7 +41,7 @@ namespace AbilityKit.Ability.Configs
                     items.Add(c.ToConditionDef());
                 }
             }
-            dict["items"] = items;
+            dict[TriggerDefArgKeys.Items] = items;
             return new ConditionDef(Type, dict);
         }
     }
@@ -48,7 +49,7 @@ namespace AbilityKit.Ability.Configs
     [Serializable]
     public sealed class AnyConditionConfig : ConditionRuntimeConfigBase
     {
-        public override string Type => "any";
+        public override string Type => TriggerConditionTypes.Any;
 
         public List<ConditionRuntimeConfigBase> Items = new List<ConditionRuntimeConfigBase>();
 
@@ -65,7 +66,7 @@ namespace AbilityKit.Ability.Configs
                     items.Add(c.ToConditionDef());
                 }
             }
-            dict["items"] = items;
+            dict[TriggerDefArgKeys.Items] = items;
             return new ConditionDef(Type, dict);
         }
     }
@@ -73,14 +74,14 @@ namespace AbilityKit.Ability.Configs
     [Serializable]
     public sealed class NotConditionConfig : ConditionRuntimeConfigBase
     {
-        public override string Type => "not";
+        public override string Type => TriggerConditionTypes.Not;
 
         public ConditionRuntimeConfigBase Item;
 
         public override ConditionDef ToConditionDef()
         {
             var dict = PooledDefArgs.Rent();
-            dict["item"] = Item != null ? Item.ToConditionDef() : null;
+            dict[TriggerDefArgKeys.Item] = Item != null ? Item.ToConditionDef() : null;
             return new ConditionDef(Type, dict);
         }
     }
@@ -88,7 +89,7 @@ namespace AbilityKit.Ability.Configs
     [Serializable]
     public sealed class ArgEqConditionConfig : ConditionRuntimeConfigBase
     {
-        public override string Type => "arg_eq";
+        public override string Type => TriggerConditionTypes.ArgEq;
 
         public string Key;
 
@@ -126,7 +127,7 @@ namespace AbilityKit.Ability.Configs
     [Serializable]
     public sealed class ArgGreaterThanConditionConfig : ConditionRuntimeConfigBase
     {
-        public override string Type => "arg_gt";
+        public override string Type => TriggerConditionTypes.ArgGt;
 
         public string Key;
         public ValueSourceKind ValueSource = ValueSourceKind.Const;
@@ -169,7 +170,7 @@ namespace AbilityKit.Ability.Configs
     [Serializable]
     public sealed class SetVarActionConfig : ActionRuntimeConfigBase
     {
-        public override string Type => "set_var";
+        public override string Type => TriggerActionTypes.SetVar;
 
         public VarScope Scope = VarScope.Local;
 
@@ -213,7 +214,7 @@ namespace AbilityKit.Ability.Configs
     [Serializable]
     public sealed class SequenceActionConfig : ActionRuntimeConfigBase
     {
-        public override string Type => "seq";
+        public override string Type => TriggerActionTypes.Seq;
 
         public List<ActionRuntimeConfigBase> Items = new List<ActionRuntimeConfigBase>();
 
@@ -230,7 +231,7 @@ namespace AbilityKit.Ability.Configs
                     items.Add(a.ToActionDef());
                 }
             }
-            dict["items"] = items;
+            dict[TriggerDefArgKeys.Items] = items;
             return new ActionDef(Type, dict);
         }
     }
@@ -238,7 +239,7 @@ namespace AbilityKit.Ability.Configs
     [Serializable]
     public sealed class DebugLogActionConfig : ActionRuntimeConfigBase
     {
-        public override string Type => "debug_log";
+        public override string Type => TriggerActionTypes.DebugLog;
 
         public string Message;
 
@@ -254,7 +255,7 @@ namespace AbilityKit.Ability.Configs
     [Serializable]
     public sealed class LogAttackerNameActionConfig : ActionRuntimeConfigBase
     {
-        public override string Type => "log_attacker";
+        public override string Type => TriggerActionTypes.LogAttacker;
 
         public string Format = "{0}攻击者名字";
 
@@ -270,7 +271,7 @@ namespace AbilityKit.Ability.Configs
     [Serializable]
     public sealed class ExecuteEffectActionConfig : ActionRuntimeConfigBase
     {
-        public override string Type => "effect_execute";
+        public override string Type => TriggerActionTypes.EffectExecute;
 
         public int EffectId;
 

@@ -103,7 +103,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
             };
             var actions = new List<ActionDef>(1)
             {
-                new ActionDef(type: "effect_execute", args: actionArgs),
+                new ActionDef(type: TriggerActionTypes.EffectExecute, args: actionArgs),
             };
 
             return new TriggerDef(l.EventId, conditions, actions);
@@ -117,16 +117,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                 ["value_source"] = "const",
                 ["value"] = ownerActorId,
             };
-            return new ConditionDef(type: "arg_eq", args: args);
+            return new ConditionDef(type: TriggerConditionTypes.ArgEq, args: args);
         }
 
         private static ConditionDef BuildNot(ConditionDef item)
         {
             var args = new Dictionary<string, object>(1)
             {
-                ["item"] = item,
+                [TriggerDefArgKeys.Item] = item,
             };
-            return new ConditionDef(type: "not", args: args);
+            return new ConditionDef(type: TriggerConditionTypes.Not, args: args);
         }
 
         private static void TryUnsubscribe(EffectListenerRuntime l)

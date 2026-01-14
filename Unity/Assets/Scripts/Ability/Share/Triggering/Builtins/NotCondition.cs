@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Triggering.Definitions;
+using AbilityKit.Ability.Triggering.Runtime;
 
 namespace AbilityKit.Ability.Triggering.Runtime.Builtins
 {
@@ -21,7 +22,7 @@ namespace AbilityKit.Ability.Triggering.Runtime.Builtins
             var args = def.Args;
             if (args == null) throw new InvalidOperationException("not condition requires args");
 
-            if (args.TryGetValue("item", out var itemObj) && itemObj is ConditionDef item)
+            if (args.TryGetValue(TriggerDefArgKeys.Item, out var itemObj) && itemObj is ConditionDef item)
             {
                 return new NotCondition(compiler.Compile(item));
             }

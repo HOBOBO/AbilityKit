@@ -8,6 +8,7 @@ using AbilityKit.Ability.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Share.Common.Projectile;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
+using AbilityKit.Ability.Triggering.Json;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
@@ -32,6 +33,8 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 db.LoadFromResources(MobaConfigPaths.DefaultResourcesDir);
                 return db;
             });
+
+            builder.TryRegister<ITextLoader>(WorldLifetime.Singleton, _ => new UnityResourcesTextLoader());
 
             builder.TryRegisterService<EffectSourceRegistry, EffectSourceRegistry>();
             builder.TryRegisterService<MobaBuffService, MobaBuffService>();
@@ -68,7 +71,8 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.RegisterService<MobaSkillLoadoutService, MobaSkillLoadoutService>();
             builder.TryRegister<MobaTriggerIndexService>(WorldLifetime.Singleton, _ =>
             {
-                var s = new MobaTriggerIndexService();
+                var loader = _.Resolve<ITextLoader>();
+                var s = new MobaTriggerIndexService(loader);
                 s.LoadFromResources();
                 return s;
             });
