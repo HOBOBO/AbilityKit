@@ -10,6 +10,8 @@ namespace AbilityKit.Ability.Share.ECS.Entitas
         private readonly Dictionary<int, ActorEntity> _byActorId = new Dictionary<int, ActorEntity>();
         private bool _disposed;
 
+        public IReadOnlyCollection<int> ActorIds => _byActorId.Keys;
+
         public EntitasActorIdLookup(ActorContext context)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));

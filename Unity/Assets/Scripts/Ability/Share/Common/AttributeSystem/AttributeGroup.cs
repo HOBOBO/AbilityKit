@@ -17,6 +17,8 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
 
         public string Name => _name;
 
+        public IReadOnlyDictionary<int, AttributeInstance> Attributes => _attrs;
+
         public event Action<AttributeId, float, float> AttributeChanged;
 
         public AttributeInstance GetOrCreate(AttributeId id)

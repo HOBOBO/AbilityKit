@@ -7,6 +7,8 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
     {
         private readonly Dictionary<string, AttributeGroup> _groups = new Dictionary<string, AttributeGroup>(StringComparer.Ordinal);
 
+        public IReadOnlyDictionary<string, AttributeGroup> Groups => _groups;
+
         public event Action<string, AttributeId, float, float> AttributeChanged;
 
         public AttributeGroup GetOrCreateGroup(string group)

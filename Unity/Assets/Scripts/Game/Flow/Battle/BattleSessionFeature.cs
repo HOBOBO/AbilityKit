@@ -112,7 +112,7 @@ namespace AbilityKit.Game.Flow
                 NamespacePrefixes = new[] { "AbilityKit" }
             };
 
-            _session = new BattleLogicSession(opts);
+            _session = BattleLogicSessionHost.Start(opts);
             _session.FrameReceived += OnFrame;
 
             _snapshots = new FrameSnapshotDispatcher(_session);
@@ -143,7 +143,7 @@ namespace AbilityKit.Game.Flow
                 _pipeline?.Dispose();
                 _cmdHandler?.Dispose();
                 _snapshots?.Dispose();
-                _session.Dispose();
+                BattleLogicSessionHost.Stop();
             }
             catch
             {

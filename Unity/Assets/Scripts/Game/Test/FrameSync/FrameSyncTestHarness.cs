@@ -109,7 +109,7 @@ namespace AbilityKit.Game.Test.FrameSync
                 AutoJoin = false,
             };
 
-            _session = new BattleLogicSession(opts);
+            _session = BattleLogicSessionHost.Start(opts);
             _session.FrameReceived += OnFrame;
 
             _paused = false;
@@ -127,7 +127,7 @@ namespace AbilityKit.Game.Test.FrameSync
             try
             {
                 _session.FrameReceived -= OnFrame;
-                _session.Dispose();
+                BattleLogicSessionHost.Stop();
             }
             catch (Exception e)
             {

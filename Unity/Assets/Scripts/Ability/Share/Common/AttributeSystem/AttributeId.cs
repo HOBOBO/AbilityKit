@@ -11,6 +11,11 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             Id = id;
         }
 
+        public static AttributeId FromRaw(int id)
+        {
+            return new AttributeId(id);
+        }
+
         public bool IsValid => Id != 0;
 
         public string Name => AttributeRegistry.Instance.GetName(this);
