@@ -102,6 +102,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                         {
                             TriggerId = tr.TriggerId,
                             EventId = tr.EventId,
+                            AllowExternal = tr.AllowExternal,
                             InitialLocalVars = BuildInitialLocalVars(tr),
                             Conditions = BuildConditions(tr),
                             Actions = BuildActions(tr)

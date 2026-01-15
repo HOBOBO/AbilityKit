@@ -19,6 +19,8 @@
     "SkillIds": [
       10001
     ],
-    "PassiveSkillIds": []
+    "PassiveSkillIds": [
+      20002
+    ]
   }
 ]

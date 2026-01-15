@@ -2,9 +2,17 @@
   {
     "Id": 20001,
     "Name": "测试被动",
-    "CooldownMs": 10000,
+    "CooldownMs": 1000,
     "TriggerIds": [
       20001
+    ]
+  },
+  {
+    "Id": 20002,
+    "Name": "测试被动",
+    "CooldownMs": 10000,
+    "TriggerIds": [
+      20002
     ]
   }
 ]

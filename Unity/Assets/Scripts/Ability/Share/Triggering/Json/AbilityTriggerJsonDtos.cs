@@ -8,6 +8,7 @@ namespace AbilityKit.Ability.Share.CoreDtos
     {
         public int TriggerId;
         public string EventId;
+        public bool AllowExternal;
     }
 
     [Serializable]
@@ -21,6 +22,7 @@ namespace AbilityKit.Ability.Share.CoreDtos
     {
         public int TriggerId;
         public string EventId;
+        public bool AllowExternal;
         public Dictionary<string, object> InitialLocalVars;
         public List<ConditionDTO> Conditions = new List<ConditionDTO>();
         public List<ActionDTO> Actions = new List<ActionDTO>();

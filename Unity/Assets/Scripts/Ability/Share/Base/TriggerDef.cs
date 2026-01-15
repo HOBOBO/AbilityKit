@@ -6,15 +6,18 @@ namespace AbilityKit.Ability.Triggering.Definitions
     [Serializable]
     public sealed class TriggerDef
     {
-        public TriggerDef(string eventId, IReadOnlyList<ConditionDef> conditions, IReadOnlyList<ActionDef> actions)
+        public TriggerDef(string eventId, IReadOnlyList<ConditionDef> conditions, IReadOnlyList<ActionDef> actions, bool allowExternal = false)
         {
             EventId = eventId ?? throw new ArgumentNullException(nameof(eventId));
             Conditions = conditions ?? throw new ArgumentNullException(nameof(conditions));
             Actions = actions ?? throw new ArgumentNullException(nameof(actions));
+            AllowExternal = allowExternal;
         }
 
         public string EventId { get; }
         public IReadOnlyList<ConditionDef> Conditions { get; }
         public IReadOnlyList<ActionDef> Actions { get; }
+
+        public bool AllowExternal { get; }
     }
 }

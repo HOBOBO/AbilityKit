@@ -414,6 +414,48 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 
                 try
                 {
+                    if (_entity.hasActorId && !string.IsNullOrEmpty(_listener.EventId) && _listener.EventId.StartsWith("skill.", StringComparison.Ordinal))
+                    {
+                        var allowExternal = false;
+                        var allowCheckEntries = _listener.Entries;
+                        if (allowCheckEntries != null)
+                        {
+                            for (int i = 0; i < allowCheckEntries.Count; i++)
+                            {
+                                var d = allowCheckEntries[i]?.Def;
+                                if (d != null && d.AllowExternal)
+                                {
+                                    allowExternal = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (allowExternal)
+                        {
+                            goto SKIP_SELF_FILTER;
+                        }
+
+                        var selfId = _entity.actorId.Value;
+                        var casterId = 0;
+
+                        if (evt.Payload is SkillCastRequest req)
+                        {
+                            casterId = req.CasterActorId;
+                        }
+                        else if (evt.Args != null && evt.Args.TryGetValue(MobaSkillTriggering.Args.CasterActorId, out var v))
+                        {
+                            if (v is int i) casterId = i;
+                        }
+
+                        if (casterId != 0 && casterId != selfId)
+                        {
+                            return;
+                        }
+                    }
+
+                    SKIP_SELF_FILTER:
+
                     var rt = _sys.TryGetPassiveSkillRuntime(_entity, _passiveSkill.Id);
                     if (rt == null) return;
 

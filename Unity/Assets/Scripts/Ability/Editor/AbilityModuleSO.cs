@@ -60,6 +60,20 @@ namespace AbilityKit.Ability.Editor
             }
         }
 
+        [HorizontalGroup("Row", Width = 120)]
+        [LabelText("AllowExternal")]
+        [LabelWidth(90)]
+        [ShowInInspector]
+        public bool AllowExternal
+        {
+            get => Core != null && Core.AllowExternal;
+            set
+            {
+                if (Core == null) Core = new TriggerHeaderDTO();
+                Core.AllowExternal = value;
+            }
+        }
+
         [TextArea]
         public string Note;
 

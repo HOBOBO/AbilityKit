@@ -63,7 +63,7 @@ namespace AbilityKit.Ability.Triggering.Json
                         }
                     }
 
-                    var def = new TriggerDef(eventId, conditions, actions);
+                    var def = new TriggerDef(eventId, conditions, actions, allowExternal: t.AllowExternal);
                     var locals = t.InitialLocalVars != null ? new Dictionary<string, object>(t.InitialLocalVars, StringComparer.Ordinal) : null;
                     yield return new TriggerRecord(t.TriggerId, eventId, def, locals);
                 }

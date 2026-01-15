@@ -3,6 +3,7 @@
     {
       "TriggerId": 10001,
       "EventId": "",
+      "AllowExternal": false,
       "InitialLocalVars": null,
       "Conditions": [],
       "Actions": [
@@ -18,6 +19,7 @@
     {
       "TriggerId": 20001,
       "EventId": "skill.cast.complete",
+      "AllowExternal": false,
       "InitialLocalVars": null,
       "Conditions": [],
       "Actions": [
@@ -25,6 +27,22 @@
           "Type": "debug_log",
           "Args": {
             "message": "释放技能完成日志输出11111"
+          },
+          "Items": null
+        }
+      ]
+    },
+    {
+      "TriggerId": 20002,
+      "EventId": "skill.cast.complete",
+      "AllowExternal": true,
+      "InitialLocalVars": null,
+      "Conditions": [],
+      "Actions": [
+        {
+          "Type": "debug_log",
+          "Args": {
+            "message": "监听别人释放技能完成日志输出22222"
           },
           "Items": null
         }
