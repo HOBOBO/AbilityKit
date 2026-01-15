@@ -39,7 +39,7 @@ namespace AbilityKit.Ability.World.Services
             builder.TryRegisterType<IFrameTime, FrameTime>(WorldLifetime.Scoped);
             builder.TryRegisterType<IWorldRandom, DefaultWorldRandom>(WorldLifetime.Scoped);
             builder.TryRegisterType<IEffectTriggeringSwitch, DefaultEffectTriggeringSwitch>(WorldLifetime.Singleton);
-            builder.TryRegisterType<IEventBus, EventBus>(WorldLifetime.Scoped);
+            builder.TryRegisterType<IEventBus, EventBus>(WorldLifetime.Singleton);
             builder.TryRegisterType<ITriggerActionRunner, TriggerActionRunner>(WorldLifetime.Scoped);
         }
     }

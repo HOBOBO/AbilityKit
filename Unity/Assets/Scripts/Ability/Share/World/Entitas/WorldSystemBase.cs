@@ -3,7 +3,7 @@ using AbilityKit.Ability.World.DI;
 
 namespace AbilityKit.Ability.World.Entitas
 {
-    public abstract class WorldSystemBase : global::Entitas.IInitializeSystem, global::Entitas.IExecuteSystem, global::Entitas.ICleanupSystem
+    public abstract class WorldSystemBase : global::Entitas.IInitializeSystem, global::Entitas.IExecuteSystem, global::Entitas.ICleanupSystem, global::Entitas.ITearDownSystem
     {
         protected WorldSystemBase(global::Contexts contexts, IWorldServices services)
         {
@@ -35,10 +35,18 @@ namespace AbilityKit.Ability.World.Entitas
             OnCleanup();
         }
 
+        public void TearDown()
+        {
+            if (!Enabled) return;
+            OnTearDown();
+        }
+
         protected virtual void OnInit() { }
 
         protected virtual void OnExecute() { }
 
         protected virtual void OnCleanup() { }
+
+        protected virtual void OnTearDown() { }
     }
 }

@@ -11,44 +11,12 @@ namespace AbilityKit.Ability.Share.Common.TagSystem
     {
         public static class Names
         {
-            /// <summary>
-            /// 测试1
-            /// </summary>
-            public const string A = "A";
-            /// <summary>
-            /// 测试2
-            /// </summary>
-            public const string A_B = "A.B";
-            /// <summary>
-            /// 测试3
-            /// </summary>
             public const string A_B_C = "A.B.C";
-            /// <summary>
-            /// 测试4
-            /// </summary>
-            public const string Test = "Test";
-            public const string Test_Test2 = "Test.Test2";
         }
 
         public static class Tags
         {
-            /// <summary>
-            /// 测试1
-            /// </summary>
-            public static readonly GameplayTag A = GameplayTags.Tag(Names.A);
-            /// <summary>
-            /// 测试2
-            /// </summary>
-            public static readonly GameplayTag A_B = GameplayTags.Tag(Names.A_B);
-            /// <summary>
-            /// 测试3
-            /// </summary>
             public static readonly GameplayTag A_B_C = GameplayTags.Tag(Names.A_B_C);
-            /// <summary>
-            /// 测试4
-            /// </summary>
-            public static readonly GameplayTag Test = GameplayTags.Tag(Names.Test);
-            public static readonly GameplayTag Test_Test2 = GameplayTags.Tag(Names.Test_Test2);
         }
 
         private static bool s_registered;
@@ -57,29 +25,17 @@ namespace AbilityKit.Ability.Share.Common.TagSystem
         {
             if (s_registered) return;
             s_registered = true;
-            GameplayTags.Tag(Names.A);
-            GameplayTags.Tag(Names.A_B);
             GameplayTags.Tag(Names.A_B_C);
-            GameplayTags.Tag(Names.Test);
-            GameplayTags.Tag(Names.Test_Test2);
         }
 
         public static IReadOnlyList<string> AllNames { get; } = new[]
         {
-            Names.A,
-            Names.A_B,
             Names.A_B_C,
-            Names.Test,
-            Names.Test_Test2,
         };
 
         public static IReadOnlyList<GameplayTag> AllTags { get; } = new[]
         {
-            Tags.A,
-            Tags.A_B,
             Tags.A_B_C,
-            Tags.Test,
-            Tags.Test_Test2,
         };
     }
 }

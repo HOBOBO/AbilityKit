@@ -186,8 +186,8 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 
                 var passiveSkillIds = ToArray(character != null ? character.PassiveSkillIds : null);
 
-                var activeSkills = CreateSkillRuntimes(activeSkillIds);
-                var passiveSkills = CreateSkillRuntimes(passiveSkillIds);
+                var activeSkills = CreateActiveSkillRuntimes(activeSkillIds);
+                var passiveSkills = CreatePassiveSkillRuntimes(passiveSkillIds);
 
                 if (entity.hasSkillLoadout)
                 {
@@ -203,18 +203,32 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             }
         }
 
-        private static SkillRuntime[] CreateSkillRuntimes(int[] skillIds)
+        private static ActiveSkillRuntime[] CreateActiveSkillRuntimes(int[] skillIds)
         {
-            if (skillIds == null || skillIds.Length == 0) return Array.Empty<SkillRuntime>();
-            var list = new List<SkillRuntime>(skillIds.Length);
+            if (skillIds == null || skillIds.Length == 0) return Array.Empty<ActiveSkillRuntime>();
+            var list = new List<ActiveSkillRuntime>(skillIds.Length);
             for (int i = 0; i < skillIds.Length; i++)
             {
                 var id = skillIds[i];
                 if (id <= 0) continue;
-                list.Add(new SkillRuntime { SkillId = id, Level = 1, CooldownEndTimeMs = 0L });
+                list.Add(new ActiveSkillRuntime { SkillId = id, Level = 1, CooldownEndTimeMs = 0L });
             }
 
-            return list.Count == 0 ? Array.Empty<SkillRuntime>() : list.ToArray();
+            return list.Count == 0 ? Array.Empty<ActiveSkillRuntime>() : list.ToArray();
+        }
+
+        private static PassiveSkillRuntime[] CreatePassiveSkillRuntimes(int[] passiveSkillIds)
+        {
+            if (passiveSkillIds == null || passiveSkillIds.Length == 0) return Array.Empty<PassiveSkillRuntime>();
+            var list = new List<PassiveSkillRuntime>(passiveSkillIds.Length);
+            for (int i = 0; i < passiveSkillIds.Length; i++)
+            {
+                var id = passiveSkillIds[i];
+                if (id <= 0) continue;
+                list.Add(new PassiveSkillRuntime { PassiveSkillId = id, Level = 1, CooldownEndTimeMs = 0L });
+            }
+
+            return list.Count == 0 ? Array.Empty<PassiveSkillRuntime>() : list.ToArray();
         }
 
         private static int[] ToArray(IReadOnlyList<int> list)

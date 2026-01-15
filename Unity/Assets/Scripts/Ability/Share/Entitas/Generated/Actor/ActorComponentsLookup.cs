@@ -20,14 +20,15 @@ public static class ActorComponentsLookup {
     public const int Motion = 9;
     public const int MoveInput = 10;
     public const int OwnerPlayerId = 11;
-    public const int RemoveBuffRequest = 12;
-    public const int ResourceContainer = 13;
-    public const int SkillLoadout = 14;
-    public const int Team = 15;
-    public const int Transform = 16;
-    public const int UnitSubType = 17;
+    public const int PassiveSkillTriggerListeners = 12;
+    public const int RemoveBuffRequest = 13;
+    public const int ResourceContainer = 14;
+    public const int SkillLoadout = 15;
+    public const int Team = 16;
+    public const int Transform = 17;
+    public const int UnitSubType = 18;
 
-    public const int TotalComponents = 18;
+    public const int TotalComponents = 19;
 
     public static readonly string[] componentNames = {
         "ActorId",
@@ -42,6 +43,7 @@ public static class ActorComponentsLookup {
         "Motion",
         "MoveInput",
         "OwnerPlayerId",
+        "PassiveSkillTriggerListeners",
         "RemoveBuffRequest",
         "ResourceContainer",
         "SkillLoadout",
@@ -63,6 +65,7 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillTriggerListenersComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.RemoveBuffRequestComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainerComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillLoadoutComponent),

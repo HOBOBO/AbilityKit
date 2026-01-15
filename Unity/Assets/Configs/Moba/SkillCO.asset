@@ -22,4 +22,4 @@ MonoBehaviour:
     Tags: 
     LevelTableId: 10001
     PreCastFlowId: 0
-    CastFlowId: 0
+    CastFlowId: 10001

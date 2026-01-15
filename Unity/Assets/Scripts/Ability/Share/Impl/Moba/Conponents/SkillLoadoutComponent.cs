@@ -6,7 +6,7 @@ namespace AbilityKit.Ability.Impl.Moba.Conponents
     [Actor]
     public sealed class SkillLoadoutComponent : IComponent
     {
-        public SkillRuntime[] ActiveSkills;
-        public SkillRuntime[] PassiveSkills;
+        public ActiveSkillRuntime[] ActiveSkills;
+        public PassiveSkillRuntime[] PassiveSkills;
     }
 }

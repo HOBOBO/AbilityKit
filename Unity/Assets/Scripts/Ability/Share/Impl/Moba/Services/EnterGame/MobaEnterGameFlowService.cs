@@ -79,34 +79,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
                     try
                     {
-                        if (entity == null) return;
-                        var actorId = entity.hasActorId ? entity.actorId.Value : 0;
-                        if (actorId <= 0) return;
-
-                        if (entity.hasSkillLoadout)
-                        {
-                            var skills = entity.skillLoadout.ActiveSkills;
-                            if (skills == null || skills.Length == 0)
-                            {
-                                _skills.SetLoadout(actorId, Array.Empty<int>());
-                            }
-                            else
-                            {
-                                var ids = new int[skills.Length];
-                                for (int i = 0; i < skills.Length; i++)
-                                {
-                                    ids[i] = skills[i] != null ? skills[i].SkillId : 0;
-                                }
-                                _skills.SetLoadout(actorId, ids);
-                            }
-                        }
-                    }
-                    catch
-                    {
-                    }
-
-                    try
-                    {
                         var actorId = entity != null && entity.hasActorId ? entity.actorId.Value : 0;
                         if (actorId > 0)
                         {
@@ -124,33 +96,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     {
                     }
                 });
-
-            if (_config != null)
-            {
-                try
-                {
-                    var heroId = 0;
-                    if (req.Players != null && req.Players.Length > 0)
-                    {
-                        heroId = req.Players[0].HeroId;
-                        for (int i = 0; i < req.Players.Length; i++)
-                        {
-                            if (req.Players[i].PlayerId.Equals(req.PlayerId))
-                            {
-                                heroId = req.Players[i].HeroId;
-                                break;
-                            }
-                        }
-                    }
-
-                    var character = _config.GetCharacter(heroId);
-                    var ids = character.SkillIds == null ? Array.Empty<int>() : new System.Collections.Generic.List<int>(character.SkillIds).ToArray();
-                    _skills.SetLoadout(built.LocalActorId, ids);
-                }
-                catch
-                {
-                }
-            }
 
             _playerActorMap.Bind(req.PlayerId, built.LocalActorId);
 

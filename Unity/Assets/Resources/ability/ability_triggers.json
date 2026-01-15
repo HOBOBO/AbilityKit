@@ -14,6 +14,21 @@
           "Items": null
         }
       ]
+    },
+    {
+      "TriggerId": 20001,
+      "EventId": "skill.cast.complete",
+      "InitialLocalVars": null,
+      "Conditions": [],
+      "Actions": [
+        {
+          "Type": "debug_log",
+          "Args": {
+            "message": "释放技能完成日志输出11111"
+          },
+          "Items": null
+        }
+      ]
     }
   ]
 }
