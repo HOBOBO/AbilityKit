@@ -9,12 +9,14 @@ namespace AbilityKit.Ability.Triggering.Runtime
         public const string Not = "not";
         public const string ArgEq = "arg_eq";
         public const string ArgGt = "arg_gt";
+        public const string NumVarGt = "num_var_gt";
     }
 
     public static class TriggerActionTypes
     {
         public const string Seq = "seq";
         public const string SetVar = "set_var";
+        public const string SetNumVar = "set_num_var";
         public const string AttrEffectDuration = "attr_effect_duration";
         public const string DebugLog = "debug_log";
         public const string LogAttacker = "log_attacker";
