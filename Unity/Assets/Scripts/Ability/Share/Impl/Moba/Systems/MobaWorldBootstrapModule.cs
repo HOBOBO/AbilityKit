@@ -37,7 +37,6 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.TryRegister<ITextLoader>(WorldLifetime.Singleton, _ => new UnityResourcesTextLoader());
 
             builder.TryRegisterService<EffectSourceRegistry, EffectSourceRegistry>();
-            builder.TryRegisterService<MobaBuffService, MobaBuffService>();
 
             builder.RegisterService<ActorIdAllocator, ActorIdAllocator>();
             builder.RegisterService<MobaActorRegistry, MobaActorRegistry>();
@@ -80,6 +79,8 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.RegisterService<MobaEffectExecuteSubscriber, MobaEffectExecuteSubscriber>();
             builder.RegisterService<MobaEffectExecuteDemoSubscriber, MobaEffectExecuteDemoSubscriber>();
             builder.RegisterService<MobaEffectApplyDemoSubscriber, MobaEffectApplyDemoSubscriber>();
+
+            builder.TryRegisterService<MobaBuffService, MobaBuffService>();
             builder.RegisterService<IMobaSkillPipelineLibrary, TableDrivenMobaSkillPipelineLibrary>();
             builder.RegisterService<SkillExecutor, SkillExecutor>();
         }

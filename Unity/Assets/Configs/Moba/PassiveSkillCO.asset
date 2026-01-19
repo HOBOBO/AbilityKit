@@ -21,3 +21,7 @@ MonoBehaviour:
     Name: "\u6D4B\u8BD5\u88AB\u52A8"
     CooldownMs: 10000
     TriggerIds: 224e0000
+  - Id: 20003
+    Name: "\u6D4B\u8BD5\u88AB\u52A8"
+    CooldownMs: 10000
+    TriggerIds: 234e0000

@@ -14,6 +14,7 @@ namespace AbilityKit.Ability.Impl.Moba.Conponents
     {
         public int BuffId;
         public float Remaining;
+        public float IntervalRemainingSeconds;
         public int SourceId;
         public int StackCount;
         public long SourceContextId;

@@ -109,7 +109,7 @@ namespace AbilityKit.Ability.Editor
             if (Core == null) Core = new TriggerHeaderDTO();
         }
 
-        private static IEnumerable<string> GetEventIdOptions()
+        private static IEnumerable<ValueDropdownItem<string>> GetEventIdOptions()
         {
             var set = new HashSet<string>(StringComparer.Ordinal);
             try
@@ -127,7 +127,20 @@ namespace AbilityKit.Ability.Editor
 
             var list = new List<string>(set);
             list.Sort(StringComparer.Ordinal);
-            return list;
+
+            var items = new List<ValueDropdownItem<string>>(list.Count + 1)
+            {
+                new ValueDropdownItem<string>("<None>", string.Empty)
+            };
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                var id = list[i];
+                if (string.IsNullOrEmpty(id)) continue;
+                items.Add(new ValueDropdownItem<string>(id, id));
+            }
+
+            return items;
         }
 
         private static void CollectConstStrings(HashSet<string> output, Type type)

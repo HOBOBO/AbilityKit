@@ -9,7 +9,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         public int Id { get; }
         public string Name { get; }
         public int DurationMs { get; }
-        public int EffectId { get; }
+        public IReadOnlyList<int> OnAddEffects { get; }
+        public IReadOnlyList<int> OnRemoveEffects { get; }
+        public IReadOnlyList<int> OnIntervalEffects { get; }
+        public int IntervalMs { get; }
         public BuffStackingPolicy StackingPolicy { get; }
         public BuffRefreshPolicy RefreshPolicy { get; }
         public int MaxStacks { get; }
@@ -21,7 +24,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
             Id = dto.Id;
             Name = dto.Name;
             DurationMs = dto.DurationMs;
-            EffectId = dto.EffectId;
+            OnAddEffects = dto.OnAddEffects ?? Array.Empty<int>();
+            OnRemoveEffects = dto.OnRemoveEffects ?? Array.Empty<int>();
+            OnIntervalEffects = dto.OnIntervalEffects ?? Array.Empty<int>();
+            IntervalMs = dto.IntervalMs;
             StackingPolicy = (BuffStackingPolicy)dto.StackingPolicy;
             RefreshPolicy = (BuffRefreshPolicy)dto.RefreshPolicy;
             MaxStacks = dto.MaxStacks;

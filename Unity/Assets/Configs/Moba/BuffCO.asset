@@ -13,7 +13,14 @@ MonoBehaviour:
   m_Name: BuffCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 0
+  - Id: 100001
     Name: 
-    DurationMs: 0
+    DurationMs: 10000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 244e0000
+    IntervalMs: 2000
+    StackingPolicy: 0
+    RefreshPolicy: 0
+    MaxStacks: 0
     Tags: 00000000

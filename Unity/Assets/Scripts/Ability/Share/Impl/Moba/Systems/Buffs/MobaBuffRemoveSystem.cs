@@ -1,9 +1,12 @@
 using System;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
 using AbilityKit.Ability.Impl.Moba.Conponents;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.DI;
@@ -20,6 +23,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
         private ITriggerActionRunner _actionRunner;
         private EffectSourceRegistry _effectSource;
         private IFrameTime _frameTime;
+        private MobaEffectExecutionService _effectExec;
 
         private Entitas.IGroup<global::ActorEntity> _group;
 
@@ -35,6 +39,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             Services.TryGet(out _actionRunner);
             Services.TryGet(out _effectSource);
             Services.TryGet(out _frameTime);
+            Services.TryGet(out _effectExec);
             _group = Contexts.actor.GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.RemoveBuffRequest));
         }
 
@@ -93,7 +98,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                         {
                             var reason = req.Reason;
                             if (reason == EffectSourceEndReason.None) reason = EffectSourceEndReason.Dispelled;
-                            PublishBuffRemove(_eventBus, buff.EffectId, req.SourceId, e.actorId.Value, b.BuffId, b.StackCount, b.SourceContextId, reason);
+                            PublishBuffRemove(_eventBus, buff, req.SourceId, e.actorId.Value, b, reason);
+                            ExecuteStageEffects(buff.OnRemoveEffects, stage: "remove", sourceActorId: req.SourceId, targetActorId: e.actorId.Value);
                         }
                     }
 
@@ -125,34 +131,85 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             }
         }
 
-        private static void PublishBuffRemove(IEventBus bus, int effectId, int sourceActorId, int targetActorId, int buffId, int stackCount, long sourceContextId, EffectSourceEndReason reason)
+        private static void PublishBuffRemove(IEventBus bus, BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, EffectSourceEndReason reason)
         {
             if (bus == null) return;
+            if (buff == null) return;
 
-            PublishOnce(bus, "buff.remove", effectId, sourceActorId, targetActorId, buffId, stackCount, sourceContextId, reason);
-            if (effectId > 0)
+            // base remove event
             {
-                PublishOnce(bus, $"buff.remove.{effectId}", effectId, sourceActorId, targetActorId, buffId, stackCount, sourceContextId, reason);
+                var args0 = PooledTriggerArgs.Rent();
+                args0[EffectTriggering.Args.Source] = sourceActorId;
+                args0[EffectTriggering.Args.Target] = targetActorId;
+                args0[EffectSourceKeys.SourceActorId] = sourceActorId;
+                args0[EffectSourceKeys.TargetActorId] = targetActorId;
+                args0[MobaBuffTriggering.Args.BuffId] = runtime != null ? runtime.BuffId : 0;
+                args0[MobaBuffTriggering.Args.EffectId] = 0;
+                args0[MobaBuffTriggering.Args.Stage] = "remove";
+                args0[MobaBuffTriggering.Args.StackCount] = runtime != null ? runtime.StackCount : 0;
+                args0[MobaBuffTriggering.Args.RemoveReason] = (int)reason;
+                if (runtime != null && runtime.SourceContextId != 0)
+                {
+                    args0[EffectSourceKeys.SourceContextId] = runtime.SourceContextId;
+                }
+                bus.Publish(new TriggerEvent(MobaBuffTriggering.Events.Remove, payload: runtime, args: args0));
+            }
+
+            var effects = buff.OnRemoveEffects;
+            if (effects == null || effects.Count == 0) return;
+            for (int i = 0; i < effects.Count; i++)
+            {
+                var effectId = effects[i];
+                if (effectId <= 0) continue;
+                var args1 = PooledTriggerArgs.Rent();
+                args1[EffectTriggering.Args.Source] = sourceActorId;
+                args1[EffectTriggering.Args.Target] = targetActorId;
+                args1[EffectSourceKeys.SourceActorId] = sourceActorId;
+                args1[EffectSourceKeys.TargetActorId] = targetActorId;
+                args1[MobaBuffTriggering.Args.BuffId] = runtime != null ? runtime.BuffId : 0;
+                args1[MobaBuffTriggering.Args.EffectId] = effectId;
+                args1[MobaBuffTriggering.Args.Stage] = "remove";
+                args1[MobaBuffTriggering.Args.StackCount] = runtime != null ? runtime.StackCount : 0;
+                args1[MobaBuffTriggering.Args.RemoveReason] = (int)reason;
+                if (runtime != null && runtime.SourceContextId != 0)
+                {
+                    args1[EffectSourceKeys.SourceContextId] = runtime.SourceContextId;
+                }
+                bus.Publish(new TriggerEvent(MobaBuffTriggering.Events.WithEffect(MobaBuffTriggering.Events.Remove, effectId), payload: runtime, args: args1));
             }
         }
 
-        private static void PublishOnce(IEventBus bus, string eventId, int effectId, int sourceActorId, int targetActorId, int buffId, int stackCount, long sourceContextId, EffectSourceEndReason reason)
+        private void ExecuteStageEffects(System.Collections.Generic.IReadOnlyList<int> effectIds, string stage, int sourceActorId, int targetActorId)
         {
-            if (bus == null) return;
-            if (string.IsNullOrEmpty(eventId)) return;
-
-            var args = PooledTriggerArgs.Rent();
-            args[EffectTriggering.Args.Source] = sourceActorId;
-            args[EffectTriggering.Args.Target] = targetActorId;
-            args["buff.id"] = buffId;
-            args["buff.effectId"] = effectId;
-            args["buff.stackCount"] = stackCount;
-            args["buff.removeReason"] = (int)reason;
-            if (sourceContextId != 0)
+            // 中文注释：移除 Buff 时执行 OnRemoveEffects。
+            if (_effectExec == null) return;
+            if (effectIds == null || effectIds.Count == 0) return;
+            for (int i = 0; i < effectIds.Count; i++)
             {
-                args[EffectSourceKeys.SourceContextId] = sourceContextId;
+                var effectId = effectIds[i];
+                if (effectId <= 0) continue;
+                var ctx = BuildEffectContext(sourceActorId, targetActorId);
+                _effectExec.Execute(effectId, ctx, EffectExecuteMode.InternalOnly);
             }
-            bus.Publish(new TriggerEvent(eventId, payload: null, args: args));
+        }
+
+        private static SkillPipelineContext BuildEffectContext(int sourceActorId, int targetActorId)
+        {
+            // 中文注释：Buff remove 阶段 effect 执行上下文。
+            var ctx = new SkillPipelineContext();
+            var req = new SkillCastRequest(
+                skillId: 0,
+                skillSlot: 0,
+                casterActorId: sourceActorId,
+                targetActorId: targetActorId,
+                aimPos: Vec3.Zero,
+                aimDir: Vec3.Forward,
+                worldServices: null,
+                eventBus: null,
+                casterUnit: null,
+                targetUnit: null);
+            ctx.Initialize(abilityInstance: null, in req);
+            return ctx;
         }
 
         private int GetFrame()

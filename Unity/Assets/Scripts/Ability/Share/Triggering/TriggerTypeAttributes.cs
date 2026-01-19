@@ -21,6 +21,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
         public const string DebugLog = "debug_log";
         public const string LogAttacker = "log_attacker";
         public const string EffectExecute = "effect_execute";
+        public const string AddBuff = "add_buff";
     }
 
     public static class TriggerDefArgKeys

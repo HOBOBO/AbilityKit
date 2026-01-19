@@ -198,6 +198,7 @@ namespace AbilityKit.Ability.Impl.Moba
         Expired = 3,
         Dispelled = 4,
         Dead = 5,
+        Replaced
     }
 
     public enum EffectExecuteMode

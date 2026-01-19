@@ -14,5 +14,13 @@
     "TriggerIds": [
       20002
     ]
+  },
+  {
+    "Id": 20003,
+    "Name": "测试被动",
+    "CooldownMs": 10000,
+    "TriggerIds": [
+      20003
+    ]
   }
 ]

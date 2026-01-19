@@ -7,6 +7,7 @@ using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Moba.Conponents;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;
@@ -136,10 +137,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                     }
 
                     var eventId = entries[0].Def?.EventId;
-                    if (string.IsNullOrEmpty(eventId))
-                    {
-                        continue;
-                    }
 
                     var entryList = new List<PassiveSkillTriggerEntryRuntime>(entries.Count);
                     for (int k = 0; k < entries.Count; k++)
@@ -161,11 +158,83 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 
                     EnsurePassiveSkillContext(entity, listeners, passiveSkillId, l);
 
-                    var handler = new PassiveSkillTriggerEventHandler(this, entity, mo, l);
-                    l.Sub = _eventBus.Subscribe(eventId, handler);
+                    // Event-driven triggers subscribe to EventBus; empty EventId triggers execute immediately once.
+                    if (!string.IsNullOrEmpty(eventId))
+                    {
+                        var handler = new PassiveSkillTriggerEventHandler(this, entity, mo, l);
+                        l.Sub = _eventBus.Subscribe(eventId, handler);
+                    }
 
                     listeners.Add(l);
+
+                    if (string.IsNullOrEmpty(eventId))
+                    {
+                        ExecutePassiveTriggerOnce(entity, mo, l);
+                    }
                 }
+            }
+        }
+
+        private void ExecutePassiveTriggerOnce(global::ActorEntity entity, PassiveSkillMO passiveSkill, PassiveSkillTriggerListenerRuntime listener)
+        {
+            if (entity == null || passiveSkill == null || listener == null) return;
+            if (!entity.hasActorId) return;
+
+            try
+            {
+                var rt = TryGetPassiveSkillRuntime(entity, passiveSkill.Id);
+                if (rt == null) return;
+
+                var nowMs = GetNowMs();
+                if (rt.CooldownEndTimeMs > 0 && nowMs < rt.CooldownEndTimeMs)
+                {
+                    return;
+                }
+
+                var entries = listener.Entries;
+                if (entries == null || entries.Count == 0) return;
+
+                // For direct-execute passives, synthesize minimal args so that triggers can access sourceContextId/sourceActorId.
+                var args = PooledTriggerArgs.Rent();
+                try
+                {
+                    var selfId = entity.actorId.Value;
+                    args[EffectSourceKeys.SourceActorId] = selfId;
+                    args[EffectSourceKeys.TargetActorId] = selfId;
+                    args[EffectTriggering.Args.Source] = selfId;
+                    args[EffectTriggering.Args.Target] = selfId;
+                    if (listener.SourceContextId != 0)
+                    {
+                        args[EffectSourceKeys.SourceContextId] = listener.SourceContextId;
+                    }
+
+                    var triggered = false;
+                    for (int i = 0; i < entries.Count; i++)
+                    {
+                        var e = entries[i];
+                        var def = e?.Def;
+                        if (def == null) continue;
+
+                        // Direct execute is always treated as internal (not external event).
+                        if (_triggers.RunOnce(def, source: entity, target: entity, payload: null, args: args, initialLocalVars: e.InitialLocalVars))
+                        {
+                            triggered = true;
+                        }
+                    }
+
+                    if (triggered && passiveSkill.CooldownMs > 0)
+                    {
+                        rt.CooldownEndTimeMs = nowMs + passiveSkill.CooldownMs;
+                    }
+                }
+                finally
+                {
+                    args.Dispose();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, $"[MobaPassiveSkillTriggerRegisterSystem] ExecutePassiveTriggerOnce exception (passiveSkillId={passiveSkill.Id}, triggerId={listener.TriggerId})");
             }
         }
 
@@ -414,47 +483,21 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 
                 try
                 {
-                    if (_entity.hasActorId && !string.IsNullOrEmpty(_listener.EventId) && _listener.EventId.StartsWith("skill.", StringComparison.Ordinal))
+                    if (string.IsNullOrEmpty(_listener.EventId))
                     {
-                        var allowExternal = false;
-                        var allowCheckEntries = _listener.Entries;
-                        if (allowCheckEntries != null)
-                        {
-                            for (int i = 0; i < allowCheckEntries.Count; i++)
-                            {
-                                var d = allowCheckEntries[i]?.Def;
-                                if (d != null && d.AllowExternal)
-                                {
-                                    allowExternal = true;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (allowExternal)
-                        {
-                            goto SKIP_SELF_FILTER;
-                        }
-
-                        var selfId = _entity.actorId.Value;
-                        var casterId = 0;
-
-                        if (evt.Payload is SkillCastRequest req)
-                        {
-                            casterId = req.CasterActorId;
-                        }
-                        else if (evt.Args != null && evt.Args.TryGetValue(MobaSkillTriggering.Args.CasterActorId, out var v))
-                        {
-                            if (v is int i) casterId = i;
-                        }
-
-                        if (casterId != 0 && casterId != selfId)
-                        {
-                            return;
-                        }
+                        // Empty EventId means direct-execute trigger; it shouldn't be invoked by EventBus.
+                        return;
                     }
 
-                    SKIP_SELF_FILTER:
+                    var isExternalEvent = false;
+                    if (_entity.hasActorId)
+                    {
+                        var selfId = _entity.actorId.Value;
+                        if (TryGetEventSourceActorId(in evt, out var sourceActorId) && sourceActorId != 0 && sourceActorId != selfId)
+                        {
+                            isExternalEvent = true;
+                        }
+                    }
 
                     var rt = _sys.TryGetPassiveSkillRuntime(_entity, _passiveSkill.Id);
                     if (rt == null) return;
@@ -469,21 +512,34 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                     if (entries == null || entries.Count == 0) return;
 
                     PooledTriggerArgs mergedArgs = null;
+                    var injectedArgs = false;
+                    var injectedOldExists = false;
+                    object injectedOldValue = null;
+                    IDictionary<string, object> mutableArgs = null;
                     try
                     {
-                        mergedArgs = PooledTriggerArgs.Rent();
-                        if (evt.Args != null)
+                        var args = evt.Args;
+                        if (_listener.SourceContextId != 0 && args != null)
                         {
-                            foreach (var kv in evt.Args)
+                            mutableArgs = args as IDictionary<string, object>;
+                            if (mutableArgs != null)
                             {
-                                if (kv.Key == null) continue;
-                                mergedArgs[kv.Key] = kv.Value;
+                                injectedOldExists = mutableArgs.TryGetValue(EffectSourceKeys.SourceContextId, out injectedOldValue);
+                                mutableArgs[EffectSourceKeys.SourceContextId] = _listener.SourceContextId;
+                                injectedArgs = true;
                             }
-                        }
-
-                        if (_listener.SourceContextId != 0)
-                        {
-                            mergedArgs[EffectSourceKeys.SourceContextId] = _listener.SourceContextId;
+                            else
+                            {
+                                // Args is read-only; fall back to copying once.
+                                mergedArgs = PooledTriggerArgs.Rent();
+                                foreach (var kv in args)
+                                {
+                                    if (kv.Key == null) continue;
+                                    mergedArgs[kv.Key] = kv.Value;
+                                }
+                                mergedArgs[EffectSourceKeys.SourceContextId] = _listener.SourceContextId;
+                                args = mergedArgs;
+                            }
                         }
 
                         var triggered = false;
@@ -493,7 +549,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                             var def = e?.Def;
                             if (def == null) continue;
 
-                            if (_sys._triggers.RunOnce(def, source: null, target: null, payload: evt.Payload, args: mergedArgs, initialLocalVars: e.InitialLocalVars))
+                            if (isExternalEvent && !def.AllowExternal)
+                            {
+                                continue;
+                            }
+
+                            if (_sys._triggers.RunOnce(def, source: null, target: null, payload: evt.Payload, args: args, initialLocalVars: e.InitialLocalVars))
                             {
                                 triggered = true;
                             }
@@ -506,6 +567,17 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                     }
                     finally
                     {
+                        if (injectedArgs && mutableArgs != null)
+                        {
+                            if (injectedOldExists)
+                            {
+                                mutableArgs[EffectSourceKeys.SourceContextId] = injectedOldValue;
+                            }
+                            else
+                            {
+                                mutableArgs.Remove(EffectSourceKeys.SourceContextId);
+                            }
+                        }
                         mergedArgs?.Dispose();
                     }
                 }
@@ -513,6 +585,34 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                 {
                     Log.Exception(ex, $"[MobaPassiveSkillTriggerRegisterSystem] handler exception (passiveSkillId={_passiveSkill.Id}, triggerId={_listener.TriggerId}, eventId={_listener.EventId})");
                 }
+            }
+
+            private static bool TryGetEventSourceActorId(in TriggerEvent evt, out int actorId)
+            {
+                actorId = 0;
+
+                if (evt.Payload is SkillCastRequest req)
+                {
+                    actorId = req.CasterActorId;
+                    return actorId != 0;
+                }
+
+                var args = evt.Args;
+                if (args == null) return false;
+
+                if (args.TryGetValue(MobaSkillTriggering.Args.CasterActorId, out var v) && v is int casterId)
+                {
+                    actorId = casterId;
+                    return true;
+                }
+
+                if (args.TryGetValue(EffectSourceKeys.SourceActorId, out v) && v is int sourceActorId)
+                {
+                    actorId = sourceActorId;
+                    return true;
+                }
+
+                return false;
             }
         }
     }

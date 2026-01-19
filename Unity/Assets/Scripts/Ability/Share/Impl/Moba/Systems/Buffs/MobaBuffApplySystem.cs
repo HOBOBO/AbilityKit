@@ -8,6 +8,8 @@ using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.DI;
@@ -24,6 +26,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
         private ITriggerActionRunner _actionRunner;
         private EffectSourceRegistry _effectSource;
         private IFrameTime _frameTime;
+        private MobaEffectExecutionService _effectExec;
 
         private Entitas.IGroup<global::ActorEntity> _group;
 
@@ -40,6 +43,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             Services.TryGet(out _actionRunner);
             Services.TryGet(out _effectSource);
             Services.TryGet(out _frameTime);
+            Services.TryGet(out _effectExec);
             _group = Contexts.actor.GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.ApplyBuffRequest));
         }
 
@@ -85,18 +89,69 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                 if (existingIndex >= 0)
                 {
                     var rt = list[existingIndex];
-                    ApplyToExisting(rt, buff, req, durationSeconds, _effectSource, _actionRunner, GetFrame(), req.SourceId, targetActorId);
+                    var applied = ApplyToExisting(rt, buff, req, durationSeconds, _effectSource, _actionRunner, GetFrame(), req.SourceId, targetActorId);
                     EnsureBuffContext(rt, buff.Id, req.SourceId, targetActorId, _effectSource, GetFrame());
-                    PublishBuffEvent(_eventBus, BuffTriggering.Events.ApplyOrRefresh, buff, req.SourceId, targetActorId, durationSeconds, rt);
+                    PublishBuffEvent(_eventBus, MobaBuffTriggering.Events.ApplyOrRefresh, buff, req.SourceId, targetActorId, durationSeconds, rt);
+                    if (applied)
+                    {
+                        ResetInterval(rt, buff);
+                        ExecuteStageEffects(buff.OnAddEffects, stage: "add", sourceActorId: req.SourceId, targetActorId: targetActorId, unit, GetFrame(), rt);
+                    }
                 }
                 else
                 {
                     var rt = CreateNewRuntime(buff, req, durationSeconds);
                     EnsureBuffContext(rt, buff.Id, req.SourceId, targetActorId, _effectSource, GetFrame());
                     list.Add(rt);
-                    PublishBuffEvent(_eventBus, BuffTriggering.Events.ApplyOrRefresh, buff, req.SourceId, targetActorId, durationSeconds, rt);
+                    PublishBuffEvent(_eventBus, MobaBuffTriggering.Events.ApplyOrRefresh, buff, req.SourceId, targetActorId, durationSeconds, rt);
+                    ResetInterval(rt, buff);
+                    ExecuteStageEffects(buff.OnAddEffects, stage: "add", sourceActorId: req.SourceId, targetActorId: targetActorId, unit, GetFrame(), rt);
                 }
             }
+        }
+
+        private static void ResetInterval(BuffRuntime rt, BuffMO buff)
+        {
+            if (rt == null) return;
+            if (buff == null) return;
+            rt.IntervalRemainingSeconds = buff.IntervalMs > 0 ? buff.IntervalMs / 1000f : 0f;
+        }
+
+        private void ExecuteStageEffects(IReadOnlyList<int> effectIds, string stage, int sourceActorId, int targetActorId, IUnitFacade targetUnit, int frame, BuffRuntime runtime)
+        {
+            // 中文注释：Buff 的多阶段效果执行入口。
+            // stage: add/remove/interval 等，主要用于事件 args 标识来源阶段。
+            if (_effectExec == null) return;
+            if (effectIds == null || effectIds.Count == 0) return;
+
+            for (int i = 0; i < effectIds.Count; i++)
+            {
+                var effectId = effectIds[i];
+                if (effectId <= 0) continue;
+                var ctx = BuildEffectContext(sourceActorId, targetActorId, targetUnit);
+                _effectExec.Execute(effectId, ctx, EffectExecuteMode.InternalOnly);
+                PublishBuffEffectEvent(_eventBus, MobaBuffTriggering.Events.ApplyOrRefresh, effectId, stage, sourceActorId, targetActorId, runtime);
+            }
+        }
+
+        private static SkillPipelineContext BuildEffectContext(int sourceActorId, int targetActorId, IUnitFacade targetUnit)
+        {
+            // 中文注释：Buff 执行 effect 时复用 SkillPipelineContext 作为通用的 effect 执行上下文。
+            // 这里 skillId/slot 置 0，Aim 置零向量。
+            var ctx = new SkillPipelineContext();
+            var req = new SkillCastRequest(
+                skillId: 0,
+                skillSlot: 0,
+                casterActorId: sourceActorId,
+                targetActorId: targetActorId,
+                aimPos: Vec3.Zero,
+                aimDir: Vec3.Forward,
+                worldServices: null,
+                eventBus: null,
+                casterUnit: null,
+                targetUnit: targetUnit);
+            ctx.Initialize(abilityInstance: null, in req);
+            return ctx;
         }
 
         private static int FindExistingBuffIndex(List<BuffRuntime> list, int buffId)
@@ -113,33 +168,33 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             return -1;
         }
 
-        private static void ApplyToExisting(BuffRuntime existing, BuffMO buff, ApplyBuffRequestComponent req, float durationSeconds, EffectSourceRegistry effectSource, ITriggerActionRunner actionRunner, int frame, int sourceActorId, int targetActorId)
+        private static bool ApplyToExisting(BuffRuntime existing, BuffMO buff, ApplyBuffRequestComponent req, float durationSeconds, EffectSourceRegistry effectSource, ITriggerActionRunner actionRunner, int frame, int sourceActorId, int targetActorId)
         {
-            if (existing == null) return;
+            if (existing == null) return false;
 
             switch (buff.StackingPolicy)
             {
                 case BuffStackingPolicy.IgnoreIfExists:
-                    return;
+                    return false;
                 case BuffStackingPolicy.Replace:
                     CancelAndEnd(existing, effectSource, actionRunner, frame);
                     existing.SourceId = req.SourceId;
                     existing.StackCount = 0;
                     existing.Remaining = durationSeconds;
                     AddStack(existing, buff.MaxStacks);
-                    return;
+                    return true;
                 case BuffStackingPolicy.AddStack:
                     AddStack(existing, buff.MaxStacks);
                     RefreshRemaining(existing, buff.RefreshPolicy, durationSeconds);
                     existing.SourceId = req.SourceId;
-                    return;
+                    return true;
                 case BuffStackingPolicy.RefreshDuration:
                     RefreshRemaining(existing, buff.RefreshPolicy, durationSeconds);
                     existing.SourceId = req.SourceId;
-                    return;
+                    return true;
                 case BuffStackingPolicy.None:
                 default:
-                    return;
+                    return false;
             }
         }
 
@@ -149,6 +204,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             {
                 BuffId = buff.Id,
                 Remaining = durationSeconds,
+                IntervalRemainingSeconds = 0,
                 SourceId = req.SourceId,
                 StackCount = 0,
                 SourceContextId = 0,
@@ -194,11 +250,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             if (string.IsNullOrEmpty(eventId)) return;
 
             PublishOnce(bus, eventId, buff, sourceActorId, targetActorId, durationSeconds, runtime);
-
-            if (buff.EffectId > 0)
-            {
-                PublishOnce(bus, BuffTriggering.Events.WithEffect(eventId, buff.EffectId), buff, sourceActorId, targetActorId, durationSeconds, runtime);
-            }
         }
 
         private static void PublishOnce(IEventBus bus, string eventId, BuffMO buff, int sourceActorId, int targetActorId, float durationSeconds, BuffRuntime runtime)
@@ -210,16 +261,50 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             var args = PooledTriggerArgs.Rent();
             args[EffectTriggering.Args.Source] = sourceActorId;
             args[EffectTriggering.Args.Target] = targetActorId;
-            args[BuffTriggering.Args.BuffId] = buff.Id;
-            args[BuffTriggering.Args.EffectId] = buff.EffectId;
-            args[BuffTriggering.Args.DurationSeconds] = durationSeconds;
-            args[BuffTriggering.Args.StackCount] = runtime != null ? runtime.StackCount : 0;
+            args[EffectSourceKeys.SourceActorId] = sourceActorId;
+            args[EffectSourceKeys.TargetActorId] = targetActorId;
+            args[MobaBuffTriggering.Args.BuffId] = buff.Id;
+            args[MobaBuffTriggering.Args.EffectId] = 0;
+            args[MobaBuffTriggering.Args.DurationSeconds] = durationSeconds;
+            args[MobaBuffTriggering.Args.StackCount] = runtime != null ? runtime.StackCount : 0;
             if (runtime != null && runtime.SourceContextId != 0)
             {
                 args[EffectSourceKeys.SourceContextId] = runtime.SourceContextId;
             }
 
             bus.Publish(new TriggerEvent(eventId, payload: runtime, args: args));
+        }
+
+        private static void PublishBuffEffectEvent(IEventBus bus, string baseEventId, int effectId, string stage, int sourceActorId, int targetActorId, BuffRuntime runtime)
+        {
+            // 中文注释：针对单个 effectId 发布 buff 事件（含 buff.apply.<effectId>）。
+            if (bus == null) return;
+            if (string.IsNullOrEmpty(baseEventId)) return;
+            if (effectId <= 0) return;
+
+            void Fill(PooledTriggerArgs args)
+            {
+                args[EffectTriggering.Args.Source] = sourceActorId;
+                args[EffectTriggering.Args.Target] = targetActorId;
+                args[EffectSourceKeys.SourceActorId] = sourceActorId;
+                args[EffectSourceKeys.TargetActorId] = targetActorId;
+                args[MobaBuffTriggering.Args.BuffId] = runtime != null ? runtime.BuffId : 0;
+                args[MobaBuffTriggering.Args.EffectId] = effectId;
+                args[MobaBuffTriggering.Args.Stage] = stage;
+                args[MobaBuffTriggering.Args.StackCount] = runtime != null ? runtime.StackCount : 0;
+                if (runtime != null && runtime.SourceContextId != 0)
+                {
+                    args[EffectSourceKeys.SourceContextId] = runtime.SourceContextId;
+                }
+            }
+
+            var args1 = PooledTriggerArgs.Rent();
+            Fill(args1);
+            bus.Publish(new TriggerEvent(baseEventId, payload: runtime, args: args1));
+
+            var args2 = PooledTriggerArgs.Rent();
+            Fill(args2);
+            bus.Publish(new TriggerEvent(MobaBuffTriggering.Events.WithEffect(baseEventId, effectId), payload: runtime, args: args2));
         }
 
         private int GetFrame()
@@ -272,26 +357,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             rt.SourceContextId = 0;
         }
 
-        private static class BuffTriggering
-        {
-            public static class Events
-            {
-                public const string ApplyOrRefresh = "buff.apply";
-                public const string Remove = "buff.remove";
-
-                public static string WithEffect(string baseEventId, int effectId)
-                {
-                    return string.IsNullOrEmpty(baseEventId) ? null : $"{baseEventId}.{effectId}";
-                }
-            }
-
-            public static class Args
-            {
-                public const string BuffId = "buff.id";
-                public const string EffectId = "buff.effectId";
-                public const string StackCount = "buff.stackCount";
-                public const string DurationSeconds = "buff.durationSeconds";
-            }
-        }
+        
     }
 }
