@@ -5,9 +5,24 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
 {
     public sealed class AttributeGroup
     {
+        internal struct AttributeSlot
+        {
+            public float BaseValue;
+            public float Cached;
+            public bool Dirty;
+
+            public float Add;
+            public float Mul;
+            public float FinalAdd;
+            public float Override;
+            public bool HasOverride;
+        }
+
         private readonly string _name;
         private readonly AttributeContext _ctx;
         private readonly Dictionary<int, AttributeInstance> _attrs = new Dictionary<int, AttributeInstance>(64);
+        private AttributeInstance[] _byId = new AttributeInstance[64];
+        private AttributeSlot[] _slots = new AttributeSlot[64];
 
         public AttributeGroup(string name, AttributeContext ctx)
         {
@@ -25,15 +40,34 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         {
             if (!id.IsValid) throw new ArgumentException("Invalid AttributeId", nameof(id));
 
-            if (_attrs.TryGetValue(id.Id, out var inst) && inst != null)
+            EnsureCapacity(id.Id);
+            var inst = _byId[id.Id];
+            if (inst != null)
             {
                 return inst;
             }
 
+            if (_attrs.TryGetValue(id.Id, out inst) && inst != null)
+            {
+                _byId[id.Id] = inst;
+                return inst;
+            }
+
             var baseValue = AttributeRegistry.Instance.GetDefaultBaseValue(id);
-            inst = new AttributeInstance(id, baseValue, _ctx);
+            ref var slot = ref _slots[id.Id];
+            slot.BaseValue = baseValue;
+            slot.Cached = 0f;
+            slot.Dirty = true;
+            slot.Add = 0f;
+            slot.Mul = 0f;
+            slot.FinalAdd = 0f;
+            slot.Override = 0f;
+            slot.HasOverride = false;
+
+            inst = new AttributeInstance(this, id, _ctx);
             inst.Changed += (a, oldV, newV) => AttributeChanged?.Invoke(a, oldV, newV);
             _attrs[id.Id] = inst;
+            _byId[id.Id] = inst;
             return inst;
         }
 
@@ -41,6 +75,13 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         {
             inst = null;
             if (!id.IsValid) return false;
+
+            if (id.Id >= 0 && id.Id < _byId.Length)
+            {
+                inst = _byId[id.Id];
+                if (inst != null) return true;
+            }
+
             return _attrs.TryGetValue(id.Id, out inst) && inst != null;
         }
 
@@ -74,10 +115,46 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         internal void MarkDirty(AttributeId id)
         {
             if (!id.IsValid) return;
-            if (_attrs.TryGetValue(id.Id, out var inst) && inst != null)
+
+            AttributeInstance inst = null;
+            if (id.Id >= 0 && id.Id < _byId.Length)
+            {
+                inst = _byId[id.Id];
+            }
+            if (inst == null)
+            {
+                _attrs.TryGetValue(id.Id, out inst);
+                if (inst != null)
+                {
+                    EnsureCapacity(id.Id);
+                    _byId[id.Id] = inst;
+                }
+            }
+
+            if (inst != null)
             {
                 inst.MarkDirtyByDependency();
             }
+        }
+
+        internal ref AttributeSlot GetSlotRef(int rawId)
+        {
+            return ref _slots[rawId];
+        }
+
+        private void EnsureCapacity(int rawId)
+        {
+            if (rawId < 0) return;
+            if (rawId < _byId.Length && rawId < _slots.Length) return;
+
+            var newSize = _byId.Length;
+            if (newSize <= 0) newSize = 4;
+            while (rawId >= newSize)
+            {
+                newSize *= 2;
+            }
+            Array.Resize(ref _byId, newSize);
+            Array.Resize(ref _slots, newSize);
         }
     }
 }

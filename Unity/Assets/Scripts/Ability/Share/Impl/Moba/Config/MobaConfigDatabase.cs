@@ -15,8 +15,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         {
             if (string.IsNullOrEmpty(resourcesDir)) throw new ArgumentException(nameof(resourcesDir));
 
-            _tables.Clear();
-
+            var jsonByKey = new Dictionary<string, string>(StringComparer.Ordinal);
             var tables = MobaRuntimeConfigTableRegistry.Tables;
             for (var i = 0; i < tables.Length; i++)
             {
@@ -26,6 +25,29 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
                 if (asset == null) throw new InvalidOperationException($"Config json not found in Resources: {path}");
                 var json = asset.text;
                 if (string.IsNullOrEmpty(json)) throw new InvalidOperationException($"Config json is empty: {path}");
+                jsonByKey[path] = json;
+                jsonByKey[t.FileWithoutExt] = json;
+            }
+
+            LoadFromJsonTexts(jsonByKey, resourcesDir);
+        }
+
+        public void LoadFromJsonTexts(IReadOnlyDictionary<string, string> jsonByKey, string resourcesDir = null)
+        {
+            if (jsonByKey == null) throw new ArgumentNullException(nameof(jsonByKey));
+
+            _tables.Clear();
+
+            var tables = MobaRuntimeConfigTableRegistry.Tables;
+            for (var i = 0; i < tables.Length; i++)
+            {
+                var t = tables[i];
+                var fullPath = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
+
+                if (!TryGetJson(jsonByKey, fullPath, t.FileWithoutExt, out var json) || string.IsNullOrEmpty(json))
+                {
+                    throw new InvalidOperationException($"Config json not found: {fullPath}");
+                }
 
                 try
                 {
@@ -36,9 +58,18 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
                 }
                 catch (Exception ex)
                 {
-                    throw new InvalidOperationException($"Failed to parse config json: {path}", ex);
+                    throw new InvalidOperationException($"Failed to parse config json: {fullPath}", ex);
                 }
             }
+        }
+
+        private static bool TryGetJson(IReadOnlyDictionary<string, string> jsonByKey, string fullPath, string fileWithoutExt, out string json)
+        {
+            json = null;
+            if (jsonByKey == null) return false;
+            if (fullPath != null && jsonByKey.TryGetValue(fullPath, out json)) return true;
+            if (fileWithoutExt != null && jsonByKey.TryGetValue(fileWithoutExt, out json)) return true;
+            return false;
         }
 
 
