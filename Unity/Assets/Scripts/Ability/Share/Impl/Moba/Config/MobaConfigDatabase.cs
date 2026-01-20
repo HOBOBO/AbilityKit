@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
+using AbilityKit.Ability.HotReload;
 using Newtonsoft.Json;
 using UnityEngine;
 
@@ -9,7 +10,12 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 {
     public sealed class MobaConfigDatabase
     {
+        private const string ConfigKey = "moba.config";
+
         private readonly Dictionary<Type, object> _tables = new Dictionary<Type, object>();
+        private long _version;
+
+        public long Version => _version;
 
         public void LoadFromResources(string resourcesDir)
         {
@@ -32,11 +38,53 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             LoadFromJsonTexts(jsonByKey, resourcesDir);
         }
 
+        public ConfigReloadResult ReloadFromResources(string resourcesDir)
+        {
+            if (string.IsNullOrEmpty(resourcesDir)) throw new ArgumentException(nameof(resourcesDir));
+
+            var jsonByKey = new Dictionary<string, string>(StringComparer.Ordinal);
+            var tables = MobaRuntimeConfigTableRegistry.Tables;
+            for (var i = 0; i < tables.Length; i++)
+            {
+                var t = tables[i];
+                var path = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
+                var asset = Resources.Load<TextAsset>(path);
+                if (asset == null)
+                {
+                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config json not found in Resources: {path}");
+                    ConfigReloadBus.Publish(fail);
+                    return fail;
+                }
+                var json = asset.text;
+                if (string.IsNullOrEmpty(json))
+                {
+                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config json is empty: {path}");
+                    ConfigReloadBus.Publish(fail);
+                    return fail;
+                }
+                jsonByKey[path] = json;
+                jsonByKey[t.FileWithoutExt] = json;
+            }
+
+            return ReloadFromJsonTexts(jsonByKey, resourcesDir);
+        }
+
         public void LoadFromJsonTexts(IReadOnlyDictionary<string, string> jsonByKey, string resourcesDir = null)
         {
             if (jsonByKey == null) throw new ArgumentNullException(nameof(jsonByKey));
 
-            _tables.Clear();
+            var result = ReloadFromJsonTexts(jsonByKey, resourcesDir);
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException(result.Error ?? "Config reload failed");
+            }
+        }
+
+        public ConfigReloadResult ReloadFromJsonTexts(IReadOnlyDictionary<string, string> jsonByKey, string resourcesDir = null)
+        {
+            if (jsonByKey == null) throw new ArgumentNullException(nameof(jsonByKey));
+
+            var nextTables = new Dictionary<Type, object>();
 
             var tables = MobaRuntimeConfigTableRegistry.Tables;
             for (var i = 0; i < tables.Length; i++)
@@ -46,7 +94,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 
                 if (!TryGetJson(jsonByKey, fullPath, t.FileWithoutExt, out var json) || string.IsNullOrEmpty(json))
                 {
-                    throw new InvalidOperationException($"Config json not found: {fullPath}");
+                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config json not found: {fullPath}");
+                    ConfigReloadBus.Publish(fail);
+                    return fail;
                 }
 
                 try
@@ -54,13 +104,26 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
                     var dtoArrayType = t.DtoType.MakeArrayType();
                     var arr = (Array)JsonConvert.DeserializeObject(json, dtoArrayType);
                     var tableObj = CreateTableFromDtos(t.DtoType, t.MoType, arr);
-                    _tables[t.MoType] = tableObj;
+                    nextTables[t.MoType] = tableObj;
                 }
                 catch (Exception ex)
                 {
-                    throw new InvalidOperationException($"Failed to parse config json: {fullPath}", ex);
+                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Failed to parse config json: {fullPath}. {ex.Message}");
+                    ConfigReloadBus.Publish(fail);
+                    return fail;
                 }
             }
+
+            _tables.Clear();
+            foreach (var kv in nextTables)
+            {
+                _tables[kv.Key] = kv.Value;
+            }
+
+            _version++;
+            var ok = ConfigReloadResult.Success(ConfigKey, _version, fullReload: true, changedIds: null);
+            ConfigReloadBus.Publish(ok);
+            return ok;
         }
 
         private static bool TryGetJson(IReadOnlyDictionary<string, string> jsonByKey, string fullPath, string fileWithoutExt, out string json)

@@ -23,6 +23,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaMoveService _moves;
         private SkillExecutor _skills;
 
+        private IWorldServices _services;
+
         private readonly Dictionary<int, Action<PlayerInputCommand>> _handlers;
 
         public MobaLobbyInputSink(MobaLobbyStateService lobby, MobaEnterGameFlowService enterGame, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, global::Contexts contexts, MobaMoveService moves)
@@ -50,6 +52,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         {
             if (_skills != null) return;
             if (services == null) return;
+
+            _services = services;
 
             try
             {
@@ -163,6 +167,19 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             for (int i = 0; i < inputs.Count; i++)
             {
                 var cmd = inputs[i];
+
+                if (_services != null && _services.TryGet<IMobaLobbyInputHotfixRouter>(out var router) && router != null)
+                {
+                    try
+                    {
+                        if (router.TryHandle(_services, frame, cmd)) continue;
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, "[MobaLobbyInputSink] Hotfix router TryHandle failed.");
+                    }
+                }
+
                 if (_handlers.TryGetValue(cmd.OpCode, out var handler)) handler(cmd);
             }
 

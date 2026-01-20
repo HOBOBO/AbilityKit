@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.CoreDtos;
+using AbilityKit.Ability.HotReload;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
 using Newtonsoft.Json;
@@ -9,7 +10,13 @@ namespace AbilityKit.Ability.Triggering.Json
 {
     public sealed class AbilityTriggerJsonDatabase
     {
-        private readonly List<TriggerDTO> _flatTriggers = new List<TriggerDTO>();
+        private const string ConfigKey = "ability.trigger";
+
+        private List<TriggerDTO> _flatTriggers = new List<TriggerDTO>();
+        private HashSet<int> _triggerIdSnapshot = new HashSet<int>();
+        private long _version;
+
+        public long Version => _version;
 
         public readonly struct TriggerRecord
         {
@@ -141,13 +148,37 @@ namespace AbilityKit.Ability.Triggering.Json
                 throw new InvalidOperationException($"Trigger json not found or empty: {id}");
             }
 
-            LoadFromJson(json, id);
+            ReloadFromJson(json, id);
         }
 
         public void LoadFromJson(string json, string sourceName = null)
         {
-            _flatTriggers.Clear();
-            if (string.IsNullOrEmpty(json)) throw new InvalidOperationException($"Trigger json is empty: {sourceName ?? "<json>"}");
+            ReloadFromJson(json, sourceName);
+        }
+
+        public ConfigReloadResult Reload(ITextLoader loader, string id)
+        {
+            if (loader == null) throw new ArgumentNullException(nameof(loader));
+            if (string.IsNullOrEmpty(id)) throw new ArgumentException(nameof(id));
+
+            if (!loader.TryLoad(id, out var json) || string.IsNullOrEmpty(json))
+            {
+                var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Trigger json not found or empty: {id}");
+                ConfigReloadBus.Publish(fail);
+                return fail;
+            }
+
+            return ReloadFromJson(json, id);
+        }
+
+        public ConfigReloadResult ReloadFromJson(string json, string sourceName = null)
+        {
+            if (string.IsNullOrEmpty(json))
+            {
+                var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Trigger json is empty: {sourceName ?? "<json>"}");
+                ConfigReloadBus.Publish(fail);
+                return fail;
+            }
 
             AbilityTriggerDatabaseDTO dto;
             try
@@ -156,15 +187,62 @@ namespace AbilityKit.Ability.Triggering.Json
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Failed to parse trigger json: {sourceName ?? "<json>"}", ex);
+                var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Failed to parse trigger json: {sourceName ?? "<json>"}. {ex.Message}");
+                ConfigReloadBus.Publish(fail);
+                return fail;
             }
 
-            if (dto == null) return;
+            var nextFlatTriggers = new List<TriggerDTO>();
+            var nextIds = new HashSet<int>();
 
-            if (dto.Triggers != null && dto.Triggers.Count > 0)
+            if (dto != null && dto.Triggers != null && dto.Triggers.Count > 0)
             {
-                _flatTriggers.AddRange(dto.Triggers);
+                nextFlatTriggers.AddRange(dto.Triggers);
+                for (int i = 0; i < dto.Triggers.Count; i++)
+                {
+                    var t = dto.Triggers[i];
+                    if (t == null) continue;
+                    if (t.TriggerId <= 0) continue;
+                    nextIds.Add(t.TriggerId);
+                }
             }
+
+            var changed = BuildChangedIds(_triggerIdSnapshot, nextIds);
+
+            _flatTriggers = nextFlatTriggers;
+            _triggerIdSnapshot = nextIds;
+            _version++;
+
+            var ok = ConfigReloadResult.Success(ConfigKey, _version, fullReload: true, changedIds: changed);
+            ConfigReloadBus.Publish(ok);
+            return ok;
+        }
+
+        private static List<int> BuildChangedIds(HashSet<int> prev, HashSet<int> next)
+        {
+            if (prev == null || prev.Count == 0)
+            {
+                if (next == null || next.Count == 0) return null;
+                return new List<int>(next);
+            }
+
+            if (next == null || next.Count == 0)
+            {
+                return prev.Count > 0 ? new List<int>(prev) : null;
+            }
+
+            var changed = new List<int>();
+            foreach (var id in prev)
+            {
+                if (!next.Contains(id)) changed.Add(id);
+            }
+
+            foreach (var id in next)
+            {
+                if (!prev.Contains(id)) changed.Add(id);
+            }
+
+            return changed.Count > 0 ? changed : null;
         }
     }
 }
