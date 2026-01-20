@@ -22,6 +22,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             return _byId.TryGetValue(actorId, out entity);
         }
 
+        public void Unregister(int actorId)
+        {
+            if (actorId <= 0) return;
+            _byId.Remove(actorId);
+        }
+
         public void Clear()
         {
             _byId.Clear();

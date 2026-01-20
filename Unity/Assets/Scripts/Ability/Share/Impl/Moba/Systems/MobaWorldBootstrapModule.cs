@@ -67,6 +67,9 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
 
             builder.TryRegisterService<IProjectileService, ProjectileService>();
 
+            builder.RegisterService<AbilityKit.Ability.Share.Impl.Moba.Services.Projectile.MobaProjectileLinkService, AbilityKit.Ability.Share.Impl.Moba.Services.Projectile.MobaProjectileLinkService>();
+            builder.RegisterService<AbilityKit.Ability.Share.Impl.Moba.Services.Projectile.MobaProjectileService, AbilityKit.Ability.Share.Impl.Moba.Services.Projectile.MobaProjectileService>();
+
             builder.RegisterService<MobaSkillLoadoutService, MobaSkillLoadoutService>();
             builder.TryRegister<MobaTriggerIndexService>(WorldLifetime.Singleton, _ =>
             {

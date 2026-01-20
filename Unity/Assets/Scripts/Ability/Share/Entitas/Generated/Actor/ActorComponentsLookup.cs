@@ -17,18 +17,19 @@ public static class ActorComponentsLookup {
     public const int CollisionLayer = 6;
     public const int EffectListeners = 7;
     public const int EntityMainType = 8;
-    public const int Motion = 9;
-    public const int MoveInput = 10;
-    public const int OwnerPlayerId = 11;
-    public const int PassiveSkillTriggerListeners = 12;
-    public const int RemoveBuffRequest = 13;
-    public const int ResourceContainer = 14;
-    public const int SkillLoadout = 15;
-    public const int Team = 16;
-    public const int Transform = 17;
-    public const int UnitSubType = 18;
+    public const int FlyingProjectileTag = 9;
+    public const int Motion = 10;
+    public const int MoveInput = 11;
+    public const int OwnerPlayerId = 12;
+    public const int PassiveSkillTriggerListeners = 13;
+    public const int RemoveBuffRequest = 14;
+    public const int ResourceContainer = 15;
+    public const int SkillLoadout = 16;
+    public const int Team = 17;
+    public const int Transform = 18;
+    public const int UnitSubType = 19;
 
-    public const int TotalComponents = 19;
+    public const int TotalComponents = 20;
 
     public static readonly string[] componentNames = {
         "ActorId",
@@ -40,6 +41,7 @@ public static class ActorComponentsLookup {
         "CollisionLayer",
         "EffectListeners",
         "EntityMainType",
+        "FlyingProjectileTag",
         "Motion",
         "MoveInput",
         "OwnerPlayerId",
@@ -62,6 +64,7 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.CollisionLayerComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.EffectListenersComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.EntityMainTypeComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.FlyingProjectileTagComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent),

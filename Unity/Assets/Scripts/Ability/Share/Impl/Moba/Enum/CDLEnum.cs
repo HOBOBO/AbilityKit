@@ -44,7 +44,16 @@ namespace AbilityKit.Ability.Impl.Moba
         Tower = 5,
 
         // 基地/水晶
-        Base = 6
+        Base = 6,
+
+        // 子弹/飞行道具（当主类型为 Projectile 时，用于更细的分类）
+        Bullet = 7
+    }
+
+    public enum ProjectileEmitterType
+    {
+        None = 0,
+        Linear = 1,
     }
 
     // 队伍/阵营类型

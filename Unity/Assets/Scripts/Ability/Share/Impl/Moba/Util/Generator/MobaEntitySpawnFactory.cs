@@ -12,6 +12,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
         Hero = 1,
         Minion = 2,
         Monster = 3,
+        Projectile = 4,
     }
 
     public readonly struct MobaEntityInfo
@@ -59,6 +60,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             { MobaEntityKind.Hero, CreateHero },
             { MobaEntityKind.Minion, CreateMinion },
             { MobaEntityKind.Monster, CreateMonster },
+            { MobaEntityKind.Projectile, CreateProjectile },
         };
 
         public static void Register(MobaEntityKind kind, CreateHandler handler)
@@ -110,6 +112,17 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
                 .WithTransform(info.Transform)
                 .WithMotion()
                 .WithMoveInput();
+
+            var e = b.Build();
+            ApplyMeta(e, in info);
+            return e;
+        }
+
+        private static ActorEntity CreateProjectile(ActorContext context, in MobaEntityInfo info)
+        {
+            var b = ActorEntityFactory.Create(context)
+                .WithActorId(info.ActorId)
+                .WithTransform(info.Transform);
 
             var e = b.Build();
             ApplyMeta(e, in info);
