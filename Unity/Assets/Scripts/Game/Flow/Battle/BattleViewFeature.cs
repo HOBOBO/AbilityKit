@@ -4,31 +4,45 @@ using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Game.Battle.Moba.Config;
+using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow.Snapshot;
 using UnityEngine;
 using EC = AbilityKit.Ability.EC;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
 
 namespace AbilityKit.Game.Flow
 {
     public sealed class BattleViewFeature : IGamePhaseFeature
     {
         private static MobaConfigDatabase _configs;
+        private static VfxDatabase _vfxDb;
 
         private BattleContext _ctx;
         private IBattleEntityQuery _query;
         private BattleViewBinder _binder;
+        private BattleVfxManager _vfx;
+        private EC.Entity _vfxNode;
 
         private IDisposable _subEnterGame;
         private IDisposable _subActorTransform;
+        private IDisposable _subProjectileEvents;
 
         public void OnAttach(in GamePhaseContext ctx)
         {
             ctx.Root.TryGetComponent(out _ctx);
             _query = _ctx != null ? _ctx.EntityQuery : null;
-            _binder = new BattleViewBinder();
+            _vfxDb ??= VfxDatabase.LoadFromResources("vfx/vfx");
+            _vfx = new BattleVfxManager(_vfxDb);
+
+            if (_ctx != null && _ctx.EntityNode.IsValid)
+            {
+                _vfxNode = _ctx.EntityNode.AddChild("BattleVfx");
+            }
+
+            _binder = new BattleViewBinder(_vfx, _vfxNode);
 
             if (_ctx?.EntityWorld != null)
             {
@@ -39,6 +53,7 @@ namespace AbilityKit.Game.Flow
             {
                 _subEnterGame = _ctx.FrameSnapshots.Subscribe<EnterMobaGameRes>((int)MobaOpCode.EnterGameSnapshot, OnEnterGameSnapshot);
                 _subActorTransform = _ctx.FrameSnapshots.Subscribe<(int actorId, float x, float y, float z)[]>((int)MobaOpCode.ActorTransformSnapshot, OnActorTransformSnapshot);
+                _subProjectileEvents = _ctx.FrameSnapshots.Subscribe<MobaProjectileEventSnapshotCodec.Entry[]>((int)MobaOpCode.ProjectileEventSnapshot, OnProjectileEventSnapshot);
             }
         }
 
@@ -48,10 +63,12 @@ namespace AbilityKit.Game.Flow
             {
                 _subEnterGame?.Dispose();
                 _subActorTransform?.Dispose();
+                _subProjectileEvents?.Dispose();
             }
 
             _subEnterGame = null;
             _subActorTransform = null;
+            _subProjectileEvents = null;
 
             if (_ctx?.EntityWorld != null)
             {
@@ -60,12 +77,16 @@ namespace AbilityKit.Game.Flow
 
             _binder?.Clear();
             _binder = null;
+            _vfx = null;
+            _vfxNode = default;
             _ctx = null;
             _query = null;
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
         {
+            if (_ctx?.EntityWorld == null) return;
+            if (_vfxNode.IsValid) _vfx?.Tick(_vfxNode);
         }
 
         private void OnEnterGameSnapshot(FramePacket packet, EnterMobaGameRes res)
@@ -76,6 +97,55 @@ namespace AbilityKit.Game.Flow
         private void OnActorTransformSnapshot(FramePacket packet, (int actorId, float x, float y, float z)[] entries)
         {
             RefreshDirtyViews();
+        }
+
+        private void OnProjectileEventSnapshot(FramePacket packet, MobaProjectileEventSnapshotCodec.Entry[] entries)
+        {
+            if (entries == null || entries.Length == 0) return;
+            if (_ctx?.EntityWorld == null) return;
+            if (_query == null) return;
+            if (_vfx == null) return;
+            if (!_vfxNode.IsValid) return;
+
+            _configs ??= MobaConfigLoader.LoadDefault();
+            if (_configs == null) return;
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var evt = entries[i];
+                if (evt.TemplateId <= 0) continue;
+
+                ProjectileMO proj = null;
+                try { proj = _configs.GetProjectile(evt.TemplateId); }
+                catch { }
+                if (proj == null) continue;
+
+                var vfxId = 0;
+                if (evt.Kind == (int)MobaProjectileEventSnapshotCodec.EventKind.Spawn)
+                {
+                    vfxId = proj.OnSpawnVfxId;
+                }
+                else if (evt.Kind == (int)MobaProjectileEventSnapshotCodec.EventKind.Hit)
+                {
+                    vfxId = proj.OnHitVfxId;
+                }
+                else if (evt.Kind == (int)MobaProjectileEventSnapshotCodec.EventKind.Exit)
+                {
+                    vfxId = proj.OnExpireVfxId;
+                }
+
+                if (vfxId <= 0) continue;
+
+                var pos = new Vector3(evt.X, evt.Y, evt.Z);
+
+                var followId = default(EC.EntityId);
+                if (evt.ProjectileActorId > 0 && _query.TryResolve(new BattleNetId(evt.ProjectileActorId), out var projEntity))
+                {
+                    followId = projEntity.Id;
+                }
+
+                _vfx.TryCreateVfxEntity(_ctx.EntityWorld, _vfxNode, vfxId, followId, in pos, out _);
+            }
         }
 
         private void RefreshDirtyViews()
@@ -174,14 +244,44 @@ namespace AbilityKit.Game.Flow
             }
         }
 
+        private static int ResolveProjectileVfxId(BattleEntityMetaComponent meta)
+        {
+            if (meta == null) return 0;
+            if (meta.Kind != BattleEntityKind.Projectile) return 0;
+
+            _configs ??= MobaConfigLoader.LoadDefault();
+            if (_configs == null) return 0;
+
+            try
+            {
+                var proj = _configs.GetProjectile(meta.EntityCode);
+                return proj != null ? proj.VfxId : 0;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
         private sealed class BattleViewBinder
         {
+            private readonly BattleVfxManager _vfx;
+            private readonly EC.Entity _vfxNode;
+
+            public BattleViewBinder(BattleVfxManager vfx, in EC.Entity vfxNode)
+            {
+                _vfx = vfx;
+                _vfxNode = vfxNode;
+            }
+
             private sealed class Handle
             {
                 public int Version;
                 public bool Destroyed;
                 public int ModelId;
                 public GameObject GameObject;
+                public int VfxId;
+                public EC.EntityId VfxEntityId;
                 public Vector3 PendingPos;
                 public bool HasPendingPos;
             }
@@ -225,6 +325,29 @@ namespace AbilityKit.Game.Flow
                 {
                     h.GameObject.transform.position = h.PendingPos;
                 }
+
+                var desiredVfxId = ResolveProjectileVfxId(meta);
+                if (desiredVfxId > 0 && _vfx != null && _vfxNode.IsValid)
+                {
+                    if (h.VfxEntityId.Index == 0 || h.VfxId != desiredVfxId)
+                    {
+                        if (h.VfxEntityId.Index != 0)
+                        {
+                            _vfx.DestroyVfxEntity(entity.World, h.VfxEntityId);
+                            h.VfxEntityId = default;
+                        }
+
+                        if (_vfx.TryCreateVfxEntity(entity.World, _vfxNode, desiredVfxId, entity.Id, in h.PendingPos, out var vfxEntity))
+                        {
+                            h.VfxId = desiredVfxId;
+                            h.VfxEntityId = vfxEntity.Id;
+                        }
+                    }
+                    else
+                    {
+                        _vfx.SyncFollow(entity.World, h.VfxEntityId, in h.PendingPos);
+                    }
+                }
             }
 
             public void OnDestroyed(EC.EntityId id)
@@ -237,6 +360,13 @@ namespace AbilityKit.Game.Flow
                     UnityEngine.Object.Destroy(h.GameObject);
                     h.GameObject = null;
                 }
+
+                if (h.VfxEntityId.Index != 0 && _vfx != null)
+                {
+                    _vfx.DestroyVfxEntity(_vfxNode.World, h.VfxEntityId);
+                    h.VfxEntityId = default;
+                }
+
                 _handles.Remove(id);
             }
 
@@ -246,6 +376,12 @@ namespace AbilityKit.Game.Flow
                 {
                     var h = kv.Value;
                     if (h?.GameObject != null) UnityEngine.Object.Destroy(h.GameObject);
+
+                    if (h != null && h.VfxEntityId.Index != 0 && _vfx != null)
+                    {
+                        _vfx.DestroyVfxEntity(_vfxNode.World, h.VfxEntityId);
+                        h.VfxEntityId = default;
+                    }
                 }
                 _handles.Clear();
             }

@@ -13,6 +13,14 @@
             "message": "测试日志输出11111222"
           },
           "Items": null
+        },
+        {
+          "Type": "shoot_projectile",
+          "Args": {
+            "launcherId": 100001,
+            "projectileId": 200001
+          },
+          "Items": null
         }
       ]
     },

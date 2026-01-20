@@ -1,0 +1,163 @@
+using System;
+using System.Collections.Generic;
+using AbilityKit.Game.Battle.Component;
+using UnityEngine;
+using EC = AbilityKit.Ability.EC;
+
+namespace AbilityKit.Game.Battle.Vfx
+{
+    public sealed class BattleVfxManager
+    {
+        private readonly VfxDatabase _db;
+        private readonly Dictionary<string, GameObject> _prefabCache = new Dictionary<string, GameObject>(StringComparer.Ordinal);
+
+        public BattleVfxManager(VfxDatabase db)
+        {
+            _db = db ?? throw new ArgumentNullException(nameof(db));
+        }
+
+        public bool TryCreateVfxEntity(EC.EntityWorld world, EC.Entity parent, int vfxId, EC.EntityId followTarget, in Vector3 position, out EC.Entity entity)
+        {
+            entity = default;
+            if (world == null) return false;
+            if (!parent.IsValid) return false;
+            if (vfxId <= 0) return false;
+
+            if (!_db.TryGet(vfxId, out var dto) || dto == null || string.IsNullOrEmpty(dto.Resource))
+            {
+                return false;
+            }
+
+            if (!_prefabCache.TryGetValue(dto.Resource, out var prefab) || prefab == null)
+            {
+                prefab = Resources.Load<GameObject>(dto.Resource);
+                _prefabCache[dto.Resource] = prefab;
+            }
+
+            GameObject go;
+            if (prefab != null)
+            {
+                go = UnityEngine.Object.Instantiate(prefab);
+            }
+            else
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                go.transform.localScale = Vector3.one * 0.5f;
+            }
+
+            go.name = $"Vfx_{vfxId}";
+            go.transform.position = position;
+
+            var e = parent.AddChild($"Vfx_{vfxId}");
+            e.AddComponent(new BattleVfxComponent { VfxId = vfxId });
+            e.AddComponent(new BattleViewGameObjectComponent { GameObject = go });
+            e.AddComponent(new BattleViewFollowComponent { Target = followTarget, Offset = Vector3.zero });
+
+            if (dto.DurationMs > 0)
+            {
+                e.AddComponent(new BattleVfxLifetimeComponent { ExpireAtTime = Time.time + (dto.DurationMs / 1000f) });
+            }
+
+            entity = e;
+            return true;
+        }
+
+        public void Tick(in EC.Entity vfxRoot)
+        {
+            if (!vfxRoot.IsValid) return;
+            var world = vfxRoot.World;
+            if (world == null) return;
+
+            // Scan all VFX entities and:
+            // 1) Sync follow position
+            // 2) Destroy if expired
+            // Keep it simple; battle vfx count is expected to be low.
+
+            var tmp = new List<EC.EntityId>(32);
+            CollectVfxEntities(vfxRoot, tmp);
+            if (tmp.Count == 0) return;
+
+            for (int i = 0; i < tmp.Count; i++)
+            {
+                var id = tmp[i];
+                if (!world.IsAlive(id)) continue;
+                var e = world.Wrap(id);
+
+                if (e.TryGetComponent(out BattleVfxLifetimeComponent life) && life != null && life.ExpireAtTime > 0f)
+                {
+                    if (Time.time >= life.ExpireAtTime)
+                    {
+                        DestroyVfxEntity(world, id);
+                        continue;
+                    }
+                }
+
+                if (e.TryGetComponent(out BattleViewFollowComponent follow) && follow != null && follow.Target.Index != 0)
+                {
+                    if (world.IsAlive(follow.Target) && world.Wrap(follow.Target).TryGetComponent(out BattleTransformComponent t) && t != null)
+                    {
+                        SyncFollow(world, id, t.Position);
+                    }
+                }
+            }
+        }
+
+        private static void CollectVfxEntities(EC.Entity root, List<EC.EntityId> results)
+        {
+            if (!root.IsValid) return;
+            if (results == null) return;
+
+            var stack = new Stack<EC.Entity>();
+            stack.Push(root);
+
+            while (stack.Count > 0)
+            {
+                var e = stack.Pop();
+                if (!e.IsValid) continue;
+
+                if (e.TryGetComponent(out BattleVfxComponent vfx) && vfx != null)
+                {
+                    results.Add(e.Id);
+                }
+
+                var childCount = e.ChildCount;
+                for (int i = 0; i < childCount; i++)
+                {
+                    stack.Push(e.GetChild(i));
+                }
+            }
+        }
+
+        public void DestroyVfxEntity(EC.EntityWorld world, EC.EntityId id)
+        {
+            if (world == null) return;
+            if (!world.IsAlive(id)) return;
+
+            var e = world.Wrap(id);
+            if (e.TryGetComponent(out BattleViewGameObjectComponent goComp) && goComp != null && goComp.GameObject != null)
+            {
+                UnityEngine.Object.Destroy(goComp.GameObject);
+                goComp.GameObject = null;
+            }
+
+            if (e.IsValid) e.Destroy();
+        }
+
+        public void SyncFollow(EC.EntityWorld world, EC.EntityId vfxEntityId, in Vector3 targetPos)
+        {
+            if (world == null) return;
+            if (!world.IsAlive(vfxEntityId)) return;
+
+            var e = world.Wrap(vfxEntityId);
+            if (!e.TryGetComponent(out BattleViewGameObjectComponent goComp) || goComp == null || goComp.GameObject == null) return;
+
+            var pos = targetPos;
+            if (e.TryGetComponent(out BattleViewFollowComponent follow) && follow != null)
+            {
+                pos += follow.Offset;
+            }
+
+            goComp.GameObject.transform.position = pos;
+        }
+    }
+}

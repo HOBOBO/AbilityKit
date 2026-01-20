@@ -11,20 +11,15 @@ namespace AbilityKit.Ability.Configs
     {
         public override string Type => TriggerActionTypes.ShootProjectile;
 
-        public ProjectileEmitterType EmitterType = ProjectileEmitterType.Linear;
-        public int ProjectileCode;
-        public float Speed = 10f;
-        public int LifetimeFrames = 30;
-        public float MaxDistance = 0f;
+        public int LauncherId;
+        public int ProjectileId;
 
         public override ActionDef ToActionDef()
         {
             var dict = PooledDefArgs.Rent();
-            dict["emitterType"] = (int)EmitterType;
-            dict["projectileCode"] = ProjectileCode;
-            dict["speed"] = Speed;
-            dict["lifetimeFrames"] = LifetimeFrames;
-            dict["maxDistance"] = MaxDistance;
+
+            dict["launcherId"] = LauncherId;
+            dict["projectileId"] = ProjectileId;
             return new ActionDef(Type, dict);
         }
     }

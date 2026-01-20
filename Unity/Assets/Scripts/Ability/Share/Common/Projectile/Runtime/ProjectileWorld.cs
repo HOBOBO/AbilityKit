@@ -32,6 +32,9 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             var proj = Pool.Get();
             proj.Id = new ProjectileId(_nextId++);
             proj.OwnerId = p.OwnerId;
+            proj.TemplateId = p.TemplateId;
+            proj.LauncherActorId = p.LauncherActorId;
+            proj.RootActorId = p.RootActorId;
             proj.Position = p.Position;
             proj.Direction = p.Direction;
             proj.Speed = p.Speed;
@@ -164,7 +167,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
 
                 if (p.LifetimeFramesLeft <= 0)
                 {
-                    exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, ProjectileExitReason.Lifetime, frame, p.Position));
+                    exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Lifetime, frame, p.Position));
                     RemoveAtSwapBack(i);
                     i--;
                     continue;
@@ -202,7 +205,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                         break;
                     }
 
-                    var hitEvt = new ProjectileHitEvent(p.Id, p.OwnerId, hit.Collider, hit.Distance, hit.Point, hit.Normal, frame);
+                    var hitEvt = new ProjectileHitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, hit.Collider, hit.Distance, hit.Point, hit.Normal, frame);
 
                     // Hit filter + per-collider cooldown.
                     if (p.HitFilter != null && !p.HitFilter.ShouldHit(p.OwnerId, hit.Collider, frame))
@@ -244,7 +247,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
 
                     if (shouldExit)
                     {
-                        exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, ProjectileExitReason.Hit, frame, hit.Point));
+                        exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Hit, frame, hit.Point));
                         RemoveAtSwapBack(i);
                         i--;
                         goto NextProjectile;
@@ -271,7 +274,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                     if (p.NextTickFrame <= 0) p.NextTickFrame = frame;
                     if (frame >= p.NextTickFrame)
                     {
-                        tickEvents?.Add(new ProjectileTickEvent(p.Id, p.OwnerId, frame, p.Position));
+                        tickEvents?.Add(new ProjectileTickEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, frame, p.Position));
                         p.NextTickFrame = frame + p.TickIntervalFrames;
                     }
                 }
@@ -281,7 +284,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                     p.DistanceLeft -= move;
                     if (p.DistanceLeft <= 0f)
                     {
-                        exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, ProjectileExitReason.MaxDistance, frame, p.Position));
+                        exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.MaxDistance, frame, p.Position));
                         RemoveAtSwapBack(i);
                         i--;
                         continue;

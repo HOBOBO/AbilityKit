@@ -2,6 +2,8 @@ using System;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Math;
@@ -13,52 +15,42 @@ namespace AbilityKit.Ability.Impl.Triggering
 {
     public sealed class ShootProjectileAction : ITriggerAction
     {
-        private readonly ProjectileEmitterType _emitterType;
-        private readonly int _projectileCode;
-        private readonly float _speed;
-        private readonly int _lifetimeFrames;
-        private readonly float _maxDistance;
+        private readonly int _launcherId;
+        private readonly int _projectileId;
 
-        public ShootProjectileAction(ProjectileEmitterType emitterType, int projectileCode, float speed, int lifetimeFrames, float maxDistance)
+        public ShootProjectileAction(int launcherId, int projectileId)
         {
-            _emitterType = emitterType;
-            _projectileCode = projectileCode;
-            _speed = speed;
-            _lifetimeFrames = lifetimeFrames;
-            _maxDistance = maxDistance;
+            _launcherId = launcherId;
+            _projectileId = projectileId;
         }
 
         public static ShootProjectileAction FromDef(ActionDef def)
         {
             if (def == null) throw new ArgumentNullException(nameof(def));
             var args = def.Args;
-            if (args == null) return new ShootProjectileAction(ProjectileEmitterType.Linear, 0, 0f, 0, 0f);
+            if (args == null) return new ShootProjectileAction(launcherId: 0, projectileId: 0);
 
-            var emitter = ProjectileEmitterType.Linear;
-            if (args.TryGetValue("emitterType", out var et) && et != null)
-            {
-                if (et is ProjectileEmitterType pet) emitter = pet;
-                else if (et is int ei) emitter = (ProjectileEmitterType)ei;
-                else if (et is long el) emitter = (ProjectileEmitterType)(int)el;
-                else if (et is string es && int.TryParse(es, out var parsed)) emitter = (ProjectileEmitterType)parsed;
-            }
+            var launcherId = TryGetInt(args, "launcherId");
+            var projectileId = TryGetInt(args, "projectileId");
 
-            var code = TryGetInt(args, "projectileCode");
-            var speed = TryGetFloat(args, "speed");
-            var lifetime = TryGetInt(args, "lifetimeFrames");
-            var maxDist = TryGetFloat(args, "maxDistance");
-
-            return new ShootProjectileAction(emitter, code, speed, lifetime, maxDist);
+            return new ShootProjectileAction(launcherId, projectileId);
         }
 
         public void Execute(TriggerContext context)
         {
-            if (_projectileCode <= 0) return;
+            if (_projectileId <= 0) return;
 
             var svc = context?.Services?.GetService(typeof(MobaProjectileService)) as MobaProjectileService;
             if (svc == null)
             {
                 Log.Warning("[Trigger] shoot_projectile cannot resolve MobaProjectileService from DI");
+                return;
+            }
+
+            var configs = context?.Services?.GetService(typeof(MobaConfigDatabase)) as MobaConfigDatabase;
+            if (configs == null)
+            {
+                Log.Warning("[Trigger] shoot_projectile cannot resolve MobaConfigDatabase from DI");
                 return;
             }
 
@@ -77,7 +69,28 @@ namespace AbilityKit.Ability.Impl.Triggering
                 aimDir = pipelineCtx.AimDir;
             }
 
-            svc.Shoot(casterActorId, _emitterType, _projectileCode, _speed, _lifetimeFrames, _maxDistance, in aimPos, in aimDir);
+            ProjectileLauncherMO launcher = null;
+            ProjectileMO projectile = null;
+
+            if (_launcherId > 0) configs.TryGetProjectileLauncher(_launcherId, out launcher);
+            if (_projectileId > 0) configs.TryGetProjectile(_projectileId, out projectile);
+
+            if (launcher == null)
+            {
+                Log.Warning($"[Trigger] shoot_projectile invalid launcherId={_launcherId} (launcher config not found)");
+                return;
+            }
+
+            if (projectile == null)
+            {
+                Log.Warning($"[Trigger] shoot_projectile invalid projectileId={_projectileId} (projectile config not found)");
+                return;
+            }
+
+            if (!svc.Launch(casterActorId, launcher, projectile, in aimPos, in aimDir))
+            {
+                Log.Warning($"[Trigger] shoot_projectile launch failed. launcherId={_launcherId} projectileId={_projectileId}");
+            }
         }
 
         private static int TryGetInt(System.Collections.Generic.IReadOnlyDictionary<string, object> args, string key)
@@ -88,18 +101,6 @@ namespace AbilityKit.Ability.Impl.Triggering
             if (obj is long l) return (int)l;
             if (obj is string s && int.TryParse(s, out var parsed)) return parsed;
             return 0;
-        }
-
-        private static float TryGetFloat(System.Collections.Generic.IReadOnlyDictionary<string, object> args, string key)
-        {
-            if (args == null || key == null) return 0f;
-            if (!args.TryGetValue(key, out var obj) || obj == null) return 0f;
-            if (obj is float f) return f;
-            if (obj is double d) return (float)d;
-            if (obj is int i) return i;
-            if (obj is long l) return l;
-            if (obj is string s && float.TryParse(s, out var parsed)) return parsed;
-            return 0f;
         }
 
         private static bool TryResolveActorId(object obj, out int actorId)

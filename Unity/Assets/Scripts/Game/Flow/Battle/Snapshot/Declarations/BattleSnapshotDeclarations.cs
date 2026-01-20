@@ -73,6 +73,19 @@ namespace AbilityKit.Game.Flow.Snapshot
             return true;
         }
 
+        [SnapshotDecoder("battle", (int)MobaOpCode.ProjectileEventSnapshot, typeof(MobaProjectileEventSnapshotCodec.Entry[]))]
+        internal static bool DecodeProjectileEvents(in WorldStateSnapshot snap, out MobaProjectileEventSnapshotCodec.Entry[] entries)
+        {
+            if (snap.Payload == null || snap.Payload.Length == 0)
+            {
+                entries = null;
+                return false;
+            }
+
+            entries = MobaProjectileEventSnapshotCodec.Deserialize(snap.Payload);
+            return true;
+        }
+
         [SnapshotCmdHandler("battle", (int)MobaOpCode.EnterGameSnapshot, typeof(EnterMobaGameRes))]
         internal static void HandleEnterGame(object ctx, FramePacket packet, EnterMobaGameRes res)
         {

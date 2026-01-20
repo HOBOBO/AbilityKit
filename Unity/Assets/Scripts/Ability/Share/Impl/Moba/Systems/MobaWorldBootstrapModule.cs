@@ -50,6 +50,8 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.RegisterService<MobaActorSpawnSnapshotService, MobaActorSpawnSnapshotService>();
             builder.RegisterService<MobaStateHashSnapshotService, MobaStateHashSnapshotService>();
 
+            builder.RegisterService<MobaProjectileEventSnapshotService, MobaProjectileEventSnapshotService>();
+
             builder.RegisterService<MobaEnterGameSnapshotService, MobaEnterGameSnapshotService>();
 
             builder.RegisterService<MobaLobbySnapshotService, MobaLobbySnapshotService>();

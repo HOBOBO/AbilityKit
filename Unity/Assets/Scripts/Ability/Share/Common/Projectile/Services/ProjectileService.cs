@@ -48,7 +48,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             // Spawn event is a lifecycle hook. Frame is unknown here; producer should prefer ScheduleEmit
             // when exact frame is important. Use 0 as default.
             var id = _world.Spawn(in p);
-            _spawnEvents.Add(new ProjectileSpawnEvent(id, p.OwnerId, frame: 0, p.Position, p.Direction));
+            _spawnEvents.Add(new ProjectileSpawnEvent(id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, frame: 0, p.Position, p.Direction));
             return id;
         }
 
@@ -125,7 +125,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                     {
                         var spawn = list[j];
                         var id = _world.Spawn(in spawn);
-                        _spawnEvents.Add(new ProjectileSpawnEvent(id, spawn.OwnerId, frame, spawn.Position, spawn.Direction));
+                        _spawnEvents.Add(new ProjectileSpawnEvent(id, spawn.OwnerId, spawn.TemplateId, spawn.LauncherActorId, spawn.RootActorId, frame, spawn.Position, spawn.Direction));
                     }
                 }
                 finally

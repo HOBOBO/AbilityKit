@@ -13,5 +13,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public const string BuffsFile = "buffs";
         public const string SkillLevelTablesFile = "skill_level_tables";
         public const string AttributeTypesFile = "attr_types";
+
+        public const string ProjectileLaunchersFile = "projectile_launchers";
+        public const string ProjectilesFile = "projectiles";
     }
 }

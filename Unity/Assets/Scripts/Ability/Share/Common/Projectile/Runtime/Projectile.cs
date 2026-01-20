@@ -8,6 +8,10 @@ namespace AbilityKit.Ability.Share.Common.Projectile
         public ProjectileId Id;
         public int OwnerId;
 
+        public int TemplateId;
+        public int LauncherActorId;
+        public int RootActorId;
+
         public Vec3 Position;
         public Vec3 Direction;
         public float Speed;
@@ -40,6 +44,9 @@ namespace AbilityKit.Ability.Share.Common.Projectile
         {
             Id = default;
             OwnerId = 0;
+            TemplateId = 0;
+            LauncherActorId = 0;
+            RootActorId = 0;
             Position = Vec3.Zero;
             Direction = Vec3.Zero;
             Speed = 0f;

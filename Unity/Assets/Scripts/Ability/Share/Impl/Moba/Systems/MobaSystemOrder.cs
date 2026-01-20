@@ -8,6 +8,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
         public const int EntityManagerCleanup = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Late + 5;
 
         public const int ProjectileSync = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Late + 10;
+        public const int ProjectileLauncherCleanup = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Late + 12;
 
         public const int MotionInit = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Early + 10;
         public const int MotionLocomotionInput = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Normal + 50;

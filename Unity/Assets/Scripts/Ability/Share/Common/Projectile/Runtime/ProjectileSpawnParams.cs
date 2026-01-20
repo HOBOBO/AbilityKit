@@ -11,6 +11,10 @@ namespace AbilityKit.Ability.Share.Common.Projectile
     public readonly struct ProjectileSpawnParams
     {
         public readonly int OwnerId;
+        public readonly int TemplateId;
+        public readonly int LauncherActorId;
+        public readonly int RootActorId;
+
         public readonly Vec3 Position;
         public readonly Vec3 Direction;
         public readonly float Speed;
@@ -34,6 +38,9 @@ namespace AbilityKit.Ability.Share.Common.Projectile
 
         public ProjectileSpawnParams(
             int ownerId,
+            int templateId,
+            int launcherActorId,
+            int rootActorId,
             in Vec3 position,
             in Vec3 direction,
             float speed,
@@ -50,6 +57,9 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             int hitCooldownFrames = 0)
         {
             OwnerId = ownerId;
+            TemplateId = templateId;
+            LauncherActorId = launcherActorId;
+            RootActorId = rootActorId;
             Position = position;
             Direction = direction;
             Speed = speed;
@@ -74,6 +84,9 @@ namespace AbilityKit.Ability.Share.Common.Projectile
         {
             return new ProjectileSpawnParams(
                 ownerId: OwnerId,
+                templateId: TemplateId,
+                launcherActorId: LauncherActorId,
+                rootActorId: RootActorId,
                 position: Position,
                 direction: direction,
                 speed: Speed,

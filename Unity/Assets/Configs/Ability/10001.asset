@@ -17,12 +17,14 @@ MonoBehaviour:
   - Core:
       TriggerId: 10001
       EventId: 
+      AllowExternal: 0
     Enabled: 1
     Note: 
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
     - rid: 3080489919452282882
+    - rid: 3080490100035420160
   references:
     version: 2
     RefIds:
@@ -30,3 +32,8 @@ MonoBehaviour:
       type: {class: DebugLogActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         Message: "\u6D4B\u8BD5\u65E5\u5FD7\u8F93\u51FA11111222"
+    - rid: 3080490100035420160
+      type: {class: ShootProjectileActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        LauncherId: 100001
+        ProjectileId: 200001

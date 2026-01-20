@@ -137,4 +137,49 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public int MaxStacks;
         public int[] Tags;
     }
+
+    [Serializable]
+    public sealed class ProjectileLauncherDTO
+    {
+        public int Id;
+        public string Name;
+        public int EmitterType;
+
+        public int DurationMs;
+        public int IntervalMs;
+
+        public int CountPerShot;
+        public float FanAngleDeg;
+    }
+
+    [Serializable]
+    public sealed class ProjectileDTO
+    {
+        public int Id;
+        public string Name;
+
+        public int VfxId;
+
+        public float Speed;
+        public int LifetimeMs;
+        public float MaxDistance;
+
+        public int HitPolicyKind;
+        public int HitsRemaining;
+        public int HitCooldownMs;
+        public int TickIntervalMs;
+
+        public int OnHitEffectId;
+        public int OnSpawnVfxId;
+        public int OnHitVfxId;
+        public int OnExpireVfxId;
+    }
+
+    [Serializable]
+    public sealed class VfxDTO
+    {
+        public int Id;
+        public string Resource;
+        public int DurationMs;
+    }
 }
