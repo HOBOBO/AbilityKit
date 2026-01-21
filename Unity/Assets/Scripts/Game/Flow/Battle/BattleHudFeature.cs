@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Battle.View;
+using AbilityKit.Game.Battle.View.Lib.Joystick;
+using AbilityKit.Game.Battle.View.Lib.Skill;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using EC = AbilityKit.Ability.EC;
 
@@ -20,6 +25,11 @@ namespace AbilityKit.Game.Flow
 
         private BattleHudConfig _config;
         private BattleHudBinder _binder;
+
+        private GameObject _inputUiRoot;
+        private JoystickAreaView _moveJoystick;
+        private BattleHudInputView _inputView;
+        private Button _infoButton;
 
         private IDisposable _subDamageEvents;
 
@@ -43,6 +53,9 @@ namespace AbilityKit.Game.Flow
             _root = _canvas.GetComponent<RectTransform>();
 
             _binder = new BattleHudBinder(_config, _root, _camera, _ctx);
+
+            EnsureEventSystem();
+            EnsureInputUi();
 
             if (_ctx?.EntityWorld != null)
             {
@@ -71,6 +84,15 @@ namespace AbilityKit.Game.Flow
             _binder?.Clear();
             _binder = null;
 
+            if (_inputUiRoot != null)
+            {
+                UnityEngine.Object.Destroy(_inputUiRoot);
+            }
+            _inputUiRoot = null;
+            _moveJoystick = null;
+            _inputView = null;
+            _infoButton = null;
+
             if (_canvas != null)
             {
                 UnityEngine.Object.Destroy(_canvas.gameObject);
@@ -82,6 +104,183 @@ namespace AbilityKit.Game.Flow
 
             _ctx = null;
             _camera = null;
+        }
+
+        private void EnsureEventSystem()
+        {
+            if (EventSystem.current != null) return;
+            if (UnityEngine.Object.FindObjectOfType<EventSystem>() != null) return;
+            var go = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+            go.hideFlags = HideFlags.DontSave;
+        }
+
+        private void EnsureInputUi()
+        {
+            if (_root == null) return;
+            if (_ctx == null) return;
+            if (_inputUiRoot != null) return;
+
+            _inputUiRoot = new GameObject("BattleHudInput", typeof(RectTransform));
+            _inputUiRoot.transform.SetParent(_root, worldPositionStays: false);
+            _inputUiRoot.SetActive(false);
+
+            var rt = _inputUiRoot.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+
+            _inputView = _inputUiRoot.AddComponent<BattleHudInputView>();
+
+            var joystickArea = new GameObject("MoveJoystick", typeof(RectTransform), typeof(Image));
+            joystickArea.transform.SetParent(_inputUiRoot.transform, worldPositionStays: false);
+            var joystickAreaRt = joystickArea.GetComponent<RectTransform>();
+            joystickAreaRt.anchorMin = new Vector2(0f, 0f);
+            joystickAreaRt.anchorMax = new Vector2(0f, 0f);
+            joystickAreaRt.anchoredPosition = new Vector2(180f, 180f);
+            joystickAreaRt.sizeDelta = new Vector2(360f, 360f);
+
+            var areaImg = joystickArea.GetComponent<Image>();
+            areaImg.color = new Color(1f, 1f, 1f, 0.001f);
+            areaImg.raycastTarget = true;
+
+            var outer = new GameObject("Outer", typeof(RectTransform), typeof(Image));
+            outer.transform.SetParent(joystickArea.transform, worldPositionStays: false);
+            var outerRt = outer.GetComponent<RectTransform>();
+            outerRt.anchorMin = new Vector2(0.5f, 0.5f);
+            outerRt.anchorMax = new Vector2(0.5f, 0.5f);
+            outerRt.anchoredPosition = Vector2.zero;
+            outerRt.sizeDelta = new Vector2(220f, 220f);
+            var outerImg = outer.GetComponent<Image>();
+            outerImg.color = new Color(1f, 1f, 1f, 0.15f);
+            outerImg.raycastTarget = true;
+
+            var inner = new GameObject("Inner", typeof(RectTransform), typeof(Image));
+            inner.transform.SetParent(joystickArea.transform, worldPositionStays: false);
+            var innerRt = inner.GetComponent<RectTransform>();
+            innerRt.anchorMin = new Vector2(0.5f, 0.5f);
+            innerRt.anchorMax = new Vector2(0.5f, 0.5f);
+            innerRt.anchoredPosition = Vector2.zero;
+            innerRt.sizeDelta = new Vector2(90f, 90f);
+            var innerImg = inner.GetComponent<Image>();
+            innerImg.color = new Color(1f, 1f, 1f, 0.25f);
+            innerImg.raycastTarget = false;
+
+            _moveJoystick = joystickArea.AddComponent<JoystickAreaView>();
+            SetPrivateField(_moveJoystick, "_area", joystickAreaRt);
+            SetPrivateField(_moveJoystick, "_outer", outerRt);
+            SetPrivateField(_moveJoystick, "_inner", innerRt);
+            SetPrivateField(_moveJoystick, "_canvas", _canvas);
+
+            SetPrivateField(_inputView, "_moveJoystick", _moveJoystick);
+
+            _moveJoystick.OnBegin += OnMoveBegin;
+            _moveJoystick.OnEnd += OnMoveEnd;
+
+            var moveMapper = _inputUiRoot.AddComponent<BattleHudMoveInputMapper>();
+            SetPrivateField(moveMapper, "_hud", _inputView);
+            moveMapper.MoveDxDzChanged += OnMoveDxDzChanged;
+
+            var skillAimMapper = _inputUiRoot.AddComponent<BattleHudSkillAimInputMapper>();
+            SetPrivateField(skillAimMapper, "_hud", _inputView);
+
+            var skill1 = CreateSkillButton("Skill1", new Vector2(-260f, 200f));
+            var skill2 = CreateSkillButton("Skill2", new Vector2(-140f, 110f));
+            var skill3 = CreateSkillButton("Skill3", new Vector2(-120f, 260f));
+
+            SetPrivateField(_inputView, "_skill1", skill1);
+            SetPrivateField(_inputView, "_skill2", skill2);
+            SetPrivateField(_inputView, "_skill3", skill3);
+
+            _inputView.SkillClick += OnSkillClick;
+
+            _infoButton = CreateInfoButton(new Vector2(-80f, -80f));
+
+            _inputUiRoot.SetActive(true);
+        }
+
+        private void OnMoveBegin()
+        {
+            if (_ctx == null) return;
+            _ctx.HudHasMove = true;
+        }
+
+        private void OnMoveEnd()
+        {
+            if (_ctx == null) return;
+            _ctx.HudHasMove = false;
+            _ctx.HudMoveDx = 0f;
+            _ctx.HudMoveDz = 0f;
+        }
+
+        private void OnMoveDxDzChanged(float dx, float dz)
+        {
+            if (_ctx == null) return;
+            _ctx.HudMoveDx = dx;
+            _ctx.HudMoveDz = dz;
+        }
+
+        private void OnSkillClick(int slot)
+        {
+            if (_ctx == null) return;
+            _ctx.HudSkillClickSlot = slot;
+        }
+
+        private SkillButtonView CreateSkillButton(string name, Vector2 anchoredPos)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(_inputUiRoot.transform, worldPositionStays: false);
+
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(1f, 0f);
+            rt.anchorMax = new Vector2(1f, 0f);
+            rt.anchoredPosition = anchoredPos;
+            rt.sizeDelta = new Vector2(110f, 110f);
+
+            var img = go.GetComponent<Image>();
+            img.color = new Color(1f, 1f, 1f, 0.2f);
+            img.raycastTarget = true;
+
+            var view = go.AddComponent<SkillButtonView>();
+            SetPrivateField(view, "_buttonRect", rt);
+            SetPrivateField(view, "_uiRootRect", _root);
+            SetPrivateField(view, "_canvas", _canvas);
+            SetPrivateField(view, "_config", SkillButtonConfig.Default);
+
+            return view;
+        }
+
+        private Button CreateInfoButton(Vector2 anchoredPos)
+        {
+            var go = new GameObject("Info", typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(_inputUiRoot.transform, worldPositionStays: false);
+
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(1f, 1f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.anchoredPosition = anchoredPos;
+            rt.sizeDelta = new Vector2(90f, 45f);
+
+            var img = go.GetComponent<Image>();
+            img.color = new Color(1f, 1f, 1f, 0.18f);
+            img.raycastTarget = true;
+
+            var btn = go.GetComponent<Button>();
+            btn.onClick.AddListener(OnInfoClick);
+            return btn;
+        }
+
+        private void OnInfoClick()
+        {
+            Debug.Log("BattleHud: Info clicked");
+        }
+
+        private static void SetPrivateField(object target, string fieldName, object value)
+        {
+            if (target == null) return;
+            var f = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            if (f == null) return;
+            f.SetValue(target, value);
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)

@@ -224,7 +224,10 @@ namespace AbilityKit.Game.UI
             if (prefab == null) throw new InvalidOperationException($"UI prefab not found: key={reg.Key} path={reg.Path}");
 
             var go = UnityEngine.Object.Instantiate(prefab, layerRoot);
-            go.name = reg.Key;
+            if (!string.IsNullOrEmpty(reg.Key))
+            {
+                go.name = reg.Key;
+            }
 
             UIBase ui;
             if (reg.UiType != null)

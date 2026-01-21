@@ -32,6 +32,12 @@ namespace AbilityKit.Game.Flow
 
         public List<EC.EntityId> DirtyEntities;
 
+        public float HudMoveDx;
+        public float HudMoveDz;
+        public bool HudHasMove;
+
+        public int HudSkillClickSlot;
+
         public static BattleContext Rent()
         {
             return Pool.Get();
@@ -64,6 +70,11 @@ namespace AbilityKit.Game.Flow
             EntityQuery = null;
 
             DirtyEntities?.Clear();
+
+            HudMoveDx = 0f;
+            HudMoveDz = 0f;
+            HudHasMove = false;
+            HudSkillClickSlot = 0;
         }
 
         void IPoolable.OnPoolDestroy()
@@ -83,6 +94,11 @@ namespace AbilityKit.Game.Flow
             EntityQuery = null;
 
             DirtyEntities = null;
+
+            HudMoveDx = 0f;
+            HudMoveDz = 0f;
+            HudHasMove = false;
+            HudSkillClickSlot = 0;
         }
     }
 

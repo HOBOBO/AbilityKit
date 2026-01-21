@@ -33,9 +33,12 @@ namespace AbilityKit.Game.Flow.Snapshot
             pipelineDecoders.RegisterDecoder<AbilityKit.Ability.Share.Impl.Moba.Services.MobaProjectileEventSnapshotCodec.Entry[]>(4006, AbilityKit.Game.Flow.Snapshot.BattleSnapshotDeclarations.DecodeProjectileEvents);
             dispatcherDecoders.RegisterDecoder<AbilityKit.Ability.Share.Impl.Moba.Services.MobaDamageEventSnapshotCodec.Entry[]>(4007, AbilityKit.Game.Flow.Snapshot.BattleSnapshotDeclarations.DecodeDamageEvents);
             pipelineDecoders.RegisterDecoder<AbilityKit.Ability.Share.Impl.Moba.Services.MobaDamageEventSnapshotCodec.Entry[]>(4007, AbilityKit.Game.Flow.Snapshot.BattleSnapshotDeclarations.DecodeDamageEvents);
+            dispatcherDecoders.RegisterDecoder<AbilityKit.Ability.Share.Impl.Moba.Services.MobaActorDespawnSnapshotCodec.Entry[]>(4008, AbilityKit.Game.Flow.Snapshot.BattleSnapshotDeclarations.DecodeActorDespawn);
+            pipelineDecoders.RegisterDecoder<AbilityKit.Ability.Share.Impl.Moba.Services.MobaActorDespawnSnapshotCodec.Entry[]>(4008, AbilityKit.Game.Flow.Snapshot.BattleSnapshotDeclarations.DecodeActorDespawn);
 
             cmd.RegisterCmdHandler<AbilityKit.Ability.Share.Impl.Moba.Struct.EnterMobaGameRes>(4002, AbilityKit.Game.Flow.Snapshot.BattleSnapshotDeclarations.HandleEnterGame);
             cmd.RegisterCmdHandler<AbilityKit.Ability.Share.Impl.Moba.Services.MobaActorSpawnSnapshotCodec.Entry[]>(4005, AbilityKit.Game.Flow.Snapshot.BattleSnapshotDeclarations.HandleActorSpawn);
+            cmd.RegisterCmdHandler<AbilityKit.Ability.Share.Impl.Moba.Services.MobaActorDespawnSnapshotCodec.Entry[]>(4008, AbilityKit.Game.Flow.Snapshot.BattleSnapshotDeclarations.HandleActorDespawn);
 
         }
     }

@@ -37,7 +37,17 @@ namespace AbilityKit.Game.Flow
             var playerId = new PlayerId(string.IsNullOrEmpty(plan.PlayerId) ? "p1" : plan.PlayerId);
             var worldId = new AbilityKit.Ability.World.Abstractions.WorldId(string.IsNullOrEmpty(plan.WorldId) ? "room_1" : plan.WorldId);
 
-            GetMoveInput(out var dx, out var dz);
+            float dx;
+            float dz;
+            if (_ctx.HudHasMove)
+            {
+                dx = _ctx.HudMoveDx;
+                dz = _ctx.HudMoveDz;
+            }
+            else
+            {
+                GetMoveInput(out dx, out dz);
+            }
             var wasMoving = Math.Abs(_lastMoveDx) > 0.0001f || Math.Abs(_lastMoveDz) > 0.0001f;
             var isMoving = Math.Abs(dx) > 0.0001f || Math.Abs(dz) > 0.0001f;
 
@@ -67,6 +77,15 @@ namespace AbilityKit.Game.Flow
                 var op = slot == 1 ? (int)MobaOpCode.Skill1 : slot == 2 ? (int)MobaOpCode.Skill2 : (int)MobaOpCode.Skill3;
                 var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, op, Array.Empty<byte>());
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
+            }
+
+            var hudSlot = _ctx.HudSkillClickSlot;
+            if (hudSlot > 0)
+            {
+                var op = hudSlot == 1 ? (int)MobaOpCode.Skill1 : hudSlot == 2 ? (int)MobaOpCode.Skill2 : (int)MobaOpCode.Skill3;
+                var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, op, Array.Empty<byte>());
+                _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
+                _ctx.HudSkillClickSlot = 0;
             }
         }
 

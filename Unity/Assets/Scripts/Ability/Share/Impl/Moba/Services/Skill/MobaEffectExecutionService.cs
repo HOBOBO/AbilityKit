@@ -67,13 +67,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (_index == null) return;
             if (!_index.TryGetByTriggerId(triggerId, out var list) || list == null) return;
 
+            var caster = context != null ? context.CasterUnit : null;
+
             for (int i = 0; i < list.Count; i++)
             {
                 var e = list[i];
                 var def = e.Def;
                 if (def == null) continue;
 
-                _triggers.RunOnce(def, source: null, target: null, payload: context, args: args, initialLocalVars: e.InitialLocalVars);
+                _triggers.RunOnce(def, source: caster, target: caster, payload: context, args: args, initialLocalVars: e.InitialLocalVars);
             }
         }
 

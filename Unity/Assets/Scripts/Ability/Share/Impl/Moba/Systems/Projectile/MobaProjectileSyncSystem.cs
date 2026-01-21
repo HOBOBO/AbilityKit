@@ -1,8 +1,11 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Moba.Util.Generator;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Common.Projectile;
+using AbilityKit.Ability.Share.Common.MotionSystem.Core;
+using AbilityKit.Ability.Share.Common.MotionSystem.Trajectory;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
@@ -20,6 +23,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
         private MobaActorRegistry _registry;
         private ActorIdAllocator _actorIds;
         private MobaEntityManager _entities;
+        private MobaActorSpawnSnapshotService _spawnSnapshots;
+        private MobaConfigDatabase _configs;
+        private MobaActorDespawnSnapshotService _despawnSnapshots;
 
         private readonly List<ProjectileSpawnEvent> _spawns = new List<ProjectileSpawnEvent>(64);
         private readonly List<ProjectileTickEvent> _ticks = new List<ProjectileTickEvent>(128);
@@ -37,6 +43,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
             Services.TryGet(out _registry);
             Services.TryGet(out _actorIds);
             Services.TryGet(out _entities);
+            Services.TryGet(out _spawnSnapshots);
+            Services.TryGet(out _configs);
+            Services.TryGet(out _despawnSnapshots);
         }
 
         protected override void OnExecute()
@@ -86,7 +95,72 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
 
                 bullet.isFlyingProjectileTag = true;
 
+                // Use MotionSystem to drive projectile movement (scheme B simplified).
+                // Trajectory duration is derived from projectile config (lifetime/maxDistance/speed).
+                try
+                {
+                    float speed = 0f;
+                    float maxDistance = 0f;
+                    float lifetimeSec = 0f;
+                    if (_configs != null)
+                    {
+                        var proj = _configs.GetProjectile(evt.TemplateId);
+                        if (proj != null)
+                        {
+                            speed = proj.Speed;
+                            maxDistance = proj.MaxDistance;
+                            lifetimeSec = proj.LifetimeMs > 0 ? proj.LifetimeMs / 1000f : 0f;
+                        }
+                    }
+
+                    var start = evt.Position;
+                    var fwd = dir;
+
+                    var distByLifetime = (speed > 0f && lifetimeSec > 0f) ? speed * lifetimeSec : 0f;
+                    var dist = maxDistance > 0f ? maxDistance : distByLifetime;
+                    if (dist <= 0f) dist = distByLifetime > 0f ? distByLifetime : 0.001f;
+
+                    var duration = lifetimeSec > 0f ? lifetimeSec : (speed > 0f ? dist / speed : 0.001f);
+                    if (duration <= 0f) duration = 0.001f;
+
+                    var end = start + fwd * dist;
+                    var traj = new LinearTrajectory3D(start, end, duration);
+                    var source = new TrajectoryMotionSource(traj, priority: 10);
+
+                    // Create Motion component and attach trajectory source.
+                    var pipeline = new MotionPipeline();
+                    pipeline.AddSource(source);
+
+                    var state = new MotionState(start) { Forward = fwd };
+                    var output = new MotionOutput();
+                    output.Clear();
+
+                    bullet.AddMotion(
+                        newPipeline: pipeline,
+                        newState: state,
+                        newOutput: output,
+                        newSolver: null,
+                        newPolicy: null,
+                        newEvents: null,
+                        newInitialized: false);
+                }
+                catch
+                {
+                }
+
                 _registry.Register(projectileActorId, bullet);
+
+                if (_spawnSnapshots != null)
+                {
+                    _spawnSnapshots.Enqueue(new MobaActorSpawnSnapshotCodec.Entry(
+                        netId: projectileActorId,
+                        kind: (int)SpawnEntityKind.Projectile,
+                        code: evt.TemplateId,
+                        ownerNetId: evt.OwnerId,
+                        x: evt.Position.X,
+                        y: evt.Position.Y,
+                        z: evt.Position.Z));
+                }
 
                 try { _entities.TryRegisterFromEntity(bullet); }
                 catch { }
@@ -117,6 +191,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                 if (!_registry.TryGet(actorId, out var e) || e == null) continue;
                 if (!e.hasTransform) continue;
 
+                // Movement is driven by MotionSystem for bullets; do not override it.
+                if (e.hasMotion) continue;
+
                 var t = e.transform.Value;
                 var nt = new Transform3(evt.Position, t.Rotation, t.Scale);
                 e.ReplaceTransform(nt);
@@ -128,6 +205,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
             {
                 var evt = _exits[i];
                 if (!_links.TryGetActorId(evt.Projectile, out var actorId) || actorId <= 0) continue;
+
+                _despawnSnapshots?.Enqueue(actorId, reason: 0);
+
                 if (_registry.TryGet(actorId, out var e) && e != null)
                 {
                     try { e.Destroy(); }

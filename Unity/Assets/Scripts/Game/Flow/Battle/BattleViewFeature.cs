@@ -167,6 +167,7 @@ namespace AbilityKit.Game.Flow
 
         private void OnEntityDestroyed(EC.EntityId id)
         {
+            _ctx?.EntityLookup?.UnbindByEntityId(id);
             _binder?.OnDestroyed(id);
         }
 

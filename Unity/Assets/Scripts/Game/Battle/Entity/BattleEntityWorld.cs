@@ -31,6 +31,18 @@ namespace AbilityKit.Game.Battle.Entity
             return _netIdToEntityId.Remove(netId.Value);
         }
 
+        public bool UnbindByEntityId(EC.EntityId id)
+        {
+            foreach (var kv in _netIdToEntityId)
+            {
+                if (kv.Value.Equals(id))
+                {
+                    return _netIdToEntityId.Remove(kv.Key);
+                }
+            }
+            return false;
+        }
+
         public void Clear()
         {
             _netIdToEntityId.Clear();

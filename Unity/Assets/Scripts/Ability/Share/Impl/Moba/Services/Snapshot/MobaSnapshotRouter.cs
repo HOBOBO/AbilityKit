@@ -17,16 +17,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     {
         private readonly MobaEnterGameSnapshotService _enter;
         private readonly MobaActorSpawnSnapshotService _spawn;
+        private readonly MobaActorDespawnSnapshotService _despawn;
         private readonly MobaProjectileEventSnapshotService _projectileEvents;
         private readonly MobaDamageEventSnapshotService _damageEvents;
         private readonly MobaActorTransformSnapshotService _transform;
         private readonly MobaLobbySnapshotService _lobby;
         private readonly MobaStateHashSnapshotService _hash;
 
-        public MobaSnapshotRouter(MobaEnterGameSnapshotService enter, MobaActorSpawnSnapshotService spawn, MobaProjectileEventSnapshotService projectileEvents, MobaDamageEventSnapshotService damageEvents, MobaActorTransformSnapshotService transform, MobaLobbySnapshotService lobby, MobaStateHashSnapshotService hash)
+        public MobaSnapshotRouter(MobaEnterGameSnapshotService enter, MobaActorSpawnSnapshotService spawn, MobaActorDespawnSnapshotService despawn, MobaProjectileEventSnapshotService projectileEvents, MobaDamageEventSnapshotService damageEvents, MobaActorTransformSnapshotService transform, MobaLobbySnapshotService lobby, MobaStateHashSnapshotService hash)
         {
             _enter = enter ?? throw new ArgumentNullException(nameof(enter));
             _spawn = spawn ?? throw new ArgumentNullException(nameof(spawn));
+            _despawn = despawn ?? throw new ArgumentNullException(nameof(despawn));
             _projectileEvents = projectileEvents ?? throw new ArgumentNullException(nameof(projectileEvents));
             _damageEvents = damageEvents ?? throw new ArgumentNullException(nameof(damageEvents));
             _transform = transform ?? throw new ArgumentNullException(nameof(transform));
@@ -38,6 +40,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         {
             if (_enter.TryGetSnapshot(frame, out snapshot)) return true;
             if (_spawn.TryGetSnapshot(frame, out snapshot)) return true;
+            if (_despawn.TryGetSnapshot(frame, out snapshot)) return true;
             if (_projectileEvents.TryGetSnapshot(frame, out snapshot)) return true;
             if (_damageEvents.TryGetSnapshot(frame, out snapshot)) return true;
             if (_hash.TryGetSnapshot(frame, out snapshot)) return true;
@@ -587,6 +590,95 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     hitCollider: 0,
                     exitReason: (int)e.Reason);
             }
+        }
+    }
+
+    public static class MobaActorDespawnSnapshotCodec
+    {
+        public static byte[] Serialize(Entry[] entries)
+        {
+            entries ??= Array.Empty<Entry>();
+            return BinaryObjectCodec.Encode(new SnapshotPayload(entries));
+        }
+
+        public static Entry[] Deserialize(byte[] payload)
+        {
+            if (payload == null || payload.Length < 4) return Array.Empty<Entry>();
+            var p = BinaryObjectCodec.Decode<SnapshotPayload>(payload);
+            return p.Entries ?? Array.Empty<Entry>();
+        }
+
+        public readonly struct SnapshotPayload
+        {
+            [BinaryMember(0)] public readonly Entry[] Entries;
+
+            public SnapshotPayload(Entry[] entries)
+            {
+                Entries = entries;
+            }
+        }
+
+        public readonly struct Entry
+        {
+            [BinaryMember(0)] public readonly int ActorId;
+            [BinaryMember(1)] public readonly byte Reason;
+
+            public Entry(int actorId, byte reason)
+            {
+                ActorId = actorId;
+                Reason = reason;
+            }
+        }
+    }
+
+    public sealed class MobaActorDespawnSnapshotService : IService
+    {
+        private readonly MobaLobbyStateService _lobby;
+        private FrameIndex _lastFrame;
+        private readonly List<MobaActorDespawnSnapshotCodec.Entry> _pending = new List<MobaActorDespawnSnapshotCodec.Entry>(64);
+
+        public MobaActorDespawnSnapshotService(MobaLobbyStateService lobby)
+        {
+            _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
+            _lastFrame = new FrameIndex(-999999);
+        }
+
+        public void Enqueue(int actorId, byte reason = 0)
+        {
+            if (actorId <= 0) return;
+            _pending.Add(new MobaActorDespawnSnapshotCodec.Entry(actorId, reason));
+        }
+
+        public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
+        {
+            if (!_lobby.Started)
+            {
+                snapshot = default;
+                return false;
+            }
+
+            if (frame.Value == _lastFrame.Value)
+            {
+                snapshot = default;
+                return false;
+            }
+            _lastFrame = frame;
+
+            if (_pending.Count == 0)
+            {
+                snapshot = default;
+                return false;
+            }
+
+            var payload = MobaActorDespawnSnapshotCodec.Serialize(_pending.ToArray());
+            _pending.Clear();
+            snapshot = new WorldStateSnapshot((int)MobaOpCode.ActorDespawnSnapshot, payload);
+            return true;
+        }
+
+        public void Dispose()
+        {
+            _pending.Clear();
         }
     }
 

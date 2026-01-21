@@ -49,6 +49,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.RegisterService<MobaPlayerActorMapService, MobaPlayerActorMapService>();
             builder.RegisterService<MobaActorTransformSnapshotService, MobaActorTransformSnapshotService>();
             builder.RegisterService<MobaActorSpawnSnapshotService, MobaActorSpawnSnapshotService>();
+            builder.RegisterService<MobaActorDespawnSnapshotService, MobaActorDespawnSnapshotService>();
             builder.RegisterService<MobaStateHashSnapshotService, MobaStateHashSnapshotService>();
 
             builder.RegisterService<MobaProjectileEventSnapshotService, MobaProjectileEventSnapshotService>();

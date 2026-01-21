@@ -53,6 +53,7 @@ namespace AbilityKit.Game.Battle.Vfx
             e.AddComponent(new BattleViewGameObjectComponent { GameObject = go });
             e.AddComponent(new BattleViewFollowComponent { Target = followTarget, Offset = Vector3.zero });
 
+            // DurationMs > 0 => auto-expire. DurationMs == 0 (or <0) => permanent, should be destroyed by external driver.
             if (dto.DurationMs > 0)
             {
                 e.AddComponent(new BattleVfxLifetimeComponent { ExpireAtTime = Time.time + (dto.DurationMs / 1000f) });
