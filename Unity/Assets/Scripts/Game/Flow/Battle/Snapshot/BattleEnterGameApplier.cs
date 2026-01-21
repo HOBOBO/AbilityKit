@@ -18,6 +18,8 @@ namespace AbilityKit.Game.Flow.Snapshot
             if (ctx == null) return;
             if (ctx.EntityWorld == null || ctx.EntityLookup == null || ctx.EntityFactory == null) return;
 
+            ctx.LocalActorId = res.LocalActorId;
+
             var world = ctx.EntityWorld;
             var lookup = ctx.EntityLookup;
             var factory = ctx.EntityFactory;

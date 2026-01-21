@@ -58,6 +58,13 @@ namespace AbilityKit.Ability.Share
             if (type == typeof(float)) { bw.Write((float)value); return; }
             if (type == typeof(double)) { bw.Write((double)value); return; }
 
+            if (type.IsEnum)
+            {
+                var underlying = Enum.GetUnderlyingType(type);
+                WriteValue(bw, underlying, Convert.ChangeType(value, underlying));
+                return;
+            }
+
             if (type == typeof(string))
             {
                 WriteString(bw, (string)value);
@@ -116,6 +123,13 @@ namespace AbilityKit.Ability.Share
             if (type == typeof(bool)) return br.ReadBoolean();
             if (type == typeof(float)) return br.ReadSingle();
             if (type == typeof(double)) return br.ReadDouble();
+
+            if (type.IsEnum)
+            {
+                var underlying = Enum.GetUnderlyingType(type);
+                var raw = ReadValue(br, underlying);
+                return Enum.ToObject(type, raw);
+            }
 
             if (type == typeof(string)) return ReadString(br);
             if (type == typeof(byte[])) return ReadBytes(br);

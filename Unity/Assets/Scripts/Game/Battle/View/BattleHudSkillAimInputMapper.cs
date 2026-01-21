@@ -38,20 +38,20 @@ namespace AbilityKit.Game.Battle.View
 
         private void OnAimStart(int slot, Vector2 dir)
         {
-            SkillAimStart?.Invoke(slot, TransformDir(dir));
+            SkillAimStart?.Invoke(slot, TransformAim(dir));
         }
 
         private void OnAimUpdate(int slot, Vector2 dir)
         {
-            SkillAimUpdate?.Invoke(slot, TransformDir(dir));
+            SkillAimUpdate?.Invoke(slot, TransformAim(dir));
         }
 
         private void OnAimEnd(int slot, Vector2 dir)
         {
-            SkillAimEnd?.Invoke(slot, TransformDir(dir));
+            SkillAimEnd?.Invoke(slot, TransformAim(dir));
         }
 
-        private Vector2 TransformDir(Vector2 dir)
+        private Vector2 TransformAim(Vector2 dir)
         {
             var dx = dir.x;
             var dz = dir.y;
@@ -73,9 +73,7 @@ namespace AbilityKit.Game.Battle.View
                 dz = world.z;
             }
 
-            var len = Mathf.Sqrt(dx * dx + dz * dz);
-            if (len <= 0.0001f) return Vector2.zero;
-            return new Vector2(dx / len, dz / len);
+            return new Vector2(dx, dz);
         }
     }
 }

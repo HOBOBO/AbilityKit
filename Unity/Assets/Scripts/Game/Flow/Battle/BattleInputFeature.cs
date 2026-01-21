@@ -3,6 +3,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Ability.Share.Math;
 using AbilityKit.Game.Battle.Requests;
 using UnityEngine;
 #if ENABLE_INPUT_SYSTEM
@@ -86,6 +87,26 @@ namespace AbilityKit.Game.Flow
                 var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, op, Array.Empty<byte>());
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
                 _ctx.HudSkillClickSlot = 0;
+            }
+
+            if (_ctx.HudSkillAimSubmit && _ctx.HudSkillAimSubmitSlot > 0)
+            {
+                var slot2 = _ctx.HudSkillAimSubmitSlot;
+                var aimDx = _ctx.HudSkillAimSubmitDx;
+                var aimDz = _ctx.HudSkillAimSubmitDz;
+
+                var aimPos = new Vec3(aimDx, 0f, aimDz);
+                var aimDir = new Vec3(aimDx, 0f, aimDz);
+                var evt = new SkillInputEvent(slot: slot2, phase: SkillInputPhase.Release, aimPos: in aimPos, aimDir: in aimDir);
+                var payload = SkillInputCodec.Serialize(in evt);
+
+                var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, (int)MobaOpCode.SkillInput, payload);
+                _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
+
+                _ctx.HudSkillAimSubmit = false;
+                _ctx.HudSkillAimSubmitSlot = 0;
+                _ctx.HudSkillAimSubmitDx = 0f;
+                _ctx.HudSkillAimSubmitDz = 0f;
             }
         }
 

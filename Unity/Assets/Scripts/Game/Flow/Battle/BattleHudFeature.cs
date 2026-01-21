@@ -31,6 +31,10 @@ namespace AbilityKit.Game.Flow
         private BattleHudInputView _inputView;
         private Button _infoButton;
 
+        private BattleHudSkillAimInputMapper _skillAimMapper;
+
+        private GameObject _aimPreview;
+
         private IDisposable _subDamageEvents;
 
         public void OnAttach(in GamePhaseContext ctx)
@@ -92,6 +96,21 @@ namespace AbilityKit.Game.Flow
             _moveJoystick = null;
             _inputView = null;
             _infoButton = null;
+            _skillAimMapper = null;
+
+            if (_aimPreview != null)
+            {
+                UnityEngine.Object.Destroy(_aimPreview);
+            }
+            _aimPreview = null;
+
+            if (_ctx != null)
+            {
+                _ctx.HudSkillAiming = false;
+                _ctx.HudSkillAimSlot = 0;
+                _ctx.HudSkillAimDx = 0f;
+                _ctx.HudSkillAimDz = 0f;
+            }
 
             if (_canvas != null)
             {
@@ -183,6 +202,11 @@ namespace AbilityKit.Game.Flow
 
             var skillAimMapper = _inputUiRoot.AddComponent<BattleHudSkillAimInputMapper>();
             SetPrivateField(skillAimMapper, "_hud", _inputView);
+            _skillAimMapper = skillAimMapper;
+
+            _skillAimMapper.SkillAimStart += OnSkillAimStart;
+            _skillAimMapper.SkillAimUpdate += OnSkillAimUpdate;
+            _skillAimMapper.SkillAimEnd += OnSkillAimEnd;
 
             var skill1 = CreateSkillButton("Skill1", new Vector2(-260f, 200f));
             var skill2 = CreateSkillButton("Skill2", new Vector2(-140f, 110f));
@@ -226,6 +250,38 @@ namespace AbilityKit.Game.Flow
             _ctx.HudSkillClickSlot = slot;
         }
 
+        private void OnSkillAimStart(int slot, Vector2 aim)
+        {
+            if (_ctx == null) return;
+            _ctx.HudSkillAiming = true;
+            _ctx.HudSkillAimSlot = slot;
+            _ctx.HudSkillAimDx = aim.x;
+            _ctx.HudSkillAimDz = aim.y;
+        }
+
+        private void OnSkillAimUpdate(int slot, Vector2 aim)
+        {
+            if (_ctx == null) return;
+            _ctx.HudSkillAiming = true;
+            _ctx.HudSkillAimSlot = slot;
+            _ctx.HudSkillAimDx = aim.x;
+            _ctx.HudSkillAimDz = aim.y;
+        }
+
+        private void OnSkillAimEnd(int slot, Vector2 aim)
+        {
+            if (_ctx == null) return;
+            _ctx.HudSkillAiming = false;
+            _ctx.HudSkillAimSlot = slot;
+            _ctx.HudSkillAimDx = aim.x;
+            _ctx.HudSkillAimDz = aim.y;
+
+            _ctx.HudSkillAimSubmit = true;
+            _ctx.HudSkillAimSubmitSlot = slot;
+            _ctx.HudSkillAimSubmitDx = aim.x;
+            _ctx.HudSkillAimSubmitDz = aim.y;
+        }
+
         private SkillButtonView CreateSkillButton(string name, Vector2 anchoredPos)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(Image));
@@ -245,7 +301,12 @@ namespace AbilityKit.Game.Flow
             SetPrivateField(view, "_buttonRect", rt);
             SetPrivateField(view, "_uiRootRect", _root);
             SetPrivateField(view, "_canvas", _canvas);
-            SetPrivateField(view, "_config", SkillButtonConfig.Default);
+
+            var cfg = SkillButtonConfig.Default;
+            cfg.EnableAim = true;
+            cfg.AimMaxRadius = 220f;
+            cfg.AimMode = name == "Skill1" ? SkillAimMode.Direction : SkillAimMode.Point;
+            SetPrivateField(view, "_config", cfg);
 
             return view;
         }
@@ -287,6 +348,56 @@ namespace AbilityKit.Game.Flow
         {
             if (_binder == null) return;
             _binder.Tick(deltaTime);
+            TickAimPreview();
+        }
+
+        private void TickAimPreview()
+        {
+            if (_ctx == null || _ctx.EntityQuery == null)
+            {
+                if (_aimPreview != null) _aimPreview.SetActive(false);
+                return;
+            }
+
+            if (!_ctx.HudSkillAiming)
+            {
+                if (_aimPreview != null) _aimPreview.SetActive(false);
+                return;
+            }
+
+            var casterId = _ctx.LocalActorId;
+            if (casterId <= 0)
+            {
+                if (_aimPreview != null) _aimPreview.SetActive(false);
+                return;
+            }
+
+            if (!_ctx.EntityQuery.TryResolve(new BattleNetId(casterId), out var caster))
+            {
+                if (_aimPreview != null) _aimPreview.SetActive(false);
+                return;
+            }
+
+            if (!caster.TryGetComponent(out AbilityKit.Game.Battle.Component.BattleTransformComponent t) || t == null)
+            {
+                if (_aimPreview != null) _aimPreview.SetActive(false);
+                return;
+            }
+
+            if (_aimPreview == null)
+            {
+                _aimPreview = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                _aimPreview.name = "SkillAimPreview";
+                _aimPreview.hideFlags = HideFlags.DontSave;
+                _aimPreview.transform.localScale = Vector3.one * 0.35f;
+                var col = _aimPreview.GetComponent<Collider>();
+                if (col != null) col.enabled = false;
+            }
+
+            var casterPos = t.Position;
+            var pos = casterPos + new Vector3(_ctx.HudSkillAimDx, 0f, _ctx.HudSkillAimDz);
+            _aimPreview.transform.position = pos;
+            _aimPreview.SetActive(true);
         }
 
         private void OnDamageEventSnapshot(FramePacket packet, MobaDamageEventSnapshotCodec.Entry[] entries)

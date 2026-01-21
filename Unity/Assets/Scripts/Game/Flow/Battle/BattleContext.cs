@@ -20,6 +20,8 @@ namespace AbilityKit.Game.Flow
         public BattleStartPlan Plan;
         public int LastFrame;
 
+        public int LocalActorId;
+
         public FrameSnapshotDispatcher FrameSnapshots;
         public BattleSnapshotPipeline SnapshotPipeline;
         public BattleCmdHandler CmdHandler;
@@ -37,6 +39,16 @@ namespace AbilityKit.Game.Flow
         public bool HudHasMove;
 
         public int HudSkillClickSlot;
+
+        public bool HudSkillAiming;
+        public int HudSkillAimSlot;
+        public float HudSkillAimDx;
+        public float HudSkillAimDz;
+
+        public bool HudSkillAimSubmit;
+        public int HudSkillAimSubmitSlot;
+        public float HudSkillAimSubmitDx;
+        public float HudSkillAimSubmitDz;
 
         public static BattleContext Rent()
         {
@@ -59,6 +71,8 @@ namespace AbilityKit.Game.Flow
             Plan = default;
             LastFrame = 0;
 
+            LocalActorId = 0;
+
             FrameSnapshots = null;
             SnapshotPipeline = null;
             CmdHandler = null;
@@ -75,6 +89,16 @@ namespace AbilityKit.Game.Flow
             HudMoveDz = 0f;
             HudHasMove = false;
             HudSkillClickSlot = 0;
+
+            HudSkillAiming = false;
+            HudSkillAimSlot = 0;
+            HudSkillAimDx = 0f;
+            HudSkillAimDz = 0f;
+
+            HudSkillAimSubmit = false;
+            HudSkillAimSubmitSlot = 0;
+            HudSkillAimSubmitDx = 0f;
+            HudSkillAimSubmitDz = 0f;
         }
 
         void IPoolable.OnPoolDestroy()
@@ -82,6 +106,8 @@ namespace AbilityKit.Game.Flow
             Session = null;
             Plan = default;
             LastFrame = 0;
+
+            LocalActorId = 0;
 
             FrameSnapshots = null;
             SnapshotPipeline = null;
@@ -99,6 +125,16 @@ namespace AbilityKit.Game.Flow
             HudMoveDz = 0f;
             HudHasMove = false;
             HudSkillClickSlot = 0;
+
+            HudSkillAiming = false;
+            HudSkillAimSlot = 0;
+            HudSkillAimDx = 0f;
+            HudSkillAimDz = 0f;
+
+            HudSkillAimSubmit = false;
+            HudSkillAimSubmitSlot = 0;
+            HudSkillAimSubmitDx = 0f;
+            HudSkillAimSubmitDz = 0f;
         }
     }
 

@@ -99,8 +99,8 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
             if (_aiming)
             {
-                var dir = CalcAimDir(_lastScreenPos);
-                OnAimUpdate?.Invoke(dir);
+                var aim = CalcAim(_lastScreenPos);
+                OnAimUpdate?.Invoke(aim);
                 UpdateIndicator(_lastScreenPos);
             }
         }
@@ -116,8 +116,8 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
             if (wasAiming)
             {
-                var dir = CalcAimDir(eventData.position);
-                OnAimEnd?.Invoke(dir);
+                var aim = CalcAim(eventData.position);
+                OnAimEnd?.Invoke(aim);
                 EndAim();
                 return;
             }
@@ -133,8 +133,8 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         private void BeginAim(Vector2 currentScreen)
         {
             _aiming = true;
-            var dir = CalcAimDir(currentScreen);
-            OnAimStart?.Invoke(dir);
+            var aim = CalcAim(currentScreen);
+            OnAimStart?.Invoke(aim);
             if (_aimIndicator != null) _aimIndicator.SetVisible(true);
             UpdateIndicator(currentScreen);
         }
@@ -145,16 +145,29 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             if (_aimIndicator != null) _aimIndicator.SetVisible(false);
         }
 
-        private Vector2 CalcAimDir(Vector2 screenPos)
+        private Vector2 CalcAim(Vector2 screenPos)
         {
             if (_uiRootRect == null || _buttonRect == null) return Vector2.zero;
 
             var from = ScreenToLocalInRect(_uiRootRect, RectTransformUtility.WorldToScreenPoint(_uiCamera, _buttonRect.position));
             var to = ScreenToLocalInRect(_uiRootRect, screenPos);
             var delta = to - from;
-            var dist = delta.magnitude;
-            if (dist <= 0.0001f) return Vector2.zero;
-            return delta / dist;
+
+            if (_config.AimMode == SkillAimMode.Point)
+            {
+                var radius = Mathf.Max(1f, _config.AimMaxRadius);
+                var dist = delta.magnitude;
+                if (dist <= 0.0001f) return Vector2.zero;
+
+                var clamped = dist > radius ? delta * (radius / dist) : delta;
+                return clamped / radius;
+            }
+            else
+            {
+                var dist = delta.magnitude;
+                if (dist <= 0.0001f) return Vector2.zero;
+                return delta / dist;
+            }
         }
 
         private void UpdateIndicator(Vector2 screenPos)
@@ -163,7 +176,16 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
             var from = ScreenToLocalInRect(_uiRootRect, RectTransformUtility.WorldToScreenPoint(_uiCamera, _buttonRect.position));
             var to = ScreenToLocalInRect(_uiRootRect, screenPos);
-            _aimIndicator.SetFromTo(from, to, maxRadius: 180f);
+
+            var radius = Mathf.Max(1f, _config.AimMaxRadius);
+            if (_config.AimMode == SkillAimMode.Point)
+            {
+                var delta = to - from;
+                var dist = delta.magnitude;
+                if (dist > radius) to = from + delta * (radius / dist);
+            }
+
+            _aimIndicator.SetFromTo(from, to, maxRadius: radius);
         }
 
         private Vector2 ScreenToLocalInRect(RectTransform rect, Vector2 screenPos)
