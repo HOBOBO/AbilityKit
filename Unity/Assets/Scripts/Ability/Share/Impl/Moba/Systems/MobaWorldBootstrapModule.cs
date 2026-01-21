@@ -52,6 +52,15 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
 
             builder.RegisterService<MobaProjectileEventSnapshotService, MobaProjectileEventSnapshotService>();
 
+            builder.RegisterService<MobaDamageEventSnapshotService, MobaDamageEventSnapshotService>();
+
+            builder.RegisterService<MobaDamageService, MobaDamageService>();
+
+            builder.RegisterService<AbilityKit.Ability.Share.Impl.Moba.Services.DamagePipelineService, AbilityKit.Ability.Share.Impl.Moba.Services.DamagePipelineService>();
+
+            builder.RegisterService<MobaSummonService, MobaSummonService>();
+            builder.RegisterService<AbilityKit.Ability.Share.Impl.Moba.Services.MobaSummonDeathSubscriber, AbilityKit.Ability.Share.Impl.Moba.Services.MobaSummonDeathSubscriber>();
+
             builder.RegisterService<MobaEnterGameSnapshotService, MobaEnterGameSnapshotService>();
 
             builder.RegisterService<MobaLobbySnapshotService, MobaLobbySnapshotService>();

@@ -249,6 +249,11 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             return GetTable<ProjectileMO>().Get(id);
         }
 
+        public global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SummonMO GetSummon(int id)
+        {
+            return GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SummonMO>().Get(id);
+        }
+
         public bool TryGetCharacter(int id, out CharacterMO mo) => GetTable<CharacterMO>().TryGet(id, out mo);
         public bool TryGetSkill(int id, out SkillMO mo) => GetTable<SkillMO>().TryGet(id, out mo);
         public bool TryGetPassiveSkill(int id, out PassiveSkillMO mo) => GetTable<PassiveSkillMO>().TryGet(id, out mo);
@@ -258,6 +263,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public bool TryGetAttributeTemplate(int id, out BattleAttributeTemplateMO mo) => GetTable<BattleAttributeTemplateMO>().TryGet(id, out mo);
         public bool TryGetModel(int id, out ModelMO mo) => GetTable<ModelMO>().TryGet(id, out mo);
         public bool TryGetBuff(int id, out BuffMO mo) => GetTable<BuffMO>().TryGet(id, out mo);
+        public bool TryGetSummon(int id, out global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SummonMO mo) => GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SummonMO>().TryGet(id, out mo);
         public bool TryGetProjectileLauncher(int id, out ProjectileLauncherMO mo) => GetTable<ProjectileLauncherMO>().TryGet(id, out mo);
         public bool TryGetProjectile(int id, out ProjectileMO mo) => GetTable<ProjectileMO>().TryGet(id, out mo);
     }

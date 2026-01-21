@@ -176,6 +176,40 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
     }
 
     [Serializable]
+    public sealed class SummonDTO
+    {
+        public int Id;
+        public string Name;
+
+        public int UnitSubType;
+        public int ModelId;
+
+        public int AttributeTemplateId;
+
+        public int LifetimeMs;
+        public bool DespawnOnOwnerDie;
+
+        public int MaxAlivePerOwner;
+        public int OverflowPolicy;
+
+        public int StatsMode;
+        public SummonAttrScaleDTO[] AttrScales;
+
+        public int[] SkillIds;
+        public int[] PassiveSkillIds;
+
+        public int[] Tags;
+    }
+
+    [Serializable]
+    public sealed class SummonAttrScaleDTO
+    {
+        public int AttrId;
+        public float Ratio;
+        public float Add;
+    }
+
+    [Serializable]
     public sealed class VfxDTO
     {
         public int Id;

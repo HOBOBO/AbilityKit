@@ -216,4 +216,41 @@ namespace AbilityKit.Ability.Impl.Moba
         PublishEventOnly = 1,
         InternalThenPublishEvent = 2,
     }
+
+    public enum DamageType
+    {
+        None = 0,
+        Physical = 1,
+        Magical = 2,
+        True = 3,
+    }
+
+    public enum DamageReasonKind
+    {
+        None = 0,
+        Skill = 1,
+        Projectile = 2,
+        Buff = 3,
+        System = 4,
+    }
+
+    public enum CritType
+    {
+        None = 0,
+        Critical = 1,
+    }
+
+    public enum DamageCalcStage
+    {
+        None = 0,
+        AttackCreated = 1,
+        BeforeCalc = 2,
+        CalcBegin = 3,
+        AfterBase = 4,
+        AfterMitigate = 5,
+        AfterShield = 6,
+        Final = 7,
+        BeforeApply = 8,
+        AfterApply = 9,
+    }
 }

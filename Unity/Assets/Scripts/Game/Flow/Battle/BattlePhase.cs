@@ -21,6 +21,7 @@ namespace AbilityKit.Game.Flow
             flow.Attach(new BattleSyncFeature());
             flow.Attach(new BattleInputFeature());
             flow.Attach(new BattleViewFeature());
+            flow.Attach(new BattleHudFeature());
             flow.Attach(new BattleDebugOnGUIFeature());
         }
 

@@ -16,5 +16,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 
         public const string ProjectileLaunchersFile = "projectile_launchers";
         public const string ProjectilesFile = "projectiles";
+
+        public const string SummonsFile = "summons";
     }
 }

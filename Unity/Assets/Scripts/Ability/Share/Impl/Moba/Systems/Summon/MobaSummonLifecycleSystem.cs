@@ -1,0 +1,90 @@
+using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Entitas;
+
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Summon
+{
+    [WorldSystem(order: MobaSystemOrder.SummonLifecycle, Phase = WorldSystemPhase.PostExecute)]
+    public sealed class MobaSummonLifecycleSystem : WorldSystemBase
+    {
+        private MobaSummonService _summons;
+        private MobaActorRegistry _registry;
+        private AbilityKit.Ability.FrameSync.IFrameTime _frameTime;
+        private AbilityKit.Ability.World.Services.IWorldClock _clock;
+
+        public MobaSummonLifecycleSystem(global::Contexts contexts, IWorldServices services)
+            : base(contexts, services)
+        {
+        }
+
+        protected override void OnInit()
+        {
+            Services.TryGet(out _summons);
+            Services.TryGet(out _registry);
+            Services.TryGet(out _frameTime);
+            Services.TryGet(out _clock);
+        }
+
+        protected override void OnExecute()
+        {
+            if (_summons == null) return;
+            if (_registry == null) return;
+
+            var nowMs = NowMs();
+
+            var group = Contexts.actor.GetGroup(ActorMatcher.AllOf(
+                ActorComponentsLookup.SummonMeta,
+                ActorComponentsLookup.OwnerLink));
+
+            var entities = group.GetEntities();
+            if (entities == null || entities.Length == 0) return;
+
+            for (int i = 0; i < entities.Length; i++)
+            {
+                var e = entities[i];
+                if (e == null) continue;
+                if (!e.hasActorId) continue;
+
+                var actorId = e.actorId.Value;
+                if (actorId <= 0) continue;
+
+                // timeout
+                if (e.hasLifetime && e.lifetime != null && e.lifetime.EndTimeMs > 0 && nowMs > 0 && nowMs >= e.lifetime.EndTimeMs)
+                {
+                    _summons.TryDespawn(actorId, SummonDespawnReason.Timeout);
+                    continue;
+                }
+
+                // owner dead
+                if (e.hasSummonMeta && e.summonMeta != null && e.summonMeta.DespawnOnOwnerDie)
+                {
+                    if (e.hasOwnerLink && e.ownerLink != null)
+                    {
+                        var ownerActorId = e.ownerLink.OwnerActorId;
+                        if (ownerActorId > 0)
+                        {
+                            if (!_registry.TryGet(ownerActorId, out var owner) || owner == null)
+                            {
+                                _summons.TryDespawn(actorId, SummonDespawnReason.OwnerDead);
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private long NowMs()
+        {
+            if (_frameTime != null)
+            {
+                return (long)System.MathF.Round(_frameTime.Time * 1000f);
+            }
+            if (_clock != null)
+            {
+                return (long)System.MathF.Round(_clock.Time * 1000f);
+            }
+            return 0L;
+        }
+    }
+}

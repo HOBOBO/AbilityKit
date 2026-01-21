@@ -23,6 +23,8 @@ namespace AbilityKit.Ability.Triggering.Runtime
         public const string EffectExecute = "effect_execute";
         public const string AddBuff = "add_buff";
         public const string ShootProjectile = "shoot_projectile";
+        public const string GiveDamage = "give_damage";
+        public const string TakeDamage = "take_damage";
     }
 
     public static class TriggerDefArgKeys

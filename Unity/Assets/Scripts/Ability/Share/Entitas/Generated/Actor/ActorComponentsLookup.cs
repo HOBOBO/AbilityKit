@@ -18,19 +18,23 @@ public static class ActorComponentsLookup {
     public const int EffectListeners = 7;
     public const int EntityMainType = 8;
     public const int FlyingProjectileTag = 9;
-    public const int Motion = 10;
-    public const int MoveInput = 11;
-    public const int OwnerPlayerId = 12;
-    public const int PassiveSkillTriggerListeners = 13;
-    public const int ProjectileLauncher = 14;
-    public const int RemoveBuffRequest = 15;
-    public const int ResourceContainer = 16;
-    public const int SkillLoadout = 17;
-    public const int Team = 18;
-    public const int Transform = 19;
-    public const int UnitSubType = 20;
+    public const int Lifetime = 10;
+    public const int ModelId = 11;
+    public const int Motion = 12;
+    public const int MoveInput = 13;
+    public const int OwnerLink = 14;
+    public const int OwnerPlayerId = 15;
+    public const int PassiveSkillTriggerListeners = 16;
+    public const int ProjectileLauncher = 17;
+    public const int RemoveBuffRequest = 18;
+    public const int ResourceContainer = 19;
+    public const int SkillLoadout = 20;
+    public const int SummonMeta = 21;
+    public const int Team = 22;
+    public const int Transform = 23;
+    public const int UnitSubType = 24;
 
-    public const int TotalComponents = 21;
+    public const int TotalComponents = 25;
 
     public static readonly string[] componentNames = {
         "ActorId",
@@ -43,14 +47,18 @@ public static class ActorComponentsLookup {
         "EffectListeners",
         "EntityMainType",
         "FlyingProjectileTag",
+        "Lifetime",
+        "ModelId",
         "Motion",
         "MoveInput",
+        "OwnerLink",
         "OwnerPlayerId",
         "PassiveSkillTriggerListeners",
         "ProjectileLauncher",
         "RemoveBuffRequest",
         "ResourceContainer",
         "SkillLoadout",
+        "SummonMeta",
         "Team",
         "Transform",
         "UnitSubType"
@@ -67,14 +75,18 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.EffectListenersComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.EntityMainTypeComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.FlyingProjectileTagComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.LifetimeComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.ModelIdComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerLinkComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillTriggerListenersComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ProjectileLauncherComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.RemoveBuffRequestComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainerComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillLoadoutComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SummonMetaComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.TeamComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.TransformComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.UnitSubTypeComponent)
