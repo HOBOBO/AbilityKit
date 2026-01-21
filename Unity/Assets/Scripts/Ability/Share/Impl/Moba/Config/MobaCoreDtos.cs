@@ -198,7 +198,28 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public int[] SkillIds;
         public int[] PassiveSkillIds;
 
+        public int[] DefaultComponentTemplateIds;
+
         public int[] Tags;
+    }
+
+    [Serializable]
+    public sealed class ComponentTemplateDTO
+    {
+        public int Id;
+        public string Name;
+
+        public ComponentOpDTO[] Ops;
+    }
+
+    [Serializable]
+    public sealed class ComponentOpDTO
+    {
+        public int Kind;
+
+        public int IntValue;
+        public float FloatValue;
+        public bool BoolValue;
     }
 
     [Serializable]

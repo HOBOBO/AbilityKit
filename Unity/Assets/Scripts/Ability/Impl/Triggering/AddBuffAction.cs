@@ -145,13 +145,13 @@ namespace AbilityKit.Ability.Impl.Triggering
                 return;
             }
 
-            if (!TryResolveActorId(context?.Target, out var targetActorId) || targetActorId <= 0)
+            if (!global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.TryResolveActorId(context?.Target, out var targetActorId) || targetActorId <= 0)
             {
                 Log.Warning("[Trigger] add_buff requires context.Target with valid actorId");
                 return;
             }
 
-            TryResolveActorId(context?.Source, out var sourceActorId);
+            global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.TryResolveActorId(context?.Source, out var sourceActorId);
 
             var target = buffSvc.TryGetActorEntity(targetActorId);
             if (target == null)
@@ -166,44 +166,6 @@ namespace AbilityKit.Ability.Impl.Triggering
                 if (buffId <= 0) continue;
                 buffSvc.ApplyBuffImmediate(target, buffId, sourceActorId, durationOverrideMs: 0);
             }
-        }
-
-        private static bool TryResolveActorId(object obj, out int actorId)
-        {
-            actorId = 0;
-            if (obj == null) return false;
-
-            if (obj is int i)
-            {
-                actorId = i;
-                return actorId > 0;
-            }
-
-            if (obj is long l)
-            {
-                actorId = (int)l;
-                return actorId > 0;
-            }
-
-            if (obj is EcsEntityId id)
-            {
-                actorId = id.ActorId;
-                return actorId > 0;
-            }
-
-            if (obj is IUnitFacade unit)
-            {
-                actorId = unit.Id.ActorId;
-                return actorId > 0;
-            }
-
-            if (obj is global::ActorEntity e && e.hasActorId)
-            {
-                actorId = e.actorId.Value;
-                return actorId > 0;
-            }
-
-            return false;
         }
     }
 }

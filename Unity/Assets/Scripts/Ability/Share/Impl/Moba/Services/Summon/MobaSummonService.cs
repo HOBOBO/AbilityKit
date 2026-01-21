@@ -23,6 +23,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaActorLookupService _actors;
         private readonly MobaActorEntityGenerator _generator;
         private readonly MobaConfigDatabase _config;
+        private readonly MobaComponentTemplateService _componentTemplates;
         private readonly IFrameTime _frameTime;
         private readonly IWorldClock _clock;
         private readonly IEventBus _eventBus;
@@ -37,6 +38,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             MobaActorLookupService actors,
             MobaActorEntityGenerator generator,
             MobaConfigDatabase config,
+            MobaComponentTemplateService componentTemplates,
             IEventBus eventBus)
         {
             _services = services;
@@ -46,6 +48,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _actors = actors;
             _generator = generator;
             _config = config;
+            _componentTemplates = componentTemplates;
             _eventBus = eventBus;
 
             services?.TryGet(out _frameTime);
@@ -117,6 +120,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 _generator.InitializeFromAttributeTemplate(entity, summon.AttributeTemplateId);
             }
 
+            TryApplyDefaultComponentTemplates(entity, summon.DefaultComponentTemplateIds);
+
             TryInitSkillLoadout(entity, summon.SkillIds, summon.PassiveSkillIds);
 
             _registry.Register(actorId, entity);
@@ -129,6 +134,21 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             PublishSummonEvent(MobaSummonTriggering.Events.SpawnedByOwner(rootOwner), rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None);
 
             return true;
+        }
+
+        private void TryApplyDefaultComponentTemplates(global::ActorEntity entity, IReadOnlyList<int> templateIds)
+        {
+            if (_componentTemplates == null) return;
+            if (entity == null) return;
+            if (templateIds == null || templateIds.Count == 0) return;
+
+            for (int i = 0; i < templateIds.Count; i++)
+            {
+                var id = templateIds[i];
+                if (id <= 0) continue;
+                try { _componentTemplates.TryApply(entity, id); }
+                catch { }
+            }
         }
 
         public bool TryDespawn(int summonActorId, SummonDespawnReason reason)

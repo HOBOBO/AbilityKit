@@ -55,19 +55,19 @@ namespace AbilityKit.Ability.Impl.Triggering
             var damageType = DamageType.Physical;
             if (args.TryGetValue("damageType", out var dtObj) && dtObj != null)
             {
-                damageType = ParseEnum(dtObj, DamageType.Physical);
+                damageType = global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.ParseEnum(dtObj, DamageType.Physical);
             }
 
             var critType = CritType.None;
             if (args.TryGetValue("crit", out var cObj) && cObj != null)
             {
-                critType = ParseEnum(cObj, CritType.None);
+                critType = global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.ParseEnum(cObj, CritType.None);
             }
 
             var reasonKind = DamageReasonKind.Buff;
             if (args.TryGetValue("reasonKind", out var rkObj) && rkObj != null)
             {
-                reasonKind = ParseEnum(rkObj, DamageReasonKind.Buff);
+                reasonKind = global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.ParseEnum(rkObj, DamageReasonKind.Buff);
             }
 
             var reasonParam = 0;
@@ -129,13 +129,13 @@ namespace AbilityKit.Ability.Impl.Triggering
                 }
             }
 
-            if (!TryResolveActorId(attackerObj, out var attackerActorId) || attackerActorId <= 0)
+            if (!global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.TryResolveActorId(attackerObj, out var attackerActorId) || attackerActorId <= 0)
             {
                 Log.Warning("[Trigger] take_damage requires a valid attacker actorId (default=context.Target)");
                 return;
             }
 
-            if (!TryResolveActorId(targetObj, out var targetActorId) || targetActorId <= 0)
+            if (!global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.TryResolveActorId(targetObj, out var targetActorId) || targetActorId <= 0)
             {
                 Log.Warning("[Trigger] take_damage cannot resolve target actorId (default=payload.AttackerActorId)");
                 return;
@@ -176,60 +176,5 @@ namespace AbilityKit.Ability.Impl.Triggering
             pipeline.Execute(attack);
         }
 
-        private static TEnum ParseEnum<TEnum>(object obj, TEnum fallback) where TEnum : struct
-        {
-            try
-            {
-                if (obj is int i) return (TEnum)Enum.ToObject(typeof(TEnum), i);
-                if (obj is long l) return (TEnum)Enum.ToObject(typeof(TEnum), (int)l);
-                if (obj is string s && !string.IsNullOrEmpty(s))
-                {
-                    if (Enum.TryParse<TEnum>(s, ignoreCase: true, out var parsed)) return parsed;
-                    if (int.TryParse(s, out var i2)) return (TEnum)Enum.ToObject(typeof(TEnum), i2);
-                }
-            }
-            catch
-            {
-            }
-            return fallback;
-        }
-
-        private static bool TryResolveActorId(object obj, out int actorId)
-        {
-            actorId = 0;
-            if (obj == null) return false;
-
-            if (obj is int i)
-            {
-                actorId = i;
-                return actorId > 0;
-            }
-
-            if (obj is long l)
-            {
-                actorId = (int)l;
-                return actorId > 0;
-            }
-
-            if (obj is EcsEntityId id)
-            {
-                actorId = id.ActorId;
-                return actorId > 0;
-            }
-
-            if (obj is IUnitFacade unit)
-            {
-                actorId = unit.Id.ActorId;
-                return actorId > 0;
-            }
-
-            if (obj is global::ActorEntity e && e.hasActorId)
-            {
-                actorId = e.actorId.Value;
-                return actorId > 0;
-            }
-
-            return false;
-        }
     }
 }

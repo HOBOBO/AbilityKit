@@ -12,6 +12,7 @@ using AbilityKit.Ability.Triggering.Json;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 
 namespace AbilityKit.Ability.Impl.Moba.Systems
 {
@@ -56,10 +57,12 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
 
             builder.RegisterService<MobaDamageService, MobaDamageService>();
 
-            builder.RegisterService<AbilityKit.Ability.Share.Impl.Moba.Services.DamagePipelineService, AbilityKit.Ability.Share.Impl.Moba.Services.DamagePipelineService>();
+            builder.RegisterService<DamagePipelineService, DamagePipelineService>();
 
             builder.RegisterService<MobaSummonService, MobaSummonService>();
-            builder.RegisterService<AbilityKit.Ability.Share.Impl.Moba.Services.MobaSummonDeathSubscriber, AbilityKit.Ability.Share.Impl.Moba.Services.MobaSummonDeathSubscriber>();
+            builder.RegisterService<MobaSummonDeathSubscriber, MobaSummonDeathSubscriber>();
+
+            builder.RegisterService<MobaComponentTemplateService, MobaComponentTemplateService>();
 
             builder.RegisterService<MobaEnterGameSnapshotService, MobaEnterGameSnapshotService>();
 
@@ -78,8 +81,8 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
 
             builder.TryRegisterService<IProjectileService, ProjectileService>();
 
-            builder.RegisterService<AbilityKit.Ability.Share.Impl.Moba.Services.Projectile.MobaProjectileLinkService, AbilityKit.Ability.Share.Impl.Moba.Services.Projectile.MobaProjectileLinkService>();
-            builder.RegisterService<AbilityKit.Ability.Share.Impl.Moba.Services.Projectile.MobaProjectileService, AbilityKit.Ability.Share.Impl.Moba.Services.Projectile.MobaProjectileService>();
+            builder.RegisterService<MobaProjectileLinkService, MobaProjectileLinkService>();
+            builder.RegisterService<MobaProjectileService, MobaProjectileService>();
 
             builder.RegisterService<MobaSkillLoadoutService, MobaSkillLoadoutService>();
             builder.TryRegister<MobaTriggerIndexService>(WorldLifetime.Singleton, _ =>

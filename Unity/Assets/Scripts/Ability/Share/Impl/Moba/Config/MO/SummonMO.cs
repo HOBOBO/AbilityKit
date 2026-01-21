@@ -25,6 +25,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         public IReadOnlyList<int> SkillIds { get; }
         public IReadOnlyList<int> PassiveSkillIds { get; }
 
+        public IReadOnlyList<int> DefaultComponentTemplateIds { get; }
+
         public IReadOnlyList<int> Tags { get; }
 
         public SummonMO(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.SummonDTO dto)
@@ -65,6 +67,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
 
             SkillIds = dto.SkillIds ?? Array.Empty<int>();
             PassiveSkillIds = dto.PassiveSkillIds ?? Array.Empty<int>();
+            DefaultComponentTemplateIds = dto.DefaultComponentTemplateIds ?? Array.Empty<int>();
             Tags = dto.Tags ?? Array.Empty<int>();
         }
     }

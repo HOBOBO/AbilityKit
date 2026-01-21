@@ -30,8 +30,8 @@ namespace AbilityKit.Ability.Impl.Triggering
             var args = def.Args;
             if (args == null) return new ShootProjectileAction(launcherId: 0, projectileId: 0);
 
-            var launcherId = TryGetInt(args, "launcherId");
-            var projectileId = TryGetInt(args, "projectileId");
+            var launcherId = global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.TryGetInt(args, "launcherId");
+            var projectileId = global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.TryGetInt(args, "projectileId");
 
             return new ShootProjectileAction(launcherId, projectileId);
         }
@@ -54,7 +54,7 @@ namespace AbilityKit.Ability.Impl.Triggering
                 return;
             }
 
-            if (!TryResolveActorId(context?.Source, out var casterActorId) || casterActorId <= 0)
+            if (!global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.TryResolveActorId(context?.Source, out var casterActorId) || casterActorId <= 0)
             {
                 Log.Warning("[Trigger] shoot_projectile requires context.Source with valid actorId");
                 return;
@@ -91,54 +91,6 @@ namespace AbilityKit.Ability.Impl.Triggering
             {
                 Log.Warning($"[Trigger] shoot_projectile launch failed. launcherId={_launcherId} projectileId={_projectileId}");
             }
-        }
-
-        private static int TryGetInt(System.Collections.Generic.IReadOnlyDictionary<string, object> args, string key)
-        {
-            if (args == null || key == null) return 0;
-            if (!args.TryGetValue(key, out var obj) || obj == null) return 0;
-            if (obj is int i) return i;
-            if (obj is long l) return (int)l;
-            if (obj is string s && int.TryParse(s, out var parsed)) return parsed;
-            return 0;
-        }
-
-        private static bool TryResolveActorId(object obj, out int actorId)
-        {
-            actorId = 0;
-            if (obj == null) return false;
-
-            if (obj is int i)
-            {
-                actorId = i;
-                return actorId > 0;
-            }
-
-            if (obj is long l)
-            {
-                actorId = (int)l;
-                return actorId > 0;
-            }
-
-            if (obj is EcsEntityId id)
-            {
-                actorId = id.ActorId;
-                return actorId > 0;
-            }
-
-            if (obj is IUnitFacade unit)
-            {
-                actorId = unit.Id.ActorId;
-                return actorId > 0;
-            }
-
-            if (obj is global::ActorEntity e && e.hasActorId)
-            {
-                actorId = e.actorId.Value;
-                return actorId > 0;
-            }
-
-            return false;
         }
     }
 }
