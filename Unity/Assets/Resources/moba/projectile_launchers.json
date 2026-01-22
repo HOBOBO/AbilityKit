@@ -3,8 +3,8 @@
     "Id": 100001,
     "Name": "测试发射器",
     "EmitterType": 1,
-    "DurationMs": 2000,
-    "IntervalMs": 500,
+    "DurationMs": 0,
+    "IntervalMs": 0,
     "CountPerShot": 1,
     "FanAngleDeg": 0.0
   }

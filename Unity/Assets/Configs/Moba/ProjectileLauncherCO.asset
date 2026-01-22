@@ -16,7 +16,7 @@ MonoBehaviour:
   - Id: 100001
     Name: "\u6D4B\u8BD5\u53D1\u5C04\u5668"
     EmitterType: 1
-    DurationMs: 2000
-    IntervalMs: 500
+    DurationMs: 0
+    IntervalMs: 0
     CountPerShot: 1
     FanAngleDeg: 0

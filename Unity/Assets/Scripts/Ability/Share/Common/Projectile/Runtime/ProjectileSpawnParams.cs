@@ -14,10 +14,15 @@ namespace AbilityKit.Ability.Share.Common.Projectile
         public readonly int TemplateId;
         public readonly int LauncherActorId;
         public readonly int RootActorId;
+        public readonly int SpawnFrame;
 
         public readonly Vec3 Position;
         public readonly Vec3 Direction;
         public readonly float Speed;
+
+        public readonly int ReturnAfterFrames;
+        public readonly float ReturnSpeed;
+        public readonly float ReturnStopDistance;
 
         public readonly int LifetimeFrames;
         public readonly float MaxDistance;
@@ -41,9 +46,13 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             int templateId,
             int launcherActorId,
             int rootActorId,
+            int spawnFrame,
             in Vec3 position,
             in Vec3 direction,
             float speed,
+            int returnAfterFrames,
+            float returnSpeed,
+            float returnStopDistance,
             int lifetimeFrames,
             float maxDistance,
             int collisionLayerMask,
@@ -60,9 +69,13 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             TemplateId = templateId;
             LauncherActorId = launcherActorId;
             RootActorId = rootActorId;
+            SpawnFrame = spawnFrame;
             Position = position;
             Direction = direction;
             Speed = speed;
+            ReturnAfterFrames = returnAfterFrames;
+            ReturnSpeed = returnSpeed;
+            ReturnStopDistance = returnStopDistance;
             LifetimeFrames = lifetimeFrames;
             MaxDistance = maxDistance;
             CollisionLayerMask = collisionLayerMask;
@@ -87,9 +100,40 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                 templateId: TemplateId,
                 launcherActorId: LauncherActorId,
                 rootActorId: RootActorId,
+                spawnFrame: SpawnFrame,
                 position: Position,
                 direction: direction,
                 speed: Speed,
+                returnAfterFrames: ReturnAfterFrames,
+                returnSpeed: ReturnSpeed,
+                returnStopDistance: ReturnStopDistance,
+                lifetimeFrames: LifetimeFrames,
+                maxDistance: MaxDistance,
+                collisionLayerMask: CollisionLayerMask,
+                ignoreCollider: IgnoreCollider,
+                hitPolicy: HitPolicy,
+                hitsRemaining: HitsRemaining,
+                hitPolicyKind: HitPolicyKind,
+                hitPolicyParam: HitPolicyParam,
+                tickIntervalFrames: TickIntervalFrames,
+                hitFilter: HitFilter,
+                hitCooldownFrames: HitCooldownFrames);
+        }
+
+        public ProjectileSpawnParams WithSpawnFrame(int spawnFrame)
+        {
+            return new ProjectileSpawnParams(
+                ownerId: OwnerId,
+                templateId: TemplateId,
+                launcherActorId: LauncherActorId,
+                rootActorId: RootActorId,
+                spawnFrame: spawnFrame,
+                position: Position,
+                direction: Direction,
+                speed: Speed,
+                returnAfterFrames: ReturnAfterFrames,
+                returnSpeed: ReturnSpeed,
+                returnStopDistance: ReturnStopDistance,
                 lifetimeFrames: LifetimeFrames,
                 maxDistance: MaxDistance,
                 collisionLayerMask: CollisionLayerMask,

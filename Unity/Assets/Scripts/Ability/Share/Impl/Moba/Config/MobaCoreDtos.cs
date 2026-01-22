@@ -228,6 +228,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public int OnSpawnVfxId;
         public int OnHitVfxId;
         public int OnExpireVfxId;
+
+        public int ReturnAfterMs;
+        public float ReturnSpeed;
+        public float ReturnStopDistance;
     }
 
     [Serializable]

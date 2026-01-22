@@ -1,0 +1,26 @@
+[
+  {
+    "Id": 10001,
+    "Name": "",
+    "LongPressSeconds": 0.5,
+    "DragThreshold": 0.0,
+    "EnableAim": true,
+    "AimMode": 0,
+    "AimMaxRadius": 0.0,
+    "UsePointMode": 0,
+    "SelectRange": 0.0,
+    "FaceToAim": false
+  },
+  {
+    "Id": 10002,
+    "Name": "",
+    "LongPressSeconds": 0.0,
+    "DragThreshold": 2.0,
+    "EnableAim": false,
+    "AimMode": 0,
+    "AimMaxRadius": 0.0,
+    "UsePointMode": 0,
+    "SelectRange": 3.0,
+    "FaceToAim": false
+  }
+]

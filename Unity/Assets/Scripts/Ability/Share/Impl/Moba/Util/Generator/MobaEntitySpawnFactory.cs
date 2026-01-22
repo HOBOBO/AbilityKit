@@ -53,6 +53,10 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 
     public static class MobaEntitySpawnFactory
     {
+        private const int CollisionLayer_Unit = 1 << 0;
+        private const int CollisionLayer_Projectile = 1 << 1;
+        private const int CollisionLayer_World = 1 << 2;
+
         public delegate ActorEntity CreateHandler(ActorContext context, in MobaEntityInfo info);
 
         private static readonly Dictionary<MobaEntityKind, CreateHandler> _handlers = new Dictionary<MobaEntityKind, CreateHandler>
@@ -111,7 +115,9 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
                 .WithActorId(info.ActorId)
                 .WithTransform(info.Transform)
                 .WithMotion()
-                .WithMoveInput();
+                .WithMoveInput()
+                .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.5f)))
+                .WithCollisionLayer(layerMask: CollisionLayer_Unit);
 
             var e = b.Build();
             ApplyMeta(e, in info);
@@ -122,7 +128,9 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
         {
             var b = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)
-                .WithTransform(info.Transform);
+                .WithTransform(info.Transform)
+                .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.15f)))
+                .WithCollisionLayer(layerMask: CollisionLayer_Projectile);
 
             var e = b.Build();
             ApplyMeta(e, in info);
@@ -134,7 +142,9 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             var b = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)
                 .WithTransform(info.Transform)
-                .WithMotion();
+                .WithMotion()
+                .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.5f)))
+                .WithCollisionLayer(layerMask: CollisionLayer_Unit);
 
             var e = b.Build();
             ApplyMeta(e, in info);
@@ -146,7 +156,9 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             var b = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)
                 .WithTransform(info.Transform)
-                .WithMotion();
+                .WithMotion()
+                .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.6f)))
+                .WithCollisionLayer(layerMask: CollisionLayer_Unit);
 
             var e = b.Build();
             ApplyMeta(e, in info);

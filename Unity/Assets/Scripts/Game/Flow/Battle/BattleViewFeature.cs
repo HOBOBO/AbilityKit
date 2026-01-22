@@ -17,6 +17,16 @@ namespace AbilityKit.Game.Flow
 {
     public sealed class BattleViewFeature : IGamePhaseFeature
     {
+        private sealed class FloatingText
+        {
+            public GameObject Go;
+            public TextMesh Text;
+            public float Age;
+            public float Lifetime;
+            public Vector3 Velocity;
+            public Color BaseColor;
+        }
+
         private static MobaConfigDatabase _configs;
         private static VfxDatabase _vfxDb;
 
@@ -29,6 +39,9 @@ namespace AbilityKit.Game.Flow
         private IDisposable _subEnterGame;
         private IDisposable _subActorTransform;
         private IDisposable _subProjectileEvents;
+        private IDisposable _subDamageEvents;
+
+        private readonly List<FloatingText> _floatingTexts = new List<FloatingText>(64);
 
         public void OnAttach(in GamePhaseContext ctx)
         {
@@ -54,6 +67,7 @@ namespace AbilityKit.Game.Flow
                 _subEnterGame = _ctx.FrameSnapshots.Subscribe<EnterMobaGameRes>((int)MobaOpCode.EnterGameSnapshot, OnEnterGameSnapshot);
                 _subActorTransform = _ctx.FrameSnapshots.Subscribe<(int actorId, float x, float y, float z)[]>((int)MobaOpCode.ActorTransformSnapshot, OnActorTransformSnapshot);
                 _subProjectileEvents = _ctx.FrameSnapshots.Subscribe<MobaProjectileEventSnapshotCodec.Entry[]>((int)MobaOpCode.ProjectileEventSnapshot, OnProjectileEventSnapshot);
+                _subDamageEvents = _ctx.FrameSnapshots.Subscribe<MobaDamageEventSnapshotCodec.Entry[]>((int)MobaOpCode.DamageEventSnapshot, OnDamageEventSnapshot);
             }
         }
 
@@ -64,16 +78,20 @@ namespace AbilityKit.Game.Flow
                 _subEnterGame?.Dispose();
                 _subActorTransform?.Dispose();
                 _subProjectileEvents?.Dispose();
+                _subDamageEvents?.Dispose();
             }
 
             _subEnterGame = null;
             _subActorTransform = null;
             _subProjectileEvents = null;
+            _subDamageEvents = null;
 
             if (_ctx?.EntityWorld != null)
             {
                 _ctx.EntityWorld.EntityDestroyed -= OnEntityDestroyed;
             }
+
+            ClearFloatingTexts();
 
             _binder?.Clear();
             _binder = null;
@@ -87,6 +105,7 @@ namespace AbilityKit.Game.Flow
         {
             if (_ctx?.EntityWorld == null) return;
             if (_vfxNode.IsValid) _vfx?.Tick(_vfxNode);
+            TickFloatingTexts(deltaTime);
         }
 
         private void OnEnterGameSnapshot(FramePacket packet, EnterMobaGameRes res)
@@ -146,6 +165,104 @@ namespace AbilityKit.Game.Flow
 
                 _vfx.TryCreateVfxEntity(_ctx.EntityWorld, _vfxNode, vfxId, followId, in pos, out _);
             }
+        }
+
+        private void OnDamageEventSnapshot(FramePacket packet, MobaDamageEventSnapshotCodec.Entry[] entries)
+        {
+            if (entries == null || entries.Length == 0) return;
+            if (_ctx?.EntityWorld == null) return;
+            if (_query == null) return;
+            if (_vfxNode.IsValid == false) return;
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var e = entries[i];
+                if (e.TargetActorId <= 0) continue;
+                if (e.Value == 0f) continue;
+
+                var pos = Vector3.zero;
+                if (_query.TryGetTransform(new BattleNetId(e.TargetActorId), out var transform) && transform != null)
+                {
+                    pos = transform.Position;
+                }
+                pos += Vector3.up * 2f;
+
+                var isHeal = e.Kind == (int)MobaDamageEventSnapshotCodec.EventKind.Heal;
+                var color = isHeal ? new Color(0.2f, 1f, 0.2f, 1f) : new Color(1f, 0.2f, 0.2f, 1f);
+                var text = Mathf.Abs(e.Value) >= 1f ? Mathf.RoundToInt(Mathf.Abs(e.Value)).ToString() : Mathf.Abs(e.Value).ToString("0.0");
+                if (isHeal) text = $"+{text}";
+
+                SpawnFloatingText(text, in pos, color);
+            }
+        }
+
+        private void SpawnFloatingText(string text, in Vector3 worldPos, Color color)
+        {
+            if (!_vfxNode.IsValid) return;
+
+            var go = new GameObject("DamageText");
+            go.transform.position = worldPos;
+
+            var tm = go.AddComponent<TextMesh>();
+            tm.text = text;
+            tm.color = color;
+            tm.fontSize = 42;
+            tm.characterSize = 0.06f;
+            tm.anchor = TextAnchor.MiddleCenter;
+            tm.alignment = TextAlignment.Center;
+
+            var ft = new FloatingText
+            {
+                Go = go,
+                Text = tm,
+                Age = 0f,
+                Lifetime = 0.9f,
+                Velocity = new Vector3(0f, 1.5f, 0f),
+                BaseColor = color,
+            };
+            _floatingTexts.Add(ft);
+        }
+
+        private void TickFloatingTexts(float deltaTime)
+        {
+            if (_floatingTexts.Count == 0) return;
+
+            for (int i = _floatingTexts.Count - 1; i >= 0; i--)
+            {
+                var ft = _floatingTexts[i];
+                if (ft == null || ft.Go == null || ft.Text == null)
+                {
+                    _floatingTexts.RemoveAt(i);
+                    continue;
+                }
+
+                ft.Age += deltaTime;
+                ft.Go.transform.position += ft.Velocity * deltaTime;
+
+                var t = ft.Lifetime > 0f ? Mathf.Clamp01(ft.Age / ft.Lifetime) : 1f;
+                var c = ft.BaseColor;
+                c.a = 1f - t;
+                ft.Text.color = c;
+
+                if (ft.Age >= ft.Lifetime)
+                {
+                    UnityEngine.Object.Destroy(ft.Go);
+                    _floatingTexts.RemoveAt(i);
+                }
+            }
+        }
+
+        private void ClearFloatingTexts()
+        {
+            for (int i = 0; i < _floatingTexts.Count; i++)
+            {
+                var ft = _floatingTexts[i];
+                if (ft?.Go != null)
+                {
+                    UnityEngine.Object.Destroy(ft.Go);
+                }
+            }
+            _floatingTexts.Clear();
         }
 
         private void RefreshDirtyViews()

@@ -11,11 +11,13 @@ namespace AbilityKit.Ability.Configs
         public override string Type => TriggerActionTypes.DebugLog;
 
         public string Message;
+        public bool DumpArgs;
 
         public override ActionDef ToActionDef()
         {
             var dict = PooledDefArgs.Rent();
             dict["message"] = Message;
+            dict["dump_args"] = DumpArgs;
 
             return new ActionDef(Type, dict);
         }

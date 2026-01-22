@@ -4,12 +4,12 @@ using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class MobaDamageService_Obsolete : IService
+    public sealed class MobaDamageService : IService
     {
         private readonly MobaActorLookupService _actors;
         private readonly MobaDamageEventSnapshotService _snapshots;
 
-        public MobaDamageService_Obsolete(MobaActorLookupService actors, MobaDamageEventSnapshotService snapshots)
+        public MobaDamageService(MobaActorLookupService actors, MobaDamageEventSnapshotService snapshots)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _snapshots = snapshots ?? throw new ArgumentNullException(nameof(snapshots));

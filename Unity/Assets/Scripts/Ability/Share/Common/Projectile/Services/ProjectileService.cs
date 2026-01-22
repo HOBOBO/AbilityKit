@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Common.Pool;
 using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Common.Projectile
 {
-    public sealed class ProjectileService : IProjectileService
+    public sealed class ProjectileService : IProjectileService, IWorldInitializable
     {
         private static readonly ObjectPool<List<ProjectileSpawnParams>> s_spawnListPool = Pools.GetPool(
             key: "ProjectileSpawnParamsList",
@@ -39,6 +40,15 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             if (collisions == null) throw new ArgumentNullException(nameof(collisions));
             _world = new ProjectileWorld(collisions.World);
             _areas = new AreaWorld(collisions.World);
+        }
+
+        public void OnInit(IWorldServices services)
+        {
+            if (services == null) return;
+            if (services.TryGet<IProjectileReturnTargetProvider>(out var provider) && provider != null)
+            {
+                _world.SetReturnTargetProvider(provider);
+            }
         }
 
         public int ActiveCount => _world.ActiveCount;
@@ -123,7 +133,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                     s.Pattern.Build(in s.BaseSpawn, list);
                     for (int j = 0; j < list.Count; j++)
                     {
-                        var spawn = list[j];
+                        var spawn = list[j].WithSpawnFrame(frame);
                         var id = _world.Spawn(in spawn);
                         _spawnEvents.Add(new ProjectileSpawnEvent(id, spawn.OwnerId, spawn.TemplateId, spawn.LauncherActorId, spawn.RootActorId, frame, spawn.Position, spawn.Direction));
                     }

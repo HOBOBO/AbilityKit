@@ -4,9 +4,15 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Common.Pool;
 using AbilityKit.Ability.Share;
 using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Common.Projectile
 {
+    public interface IProjectileReturnTargetProvider : IService
+    {
+        bool TryGetReturnTargetPosition(int launcherActorId, out Vec3 position);
+    }
+
     public sealed class ProjectileWorld
     {
         private static readonly ObjectPool<Projectile> Pool = Pools.GetPool(
@@ -17,12 +23,18 @@ namespace AbilityKit.Ability.Share.Common.Projectile
 
         private readonly ICollisionWorld _collision;
         private readonly List<Projectile> _active = new List<Projectile>(128);
+        private IProjectileReturnTargetProvider _returnTargetProvider;
 
         private int _nextId = 1;
 
         public ProjectileWorld(ICollisionWorld collision)
         {
             _collision = collision ?? throw new ArgumentNullException(nameof(collision));
+        }
+
+        public void SetReturnTargetProvider(IProjectileReturnTargetProvider provider)
+        {
+            _returnTargetProvider = provider;
         }
 
         public int ActiveCount => _active.Count;
@@ -35,9 +47,14 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             proj.TemplateId = p.TemplateId;
             proj.LauncherActorId = p.LauncherActorId;
             proj.RootActorId = p.RootActorId;
+            proj.SpawnFrame = p.SpawnFrame;
             proj.Position = p.Position;
             proj.Direction = p.Direction;
             proj.Speed = p.Speed;
+            proj.ReturnAfterFrames = p.ReturnAfterFrames;
+            proj.ReturnSpeed = p.ReturnSpeed;
+            proj.ReturnStopDistance = p.ReturnStopDistance;
+            proj.IsReturning = false;
             proj.LifetimeFramesLeft = p.LifetimeFrames;
             proj.DistanceLeft = p.MaxDistance;
             proj.CollisionLayerMask = p.CollisionLayerMask;
@@ -67,9 +84,17 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                 items[i] = new SnapshotItem(
                     id: p.Id.Value,
                     ownerId: p.OwnerId,
+                    templateId: p.TemplateId,
+                    launcherActorId: p.LauncherActorId,
+                    rootActorId: p.RootActorId,
+                    spawnFrame: p.SpawnFrame,
                     position: p.Position,
                     direction: p.Direction,
                     speed: p.Speed,
+                    returnAfterFrames: p.ReturnAfterFrames,
+                    returnSpeed: p.ReturnSpeed,
+                    returnStopDistance: p.ReturnStopDistance,
+                    isReturning: p.IsReturning ? 1 : 0,
                     lifetimeFramesLeft: p.LifetimeFramesLeft,
                     distanceLeft: p.DistanceLeft,
                     collisionLayerMask: p.CollisionLayerMask,
@@ -83,7 +108,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             }
 
             return BinaryObjectCodec.Encode(new SnapshotPayload(
-                version: 1,
+                version: 2,
                 frame: frame,
                 nextId: _nextId,
                 items: items
@@ -108,9 +133,17 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                 var p = Pool.Get();
                 p.Id = new ProjectileId(it.Id);
                 p.OwnerId = it.OwnerId;
+                p.TemplateId = it.TemplateId;
+                p.LauncherActorId = it.LauncherActorId;
+                p.RootActorId = it.RootActorId;
+                p.SpawnFrame = it.SpawnFrame;
                 p.Position = it.Position;
                 p.Direction = it.Direction;
                 p.Speed = it.Speed;
+                p.ReturnAfterFrames = it.ReturnAfterFrames;
+                p.ReturnSpeed = it.ReturnSpeed;
+                p.ReturnStopDistance = it.ReturnStopDistance;
+                p.IsReturning = it.IsReturning != 0;
                 p.LifetimeFramesLeft = it.LifetimeFramesLeft;
                 p.DistanceLeft = it.DistanceLeft;
                 p.CollisionLayerMask = it.CollisionLayerMask;
@@ -173,7 +206,47 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                     continue;
                 }
 
-                var move = p.Speed * fixedDeltaSeconds;
+                // Return-to-launcher logic (server-authoritative).
+                if (!p.IsReturning && p.ReturnAfterFrames > 0 && frame - p.SpawnFrame >= p.ReturnAfterFrames)
+                {
+                    p.IsReturning = true;
+                }
+
+                if (p.IsReturning)
+                {
+                    if (_returnTargetProvider == null || p.LauncherActorId <= 0 || !_returnTargetProvider.TryGetReturnTargetPosition(p.LauncherActorId, out var targetPos))
+                    {
+                        exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.ReturnTargetLost, frame, p.Position));
+                        RemoveAtSwapBack(i);
+                        i--;
+                        continue;
+                    }
+
+                    if (p.ReturnStopDistance > 0f)
+                    {
+                        var dx = targetPos.X - p.Position.X;
+                        var dy = targetPos.Y - p.Position.Y;
+                        var dz = targetPos.Z - p.Position.Z;
+                        var sqr = dx * dx + dy * dy + dz * dz;
+                        var stopSqr = p.ReturnStopDistance * p.ReturnStopDistance;
+                        if (sqr <= stopSqr)
+                        {
+                            exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.ReturnArrived, frame, p.Position));
+                            RemoveAtSwapBack(i);
+                            i--;
+                            continue;
+                        }
+                    }
+
+                    var to = targetPos - p.Position;
+                    if (to.SqrMagnitude > 0f)
+                    {
+                        p.Direction = to.Normalized;
+                    }
+                }
+
+                var speed = (p.IsReturning && p.ReturnSpeed > 0f) ? p.ReturnSpeed : p.Speed;
+                var move = speed * fixedDeltaSeconds;
                 if (move <= 0f)
                 {
                     p.LifetimeFramesLeft--;
@@ -384,12 +457,29 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             [BinaryMember(12)] public readonly int TickIntervalFrames;
             [BinaryMember(13)] public readonly int NextTickFrame;
 
+            [BinaryMember(14)] public readonly int TemplateId;
+            [BinaryMember(15)] public readonly int LauncherActorId;
+            [BinaryMember(16)] public readonly int RootActorId;
+            [BinaryMember(17)] public readonly int SpawnFrame;
+            [BinaryMember(18)] public readonly int ReturnAfterFrames;
+            [BinaryMember(19)] public readonly float ReturnSpeed;
+            [BinaryMember(20)] public readonly float ReturnStopDistance;
+            [BinaryMember(21)] public readonly int IsReturning;
+
             public SnapshotItem(
                 int id,
                 int ownerId,
+                int templateId,
+                int launcherActorId,
+                int rootActorId,
+                int spawnFrame,
                 in Vec3 position,
                 in Vec3 direction,
                 float speed,
+                int returnAfterFrames,
+                float returnSpeed,
+                float returnStopDistance,
+                int isReturning,
                 int lifetimeFramesLeft,
                 float distanceLeft,
                 int collisionLayerMask,
@@ -402,9 +492,17 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             {
                 Id = id;
                 OwnerId = ownerId;
+                TemplateId = templateId;
+                LauncherActorId = launcherActorId;
+                RootActorId = rootActorId;
+                SpawnFrame = spawnFrame;
                 Position = position;
                 Direction = direction;
                 Speed = speed;
+                ReturnAfterFrames = returnAfterFrames;
+                ReturnSpeed = returnSpeed;
+                ReturnStopDistance = returnStopDistance;
+                IsReturning = isReturning;
                 LifetimeFramesLeft = lifetimeFramesLeft;
                 DistanceLeft = distanceLeft;
                 CollisionLayerMask = collisionLayerMask;

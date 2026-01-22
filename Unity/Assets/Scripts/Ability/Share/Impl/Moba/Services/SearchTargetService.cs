@@ -85,6 +85,67 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             return targetActorId > 0;
         }
 
+        // CenterMode conventions (SearchQueryTemplateDTO.CenterMode):
+        // 0: Caster
+        // 1: AimPos
+        // 2: ExplicitTarget (e.g. collision target / context.Target)
+        //
+        // For performance, caller provides a reusable list as output container.
+        public bool TrySearchActorIds(int queryTemplateId, int casterActorId, in Vec3 aimPos, int explicitTargetActorId, List<int> results)
+        {
+            if (results == null) throw new ArgumentNullException(nameof(results));
+            results.Clear();
+
+            if (queryTemplateId <= 0) return false;
+
+            if (!_configs.TryGetDto<SearchQueryTemplateDTO>(queryTemplateId, out var dto) || dto == null)
+            {
+                return false;
+            }
+
+            // Fast path: explicit target with no area search.
+            if (dto.CenterMode == 2 && dto.Radius <= 0f)
+            {
+                if (explicitTargetActorId > 0)
+                {
+                    results.Add(explicitTargetActorId);
+                    return true;
+                }
+                return false;
+            }
+
+            var origin = ResolveOrigin(dto.CenterMode, casterActorId, in aimPos, explicitTargetActorId);
+            _context.SetData(OriginKey, origin);
+            _context.SetData(RadiusKey, dto.Radius);
+
+            _rules.Clear();
+            _rules.Add(new RequireValidIdRule());
+            _rules.Add(_circleRule);
+            if (dto.ExcludeCaster)
+            {
+                _rules.Add(new ExcludeEntityRule(new EcsEntityId(casterActorId)));
+            }
+
+            var query = new SearchQuery(
+                provider: _allActorsProvider,
+                rules: _rules,
+                scorer: _scorer,
+                selector: _selector,
+                maxCount: dto.MaxCount <= 0 ? 1 : dto.MaxCount);
+
+            _results.Clear();
+            _engine.SearchIds(in query, _context, _results);
+            if (_results.Count == 0) return false;
+
+            for (int i = 0; i < _results.Count; i++)
+            {
+                var id = _results[i].ActorId;
+                if (id > 0) results.Add(id);
+            }
+
+            return results.Count > 0;
+        }
+
         private Vector2 ResolveOrigin(int centerMode, int casterActorId, in Vec3 aimPos)
         {
             if (centerMode == 1)
@@ -99,6 +160,21 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             }
 
             return Vector2.zero;
+        }
+
+        private Vector2 ResolveOrigin(int centerMode, int casterActorId, in Vec3 aimPos, int explicitTargetActorId)
+        {
+            if (centerMode == 2)
+            {
+                if (explicitTargetActorId > 0 && _actors.TryGet(explicitTargetActorId, out var target) && target != null && target.hasTransform)
+                {
+                    var p = target.transform.Value.Position;
+                    return new Vector2(p.X, p.Z);
+                }
+                return Vector2.zero;
+            }
+
+            return ResolveOrigin(centerMode, casterActorId, in aimPos);
         }
 
         private sealed class RegistryPositionProvider : IPositionProvider

@@ -10,7 +10,8 @@
         {
           "Type": "debug_log",
           "Args": {
-            "message": "测试日志输出11111222"
+            "message": "测试日志输出11111222",
+            "dump_args": false
           },
           "Items": null
         },
@@ -34,7 +35,8 @@
         {
           "Type": "debug_log",
           "Args": {
-            "message": "释放技能完成日志输出11111"
+            "message": "释放技能完成日志输出11111",
+            "dump_args": false
           },
           "Items": null
         }
@@ -50,7 +52,8 @@
         {
           "Type": "debug_log",
           "Args": {
-            "message": "监听别人释放技能完成日志输出22222"
+            "message": "监听别人释放技能完成日志输出22222",
+            "dump_args": false
           },
           "Items": null
         }
@@ -84,7 +87,38 @@
         {
           "Type": "debug_log",
           "Args": {
-            "message": "被动日志输出11111"
+            "message": "被动日志输出11111",
+            "dump_args": false
+          },
+          "Items": null
+        }
+      ]
+    },
+    {
+      "TriggerId": 20005,
+      "EventId": "",
+      "AllowExternal": false,
+      "InitialLocalVars": null,
+      "Conditions": [],
+      "Actions": [
+        {
+          "Type": "debug_log",
+          "Args": {
+            "message": "碰撞回调日志",
+            "dump_args": true
+          },
+          "Items": null
+        },
+        {
+          "Type": "give_damage",
+          "Args": {
+            "value": 50.0,
+            "damageType": 1,
+            "crit": 0,
+            "reasonKind": 1,
+            "reasonParam": 0,
+            "queryTemplateId": 101,
+            "log": true
           },
           "Items": null
         }

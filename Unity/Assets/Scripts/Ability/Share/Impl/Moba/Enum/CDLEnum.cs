@@ -81,6 +81,7 @@ namespace AbilityKit.Ability.Impl.Moba
     {
         Caster = 0,
         AimPos = 1,
+        ExplicitTarget = 2,
     }
 
     // 队伍/阵营类型

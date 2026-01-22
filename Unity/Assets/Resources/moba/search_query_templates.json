@@ -1,0 +1,10 @@
+[
+  {
+    "Id": 101,
+    "Name": "碰撞目标",
+    "CenterMode": 2,
+    "Radius": 0.0,
+    "MaxCount": 0,
+    "ExcludeCaster": false
+  }
+]

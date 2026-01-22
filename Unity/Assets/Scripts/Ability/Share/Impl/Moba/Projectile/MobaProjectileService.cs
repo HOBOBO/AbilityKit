@@ -15,6 +15,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 {
     public sealed class MobaProjectileService : IService
     {
+        private const int CollisionLayer_Unit = 1 << 0;
+        private const int CollisionLayer_World = 1 << 2;
+
         private readonly IWorldServices _services;
         private readonly IProjectileService _projectiles;
         private readonly ActorIdAllocator _actorIds;
@@ -85,23 +88,28 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
             try { _entities?.TryRegisterFromEntity(bullet); }
             catch { }
 
-            var collisionMask = -1;
             var ignore = default(ColliderId);
-            if (caster.hasCollisionLayer) collisionMask = caster.collisionLayer.Mask;
             if (caster.hasCollisionId) ignore = caster.collisionId.Value;
+
+            var collisionMask = CollisionLayer_Unit | CollisionLayer_World;
 
             var spawn = new ProjectileSpawnParams(
                 ownerId: casterActorId,
                 templateId: projectileCode,
                 launcherActorId: 0,
                 rootActorId: casterActorId,
+                spawnFrame: 0,
                 position: spawnPos,
                 direction: dir,
                 speed: speed,
+                returnAfterFrames: 0,
+                returnSpeed: 0f,
+                returnStopDistance: 0f,
                 lifetimeFrames: lifetimeFrames,
                 maxDistance: maxDistance,
                 collisionLayerMask: collisionMask,
-                ignoreCollider: ignore);
+                ignoreCollider: ignore,
+                hitFilter: new MobaTeamProjectileHitFilter(_registry));
 
             ProjectileId pid;
             switch (emitterType)
@@ -114,6 +122,63 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 
             _links?.Link(pid, projectileActorId);
             return true;
+        }
+
+        private sealed class MobaTeamProjectileHitFilter : IProjectileHitFilter
+        {
+            private readonly MobaActorRegistry _registry;
+
+            public MobaTeamProjectileHitFilter(MobaActorRegistry registry)
+            {
+                _registry = registry;
+            }
+
+            public bool ShouldHit(int ownerId, ColliderId collider, int frame)
+            {
+                if (collider.Value == 0) return false;
+                if (_registry == null) return true;
+
+                if (!_registry.TryGet(ownerId, out var owner) || owner == null)
+                {
+                    return true;
+                }
+
+                var ownerTeam = owner.hasTeam ? owner.team.Value : Team.None;
+
+                global::ActorEntity hitEntity = null;
+                try
+                {
+                    foreach (var kv in _registry.Entries)
+                    {
+                        var e = kv.Value;
+                        if (e == null || !e.hasCollisionId) continue;
+                        if (e.collisionId.Value.Equals(collider))
+                        {
+                            hitEntity = e;
+                            break;
+                        }
+                    }
+                }
+                catch
+                {
+                    return true;
+                }
+
+                if (hitEntity == null) return true;
+
+                // Never hit self.
+                if (hitEntity.hasActorId && hitEntity.actorId.Value == ownerId) return false;
+
+                var targetTeam = hitEntity.hasTeam ? hitEntity.team.Value : Team.None;
+
+                // Default policy: block friendly fire (same team); allow hitting Neutral/None.
+                if (ownerTeam != Team.None && targetTeam != Team.None && ownerTeam == targetTeam)
+                {
+                    return false;
+                }
+
+                return true;
+            }
         }
 
         public bool Launch(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, in Vec3 aimPos, in Vec3 aimDir)
@@ -182,6 +247,21 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
                     intervalFrames = System.Math.Max(1, (int)System.MathF.Round(launcher.IntervalMs / 33.333f));
                 }
             }
+
+            var returnAfterFrames = 0;
+            if (projectile.ReturnAfterMs > 0)
+            {
+                if (frameTime != null && frameTime.DeltaTime > 0f)
+                {
+                    returnAfterFrames = System.Math.Max(1, (int)System.MathF.Round(projectile.ReturnAfterMs / (frameTime.DeltaTime * 1000f)));
+                }
+                else
+                {
+                    returnAfterFrames = System.Math.Max(1, (int)System.MathF.Round(projectile.ReturnAfterMs / 33.333f));
+                }
+            }
+            var returnSpeed = projectile.ReturnSpeed;
+            var returnStopDistance = projectile.ReturnStopDistance;
 
             var count = 1;
             if (launcher.DurationMs > 0 && launcher.IntervalMs > 0)
@@ -252,19 +332,30 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
                 }
             }
 
-            var collisionMask = -1;
+            if (returnAfterFrames > 0)
+            {
+                // Ensure Tick events exist for transform sync; do not rely on MotionSystem for returning projectiles.
+                tickIntervalFrames = 1;
+            }
+
+            var collisionMask = CollisionLayer_Unit | CollisionLayer_World;
             var ignore = default(ColliderId);
-            if (caster.hasCollisionLayer) collisionMask = caster.collisionLayer.Mask;
             if (caster.hasCollisionId) ignore = caster.collisionId.Value;
+
+            var startFrame = frameTime != null ? frameTime.Frame.Value : 0;
 
             var baseSpawn = new ProjectileSpawnParams(
                 ownerId: casterActorId,
                 templateId: projectile.Id,
                 launcherActorId: launcherActorId,
                 rootActorId: casterActorId,
+                spawnFrame: startFrame,
                 position: sp,
                 direction: d,
                 speed: projectile.Speed,
+                returnAfterFrames: returnAfterFrames,
+                returnSpeed: returnSpeed,
+                returnStopDistance: returnStopDistance,
                 lifetimeFrames: lifetimeFrames,
                 maxDistance: projectile.MaxDistance,
                 collisionLayerMask: collisionMask,
@@ -274,7 +365,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
                 hitPolicyKind: projectile.HitPolicyKind,
                 hitPolicyParam: 0,
                 tickIntervalFrames: tickIntervalFrames,
-                hitFilter: null,
+                hitFilter: new MobaTeamProjectileHitFilter(_registry),
                 hitCooldownFrames: hitCooldownFrames);
 
             IProjectileSpawnPattern pattern = null;
@@ -287,7 +378,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
                 pattern = new SingleShotPattern();
             }
 
-            var startFrame = frameTime != null ? frameTime.Frame.Value : 0;
             var schedule = ProjectileScheduleParams.Repeat(startFrame, intervalFrames: intervalFrames, count: count);
             var scheduleId = _projectiles.ScheduleEmit(pattern, in baseSpawn, in schedule);
 

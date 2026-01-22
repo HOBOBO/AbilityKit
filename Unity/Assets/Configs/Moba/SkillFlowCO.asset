@@ -39,6 +39,7 @@ MonoBehaviour:
         Timeline:
           DurationMs: 3000
           Events:
-          - AtMs: 1000
+          - AtMs: 100
             EffectId: 10001
+            ExecuteMode: 0
             EventTag: 

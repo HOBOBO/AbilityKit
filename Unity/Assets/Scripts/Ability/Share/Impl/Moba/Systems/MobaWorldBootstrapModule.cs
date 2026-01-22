@@ -13,9 +13,35 @@ using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
+using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 
 namespace AbilityKit.Ability.Impl.Moba.Systems
 {
+    public sealed class MobaProjectileReturnTargetProvider : IProjectileReturnTargetProvider
+    {
+        private readonly MobaActorRegistry _registry;
+
+        public MobaProjectileReturnTargetProvider(MobaActorRegistry registry)
+        {
+            _registry = registry;
+        }
+
+        public bool TryGetReturnTargetPosition(int launcherActorId, out Vec3 position)
+        {
+            position = Vec3.Zero;
+            if (launcherActorId <= 0) return false;
+            if (_registry == null) return false;
+            if (!_registry.TryGet(launcherActorId, out var e) || e == null) return false;
+            if (!e.hasTransform) return false;
+            position = e.transform.Value.Position;
+            return true;
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+
     public sealed class MobaWorldBootstrapModule : IWorldModule, IEntitasSystemsInstaller
     {
         public const int InitOpCode = 2000;
@@ -81,6 +107,8 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.RegisterService<ICollisionService, CollisionService>();
 
             builder.TryRegisterService<IProjectileService, ProjectileService>();
+
+            builder.RegisterService<IProjectileReturnTargetProvider, MobaProjectileReturnTargetProvider>();
 
             builder.RegisterService<MobaProjectileLinkService, MobaProjectileLinkService>();
             builder.RegisterService<MobaProjectileService, MobaProjectileService>();

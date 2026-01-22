@@ -7,5 +7,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
         Lifetime = 2,
         MaxDistance = 3,
         Manual = 4,
+        ReturnArrived = 5,
+        ReturnTargetLost = 6,
     }
 }

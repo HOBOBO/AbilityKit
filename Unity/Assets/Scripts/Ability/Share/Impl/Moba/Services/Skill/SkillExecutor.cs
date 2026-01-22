@@ -85,13 +85,27 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 case SkillInputPhase.Press:
                     return CastBySlot(actorId, evt.Slot);
-                case SkillInputPhase.Hold:
                 case SkillInputPhase.Release:
+                    return CastBySlot(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, out _);
+                case SkillInputPhase.Hold:
                 case SkillInputPhase.Cancel:
                 default:
                     // Not implemented yet: reserved for charge/channel/confirm/cancel.
                     return false;
             }
+        }
+
+        public bool CastBySlot(int actorId, int slot, in Vec3 aimPos, in Vec3 aimDir, out string failReason)
+        {
+            failReason = null;
+
+            if (!_loadout.TryGetSkillId(actorId, slot, out var skillId))
+            {
+                failReason = "Skill not found in slot.";
+                return false;
+            }
+
+            return CastSkill(actorId, skillId, slot, in aimPos, in aimDir, out failReason);
         }
 
         public bool CastSkill(int actorId, int skillId)
@@ -134,6 +148,56 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 targetActorId: actorId,
                 aimPos: in aimPos,
                 aimDir: in aimDir,
+                worldServices: _services,
+                eventBus: _eventBus,
+                casterUnit: caster,
+                targetUnit: caster
+            );
+
+            var runner = GetOrCreateRunner(actorId);
+            return runner.Start(preConfig, prePhases, castConfig, castPhases, abilityInstance: this, in req, out failReason, allowParallel: AllowParallel, interruptRunning: InterruptRunning);
+        }
+
+        public bool CastSkill(int actorId, int skillId, int slot, in Vec3 aimPos, in Vec3 aimDir, out string failReason)
+        {
+            failReason = null;
+            if (actorId <= 0) return false;
+            if (skillId <= 0) return false;
+
+            if (!_units.TryResolve(new EcsEntityId(actorId), out var caster) || caster == null)
+            {
+                failReason = "Caster not found.";
+                return false;
+            }
+
+            var casterPos = Vec3.Zero;
+            var casterForward = Vec3.Forward;
+
+            if (_actors.TryGetActorEntity(actorId, out var actorEntity) && actorEntity != null && actorEntity.hasTransform)
+            {
+                var t = actorEntity.transform.Value;
+                casterPos = t.Position;
+                casterForward = t.Rotation.Rotate(Vec3.Forward).Normalized;
+            }
+
+            var finalAimPos = aimPos;
+            var finalAimDir = aimDir;
+            if (finalAimDir.Equals(Vec3.Zero)) finalAimDir = casterForward;
+            if (finalAimPos.Equals(Vec3.Zero)) finalAimPos = casterPos;
+
+            if (!_library.TryGet(skillId, out var preConfig, out var prePhases, out var castConfig, out var castPhases))
+            {
+                failReason = "Skill pipeline not found.";
+                return false;
+            }
+
+            var req = new SkillCastRequest(
+                skillId: skillId,
+                skillSlot: slot,
+                casterActorId: actorId,
+                targetActorId: actorId,
+                aimPos: in finalAimPos,
+                aimDir: in finalAimDir,
                 worldServices: _services,
                 eventBus: _eventBus,
                 casterUnit: caster,

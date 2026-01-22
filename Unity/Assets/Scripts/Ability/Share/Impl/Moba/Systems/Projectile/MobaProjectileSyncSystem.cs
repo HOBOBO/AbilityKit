@@ -3,13 +3,16 @@ using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Common.Projectile;
 using AbilityKit.Ability.Share.Common.MotionSystem.Core;
 using AbilityKit.Ability.Share.Common.MotionSystem.Trajectory;
+using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 
@@ -21,6 +24,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
         private IProjectileService _projectiles;
         private MobaProjectileLinkService _links;
         private MobaActorRegistry _registry;
+        private IEventBus _eventBus;
+        private MobaEffectExecutionService _effects;
         private ActorIdAllocator _actorIds;
         private MobaEntityManager _entities;
         private MobaActorSpawnSnapshotService _spawnSnapshots;
@@ -28,6 +33,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
         private MobaActorDespawnSnapshotService _despawnSnapshots;
 
         private readonly List<ProjectileSpawnEvent> _spawns = new List<ProjectileSpawnEvent>(64);
+        private readonly List<ProjectileHitEvent> _hits = new List<ProjectileHitEvent>(128);
         private readonly List<ProjectileTickEvent> _ticks = new List<ProjectileTickEvent>(128);
         private readonly List<ProjectileExitEvent> _exits = new List<ProjectileExitEvent>(64);
 
@@ -41,6 +47,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
             Services.TryGet(out _projectiles);
             Services.TryGet(out _links);
             Services.TryGet(out _registry);
+            Services.TryGet(out _eventBus);
+            Services.TryGet(out _effects);
             Services.TryGet(out _actorIds);
             Services.TryGet(out _entities);
             Services.TryGet(out _spawnSnapshots);
@@ -102,6 +110,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                     float speed = 0f;
                     float maxDistance = 0f;
                     float lifetimeSec = 0f;
+                    var useMotion = true;
                     if (_configs != null)
                     {
                         var proj = _configs.GetProjectile(evt.TemplateId);
@@ -110,7 +119,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                             speed = proj.Speed;
                             maxDistance = proj.MaxDistance;
                             lifetimeSec = proj.LifetimeMs > 0 ? proj.LifetimeMs / 1000f : 0f;
+                            // Returning projectiles are driven by server projectile tick; do not attach MotionSystem trajectory.
+                            if (proj.ReturnAfterMs > 0) useMotion = false;
                         }
+                    }
+
+                    if (!useMotion)
+                    {
+                        goto SkipMotion;
                     }
 
                     var start = evt.Position;
@@ -148,6 +164,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                 {
                 }
 
+            SkipMotion:
                 _registry.Register(projectileActorId, bullet);
 
                 if (_spawnSnapshots != null)
@@ -233,6 +250,100 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                 _registry.Unregister(actorId);
                 _links.UnlinkByProjectileId(evt.Projectile);
             }
+
+            _hits.Clear();
+            _projectiles.DrainHitEvents(_hits);
+            for (int i = 0; i < _hits.Count; i++)
+            {
+                var evt = _hits[i];
+                var hitActorId = ResolveActorIdByCollider(evt.HitCollider);
+
+                if (_eventBus != null)
+                {
+                    var args = PooledTriggerArgs.Rent();
+                    args[EffectTriggering.Args.Source] = evt.OwnerId;
+                    args[EffectTriggering.Args.Target] = hitActorId;
+                    args[EffectTriggering.Args.OriginSource] = evt.OwnerId;
+                    args[EffectTriggering.Args.OriginTarget] = hitActorId;
+
+                    args[ProjectileTriggering.Args.ProjectileId] = evt.Projectile.Value;
+                    args[ProjectileTriggering.Args.OwnerId] = evt.OwnerId;
+                    args[ProjectileTriggering.Args.Frame] = evt.Frame;
+
+                    args[ProjectileTriggering.Args.HitCollider] = evt.HitCollider;
+                    args[ProjectileTriggering.Args.HitDistance] = evt.Distance;
+                    args[ProjectileTriggering.Args.HitPoint] = evt.Point;
+                    args[ProjectileTriggering.Args.HitNormal] = evt.Normal;
+
+                    args[ProjectileTriggering.Args.HitCount] = evt.HitCount;
+
+                    // Provide templateId for downstream gameplay rules.
+                    args["projectile.templateId"] = evt.TemplateId;
+
+                    _eventBus.Publish(new TriggerEvent(ProjectileTriggering.Events.Hit, payload: null, args: args));
+                }
+
+                // Active trigger execution from projectile config (OnHitEffectId is a triggerId).
+                if (_effects != null && _configs != null)
+                {
+                    try
+                    {
+                        var proj = _configs.GetProjectile(evt.TemplateId);
+                        var triggerId = proj != null ? proj.OnHitEffectId : 0;
+                        if (triggerId > 0)
+                        {
+                            var args2 = PooledTriggerArgs.Rent();
+                            args2[EffectTriggering.Args.Source] = evt.OwnerId;
+                            args2[EffectTriggering.Args.Target] = hitActorId;
+                            args2[EffectTriggering.Args.OriginSource] = evt.OwnerId;
+                            args2[EffectTriggering.Args.OriginTarget] = hitActorId;
+
+                            args2[ProjectileTriggering.Args.ProjectileId] = evt.Projectile.Value;
+                            args2[ProjectileTriggering.Args.OwnerId] = evt.OwnerId;
+                            args2[ProjectileTriggering.Args.Frame] = evt.Frame;
+
+                            args2[ProjectileTriggering.Args.HitCollider] = evt.HitCollider;
+                            args2[ProjectileTriggering.Args.HitDistance] = evt.Distance;
+                            args2[ProjectileTriggering.Args.HitPoint] = evt.Point;
+                            args2[ProjectileTriggering.Args.HitNormal] = evt.Normal;
+                            args2[ProjectileTriggering.Args.HitCount] = evt.HitCount;
+                            args2["projectile.templateId"] = evt.TemplateId;
+                            args2["trigger.id"] = triggerId;
+
+                            _effects.ExecuteTriggerId(triggerId, source: evt.OwnerId, target: hitActorId, payload: null, args: args2);
+                            args2.Dispose();
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Log.Exception(ex, "[MobaProjectileSyncSystem] Execute OnHitEffectId trigger failed.");
+                    }
+                }
+            }
+        }
+
+        private int ResolveActorIdByCollider(ColliderId id)
+        {
+            if (_registry == null) return 0;
+            if (id.Value <= 0) return 0;
+
+            try
+            {
+                foreach (var kv in _registry.Entries)
+                {
+                    var e = kv.Value;
+                    if (e == null || !e.hasActorId || !e.hasCollisionId) continue;
+                    if (e.collisionId.Value.Equals(id))
+                    {
+                        return e.actorId.Value;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return 0;
         }
     }
 }

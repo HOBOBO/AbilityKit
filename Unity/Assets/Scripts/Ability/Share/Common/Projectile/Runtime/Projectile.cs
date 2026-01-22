@@ -14,9 +14,16 @@ namespace AbilityKit.Ability.Share.Common.Projectile
         public int LauncherActorId;
         public int RootActorId;
 
+        public int SpawnFrame;
+
         public Vec3 Position;
         public Vec3 Direction;
         public float Speed;
+
+        public int ReturnAfterFrames;
+        public float ReturnSpeed;
+        public float ReturnStopDistance;
+        public bool IsReturning;
 
         public int LifetimeFramesLeft;
         public float DistanceLeft;
@@ -50,9 +57,14 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             TemplateId = 0;
             LauncherActorId = 0;
             RootActorId = 0;
+            SpawnFrame = 0;
             Position = Vec3.Zero;
             Direction = Vec3.Zero;
             Speed = 0f;
+            ReturnAfterFrames = 0;
+            ReturnSpeed = 0f;
+            ReturnStopDistance = 0f;
+            IsReturning = false;
             LifetimeFramesLeft = 0;
             DistanceLeft = 0f;
             CollisionLayerMask = 0;

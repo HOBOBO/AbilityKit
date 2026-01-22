@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 430aa101c04070e4580b07d30f2a030a, type: 3}
+  m_Name: SearchQueryTemplateCO
+  m_EditorClassIdentifier: 
+  dataList:
+  - Id: 101
+    Name: "\u78B0\u649E\u76EE\u6807"
+    CenterMode: 2
+    Radius: 0
+    MaxCount: 0
+    ExcludeCaster: 0

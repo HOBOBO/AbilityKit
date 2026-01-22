@@ -24,6 +24,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         public int OnHitVfxId { get; }
         public int OnExpireVfxId { get; }
 
+        public int ReturnAfterMs { get; }
+        public float ReturnSpeed { get; }
+        public float ReturnStopDistance { get; }
+
         public ProjectileMO(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.ProjectileDTO dto)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
@@ -45,6 +49,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
             OnSpawnVfxId = dto.OnSpawnVfxId;
             OnHitVfxId = dto.OnHitVfxId;
             OnExpireVfxId = dto.OnExpireVfxId;
+
+            ReturnAfterMs = dto.ReturnAfterMs;
+            ReturnSpeed = dto.ReturnSpeed;
+            ReturnStopDistance = dto.ReturnStopDistance;
         }
     }
 }

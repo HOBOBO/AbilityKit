@@ -16,6 +16,9 @@ namespace AbilityKit.Ability.Editor
         [TextArea]
         public string Message;
 
+        [LabelText("输出 Args")]
+        public bool DumpArgs;
+
         protected override string GetTitleSuffix()
         {
             return StrongEditorTitleUtil.QuoteAndTruncate(Message, 32);
@@ -25,7 +28,8 @@ namespace AbilityKit.Ability.Editor
         {
             return new DebugLogActionConfig
             {
-                Message = Message
+                Message = Message,
+                DumpArgs = DumpArgs
             };
         }
     }

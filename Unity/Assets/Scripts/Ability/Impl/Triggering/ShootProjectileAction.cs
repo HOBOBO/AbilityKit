@@ -182,6 +182,9 @@ namespace AbilityKit.Ability.Impl.Triggering
                 payloadAimDir = pc.GetAimDir();
             }
 
+            if (!payloadAimPos.Equals(Vec3.Zero)) payloadAimPos = casterPos + payloadAimPos;
+            if (!payloadAimDir.Equals(Vec3.Zero)) payloadAimDir = payloadAimDir.Normalized;
+
             ProjectileLauncherMO launcher = null;
             ProjectileMO projectile = null;
 

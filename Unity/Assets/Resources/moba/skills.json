@@ -7,6 +7,7 @@
     "IconId": 0,
     "Category": 0,
     "Tags": [],
+    "SkillButtonTemplateId": 0,
     "LevelTableId": 10001,
     "PreCastFlowId": 0,
     "CastFlowId": 10001

@@ -3,6 +3,7 @@
     "Id": 100001,
     "Name": "",
     "DurationMs": 10000,
+    "OngoingEffectId": 0,
     "OnAddEffects": [],
     "OnRemoveEffects": [],
     "OnIntervalEffects": [

@@ -6,7 +6,7 @@ using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class MobaDamageEventSnapshotService_Obsolete : IService
+    public sealed class MobaDamageEventSnapshotService : IService
     {
         private readonly MobaLobbyStateService _lobby;
 
@@ -15,7 +15,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly List<MobaDamageEventSnapshotCodec.Entry> _events = new List<MobaDamageEventSnapshotCodec.Entry>(64);
         private readonly List<MobaDamageEventSnapshotCodec.Entry> _drain = new List<MobaDamageEventSnapshotCodec.Entry>(64);
 
-        public MobaDamageEventSnapshotService_Obsolete(MobaLobbyStateService lobby)
+        public MobaDamageEventSnapshotService(MobaLobbyStateService lobby)
         {
             _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
             _lastFrame = new FrameIndex(-999999);

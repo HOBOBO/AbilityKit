@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.Services;
 
@@ -35,11 +36,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (bus == null) return;
             if (string.IsNullOrEmpty(eventId)) return;
 
-            global::AbilityKit.Ability.Triggering.TriggerEventPublishExtensions.PublishInherited(bus, eventId, payload: evt.Payload, parentArgs: evt.Args, fillArgs: args =>
+            var payload = evt.Payload;
+            var parentArgs = evt.Args;
+            var argsSnapshot = parentArgs != null ? parentArgs.ToArray() : null;
+
+            global::AbilityKit.Ability.Triggering.TriggerEventPublishExtensions.PublishInherited(bus, eventId, payload: payload, parentArgs: parentArgs, fillArgs: args =>
             {
-                if (evt.Args != null)
+                if (argsSnapshot != null)
                 {
-                    foreach (var kv in evt.Args)
+                    foreach (var kv in argsSnapshot)
                     {
                         if (kv.Key == null) continue;
                         args[kv.Key] = kv.Value;

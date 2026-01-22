@@ -3,7 +3,7 @@ using AbilityKit.Ability.Share;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public static class MobaDamageEventSnapshotCodec_Obsolete
+    public static class MobaDamageEventSnapshotCodec
     {
         public enum EventKind
         {

@@ -17,13 +17,16 @@ MonoBehaviour:
     Name: 
     VfxId: 200001
     Speed: 10
-    LifetimeMs: 20000
+    LifetimeMs: 2000
     MaxDistance: 0
     HitPolicyKind: 0
     HitsRemaining: 0
     HitCooldownMs: 0
     TickIntervalMs: 0
-    OnHitEffectId: 20004
+    OnHitEffectId: 20005
     OnSpawnVfxId: 0
     OnHitVfxId: 0
     OnExpireVfxId: 0
+    ReturnAfterMs: 800
+    ReturnSpeed: 12
+    ReturnStopDistance: 0.8
