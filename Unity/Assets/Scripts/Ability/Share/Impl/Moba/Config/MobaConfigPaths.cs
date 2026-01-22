@@ -20,5 +20,13 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public const string SummonsFile = "summons";
 
         public const string ComponentTemplatesFile = "component_templates";
+
+        public const string SkillButtonTemplatesFile = "skill_button_templates";
+
+        public const string TagTemplatesFile = "tag_templates";
+
+        public const string SearchQueryTemplatesFile = "search_query_templates";
+
+        public const string OngoingEffectsFile = "ongoing_effects";
     }
 }

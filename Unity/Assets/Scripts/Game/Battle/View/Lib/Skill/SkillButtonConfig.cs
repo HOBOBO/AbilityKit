@@ -8,6 +8,13 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         Point = 1,
     }
 
+    public enum SkillUsePointMode
+    {
+        None = 0,
+        Aim = 1,
+        TargetPoint = 2,
+    }
+
     [Serializable]
     public struct SkillButtonConfig
     {
@@ -18,6 +25,10 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         public SkillAimMode AimMode;
         public float AimMaxRadius;
 
+        public SkillUsePointMode UsePointMode;
+        public float SelectRange;
+        public bool FaceToAim;
+
         public static SkillButtonConfig Default => new SkillButtonConfig
         {
             LongPressSeconds = 0.35f,
@@ -26,6 +37,10 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
             AimMode = SkillAimMode.Direction,
             AimMaxRadius = 180f,
+
+            UsePointMode = SkillUsePointMode.None,
+            SelectRange = 0f,
+            FaceToAim = false,
         };
     }
 }

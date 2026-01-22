@@ -205,7 +205,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                         break;
                     }
 
-                    var hitEvt = new ProjectileHitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, hit.Collider, hit.Distance, hit.Point, hit.Normal, frame);
+                    var hitEvt = new ProjectileHitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, hit.Collider, hit.Distance, hit.Point, hit.Normal, frame, hitCount: 0);
 
                     // Hit filter + per-collider cooldown.
                     if (p.HitFilter != null && !p.HitFilter.ShouldHit(p.OwnerId, hit.Collider, frame))
@@ -234,7 +234,8 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                         continue;
                     }
 
-                    hitEvents?.Add(hitEvt);
+                    p.TotalHitCount++;
+                    hitEvents?.Add(new ProjectileHitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, hit.Collider, hit.Distance, hit.Point, hit.Normal, frame, p.TotalHitCount));
                     if (p.HitCooldownFrames > 0)
                     {
                         p.LastHitCollider = hit.Collider;

@@ -21,6 +21,9 @@ namespace AbilityKit.Ability.Share.Effect
             public const string HitPoint = "projectile.hit.point";
             public const string HitNormal = "projectile.hit.normal";
 
+            public const string HitCount = "projectile.hit.count";
+            public const string HitDecayRate = "projectile.hit.decayRate";
+
             public const string ExitReason = "projectile.exit.reason";
             public const string ExitPosition = "projectile.exit.position";
 

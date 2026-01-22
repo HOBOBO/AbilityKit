@@ -5,6 +5,7 @@ using System.IO;
 using System.Collections;
 using System.Reflection;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Share.Common.TagSystem;
 using Newtonsoft.Json;
 using UnityEditor;
 using UnityEngine;
@@ -33,6 +34,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             {
                 var table = tables[i];
                 var entries = MergeEntries(table);
+                PreprocessBeforeExport(entries, table.EntryType, table.FileWithoutExt);
                 ValidateUniqueById(entries, table.EntryType, table.FileWithoutExt);
                 WriteArray(outputDir, table.FileWithoutExt, entries, table.EntryType);
             }
@@ -98,6 +100,49 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             var arr = Array.CreateInstance(entryType, list.Count);
             for (var i = 0; i < list.Count; i++) arr.SetValue(list[i], i);
             return arr;
+        }
+
+        private static void PreprocessBeforeExport(Array entries, Type entryType, string fileWithoutExt)
+        {
+            if (entries == null || entries.Length == 0) return;
+
+            if (entryType == typeof(TagTemplateDTO) || fileWithoutExt == MobaConfigPaths.TagTemplatesFile)
+            {
+                for (var i = 0; i < entries.Length; i++)
+                {
+                    if (entries.GetValue(i) is TagTemplateDTO dto)
+                    {
+                        ConvertTagNamesToIds(dto);
+                    }
+                }
+            }
+        }
+
+        private static void ConvertTagNamesToIds(TagTemplateDTO dto)
+        {
+            if (dto == null) return;
+            GameplayTagLib.RegisterAll();
+
+            dto.RequiredTags = ConvertNames(dto.RequiredTagNames);
+            dto.BlockedTags = ConvertNames(dto.BlockedTagNames);
+            dto.GrantTags = ConvertNames(dto.GrantTagNames);
+            dto.RemoveTags = ConvertNames(dto.RemoveTagNames);
+        }
+
+        private static int[] ConvertNames(string[] names)
+        {
+            if (names == null || names.Length == 0) return Array.Empty<int>();
+
+            var list = new List<int>(names.Length);
+            for (var i = 0; i < names.Length; i++)
+            {
+                var n = names[i];
+                if (string.IsNullOrWhiteSpace(n)) continue;
+                var tag = GameplayTags.Tag(n);
+                if (!tag.IsValid) continue;
+                list.Add(tag.Value);
+            }
+            return list.Count == 0 ? Array.Empty<int>() : list.ToArray();
         }
 
         private static void ValidateUniqueById(Array entries, Type entryType, string name)

@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Game.Battle.View;
 using AbilityKit.Game.Battle.View.Lib.Joystick;
 using AbilityKit.Game.Battle.View.Lib.Skill;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -16,6 +19,8 @@ namespace AbilityKit.Game.Flow
 {
     public sealed class BattleHudFeature : IGamePhaseFeature
     {
+        private static MobaConfigDatabase _configs;
+
         private BattleContext _ctx;
         private Camera _camera;
 
@@ -36,6 +41,11 @@ namespace AbilityKit.Game.Flow
         private GameObject _aimPreview;
 
         private IDisposable _subDamageEvents;
+        private IDisposable _subEnterGame;
+
+        private SkillButtonView _skill1View;
+        private SkillButtonView _skill2View;
+        private SkillButtonView _skill3View;
 
         public void OnAttach(in GamePhaseContext ctx)
         {
@@ -68,6 +78,7 @@ namespace AbilityKit.Game.Flow
 
             if (_ctx?.FrameSnapshots != null)
             {
+                _subEnterGame = _ctx.FrameSnapshots.Subscribe<EnterMobaGameRes>((int)MobaOpCode.EnterGameSnapshot, OnEnterGameSnapshot);
                 _subDamageEvents = _ctx.FrameSnapshots.Subscribe<MobaDamageEventSnapshotCodec.Entry[]>((int)MobaOpCode.DamageEventSnapshot, OnDamageEventSnapshot);
             }
         }
@@ -76,8 +87,10 @@ namespace AbilityKit.Game.Flow
         {
             if (_ctx?.FrameSnapshots != null)
             {
+                _subEnterGame?.Dispose();
                 _subDamageEvents?.Dispose();
             }
+            _subEnterGame = null;
             _subDamageEvents = null;
 
             if (_ctx?.EntityWorld != null)
@@ -97,6 +110,10 @@ namespace AbilityKit.Game.Flow
             _inputView = null;
             _infoButton = null;
             _skillAimMapper = null;
+
+            _skill1View = null;
+            _skill2View = null;
+            _skill3View = null;
 
             if (_aimPreview != null)
             {
@@ -208,9 +225,13 @@ namespace AbilityKit.Game.Flow
             _skillAimMapper.SkillAimUpdate += OnSkillAimUpdate;
             _skillAimMapper.SkillAimEnd += OnSkillAimEnd;
 
-            var skill1 = CreateSkillButton("Skill1", new Vector2(-260f, 200f));
-            var skill2 = CreateSkillButton("Skill2", new Vector2(-140f, 110f));
-            var skill3 = CreateSkillButton("Skill3", new Vector2(-120f, 260f));
+            var skill1 = CreateSkillButton(1, "Skill1", new Vector2(-260f, 200f));
+            var skill2 = CreateSkillButton(2, "Skill2", new Vector2(-140f, 110f));
+            var skill3 = CreateSkillButton(3, "Skill3", new Vector2(-120f, 260f));
+
+            _skill1View = skill1;
+            _skill2View = skill2;
+            _skill3View = skill3;
 
             SetPrivateField(_inputView, "_skill1", skill1);
             SetPrivateField(_inputView, "_skill2", skill2);
@@ -282,7 +303,7 @@ namespace AbilityKit.Game.Flow
             _ctx.HudSkillAimSubmitDz = aim.y;
         }
 
-        private SkillButtonView CreateSkillButton(string name, Vector2 anchoredPos)
+        private SkillButtonView CreateSkillButton(int slot, string name, Vector2 anchoredPos)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(Image));
             go.transform.SetParent(_inputUiRoot.transform, worldPositionStays: false);
@@ -305,10 +326,89 @@ namespace AbilityKit.Game.Flow
             var cfg = SkillButtonConfig.Default;
             cfg.EnableAim = true;
             cfg.AimMaxRadius = 220f;
-            cfg.AimMode = name == "Skill1" ? SkillAimMode.Direction : SkillAimMode.Point;
+            cfg.AimMode = slot == 1 ? SkillAimMode.Direction : SkillAimMode.Point;
             SetPrivateField(view, "_config", cfg);
 
             return view;
+        }
+
+        private void OnEnterGameSnapshot(FramePacket packet, EnterMobaGameRes res)
+        {
+            TryApplySkillButtonTemplates(res);
+        }
+
+        private void TryApplySkillButtonTemplates(EnterMobaGameRes res)
+        {
+            if (_ctx == null) return;
+            if (_skill1View == null && _skill2View == null && _skill3View == null) return;
+
+            var playerId = _ctx.Plan.PlayerId;
+            if (string.IsNullOrEmpty(playerId)) return;
+
+            var loadout = FindLocalLoadout(res.PlayersLoadout, playerId);
+            if (!loadout.HasValue) return;
+
+            _configs ??= MobaConfigLoader.LoadDefault();
+            if (_configs == null) return;
+
+            ApplySkillButtonTemplate(1, _skill1View, loadout.Value, _configs);
+            ApplySkillButtonTemplate(2, _skill2View, loadout.Value, _configs);
+            ApplySkillButtonTemplate(3, _skill3View, loadout.Value, _configs);
+        }
+
+        private static MobaPlayerLoadout? FindLocalLoadout(MobaPlayerLoadout[] loadouts, string playerId)
+        {
+            if (loadouts == null || loadouts.Length == 0) return null;
+            if (string.IsNullOrEmpty(playerId)) return null;
+
+            for (int i = 0; i < loadouts.Length; i++)
+            {
+                var l = loadouts[i];
+                if (l.PlayerId.Value == playerId)
+                {
+                    return l;
+                }
+            }
+
+            return null;
+        }
+
+        private static void ApplySkillButtonTemplate(int slot, SkillButtonView view, in MobaPlayerLoadout loadout, MobaConfigDatabase configs)
+        {
+            if (view == null) return;
+            if (slot <= 0) return;
+
+            var cfg = view.Config;
+
+            var skills = loadout.SkillIds;
+            if (skills == null || skills.Length < slot) { view.Config = cfg; return; }
+            var skillId = skills[slot - 1];
+            if (skillId <= 0) { view.Config = cfg; return; }
+
+            global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SkillMO skill;
+            try { skill = configs.GetSkill(skillId); }
+            catch { view.Config = cfg; return; }
+            if (skill == null) { view.Config = cfg; return; }
+
+            var templateId = skill.SkillButtonTemplateId;
+            if (templateId <= 0) { view.Config = cfg; return; }
+
+            global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SkillButtonTemplateMO template;
+            try { template = configs.GetSkillButtonTemplate(templateId); }
+            catch { view.Config = cfg; return; }
+            if (template == null) { view.Config = cfg; return; }
+
+            cfg.LongPressSeconds = template.LongPressSeconds > 0f ? template.LongPressSeconds : cfg.LongPressSeconds;
+            cfg.DragThreshold = template.DragThreshold > 0f ? template.DragThreshold : cfg.DragThreshold;
+            cfg.EnableAim = template.EnableAim;
+            cfg.AimMaxRadius = template.AimMaxRadius > 0f ? template.AimMaxRadius : cfg.AimMaxRadius;
+
+            cfg.AimMode = template.AimMode == (int)SkillAimMode.Point ? SkillAimMode.Point : SkillAimMode.Direction;
+            cfg.UsePointMode = template.UsePointMode == (int)SkillUsePointMode.Aim ? SkillUsePointMode.Aim : template.UsePointMode == (int)SkillUsePointMode.TargetPoint ? SkillUsePointMode.TargetPoint : SkillUsePointMode.None;
+            cfg.SelectRange = template.SelectRange;
+            cfg.FaceToAim = template.FaceToAim;
+
+            view.Config = cfg;
         }
 
         private Button CreateInfoButton(Vector2 anchoredPos)

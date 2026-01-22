@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability.Impl.Moba.Attributes;
 using AbilityKit.Ability.Share.Common.Numbers;
+using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.Services;
 
@@ -93,7 +94,42 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             var bus = _events;
             if (bus == null) return;
             if (string.IsNullOrEmpty(eventId)) return;
-            bus.Publish(new TriggerEvent(eventId, payload: payload, args: null));
+
+            var args = PooledTriggerArgs.Rent();
+            try
+            {
+                if (payload is AttackInfo ai)
+                {
+                    FillArgs(args, ai);
+                }
+                else if (payload is AttackCalcInfo ac && ac.Attack != null)
+                {
+                    FillArgs(args, ac.Attack);
+                }
+                else if (payload is DamageResult dr)
+                {
+                    args[EffectTriggering.Args.Source] = dr.AttackerActorId;
+                    args[EffectTriggering.Args.Target] = dr.TargetActorId;
+                    args[EffectTriggering.Args.OriginSource] = dr.OriginSource ?? dr.AttackerActorId;
+                    args[EffectTriggering.Args.OriginTarget] = dr.OriginTarget ?? dr.TargetActorId;
+                }
+
+                bus.Publish(new TriggerEvent(eventId, payload: payload, args: args));
+            }
+            catch
+            {
+                args.Dispose();
+                throw;
+            }
+        }
+
+        private static void FillArgs(PooledTriggerArgs args, AttackInfo attack)
+        {
+            if (args == null || attack == null) return;
+            args[EffectTriggering.Args.Source] = attack.AttackerActorId;
+            args[EffectTriggering.Args.Target] = attack.TargetActorId;
+            args[EffectTriggering.Args.OriginSource] = attack.OriginSource ?? attack.AttackerActorId;
+            args[EffectTriggering.Args.OriginTarget] = attack.OriginTarget ?? attack.TargetActorId;
         }
 
         private static float Clamp(float v, float min, float max)

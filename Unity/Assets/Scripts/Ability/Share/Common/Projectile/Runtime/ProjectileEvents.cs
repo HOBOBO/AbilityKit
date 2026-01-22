@@ -61,7 +61,9 @@ namespace AbilityKit.Ability.Share.Common.Projectile
         public readonly Vec3 Normal;
         public readonly int Frame;
 
-        public ProjectileHitEvent(ProjectileId projectile, int ownerId, int templateId, int launcherActorId, int rootActorId, ColliderId hitCollider, float distance, in Vec3 point, in Vec3 normal, int frame)
+        public readonly int HitCount;
+
+        public ProjectileHitEvent(ProjectileId projectile, int ownerId, int templateId, int launcherActorId, int rootActorId, ColliderId hitCollider, float distance, in Vec3 point, in Vec3 normal, int frame, int hitCount)
         {
             Projectile = projectile;
             OwnerId = ownerId;
@@ -73,6 +75,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             Point = point;
             Normal = normal;
             Frame = frame;
+            HitCount = hitCount;
         }
     }
 

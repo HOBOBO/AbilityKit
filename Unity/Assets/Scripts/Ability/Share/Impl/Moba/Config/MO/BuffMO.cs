@@ -9,6 +9,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         public int Id { get; }
         public string Name { get; }
         public int DurationMs { get; }
+
+        public int OngoingEffectId { get; }
+
         public IReadOnlyList<int> OnAddEffects { get; }
         public IReadOnlyList<int> OnRemoveEffects { get; }
         public IReadOnlyList<int> OnIntervalEffects { get; }
@@ -24,6 +27,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
             Id = dto.Id;
             Name = dto.Name;
             DurationMs = dto.DurationMs;
+
+            OngoingEffectId = dto.OngoingEffectId;
+
             OnAddEffects = dto.OnAddEffects ?? Array.Empty<int>();
             OnRemoveEffects = dto.OnRemoveEffects ?? Array.Empty<int>();
             OnIntervalEffects = dto.OnIntervalEffects ?? Array.Empty<int>();

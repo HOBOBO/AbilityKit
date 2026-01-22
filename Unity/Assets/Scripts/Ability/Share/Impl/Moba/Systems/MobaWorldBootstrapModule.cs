@@ -85,6 +85,8 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.RegisterService<MobaProjectileLinkService, MobaProjectileLinkService>();
             builder.RegisterService<MobaProjectileService, MobaProjectileService>();
 
+            builder.RegisterService<SearchTargetService, SearchTargetService>();
+
             builder.RegisterService<MobaSkillLoadoutService, MobaSkillLoadoutService>();
             builder.TryRegister<MobaTriggerIndexService>(WorldLifetime.Singleton, _ =>
             {
@@ -94,6 +96,8 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 return s;
             });
             builder.RegisterService<MobaEffectExecutionService, MobaEffectExecutionService>();
+
+            builder.RegisterService<MobaOngoingEffectService, MobaOngoingEffectService>();
             builder.RegisterService<MobaEffectExecuteSubscriber, MobaEffectExecuteSubscriber>();
             builder.RegisterService<MobaEffectExecuteDemoSubscriber, MobaEffectExecuteDemoSubscriber>();
             builder.RegisterService<MobaEffectApplyDemoSubscriber, MobaEffectApplyDemoSubscriber>();

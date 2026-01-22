@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
@@ -48,20 +49,21 @@ namespace AbilityKit.Ability.Impl.Triggering
         {
             if (_effectId <= 0) return;
 
-            SkillPipelineContext ctx = null;
-            if (context?.Event.Payload is SkillPipelineContext pipelineCtx)
+            IAbilityPipelineContext ctx = null;
+            if (context?.Event.Payload is IAbilityPipelineContext pipelineCtx)
             {
                 ctx = pipelineCtx;
             }
             else if (context?.Event.Payload is SkillCastRequest req)
             {
-                ctx = new SkillPipelineContext();
-                ctx.Initialize(abilityInstance: null, in req);
+                var skillCtx = new SkillPipelineContext();
+                skillCtx.Initialize(abilityInstance: null, in req);
+                ctx = skillCtx;
             }
 
             if (ctx == null)
             {
-                Log.Warning($"[Trigger] effect_execute requires payload SkillPipelineContext or SkillCastRequest, got: {context?.Event.Payload?.GetType().FullName ?? "null"}");
+                Log.Warning($"[Trigger] effect_execute requires payload IAbilityPipelineContext or SkillCastRequest, got: {context?.Event.Payload?.GetType().FullName ?? "null"}");
                 return;
             }
 

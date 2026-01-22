@@ -19,6 +19,8 @@ namespace AbilityKit.Ability.Share.Effect
             {
                 args[EffectTriggering.Args.Source] = source;
                 args[EffectTriggering.Args.Target] = target;
+                args[EffectTriggering.Args.OriginSource] = source;
+                args[EffectTriggering.Args.OriginTarget] = target;
 
                 args[ProjectileTriggering.Args.ProjectileId] = projectileId;
                 args[ProjectileTriggering.Args.OwnerId] = ownerId;
@@ -41,6 +43,8 @@ namespace AbilityKit.Ability.Share.Effect
             {
                 args[EffectTriggering.Args.Source] = source;
                 args[EffectTriggering.Args.Target] = target;
+                args[EffectTriggering.Args.OriginSource] = source;
+                args[EffectTriggering.Args.OriginTarget] = target;
 
                 args[ProjectileTriggering.Args.ProjectileId] = projectileId;
                 args[ProjectileTriggering.Args.OwnerId] = ownerId;
@@ -62,10 +66,15 @@ namespace AbilityKit.Ability.Share.Effect
             var hitPoint = evt.Point;
             var hitNormal = evt.Normal;
 
+            var hitCount = evt.HitCount;
+            var hitDecayRate = hitCount <= 1 ? 1f : (float)System.Math.Pow(0.8d, hitCount - 1);
+
             sink.Publish(ProjectileTriggering.Events.Hit, payload: null, fillArgs: args =>
             {
                 args[EffectTriggering.Args.Source] = source;
                 args[EffectTriggering.Args.Target] = target;
+                args[EffectTriggering.Args.OriginSource] = source;
+                args[EffectTriggering.Args.OriginTarget] = target;
 
                 args[ProjectileTriggering.Args.ProjectileId] = projectileId;
                 args[ProjectileTriggering.Args.OwnerId] = ownerId;
@@ -75,6 +84,9 @@ namespace AbilityKit.Ability.Share.Effect
                 args[ProjectileTriggering.Args.HitDistance] = hitDistance;
                 args[ProjectileTriggering.Args.HitPoint] = hitPoint;
                 args[ProjectileTriggering.Args.HitNormal] = hitNormal;
+
+                args[ProjectileTriggering.Args.HitCount] = hitCount;
+                args[ProjectileTriggering.Args.HitDecayRate] = hitDecayRate;
             });
         }
 
@@ -92,6 +104,8 @@ namespace AbilityKit.Ability.Share.Effect
             {
                 args[EffectTriggering.Args.Source] = source;
                 args[EffectTriggering.Args.Target] = target;
+                args[EffectTriggering.Args.OriginSource] = source;
+                args[EffectTriggering.Args.OriginTarget] = target;
 
                 args[ProjectileTriggering.Args.ProjectileId] = projectileId;
                 args[ProjectileTriggering.Args.OwnerId] = ownerId;

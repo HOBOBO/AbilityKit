@@ -160,9 +160,9 @@ namespace AbilityKit.Ability.Triggering.Runtime
                 for (int i = 0; i < instance.Actions.Count; i++)
                 {
                     var a = instance.Actions[i];
-                    if (a is ITriggerActionV2 v2)
+                    if (a is AbilityKit.Ability.Triggering.Runtime.ITriggerRunningAction runningAction)
                     {
-                        var running = v2.Start(context);
+                        var running = runningAction.Start(context);
                         if (running != null)
                         {
                             var runner = TriggerEventHandler.GetRunner(context);

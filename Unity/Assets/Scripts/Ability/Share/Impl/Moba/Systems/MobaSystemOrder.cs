@@ -23,5 +23,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
         public const int BuffsApply = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Normal + 300;
         public const int BuffsRemove = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Normal + 305;
         public const int BuffsTick = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Normal + 310;
+
+        public const int OngoingEffectsTick = Base + AbilityKit.Ability.World.Entitas.WorldSystemOrder.Normal + 315;
     }
 }

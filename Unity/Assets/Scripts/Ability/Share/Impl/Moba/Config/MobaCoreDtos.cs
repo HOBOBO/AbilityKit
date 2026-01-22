@@ -1,4 +1,5 @@
 using System;
+using Newtonsoft.Json;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 {
@@ -24,9 +25,60 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public int Category;
         public int[] Tags;
 
+        public int SkillButtonTemplateId;
+
         public int LevelTableId;
         public int PreCastFlowId;
         public int CastFlowId;
+    }
+
+    [Serializable]
+    public sealed class SkillButtonTemplateDTO
+    {
+        public int Id;
+        public string Name;
+
+        public float LongPressSeconds;
+        public float DragThreshold;
+        public bool EnableAim;
+
+        public int AimMode;
+        public float AimMaxRadius;
+
+        public int UsePointMode;
+        public float SelectRange;
+        public bool FaceToAim;
+    }
+
+    [Serializable]
+    public sealed class TagTemplateDTO
+    {
+        public int Id;
+        public string Name;
+
+        [JsonIgnore] public string[] RequiredTagNames;
+        [JsonIgnore] public string[] BlockedTagNames;
+        [JsonIgnore] public string[] GrantTagNames;
+        [JsonIgnore] public string[] RemoveTagNames;
+
+        public int[] RequiredTags;
+        public int[] BlockedTags;
+
+        public int[] GrantTags;
+        public int[] RemoveTags;
+    }
+
+    [Serializable]
+    public sealed class SearchQueryTemplateDTO
+    {
+        public int Id;
+        public string Name;
+
+        public int CenterMode;
+        public float Radius;
+        public int MaxCount;
+
+        public bool ExcludeCaster;
     }
 
     [Serializable]
@@ -128,6 +180,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public int Id;
         public string Name;
         public int DurationMs;
+
+        public int OngoingEffectId;
+
         public int[] OnAddEffects;
         public int[] OnRemoveEffects;
         public int[] OnIntervalEffects;
@@ -220,6 +275,20 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public int IntValue;
         public float FloatValue;
         public bool BoolValue;
+    }
+
+    [Serializable]
+    public sealed class OngoingEffectDTO
+    {
+        public int Id;
+        public string Name;
+
+        public int DurationMs;
+        public int PeriodMs;
+
+        public int OnApplyEffectId;
+        public int OnTickEffectId;
+        public int OnRemoveEffectId;
     }
 
     [Serializable]

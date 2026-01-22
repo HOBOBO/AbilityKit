@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;
@@ -19,10 +20,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _index = index;
         }
 
-        public void Execute(int effectId, SkillPipelineContext context, EffectExecuteMode mode = EffectExecuteMode.InternalOnly)
+        public void Execute(int effectId, IAbilityPipelineContext context, EffectExecuteMode mode = EffectExecuteMode.InternalOnly)
         {
             if (effectId <= 0) return;
             if (context == null) return;
+
+            var wrappedContext = EffectContextWrapper.Wrap(context);
+            if (wrappedContext == null) return;
 
             var needInternal = mode == EffectExecuteMode.InternalOnly || mode == EffectExecuteMode.InternalThenPublishEvent;
             var needPublish = mode == EffectExecuteMode.PublishEventOnly || mode == EffectExecuteMode.InternalThenPublishEvent;
@@ -30,44 +34,48 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (needInternal && _triggers == null) return;
             if (needPublish && _eventBus == null) return;
 
-            static void FillArgs(PooledTriggerArgs args, int effectId2, SkillPipelineContext ctx)
+            static void FillArgs(PooledTriggerArgs args, int effectId2, IAbilityPipelineContext ctx)
             {
-                args[MobaSkillTriggering.Args.SkillId] = ctx.SkillId;
-                args[MobaSkillTriggering.Args.SkillSlot] = ctx.SkillSlot;
-                args[MobaSkillTriggering.Args.CasterActorId] = ctx.CasterActorId;
-                args[MobaSkillTriggering.Args.TargetActorId] = ctx.TargetActorId;
-                args[MobaSkillTriggering.Args.AimPos] = ctx.AimPos;
-                args[MobaSkillTriggering.Args.AimDir] = ctx.AimDir;
+                args[MobaSkillTriggering.Args.SkillId] = ctx.GetSkillId();
+                args[MobaSkillTriggering.Args.SkillSlot] = ctx.GetSkillSlot();
+                args[MobaSkillTriggering.Args.CasterActorId] = ctx.GetCasterActorId();
+                args[MobaSkillTriggering.Args.TargetActorId] = ctx.GetTargetActorId();
+                args[MobaSkillTriggering.Args.AimPos] = ctx.GetAimPos();
+                args[MobaSkillTriggering.Args.AimDir] = ctx.GetAimDir();
                 args["effect.id"] = effectId2;
             }
 
             if (needInternal)
             {
                 var args = PooledTriggerArgs.Rent();
-                FillArgs(args, effectId, context);
-                RunByTriggerId(effectId, args, context);
+                FillArgs(args, effectId, wrappedContext);
+                RunByTriggerId(effectId, args, wrappedContext);
                 args.Dispose();
             }
 
             if (needPublish)
             {
                 var args1 = PooledTriggerArgs.Rent();
-                FillArgs(args1, effectId, context);
-                _eventBus.Publish(new TriggerEvent(MobaTriggerEventIds.EffectExecute, payload: context, args: args1));
+                FillArgs(args1, effectId, wrappedContext);
+                _eventBus.Publish(new TriggerEvent(MobaTriggerEventIds.EffectExecute, payload: wrappedContext, args: args1));
 
                 var args2 = PooledTriggerArgs.Rent();
-                FillArgs(args2, effectId, context);
-                _eventBus.Publish(new TriggerEvent(MobaTriggerEventIds.EffectExecuteById(effectId), payload: context, args: args2));
+                FillArgs(args2, effectId, wrappedContext);
+                _eventBus.Publish(new TriggerEvent(MobaTriggerEventIds.EffectExecuteById(effectId), payload: wrappedContext, args: args2));
             }
         }
 
-        private void RunByTriggerId(int triggerId, PooledTriggerArgs args, SkillPipelineContext context)
+        private void RunByTriggerId(int triggerId, PooledTriggerArgs args, IAbilityPipelineContext context)
         {
             if (_triggers == null) return;
             if (_index == null) return;
             if (!_index.TryGetByTriggerId(triggerId, out var list) || list == null) return;
 
-            var caster = context != null ? context.CasterUnit : null;
+            object caster = null;
+            if (context is IEffectContext ec && ec.TryGetSkill(out var skill))
+            {
+                caster = skill.CasterUnit;
+            }
 
             for (int i = 0; i < list.Count; i++)
             {

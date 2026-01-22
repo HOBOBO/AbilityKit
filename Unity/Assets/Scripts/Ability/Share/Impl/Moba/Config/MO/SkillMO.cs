@@ -11,6 +11,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         public int Range { get; }
         public int IconId { get; }
         public int Category { get; }
+        public int SkillButtonTemplateId { get; }
         public int LevelTableId { get; }
         public int PreCastFlowId { get; }
         public int CastFlowId { get; }
@@ -25,6 +26,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
             Range = dto.Range;
             IconId = dto.IconId;
             Category = dto.Category;
+            SkillButtonTemplateId = dto.SkillButtonTemplateId;
             LevelTableId = dto.LevelTableId;
             PreCastFlowId = dto.PreCastFlowId;
             CastFlowId = dto.CastFlowId;

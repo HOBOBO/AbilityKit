@@ -98,7 +98,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                         {
                             var reason = req.Reason;
                             if (reason == EffectSourceEndReason.None) reason = EffectSourceEndReason.Dispelled;
-                            PublishBuffRemove(_eventBus, buff, req.SourceId, e.actorId.Value, b, reason);
+                            PublishBuffRemove(_eventBus, _effectSource, buff, req.SourceId, e.actorId.Value, b, reason);
                             ExecuteStageEffects(buff.OnRemoveEffects, stage: "remove", sourceActorId: req.SourceId, targetActorId: e.actorId.Value);
                         }
                     }
@@ -131,7 +131,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             }
         }
 
-        private static void PublishBuffRemove(IEventBus bus, BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, EffectSourceEndReason reason)
+        private static void PublishBuffRemove(IEventBus bus, EffectSourceRegistry effectSource, BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, EffectSourceEndReason reason)
         {
             if (bus == null) return;
             if (buff == null) return;
@@ -151,6 +151,19 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                 if (runtime != null && runtime.SourceContextId != 0)
                 {
                     args0[EffectSourceKeys.SourceContextId] = runtime.SourceContextId;
+
+                    if (effectSource != null && effectSource.TryGetOrigin(runtime.SourceContextId, out var os, out var ot))
+                    {
+                        args0[EffectTriggering.Args.OriginSource] = os;
+                        args0[EffectTriggering.Args.OriginTarget] = ot;
+                    }
+
+                    if (effectSource != null && effectSource.TryGetSnapshot(runtime.SourceContextId, out var snap))
+                    {
+                        args0[EffectTriggering.Args.OriginKind] = snap.Kind;
+                        args0[EffectTriggering.Args.OriginConfigId] = snap.ConfigId;
+                        args0[EffectTriggering.Args.OriginContextId] = snap.RootId;
+                    }
                 }
                 bus.Publish(new TriggerEvent(MobaBuffTriggering.Events.Remove, payload: runtime, args: args0));
             }
@@ -174,6 +187,19 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                 if (runtime != null && runtime.SourceContextId != 0)
                 {
                     args1[EffectSourceKeys.SourceContextId] = runtime.SourceContextId;
+
+                    if (effectSource != null && effectSource.TryGetOrigin(runtime.SourceContextId, out var os, out var ot))
+                    {
+                        args1[EffectTriggering.Args.OriginSource] = os;
+                        args1[EffectTriggering.Args.OriginTarget] = ot;
+                    }
+
+                    if (effectSource != null && effectSource.TryGetSnapshot(runtime.SourceContextId, out var snap))
+                    {
+                        args1[EffectTriggering.Args.OriginKind] = snap.Kind;
+                        args1[EffectTriggering.Args.OriginConfigId] = snap.ConfigId;
+                        args1[EffectTriggering.Args.OriginContextId] = snap.RootId;
+                    }
                 }
                 bus.Publish(new TriggerEvent(MobaBuffTriggering.Events.WithEffect(MobaBuffTriggering.Events.Remove, effectId), payload: runtime, args: args1));
             }

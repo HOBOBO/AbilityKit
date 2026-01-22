@@ -56,6 +56,33 @@ namespace AbilityKit.Ability.Impl.Moba
         Linear = 1,
     }
 
+    public enum ProjectileTargetMode
+    {
+        SkillAim = 0,
+        ActorId = 1,
+        Search = 2,
+    }
+
+    public enum ProjectileFaceMode
+    {
+        SkillAimDir = 0,
+        ToTarget = 1,
+        CasterForward = 2,
+    }
+
+    public enum ProjectileSpawnMode
+    {
+        LegacyAimPos = 0,
+        FromCaster = 1,
+        FromTargetPoint = 2,
+    }
+
+    public enum SearchQueryCenterMode
+    {
+        Caster = 0,
+        AimPos = 1,
+    }
+
     // 队伍/阵营类型
     public enum Team
     {

@@ -35,8 +35,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (bus == null) return;
             if (string.IsNullOrEmpty(eventId)) return;
 
-            var args = PooledTriggerArgs.Rent();
-            try
+            global::AbilityKit.Ability.Triggering.TriggerEventPublishExtensions.PublishInherited(bus, eventId, payload: evt.Payload, parentArgs: evt.Args, fillArgs: args =>
             {
                 if (evt.Args != null)
                 {
@@ -48,14 +47,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 }
 
                 args["effect.id"] = effectId;
-
-                bus.Publish(new TriggerEvent(eventId, payload: evt.Payload, args: args));
-            }
-            catch
-            {
-                args.Dispose();
-                throw;
-            }
+            });
         }
 
         public void Dispose()

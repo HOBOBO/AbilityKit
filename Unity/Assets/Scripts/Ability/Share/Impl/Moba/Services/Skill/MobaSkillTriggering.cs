@@ -1,4 +1,6 @@
 using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Impl.Moba;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -35,6 +37,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (string.IsNullOrEmpty(eventId)) return;
 
             var args = PooledTriggerArgs.Rent();
+            args[EffectTriggering.Args.Source] = req.CasterActorId;
+            args[EffectTriggering.Args.Target] = req.TargetActorId;
+            args[EffectTriggering.Args.OriginSource] = req.CasterActorId;
+            args[EffectTriggering.Args.OriginTarget] = req.TargetActorId;
+            args[EffectTriggering.Args.OriginKind] = EffectSourceKind.SkillCast;
+            args[EffectTriggering.Args.OriginConfigId] = req.SkillId;
             args[Args.SkillId] = req.SkillId;
             args[Args.SkillSlot] = req.SkillSlot;
             args[Args.CasterActorId] = req.CasterActorId;

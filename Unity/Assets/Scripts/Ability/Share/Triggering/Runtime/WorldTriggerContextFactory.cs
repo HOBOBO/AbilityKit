@@ -23,6 +23,12 @@ namespace AbilityKit.Ability.Triggering.Runtime
             {
                 args.TryGetValue(EffectTriggering.Args.Source, out source);
                 args.TryGetValue(EffectTriggering.Args.Target, out target);
+
+                if (args is IDictionary<string, object> dict)
+                {
+                    if (!dict.ContainsKey(EffectTriggering.Args.OriginSource)) dict[EffectTriggering.Args.OriginSource] = source;
+                    if (!dict.ContainsKey(EffectTriggering.Args.OriginTarget)) dict[EffectTriggering.Args.OriginTarget] = target;
+                }
             }
 
             var ctx = TriggerContext.Rent();

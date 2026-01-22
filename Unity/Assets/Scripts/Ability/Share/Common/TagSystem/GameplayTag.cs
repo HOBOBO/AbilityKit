@@ -6,6 +6,8 @@ namespace AbilityKit.Ability.Share.Common.TagSystem
     {
         internal readonly int Id;
 
+        public int Value => Id;
+
         internal GameplayTag(int id)
         {
             Id = id;

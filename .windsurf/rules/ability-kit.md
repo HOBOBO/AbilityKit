@@ -135,3 +135,22 @@ ProjectileEventSnapshot (4006)：Spawn/Hit/Exit 结构字段说明
 性能/池化注意
 schedule spawn 使用 list pool
 禁止高频 new List/LINQ 等
+
+Rule 1：禁止丢失溯源（No Lost Origin）
+任何会发布 TriggerEvent 的模块/系统/服务，必须保证事件携带溯源字段：
+
+根事件必须显式写入 origin.*
+非根事件必须继承（透传）上游的 origin.*
+Rule 2：继承发布必须使用统一入口（Recommended）
+当你从已有事件（存在 parentArgs）再发布新事件时，必须继承溯源字段：
+
+至少继承：origin.source / origin.target / origin.kind / origin.configId / origin.contextId
+推荐使用统一 helper：TriggerEventPublishExtensions.PublishInherited(...)
+Rule 3：内部流水线事件必须带 Args（No args:null）
+禁止发布 args: null 的 TriggerEvent（会导致溯源链路中断）。
+内部流水线（例如伤害流水线）发布事件时，应至少填入：
+
+source/target
+origin.*（来自 payload/attack 上携带的 origin，或从上游传入）
+Rule 4：origin.kind 类型统一为 enum
+origin.kind 必须统一使用 EffectSourceKind（enum），禁止使用字符串，避免跨模块不一致与比较成本。

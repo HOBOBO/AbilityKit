@@ -118,9 +118,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 
         public bool Launch(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, in Vec3 aimPos, in Vec3 aimDir)
         {
-            if (_projectiles == null) return false;
-            if (_actorIds == null) return false;
-            if (_registry == null) return false;
             if (_entities == null) return false;
             if (casterActorId <= 0) return false;
             if (launcher == null) return false;
@@ -135,6 +132,29 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
             var dir = aimDir.SqrMagnitude > 0f ? aimDir : caster.transform.Value.Forward;
             dir = dir.Normalized;
             if (dir.SqrMagnitude <= 0f) dir = Vec3.Forward;
+
+            return LaunchFromSpawn(casterActorId, launcher, projectile, in spawnPos, in dir);
+        }
+
+        public bool LaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, in Vec3 spawnPos, in Vec3 dir)
+        {
+            if (_projectiles == null) return false;
+            if (_actorIds == null) return false;
+            if (_registry == null) return false;
+            if (_entities == null) return false;
+            if (casterActorId <= 0) return false;
+            if (launcher == null) return false;
+            if (projectile == null) return false;
+
+            if (!_entities.TryGetActorEntity(casterActorId, out var caster) || caster == null || !caster.hasTransform)
+            {
+                return false;
+            }
+
+            var d = dir.SqrMagnitude > 0f ? dir.Normalized : caster.transform.Value.Forward.Normalized;
+            if (d.SqrMagnitude <= 0f) d = Vec3.Forward;
+
+            var sp = spawnPos.SqrMagnitude > 0f ? spawnPos : caster.transform.Value.Position;
 
             global::Contexts contexts = null;
             _services?.TryGet(out contexts);
@@ -186,8 +206,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
             var ownerPlayer = caster.hasOwnerPlayerId ? caster.ownerPlayerId.Value : default(PlayerId);
 
             var launcherActorId = _actorIds.Next();
-            var rot = Quat.LookRotation(dir, Vec3.Up);
-            var t = new Transform3(spawnPos, rot, Vec3.One);
+            var rot = Quat.LookRotation(d, Vec3.Up);
+            var t = new Transform3(sp, rot, Vec3.One);
 
             var launcherInfo = new MobaEntityInfo(
                 actorId: launcherActorId,
@@ -242,8 +262,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
                 templateId: projectile.Id,
                 launcherActorId: launcherActorId,
                 rootActorId: casterActorId,
-                position: spawnPos,
-                direction: dir,
+                position: sp,
+                direction: d,
                 speed: projectile.Speed,
                 lifetimeFrames: lifetimeFrames,
                 maxDistance: projectile.MaxDistance,

@@ -8,6 +8,8 @@ namespace AbilityKit.Ability.Share.Common.Projectile
         public ProjectileId Id;
         public int OwnerId;
 
+        public int TotalHitCount;
+
         public int TemplateId;
         public int LauncherActorId;
         public int RootActorId;
@@ -44,6 +46,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
         {
             Id = default;
             OwnerId = 0;
+            TotalHitCount = 0;
             TemplateId = 0;
             LauncherActorId = 0;
             RootActorId = 0;

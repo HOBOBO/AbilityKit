@@ -166,3 +166,32 @@ VFX entity 生命周期：DurationMs 到期清理
 - VFX 不自动消失：
   - 检查 VfxDTO.DurationMs 是否 > 0
   - 检查 BattleViewFeature.Tick 是否调用 _vfx.Tick(world)
+
+
+在战斗中实现全链路溯源：无论事件由主动技能、buff、生效、被动等触发，且中间连锁触发任意多层，任意行为（Action）都能从 TriggerContext 的 context.Event.Args 中拿到最初来源（root cause）的信息，用于统一计算/日志/统计/规则判断。
+
+标准溯源字段（统一写入 TriggerEvent.Args）
+所有触发事件（TriggerEvent）应遵循以下标准 key（见 EffectTriggering.Args）：
+
+source：当前事件的来源（一般为 actorId 或来源对象）
+target：当前事件的目标（一般为 actorId 或目标对象）
+origin.source：溯源链路的最初来源（root source）
+origin.target：溯源链路的最初目标（root target）
+origin.kind：溯源类型，统一使用 EffectSourceKind（enum）
+常见：EffectSourceKind.SkillCast / Buff / Effect / TriggerAction / System
+origin.configId：溯源配置ID（int）
+origin.kind == SkillCast 时为 skillId
+origin.kind == Buff 时为 buffId
+origin.kind == System 时为 passiveSkillId 或系统配置 id
+origin.contextId：溯源上下文ID（long，root context id，用于进一步查询/定位）
+技能根事件写入规则（Skill Root Publish）
+所有技能相关的根事件（例如 skill.cast.start/complete/...）在发布时必须写入：
+
+source = casterActorId
+target = targetActorId
+origin.source = casterActorId
+origin.target = targetActorId
+origin.kind = EffectSourceKind.SkillCast
+origin.configId = skillId
+origin.contextId：可选（若有 skill cast 的 root context id 则写入；没有可暂不填）
+目的：即使后续触发链条中出现事件中继/转换（再 Publish 新事件），也能稳定拿到最初 skillId。

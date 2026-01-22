@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
@@ -160,11 +161,19 @@ namespace AbilityKit.Ability.Impl.Triggering
                 return;
             }
 
+            object originSource = null;
+            object originTarget = null;
+            if (context?.Event.Args != null)
+            {
+                context.Event.Args.TryGetValue(EffectTriggering.Args.OriginSource, out originSource);
+                context.Event.Args.TryGetValue(EffectTriggering.Args.OriginTarget, out originTarget);
+            }
+
             for (int i = 0; i < _buffIds.Count; i++)
             {
                 var buffId = _buffIds[i];
                 if (buffId <= 0) continue;
-                buffSvc.ApplyBuffImmediate(target, buffId, sourceActorId, durationOverrideMs: 0);
+                buffSvc.ApplyBuffImmediate(target, buffId, sourceActorId, durationOverrideMs: 0, originSource: originSource, originTarget: originTarget);
             }
         }
     }

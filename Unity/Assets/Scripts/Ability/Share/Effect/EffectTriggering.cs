@@ -14,6 +14,13 @@ namespace AbilityKit.Ability.Share.Effect
             public const string Source = "source";
             public const string Target = "target";
 
+            public const string OriginSource = "origin.source";
+            public const string OriginTarget = "origin.target";
+
+            public const string OriginKind = "origin.kind";
+            public const string OriginConfigId = "origin.configId";
+            public const string OriginContextId = "origin.contextId";
+
             public const string Spec = "effect.spec";
             public const string Instance = "effect.instance";
             public const string InstanceId = "effect.instanceId";

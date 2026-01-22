@@ -13,6 +13,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         private const string ConfigKey = "moba.config";
 
         private readonly Dictionary<Type, object> _tables = new Dictionary<Type, object>();
+        private readonly Dictionary<Type, object> _dtoTables = new Dictionary<Type, object>();
         private long _version;
 
         public long Version => _version;
@@ -85,6 +86,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             if (jsonByKey == null) throw new ArgumentNullException(nameof(jsonByKey));
 
             var nextTables = new Dictionary<Type, object>();
+            var nextDtoTables = new Dictionary<Type, object>();
 
             var tables = MobaRuntimeConfigTableRegistry.Tables;
             for (var i = 0; i < tables.Length; i++)
@@ -103,6 +105,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
                 {
                     var dtoArrayType = t.DtoType.MakeArrayType();
                     var arr = (Array)JsonConvert.DeserializeObject(json, dtoArrayType);
+                    var dtoTableObj = CreateDtoTableFromDtos(t.DtoType, arr);
+                    nextDtoTables[t.DtoType] = dtoTableObj;
                     var tableObj = CreateTableFromDtos(t.DtoType, t.MoType, arr);
                     nextTables[t.MoType] = tableObj;
                 }
@@ -118,6 +122,12 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             foreach (var kv in nextTables)
             {
                 _tables[kv.Key] = kv.Value;
+            }
+
+            _dtoTables.Clear();
+            foreach (var kv in nextDtoTables)
+            {
+                _dtoTables[kv.Key] = kv.Value;
             }
 
             _version++;
@@ -154,6 +164,45 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             }
 
             return table;
+        }
+
+        private static object CreateDtoTableFromDtos(Type dtoType, Array dtoArray)
+        {
+            var tableType = typeof(ConfigDtoTable<>).MakeGenericType(dtoType);
+            var table = Activator.CreateInstance(tableType);
+            var addFromDto = tableType.GetMethod("Add", BindingFlags.Instance | BindingFlags.Public);
+            if (addFromDto == null) throw new InvalidOperationException($"Add not found. tableType={tableType.FullName}");
+
+            if (dtoArray != null)
+            {
+                for (var i = 0; i < dtoArray.Length; i++)
+                {
+                    var dto = dtoArray.GetValue(i);
+                    if (dto == null) continue;
+                    addFromDto.Invoke(table, new[] { dto });
+                }
+            }
+
+            return table;
+        }
+
+        private sealed class ConfigDtoTable<TDto>
+        {
+            private readonly Dictionary<int, TDto> _byId = new Dictionary<int, TDto>();
+
+            public void Add(object dto)
+            {
+                if (dto == null) return;
+                var id = ReadId(dto);
+                _byId[id] = (TDto)dto;
+            }
+
+            public TDto Get(int id)
+            {
+                return _byId.TryGetValue(id, out var v) ? v : throw new KeyNotFoundException($"Config not found: type={typeof(TDto).Name} id={id}");
+            }
+
+            public bool TryGet(int id, out TDto dto) => _byId.TryGetValue(id, out dto);
         }
 
         private sealed class ConfigTable<TMO>
@@ -193,6 +242,21 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             _tables[typeof(TMO)] = t;
             return t;
         }
+
+        private ConfigDtoTable<TDto> GetDtoTable<TDto>()
+        {
+            if (_dtoTables.TryGetValue(typeof(TDto), out var o) && o is ConfigDtoTable<TDto> t) return t;
+            t = new ConfigDtoTable<TDto>();
+            _dtoTables[typeof(TDto)] = t;
+            return t;
+        }
+
+        public TDto GetDto<TDto>(int id)
+        {
+            return GetDtoTable<TDto>().Get(id);
+        }
+
+        public bool TryGetDto<TDto>(int id, out TDto dto) => GetDtoTable<TDto>().TryGet(id, out dto);
 
         public CharacterMO GetCharacter(int id)
         {
@@ -259,6 +323,21 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             return GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.ComponentTemplateMO>().Get(id);
         }
 
+        public global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SkillButtonTemplateMO GetSkillButtonTemplate(int id)
+        {
+            return GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SkillButtonTemplateMO>().Get(id);
+        }
+
+        public global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.TagTemplateMO GetTagTemplate(int id)
+        {
+            return GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.TagTemplateMO>().Get(id);
+        }
+
+        public global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.OngoingEffectMO GetOngoingEffect(int id)
+        {
+            return GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.OngoingEffectMO>().Get(id);
+        }
+
         public bool TryGetCharacter(int id, out CharacterMO mo) => GetTable<CharacterMO>().TryGet(id, out mo);
         public bool TryGetSkill(int id, out SkillMO mo) => GetTable<SkillMO>().TryGet(id, out mo);
         public bool TryGetPassiveSkill(int id, out PassiveSkillMO mo) => GetTable<PassiveSkillMO>().TryGet(id, out mo);
@@ -270,6 +349,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public bool TryGetBuff(int id, out BuffMO mo) => GetTable<BuffMO>().TryGet(id, out mo);
         public bool TryGetSummon(int id, out global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SummonMO mo) => GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SummonMO>().TryGet(id, out mo);
         public bool TryGetComponentTemplate(int id, out global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.ComponentTemplateMO mo) => GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.ComponentTemplateMO>().TryGet(id, out mo);
+        public bool TryGetSkillButtonTemplate(int id, out global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SkillButtonTemplateMO mo) => GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SkillButtonTemplateMO>().TryGet(id, out mo);
+        public bool TryGetTagTemplate(int id, out global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.TagTemplateMO mo) => GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.TagTemplateMO>().TryGet(id, out mo);
+        public bool TryGetOngoingEffect(int id, out global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.OngoingEffectMO mo) => GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.OngoingEffectMO>().TryGet(id, out mo);
         public bool TryGetProjectileLauncher(int id, out ProjectileLauncherMO mo) => GetTable<ProjectileLauncherMO>().TryGet(id, out mo);
         public bool TryGetProjectile(int id, out ProjectileMO mo) => GetTable<ProjectileMO>().TryGet(id, out mo);
     }

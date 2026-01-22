@@ -22,19 +22,20 @@ public static class ActorComponentsLookup {
     public const int ModelId = 11;
     public const int Motion = 12;
     public const int MoveInput = 13;
-    public const int OwnerLink = 14;
-    public const int OwnerPlayerId = 15;
-    public const int PassiveSkillTriggerListeners = 16;
-    public const int ProjectileLauncher = 17;
-    public const int RemoveBuffRequest = 18;
-    public const int ResourceContainer = 19;
-    public const int SkillLoadout = 20;
-    public const int SummonMeta = 21;
-    public const int Team = 22;
-    public const int Transform = 23;
-    public const int UnitSubType = 24;
+    public const int OngoingEffects = 14;
+    public const int OwnerLink = 15;
+    public const int OwnerPlayerId = 16;
+    public const int PassiveSkillTriggerListeners = 17;
+    public const int ProjectileLauncher = 18;
+    public const int RemoveBuffRequest = 19;
+    public const int ResourceContainer = 20;
+    public const int SkillLoadout = 21;
+    public const int SummonMeta = 22;
+    public const int Team = 23;
+    public const int Transform = 24;
+    public const int UnitSubType = 25;
 
-    public const int TotalComponents = 25;
+    public const int TotalComponents = 26;
 
     public static readonly string[] componentNames = {
         "ActorId",
@@ -51,6 +52,7 @@ public static class ActorComponentsLookup {
         "ModelId",
         "Motion",
         "MoveInput",
+        "OngoingEffects",
         "OwnerLink",
         "OwnerPlayerId",
         "PassiveSkillTriggerListeners",
@@ -79,6 +81,7 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ModelIdComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.OngoingEffectsComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerLinkComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillTriggerListenersComponent),

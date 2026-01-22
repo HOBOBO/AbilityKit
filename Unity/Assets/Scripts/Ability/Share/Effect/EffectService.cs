@@ -111,6 +111,8 @@ namespace AbilityKit.Ability.Share.Effect
             {
                 args[EffectTriggering.Args.Source] = source;
                 args[EffectTriggering.Args.Target] = target;
+                args[EffectTriggering.Args.OriginSource] = source;
+                args[EffectTriggering.Args.OriginTarget] = target;
                 args[EffectTriggering.Args.Spec] = spec;
                 args[EffectTriggering.Args.Instance] = instance;
                 args[EffectTriggering.Args.InstanceId] = instanceId;

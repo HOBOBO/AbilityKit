@@ -6,7 +6,7 @@ namespace AbilityKit.Ability.Share.Battle.SearchTarget.Rules
     {
         public static readonly RequireValidIdRule Instance = new RequireValidIdRule();
 
-        private RequireValidIdRule() { }
+        public RequireValidIdRule() { }
 
         public bool RequiresPosition => false;
 

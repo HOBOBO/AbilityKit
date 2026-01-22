@@ -18,6 +18,9 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
             public int SourceActorId;
             public int TargetActorId;
 
+            public object OriginSource;
+            public object OriginTarget;
+
             public int CreatedFrame;
             public int EndedFrame;
             public EffectSourceEndReason EndReason;
@@ -46,6 +49,18 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
             int targetActorId,
             int frame)
         {
+            return CreateRoot(kind, configId, sourceActorId, targetActorId, frame, originSource: null, originTarget: null);
+        }
+
+        public long CreateRoot(
+            EffectSourceKind kind,
+            int configId,
+            int sourceActorId,
+            int targetActorId,
+            int frame,
+            object originSource,
+            object originTarget)
+        {
             if (kind == EffectSourceKind.None) throw new ArgumentException(nameof(kind));
             var id = NextId();
 
@@ -58,6 +73,8 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
                 ConfigId = configId,
                 SourceActorId = sourceActorId,
                 TargetActorId = targetActorId,
+                OriginSource = originSource ?? sourceActorId,
+                OriginTarget = originTarget ?? targetActorId,
                 CreatedFrame = frame,
                 EndedFrame = 0,
                 EndReason = EffectSourceEndReason.None,
@@ -68,6 +85,29 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
             return id;
         }
 
+        public bool TryGetOrigin(long contextId, out object originSource, out object originTarget)
+        {
+            if (_contexts.TryGetValue(contextId, out var r))
+            {
+                originSource = r.OriginSource;
+                originTarget = r.OriginTarget;
+                return true;
+            }
+
+            originSource = null;
+            originTarget = null;
+            return false;
+        }
+
+        public bool SetOrigin(long contextId, object originSource, object originTarget)
+        {
+            if (contextId <= 0) return false;
+            if (!_contexts.TryGetValue(contextId, out var r)) return false;
+            if (originSource != null) r.OriginSource = originSource;
+            if (originTarget != null) r.OriginTarget = originTarget;
+            return true;
+        }
+
         public long CreateChild(
             long parentContextId,
             EffectSourceKind kind,
@@ -75,6 +115,19 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
             int sourceActorId,
             int targetActorId,
             int frame)
+        {
+            return CreateChild(parentContextId, kind, configId, sourceActorId, targetActorId, frame, originSource: null, originTarget: null);
+        }
+
+        public long CreateChild(
+            long parentContextId,
+            EffectSourceKind kind,
+            int configId,
+            int sourceActorId,
+            int targetActorId,
+            int frame,
+            object originSource,
+            object originTarget)
         {
             if (kind == EffectSourceKind.None) throw new ArgumentException(nameof(kind));
             if (parentContextId <= 0) throw new ArgumentOutOfRangeException(nameof(parentContextId));
@@ -92,6 +145,8 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
                 ConfigId = configId,
                 SourceActorId = sourceActorId,
                 TargetActorId = targetActorId,
+                OriginSource = originSource ?? parent.OriginSource ?? parent.SourceActorId,
+                OriginTarget = originTarget ?? parent.OriginTarget ?? parent.TargetActorId,
                 CreatedFrame = frame,
                 EndedFrame = 0,
                 EndReason = EffectSourceEndReason.None,

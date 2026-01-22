@@ -6,6 +6,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Ability.Share.Effect;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {
@@ -162,6 +163,18 @@ namespace AbilityKit.Ability.Impl.Triggering
 
             baseValue *= _rate;
 
+            if (context.Event.Args != null && context.Event.Args.TryGetValue(ProjectileTriggering.Args.HitDecayRate, out var decayObj) && decayObj != null)
+            {
+                try
+                {
+                    var decay = decayObj is float df ? df : decayObj is double dd ? (float)dd : Convert.ToSingle(decayObj);
+                    if (decay > 0f) baseValue *= decay;
+                }
+                catch
+                {
+                }
+            }
+
             var attack = new AttackInfo
             {
                 AttackerActorId = attackerActorId,
@@ -171,6 +184,21 @@ namespace AbilityKit.Ability.Impl.Triggering
                 ReasonKind = _reasonKind,
                 ReasonParam = _reasonParam,
             };
+
+            if (context.Event.Args != null)
+            {
+                if (context.Event.Args.TryGetValue(EffectTriggering.Args.OriginSource, out var os) && os != null)
+                {
+                    attack.OriginSource = os;
+                }
+                if (context.Event.Args.TryGetValue(EffectTriggering.Args.OriginTarget, out var ot) && ot != null)
+                {
+                    attack.OriginTarget = ot;
+                }
+            }
+
+            if (attack.OriginSource == null) attack.OriginSource = attackerObj ?? attackerActorId;
+            if (attack.OriginTarget == null) attack.OriginTarget = targetObj ?? targetActorId;
             attack.BaseDamage.BaseValue = baseValue;
 
             pipeline.Execute(attack);
