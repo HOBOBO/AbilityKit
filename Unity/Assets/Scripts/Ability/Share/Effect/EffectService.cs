@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
@@ -101,6 +102,8 @@ namespace AbilityKit.Ability.Share.Effect
 
             var source = context.Source;
             var target = context.Target;
+            var sourceContextId = context.SourceContextId;
+            var services = context.Services;
             var spec = instance?.Spec;
             var instanceId = instance != null ? instance.Id : 0;
             var stackCount = instance != null ? instance.StackCount : 0;
@@ -119,6 +122,13 @@ namespace AbilityKit.Ability.Share.Effect
                 args[EffectTriggering.Args.StackCount] = stackCount;
                 args[EffectTriggering.Args.ElapsedSeconds] = elapsedSeconds;
                 args[EffectTriggering.Args.RemainingSeconds] = remainingSeconds;
+
+                if (sourceContextId != 0)
+                {
+                    args[EffectSourceKeys.SourceContextId] = sourceContextId;
+
+                    EffectOriginArgsHelper.FillFromServices(args, sourceContextId, services);
+                }
             });
         }
     }

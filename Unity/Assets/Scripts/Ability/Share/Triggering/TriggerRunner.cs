@@ -413,6 +413,27 @@ namespace AbilityKit.Ability.Triggering.Runtime
             ownerKey = 0;
             if (args == null) return false;
 
+            if (args.TryGetValue("ownerKey", out var v2) && v2 != null)
+            {
+                if (v2 is long l2)
+                {
+                    ownerKey = l2;
+                    return ownerKey != 0;
+                }
+
+                if (v2 is int i2)
+                {
+                    ownerKey = i2;
+                    return ownerKey != 0;
+                }
+
+                if (v2 is string s2 && !string.IsNullOrEmpty(s2) && long.TryParse(s2, out var parsed2))
+                {
+                    ownerKey = parsed2;
+                    return ownerKey != 0;
+                }
+            }
+
             if (!args.TryGetValue("effect.sourceContextId", out var v) || v == null) return false;
 
             if (v is long l)

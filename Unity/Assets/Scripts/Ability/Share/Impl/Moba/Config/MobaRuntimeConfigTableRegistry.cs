@@ -36,6 +36,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             new Entry(MobaConfigPaths.SkillButtonTemplatesFile, typeof(SkillButtonTemplateDTO), typeof(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SkillButtonTemplateMO)),
             new Entry(MobaConfigPaths.TagTemplatesFile, typeof(TagTemplateDTO), typeof(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.TagTemplateMO)),
             new Entry(MobaConfigPaths.SearchQueryTemplatesFile, typeof(SearchQueryTemplateDTO), typeof(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SearchQueryTemplateMO)),
+            new Entry(MobaConfigPaths.SpawnSummonActionTemplatesFile, typeof(SpawnSummonActionTemplateDTO), typeof(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SpawnSummonActionTemplateMO)),
+            new Entry(MobaConfigPaths.PresentationTemplatesFile, typeof(PresentationTemplateDTO), typeof(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.PresentationTemplateMO)),
             new Entry(MobaConfigPaths.OngoingEffectsFile, typeof(OngoingEffectDTO), typeof(MO.OngoingEffectMO)),
         };
     }

@@ -54,16 +54,43 @@ namespace AbilityKit.Ability.Impl.Triggering
             {
                 ctx = pipelineCtx;
             }
-            else if (context?.Event.Payload is SkillCastRequest req)
+            else
             {
-                var skillCtx = new SkillPipelineContext();
-                skillCtx.Initialize(abilityInstance: null, in req);
-                ctx = skillCtx;
+                SkillCastRequest req;
+                if (context?.Event.Payload is SkillCastRequest r)
+                {
+                    req = r;
+                }
+                else if (context?.Event.Payload is SkillCastContext sc)
+                {
+                    req = new SkillCastRequest(
+                        skillId: sc.SkillId,
+                        skillSlot: sc.SkillSlot,
+                        casterActorId: sc.CasterActorId,
+                        targetActorId: sc.TargetActorId,
+                        aimPos: in sc.AimPos,
+                        aimDir: in sc.AimDir,
+                        worldServices: sc.WorldServices,
+                        eventBus: sc.EventBus,
+                        casterUnit: sc.CasterUnit,
+                        targetUnit: sc.TargetUnit);
+                }
+                else
+                {
+                    req = default;
+                }
+
+                if (req.SkillId != 0)
+                {
+                    var skillCtx = new SkillPipelineContext();
+                    skillCtx.Initialize(abilityInstance: null, in req);
+                    ctx = skillCtx;
+                }
             }
 
             if (ctx == null)
             {
-                Log.Warning($"[Trigger] effect_execute requires payload IAbilityPipelineContext or SkillCastRequest, got: {context?.Event.Payload?.GetType().FullName ?? "null"}");
+                Log.Warning($"[Trigger] effect_execute requires payload IAbilityPipelineContext / SkillCastRequest / SkillCastContext, got: {context?.Event.Payload?.GetType().FullName ?? "null"}");
                 return;
             }
 

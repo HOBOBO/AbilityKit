@@ -53,7 +53,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                     source: unit,
                     target: unit,
                     targetUnit: unit,
-                    eventBus: _eventBus
+                    eventBus: _eventBus,
+                    sourceContextId: 0
                 );
 
                 unit.Effects.Step(in ctx);

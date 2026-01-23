@@ -268,6 +268,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
 
                     args[ProjectileTriggering.Args.ProjectileId] = evt.Projectile.Value;
                     args[ProjectileTriggering.Args.OwnerId] = evt.OwnerId;
+                    args[ProjectileTriggering.Args.TemplateId] = evt.TemplateId;
+                    args[ProjectileTriggering.Args.LauncherActorId] = evt.LauncherActorId;
+                    args[ProjectileTriggering.Args.RootActorId] = evt.RootActorId;
                     args[ProjectileTriggering.Args.Frame] = evt.Frame;
 
                     args[ProjectileTriggering.Args.HitCollider] = evt.HitCollider;
@@ -277,10 +280,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
 
                     args[ProjectileTriggering.Args.HitCount] = evt.HitCount;
 
-                    // Provide templateId for downstream gameplay rules.
-                    args["projectile.templateId"] = evt.TemplateId;
-
-                    _eventBus.Publish(new TriggerEvent(ProjectileTriggering.Events.Hit, payload: null, args: args));
+                    _eventBus.Publish(new TriggerEvent(ProjectileTriggering.Events.Hit, payload: evt, args: args));
                 }
 
                 // Active trigger execution from projectile config (OnHitEffectId is a triggerId).
@@ -300,6 +300,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
 
                             args2[ProjectileTriggering.Args.ProjectileId] = evt.Projectile.Value;
                             args2[ProjectileTriggering.Args.OwnerId] = evt.OwnerId;
+                            args2[ProjectileTriggering.Args.TemplateId] = evt.TemplateId;
+                            args2[ProjectileTriggering.Args.LauncherActorId] = evt.LauncherActorId;
+                            args2[ProjectileTriggering.Args.RootActorId] = evt.RootActorId;
                             args2[ProjectileTriggering.Args.Frame] = evt.Frame;
 
                             args2[ProjectileTriggering.Args.HitCollider] = evt.HitCollider;
@@ -307,10 +310,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                             args2[ProjectileTriggering.Args.HitPoint] = evt.Point;
                             args2[ProjectileTriggering.Args.HitNormal] = evt.Normal;
                             args2[ProjectileTriggering.Args.HitCount] = evt.HitCount;
-                            args2["projectile.templateId"] = evt.TemplateId;
                             args2["trigger.id"] = triggerId;
 
-                            _effects.ExecuteTriggerId(triggerId, source: evt.OwnerId, target: hitActorId, payload: null, args: args2);
+                            _effects.ExecuteTriggerId(triggerId, source: evt.OwnerId, target: hitActorId, payload: evt, args: args2);
                             args2.Dispose();
                         }
                     }

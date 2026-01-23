@@ -1,7 +1,9 @@
 using System;
 using AbilityKit.Ability;
 using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.Services;
@@ -37,13 +39,37 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             static void FillArgs(PooledTriggerArgs args, int effectId2, IAbilityPipelineContext ctx)
             {
-                args[MobaSkillTriggering.Args.SkillId] = ctx.GetSkillId();
+                var skillId = ctx.GetSkillId();
+                var casterActorId = ctx.GetCasterActorId();
+                var targetActorId = ctx.GetTargetActorId();
+
+                args[MobaSkillTriggering.Args.SkillId] = skillId;
                 args[MobaSkillTriggering.Args.SkillSlot] = ctx.GetSkillSlot();
-                args[MobaSkillTriggering.Args.CasterActorId] = ctx.GetCasterActorId();
-                args[MobaSkillTriggering.Args.TargetActorId] = ctx.GetTargetActorId();
+                args[MobaSkillTriggering.Args.CasterActorId] = casterActorId;
+                args[MobaSkillTriggering.Args.TargetActorId] = targetActorId;
                 args[MobaSkillTriggering.Args.AimPos] = ctx.GetAimPos();
                 args[MobaSkillTriggering.Args.AimDir] = ctx.GetAimDir();
                 args["effect.id"] = effectId2;
+
+                args[EffectTriggering.Args.Source] = casterActorId;
+                args[EffectTriggering.Args.Target] = targetActorId;
+
+                var sourceContextId = 0L;
+                try { sourceContextId = ctx.GetData<long>(MobaSkillPipelineSharedKeys.SourceContextId); }
+                catch { sourceContextId = 0; }
+
+                if (sourceContextId != 0)
+                {
+                    args[EffectSourceKeys.SourceContextId] = sourceContextId;
+                    args[EffectTriggering.Args.OriginSource] = casterActorId;
+                    args[EffectTriggering.Args.OriginTarget] = targetActorId;
+                    args[EffectTriggering.Args.OriginContextId] = sourceContextId;
+                    if (skillId > 0)
+                    {
+                        args[EffectTriggering.Args.OriginKind] = EffectSourceKind.SkillCast;
+                        args[EffectTriggering.Args.OriginConfigId] = skillId;
+                    }
+                }
             }
 
             if (needInternal)

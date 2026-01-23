@@ -263,6 +263,54 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
     }
 
     [Serializable]
+    public sealed class SpawnSummonActionTemplateDTO
+    {
+        public int Id;
+        public string Name;
+
+        public int SummonId;
+
+        public int TargetMode;
+        public int PositionMode;
+        public int RotationMode;
+        public int OwnerKeyMode;
+
+        public int PatternMode;
+        public int PatternCount;
+        public float Spacing;
+        public float Radius;
+        public float StartAngleDeg;
+        public float ArcAngleDeg;
+        public float YawOffsetDeg;
+
+        public int RandomSeed;
+        public float RandomRadiusMin;
+        public float RandomRadiusMax;
+
+        public int GridRows;
+        public int GridCols;
+        public float GridSpacingX;
+        public float GridSpacingZ;
+
+        public int PerPointRotationMode;
+        public float PerPointYawOffsetDeg;
+
+        public int IntervalMs;
+        public int DurationMs;
+        public int TotalCount;
+
+        public string CasterKey;
+        public string TargetKey;
+        public int QueryTemplateId;
+
+        public string AimPosKey;
+        public string FixedPosKey;
+        public float FixedPosFallbackX;
+        public float FixedPosFallbackY;
+        public float FixedPosFallbackZ;
+    }
+
+    [Serializable]
     public sealed class ComponentTemplateDTO
     {
         public int Id;
@@ -309,5 +357,33 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public int Id;
         public string Resource;
         public int DurationMs;
+    }
+
+    [Serializable]
+    public sealed class PresentationTemplateDTO
+    {
+        public int Id;
+        public string Name;
+
+        public int Kind;
+        public int AssetId;
+        public int DefaultDurationMs;
+
+        public int AttachMode;
+        public string Socket;
+        public bool Follow;
+
+        public int StackPolicy;
+        public int StopPolicy;
+
+        public float Scale;
+        public float ColorR;
+        public float ColorG;
+        public float ColorB;
+        public float ColorA;
+        public float Radius;
+        public float OffsetX;
+        public float OffsetY;
+        public float OffsetZ;
     }
 }

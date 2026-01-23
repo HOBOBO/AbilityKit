@@ -57,6 +57,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public bool TrySummon(int casterActorId, int summonId, in Vec3 pos)
         {
+            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: false, forward: default);
+        }
+
+        public bool TrySummon(int casterActorId, int summonId, in Vec3 pos, in Vec3 forward)
+        {
+            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: true, forward: in forward);
+        }
+
+        private bool TrySummonInternal(int casterActorId, int summonId, in Vec3 pos, bool hasForward, in Vec3 forward)
+        {
             if (casterActorId <= 0) return false;
             if (summonId <= 0) return false;
             if (_actorIds == null || _registry == null || _entities == null) return false;
@@ -70,7 +80,17 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             }
 
             var spawnPos = pos.SqrMagnitude > 0f ? pos : caster.transform.Value.Position;
+
             var rot = caster.transform.Value.Rotation;
+            if (hasForward)
+            {
+                var f = new Vec3(forward.X, 0f, forward.Z);
+                if (f.SqrMagnitude > 0.0001f)
+                {
+                    rot = Quat.LookRotation(f, Vec3.Up);
+                }
+            }
+
             var t = new Transform3(spawnPos, rot, Vec3.One);
 
             var actorId = _actorIds.Next();

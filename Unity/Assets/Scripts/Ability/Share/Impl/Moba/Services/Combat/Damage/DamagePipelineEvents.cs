@@ -1,6 +1,6 @@
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public static class DamagePipelineEvents_Obsolete
+    public static class DamagePipelineEvents
     {
         public const string AttackCreated = "damage.attack.created";
         public const string BeforeCalc = "damage.attack.before_calc";

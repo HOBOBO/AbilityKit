@@ -154,3 +154,179 @@ source/target
 origin.*（来自 payload/attack 上携带的 origin，或从上游传入）
 Rule 4：origin.kind 类型统一为 enum
 origin.kind 必须统一使用 EffectSourceKind（enum），禁止使用字符串，避免跨模块不一致与比较成本。
+
+目标
+任意 TriggerEvent 链式触发（skill -> effect -> damage -> buff -> projectile -> …），都能追溯到同一个 origin.contextId。
+contextId 是对外统一语义；rootId 仅为溯源模块内部概念（“无父即根”），不要写入 origin.contextId。
+术语与字段
+source/target（当前事件参与者）
+EffectTriggering.Args.Source
+EffectTriggering.Args.Target
+origin（溯源信息，链式传播）
+EffectTriggering.Args.OriginSource
+EffectTriggering.Args.OriginTarget
+EffectTriggering.Args.OriginKind（EffectSourceKind）
+EffectTriggering.Args.OriginConfigId（skillId / effectId / buffId …）
+EffectTriggering.Args.OriginContextId（contextId）
+sourceContextId（溯源上下文句柄）
+EffectSourceKeys.SourceContextId（long）
+这是溯源系统的 key，用于从 EffectSourceRegistry 反查 origin.*
+根事件发布（Root Publish）必须满足
+当你在系统里“首次产生一条链路事件”（比如玩家施法、被动技能触发、系统触发等）：
+
+必须设置：
+source/target
+origin.source/origin.target
+origin.kind/configId/contextId
+effect.sourceContextId（即 EffectSourceKeys.SourceContextId）
+origin.contextId 必须等于当前链路的 contextId（通常就是 sourceContextId）。
+中继/转发事件（Relay Publish）必须满足
+当你是在一个事件处理过程中再次发布新事件（例如 effect.execute -> effect.apply 这种转发）：
+
+必须使用 PublishInherited(bus, eventId, payload, parentArgs, fillArgs) 来继承 origin.*
+严禁在中继发布时无条件覆盖 origin.*
+允许补默认值：仅在 key 不存在时设置
+允许补充新字段：例如额外的 effect.id、buff.stage 等
+中继发布的判断经验
+出现下列模式之一，基本属于中继发布：
+
+handler/subscriber 里读取 evt.Args/evt.Payload 后再次 bus.Publish(new TriggerEvent(...))
+把 evt.Args copy 到新 args 再发
+“按某个 id 派生新事件 id” 再发（例如 xxx.byId(effectId)）
+规则：这种情况优先改为 PublishInherited。
+
+Origin 填充的统一实现
+统一使用 EffectOriginArgsHelper（集中封装）：
+EffectOriginArgsHelper.FillFromRegistry(args, sourceContextId, registry)
+EffectOriginArgsHelper.FillFromServices(args, sourceContextId, services)
+它负责：
+从 EffectSourceRegistry 填 origin.source/origin.target
+从 snapshot 填 origin.kind/configId/contextId（contextId，不是 rootId）
+语义约束（必须遵守）
+origin.contextId 永远写 contextId（snapshot.ContextId / sourceContextId）
+rootId 只在溯源系统内部维护/使用，不向外暴露为 origin.contextId
+
+目标与架构原则
+模块化 TriggerAction：复杂行为（召唤、伤害、表现）统一采用 Spec / Parser / Resolver / Action / Factory / (Builder) 的结构拆分，避免在单个 Action 里堆逻辑。
+配置与运行时解耦：
+Share/Editor 层不得依赖 Impl 层枚举/类型（避免跨层引用）。
+Share/Editor 需要枚举下拉时，使用 Share 层枚举（数值与 Impl 保持一致）。
+模板化配置优先：复杂参数用 templateId + overrides(args)，把“默认值/静态配置”放模板表，把“动态值/每次触发变化”放 args。
+目标选择统一：伤害与表现统一采用“Option1：统一 TargetMode + 可选 queryTemplateId + 可选显式 target + 支持从 payload/vars 取目标”的思路，减少重复实现。
+事件驱动表现：
+持续表现：走 Buff/Effect 的 IGameplayEffectCue 生命周期。
+瞬时表现：走 TriggerAction 发布 presentation.play / presentation.stop 事件，表现层订阅处理。
+召唤（Spawn Summon）规则
+SpawnSummon 运行时必须通过 Resolver 解析最终 Spec：
+从 spawn_summon_action_templates 读模板 DTO/MO。
+使用 Trigger args 对模板字段做覆盖（overrides）。
+Action 只负责执行（不负责解析复杂参数）。
+TriggerStrong 侧只存 Share 层枚举/数值：
+运行时 ActionDef.args key 必须保持兼容（老配置不破）。
+配表导出必须存在：
+Assets/Resources/moba/spawn_summon_action_templates.json 必须可被 MobaConfigDatabase.LoadFromResources("moba") 加载。
+ScriptableObject 表资产使用 MobaConfigTableAssetSO 子类接入统一导出器。
+伤害（Damage）规则（结构要求）
+Damage 行为同样遵循 Spec/Parser/Resolver：
+GiveDamageAction / TakeDamageAction 不直接硬编码一堆目标/公式解析逻辑。
+目标选择抽到 DamageTargetSelection（或等价模块）并支持从：
+context Source/Target
+显式 target
+queryTemplateId 查询
+payload/vars
+伤害数值计算：Resolver 负责读取公式/参数并产出最终数值，Action 负责调用服务应用伤害。
+表现模板（Presentation Template）规则
+表现模板表：presentation_templates
+只存“静态默认值”：资源 id、默认时长、附着方式、stack/stop policy、默认颜色/scale/offset 等。
+Trigger 驱动表现（play_presentation）：
+args 最少需要：templateId，可选：targetMode、queryTemplateId、requestKey、durationMs、posKey/pos 以及动态覆盖参数（scale/radius/color 等）。
+如果 stop=true：发布 presentation.stop，否则发布 presentation.play。
+事件契约：
+EventId：presentation.play / presentation.stop
+args 必须携带：templateId、targets（actorId list）或 positions（vec3 list）等能驱动表现的字段。
+requestKey 用于 stop/replace 定位（表现层自行实现策略）。
+MobaConfigDatabase / Registry 规则
+新增表必须同步做三件事：
+MobaConfigPaths 增加 File 常量
+MobaRuntimeConfigTableRegistry 注册 DTO/MO
+Resources 下补齐 {file}.json（或确保导出流程生成）
+Editor 导出统一走：
+MobaConfigJsonExporter（菜单 + Inspector 按钮）
+MobaConfigTableAssetSO + IMobaConfigTableAsset 自动发现
+
+Skill: 新增一个“模板化 TriggerAction”（以 SpawnSummon / PlayPresentation 为范式）
+输入：
+TriggerAction type string
+Share 层 TriggerStrong RuntimeConfig + EditorConfig 字段
+Impl 层 Action + Factory +（Parser/Resolver 如需）
+MobaConfig 表（可选）
+输出：
+TriggerStrong 可编辑、可编译为 ActionDef
+运行时 Action 通过 Factory 注册并可执行
+如用模板表：Resources 可加载、Editor 可导出
+步骤规范
+定义 TriggerActionTypes 常量
+在 TriggerActionTypes 增加 type 字符串常量（例如 play_presentation）。
+TriggerStrong：RuntimeConfig
+新增 *ActionConfig : ActionRuntimeConfigBase
+Type => TriggerActionTypes.*
+ToActionDef() 写入 args（key 命名稳定，兼容老配置）
+TriggerStrong：EditorConfig
+新增 *ActionEditorConfig : ActionEditorConfigBase
+用 [TriggerActionType(...)] 注册 Odin 菜单
+ToRuntimeStrong() 产出 runtime config
+Impl：Factory
+在 Create(type)/注册表中注册新 Action
+Impl：Action
+不做复杂解析：只做执行与事件/服务调用
+复杂参数交给 Resolver/Selection
+如果涉及模板表
+DTO/MO + Registry + Resources json + Editor 导出 SO 全链路补齐（见下面 skills）。
+Skill: 新增一个 Moba 配表（DTO/MO + Registry + Resources + 导出 SO）
+目标：新增表能被 MobaConfigDatabase.LoadFromResources("moba") 加载，且能在 Unity 编辑器里一键导出 json。
+步骤
+DTO
+在 MobaCoreDtos.cs 新增 XXXDTO，必须包含 int Id。
+MO
+新增 XXXMO，构造函数接收 XXXDTO，把字段映射为只读属性。
+Paths
+在 MobaConfigPaths.cs 增加 XXXFile 常量（不带 .json）。
+Registry
+在 MobaRuntimeConfigTableRegistry.cs 注册：
+new Entry(MobaConfigPaths.XXXFile, typeof(XXXDTO), typeof(MO.XXXMO))
+Resources
+在 Assets/Resources/moba/ 增加 xxx.json（至少放一个占位 entry，避免缺表崩溃）。
+Editor 导出 SO
+新增 XXXSO : MobaConfigTableAssetSO
+包含 public XXXDTO[] dataList;
+FileWithoutExt => MobaConfigPaths.XXXFile
+EntryType => typeof(XXXDTO)
+GetEntries() => dataList
+导出方式
+选中 SO，在 Inspector 点 Export Config Json（或菜单 AbilityKit/Moba/Export Config Json）
+Skill: Trigger 驱动表现（play_presentation）
+输入 args 约定：
+templateId (int, 必填)
+targetMode (int enum, 默认 Target)
+queryTemplateId (int, 可选)
+target (object, 可选显式目标)
+requestKey (string, 可选，用于 stop/replace)
+durationMs (int, 可选覆盖)
+posKey (string) / pos (vec3)（可选，用于位置表现）
+stop (bool, 可选；true=stop)
+动态覆盖：scale/radius/color...
+行为：
+解析目标集合（actorIds 或 positions）
+发布事件：
+presentation.play 或 presentation.stop
+表现层订阅事件并实例化/停止实际表现资源
+Skill: 召唤模板化（spawn_summon_action_templates）
+配置结构：
+TriggerStrong action 只提供：templateId + overrides（例如目标/位置模式等）
+Resolver 负责：
+从 MobaConfigDatabase 取模板 DTO/MO
+用 args 覆盖字段
+产出最终 SpawnSummonSpec
+配表生产：
+Unity SO：SpawnSummonActionTemplateSO
+导出：spawn_summon_action_templates.json 到 Assets/Resources/moba/

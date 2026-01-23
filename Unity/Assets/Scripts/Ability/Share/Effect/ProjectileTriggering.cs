@@ -14,6 +14,9 @@ namespace AbilityKit.Ability.Share.Effect
         {
             public const string ProjectileId = "projectile.id";
             public const string OwnerId = "projectile.ownerId";
+            public const string TemplateId = "projectile.templateId";
+            public const string LauncherActorId = "projectile.launcherActorId";
+            public const string RootActorId = "projectile.rootActorId";
             public const string Frame = "projectile.frame";
 
             public const string HitCollider = "projectile.hit.collider";

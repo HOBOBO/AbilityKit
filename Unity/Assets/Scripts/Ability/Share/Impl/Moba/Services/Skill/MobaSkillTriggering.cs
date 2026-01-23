@@ -23,6 +23,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         {
             public const string SkillId = MobaSkillTriggerArgs.SkillId;
             public const string SkillSlot = MobaSkillTriggerArgs.SkillSlot;
+            public const string SkillLevel = MobaSkillTriggerArgs.SkillLevel;
             public const string CasterActorId = MobaSkillTriggerArgs.CasterActorId;
             public const string TargetActorId = MobaSkillTriggerArgs.TargetActorId;
             public const string AimPos = MobaSkillTriggerArgs.AimPos;
@@ -36,26 +37,40 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (bus == null) return;
             if (string.IsNullOrEmpty(eventId)) return;
 
+            // Compatibility: request does not carry runtime level, so default to 0.
+            // Canonical payload for skill events is SkillCastContext.
+            var ctx = SkillCastContext.FromRequest(in req, skillLevel: 0);
+            Publish(bus, eventId, ctx, failReason);
+        }
+
+        public static void Publish(IEventBus bus, string eventId, SkillCastContext ctx, string failReason = null)
+        {
+            if (bus == null) return;
+            if (string.IsNullOrEmpty(eventId)) return;
+            if (ctx == null) return;
+
             var args = PooledTriggerArgs.Rent();
-            args[EffectTriggering.Args.Source] = req.CasterActorId;
-            args[EffectTriggering.Args.Target] = req.TargetActorId;
-            args[EffectTriggering.Args.OriginSource] = req.CasterActorId;
-            args[EffectTriggering.Args.OriginTarget] = req.TargetActorId;
+            args[EffectTriggering.Args.Source] = ctx.CasterActorId;
+            args[EffectTriggering.Args.Target] = ctx.TargetActorId;
+            args[EffectTriggering.Args.OriginSource] = ctx.CasterActorId;
+            args[EffectTriggering.Args.OriginTarget] = ctx.TargetActorId;
             args[EffectTriggering.Args.OriginKind] = EffectSourceKind.SkillCast;
-            args[EffectTriggering.Args.OriginConfigId] = req.SkillId;
-            args[Args.SkillId] = req.SkillId;
-            args[Args.SkillSlot] = req.SkillSlot;
-            args[Args.CasterActorId] = req.CasterActorId;
-            args[Args.TargetActorId] = req.TargetActorId;
-            args[Args.AimPos] = req.AimPos;
-            args[Args.AimDir] = req.AimDir;
+            args[EffectTriggering.Args.OriginConfigId] = ctx.SkillId;
+            args[EffectTriggering.Args.OriginContextId] = ctx.SourceContextId;
+            args[Args.SkillId] = ctx.SkillId;
+            args[Args.SkillSlot] = ctx.SkillSlot;
+            args[Args.CasterActorId] = ctx.CasterActorId;
+            args[Args.TargetActorId] = ctx.TargetActorId;
+            args[Args.AimPos] = ctx.AimPos;
+            args[Args.AimDir] = ctx.AimDir;
+            args[MobaSkillTriggerArgs.SkillLevel] = ctx.SkillLevel;
 
             if (!string.IsNullOrEmpty(failReason))
             {
                 args[Args.FailReason] = failReason;
             }
 
-            bus.Publish(new TriggerEvent(eventId, payload: req, args: args));
+            bus.Publish(new TriggerEvent(eventId, payload: ctx, args: args));
         }
     }
 }

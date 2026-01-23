@@ -206,7 +206,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                     if (listener.SourceContextId != 0)
                     {
                         args[EffectSourceKeys.SourceContextId] = listener.SourceContextId;
+
+                        EffectOriginArgsHelper.FillFromRegistry(args, listener.SourceContextId, _effectSource);
                     }
+
+                    if (!args.ContainsKey(EffectTriggering.Args.OriginSource)) args[EffectTriggering.Args.OriginSource] = selfId;
+                    if (!args.ContainsKey(EffectTriggering.Args.OriginTarget)) args[EffectTriggering.Args.OriginTarget] = selfId;
 
                     var triggered = false;
                     for (int i = 0; i < entries.Count; i++)
@@ -590,6 +595,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
             private static bool TryGetEventSourceActorId(in TriggerEvent evt, out int actorId)
             {
                 actorId = 0;
+
+                if (evt.Payload is SkillCastContext sc)
+                {
+                    actorId = sc.CasterActorId;
+                    return actorId != 0;
+                }
 
                 if (evt.Payload is SkillCastRequest req)
                 {

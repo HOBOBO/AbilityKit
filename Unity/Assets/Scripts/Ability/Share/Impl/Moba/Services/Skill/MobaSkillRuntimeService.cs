@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Common.TagSystem;
 using AbilityKit.Ability.Share.ECS;
-using AbilityKit.Ability.Share.ECS.Entitas;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Share.Effect.Components;
 using AbilityKit.Ability.Share.Math;
-using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.Triggering;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -88,6 +89,41 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 [TriggerArgs.AimDir] = aimDir,
             };
 
+            var frame = 0;
+            try { frame = _time != null ? _time.Frame.Value : 0; }
+            catch { frame = 0; }
+
+            var sourceContextId = 0L;
+            try
+            {
+                var effectSource = _services != null ? _services.Resolve<EffectSourceRegistry>() : null;
+                if (effectSource != null)
+                {
+                    sourceContextId = effectSource.CreateRoot(
+                        kind: EffectSourceKind.SkillCast,
+                        configId: skillId,
+                        sourceActorId: actorId,
+                        targetActorId: actorId,
+                        frame: frame,
+                        originSource: actorId,
+                        originTarget: actorId);
+                }
+            }
+            catch
+            {
+                sourceContextId = 0;
+            }
+
+            if (sourceContextId != 0)
+            {
+                args[EffectSourceKeys.SourceContextId] = sourceContextId;
+                args[EffectTriggering.Args.OriginSource] = actorId;
+                args[EffectTriggering.Args.OriginTarget] = actorId;
+                args[EffectTriggering.Args.OriginKind] = EffectSourceKind.SkillCast;
+                args[EffectTriggering.Args.OriginConfigId] = skillId;
+                args[EffectTriggering.Args.OriginContextId] = sourceContextId;
+            }
+
             var spec = new GameplayEffectSpec(
                 durationPolicy: EffectDurationPolicy.Duration,
                 durationSeconds: 0.8f,
@@ -108,7 +144,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 source: unit,
                 target: unit,
                 targetUnit: unit,
-                eventBus: _eventBus
+                eventBus: _eventBus,
+                sourceContextId: sourceContextId
             );
 
             unit.Effects.Apply(spec, in ctx);

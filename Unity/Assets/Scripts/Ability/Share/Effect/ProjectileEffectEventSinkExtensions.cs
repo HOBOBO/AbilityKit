@@ -11,11 +11,14 @@ namespace AbilityKit.Ability.Share.Effect
 
             var projectileId = evt.Projectile.Value;
             var ownerId = evt.OwnerId;
+            var templateId = evt.TemplateId;
+            var launcherActorId = evt.LauncherActorId;
+            var rootActorId = evt.RootActorId;
             var frame = evt.Frame;
             var position = evt.Position;
             var direction = evt.Direction;
 
-            sink.Publish(ProjectileTriggering.Events.Spawn, payload: null, fillArgs: args =>
+            sink.Publish(ProjectileTriggering.Events.Spawn, payload: evt, fillArgs: args =>
             {
                 args[EffectTriggering.Args.Source] = source;
                 args[EffectTriggering.Args.Target] = target;
@@ -24,6 +27,9 @@ namespace AbilityKit.Ability.Share.Effect
 
                 args[ProjectileTriggering.Args.ProjectileId] = projectileId;
                 args[ProjectileTriggering.Args.OwnerId] = ownerId;
+                args[ProjectileTriggering.Args.TemplateId] = templateId;
+                args[ProjectileTriggering.Args.LauncherActorId] = launcherActorId;
+                args[ProjectileTriggering.Args.RootActorId] = rootActorId;
                 args[ProjectileTriggering.Args.Frame] = frame;
                 args[ProjectileTriggering.Args.SpawnPosition] = position;
                 args[ProjectileTriggering.Args.SpawnDirection] = direction;
@@ -36,10 +42,13 @@ namespace AbilityKit.Ability.Share.Effect
 
             var projectileId = evt.Projectile.Value;
             var ownerId = evt.OwnerId;
+            var templateId = evt.TemplateId;
+            var launcherActorId = evt.LauncherActorId;
+            var rootActorId = evt.RootActorId;
             var frame = evt.Frame;
             var position = evt.Position;
 
-            sink.Publish(ProjectileTriggering.Events.Tick, payload: null, fillArgs: args =>
+            sink.Publish(ProjectileTriggering.Events.Tick, payload: evt, fillArgs: args =>
             {
                 args[EffectTriggering.Args.Source] = source;
                 args[EffectTriggering.Args.Target] = target;
@@ -48,6 +57,9 @@ namespace AbilityKit.Ability.Share.Effect
 
                 args[ProjectileTriggering.Args.ProjectileId] = projectileId;
                 args[ProjectileTriggering.Args.OwnerId] = ownerId;
+                args[ProjectileTriggering.Args.TemplateId] = templateId;
+                args[ProjectileTriggering.Args.LauncherActorId] = launcherActorId;
+                args[ProjectileTriggering.Args.RootActorId] = rootActorId;
                 args[ProjectileTriggering.Args.Frame] = frame;
                 args[ProjectileTriggering.Args.TickPosition] = position;
             });
@@ -59,6 +71,9 @@ namespace AbilityKit.Ability.Share.Effect
 
             var projectileId = evt.Projectile.Value;
             var ownerId = evt.OwnerId;
+            var templateId = evt.TemplateId;
+            var launcherActorId = evt.LauncherActorId;
+            var rootActorId = evt.RootActorId;
             var frame = evt.Frame;
 
             var hitCollider = evt.HitCollider;
@@ -69,7 +84,7 @@ namespace AbilityKit.Ability.Share.Effect
             var hitCount = evt.HitCount;
             var hitDecayRate = hitCount <= 1 ? 1f : (float)System.Math.Pow(0.8d, hitCount - 1);
 
-            sink.Publish(ProjectileTriggering.Events.Hit, payload: null, fillArgs: args =>
+            sink.Publish(ProjectileTriggering.Events.Hit, payload: evt, fillArgs: args =>
             {
                 args[EffectTriggering.Args.Source] = source;
                 args[EffectTriggering.Args.Target] = target;
@@ -78,6 +93,9 @@ namespace AbilityKit.Ability.Share.Effect
 
                 args[ProjectileTriggering.Args.ProjectileId] = projectileId;
                 args[ProjectileTriggering.Args.OwnerId] = ownerId;
+                args[ProjectileTriggering.Args.TemplateId] = templateId;
+                args[ProjectileTriggering.Args.LauncherActorId] = launcherActorId;
+                args[ProjectileTriggering.Args.RootActorId] = rootActorId;
                 args[ProjectileTriggering.Args.Frame] = frame;
 
                 args[ProjectileTriggering.Args.HitCollider] = hitCollider;
@@ -96,11 +114,14 @@ namespace AbilityKit.Ability.Share.Effect
 
             var projectileId = evt.Projectile.Value;
             var ownerId = evt.OwnerId;
+            var templateId = evt.TemplateId;
+            var launcherActorId = evt.LauncherActorId;
+            var rootActorId = evt.RootActorId;
             var frame = evt.Frame;
             var pos = evt.Position;
             var reason = (int)evt.Reason;
 
-            sink.Publish(ProjectileTriggering.Events.Exit, payload: null, fillArgs: args =>
+            sink.Publish(ProjectileTriggering.Events.Exit, payload: evt, fillArgs: args =>
             {
                 args[EffectTriggering.Args.Source] = source;
                 args[EffectTriggering.Args.Target] = target;
@@ -109,6 +130,9 @@ namespace AbilityKit.Ability.Share.Effect
 
                 args[ProjectileTriggering.Args.ProjectileId] = projectileId;
                 args[ProjectileTriggering.Args.OwnerId] = ownerId;
+                args[ProjectileTriggering.Args.TemplateId] = templateId;
+                args[ProjectileTriggering.Args.LauncherActorId] = launcherActorId;
+                args[ProjectileTriggering.Args.RootActorId] = rootActorId;
                 args[ProjectileTriggering.Args.Frame] = frame;
 
                 args[ProjectileTriggering.Args.ExitReason] = reason;

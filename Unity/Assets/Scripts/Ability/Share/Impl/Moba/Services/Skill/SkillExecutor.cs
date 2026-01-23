@@ -6,8 +6,10 @@ using AbilityKit.Ability.Share.ECS.Entitas;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Ability.Impl.Moba;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -154,8 +156,45 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 targetUnit: caster
             );
 
+            var skillLevel = 0;
+            if (_actors != null && _actors.TryGetActorEntity(actorId, out var ae) && ae != null && ae.hasSkillLoadout)
+            {
+                var skills = ae.skillLoadout.ActiveSkills;
+                var idx = slot - 1;
+                if (skills != null && idx >= 0 && idx < skills.Length)
+                {
+                    var rt = skills[idx];
+                    if (rt != null && rt.SkillId == skillId) skillLevel = rt.Level;
+                }
+            }
+            var ctx = SkillCastContext.FromRequest(in req, skillLevel);
+
+            try
+            {
+                var frame = 0;
+                try { frame = _time != null ? _time.Frame.Value : 0; }
+                catch { frame = 0; }
+
+                var effectSource = _services != null ? _services.Resolve<EffectSourceRegistry>() : null;
+                if (effectSource != null)
+                {
+                    ctx.SourceContextId = effectSource.CreateRoot(
+                        kind: EffectSourceKind.SkillCast,
+                        configId: skillId,
+                        sourceActorId: actorId,
+                        targetActorId: actorId,
+                        frame: frame,
+                        originSource: actorId,
+                        originTarget: actorId);
+                }
+            }
+            catch
+            {
+                ctx.SourceContextId = 0;
+            }
+
             var runner = GetOrCreateRunner(actorId);
-            return runner.Start(preConfig, prePhases, castConfig, castPhases, abilityInstance: this, in req, out failReason, allowParallel: AllowParallel, interruptRunning: InterruptRunning);
+            return runner.Start(preConfig, prePhases, castConfig, castPhases, abilityInstance: this, in req, ctx, out failReason, allowParallel: AllowParallel, interruptRunning: InterruptRunning);
         }
 
         public bool CastSkill(int actorId, int skillId, int slot, in Vec3 aimPos, in Vec3 aimDir, out string failReason)
@@ -204,8 +243,45 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 targetUnit: caster
             );
 
+            var skillLevel = 0;
+            if (_actors != null && _actors.TryGetActorEntity(actorId, out var ae) && ae != null && ae.hasSkillLoadout)
+            {
+                var skills = ae.skillLoadout.ActiveSkills;
+                var idx = slot - 1;
+                if (skills != null && idx >= 0 && idx < skills.Length)
+                {
+                    var rt = skills[idx];
+                    if (rt != null && rt.SkillId == skillId) skillLevel = rt.Level;
+                }
+            }
+            var ctx = SkillCastContext.FromRequest(in req, skillLevel);
+
+            try
+            {
+                var frame = 0;
+                try { frame = _time != null ? _time.Frame.Value : 0; }
+                catch { frame = 0; }
+
+                var effectSource = _services != null ? _services.Resolve<EffectSourceRegistry>() : null;
+                if (effectSource != null)
+                {
+                    ctx.SourceContextId = effectSource.CreateRoot(
+                        kind: EffectSourceKind.SkillCast,
+                        configId: skillId,
+                        sourceActorId: actorId,
+                        targetActorId: actorId,
+                        frame: frame,
+                        originSource: actorId,
+                        originTarget: actorId);
+                }
+            }
+            catch
+            {
+                ctx.SourceContextId = 0;
+            }
+
             var runner = GetOrCreateRunner(actorId);
-            return runner.Start(preConfig, prePhases, castConfig, castPhases, abilityInstance: this, in req, out failReason, allowParallel: AllowParallel, interruptRunning: InterruptRunning);
+            return runner.Start(preConfig, prePhases, castConfig, castPhases, abilityInstance: this, in req, ctx, out failReason, allowParallel: AllowParallel, interruptRunning: InterruptRunning);
         }
 
         public void CancelAll(int actorId)

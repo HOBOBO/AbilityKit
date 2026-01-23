@@ -52,11 +52,9 @@ namespace AbilityKit.Ability.Share.Common.Pool
 
         public PoolStats Stats => new PoolStats(_createdTotal, _getTotal, _releaseTotal, InactiveCount, ActiveCount);
 
-#if UNITY_EDITOR
         Type IObjectPoolDebug.ElementType => typeof(T);
         PoolStats IObjectPoolDebug.Stats => Stats;
         int IObjectPoolDebug.MaxSize => _maxSize;
-#endif
 
         internal void AppendOnGet(Action<T> onGet)
         {

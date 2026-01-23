@@ -12,6 +12,8 @@ namespace AbilityKit.Ability.Share.Effect
         public readonly IServiceProvider Services;
         public readonly IFrameTime Time;
 
+        public readonly long SourceContextId;
+
         public readonly object Source;
         public readonly object Target;
 
@@ -27,10 +29,12 @@ namespace AbilityKit.Ability.Share.Effect
             object source,
             object target,
             IUnitFacade targetUnit,
-            IEventBus eventBus)
+            IEventBus eventBus,
+            long sourceContextId = 0)
         {
             Services = services;
             Time = time;
+            SourceContextId = sourceContextId;
             Source = source;
             Target = target;
             TargetUnit = targetUnit ?? throw new ArgumentNullException(nameof(targetUnit));

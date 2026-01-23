@@ -8,6 +8,8 @@ using AbilityKit.Ability.Share.ECS.Entitas;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Share.Effect.Components;
 using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 
@@ -51,6 +53,43 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (!_units.TryResolve(new EcsEntityId(casterActorId), out var caster) || caster == null) return;
             if (!_units.TryResolve(new EcsEntityId(targetActorId), out var target) || target == null) return;
 
+            var frame = 0;
+            try { frame = _time != null ? _time.Frame.Value : 0; }
+            catch { frame = 0; }
+
+            var sourceContextId = 0L;
+            try
+            {
+                sourceContextId = context.GetData<long>(MobaSkillPipelineSharedKeys.SourceContextId);
+            }
+            catch
+            {
+                sourceContextId = 0;
+            }
+
+            try
+            {
+                var effectSource = _services != null ? _services.Resolve<EffectSourceRegistry>() : null;
+                if (effectSource != null)
+                {
+                    if (sourceContextId == 0)
+                    {
+                        sourceContextId = effectSource.CreateRoot(
+                            kind: EffectSourceKind.SkillCast,
+                            configId: skillId,
+                            sourceActorId: casterActorId,
+                            targetActorId: targetActorId,
+                            frame: frame,
+                            originSource: casterActorId,
+                            originTarget: targetActorId);
+                    }
+                }
+            }
+            catch
+            {
+                sourceContextId = 0;
+            }
+
             var args = new Dictionary<string, object>(6, StringComparer.Ordinal)
             {
                 [MobaSkillTriggerArgs.SkillId] = skillId,
@@ -60,6 +99,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 [MobaSkillTriggerArgs.AimPos] = aimPos,
                 [MobaSkillTriggerArgs.AimDir] = aimDir,
             };
+
+            if (sourceContextId != 0)
+            {
+                args[EffectSourceKeys.SourceContextId] = sourceContextId;
+                args[EffectTriggering.Args.OriginSource] = casterActorId;
+                args[EffectTriggering.Args.OriginTarget] = targetActorId;
+                args[EffectTriggering.Args.OriginKind] = EffectSourceKind.SkillCast;
+                args[EffectTriggering.Args.OriginConfigId] = skillId;
+                args[EffectTriggering.Args.OriginContextId] = sourceContextId;
+            }
 
             var spec = new GameplayEffectSpec(
                 durationPolicy: EffectDurationPolicy.Duration,
@@ -82,7 +131,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 source: caster,
                 target: target,
                 targetUnit: target,
-                eventBus: _eventBus
+                eventBus: _eventBus,
+                sourceContextId: sourceContextId
             );
 
             target.Effects.Apply(spec, in exec);

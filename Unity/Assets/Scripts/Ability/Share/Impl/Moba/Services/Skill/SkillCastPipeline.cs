@@ -14,6 +14,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             var ctx = new SkillPipelineContext();
             ctx.Initialize(abilityInstance, in req);
+
+            if (args.Length >= 2 && args[1] is SkillCastContext triggerCtx && triggerCtx != null)
+            {
+                ctx.SharedData[MobaSkillPipelineSharedKeys.SourceContextId] = triggerCtx.SourceContextId;
+            }
             return ctx;
         }
 

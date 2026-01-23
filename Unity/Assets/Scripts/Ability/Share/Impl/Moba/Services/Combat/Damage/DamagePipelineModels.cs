@@ -3,10 +3,17 @@ using AbilityKit.Ability.Impl.Moba;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class AttackInfo_Obsolete
+    public sealed class AttackInfo
     {
         public int AttackerActorId;
         public int TargetActorId;
+
+        public object OriginSource;
+        public object OriginTarget;
+
+        public EffectSourceKind OriginKind;
+        public int OriginConfigId;
+        public long OriginContextId;
 
         public DamageType DamageType;
         public CritType CritType;
@@ -14,6 +21,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public DamageReasonKind ReasonKind;
         public int ReasonParam;
 
+        public DamageFormulaKind FormulaKind;
         public string FormulaId;
 
         public readonly NumberValue BaseDamage;
@@ -21,7 +29,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public readonly NumberValue FlatBonus;
         public readonly NumberValue FinalDamage;
 
-        public AttackInfo_Obsolete()
+        public AttackInfo()
         {
             BaseDamage = new NumberValue(NumberValueMode.BaseAddMul);
             DamageRate = new NumberValue(NumberValueMode.BaseAddMul, baseValue: 1f);
@@ -30,16 +38,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         }
     }
 
-    public sealed class AttackCalcInfo_Obsolete
+    public sealed class AttackCalcInfo
     {
-        public AttackInfo_Obsolete Attack;
+        public AttackInfo Attack;
 
         public readonly NumberValue RawDamage;
         public readonly NumberValue MitigatedDamage;
         public readonly NumberValue ShieldAbsorb;
         public readonly NumberValue HpDamage;
 
-        public AttackCalcInfo_Obsolete(AttackInfo_Obsolete attack)
+        public AttackCalcInfo(AttackInfo attack)
         {
             Attack = attack;
             RawDamage = new NumberValue(NumberValueMode.BaseAddMul);
@@ -49,10 +57,17 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         }
     }
 
-    public sealed class DamageResult_Obsolete
+    public sealed class DamageResult
     {
         public int AttackerActorId;
         public int TargetActorId;
+
+        public object OriginSource;
+        public object OriginTarget;
+
+        public EffectSourceKind OriginKind;
+        public int OriginConfigId;
+        public long OriginContextId;
 
         public DamageType DamageType;
         public CritType CritType;

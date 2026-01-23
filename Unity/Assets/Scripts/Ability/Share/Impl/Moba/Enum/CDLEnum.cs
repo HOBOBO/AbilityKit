@@ -262,6 +262,18 @@ namespace AbilityKit.Ability.Impl.Moba
         System = 4,
     }
 
+    public enum DamageFormulaKind
+    {
+        None = 0,
+        Standard = 1,
+    }
+
+    public enum HealFormulaKind
+    {
+        None = 0,
+        Standard = 1,
+    }
+
     public enum CritType
     {
         None = 0,

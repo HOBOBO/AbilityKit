@@ -27,6 +27,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 
         public const string SearchQueryTemplatesFile = "search_query_templates";
 
+        public const string SpawnSummonActionTemplatesFile = "spawn_summon_action_templates";
+
+        public const string PresentationTemplatesFile = "presentation_templates";
+
         public const string OngoingEffectsFile = "ongoing_effects";
     }
 }

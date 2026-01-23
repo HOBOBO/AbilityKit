@@ -296,18 +296,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             {
                 args[EffectSourceKeys.SourceContextId] = runtime.SourceContextId;
 
-                if (effectSource != null && effectSource.TryGetOrigin(runtime.SourceContextId, out var os, out var ot))
-                {
-                    args[EffectTriggering.Args.OriginSource] = os;
-                    args[EffectTriggering.Args.OriginTarget] = ot;
-                }
-
-                if (effectSource != null && effectSource.TryGetSnapshot(runtime.SourceContextId, out var snap))
-                {
-                    args[EffectTriggering.Args.OriginKind] = snap.Kind;
-                    args[EffectTriggering.Args.OriginConfigId] = snap.ConfigId;
-                    args[EffectTriggering.Args.OriginContextId] = snap.RootId;
-                }
+                EffectOriginArgsHelper.FillFromRegistry(args, runtime.SourceContextId, effectSource);
             }
 
             bus.Publish(new TriggerEvent(eventId, payload: runtime, args: args));
@@ -334,18 +323,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                 {
                     args[EffectSourceKeys.SourceContextId] = runtime.SourceContextId;
 
-                    if (effectSource != null && effectSource.TryGetOrigin(runtime.SourceContextId, out var os, out var ot))
-                    {
-                        args[EffectTriggering.Args.OriginSource] = os;
-                        args[EffectTriggering.Args.OriginTarget] = ot;
-                    }
-
-                    if (effectSource != null && effectSource.TryGetSnapshot(runtime.SourceContextId, out var snap))
-                    {
-                        args[EffectTriggering.Args.OriginKind] = snap.Kind;
-                        args[EffectTriggering.Args.OriginConfigId] = snap.ConfigId;
-                        args[EffectTriggering.Args.OriginContextId] = snap.RootId;
-                    }
+                    EffectOriginArgsHelper.FillFromRegistry(args, runtime.SourceContextId, effectSource);
                 }
             }
 

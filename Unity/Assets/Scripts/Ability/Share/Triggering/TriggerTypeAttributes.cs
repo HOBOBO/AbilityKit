@@ -25,6 +25,8 @@ namespace AbilityKit.Ability.Triggering.Runtime
         public const string ShootProjectile = "shoot_projectile";
         public const string GiveDamage = "give_damage";
         public const string TakeDamage = "take_damage";
+        public const string SpawnSummon = "spawn_summon";
+        public const string PlayPresentation = "play_presentation";
     }
 
     public static class TriggerDefArgKeys

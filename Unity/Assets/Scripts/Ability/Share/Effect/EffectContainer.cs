@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Triggering;
 
 namespace AbilityKit.Ability.Share.Effect
@@ -24,6 +25,17 @@ namespace AbilityKit.Ability.Share.Effect
             }
 
             var inst = new EffectInstance(_nextId++, spec);
+
+            if (context.SourceContextId != 0)
+            {
+                try
+                {
+                    inst.SetState(EffectSourceKeys.SourceContextId, context.SourceContextId);
+                }
+                catch
+                {
+                }
+            }
 
             PublishDefaultEvent(context.EventBus, EffectTriggering.Events.Apply, in context, inst);
 
@@ -188,6 +200,26 @@ namespace AbilityKit.Ability.Share.Effect
             args[EffectTriggering.Args.StackCount] = instance != null ? instance.StackCount : 0;
             args[EffectTriggering.Args.ElapsedSeconds] = instance != null ? instance.ElapsedSeconds : 0f;
             args[EffectTriggering.Args.RemainingSeconds] = instance != null ? instance.RemainingSeconds : 0f;
+
+            long sourceContextId = context.SourceContextId;
+            if (sourceContextId == 0 && instance != null)
+            {
+                try
+                {
+                    if (instance.TryGetState<long>(EffectSourceKeys.SourceContextId, out var scidL)) sourceContextId = scidL;
+                    else if (instance.TryGetState<int>(EffectSourceKeys.SourceContextId, out var scidI)) sourceContextId = scidI;
+                }
+                catch
+                {
+                }
+            }
+
+            if (sourceContextId != 0)
+            {
+                args[EffectSourceKeys.SourceContextId] = sourceContextId;
+
+                EffectOriginArgsHelper.FillFromServices(args, sourceContextId, context.Services);
+            }
 
             bus.Publish(new TriggerEvent(eventId, instance, args));
         }
