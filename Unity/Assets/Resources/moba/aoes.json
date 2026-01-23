@@ -1,0 +1,19 @@
+[
+  {
+    "Id": 300001,
+    "Name": "TestAoeDelayBurst",
+    "ModelId": 10001,
+    "VfxId": 200001,
+    "AttachMode": 0,
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 2.5,
+    "DelayMs": 600,
+    "CollisionLayerMask": -1,
+    "MaxTargets": 0,
+    "OnDelayTriggerIds": [
+      21001
+    ]
+  }
+]

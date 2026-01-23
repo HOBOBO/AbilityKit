@@ -39,6 +39,13 @@
             "dump_args": false
           },
           "Items": null
+        },
+        {
+          "Type": "emit",
+          "Args": {
+            "emitterId": 400001
+          },
+          "Items": null
         }
       ]
     },
@@ -119,6 +126,72 @@
             "reasonParam": 0,
             "queryTemplateId": 101,
             "log": true
+          },
+          "Items": null
+        }
+      ]
+    },
+    {
+      "TriggerId": 21001,
+      "EventId": "",
+      "AllowExternal": false,
+      "InitialLocalVars": null,
+      "Conditions": [],
+      "Actions": [
+        {
+          "Type": "aoe_burst",
+          "Args": {
+            "perTargetTriggerId": 21002
+          },
+          "Items": null
+        }
+      ]
+    },
+    {
+      "TriggerId": 21002,
+      "EventId": "",
+      "AllowExternal": false,
+      "InitialLocalVars": null,
+      "Conditions": [],
+      "Actions": [
+        {
+          "Type": "give_damage",
+          "Args": {
+            "value": 50.0,
+            "damageType": 1,
+            "crit": 0,
+            "reasonKind": 1,
+            "reasonParam": 0,
+            "targetMode": "Explicit",
+            "log": true
+          },
+          "Items": null
+        },
+        {
+          "Type": "knock",
+          "Args": {
+            "horizontalSpeed": 6.0,
+            "verticalSpeed": 6.0,
+            "durationMs": 350,
+            "gravity": 9.8,
+            "priority": 100,
+            "directionMode": "FromAreaCenterToTarget"
+          },
+          "Items": null
+        }
+      ]
+    },
+    {
+      "TriggerId": 22001,
+      "EventId": "",
+      "AllowExternal": false,
+      "InitialLocalVars": null,
+      "Conditions": [],
+      "Actions": [
+        {
+          "Type": "emit",
+          "Args": {
+            "emitterId": 400001
           },
           "Items": null
         }

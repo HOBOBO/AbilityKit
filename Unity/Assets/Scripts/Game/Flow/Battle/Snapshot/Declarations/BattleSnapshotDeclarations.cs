@@ -86,6 +86,19 @@ namespace AbilityKit.Game.Flow.Snapshot
             return true;
         }
 
+        [SnapshotDecoder("battle", (int)MobaOpCode.AreaEventSnapshot, typeof(MobaAreaEventSnapshotCodec.Entry[]))]
+        internal static bool DecodeAreaEvents(in WorldStateSnapshot snap, out MobaAreaEventSnapshotCodec.Entry[] entries)
+        {
+            if (snap.Payload == null || snap.Payload.Length == 0)
+            {
+                entries = null;
+                return false;
+            }
+
+            entries = MobaAreaEventSnapshotCodec.Deserialize(snap.Payload);
+            return true;
+        }
+
         [SnapshotDecoder("battle", (int)MobaOpCode.DamageEventSnapshot, typeof(MobaDamageEventSnapshotCodec.Entry[]))]
         internal static bool DecodeDamageEvents(in WorldStateSnapshot snap, out MobaDamageEventSnapshotCodec.Entry[] entries)
         {

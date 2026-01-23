@@ -1,14 +1,14 @@
 [
   {
-    "Id": 1,
-    "Name": "Default",
+    "Id": 101,
+    "Name": "",
     "SummonId": 0,
     "TargetMode": 0,
     "PositionMode": 0,
     "RotationMode": 0,
-    "OwnerKeyMode": 1,
+    "OwnerKeyMode": 0,
     "PatternMode": 0,
-    "PatternCount": 1,
+    "PatternCount": 0,
     "Spacing": 0.0,
     "Radius": 0.0,
     "StartAngleDeg": 0.0,

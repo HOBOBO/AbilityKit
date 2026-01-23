@@ -33,10 +33,18 @@ namespace AbilityKit.Ability.Impl.Triggering.DamageActions
                     return;
                 }
 
+                HashSet<int> uniqueTargets = null;
+                if (targets.Count > 1)
+                {
+                    uniqueTargets = new HashSet<int>();
+                }
+
                 for (int i = 0; i < targets.Count; i++)
                 {
                     var targetActorId = targets[i];
                     if (targetActorId <= 0) continue;
+
+                    if (uniqueTargets != null && !uniqueTargets.Add(targetActorId)) continue;
 
                     var attack = new AttackInfo
                     {

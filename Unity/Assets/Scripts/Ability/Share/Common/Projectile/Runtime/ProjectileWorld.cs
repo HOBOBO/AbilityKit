@@ -268,6 +268,12 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                 var hitCount = 0;
                 var origin = prev;
 
+                // Prevent duplicate hit callbacks against the same collider within the same frame.
+                // This keeps "return can hit same target multiple times" behavior across frames,
+                // while avoiding doubled triggers caused by multiple raycast steps inside one tick.
+                var hitCollidersThisTick = new ColliderId[maxHitsPerStep];
+                var hitColliderCount = 0;
+
                 while (remaining > 0f)
                 {
                     if (!TryRaycastSkippingIgnored(origin, dir, remaining, p.CollisionLayerMask, p.IgnoreCollider, out var hit))
@@ -305,6 +311,34 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                             break;
                         }
                         continue;
+                    }
+
+                    var alreadyHitThisTick = false;
+                    for (int hc = 0; hc < hitColliderCount; hc++)
+                    {
+                        if (hitCollidersThisTick[hc].Equals(hit.Collider))
+                        {
+                            alreadyHitThisTick = true;
+                            break;
+                        }
+                    }
+
+                    if (alreadyHitThisTick)
+                    {
+                        origin = hit.Point + dir * epsilonAdvance;
+                        remaining -= hit.Distance + epsilonAdvance;
+                        hitCount++;
+                        if (hitCount >= maxHitsPerStep || remaining <= 0f)
+                        {
+                            remaining = 0f;
+                            break;
+                        }
+                        continue;
+                    }
+
+                    if (hitColliderCount < hitCollidersThisTick.Length)
+                    {
+                        hitCollidersThisTick[hitColliderCount++] = hit.Collider;
                     }
 
                     p.TotalHitCount++;

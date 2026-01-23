@@ -19,9 +19,9 @@ MonoBehaviour:
     Speed: 10
     LifetimeMs: 2000
     MaxDistance: 0
-    HitPolicyKind: 0
-    HitsRemaining: 0
-    HitCooldownMs: 0
+    HitPolicyKind: 1
+    HitsRemaining: -1
+    HitCooldownMs: 150
     TickIntervalMs: 0
     OnHitEffectId: 20005
     OnSpawnVfxId: 0

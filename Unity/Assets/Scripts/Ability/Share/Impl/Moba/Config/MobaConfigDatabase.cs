@@ -6,6 +6,90 @@ using AbilityKit.Ability.HotReload;
 using Newtonsoft.Json;
 using UnityEngine;
 
+namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
+{
+    public sealed class AoeMO
+    {
+        public int Id { get; }
+        public string Name { get; }
+
+        public int ModelId { get; }
+        public int VfxId { get; }
+        public int AttachMode { get; }
+        public float OffsetX { get; }
+        public float OffsetY { get; }
+        public float OffsetZ { get; }
+
+        public float Radius { get; }
+        public int DelayMs { get; }
+        public int CollisionLayerMask { get; }
+        public int MaxTargets { get; }
+
+        public int[] OnDelayTriggerIds { get; }
+
+        public AoeMO(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.AoeDTO dto)
+        {
+            if (dto == null) throw new ArgumentNullException(nameof(dto));
+            Id = dto.Id;
+            Name = dto.Name;
+
+            ModelId = dto.ModelId;
+            VfxId = dto.VfxId;
+            AttachMode = dto.AttachMode;
+            OffsetX = dto.OffsetX;
+            OffsetY = dto.OffsetY;
+            OffsetZ = dto.OffsetZ;
+
+            Radius = dto.Radius;
+            DelayMs = dto.DelayMs;
+            CollisionLayerMask = dto.CollisionLayerMask;
+            MaxTargets = dto.MaxTargets;
+            OnDelayTriggerIds = dto.OnDelayTriggerIds;
+        }
+    }
+
+    public sealed class EmitterMO
+    {
+        public int Id { get; }
+        public string Name { get; }
+
+        public int EmitKind { get; }
+        public int TemplateId { get; }
+
+        public int DelayMs { get; }
+        public int DurationMs { get; }
+        public int IntervalMs { get; }
+        public int TotalCount { get; }
+
+        public int CountPerShot { get; }
+        public float FanAngleDeg { get; }
+
+        public int CenterMode { get; }
+        public float OffsetX { get; }
+        public float OffsetY { get; }
+        public float OffsetZ { get; }
+
+        public EmitterMO(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.EmitterDTO dto)
+        {
+            if (dto == null) throw new ArgumentNullException(nameof(dto));
+            Id = dto.Id;
+            Name = dto.Name;
+            EmitKind = dto.EmitKind;
+            TemplateId = dto.TemplateId;
+            DelayMs = dto.DelayMs;
+            DurationMs = dto.DurationMs;
+            IntervalMs = dto.IntervalMs;
+            TotalCount = dto.TotalCount;
+            CountPerShot = dto.CountPerShot;
+            FanAngleDeg = dto.FanAngleDeg;
+            CenterMode = dto.CenterMode;
+            OffsetX = dto.OffsetX;
+            OffsetY = dto.OffsetY;
+            OffsetZ = dto.OffsetZ;
+        }
+    }
+}
+
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 {
     public sealed class MobaConfigDatabase
@@ -313,6 +397,16 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             return GetTable<ProjectileMO>().Get(id);
         }
 
+        public global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.AoeMO GetAoe(int id)
+        {
+            return GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.AoeMO>().Get(id);
+        }
+
+        public global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.EmitterMO GetEmitter(int id)
+        {
+            return GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.EmitterMO>().Get(id);
+        }
+
         public global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SummonMO GetSummon(int id)
         {
             return GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SummonMO>().Get(id);
@@ -354,5 +448,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public bool TryGetOngoingEffect(int id, out global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.OngoingEffectMO mo) => GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.OngoingEffectMO>().TryGet(id, out mo);
         public bool TryGetProjectileLauncher(int id, out ProjectileLauncherMO mo) => GetTable<ProjectileLauncherMO>().TryGet(id, out mo);
         public bool TryGetProjectile(int id, out ProjectileMO mo) => GetTable<ProjectileMO>().TryGet(id, out mo);
+        public bool TryGetAoe(int id, out global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.AoeMO mo) => GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.AoeMO>().TryGet(id, out mo);
+        public bool TryGetEmitter(int id, out global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.EmitterMO mo) => GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.EmitterMO>().TryGet(id, out mo);
     }
 }

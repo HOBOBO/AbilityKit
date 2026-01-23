@@ -20,5 +20,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         ProjectileEventSnapshot = 4006,
         DamageEventSnapshot = 4007,
         ActorDespawnSnapshot = 4008,
+        AreaEventSnapshot = 4009,
     }
 }

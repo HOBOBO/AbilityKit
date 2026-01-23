@@ -27,6 +27,102 @@ namespace AbilityKit.Game.Flow
             public Color BaseColor;
         }
 
+        private sealed class AoeViewHandle
+        {
+            public int AreaId;
+            public int TemplateId;
+            public GameObject ModelGo;
+            public GameObject VfxGo;
+        }
+
+        private readonly Dictionary<int, AoeViewHandle> _aoeViews = new Dictionary<int, AoeViewHandle>(128);
+
+        private void OnAreaEventSnapshot(FramePacket packet, MobaAreaEventSnapshotCodec.Entry[] entries)
+        {
+            if (entries == null || entries.Length == 0) return;
+            if (_ctx?.EntityWorld == null) return;
+            if (_query == null) return;
+
+            _configs ??= MobaConfigLoader.LoadDefault();
+            if (_configs == null) return;
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var evt = entries[i];
+                if (evt.AreaId <= 0) continue;
+
+                var kind = evt.Kind;
+                if (kind == (int)MobaAreaEventSnapshotCodec.EventKind.Spawn)
+                {
+                    if (_aoeViews.ContainsKey(evt.AreaId)) continue;
+
+                    AoeMO aoe = null;
+                    try { aoe = _configs.GetAoe(evt.TemplateId); }
+                    catch { aoe = null; }
+                    if (aoe == null) continue;
+
+                    var pos = new Vector3(evt.X, evt.Y, evt.Z);
+                    pos += new Vector3(aoe.OffsetX, aoe.OffsetY, aoe.OffsetZ);
+
+                    Transform attach = null;
+                    if (aoe.AttachMode == 1 && evt.OwnerActorId > 0)
+                    {
+                        if (_binder != null && _binder.TryGetAttachRoot(new BattleNetId(evt.OwnerActorId), out var t) && t != null)
+                        {
+                            attach = t;
+                        }
+                    }
+
+                    var h = new AoeViewHandle { AreaId = evt.AreaId, TemplateId = evt.TemplateId };
+
+                    if (aoe.ModelId > 0)
+                    {
+                        h.ModelGo = CreateModelGo(aoe.ModelId);
+                        if (h.ModelGo != null)
+                        {
+                            if (attach != null)
+                            {
+                                h.ModelGo.transform.SetParent(attach, worldPositionStays: false);
+                                h.ModelGo.transform.localPosition = Vector3.zero;
+                            }
+                            else
+                            {
+                                h.ModelGo.transform.position = pos;
+                            }
+                        }
+                    }
+
+                    if (aoe.VfxId > 0)
+                    {
+                        h.VfxGo = CreateVfxGo(aoe.VfxId);
+                        if (h.VfxGo != null)
+                        {
+                            if (attach != null)
+                            {
+                                h.VfxGo.transform.SetParent(attach, worldPositionStays: false);
+                                h.VfxGo.transform.localPosition = Vector3.zero;
+                            }
+                            else
+                            {
+                                h.VfxGo.transform.position = pos;
+                            }
+                        }
+                    }
+
+                    _aoeViews[evt.AreaId] = h;
+                }
+                else if (kind == (int)MobaAreaEventSnapshotCodec.EventKind.Expire)
+                {
+                    if (_aoeViews.TryGetValue(evt.AreaId, out var h) && h != null)
+                    {
+                        if (h.ModelGo != null) UnityEngine.Object.Destroy(h.ModelGo);
+                        if (h.VfxGo != null) UnityEngine.Object.Destroy(h.VfxGo);
+                        _aoeViews.Remove(evt.AreaId);
+                    }
+                }
+            }
+        }
+
         private static MobaConfigDatabase _configs;
         private static VfxDatabase _vfxDb;
 
@@ -39,6 +135,7 @@ namespace AbilityKit.Game.Flow
         private IDisposable _subEnterGame;
         private IDisposable _subActorTransform;
         private IDisposable _subProjectileEvents;
+        private IDisposable _subAreaEvents;
         private IDisposable _subDamageEvents;
 
         private readonly List<FloatingText> _floatingTexts = new List<FloatingText>(64);
@@ -67,6 +164,7 @@ namespace AbilityKit.Game.Flow
                 _subEnterGame = _ctx.FrameSnapshots.Subscribe<EnterMobaGameRes>((int)MobaOpCode.EnterGameSnapshot, OnEnterGameSnapshot);
                 _subActorTransform = _ctx.FrameSnapshots.Subscribe<(int actorId, float x, float y, float z)[]>((int)MobaOpCode.ActorTransformSnapshot, OnActorTransformSnapshot);
                 _subProjectileEvents = _ctx.FrameSnapshots.Subscribe<MobaProjectileEventSnapshotCodec.Entry[]>((int)MobaOpCode.ProjectileEventSnapshot, OnProjectileEventSnapshot);
+                _subAreaEvents = _ctx.FrameSnapshots.Subscribe<MobaAreaEventSnapshotCodec.Entry[]>((int)MobaOpCode.AreaEventSnapshot, OnAreaEventSnapshot);
                 _subDamageEvents = _ctx.FrameSnapshots.Subscribe<MobaDamageEventSnapshotCodec.Entry[]>((int)MobaOpCode.DamageEventSnapshot, OnDamageEventSnapshot);
             }
         }
@@ -78,12 +176,14 @@ namespace AbilityKit.Game.Flow
                 _subEnterGame?.Dispose();
                 _subActorTransform?.Dispose();
                 _subProjectileEvents?.Dispose();
+                _subAreaEvents?.Dispose();
                 _subDamageEvents?.Dispose();
             }
 
             _subEnterGame = null;
             _subActorTransform = null;
             _subProjectileEvents = null;
+            _subAreaEvents = null;
             _subDamageEvents = null;
 
             if (_ctx?.EntityWorld != null)
@@ -335,6 +435,73 @@ namespace AbilityKit.Game.Flow
             }
 
             go.name = $"Actor_{actorId}";
+
+            var attachRoot = new GameObject("AttachRoot");
+            attachRoot.transform.SetParent(go.transform, worldPositionStays: false);
+            attachRoot.transform.localPosition = Vector3.zero;
+            return go;
+        }
+
+        private static GameObject CreateModelGo(int modelId)
+        {
+            if (modelId <= 0) return null;
+
+            _configs ??= MobaConfigLoader.LoadDefault();
+            GameObject prefab = null;
+            if (_configs != null)
+            {
+                try
+                {
+                    var model = _configs.GetModel(modelId);
+                    if (model != null && !string.IsNullOrEmpty(model.PrefabPath))
+                    {
+                        prefab = Resources.Load<GameObject>(model.PrefabPath);
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            GameObject go;
+            if (prefab != null)
+            {
+                go = UnityEngine.Object.Instantiate(prefab);
+            }
+            else
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                go.transform.localScale = Vector3.one * 0.5f;
+            }
+
+            go.name = $"AoeModel_{modelId}";
+            return go;
+        }
+
+        private GameObject CreateVfxGo(int vfxId)
+        {
+            if (vfxId <= 0) return null;
+            _vfxDb ??= VfxDatabase.LoadFromResources("vfx/vfx");
+            if (_vfxDb == null) return null;
+
+            if (!_vfxDb.TryGet(vfxId, out var dto) || dto == null || string.IsNullOrEmpty(dto.Resource))
+            {
+                return null;
+            }
+
+            var prefab = Resources.Load<GameObject>(dto.Resource);
+            GameObject go;
+            if (prefab != null)
+            {
+                go = UnityEngine.Object.Instantiate(prefab);
+            }
+            else
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                go.transform.localScale = Vector3.one * 0.5f;
+            }
+
+            go.name = $"AoeVfx_{vfxId}";
             return go;
         }
 
@@ -405,6 +572,30 @@ namespace AbilityKit.Game.Flow
             }
 
             private readonly Dictionary<EC.EntityId, Handle> _handles = new Dictionary<EC.EntityId, Handle>();
+
+            public bool TryGetAttachRoot(BattleNetId netId, out Transform t)
+            {
+                t = null;
+                if (netId.Value <= 0) return false;
+
+                foreach (var kv in _handles)
+                {
+                    var h = kv.Value;
+                    if (h == null || h.Destroyed || h.GameObject == null) continue;
+                    if (h.GameObject.name == $"Actor_{netId.Value}")
+                    {
+                        var child = h.GameObject.transform.Find("AttachRoot");
+                        if (child != null)
+                        {
+                            t = child;
+                            return true;
+                        }
+                        return false;
+                    }
+                }
+
+                return false;
+            }
 
             public void Sync(EC.Entity entity)
             {

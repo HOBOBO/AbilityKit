@@ -20,17 +20,19 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaActorSpawnSnapshotService _spawn;
         private readonly MobaActorDespawnSnapshotService _despawn;
         private readonly MobaProjectileEventSnapshotService _projectileEvents;
+        private readonly MobaAreaEventSnapshotService _areaEvents;
         private readonly MobaDamageEventSnapshotService _damageEvents;
         private readonly MobaActorTransformSnapshotService _transform;
         private readonly MobaLobbySnapshotService _lobby;
         private readonly MobaStateHashSnapshotService _hash;
 
-        public MobaSnapshotRouter(MobaEnterGameSnapshotService enter, MobaActorSpawnSnapshotService spawn, MobaActorDespawnSnapshotService despawn, MobaProjectileEventSnapshotService projectileEvents, MobaDamageEventSnapshotService damageEvents, MobaActorTransformSnapshotService transform, MobaLobbySnapshotService lobby, MobaStateHashSnapshotService hash)
+        public MobaSnapshotRouter(MobaEnterGameSnapshotService enter, MobaActorSpawnSnapshotService spawn, MobaActorDespawnSnapshotService despawn, MobaProjectileEventSnapshotService projectileEvents, MobaAreaEventSnapshotService areaEvents, MobaDamageEventSnapshotService damageEvents, MobaActorTransformSnapshotService transform, MobaLobbySnapshotService lobby, MobaStateHashSnapshotService hash)
         {
             _enter = enter ?? throw new ArgumentNullException(nameof(enter));
             _spawn = spawn ?? throw new ArgumentNullException(nameof(spawn));
             _despawn = despawn ?? throw new ArgumentNullException(nameof(despawn));
             _projectileEvents = projectileEvents ?? throw new ArgumentNullException(nameof(projectileEvents));
+            _areaEvents = areaEvents ?? throw new ArgumentNullException(nameof(areaEvents));
             _damageEvents = damageEvents ?? throw new ArgumentNullException(nameof(damageEvents));
             _transform = transform ?? throw new ArgumentNullException(nameof(transform));
             _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
@@ -43,6 +45,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (_spawn.TryGetSnapshot(frame, out snapshot)) return true;
             if (_despawn.TryGetSnapshot(frame, out snapshot)) return true;
             if (_projectileEvents.TryGetSnapshot(frame, out snapshot)) return true;
+            if (_areaEvents.TryGetSnapshot(frame, out snapshot)) return true;
             if (_damageEvents.TryGetSnapshot(frame, out snapshot)) return true;
             if (_hash.TryGetSnapshot(frame, out snapshot)) return true;
             if (_transform.TryGetSnapshot(frame, out snapshot)) return true;
@@ -181,7 +184,169 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         }
     }
 
+    public sealed class MobaAreaEventSnapshotService : IService
+    {
+        private readonly MobaLobbyStateService _lobby;
+        private readonly IProjectileService _projectiles;
+        private readonly MobaAreaTriggerRegistry _areaTriggers;
+
+        private FrameIndex _lastFrame;
+
+        private readonly List<AreaSpawnEvent> _spawns = new List<AreaSpawnEvent>(32);
+        private readonly List<AreaExpireEvent> _expires = new List<AreaExpireEvent>(32);
+
+        public MobaAreaEventSnapshotService(MobaLobbyStateService lobby, IProjectileService projectiles, MobaAreaTriggerRegistry areaTriggers)
+        {
+            _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
+            _projectiles = projectiles ?? throw new ArgumentNullException(nameof(projectiles));
+            _areaTriggers = areaTriggers;
+            _lastFrame = new FrameIndex(-999999);
+        }
+
+        public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
+        {
+            if (!_lobby.Started)
+            {
+                snapshot = default;
+                return false;
+            }
+
+            if (frame.Value == _lastFrame.Value)
+            {
+                snapshot = default;
+                return false;
+            }
+            _lastFrame = frame;
+
+            _spawns.Clear();
+            _expires.Clear();
+
+            _projectiles.DrainAreaSpawnEvents(_spawns);
+            _projectiles.DrainAreaExpireEvents(_expires);
+
+            if (_spawns.Count == 0 && _expires.Count == 0)
+            {
+                snapshot = default;
+                return false;
+            }
+
+            var entries = new List<MobaAreaEventSnapshotCodec.Entry>(_spawns.Count + _expires.Count);
+
+            for (int i = 0; i < _spawns.Count; i++)
+            {
+                var e = _spawns[i];
+                var templateId = 0;
+                if (_areaTriggers != null && _areaTriggers.TryGet(e.Area, out var entry))
+                {
+                    templateId = entry.TemplateId;
+                }
+                entries.Add(MobaAreaEventSnapshotCodec.Entry.FromSpawn(in e, templateId));
+            }
+
+            for (int i = 0; i < _expires.Count; i++)
+            {
+                var e = _expires[i];
+                var templateId = 0;
+                if (_areaTriggers != null && _areaTriggers.TryGet(e.Area, out var entry))
+                {
+                    templateId = entry.TemplateId;
+                }
+                entries.Add(MobaAreaEventSnapshotCodec.Entry.FromExpire(in e, templateId));
+            }
+
+            var payload = MobaAreaEventSnapshotCodec.Serialize(entries.ToArray());
+            snapshot = new WorldStateSnapshot((int)MobaOpCode.AreaEventSnapshot, payload);
+            return true;
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+
     // Damage snapshot and damage apply services are defined as standalone services.
+
+    public static class MobaAreaEventSnapshotCodec
+    {
+        public enum EventKind
+        {
+            Spawn = 1,
+            Expire = 2,
+        }
+
+        public static byte[] Serialize(Entry[] entries)
+        {
+            entries ??= Array.Empty<Entry>();
+            return BinaryObjectCodec.Encode(new SnapshotPayload(entries));
+        }
+
+        public static Entry[] Deserialize(byte[] payload)
+        {
+            if (payload == null || payload.Length < 4) return Array.Empty<Entry>();
+            var p = BinaryObjectCodec.Decode<SnapshotPayload>(payload);
+            return p.Entries ?? Array.Empty<Entry>();
+        }
+
+        public readonly struct SnapshotPayload
+        {
+            [BinaryMember(0)] public readonly Entry[] Entries;
+
+            public SnapshotPayload(Entry[] entries)
+            {
+                Entries = entries;
+            }
+        }
+
+        public readonly struct Entry
+        {
+            [BinaryMember(0)] public readonly int Kind;
+            [BinaryMember(1)] public readonly int AreaId;
+            [BinaryMember(2)] public readonly int OwnerActorId;
+            [BinaryMember(3)] public readonly int TemplateId;
+            [BinaryMember(4)] public readonly float X;
+            [BinaryMember(5)] public readonly float Y;
+            [BinaryMember(6)] public readonly float Z;
+            [BinaryMember(7)] public readonly float Radius;
+
+            public Entry(int kind, int areaId, int ownerActorId, int templateId, float x, float y, float z, float radius)
+            {
+                Kind = kind;
+                AreaId = areaId;
+                OwnerActorId = ownerActorId;
+                TemplateId = templateId;
+                X = x;
+                Y = y;
+                Z = z;
+                Radius = radius;
+            }
+
+            public static Entry FromSpawn(in AreaSpawnEvent e, int templateId)
+            {
+                return new Entry(
+                    kind: (int)EventKind.Spawn,
+                    areaId: e.Area.Value,
+                    ownerActorId: e.OwnerId,
+                    templateId: templateId,
+                    x: e.Center.X,
+                    y: e.Center.Y,
+                    z: e.Center.Z,
+                    radius: e.Radius);
+            }
+
+            public static Entry FromExpire(in AreaExpireEvent e, int templateId)
+            {
+                return new Entry(
+                    kind: (int)EventKind.Expire,
+                    areaId: e.Area.Value,
+                    ownerActorId: e.OwnerId,
+                    templateId: templateId,
+                    x: 0f,
+                    y: 0f,
+                    z: 0f,
+                    radius: 0f);
+            }
+        }
+    }
 
     public static class MobaProjectileEventSnapshotCodec
     {

@@ -11,7 +11,7 @@
           "Events": [
             {
               "AtMs": 100,
-              "EffectId": 10001,
+              "EffectId": 22001,
               "ExecuteMode": 0,
               "EventTag": ""
             }

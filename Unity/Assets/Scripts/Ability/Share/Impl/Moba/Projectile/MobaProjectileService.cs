@@ -344,6 +344,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 
             var startFrame = frameTime != null ? frameTime.Frame.Value : 0;
 
+            var hitPolicyKind = projectile.HitPolicyKind;
+            var hitPolicyParam = 0;
+            var hitsRemaining = 1;
+            if (hitPolicyKind == ProjectileHitPolicyKind.Pierce)
+            {
+                hitPolicyParam = projectile.HitsRemaining == -1 ? -1 : (projectile.HitsRemaining > 0 ? projectile.HitsRemaining : 1);
+                // Let PierceHitPolicy initialize remaining hits from MaxHits.
+                hitsRemaining = 0;
+            }
+
             var baseSpawn = new ProjectileSpawnParams(
                 ownerId: casterActorId,
                 templateId: projectile.Id,
@@ -361,9 +371,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
                 collisionLayerMask: collisionMask,
                 ignoreCollider: ignore,
                 hitPolicy: null,
-                hitsRemaining: projectile.HitsRemaining > 0 ? projectile.HitsRemaining : 1,
-                hitPolicyKind: projectile.HitPolicyKind,
-                hitPolicyParam: 0,
+                hitsRemaining: hitsRemaining,
+                hitPolicyKind: hitPolicyKind,
+                hitPolicyParam: hitPolicyParam,
                 tickIntervalFrames: tickIntervalFrames,
                 hitFilter: new MobaTeamProjectileHitFilter(_registry),
                 hitCooldownFrames: hitCooldownFrames);

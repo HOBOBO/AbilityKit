@@ -253,10 +253,20 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
 
             _hits.Clear();
             _projectiles.DrainHitEvents(_hits);
+            HashSet<(int Frame, int ProjectileId, int HitActorId)> hitActorOnce = null;
+            if (_hits.Count > 1)
+            {
+                hitActorOnce = new HashSet<(int, int, int)>();
+            }
             for (int i = 0; i < _hits.Count; i++)
             {
                 var evt = _hits[i];
                 var hitActorId = ResolveActorIdByCollider(evt.HitCollider);
+
+                if (hitActorOnce != null && hitActorId > 0 && !hitActorOnce.Add((evt.Frame, evt.Projectile.Value, hitActorId)))
+                {
+                    continue;
+                }
 
                 if (_eventBus != null)
                 {

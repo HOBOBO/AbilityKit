@@ -235,6 +235,54 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
     }
 
     [Serializable]
+    public sealed class AoeDTO
+    {
+        public int Id;
+        public string Name;
+
+        public int ModelId;
+        public int VfxId;
+        // 0=World, 1=FollowOwner
+        public int AttachMode;
+        public float OffsetX;
+        public float OffsetY;
+        public float OffsetZ;
+
+        public float Radius;
+        public int DelayMs;
+        public int CollisionLayerMask;
+        public int MaxTargets;
+
+        public int[] OnDelayTriggerIds;
+    }
+
+    [Serializable]
+    public sealed class EmitterDTO
+    {
+        public int Id;
+        public string Name;
+
+        // 1=Projectile, 2=AOE
+        public int EmitKind;
+        // ProjectileId or AoeId
+        public int TemplateId;
+
+        public int DelayMs;
+        public int DurationMs;
+        public int IntervalMs;
+        public int TotalCount;
+
+        public int CountPerShot;
+        public float FanAngleDeg;
+
+        // 0=AimPos, 1=CasterPos, 2=TargetPos
+        public int CenterMode;
+        public float OffsetX;
+        public float OffsetY;
+        public float OffsetZ;
+    }
+
+    [Serializable]
     public sealed class SummonDTO
     {
         public int Id;
