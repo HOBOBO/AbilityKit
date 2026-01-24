@@ -30,6 +30,10 @@ namespace AbilityKit.Game.Battle
         public bool AutoConnect = true;
         public bool AutoJoin = true;
 
+        public bool EnableRollback = false;
+        public int RollbackHistoryFrames = 600;
+        public int RollbackCaptureEveryNFrames = 30;
+
         public string ClientId = "battle_client";
         public string PlayerId = "p1";
     }

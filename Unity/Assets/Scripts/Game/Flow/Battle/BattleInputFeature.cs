@@ -34,6 +34,8 @@ namespace AbilityKit.Game.Flow
         {
             if (_ctx == null || _ctx.Session == null) return;
 
+            if (_ctx.Plan.EnableInputReplay) return;
+
             var plan = _ctx.Plan;
             var playerId = new PlayerId(string.IsNullOrEmpty(plan.PlayerId) ? "p1" : plan.PlayerId);
             var worldId = new AbilityKit.Ability.World.Abstractions.WorldId(string.IsNullOrEmpty(plan.WorldId) ? "room_1" : plan.WorldId);
@@ -56,6 +58,7 @@ namespace AbilityKit.Game.Flow
             {
                 var payload = MobaMoveCodec.Serialize(dx, dz);
                 var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, (int)MobaOpCode.Move, payload);
+                _ctx.InputRecordWriter?.Append(in cmd);
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
 
                 _lastMoveDx = dx;
@@ -77,6 +80,7 @@ namespace AbilityKit.Game.Flow
             {
                 var op = slot == 1 ? (int)MobaOpCode.Skill1 : slot == 2 ? (int)MobaOpCode.Skill2 : (int)MobaOpCode.Skill3;
                 var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, op, Array.Empty<byte>());
+                _ctx.InputRecordWriter?.Append(in cmd);
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
             }
 
@@ -85,6 +89,7 @@ namespace AbilityKit.Game.Flow
             {
                 var op = hudSlot == 1 ? (int)MobaOpCode.Skill1 : hudSlot == 2 ? (int)MobaOpCode.Skill2 : (int)MobaOpCode.Skill3;
                 var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, op, Array.Empty<byte>());
+                _ctx.InputRecordWriter?.Append(in cmd);
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
                 _ctx.HudSkillClickSlot = 0;
             }
@@ -101,6 +106,7 @@ namespace AbilityKit.Game.Flow
                 var payload = SkillInputCodec.Serialize(in evt);
 
                 var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, (int)MobaOpCode.SkillInput, payload);
+                _ctx.InputRecordWriter?.Append(in cmd);
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
 
                 _ctx.HudSkillAimSubmit = false;

@@ -32,6 +32,10 @@ namespace AbilityKit.Game.Flow
                 autoReady: plan != null && plan.AutoReady,
                 syncMode: plan != null ? plan.SyncMode : BattleSyncMode.Lockstep,
                 viewEventSourceMode: plan != null ? plan.ViewEventSourceMode : BattleViewEventSourceMode.SnapshotOnly,
+                enableInputRecording: plan != null && plan.EnableInputRecording,
+                inputRecordOutputPath: plan != null ? plan.InputRecordOutputPath : "battle_record.json",
+                enableInputReplay: plan != null && plan.EnableInputReplay,
+                inputReplayPath: plan != null ? plan.InputReplayPath : "battle_record.json",
                 createWorldOpCode: MobaWorldBootstrapModule.InitOpCode,
                 createWorldPayload: payload
             );

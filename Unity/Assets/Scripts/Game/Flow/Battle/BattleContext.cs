@@ -2,6 +2,7 @@ using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Common.Pool;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow.Snapshot;
+using AbilityKit.Ability.Share.Common.Record.Lockstep;
 using EC = AbilityKit.Ability.EC;
 using AbilityKit.Game.Battle;
 using System.Collections.Generic;
@@ -25,6 +26,8 @@ namespace AbilityKit.Game.Flow
         public FrameSnapshotDispatcher FrameSnapshots;
         public BattleSnapshotPipeline SnapshotPipeline;
         public BattleCmdHandler CmdHandler;
+
+        public ILockstepInputRecordWriter InputRecordWriter;
 
         public EC.Entity EntityNode;
         public EC.EntityWorld EntityWorld;
@@ -77,6 +80,9 @@ namespace AbilityKit.Game.Flow
             SnapshotPipeline = null;
             CmdHandler = null;
 
+            InputRecordWriter?.Dispose();
+            InputRecordWriter = null;
+
             EntityNode = default;
             EntityWorld = null;
             EntityLookup = null;
@@ -112,6 +118,9 @@ namespace AbilityKit.Game.Flow
             FrameSnapshots = null;
             SnapshotPipeline = null;
             CmdHandler = null;
+
+            InputRecordWriter?.Dispose();
+            InputRecordWriter = null;
 
             EntityNode = default;
             EntityWorld = null;

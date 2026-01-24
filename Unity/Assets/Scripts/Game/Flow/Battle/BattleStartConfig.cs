@@ -25,6 +25,12 @@ namespace AbilityKit.Game.Flow
             public BattleSyncMode SyncMode = BattleSyncMode.Lockstep;
 
             public BattleViewEventSourceMode ViewEventSourceMode = BattleViewEventSourceMode.SnapshotOnly;
+
+            public bool EnableInputRecording = false;
+            public string InputRecordOutputPath = "battle_record.json";
+
+            public bool EnableInputReplay = false;
+            public string InputReplayPath = "battle_record.json";
         }
 
         [System.Serializable]

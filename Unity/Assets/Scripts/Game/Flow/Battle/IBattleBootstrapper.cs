@@ -35,6 +35,12 @@ namespace AbilityKit.Game.Flow
 
         public readonly BattleViewEventSourceMode ViewEventSourceMode;
 
+        public readonly bool EnableInputRecording;
+        public readonly string InputRecordOutputPath;
+
+        public readonly bool EnableInputReplay;
+        public readonly string InputReplayPath;
+
         public readonly int CreateWorldOpCode;
         public readonly byte[] CreateWorldPayload;
 
@@ -49,6 +55,10 @@ namespace AbilityKit.Game.Flow
             bool autoReady,
             BattleSyncMode syncMode,
             BattleViewEventSourceMode viewEventSourceMode,
+            bool enableInputRecording,
+            string inputRecordOutputPath,
+            bool enableInputReplay,
+            string inputReplayPath,
             int createWorldOpCode,
             byte[] createWorldPayload)
         {
@@ -63,6 +73,12 @@ namespace AbilityKit.Game.Flow
 
             SyncMode = syncMode;
             ViewEventSourceMode = viewEventSourceMode;
+
+            EnableInputRecording = enableInputRecording;
+            InputRecordOutputPath = inputRecordOutputPath;
+
+            EnableInputReplay = enableInputReplay;
+            InputReplayPath = inputReplayPath;
             CreateWorldOpCode = createWorldOpCode;
             CreateWorldPayload = createWorldPayload;
         }

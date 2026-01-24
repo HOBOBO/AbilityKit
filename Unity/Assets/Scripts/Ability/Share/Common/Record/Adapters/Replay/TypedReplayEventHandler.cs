@@ -1,0 +1,35 @@
+using System;
+using AbilityKit.Ability.FrameSync.Rollback;
+using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Share.Common.Record.Adapters.EventCodecs;
+using AbilityKit.Ability.Share.Common.Record.Core;
+
+namespace AbilityKit.Ability.Share.Common.Record.Adapters.Replay
+{
+    public sealed class TypedReplayEventHandler : IReplayEventHandler
+    {
+        public Action<PlayerInputCommand> OnInputCommand;
+        public Action<int, WorldStateHash> OnStateHash;
+        public Action<WorldStateSnapshot> OnSnapshot;
+
+        public void Handle(in RecordEvent e)
+        {
+            if (InputCommandEventCodec.TryRead(in e, out var cmd))
+            {
+                OnInputCommand?.Invoke(cmd);
+                return;
+            }
+
+            if (StateHashEventCodec.TryRead(in e, out var version, out var hash))
+            {
+                OnStateHash?.Invoke(version, hash);
+                return;
+            }
+
+            if (WorldSnapshotEventCodec.TryRead(in e, out var snap))
+            {
+                OnSnapshot?.Invoke(snap);
+            }
+        }
+    }
+}

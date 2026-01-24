@@ -1,7 +1,12 @@
 using System;
+using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Server.Modules;
+using AbilityKit.Ability.Server.Rollback;
 using AbilityKit.Ability.Server.Time;
+using AbilityKit.Ability.Share.Impl.Moba.Move;
+using AbilityKit.Ability.Share.Impl.Moba.Rollback;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
@@ -18,6 +23,8 @@ namespace AbilityKit.Game.Battle
         private readonly ILogicWorldServer _server;
         private readonly IBattleLogicClient _client;
 
+        public ServerRollbackModule RollbackModule { get; }
+
         public BattleLogicSession(BattleLogicSessionOptions options, IBattleLogicTransport remoteTransport = null)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -28,6 +35,17 @@ namespace AbilityKit.Game.Battle
             var serverOptions = new LogicWorldServerOptions();
             var modules = new LogicWorldServerModuleHost()
                 .Add(new ServerFrameTimeModule());
+
+            if (_options.EnableRollback)
+            {
+                var history = _options.RollbackHistoryFrames;
+                if (history <= 0) history = 600;
+                var captureEvery = _options.RollbackCaptureEveryNFrames;
+                if (captureEvery <= 0) captureEvery = 30;
+
+                RollbackModule = new ServerRollbackModule(history, captureEvery, BuildRollbackRegistry);
+                modules.Add(RollbackModule);
+            }
             modules.InstallAll(serverOptions);
             _server = new AbilityKit.Ability.Server.LogicWorldServer(_worldManager, serverOptions);
 
@@ -93,6 +111,24 @@ namespace AbilityKit.Game.Battle
             {
                 _client.Join(new JoinWorldRequest(_options.WorldId, new PlayerId(_options.PlayerId)));
             }
+        }
+
+        private static RollbackRegistry BuildRollbackRegistry(IWorld world)
+        {
+            var reg = new RollbackRegistry();
+            if (world?.Services == null) return reg;
+
+            if (world.Services.TryGet<MobaActorRegistry>(out var actorReg) && actorReg != null)
+            {
+                reg.Register(new MobaActorTransformRollbackProvider(actorReg));
+            }
+
+            if (world.Services.TryGet<MobaMoveService>(out var move) && move != null)
+            {
+                reg.Register(new MobaMoveRollbackProvider(move));
+            }
+
+            return reg;
         }
 
         public event Action<FramePacket> FrameReceived
