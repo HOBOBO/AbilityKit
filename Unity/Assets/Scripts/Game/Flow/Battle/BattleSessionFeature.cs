@@ -92,9 +92,15 @@ namespace AbilityKit.Game.Flow
         {
             StopSession();
 
+            var syncMode = _plan.SyncMode;
+
+            var logicMode = syncMode == BattleSyncMode.SnapshotAuthority
+                ? BattleLogicMode.Remote
+                : BattleLogicMode.Local;
+
             var opts = new BattleLogicSessionOptions
             {
-                Mode = BattleLogicMode.Local,
+                Mode = logicMode,
                 WorldId = new WorldId(string.IsNullOrEmpty(_plan.WorldId) ? "room_1" : _plan.WorldId),
                 WorldType = string.IsNullOrEmpty(_plan.WorldType) ? "battle" : _plan.WorldType,
                 ClientId = string.IsNullOrEmpty(_plan.ClientId) ? "battle_client" : _plan.ClientId,

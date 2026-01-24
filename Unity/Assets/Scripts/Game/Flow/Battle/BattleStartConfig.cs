@@ -21,6 +21,10 @@ namespace AbilityKit.Game.Flow
             public bool AutoCreateWorld = true;
             public bool AutoJoin = true;
             public bool AutoReady = true;
+
+            public BattleSyncMode SyncMode = BattleSyncMode.Lockstep;
+
+            public BattleViewEventSourceMode ViewEventSourceMode = BattleViewEventSourceMode.SnapshotOnly;
         }
 
         [System.Serializable]

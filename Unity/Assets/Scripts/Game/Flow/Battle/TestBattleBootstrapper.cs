@@ -30,6 +30,8 @@ namespace AbilityKit.Game.Flow
                 autoCreateWorld: plan != null && plan.AutoCreateWorld,
                 autoJoin: plan != null && plan.AutoJoin,
                 autoReady: plan != null && plan.AutoReady,
+                syncMode: plan != null ? plan.SyncMode : BattleSyncMode.Lockstep,
+                viewEventSourceMode: plan != null ? plan.ViewEventSourceMode : BattleViewEventSourceMode.SnapshotOnly,
                 createWorldOpCode: MobaWorldBootstrapModule.InitOpCode,
                 createWorldPayload: payload
             );

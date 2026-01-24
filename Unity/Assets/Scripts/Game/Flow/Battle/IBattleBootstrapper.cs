@@ -1,5 +1,19 @@
 namespace AbilityKit.Game.Flow
 {
+    public enum BattleViewEventSourceMode
+    {
+        SnapshotOnly = 0,
+        TriggerOnly = 1,
+        Hybrid = 2,
+    }
+
+    public enum BattleSyncMode
+    {
+        Lockstep = 0,
+        SnapshotAuthority = 1,
+        HybridPredictReconcile = 2,
+    }
+
     public interface IBattleBootstrapper
     {
         BattleStartPlan Build();
@@ -17,6 +31,10 @@ namespace AbilityKit.Game.Flow
         public readonly bool AutoJoin;
         public readonly bool AutoReady;
 
+        public readonly BattleSyncMode SyncMode;
+
+        public readonly BattleViewEventSourceMode ViewEventSourceMode;
+
         public readonly int CreateWorldOpCode;
         public readonly byte[] CreateWorldPayload;
 
@@ -29,6 +47,8 @@ namespace AbilityKit.Game.Flow
             bool autoCreateWorld,
             bool autoJoin,
             bool autoReady,
+            BattleSyncMode syncMode,
+            BattleViewEventSourceMode viewEventSourceMode,
             int createWorldOpCode,
             byte[] createWorldPayload)
         {
@@ -40,6 +60,9 @@ namespace AbilityKit.Game.Flow
             AutoCreateWorld = autoCreateWorld;
             AutoJoin = autoJoin;
             AutoReady = autoReady;
+
+            SyncMode = syncMode;
+            ViewEventSourceMode = viewEventSourceMode;
             CreateWorldOpCode = createWorldOpCode;
             CreateWorldPayload = createWorldPayload;
         }

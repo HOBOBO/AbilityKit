@@ -7,6 +7,8 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
 {
     public sealed class EffectSourceRegistry : IService
     {
+        public static bool Enabled { get; set; } = false;
+
         private sealed class ContextRecord
         {
             public long ContextId;
@@ -49,6 +51,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
             int targetActorId,
             int frame)
         {
+            if (!Enabled) return 0;
             return CreateRoot(kind, configId, sourceActorId, targetActorId, frame, originSource: null, originTarget: null);
         }
 
@@ -61,7 +64,8 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
             object originSource,
             object originTarget)
         {
-            if (kind == EffectSourceKind.None) throw new ArgumentException(nameof(kind));
+            if (!Enabled) return 0;
+            if (kind == EffectSourceKind.None) return 0;
             var id = NextId();
 
             var r = new ContextRecord
@@ -87,6 +91,13 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
 
         public bool TryGetOrigin(long contextId, out object originSource, out object originTarget)
         {
+            if (!Enabled)
+            {
+                originSource = null;
+                originTarget = null;
+                return false;
+            }
+
             if (_contexts.TryGetValue(contextId, out var r))
             {
                 originSource = r.OriginSource;
@@ -101,6 +112,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
 
         public bool SetOrigin(long contextId, object originSource, object originTarget)
         {
+            if (!Enabled) return false;
             if (contextId <= 0) return false;
             if (!_contexts.TryGetValue(contextId, out var r)) return false;
             if (originSource != null) r.OriginSource = originSource;
@@ -116,6 +128,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
             int targetActorId,
             int frame)
         {
+            if (!Enabled) return 0;
             return CreateChild(parentContextId, kind, configId, sourceActorId, targetActorId, frame, originSource: null, originTarget: null);
         }
 
@@ -129,9 +142,10 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
             object originSource,
             object originTarget)
         {
-            if (kind == EffectSourceKind.None) throw new ArgumentException(nameof(kind));
-            if (parentContextId <= 0) throw new ArgumentOutOfRangeException(nameof(parentContextId));
-            if (!_contexts.TryGetValue(parentContextId, out var parent)) throw new KeyNotFoundException($"Parent context not found: {parentContextId}");
+            if (!Enabled) return 0;
+            if (kind == EffectSourceKind.None) return 0;
+            if (parentContextId <= 0) return 0;
+            if (!_contexts.TryGetValue(parentContextId, out var parent)) return 0;
 
             var id = NextId();
             var rootId = parent.RootId;
@@ -176,6 +190,12 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
 
         public bool TryGetSnapshot(long contextId, out EffectSourceSnapshot snapshot)
         {
+            if (!Enabled)
+            {
+                snapshot = default;
+                return false;
+            }
+
             if (_contexts.TryGetValue(contextId, out var r))
             {
                 snapshot = new EffectSourceSnapshot(
@@ -198,6 +218,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
 
         public bool End(long contextId, int frame, EffectSourceEndReason reason)
         {
+            if (!Enabled) return false;
             if (contextId <= 0) return false;
             if (!_contexts.TryGetValue(contextId, out var r)) return false;
             if (r.EndedFrame > 0) return false;
@@ -216,6 +237,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
 
         public void RetainRoot(long rootId, int frame)
         {
+            if (!Enabled) return;
             if (rootId <= 0) return;
             if (!_roots.TryGetValue(rootId, out var root))
             {
@@ -229,6 +251,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
 
         public void ReleaseRoot(long rootId, int frame)
         {
+            if (!Enabled) return;
             if (rootId <= 0) return;
             if (!_roots.TryGetValue(rootId, out var root)) return;
 
@@ -238,6 +261,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
 
         public int Purge(int nowFrame, int keepEndedFrames = 600, int maxRoots = 4096)
         {
+            if (!Enabled) return 0;
             var purged = 0;
 
             if (_roots.Count == 0) return 0;

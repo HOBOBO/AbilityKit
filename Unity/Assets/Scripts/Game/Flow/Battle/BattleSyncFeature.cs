@@ -33,11 +33,21 @@ namespace AbilityKit.Game.Flow
             _factory = _ctx?.EntityFactory;
             _node = _ctx != null ? _ctx.EntityNode : default;
 
+            var syncMode = _ctx != null ? _ctx.Plan.SyncMode : BattleSyncMode.Lockstep;
+
             if (_ctx?.FrameSnapshots != null)
             {
-                _subLobby = _ctx.FrameSnapshots.Subscribe<LobbySnapshot>((int)MobaOpCode.LobbySnapshot, OnLobbySnapshot);
-                _subActorTransform = _ctx.FrameSnapshots.Subscribe<(int actorId, float x, float y, float z)[]>((int)MobaOpCode.ActorTransformSnapshot, OnActorTransformSnapshot);
-                _subStateHash = _ctx.FrameSnapshots.Subscribe<MobaStateHashSnapshotCodec.SnapshotPayload>((int)MobaOpCode.StateHashSnapshot, OnStateHashSnapshot);
+                switch (syncMode)
+                {
+                    case BattleSyncMode.SnapshotAuthority:
+                    case BattleSyncMode.Lockstep:
+                    case BattleSyncMode.HybridPredictReconcile:
+                    default:
+                        _subLobby = _ctx.FrameSnapshots.Subscribe<LobbySnapshot>((int)MobaOpCode.LobbySnapshot, OnLobbySnapshot);
+                        _subActorTransform = _ctx.FrameSnapshots.Subscribe<(int actorId, float x, float y, float z)[]>((int)MobaOpCode.ActorTransformSnapshot, OnActorTransformSnapshot);
+                        _subStateHash = _ctx.FrameSnapshots.Subscribe<MobaStateHashSnapshotCodec.SnapshotPayload>((int)MobaOpCode.StateHashSnapshot, OnStateHashSnapshot);
+                        break;
+                }
             }
 
             _localActorId = 0;
