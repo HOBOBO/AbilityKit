@@ -1,0 +1,20 @@
+﻿{
+  "name": "AbilityKit.Combat.Damage",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Core",
+    "AbilityKit.World.DI",
+    "AbilityKit.World.ECS",
+    "AbilityKit.World.Snapshot",
+    "AbilityKit.World.FrameSync"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

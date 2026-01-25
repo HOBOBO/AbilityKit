@@ -1,0 +1,13 @@
+﻿{
+  "name": "com.abilitykit.hotreload",
+  "version": "0.0.1",
+  "displayName": "AbilityKit HotReload",
+  "unity": "2022.3",
+  "description": "Runtime hot reload and hotfix overlay abstractions.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.ability.runtime": "0.0.1",
+    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.world.di": "0.0.1"
+  }
+}

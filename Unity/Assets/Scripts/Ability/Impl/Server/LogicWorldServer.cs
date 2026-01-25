@@ -1,7 +1,7 @@
+#if false
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Management;
 
@@ -112,6 +112,35 @@ namespace AbilityKit.Ability.Server
             private readonly ISnapshotModule _snapshot;
 
             private FrameIndex _frame;
+
+            internal static bool TryInvokeMobaLobbyStateService(IWorld world, string methodName, PlayerId playerId)
+            {
+                if (world == null || world.Services == null) return false;
+
+                try
+                {
+                    var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                    Type lobbyType = null;
+                    for (int i = 0; i < assemblies.Length; i++)
+                    {
+                        lobbyType = assemblies[i].GetType("AbilityKit.Ability.Share.Impl.Moba.Services.MobaLobbyStateService", throwOnError: false);
+                        if (lobbyType != null) break;
+                    }
+
+                    if (lobbyType == null) return false;
+                    if (!world.Services.TryResolve(lobbyType, out var lobbyObj) || lobbyObj == null) return false;
+
+                    var method = lobbyType.GetMethod(methodName, new[] { typeof(PlayerId) });
+                    if (method == null) return false;
+
+                    method.Invoke(lobbyObj, new object[] { playerId });
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
 
             public FramePipeline(
                 IWorldManager worlds,
@@ -288,10 +317,13 @@ namespace AbilityKit.Ability.Server
 
                 if (_worlds.TryGet(worldId, out var world) && world.Services != null)
                 {
-                    if (world.Services.TryGet<MobaLobbyStateService>(out var lobby) && lobby != null)
-                    {
-                        lobby.OnPlayerJoined(playerId);
-                    }
+                    FramePipeline.TryInvokeMobaLobbyStateService(world, methodName: "OnPlayerJoined", playerId: playerId);
+                }
+
+                if (_options != null)
+                {
+                    _options.PlayerJoined.Invoke(worldId, playerId);
+                    _options.OnPlayerJoined?.Invoke(worldId, playerId);
                 }
 
                 foreach (var c in _clients.Values)
@@ -315,10 +347,13 @@ namespace AbilityKit.Ability.Server
 
                 if (_worlds.TryGet(worldId, out var world) && world.Services != null)
                 {
-                    if (world.Services.TryGet<MobaLobbyStateService>(out var lobby) && lobby != null)
-                    {
-                        lobby.OnPlayerLeft(playerId);
-                    }
+                    FramePipeline.TryInvokeMobaLobbyStateService(world, methodName: "OnPlayerLeft", playerId: playerId);
+                }
+
+                if (_options != null)
+                {
+                    _options.PlayerLeft.Invoke(worldId, playerId);
+                    _options.OnPlayerLeft?.Invoke(worldId, playerId);
                 }
 
                 foreach (var c in _clients.Values)
@@ -357,3 +392,4 @@ namespace AbilityKit.Ability.Server
         }
     }
 }
+#endif

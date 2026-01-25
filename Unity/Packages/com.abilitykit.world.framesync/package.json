@@ -1,0 +1,12 @@
+﻿{
+  "name": "com.abilitykit.world.framesync",
+  "version": "0.0.1",
+  "displayName": "AbilityKit World FrameSync",
+  "unity": "2022.3",
+  "description": "Frame sync and rollback utilities.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.world.di": "0.0.1"
+  }
+}

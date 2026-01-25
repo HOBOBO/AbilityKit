@@ -1,0 +1,19 @@
+﻿{
+  "name": "AbilityKit.World.DI",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "Microsoft.CSharp",
+    "Entitas.dll"
+  ],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

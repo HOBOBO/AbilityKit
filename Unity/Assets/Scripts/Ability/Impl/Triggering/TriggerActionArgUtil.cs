@@ -95,10 +95,40 @@ namespace AbilityKit.Ability.Impl.Triggering
                 return actorId > 0;
             }
 
-            if (obj is global::ActorEntity e && e.hasActorId)
+            try
             {
-                actorId = e.actorId.Value;
-                return actorId > 0;
+                var t = obj.GetType();
+                if (t != null && string.Equals(t.Name, "ActorEntity", StringComparison.Ordinal))
+                {
+                    var hasProp = t.GetProperty("hasActorId");
+                    if (hasProp != null && hasProp.PropertyType == typeof(bool))
+                    {
+                        var has = (bool)hasProp.GetValue(obj);
+                        if (!has) return false;
+                    }
+
+                    var actorIdProp = t.GetProperty("actorId");
+                    if (actorIdProp != null)
+                    {
+                        var actorIdObj = actorIdProp.GetValue(obj);
+                        if (actorIdObj != null)
+                        {
+                            var valueProp = actorIdObj.GetType().GetProperty("Value");
+                            if (valueProp != null)
+                            {
+                                var v = valueProp.GetValue(actorIdObj);
+                                if (v is int i2)
+                                {
+                                    actorId = i2;
+                                    return actorId > 0;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
             }
 
             return false;

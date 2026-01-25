@@ -12,7 +12,7 @@
     </Reference>
 
     <Reference Include="Entitas">
-      <HintPath>..\..\Assets\ThirdParty\Entitas\Entitas.dll</HintPath>
+      <HintPath>..\..\Packages\com.abilitykit.thirdparty.entitas.runtime\Entitas\Entitas.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>

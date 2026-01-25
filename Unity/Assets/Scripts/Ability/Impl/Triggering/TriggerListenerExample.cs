@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
@@ -19,8 +20,55 @@ namespace AbilityKit.Ability.Impl.Triggering
             var registry = new TriggerRegistry();
             registry.RegisterCondition("arg_eq", new ArgEqualsConditionFactory());
             registry.RegisterAction("seq", new SequenceActionFactory(registry));
-            registry.RegisterAction("debug_log", new DebugLogActionFactory());
-            registry.RegisterAction("log_attacker", new LogAttackerNameActionFactory());
+
+            Type debugLogFactoryType = null;
+            Type logAttackerFactoryType = null;
+            var hasDebugLog = false;
+            var hasLogAttacker = false;
+
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            for (int i = 0; i < assemblies.Length; i++)
+            {
+                if (debugLogFactoryType == null)
+                {
+                    debugLogFactoryType = assemblies[i].GetType("AbilityKit.Ability.Impl.Triggering.DebugLogActionFactory", throwOnError: false);
+                }
+                if (logAttackerFactoryType == null)
+                {
+                    logAttackerFactoryType = assemblies[i].GetType("AbilityKit.Ability.Impl.Triggering.LogAttackerNameActionFactory", throwOnError: false);
+                }
+                if (debugLogFactoryType != null && logAttackerFactoryType != null) break;
+            }
+
+            if (debugLogFactoryType != null)
+            {
+                try
+                {
+                    if (Activator.CreateInstance(debugLogFactoryType) is IActionFactory f)
+                    {
+                        registry.RegisterAction("debug_log", f);
+                        hasDebugLog = true;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            if (logAttackerFactoryType != null)
+            {
+                try
+                {
+                    if (Activator.CreateInstance(logAttackerFactoryType) is IActionFactory f)
+                    {
+                        registry.RegisterAction("log_attacker", f);
+                        hasLogAttacker = true;
+                    }
+                }
+                catch
+                {
+                }
+            }
 
             _runner = new TriggerRunner(UnityGlobalEventBus.Instance, registry, new UnityTriggerContextFactory());
 
@@ -36,15 +84,21 @@ namespace AbilityKit.Ability.Impl.Triggering
             var actions = new List<ActionDef>();
             if (OnlyWhenSelfAttacked)
             {
-                var actArgs = PooledDefArgs.Rent();
-                actArgs["message"] = "我自己发动了攻击";
-                actions.Add(new ActionDef("debug_log", actArgs));
+                if (hasDebugLog)
+                {
+                    var actArgs = PooledDefArgs.Rent();
+                    actArgs["message"] = "我自己发动了攻击";
+                    actions.Add(new ActionDef("debug_log", actArgs));
+                }
             }
             else
             {
-                var actArgs = PooledDefArgs.Rent();
-                actArgs["format"] = "{0}发动了攻击";
-                actions.Add(new ActionDef("log_attacker", actArgs));
+                if (hasLogAttacker)
+                {
+                    var actArgs = PooledDefArgs.Rent();
+                    actArgs["format"] = "{0}发动了攻击";
+                    actions.Add(new ActionDef("log_attacker", actArgs));
+                }
             }
 
             var trigger = new TriggerDef(

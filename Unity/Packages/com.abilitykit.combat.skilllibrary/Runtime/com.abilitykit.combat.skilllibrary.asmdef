@@ -1,0 +1,26 @@
+﻿{
+    "name":  "AbilityKit.Combat.SkillLibrary",
+    "rootNamespace":  "AbilityKit",
+    "references":  [
+                       "AbilityKit.Core"
+                   ],
+    "includePlatforms":  [
+
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  false,
+    "precompiledReferences":  [
+
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
+}

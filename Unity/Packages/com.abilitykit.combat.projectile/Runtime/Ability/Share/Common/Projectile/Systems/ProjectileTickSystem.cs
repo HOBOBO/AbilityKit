@@ -1,0 +1,40 @@
+using System;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World.Services;
+
+namespace AbilityKit.Ability.Share.Common.Projectile
+{
+    [WorldSystem(WorldSystemOrder.AbilityBase + WorldSystemOrder.Normal, Phase = WorldSystemPhase.Execute)]
+    public sealed class ProjectileTickSystem : WorldSystemBase
+    {
+        private readonly IProjectileService _projectiles;
+        private readonly IWorldClock _clock;
+        private readonly IFrameTime _frameTime;
+        private int _fallbackFrame;
+
+        public ProjectileTickSystem(global::Entitas.IContexts contexts, IWorldServices services)
+            : base(contexts, services)
+        {
+            _projectiles = services.Get<IProjectileService>();
+            _clock = services.Get<IWorldClock>();
+            services.TryGet<IFrameTime>(out _frameTime);
+        }
+
+        protected override void OnExecute()
+        {
+            if (_projectiles == null) return;
+            if (_clock == null) return;
+
+            if (_frameTime != null)
+            {
+                _projectiles.Tick(_frameTime.Frame.Value, _frameTime.DeltaTime);
+                return;
+            }
+
+            _fallbackFrame++;
+            _projectiles.Tick(_fallbackFrame, _clock.DeltaTime);
+        }
+    }
+}

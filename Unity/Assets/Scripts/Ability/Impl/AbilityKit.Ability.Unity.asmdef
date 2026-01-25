@@ -2,7 +2,14 @@
   "name": "AbilityKit.Ability.Unity",
   "rootNamespace": "",
   "references": [
-    "AbilityKit.Ability.Runtime"
+    "AbilityKit.Ability.RuntimePkg",
+    "AbilityKit.Core",
+    "AbilityKit.HFSM",
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.World.DI",
+    "AbilityKit.Server",
+    "AbilityKit.World.Snapshot",
+    "AbilityKit.World.ECS"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

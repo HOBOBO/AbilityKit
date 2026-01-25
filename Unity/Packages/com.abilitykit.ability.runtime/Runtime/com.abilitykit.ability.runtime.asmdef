@@ -1,0 +1,23 @@
+﻿{
+  "name": "AbilityKit.Ability.RuntimePkg",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Core",
+    "AbilityKit.Attributes",
+    "AbilityKit.World.DI",
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.World.ECS",
+    "AbilityKit.World.Snapshot",
+    "AbilityKit.Combat.Projectile",
+    "AbilityKit.Combat.Collision.Abstractions"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

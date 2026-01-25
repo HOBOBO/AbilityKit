@@ -1,0 +1,22 @@
+﻿{
+  "name": "AbilityKit.Base.Editor",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Core",
+    "NBC.ActionEditor",
+    "NBC.ActionEditor.Editor",
+    "ActionEditorImpl",
+    "AbilityKit.World.ECS"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -1,0 +1,21 @@
+{
+  "name": "AbilityKit.Ability.Editor",
+  "rootNamespace": "",
+  "references": [
+    "AbilityKit.Core",
+    "AbilityKit.Ability.RuntimePkg",
+    "AbilityKit.Ability.Unity",
+    "AbilityKit.World.Snapshot"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

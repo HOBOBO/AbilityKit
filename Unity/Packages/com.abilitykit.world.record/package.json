@@ -1,0 +1,16 @@
+﻿{
+    "name":  "com.abilitykit.world.record",
+    "version":  "0.0.1",
+    "displayName":  "AbilityKit World Record",
+    "unity":  "2022.3",
+    "description":  "World recording/replay/lockstep adapters (migrated from Common/Record).",
+    "author":  {
+                   "name":  "AbilityKit"
+               },
+    "dependencies":  {
+                         "com.abilitykit.core":  "0.0.1",
+                         "com.abilitykit.world.framesync":  "0.0.1",
+                         "com.abilitykit.world.snapshot":  "0.0.1",
+                         "com.abilitykit.server":  "0.0.1"
+                     }
+}

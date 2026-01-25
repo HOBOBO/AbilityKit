@@ -1,0 +1,7 @@
+﻿{
+    "name":  "com.abilitykit.thirdparty.actioneditor",
+    "version":  "0.0.1",
+    "displayName":  "ThirdParty ActionEditor",
+    "unity":  "2022.3",
+    "description":  "Third party dependency packaged for AbilityKit."
+}

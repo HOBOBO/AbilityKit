@@ -1,0 +1,33 @@
+﻿{
+  "name": "AbilityKit.Demo.Moba.Runtime",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Core",
+    "AbilityKit.Attributes",
+    "AbilityKit.Server",
+    "AbilityKit.Demo.Moba.Entitas.Generated",
+    "AbilityKit.World.Motion",
+    "AbilityKit.World.DI",
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.World.ECS",
+    "AbilityKit.World.Snapshot",
+    "AbilityKit.Ability.RuntimePkg",
+    "AbilityKit.Ability.Unity",
+    "AbilityKit.ActionSchema",
+    "AbilityKit.Combat.Projectile",
+    "AbilityKit.Combat.Damage",
+    "AbilityKit.Combat.EntityManager",
+    "AbilityKit.Combat.Targeting",
+    "AbilityKit.Combat.Collision.Abstractions",
+    "AbilityKit.Combat.Collision.Unity"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

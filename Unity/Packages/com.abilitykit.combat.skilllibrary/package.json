@@ -1,0 +1,13 @@
+﻿{
+    "name":  "com.abilitykit.combat.skilllibrary",
+    "version":  "0.0.1",
+    "displayName":  "AbilityKit Combat SkillLibrary",
+    "unity":  "2022.3",
+    "description":  "Skill library/index utilities.",
+    "author":  {
+                   "name":  "AbilityKit"
+               },
+    "dependencies":  {
+                         "com.abilitykit.core":  "0.0.1"
+                     }
+}

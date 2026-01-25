@@ -1,0 +1,11 @@
+﻿{
+  "name": "com.abilitykit.world.ecs",
+  "version": "0.0.1",
+  "displayName": "AbilityKit World ECS",
+  "unity": "2022.3",
+  "description": "Lightweight entity component system.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1"
+  }
+}

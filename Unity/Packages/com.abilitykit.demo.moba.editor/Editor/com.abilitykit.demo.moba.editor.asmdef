@@ -1,0 +1,28 @@
+﻿{
+  "name": "AbilityKit.Demo.Moba.Editor",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Demo.Moba.Runtime",
+    "AbilityKit.Demo.Moba.View.Runtime",
+    "AbilityKit.Ability.RuntimePkg",
+    "AbilityKit.Core",
+    "AbilityKit.Attributes",
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.World.ECS",
+    "AbilityKit.World.Snapshot",
+    "AbilityKit.Server",
+    "AbilityKit.HotReload",
+    "AbilityKit.World.DI"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -1,0 +1,12 @@
+﻿{
+  "name": "com.abilitykit.world.di",
+  "version": "0.0.1",
+  "displayName": "AbilityKit World DI",
+  "unity": "2022.3",
+  "description": "World DI and service container.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.thirdparty.entitas.runtime": "0.0.1"
+  }
+}

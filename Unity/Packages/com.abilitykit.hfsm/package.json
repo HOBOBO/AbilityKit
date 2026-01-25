@@ -1,0 +1,11 @@
+﻿{
+  "name": "com.abilitykit.hfsm",
+  "version": "0.0.1",
+  "displayName": "AbilityKit HFSM",
+  "unity": "2022.3",
+  "description": "Hierarchical FSM utilities.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1"
+  }
+}

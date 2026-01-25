@@ -1,0 +1,28 @@
+﻿{
+  "name": "com.abilitykit.demo.moba.runtime",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Demo MOBA Runtime",
+  "unity": "2022.3",
+  "description": "MOBA demo runtime implementation (configs, services, systems).",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.demo.moba.entitas.generated": "0.0.1",
+    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.attributes": "0.0.1",
+    "com.abilitykit.actionschema": "0.0.1",
+    "com.abilitykit.hfsm": "0.0.1",
+    "com.abilitykit.server": "0.0.1",
+    "com.abilitykit.world.di": "0.0.1",
+    "com.abilitykit.world.framesync": "0.0.1",
+    "com.abilitykit.world.ecs": "0.0.1",
+    "com.abilitykit.world.motion": "0.0.1",
+    "com.abilitykit.world.snapshot": "0.0.1",
+    "com.abilitykit.ability.runtime": "0.0.1",
+    "com.abilitykit.combat.entitymanager": "0.0.1",
+    "com.abilitykit.combat.projectile": "0.0.1",
+    "com.abilitykit.combat.damage": "0.0.1",
+    "com.abilitykit.combat.targeting": "0.0.1",
+    "com.abilitykit.combat.collision.abstractions": "0.0.1",
+    "com.abilitykit.combat.collision.unity": "0.0.1"
+  }
+}

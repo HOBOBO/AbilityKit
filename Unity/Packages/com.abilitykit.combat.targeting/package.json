@@ -1,0 +1,13 @@
+﻿{
+  "name": "com.abilitykit.combat.targeting",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Combat Targeting",
+  "unity": "2022.3",
+  "description": "Target search/selection utilities.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.world.ecs": "0.0.1",
+    "com.abilitykit.combat.entitymanager": "0.0.1"
+  }
+}

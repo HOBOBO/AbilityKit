@@ -1,0 +1,13 @@
+﻿{
+    "name":  "com.abilitykit.ability.testkit",
+    "version":  "0.0.1",
+    "displayName":  "AbilityKit Ability TestKit",
+    "unity":  "2022.3",
+    "description":  "Editor-only test utilities for AbilityKit ability runtime.",
+    "author":  {
+                   "name":  "AbilityKit"
+               },
+    "dependencies":  {
+                         "com.abilitykit.ability.runtime":  "0.0.1"
+                     }
+}

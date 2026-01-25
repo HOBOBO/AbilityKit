@@ -1,0 +1,15 @@
+﻿{
+  "name": "com.abilitykit.combat.projectile",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Combat Projectile",
+  "unity": "2022.3",
+  "description": "Projectile and area worlds, schedules, events, and services.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.world.di": "0.0.1",
+    "com.abilitykit.world.framesync": "0.0.1",
+    "com.abilitykit.world.ecs": "0.0.1",
+    "com.abilitykit.combat.collision.abstractions": "0.0.1"
+  }
+}

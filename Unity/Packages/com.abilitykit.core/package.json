@@ -1,0 +1,8 @@
+﻿{
+  "name": "com.abilitykit.core",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Core",
+  "unity": "2022.3",
+  "description": "AbilityKit core runtime utilities.",
+  "author": { "name": "AbilityKit" }
+}

@@ -1,0 +1,14 @@
+﻿{
+    "name":  "com.abilitykit.actioneditor.impl",
+    "version":  "0.0.1",
+    "displayName":  "AbilityKit ActionEditor Impl",
+    "unity":  "2022.3",
+    "description":  "Project-side implementation extensions for third-party ActionEditor.",
+    "author":  {
+                   "name":  "AbilityKit"
+               },
+    "dependencies":  {
+                         "com.abilitykit.thirdparty.actioneditor":  "0.0.1",
+                         "com.abilitykit.actionschema":  "0.0.1"
+                     }
+}

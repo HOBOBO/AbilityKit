@@ -1,0 +1,17 @@
+﻿{
+  "name": "com.abilitykit.demo.moba.view.runtime",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Demo MOBA View",
+  "unity": "2022.3",
+  "description": "MOBA demo view/runtime (Game layer).",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.demo.moba.entitas.generated": "0.0.1",
+    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.server": "0.0.1",
+    "com.abilitykit.world.ecs": "0.0.1",
+    "com.abilitykit.world.record": "0.0.1",
+    "com.abilitykit.world.snapshot": "0.0.1",
+    "com.abilitykit.demo.moba.runtime": "0.0.1"
+  }
+}

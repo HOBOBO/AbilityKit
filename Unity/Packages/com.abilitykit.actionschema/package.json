@@ -1,0 +1,11 @@
+﻿{
+  "name": "com.abilitykit.actionschema",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Action Schema",
+  "unity": "2022.3",
+  "description": "Action schema DTOs and runtime helpers.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "com.abilitykit.demo.moba.entitas.generated",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Demo MOBA Entitas Generated",
+  "unity": "2022.3",
+  "description": "Entitas generated code for AbilityKit Demo MOBA (Contexts, Entities, Matchers, Lookups).",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.thirdparty.entitas.runtime": "0.0.1",
+    "com.abilitykit.thirdparty.desperatedevs.runtime": "0.0.1"
+  }
+}

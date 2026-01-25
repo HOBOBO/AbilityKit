@@ -1,0 +1,14 @@
+﻿{
+    "name":  "com.abilitykit.ability.editor",
+    "version":  "0.0.1",
+    "displayName":  "AbilityKit Ability Editor",
+    "unity":  "2022.3",
+    "description":  "Editor-only tools for AbilityKit ability runtime.",
+    "author":  {
+                   "name":  "AbilityKit"
+               },
+    "dependencies":  {
+                         "com.abilitykit.ability.runtime":  "0.0.1",
+                         "com.abilitykit.core":  "0.0.1"
+                     }
+}

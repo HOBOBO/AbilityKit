@@ -1,0 +1,30 @@
+{
+    "name": "AbilityKit.Game.UnitTests",
+    "rootNamespace": "",
+    "references": [
+        "AbilityKit.Demo.Moba.View.Runtime",
+        "AbilityKit.Attributes",
+        "AbilityKit.Ability.Runtime",
+        "AbilityKit.Ability.RuntimePkg",
+        "AbilityKit.Ability.Unity",
+        "AbilityKit.Ability.TestKit",
+        "AbilityKit.World.DI",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

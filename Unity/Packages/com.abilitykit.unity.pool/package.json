@@ -1,0 +1,13 @@
+﻿{
+    "name":  "com.abilitykit.unity.pool",
+    "version":  "0.0.1",
+    "displayName":  "AbilityKit Unity Pool",
+    "unity":  "2022.3",
+    "description":  "Unity-specific pooling implementations (GameObject/Component pools).",
+    "author":  {
+                   "name":  "AbilityKit"
+               },
+    "dependencies":  {
+                         "com.abilitykit.core":  "0.0.1"
+                     }
+}
