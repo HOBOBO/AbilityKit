@@ -1,0 +1,8 @@
+{
+  "name": "com.abilitykit.protocol",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Protocol",
+  "unity": "2022.3",
+  "description": "Shared protocol definitions for client/server.",
+  "author": { "name": "AbilityKit" }
+}

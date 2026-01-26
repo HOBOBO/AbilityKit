@@ -13,6 +13,7 @@ using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Game.Flow.Snapshot;
 using AbilityKit.Ability.Share.Common.Record.Lockstep;
 using AbilityKit.Game.Flow.Battle.Replay;
+using AbilityKit.Game.Battle.Transport;
 using UnityEngine;
 using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
 using AbilityKit.Ability.Impl.Moba.Systems;
@@ -159,7 +160,26 @@ namespace AbilityKit.Game.Flow
                 opts.RollbackCaptureEveryNFrames = 30;
             }
 
-            _session = BattleLogicSessionHost.Start(opts);
+            if (logicMode == BattleLogicMode.Remote)
+            {
+                IBattleLogicTransport transport;
+
+                if (_plan.UseGatewayTransport)
+                {
+                    Debug.LogWarning($"Gateway transport is selected but no concrete ITransport adapter is wired yet. Fallback to NullBattleLogicTransport. Host={_plan.GatewayHost}, Port={_plan.GatewayPort}");
+                    transport = new NullBattleLogicTransport();
+                }
+                else
+                {
+                    transport = new NullBattleLogicTransport();
+                }
+
+                _session = BattleLogicSessionHost.Start(opts, remoteTransport: transport);
+            }
+            else
+            {
+                _session = BattleLogicSessionHost.Start(opts);
+            }
             _session.FrameReceived += OnFrame;
 
             _snapshots = new FrameSnapshotDispatcher(_session);

@@ -1,0 +1,10 @@
+{
+  "name": "com.abilitykit.game.battle.transport.runtime",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Game Battle Transport Runtime",
+  "unity": "2021.3",
+  "description": "Reusable battle transport implementations (gateway transport) for AbilityKit.",
+  "author": {
+    "name": "AbilityKit"
+  }
+}

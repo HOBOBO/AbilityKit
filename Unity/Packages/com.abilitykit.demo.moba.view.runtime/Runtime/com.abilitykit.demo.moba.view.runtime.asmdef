@@ -8,6 +8,8 @@
     "AbilityKit.ActionSchema",
     "AbilityKit.Attributes",
     "AbilityKit.Core",
+    "AbilityKit.Game.Battle.Runtime",
+    "AbilityKit.Game.Battle.Transport.Runtime",
     "AbilityKit.Server",
     "AbilityKit.World.DI",
     "AbilityKit.World.ECS",

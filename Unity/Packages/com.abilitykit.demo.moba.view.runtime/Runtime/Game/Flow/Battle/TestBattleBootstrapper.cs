@@ -26,6 +26,9 @@ namespace AbilityKit.Game.Flow
                 worldType: plan != null ? plan.WorldType : "battle",
                 clientId: plan != null ? plan.ClientId : "battle_client",
                 playerId: req.PlayerId.Value,
+                useGatewayTransport: cfg.Gateway != null && cfg.Gateway.UseGatewayTransport,
+                gatewayHost: cfg.Gateway != null ? cfg.Gateway.Host : "127.0.0.1",
+                gatewayPort: cfg.Gateway != null ? cfg.Gateway.Port : 4000,
                 autoConnect: plan != null && plan.AutoConnect,
                 autoCreateWorld: plan != null && plan.AutoCreateWorld,
                 autoJoin: plan != null && plan.AutoJoin,
@@ -35,7 +38,7 @@ namespace AbilityKit.Game.Flow
                 enableInputRecording: plan != null && plan.EnableInputRecording,
                 inputRecordOutputPath: plan != null ? plan.InputRecordOutputPath : "battle_record.json",
                 enableInputReplay: plan != null && plan.EnableInputReplay,
-                inputReplayPath: plan != null ? plan.InputReplayPath : "battle_record.json",
+                inputReplayPath: plan != null && plan.EnableInputReplay ? plan.InputReplayPath : "battle_record.json",
                 createWorldOpCode: MobaWorldBootstrapModule.InitOpCode,
                 createWorldPayload: payload
             );

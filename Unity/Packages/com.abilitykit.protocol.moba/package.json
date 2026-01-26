@@ -1,0 +1,10 @@
+{
+  "name": "com.abilitykit.protocol.moba",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Protocol (Moba)",
+  "unity": "2022.3",
+  "description": "Shared Moba protocol assets and generated glue code for Unity and Server.",
+  "author": {
+    "name": "AbilityKit"
+  }
+}

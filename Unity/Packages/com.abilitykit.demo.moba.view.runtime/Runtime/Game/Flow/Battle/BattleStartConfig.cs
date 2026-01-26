@@ -66,6 +66,14 @@ namespace AbilityKit.Game.Flow
             public List<PlayerConfig> Team2Players = new List<PlayerConfig> { new PlayerConfig { PlayerId = "p2", TeamId = Team.Team2, HeroId = 10002, SpawnIndex = 0 } };
         }
 
+        [System.Serializable]
+        public sealed class GatewayConfig
+        {
+            public bool UseGatewayTransport = false;
+            public string Host = "127.0.0.1";
+            public int Port = 4000;
+        }
+
         [Header("Battle Start Plan")]
         public BattleStartPlanConfig StartPlan = new BattleStartPlanConfig();
 
@@ -74,6 +82,9 @@ namespace AbilityKit.Game.Flow
 
         [Header("Players")]
         public PlayersConfig Players = new PlayersConfig();
+
+        [Header("Gateway")]
+        public GatewayConfig Gateway = new GatewayConfig();
 
         public EnterMobaGameReq BuildEnterMobaGameReq()
         {

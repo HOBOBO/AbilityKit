@@ -225,6 +225,24 @@
         "com.abilitykit.core": "0.0.1"
       }
     },
+    "com.abilitykit.game.battle.runtime": {
+      "version": "file:com.abilitykit.game.battle.runtime",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
+    "com.abilitykit.game.battle.transport.runtime": {
+      "version": "file:com.abilitykit.game.battle.transport.runtime",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
+    "com.abilitykit.gameframework": {
+      "version": "file:com.abilitykit.gameframework",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.abilitykit.hfsm": {
       "version": "file:com.abilitykit.hfsm",
       "depth": 0,
@@ -242,6 +260,33 @@
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.world.di": "0.0.1"
       }
+    },
+    "com.abilitykit.network.runtime": {
+      "version": "file:com.abilitykit.network.runtime",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
+    "com.abilitykit.protocol": {
+      "version": "file:com.abilitykit.protocol",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
+    "com.abilitykit.protocol.editor": {
+      "version": "file:com.abilitykit.protocol.editor",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "0.0.1",
+        "com.abilitykit.protocol": "0.0.1"
+      }
+    },
+    "com.abilitykit.protocol.moba": {
+      "version": "file:com.abilitykit.protocol.moba",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
     },
     "com.abilitykit.server": {
       "version": "file:com.abilitykit.server",

@@ -1,0 +1,19 @@
+{
+  "name": "AbilityKit.Protocol.Moba",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Core",
+    "AbilityKit.Protocol",
+    "AbilityKit.World.Snapshot",
+    "AbilityKit.Demo.Moba.Runtime"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

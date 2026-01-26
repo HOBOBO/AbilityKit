@@ -1,0 +1,10 @@
+{
+  "name": "com.abilitykit.game.battle.runtime",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Game Battle Runtime",
+  "unity": "2021.3",
+  "description": "Reusable battle runtime abstractions (requests, transport interfaces) for AbilityKit.",
+  "author": {
+    "name": "AbilityKit"
+  }
+}

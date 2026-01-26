@@ -31,29 +31,39 @@ namespace AbilityKit.Game.Battle
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
 
-            var registry = new WorldTypeRegistry().RegisterEntitasWorld(_options.WorldType);
-            _worldManager = new WorldManager(new RegistryWorldFactory(registry));
-
-            var serverOptions = new LogicWorldServerOptions();
-            var modules = new LogicWorldServerModuleHost()
-                .Add(new ServerFrameTimeModule());
-
-            if (_options.EnableRollback)
+            if (_options.Mode == BattleLogicMode.Remote)
             {
-                var history = _options.RollbackHistoryFrames;
-                if (history <= 0) history = 600;
-                var captureEvery = _options.RollbackCaptureEveryNFrames;
-                if (captureEvery <= 0) captureEvery = 30;
-
-                RollbackModule = new ServerRollbackModule(history, captureEvery, BuildRollbackRegistry);
-                modules.Add(RollbackModule);
+                _worldManager = null;
+                _server = null;
             }
-            modules.InstallAll(serverOptions);
-            _server = new AbilityKit.Ability.Server.LogicWorldServer(_worldManager, serverOptions);
+            else
+            {
+                var registry = new WorldTypeRegistry().RegisterEntitasWorld(_options.WorldType);
+                _worldManager = new WorldManager(new RegistryWorldFactory(registry));
+
+                var serverOptions = new LogicWorldServerOptions();
+                var modules = new LogicWorldServerModuleHost()
+                    .Add(new ServerFrameTimeModule());
+
+                if (_options.EnableRollback)
+                {
+                    var history = _options.RollbackHistoryFrames;
+                    if (history <= 0) history = 600;
+                    var captureEvery = _options.RollbackCaptureEveryNFrames;
+                    if (captureEvery <= 0) captureEvery = 30;
+
+                    RollbackModule = new ServerRollbackModule(history, captureEvery, BuildRollbackRegistry);
+                    modules.Add(RollbackModule);
+                }
+
+                modules.InstallAll(serverOptions);
+                _server = new AbilityKit.Ability.Server.LogicWorldServer(_worldManager, serverOptions);
+            }
 
             if (_options.Mode == BattleLogicMode.Remote)
             {
-                var transport = remoteTransport ?? new InMemoryBattleLogicTransport(_server, _options.ClientId);
+                if (remoteTransport == null) throw new ArgumentNullException(nameof(remoteTransport));
+                var transport = remoteTransport;
                 _client = BattleLogicClientFactory.CreateRemote(transport);
             }
             else
@@ -146,6 +156,8 @@ namespace AbilityKit.Game.Battle
 
         public bool TryGetWorld(out IWorld world)
         {
+            world = null;
+            if (_worldManager == null) return false;
             return _worldManager.TryGet(_client.WorldId, out world);
         }
 

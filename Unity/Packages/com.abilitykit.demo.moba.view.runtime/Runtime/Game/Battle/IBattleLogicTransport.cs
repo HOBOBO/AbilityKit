@@ -1,9 +1,9 @@
 using System;
 using AbilityKit.Ability.Server;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Game.Battle.Requests;
+using AbilityKit.Game.Battle.DemoLegacy.Requests;
 
-namespace AbilityKit.Game.Battle
+namespace AbilityKit.Game.Battle.DemoLegacy
 {
     public interface IBattleLogicTransport
     {

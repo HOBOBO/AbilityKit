@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS8714;CS8765;CS8767;CS8600;CS8602;CS8604;CS8618;CS8622;CS8625</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.gameframework\Runtime\GameFramework\**\*.cs"
+             Exclude="..\..\..\..\Unity\Packages\com.abilitykit.gameframework\Runtime\GameFramework\Properties\AssemblyInfo.cs"
+             Link="GameFramework\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Orleans.Contracts\AbilityKit.Orleans.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Client" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>

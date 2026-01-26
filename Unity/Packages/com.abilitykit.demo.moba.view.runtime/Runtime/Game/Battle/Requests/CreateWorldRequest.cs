@@ -1,7 +1,7 @@
 using System;
 using AbilityKit.Ability.World.Abstractions;
 
-namespace AbilityKit.Game.Battle.Requests
+namespace AbilityKit.Game.Battle.DemoLegacy.Requests
 {
     public readonly struct CreateWorldRequest
     {

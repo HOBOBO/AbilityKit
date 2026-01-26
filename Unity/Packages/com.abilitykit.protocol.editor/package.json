@@ -1,0 +1,12 @@
+{
+  "name": "com.abilitykit.protocol.editor",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Protocol Editor",
+  "unity": "2022.3",
+  "description": "Editor tooling for defining protocols and generating glue code.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.protocol": "0.0.1"
+  }
+}

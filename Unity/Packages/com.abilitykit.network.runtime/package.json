@@ -1,0 +1,10 @@
+{
+  "name": "com.abilitykit.network.runtime",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Network Runtime",
+  "unity": "2021.3",
+  "description": "Shared network runtime abstractions and framing for AbilityKit.",
+  "author": {
+    "name": "AbilityKit"
+  }
+}

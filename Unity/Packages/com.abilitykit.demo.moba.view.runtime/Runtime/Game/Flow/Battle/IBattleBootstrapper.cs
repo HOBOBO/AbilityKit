@@ -26,6 +26,10 @@ namespace AbilityKit.Game.Flow
         public readonly string ClientId;
         public readonly string PlayerId;
 
+        public readonly bool UseGatewayTransport;
+        public readonly string GatewayHost;
+        public readonly int GatewayPort;
+
         public readonly bool AutoConnect;
         public readonly bool AutoCreateWorld;
         public readonly bool AutoJoin;
@@ -49,6 +53,9 @@ namespace AbilityKit.Game.Flow
             string worldType,
             string clientId,
             string playerId,
+            bool useGatewayTransport,
+            string gatewayHost,
+            int gatewayPort,
             bool autoConnect,
             bool autoCreateWorld,
             bool autoJoin,
@@ -66,6 +73,10 @@ namespace AbilityKit.Game.Flow
             WorldType = worldType;
             ClientId = clientId;
             PlayerId = playerId;
+
+            UseGatewayTransport = useGatewayTransport;
+            GatewayHost = gatewayHost;
+            GatewayPort = gatewayPort;
             AutoConnect = autoConnect;
             AutoCreateWorld = autoCreateWorld;
             AutoJoin = autoJoin;
