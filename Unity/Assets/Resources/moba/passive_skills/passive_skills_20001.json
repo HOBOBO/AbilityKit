@@ -1,0 +1,8 @@
+{
+  "Id": 20001,
+  "Name": "测试被动",
+  "CooldownMs": 1000,
+  "TriggerIds": [
+    20001
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "Id": 10001,
+  "Name": "",
+  "Phases": [
+    {
+      "Type": 2,
+      "Checks": null,
+      "Timeline": {
+        "DurationMs": 3000,
+        "Events": [
+          {
+            "AtMs": 100,
+            "EffectId": 22001,
+            "ExecuteMode": 0,
+            "EventTag": ""
+          }
+        ]
+      }
+    }
+  ]
+}

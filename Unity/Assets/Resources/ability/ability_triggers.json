@@ -10,7 +10,7 @@
         {
           "Type": "debug_log",
           "Args": {
-            "message": "测试日志输出11111222",
+            "message": "测试日志输出1111122233333",
             "dump_args": false
           },
           "Items": null

@@ -1,0 +1,18 @@
+{
+  "Id": 100001,
+  "Name": "",
+  "DurationMs": 10000,
+  "OngoingEffectId": 0,
+  "OnAddEffects": [],
+  "OnRemoveEffects": [],
+  "OnIntervalEffects": [
+    20004
+  ],
+  "IntervalMs": 2000,
+  "StackingPolicy": 0,
+  "RefreshPolicy": 0,
+  "MaxStacks": 0,
+  "Tags": [
+    0
+  ]
+}

@@ -1,4 +1,4 @@
-﻿namespace DesperateDevs.CodeGeneration.CodeGenerator.Unity.Editor {
+﻿namespace DesperateDevs.CodeGeneration.CodeGenerator.Unity.EditorStubs {
 
     class Compile {
     }

@@ -1,0 +1,178 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c92ca45d1a30a34e8cc871c3c837e5a, type: 3}
+  m_Name: ability_triggers.generated
+  m_EditorClassIdentifier: 
+  AbilityId: ability_triggers.generated
+  Triggers:
+  - Core:
+      TriggerId: 10001
+      EventId: 
+      AllowExternal: 0
+    Enabled: 1
+    Note: 
+    LocalVars: []
+    ConditionsStrong: []
+    ActionsStrong:
+    - rid: 3080490237987127296
+    - rid: 3080490237987127297
+  - Core:
+      TriggerId: 20001
+      EventId: skill.cast.complete
+      AllowExternal: 0
+    Enabled: 1
+    Note: 
+    LocalVars: []
+    ConditionsStrong: []
+    ActionsStrong:
+    - rid: 3080490237987127298
+    - rid: 3080490237987127299
+  - Core:
+      TriggerId: 20002
+      EventId: skill.cast.complete
+      AllowExternal: 1
+    Enabled: 1
+    Note: 
+    LocalVars: []
+    ConditionsStrong: []
+    ActionsStrong:
+    - rid: 3080490237987127300
+  - Core:
+      TriggerId: 20003
+      EventId: 
+      AllowExternal: 0
+    Enabled: 1
+    Note: 
+    LocalVars: []
+    ConditionsStrong: []
+    ActionsStrong:
+    - rid: 3080490237987127301
+  - Core:
+      TriggerId: 20004
+      EventId: 
+      AllowExternal: 0
+    Enabled: 1
+    Note: 
+    LocalVars: []
+    ConditionsStrong: []
+    ActionsStrong:
+    - rid: 3080490237987127302
+  - Core:
+      TriggerId: 20005
+      EventId: 
+      AllowExternal: 0
+    Enabled: 1
+    Note: 
+    LocalVars: []
+    ConditionsStrong: []
+    ActionsStrong:
+    - rid: 3080490237987127303
+    - rid: 3080490237987127304
+  - Core:
+      TriggerId: 21001
+      EventId: 
+      AllowExternal: 0
+    Enabled: 1
+    Note: 
+    LocalVars: []
+    ConditionsStrong: []
+    ActionsStrong:
+    - rid: 3080490237987127305
+  - Core:
+      TriggerId: 21002
+      EventId: 
+      AllowExternal: 0
+    Enabled: 1
+    Note: 
+    LocalVars: []
+    ConditionsStrong: []
+    ActionsStrong:
+    - rid: 3080490237987127306
+    - rid: 3080490237987127307
+  - Core:
+      TriggerId: 22001
+      EventId: 
+      AllowExternal: 0
+    Enabled: 1
+    Note: 
+    LocalVars: []
+    ConditionsStrong: []
+    ActionsStrong:
+    - rid: 3080490237987127308
+  references:
+    version: 2
+    RefIds:
+    - rid: 3080490237987127296
+      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        TypeValue: debug_log
+        Items: []
+    - rid: 3080490237987127297
+      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        TypeValue: shoot_projectile
+        Items: []
+    - rid: 3080490237987127298
+      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        TypeValue: debug_log
+        Items: []
+    - rid: 3080490237987127299
+      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        TypeValue: emit
+        Items: []
+    - rid: 3080490237987127300
+      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        TypeValue: debug_log
+        Items: []
+    - rid: 3080490237987127301
+      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        TypeValue: add_buff
+        Items: []
+    - rid: 3080490237987127302
+      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        TypeValue: debug_log
+        Items: []
+    - rid: 3080490237987127303
+      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        TypeValue: debug_log
+        Items: []
+    - rid: 3080490237987127304
+      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        TypeValue: give_damage
+        Items: []
+    - rid: 3080490237987127305
+      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        TypeValue: aoe_burst
+        Items: []
+    - rid: 3080490237987127306
+      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        TypeValue: give_damage
+        Items: []
+    - rid: 3080490237987127307
+      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        TypeValue: knock
+        Items: []
+    - rid: 3080490237987127308
+      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        TypeValue: emit
+        Items: []

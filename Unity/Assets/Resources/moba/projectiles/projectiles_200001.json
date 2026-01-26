@@ -1,0 +1,19 @@
+{
+  "Id": 200001,
+  "Name": "",
+  "VfxId": 200001,
+  "Speed": 10.0,
+  "LifetimeMs": 2000,
+  "MaxDistance": 0.0,
+  "HitPolicyKind": 1,
+  "HitsRemaining": -1,
+  "HitCooldownMs": 150,
+  "TickIntervalMs": 0,
+  "OnHitEffectId": 20005,
+  "OnSpawnVfxId": 0,
+  "OnHitVfxId": 0,
+  "OnExpireVfxId": 0,
+  "ReturnAfterMs": 800,
+  "ReturnSpeed": 12.0,
+  "ReturnStopDistance": 0.8
+}
