@@ -1,6 +1,7 @@
 using System.Net.WebSockets;
 using System.Text;
 using AbilityKit.Orleans.Contracts.Hello;
+using AbilityKit.Orleans.Gateway.HttpApi;
 using AbilityKit.Orleans.Gateway.TcpGateway;
 using Orleans.Configuration;
 using Orleans.Hosting;
@@ -37,12 +38,18 @@ builder.Host.UseOrleansClient(client =>
 
 var app = builder.Build();
 
+app.UseStaticFiles();
+
 app.UseWebSockets(new WebSocketOptions
 {
     KeepAliveInterval = TimeSpan.FromSeconds(30)
 });
 
 app.MapGet("/health", () => Results.Ok("OK"));
+
+app.MapGet("/debug", () => Results.Redirect("/debug/"));
+
+app.MapGatewayHttpApi();
 
 app.Map("/ws", async context =>
 {

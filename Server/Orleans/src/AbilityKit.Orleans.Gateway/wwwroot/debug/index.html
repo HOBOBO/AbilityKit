@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AbilityKit Orleans Gateway Debug</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #0b1020; color: #e6e8ef; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    h1 { margin: 0 0 16px; font-size: 20px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card { background: #121a33; border: 1px solid #243055; border-radius: 10px; padding: 12px; }
+    .card h2 { margin: 0 0 10px; font-size: 14px; color: #cfd6ff; }
+    label { display: block; font-size: 12px; margin: 8px 0 4px; color: #aab3d6; }
+    input, textarea { width: 100%; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid #2b3a66; background: #0c1328; color: #e6e8ef; }
+    textarea { min-height: 110px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    button { margin-top: 10px; padding: 8px 12px; border-radius: 8px; border: 1px solid #3952a3; background: #1c2d70; color: #e6e8ef; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .mono { white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; background: #0c1328; border: 1px solid #2b3a66; border-radius: 8px; padding: 8px; }
+    .hint { font-size: 12px; color: #94a0c9; margin-top: 6px; }
+    .full { grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+  <div id="app" class="container">
+    <h1>AbilityKit Orleans Gateway Debug UI</h1>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Guest Login</h2>
+        <button @click="guestLogin" :disabled="busy">POST /api/guest/login</button>
+        <div class="hint">SessionToken will be stored locally in this page.</div>
+
+        <label>SessionToken</label>
+        <input v-model="sessionToken" placeholder="(auto from login)" />
+      </div>
+
+      <div class="card">
+        <h2>Join Room</h2>
+        <label>RoomId</label>
+        <input v-model="join.roomId" placeholder="room id" />
+        <button @click="joinRoom" :disabled="busy || !sessionToken || !join.roomId">POST /api/rooms/join</button>
+      </div>
+
+      <div class="card full">
+        <h2>Create Room</h2>
+        <div class="row">
+          <div>
+            <label>Region</label>
+            <input v-model="create.region" placeholder="cn" />
+          </div>
+          <div>
+            <label>ServerId</label>
+            <input v-model="create.serverId" placeholder="1" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>RoomType</label>
+            <input v-model="create.roomType" placeholder="test" />
+          </div>
+          <div>
+            <label>MaxPlayers</label>
+            <input v-model.number="create.maxPlayers" type="number" min="1" max="200" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Title</label>
+            <input v-model="create.title" placeholder="room1" />
+          </div>
+          <div>
+            <label>IsPublic</label>
+            <input v-model="create.isPublic" type="checkbox" style="width:auto;" />
+          </div>
+        </div>
+
+        <label>Tags (JSON object, optional)</label>
+        <textarea v-model="create.tagsJson" placeholder='{"mode":"pvp"}'></textarea>
+
+        <button @click="createRoom" :disabled="busy || !sessionToken">POST /api/rooms/create</button>
+      </div>
+
+      <div class="card full">
+        <h2>Response</h2>
+        <div class="mono">{{ lastResponse }}</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script>
+    const { createApp } = Vue;
+
+    createApp({
+      data() {
+        return {
+          busy: false,
+          sessionToken: localStorage.getItem('abilitykit.sessionToken') || '',
+          lastResponse: '',
+          create: {
+            region: 'cn',
+            serverId: '1',
+            roomType: 'test',
+            title: 'room1',
+            isPublic: true,
+            maxPlayers: 4,
+            tagsJson: ''
+          },
+          join: {
+            roomId: ''
+          }
+        };
+      },
+      methods: {
+        async callJson(url, body) {
+          this.busy = true;
+          try {
+            const resp = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: body ? JSON.stringify(body) : null
+            });
+
+            const text = await resp.text();
+            let parsed = null;
+            try { parsed = text ? JSON.parse(text) : null; } catch { parsed = text; }
+
+            this.lastResponse = JSON.stringify({
+              ok: resp.ok,
+              status: resp.status,
+              body: parsed
+            }, null, 2);
+
+            if (!resp.ok) {
+              return null;
+            }
+            return parsed;
+          } catch (e) {
+            this.lastResponse = String(e);
+            return null;
+          } finally {
+            this.busy = false;
+          }
+        },
+
+        async guestLogin() {
+          const data = await this.callJson('/api/guest/login');
+          if (data && data.sessionToken) {
+            this.sessionToken = data.sessionToken;
+            localStorage.setItem('abilitykit.sessionToken', this.sessionToken);
+          }
+        },
+
+        async createRoom() {
+          let tags = null;
+          const t = (this.create.tagsJson || '').trim();
+          if (t) {
+            try {
+              tags = JSON.parse(t);
+            } catch {
+              this.lastResponse = 'Invalid tags JSON';
+              return;
+            }
+          }
+
+          const data = await this.callJson('/api/rooms/create', {
+            sessionToken: this.sessionToken,
+            region: this.create.region,
+            serverId: this.create.serverId,
+            roomType: this.create.roomType,
+            title: this.create.title,
+            isPublic: !!this.create.isPublic,
+            maxPlayers: Number(this.create.maxPlayers || 0),
+            tags
+          });
+
+          if (data && data.roomId) {
+            this.join.roomId = data.roomId;
+          }
+        },
+
+        async joinRoom() {
+          await this.callJson('/api/rooms/join', {
+            sessionToken: this.sessionToken,
+            roomId: this.join.roomId
+          });
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
