@@ -34,6 +34,7 @@ namespace AbilityKit.Network.Runtime
         public event Action<Exception> Error;
 
         public event Action<uint, uint, ArraySegment<byte>> PacketReceived;
+        public event Action<uint, ArraySegment<byte>> ServerPushReceived;
 
         public NetworkPipeline Pipeline => _pipeline;
 
@@ -110,6 +111,13 @@ namespace AbilityKit.Network.Runtime
         {
             var opCode = header.OpCode;
             var seq = header.Seq;
+
+            if ((header.Flags & NetworkPacketFlags.ServerPush) != 0)
+            {
+                _dispatcher.Post(() => ServerPushReceived?.Invoke(opCode, payload));
+                return;
+            }
+
             _dispatcher.Post(() => PacketReceived?.Invoke(opCode, seq, payload));
         }
 

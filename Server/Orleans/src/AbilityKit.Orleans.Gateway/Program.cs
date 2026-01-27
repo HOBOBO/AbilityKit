@@ -10,7 +10,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOptions<TcpGatewayOptions>()
     .Bind(builder.Configuration.GetSection("TcpGateway"));
 
+builder.Services.AddSingleton<ITcpGatewaySessionRegistry, TcpGatewaySessionRegistry>();
+
 builder.Services.AddSingleton<ITcpGatewayRequestHandler, HelloRequestHandler>();
+builder.Services.AddSingleton<ITcpGatewayRequestHandler, GuestLoginRequestHandler>();
+builder.Services.AddSingleton<ITcpGatewayRequestHandler, CreateRoomRequestHandler>();
+builder.Services.AddSingleton<ITcpGatewayRequestHandler, JoinRoomRequestHandler>();
+builder.Services.AddSingleton<ITcpGatewayRequestHandler, LeaveRoomRequestHandler>();
+builder.Services.AddSingleton<ITcpGatewayRequestHandler, ListRoomsRequestHandler>();
+builder.Services.AddSingleton<ITcpGatewayRequestHandler, CloseRoomRequestHandler>();
+builder.Services.AddSingleton<ITcpGatewayRequestHandler, RenewSessionRequestHandler>();
+builder.Services.AddSingleton<ITcpGatewayRequestHandler, LogoutRequestHandler>();
+builder.Services.AddSingleton<ITcpGatewayRequestHandler, CreateSessionForAccountRequestHandler>();
 builder.Services.AddSingleton<TcpGatewayRequestRouter>();
 builder.Services.AddHostedService<TcpGatewayListener>();
 

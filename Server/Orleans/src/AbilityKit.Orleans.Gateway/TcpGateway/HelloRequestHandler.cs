@@ -18,11 +18,11 @@ public sealed class HelloRequestHandler : ITcpGatewayRequestHandler
 
     public bool CanHandle(uint opCode) => opCode == _options.Value.HelloOpCode;
 
-    public async Task<TcpGatewayResponseEnvelope> HandleAsync(NetworkPacketHeader header, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
+    public async Task<TcpGatewayResponseEnvelope> HandleAsync(TcpClientSessionContext context, NetworkPacketHeader header, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
     {
-        var msg = Encoding.UTF8.GetString(payload.Span);
         var hello = _clusterClient.GetGrain<IHelloGrain>("default");
-        var reply = await hello.SayHello(msg.Trim());
-        return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.Ok, Encoding.UTF8.GetBytes(reply));
+        var msg = TcpGatewayJson.Deserialize<string>(payload.Span) ?? string.Empty;
+        var reply = await hello.SayHello(msg);
+        return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.Ok, TcpGatewayJson.Serialize(reply));
     }
 }

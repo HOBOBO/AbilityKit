@@ -13,6 +13,10 @@ namespace AbilityKit.Network.Abstractions
 
         event Action<uint, uint, ArraySegment<byte>> PacketReceived;
 
+        event Action<uint, ArraySegment<byte>> ServerPushReceived;
+
+        event Action<string, string> Kicked;
+
         void Open(string host, int port);
         void Close();
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -23,7 +24,7 @@ public sealed class TcpGatewayRequestRouter
         _logger = logger;
     }
 
-    public async Task<TcpGatewayResponseEnvelope> RouteAsync(NetworkPacketHeader requestHeader, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
+    public async Task<TcpGatewayResponseEnvelope> RouteAsync(TcpClientSessionContext context, NetworkPacketHeader requestHeader, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
     {
         var opts = _options.Value;
 
@@ -40,7 +41,7 @@ public sealed class TcpGatewayRequestRouter
 
         try
         {
-            return await handler.HandleAsync(requestHeader, payload, cts.Token);
+            return await handler.HandleAsync(context, requestHeader, payload, cts.Token);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -50,7 +51,7 @@ public sealed class TcpGatewayRequestRouter
         catch (Exception ex)
         {
             _logger.LogError(ex, "Request handler exception. OpCode={OpCode} Seq={Seq}", requestHeader.OpCode, requestHeader.Seq);
-            return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.Exception, ReadOnlyMemory<byte>.Empty);
+            return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.Exception, Encoding.UTF8.GetBytes(ex.ToString()));
         }
     }
 }

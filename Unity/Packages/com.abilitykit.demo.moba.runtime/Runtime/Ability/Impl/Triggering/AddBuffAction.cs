@@ -5,6 +5,7 @@ using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
@@ -163,17 +164,32 @@ namespace AbilityKit.Ability.Impl.Triggering
 
             object originSource = null;
             object originTarget = null;
+            long parentContextId = 0;
             if (context?.Event.Args != null)
             {
                 context.Event.Args.TryGetValue(EffectTriggering.Args.OriginSource, out originSource);
                 context.Event.Args.TryGetValue(EffectTriggering.Args.OriginTarget, out originTarget);
+
+                if (context.Event.Args.TryGetValue(EffectSourceKeys.SourceContextId, out var ctxIdObj) && ctxIdObj != null)
+                {
+                    if (ctxIdObj is long l) parentContextId = l;
+                    else if (ctxIdObj is int i) parentContextId = i;
+                    else if (ctxIdObj is string s && long.TryParse(s, out var parsed)) parentContextId = parsed;
+                }
+
+                if (parentContextId == 0 && context.Event.Args.TryGetValue(EffectTriggering.Args.OriginContextId, out var originCtxObj) && originCtxObj != null)
+                {
+                    if (originCtxObj is long l2) parentContextId = l2;
+                    else if (originCtxObj is int i2) parentContextId = i2;
+                    else if (originCtxObj is string s2 && long.TryParse(s2, out var parsed2)) parentContextId = parsed2;
+                }
             }
 
             for (int i = 0; i < _buffIds.Count; i++)
             {
                 var buffId = _buffIds[i];
                 if (buffId <= 0) continue;
-                buffSvc.ApplyBuffImmediate(target, buffId, sourceActorId, durationOverrideMs: 0, originSource: originSource, originTarget: originTarget);
+                buffSvc.ApplyBuffImmediate(target, buffId, sourceActorId, durationOverrideMs: 0, originSource: originSource, originTarget: originTarget, parentContextId: parentContextId);
             }
         }
     }

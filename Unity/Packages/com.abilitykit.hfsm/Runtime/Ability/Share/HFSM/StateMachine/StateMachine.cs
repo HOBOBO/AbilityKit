@@ -4,6 +4,10 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using UnityHFSM.Inspection;
 
+#if UNITY_EDITOR
+using UnityHFSM.Visualization;
+#endif
+
 /**
  * Hierarchical Finite State Machine for Unity
  * by Inspiaaa and contributors
@@ -411,9 +415,16 @@ namespace UnityHFSM
 		/// </summary>
 		public override void OnEnter()
 		{
+			#if UNITY_EDITOR
+			if (IsRootFsm)
+			{
+				HfsmLiveRegistry.AutoRegister(this);
+			}
+			#endif
+
 			if (!startState.hasState)
 			{
-				throw UnityHFSM.Exceptions.Common.MissingStartState(this, context: "Running OnEnter of the state machine.");
+				throw UnityHFSM.Exceptions.Common.MissingStartState(this, context: "Initializing the state machine");
 			}
 
 			// Clear any previous pending transition from the last run.
@@ -456,6 +467,13 @@ namespace UnityHFSM
 
 		public override void OnExit()
 		{
+			#if UNITY_EDITOR
+			if (IsRootFsm)
+			{
+				HfsmLiveRegistry.Unregister(this);
+			}
+			#endif
+
 			if (activeState == null)
 				return;
 

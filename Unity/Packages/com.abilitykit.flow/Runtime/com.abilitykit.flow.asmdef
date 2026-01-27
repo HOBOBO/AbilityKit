@@ -2,7 +2,8 @@
   "name": "AbilityKit.Flow",
   "rootNamespace": "AbilityKit",
   "references": [
-    "AbilityKit.Core"
+    "AbilityKit.Core",
+    "AbilityKit.HFSM"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

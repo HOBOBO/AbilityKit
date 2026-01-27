@@ -19,5 +19,8 @@ namespace AbilityKit.Network.Runtime
         public int MaxFrameLength = 4 * 1024 * 1024;
 
         public uint HeartbeatOpCode = 0;
+
+        public bool EnableKickHandling = true;
+        public uint KickPushOpCode = 9000;
     }
 }

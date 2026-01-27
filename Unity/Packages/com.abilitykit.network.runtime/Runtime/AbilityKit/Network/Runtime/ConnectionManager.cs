@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 
@@ -44,6 +45,8 @@ namespace AbilityKit.Network.Runtime
         public event Action<Exception> Error;
 
         public event Action<uint, uint, ArraySegment<byte>> PacketReceived;
+        public event Action<uint, ArraySegment<byte>> ServerPushReceived;
+        public event Action<string, string> Kicked;
 
         public void Open(string host, int port)
         {
@@ -131,6 +134,7 @@ namespace AbilityKit.Network.Runtime
 
             _session.Start();
             _session.PacketReceived += OnSessionPacketReceived;
+            _session.ServerPushReceived += OnSessionServerPushReceived;
             _session.Connected += OnSessionConnected;
             _session.Disconnected += OnSessionDisconnected;
             _session.Error += OnSessionError;
@@ -149,6 +153,7 @@ namespace AbilityKit.Network.Runtime
             if (_session != null)
             {
                 _session.PacketReceived -= OnSessionPacketReceived;
+                _session.ServerPushReceived -= OnSessionServerPushReceived;
                 _session.Connected -= OnSessionConnected;
                 _session.Disconnected -= OnSessionDisconnected;
                 _session.Error -= OnSessionError;
@@ -236,6 +241,100 @@ namespace AbilityKit.Network.Runtime
         private void OnSessionPacketReceived(uint opCode, uint seq, ArraySegment<byte> payload)
         {
             PacketReceived?.Invoke(opCode, seq, payload);
+        }
+
+        private void OnSessionServerPushReceived(uint opCode, ArraySegment<byte> payload)
+        {
+            if (_options.EnableKickHandling && opCode == _options.KickPushOpCode)
+            {
+                var token = string.Empty;
+                var reason = string.Empty;
+
+                try
+                {
+                    if (payload.Array != null && payload.Count > 0)
+                    {
+                        var json = Encoding.UTF8.GetString(payload.Array, payload.Offset, payload.Count);
+                        token = TryGetJsonStringValue(json, "sessionToken") ?? string.Empty;
+                        reason = TryGetJsonStringValue(json, "reason") ?? string.Empty;
+                    }
+                }
+                catch
+                {
+                    if (payload.Array != null && payload.Count > 0)
+                    {
+                        reason = Encoding.UTF8.GetString(payload.Array, payload.Offset, payload.Count);
+                    }
+                }
+
+                Kicked?.Invoke(token, reason);
+
+                Close();
+                return;
+            }
+
+            ServerPushReceived?.Invoke(opCode, payload);
+        }
+
+        private static string TryGetJsonStringValue(string json, string key)
+        {
+            if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(key)) return null;
+
+            // Very small JSON extractor for {"key":"value"} style payloads.
+            // It is NOT a general JSON parser; it is sufficient for our kick push payload.
+            var pattern = "\"" + key + "\"";
+            var i = json.IndexOf(pattern, StringComparison.Ordinal);
+            if (i < 0) return null;
+
+            i = json.IndexOf(':', i + pattern.Length);
+            if (i < 0) return null;
+            i++;
+
+            while (i < json.Length && char.IsWhiteSpace(json[i])) i++;
+            if (i >= json.Length || json[i] != '"') return null;
+            i++;
+
+            var start = i;
+            var sb = (StringBuilder)null;
+
+            while (i < json.Length)
+            {
+                var c = json[i];
+                if (c == '"')
+                {
+                    if (sb == null) return json.Substring(start, i - start);
+                    return sb.ToString();
+                }
+
+                if (c == '\\')
+                {
+                    if (i + 1 >= json.Length) return null;
+                    sb ??= new StringBuilder(json.Substring(start, i - start));
+                    var esc = json[i + 1];
+                    switch (esc)
+                    {
+                        case '"': sb.Append('"'); break;
+                        case '\\': sb.Append('\\'); break;
+                        case '/': sb.Append('/'); break;
+                        case 'b': sb.Append('\b'); break;
+                        case 'f': sb.Append('\f'); break;
+                        case 'n': sb.Append('\n'); break;
+                        case 'r': sb.Append('\r'); break;
+                        case 't': sb.Append('\t'); break;
+                        default:
+                            // Keep unknown escapes as-is
+                            sb.Append(esc);
+                            break;
+                    }
+                    i += 2;
+                    start = i;
+                    continue;
+                }
+
+                i++;
+            }
+
+            return null;
         }
 
         private void SendHeartbeat()

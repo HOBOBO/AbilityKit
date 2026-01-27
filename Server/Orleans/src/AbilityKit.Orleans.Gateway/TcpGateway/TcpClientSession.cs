@@ -1,29 +1,38 @@
 using System.Buffers;
 using System.Net.Sockets;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace AbilityKit.Orleans.Gateway.TcpGateway;
 
 public sealed class TcpClientSession
 {
+    private readonly long _connectionId;
     private readonly TcpClient _client;
     private readonly TcpGatewayOptions _options;
     private readonly TcpGatewayRequestRouter _router;
     private readonly ILogger _logger;
 
-    public TcpClientSession(TcpClient client, TcpGatewayOptions options, TcpGatewayRequestRouter router, ILogger logger)
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private NetworkStream? _stream;
+    private readonly TcpClientSessionContext _context;
+
+    public TcpClientSession(long connectionId, TcpClient client, TcpGatewayOptions options, TcpGatewayRequestRouter router, ILogger logger)
     {
+        _connectionId = connectionId;
         _client = client;
         _options = options;
         _router = router;
         _logger = logger;
+        _context = new TcpClientSessionContext(connectionId);
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         using var _ = _client;
 
-        var stream = _client.GetStream();
+        _stream = _client.GetStream();
+        var stream = _stream;
         var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
         var buffered = 0;
 
@@ -73,8 +82,21 @@ public sealed class TcpClientSession
         }
         finally
         {
+            _stream = null;
             ArrayPool<byte>.Shared.Return(buffer);
         }
+    }
+
+    public async Task SendServerPushAsync(uint opCode, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
+    {
+        var stream = _stream;
+        if (stream is null)
+        {
+            return;
+        }
+
+        var header = new NetworkPacketHeader(NetworkPacketFlags.ServerPush, opCode, 0, (uint)payload.Length);
+        await SendFrameAsync(stream, header, payload, cancellationToken);
     }
 
     private static void EnsureCapacity(ref byte[] buffer, int buffered, int maxFrameLength)
@@ -95,7 +117,7 @@ public sealed class TcpClientSession
     {
         if ((header.Flags & NetworkPacketFlags.Heartbeat) != 0)
         {
-            await SendResponseAsync(stream, new NetworkPacketHeader(NetworkPacketFlags.Heartbeat | NetworkPacketFlags.Response, header.OpCode, header.Seq, 0), ReadOnlyMemory<byte>.Empty, cancellationToken);
+            await SendFrameAsync(stream, new NetworkPacketHeader(NetworkPacketFlags.Heartbeat | NetworkPacketFlags.Response, header.OpCode, header.Seq, 0), ReadOnlyMemory<byte>.Empty, cancellationToken);
 
             return;
         }
@@ -105,7 +127,7 @@ public sealed class TcpClientSession
             TcpGatewayResponseEnvelope envelope;
             try
             {
-                envelope = await _router.RouteAsync(header, payload, cancellationToken);
+                envelope = await _router.RouteAsync(_context, header, payload, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -116,7 +138,7 @@ public sealed class TcpClientSession
             var responsePayload = TcpGatewayResponseCodec.Serialize(envelope);
 
             var respHeader = new NetworkPacketHeader(NetworkPacketFlags.Response, header.OpCode, header.Seq, (uint)responsePayload.Length);
-            await SendResponseAsync(stream, respHeader, responsePayload, cancellationToken);
+            await SendFrameAsync(stream, respHeader, responsePayload, cancellationToken);
 
             return;
         }
@@ -124,18 +146,26 @@ public sealed class TcpClientSession
         _logger.LogInformation("Received packet: OpCode={OpCode} Seq={Seq} Flags={Flags} PayloadLength={PayloadLength}", header.OpCode, header.Seq, (ushort)header.Flags, header.PayloadLength);
     }
 
-    private static async Task SendResponseAsync(NetworkStream stream, NetworkPacketHeader header, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
+    private async Task SendFrameAsync(NetworkStream stream, NetworkPacketHeader header, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
     {
-        var frameSize = NetworkFrameCodec.GetFrameSize((int)header.PayloadLength);
-        var outBytes = ArrayPool<byte>.Shared.Rent(frameSize);
+        await _writeLock.WaitAsync(cancellationToken);
         try
         {
-            NetworkFrameCodec.WriteFrame(outBytes.AsSpan(0, frameSize), header, payload.Span);
-            await stream.WriteAsync(outBytes.AsMemory(0, frameSize), cancellationToken);
+            var frameSize = NetworkFrameCodec.GetFrameSize((int)header.PayloadLength);
+            var outBytes = ArrayPool<byte>.Shared.Rent(frameSize);
+            try
+            {
+                NetworkFrameCodec.WriteFrame(outBytes.AsSpan(0, frameSize), header, payload.Span);
+                await stream.WriteAsync(outBytes.AsMemory(0, frameSize), cancellationToken);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(outBytes);
+            }
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(outBytes);
+            _writeLock.Release();
         }
     }
 }

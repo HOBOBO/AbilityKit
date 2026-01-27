@@ -9,5 +9,20 @@ public sealed class TcpGatewayOptions
 
     public uint HelloOpCode { get; set; } = 1;
 
+    public uint GuestLoginOpCode { get; set; } = 100;
+    public uint CreateRoomOpCode { get; set; } = 110;
+    public uint JoinRoomOpCode { get; set; } = 111;
+    public uint LeaveRoomOpCode { get; set; } = 112;
+    public uint ListRoomsOpCode { get; set; } = 113;
+
+    public uint CloseRoomOpCode { get; set; } = 114;
+
+    public uint RenewSessionOpCode { get; set; } = 120;
+    public uint LogoutOpCode { get; set; } = 121;
+
+    public uint CreateSessionForAccountOpCode { get; set; } = 122;
+
+    public uint KickPushOpCode { get; set; } = 9000;
+
     public int RequestTimeoutMs { get; set; } = 5000;
 }

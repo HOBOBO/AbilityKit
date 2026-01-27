@@ -50,10 +50,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public bool ApplyBuffImmediate(global::ActorEntity target, int buffId, int sourceActorId, int durationOverrideMs)
         {
-            return ApplyBuffImmediate(target, buffId, sourceActorId, durationOverrideMs, originSource: null, originTarget: null);
+            return ApplyBuffImmediate(target, buffId, sourceActorId, durationOverrideMs, originSource: null, originTarget: null, parentContextId: 0);
         }
 
-        public bool ApplyBuffImmediate(global::ActorEntity target, int buffId, int sourceActorId, int durationOverrideMs, object originSource, object originTarget)
+        public bool ApplyBuffImmediate(global::ActorEntity target, int buffId, int sourceActorId, int durationOverrideMs, object originSource, object originTarget, long parentContextId)
         {
             if (target == null) return false;
             if (!target.hasActorId) return false;
@@ -88,7 +88,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 var rt = list[existingIndex];
                 var applied = ApplyToExisting(rt, buff, sourceActorId, durationSeconds, _effectSource, _actionRunner, GetFrame(), targetActorId);
-                EnsureBuffContext(rt, buff.Id, sourceActorId, targetActorId, _effectSource, GetFrame(), originSource, originTarget);
+                EnsureBuffContext(rt, buff.Id, sourceActorId, targetActorId, _effectSource, GetFrame(), originSource, originTarget, parentContextId);
                 TryStartOngoingEffectByBuff(buff, rt, sourceActorId, targetActorId, duration);
                 PublishBuffEvent(_eventBus, _effectSource, MobaBuffTriggering.Events.ApplyOrRefresh, buff, sourceActorId, targetActorId, durationSeconds, rt);
                 if (applied)
@@ -101,7 +101,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             }
 
             var created = CreateNewRuntime(buff, sourceActorId, durationSeconds);
-            EnsureBuffContext(created, buff.Id, sourceActorId, targetActorId, _effectSource, GetFrame(), originSource, originTarget);
+            EnsureBuffContext(created, buff.Id, sourceActorId, targetActorId, _effectSource, GetFrame(), originSource, originTarget, parentContextId);
             list.Add(created);
             TryStartOngoingEffectByBuff(buff, created, sourceActorId, targetActorId, duration);
             PublishBuffEvent(_eventBus, _effectSource, MobaBuffTriggering.Events.ApplyOrRefresh, buff, sourceActorId, targetActorId, durationSeconds, created);
@@ -319,20 +319,35 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             bus.Publish(new TriggerEvent(eventId, payload: runtime, args: args));
         }
 
-        private static void EnsureBuffContext(BuffRuntime rt, int buffId, int sourceActorId, int targetActorId, EffectSourceRegistry effectSource, int frame, object originSource, object originTarget)
+        private static void EnsureBuffContext(BuffRuntime rt, int buffId, int sourceActorId, int targetActorId, EffectSourceRegistry effectSource, int frame, object originSource, object originTarget, long parentContextId)
         {
             if (rt == null) return;
             if (rt.SourceContextId != 0) return;
             if (effectSource == null) return;
 
-            rt.SourceContextId = effectSource.CreateRoot(
-                kind: EffectSourceKind.Buff,
-                configId: buffId,
-                sourceActorId: sourceActorId,
-                targetActorId: targetActorId,
-                frame: frame,
-                originSource: originSource,
-                originTarget: originTarget);
+            if (parentContextId != 0)
+            {
+                rt.SourceContextId = effectSource.CreateChild(
+                    parentContextId,
+                    kind: EffectSourceKind.Buff,
+                    configId: buffId,
+                    sourceActorId: sourceActorId,
+                    targetActorId: targetActorId,
+                    frame: frame,
+                    originSource: originSource,
+                    originTarget: originTarget);
+            }
+            else
+            {
+                rt.SourceContextId = effectSource.CreateRoot(
+                    kind: EffectSourceKind.Buff,
+                    configId: buffId,
+                    sourceActorId: sourceActorId,
+                    targetActorId: targetActorId,
+                    frame: frame,
+                    originSource: originSource,
+                    originTarget: originTarget);
+            }
         }
 
         private static void CancelAndEnd(BuffRuntime rt, EffectSourceRegistry effectSource, ITriggerActionRunner actionRunner, int frame)

@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Flow;
 using AbilityKit.Ability.EC;
 using AbilityKit.Game;
 using UnityEngine;
+using UnityHFSM;
 
 namespace AbilityKit.Game.Flow
 {
@@ -11,25 +13,74 @@ namespace AbilityKit.Game.Flow
         private readonly GameEntry _entry;
         private readonly GamePhaseContext _ctx;
 
-        private IGamePhase _phase;
+        public enum RootState
+        {
+            Boot = 0,
+            Lobby = 1,
+            Battle = 2
+        }
+
+        private enum RootEvent
+        {
+            BootCompleted = 0,
+            EnterBattle = 1,
+            ReturnLobby = 2
+        }
+
+        private enum BattleState
+        {
+            Prepare = 0,
+            LoadAssets = 1,
+            InMatch = 2,
+            End = 3
+        }
+
+        private enum BattleEvent
+        {
+            PrepareDone = 0,
+            LoadingDone = 1,
+            Ended = 2
+        }
+
+        private readonly FlowContext _flowContext;
+        private readonly FlowEventQueue<RootEvent> _rootEvents;
+        private readonly StateMachine<string, RootState, RootEvent> _root;
+        private readonly HfsmFlowRunner<string, RootState, RootEvent> _runner;
+
         private readonly List<IGamePhaseFeature> _features = new List<IGamePhaseFeature>(16);
+        private RootState _activeRoot;
+        private BattleState _activeBattle;
+        private bool _battleRequested;
+        private IBattleBootstrapper _pendingBootstrapper;
+
+        private BattleSessionFeature _battleSessionFeature;
+
+        private StateMachine<RootState, BattleState, BattleEvent> _battleFsm;
+        private bool _battleSessionStarted;
+        private bool _battleFirstFrameReceived;
 
         public GameFlowDomain(GameEntry entry)
         {
             _entry = entry ?? throw new ArgumentNullException(nameof(entry));
             _ctx = new GamePhaseContext(_entry, _entry.Root);
+
+            _flowContext = new FlowContext();
+            _rootEvents = new FlowEventQueue<RootEvent>();
+            _root = BuildRootStateMachine();
+            _runner = new HfsmFlowRunner<string, RootState, RootEvent>(_flowContext, _root, _rootEvents);
         }
 
-        public IGamePhase CurrentPhase => _phase;
+        public RootState CurrentPhase => _activeRoot;
 
         public void Start()
         {
-            SwitchTo(new BootPhase());
+            _runner.Start();
+            _rootEvents.Enqueue(RootEvent.BootCompleted);
         }
 
         public void Tick(float deltaTime)
         {
-            _phase?.Tick(_ctx, deltaTime);
+            _runner.Step(deltaTime);
 
             for (int i = 0; i < _features.Count; i++)
             {
@@ -46,21 +97,45 @@ namespace AbilityKit.Game.Flow
                     gui.OnGUI(_ctx);
                 }
             }
+
+            if (!_entry.DebugEnabled) return;
+
+            GUILayout.BeginArea(new Rect(10, 140, 420, 140), GUI.skin.window);
+            GUILayout.Label($"HFSM Root={_activeRoot}, Battle={_activeBattle}");
+
+            if (GUILayout.Button("Enter Battle", GUILayout.Height(28)))
+            {
+                EnterBattle((IBattleBootstrapper)null);
+            }
+
+            if (GUILayout.Button("Battle End", GUILayout.Height(28)))
+            {
+                var state = _root.GetState(RootState.Battle);
+                if (state is StateMachine<RootState, BattleState, BattleEvent> battle)
+                {
+                    battle.Trigger(BattleEvent.Ended);
+                }
+            }
+
+            if (GUILayout.Button("Return Lobby", GUILayout.Height(28)))
+            {
+                _rootEvents.Enqueue(RootEvent.ReturnLobby);
+            }
+
+            GUILayout.EndArea();
         }
 
         public void SwitchTo(IGamePhase next)
         {
             if (next == null) throw new ArgumentNullException(nameof(next));
 
-            for (int i = _features.Count - 1; i >= 0; i--)
+            if (next is BattlePhase battle)
             {
-                Detach(_features[i]);
+                EnterBattle((IBattleBootstrapper)null);
+                return;
             }
-            _features.Clear();
 
-            _phase?.Exit(_ctx);
-            _phase = next;
-            _phase.Enter(_ctx);
+            ReturnToBoot();
         }
 
         public void Attach(IGamePhaseFeature feature)
@@ -90,12 +165,158 @@ namespace AbilityKit.Game.Flow
 
         public void EnterBattle(IBattleBootstrapper bootstrapper)
         {
-            SwitchTo(new BattlePhase(bootstrapper));
+            _battleRequested = true;
+            _pendingBootstrapper = bootstrapper;
+            _rootEvents.Enqueue(RootEvent.EnterBattle);
         }
 
         public void ReturnToBoot()
         {
-            SwitchTo(new BootPhase());
+            _battleRequested = false;
+            _pendingBootstrapper = null;
+            _rootEvents.Enqueue(RootEvent.ReturnLobby);
+        }
+
+        private StateMachine<string, RootState, RootEvent> BuildRootStateMachine()
+        {
+            var fsm = new StateMachine<string, RootState, RootEvent>();
+
+            fsm.AddState(RootState.Boot, onEnter: _ =>
+            {
+                _activeRoot = RootState.Boot;
+                ClearFeatures();
+                Attach(new BootMenuOnGUIFeature());
+            });
+
+            fsm.AddState(RootState.Lobby, onEnter: _ =>
+            {
+                _activeRoot = RootState.Lobby;
+                ClearFeatures();
+                Attach(new BootMenuOnGUIFeature());
+            });
+
+            var battle = BuildBattleStateMachine();
+            fsm.AddState(RootState.Battle, battle);
+
+            fsm.AddTriggerTransition(RootEvent.BootCompleted, RootState.Boot, RootState.Lobby);
+
+            fsm.AddTriggerTransition(RootEvent.EnterBattle, RootState.Lobby, RootState.Battle, condition: _ => _battleRequested);
+            fsm.AddTriggerTransition(RootEvent.EnterBattle, RootState.Boot, RootState.Battle, condition: _ => _battleRequested);
+
+            fsm.AddTriggerTransition(RootEvent.ReturnLobby, RootState.Battle, RootState.Lobby);
+            fsm.AddTriggerTransition(RootEvent.ReturnLobby, RootState.Boot, RootState.Lobby);
+
+            fsm.SetStartState(RootState.Boot);
+            return fsm;
+        }
+
+        private StateMachine<RootState, BattleState, BattleEvent> BuildBattleStateMachine()
+        {
+            var fsm = new StateMachine<RootState, BattleState, BattleEvent>();
+            _battleFsm = fsm;
+
+            fsm.StateChanged += s => { _activeBattle = s.name; };
+
+            fsm.AddState(BattleState.Prepare, onEnter: _ =>
+            {
+                _activeRoot = RootState.Battle;
+                ClearFeatures();
+
+                _battleSessionStarted = false;
+                _battleFirstFrameReceived = false;
+
+                Attach(new BattleContextFeature());
+
+                _battleSessionFeature = new BattleSessionFeature(_pendingBootstrapper);
+                _battleSessionFeature.SessionStarted += OnBattleSessionStarted;
+                _battleSessionFeature.FirstFrameReceived += OnBattleFirstFrameReceived;
+                Attach(_battleSessionFeature);
+
+                Attach(new BattleDebugOnGUIFeature());
+            });
+
+            fsm.AddState(BattleState.LoadAssets, onEnter: _ =>
+            {
+                _activeRoot = RootState.Battle;
+
+                // Waiting for BattleSessionFeature.FirstFrameReceived
+                Attach(new BattleDebugOnGUIFeature());
+
+                if (_battleFirstFrameReceived)
+                {
+                    fsm.Trigger(BattleEvent.LoadingDone);
+                }
+            });
+
+            fsm.AddState(BattleState.InMatch, onEnter: _ =>
+            {
+                _activeRoot = RootState.Battle;
+
+                // Core battle features (context + session) already attached in Prepare.
+                Attach(new BattleEntityFeature());
+                Attach(new BattleSyncFeature());
+                Attach(new BattleInputFeature());
+                Attach(new BattleViewFeature());
+                Attach(new BattleHudFeature());
+                Attach(new BattleDebugOnGUIFeature());
+            });
+
+            fsm.AddState(BattleState.End, onEnter: _ =>
+            {
+                _activeRoot = RootState.Battle;
+                ClearFeatures();
+                Attach(new BattleDebugOnGUIFeature());
+                _rootEvents.Enqueue(RootEvent.ReturnLobby);
+
+                _battleSessionFeature = null;
+                _battleSessionStarted = false;
+                _battleFirstFrameReceived = false;
+            });
+
+            fsm.AddTriggerTransition(BattleEvent.PrepareDone, BattleState.Prepare, BattleState.LoadAssets);
+            fsm.AddTriggerTransition(BattleEvent.LoadingDone, BattleState.LoadAssets, BattleState.InMatch);
+            fsm.AddTriggerTransition(BattleEvent.Ended, BattleState.InMatch, BattleState.End);
+
+            fsm.SetStartState(BattleState.Prepare);
+            return fsm;
+        }
+
+        private void OnBattleSessionStarted()
+        {
+            _battleSessionStarted = true;
+            if (_battleFsm == null) return;
+
+            if (_activeBattle == BattleState.Prepare)
+            {
+                _battleFsm.Trigger(BattleEvent.PrepareDone);
+            }
+        }
+
+        private void OnBattleFirstFrameReceived()
+        {
+            _battleFirstFrameReceived = true;
+            if (_battleFsm == null) return;
+
+            if (_activeBattle == BattleState.LoadAssets)
+            {
+                _battleFsm.Trigger(BattleEvent.LoadingDone);
+            }
+        }
+
+        private void ClearFeatures()
+        {
+            for (int i = _features.Count - 1; i >= 0; i--)
+            {
+                Detach(_features[i]);
+            }
+            _features.Clear();
+
+            if (_battleSessionFeature != null)
+            {
+                _battleSessionFeature.SessionStarted -= OnBattleSessionStarted;
+                _battleSessionFeature.FirstFrameReceived -= OnBattleFirstFrameReceived;
+                _battleSessionFeature = null;
+            }
         }
     }
 

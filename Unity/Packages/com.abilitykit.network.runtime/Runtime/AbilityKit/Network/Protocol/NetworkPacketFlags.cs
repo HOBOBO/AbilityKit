@@ -10,6 +10,7 @@ namespace AbilityKit.Network.Protocol
         Encrypted = 1 << 1,
         Heartbeat = 1 << 2,
         Request = 1 << 3,
-        Response = 1 << 4
+        Response = 1 << 4,
+        ServerPush = 1 << 5
     }
 }

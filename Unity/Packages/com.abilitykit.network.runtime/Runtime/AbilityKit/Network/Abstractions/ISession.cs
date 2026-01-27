@@ -12,6 +12,8 @@ namespace AbilityKit.Network.Abstractions
 
         event Action<uint, uint, ArraySegment<byte>> PacketReceived;
 
+        event Action<uint, ArraySegment<byte>> ServerPushReceived;
+
         void Start();
         void Stop();
 

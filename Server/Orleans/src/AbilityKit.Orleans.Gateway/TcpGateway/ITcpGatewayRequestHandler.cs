@@ -4,5 +4,5 @@ public interface ITcpGatewayRequestHandler
 {
     bool CanHandle(uint opCode);
 
-    Task<TcpGatewayResponseEnvelope> HandleAsync(NetworkPacketHeader header, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken);
+    Task<TcpGatewayResponseEnvelope> HandleAsync(TcpClientSessionContext context, NetworkPacketHeader header, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken);
 }

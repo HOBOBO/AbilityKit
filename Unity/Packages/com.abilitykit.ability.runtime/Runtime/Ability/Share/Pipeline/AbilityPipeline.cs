@@ -60,19 +60,23 @@ namespace AbilityKit.Ability
                 _currentPhaseIndex = 0;
                 _currentPhase = null;
                 _currentParallelPhase = null;
-                
+
+                #if UNITY_EDITOR
+                AbilityPipelineLiveRegistry.Register(this, _config);
+                #endif
+
                 // 重置所有阶段状态
                 for (int i = 0; i < _phases.Count; i++)
                 {
                     _phases[i].Reset();
                 }
-            
+
                 // 执行管线初始化
                 OnPipelineStart();
-            
+
                 // 开始执行管线
                 ExecutePipeline(_context);
-            
+
                 return _state;
             }
             catch (Exception e)
@@ -86,6 +90,10 @@ namespace AbilityKit.Ability
                 if (_state != EAbilityPipelineState.Executing)
                 {
                     ReleaseContext(_context);
+
+                    #if UNITY_EDITOR
+                    AbilityPipelineLiveRegistry.Unregister(this);
+                    #endif
                 }
             }
         }
@@ -154,7 +162,13 @@ namespace AbilityKit.Ability
             _state = EAbilityPipelineState.Failed;
             OnPipelineInterrupt(true);
             ReleaseContext(_context);
+
+            #if UNITY_EDITOR
+            AbilityPipelineLiveRegistry.Unregister(this);
+            #endif
         }
+
+        protected abstract IAbilityPipelineContext CreateContext(object abilityInstance, params object[] args);
 
         /// <summary>
         /// 重置管线
@@ -167,21 +181,114 @@ namespace AbilityKit.Ability
             _currentPhase = null;
             _currentParallelPhase = null;
             _config = null;
-            
+
             // 重置所有阶段
             for (int i = 0; i < _phases.Count; i++)
             {
                 _phases[i].Reset();
             }
-            
+
             if (_context != null)
             {
                 ReleaseContext(_context);
                 _context = null;
             }
+
+            #if UNITY_EDITOR
+            AbilityPipelineLiveRegistry.Unregister(this);
+            #endif
         }
-        
-        protected abstract IAbilityPipelineContext CreateContext(object abilityInstance, params object[] args);
+
+        /// <summary>
+        /// 更新管线（每帧调用）
+        /// 统一模型：所有阶段都通过 OnUpdate 更新，检查 IsComplete 完成
+        /// </summary>
+        public virtual void OnUpdate(IAbilityPipelineContext context, float deltaTime)
+        {
+            // 检查状态
+            if (_state != EAbilityPipelineState.Executing)
+                return;
+
+            // 暂停时不更新
+            if (_isPaused)
+                return;
+
+            // 没有当前阶段时不需要更新
+            if (_currentPhase == null)
+                return;
+
+            if (context != null && context.IsAborted)
+            {
+                _state = EAbilityPipelineState.Failed;
+                ReleaseContext(_context);
+
+                #if UNITY_EDITOR
+                AbilityPipelineLiveRegistry.Unregister(this);
+                #endif
+                return;
+            }
+
+            try
+            {
+                // 更新当前阶段
+                _currentPhase.OnUpdate(context, deltaTime);
+
+                // 复合阶段更新（并行阶段等）
+                if (_currentPhase.IsComposite)
+                {
+                    OnCompositeUpdate(context, deltaTime);
+                }
+
+                // 检查是否完成
+                if (_currentPhase.IsComplete)
+                {
+                    OnPhaseComplete(_currentPhase);
+                    _currentPhase = null;
+                    _currentPhaseIndex++;
+
+                    // 继续执行后续阶段
+                    ExecutePipeline(context);
+                }
+
+                if (context != null && context.IsAborted)
+                {
+                    _state = EAbilityPipelineState.Failed;
+                    ReleaseContext(_context);
+
+                    #if UNITY_EDITOR
+                    AbilityPipelineLiveRegistry.Unregister(this);
+                    #endif
+                }
+            }
+            catch (Exception e)
+            {
+                HandlePhaseError(_currentPhase, e);
+            }
+        }
+
+        public void AddPhase(IAbilityPipelinePhase phase)
+        {
+            if (phase == null) throw new ArgumentNullException(nameof(phase));
+            _phases.Add(phase);
+        }
+
+        public void InsertPhase(int index, IAbilityPipelinePhase phase)
+        {
+            if (phase == null) throw new ArgumentNullException(nameof(phase));
+            _phases.Insert(index, phase);
+        }
+
+        public void RemovePhase(AbilityPipelinePhaseId phaseId)
+        {
+            for (int i = 0; i < _phases.Count; i++)
+            {
+                if (_phases[i].PhaseId == phaseId)
+                {
+                    _phases.RemoveAt(i);
+                    return;
+                }
+            }
+        }
 
         /// <summary>
         /// 提供默认实现，子类可覆盖执行管线
@@ -248,91 +355,6 @@ namespace AbilityKit.Ability
         /// </summary>
         /// <param name="context"></param>
         protected abstract void ReleaseContext(IAbilityPipelineContext context);
-
-
-        /// <summary>
-        /// 更新管线（每帧调用）
-        /// 统一模型：所有阶段都通过 OnUpdate 更新，检查 IsComplete 完成
-        /// </summary>
-        public virtual void OnUpdate(IAbilityPipelineContext context, float deltaTime)
-        {
-            // 检查状态
-            if (_state != EAbilityPipelineState.Executing)
-                return;
-            
-            // 暂停时不更新
-            if (_isPaused)
-                return;
-            
-            // 没有当前阶段时不需要更新
-            if (_currentPhase == null)
-                return;
-
-            if (context != null && context.IsAborted)
-            {
-                _state = EAbilityPipelineState.Failed;
-                ReleaseContext(_context);
-                return;
-            }
-
-
-            try
-            {
-                // 更新当前阶段
-                _currentPhase.OnUpdate(context, deltaTime);
-                
-                // 复合阶段更新（并行阶段等）
-                if (_currentPhase.IsComposite)
-                {
-                    OnCompositeUpdate(context, deltaTime);
-                }
-                
-                // 检查是否完成
-                if (_currentPhase.IsComplete)
-                {
-                    OnPhaseComplete(_currentPhase);
-                    _currentPhase = null;
-                    _currentPhaseIndex++;
-                
-                    // 继续执行后续阶段
-                    ExecutePipeline(context);
-                }
-
-                if (context != null && context.IsAborted)
-                {
-                    _state = EAbilityPipelineState.Failed;
-                    ReleaseContext(_context);
-                }
-            }
-            catch (Exception e)
-            {
-                HandlePhaseError(_currentPhase, e);
-            }
-        }
-
-        public void AddPhase(IAbilityPipelinePhase phase)
-        {
-            if (phase == null) throw new ArgumentNullException(nameof(phase));
-            _phases.Add(phase);
-        }
-
-        public void InsertPhase(int index, IAbilityPipelinePhase phase)
-        {
-            if (phase == null) throw new ArgumentNullException(nameof(phase));
-            _phases.Insert(index, phase);
-        }
-
-        public void RemovePhase(AbilityPipelinePhaseId phaseId)
-        {
-            for (int i = 0; i < _phases.Count; i++)
-            {
-                if (_phases[i].PhaseId == phaseId)
-                {
-                    _phases.RemoveAt(i);
-                    return;
-                }
-            }
-        }
         
         /// <summary>
         /// 执行阶段（统一处理瞬时和持续阶段）

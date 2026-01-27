@@ -13,14 +13,16 @@ public sealed class TcpGatewayListener : BackgroundService
     private readonly IOptions<TcpGatewayOptions> _options;
     private readonly ILogger<TcpGatewayListener> _logger;
     private readonly TcpGatewayRequestRouter _router;
+    private readonly ITcpGatewaySessionRegistry _registry;
     private TcpListener? _listener;
     private readonly ConcurrentDictionary<long, TcpClientSession> _sessions = new();
     private long _nextSessionId;
 
-    public TcpGatewayListener(IOptions<TcpGatewayOptions> options, TcpGatewayRequestRouter router, ILogger<TcpGatewayListener> logger)
+    public TcpGatewayListener(IOptions<TcpGatewayOptions> options, TcpGatewayRequestRouter router, ITcpGatewaySessionRegistry registry, ILogger<TcpGatewayListener> logger)
     {
         _options = options;
         _router = router;
+        _registry = registry;
         _logger = logger;
     }
 
@@ -51,14 +53,16 @@ public sealed class TcpGatewayListener : BackgroundService
                 _ = Task.Run(async () =>
                 {
                     var sessionLogger = _logger;
-                    var session = new TcpClientSession(client, opts, _router, sessionLogger);
+                    var session = new TcpClientSession(sessionId, client, opts, _router, sessionLogger);
 
                     _sessions[sessionId] = session;
+                    _registry.Register(sessionId, session);
                     _logger.LogInformation("Tcp session {SessionId} accepted. ActiveSessions={Count}", sessionId, _sessions.Count);
 
                     await session.RunAsync(stoppingToken);
 
                     _sessions.TryRemove(sessionId, out _);
+                    _registry.Unregister(sessionId);
                     _logger.LogInformation("Tcp session {SessionId} ended. ActiveSessions={Count}", sessionId, _sessions.Count);
                 }, stoppingToken);
             }

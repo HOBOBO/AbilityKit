@@ -43,6 +43,11 @@ namespace AbilityKit.Game.Flow
         private int _lastFrame;
         private float _tickAcc;
 
+        private bool _firstFrameReceived;
+
+        public event Action SessionStarted;
+        public event Action FirstFrameReceived;
+
         public BattleSessionFeature(IBattleBootstrapper bootstrapper)
         {
             _bootstrapper = bootstrapper;
@@ -59,6 +64,8 @@ namespace AbilityKit.Game.Flow
             _plan = _bootstrapper?.Build() ?? default;
             StartSession();
 
+            SessionStarted?.Invoke();
+
             if (_ctx != null)
             {
                 _ctx.Plan = _plan;
@@ -72,6 +79,8 @@ namespace AbilityKit.Game.Flow
         public void OnDetach(in GamePhaseContext ctx)
         {
             StopSession();
+
+            _firstFrameReceived = false;
 
             if (_ctx != null)
             {
@@ -189,6 +198,7 @@ namespace AbilityKit.Game.Flow
 
             _lastFrame = 0;
             _tickAcc = 0f;
+            _firstFrameReceived = false;
 
             if (_plan.EnableInputReplay)
             {
@@ -351,6 +361,12 @@ namespace AbilityKit.Game.Flow
         private void OnFrame(FramePacket packet)
         {
             _lastFrame = packet.Frame.Value;
+
+            if (!_firstFrameReceived)
+            {
+                _firstFrameReceived = true;
+                FirstFrameReceived?.Invoke();
+            }
 
             if (_ctx != null)
             {
