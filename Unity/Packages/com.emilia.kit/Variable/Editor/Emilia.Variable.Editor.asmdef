@@ -1,0 +1,22 @@
+{
+    "name": "Emilia.Variable.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:d9cefae20c909d449a8545e0c915e664",
+        "GUID:b56a80d637f16264186fc4837331915e",
+        "GUID:c456a771040151a47ba4531eaf18d92e"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "ODIN_INSPECTOR"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

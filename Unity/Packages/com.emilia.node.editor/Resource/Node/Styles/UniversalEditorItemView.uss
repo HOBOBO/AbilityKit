@@ -1,0 +1,21 @@
+#StickyNoteProView {
+    overflow: hidden;
+    padding: 0;
+    background-color: rgb(56, 56, 56);
+
+    border-width: 1;
+    border-radius: 0;
+    border-color: black;
+    
+    margin: 5;
+}
+
+#StickyNoteProView-MarkdownContainer {
+    overflow: hidden;
+    position: absolute;
+}
+
+#StickyNoteProView.selected    
+{
+    border-color: rgb(68, 192, 255);
+}

@@ -1,0 +1,18 @@
+{
+    "name": "Emilia.Variable",
+    "rootNamespace": "",
+    "references": [
+        "GUID:3333d67804e6f9f4ba7ffcc6e72e0d41"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "ODIN_INSPECTOR"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
