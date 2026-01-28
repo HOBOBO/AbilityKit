@@ -41,7 +41,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 (evt, ctx) =>
                 {
                     if (ctx.Blackboards == null) return false;
-                    if (!ctx.Blackboards.TryGet(boardId, out var b)) return false;
+                    if (!ctx.Blackboards.TryResolve(boardId, out var b)) return false;
                     if (!b.TryGetInt(shieldKey, out var shield)) shield = 0;
 
                     var remain = evt.Amount - shield;
@@ -55,8 +55,9 @@ namespace AbilityKit.Triggering.Runtime.Example
                 actionId,
                 (evt, ctx) =>
                 {
-                    ctx.Blackboards.TryGet(boardId, out var b);
-                    b?.TryGetInt(shieldKey, out var shield);
+                    ctx.Blackboards.TryResolve(boardId, out var b);
+                    var shield = 0;
+                    b?.TryGetInt(shieldKey, out shield);
                     Console.WriteLine("触发成功：damage=" + evt.Amount + " shield=" + shield);
                 },
                 isDeterministic: true);

@@ -186,7 +186,8 @@
         "com.abilitykit.combat.damage": "0.0.1",
         "com.abilitykit.combat.targeting": "0.0.1",
         "com.abilitykit.combat.collision.abstractions": "0.0.1",
-        "com.abilitykit.combat.collision.unity": "0.0.1"
+        "com.abilitykit.combat.collision.unity": "0.0.1",
+        "com.abilitykit.triggering": "0.0.1"
       }
     },
     "com.abilitykit.demo.moba.view.runtime": {
@@ -334,6 +335,14 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {}
+    },
+    "com.abilitykit.triggering": {
+      "version": "file:com.abilitykit.triggering",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "0.0.1"
+      }
     },
     "com.abilitykit.unity.pool": {
       "version": "file:com.abilitykit.unity.pool",

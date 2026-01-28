@@ -5,6 +5,7 @@ using AbilityKit.Ability.HotReload;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace AbilityKit.Ability.Triggering.Json
 {
@@ -70,10 +71,85 @@ namespace AbilityKit.Ability.Triggering.Json
                         }
                     }
 
-                    var def = new TriggerDef(eventId, conditions, actions, allowExternal: t.AllowExternal);
+                    var def = new TriggerDef(eventId, conditions, actions);
                     var locals = t.InitialLocalVars != null ? new Dictionary<string, object>(t.InitialLocalVars, StringComparer.Ordinal) : null;
                     yield return new TriggerRecord(t.TriggerId, eventId, def, locals);
                 }
+            }
+        }
+
+        private static void ApplyLegacyMigrations(string json)
+        {
+            // NOTE: This method intentionally mutates trigger data by migrating deprecated fields.
+            // Legacy: AllowExternal=false was used as a shortcut for filtering external events.
+            // New: express via explicit condition arg_eq(key='common.is_external', value=0).
+            if (string.IsNullOrEmpty(json)) return;
+
+            JObject root;
+            try
+            {
+                root = JObject.Parse(json);
+            }
+            catch
+            {
+                return;
+            }
+
+            var triggers = root["Triggers"] as JArray;
+            if (triggers == null) return;
+
+            for (int i = 0; i < triggers.Count; i++)
+            {
+                if (triggers[i] is not JObject t) continue;
+
+                // Read legacy flag if present.
+                var allowExternalToken = t["AllowExternal"];
+                if (allowExternalToken == null) continue;
+
+                var allowExternal = allowExternalToken.Type == JTokenType.Boolean && allowExternalToken.Value<bool>();
+                // Remove deprecated field.
+                t.Remove("AllowExternal");
+
+                if (allowExternal)
+                {
+                    continue;
+                }
+
+                var conditions = t["Conditions"] as JArray;
+                if (conditions == null)
+                {
+                    conditions = new JArray();
+                    t["Conditions"] = conditions;
+                }
+
+                // Avoid inserting duplicates.
+                var already = false;
+                for (int c = 0; c < conditions.Count; c++)
+                {
+                    if (conditions[c] is not JObject cd) continue;
+                    if (!string.Equals(cd.Value<string>("Type"), TriggerConditionTypes.ArgEq, StringComparison.Ordinal)) continue;
+                    var args = cd["Args"] as JObject;
+                    if (args == null) continue;
+                    if (!string.Equals(args.Value<string>("key"), "common.is_external", StringComparison.Ordinal)) continue;
+                    already = true;
+                    break;
+                }
+
+                if (already) continue;
+
+                var migrated = new JObject
+                {
+                    ["Type"] = TriggerConditionTypes.ArgEq,
+                    ["Args"] = new JObject
+                    {
+                        ["key"] = "common.is_external",
+                        ["value_source"] = "const",
+                        ["value"] = 0
+                    }
+                };
+
+                // Prepend for clarity.
+                conditions.Insert(0, migrated);
             }
         }
 
@@ -179,6 +255,9 @@ namespace AbilityKit.Ability.Triggering.Json
                 ConfigReloadBus.Publish(fail);
                 return fail;
             }
+
+            // Apply migrations for deprecated fields before deserialization.
+            ApplyLegacyMigrations(json);
 
             AbilityTriggerDatabaseDTO dto;
             try

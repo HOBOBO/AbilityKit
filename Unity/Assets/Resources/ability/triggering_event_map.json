@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "allowedDomains": [
+    "ability",
+    "common",
+    "net"
+  ],
+  "events": [
+    {
+      "name": "ability.on_cast",
+      "argsType": "Your.Namespace.CastArgs"
+    }
+  ]
+}

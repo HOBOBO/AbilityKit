@@ -150,17 +150,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             return true;
         }
 
-        public static bool TryCompileAction(ActionId id, Dictionary<string, object> args, Func<string, int> payloadFieldIdResolver, out ActionCallPlan[] plans)
-        {
-            plans = null;
-            return false;
-        }
-
-        public static bool TryCompileCondition(string type, Dictionary<string, object> args, Func<string, int> payloadFieldIdResolver, out PredicateExprPlan plan)
-        {
-            plan = default;
-            return false;
-        }
+        // Implementations are provided by GeneratedTriggerPlanCompiler.g.cs (or other generated partials).
     }
 }
 #endif

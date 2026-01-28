@@ -110,7 +110,6 @@ namespace AbilityKit.Ability.Editor.Utilities
                 editor.Enabled = true;
                 editor.TriggerId = dto.TriggerId;
                 editor.EventId = dto.EventId;
-                editor.AllowExternal = dto.AllowExternal;
 
                 editor.ConditionsStrong = new List<ConditionEditorConfigBase>();
                 if (dto.Conditions != null)

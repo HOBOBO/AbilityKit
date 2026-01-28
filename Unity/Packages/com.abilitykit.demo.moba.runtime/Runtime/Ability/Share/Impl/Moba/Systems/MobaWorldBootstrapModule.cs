@@ -141,6 +141,11 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.AddModule(new EntitasEcsWorldModule());
             builder.AddModule(new TriggeringWorldModule());
 
+            builder.TryRegister<AbilityKit.Ability.Triggering.IEventBus>(WorldLifetime.Scoped, _ => new AbilityKit.Ability.Triggering.EventBus());
+            builder.TryRegister<AbilityKit.Triggering.Eventing.IEventBus>(WorldLifetime.Scoped, _ => new AbilityKit.Triggering.Eventing.EventBus());
+
+            builder.RegisterService<BattleTriggersService, BattleTriggersService>();
+
             builder.RegisterService<MobaLobbyStateService, MobaLobbyStateService>();
 
             builder.TryRegister<MobaConfigDatabase>(WorldLifetime.Singleton, _ =>

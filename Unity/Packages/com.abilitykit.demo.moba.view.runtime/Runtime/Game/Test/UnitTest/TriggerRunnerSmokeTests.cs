@@ -25,8 +25,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var def = new TriggerDef(
                 eventId: "evt_test",
                 conditions: new List<ConditionDef>(0),
-                actions: actions,
-                allowExternal: true);
+                actions: actions);
 
             var ok = h.TriggerRunner.RunOnce(def);
             Assert.IsTrue(ok);

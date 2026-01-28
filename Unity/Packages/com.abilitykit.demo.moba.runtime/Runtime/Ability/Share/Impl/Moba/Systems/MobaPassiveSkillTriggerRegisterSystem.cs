@@ -548,17 +548,36 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                             }
                         }
 
+                        // Inject a standard flag for whether this event is external to the owner.
+                        // Triggers should gate on this via an explicit condition: arg_eq(key='common.is_external', value=0).
+                        if (args != null)
+                        {
+                            if (args is IDictionary<string, object> dict)
+                            {
+                                dict["common.is_external"] = isExternalEvent ? 1 : 0;
+                            }
+                            else
+                            {
+                                if (mergedArgs == null)
+                                {
+                                    mergedArgs = PooledTriggerArgs.Rent();
+                                    foreach (var kv in args)
+                                    {
+                                        if (kv.Key == null) continue;
+                                        mergedArgs[kv.Key] = kv.Value;
+                                    }
+                                    args = mergedArgs;
+                                }
+                                mergedArgs["common.is_external"] = isExternalEvent ? 1 : 0;
+                            }
+                        }
+
                         var triggered = false;
                         for (int i = 0; i < entries.Count; i++)
                         {
                             var e = entries[i];
                             var def = e?.Def;
                             if (def == null) continue;
-
-                            if (isExternalEvent && !def.AllowExternal)
-                            {
-                                continue;
-                            }
 
                             if (_sys._triggers.RunOnce(def, source: null, target: null, payload: evt.Payload, args: args, initialLocalVars: e.InitialLocalVars))
                             {

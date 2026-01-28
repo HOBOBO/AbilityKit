@@ -144,7 +144,6 @@ namespace AbilityKit.Ability.Editor.Utilities
                         {
                             TriggerId = tr.TriggerId,
                             EventId = tr.EventId,
-                            AllowExternal = tr.AllowExternal,
                             InitialLocalVars = BuildInitialLocalVars(tr),
                             Conditions = BuildConditions(tr),
                             Actions = BuildActions(tr)
@@ -312,8 +311,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                     act = seq;
                 }
             }
-
-            return TriggerPlanCompilerFromStrong.Compile<object>(phase, priority, cond, act);
+            return new TriggerPlan<object>();
+            //return TriggerPlanCompilerFromStrong.Compile<object>(phase, priority, cond, act);
         }
 
         private static TriggerPlanDto BuildTriggerPlanDto(TriggerEditorConfig tr, in TriggerPlan<object> plan, int phase, int priority)
@@ -325,7 +324,6 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 TriggerId = tr.TriggerId,
                 EventId = eventId,
-                AllowExternal = tr.AllowExternal,
                 Phase = phase,
                 Priority = priority,
                 Predicate = BuildPredicateDto(in plan),
@@ -338,23 +336,25 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static LegacyPredicateDto BuildLegacyPredicateDto(in TriggerPlan<object> plan)
         {
-            if (!plan.HasPredicate || plan.PredicateKind != EPredicateKind.Legacy) return null;
-            if (!plan.LegacyPredicate.HasValue) return null;
-            var p = plan.LegacyPredicate.Value;
-            return new LegacyPredicateDto { Type = p.Type, Args = p.Args != null ? new Dictionary<string, object>(p.Args, StringComparer.Ordinal) : null };
+            return null;
+            //if (!plan.HasPredicate || plan.PredicateKind != EPredicateKind.Legacy) return null;
+            //if (!plan.LegacyPredicate.HasValue) return null;
+            //var p = plan.LegacyPredicate.Value;
+            //return new LegacyPredicateDto { Type = p.Type, Args = p.Args != null ? new Dictionary<string, object>(p.Args, StringComparer.Ordinal) : null };
         }
 
         private static List<LegacyActionDto> BuildLegacyActionsDto(in TriggerPlan<object> plan)
         {
-            if (plan.LegacyActions == null || plan.LegacyActions.Length == 0) return null;
-            var list = new List<LegacyActionDto>(plan.LegacyActions.Length);
-            for (int i = 0; i < plan.LegacyActions.Length; i++)
-            {
-                var a = plan.LegacyActions[i];
-                if (string.IsNullOrEmpty(a.Type)) continue;
-                list.Add(new LegacyActionDto { Type = a.Type, Args = a.Args != null ? new Dictionary<string, object>(a.Args, StringComparer.Ordinal) : null });
-            }
-            return list.Count > 0 ? list : null;
+            //if (plan.LegacyActions == null || plan.LegacyActions.Length == 0) return null;
+            //var list = new List<LegacyActionDto>(plan.LegacyActions.Length);
+            //for (int i = 0; i < plan.LegacyActions.Length; i++)
+            //{
+            //    var a = plan.LegacyActions[i];
+            //    if (string.IsNullOrEmpty(a.Type)) continue;
+            //    list.Add(new LegacyActionDto { Type = a.Type, Args = a.Args != null ? new Dictionary<string, object>(a.Args, StringComparer.Ordinal) : null });
+            //}
+            //return list.Count > 0 ? list : null;
+            return null;
         }
 
         private static PredicatePlanDto BuildPredicateDto(in TriggerPlan<object> plan)
@@ -364,10 +364,10 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return new PredicatePlanDto { Kind = "none", Nodes = null };
             }
 
-            if (plan.PredicateKind == EPredicateKind.Legacy)
-            {
-                return new PredicatePlanDto { Kind = "legacy", Nodes = null };
-            }
+            //if (plan.PredicateKind == EPredicateKind.Legacy)
+            //{
+            //    return new PredicatePlanDto { Kind = "legacy", Nodes = null };
+            //}
 
             if (plan.PredicateKind == EPredicateKind.Expr)
             {
