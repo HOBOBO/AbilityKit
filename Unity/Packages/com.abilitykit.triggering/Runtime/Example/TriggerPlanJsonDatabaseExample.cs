@@ -30,9 +30,9 @@ namespace AbilityKit.Triggering.Runtime.Example
             db.Load(new InlineTextLoader(json), id: "inline");
 
             var bus = new EventBus();
-            var runner = new TriggerRunner(bus, new Registry.FunctionRegistry(), new Registry.ActionRegistry());
+            var runner = new TriggerRunner<TriggerContext>(bus, new Registry.FunctionRegistry(), new Registry.ActionRegistry());
 
-            db.RegisterAll(runner);
+            db.RegisterAll<TriggerContext>(runner);
 
             // Publish 不会做任何事（因为没有 actions），但应该不会抛异常。
             var key = new EventKey<object>(Eventing.StableStringId.Get("event:ping"));

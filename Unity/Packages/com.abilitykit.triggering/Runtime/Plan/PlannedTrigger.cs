@@ -6,15 +6,15 @@ using AbilityKit.Triggering.Payload;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
-    public sealed class PlannedTrigger<TArgs> : ITrigger<TArgs>
+    public sealed class PlannedTrigger<TArgs, TCtx> : ITrigger<TArgs, TCtx>
     {
-        public delegate bool Predicate0(TArgs args, ExecCtx ctx);
-        public delegate bool Predicate1(TArgs args, int arg0, ExecCtx ctx);
-        public delegate bool Predicate2(TArgs args, int arg0, int arg1, ExecCtx ctx);
+        public delegate bool Predicate0(TArgs args, ExecCtx<TCtx> ctx);
+        public delegate bool Predicate1(TArgs args, int arg0, ExecCtx<TCtx> ctx);
+        public delegate bool Predicate2(TArgs args, int arg0, int arg1, ExecCtx<TCtx> ctx);
 
-        public delegate void Action0(TArgs args, ExecCtx ctx);
-        public delegate void Action1(TArgs args, int arg0, ExecCtx ctx);
-        public delegate void Action2(TArgs args, int arg0, int arg1, ExecCtx ctx);
+        public delegate void Action0(TArgs args, ExecCtx<TCtx> ctx);
+        public delegate void Action1(TArgs args, int arg0, ExecCtx<TCtx> ctx);
+        public delegate void Action2(TArgs args, int arg0, int arg1, ExecCtx<TCtx> ctx);
 
         private readonly TriggerPlan<TArgs> _plan;
         private bool _resolved;
@@ -32,7 +32,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             _plan = plan;
         }
 
-        public bool Evaluate(in TArgs args, in ExecCtx ctx)
+        public bool Evaluate(in TArgs args, in ExecCtx<TCtx> ctx)
         {
             Resolve(ctx);
             if (_plan.PredicateKind == EPredicateKind.None || !_plan.HasPredicate) return true;
@@ -40,15 +40,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
             if (_plan.PredicateKind == EPredicateKind.Expr)
             {
                 return EvaluateExpr(in args, in ctx);
-            }
-
-            if (_plan.PredicateKind == EPredicateKind.Legacy)
-            {
-                var legacy = ctx.Legacy;
-                if (legacy == null) throw new InvalidOperationException("Legacy trigger executor is null.");
-                if (!_plan.LegacyPredicate.HasValue) throw new InvalidOperationException("Legacy predicate plan is missing.");
-                var p = _plan.LegacyPredicate.Value;
-                return legacy.Evaluate(p.Type, p.Args, in args, in ctx);
             }
 
             if (_plan.PredicateKind != EPredicateKind.Function)
@@ -69,7 +60,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
         }
 
-        public void Execute(in TArgs args, in ExecCtx ctx)
+        public void Execute(in TArgs args, in ExecCtx<TCtx> ctx)
         {
             Resolve(ctx);
             var actions = _plan.Actions;
@@ -98,22 +89,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     if (ctx.Control != null && (ctx.Control.StopPropagation || ctx.Control.Cancel)) return;
                 }
             }
-
-            var legacyActions = _plan.LegacyActions;
-            if (legacyActions != null && legacyActions.Length > 0)
-            {
-                var legacy = ctx.Legacy;
-                if (legacy == null) throw new InvalidOperationException("Legacy trigger executor is null.");
-                for (int i = 0; i < legacyActions.Length; i++)
-                {
-                    var a = legacyActions[i];
-                    legacy.Execute(a.Type, a.Args, in args, in ctx);
-                    if (ctx.Control != null && (ctx.Control.StopPropagation || ctx.Control.Cancel)) return;
-                }
-            }
         }
 
-        private void Resolve(in ExecCtx ctx)
+        private void Resolve(in ExecCtx<TCtx> ctx)
         {
             if (_resolved) return;
 
@@ -189,7 +167,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             _resolved = true;
         }
 
-        private bool EvaluateExpr(in TArgs args, in ExecCtx ctx)
+        private bool EvaluateExpr(in TArgs args, in ExecCtx<TCtx> ctx)
         {
             var nodes = _plan.PredicateExpr.Nodes;
             if (nodes == null || nodes.Length == 0) return true;
@@ -220,7 +198,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
         }
 
-        private void EvalNodes(BoolExprNode[] nodes, in TArgs args, in ExecCtx ctx, ref Span<bool> stack, ref int sp)
+        private void EvalNodes(BoolExprNode[] nodes, in TArgs args, in ExecCtx<TCtx> ctx, ref Span<bool> stack, ref int sp)
         {
             for (int i = 0; i < nodes.Length; i++)
             {
@@ -278,7 +256,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
         }
 
-        private static int ResolveInt(in TArgs args, in IntValueRef valueRef, in ExecCtx ctx)
+        private static int ResolveInt(in TArgs args, in IntValueRef valueRef, in ExecCtx<TCtx> ctx)
         {
             if (valueRef.Kind == EIntValueRefKind.Const) return valueRef.ConstValue;
 
@@ -322,7 +300,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             throw new InvalidOperationException($"Unsupported IntValueRef kind: {valueRef.Kind}");
         }
 
-        private static string FormatFunctionId(in ExecCtx ctx, FunctionId id)
+        private static string FormatFunctionId(in ExecCtx<TCtx> ctx, FunctionId id)
         {
             var names = ctx.IdNames;
             if (names != null && names.TryGetFunctionName(id, out var name) && !string.IsNullOrEmpty(name))
@@ -330,7 +308,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             return id.Value.ToString();
         }
 
-        private static string FormatActionId(in ExecCtx ctx, ActionId id)
+        private static string FormatActionId(in ExecCtx<TCtx> ctx, ActionId id)
         {
             var names = ctx.IdNames;
             if (names != null && names.TryGetActionName(id, out var name) && !string.IsNullOrEmpty(name))
@@ -338,7 +316,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             return id.Value.ToString();
         }
 
-        private static string FormatBoardId(in ExecCtx ctx, int id)
+        private static string FormatBoardId(in ExecCtx<TCtx> ctx, int id)
         {
             var names = ctx.IdNames;
             if (names != null && names.TryGetBoardName(id, out var name) && !string.IsNullOrEmpty(name))
@@ -346,7 +324,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             return id.ToString();
         }
 
-        private static string FormatKeyId(in ExecCtx ctx, int id)
+        private static string FormatKeyId(in ExecCtx<TCtx> ctx, int id)
         {
             var names = ctx.IdNames;
             if (names != null && names.TryGetKeyName(id, out var name) && !string.IsNullOrEmpty(name))
@@ -354,7 +332,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             return id.ToString();
         }
 
-        private static string FormatFieldId(in ExecCtx ctx, int id)
+        private static string FormatFieldId(in ExecCtx<TCtx> ctx, int id)
         {
             var names = ctx.IdNames;
             if (names != null && names.TryGetFieldName(id, out var name) && !string.IsNullOrEmpty(name))

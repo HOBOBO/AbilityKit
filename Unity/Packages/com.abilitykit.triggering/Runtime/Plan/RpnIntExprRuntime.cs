@@ -12,7 +12,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             _plan = plan;
         }
 
-        public int Eval<TArgs>(in TArgs args, in ExecCtx ctx,
+        public int Eval<TArgs, TCtx>(in TArgs args, in ExecCtx<TCtx> ctx,
             Func<string, int> payloadFieldIdResolver = null,
             Func<string, int> blackboardDomainIdResolver = null,
             Func<string, int> blackboardKeyIdResolver = null)
@@ -30,7 +30,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 nodes = _cached;
             }
 
-            return RpnIntExprEval.Eval(nodes, in args, in ctx);
+            return RpnIntExprEval.Eval<TArgs, TCtx>(nodes, in args, in ctx);
         }
     }
 }

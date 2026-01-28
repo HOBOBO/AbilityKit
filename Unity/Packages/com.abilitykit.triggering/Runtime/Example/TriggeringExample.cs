@@ -56,14 +56,14 @@ namespace AbilityKit.Triggering.Runtime.Example
             payloads.RegisterIntAccessor(new DamageEventPayloadAccessor());
 
             // 5) TriggerRunner（负责订阅事件并按 phase/priority 触发触发器）
-            var runner = new TriggerRunner(bus, functions, actions, contextSource: null, observer: null, blackboards: blackboards, payloads: payloads);
+            var runner = new TriggerRunner<TriggerContext>(bus, functions, actions, contextSource: null, observer: null, blackboards: blackboards, payloads: payloads);
 
             // 6) 构建一个使用 RPN 的表达式：(payload.amount + bb.combat.atk)
             var expr = new RpnIntExprRuntime(new RpnIntExprPlan(RpnIntExprParser.LangRpnV1, "payload:amount bb:combat:atk +"));
 
             var key = new EventKey<DamageEvent>(Eventing.StableStringId.Get("event:damage"));
 
-            var trigger = new DelegateTrigger<DamageEvent>(
+            var trigger = new DelegateTrigger<DamageEvent, TriggerContext>(
                 predicate: (evt, ctx) => expr.Eval(in evt, in ctx) >= 10,
                 actions: (evt, ctx) =>
                 {

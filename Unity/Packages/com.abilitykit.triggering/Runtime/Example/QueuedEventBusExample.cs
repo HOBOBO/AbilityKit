@@ -16,12 +16,12 @@ namespace AbilityKit.Triggering.Runtime.Example
         {
             // EventBusOptions 默认通常是 Immediate；这里强制使用队列派发模式。
             var bus = new EventBus(new EventBusOptions(EEventDispatchMode.Queued, maxFlushPasses: 8));
-            var runner = new TriggerRunner(bus, new Registry.FunctionRegistry(), new Registry.ActionRegistry());
+            var runner = new TriggerRunner<TriggerContext>(bus, new Registry.FunctionRegistry(), new Registry.ActionRegistry());
 
             var key = new EventKey<Msg>(Eventing.StableStringId.Get("event:msg"));
 
             runner.Register(key,
-                new DelegateTrigger<Msg>(
+                new DelegateTrigger<Msg, TriggerContext>(
                     predicate: (evt, ctx) => true,
                     actions: (evt, ctx) => Console.WriteLine("Received msg id=" + evt.Id)),
                 phase: 0,

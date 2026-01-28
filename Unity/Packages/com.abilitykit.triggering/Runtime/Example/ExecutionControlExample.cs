@@ -15,13 +15,13 @@ namespace AbilityKit.Triggering.Runtime.Example
         public static void RunOnce_StopPropagation()
         {
             var bus = new EventBus();
-            var runner = new TriggerRunner(bus, new Registry.FunctionRegistry(), new Registry.ActionRegistry());
+            var runner = new TriggerRunner<TriggerContext>(bus, new Registry.FunctionRegistry(), new Registry.ActionRegistry());
 
             var key = new EventKey<Ping>(Eventing.StableStringId.Get("event:ping"));
 
             // 触发器A：始终为 true，并在执行后停止后续触发器传播
             runner.Register(key,
-                new DelegateTrigger<Ping>(
+                new DelegateTrigger<Ping, TriggerContext>(
                     predicate: (evt, ctx) => true,
                     actions: (evt, ctx) =>
                     {
@@ -33,7 +33,7 @@ namespace AbilityKit.Triggering.Runtime.Example
 
             // 触发器B：因为被 StopPropagation，应该不会执行
             runner.Register(key,
-                new DelegateTrigger<Ping>(
+                new DelegateTrigger<Ping, TriggerContext>(
                     predicate: (evt, ctx) => true,
                     actions: (evt, ctx) =>
                     {
@@ -49,12 +49,12 @@ namespace AbilityKit.Triggering.Runtime.Example
         public static void RunOnce_Cancel()
         {
             var bus = new EventBus();
-            var runner = new TriggerRunner(bus, new Registry.FunctionRegistry(), new Registry.ActionRegistry());
+            var runner = new TriggerRunner<TriggerContext>(bus, new Registry.FunctionRegistry(), new Registry.ActionRegistry());
 
             var key = new EventKey<Ping>(Eventing.StableStringId.Get("event:ping"));
 
             runner.Register(key,
-                new DelegateTrigger<Ping>(
+                new DelegateTrigger<Ping, TriggerContext>(
                     predicate: (evt, ctx) =>
                     {
                         Console.WriteLine("触发器A Evaluate -> Cancel");
@@ -66,7 +66,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 priority: 0);
 
             runner.Register(key,
-                new DelegateTrigger<Ping>(
+                new DelegateTrigger<Ping, TriggerContext>(
                     predicate: (evt, ctx) => true,
                     actions: (evt, ctx) => Console.WriteLine("触发器B触发（不应该发生）")),
                 phase: 0,

@@ -3,30 +3,6 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
-    public readonly struct LegacyPredicatePlan
-    {
-        public readonly string Type;
-        public readonly IReadOnlyDictionary<string, object> Args;
-
-        public LegacyPredicatePlan(string type, IReadOnlyDictionary<string, object> args)
-        {
-            Type = type;
-            Args = args;
-        }
-    }
-
-    public readonly struct LegacyActionPlan
-    {
-        public readonly string Type;
-        public readonly IReadOnlyDictionary<string, object> Args;
-
-        public LegacyActionPlan(string type, IReadOnlyDictionary<string, object> args)
-        {
-            Type = type;
-            Args = args;
-        }
-    }
-
     public readonly struct ActionCallPlan
     {
         public readonly ActionId Id;
@@ -84,11 +60,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         public readonly PredicateExprPlan PredicateExpr;
 
-        public readonly LegacyPredicatePlan? LegacyPredicate;
-
         public readonly ActionCallPlan[] Actions;
-
-        public readonly LegacyActionPlan[] LegacyActions;
 
         public TriggerPlan(int phase, int priority, FunctionId predicateId, ActionCallPlan[] actions)
         {
@@ -101,9 +73,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateArg0 = default;
             PredicateArg1 = default;
             PredicateExpr = default;
-            LegacyPredicate = null;
             Actions = actions;
-            LegacyActions = null;
         }
 
         public TriggerPlan(int phase, int priority, FunctionId predicateId, IntValueRef predicateArg0, ActionCallPlan[] actions)
@@ -117,9 +87,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateArg0 = predicateArg0;
             PredicateArg1 = default;
             PredicateExpr = default;
-            LegacyPredicate = null;
             Actions = actions;
-            LegacyActions = null;
         }
 
         public TriggerPlan(int phase, int priority, FunctionId predicateId, int predicateArg0, ActionCallPlan[] actions)
@@ -138,9 +106,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateArg0 = predicateArg0;
             PredicateArg1 = predicateArg1;
             PredicateExpr = default;
-            LegacyPredicate = null;
             Actions = actions;
-            LegacyActions = null;
         }
 
         public TriggerPlan(int phase, int priority, FunctionId predicateId, int predicateArg0, int predicateArg1, ActionCallPlan[] actions)
@@ -159,25 +125,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateArg0 = default;
             PredicateArg1 = default;
             PredicateExpr = predicateExpr;
-            LegacyPredicate = null;
             Actions = actions;
-            LegacyActions = null;
-        }
-
-        public TriggerPlan(int phase, int priority, PredicateExprPlan predicateExpr, ActionCallPlan[] actions, LegacyActionPlan[] legacyActions)
-        {
-            Phase = phase;
-            Priority = priority;
-            PredicateKind = EPredicateKind.Expr;
-            HasPredicate = true;
-            PredicateId = default;
-            PredicateArity = 0;
-            PredicateArg0 = default;
-            PredicateArg1 = default;
-            PredicateExpr = predicateExpr;
-            LegacyPredicate = null;
-            Actions = actions;
-            LegacyActions = legacyActions;
         }
 
         public TriggerPlan(int phase, int priority, ActionCallPlan[] actions)
@@ -191,41 +139,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateArg0 = default;
             PredicateArg1 = default;
             PredicateExpr = default;
-            LegacyPredicate = null;
             Actions = actions;
-            LegacyActions = null;
-        }
-
-        public TriggerPlan(int phase, int priority, LegacyPredicatePlan legacyPredicate, ActionCallPlan[] actions, LegacyActionPlan[] legacyActions = null)
-        {
-            Phase = phase;
-            Priority = priority;
-            PredicateKind = EPredicateKind.Legacy;
-            HasPredicate = true;
-            PredicateId = default;
-            PredicateArity = 0;
-            PredicateArg0 = default;
-            PredicateArg1 = default;
-            PredicateExpr = default;
-            LegacyPredicate = legacyPredicate;
-            Actions = actions;
-            LegacyActions = legacyActions;
-        }
-
-        public TriggerPlan(int phase, int priority, ActionCallPlan[] actions, LegacyActionPlan[] legacyActions)
-        {
-            Phase = phase;
-            Priority = priority;
-            PredicateKind = EPredicateKind.None;
-            HasPredicate = false;
-            PredicateId = default;
-            PredicateArity = 0;
-            PredicateArg0 = default;
-            PredicateArg1 = default;
-            PredicateExpr = default;
-            LegacyPredicate = null;
-            Actions = actions;
-            LegacyActions = legacyActions;
         }
     }
 }

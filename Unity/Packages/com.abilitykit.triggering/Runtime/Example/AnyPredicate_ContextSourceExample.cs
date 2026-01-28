@@ -15,7 +15,7 @@ namespace AbilityKit.Triggering.Runtime.Example
             public Ping(int n) { N = n; }
         }
 
-        private sealed class DemoContextSource : ITriggerContextSource
+        private sealed class DemoContextSource : ITriggerContextSource<TriggerContext>
         {
             private int _frame;
             private int _seq;
@@ -43,7 +43,7 @@ namespace AbilityKit.Triggering.Runtime.Example
 
             // 1) 注册一个“任意条件”函数：只允许在偶数帧触发
             var predicateId = new FunctionId(StableStringId.Get("pred:even_frame_only"));
-            functions.Register<PlannedTrigger<Ping>.Predicate0>(
+            functions.Register<PlannedTrigger<Ping, TriggerContext>.Predicate0>(
                 predicateId,
                 (evt, ctx) =>
                 {
@@ -54,7 +54,7 @@ namespace AbilityKit.Triggering.Runtime.Example
 
             // 2) 注册一个 action（仅用于观测触发效果）
             var actionId = new ActionId(StableStringId.Get("action:print_context"));
-            actions.Register<PlannedTrigger<Ping>.Action0>(
+            actions.Register<PlannedTrigger<Ping, TriggerContext>.Action0>(
                 actionId,
                 (evt, ctx) =>
                 {
@@ -62,7 +62,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 },
                 isDeterministic: true);
 
-            var runner = new TriggerRunner(
+            var runner = new TriggerRunner<TriggerContext>(
                 bus,
                 functions,
                 actions,
@@ -71,7 +71,6 @@ namespace AbilityKit.Triggering.Runtime.Example
                 blackboards: null,
                 payloads: null,
                 idNames: null,
-                legacy: null,
                 policy: ExecPolicy.DeterministicOnly);
 
             var key = new EventKey<Ping>(StableStringId.Get("event:ping"));
@@ -83,7 +82,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 predicateId: predicateId,
                 actions: new[] { new ActionCallPlan(actionId) });
 
-            runner.RegisterPlan(key, plan);
+            runner.RegisterPlan<Ping, TriggerContext>(key, plan);
 
             // frame=1 -> 不能触发
             bus.Publish(key, new Ping(1));

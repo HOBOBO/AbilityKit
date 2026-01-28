@@ -1,7 +1,7 @@
 namespace AbilityKit.Triggering.Runtime
 {
-    public interface ITriggerContextSource
+    public interface ITriggerContextSource<TCtx>
     {
-        TriggerContext GetContext();
+        TCtx GetContext();
     }
 }

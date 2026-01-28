@@ -31,22 +31,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public int Priority;
             public PredicatePlanDto Predicate;
             public List<ActionCallPlanDto> Actions;
-            public LegacyPredicateDto LegacyPredicate;
-            public List<LegacyActionDto> LegacyActions;
-        }
-
-        [Serializable]
-        private sealed class LegacyPredicateDto
-        {
-            public string Type;
-            public Dictionary<string, object> Args;
-        }
-
-        [Serializable]
-        private sealed class LegacyActionDto
-        {
-            public string Type;
-            public Dictionary<string, object> Args;
         }
 
         [Serializable]
@@ -151,7 +135,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             _records = next;
         }
 
-        public void RegisterAll(TriggerRunner runner)
+        public void RegisterAll<TCtx>(TriggerRunner<TCtx> runner)
         {
             if (runner == null) throw new ArgumentNullException(nameof(runner));
 
@@ -159,55 +143,27 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             {
                 var r = _records[i];
                 var key = new EventKey<object>(r.EventId);
-                runner.RegisterPlan(key, r.Plan);
+                runner.RegisterPlan<object, TCtx>(key, r.Plan);
             }
         }
 
         private static TriggerPlan<object> BuildPlan(TriggerPlanDto dto)
         {
             var actions = BuildActions(dto.Actions);
-            var legacyActions = BuildLegacyActions(dto.LegacyActions);
 
             var pred = dto.Predicate;
             if (pred == null || string.Equals(pred.Kind, "none", StringComparison.OrdinalIgnoreCase))
             {
-                if (legacyActions != null) return new TriggerPlan<object>(dto.Phase, dto.Priority, actions, legacyActions);
                 return new TriggerPlan<object>(dto.Phase, dto.Priority, actions);
             }
 
             if (string.Equals(pred.Kind, "expr", StringComparison.OrdinalIgnoreCase))
             {
                 var expr = new PredicateExprPlan(BuildExprNodes(pred.Nodes));
-                if (legacyActions != null) return new TriggerPlan<object>(dto.Phase, dto.Priority, expr, actions, legacyActions);
                 return new TriggerPlan<object>(dto.Phase, dto.Priority, expr, actions);
             }
 
-            if (string.Equals(pred.Kind, "legacy", StringComparison.OrdinalIgnoreCase) || pred.Kind == null)
-            {
-                var lp = dto.LegacyPredicate;
-                if (lp == null || string.IsNullOrEmpty(lp.Type)) throw new InvalidOperationException("Legacy predicate is missing or has empty type");
-                var legacyPred = new LegacyPredicatePlan(lp.Type, lp.Args);
-                return new TriggerPlan<object>(dto.Phase, dto.Priority, legacyPred, actions, legacyActions);
-            }
-
             throw new NotSupportedException($"Predicate kind not supported by loader: {pred.Kind}");
-        }
-
-        private static LegacyActionPlan[] BuildLegacyActions(List<LegacyActionDto> dtos)
-        {
-            if (dtos == null || dtos.Count == 0) return null;
-            var arr = new LegacyActionPlan[dtos.Count];
-            for (int i = 0; i < dtos.Count; i++)
-            {
-                var d = dtos[i];
-                if (d == null || string.IsNullOrEmpty(d.Type))
-                {
-                    arr[i] = default;
-                    continue;
-                }
-                arr[i] = new LegacyActionPlan(d.Type, d.Args);
-            }
-            return arr;
         }
 
         private static ActionCallPlan[] BuildActions(List<ActionCallPlanDto> dtos)

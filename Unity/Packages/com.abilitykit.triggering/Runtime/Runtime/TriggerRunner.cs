@@ -8,25 +8,24 @@ using AbilityKit.Triggering.Payload;
 
 namespace AbilityKit.Triggering.Runtime
 {
-    public sealed class TriggerRunner
+    public sealed class TriggerRunner<TCtx>
     {
         private readonly IEventBus _eventBus;
-        private readonly ITriggerContextSource _contextSource;
-        private readonly ITriggerObserver _observer;
+        private readonly ITriggerContextSource<TCtx> _contextSource;
+        private readonly ITriggerObserver<TCtx> _observer;
 
         private readonly FunctionRegistry _functions;
         private readonly ActionRegistry _actions;
         private readonly IBlackboardResolver _blackboards;
         private readonly IPayloadAccessorRegistry _payloads;
         private readonly IIdNameRegistry _idNames;
-        private readonly ILegacyTriggerExecutor _legacy;
         private readonly ExecPolicy _policy;
 
         private readonly Dictionary<Type, object> _triggerListsByArgsType = new Dictionary<Type, object>();
         private readonly Dictionary<Type, object> _subscriptionsByArgsType = new Dictionary<Type, object>();
         private long _registrationOrder;
 
-        public TriggerRunner(IEventBus eventBus, FunctionRegistry functions, ActionRegistry actions, ITriggerContextSource contextSource = null, ITriggerObserver observer = null, IBlackboardResolver blackboards = null, IPayloadAccessorRegistry payloads = null, IIdNameRegistry idNames = null, ILegacyTriggerExecutor legacy = null, ExecPolicy policy = default)
+        public TriggerRunner(IEventBus eventBus, FunctionRegistry functions, ActionRegistry actions, ITriggerContextSource<TCtx> contextSource = null, ITriggerObserver<TCtx> observer = null, IBlackboardResolver blackboards = null, IPayloadAccessorRegistry payloads = null, IIdNameRegistry idNames = null, ExecPolicy policy = default)
         {
             _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
             _functions = functions ?? throw new ArgumentNullException(nameof(functions));
@@ -36,11 +35,10 @@ namespace AbilityKit.Triggering.Runtime
             _blackboards = blackboards;
             _payloads = payloads;
             _idNames = idNames;
-            _legacy = legacy;
             _policy = policy;
         }
 
-        public IDisposable Register<TArgs>(EventKey<TArgs> key, ITrigger<TArgs> trigger, int phase = 0, int priority = 0)
+        public IDisposable Register<TArgs>(EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase = 0, int priority = 0)
         {
             if (trigger == null) throw new ArgumentNullException(nameof(trigger));
 
@@ -94,7 +92,7 @@ namespace AbilityKit.Triggering.Runtime
             var ctx = _contextSource != null ? _contextSource.GetContext() : default;
             if (control == null) control = new ExecutionControl();
             control.Reset();
-            var execCtx = new ExecCtx(ctx, _eventBus, _functions, _actions, _blackboards, _payloads, _idNames, _legacy, _policy, control);
+            var execCtx = new ExecCtx<TCtx>(ctx, _eventBus, _functions, _actions, _blackboards, _payloads, _idNames, _policy, control);
 
             for (int i = 0; i < triggers.Count; i++)
             {
@@ -155,9 +153,9 @@ namespace AbilityKit.Triggering.Runtime
             public readonly int Phase;
             public readonly int Priority;
             public readonly long Order;
-            public readonly ITrigger<TArgs> Trigger;
+            public readonly ITrigger<TArgs, TCtx> Trigger;
 
-            public Entry(int phase, int priority, long order, ITrigger<TArgs> trigger)
+            public Entry(int phase, int priority, long order, ITrigger<TArgs, TCtx> trigger)
             {
                 Phase = phase;
                 Priority = priority;
@@ -168,11 +166,11 @@ namespace AbilityKit.Triggering.Runtime
 
         private sealed class Dispatcher<TArgs>
         {
-            private readonly TriggerRunner _runner;
+            private readonly TriggerRunner<TCtx> _runner;
             private readonly EventKey<TArgs> _key;
             private readonly Dictionary<EventKey<TArgs>, List<Entry<TArgs>>> _list;
 
-            public Dispatcher(TriggerRunner runner, EventKey<TArgs> key, Dictionary<EventKey<TArgs>, List<Entry<TArgs>>> list)
+            public Dispatcher(TriggerRunner<TCtx> runner, EventKey<TArgs> key, Dictionary<EventKey<TArgs>, List<Entry<TArgs>>> list)
             {
                 _runner = runner;
                 _key = key;

@@ -32,33 +32,59 @@ namespace AbilityKit.Triggering.Runtime.Example
             }
         }
 
+        private readonly struct DemoCtx
+        {
+            public readonly IImmunityService Services;
+
+            public DemoCtx(IImmunityService services)
+            {
+                Services = services;
+            }
+        }
+
+        private sealed class DemoContextSource : ITriggerContextSource<DemoCtx>
+        {
+            private readonly DemoCtx _ctx;
+
+            public DemoContextSource(DemoCtx ctx)
+            {
+                _ctx = ctx;
+            }
+
+            public DemoCtx GetContext()
+            {
+                return _ctx;
+            }
+        }
+
         public static void RunOnce()
         {
             // 这个示例演示：PredicateKind=Function 的“任意条件”如何依赖“自定义服务”做内部判断。
-            // 说明：目前 TriggerRunner/ExecCtx 没有专门的 Services 字段，因此这里用最常见的方式：
-            //  - 在注册 predicate 函数时通过闭包捕获 service 实例（等价于构造注入）。
-            // 如果你后续把服务挂到 TriggerContext/ExecCtx 上，也可以把这里改成从 ctx.Context/ctx.xxx 取。
+            // 说明：泛型上下文是默认用法，服务应该放在自定义上下文里：ctx.Context.Services。
 
             var bus = new EventBus();
             var functions = new FunctionRegistry();
             var actions = new ActionRegistry();
 
             IImmunityService immunity = new DemoImmunityService();
+            var contextSource = new DemoContextSource(new DemoCtx(immunity));
 
             // 1) 注册任意条件函数：目标不免疫才触发
             var predicateId = new FunctionId(StableStringId.Get("pred:target_not_immune"));
-            functions.Register<PlannedTrigger<Hit>.Predicate0>(
+            functions.Register<PlannedTrigger<Hit, DemoCtx>.Predicate0>(
                 predicateId,
                 (evt, ctx) =>
                 {
                     // 通过自定义服务做复杂判断（例如查 ECS/查表/查状态）
-                    return !immunity.IsImmune(evt.TargetId);
+                    var s = ctx.Context.Services;
+                    if (s == null) return false;
+                    return !s.IsImmune(evt.TargetId);
                 },
                 isDeterministic: true);
 
             // 2) 注册 action
             var actionId = new ActionId(StableStringId.Get("action:print_hit"));
-            actions.Register<PlannedTrigger<Hit>.Action0>(
+            actions.Register<PlannedTrigger<Hit, DemoCtx>.Action0>(
                 actionId,
                 (evt, ctx) =>
                 {
@@ -66,7 +92,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 },
                 isDeterministic: true);
 
-            var runner = new TriggerRunner(bus, functions, actions, contextSource: null, observer: null, blackboards: null, payloads: null, idNames: null, legacy: null, policy: ExecPolicy.DeterministicOnly);
+            var runner = new TriggerRunner<DemoCtx>(bus, functions, actions, contextSource: contextSource, observer: null, blackboards: null, payloads: null, idNames: null, policy: ExecPolicy.DeterministicOnly);
 
             var key = new EventKey<Hit>(StableStringId.Get("event:hit"));
 
@@ -76,7 +102,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 predicateId: predicateId,
                 actions: new[] { new ActionCallPlan(actionId) });
 
-            runner.RegisterPlan(key, plan);
+            runner.RegisterPlan<Hit, DemoCtx>(key, plan);
 
             // targetId=999 免疫 -> 不触发
             bus.Publish(key, new Hit(targetId: 999, damage: 10));

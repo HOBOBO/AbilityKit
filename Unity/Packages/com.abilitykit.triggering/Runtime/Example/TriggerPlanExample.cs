@@ -48,14 +48,14 @@ namespace AbilityKit.Triggering.Runtime.Example
             var payloads = new PayloadAccessorRegistry();
             payloads.RegisterIntAccessor(new DamageEventPayloadAccessor());
 
-            var runner = new TriggerRunner(bus, functions, actions, blackboards: blackboards, payloads: payloads);
+            var runner = new TriggerRunner<TriggerContext>(bus, functions, actions, blackboards: blackboards, payloads: payloads);
 
             // 注册 action：这里演示“复合行为”，也就是一次触发会顺序执行多条 action。
             // 注意：签名必须匹配 PlannedTrigger<DamageEvent>.ActionN（N=0/1/2）
 
             // action1：打印 payload.amount 和来自黑板的 arg0
             var actionPrintDamage = new ActionId(Eventing.StableStringId.Get("action:print_damage"));
-            actions.Register<PlannedTrigger<DamageEvent>.Action1>(
+            actions.Register<PlannedTrigger<DamageEvent, TriggerContext>.Action1>(
                 actionPrintDamage,
                 (evt, arg0, ctx) =>
                 {
@@ -65,7 +65,7 @@ namespace AbilityKit.Triggering.Runtime.Example
 
             // action2：同时打印两个参数（arg0=payload.amount, arg1=bb.combat.atk）
             var actionPrint2 = new ActionId(Eventing.StableStringId.Get("action:print_2"));
-            actions.Register<PlannedTrigger<DamageEvent>.Action2>(
+            actions.Register<PlannedTrigger<DamageEvent, TriggerContext>.Action2>(
                 actionPrint2,
                 (evt, arg0, arg1, ctx) =>
                 {
@@ -126,7 +126,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                         IntValueRef.Blackboard(combatBoardId, atkKeyId))
                 });
 
-            runner.RegisterPlan(eventKey, plan);
+            runner.RegisterPlan<DamageEvent, TriggerContext>(eventKey, plan);
 
             // 触发事件：这里 amount=5
             // 按上面的复合条件：

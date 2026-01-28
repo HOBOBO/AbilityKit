@@ -36,7 +36,7 @@ namespace AbilityKit.Triggering.Runtime.Example
 
             // 2) 注册任意条件函数：只有当 (damage.amount - shield) > 0 才触发
             var predicateId = new FunctionId(StableStringId.Get("pred:damage_after_shield_positive"));
-            functions.Register<PlannedTrigger<Damage>.Predicate0>(
+            functions.Register<PlannedTrigger<Damage, TriggerContext>.Predicate0>(
                 predicateId,
                 (evt, ctx) =>
                 {
@@ -51,7 +51,7 @@ namespace AbilityKit.Triggering.Runtime.Example
 
             // 3) 注册 action
             var actionId = new ActionId(StableStringId.Get("action:print_damage_after_shield"));
-            actions.Register<PlannedTrigger<Damage>.Action0>(
+            actions.Register<PlannedTrigger<Damage, TriggerContext>.Action0>(
                 actionId,
                 (evt, ctx) =>
                 {
@@ -61,7 +61,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 },
                 isDeterministic: true);
 
-            var runner = new TriggerRunner(bus, functions, actions, contextSource: null, observer: null, blackboards: blackboards, payloads: null, idNames: null, legacy: null, policy: ExecPolicy.DeterministicOnly);
+            var runner = new TriggerRunner<TriggerContext>(bus, functions, actions, contextSource: null, observer: null, blackboards: blackboards, payloads: null, idNames: null, policy: ExecPolicy.DeterministicOnly);
 
             var key = new EventKey<Damage>(StableStringId.Get("event:damage"));
 
@@ -71,7 +71,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 predicateId: predicateId,
                 actions: new[] { new ActionCallPlan(actionId) });
 
-            runner.RegisterPlan(key, plan);
+            runner.RegisterPlan<Damage, TriggerContext>(key, plan);
 
             // shield=10：amount=5 -> 不触发
             bus.Publish(key, new Damage(5));

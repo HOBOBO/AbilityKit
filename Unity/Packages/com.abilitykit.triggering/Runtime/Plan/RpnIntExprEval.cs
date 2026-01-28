@@ -6,7 +6,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
 {
     public static class RpnIntExprEval
     {
-        public static int Eval<TArgs>(RpnIntNode[] nodes, in TArgs args, in ExecCtx ctx)
+        public static int Eval<TArgs, TCtx>(RpnIntNode[] nodes, in TArgs args, in ExecCtx<TCtx> ctx)
         {
             if (nodes == null || nodes.Length == 0) return 0;
 
@@ -34,7 +34,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
         }
 
-        private static void EvalNodes<TArgs>(RpnIntNode[] nodes, in TArgs args, in ExecCtx ctx, ref Span<int> stack, ref int sp)
+        private static void EvalNodes<TArgs, TCtx>(RpnIntNode[] nodes, in TArgs args, in ExecCtx<TCtx> ctx, ref Span<int> stack, ref int sp)
         {
             for (int i = 0; i < nodes.Length; i++)
             {
@@ -83,7 +83,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
         }
 
-        private static int ResolveIntValueRef<TArgs>(in TArgs args, in IntValueRef valueRef, in ExecCtx ctx)
+        private static int ResolveIntValueRef<TArgs, TCtx>(in TArgs args, in IntValueRef valueRef, in ExecCtx<TCtx> ctx)
         {
             if (valueRef.Kind == EIntValueRefKind.Const) return valueRef.ConstValue;
 

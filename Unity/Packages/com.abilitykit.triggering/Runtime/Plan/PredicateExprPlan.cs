@@ -7,7 +7,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
         None = 0,
         Function = 1,
         Expr = 2,
-        Legacy = 3,
     }
 
     public enum EBoolExprNodeKind : byte
