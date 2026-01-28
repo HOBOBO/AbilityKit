@@ -9,7 +9,8 @@
     "AbilityKit.World.ECS",
     "AbilityKit.World.Snapshot",
     "AbilityKit.Combat.Projectile",
-    "AbilityKit.Combat.Collision.Abstractions"
+    "AbilityKit.Combat.Collision.Abstractions",
+    "AbilityKit.Triggering"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

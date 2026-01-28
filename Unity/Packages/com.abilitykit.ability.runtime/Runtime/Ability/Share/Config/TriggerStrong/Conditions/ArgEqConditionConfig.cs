@@ -2,10 +2,14 @@ using System;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Triggering.CodeGen;
 
 namespace AbilityKit.Ability.Configs
 {
     [Serializable]
+    [TriggerCondition(TriggerConditionTypes.ArgEq)]
+    [TriggerParam(0, "key", ETriggerParamType.Int, ETriggerParamSource.Payload)]
+    [TriggerParam(1, "value", ETriggerParamType.Int, ETriggerParamSource.Const | ETriggerParamSource.Payload)]
     public sealed class ArgEqConditionConfig : ConditionRuntimeConfigBase
     {
         public override string Type => TriggerConditionTypes.ArgEq;

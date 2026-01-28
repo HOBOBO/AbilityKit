@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Triggering.CodeGen;
 
 namespace AbilityKit.Ability.Configs
 {
     [Serializable]
+    [TriggerAction(TriggerActionTypes.Seq)]
     public sealed class SequenceActionConfig : ActionRuntimeConfigBase
     {
         public override string Type => TriggerActionTypes.Seq;

@@ -1,11 +1,7 @@
 {
-  "name": "AbilityKit.Ability.Editor",
-  "rootNamespace": "",
+  "name": "AbilityKit.Triggering.Editor",
+  "rootNamespace": "AbilityKit.Triggering",
   "references": [
-    "AbilityKit.Core",
-    "AbilityKit.Ability.RuntimePkg",
-    "AbilityKit.Ability.Unity",
-    "AbilityKit.World.Snapshot",
     "AbilityKit.Triggering"
   ],
   "includePlatforms": [

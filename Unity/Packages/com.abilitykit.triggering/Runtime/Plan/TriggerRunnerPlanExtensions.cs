@@ -1,0 +1,16 @@
+using System;
+using AbilityKit.Core.Eventing;
+using AbilityKit.Triggering.Runtime.Plan;
+
+namespace AbilityKit.Triggering.Runtime
+{
+    public static class TriggerRunnerPlanExtensions
+    {
+        public static IDisposable RegisterPlan<TArgs>(this TriggerRunner runner, EventKey<TArgs> key, in TriggerPlan<TArgs> plan)
+        {
+            if (runner == null) throw new ArgumentNullException(nameof(runner));
+            var trigger = new PlannedTrigger<TArgs>(plan);
+            return runner.Register(key, trigger, plan.Phase, plan.Priority);
+        }
+    }
+}

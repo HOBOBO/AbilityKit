@@ -1,0 +1,11 @@
+{
+  "name": "com.abilitykit.triggering",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Triggering",
+  "unity": "2022.3",
+  "description": "AbilityKit triggering runtime/editor package (typed events + triggers).",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1"
+  }
+}

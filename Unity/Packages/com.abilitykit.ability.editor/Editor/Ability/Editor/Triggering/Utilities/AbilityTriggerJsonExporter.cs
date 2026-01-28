@@ -5,6 +5,8 @@ using System.IO;
 using AbilityKit.Ability.Editor;
 using AbilityKit.Ability.Share.CoreDtos;
 using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Triggering.Eventing;
+using AbilityKit.Triggering.Runtime.Plan;
 using Newtonsoft.Json;
 using UnityEditor;
 using UnityEngine;
@@ -15,6 +17,7 @@ namespace AbilityKit.Ability.Editor.Utilities
     {
         private const string OutputResourcesDir = "ability";
         private const string OutputFileWithoutExt = "ability_triggers";
+        private const string OutputPlanFileWithoutExt = "ability_trigger_plans";
         private const string DefaultAbilityConfigFolder = "Assets/Configs/Ability";
 
         [MenuItem("AbilityKit/Ability/Export Trigger Json")]
@@ -24,10 +27,23 @@ namespace AbilityKit.Ability.Editor.Utilities
             ExportFromFolder(folder);
         }
 
+        [MenuItem("AbilityKit/Ability/Export Trigger Plan Json")]
+        public static void ExportSelectedFolderPlans()
+        {
+            var folder = TryGetSelectedFolderPath();
+            ExportPlanFromFolder(folder);
+        }
+
         [MenuItem("AbilityKit/Ability/Export Trigger Json (Configs/Ability)")]
         public static void ExportDefaultFolder()
         {
             ExportFromFolder(DefaultAbilityConfigFolder);
+        }
+
+        [MenuItem("AbilityKit/Ability/Export Trigger Plan Json (Configs/Ability)")]
+        public static void ExportDefaultFolderPlans()
+        {
+            ExportPlanFromFolder(DefaultAbilityConfigFolder);
         }
 
         public static void ExportFromFolder(string assetFolder)
@@ -54,6 +70,32 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             AssetDatabase.Refresh();
             Debug.Log($"[AbilityTriggerJsonExporter] Exported to: {outputPath}");
+        }
+
+        public static void ExportPlanFromFolder(string assetFolder)
+        {
+            if (string.IsNullOrEmpty(assetFolder)) assetFolder = "Assets";
+
+            Debug.Log($"[AbilityTriggerJsonExporter] ExportPlanFromFolder: {assetFolder}");
+
+            var outputDir = Path.Combine(Application.dataPath, "Resources", OutputResourcesDir);
+            Directory.CreateDirectory(outputDir);
+
+            var dto = BuildPlanDto(assetFolder, out var moduleCount, out var exportedTriggerCount, out var skippedDisabledCount, out var skippedInvalidIdCount);
+            if (assetFolder != "Assets" && (moduleCount == 0 || exportedTriggerCount == 0))
+            {
+                Debug.Log($"[AbilityTriggerJsonExporter] No trigger plans exported from '{assetFolder}'. Fallback to scan whole 'Assets'.");
+                dto = BuildPlanDto("Assets", out moduleCount, out exportedTriggerCount, out skippedDisabledCount, out skippedInvalidIdCount);
+            }
+
+            Debug.Log($"[AbilityTriggerJsonExporter] Plan Modules={moduleCount}, ExportedTriggers={exportedTriggerCount}, SkippedDisabled={skippedDisabledCount}, SkippedTriggerId<=0={skippedInvalidIdCount}");
+
+            var json = JsonConvert.SerializeObject(dto, Formatting.Indented);
+            var outputPath = Path.Combine(outputDir, OutputPlanFileWithoutExt + ".json");
+            File.WriteAllText(outputPath, json);
+
+            AssetDatabase.Refresh();
+            Debug.Log($"[AbilityTriggerJsonExporter] Exported plans to: {outputPath}");
         }
 
         private static AbilityTriggerDatabaseDTO BuildDto(
@@ -114,6 +156,275 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
 
             return db;
+        }
+
+        [Serializable]
+        private sealed class TriggerPlanDatabaseDto
+        {
+            public readonly List<TriggerPlanDto> Triggers = new List<TriggerPlanDto>();
+        }
+
+        [Serializable]
+        private sealed class TriggerPlanDto
+        {
+            public int TriggerId;
+            public int EventId;
+            public bool AllowExternal;
+            public int Phase;
+            public int Priority;
+            public PredicatePlanDto Predicate;
+            public List<ActionCallPlanDto> Actions;
+            public LegacyPredicateDto LegacyPredicate;
+            public List<LegacyActionDto> LegacyActions;
+        }
+
+        [Serializable]
+        private sealed class LegacyPredicateDto
+        {
+            public string Type;
+            public Dictionary<string, object> Args;
+        }
+
+        [Serializable]
+        private sealed class LegacyActionDto
+        {
+            public string Type;
+            public Dictionary<string, object> Args;
+        }
+
+        [Serializable]
+        private sealed class PredicatePlanDto
+        {
+            public string Kind;
+            public List<BoolExprNodeDto> Nodes;
+        }
+
+        [Serializable]
+        private sealed class BoolExprNodeDto
+        {
+            public string Kind;
+            public bool ConstValue;
+            public string CompareOp;
+            public IntValueRefDto Left;
+            public IntValueRefDto Right;
+        }
+
+        [Serializable]
+        private sealed class ActionCallPlanDto
+        {
+            public int ActionId;
+            public int Arity;
+            public IntValueRefDto Arg0;
+            public IntValueRefDto Arg1;
+        }
+
+        [Serializable]
+        private sealed class IntValueRefDto
+        {
+            public string Kind;
+            public int ConstValue;
+            public int BoardId;
+            public int KeyId;
+            public int FieldId;
+        }
+
+        private static TriggerPlanDatabaseDto BuildPlanDto(
+            string assetFolder,
+            out int moduleCount,
+            out int exportedTriggerCount,
+            out int skippedDisabledCount,
+            out int skippedInvalidIdCount)
+        {
+            var db = new TriggerPlanDatabaseDto();
+            moduleCount = 0;
+            exportedTriggerCount = 0;
+            skippedDisabledCount = 0;
+            skippedInvalidIdCount = 0;
+
+            var guids = AssetDatabase.FindAssets("t:AbilityModuleSO", new[] { assetFolder });
+            if (guids == null || guids.Length == 0) return db;
+
+            for (int i = 0; i < guids.Length; i++)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                var asset = AssetDatabase.LoadAssetAtPath<AbilityModuleSO>(path);
+                if (asset == null) continue;
+
+                moduleCount++;
+
+                if (asset.Triggers == null) continue;
+
+                for (int t = 0; t < asset.Triggers.Count; t++)
+                {
+                    var tr = asset.Triggers[t];
+                    if (tr == null) continue;
+                    if (!tr.Enabled)
+                    {
+                        skippedDisabledCount++;
+                        continue;
+                    }
+
+                    if (tr.TriggerId <= 0)
+                    {
+                        skippedInvalidIdCount++;
+                        continue;
+                    }
+
+                    var plan = CompilePlanFromEditor(tr, out var phase, out var priority);
+                    var triggerDto = BuildTriggerPlanDto(tr, plan, phase, priority);
+                    db.Triggers.Add(triggerDto);
+                    exportedTriggerCount++;
+                }
+            }
+
+            return db;
+        }
+
+        private static TriggerPlan<object> CompilePlanFromEditor(TriggerEditorConfig tr, out int phase, out int priority)
+        {
+            phase = 0;
+            priority = 0;
+
+            JsonConditionEditorConfig cond = null;
+            if (tr.ConditionsStrong != null && tr.ConditionsStrong.Count > 0)
+            {
+                if (tr.ConditionsStrong.Count == 1)
+                {
+                    cond = tr.ConditionsStrong[0] as JsonConditionEditorConfig;
+                }
+                else
+                {
+                    var all = new JsonConditionEditorConfig { TypeValue = TriggerConditionTypes.All, Items = new List<ConditionEditorConfigBase>(tr.ConditionsStrong) };
+                    cond = all;
+                }
+            }
+
+            JsonActionEditorConfig act = null;
+            if (tr.ActionsStrong != null && tr.ActionsStrong.Count > 0)
+            {
+                if (tr.ActionsStrong.Count == 1)
+                {
+                    act = tr.ActionsStrong[0] as JsonActionEditorConfig;
+                }
+                else
+                {
+                    var seq = new JsonActionEditorConfig { TypeValue = TriggerActionTypes.Seq, Items = new List<ActionEditorConfigBase>(tr.ActionsStrong) };
+                    act = seq;
+                }
+            }
+
+            return TriggerPlanCompilerFromStrong.Compile<object>(phase, priority, cond, act);
+        }
+
+        private static TriggerPlanDto BuildTriggerPlanDto(TriggerEditorConfig tr, in TriggerPlan<object> plan, int phase, int priority)
+        {
+            var eventName = tr.EventId;
+            var eventId = !string.IsNullOrEmpty(eventName) ? StableStringId.Get("event:" + eventName) : 0;
+
+            var dto = new TriggerPlanDto
+            {
+                TriggerId = tr.TriggerId,
+                EventId = eventId,
+                AllowExternal = tr.AllowExternal,
+                Phase = phase,
+                Priority = priority,
+                Predicate = BuildPredicateDto(in plan),
+                Actions = BuildActionsDto(in plan),
+                LegacyPredicate = BuildLegacyPredicateDto(in plan),
+                LegacyActions = BuildLegacyActionsDto(in plan)
+            };
+            return dto;
+        }
+
+        private static LegacyPredicateDto BuildLegacyPredicateDto(in TriggerPlan<object> plan)
+        {
+            if (!plan.HasPredicate || plan.PredicateKind != EPredicateKind.Legacy) return null;
+            if (!plan.LegacyPredicate.HasValue) return null;
+            var p = plan.LegacyPredicate.Value;
+            return new LegacyPredicateDto { Type = p.Type, Args = p.Args != null ? new Dictionary<string, object>(p.Args, StringComparer.Ordinal) : null };
+        }
+
+        private static List<LegacyActionDto> BuildLegacyActionsDto(in TriggerPlan<object> plan)
+        {
+            if (plan.LegacyActions == null || plan.LegacyActions.Length == 0) return null;
+            var list = new List<LegacyActionDto>(plan.LegacyActions.Length);
+            for (int i = 0; i < plan.LegacyActions.Length; i++)
+            {
+                var a = plan.LegacyActions[i];
+                if (string.IsNullOrEmpty(a.Type)) continue;
+                list.Add(new LegacyActionDto { Type = a.Type, Args = a.Args != null ? new Dictionary<string, object>(a.Args, StringComparer.Ordinal) : null });
+            }
+            return list.Count > 0 ? list : null;
+        }
+
+        private static PredicatePlanDto BuildPredicateDto(in TriggerPlan<object> plan)
+        {
+            if (!plan.HasPredicate || plan.PredicateKind == EPredicateKind.None)
+            {
+                return new PredicatePlanDto { Kind = "none", Nodes = null };
+            }
+
+            if (plan.PredicateKind == EPredicateKind.Legacy)
+            {
+                return new PredicatePlanDto { Kind = "legacy", Nodes = null };
+            }
+
+            if (plan.PredicateKind == EPredicateKind.Expr)
+            {
+                var nodes = plan.PredicateExpr.Nodes;
+                var list = nodes != null ? new List<BoolExprNodeDto>(nodes.Length) : null;
+                if (nodes != null)
+                {
+                    for (int i = 0; i < nodes.Length; i++)
+                    {
+                        var n = nodes[i];
+                        list.Add(new BoolExprNodeDto
+                        {
+                            Kind = n.Kind.ToString(),
+                            ConstValue = n.ConstValue,
+                            CompareOp = n.CompareOp.ToString(),
+                            Left = BuildIntValueRefDto(in n.Left),
+                            Right = BuildIntValueRefDto(in n.Right)
+                        });
+                    }
+                }
+
+                return new PredicatePlanDto { Kind = "expr", Nodes = list };
+            }
+
+            return new PredicatePlanDto { Kind = "function", Nodes = null };
+        }
+
+        private static List<ActionCallPlanDto> BuildActionsDto(in TriggerPlan<object> plan)
+        {
+            var actions = plan.Actions;
+            if (actions == null || actions.Length == 0) return null;
+
+            var list = new List<ActionCallPlanDto>(actions.Length);
+            for (int i = 0; i < actions.Length; i++)
+            {
+                var a = actions[i];
+                list.Add(new ActionCallPlanDto
+                {
+                    ActionId = a.Id.Value,
+                    Arity = a.Arity,
+                    Arg0 = BuildIntValueRefDto(in a.Arg0),
+                    Arg1 = BuildIntValueRefDto(in a.Arg1)
+                });
+            }
+            return list;
+        }
+
+        private static IntValueRefDto BuildIntValueRefDto(in IntValueRef r)
+        {
+            return new IntValueRefDto
+            {
+                Kind = r.Kind.ToString(),
+                ConstValue = r.ConstValue,
+                BoardId = r.BoardId,
+                KeyId = r.KeyId,
+                FieldId = r.FieldId
+            };
         }
 
         private static Dictionary<string, object> BuildInitialLocalVars(TriggerEditorConfig editor)
