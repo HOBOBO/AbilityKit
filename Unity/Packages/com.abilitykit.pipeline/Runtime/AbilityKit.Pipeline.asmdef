@@ -1,7 +1,9 @@
 {
   "name": "AbilityKit.Pipeline",
   "rootNamespace": "AbilityKit.Pipeline",
-  "references": [],
+  "references": [
+    "AbilityKit.Core"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

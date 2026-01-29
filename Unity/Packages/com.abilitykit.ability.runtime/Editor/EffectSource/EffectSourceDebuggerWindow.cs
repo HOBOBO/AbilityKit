@@ -430,7 +430,8 @@ namespace AbilityKit.Ability.Editor
                 if (hasChildren)
                 {
                     var isOpen = GetFoldout(contextId, depth);
-                    var newOpen = EditorGUILayout.Foldout(isOpen, string.Empty, toggleOnLabelClick: false, GUILayout.Width(12));
+                    var foldoutRect = GUILayoutUtility.GetRect(12, EditorGUIUtility.singleLineHeight, GUILayout.Width(12));
+                    var newOpen = EditorGUI.Foldout(foldoutRect, isOpen, GUIContent.none, false);
                     if (newOpen != isOpen) _foldouts[contextId] = newOpen;
                 }
                 else

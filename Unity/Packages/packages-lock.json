@@ -268,6 +268,14 @@
       "source": "embedded",
       "dependencies": {}
     },
+    "com.abilitykit.pipeline": {
+      "version": "file:com.abilitykit.pipeline",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "0.0.1"
+      }
+    },
     "com.abilitykit.protocol": {
       "version": "file:com.abilitykit.protocol",
       "depth": 0,
@@ -405,20 +413,6 @@
       "dependencies": {
         "com.abilitykit.core": "0.0.1"
       }
-    },
-    "com.emilia.kit": {
-      "version": "file:com.emilia.kit",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.unity.editorcoroutines": "1.0.0"
-      }
-    },
-    "com.emilia.node.editor": {
-      "version": "file:com.emilia.node.editor",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {}
     },
     "com.unity.collab-proxy": {
       "version": "2.11.2",

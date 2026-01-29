@@ -12,7 +12,6 @@
         "AbilityKit.World.ECS",
         "AbilityKit.World.Snapshot",
         "AbilityKit.Ability.RuntimePkg",
-        "AbilityKit.Ability.Pipeline.RuntimePkg",
         "AbilityKit.Ability.Unity",
         "AbilityKit.ActionSchema",
         "AbilityKit.Combat.Projectile",
@@ -21,7 +20,8 @@
         "AbilityKit.Combat.Targeting",
         "AbilityKit.Combat.Collision.Abstractions",
         "AbilityKit.Combat.Collision.Unity",
-        "AbilityKit.Triggering"
+        "AbilityKit.Triggering",
+        "AbilityKit.Pipeline"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
