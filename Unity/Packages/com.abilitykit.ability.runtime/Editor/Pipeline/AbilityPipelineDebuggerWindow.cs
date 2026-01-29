@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+#if UNITY_EDITOR && ABILITYKIT_PIPELINE_THIRDPARTY_GRAPH
 
 using System;
 using System.IO;
@@ -54,16 +54,22 @@ namespace AbilityKit.Ability.Editor
                 _selectedIndex = EditorGUILayout.Popup("Running Pipeline", _selectedIndex, names);
 
                 var selected = entries[_selectedIndex];
-                var pipelineObj = selected.Pipeline.Target;
-                if (pipelineObj == null)
+                var runObj = selected.Run.Target;
+                if (runObj == null)
                 {
-                    EditorGUILayout.HelpBox("Selected pipeline instance is no longer alive.", MessageType.Warning);
+                    EditorGUILayout.HelpBox("Selected run instance is no longer alive.", MessageType.Warning);
                     return;
                 }
 
-                if (GUILayout.Button("Select This Pipeline (for highlight)"))
+                var s = selected.LastSnapshot;
+                EditorGUILayout.LabelField("State", s.State.ToString());
+                EditorGUILayout.LabelField("CurrentPhaseId", s.CurrentPhaseId.ToString());
+                EditorGUILayout.LabelField("PhaseIndex", s.PhaseIndex.ToString());
+                EditorGUILayout.LabelField("Paused", s.IsPaused ? "Yes" : "No");
+
+                if (GUILayout.Button("Select This Run (for highlight)"))
                 {
-                    AbilityPipelineLiveRegistry.SelectedPipeline = pipelineObj;
+                    AbilityPipelineLiveRegistry.SelectedRun = runObj;
                 }
 
                 using (new EditorGUILayout.HorizontalScope())

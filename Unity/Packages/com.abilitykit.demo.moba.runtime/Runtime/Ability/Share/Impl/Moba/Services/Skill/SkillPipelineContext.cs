@@ -8,7 +8,7 @@ using AbilityKit.Ability.World.DI;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class SkillPipelineContext : IAbilityPipelineContext
+    public sealed class SkillPipelineContext : IAbilityPipelineContext<object>
     {
         public object AbilityInstance { get; private set; }
         public AbilityPipelinePhaseId CurrentPhaseId { get; set; }
@@ -18,7 +18,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public float StartTime { get; set; }
         public float ElapsedTime { get; private set; }
 
-        public Dictionary<string, object> SharedData { get; } = new Dictionary<string, object>(16);
+        public long SourceContextId { get; set; }
+        public string FailReason { get; set; }
 
         public int SkillId { get; private set; }
         public int SkillSlot { get; private set; }
@@ -32,42 +33,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public IUnitFacade CasterUnit { get; private set; }
         public IUnitFacade TargetUnit { get; private set; }
 
-        public void Initialize(object abilityInstance, in SkillCastRequest request)
-        {
-            AbilityInstance = abilityInstance;
-            PipelineState = EAbilityPipelineState.Ready;
-            IsAborted = false;
-            IsPaused = false;
-            StartTime = 0f;
-            ElapsedTime = 0f;
-
-            SkillId = request.SkillId;
-            SkillSlot = request.SkillSlot;
-            CasterActorId = request.CasterActorId;
-            TargetActorId = request.TargetActorId;
-            AimPos = request.AimPos;
-            AimDir = request.AimDir;
-
-            WorldServices = request.WorldServices;
-            EventBus = request.EventBus;
-            CasterUnit = request.CasterUnit;
-            TargetUnit = request.TargetUnit;
-
-            SharedData.Clear();
-
-            SharedData[MobaSkillPipelineSharedKeys.SkillId] = SkillId;
-            SharedData[MobaSkillPipelineSharedKeys.SkillSlot] = SkillSlot;
-            SharedData[MobaSkillPipelineSharedKeys.CasterActorId] = CasterActorId;
-            SharedData[MobaSkillPipelineSharedKeys.TargetActorId] = TargetActorId;
-            SharedData[MobaSkillPipelineSharedKeys.AimPos] = AimPos;
-            SharedData[MobaSkillPipelineSharedKeys.AimDir] = AimDir;
-        }
-
-        public void AdvanceTime(float deltaTime)
-        {
-            if (deltaTime <= 0f) return;
-            ElapsedTime += deltaTime;
-        }
+        public Dictionary<string, object> SharedData { get; } = new();
 
         public T GetData<T>(string key, T defaultValue = default)
         {
@@ -91,16 +57,61 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             SharedData.Clear();
         }
 
-        public void Reset()
+        public void Initialize(object abilityInstance, in SkillCastRequest request, SkillCastContext triggerContext = null)
         {
-            AbilityInstance = null;
-            CurrentPhaseId = null;
+            AbilityInstance = abilityInstance;
             PipelineState = EAbilityPipelineState.Ready;
             IsAborted = false;
             IsPaused = false;
             StartTime = 0f;
             ElapsedTime = 0f;
+
             SharedData.Clear();
+            FailReason = null;
+
+            SourceContextId = 0L;
+            try
+            {
+                SourceContextId = triggerContext != null ? triggerContext.SourceContextId : 0L;
+            }
+            catch
+            {
+                SourceContextId = 0L;
+            }
+
+            SkillId = request.SkillId;
+            SkillSlot = request.SkillSlot;
+            CasterActorId = request.CasterActorId;
+            TargetActorId = request.TargetActorId;
+            AimPos = request.AimPos;
+            AimDir = request.AimDir;
+
+            WorldServices = request.WorldServices;
+            EventBus = request.EventBus;
+            CasterUnit = request.CasterUnit;
+            TargetUnit = request.TargetUnit;
+        }
+
+        public void AdvanceTime(float deltaTime)
+        {
+            if (deltaTime <= 0f) return;
+            ElapsedTime += deltaTime;
+        }
+
+        public void Reset()
+        {
+            AbilityInstance = null;
+            CurrentPhaseId = default;
+            PipelineState = EAbilityPipelineState.Ready;
+            IsAborted = false;
+            IsPaused = false;
+            StartTime = 0f;
+            ElapsedTime = 0f;
+
+            SharedData.Clear();
+
+            SourceContextId = 0L;
+            FailReason = null;
 
             SkillId = 0;
             SkillSlot = 0;

@@ -1,0 +1,14 @@
+{
+  "name": "AbilityKit.Pipeline",
+  "rootNamespace": "AbilityKit.Pipeline",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

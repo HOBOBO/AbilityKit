@@ -23,6 +23,16 @@ namespace AbilityKit.Triggering.Blackboard
             _ints[keyId] = value;
         }
 
+        public void CopyIntsTo(List<KeyValuePair<int, int>> list)
+        {
+            if (list == null) return;
+            list.Clear();
+            foreach (var kv in _ints)
+            {
+                list.Add(kv);
+            }
+        }
+
         public void Clear()
         {
             _ints.Clear();

@@ -9,8 +9,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         bool TryGet(
             int skillId,
             out IAbilityPipelineConfig preCastConfig,
-            out IReadOnlyList<IAbilityPipelinePhase> preCastPhases,
+            out IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> preCastPhases,
             out IAbilityPipelineConfig castConfig,
-            out IReadOnlyList<IAbilityPipelinePhase> castPhases);
+            out IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> castPhases);
     }
 }

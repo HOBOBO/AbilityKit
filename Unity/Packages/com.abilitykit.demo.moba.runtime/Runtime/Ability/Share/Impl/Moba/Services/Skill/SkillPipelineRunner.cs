@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability;
+using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Impl.Moba.EffectSource;
+using AbilityKit.Ability.FrameSync;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -22,9 +25,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public bool Start(
             IAbilityPipelineConfig preCastConfig,
-            IReadOnlyList<IAbilityPipelinePhase> preCastPhases,
+            IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> preCastPhases,
             IAbilityPipelineConfig castConfig,
-            IReadOnlyList<IAbilityPipelinePhase> castPhases,
+            IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> castPhases,
             object abilityInstance,
             in SkillCastRequest request)
         {
@@ -33,9 +36,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public bool Start(
             IAbilityPipelineConfig preCastConfig,
-            IReadOnlyList<IAbilityPipelinePhase> preCastPhases,
+            IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> preCastPhases,
             IAbilityPipelineConfig castConfig,
-            IReadOnlyList<IAbilityPipelinePhase> castPhases,
+            IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> castPhases,
             object abilityInstance,
             in SkillCastRequest request,
             SkillCastContext triggerContext)
@@ -45,9 +48,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public bool Start(
             IAbilityPipelineConfig preCastConfig,
-            IReadOnlyList<IAbilityPipelinePhase> preCastPhases,
+            IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> preCastPhases,
             IAbilityPipelineConfig castConfig,
-            IReadOnlyList<IAbilityPipelinePhase> castPhases,
+            IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> castPhases,
             object abilityInstance,
             in SkillCastRequest request,
             out string failReason,
@@ -59,9 +62,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public bool Start(
             IAbilityPipelineConfig preCastConfig,
-            IReadOnlyList<IAbilityPipelinePhase> preCastPhases,
+            IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> preCastPhases,
             IAbilityPipelineConfig castConfig,
-            IReadOnlyList<IAbilityPipelinePhase> castPhases,
+            IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> castPhases,
             object abilityInstance,
             in SkillCastRequest request,
             SkillCastContext triggerContext,
@@ -105,7 +108,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (preCastConfig == null || preCastPhases == null || preCastPhases.Count == 0)
             {
                 var ok = StartCast(ref entry);
-                if (ok && entry.Pipeline != null && entry.Pipeline.State == EAbilityPipelineState.Executing)
+                if (ok && entry.Run != null && entry.Run.State == EAbilityPipelineState.Executing)
                 {
                     _running.Add(entry);
                 }
@@ -130,9 +133,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 entry.Pipeline.AddPhase(entry.PreCastPhases[i]);
             }
 
+            entry.Context = new SkillPipelineContext();
+            entry.Context.Initialize(entry.AbilityInstance, in entry.Request, entry.TriggerContext);
+            entry.Run = entry.Pipeline.Start(entry.PreCastConfig, entry.Context);
+
             MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.PreCastStart, entry.TriggerContext);
 
-            var state = entry.Pipeline.Execute(entry.PreCastConfig, entry.AbilityInstance, entry.Request, entry.TriggerContext);
+            entry.Run.Tick(0f);
+            var state = entry.Run.State;
             if (state == EAbilityPipelineState.Executing) return true;
             if (state == EAbilityPipelineState.Completed)
             {
@@ -141,8 +149,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 return StartCast(ref entry);
             }
 
-            entry.FailReason = TryGetFailReason(entry.Pipeline);
+            entry.FailReason = TryGetFailReason(entry);
             MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.PreCastFail, entry.TriggerContext, entry.FailReason);
+
+            TryEndEffectSource(entry, EffectSourceEndReason.Cancelled);
             return false;
         }
 
@@ -155,9 +165,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 entry.Pipeline.AddPhase(entry.CastPhases[i]);
             }
 
+            entry.Context = new SkillPipelineContext();
+            entry.Context.Initialize(entry.AbilityInstance, in entry.Request, entry.TriggerContext);
+            entry.Run = entry.Pipeline.Start(entry.CastConfig, entry.Context);
+
             MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.CastStart, entry.TriggerContext);
 
-            var state = entry.Pipeline.Execute(entry.CastConfig, entry.AbilityInstance, entry.Request, entry.TriggerContext);
+            entry.Run.Tick(0f);
+            var state = entry.Run.State;
             if (state == EAbilityPipelineState.Executing)
             {
                 entry.Stage = EntryStage.Cast;
@@ -166,22 +181,71 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             if (state != EAbilityPipelineState.Completed)
             {
-                entry.FailReason = TryGetFailReason(entry.Pipeline);
+                entry.FailReason = TryGetFailReason(entry);
                 MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.CastFail, entry.TriggerContext, entry.FailReason);
+
+                TryEndEffectSource(entry, EffectSourceEndReason.Cancelled);
             }
             else
             {
                 MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.CastComplete, entry.TriggerContext);
+
+                TryEndEffectSource(entry, EffectSourceEndReason.Completed);
             }
 
             return state == EAbilityPipelineState.Completed;
         }
 
-        private static string TryGetFailReason(IAbilityPipeline pipeline)
+        private static void TryEndEffectSource(in Entry entry, EffectSourceEndReason reason)
         {
-            if (pipeline?.Context == null) return null;
-            if (pipeline.Context.SharedData == null) return null;
-            return pipeline.Context.GetData<string>(MobaSkillPipelineSharedKeys.FailReason, null);
+            var rootId = 0L;
+            try
+            {
+                rootId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
+            }
+            catch
+            {
+                rootId = 0L;
+            }
+
+            if (rootId == 0) return;
+
+            EffectSourceRegistry effectSource = null;
+            try
+            {
+                effectSource = entry.Request.WorldServices != null ? entry.Request.WorldServices.Resolve<EffectSourceRegistry>() : null;
+            }
+            catch
+            {
+                effectSource = null;
+            }
+
+            if (effectSource == null) return;
+
+            var frame = 0;
+            try
+            {
+                var ft = entry.Request.WorldServices != null ? entry.Request.WorldServices.Resolve<IFrameTime>() : null;
+                frame = ft != null ? ft.Frame.Value : 0;
+            }
+            catch
+            {
+                frame = 0;
+            }
+
+            try
+            {
+                effectSource.End(rootId, frame, reason);
+            }
+            catch
+            {
+            }
+        }
+
+        private static string TryGetFailReason(in Entry entry)
+        {
+            if (entry.Context == null) return null;
+            return entry.Context.FailReason;
         }
 
         public void CancelAll()
@@ -190,7 +254,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             for (int i = 0; i < _running.Count; i++)
             {
                 var e = _running[i];
-                var p = e.Pipeline;
+                var p = e.Run;
 
                 if (e.Stage == EntryStage.PreCast)
                 {
@@ -202,6 +266,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 }
 
                 p?.Interrupt();
+
+                TryEndEffectSource(e, EffectSourceEndReason.Cancelled);
             }
             _running.Clear();
         }
@@ -213,8 +279,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             for (int i = _running.Count - 1; i >= 0; i--)
             {
                 var entry = _running[i];
-                var p = entry.Pipeline;
-                if (p == null)
+                var p = entry.Run;
+                if (p == null || entry.Context == null)
                 {
                     _running.RemoveAt(i);
                     continue;
@@ -222,7 +288,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
                 if (p.State == EAbilityPipelineState.Executing)
                 {
-                    p.OnUpdate(p.Context, deltaTime);
+                    entry.Context.AdvanceTime(deltaTime);
+                    p.Tick(deltaTime);
                 }
 
                 if (p.State != EAbilityPipelineState.Executing)
@@ -241,11 +308,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     if (p.State == EAbilityPipelineState.Completed && entry.Stage == EntryStage.Cast)
                     {
                         MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.CastComplete, entry.TriggerContext);
+
+                        TryEndEffectSource(entry, EffectSourceEndReason.Completed);
                     }
 
                     if (p.State != EAbilityPipelineState.Completed)
                     {
-                        entry.FailReason = entry.FailReason ?? TryGetFailReason(p);
+                        entry.FailReason = entry.FailReason ?? TryGetFailReason(entry);
                         LastFailReason = entry.FailReason;
 
                         if (entry.Stage == EntryStage.PreCast)
@@ -256,6 +325,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                         {
                             MobaSkillTriggering.Publish(entry.Request.EventBus, MobaSkillTriggering.Events.CastFail, entry.TriggerContext, entry.FailReason);
                         }
+
+                        TryEndEffectSource(entry, EffectSourceEndReason.Cancelled);
                     }
 
                     _running.RemoveAt(i);
@@ -272,28 +343,32 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private struct Entry
         {
             public EntryStage Stage;
-            public IAbilityPipeline Pipeline;
+            public SkillCastPipeline Pipeline;
+            public IAbilityPipelineRun<SkillPipelineContext> Run;
+            public SkillPipelineContext Context;
             public string FailReason;
 
             public readonly IAbilityPipelineConfig PreCastConfig;
-            public readonly IReadOnlyList<IAbilityPipelinePhase> PreCastPhases;
+            public readonly IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> PreCastPhases;
             public readonly IAbilityPipelineConfig CastConfig;
-            public readonly IReadOnlyList<IAbilityPipelinePhase> CastPhases;
+            public readonly IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> CastPhases;
             public readonly object AbilityInstance;
             public readonly SkillCastRequest Request;
             public readonly SkillCastContext TriggerContext;
 
             public Entry(
                 IAbilityPipelineConfig preCastConfig,
-                IReadOnlyList<IAbilityPipelinePhase> preCastPhases,
+                IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> preCastPhases,
                 IAbilityPipelineConfig castConfig,
-                IReadOnlyList<IAbilityPipelinePhase> castPhases,
+                IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> castPhases,
                 object abilityInstance,
                 SkillCastRequest request,
                 SkillCastContext triggerContext)
             {
                 Stage = EntryStage.PreCast;
                 Pipeline = null;
+                Run = null;
+                Context = null;
                 FailReason = null;
                 PreCastConfig = preCastConfig;
                 PreCastPhases = preCastPhases;

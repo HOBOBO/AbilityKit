@@ -6,273 +6,48 @@ namespace AbilityKit.Ability
     /// <summary>
     /// 抽象核心管线流程
     /// </summary>
-    public abstract partial class AbilityPipeline : IAbilityPipeline
+    public abstract partial class AbilityPipeline<TCtx> : IAbilityPipeline<TCtx>
+        where TCtx : IAbilityPipelineContext
     {
         /// <summary>
         /// 管线事件
         /// </summary>
-        public AbilityPipelineEvents Events { get; } = new AbilityPipelineEvents();
-        
-        /// <summary>
-        /// 当前状态
-        /// </summary>
-        public EAbilityPipelineState State => _state;
-        
-        /// <summary>
-        /// 当前上下文
-        /// </summary>
-        public IAbilityPipelineContext Context => _context;
-        
-        /// <summary>
-        /// 是否暂停
-        /// </summary>
-        public bool IsPaused => _isPaused;
-        
-        protected EAbilityPipelineState _state = EAbilityPipelineState.Ready;
-        protected bool _isPaused = false;
-        protected int _currentPhaseIndex = 0;
-        protected IAbilityPipelinePhase _currentPhase;
-        
-        /// <summary>
-        /// 管线配置
-        /// </summary>
-        protected IAbilityPipelineConfig _config;
-        
-        /// <summary>
-        /// 管线上下文
-        /// </summary>
-        protected IAbilityPipelineContext _context;
-        
-        private readonly List<IAbilityPipelinePhase> _phases = new List<IAbilityPipelinePhase>(8);
+        public AbilityPipelineEvents<TCtx> Events { get; } = new AbilityPipelineEvents<TCtx>();
 
-        /// <summary>
-        /// 统一处理管线执行流程
-        /// </summary>
-        public virtual EAbilityPipelineState Execute(IAbilityPipelineConfig config, object abilityInstance, params object[] args)
+        private readonly List<IAbilityPipelinePhase<TCtx>> _phases = new List<IAbilityPipelinePhase<TCtx>>(8);
+
+        public IAbilityPipelineRun<TCtx> Start(IAbilityPipelineConfig config, TCtx context)
         {
-            try
+            if (config == null) throw new ArgumentNullException(nameof(config));
+            if (context == null) throw new ArgumentNullException(nameof(context));
+
+            // Reset all phases before starting a new run.
+            for (int i = 0; i < _phases.Count; i++)
             {
-                // 初始化管线
-                _config = config;
-                _context = CreateContext(abilityInstance, args);
-                _state = EAbilityPipelineState.Executing;
-                _isPaused = false;
-                _currentPhaseIndex = 0;
-                _currentPhase = null;
-                _currentParallelPhase = null;
-
-                #if UNITY_EDITOR
-                AbilityPipelineLiveRegistry.Register(this, _config);
-                #endif
-
-                // 重置所有阶段状态
-                for (int i = 0; i < _phases.Count; i++)
-                {
-                    _phases[i].Reset();
-                }
-
-                // 执行管线初始化
-                OnPipelineStart();
-
-                // 开始执行管线
-                ExecutePipeline(_context);
-
-                return _state;
+                _phases[i].Reset();
             }
-            catch (Exception e)
-            {
-                _state = EAbilityPipelineState.Failed;
-                OnPipelineError(e);
-                return _state;
-            }
-            finally
-            {
-                if (_state != EAbilityPipelineState.Executing)
-                {
-                    ReleaseContext(_context);
 
-                    #if UNITY_EDITOR
-                    AbilityPipelineLiveRegistry.Unregister(this);
-                    #endif
-                }
-            }
+            return new Run(this, config, context);
         }
-
-        /// <summary>
-        /// 暂停管线
-        /// </summary>
-        public virtual void Pause()
-        {
-            if (_state != EAbilityPipelineState.Executing || _isPaused)
-                return;
-                
-            _isPaused = true;
-            if (_context != null)
-            {
-                _context.IsPaused = true;
-            }
-            Events?.OnPipelinePause?.Invoke(_context);
-        }
-
-        /// <summary>
-        /// 恢复管线
-        /// </summary>
-        public virtual void Resume()
-        {
-            if (_state != EAbilityPipelineState.Executing || !_isPaused)
-                return;
-                
-            _isPaused = false;
-            if (_context != null)
-            {
-                _context.IsPaused = false;
-            }
-            Events?.OnPipelineResume?.Invoke(_context);
-        }
-
-        /// <summary>
-        /// 中断管线
-        /// </summary>
-        public virtual void Interrupt()
-        {
-            if (_state != EAbilityPipelineState.Executing)
-                return;
-
-            // 中断当前阶段
-            if (_currentPhase is IInterruptiblePhase interruptible)
-            {
-                interruptible.OnInterrupt(_context);
-            }
-
-            // 中断并行阶段的子阶段
-            if (_currentParallelPhase != null)
-            {
-                var subPhases = _currentParallelPhase.SubPhases;
-                for (int i = 0; i < subPhases.Count; i++)
-                {
-                    var phase = subPhases[i];
-                    if (phase is IInterruptiblePhase subInterruptible)
-                    {
-                        subInterruptible.OnInterrupt(_context);
-                    }
-                }
-            }
-
-            _context.IsAborted = true;
-            _state = EAbilityPipelineState.Failed;
-            OnPipelineInterrupt(true);
-            ReleaseContext(_context);
-
-            #if UNITY_EDITOR
-            AbilityPipelineLiveRegistry.Unregister(this);
-            #endif
-        }
-
-        protected abstract IAbilityPipelineContext CreateContext(object abilityInstance, params object[] args);
 
         /// <summary>
         /// 重置管线
         /// </summary>
         public virtual void Reset()
         {
-            _state = EAbilityPipelineState.Ready;
-            _isPaused = false;
-            _currentPhaseIndex = 0;
-            _currentPhase = null;
-            _currentParallelPhase = null;
-            _config = null;
-
-            // 重置所有阶段
             for (int i = 0; i < _phases.Count; i++)
             {
                 _phases[i].Reset();
             }
-
-            if (_context != null)
-            {
-                ReleaseContext(_context);
-                _context = null;
-            }
-
-            #if UNITY_EDITOR
-            AbilityPipelineLiveRegistry.Unregister(this);
-            #endif
         }
 
-        /// <summary>
-        /// 更新管线（每帧调用）
-        /// 统一模型：所有阶段都通过 OnUpdate 更新，检查 IsComplete 完成
-        /// </summary>
-        public virtual void OnUpdate(IAbilityPipelineContext context, float deltaTime)
-        {
-            // 检查状态
-            if (_state != EAbilityPipelineState.Executing)
-                return;
-
-            // 暂停时不更新
-            if (_isPaused)
-                return;
-
-            // 没有当前阶段时不需要更新
-            if (_currentPhase == null)
-                return;
-
-            if (context != null && context.IsAborted)
-            {
-                _state = EAbilityPipelineState.Failed;
-                ReleaseContext(_context);
-
-                #if UNITY_EDITOR
-                AbilityPipelineLiveRegistry.Unregister(this);
-                #endif
-                return;
-            }
-
-            try
-            {
-                // 更新当前阶段
-                _currentPhase.OnUpdate(context, deltaTime);
-
-                // 复合阶段更新（并行阶段等）
-                if (_currentPhase.IsComposite)
-                {
-                    OnCompositeUpdate(context, deltaTime);
-                }
-
-                // 检查是否完成
-                if (_currentPhase.IsComplete)
-                {
-                    OnPhaseComplete(_currentPhase);
-                    _currentPhase = null;
-                    _currentPhaseIndex++;
-
-                    // 继续执行后续阶段
-                    ExecutePipeline(context);
-                }
-
-                if (context != null && context.IsAborted)
-                {
-                    _state = EAbilityPipelineState.Failed;
-                    ReleaseContext(_context);
-
-                    #if UNITY_EDITOR
-                    AbilityPipelineLiveRegistry.Unregister(this);
-                    #endif
-                }
-            }
-            catch (Exception e)
-            {
-                HandlePhaseError(_currentPhase, e);
-            }
-        }
-
-        public void AddPhase(IAbilityPipelinePhase phase)
+        public void AddPhase(IAbilityPipelinePhase<TCtx> phase)
         {
             if (phase == null) throw new ArgumentNullException(nameof(phase));
             _phases.Add(phase);
         }
 
-        public void InsertPhase(int index, IAbilityPipelinePhase phase)
+        public void InsertPhase(int index, IAbilityPipelinePhase<TCtx> phase)
         {
             if (phase == null) throw new ArgumentNullException(nameof(phase));
             _phases.Insert(index, phase);
@@ -290,131 +65,326 @@ namespace AbilityKit.Ability
             }
         }
 
-        /// <summary>
-        /// 提供默认实现，子类可覆盖执行管线
-        /// 统一模型：所有阶段都通过 IsComplete 判断是否完成
-        /// </summary>
-        protected virtual void ExecutePipeline(IAbilityPipelineContext context)
+        protected abstract void ReleaseContext(TCtx context);
+
+        private sealed class Run : IAbilityPipelineRun<TCtx>
         {
-            // 按顺序执行所有阶段
-            while (_currentPhaseIndex < _phases.Count && _state == EAbilityPipelineState.Executing)
+            private readonly AbilityPipeline<TCtx> _owner;
+            private readonly IAbilityPipelineConfig _config;
+
+            private bool _isCancelled;
+            private int _currentPhaseIndex;
+            private IAbilityPipelinePhase<TCtx> _currentPhase;
+
+            public EAbilityPipelineState State { get; private set; }
+
+            public TCtx Context { get; }
+
+            public AbilityPipelinePhaseId CurrentPhaseId => Context != null ? Context.CurrentPhaseId : default;
+
+            public bool IsPaused { get; private set; }
+
+            public Run(AbilityPipeline<TCtx> owner, IAbilityPipelineConfig config, TCtx context)
             {
-                if (context != null && context.IsAborted)
+                _owner = owner;
+                _config = config;
+                Context = context;
+
+                State = EAbilityPipelineState.Executing;
+                IsPaused = false;
+                _currentPhaseIndex = 0;
+                _currentPhase = null;
+                _owner._currentParallelPhase = null;
+
+                Context.PipelineState = EAbilityPipelineState.Executing;
+
+#if UNITY_EDITOR
+                AbilityPipelineLiveRegistry.RegisterRun(owner, _config, this);
+#endif
+
+                _owner.Events?.OnPipelineStart?.Invoke(Context);
+
+#if UNITY_EDITOR
+                Trace(PipelineTraceEventType.RunStart, phaseId: default, message: string.Empty);
+#endif
+
+#if UNITY_EDITOR
+                try { AbilityPipelineLiveRegistry.TouchRun(this); }
+                catch { }
+#endif
+
+            public void Tick(float deltaTime)
+            {
+                if (State != EAbilityPipelineState.Executing) return;
+                if (_isCancelled)
                 {
-                    _state = EAbilityPipelineState.Failed;
+                    Fail();
                     return;
                 }
-
-                var phase = _phases[_currentPhaseIndex];
-            
-                // 检查阶段是否应该执行
-                if (!phase.ShouldExecute(context))
+                if (IsPaused) return;
+                if (Context != null && Context.IsAborted)
                 {
-                    _currentPhaseIndex++;
-                    continue;
+                    Fail();
+                    return;
                 }
 
                 try
                 {
-                    // 执行阶段
-                    ExecutePhase(phase, context);
+                    // If we have a running phase, tick it.
+                    if (_currentPhase != null)
+                    {
+                        _currentPhase.OnUpdate(Context, deltaTime);
+                        if (_currentPhase.IsComposite)
+                        {
+                            _owner.OnCompositeUpdate(Context, deltaTime);
+                        }
 
-                    if (context != null && context.IsAborted)
-                    {
-                        _state = EAbilityPipelineState.Failed;
-                        return;
+                        if (_currentPhase.IsComplete)
+                        {
+                            OnPhaseComplete(_currentPhase);
+                            _currentPhase = null;
+                            _currentPhaseIndex++;
+                        }
                     }
-                    
-                    // 如果阶段未完成，保存当前阶段并退出，等待 Update 驱动
-                    if (!phase.IsComplete)
+
+                    // Execute as many instant phases as possible in this tick.
+                    ExecutePipeline();
+
+                    if (Context != null && Context.IsAborted)
                     {
-                        _currentPhase = phase;
-                        return;
+                        Fail();
                     }
-                    
-                    // 阶段已完成，继续下一个
-                    OnPhaseComplete(phase);
-                    _currentPhaseIndex++;
                 }
                 catch (Exception e)
                 {
-                    HandlePhaseError(phase, e);
-                    return;
+                    HandlePhaseError(_currentPhase, e);
+                }
+
+#if UNITY_EDITOR
+                try { AbilityPipelineLiveRegistry.TouchRun(this); }
+                catch { }
+#endif
+            }
+
+            public void Pause()
+            {
+                if (State != EAbilityPipelineState.Executing) return;
+                if (IsPaused) return;
+                IsPaused = true;
+                if (Context != null) Context.IsPaused = true;
+                _owner.Events?.OnPipelinePause?.Invoke(Context);
+
+#if UNITY_EDITOR
+                try { AbilityPipelineLiveRegistry.TouchRun(this); }
+                catch { }
+#endif
+            }
+
+            public void Resume()
+            {
+                if (State != EAbilityPipelineState.Executing) return;
+                if (!IsPaused) return;
+                IsPaused = false;
+                if (Context != null) Context.IsPaused = false;
+                _owner.Events?.OnPipelineResume?.Invoke(Context);
+
+#if UNITY_EDITOR
+                try { AbilityPipelineLiveRegistry.TouchRun(this); }
+                catch { }
+#endif
+            }
+
+            public void Interrupt()
+            {
+                if (State != EAbilityPipelineState.Executing) return;
+
+                if (_currentPhase is IInterruptiblePhase<TCtx> interruptible)
+                {
+                    interruptible.OnInterrupt(Context);
+                }
+
+                if (_owner._currentParallelPhase != null)
+                {
+                    var subPhases = _owner._currentParallelPhase.SubPhases;
+                    for (int i = 0; i < subPhases.Count; i++)
+                    {
+                        if (subPhases[i] is IInterruptiblePhase<TCtx> subInterruptible)
+                        {
+                            subInterruptible.OnInterrupt(Context);
+                        }
+                    }
+                }
+
+                if (Context != null) Context.IsAborted = true;
+                _owner.Events?.OnPipelineInterrupt?.Invoke(Context, true);
+                Fail();
+            }
+
+            public void Cancel()
+            {
+                _isCancelled = true;
+            }
+
+#if UNITY_EDITOR
+            private void Trace(PipelineTraceEventType type, AbilityPipelinePhaseId phaseId, string message)
+            {
+                try
+                {
+                    if (AbilityPipelineLiveRegistry.TryGetTrace(this, out var trace) && trace != null)
+                    {
+                        trace.Add(type, phaseId, State, message);
+                    }
+                }
+                catch
+                {
+                }
+            }
+#endif
+
+            private void ExecutePipeline()
+            {
+                while (_currentPhaseIndex < _owner._phases.Count && State == EAbilityPipelineState.Executing)
+                {
+                    if (Context != null && Context.IsAborted)
+                    {
+                        Fail();
+                        return;
+                    }
+
+                    var phase = _owner._phases[_currentPhaseIndex];
+
+                    if (!phase.ShouldExecute(Context))
+                    {
+                        _currentPhaseIndex++;
+                        continue;
+                    }
+
+                    try
+                    {
+                        ExecutePhase(phase);
+
+                        if (Context != null && Context.IsAborted)
+                        {
+                            Fail();
+                            return;
+                        }
+
+                        if (!phase.IsComplete)
+                        {
+                            _currentPhase = phase;
+                            return;
+                        }
+
+                        OnPhaseComplete(phase);
+                        _currentPhaseIndex++;
+                    }
+                    catch (Exception e)
+                    {
+                        HandlePhaseError(phase, e);
+                        return;
+                    }
+                }
+
+                if (_currentPhaseIndex >= _owner._phases.Count)
+                {
+                    Complete();
                 }
             }
 
-            // 所有阶段执行完成
-            if (_currentPhaseIndex >= _phases.Count)
+            private void ExecutePhase(IAbilityPipelinePhase<TCtx> phase)
             {
-                OnPipelineComplete();
+                OnPhaseStart(phase);
+
+                if (phase.IsComposite)
+                {
+                    _owner.HandleCompositePhase(phase as AbilityCompositePhase<TCtx>, Context);
+                }
+                else
+                {
+                    phase.Execute(Context);
+                }
+            }
+
+            private void OnPhaseStart(IAbilityPipelinePhase<TCtx> phase)
+            {
+                if (Context != null) Context.CurrentPhaseId = phase.PhaseId;
+                _owner.ExecuteExtensionPhaseStart(phase.PhaseId, Context, phase);
+                _owner.Events?.OnPhaseStart?.Invoke(phase, Context);
+
+#if UNITY_EDITOR
+                Trace(PipelineTraceEventType.PhaseStart, phase != null ? phase.PhaseId : default, phase != null ? phase.GetType().Name : string.Empty);
+#endif
+            }
+
+            private void OnPhaseComplete(IAbilityPipelinePhase<TCtx> phase)
+            {
+                _owner.ExecuteExtensionPhaseComplete(phase.PhaseId, Context, phase);
+                _owner.Events?.OnPhaseComplete?.Invoke(phase, Context);
+
+#if UNITY_EDITOR
+                Trace(PipelineTraceEventType.PhaseComplete, phase != null ? phase.PhaseId : default, phase != null ? phase.GetType().Name : string.Empty);
+#endif
+            }
+
+            private void HandlePhaseError(IAbilityPipelinePhase<TCtx> phase, Exception e)
+            {
+                if (State != EAbilityPipelineState.Executing) return;
+                State = EAbilityPipelineState.Failed;
+                if (Context != null) Context.PipelineState = EAbilityPipelineState.Failed;
+
+                if (phase != null)
+                {
+                    try { phase.HandleError(Context, e); }
+                    catch { }
+                }
+                _owner.Events?.OnPhaseError?.Invoke(phase, Context, e);
+
+#if UNITY_EDITOR
+                Trace(PipelineTraceEventType.PhaseError, phase != null ? phase.PhaseId : default, e != null ? e.Message : string.Empty);
+#endif
+                Cleanup();
+            }
+
+            private void Complete()
+            {
+                if (State != EAbilityPipelineState.Executing) return;
+                State = EAbilityPipelineState.Completed;
+                if (Context != null) Context.PipelineState = EAbilityPipelineState.Completed;
+                _owner.Events?.OnPipelineComplete?.Invoke(Context);
+
+#if UNITY_EDITOR
+                Trace(PipelineTraceEventType.RunEnd, CurrentPhaseId, "Completed");
+#endif
+                Cleanup();
+            }
+
+            private void Fail()
+            {
+                if (State != EAbilityPipelineState.Executing) return;
+                State = EAbilityPipelineState.Failed;
+                if (Context != null) Context.PipelineState = EAbilityPipelineState.Failed;
+
+#if UNITY_EDITOR
+                Trace(PipelineTraceEventType.RunEnd, CurrentPhaseId, "Failed");
+#endif
+                Cleanup();
+            }
+
+            private void Cleanup()
+            {
+                try
+                {
+                    _owner.ReleaseContext(Context);
+                }
+                catch
+                {
+                }
+
+#if UNITY_EDITOR
+                try { AbilityPipelineLiveRegistry.UnregisterRun(this); }
+                catch { }
+#endif
             }
         }
-        
-        /// <summary>
-        /// 释放上下文
-        /// </summary>
-        /// <param name="context"></param>
-        protected abstract void ReleaseContext(IAbilityPipelineContext context);
-        
-        /// <summary>
-        /// 执行阶段（统一处理瞬时和持续阶段）
-        /// </summary>
-        protected virtual void ExecutePhase(IAbilityPipelinePhase phase, IAbilityPipelineContext context)
-        {
-            OnPhaseStart(phase);
-        
-            if (phase.IsComposite)
-            {
-                HandleCompositePhase(phase as AbilityCompositePhase, context);
-            }
-            else
-            {
-                phase.Execute(context);
-                // 注意：不再在这里调用 OnPhaseComplete
-                // 完成检查统一在 ExecutePipeline 和 OnUpdate 中进行
-            }
-        }
-
-        #region 生命周期事件
-        protected virtual void OnPipelineStart()
-        {
-            Events?.OnPipelineStart?.Invoke(_context);
-        }
-
-        protected virtual void OnPipelineComplete()
-        {
-            _state = EAbilityPipelineState.Completed;
-            Events?.OnPipelineComplete?.Invoke(_context);
-        }
-
-        protected virtual void OnPipelineError(Exception e)
-        {
-            Events?.OnPipelineError?.Invoke(_context, e);
-        }
-
-        protected virtual void OnPipelineInterrupt(bool isInterrupt)
-        {
-            Events?.OnPipelineInterrupt?.Invoke(_context, isInterrupt);
-        }
-
-        protected virtual void OnPhaseStart(IAbilityPipelinePhase phase)
-        {
-            this.ExecuteExtensionPhaseStart(phase.PhaseId, _context, phase);
-            Events?.OnPhaseStart?.Invoke(phase, _context);
-        }
-
-        protected virtual void OnPhaseComplete(IAbilityPipelinePhase phase)
-        {
-            this.ExecuteExtensionPhaseComplete(phase.PhaseId, _context, phase);
-            Events?.OnPhaseComplete?.Invoke(phase, _context);
-        }
-
-        protected virtual void HandlePhaseError(IAbilityPipelinePhase phase, Exception e)
-        {
-            _state = EAbilityPipelineState.Failed;
-            phase.HandleError(_context, e);
-            Events?.OnPhaseError?.Invoke(phase, _context, e);
-        }
-        #endregion
     }
 }

@@ -12,6 +12,7 @@
         "AbilityKit.World.ECS",
         "AbilityKit.World.Snapshot",
         "AbilityKit.Ability.RuntimePkg",
+        "AbilityKit.Ability.Pipeline.RuntimePkg",
         "AbilityKit.Ability.Unity",
         "AbilityKit.ActionSchema",
         "AbilityKit.Combat.Projectile",

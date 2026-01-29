@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+#if UNITY_EDITOR && ABILITYKIT_PIPELINE_THIRDPARTY_GRAPH
 
 using System;
 using Emilia.Kit;
@@ -28,25 +28,14 @@ namespace AbilityKit.Ability.Editor
             if (asset == null)
                 return;
 
-            var pipeline = AbilityPipelineLiveRegistry.SelectedPipeline;
-            if (pipeline == null)
+            var run = AbilityPipelineLiveRegistry.SelectedRun;
+            if (run == null)
                 return;
 
-            var pipelineType = pipeline.GetType();
-
-            int phaseIndex = 0;
-            try
-            {
-                var f = pipelineType.GetField("_currentPhaseIndex", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                if (f != null)
-                {
-                    phaseIndex = (int)f.GetValue(pipeline);
-                }
-            }
-            catch
-            {
+            if (!AbilityPipelineLiveRegistry.TryGetSnapshot(run, out var snapshot))
                 return;
-            }
+
+            var phaseIndex = snapshot.PhaseIndex;
 
             if (phaseIndex < 0 || phaseIndex >= asset.NodeIdByPhaseIndex.Count)
                 return;

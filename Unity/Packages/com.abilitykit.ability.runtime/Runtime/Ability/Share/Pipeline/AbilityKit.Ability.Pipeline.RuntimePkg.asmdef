@@ -1,0 +1,18 @@
+{
+  "name": "AbilityKit.Ability.Pipeline.RuntimePkg.Legacy",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "ABILITYKIT_PIPELINE_LEGACY"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

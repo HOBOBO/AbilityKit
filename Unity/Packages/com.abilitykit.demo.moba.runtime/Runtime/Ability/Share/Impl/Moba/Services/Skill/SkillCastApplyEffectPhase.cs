@@ -15,7 +15,7 @@ using AbilityKit.Ability.World.DI;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class SkillCastApplyEffectPhase : AbilityInstantPhaseBase
+    public sealed class SkillCastApplyEffectPhase : AbilityInstantPhaseBase<SkillPipelineContext>
     {
         private readonly IWorldServices _services;
         private readonly IFrameTime _time;
@@ -36,16 +36,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _units = units ?? throw new ArgumentNullException(nameof(units));
         }
 
-        protected override void OnInstantExecute(IAbilityPipelineContext context)
+        protected override void OnInstantExecute(SkillPipelineContext context)
         {
             if (context == null) return;
 
-            var skillId = context.GetData<int>(MobaSkillPipelineSharedKeys.SkillId);
-            var slot = context.GetData<int>(MobaSkillPipelineSharedKeys.SkillSlot);
-            var casterActorId = context.GetData<int>(MobaSkillPipelineSharedKeys.CasterActorId);
-            var targetActorId = context.GetData<int>(MobaSkillPipelineSharedKeys.TargetActorId);
-            var aimPos = context.GetData<Vec3>(MobaSkillPipelineSharedKeys.AimPos);
-            var aimDir = context.GetData<Vec3>(MobaSkillPipelineSharedKeys.AimDir);
+            var skillId = context.SkillId;
+            var slot = context.SkillSlot;
+            var casterActorId = context.CasterActorId;
+            var targetActorId = context.TargetActorId;
+            var aimPos = context.AimPos;
+            var aimDir = context.AimDir;
 
             if (skillId <= 0 || casterActorId <= 0) return;
             if (targetActorId <= 0) targetActorId = casterActorId;
@@ -57,38 +57,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             try { frame = _time != null ? _time.Frame.Value : 0; }
             catch { frame = 0; }
 
-            var sourceContextId = 0L;
-            try
-            {
-                sourceContextId = context.GetData<long>(MobaSkillPipelineSharedKeys.SourceContextId);
-            }
-            catch
-            {
-                sourceContextId = 0;
-            }
-
-            try
-            {
-                var effectSource = _services != null ? _services.Resolve<EffectSourceRegistry>() : null;
-                if (effectSource != null)
-                {
-                    if (sourceContextId == 0)
-                    {
-                        sourceContextId = effectSource.CreateRoot(
-                            kind: EffectSourceKind.SkillCast,
-                            configId: skillId,
-                            sourceActorId: casterActorId,
-                            targetActorId: targetActorId,
-                            frame: frame,
-                            originSource: casterActorId,
-                            originTarget: targetActorId);
-                    }
-                }
-            }
-            catch
-            {
-                sourceContextId = 0;
-            }
+            var sourceContextId = context.SourceContextId;
 
             var args = new Dictionary<string, object>(6, StringComparer.Ordinal)
             {

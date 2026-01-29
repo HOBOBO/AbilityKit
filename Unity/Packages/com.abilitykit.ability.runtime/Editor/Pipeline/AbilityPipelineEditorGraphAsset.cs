@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+#if UNITY_EDITOR && ABILITYKIT_PIPELINE_THIRDPARTY_GRAPH
 
 using System;
 using System.Collections.Generic;

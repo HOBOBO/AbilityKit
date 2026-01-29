@@ -18,42 +18,42 @@ namespace AbilityKit.Ability.Share.Impl.Pipeline.Skill
 
         public SkillPipelineBuilder Condition(string name, Func<IAbilityPipelineContext, bool> predicate, string failMessage = null)
         {
-            var id = AbilityPipelinePhaseIdManager.Instance.Register(name);
+            var id = new AbilityPipelinePhaseId(name);
             _config.AddPhase(new PredicatePhaseConfig(id, SkillPipelinePhaseTypes.Condition, predicate, failMessage));
             return this;
         }
 
         public SkillPipelineBuilder Cost(string name, Func<IAbilityPipelineContext, bool> tryPay, string failMessage = null)
         {
-            var id = AbilityPipelinePhaseIdManager.Instance.Register(name);
+            var id = new AbilityPipelinePhaseId(name);
             _config.AddPhase(new PredicatePhaseConfig(id, SkillPipelinePhaseTypes.Cost, tryPay, failMessage));
             return this;
         }
 
         public SkillPipelineBuilder Check(string name, Func<IAbilityPipelineContext, bool> checker, string failMessage = null)
         {
-            var id = AbilityPipelinePhaseIdManager.Instance.Register(name);
+            var id = new AbilityPipelinePhaseId(name);
             _config.AddPhase(new PredicatePhaseConfig(id, SkillPipelinePhaseTypes.Check, checker, failMessage));
             return this;
         }
 
         public SkillPipelineBuilder Timeline(string name, SkillAssetDto asset)
         {
-            var id = AbilityPipelinePhaseIdManager.Instance.Register(name);
+            var id = new AbilityPipelinePhaseId(name);
             _config.AddPhase(new TimelinePhaseConfig(id, asset));
             return this;
         }
 
         public SkillPipelineBuilder RecoverWait(string name, float duration)
         {
-            var id = AbilityPipelinePhaseIdManager.Instance.Register(name);
+            var id = new AbilityPipelinePhaseId(name);
             _config.AddPhase(new RecoverPhaseConfig(id, duration));
             return this;
         }
 
         public SkillPipelineBuilder CustomInstant(string name, Action<IAbilityPipelineContext> action)
         {
-            var id = AbilityPipelinePhaseIdManager.Instance.Register(name);
+            var id = new AbilityPipelinePhaseId(name);
             _config.AddPhase(new ActionPhaseConfig(id, action));
             return this;
         }
@@ -101,9 +101,9 @@ namespace AbilityKit.Ability.Share.Impl.Pipeline.Skill
             }
         }
 
-        public IReadOnlyList<IAbilityPipelinePhase> CreatePhases()
+        public IReadOnlyList<IAbilityPipelinePhase<IAbilityPipelineContext>> CreatePhases()
         {
-            var phases = new List<IAbilityPipelinePhase>(_config.PhaseConfigs.Count);
+            var phases = new List<IAbilityPipelinePhase<IAbilityPipelineContext>>(_config.PhaseConfigs.Count);
             foreach (var pc in _config.PhaseConfigs)
             {
                 phases.Add(SkillPipelinePhaseFactory.Create(pc));
@@ -114,7 +114,7 @@ namespace AbilityKit.Ability.Share.Impl.Pipeline.Skill
 
         private static class SkillPipelinePhaseFactory
         {
-            public static IAbilityPipelinePhase Create(IAbilityPhaseConfig config)
+            public static IAbilityPipelinePhase<IAbilityPipelineContext> Create(IAbilityPhaseConfig config)
             {
                 if (config is PredicatePhaseConfig predicate)
                 {
@@ -123,7 +123,7 @@ namespace AbilityKit.Ability.Share.Impl.Pipeline.Skill
 
                 if (config is TimelinePhaseConfig timeline)
                 {
-                    return new AbilityTimelinePhase(config.PhaseId, timeline.Asset);
+                    return new AbilityTimelinePhase<IAbilityPipelineContext>(config.PhaseId, timeline.Asset);
                 }
 
                 if (config is RecoverPhaseConfig recover)
@@ -139,7 +139,7 @@ namespace AbilityKit.Ability.Share.Impl.Pipeline.Skill
                 return new UnsupportedPhase(config.PhaseId, config.PhaseType);
             }
 
-            private sealed class UnsupportedPhase : AbilityInstantPhaseBase
+            private sealed class UnsupportedPhase : AbilityInstantPhaseBase<IAbilityPipelineContext>
             {
                 private readonly string _phaseType;
 
@@ -155,7 +155,7 @@ namespace AbilityKit.Ability.Share.Impl.Pipeline.Skill
                 }
             }
 
-            private sealed class PredicateInstantPhase : AbilityInstantPhaseBase
+            private sealed class PredicateInstantPhase : AbilityInstantPhaseBase<IAbilityPipelineContext>
             {
                 private readonly Func<IAbilityPipelineContext, bool> _predicate;
                 private readonly string _failMessage;
@@ -176,7 +176,7 @@ namespace AbilityKit.Ability.Share.Impl.Pipeline.Skill
                 }
             }
 
-            private sealed class ActionInstantPhase : AbilityInstantPhaseBase
+            private sealed class ActionInstantPhase : AbilityInstantPhaseBase<IAbilityPipelineContext>
             {
                 private readonly Action<IAbilityPipelineContext> _action;
 
@@ -192,7 +192,7 @@ namespace AbilityKit.Ability.Share.Impl.Pipeline.Skill
                 }
             }
 
-            private sealed class RecoverWaitPhase : AbilityDurationalPhaseBase
+            private sealed class RecoverWaitPhase : AbilityDurationalPhaseBase<IAbilityPipelineContext>
             {
                 public RecoverWaitPhase(AbilityPipelinePhaseId phaseId, float duration)
                     : base(phaseId)

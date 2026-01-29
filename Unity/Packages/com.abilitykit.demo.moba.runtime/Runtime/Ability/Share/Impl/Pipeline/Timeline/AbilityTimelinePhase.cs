@@ -4,7 +4,8 @@ using AbilityKit.ActionSchema;
 
 namespace AbilityKit.Ability.Share.Impl.Pipeline.Timeline
 {
-    public sealed class AbilityTimelinePhase : AbilityInterruptiblePhaseBase
+    public sealed class AbilityTimelinePhase<TCtx> : AbilityInterruptiblePhaseBase<TCtx>
+        where TCtx : IAbilityPipelineContext
     {
         private readonly SkillAssetDto _configuredAsset = null;
         private SkillAssetDto _asset;
@@ -28,14 +29,14 @@ namespace AbilityKit.Ability.Share.Impl.Pipeline.Timeline
         {
         }
 
-        protected override void OnEnter(IAbilityPipelineContext context)
+        protected override void OnEnter(TCtx context)
         {
             base.OnEnter(context);
             _asset = null;
             _player = null;
         }
 
-        protected override void OnTick(IAbilityPipelineContext context, float deltaTime)
+        protected override void OnTick(TCtx context, float deltaTime)
         {
             if (_player == null)
             {
@@ -51,7 +52,7 @@ namespace AbilityKit.Ability.Share.Impl.Pipeline.Timeline
             }
         }
 
-        protected override void OnExecute(IAbilityPipelineContext context)
+        protected override void OnExecute(TCtx context)
         {
             _asset = context.GetData<SkillAssetDto>(AbilityPipelineSharedKeys.TimelineAssetDto);
             if (_asset == null && _configuredAsset != null)
@@ -99,14 +100,14 @@ namespace AbilityKit.Ability.Share.Impl.Pipeline.Timeline
             _player = null;
         }
 
-        public override void OnInterrupt(IAbilityPipelineContext context)
+        public override void OnInterrupt(TCtx context)
         {
             base.OnInterrupt(context);
             _asset = null;
             _player = null;
         }
 
-        public override void HandleError(IAbilityPipelineContext context, Exception exception)
+        public override void HandleError(TCtx context, Exception exception)
         {
             base.HandleError(context, exception);
             _asset = null;

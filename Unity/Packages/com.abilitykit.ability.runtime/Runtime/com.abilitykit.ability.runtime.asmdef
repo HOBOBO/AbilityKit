@@ -4,6 +4,7 @@
   "references": [
     "AbilityKit.Core",
     "AbilityKit.Attributes",
+    "AbilityKit.Ability.Pipeline.RuntimePkg",
     "AbilityKit.World.DI",
     "AbilityKit.World.FrameSync",
     "AbilityKit.World.ECS",

@@ -4,7 +4,7 @@ using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class SkillFlowChecksPhase : AbilityInstantPhaseBase
+    public sealed class SkillFlowChecksPhase : AbilityInstantPhaseBase<SkillPipelineContext>
     {
         private readonly SkillChecksPhaseDTO _def;
 
@@ -14,14 +14,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _def = def;
         }
 
-        protected override void OnInstantExecute(IAbilityPipelineContext context)
+        protected override void OnInstantExecute(SkillPipelineContext context)
         {
             if (context == null) return;
 
             // Placeholder for extensible checks.
             // For now, do not block execution until cooldown/state/tag modules are integrated.
             // When a check fails in the future:
-            // - context.SetData(MobaSkillPipelineSharedKeys.FailReason, "...");
+            // - context.FailReason = "...";
             // - context.IsAborted = true;
 
             _ = _def;

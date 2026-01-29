@@ -4,6 +4,9 @@
   "references": [
     "AbilityKit.Core",
     "AbilityKit.Ability.RuntimePkg",
+    "AbilityKit.Ability.Pipeline.RuntimePkg",
+    "AbilityKit.Pipeline",
+    "AbilityKit.Pipeline.Editor",
     "Emilia.Kit",
     "Emilia.Node.Editor",
     "Emilia.Node.Universal.Editor",

@@ -94,19 +94,22 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             catch { frame = 0; }
 
             var sourceContextId = 0L;
+            EffectSourceRegistry.EffectSourceScope effectScope = default;
             try
             {
                 var effectSource = _services != null ? _services.Resolve<EffectSourceRegistry>() : null;
                 if (effectSource != null)
                 {
-                    sourceContextId = effectSource.CreateRoot(
+                    effectScope = effectSource.BeginRoot(
                         kind: EffectSourceKind.SkillCast,
                         configId: skillId,
                         sourceActorId: actorId,
                         targetActorId: actorId,
                         frame: frame,
+                        endReason: EffectSourceEndReason.Completed,
                         originSource: actorId,
                         originTarget: actorId);
+                    sourceContextId = effectScope.ContextId;
                 }
             }
             catch
@@ -148,7 +151,20 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 sourceContextId: sourceContextId
             );
 
-            unit.Effects.Apply(spec, in ctx);
+            try
+            {
+                unit.Effects.Apply(spec, in ctx);
+            }
+            finally
+            {
+                try
+                {
+                    effectScope.Dispose();
+                }
+                catch
+                {
+                }
+            }
             return true;
         }
     }

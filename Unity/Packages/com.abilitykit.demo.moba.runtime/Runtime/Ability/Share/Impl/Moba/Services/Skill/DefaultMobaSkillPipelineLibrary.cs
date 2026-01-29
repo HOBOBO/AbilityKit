@@ -9,8 +9,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class DefaultMobaSkillPipelineLibrary : IMobaSkillPipelineLibrary
     {
-        private static readonly AbilityPipelinePhaseId PreCastPhaseId = AbilityPipelinePhaseIdManager.Instance.Register("precast.check");
-        private static readonly AbilityPipelinePhaseId CastPhaseId = AbilityPipelinePhaseIdManager.Instance.Register("skill.cast");
+        private static readonly AbilityPipelinePhaseId PreCastPhaseId = new AbilityPipelinePhaseId("precast.check");
+        private static readonly AbilityPipelinePhaseId CastPhaseId = new AbilityPipelinePhaseId("skill.cast");
 
         private readonly IWorldServices _services;
         private readonly IFrameTime _time;
@@ -28,9 +28,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public bool TryGet(
             int skillId,
             out IAbilityPipelineConfig preCastConfig,
-            out IReadOnlyList<IAbilityPipelinePhase> preCastPhases,
+            out IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> preCastPhases,
             out IAbilityPipelineConfig castConfig,
-            out IReadOnlyList<IAbilityPipelinePhase> castPhases)
+            out IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> castPhases)
         {
             if (skillId <= 0)
             {
@@ -42,13 +42,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             }
 
             preCastConfig = new AbilityKit.Ability.Share.Impl.Pipeline.Skill.SkillPipelineConfig((skillId << 1) | 0, $"Skill_{skillId}_PreCast");
-            preCastPhases = new IAbilityPipelinePhase[]
+            preCastPhases = new IAbilityPipelinePhase<SkillPipelineContext>[]
             {
                 new SkillPreCastCheckPhase(PreCastPhaseId, _ => true),
             };
 
             castConfig = new AbilityKit.Ability.Share.Impl.Pipeline.Skill.SkillPipelineConfig((skillId << 1) | 1, $"Skill_{skillId}_Cast");
-            castPhases = new IAbilityPipelinePhase[]
+            castPhases = new IAbilityPipelinePhase<SkillPipelineContext>[]
             {
                 new SkillCastApplyEffectPhase(CastPhaseId, _services, _time, _eventBus, _units),
             };

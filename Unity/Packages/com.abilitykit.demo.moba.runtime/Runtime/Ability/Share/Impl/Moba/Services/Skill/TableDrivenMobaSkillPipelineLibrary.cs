@@ -6,10 +6,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class TableDrivenMobaSkillPipelineLibrary : IMobaSkillPipelineLibrary
     {
-        private static readonly AbilityPipelinePhaseId PreCastChecksPhaseId = AbilityPipelinePhaseIdManager.Instance.Register("skill.checks.precast");
-        private static readonly AbilityPipelinePhaseId PreCastTimelinePhaseId = AbilityPipelinePhaseIdManager.Instance.Register("skill.timeline.precast");
-        private static readonly AbilityPipelinePhaseId CastChecksPhaseId = AbilityPipelinePhaseIdManager.Instance.Register("skill.checks.cast");
-        private static readonly AbilityPipelinePhaseId CastTimelinePhaseId = AbilityPipelinePhaseIdManager.Instance.Register("skill.timeline.cast");
+        private static readonly AbilityPipelinePhaseId PreCastChecksPhaseId = new AbilityPipelinePhaseId("skill.checks.precast");
+        private static readonly AbilityPipelinePhaseId PreCastTimelinePhaseId = new AbilityPipelinePhaseId("skill.timeline.precast");
+        private static readonly AbilityPipelinePhaseId CastChecksPhaseId = new AbilityPipelinePhaseId("skill.checks.cast");
+        private static readonly AbilityPipelinePhaseId CastTimelinePhaseId = new AbilityPipelinePhaseId("skill.timeline.cast");
 
         private readonly MobaConfigDatabase _configs;
         private readonly MobaEffectExecutionService _effects;
@@ -23,9 +23,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public bool TryGet(
             int skillId,
             out IAbilityPipelineConfig preCastConfig,
-            out IReadOnlyList<IAbilityPipelinePhase> preCastPhases,
+            out IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> preCastPhases,
             out IAbilityPipelineConfig castConfig,
-            out IReadOnlyList<IAbilityPipelinePhase> castPhases)
+            out IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> castPhases)
         {
             preCastConfig = null;
             preCastPhases = null;
@@ -52,17 +52,17 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             return true;
         }
 
-        private IReadOnlyList<IAbilityPipelinePhase> BuildFlowPhases(
+        private IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> BuildFlowPhases(
             AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SkillFlowMO flow,
             AbilityPipelinePhaseId checksPhaseId,
             AbilityPipelinePhaseId timelinePhaseId)
         {
             if (flow == null || flow.Phases == null || flow.Phases.Count == 0)
             {
-                return System.Array.Empty<IAbilityPipelinePhase>();
+                return System.Array.Empty<IAbilityPipelinePhase<SkillPipelineContext>>();
             }
 
-            var list = new List<IAbilityPipelinePhase>(flow.Phases.Count);
+            var list = new List<IAbilityPipelinePhase<SkillPipelineContext>>(flow.Phases.Count);
             for (int i = 0; i < flow.Phases.Count; i++)
             {
                 var p = flow.Phases[i];

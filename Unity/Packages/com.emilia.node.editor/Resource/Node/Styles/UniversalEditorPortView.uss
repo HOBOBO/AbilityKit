@@ -1,8 +1,0 @@
-.Vertical {
-    height: 16px;
-    justify-content: center;
-}
-
-.Vertical > .connectorText {
-    display: none;
-}

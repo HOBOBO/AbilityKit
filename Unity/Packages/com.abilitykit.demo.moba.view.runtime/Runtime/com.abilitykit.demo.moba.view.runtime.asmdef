@@ -4,6 +4,7 @@
   "references": [
     "AbilityKit.Ability.Runtime",
     "AbilityKit.Ability.RuntimePkg",
+    "AbilityKit.Ability.Pipeline.RuntimePkg",
     "AbilityKit.Ability.Unity",
     "AbilityKit.ActionSchema",
     "AbilityKit.Attributes",

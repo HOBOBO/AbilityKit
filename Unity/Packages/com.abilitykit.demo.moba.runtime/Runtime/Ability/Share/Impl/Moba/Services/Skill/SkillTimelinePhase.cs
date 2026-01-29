@@ -5,7 +5,7 @@ using AbilityKit.Ability.Impl.Moba;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class SkillTimelinePhase : AbilityPipelinePhaseBase
+    public sealed class SkillTimelinePhase : AbilityPipelinePhaseBase<SkillPipelineContext>
     {
         private readonly int _durationMs;
         private readonly SkillTimelineEventDTO[] _events;
@@ -21,26 +21,21 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _effects = effects;
         }
 
-        protected override void OnEnter(IAbilityPipelineContext context)
+        protected override void OnEnter(SkillPipelineContext context)
         {
             _nextIndex = 0;
         }
 
-        protected override void OnExecute(IAbilityPipelineContext context)
+        protected override void OnExecute(SkillPipelineContext context)
         {
             // wait for OnUpdate
         }
 
-        public override void OnUpdate(IAbilityPipelineContext context, float deltaTime)
+        public override void OnUpdate(SkillPipelineContext context, float deltaTime)
         {
             if (IsComplete) return;
-            if (context is not SkillPipelineContext c)
-            {
-                Complete(context);
-                return;
-            }
 
-            var elapsedMs = (int)(c.ElapsedTime * 1000f);
+            var elapsedMs = (int)(context.ElapsedTime * 1000f);
 
             if (_events != null)
             {
@@ -61,7 +56,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     {
                         mode = (EffectExecuteMode)raw;
                     }
-                    _effects?.Execute(e.EffectId, c, mode);
+                    _effects?.Execute(e.EffectId, context, mode);
                     _nextIndex++;
                 }
             }

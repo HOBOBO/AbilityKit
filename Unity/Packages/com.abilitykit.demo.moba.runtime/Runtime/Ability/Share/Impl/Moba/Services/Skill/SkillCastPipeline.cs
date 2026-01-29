@@ -3,38 +3,11 @@ using AbilityKit.Ability;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class SkillCastPipeline : AbilityPipeline
+    public sealed class SkillCastPipeline : AbilityPipeline<SkillPipelineContext>
     {
-        protected override IAbilityPipelineContext CreateContext(object abilityInstance, params object[] args)
-        {
-            if (args == null || args.Length == 0 || !(args[0] is SkillCastRequest req))
-            {
-                throw new ArgumentException("SkillCastPipeline requires SkillCastRequest as first arg.");
-            }
-
-            var ctx = new SkillPipelineContext();
-            ctx.Initialize(abilityInstance, in req);
-
-            if (args.Length >= 2 && args[1] is SkillCastContext triggerCtx && triggerCtx != null)
-            {
-                ctx.SharedData[MobaSkillPipelineSharedKeys.SourceContextId] = triggerCtx.SourceContextId;
-            }
-            return ctx;
-        }
-
-        protected override void ReleaseContext(IAbilityPipelineContext context)
+        protected override void ReleaseContext(SkillPipelineContext context)
         {
             // no-op for now
-        }
-
-        public override void OnUpdate(IAbilityPipelineContext context, float deltaTime)
-        {
-            if (context is SkillPipelineContext c)
-            {
-                c.AdvanceTime(deltaTime);
-            }
-
-            base.OnUpdate(context, deltaTime);
         }
     }
 }

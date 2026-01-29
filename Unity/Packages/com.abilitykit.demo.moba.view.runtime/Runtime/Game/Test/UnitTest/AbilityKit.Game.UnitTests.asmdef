@@ -6,6 +6,7 @@
         "AbilityKit.Attributes",
         "AbilityKit.Ability.Runtime",
         "AbilityKit.Ability.RuntimePkg",
+        "AbilityKit.Ability.Pipeline.RuntimePkg",
         "AbilityKit.Ability.Unity",
         "AbilityKit.Ability.TestKit",
         "AbilityKit.World.DI",

@@ -14,6 +14,7 @@ namespace AbilityKit.Game.Test
         [SerializeField] private float timeScale = 1f;
 
         private DemoPipeline _pipeline;
+        private IAbilityPipelineRun<IAbilityPipelineContext> _run;
         private SkillPipelineConfig _config;
 
         private void Start()
@@ -53,19 +54,22 @@ namespace AbilityKit.Game.Test
                 _pipeline.AddPhase(phase);
             }
 
-            var state = _pipeline.Execute(_config, abilityInstance: this);
-            UnityEngine.Debug.Log($"[SkillPipelineDemoRunner] Execute state={state}");
+            var ctx = new DemoContext();
+            ctx.Initialize(this);
+            _run = _pipeline.Start(_config, ctx);
+            UnityEngine.Debug.Log($"[SkillPipelineDemoRunner] Start state={_run.State}");
         }
 
         private void Update()
         {
             if (_pipeline == null) return;
-            if (_pipeline.State != EAbilityPipelineState.Executing) return;
+            if (_run == null) return;
+            if (_run.State != EAbilityPipelineState.Executing) return;
 
             var dt = Time.deltaTime * Mathf.Max(0f, timeScale);
-            _pipeline.OnUpdate(_pipeline.Context, dt);
+            _run.Tick(dt);
 
-            var ctx = _pipeline.Context;
+            var ctx = _run.Context;
             if (ctx == null) return;
 
             var buffer = ctx.GetData<AbilityTimelineEventBuffer>(AbilityPipelineSharedKeys.TimelineEventBuffer);
@@ -82,21 +86,14 @@ namespace AbilityKit.Game.Test
                 buffer.TriggerLogs.Clear();
             }
 
-            if (_pipeline.State == EAbilityPipelineState.Completed)
+            if (_run.State == EAbilityPipelineState.Completed)
             {
                 UnityEngine.Debug.Log("[SkillPipelineDemoRunner] Pipeline completed");
             }
         }
 
-        private sealed class DemoPipeline : AbilityPipeline
+        private sealed class DemoPipeline : AbilityPipeline<IAbilityPipelineContext>
         {
-            protected override IAbilityPipelineContext CreateContext(object abilityInstance, params object[] args)
-            {
-                var ctx = new DemoContext();
-                ctx.Initialize(abilityInstance);
-                return ctx;
-            }
-
             protected override void ReleaseContext(IAbilityPipelineContext context)
             {
                 // no-op
