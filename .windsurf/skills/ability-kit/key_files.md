@@ -32,3 +32,22 @@ section: key-files
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Ability/Share/Impl/Moba/Systems/Buffs/MobaBuffRemoveSystem.cs`
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Ability/Share/Impl/Moba/Services/Buffs/MobaBuffService.cs`
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Ability/Share/Impl/Moba/Services/Buffs/MobaBuffTriggering.cs`
+
+## Pipeline runtime / debugger
+
+- `Unity/Packages/com.abilitykit.pipeline/Runtime/Ability/Share/Pipeline/AbilityPipeline.cs`
+- `Unity/Packages/com.abilitykit.pipeline/Runtime/Ability/Share/Pipeline/Interface/IAbilityPipeline.cs`
+- `Unity/Packages/com.abilitykit.pipeline/Runtime/Ability/Share/Pipeline/Interface/IAbilityPipelineRun.cs`
+- `Unity/Packages/com.abilitykit.pipeline/Runtime/Ability/Share/Pipeline/Interface/IAbilityPipelinePhase.cs`
+- `Unity/Packages/com.abilitykit.pipeline/Runtime/Ability/Share/Pipeline/Phase/AbilityPipelinePhaseBase.cs`
+- `Unity/Packages/com.abilitykit.pipeline/Runtime/Ability/Share/Pipeline/Debug/AbilityPipelineLiveRegistry.cs`
+- `Unity/Packages/com.abilitykit.pipeline/Runtime/Graph/PipelineGraphAsset.cs`
+- `Unity/Packages/com.abilitykit.ability.runtime/Editor/PipelineRuntimeDebugger/AbilityPipelineRunDebuggerWindow.cs`
+
+## EffectSource（事件溯源树）
+
+- `Unity/Packages/com.abilitykit.ability.runtime/Runtime/Ability/Share/Impl/Moba/EffectSource/EffectSourceRegistry.cs`
+- `Unity/Packages/com.abilitykit.ability.runtime/Runtime/Ability/Share/Impl/Moba/EffectSource/EffectSourceSnapshot.cs`
+- `Unity/Packages/com.abilitykit.ability.runtime/Runtime/Ability/Share/Impl/Moba/EffectSource/EffectSourceLiveRegistry.cs`
+- `Unity/Packages/com.abilitykit.ability.runtime/Runtime/Ability/Share/Impl/Moba/EffectSource/EffectSourceKeys.cs`
+- `Unity/Packages/com.abilitykit.ability.runtime/Editor/EffectSource/EffectSourceDebuggerWindow.cs`

@@ -11,6 +11,10 @@ trigger: manual
 
 - [architecture.md](architecture.md)
   - UPM / asmdef 分层、依赖方向、DI/module 安装规则
+- [pipeline_runtime_debugger.md](pipeline_runtime_debugger.md)
+  - Pipeline runtime（Start/Run/Tick、Phase/Composite）与调试器（LiveRegistry/Trace/Graph）规则
+- [effect_source.md](effect_source.md)
+  - EffectSource（事件溯源树）：root/context 生命周期、purge、origin 引用与调试规则
 - [triggering.md](triggering.md)
   - 触发器（IEventBus/TriggerRunner/TriggerRegistry）与扩展方式
 - [skill.md](skill.md)

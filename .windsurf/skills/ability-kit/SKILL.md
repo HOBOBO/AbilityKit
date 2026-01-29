@@ -14,6 +14,8 @@ description: AbilityKit（MOBA）技能/触发器/被动/BUFF 模块速查与实
 - [output_expectations.md](output_expectations.md)
 - [invariants.md](invariants.md)
 - [key_files.md](key_files.md)
+- [pipeline_runtime_debugger.md](pipeline_runtime_debugger.md)
+- [effect_source.md](effect_source.md)
 - [upm_asmdef_notes.md](upm_asmdef_notes.md)
 - [procedure.md](procedure.md)
 - [examples_and_troubleshooting.md](examples_and_troubleshooting.md)

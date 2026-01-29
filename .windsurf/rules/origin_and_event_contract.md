@@ -47,3 +47,20 @@ trigger: manual
 
 - `origin.contextId` 永远写 `contextId`（snapshot.ContextId / sourceContextId）
 - `rootId` 只在溯源系统内部维护/使用
+
+## 7) EffectSource（溯源树）落地入口（推荐）
+
+当你需要把“技能/效果/BUFF/飞行物”等运行时派生链路串成可追溯的树，并保证可回收/可排查时，请使用 `EffectSourceRegistry`。
+
+- 规则：`.windsurf/rules/effect_source.md`
+- 速查：`.windsurf/skills/ability-kit/effect_source.md`
+
+关键实现文件：
+
+- `Unity/Packages/com.abilitykit.ability.runtime/Runtime/Ability/Share/Impl/Moba/EffectSource/EffectSourceRegistry.cs`
+- `Unity/Packages/com.abilitykit.ability.runtime/Runtime/Ability/Share/Impl/Moba/EffectSource/EffectSourceKeys.cs`
+
+常用模式（建议）：
+
+- root：在技能入口创建（例如 skill cast），并在流程逻辑结束处 End
+- child：在派生对象创建处创建，并在对象生命周期结束时 End
