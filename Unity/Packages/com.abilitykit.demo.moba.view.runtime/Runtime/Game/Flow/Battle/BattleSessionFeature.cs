@@ -5,6 +5,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Component;
@@ -349,8 +350,8 @@ namespace AbilityKit.Game.Flow
             var options = new WorldCreateOptions(new WorldId(_plan.WorldId), _plan.WorldType)
             {
                 ServiceBuilder = builder,
-                EntitasContextsFactory = new MobaEntitasContextsFactory()
             };
+            options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
 
             options.Modules.Add(new MobaWorldBootstrapModule());
 

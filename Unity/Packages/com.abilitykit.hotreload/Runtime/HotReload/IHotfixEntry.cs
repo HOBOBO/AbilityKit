@@ -6,8 +6,8 @@ namespace AbilityKit.Ability.HotReload
     {
         string Name { get; }
 
-        void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldServices services);
+        void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldResolver services);
 
-        void Uninstall(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldServices services);
+        void Uninstall(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldResolver services);
     }
 }

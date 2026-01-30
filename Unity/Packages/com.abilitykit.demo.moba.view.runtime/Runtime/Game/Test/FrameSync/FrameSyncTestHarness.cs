@@ -6,6 +6,7 @@ using AbilityKit.Ability.Server;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Requests;
 using UnityEngine;
@@ -198,8 +199,8 @@ namespace AbilityKit.Game.Test.FrameSync
             var options = new WorldCreateOptions(new WorldId(worldId), worldType)
             {
                 ServiceBuilder = builder,
-                EntitasContextsFactory = new MobaEntitasContextsFactory()
             };
+            options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
 
             _session.CreateWorld(new CreateWorldRequest(options, initOpCode, initPayload));
         }

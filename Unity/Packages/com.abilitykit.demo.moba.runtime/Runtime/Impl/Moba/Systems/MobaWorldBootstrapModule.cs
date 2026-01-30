@@ -234,7 +234,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.RegisterService<SkillExecutor, SkillExecutor>();
         }
 
-        public void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldServices services)
+        public void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldResolver services)
         {
             if (contexts == null) throw new ArgumentNullException(nameof(contexts));
             if (systems == null) throw new ArgumentNullException(nameof(systems));
@@ -252,14 +252,14 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 }
             );
 
-            if (!services.TryGet<WorldInitData>(out var init) || init.Payload == null || init.Payload.Length == 0)
+            if (!services.TryResolve<WorldInitData>(out var init) || init.Payload == null || init.Payload.Length == 0)
             {
                 return;
             }
 
             // CreateWorld stage: store EnterGame request for later StartGame (server adjudication)
             var req = EnterMobaGameCodec.DeserializeReq(init.Payload);
-            if (services.TryGet<MobaLobbyStateService>(out var lobby2) && lobby2 != null)
+            if (services.TryResolve<MobaLobbyStateService>(out var lobby2) && lobby2 != null)
             {
                 lobby2.SetEnterGameReq(req);
             }

@@ -27,8 +27,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 
         protected override void OnInit()
         {
-            Services.TryGet(out _triggers);
-            Services.TryGet(out _registry);
+            Services.TryResolve(out _triggers);
+            Services.TryResolve(out _registry);
             if (_registry != null)
             {
                 _compiler = new TriggerCompiler(_registry);

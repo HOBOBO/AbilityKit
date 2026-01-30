@@ -11,7 +11,7 @@ namespace AbilityKit.Ability.Share.ECS.Entitas
 
             builder.TryRegister<EntitasActorIdLookup>(WorldLifetime.Scoped, s =>
             {
-                var contexts = s.Get<global::Entitas.IContexts>() as global::Contexts;
+                var contexts = s.Resolve<global::Entitas.IContexts>() as global::Contexts;
                 if (contexts == null) throw new InvalidOperationException("[EntitasEcsWorldModule] Expected Entitas IContexts to be generated Contexts instance.");
                 return new EntitasActorIdLookup(contexts.actor);
             });
@@ -20,8 +20,8 @@ namespace AbilityKit.Ability.Share.ECS.Entitas
 
             builder.TryRegister<IEcsWorld>(WorldLifetime.Scoped, s =>
             {
-                var lookup = s.Get<EntitasActorIdLookup>();
-                var units = s.Get<IUnitResolver>();
+                var lookup = s.Resolve<EntitasActorIdLookup>();
+                var units = s.Resolve<IUnitResolver>();
                 return new EntitasEcsWorld(s, lookup, units);
             });
         }

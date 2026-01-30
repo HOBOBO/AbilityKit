@@ -15,6 +15,7 @@
     "com.abilitykit.hfsm": "0.0.1",
     "com.abilitykit.server": "0.0.1",
     "com.abilitykit.world.di": "0.0.1",
+    "com.abilitykit.world.entitas": "0.0.1",
     "com.abilitykit.world.framesync": "0.0.1",
     "com.abilitykit.world.ecs": "0.0.1",
     "com.abilitykit.world.motion": "0.0.1",

@@ -40,14 +40,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
 
         protected override void OnInit()
         {
-            Services.TryGet(out _configs);
-            Services.TryGet(out _units);
-            Services.TryGet(out _eventBus);
-            Services.TryGet(out _actionRunner);
-            Services.TryGet(out _ongoing);
-            Services.TryGet(out _effectSource);
-            Services.TryGet(out _frameTime);
-            Services.TryGet(out _effectExec);
+            Services.TryResolve(out _configs);
+            Services.TryResolve(out _units);
+            Services.TryResolve(out _eventBus);
+            Services.TryResolve(out _actionRunner);
+            Services.TryResolve(out _ongoing);
+            Services.TryResolve(out _effectSource);
+            Services.TryResolve(out _frameTime);
+            Services.TryResolve(out _effectExec);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.ApplyBuffRequest));
         }
 

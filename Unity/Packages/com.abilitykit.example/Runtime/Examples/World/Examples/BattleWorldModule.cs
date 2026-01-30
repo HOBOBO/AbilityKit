@@ -17,7 +17,7 @@ namespace AbilityKit.Ability.Impl.World.Examples
             _tickCounter.Configure(builder);
         }
 
-        public void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldServices services)
+        public void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldResolver services)
         {
             _tickCounter.Install(contexts, systems, services);
         }

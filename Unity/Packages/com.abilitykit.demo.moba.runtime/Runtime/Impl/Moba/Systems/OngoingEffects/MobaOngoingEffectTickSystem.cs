@@ -29,10 +29,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.OngoingEffects
 
         protected override void OnInit()
         {
-            Services.TryGet(out _configs);
-            Services.TryGet(out _clock);
-            Services.TryGet(out _effectExec);
-            Services.TryGet(out _eventBus);
+            Services.TryResolve(out _configs);
+            Services.TryResolve(out _clock);
+            Services.TryResolve(out _effectExec);
+            Services.TryResolve(out _eventBus);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.OngoingEffects));
         }
 
@@ -120,7 +120,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.OngoingEffects
                 targetActorId: targetActorId,
                 contextKind: 0,
                 sourceContextId: 0,
-                worldServices: Services,
+                worldServices: (IWorldServices)Services,
                 eventBus: _eventBus);
             return ctx;
         }

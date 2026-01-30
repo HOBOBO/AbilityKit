@@ -168,7 +168,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 var cmd = inputs[i];
 
-                if (_services != null && _services.TryGet<IMobaLobbyInputHotfixRouter>(out var router) && router != null)
+                if (_services != null && _services.TryResolve<IMobaLobbyInputHotfixRouter>(out var router) && router != null)
                 {
                     try
                     {

@@ -61,7 +61,7 @@ namespace AbilityKit.Ability.Server
 
                     if (_worlds.TryGet(worldId, out var world) && world.Services != null)
                     {
-                        if (world.Services.TryGet<IWorldInputSink>(out var sink) && sink != null)
+                        if (world.Services.TryResolve<IWorldInputSink>(out var sink) && sink != null)
                         {
                             sink.Submit(nextFrame, inputs);
                         }
@@ -85,7 +85,7 @@ namespace AbilityKit.Ability.Server
             {
                 if (_worlds.TryGet(worldId, out var world) && world.Services != null)
                 {
-                    if (world.Services.TryGet<IWorldStateSnapshotProvider>(out var provider) && provider != null)
+                    if (world.Services.TryResolve<IWorldStateSnapshotProvider>(out var provider) && provider != null)
                     {
                         if (provider.TryGetSnapshot(frame, out var snapshot))
                         {

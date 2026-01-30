@@ -18,16 +18,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
-        public MobaEffectsStepSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaEffectsStepSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }
 
         protected override void OnInit()
         {
-            Services.TryGet(out _units);
-            Services.TryGet(out _time);
-            Services.TryGet(out _eventBus);
+            Services.TryResolve(out _units);
+            Services.TryResolve(out _time);
+            Services.TryResolve(out _eventBus);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId));
         }
 
@@ -38,7 +38,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
             var entities = _group.GetEntities();
             if (entities == null || entities.Length == 0) return;
 
-            var sp = new WorldServiceProviderAdapter(Services);
+            var sp = new WorldServiceProviderAdapter((IWorldServices)Services);
 
             for (int i = 0; i < entities.Length; i++)
             {

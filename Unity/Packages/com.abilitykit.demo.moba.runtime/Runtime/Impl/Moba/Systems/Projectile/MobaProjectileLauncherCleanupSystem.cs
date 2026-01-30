@@ -25,9 +25,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
 
         protected override void OnInit()
         {
-            Services.TryGet(out _registry);
-            Services.TryGet(out _projectiles);
-            Services.TryGet(out _frameTime);
+            Services.TryResolve(out _registry);
+            Services.TryResolve(out _projectiles);
+            Services.TryResolve(out _frameTime);
             _launchers = Contexts.Actor().GetGroup(ActorMatcher.ProjectileLauncher);
         }
 

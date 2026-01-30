@@ -45,7 +45,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
         public void OnInit(IWorldServices services)
         {
             if (services == null) return;
-            if (services.TryGet<IProjectileReturnTargetProvider>(out var provider) && provider != null)
+            if (services.TryResolve<IProjectileReturnTargetProvider>(out var provider) && provider != null)
             {
                 _world.SetReturnTargetProvider(provider);
             }

@@ -155,7 +155,7 @@ namespace AbilityKit.Game.Editor.HotReload
 
             public string Name => _inner.Name;
 
-            public void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, AbilityKit.Ability.World.DI.IWorldServices services)
+            public void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, AbilityKit.Ability.World.DI.IWorldResolver services)
             {
                 if (services is HotfixServiceOverlay overlay)
                 {
@@ -164,7 +164,7 @@ namespace AbilityKit.Game.Editor.HotReload
                 _inner.Install(contexts, systems, services);
             }
 
-            public void Uninstall(global::Entitas.IContexts contexts, global::Entitas.Systems systems, AbilityKit.Ability.World.DI.IWorldServices services)
+            public void Uninstall(global::Entitas.IContexts contexts, global::Entitas.Systems systems, AbilityKit.Ability.World.DI.IWorldResolver services)
             {
                 _inner.Uninstall(contexts, systems, services);
             }

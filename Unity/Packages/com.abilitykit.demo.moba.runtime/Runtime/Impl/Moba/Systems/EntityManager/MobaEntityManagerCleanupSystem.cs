@@ -19,7 +19,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.EntityManager
 
         protected override void OnInit()
         {
-            Services.TryGet(out _entities);
+            Services.TryResolve(out _entities);
         }
 
         protected override void OnExecute()

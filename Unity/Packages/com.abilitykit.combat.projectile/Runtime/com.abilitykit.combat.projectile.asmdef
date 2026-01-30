@@ -4,6 +4,7 @@
   "references": [
     "AbilityKit.Core",
     "AbilityKit.World.DI",
+    "AbilityKit.World.Entitas",
     "AbilityKit.World.FrameSync",
     "AbilityKit.World.ECS",
     "AbilityKit.Combat.Collision.Abstractions"

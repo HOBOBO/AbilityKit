@@ -1,0 +1,13 @@
+{
+  "name": "com.abilitykit.world.entitas",
+  "version": "0.0.1",
+  "displayName": "AbilityKit World Entitas",
+  "unity": "2022.3",
+  "description": "Entitas-based world implementation for AbilityKit (optional extension).",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.world.di": "0.0.1",
+    "com.abilitykit.thirdparty.entitas.runtime": "0.0.1"
+  }
+}

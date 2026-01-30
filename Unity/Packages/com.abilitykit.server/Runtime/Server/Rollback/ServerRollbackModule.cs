@@ -100,7 +100,7 @@ namespace AbilityKit.Ability.Server.Rollback
             IWorldInputSink sink = null;
             if (world.Services != null)
             {
-                world.Services.TryGet<IWorldInputSink>(out sink);
+                world.Services.TryResolve<IWorldInputSink>(out sink);
             }
 
             _contexts[world.Id] = new WorldContext

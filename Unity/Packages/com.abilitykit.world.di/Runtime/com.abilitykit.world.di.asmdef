@@ -9,8 +9,7 @@
   "allowUnsafeCode": false,
   "overrideReferences": true,
   "precompiledReferences": [
-    "Microsoft.CSharp",
-    "Entitas.dll"
+    "Microsoft.CSharp"
   ],
   "autoReferenced": true,
   "defineConstraints": [],

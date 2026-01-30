@@ -8,6 +8,7 @@
                    "name":  "AbilityKit"
                },
     "dependencies":  {
-                         "com.abilitykit.ability.runtime":  "0.0.1"
+                         "com.abilitykit.ability.runtime":  "0.0.1",
+                         "com.abilitykit.world.entitas":  "0.0.1"
                      }
 }

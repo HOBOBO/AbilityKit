@@ -28,7 +28,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Motion
 
         protected override void OnInit()
         {
-            Services.TryGet(out _clock);
+            Services.TryResolve(out _clock);
             _group = Contexts.Actor().GetGroup(global::ActorMatcher.AllOf(
                 global::ActorComponentsLookup.ActorId,
                 global::ActorComponentsLookup.Motion,

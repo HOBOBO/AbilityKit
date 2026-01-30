@@ -30,7 +30,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents.Triggering
         {
             bus = null;
             if (world?.Services == null) return false;
-            return world.Services.TryGet(out bus) && bus != null;
+            return world.Services.TryResolve(out bus) && bus != null;
         }
     }
 }

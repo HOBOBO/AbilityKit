@@ -20,10 +20,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Summon
 
         protected override void OnInit()
         {
-            Services.TryGet(out _summons);
-            Services.TryGet(out _registry);
-            Services.TryGet(out _frameTime);
-            Services.TryGet(out _clock);
+            Services.TryResolve(out _summons);
+            Services.TryResolve(out _registry);
+            Services.TryResolve(out _frameTime);
+            Services.TryResolve(out _clock);
 
             var ctx = (global::Contexts)Contexts;
             _group = ctx.actor.GetGroup(ActorMatcher.AllOf(

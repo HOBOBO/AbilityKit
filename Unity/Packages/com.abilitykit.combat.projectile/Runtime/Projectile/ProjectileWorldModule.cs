@@ -22,7 +22,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             builder.AddModule(new ProjectileWorldModule());
         }
 
-        public void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldServices services)
+        public void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldResolver services)
         {
             if (contexts == null) throw new ArgumentNullException(nameof(contexts));
             if (systems == null) throw new ArgumentNullException(nameof(systems));

@@ -12,7 +12,8 @@
     "AbilityKit.World.Snapshot",
     "AbilityKit.Server",
     "AbilityKit.HotReload",
-    "AbilityKit.World.DI"
+    "AbilityKit.World.DI",
+    "AbilityKit.World.Entitas"
   ],
   "includePlatforms": [
     "Editor"

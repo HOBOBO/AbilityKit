@@ -16,7 +16,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
         public CollisionWorldSyncSystem(global::Entitas.IContexts contexts, IWorldServices services)
             : base(contexts, services)
         {
-            if (!services.TryGet<ICollisionService>(out var svc) || svc == null)
+            if (!services.TryResolve<ICollisionService>(out var svc) || svc == null)
             {
                 throw new InvalidOperationException("ICollisionService not registered");
             }

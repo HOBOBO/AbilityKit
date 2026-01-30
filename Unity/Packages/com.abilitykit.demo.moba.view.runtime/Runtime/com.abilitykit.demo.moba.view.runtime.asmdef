@@ -14,6 +14,7 @@
         "AbilityKit.HFSM",
         "AbilityKit.Server",
         "AbilityKit.World.DI",
+        "AbilityKit.World.Entitas",
         "AbilityKit.World.ECS",
         "AbilityKit.World.FrameSync",
         "AbilityKit.World.Record",

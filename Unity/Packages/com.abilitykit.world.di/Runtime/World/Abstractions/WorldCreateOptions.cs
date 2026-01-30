@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Entitas;
 
 namespace AbilityKit.Ability.World.Abstractions
 {
@@ -9,7 +8,7 @@ namespace AbilityKit.Ability.World.Abstractions
         public WorldId Id;
         public string WorldType;
         public WorldContainerBuilder ServiceBuilder;
-        public IEntitasContextsFactory EntitasContextsFactory;
+        public readonly Dictionary<System.Type, object> Extensions = new Dictionary<System.Type, object>();
         public readonly List<IWorldModule> Modules = new List<IWorldModule>();
 
         public WorldCreateOptions() { }

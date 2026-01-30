@@ -25,7 +25,7 @@ namespace AbilityKit.Game.Battle
             var services = world.Services;
             if (services == null) return false;
 
-            if (!services.TryGet<EntitasActorIdLookup>(out var lookup) || lookup == null) return false;
+            if (!services.TryResolve<EntitasActorIdLookup>(out var lookup) || lookup == null) return false;
 
             _entityIdCache.Clear();
             foreach (var actorId in lookup.ActorIds)
@@ -47,7 +47,7 @@ namespace AbilityKit.Game.Battle
             var services = world.Services;
             if (services == null) return false;
 
-            if (!services.TryGet<IUnitResolver>(out var resolver) || resolver == null) return false;
+            if (!services.TryResolve<IUnitResolver>(out var resolver) || resolver == null) return false;
 
             return resolver.TryResolve(id, out unit);
         }

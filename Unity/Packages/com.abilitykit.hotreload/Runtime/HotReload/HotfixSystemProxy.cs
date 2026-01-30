@@ -6,11 +6,11 @@ namespace AbilityKit.Ability.HotReload
     public sealed class HotfixSystemProxy : global::Entitas.IInitializeSystem, global::Entitas.IExecuteSystem, global::Entitas.ICleanupSystem, global::Entitas.ITearDownSystem
     {
         private readonly global::Entitas.IContexts _contexts;
-        private readonly IWorldServices _services;
+        private readonly IWorldResolver _services;
 
         private global::Entitas.Systems _current;
 
-        public HotfixSystemProxy(global::Entitas.IContexts contexts, IWorldServices services)
+        public HotfixSystemProxy(global::Entitas.IContexts contexts, IWorldResolver services)
         {
             _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
             _services = services ?? throw new ArgumentNullException(nameof(services));

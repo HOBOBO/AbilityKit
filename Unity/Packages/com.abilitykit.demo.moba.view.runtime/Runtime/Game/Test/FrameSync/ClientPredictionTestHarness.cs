@@ -92,26 +92,26 @@ namespace AbilityKit.Game.Test.FrameSync
             _auth = CreateWorld(new WorldId(authoritativeWorldId));
             _pred = CreateWorld(new WorldId(predictedWorldId));
 
-            _authInput = _auth.Services.Get<IWorldInputSink>();
-            _predInput = _pred.Services.Get<IWorldInputSink>();
+            _authInput = _auth.Services.Resolve<IWorldInputSink>();
+            _predInput = _pred.Services.Resolve<IWorldInputSink>();
 
-            _authRegistry = _auth.Services.Get<MobaActorRegistry>();
-            _predRegistry = _pred.Services.Get<MobaActorRegistry>();
+            _authRegistry = _auth.Services.Resolve<MobaActorRegistry>();
+            _predRegistry = _pred.Services.Resolve<MobaActorRegistry>();
 
-            _authLobby = _auth.Services.Get<MobaLobbyStateService>();
-            _predLobby = _pred.Services.Get<MobaLobbyStateService>();
+            _authLobby = _auth.Services.Resolve<MobaLobbyStateService>();
+            _predLobby = _pred.Services.Resolve<MobaLobbyStateService>();
 
             BootstrapLobby(_auth, _authLobby);
             BootstrapLobby(_pred, _predLobby);
 
             var registry = new RollbackRegistry();
             registry.Register(new MobaActorTransformRollbackProvider(_predRegistry));
-            registry.Register(new MobaMoveRollbackProvider(_pred.Services.Get<MobaMoveService>()));
+            registry.Register(new MobaMoveRollbackProvider(_pred.Services.Resolve<MobaMoveService>()));
             _rollback = new RollbackCoordinator(registry, new RollbackSnapshotRingBuffer(rollbackBufferFrames));
 
             var authRegistry = new RollbackRegistry();
             authRegistry.Register(new MobaActorTransformRollbackProvider(_authRegistry));
-            authRegistry.Register(new MobaMoveRollbackProvider(_auth.Services.Get<MobaMoveService>()));
+            authRegistry.Register(new MobaMoveRollbackProvider(_auth.Services.Resolve<MobaMoveService>()));
             _authRollback = new RollbackCoordinator(authRegistry, new RollbackSnapshotRingBuffer(rollbackBufferFrames));
 
             var predictedHashBuffer = new WorldStateHashRingBuffer(rollbackBufferFrames);
@@ -194,8 +194,8 @@ namespace AbilityKit.Game.Test.FrameSync
             var options = new WorldCreateOptions(id, worldType)
             {
                 ServiceBuilder = builder,
-                EntitasContextsFactory = new MobaEntitasContextsFactory()
             };
+            options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
             options.Modules.Add(new MobaWorldBootstrapModule());
 
             return manager.Create(options);
@@ -209,7 +209,7 @@ namespace AbilityKit.Game.Test.FrameSync
             // Bootstrap without advancing simulation frames; keep both worlds aligned at frame 0.
             var frame0 = new FrameIndex(0);
             var ready = new PlayerInputCommand(frame0, p, (int)MobaOpCode.Ready, Array.Empty<byte>());
-            world.Services.Get<IWorldInputSink>().Submit(frame0, new[] { ready });
+            world.Services.Resolve<IWorldInputSink>().Submit(frame0, new[] { ready });
         }
 
         private void StepOnce()

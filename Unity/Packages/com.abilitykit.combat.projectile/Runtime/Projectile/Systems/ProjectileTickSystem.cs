@@ -14,12 +14,12 @@ namespace AbilityKit.Ability.Share.Common.Projectile
         private readonly IFrameTime _frameTime;
         private int _fallbackFrame;
 
-        public ProjectileTickSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public ProjectileTickSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
-            _projectiles = services.Get<IProjectileService>();
-            _clock = services.Get<IWorldClock>();
-            services.TryGet<IFrameTime>(out _frameTime);
+            _projectiles = services.Resolve<IProjectileService>();
+            _clock = services.Resolve<IWorldClock>();
+            services.TryResolve<IFrameTime>(out _frameTime);
         }
 
         protected override void OnExecute()

@@ -7,6 +7,7 @@ namespace AbilityKit.Ability.World.DI
     {
         private readonly WorldContainer _root;
         private readonly Dictionary<Type, object> _scoped = new Dictionary<Type, object>();
+        private readonly List<object> _disposeOrder = new List<object>(32);
         private bool _disposed;
 
         internal WorldScope(WorldContainer root)
@@ -75,6 +76,7 @@ namespace AbilityKit.Ability.World.DI
             if (_scoped.TryGetValue(type, out var cached)) return cached;
             var created = factory();
             _scoped[type] = created;
+            _disposeOrder.Add(created);
             return created;
         }
 
@@ -88,11 +90,18 @@ namespace AbilityKit.Ability.World.DI
             if (_disposed) return;
             _disposed = true;
 
-            foreach (var kv in _scoped)
+            for (int i = _disposeOrder.Count - 1; i >= 0; i--)
             {
-                if (kv.Value is IDisposable d) d.Dispose();
+                try
+                {
+                    if (_disposeOrder[i] is IDisposable d) d.Dispose();
+                }
+                catch
+                {
+                }
             }
 
+            _disposeOrder.Clear();
             _scoped.Clear();
         }
     }

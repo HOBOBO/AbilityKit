@@ -114,8 +114,8 @@ namespace AbilityKit.Game.Battle
                 var create = new WorldCreateOptions(_options.WorldId, _options.WorldType)
                 {
                     ServiceBuilder = builder,
-                    EntitasContextsFactory = new MobaEntitasContextsFactory()
                 };
+                create.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
 
                 create.Modules.Add(new MobaWorldBootstrapModule());
 
@@ -128,17 +128,17 @@ namespace AbilityKit.Game.Battle
             }
         }
 
-        private static RollbackRegistry BuildRollbackRegistry(IWorld world)
+        private RollbackRegistry BuildRollbackRegistry(IWorld world)
         {
             var reg = new RollbackRegistry();
             if (world?.Services == null) return reg;
 
-            if (world.Services.TryGet<MobaActorRegistry>(out var actorReg) && actorReg != null)
+            if (world.Services.TryResolve<MobaActorRegistry>(out var actorReg) && actorReg != null)
             {
                 reg.Register(new MobaActorTransformRollbackProvider(actorReg));
             }
 
-            if (world.Services.TryGet<MobaMoveService>(out var move) && move != null)
+            if (world.Services.TryResolve<MobaMoveService>(out var move) && move != null)
             {
                 reg.Register(new MobaMoveRollbackProvider(move));
             }

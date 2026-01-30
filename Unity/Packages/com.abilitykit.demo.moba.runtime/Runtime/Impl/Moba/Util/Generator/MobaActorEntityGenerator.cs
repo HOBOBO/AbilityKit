@@ -33,7 +33,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             if (_services == null) return false;
 
             // TryGet swallows the exception (container TryResolve catches). We want the root cause in logs.
-            if (_services.TryGet<MobaConfigDatabase>(out var config) && config != null)
+            if (_services.TryResolve<MobaConfigDatabase>(out var config) && config != null)
             {
                 _config = config;
                 return true;

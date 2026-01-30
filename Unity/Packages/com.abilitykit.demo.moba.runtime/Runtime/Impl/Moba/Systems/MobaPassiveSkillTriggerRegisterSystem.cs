@@ -46,21 +46,21 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 
         protected override void OnEntityChanged(global::ActorEntity entity)
         {
-            if (_eventBus == null) Services.TryGet(out _eventBus);
-            if (_triggers == null) Services.TryGet(out _triggers);
-            if (_triggerIndex == null) Services.TryGet(out _triggerIndex);
-            if (_configs == null) Services.TryGet(out _configs);
-            if (_frameTime == null) Services.TryGet(out _frameTime);
-            if (_effectSource == null) Services.TryGet(out _effectSource);
-            if (_actionRunner == null) Services.TryGet(out _actionRunner);
+            if (_eventBus == null) Services.TryResolve(out _eventBus);
+            if (_triggers == null) Services.TryResolve(out _triggers);
+            if (_triggerIndex == null) Services.TryResolve(out _triggerIndex);
+            if (_configs == null) Services.TryResolve(out _configs);
+            if (_frameTime == null) Services.TryResolve(out _frameTime);
+            if (_effectSource == null) Services.TryResolve(out _effectSource);
+            if (_actionRunner == null) Services.TryResolve(out _actionRunner);
 
             TryRegister(entity);
         }
 
         protected override void OnEntityRemovedFromGroup(global::ActorEntity entity)
         {
-            if (_effectSource == null) Services.TryGet(out _effectSource);
-            if (_actionRunner == null) Services.TryGet(out _actionRunner);
+            if (_effectSource == null) Services.TryResolve(out _effectSource);
+            if (_actionRunner == null) Services.TryResolve(out _actionRunner);
 
             TryUnregister(entity);
         }

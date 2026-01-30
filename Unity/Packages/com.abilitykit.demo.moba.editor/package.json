@@ -9,6 +9,7 @@
     "com.abilitykit.demo.moba.runtime": "0.0.1",
     "com.abilitykit.demo.moba.view.runtime": "0.0.1",
     "com.abilitykit.world.ecs": "0.0.1",
+    "com.abilitykit.world.entitas": "0.0.1",
     "com.abilitykit.server": "0.0.1",
     "com.abilitykit.hotreload": "0.0.1"
   }

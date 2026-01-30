@@ -32,11 +32,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Area
 
         protected override void OnInit()
         {
-            Services.TryGet(out _projectiles);
-            Services.TryGet(out _registry);
-            Services.TryGet(out _eventBus);
-            Services.TryGet(out _effects);
-            Services.TryGet(out _areaTriggers);
+            Services.TryResolve(out _projectiles);
+            Services.TryResolve(out _registry);
+            Services.TryResolve(out _eventBus);
+            Services.TryResolve(out _effects);
+            Services.TryResolve(out _areaTriggers);
         }
 
         protected override void OnExecute()

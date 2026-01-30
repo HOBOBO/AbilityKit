@@ -22,8 +22,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 
         protected override void OnInit()
         {
-            Services.TryGet(out _skills);
-            Services.TryGet(out _clock);
+            Services.TryResolve(out _skills);
+            Services.TryResolve(out _clock);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId));
         }
 

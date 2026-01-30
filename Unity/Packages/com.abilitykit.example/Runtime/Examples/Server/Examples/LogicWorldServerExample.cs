@@ -53,7 +53,7 @@ namespace AbilityKit.Ability.Server.Examples
             public void Configure(WorldContainerBuilder builder)
             {
                 builder.RegisterType<IWorldInputSink, DebugInputSink>(WorldLifetime.Scoped);
-                builder.Register<IWorldStateSnapshotProvider>(WorldLifetime.Scoped, r => new DebugSnapshotProvider(r.Get<IWorldInputSink>() as DebugInputSink));
+                builder.Register<IWorldStateSnapshotProvider>(WorldLifetime.Scoped, r => new DebugSnapshotProvider(r.Resolve<IWorldInputSink>() as DebugInputSink));
             }
         }
 

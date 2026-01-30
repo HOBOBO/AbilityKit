@@ -27,9 +27,9 @@ namespace AbilityKit.Ability.Share.Impl.UnitTest
 
         public IEntitasWorld World => _world;
 
-        public TriggerRunner TriggerRunner => _world.Services.Get<TriggerRunner>();
+        public TriggerRunner TriggerRunner => _world.Services.Resolve<TriggerRunner>();
 
-        public ITriggerActionRunner ActionRunner => _world.Services.Get<ITriggerActionRunner>();
+        public ITriggerActionRunner ActionRunner => _world.Services.Resolve<ITriggerActionRunner>();
 
         public void Tick(float deltaTime)
         {

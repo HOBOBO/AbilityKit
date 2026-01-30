@@ -6,7 +6,6 @@
   "description": "World DI and service container.",
   "author": { "name": "AbilityKit" },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1",
-    "com.abilitykit.thirdparty.entitas.runtime": "0.0.1"
+    "com.abilitykit.core": "0.0.1"
   }
 }
