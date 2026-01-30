@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Legacy.Transport;
 
 namespace AbilityKit.Ability.Host.Transport
 {
@@ -30,19 +31,19 @@ namespace AbilityKit.Ability.Host.Transport
                 return;
             }
 
-            if (message is PlayerJoinedMessage playerJoined)
+            if (message is LegacyPlayerJoinedMessage playerJoined)
             {
                 _client.OnPlayerJoined(playerJoined.WorldId, playerJoined.PlayerId);
                 return;
             }
 
-            if (message is PlayerLeftMessage playerLeft)
+            if (message is LegacyPlayerLeftMessage playerLeft)
             {
                 _client.OnPlayerLeft(playerLeft.WorldId, playerLeft.PlayerId);
                 return;
             }
 
-            if (message is FrameMessage frame)
+            if (message is LegacyFrameMessage frame)
             {
                 _client.OnFrame(frame.Packet);
                 return;

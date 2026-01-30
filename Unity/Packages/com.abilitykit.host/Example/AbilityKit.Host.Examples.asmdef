@@ -1,0 +1,21 @@
+{
+    "name": "AbilityKit.Host.Examples",
+    "rootNamespace": "AbilityKit.Ability.Host.Examples",
+    "references": [
+        "AbilityKit.Host",
+        "AbilityKit.World.DI",
+        "AbilityKit.World.FrameSync",
+        "AbilityKit.World.Snapshot",
+        "AbilityKit.Core",
+        "AbilityKit.Host.Extensions"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Legacy.Transport;
 using AbilityKit.Ability.Host.Transport;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Management;
@@ -10,17 +11,17 @@ namespace AbilityKit.Ability.Host.Drivers
 {
     public sealed class FrameSyncWorldServerDriver : IWorldServerDriver
     {
-        private interface IFrameScheduler
+        public interface IFrameScheduler
         {
             FrameIndex GetNextFrame(FrameIndex current);
         }
 
-        private interface IInputModule
+        public interface IInputModule
         {
             List<(WorldId worldId, PlayerInputCommand[] inputs)> FlushPendingAndDispatchInputs(FrameIndex nextFrame);
         }
 
-        private interface ISnapshotModule
+        public interface ISnapshotModule
         {
             WorldStateSnapshot? TryGetSnapshot(WorldId worldId, FrameIndex frame);
         }
@@ -128,9 +129,9 @@ namespace AbilityKit.Ability.Host.Drivers
             _clients = clients ?? throw new ArgumentNullException(nameof(clients));
             _options = options;
 
-            _scheduler = new DefaultFrameScheduler();
-            _input = new DefaultInputModule(_worlds, _sessions, options);
-            _snapshot = new DefaultSnapshotModule(_worlds);
+            _scheduler = options?.CreateFrameScheduler?.Invoke() ?? new DefaultFrameScheduler();
+            _input = options?.CreateInputModule?.Invoke(_worlds, _sessions, options) ?? new DefaultInputModule(_worlds, _sessions, options);
+            _snapshot = options?.CreateSnapshotModule?.Invoke(_worlds) ?? new DefaultSnapshotModule(_worlds);
 
             _frame = new FrameIndex(0);
         }
@@ -192,7 +193,7 @@ namespace AbilityKit.Ability.Host.Drivers
         {
             foreach (var c in _clients.Values)
             {
-                c.Send(new FrameMessage(packet));
+                c.Send(new LegacyFrameMessage(packet));
             }
         }
     }

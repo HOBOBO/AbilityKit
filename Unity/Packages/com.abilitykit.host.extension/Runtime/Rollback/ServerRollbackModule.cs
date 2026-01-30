@@ -5,7 +5,7 @@ using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host.Modules;
 using AbilityKit.Ability.World.Abstractions;
 
-namespace AbilityKit.Ability.Host.Rollback
+namespace AbilityKit.Ability.Host.Extensions.Rollback
 {
     public sealed class ServerRollbackModule : ILogicWorldServerModule
     {

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host.Drivers;
+using AbilityKit.Ability.Host.Legacy.Transport;
 using AbilityKit.Ability.Host.Transport;
 using AbilityKit.Ability.Host.WorldCapabilities;
 using AbilityKit.Ability.World.Abstractions;
@@ -9,7 +10,7 @@ using AbilityKit.Ability.World.Management;
 
 namespace AbilityKit.Ability.Host
 {
-    public sealed class LogicWorldServer : ILogicWorldServer, IWorldHost, IServerConnectionHost, IFrameSyncSessionHost
+    public sealed class LogicWorldServer : ILogicWorldServer, IHostServer, IPlayerSessionHost, IFrameSyncSessionHost
     {
         private sealed class FrameSyncWorldSessionAdapter : IFrameSyncWorldSession
         {
@@ -99,6 +100,12 @@ namespace AbilityKit.Ability.Host
             _clients[client.ClientId] = new LogicServerClientConnectionAdapter(client);
         }
 
+        public void Connect(IHostClient client)
+        {
+            if (client == null) throw new ArgumentNullException(nameof(client));
+            _clients[client.ClientId] = new HostClientConnectionAdapter(client);
+        }
+
         public void Connect(IServerConnection connection)
         {
             if (connection == null) throw new ArgumentNullException(nameof(connection));
@@ -172,7 +179,7 @@ namespace AbilityKit.Ability.Host
             {
                 session.Players.Add(playerId);
 
-                if (_worlds.TryGet(worldId, out var world) && world.Services != null)
+                if ((_options == null || _options.EnablePlayerLifecycleHooks) && _worlds.TryGet(worldId, out var world) && world.Services != null)
                 {
                     if (world.Services.TryResolve<IWorldPlayerLifecycle>(out var lifecycle) && lifecycle != null)
                     {
@@ -186,9 +193,12 @@ namespace AbilityKit.Ability.Host
                     _options.OnPlayerJoined?.Invoke(worldId, playerId);
                 }
 
-                foreach (var c in _clients.Values)
+                if (_options == null || _options.BroadcastPlayerLifecycleMessages)
                 {
-                    c.Send(new PlayerJoinedMessage(worldId, playerId));
+                    foreach (var c in _clients.Values)
+                    {
+                        c.Send(new LegacyPlayerJoinedMessage(worldId, playerId));
+                    }
                 }
             }
 
@@ -205,7 +215,7 @@ namespace AbilityKit.Ability.Host
                 if (session.Players[i].Value != playerId.Value) continue;
                 session.Players.RemoveAt(i);
 
-                if (_worlds.TryGet(worldId, out var world) && world.Services != null)
+                if ((_options == null || _options.EnablePlayerLifecycleHooks) && _worlds.TryGet(worldId, out var world) && world.Services != null)
                 {
                     if (world.Services.TryResolve<IWorldPlayerLifecycle>(out var lifecycle) && lifecycle != null)
                     {
@@ -219,9 +229,12 @@ namespace AbilityKit.Ability.Host
                     _options.OnPlayerLeft?.Invoke(worldId, playerId);
                 }
 
-                foreach (var c in _clients.Values)
+                if (_options == null || _options.BroadcastPlayerLifecycleMessages)
                 {
-                    c.Send(new PlayerLeftMessage(worldId, playerId));
+                    foreach (var c in _clients.Values)
+                    {
+                        c.Send(new LegacyPlayerLeftMessage(worldId, playerId));
+                    }
                 }
 
                 return true;

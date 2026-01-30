@@ -21,7 +21,8 @@
         "AbilityKit.World.Snapshot",
         "AbilityKit.Demo.Moba.Entitas.Generated",
         "AbilityKit.Demo.Moba.Runtime",
-        "AbilityKit.Pipeline"
+        "AbilityKit.Pipeline",
+        "AbilityKit.Host.Extensions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

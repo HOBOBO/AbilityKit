@@ -5,7 +5,7 @@ using AbilityKit.Ability.Host.Modules;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Ability.Host.Time
+namespace AbilityKit.Ability.Host.Extensions.Time
 {
     public sealed class ServerFrameTimeModule : ILogicWorldServerModule
     {

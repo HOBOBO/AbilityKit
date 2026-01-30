@@ -1,7 +1,9 @@
 using System;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Host.Drivers;
 using AbilityKit.Ability.Host.Hooks;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.Management;
 
 namespace AbilityKit.Ability.Host
 {
@@ -16,6 +18,13 @@ namespace AbilityKit.Ability.Host
         public readonly Hook<FrameIndex, float> PostStep = new Hook<FrameIndex, float>();
         public readonly Hook<FramePacket> BeforeBroadcastFrame = new Hook<FramePacket>();
         public readonly Hook<FramePacket> AfterBroadcastFrame = new Hook<FramePacket>();
+
+        public bool EnablePlayerLifecycleHooks = true;
+        public bool BroadcastPlayerLifecycleMessages = true;
+
+        public Func<FrameSyncWorldServerDriver.IFrameScheduler> CreateFrameScheduler;
+        public Func<IWorldManager, System.Collections.Generic.Dictionary<WorldId, FrameSyncWorldServerDriver.WorldSession>, LogicWorldServerOptions, FrameSyncWorldServerDriver.IInputModule> CreateInputModule;
+        public Func<IWorldManager, FrameSyncWorldServerDriver.ISnapshotModule> CreateSnapshotModule;
 
         public Action<WorldCreateOptions> OnBeforeCreateWorld;
 
