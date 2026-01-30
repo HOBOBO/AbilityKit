@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Math;
 
 namespace AbilityKit.Ability.Impl.Moba.Util.Generator

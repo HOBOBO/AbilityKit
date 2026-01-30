@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Host;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {

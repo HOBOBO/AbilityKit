@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Host;
 using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;

@@ -1,5 +1,5 @@
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Host;
 
 namespace AbilityKit.Game.Battle.Requests
 {

@@ -11,14 +11,14 @@ public partial class ActorEntity {
     public AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent ownerPlayerId { get { return (AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent)GetComponent(ActorComponentsLookup.OwnerPlayerId); } }
     public bool hasOwnerPlayerId { get { return HasComponent(ActorComponentsLookup.OwnerPlayerId); } }
 
-    public void AddOwnerPlayerId(AbilityKit.Ability.Server.PlayerId newValue) {
+    public void AddOwnerPlayerId(AbilityKit.Ability.Host.PlayerId newValue) {
         var index = ActorComponentsLookup.OwnerPlayerId;
         var component = (AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent));
         component.Value = newValue;
         AddComponent(index, component);
     }
 
-    public void ReplaceOwnerPlayerId(AbilityKit.Ability.Server.PlayerId newValue) {
+    public void ReplaceOwnerPlayerId(AbilityKit.Ability.Host.PlayerId newValue) {
         var index = ActorComponentsLookup.OwnerPlayerId;
         var component = (AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent));
         component.Value = newValue;

@@ -11,6 +11,6 @@
                          "com.abilitykit.core":  "0.0.1",
                          "com.abilitykit.world.framesync":  "0.0.1",
                          "com.abilitykit.world.snapshot":  "0.0.1",
-                         "com.abilitykit.server":  "0.0.1"
+                         "com.abilitykit.host":  "0.0.1"
                      }
 }

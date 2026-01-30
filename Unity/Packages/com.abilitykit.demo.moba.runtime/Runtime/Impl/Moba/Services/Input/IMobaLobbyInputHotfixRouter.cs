@@ -1,5 +1,5 @@
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 

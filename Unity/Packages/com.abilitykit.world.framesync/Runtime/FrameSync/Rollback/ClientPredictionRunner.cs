@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Ability.FrameSync.Rollback

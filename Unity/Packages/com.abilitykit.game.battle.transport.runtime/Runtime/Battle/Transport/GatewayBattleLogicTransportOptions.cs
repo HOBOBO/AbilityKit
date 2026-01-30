@@ -24,6 +24,6 @@ namespace AbilityKit.Game.Battle.Transport
         public Func<object, ArraySegment<byte>> SerializeLeave;
         public Func<object, ArraySegment<byte>> SerializeSubmitInput;
 
-        public Func<ArraySegment<byte>, AbilityKit.Ability.Server.FramePacket> DeserializeFramePushed;
+        public Func<ArraySegment<byte>, AbilityKit.Ability.Host.FramePacket> DeserializeFramePushed;
     }
 }

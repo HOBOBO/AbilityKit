@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Battle.EntityManager;
-using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.World.Services;
 

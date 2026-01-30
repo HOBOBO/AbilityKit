@@ -8,7 +8,7 @@
   "dependencies": {
     "com.abilitykit.demo.moba.entitas.generated": "0.0.1",
     "com.abilitykit.core": "0.0.1",
-    "com.abilitykit.server": "0.0.1",
+    "com.abilitykit.host": "0.0.1",
     "com.abilitykit.world.entitas": "0.0.1",
     "com.abilitykit.world.ecs": "0.0.1",
     "com.abilitykit.world.record": "0.0.1",

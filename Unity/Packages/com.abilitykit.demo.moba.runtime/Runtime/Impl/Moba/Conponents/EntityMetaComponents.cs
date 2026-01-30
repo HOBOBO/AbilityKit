@@ -1,5 +1,5 @@
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Host;
 using Entitas;
 using Entitas.CodeGeneration.Attributes;
 

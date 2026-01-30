@@ -96,7 +96,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             var actorId = _actorIds.Next();
 
             var team = caster.hasTeam ? caster.team.Value : Team.None;
-            var ownerPlayer = caster.hasOwnerPlayerId ? caster.ownerPlayerId.Value : default(AbilityKit.Ability.Server.PlayerId);
+            var ownerPlayer = caster.hasOwnerPlayerId ? caster.ownerPlayerId.Value : default(AbilityKit.Ability.Host.PlayerId);
 
             var unitSubType = (UnitSubType)summon.UnitSubType;
             var kind = MobaEntitySpawnFactory.CreateKindFromType(EntityMainType.Unit, unitSubType);

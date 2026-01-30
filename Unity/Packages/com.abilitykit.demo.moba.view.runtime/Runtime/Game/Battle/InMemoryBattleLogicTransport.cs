@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Impl.Moba.Systems;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;

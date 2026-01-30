@@ -76,7 +76,7 @@ namespace AbilityKit.ProtocolEditor.Generator
             }
 
             var sb = new StringBuilder();
-            sb.AppendLine("using AbilityKit.Ability.Server;");
+            sb.AppendLine("using AbilityKit.Ability.Host;");
             sb.AppendLine();
             sb.AppendLine($"namespace {@namespace}");
             sb.AppendLine("{");

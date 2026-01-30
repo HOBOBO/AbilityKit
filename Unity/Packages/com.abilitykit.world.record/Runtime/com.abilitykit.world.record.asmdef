@@ -5,7 +5,7 @@
                        "AbilityKit.Core",
                        "AbilityKit.World.FrameSync",
                        "AbilityKit.World.Snapshot",
-                       "AbilityKit.Server"
+                       "AbilityKit.Host"
                    ],
     "includePlatforms":  [
 

@@ -2,7 +2,7 @@
   "name": "AbilityKit.Game.Battle.Runtime",
   "rootNamespace": "AbilityKit",
   "references": [
-    "AbilityKit.Server",
+    "AbilityKit.Host",
     "AbilityKit.Ability.RuntimePkg",
     "AbilityKit.World.DI",
     "AbilityKit.World.FrameSync",

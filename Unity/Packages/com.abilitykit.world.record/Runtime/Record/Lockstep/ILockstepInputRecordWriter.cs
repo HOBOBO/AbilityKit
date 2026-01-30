@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Host;
 
 namespace AbilityKit.Ability.Share.Common.Record.Lockstep
 {

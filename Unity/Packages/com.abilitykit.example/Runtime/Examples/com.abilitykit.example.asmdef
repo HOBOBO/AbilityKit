@@ -4,7 +4,7 @@
   "references": [
     "AbilityKit.Ability.RuntimePkg",
     "AbilityKit.Flow",
-    "AbilityKit.Server",
+    "AbilityKit.Host",
     "AbilityKit.World.DI",
     "AbilityKit.World.Entitas",
     "AbilityKit.World.FrameSync",

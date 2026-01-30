@@ -10,7 +10,7 @@
     "AbilityKit.World.FrameSync",
     "AbilityKit.World.ECS",
     "AbilityKit.World.Snapshot",
-    "AbilityKit.Server",
+    "AbilityKit.Host",
     "AbilityKit.HotReload",
     "AbilityKit.World.DI",
     "AbilityKit.World.Entitas"

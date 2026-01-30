@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Server;
+using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Common.Record.Lockstep;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle;

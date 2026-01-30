@@ -1,9 +1,9 @@
 using System;
 using AbilityKit.Ability.FrameSync.Rollback;
-using AbilityKit.Ability.Server;
-using AbilityKit.Ability.Server.Modules;
-using AbilityKit.Ability.Server.Rollback;
-using AbilityKit.Ability.Server.Time;
+using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Modules;
+using AbilityKit.Ability.Host.Rollback;
+using AbilityKit.Ability.Host.Time;
 using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Rollback;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
@@ -57,7 +57,7 @@ namespace AbilityKit.Game.Battle
                 }
 
                 modules.InstallAll(serverOptions);
-                _server = new AbilityKit.Ability.Server.LogicWorldServer(_worldManager, serverOptions);
+                _server = new LogicWorldServer(_worldManager, serverOptions);
             }
 
             if (_options.Mode == BattleLogicMode.Remote)
