@@ -20,7 +20,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
-        public MobaEffectListenerRegisterSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaEffectListenerRegisterSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }

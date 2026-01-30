@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.Diagnostics;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 
@@ -9,26 +10,6 @@ namespace AbilityKit.Ability.World.Entitas
 {
     internal static class EntitasWorldComposer
     {
-        private sealed class CompositionReport
-        {
-            public string WorldId;
-            public string WorldType;
-            public readonly List<string> Modules = new List<string>(32);
-            public readonly List<string> Installers = new List<string>(16);
-            public readonly List<string> RegisteredServices = new List<string>(128);
-        }
-
-        private static class CompositionRegistry
-        {
-            private static readonly Dictionary<string, CompositionReport> Reports = new Dictionary<string, CompositionReport>(StringComparer.Ordinal);
-
-            public static void Report(CompositionReport report)
-            {
-                if (report == null) return;
-                Reports[report.WorldId ?? string.Empty] = report;
-            }
-        }
-
         public static void Compose(EntitasWorld world, WorldCreateOptions options)
         {
             if (world == null) throw new ArgumentNullException(nameof(world));
@@ -170,7 +151,83 @@ namespace AbilityKit.Ability.World.Entitas
 
             if (ordered.Count != moduleEntries.Count)
             {
-                throw new InvalidOperationException($"World[{world.Id.Value}/{world.WorldType}] module dependency cycle detected.");
+                var remain = new bool[moduleEntries.Count];
+                for (int i = 0; i < indegree.Length; i++)
+                {
+                    // Nodes not emitted by Kahn's algorithm have indegree > 0.
+                    remain[i] = indegree[i] > 0;
+                }
+
+                List<int> FindAnyCyclePath()
+                {
+                    var state = new byte[moduleEntries.Count];
+                    var parent = new int[moduleEntries.Count];
+                    for (int i = 0; i < parent.Length; i++) parent[i] = -1;
+
+                    List<int> cycle = null;
+
+                    bool Dfs(int u)
+                    {
+                        state[u] = 1;
+                        var outs = outgoing[u];
+                        for (int oi = 0; oi < outs.Count; oi++)
+                        {
+                            var v = outs[oi];
+                            if (!remain[v]) continue;
+
+                            if (state[v] == 0)
+                            {
+                                parent[v] = u;
+                                if (Dfs(v)) return true;
+                            }
+                            else if (state[v] == 1)
+                            {
+                                // Found a back edge u -> v, reconstruct v..u..v
+                                var path = new List<int>(8);
+                                path.Add(v);
+                                var cur = u;
+                                while (cur != -1 && cur != v)
+                                {
+                                    path.Add(cur);
+                                    cur = parent[cur];
+                                }
+                                path.Add(v);
+                                path.Reverse();
+                                cycle = path;
+                                return true;
+                            }
+                        }
+
+                        state[u] = 2;
+                        return false;
+                    }
+
+                    for (int i = 0; i < remain.Length; i++)
+                    {
+                        if (!remain[i]) continue;
+                        if (state[i] != 0) continue;
+                        if (Dfs(i)) break;
+                    }
+
+                    return cycle;
+                }
+
+                var cyclePath = FindAnyCyclePath();
+                if (cyclePath == null || cyclePath.Count < 2)
+                {
+                    throw new InvalidOperationException($"World[{world.Id.Value}/{world.WorldType}] module dependency cycle detected.");
+                }
+
+                var sb = new System.Text.StringBuilder(256);
+                for (int i = 0; i < cyclePath.Count; i++)
+                {
+                    var idx = cyclePath[i];
+                    if (i > 0) sb.Append(" -> ");
+                    sb.Append(moduleEntries[idx].Module.GetType().FullName);
+                }
+
+                throw new InvalidOperationException(
+                    $"World[{world.Id.Value}/{world.WorldType}] module dependency cycle detected: {sb}");
             }
 
             moduleEntries = ordered;
@@ -183,7 +240,7 @@ namespace AbilityKit.Ability.World.Entitas
             builder.RegisterInstance<global::Entitas.IContexts>(world.Contexts);
             builder.RegisterInstance<global::Entitas.Systems>(world.Systems);
 
-            builder.Register<IEntitasWorldContext>(WorldLifetime.Scoped, r => new EntitasWorldContext(world.Id, world.WorldType, world.Contexts, world.Systems, (IWorldServices)r));
+            builder.Register<IEntitasWorldContext>(WorldLifetime.Scoped, r => new EntitasWorldContext(world.Id, world.WorldType, world.Contexts, world.Systems, r));
             builder.Register<IWorldContext>(WorldLifetime.Scoped, r => r.Resolve<IEntitasWorldContext>());
 
             for (int i = 0; i < moduleEntries.Count; i++)
@@ -224,25 +281,32 @@ namespace AbilityKit.Ability.World.Entitas
 
             world.Systems.Initialize();
 
-            var report = new CompositionReport
-            {
-                WorldId = world.Id.Value,
-                WorldType = world.WorldType,
-            };
+            var report = new WorldCompositionReport(world.Id.Value, world.WorldType);
 
             for (int i = 0; i < moduleEntries.Count; i++)
             {
                 var e = moduleEntries[i];
-                report.Modules.Add(e.Module.GetType().FullName);
-                if (e.Module is IEntitasSystemsInstaller) report.Installers.Add(e.Module.GetType().FullName);
+                var id = e.Info?.Id;
+                var order = e.Info?.Order ?? 0;
+                report.AddModule(new WorldCompositionReport.ModuleEntry(
+                    index: i,
+                    sourceIndex: e.Index,
+                    order: order,
+                    id: id,
+                    type: e.Module.GetType().FullName));
+
+                if (e.Module is IEntitasSystemsInstaller)
+                {
+                    report.AddInstaller(e.Module.GetType().FullName);
+                }
             }
 
             foreach (var t in container.RegisteredServiceTypes)
             {
-                report.RegisteredServices.Add(t.FullName);
+                report.AddRegisteredService(t.FullName);
             }
 
-            CompositionRegistry.Report(report);
+            WorldDebugRegistry.Report(report);
 
             logger.Info($"World compose done: id={world.Id.Value}, type={world.WorldType}");
         }

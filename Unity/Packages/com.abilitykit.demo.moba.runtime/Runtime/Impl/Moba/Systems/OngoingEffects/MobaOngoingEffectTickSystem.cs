@@ -22,7 +22,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.OngoingEffects
         private IEventBus _eventBus;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
-        public MobaOngoingEffectTickSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaOngoingEffectTickSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }
@@ -120,7 +120,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.OngoingEffects
                 targetActorId: targetActorId,
                 contextKind: 0,
                 sourceContextId: 0,
-                worldServices: (IWorldServices)Services,
+                worldServices: Services,
                 eventBus: _eventBus);
             return ctx;
         }

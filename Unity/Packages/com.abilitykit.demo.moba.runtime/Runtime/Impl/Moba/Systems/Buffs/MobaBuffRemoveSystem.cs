@@ -28,7 +28,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
 
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
-        public MobaBuffRemoveSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaBuffRemoveSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }

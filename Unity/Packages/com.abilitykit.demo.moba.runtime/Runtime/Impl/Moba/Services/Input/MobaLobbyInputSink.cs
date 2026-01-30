@@ -23,7 +23,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaMoveService _moves;
         private SkillExecutor _skills;
 
-        private IWorldServices _services;
+        private IWorldResolver _services;
 
         private readonly Dictionary<int, Action<PlayerInputCommand>> _handlers;
 
@@ -48,7 +48,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             };
         }
 
-        public void OnInit(IWorldServices services)
+        public void OnInit(IWorldResolver services)
         {
             if (_skills != null) return;
             if (services == null) return;

@@ -26,7 +26,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Area
         private readonly List<AreaExitEvent> _exits = new List<AreaExitEvent>(64);
         private readonly List<AreaExpireEvent> _expires = new List<AreaExpireEvent>(32);
 
-        public MobaAreaSyncSystem(global::Entitas.IContexts contexts, IWorldServices services) : base(contexts, services)
+        public MobaAreaSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services) : base(contexts, services)
         {
         }
 

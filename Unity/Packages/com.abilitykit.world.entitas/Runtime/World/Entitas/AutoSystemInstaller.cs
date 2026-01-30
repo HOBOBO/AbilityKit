@@ -84,21 +84,7 @@ namespace AbilityKit.Ability.World.Entitas
                 object instance;
                 try
                 {
-                    try
-                    {
-                        instance = Activator.CreateInstance(t, contexts, services);
-                    }
-                    catch (MissingMethodException)
-                    {
-                        if (services is IWorldServices ws)
-                        {
-                            instance = Activator.CreateInstance(t, contexts, ws);
-                        }
-                        else
-                        {
-                            throw;
-                        }
-                    }
+                    instance = Activator.CreateInstance(t, contexts, services);
                 }
                 catch (MissingMethodException e)
                 {

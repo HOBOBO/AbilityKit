@@ -28,7 +28,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
         private EffectSourceRegistry _effectSource;
         private ITriggerActionRunner _actionRunner;
 
-        public MobaPassiveSkillTriggerRegisterSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaPassiveSkillTriggerRegisterSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }

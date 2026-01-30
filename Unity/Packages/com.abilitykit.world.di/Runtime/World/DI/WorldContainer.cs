@@ -4,7 +4,7 @@ using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.World.DI
 {
-    public sealed class WorldContainer : IWorldServices, IWorldServiceContainer, IDisposable
+    public sealed class WorldContainer : IWorldResolver, IWorldServiceContainer, IDisposable
     {
         private readonly Dictionary<Type, WorldServiceDescriptor> _map;
         private readonly Dictionary<Type, object> _singletons = new Dictionary<Type, object>();
@@ -29,7 +29,6 @@ namespace AbilityKit.Ability.World.DI
         public bool IsRegistered(Type serviceType)
         {
             if (serviceType == null) return false;
-            if (serviceType == typeof(IWorldServices)) return true;
             if (serviceType == typeof(IWorldServiceContainer)) return true;
             if (serviceType == typeof(WorldContainer)) return true;
             return _map.ContainsKey(serviceType);
@@ -50,7 +49,6 @@ namespace AbilityKit.Ability.World.DI
             _resolveStack.Push(serviceType);
             try
             {
-                if (serviceType == typeof(IWorldServices)) return this;
                 if (serviceType == typeof(IWorldServiceContainer)) return this;
                 if (serviceType == typeof(WorldContainer)) return this;
 
@@ -110,11 +108,6 @@ namespace AbilityKit.Ability.World.DI
             return (T)Resolve(typeof(T));
         }
 
-        public T Get<T>()
-        {
-            return Resolve<T>();
-        }
-
         public bool TryResolve(Type serviceType, out object instance)
         {
             try
@@ -139,11 +132,6 @@ namespace AbilityKit.Ability.World.DI
 
             instance = default;
             return false;
-        }
-
-        public bool TryGet<T>(out T instance)
-        {
-            return TryResolve(out instance);
         }
 
         internal object ResolveScoped(Type serviceType, WorldScope scope)
@@ -203,7 +191,7 @@ namespace AbilityKit.Ability.World.DI
             return sb.ToString();
         }
 
-        private void TryInit(object instance, IWorldServices services)
+        private void TryInit(object instance, IWorldResolver services)
         {
             if (instance == null) return;
             if (!_initialized.Add(instance)) return;

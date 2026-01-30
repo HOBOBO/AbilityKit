@@ -4,6 +4,6 @@ namespace AbilityKit.Ability.World.Services
 {
     public interface IWorldInitializable : IService
     {
-        void OnInit(IWorldServices services);
+        void OnInit(IWorldResolver services);
     }
 }

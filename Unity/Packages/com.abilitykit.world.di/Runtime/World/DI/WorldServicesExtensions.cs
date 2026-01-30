@@ -4,7 +4,7 @@ namespace AbilityKit.Ability.World.DI
 {
     public static class WorldServicesExtensions
     {
-        public static IServiceProvider AsServiceProvider(this IWorldServices services)
+        public static IServiceProvider AsServiceProvider(this IWorldResolver services)
         {
             if (services == null) throw new ArgumentNullException(nameof(services));
             return new WorldServiceProviderAdapter(services);

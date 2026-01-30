@@ -12,7 +12,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.EntityManager
         private MobaEntityManager _entities;
         private readonly List<int> _tmpIds = new List<int>(256);
 
-        public MobaEntityManagerCleanupSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaEntityManagerCleanupSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }

@@ -12,12 +12,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private static readonly AbilityPipelinePhaseId PreCastPhaseId = new AbilityPipelinePhaseId("precast.check");
         private static readonly AbilityPipelinePhaseId CastPhaseId = new AbilityPipelinePhaseId("skill.cast");
 
-        private readonly IWorldServices _services;
+        private readonly IWorldResolver _services;
         private readonly IFrameTime _time;
         private readonly IEventBus _eventBus;
         private readonly IUnitResolver _units;
 
-        public DefaultMobaSkillPipelineLibrary(IWorldServices services, IFrameTime time, IEventBus eventBus, IUnitResolver units)
+        public DefaultMobaSkillPipelineLibrary(IWorldResolver services, IFrameTime time, IEventBus eventBus, IUnitResolver units)
         {
             _services = services;
             _time = time;

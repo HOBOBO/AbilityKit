@@ -38,7 +38,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
             var entities = _group.GetEntities();
             if (entities == null || entities.Length == 0) return;
 
-            var sp = new WorldServiceProviderAdapter((IWorldServices)Services);
+            var sp = new WorldServiceProviderAdapter(Services);
 
             for (int i = 0; i < entities.Length; i++)
             {

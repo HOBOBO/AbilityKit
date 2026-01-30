@@ -15,20 +15,18 @@ namespace AbilityKit.Ability.World.DI
             return this;
         }
 
-        public WorldContainerBuilder Register(Type serviceType, WorldLifetime lifetime, Func<IWorldServices, object> factory)
+        public WorldContainerBuilder Register(Type serviceType, WorldLifetime lifetime, Func<IWorldResolver, object> factory)
         {
+            if (serviceType == null) throw new ArgumentNullException(nameof(serviceType));
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
             _map[serviceType] = new WorldServiceDescriptor(serviceType, lifetime, factory);
             return this;
         }
 
-        public WorldContainerBuilder Register(Type serviceType, WorldLifetime lifetime, Func<IWorldResolver, object> factory)
+        public WorldContainerBuilder TryRegister(Type serviceType, WorldLifetime lifetime, Func<IWorldResolver, object> factory)
         {
+            if (serviceType == null) throw new ArgumentNullException(nameof(serviceType));
             if (factory == null) throw new ArgumentNullException(nameof(factory));
-            return Register(serviceType, lifetime, r => factory(r));
-        }
-
-        public WorldContainerBuilder TryRegister(Type serviceType, WorldLifetime lifetime, Func<IWorldServices, object> factory)
-        {
             if (!_map.ContainsKey(serviceType))
             {
                 _map[serviceType] = new WorldServiceDescriptor(serviceType, lifetime, factory);
@@ -36,26 +34,10 @@ namespace AbilityKit.Ability.World.DI
             return this;
         }
 
-        public WorldContainerBuilder TryRegister(Type serviceType, WorldLifetime lifetime, Func<IWorldResolver, object> factory)
-        {
-            if (factory == null) throw new ArgumentNullException(nameof(factory));
-            return TryRegister(serviceType, lifetime, r => factory(r));
-        }
-
-        public WorldContainerBuilder Register<TService>(WorldLifetime lifetime, Func<IWorldServices, TService> factory)
-        {
-            return Register(typeof(TService), lifetime, r => factory(r));
-        }
-
         public WorldContainerBuilder Register<TService>(WorldLifetime lifetime, Func<IWorldResolver, TService> factory)
         {
             if (factory == null) throw new ArgumentNullException(nameof(factory));
             return Register(typeof(TService), lifetime, r => factory(r));
-        }
-
-        public WorldContainerBuilder TryRegister<TService>(WorldLifetime lifetime, Func<IWorldServices, TService> factory)
-        {
-            return TryRegister(typeof(TService), lifetime, r => factory(r));
         }
 
         public WorldContainerBuilder TryRegister<TService>(WorldLifetime lifetime, Func<IWorldResolver, TService> factory)
@@ -69,20 +51,10 @@ namespace AbilityKit.Ability.World.DI
             return Register(typeof(TService), WorldLifetime.Singleton, _ => instance);
         }
 
-        public WorldContainerBuilder Register<TService>(Func<IWorldServices, TService> factory)
-        {
-            return Register(typeof(TService), WorldLifetime.Scoped, r => factory(r));
-        }
-
         public WorldContainerBuilder Register<TService>(Func<IWorldResolver, TService> factory)
         {
             if (factory == null) throw new ArgumentNullException(nameof(factory));
             return Register(typeof(TService), WorldLifetime.Scoped, r => factory(r));
-        }
-
-        public WorldContainerBuilder TryRegister<TService>(Func<IWorldServices, TService> factory)
-        {
-            return TryRegister(typeof(TService), WorldLifetime.Scoped, r => factory(r));
         }
 
         public WorldContainerBuilder TryRegister<TService>(Func<IWorldResolver, TService> factory)

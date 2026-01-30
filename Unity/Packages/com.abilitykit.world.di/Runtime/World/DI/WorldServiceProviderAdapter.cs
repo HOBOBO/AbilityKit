@@ -4,9 +4,9 @@ namespace AbilityKit.Ability.World.DI
 {
     public sealed class WorldServiceProviderAdapter : IServiceProvider
     {
-        private readonly IWorldServices _services;
+        private readonly IWorldResolver _services;
 
-        public WorldServiceProviderAdapter(IWorldServices services)
+        public WorldServiceProviderAdapter(IWorldResolver services)
         {
             _services = services ?? throw new ArgumentNullException(nameof(services));
         }

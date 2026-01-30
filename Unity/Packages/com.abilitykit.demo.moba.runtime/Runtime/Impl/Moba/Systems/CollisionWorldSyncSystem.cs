@@ -13,7 +13,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
         private readonly IGroup<global::ActorEntity> _withShape;
         private readonly IGroup<global::ActorEntity> _withCollisionId;
 
-        public CollisionWorldSyncSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public CollisionWorldSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
             if (!services.TryResolve<ICollisionService>(out var svc) || svc == null)

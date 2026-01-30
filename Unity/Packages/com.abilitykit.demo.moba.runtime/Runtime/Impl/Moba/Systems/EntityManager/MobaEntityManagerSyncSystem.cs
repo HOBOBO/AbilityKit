@@ -13,7 +13,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.EntityManager
         private MobaEntityManager _entities;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
-        public MobaEntityManagerSyncSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaEntityManagerSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }

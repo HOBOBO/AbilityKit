@@ -25,14 +25,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             public const string AimPos = "aim.pos";
         }
 
-        private readonly IWorldServices _services;
+        private readonly IWorldResolver _services;
         private readonly IFrameTime _time;
         private readonly IEventBus _eventBus;
         private readonly IUnitResolver _units;
         private readonly MobaSkillLoadoutService _loadout;
         private readonly MobaActorLookupService _actors;
 
-        public MobaSkillRuntimeService(IWorldServices services, IFrameTime time, IEventBus eventBus, IUnitResolver units, MobaSkillLoadoutService loadout, MobaActorLookupService actors)
+        public MobaSkillRuntimeService(IWorldResolver services, IFrameTime time, IEventBus eventBus, IUnitResolver units, MobaSkillLoadoutService loadout, MobaActorLookupService actors)
         {
             _services = services ?? throw new ArgumentNullException(nameof(services));
             _time = time ?? throw new ArgumentNullException(nameof(time));

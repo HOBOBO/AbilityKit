@@ -35,7 +35,7 @@ namespace AbilityKit.Ability.World.Entitas
         public global::Entitas.IContexts Contexts => _contexts;
         public global::Entitas.Systems Systems { get; }
 
-        public IWorldServices Services => _scope;
+        public IWorldResolver Services => _scope;
 
         internal void SetComposition(WorldContainer container, WorldScope scope)
         {

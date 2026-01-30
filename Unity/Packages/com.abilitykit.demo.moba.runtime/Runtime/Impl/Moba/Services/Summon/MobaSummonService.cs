@@ -16,7 +16,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class MobaSummonService : IService
     {
-        private readonly IWorldServices _services;
+        private readonly IWorldResolver _services;
         private readonly ActorIdAllocator _actorIds;
         private readonly MobaActorRegistry _registry;
         private readonly MobaEntityManager _entities;
@@ -31,7 +31,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly Dictionary<int, List<int>> _summonsByRootOwner = new Dictionary<int, List<int>>();
 
         public MobaSummonService(
-            IWorldServices services,
+            IWorldResolver services,
             ActorIdAllocator actorIds,
             MobaActorRegistry registry,
             MobaEntityManager entities,
@@ -51,8 +51,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _componentTemplates = componentTemplates;
             _eventBus = eventBus;
 
-            services?.TryGet(out _frameTime);
-            services?.TryGet(out _clock);
+            services?.TryResolve(out _frameTime);
+            services?.TryResolve(out _clock);
         }
 
         public bool TrySummon(int casterActorId, int summonId, in Vec3 pos)
@@ -329,7 +329,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private Entitas.IContexts ContextsFromServices()
         {
             Entitas.IContexts contexts = null;
-            _services?.TryGet(out contexts);
+            _services?.TryResolve(out contexts);
             return contexts;
         }
 

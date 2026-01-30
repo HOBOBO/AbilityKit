@@ -19,14 +19,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
         private const int CollisionLayer_Unit = 1 << 0;
         private const int CollisionLayer_World = 1 << 2;
 
-        private readonly IWorldServices _services;
+        private readonly IWorldResolver _services;
         private readonly IProjectileService _projectiles;
         private readonly ActorIdAllocator _actorIds;
         private readonly MobaActorRegistry _registry;
         private readonly MobaEntityManager _entities;
         private readonly MobaProjectileLinkService _links;
 
-        public MobaProjectileService(IWorldServices services, IProjectileService projectiles, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaEntityManager entities, MobaProjectileLinkService links)
+        public MobaProjectileService(IWorldResolver services, IProjectileService projectiles, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaEntityManager entities, MobaProjectileLinkService links)
         {
             _services = services;
             _projectiles = projectiles;
@@ -73,7 +73,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
                 templateId: projectileCode);
 
             global::Entitas.IContexts contexts = null;
-            _services?.TryGet(out contexts);
+            _services?.TryResolve(out contexts);
 
             var actorContext = (contexts as global::Contexts)?.actor;
             if (actorContext == null) return false;
@@ -223,12 +223,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
             var sp = spawnPos.SqrMagnitude > 0f ? spawnPos : caster.transform.Value.Position;
 
             global::Entitas.IContexts contexts = null;
-            _services?.TryGet(out contexts);
+            _services?.TryResolve(out contexts);
             var actorContext = contexts != null ? contexts.Actor() : null;
             if (actorContext == null) return false;
 
             var frameTime = default(IFrameTime);
-            _services?.TryGet(out frameTime);
+            _services?.TryResolve(out frameTime);
 
             var nowMs = 0L;
             if (frameTime != null)

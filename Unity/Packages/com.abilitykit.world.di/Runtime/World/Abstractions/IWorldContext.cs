@@ -6,6 +6,6 @@ namespace AbilityKit.Ability.World.Abstractions
     {
         WorldId Id { get; }
         string WorldType { get; }
-        IWorldServices Services { get; }
+        IWorldResolver Services { get; }
     }
 }

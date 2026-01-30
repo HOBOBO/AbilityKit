@@ -18,7 +18,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
 
         private global::Entitas.IGroup<global::ActorEntity> _launchers;
 
-        public MobaProjectileLauncherCleanupSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaProjectileLauncherCleanupSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }

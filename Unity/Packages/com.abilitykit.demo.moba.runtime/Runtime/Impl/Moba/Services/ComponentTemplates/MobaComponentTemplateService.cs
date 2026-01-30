@@ -12,11 +12,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly IFrameTime _frameTime;
         private readonly IWorldClock _clock;
 
-        public MobaComponentTemplateService(IWorldServices services, MobaConfigDatabase config)
+        public MobaComponentTemplateService(IWorldResolver services, MobaConfigDatabase config)
         {
             _config = config;
-            services?.TryGet(out _frameTime);
-            services?.TryGet(out _clock);
+            services?.TryResolve(out _frameTime);
+            services?.TryResolve(out _clock);
         }
 
         public bool TryApply(global::ActorEntity entity, int templateId)

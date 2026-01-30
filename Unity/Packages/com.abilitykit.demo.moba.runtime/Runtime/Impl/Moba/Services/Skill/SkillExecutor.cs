@@ -15,7 +15,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class SkillExecutor : IService
     {
-        private readonly IWorldServices _services;
+        private readonly IWorldResolver _services;
         private readonly IWorldClock _clock;
         private readonly IFrameTime _time;
         private readonly IEventBus _eventBus;
@@ -30,7 +30,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public bool InterruptRunning { get; set; }
 
         public SkillExecutor(
-            IWorldServices services,
+            IWorldResolver services,
             IWorldClock clock,
             IFrameTime time,
             IEventBus eventBus,

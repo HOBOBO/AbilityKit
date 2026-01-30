@@ -13,7 +13,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Motion
     {
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
-        public MobaMotionInitSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaMotionInitSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }

@@ -42,7 +42,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             _areas = new AreaWorld(collisions.World);
         }
 
-        public void OnInit(IWorldServices services)
+        public void OnInit(IWorldResolver services)
         {
             if (services == null) return;
             if (services.TryResolve<IProjectileReturnTargetProvider>(out var provider) && provider != null)

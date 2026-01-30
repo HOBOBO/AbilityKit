@@ -11,11 +11,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
     public sealed class MobaSkillPipelineStepSystem : WorldSystemBase
     {
         private SkillExecutor _skills;
+        private IMobaSkillPipelineLibrary _pipelines;
         private IWorldClock _clock;
 
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
-        public MobaSkillPipelineStepSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaSkillPipelineStepSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }

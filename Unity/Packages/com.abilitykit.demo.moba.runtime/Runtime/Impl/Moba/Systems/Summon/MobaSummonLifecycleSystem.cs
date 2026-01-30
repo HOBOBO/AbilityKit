@@ -13,7 +13,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Summon
         private AbilityKit.Ability.World.Services.IWorldClock _clock;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
-        public MobaSummonLifecycleSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaSummonLifecycleSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }

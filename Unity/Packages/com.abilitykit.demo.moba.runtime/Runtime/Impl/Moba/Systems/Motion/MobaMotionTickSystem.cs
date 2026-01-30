@@ -16,7 +16,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Motion
         private IWorldClock _clock;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
-        public MobaMotionTickSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaMotionTickSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }

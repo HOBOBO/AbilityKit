@@ -4,12 +4,12 @@ using AbilityKit.Ability.World.DI;
 
 namespace AbilityKit.Ability.HotReload
 {
-    public sealed class HotfixServiceOverlay : IWorldServices
+    public sealed class HotfixServiceOverlay : IWorldResolver
     {
-        private readonly IWorldServices _inner;
+        private readonly IWorldResolver _inner;
         private readonly Dictionary<Type, object> _overrides = new Dictionary<Type, object>();
 
-        public HotfixServiceOverlay(IWorldServices inner)
+        public HotfixServiceOverlay(IWorldResolver inner)
         {
             _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         }
@@ -69,16 +69,6 @@ namespace AbilityKit.Ability.HotReload
 
             instance = default;
             return false;
-        }
-
-        public T Get<T>()
-        {
-            return Resolve<T>();
-        }
-
-        public bool TryGet<T>(out T instance)
-        {
-            return TryResolve(out instance);
         }
     }
 }

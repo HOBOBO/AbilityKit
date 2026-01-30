@@ -18,10 +18,10 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
         private static readonly HashSet<int> LoggedMissingAttributeTemplateIds = new HashSet<int>();
         private static bool LoggedMissingConfig;
 
-        private readonly IWorldServices _services;
+        private readonly IWorldResolver _services;
         private MobaConfigDatabase _config;
 
-        public MobaActorEntityGenerator(IWorldServices services)
+        public MobaActorEntityGenerator(IWorldResolver services)
         {
             _services = services;
             TryResolveConfig();

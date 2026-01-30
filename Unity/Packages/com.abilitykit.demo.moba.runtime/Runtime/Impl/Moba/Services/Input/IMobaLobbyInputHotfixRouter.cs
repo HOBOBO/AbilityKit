@@ -7,6 +7,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public interface IMobaLobbyInputHotfixRouter : IService
     {
-        bool TryHandle(IWorldServices services, FrameIndex frame, PlayerInputCommand cmd);
+        bool TryHandle(IWorldResolver services, FrameIndex frame, PlayerInputCommand cmd);
     }
 }

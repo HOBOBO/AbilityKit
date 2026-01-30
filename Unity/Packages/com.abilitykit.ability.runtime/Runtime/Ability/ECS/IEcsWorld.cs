@@ -4,7 +4,7 @@ namespace AbilityKit.Ability.Share.ECS
 {
     public interface IEcsWorld
     {
-        IWorldServices Services { get; }
+        IWorldResolver Services { get; }
 
         bool Exists(EcsEntityId id);
 

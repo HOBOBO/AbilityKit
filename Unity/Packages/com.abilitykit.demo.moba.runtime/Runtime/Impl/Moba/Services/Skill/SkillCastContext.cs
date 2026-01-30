@@ -20,7 +20,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public Vec3 AimPos;
         public Vec3 AimDir;
 
-        public IWorldServices WorldServices;
+        public IWorldResolver WorldServices;
         public IEventBus EventBus;
         public IUnitFacade CasterUnit;
         public IUnitFacade TargetUnit;
@@ -37,7 +37,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             int targetActorId,
             in Vec3 aimPos,
             in Vec3 aimDir,
-            IWorldServices worldServices,
+            IWorldResolver worldServices,
             IEventBus eventBus,
             IUnitFacade casterUnit,
             IUnitFacade targetUnit)

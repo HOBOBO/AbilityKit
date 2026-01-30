@@ -21,7 +21,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Motion
         private readonly List<int> _tmpRemoveActorIds = new List<int>(64);
         private int _stamp;
 
-        public MobaMotionLocomotionInputSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaMotionLocomotionInputSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }

@@ -7,14 +7,14 @@ namespace AbilityKit.Ability.Share.ECS.Entitas
     {
         private readonly EntitasActorIdLookup _lookup;
 
-        public EntitasEcsWorld(IWorldServices services, EntitasActorIdLookup lookup, IUnitResolver units)
+        public EntitasEcsWorld(IWorldResolver services, EntitasActorIdLookup lookup, IUnitResolver units)
         {
             Services = services ?? throw new ArgumentNullException(nameof(services));
             _lookup = lookup ?? throw new ArgumentNullException(nameof(lookup));
             Units = units ?? throw new ArgumentNullException(nameof(units));
         }
 
-        public IWorldServices Services { get; }
+        public IWorldResolver Services { get; }
 
         public IUnitResolver Units { get; }
 

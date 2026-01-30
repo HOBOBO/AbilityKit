@@ -17,14 +17,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class SkillCastApplyEffectPhase : AbilityInstantPhaseBase<SkillPipelineContext>
     {
-        private readonly IWorldServices _services;
+        private readonly IWorldResolver _services;
         private readonly IFrameTime _time;
         private readonly IEventBus _eventBus;
         private readonly IUnitResolver _units;
 
         public SkillCastApplyEffectPhase(
             AbilityPipelinePhaseId phaseId,
-            IWorldServices services,
+            IWorldResolver services,
             IFrameTime time,
             IEventBus eventBus,
             IUnitResolver units)

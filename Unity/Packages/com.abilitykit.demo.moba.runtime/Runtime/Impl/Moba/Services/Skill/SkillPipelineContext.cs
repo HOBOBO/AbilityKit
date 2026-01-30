@@ -28,7 +28,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public Vec3 AimPos { get; private set; }
         public Vec3 AimDir { get; private set; }
 
-        public IWorldServices WorldServices { get; private set; }
+        public IWorldResolver WorldServices { get; private set; }
         public IEventBus EventBus { get; private set; }
         public IUnitFacade CasterUnit { get; private set; }
         public IUnitFacade TargetUnit { get; private set; }
@@ -136,7 +136,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public readonly Vec3 AimPos;
         public readonly Vec3 AimDir;
 
-        public readonly IWorldServices WorldServices;
+        public readonly IWorldResolver WorldServices;
         public readonly IEventBus EventBus;
         public readonly IUnitFacade CasterUnit;
         public readonly IUnitFacade TargetUnit;
@@ -148,7 +148,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             int targetActorId,
             in Vec3 aimPos,
             in Vec3 aimDir,
-            IWorldServices worldServices,
+            IWorldResolver worldServices,
             IEventBus eventBus,
             IUnitFacade casterUnit,
             IUnitFacade targetUnit)

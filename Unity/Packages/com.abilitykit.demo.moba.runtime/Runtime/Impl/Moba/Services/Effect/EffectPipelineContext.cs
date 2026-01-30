@@ -7,7 +7,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class MobaEffectPipelineContext : AAbilityPipelineContext
     {
-        public IWorldServices WorldServices { get; private set; }
+        public IWorldResolver WorldServices { get; private set; }
         public IEventBus EventBus { get; private set; }
 
         public void Initialize(
@@ -16,7 +16,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             int targetActorId,
             int contextKind,
             long sourceContextId,
-            IWorldServices worldServices,
+            IWorldResolver worldServices,
             IEventBus eventBus)
         {
             base.Initialize(abilityInstance);

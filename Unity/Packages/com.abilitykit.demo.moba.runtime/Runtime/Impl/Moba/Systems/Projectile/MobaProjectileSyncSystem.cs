@@ -37,7 +37,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
         private readonly List<ProjectileTickEvent> _ticks = new List<ProjectileTickEvent>(128);
         private readonly List<ProjectileExitEvent> _exits = new List<ProjectileExitEvent>(64);
 
-        public MobaProjectileSyncSystem(global::Entitas.IContexts contexts, IWorldServices services)
+        public MobaProjectileSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }

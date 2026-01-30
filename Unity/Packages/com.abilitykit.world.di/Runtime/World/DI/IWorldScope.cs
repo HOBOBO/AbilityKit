@@ -2,8 +2,8 @@ using System;
 
 namespace AbilityKit.Ability.World.DI
 {
-    public interface IWorldScope : IWorldServices, IDisposable
+    public interface IWorldScope : IWorldResolver, IDisposable
     {
-        IWorldServices Root { get; }
+        IWorldResolver Root { get; }
     }
 }
