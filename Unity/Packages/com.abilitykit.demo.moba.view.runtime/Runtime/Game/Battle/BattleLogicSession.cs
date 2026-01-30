@@ -8,6 +8,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Rollback;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
+using AbilityKit.Ability.Impl.Moba.Worlds.Blueprints;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
@@ -38,8 +39,16 @@ namespace AbilityKit.Game.Battle
             }
             else
             {
-                var registry = new WorldTypeRegistry().RegisterEntitasWorld(_options.WorldType);
-                _worldManager = new WorldManager(new RegistryWorldFactory(registry));
+                var typeRegistry = new WorldTypeRegistry()
+                    .RegisterEntitasWorld(MobaLobbyWorldBlueprint.Type)
+                    .RegisterEntitasWorld(MobaBattleWorldBlueprint.Type);
+
+                var blueprints = new AbilityKit.Ability.Host.WorldBlueprints.WorldBlueprintRegistry();
+                MobaWorldBlueprintsRegistration.RegisterAll(blueprints);
+
+                var baseFactory = new RegistryWorldFactory(typeRegistry);
+                var factory = new AbilityKit.Ability.Host.WorldBlueprints.WorldBlueprintWorldFactory(baseFactory, blueprints);
+                _worldManager = new WorldManager(factory);
 
                 var serverOptions = new LogicWorldServerOptions();
                 var modules = new LogicWorldServerModuleHost()
@@ -115,9 +124,6 @@ namespace AbilityKit.Game.Battle
                 {
                     ServiceBuilder = builder,
                 };
-                create.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
-
-                create.Modules.Add(new MobaWorldBootstrapModule());
 
                 _client.CreateWorld(new CreateWorldRequest(create));
             }
