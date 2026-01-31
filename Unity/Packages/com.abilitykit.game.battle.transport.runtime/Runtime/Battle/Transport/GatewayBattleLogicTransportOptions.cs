@@ -8,6 +8,9 @@ namespace AbilityKit.Game.Battle.Transport
         public string Host = "127.0.0.1";
         public int Port = 0;
 
+        public uint OpRenewSession;
+        public string SessionToken;
+
         public Func<ITransport> TransportFactory;
 
         public IFrameCodec FrameCodec;

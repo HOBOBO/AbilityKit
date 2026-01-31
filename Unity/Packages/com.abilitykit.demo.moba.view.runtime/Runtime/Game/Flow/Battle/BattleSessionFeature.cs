@@ -71,9 +71,7 @@ namespace AbilityKit.Game.Flow
         {
             if (_plan.HostMode != BattleStartConfig.BattleHostMode.GatewayRemote) return false;
             if (!_plan.UseGatewayTransport) return false;
-            if (_plan.NumericRoomId != 0) return false;
             if (!_plan.GatewayAutoCreateRoom && !_plan.GatewayAutoJoinRoom) return false;
-            if (string.IsNullOrWhiteSpace(_plan.GatewaySessionToken)) return false;
             return true;
         }
 
@@ -109,8 +107,57 @@ namespace AbilityKit.Game.Flow
                 throw new InvalidOperationException($"Gateway room connection not connected. state={_gatewayRoomConn?.State}");
             }
 
+            Debug.Log($"[BattleSessionFeature] GatewayRoom connected: {_plan.GatewayHost}:{_plan.GatewayPort}");
+
+            const uint GuestLoginOpCode = 100;
+            var sessionToken = _plan.GatewaySessionToken;
+            if (string.IsNullOrWhiteSpace(sessionToken))
+            {
+                Debug.Log("[BattleSessionFeature] GatewayRoom GuestLogin...");
+                sessionToken = await _gatewayRoomClient.GuestLoginAsync(GuestLoginOpCode);
+                if (string.IsNullOrWhiteSpace(sessionToken))
+                {
+                    throw new InvalidOperationException("Gateway guest login failed: sessionToken is empty.");
+                }
+
+                Debug.Log("[BattleSessionFeature] GatewayRoom GuestLogin ok.");
+
+                _plan = new BattleStartPlan(
+                    worldId: _plan.WorldId,
+                    worldType: _plan.WorldType,
+                    clientId: _plan.ClientId,
+                    playerId: _plan.PlayerId,
+                    hostMode: _plan.HostMode,
+                    useGatewayTransport: _plan.UseGatewayTransport,
+                    gatewayHost: _plan.GatewayHost,
+                    gatewayPort: _plan.GatewayPort,
+                    numericRoomId: _plan.NumericRoomId,
+                    gatewaySessionToken: sessionToken,
+                    gatewayRegion: _plan.GatewayRegion,
+                    gatewayServerId: _plan.GatewayServerId,
+                    gatewayAutoCreateRoom: _plan.GatewayAutoCreateRoom,
+                    gatewayAutoJoinRoom: _plan.GatewayAutoJoinRoom,
+                    gatewayJoinRoomId: _plan.GatewayJoinRoomId,
+                    gatewayCreateRoomOpCode: _plan.GatewayCreateRoomOpCode,
+                    gatewayJoinRoomOpCode: _plan.GatewayJoinRoomOpCode,
+                    autoConnect: _plan.AutoConnect,
+                    autoCreateWorld: _plan.AutoCreateWorld,
+                    autoJoin: _plan.AutoJoin,
+                    autoReady: _plan.AutoReady,
+                    syncMode: _plan.SyncMode,
+                    viewEventSourceMode: _plan.ViewEventSourceMode,
+                    enableInputRecording: _plan.EnableInputRecording,
+                    inputRecordOutputPath: _plan.InputRecordOutputPath,
+                    enableInputReplay: _plan.EnableInputReplay,
+                    inputReplayPath: _plan.InputReplayPath,
+                    runMode: _plan.RunMode,
+                    createWorldOpCode: _plan.CreateWorldOpCode,
+                    createWorldPayload: _plan.CreateWorldPayload);
+            }
+
             if (_plan.GatewayAutoCreateRoom)
             {
+                Debug.Log("[BattleSessionFeature] GatewayRoom CreateRoom...");
                 var result = await _gatewayRoomClient.CreateRoomAsync(
                     sessionToken: _plan.GatewaySessionToken,
                     region: _plan.GatewayRegion,
@@ -121,13 +168,17 @@ namespace AbilityKit.Game.Flow
                     maxPlayers: 10,
                     tags: null);
 
+                Debug.Log($"[BattleSessionFeature] GatewayRoom CreateRoom ok. roomId='{result.RoomId}' numericRoomId={result.NumericRoomId}");
+
                 if (result.NumericRoomId == 0)
                 {
                     throw new InvalidOperationException($"Gateway CreateRoom returned invalid NumericRoomId. roomId='{result.RoomId}'");
                 }
 
+                var worldId = result.NumericRoomId.ToString();
+
                 _plan = new BattleStartPlan(
-                    worldId: _plan.WorldId,
+                    worldId: worldId,
                     worldType: _plan.WorldType,
                     clientId: _plan.ClientId,
                     playerId: _plan.PlayerId,
@@ -157,31 +208,47 @@ namespace AbilityKit.Game.Flow
                     runMode: _plan.RunMode,
                     createWorldOpCode: _plan.CreateWorldOpCode,
                     createWorldPayload: _plan.CreateWorldPayload);
+
+                await _gatewayRoomClient.JoinRoomAsync(
+                    sessionToken: _plan.GatewaySessionToken,
+                    region: _plan.GatewayRegion,
+                    serverId: _plan.GatewayServerId,
+                    roomId: string.IsNullOrWhiteSpace(result.RoomId) ? _plan.NumericRoomId.ToString() : result.RoomId);
+
+                Debug.Log($"[BattleSessionFeature] GatewayRoom JoinRoom ok. numericRoomId={_plan.NumericRoomId}");
                 return;
             }
 
             if (_plan.GatewayAutoJoinRoom)
             {
                 var joinRoomId = _plan.GatewayJoinRoomId;
-                if (string.IsNullOrWhiteSpace(joinRoomId)) joinRoomId = _plan.WorldId;
+                if (string.IsNullOrWhiteSpace(joinRoomId))
+                {
+                    joinRoomId = _plan.NumericRoomId != 0 ? _plan.NumericRoomId.ToString() : _plan.WorldId;
+                }
                 if (string.IsNullOrWhiteSpace(joinRoomId))
                 {
                     throw new InvalidOperationException("GatewayAutoJoinRoom requires JoinRoomId or WorldId.");
                 }
 
+                Debug.Log($"[BattleSessionFeature] GatewayRoom JoinRoom... roomId='{joinRoomId}'");
                 var result = await _gatewayRoomClient.JoinRoomAsync(
                     sessionToken: _plan.GatewaySessionToken,
                     region: _plan.GatewayRegion,
                     serverId: _plan.GatewayServerId,
                     roomId: joinRoomId);
 
+                Debug.Log($"[BattleSessionFeature] GatewayRoom JoinRoom ok. numericRoomId={result.NumericRoomId}");
+
                 if (result.NumericRoomId == 0)
                 {
                     throw new InvalidOperationException($"Gateway JoinRoom returned invalid NumericRoomId. roomId='{joinRoomId}'");
                 }
 
+                var worldId = result.NumericRoomId.ToString();
+
                 _plan = new BattleStartPlan(
-                    worldId: _plan.WorldId,
+                    worldId: worldId,
                     worldType: _plan.WorldType,
                     clientId: _plan.ClientId,
                     playerId: _plan.PlayerId,
@@ -237,15 +304,27 @@ namespace AbilityKit.Game.Flow
 
             _plan = _bootstrapper?.Build() ?? default;
 
+            Debug.Log($"[BattleSessionFeature] OnAttach Plan: HostMode={_plan.HostMode}, UseGatewayTransport={_plan.UseGatewayTransport}, Gateway={_plan.GatewayHost}:{_plan.GatewayPort}, NumericRoomId={_plan.NumericRoomId}, AutoConnect={_plan.AutoConnect}, AutoCreateWorld={_plan.AutoCreateWorld}, AutoJoin={_plan.AutoJoin}, AutoReady={_plan.AutoReady}, WorldId={_plan.WorldId}, PlayerId={_plan.PlayerId}");
+
             if (ShouldPrepareGatewayRoom())
             {
                 StartGatewayRoomPreparation();
             }
             else
             {
-                StartSession();
-                SessionStarted?.Invoke();
-                ApplyAutoPlanActions();
+                try
+                {
+                    StartSession();
+                    SessionStarted?.Invoke();
+                    ApplyAutoPlanActions();
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, "[BattleSessionFeature] StartSession failed in OnAttach");
+                    StopSession();
+                    SessionFailed?.Invoke(ex);
+                    return;
+                }
             }
 
             if (_ctx != null)
@@ -425,7 +504,8 @@ namespace AbilityKit.Game.Flow
                         playerIdFromUInt: n => new PlayerId(n.ToString()),
                         worldIdToUlong: wid => ulong.TryParse(wid.Value, out var n) ? n : roomId,
                         worldIdFromUlong: n => new WorldId(n.ToString()),
-                        roomId: roomId);
+                        roomId: roomId,
+                        sessionToken: _plan.GatewaySessionToken);
 
                     transport = new GatewayBattleLogicTransport(gatewayOptions);
                 }
@@ -521,6 +601,24 @@ namespace AbilityKit.Game.Flow
             if (!_autoPlanLogged)
             {
                 _autoPlanLogged = true;
+            }
+
+            if (_plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && _plan.UseGatewayTransport)
+            {
+                Debug.Log("[BattleSessionFeature] GatewayRemote transport active. Skipping AutoCreateWorld/AutoJoin (not applicable). Use GatewayAutoCreateRoom/GatewayAutoJoinRoom for room lifecycle. AutoConnect/AutoReady are supported.");
+                if (_plan.AutoConnect)
+                {
+                    Debug.Log($"[BattleSessionFeature] GatewayRemote AutoConnect -> Connect() to {_plan.GatewayHost}:{_plan.GatewayPort}");
+                    _session?.Connect();
+                }
+
+                if (_plan.AutoReady)
+                {
+                    Debug.Log($"[BattleSessionFeature] GatewayRemote AutoReady -> SubmitInput(Ready). worldId='{_plan.WorldId}' playerId={_plan.PlayerId} frame={_lastFrame + 1}");
+                    var cmd = new PlayerInputCommand(new FrameIndex(_lastFrame + 1), new PlayerId(_plan.PlayerId), opCode: (int)MobaOpCode.Ready, payload: Array.Empty<byte>());
+                    _session?.SubmitInput(new SubmitInputRequest(new WorldId(_plan.WorldId), cmd));
+                }
+                return;
             }
 
             var isLocal = _plan.SyncMode != BattleSyncMode.SnapshotAuthority && _plan.HostMode == BattleStartConfig.BattleHostMode.Local;

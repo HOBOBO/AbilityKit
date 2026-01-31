@@ -8,15 +8,15 @@ namespace AbilityKit.Game.Test
     {
         private void Start()
         {
-            if (!AbilityKit.Game.GameEntry.IsInitialized) return;
+            // if (!AbilityKit.Game.GameEntry.IsInitialized) return;
 
-            var entry = AbilityKit.Game.GameEntry.Instance;
-            entry.DebugEnabled = true;
+            // var entry = AbilityKit.Game.GameEntry.Instance;
+            // entry.DebugEnabled = true;
 
-            if (entry.Root.IsValid && entry.Root.TryGetComponent(out GameFlowDomain flow) && flow != null)
-            {
-                flow.EnterBattle(new TestBattleBootstrapper());
-            }
+            // if (entry.Root.IsValid && entry.Root.TryGetComponent(out GameFlowDomain flow) && flow != null)
+            // {
+            //     flow.EnterBattle(new TestBattleBootstrapper());
+            // }
         }
     }
 }

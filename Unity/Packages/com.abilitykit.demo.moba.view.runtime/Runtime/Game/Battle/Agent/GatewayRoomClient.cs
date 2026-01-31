@@ -28,6 +28,14 @@ namespace AbilityKit.Game.Battle.Agent
             return _request.SendRequestAsync(opCode, new ArraySegment<byte>(bytes), timeout, cancellationToken);
         }
 
+        public async Task<string> GuestLoginAsync(uint guestLoginOpCode, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+        {
+            var payload = await SendRawRequestAsync(guestLoginOpCode, "{}", timeout, cancellationToken);
+            var respJson = DecodeUtf8(payload);
+            var token = TinyJson.TryGetString(respJson, "SessionToken") ?? TinyJson.TryGetString(respJson, "sessionToken") ?? string.Empty;
+            return token;
+        }
+
         public async Task<GatewayCreateRoomResult> CreateRoomAsync(
             string sessionToken,
             string region,

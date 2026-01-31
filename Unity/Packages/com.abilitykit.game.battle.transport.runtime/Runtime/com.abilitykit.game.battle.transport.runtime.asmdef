@@ -1,18 +1,19 @@
 {
-  "name": "AbilityKit.Game.Battle.Transport.Runtime",
-  "rootNamespace": "AbilityKit",
-  "references": [
-    "AbilityKit.Game.Battle.Runtime",
-    "AbilityKit.Network.Runtime",
-    "AbilityKit.World.Snapshot"
-  ],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": true,
-  "defineConstraints": [],
-  "versionDefines": [],
-  "noEngineReferences": true
+    "name": "AbilityKit.Game.Battle.Transport.Runtime",
+    "rootNamespace": "AbilityKit",
+    "references": [
+        "AbilityKit.Game.Battle.Runtime",
+        "AbilityKit.Network.Runtime",
+        "AbilityKit.World.Snapshot",
+        "AbilityKit.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
 }

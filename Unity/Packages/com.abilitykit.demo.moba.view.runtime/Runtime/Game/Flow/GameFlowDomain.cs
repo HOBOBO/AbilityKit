@@ -6,6 +6,7 @@ using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Game;
 using UnityEngine;
 using UnityHFSM;
+using static AbilityKit.Game.Flow.GameFlowDomain;
 
 namespace AbilityKit.Game.Flow
 {
@@ -119,7 +120,7 @@ namespace AbilityKit.Game.Flow
 
             if (!_entry.DebugEnabled) return;
 
-            GUILayout.BeginArea(new Rect(10, 140, 420, 140), GUI.skin.window);
+            GUILayout.BeginArea(new Rect(350, 10, 420, 140), GUI.skin.window);
             GUILayout.Label($"HFSM Root={_activeRoot}, Battle={_activeBattle}");
 
             if (GUILayout.Button("Enter Battle", GUILayout.Height(28)))
@@ -454,12 +455,15 @@ namespace AbilityKit.Game.Flow
             if (!_show) return;
             if (!ctx.Entry.DebugEnabled) return;
 
+            var flow = ctx.Entry.Get<GameFlowDomain>();
+            if (flow != null && flow.CurrentPhase == RootState.Battle) return;
+
             GUILayout.BeginArea(new Rect(10, 10, 320, 120), GUI.skin.window);
             GUILayout.Label("Game Flow");
 
             if (GUILayout.Button("Enter Battle (Test)", GUILayout.Height(28)))
             {
-                var flow = ctx.Entry.Get<GameFlowDomain>();
+                flow = ctx.Entry.Get<GameFlowDomain>();
                 flow.EnterBattle(new TestBattleBootstrapper());
             }
 

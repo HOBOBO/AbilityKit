@@ -21,7 +21,8 @@ namespace AbilityKit.Game.Battle
             Func<uint, PlayerId> playerIdFromUInt,
             Func<WorldId, ulong> worldIdToUlong,
             Func<ulong, WorldId> worldIdFromUlong,
-            ulong roomId)
+            ulong roomId,
+            string sessionToken)
         {
             if (string.IsNullOrWhiteSpace(host)) throw new ArgumentException("Host is required.", nameof(host));
             if (port <= 0) throw new ArgumentOutOfRangeException(nameof(port));
@@ -37,6 +38,9 @@ namespace AbilityKit.Game.Battle
                 Port = port,
                 TransportFactory = transportFactory,
                 FrameCodec = LengthPrefixedFrameCodec.Instance,
+
+                OpRenewSession = 120,
+                SessionToken = sessionToken,
 
                 OpSubmitInput = OpCodes.SubmitFrameInput,
                 OpFramePushed = OpCodes.FramePushed,

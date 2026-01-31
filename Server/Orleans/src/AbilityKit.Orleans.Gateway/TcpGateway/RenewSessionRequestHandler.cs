@@ -44,6 +44,12 @@ public sealed class RenewSessionRequestHandler : ITcpGatewayRequestHandler
 
             _registry.BindToken(resp.SessionToken, context.ConnectionId);
 
+            var v = await session.ValidateAsync(new ValidateSessionRequest(resp.SessionToken));
+            if (v.IsValid && !string.IsNullOrWhiteSpace(v.AccountId))
+            {
+                _registry.BindAccount(v.AccountId, context.ConnectionId);
+            }
+
             if (oldBoundOther)
             {
                 await _registry.TrySendKickAsync(oldToken, reason: "token_rotated", cancellationToken);

@@ -103,8 +103,14 @@ namespace AbilityKit.Game.Flow
             {
                 var path = AssetDatabase.GUIDToAssetPath(guids[i]);
                 var asset = AssetDatabase.LoadAssetAtPath<BattleStartConfig>(path);
-                if (asset != null) return asset;
+                if (asset != null)
+                {
+                    Debug.Log($"[TestBattleBootstrapper] Loaded BattleStartConfig from: {path}");
+                    return asset;
+                }
             }
+
+            Debug.LogWarning("[TestBattleBootstrapper] BattleStartConfig not found via AssetDatabase. Falling back to defaults (Local mode).");
 #endif
             return ScriptableObject.CreateInstance<BattleStartConfig>();
         }

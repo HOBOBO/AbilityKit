@@ -30,6 +30,17 @@ public sealed class JoinRoomRequestHandler : ITcpGatewayRequestHandler
             return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.BadRequest, ReadOnlyMemory<byte>.Empty);
         }
 
+        var roomId = wire.RoomId;
+        if (ulong.TryParse(roomId, out var numericRoomIdFromClient) && numericRoomIdFromClient != 0)
+        {
+            var mapper = _clusterClient.GetGrain<IRoomIdMappingGrain>("global");
+            var mapped = await mapper.TryGetRoomIdAsync(numericRoomIdFromClient);
+            if (!string.IsNullOrWhiteSpace(mapped))
+            {
+                roomId = mapped;
+            }
+        }
+
         var session = _clusterClient.GetGrain<ISessionGrain>("global");
         var v = await session.ValidateAsync(new ValidateSessionRequest(wire.SessionToken));
         if (!v.IsValid || string.IsNullOrWhiteSpace(v.AccountId))
@@ -39,13 +50,13 @@ public sealed class JoinRoomRequestHandler : ITcpGatewayRequestHandler
 
         _registry.BindToken(wire.SessionToken, context.ConnectionId);
 
-        var room = _clusterClient.GetGrain<IRoomGrain>(wire.RoomId);
+        var room = _clusterClient.GetGrain<IRoomGrain>(roomId);
         await room.JoinAsync(v.AccountId);
 
         _registry.BindAccount(v.AccountId, context.ConnectionId);
 
-        var mapper = _clusterClient.GetGrain<IRoomIdMappingGrain>("global");
-        var numericRoomId = await mapper.GetOrCreateNumericIdAsync(wire.RoomId);
+        var mapper2 = _clusterClient.GetGrain<IRoomIdMappingGrain>("global");
+        var numericRoomId = await mapper2.GetOrCreateNumericIdAsync(roomId);
 
         var snapshot = await room.GetSnapshotAsync();
         return new TcpGatewayResponseEnvelope(

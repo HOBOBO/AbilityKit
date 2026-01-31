@@ -39,12 +39,19 @@ namespace AbilityKit.Game.Flow
             GUILayout.Label($"WorldId: {_ctx.Plan.WorldId}");
             GUILayout.Label($"LastFrame: {_ctx.LastFrame}");
 
+            var isGatewayRemote = _ctx.Plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && _ctx.Plan.UseGatewayTransport;
+            if (isGatewayRemote)
+            {
+                GUILayout.Label("GatewayRemote: Join/Leave/CreateWorld are not wired.");
+            }
+
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Connect")) _ctx.Session.Connect();
             if (GUILayout.Button("Disconnect")) _ctx.Session.Disconnect();
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
+            GUI.enabled = !isGatewayRemote;
             if (GUILayout.Button("Join"))
             {
                 _ctx.Session.Join(new JoinWorldRequest(new AbilityKit.Ability.World.Abstractions.WorldId(_ctx.Plan.WorldId), new PlayerId(_ctx.Plan.PlayerId)));
@@ -53,6 +60,7 @@ namespace AbilityKit.Game.Flow
             {
                 _ctx.Session.Leave(new LeaveWorldRequest(new AbilityKit.Ability.World.Abstractions.WorldId(_ctx.Plan.WorldId), new PlayerId(_ctx.Plan.PlayerId)));
             }
+            GUI.enabled = true;
             GUILayout.EndHorizontal();
 
             if (GUILayout.Button("Exit Battle", GUILayout.Height(26)))

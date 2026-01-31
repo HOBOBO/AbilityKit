@@ -20,15 +20,43 @@ MonoBehaviour:
     AutoCreateWorld: 1
     AutoJoin: 1
     AutoReady: 1
+    SyncMode: 0
+    ViewEventSourceMode: 0
+    EnableInputRecording: 0
+    InputRecordOutputPath: battle_record.json
+    EnableInputReplay: 0
+    InputReplayPath: battle_record.json
+  Profile:
+    Host:
+      Mode: 1
+    Client:
+      ClientId: battle_client
+      AutoConnect: 1
+    World:
+      SelectedWorldIndex: 0
+      Worlds:
+      - WorldId: room_1
+        WorldType: battle
+      AutoCreateWorld: 1
+      AutoJoin: 1
+      AutoReady: 1
+    RunMode:
+      Mode: 0
+      RecordOutputPath: battle_record.json
+      ReplayInputPath: battle_record.json
+    SyncMode: 0
+    ViewEventSourceMode: 0
   EnterGame:
     MapId: 1
     RandomSeed: 12345
     TickRate: 30
     InputDelayFrames: 2
+    OpCode: 0
+    PayloadBase64: 
   Players:
-    LocalPlayerId: p1
+    LocalPlayerId: 1
     Team1Players:
-    - PlayerId: p1
+    - PlayerId: 1
       TeamId: 1
       MainType: 1
       UnitSubType: 1
@@ -40,7 +68,7 @@ MonoBehaviour:
       SpawnIndex: 0
       SpawnPosition: {x: 0, y: 0, z: 0}
     Team2Players:
-    - PlayerId: p2
+    - PlayerId: 2
       TeamId: 2
       MainType: 1
       UnitSubType: 1
@@ -51,3 +79,16 @@ MonoBehaviour:
       SkillIds: 11270000
       SpawnIndex: 0
       SpawnPosition: {x: 6, y: 0, z: 0}
+  Gateway:
+    UseGatewayTransport: 1
+    Host: 127.0.0.1
+    Port: 4000
+    NumericRoomId: 10001
+    SessionToken: 
+    Region: dev
+    ServerId: local
+    AutoCreateRoom: 1
+    AutoJoinRoom: 1
+    JoinRoomId: 10001
+    CreateRoomOpCode: 110
+    JoinRoomOpCode: 111
