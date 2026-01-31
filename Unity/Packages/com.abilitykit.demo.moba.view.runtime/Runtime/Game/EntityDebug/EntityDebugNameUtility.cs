@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using AbilityKit.Ability.Share.Common.Log;
 using UnityEngine;
 using EC = AbilityKit.Ability.EC;
 
@@ -56,8 +57,9 @@ namespace AbilityKit.Game.EntityDebug
                     return p.GetValue(obj) as string;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[EntityDebugNameUtility] TryGetStringMember failed");
             }
 
             return null;

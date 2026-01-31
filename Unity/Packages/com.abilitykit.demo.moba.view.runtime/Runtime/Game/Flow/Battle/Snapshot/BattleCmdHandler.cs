@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Common.SnapshotRouting;
 using AbilityKit.Game.Flow;
 
@@ -26,8 +27,9 @@ namespace AbilityKit.Game.Flow.Snapshot
                 {
                     kv.Value?.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex);
                 }
             }
             _subscriptions.Clear();

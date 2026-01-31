@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.Host.Transport;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.DI;
 
 namespace AbilityKit.Ability.Host.Extensions.FrameSync
 {
@@ -101,7 +104,11 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         public bool SubmitInput(ServerClientId clientId, WorldId worldId, PlayerInputCommand input)
         {
             if (_runtime == null) return false;
-            if (!_sessions.TryGetValue(worldId, out var session)) return false;
+            if (!_sessions.TryGetValue(worldId, out var session))
+            {
+                Log.Error($"[FrameSyncDriverModule] SubmitInput rejected: session not found. worldId={worldId}, clientId={clientId.Value}, opCode={input.OpCode}");
+                return false;
+            }
 
             session.PendingInputs.Add(input);
             return true;
@@ -150,15 +157,30 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     }
                 }
 
-                if (world.Services != null && world.Services.TryResolve<IWorldInputSink>(out var sink) && sink != null)
+                if (world.Services == null)
+                {
+                    Log.Error($"[FrameSyncDriverModule] world.Services is null; skipping sink.Submit. worldId={worldId}");
+                }
+                else if (world.Services.TryResolve<AbilityKit.Ability.Host.IWorldInputSink>(out var sink) && sink != null)
                 {
                     sink.Submit(nextFrame, inputs);
+                }
+                else
+                {
+                    if (world.Services is IWorldServiceContainer c)
+                    {
+                        Log.Error($"[FrameSyncDriverModule] IWorldInputSink resolve failed; registered={c.IsRegistered(typeof(AbilityKit.Ability.Host.IWorldInputSink))}. worldId={worldId}");
+                    }
+                    else
+                    {
+                        Log.Error($"[FrameSyncDriverModule] IWorldInputSink resolve failed. worldId={worldId}, servicesType={world.Services.GetType().FullName}");
+                    }
                 }
 
                 world.Tick(deltaTime);
 
                 WorldStateSnapshot? state = null;
-                if (world.Services != null && world.Services.TryResolve<IWorldStateSnapshotProvider>(out var provider) && provider != null)
+                if (world.Services != null && world.Services.TryResolve<AbilityKit.Ability.Host.IWorldStateSnapshotProvider>(out var provider) && provider != null)
                 {
                     if (provider.TryGetSnapshot(nextFrame, out var snapshot))
                     {

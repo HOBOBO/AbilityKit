@@ -275,8 +275,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                 {
                     l.Sub?.Unsubscribe();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, $"[MobaPassiveSkillTriggerRegisterSystem] unsubscribe obsolete passive listener failed (passiveSkillId={l.PassiveSkillId}, triggerId={l.TriggerId})");
                 }
                 l.Sub = null;
 
@@ -292,16 +293,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                     {
                         _actionRunner?.CancelByOwnerKey(k);
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, $"[MobaPassiveSkillTriggerRegisterSystem] CancelByOwnerKey failed (ownerKey={k})");
                     }
 
                     try
                     {
                         _effectSource?.End(k, frame, EffectSourceEndReason.Cancelled);
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, $"[MobaPassiveSkillTriggerRegisterSystem] EffectSource.End failed (ownerKey={k}, frame={frame})");
                     }
                 }
             }
@@ -331,8 +334,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                 {
                     l.Sub?.Unsubscribe();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, $"[MobaPassiveSkillTriggerRegisterSystem] unsubscribe passive listener failed (passiveSkillId={l.PassiveSkillId}, triggerId={l.TriggerId})");
                 }
 
                 l.Sub = null;
@@ -348,16 +352,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                     {
                         _actionRunner?.CancelByOwnerKey(key);
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, $"[MobaPassiveSkillTriggerRegisterSystem] CancelByOwnerKey failed (ownerKey={key})");
                     }
 
                     try
                     {
                         _effectSource?.End(key, frame, EffectSourceEndReason.Cancelled);
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, $"[MobaPassiveSkillTriggerRegisterSystem] EffectSource.End failed (ownerKey={key}, frame={frame})");
                     }
                 }
             }

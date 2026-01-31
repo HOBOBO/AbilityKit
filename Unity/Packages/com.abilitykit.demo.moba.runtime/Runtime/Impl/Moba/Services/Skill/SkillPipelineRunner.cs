@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability;
-using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Ability.Impl.Moba.EffectSource;
+using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Triggering.Runtime;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -203,8 +208,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 rootId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[SkillPipelineRunner] read TriggerContext.SourceContextId failed");
                 rootId = 0L;
             }
 
@@ -215,8 +221,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 effectSource = entry.Request.WorldServices != null ? entry.Request.WorldServices.Resolve<EffectSourceRegistry>() : null;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[SkillPipelineRunner] resolve EffectSourceRegistry failed");
                 effectSource = null;
             }
 
@@ -228,8 +235,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 var ft = entry.Request.WorldServices != null ? entry.Request.WorldServices.Resolve<IFrameTime>() : null;
                 frame = ft != null ? ft.Frame.Value : 0;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[SkillPipelineRunner] resolve/read IFrameTime failed");
                 frame = 0;
             }
 
@@ -237,8 +245,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 effectSource.End(rootId, frame, reason);
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, $"[SkillPipelineRunner] EffectSource.End failed (rootId={rootId}, frame={frame}, reason={reason})");
             }
         }
 

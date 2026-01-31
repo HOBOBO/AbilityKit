@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Share.Effect
 {
@@ -27,8 +28,9 @@ namespace AbilityKit.Ability.Share.Effect
                     args[EffectTriggering.Args.OriginContextId] = snap.ContextId;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[EffectOriginArgsHelper] FillFromRegistry failed");
             }
         }
 
@@ -46,8 +48,9 @@ namespace AbilityKit.Ability.Share.Effect
                     FillFromRegistry(args, sourceContextId, reg);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[EffectOriginArgsHelper] FillFromServices failed");
             }
         }
     }

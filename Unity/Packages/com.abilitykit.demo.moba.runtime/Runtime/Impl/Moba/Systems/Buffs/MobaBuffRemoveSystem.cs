@@ -5,6 +5,7 @@ using AbilityKit.Ability.Impl.Moba.Conponents;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
@@ -76,8 +77,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                             _actionRunner?.CancelByOwnerKey(b.SourceContextId);
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, $"[MobaBuffRemoveSystem] CancelByOwnerKey failed (buffId={b.BuffId}, sourceContextId={b.SourceContextId})");
                     }
 
                     try
@@ -89,8 +91,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                             _effectSource?.End(b.SourceContextId, GetFrame(), reason);
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, $"[MobaBuffRemoveSystem] EffectSource.End failed (buffId={b.BuffId}, sourceContextId={b.SourceContextId})");
                     }
 
                     if (_configs != null)
@@ -118,8 +121,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                                 {
                                     l.Sub?.Unsubscribe();
                                 }
-                                catch
+                                catch (Exception ex)
                                 {
+                                    Log.Exception(ex, $"[MobaBuffRemoveSystem] unsubscribe effect listener failed (sourceContextId={l.SourceContextId})");
                                 }
                                 l.Sub = null;
                                 listeners.RemoveAt(k);

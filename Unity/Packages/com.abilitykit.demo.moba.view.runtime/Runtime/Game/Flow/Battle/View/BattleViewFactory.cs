@@ -1,5 +1,6 @@
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Moba.Config;
@@ -34,8 +35,9 @@ namespace AbilityKit.Game.Flow
                         prefab = Resources.Load<GameObject>(model.PrefabPath);
                     }
                 }
-                catch
+                catch (System.Exception ex)
                 {
+                    Log.Exception(ex);
                 }
             }
 
@@ -54,8 +56,9 @@ namespace AbilityKit.Game.Flow
                             go.transform.localScale = new Vector3(s, s, s);
                         }
                     }
-                    catch
+                    catch (System.Exception ex)
                     {
+                        Log.Exception(ex);
                     }
                 }
             }
@@ -89,8 +92,9 @@ namespace AbilityKit.Game.Flow
                         prefab = Resources.Load<GameObject>(model.PrefabPath);
                     }
                 }
-                catch
+                catch (System.Exception ex)
                 {
+                    Log.Exception(ex);
                 }
             }
 
@@ -153,8 +157,9 @@ namespace AbilityKit.Game.Flow
 
                 return 0;
             }
-            catch
+            catch (System.Exception ex)
             {
+                Log.Exception(ex);
                 return 0;
             }
         }
@@ -172,8 +177,9 @@ namespace AbilityKit.Game.Flow
                 var proj = configs.GetProjectile(meta.EntityCode);
                 return proj != null ? proj.VfxId : 0;
             }
-            catch
+            catch (System.Exception ex)
             {
+                Log.Exception(ex);
                 return 0;
             }
         }
@@ -184,7 +190,7 @@ namespace AbilityKit.Game.Flow
             var configs = GetOrLoadConfigs();
             if (configs == null) return null;
             try { return configs.GetProjectile(templateId); }
-            catch { return null; }
+            catch (System.Exception ex) { Log.Exception(ex); return null; }
         }
 
         public static AoeMO TryGetAoe(int templateId)
@@ -193,7 +199,7 @@ namespace AbilityKit.Game.Flow
             var configs = GetOrLoadConfigs();
             if (configs == null) return null;
             try { return configs.GetAoe(templateId); }
-            catch { return null; }
+            catch (System.Exception ex) { Log.Exception(ex); return null; }
         }
     }
 }

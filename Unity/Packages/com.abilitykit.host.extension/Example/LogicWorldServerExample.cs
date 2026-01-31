@@ -9,6 +9,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Host.Examples
 {
@@ -111,16 +112,18 @@ namespace AbilityKit.Ability.Host.Examples
                 {
                     _scope?.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[LogicWorldServerExample] scope dispose failed");
                 }
 
                 try
                 {
                     _container?.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[LogicWorldServerExample] container dispose failed");
                 }
             }
         }

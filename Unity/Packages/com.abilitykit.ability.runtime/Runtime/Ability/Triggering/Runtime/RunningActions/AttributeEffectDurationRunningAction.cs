@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.Share.Common.AttributeSystem;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
@@ -54,8 +55,9 @@ namespace AbilityKit.Ability.Triggering.Runtime
             {
                 _handle.Dispose();
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[AttributeEffectDurationRunningAction] handle dispose failed");
             }
 
             _handle = null;

@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
 {
@@ -86,8 +89,9 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
                     var obj = sp.GetService(typeof(INumericRpnFunctionRegistry));
                     if (obj is INumericRpnFunctionRegistry registry) return registry;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[NumericExpressionEvaluator] resolve INumericRpnFunctionRegistry failed");
                 }
             }
 

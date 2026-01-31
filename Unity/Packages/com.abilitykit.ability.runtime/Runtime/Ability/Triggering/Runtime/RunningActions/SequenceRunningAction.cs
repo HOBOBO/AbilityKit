@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Common.Pool;
 
 namespace AbilityKit.Ability.Triggering.Runtime
@@ -97,8 +98,9 @@ namespace AbilityKit.Ability.Triggering.Runtime
             {
                 a.Dispose();
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[SequenceRunningAction] step dispose failed");
             }
         }
     }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Eventing;
 
@@ -63,8 +64,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     {
                         list[i]?.Dispose();
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, $"[BattleTriggersService] strong sub dispose failed (ownerKind={owner.GetHashCode()})");
                     }
                 }
             }
@@ -78,8 +80,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     {
                         list2[i]?.Unsubscribe();
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, $"[BattleTriggersService] legacy sub unsubscribe failed (ownerKind={owner.GetHashCode()})");
                     }
                 }
             }

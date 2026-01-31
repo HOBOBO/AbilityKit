@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
@@ -146,7 +147,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             _registry.Register(actorId, entity);
             try { _entities.TryRegisterFromEntity(entity); }
-            catch { }
+            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] TryRegisterFromEntity failed (summonId={summonId}, actorId={actorId}, casterActorId={casterActorId})"); }
 
             TrackSummon(rootOwner, actorId, summon.MaxAlivePerOwner, summon.OverflowPolicy);
 
@@ -167,7 +168,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 var id = templateIds[i];
                 if (id <= 0) continue;
                 try { _componentTemplates.TryApply(entity, id); }
-                catch { }
+                catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] TryApply component template failed (templateId={id})"); }
             }
         }
 
@@ -191,11 +192,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (e.hasSummonMeta && e.summonMeta != null) summonId = e.summonMeta.SummonId;
 
             try { e.Destroy(); }
-            catch { }
+            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] destroy summon entity failed (summonActorId={summonActorId}, summonId={summonId})"); }
 
             _registry.Unregister(summonActorId);
             try { _entities?.Unregister(summonActorId); }
-            catch { }
+            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] unregister summon failed (summonActorId={summonActorId}, summonId={summonId})"); }
 
             UntrackSummon(rootOwner, summonActorId);
 

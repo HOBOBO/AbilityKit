@@ -183,7 +183,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 if (_handlers.TryGetValue(cmd.OpCode, out var handler)) handler(cmd);
             }
 
-            _enterGame.TryStartGame(((global::Contexts)_contexts).actor);
+            if (!_lobby.Started && _lobby.CanStartGame())
+            {
+                _enterGame.TryStartGame(((global::Contexts)_contexts).actor);
+            }
         }
 
         private bool TryGetEntity(int actorId, out ActorEntity entity)

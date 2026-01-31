@@ -24,6 +24,7 @@ namespace AbilityKit.Game.Battle
         private readonly IWorldManager _worldManager;
         private readonly HostRuntime _server;
         private readonly IBattleLogicClient _client;
+        private readonly IBattleLogicTransport _transport;
 
         public ServerRollbackModule RollbackModule { get; }
 
@@ -75,11 +76,14 @@ namespace AbilityKit.Game.Battle
             {
                 if (remoteTransport == null) throw new ArgumentNullException(nameof(remoteTransport));
                 var transport = remoteTransport;
+                _transport = transport;
                 _client = BattleLogicClientFactory.CreateRemote(transport);
             }
             else
             {
-                _client = new LocalBattleLogicClient(_server, _options.ClientId);
+                var transport = new InMemoryBattleLogicTransport(_server, _options.ClientId);
+                _transport = transport;
+                _client = BattleLogicClientFactory.CreateRemote(transport);
             }
 
             if (_options.AutoConnect)
@@ -201,12 +205,18 @@ namespace AbilityKit.Game.Battle
 
         public void Tick(float deltaTime)
         {
+            if (_server != null)
+            {
+                _server.Tick(deltaTime);
+            }
+
             _client.Tick(deltaTime);
         }
 
         public void Dispose()
         {
             _client?.Dispose();
+            (_transport as IDisposable)?.Dispose();
             _worldManager?.DisposeAll();
         }
     }

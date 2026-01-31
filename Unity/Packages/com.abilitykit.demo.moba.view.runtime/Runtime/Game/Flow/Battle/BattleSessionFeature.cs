@@ -1,10 +1,12 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Impl.Moba.Systems;
+using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Game.Battle;
@@ -16,8 +18,6 @@ using AbilityKit.Ability.Share.Common.Record.Lockstep;
 using AbilityKit.Game.Flow.Battle.Replay;
 using AbilityKit.Game.Battle.Transport;
 using UnityEngine;
-using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
-using AbilityKit.Ability.Impl.Moba.Systems;
 
 namespace AbilityKit.Game.Flow
 {
@@ -45,6 +45,9 @@ namespace AbilityKit.Game.Flow
         private float _tickAcc;
 
         private bool _firstFrameReceived;
+
+        private bool _tickEnteredLogged;
+        private bool _autoPlanLogged;
 
         public event Action SessionStarted;
         public event Action FirstFrameReceived;
@@ -95,6 +98,11 @@ namespace AbilityKit.Game.Flow
         {
             if (_session == null) return;
 
+            if (!_tickEnteredLogged)
+            {
+                _tickEnteredLogged = true;
+            }
+
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (_replay != null)
             {
@@ -139,9 +147,12 @@ namespace AbilityKit.Game.Flow
 
             var syncMode = _plan.SyncMode;
 
-            var logicMode = syncMode == BattleSyncMode.SnapshotAuthority
-                ? BattleLogicMode.Remote
-                : BattleLogicMode.Local;
+            var runMode = _plan.RunMode;
+            if (_plan.EnableInputReplay) runMode = BattleStartConfig.BattleRunMode.Replay;
+            else if (_plan.EnableInputRecording) runMode = BattleStartConfig.BattleRunMode.Record;
+
+            var logicMode = syncMode == BattleSyncMode.SnapshotAuthority ? BattleLogicMode.Remote : BattleLogicMode.Local;
+            if (_plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote) logicMode = BattleLogicMode.Remote;
 
             var opts = new BattleLogicSessionOptions
             {
@@ -163,7 +174,7 @@ namespace AbilityKit.Game.Flow
                 NamespacePrefixes = new[] { "AbilityKit" }
             };
 
-            if (_plan.EnableInputReplay)
+            if (runMode == BattleStartConfig.BattleRunMode.Replay)
             {
                 opts.EnableRollback = true;
                 opts.RollbackHistoryFrames = 1200;
@@ -176,7 +187,6 @@ namespace AbilityKit.Game.Flow
 
                 if (_plan.UseGatewayTransport)
                 {
-                    Debug.LogWarning($"Gateway transport is selected but no concrete ITransport adapter is wired yet. Fallback to NullBattleLogicTransport. Host={_plan.GatewayHost}, Port={_plan.GatewayPort}");
                     transport = new NullBattleLogicTransport();
                 }
                 else
@@ -201,7 +211,7 @@ namespace AbilityKit.Game.Flow
             _tickAcc = 0f;
             _firstFrameReceived = false;
 
-            if (_plan.EnableInputReplay)
+            if (runMode == BattleStartConfig.BattleRunMode.Replay)
             {
                 var file = LockstepJsonInputRecordReader.Load(_plan.InputReplayPath);
                 _replay = new LockstepReplayDriver(new WorldId(_plan.WorldId), file);
@@ -215,7 +225,7 @@ namespace AbilityKit.Game.Flow
                 _ctx.SnapshotPipeline = _pipeline;
                 _ctx.CmdHandler = _cmdHandler;
 
-                if (_plan.EnableInputRecording)
+                if (runMode == BattleStartConfig.BattleRunMode.Record)
                 {
                     _ctx.InputRecordWriter?.Dispose();
                     _ctx.InputRecordWriter = new LockstepJsonInputRecordWriter(
@@ -245,8 +255,9 @@ namespace AbilityKit.Game.Flow
                 _snapshots?.Dispose();
                 BattleLogicSessionHost.Stop();
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex);
             }
             finally
             {
@@ -267,9 +278,20 @@ namespace AbilityKit.Game.Flow
 
         private void ApplyAutoPlanActions()
         {
-            if (_plan.AutoConnect) _session?.Connect();
+            if (!_autoPlanLogged)
+            {
+                _autoPlanLogged = true;
+            }
+
+            var isLocal = _plan.SyncMode != BattleSyncMode.SnapshotAuthority && _plan.HostMode == BattleStartConfig.BattleHostMode.Local;
+            if (isLocal) _session?.Connect();
+            else if (_plan.AutoConnect) _session?.Connect();
+
             if (_plan.AutoCreateWorld) CreateWorld();
-            if (_plan.AutoJoin) _session?.Join(new JoinWorldRequest(new WorldId(_plan.WorldId), new PlayerId(_plan.PlayerId)));
+            if (_plan.AutoJoin)
+            {
+                _session?.Join(new JoinWorldRequest(new WorldId(_plan.WorldId), new PlayerId(_plan.PlayerId)));
+            }
             if (_plan.AutoReady)
             {
                 var cmd = new PlayerInputCommand(new FrameIndex(_lastFrame + 1), new PlayerId(_plan.PlayerId), opCode: (int)MobaOpCode.Ready, payload: Array.Empty<byte>());
@@ -352,8 +374,6 @@ namespace AbilityKit.Game.Flow
                 ServiceBuilder = builder,
             };
             options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
-
-            options.Modules.Add(new MobaWorldBootstrapModule());
 
             var req = new CreateWorldRequest(options, _plan.CreateWorldOpCode, _plan.CreateWorldPayload);
             _session.CreateWorld(req);

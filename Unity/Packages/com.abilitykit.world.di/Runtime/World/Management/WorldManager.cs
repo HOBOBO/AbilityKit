@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Ability.World.Management
@@ -46,7 +47,14 @@ namespace AbilityKit.Ability.World.Management
         {
             foreach (var kv in _worlds)
             {
-                kv.Value.Tick(deltaTime);
+                try
+                {
+                    kv.Value.Tick(deltaTime);
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, $"[WorldManager] World.Tick failed: worldId={kv.Key}");
+                }
             }
         }
 

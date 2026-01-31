@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.World.DI
 {
@@ -226,8 +227,9 @@ namespace AbilityKit.Ability.World.DI
                 {
                     if (_singletonDisposeOrder[i] is IDisposable d) d.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[WorldContainer] singleton dispose failed");
                 }
             }
 

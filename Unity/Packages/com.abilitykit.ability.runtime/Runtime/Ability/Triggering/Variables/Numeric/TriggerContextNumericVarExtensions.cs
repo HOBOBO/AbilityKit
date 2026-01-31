@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Triggering.Variables.Numeric
 {
@@ -47,8 +48,9 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric
                     var obj = sp.GetService(typeof(INumericVarDomainRegistry));
                     if (obj is INumericVarDomainRegistry registry) return registry;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[TriggerContextNumericVarExtensions] resolve INumericVarDomainRegistry failed");
                 }
             }
 

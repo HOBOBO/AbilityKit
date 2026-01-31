@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
@@ -129,8 +130,9 @@ namespace AbilityKit.Ability.Triggering.Runtime
             {
                 action.Dispose();
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[TriggerActionRunner] action dispose failed");
             }
         }
     }

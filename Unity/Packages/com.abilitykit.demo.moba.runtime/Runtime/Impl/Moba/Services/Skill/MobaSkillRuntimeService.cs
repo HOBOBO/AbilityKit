@@ -10,6 +10,7 @@ using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -91,7 +92,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             var frame = 0;
             try { frame = _time != null ? _time.Frame.Value : 0; }
-            catch { frame = 0; }
+            catch (Exception ex) { Log.Exception(ex, "[MobaSkillRuntimeService] read frame failed"); frame = 0; }
 
             var sourceContextId = 0L;
             EffectSourceRegistry.EffectSourceScope effectScope = default;
@@ -112,8 +113,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     sourceContextId = effectScope.ContextId;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[MobaSkillRuntimeService] begin effect source scope failed");
                 sourceContextId = 0;
             }
 
@@ -161,8 +163,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 {
                     effectScope.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[MobaSkillRuntimeService] effectScope dispose failed");
                 }
             }
             return true;

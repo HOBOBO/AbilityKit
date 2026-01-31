@@ -2,6 +2,7 @@ using System;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.World.Entitas
 {
@@ -55,11 +56,11 @@ namespace AbilityKit.Ability.World.Entitas
             catch
             {
                 try { _scope?.Dispose(); }
-                catch { }
+                catch (Exception ex) { Log.Exception(ex); }
                 _scope = null;
 
                 try { _container?.Dispose(); }
-                catch { }
+                catch (Exception ex) { Log.Exception(ex); }
                 _container = null;
 
                 _initialized = false;
@@ -89,8 +90,9 @@ namespace AbilityKit.Ability.World.Entitas
             {
                 Systems.TearDown();
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex);
             }
 
             _scope?.Dispose();
@@ -100,7 +102,7 @@ namespace AbilityKit.Ability.World.Entitas
             _container = null;
 
             try { _contextsFactory?.Release(_contexts); }
-            catch { }
+            catch (Exception ex) { Log.Exception(ex); }
             _contexts = null;
         }
     }

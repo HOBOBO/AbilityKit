@@ -10,6 +10,19 @@ namespace AbilityKit.Game.Flow
     [CreateAssetMenu(menuName = "AbilityKit/Game/Battle Start Config", fileName = "BattleStartConfig")]
     public sealed class BattleStartConfig : ScriptableObject
     {
+        public enum BattleRunMode
+        {
+            Normal = 0,
+            Record = 1,
+            Replay = 2,
+        }
+
+        public enum BattleHostMode
+        {
+            Local = 0,
+            GatewayRemote = 1,
+        }
+
         [System.Serializable]
         public sealed class BattleStartPlanConfig
         {
@@ -34,12 +47,58 @@ namespace AbilityKit.Game.Flow
         }
 
         [System.Serializable]
+        public sealed class BattleWorldPlanConfig
+        {
+            public string WorldId = "room_1";
+            public string WorldType = "battle";
+        }
+
+        [System.Serializable]
+        public sealed class HostConfig
+        {
+            public BattleHostMode Mode = BattleHostMode.Local;
+        }
+
+        [System.Serializable]
+        public sealed class ClientPlanConfig
+        {
+            public string ClientId = "battle_client";
+            public bool AutoConnect = true;
+        }
+
+        [System.Serializable]
+        public sealed class WorldLifecyclePlanConfig
+        {
+            public int SelectedWorldIndex = 0;
+            public List<BattleWorldPlanConfig> Worlds = new List<BattleWorldPlanConfig>
+            {
+                new BattleWorldPlanConfig { WorldId = "room_1", WorldType = "battle" }
+            };
+
+            public bool AutoCreateWorld = true;
+            public bool AutoJoin = true;
+            public bool AutoReady = true;
+        }
+
+        [System.Serializable]
+        public sealed class RunModeConfig
+        {
+            public BattleRunMode Mode = BattleRunMode.Normal;
+
+            public string RecordOutputPath = "battle_record.json";
+            public string ReplayInputPath = "battle_record.json";
+        }
+
+        [System.Serializable]
         public sealed class EnterGameConfig
         {
             public int MapId = 1;
             public int RandomSeed = 12345;
             public int TickRate = 30;
             public int InputDelayFrames = 2;
+
+            public int OpCode = 0;
+            public string PayloadBase64;
         }
 
         [System.Serializable]
@@ -74,8 +133,23 @@ namespace AbilityKit.Game.Flow
             public int Port = 4000;
         }
 
+        [System.Serializable]
+        public sealed class BattleStartProfileConfig
+        {
+            public HostConfig Host = new HostConfig();
+            public ClientPlanConfig Client = new ClientPlanConfig();
+            public WorldLifecyclePlanConfig World = new WorldLifecyclePlanConfig();
+            public RunModeConfig RunMode = new RunModeConfig();
+
+            public BattleSyncMode SyncMode = BattleSyncMode.Lockstep;
+            public BattleViewEventSourceMode ViewEventSourceMode = BattleViewEventSourceMode.SnapshotOnly;
+        }
+
         [Header("Battle Start Plan")]
         public BattleStartPlanConfig StartPlan = new BattleStartPlanConfig();
+
+        [Header("Battle Start Profile")]
+        public BattleStartProfileConfig Profile = new BattleStartProfileConfig();
 
         [Header("Enter Game")]
         public EnterGameConfig EnterGame = new EnterGameConfig();
@@ -86,20 +160,73 @@ namespace AbilityKit.Game.Flow
         [Header("Gateway")]
         public GatewayConfig Gateway = new GatewayConfig();
 
+        public bool TryGetSelectedWorldPlan(out BattleWorldPlanConfig world)
+        {
+            world = null;
+
+            var plans = Profile?.World?.Worlds;
+            if (plans == null || plans.Count == 0) return false;
+
+            var idx = Profile.World.SelectedWorldIndex;
+            if (idx < 0) idx = 0;
+            if (idx >= plans.Count) idx = plans.Count - 1;
+
+            world = plans[idx];
+            return world != null;
+        }
+
+        public bool TryBuildCreateWorldPayload(out int opCode, out byte[] payload)
+        {
+            opCode = 0;
+            payload = null;
+
+            var cfg = EnterGame;
+            if (cfg == null) return false;
+
+            opCode = cfg.OpCode;
+
+            if (string.IsNullOrEmpty(cfg.PayloadBase64))
+            {
+                payload = null;
+                return true;
+            }
+
+            try
+            {
+                payload = Convert.FromBase64String(cfg.PayloadBase64);
+                return true;
+            }
+            catch
+            {
+                payload = null;
+                return false;
+            }
+        }
+
         public EnterMobaGameReq BuildEnterMobaGameReq()
         {
             var playerId = Players != null && !string.IsNullOrEmpty(Players.LocalPlayerId) ? Players.LocalPlayerId : "p1";
             var loadouts = BuildPlayersLoadout(Players);
 
+            var matchId = StartPlan != null ? StartPlan.WorldId : "room_1";
+            if (TryGetSelectedWorldPlan(out var world) && !string.IsNullOrEmpty(world.WorldId))
+            {
+                matchId = world.WorldId;
+            }
+
+            var opCode = EnterGame != null ? EnterGame.OpCode : 0;
+            byte[] payload = null;
+            TryBuildCreateWorldPayload(out _, out payload);
+
             return new EnterMobaGameReq(
                 playerId: new PlayerId(playerId),
-                matchId: StartPlan != null ? StartPlan.WorldId : "room_1",
+                matchId: matchId,
                 mapId: EnterGame != null ? EnterGame.MapId : 1,
                 randomSeed: EnterGame != null ? EnterGame.RandomSeed : 12345,
                 tickRate: EnterGame != null ? EnterGame.TickRate : 30,
                 inputDelayFrames: EnterGame != null ? EnterGame.InputDelayFrames : 2,
-                opCode: 0,
-                payload: null,
+                opCode: opCode,
+                payload: payload,
                 players: loadouts
             );
         }

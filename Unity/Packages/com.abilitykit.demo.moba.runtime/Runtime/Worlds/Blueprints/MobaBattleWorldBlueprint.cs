@@ -22,7 +22,17 @@ namespace AbilityKit.Ability.Impl.Moba.Worlds.Blueprints
 
             options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
 
-            options.Modules.Add(new MobaWorldBootstrapModule());
+            var hasBootstrap = false;
+            for (int i = 0; i < options.Modules.Count; i++)
+            {
+                if (options.Modules[i] != null && options.Modules[i].GetType() == typeof(MobaWorldBootstrapModule))
+                {
+                    hasBootstrap = true;
+                    break;
+                }
+            }
+
+            if (!hasBootstrap) options.Modules.Add(new MobaWorldBootstrapModule());
         }
     }
 }

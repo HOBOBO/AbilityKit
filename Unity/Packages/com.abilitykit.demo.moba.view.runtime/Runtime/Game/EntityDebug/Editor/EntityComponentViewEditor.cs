@@ -1,6 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.EC;
 using AbilityKit.Game.EntityDebug;
 using UnityEditor;
@@ -129,8 +132,9 @@ namespace AbilityKit.Game.EntityDebug.Editor
             {
                 set();
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[EntityComponentViewEditor] SafeSet failed");
             }
         }
 

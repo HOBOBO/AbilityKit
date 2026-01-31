@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host.Transport;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Management;
 
@@ -84,18 +85,25 @@ namespace AbilityKit.Ability.Host.Framework
 
         public void Tick(float deltaTime)
         {
-            if (_options != null)
+            try
             {
-                _options.PreTick.Invoke(deltaTime);
-                _options.OnPreTick?.Invoke(deltaTime);
+                if (_options != null)
+                {
+                    _options.PreTick.Invoke(deltaTime);
+                    _options.OnPreTick?.Invoke(deltaTime);
+                }
+
+                _worlds.Tick(deltaTime);
+
+                if (_options != null)
+                {
+                    _options.PostTick.Invoke(deltaTime);
+                    _options.OnPostTick?.Invoke(deltaTime);
+                }
             }
-
-            _worlds.Tick(deltaTime);
-
-            if (_options != null)
+            catch (Exception ex)
             {
-                _options.PostTick.Invoke(deltaTime);
-                _options.OnPostTick?.Invoke(deltaTime);
+                Log.Exception(ex, "[HostRuntime] Tick failed");
             }
         }
 
@@ -104,7 +112,14 @@ namespace AbilityKit.Ability.Host.Framework
             if (message == null) throw new ArgumentNullException(nameof(message));
             foreach (var c in _clients.Values)
             {
-                SendTo(c, message);
+                try
+                {
+                    SendTo(c, message);
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, $"[HostRuntime] Broadcast SendTo failed: clientId={c.ClientId.Value} messageType={message.GetType().Name}");
+                }
             }
         }
 
@@ -119,7 +134,14 @@ namespace AbilityKit.Ability.Host.Framework
                 _options.OnBeforeSendMessage?.Invoke(connection.ClientId, message);
             }
 
-            connection.Send(message);
+            try
+            {
+                connection.Send(message);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, $"[HostRuntime] Connection.Send failed: clientId={connection.ClientId.Value} messageType={message.GetType().Name}");
+            }
 
             if (_options != null)
             {

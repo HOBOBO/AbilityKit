@@ -3,6 +3,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Impl.Moba;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;
@@ -52,13 +53,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                 if (_projectiles != null && plc.ScheduleId > 0)
                 {
                     try { _projectiles.CancelSchedule(new ProjectileScheduleId(plc.ScheduleId)); }
-                    catch { }
+                    catch (System.Exception ex) { Log.Exception(ex, $"[MobaProjectileLauncherCleanupSystem] CancelSchedule failed (scheduleId={plc.ScheduleId})"); }
                 }
 
                 _registry.Unregister(e.actorId.Value);
 
                 try { e.Destroy(); }
-                catch { }
+                catch (System.Exception ex) { Log.Exception(ex, "[MobaProjectileLauncherCleanupSystem] destroy launcher entity failed"); }
             }
         }
 

@@ -1,16 +1,17 @@
 using System;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Requests;
 
 namespace AbilityKit.Game.Battle
 {
-    public sealed class RemoteBattleLogicClient : IBattleLogicClient
+    public sealed class BattleLogicTransportClient : IBattleLogicClient
     {
         private readonly IBattleLogicTransport _transport;
         private WorldId _worldId;
 
-        public RemoteBattleLogicClient(IBattleLogicTransport transport)
+        public BattleLogicTransportClient(IBattleLogicTransport transport)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _transport.FramePushed += OnFramePushed;

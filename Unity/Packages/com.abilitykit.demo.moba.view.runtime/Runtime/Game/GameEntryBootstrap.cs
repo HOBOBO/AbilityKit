@@ -41,8 +41,9 @@ namespace AbilityKit.Game
                 if (sink == null) return;
                 Log.SetSink(sink);
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex);
             }
         }
 

@@ -93,8 +93,9 @@ namespace AbilityKit.Ability.Impl.Triggering.DamageActions
                     var decay = decayObj is float df ? df : decayObj is double dd ? (float)dd : Convert.ToSingle(decayObj);
                     if (decay > 0f) baseValue *= decay;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[TakeDamageExecutor] parse projectile hit decay failed");
                 }
             }
 

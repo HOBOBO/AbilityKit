@@ -1,20 +1,23 @@
 using System;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.Move;
+using AbilityKit.Ability.Host.Framework;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
-using AbilityKit.Ability.Impl.Moba.Util.Generator;
-using AbilityKit.Ability.Share.Common.Projectile;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
+using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Triggering.Json;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.Share.ECS.Entitas;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.Share.Common.Projectile;
+using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.World.Entitas;
-using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
-using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
+using AbilityKit.Ability.Impl.Moba.Util.Generator;
+using AbilityKit.Ability.Share.Impl.Moba.Move;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 {
@@ -219,7 +222,9 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             {
                 var loader = _.Resolve<ITextLoader>();
                 var s = new MobaTriggerIndexService(loader);
+                Log.Info("[MobaWorldBootstrapModule] MobaTriggerIndexService.LoadFromResources begin");
                 s.LoadFromResources();
+                Log.Info("[MobaWorldBootstrapModule] MobaTriggerIndexService.LoadFromResources end");
                 return s;
             });
             builder.RegisterService<MobaEffectExecutionService, MobaEffectExecutionService>();
@@ -236,6 +241,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
 
         public void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldResolver services)
         {
+            Log.Info("[MobaWorldBootstrapModule] Install: begin");
             if (contexts == null) throw new ArgumentNullException(nameof(contexts));
             if (systems == null) throw new ArgumentNullException(nameof(systems));
             if (services == null) throw new ArgumentNullException(nameof(services));
@@ -252,8 +258,20 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 }
             );
 
-            if (!services.TryResolve<WorldInitData>(out var init) || init.Payload == null || init.Payload.Length == 0)
+            Log.Info("[MobaWorldBootstrapModule] Install: AutoSystemInstaller.Install done");
+
+            if (!services.TryResolve<WorldInitData>(out var init))
             {
+                Log.Info("[MobaWorldBootstrapModule] Install: WorldInitData not found; skip SetEnterGameReq");
+                return;
+            }
+
+            var payloadLen = init.Payload != null ? init.Payload.Length : 0;
+            Log.Info($"[MobaWorldBootstrapModule] Install: WorldInitData found. opCode={init.OpCode}, payloadLen={payloadLen}");
+
+            if (payloadLen == 0)
+            {
+                Log.Info("[MobaWorldBootstrapModule] Install: WorldInitData payload is empty; skip SetEnterGameReq");
                 return;
             }
 
@@ -262,6 +280,11 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             if (services.TryResolve<MobaLobbyStateService>(out var lobby2) && lobby2 != null)
             {
                 lobby2.SetEnterGameReq(req);
+                Log.Info("[MobaWorldBootstrapModule] Install: SetEnterGameReq success");
+            }
+            else
+            {
+                Log.Info("[MobaWorldBootstrapModule] Install: MobaLobbyStateService not found; cannot SetEnterGameReq");
             }
         }
     }

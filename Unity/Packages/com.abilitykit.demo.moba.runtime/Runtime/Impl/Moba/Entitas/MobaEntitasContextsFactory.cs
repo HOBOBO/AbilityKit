@@ -1,4 +1,5 @@
 using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters
 {
@@ -15,8 +16,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters
             {
                 (contexts as global::Contexts)?.Reset();
             }
-            catch
+            catch (System.Exception ex)
             {
+                Log.Exception(ex, "[MobaEntitasContextsFactory] contexts reset failed");
             }
         }
     }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Common.Pool;
 
 namespace AbilityKit.Ability.Triggering
@@ -134,8 +135,9 @@ namespace AbilityKit.Ability.Triggering
                         return _globalVars;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[TriggerContext] resolve IVarStore failed");
                 }
             }
 

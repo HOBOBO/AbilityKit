@@ -86,8 +86,9 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
             {
                 EffectSourceLiveRegistry.Register(this);
             }
-            catch
+            catch (Exception ex)
             {
+                AbilityKit.Ability.Share.Common.Log.Log.Exception(ex, "[EffectSourceRegistry] EffectSourceLiveRegistry.Register failed");
             }
 #endif
         }
@@ -750,8 +751,9 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
             {
                 EffectSourceLiveRegistry.Unregister(this);
             }
-            catch
+            catch (Exception ex)
             {
+                AbilityKit.Ability.Share.Common.Log.Log.Exception(ex, "[EffectSourceRegistry] EffectSourceLiveRegistry.Unregister failed");
             }
 #endif
             _contexts.Clear();

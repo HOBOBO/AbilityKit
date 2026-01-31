@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Flow;
 using AbilityKit.Ability.EC;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Game;
 using UnityEngine;
 using UnityHFSM;
@@ -80,11 +81,25 @@ namespace AbilityKit.Game.Flow
 
         public void Tick(float deltaTime)
         {
-            _runner.Step(deltaTime);
+            try
+            {
+                _runner.Step(deltaTime);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[GameFlowDomain] HFSM Step failed");
+            }
 
             for (int i = 0; i < _features.Count; i++)
             {
-                _features[i].Tick(_ctx, deltaTime);
+                try
+                {
+                    _features[i].Tick(_ctx, deltaTime);
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, $"[GameFlowDomain] Feature.Tick failed: feature={_features[i]?.GetType().FullName}");
+                }
             }
         }
 

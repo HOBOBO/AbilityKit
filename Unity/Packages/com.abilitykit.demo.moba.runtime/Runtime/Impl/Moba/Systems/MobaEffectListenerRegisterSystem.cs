@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba.Conponents;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
@@ -140,8 +141,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                 l.Sub = null;
                 sub.Unsubscribe();
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, $"[MobaEffectListenerRegisterSystem] unsubscribe failed (eventId={l.EventId}, effectId={l.ExecuteEffectId})");
             }
         }
 

@@ -8,6 +8,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
 using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.Share.Impl.Moba;
@@ -87,7 +88,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 
             // Optional: register immediately, otherwise MobaEntityManagerSyncSystem will pick it up next tick.
             try { _entities?.TryRegisterFromEntity(bullet); }
-            catch { }
+            catch (Exception ex) { Log.Exception(ex, "[MobaProjectileService] TryRegisterFromEntity failed"); }
 
             var ignore = default(ColliderId);
             if (caster.hasCollisionId) ignore = caster.collisionId.Value;
@@ -160,8 +161,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[MobaProjectileService] ShouldHit resolve collider->entity failed");
                     return true;
                 }
 
@@ -305,7 +307,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 
             _registry.Register(launcherActorId, launcherEntity);
             try { _entities.TryRegisterFromEntity(launcherEntity); }
-            catch { }
+            catch (Exception ex) { AbilityKit.Ability.Share.Common.Log.Log.Exception(ex, "[MobaProjectileService] TryRegisterFromEntity failed (launcher)"); }
 
             var hitCooldownFrames = 0;
             if (projectile.HitCooldownMs > 0)

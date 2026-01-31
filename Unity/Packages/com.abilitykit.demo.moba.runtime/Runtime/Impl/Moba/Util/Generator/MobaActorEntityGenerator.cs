@@ -1,13 +1,18 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
-using AbilityKit.Ability.Impl.Moba.Attributes;
-using AbilityKit.Ability.Impl.Moba.Conponents;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Common.AttributeSystem;
-using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.Impl.Moba.Conponents;
+using AbilityKit.Ability.Impl.Moba.Attributes;
+using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using UnityEngine;
 using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.World.DI;
+using UnityEngine;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Impl.Moba.Util.Generator
@@ -198,8 +203,9 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
                     entity.AddSkillLoadout(activeSkills, passiveSkills);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[MobaActorEntityGenerator] InitializeSkillLoadout failed");
             }
         }
 

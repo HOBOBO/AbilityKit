@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Impl.Moba.Util.Generator;
@@ -58,11 +59,29 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public bool TryStartGame(ActorContext actorContext)
         {
             if (actorContext == null) throw new ArgumentNullException(nameof(actorContext));
-            if (_lobby.Started) return false;
-            if (!_lobby.CanStartGame()) return false;
-            if (!_lobby.TryMarkStarted()) return false;
+            if (_lobby.Started)
+            {
+                Log.Info("[MobaEnterGameFlowService] TryStartGame: already started");
+                return false;
+            }
+            if (!_lobby.CanStartGame())
+            {
+                Log.Info($"[MobaEnterGameFlowService] TryStartGame: CanStartGame=false (playerCount={_lobby.PlayerCount}, allReady={_lobby.AllReady})");
+                return false;
+            }
+            if (!_lobby.TryMarkStarted())
+            {
+                Log.Info("[MobaEnterGameFlowService] TryStartGame: TryMarkStarted failed");
+                return false;
+            }
 
-            if (!_lobby.TryGetEnterGameReq(out var req)) return false;
+            if (!_lobby.TryGetEnterGameReq(out var req))
+            {
+                Log.Info("[MobaEnterGameFlowService] TryStartGame: EnterGameReq not found");
+                return false;
+            }
+
+            Log.Info($"[MobaEnterGameFlowService] TryStartGame: begin (players={(req.Players != null ? req.Players.Length : 0)}, playerId={req.PlayerId.Value})");
 
             var spawnEntries = new System.Collections.Generic.List<MobaActorSpawnSnapshotCodec.Entry>(req.Players != null ? req.Players.Length : 4);
 
@@ -92,10 +111,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                                 z: loadout.SpawnZ));
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, "[MobaEnterGameFlowService] build spawn entry failed");
                     }
                 });
+
+            Log.Info($"[MobaEnterGameFlowService] TryStartGame: BuildEnterGameActors done (localActorId={built.LocalActorId})");
 
             _playerActorMap.Bind(req.PlayerId, built.LocalActorId);
 
@@ -122,8 +144,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 var payload2 = MobaActorSpawnSnapshotCodec.Serialize(spawnEntries.ToArray());
                 _spawn.PublishSpawnPayload(payload2);
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[MobaEnterGameFlowService] publish spawn payload failed");
             }
             return true;
         }

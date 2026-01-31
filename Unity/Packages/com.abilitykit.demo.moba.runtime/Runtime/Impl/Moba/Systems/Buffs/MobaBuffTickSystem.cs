@@ -12,6 +12,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Share.Impl.Moba;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
 {
@@ -86,8 +87,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                             _actionRunner?.CancelByOwnerKey(b.SourceContextId);
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, $"[MobaBuffTickSystem] CancelByOwnerKey failed (buffId={b.BuffId}, sourceContextId={b.SourceContextId})");
                     }
 
                     try
@@ -97,8 +99,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                             _effectSource?.End(b.SourceContextId, GetFrame(), EffectSourceEndReason.Expired);
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, $"[MobaBuffTickSystem] EffectSource.End failed (buffId={b.BuffId}, sourceContextId={b.SourceContextId})");
                     }
 
                     if (_configs != null)

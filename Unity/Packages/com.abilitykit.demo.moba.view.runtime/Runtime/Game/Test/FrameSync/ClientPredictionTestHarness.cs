@@ -196,7 +196,6 @@ namespace AbilityKit.Game.Test.FrameSync
                 ServiceBuilder = builder,
             };
             options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
-            options.Modules.Add(new MobaWorldBootstrapModule());
 
             return manager.Create(options);
         }

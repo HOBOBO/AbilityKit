@@ -8,6 +8,7 @@ using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
@@ -132,8 +133,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                     _actionRunner.Add(running, runtime.SourceContextId);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, $"[MobaBuffApplySystem] TryStartOngoingEffectByBuff failed (buffId={buff.Id}, ongoingEffectId={buff.OngoingEffectId})");
             }
         }
 
@@ -367,28 +369,29 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
         private static void CancelAndEnd(BuffRuntime rt, EffectSourceRegistry effectSource, ITriggerActionRunner actionRunner, int frame)
         {
             if (rt == null) return;
-            if (rt.SourceContextId == 0) return;
 
-            try
+            if (rt.SourceContextId != 0)
             {
-                actionRunner?.CancelByOwnerKey(rt.SourceContextId);
-            }
-            catch
-            {
-            }
+                try
+                {
+                    actionRunner?.CancelByOwnerKey(rt.SourceContextId);
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, $"[MobaBuffApplySystem] CancelAndEnd CancelByOwnerKey failed (sourceContextId={rt.SourceContextId})");
+                }
 
-            try
-            {
-                effectSource?.End(rt.SourceContextId, frame, EffectSourceEndReason.Cancelled);
-            }
-            catch
-            {
-            }
+                try
+                {
+                    effectSource?.End(rt.SourceContextId, frame, EffectSourceEndReason.Cancelled);
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, $"[MobaBuffApplySystem] CancelAndEnd EffectSource.End failed (sourceContextId={rt.SourceContextId}, frame={frame})");
+                }
 
-            rt.SourceContextId = 0;
+                rt.SourceContextId = 0;
+            }
         }
-
-        
     }
 }
-

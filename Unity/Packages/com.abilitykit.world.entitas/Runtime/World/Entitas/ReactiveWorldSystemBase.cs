@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.DI;
 using Entitas;
 
@@ -111,8 +112,9 @@ namespace AbilityKit.Ability.World.Entitas
                 {
                     OnGroupRemoveDebug(group, entity, index, component);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[ReactiveWorldSystemBase] OnGroupRemoveDebug failed");
                 }
             }
             OnEntityRemovedFromGroup(entity);

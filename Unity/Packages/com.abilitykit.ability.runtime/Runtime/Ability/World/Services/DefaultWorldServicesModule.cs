@@ -27,8 +27,9 @@ namespace AbilityKit.Ability.World.Services
                             return created;
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex);
                     }
                 }
 

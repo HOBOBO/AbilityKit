@@ -106,6 +106,7 @@ namespace AbilityKit.Game.Flow
         public void Tick(in GamePhaseContext ctx, float deltaTime)
         {
             if (_ctx?.EntityWorld == null) return;
+            RefreshDirtyViews();
             if (_vfxNode.IsValid) _vfx?.Tick(_vfxNode);
             _floatingTexts?.Tick(deltaTime);
         }

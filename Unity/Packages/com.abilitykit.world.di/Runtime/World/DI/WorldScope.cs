@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.World.DI
 {
-    public sealed class WorldScope : IWorldScope
+    public sealed class WorldScope : IWorldResolver, IServiceProvider, IDisposable
     {
         private readonly WorldContainer _root;
         private readonly Dictionary<Type, object> _scoped = new Dictionary<Type, object>();
@@ -23,10 +24,17 @@ namespace AbilityKit.Ability.World.DI
             if (serviceType == null) throw new ArgumentNullException(nameof(serviceType));
 
             if (serviceType == typeof(IWorldServiceContainer)) return _root;
+            if (serviceType == typeof(IWorldResolver)) return this;
             if (serviceType == typeof(IWorldScope)) return this;
             if (serviceType == typeof(WorldScope)) return this;
 
             return _root.ResolveScoped(serviceType, this);
+        }
+
+        public object GetService(Type serviceType)
+        {
+            if (serviceType == null) return null;
+            return Resolve(serviceType);
         }
 
         public T Resolve<T>()
@@ -36,13 +44,30 @@ namespace AbilityKit.Ability.World.DI
 
         public bool TryResolve(Type serviceType, out object instance)
         {
+            if (serviceType == null)
+            {
+                instance = null;
+                return false;
+            }
+
+            if (serviceType != typeof(IWorldServiceContainer)
+                && serviceType != typeof(IWorldResolver)
+                && serviceType != typeof(IWorldScope)
+                && serviceType != typeof(WorldScope)
+                && !_root.IsRegistered(serviceType))
+            {
+                instance = null;
+                return false;
+            }
+
             try
             {
                 instance = Resolve(serviceType);
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, $"[WorldScope] TryResolve failed. serviceType={serviceType}");
                 instance = null;
                 return false;
             }
@@ -85,8 +110,9 @@ namespace AbilityKit.Ability.World.DI
                 {
                     if (_disposeOrder[i] is IDisposable d) d.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[WorldScope] scoped dispose failed");
                 }
             }
 

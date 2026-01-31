@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.Common.Pool;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Triggering
 {
@@ -46,8 +47,9 @@ namespace AbilityKit.Ability.Triggering
                         {
                             handlers[0]?.Handle(in evt);
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            Log.Exception(ex, $"[EventBus] handler exception (eventId={evt.Id})");
                         }
                         return;
                     }
@@ -63,8 +65,9 @@ namespace AbilityKit.Ability.Triggering
                             {
                                 snapshot[i]?.Handle(in evt);
                             }
-                            catch
+                            catch (Exception ex)
                             {
+                                Log.Exception(ex, $"[EventBus] handler exception (eventId={evt.Id}, index={i})");
                             }
                         }
                     }
@@ -82,8 +85,9 @@ namespace AbilityKit.Ability.Triggering
                     {
                         d.Dispose();
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, $"[EventBus] evt.Args dispose exception (eventId={evt.Id})");
                     }
                 }
             }
@@ -108,8 +112,9 @@ namespace AbilityKit.Ability.Triggering
                 {
                     d.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, $"[EventBus] handler dispose exception (eventId={eventId})");
                 }
             }
         }

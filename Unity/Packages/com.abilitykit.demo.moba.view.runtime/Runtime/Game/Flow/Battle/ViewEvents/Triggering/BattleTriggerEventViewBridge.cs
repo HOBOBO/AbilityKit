@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
 
@@ -45,8 +46,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents.Triggering
                 {
                     _subs[i]?.Unsubscribe();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex);
                 }
             }
             _subs.Clear();

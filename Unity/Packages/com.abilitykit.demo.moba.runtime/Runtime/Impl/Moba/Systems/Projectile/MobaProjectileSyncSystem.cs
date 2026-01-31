@@ -160,8 +160,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                         newEvents: null,
                         newInitialized: false);
                 }
-                catch
+                catch (System.Exception ex)
                 {
+                    Log.Exception(ex, "[MobaProjectileSyncSystem] init projectile motion failed");
                 }
 
             SkipMotion:
@@ -180,7 +181,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                 }
 
                 try { _entities.TryRegisterFromEntity(bullet); }
-                catch { }
+                catch (System.Exception ex) { Log.Exception(ex, "[MobaProjectileSyncSystem] TryRegisterFromEntity failed"); }
 
                 _links.Link(evt.Projectile, projectileActorId);
 
@@ -228,7 +229,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                 if (_registry.TryGet(actorId, out var e) && e != null)
                 {
                     try { e.Destroy(); }
-                    catch { }
+                    catch (System.Exception ex) { Log.Exception(ex, "[MobaProjectileSyncSystem] destroy projectile entity failed"); }
                 }
 
                 if (evt.LauncherActorId > 0 && _registry.TryGet(evt.LauncherActorId, out var launcherEntity) && launcherEntity != null && launcherEntity.hasProjectileLauncher)
@@ -351,8 +352,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                     }
                 }
             }
-            catch
+            catch (System.Exception ex)
             {
+                Log.Exception(ex, "[MobaProjectileSyncSystem] ResolveActorIdByCollider failed");
             }
 
             return 0;

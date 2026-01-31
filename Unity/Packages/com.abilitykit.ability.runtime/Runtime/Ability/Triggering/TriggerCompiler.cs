@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime.Builtins;
 
@@ -35,8 +36,9 @@ namespace AbilityKit.Ability.Triggering.Runtime
                         {
                             d.Dispose();
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            Log.Exception(ex, $"[TriggerCompiler] condition args dispose failed (eventId={def.EventId})");
                         }
                     }
                 }
@@ -59,8 +61,9 @@ namespace AbilityKit.Ability.Triggering.Runtime
                         {
                             d.Dispose();
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            Log.Exception(ex, $"[TriggerCompiler] action args dispose failed (eventId={def.EventId})");
                         }
                     }
                 }

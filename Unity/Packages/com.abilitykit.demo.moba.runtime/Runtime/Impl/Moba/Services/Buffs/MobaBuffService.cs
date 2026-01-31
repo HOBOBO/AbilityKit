@@ -5,6 +5,7 @@ using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
 using AbilityKit.Ability.Impl.Moba.Conponents;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Math;
@@ -127,8 +128,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     _actionRunner.Add(running, runtime.SourceContextId);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, $"[MobaBuffService] TryStartOngoingEffectByBuff exception (buffId={buff.Id}, ongoingEffectId={buff.OngoingEffectId})");
             }
         }
 
@@ -163,8 +165,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                         _actionRunner?.CancelByOwnerKey(b.SourceContextId);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, $"[MobaBuffService] CancelByOwnerKey exception (buffId={buffId}, sourceContextId={b.SourceContextId})");
                 }
 
                 var normalizedReason = reason;
@@ -177,8 +180,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                         _effectSource?.End(b.SourceContextId, GetFrame(), normalizedReason);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, $"[MobaBuffService] EffectSource.End exception (buffId={buffId}, sourceContextId={b.SourceContextId}, reason={normalizedReason})");
                 }
 
                 if (_configs != null)
@@ -353,25 +357,29 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private static void CancelAndEnd(BuffRuntime rt, EffectSourceRegistry effectSource, ITriggerActionRunner actionRunner, int frame)
         {
             if (rt == null) return;
-            if (rt.SourceContextId == 0) return;
 
-            try
+            if (rt.SourceContextId != 0)
             {
-                actionRunner?.CancelByOwnerKey(rt.SourceContextId);
-            }
-            catch
-            {
-            }
+                try
+                {
+                    actionRunner?.CancelByOwnerKey(rt.SourceContextId);
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, $"[MobaBuffService] CancelAndEnd CancelByOwnerKey exception (sourceContextId={rt.SourceContextId})");
+                }
 
-            try
-            {
-                effectSource?.End(rt.SourceContextId, frame, EffectSourceEndReason.Replaced);
-            }
-            catch
-            {
-            }
+                try
+                {
+                    effectSource?.End(rt.SourceContextId, frame, EffectSourceEndReason.Replaced);
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, $"[MobaBuffService] CancelAndEnd EffectSource.End exception (sourceContextId={rt.SourceContextId}, frame={frame})");
+                }
 
-            rt.SourceContextId = 0;
+                rt.SourceContextId = 0;
+            }
         }
 
         private static void PublishBuffRemove(IEventBus bus, EffectSourceRegistry effectSource, BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, EffectSourceEndReason reason)
@@ -515,8 +523,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 return _frameTime != null ? _frameTime.Frame.Value : 0;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[MobaBuffService] GetFrame exception");
                 return 0;
             }
         }

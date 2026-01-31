@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
 
@@ -21,8 +22,9 @@ namespace AbilityKit.Ability.World.Services
                         builder.AddModule(module);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[WorldServiceContainerFactory] create DefaultWorldServicesModule failed");
                 }
             }
             return builder;

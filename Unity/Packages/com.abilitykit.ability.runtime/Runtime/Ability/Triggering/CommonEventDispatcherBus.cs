@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.Share.Common.Event;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Triggering
 {
@@ -22,8 +23,9 @@ namespace AbilityKit.Ability.Triggering
                 {
                     handler.Handle(in evt);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, $"[CommonEventDispatcherBus] handler exception (eventId={eventId})");
                 }
             });
 
@@ -46,8 +48,9 @@ namespace AbilityKit.Ability.Triggering
                     {
                         d.Dispose();
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, $"[CommonEventDispatcherBus] evt.Args dispose exception (eventId={evt.Id})");
                     }
                 }
             }

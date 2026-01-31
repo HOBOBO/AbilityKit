@@ -26,6 +26,8 @@ namespace AbilityKit.Game.Flow
         public readonly string ClientId;
         public readonly string PlayerId;
 
+        public readonly BattleStartConfig.BattleHostMode HostMode;
+
         public readonly bool UseGatewayTransport;
         public readonly string GatewayHost;
         public readonly int GatewayPort;
@@ -45,8 +47,62 @@ namespace AbilityKit.Game.Flow
         public readonly bool EnableInputReplay;
         public readonly string InputReplayPath;
 
+        public readonly BattleStartConfig.BattleRunMode RunMode;
+
         public readonly int CreateWorldOpCode;
         public readonly byte[] CreateWorldPayload;
+
+        public BattleStartPlan(
+            string worldId,
+            string worldType,
+            string clientId,
+            string playerId,
+            BattleStartConfig.BattleHostMode hostMode,
+            bool useGatewayTransport,
+            string gatewayHost,
+            int gatewayPort,
+            bool autoConnect,
+            bool autoCreateWorld,
+            bool autoJoin,
+            bool autoReady,
+            BattleSyncMode syncMode,
+            BattleViewEventSourceMode viewEventSourceMode,
+            bool enableInputRecording,
+            string inputRecordOutputPath,
+            bool enableInputReplay,
+            string inputReplayPath,
+            BattleStartConfig.BattleRunMode runMode,
+            int createWorldOpCode,
+            byte[] createWorldPayload)
+        {
+            WorldId = worldId;
+            WorldType = worldType;
+            ClientId = clientId;
+            PlayerId = playerId;
+
+            HostMode = hostMode;
+
+            UseGatewayTransport = useGatewayTransport;
+            GatewayHost = gatewayHost;
+            GatewayPort = gatewayPort;
+            AutoConnect = autoConnect;
+            AutoCreateWorld = autoCreateWorld;
+            AutoJoin = autoJoin;
+            AutoReady = autoReady;
+
+            SyncMode = syncMode;
+            ViewEventSourceMode = viewEventSourceMode;
+
+            EnableInputRecording = enableInputRecording;
+            InputRecordOutputPath = inputRecordOutputPath;
+
+            EnableInputReplay = enableInputReplay;
+            InputReplayPath = inputReplayPath;
+
+            RunMode = runMode;
+            CreateWorldOpCode = createWorldOpCode;
+            CreateWorldPayload = createWorldPayload;
+        }
 
         public BattleStartPlan(
             string worldId,
@@ -68,30 +124,29 @@ namespace AbilityKit.Game.Flow
             string inputReplayPath,
             int createWorldOpCode,
             byte[] createWorldPayload)
+            : this(
+                worldId,
+                worldType,
+                clientId,
+                playerId,
+                BattleStartConfig.BattleHostMode.Local,
+                useGatewayTransport,
+                gatewayHost,
+                gatewayPort,
+                autoConnect,
+                autoCreateWorld,
+                autoJoin,
+                autoReady,
+                syncMode,
+                viewEventSourceMode,
+                enableInputRecording,
+                inputRecordOutputPath,
+                enableInputReplay,
+                inputReplayPath,
+                enableInputReplay ? BattleStartConfig.BattleRunMode.Replay : (enableInputRecording ? BattleStartConfig.BattleRunMode.Record : BattleStartConfig.BattleRunMode.Normal),
+                createWorldOpCode,
+                createWorldPayload)
         {
-            WorldId = worldId;
-            WorldType = worldType;
-            ClientId = clientId;
-            PlayerId = playerId;
-
-            UseGatewayTransport = useGatewayTransport;
-            GatewayHost = gatewayHost;
-            GatewayPort = gatewayPort;
-            AutoConnect = autoConnect;
-            AutoCreateWorld = autoCreateWorld;
-            AutoJoin = autoJoin;
-            AutoReady = autoReady;
-
-            SyncMode = syncMode;
-            ViewEventSourceMode = viewEventSourceMode;
-
-            EnableInputRecording = enableInputRecording;
-            InputRecordOutputPath = inputRecordOutputPath;
-
-            EnableInputReplay = enableInputReplay;
-            InputReplayPath = inputReplayPath;
-            CreateWorldOpCode = createWorldOpCode;
-            CreateWorldPayload = createWorldPayload;
         }
     }
 }

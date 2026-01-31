@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Share.ECS;
 
@@ -41,7 +42,7 @@ namespace AbilityKit.Ability.Share.Effect
                             {
                                 var frame = 0;
                                 try { frame = context.Time != null ? context.Time.Frame.Value : 0; }
-                                catch { frame = 0; }
+                                catch (Exception ex) { Log.Exception(ex, "[EffectContainer] read frame failed"); frame = 0; }
 
                                 var sourceActorId = 0;
                                 var targetActorId = 0;
@@ -49,15 +50,17 @@ namespace AbilityKit.Ability.Share.Effect
                                 {
                                     if (context.Source is IUnitFacade s && s.Id.IsValid) sourceActorId = s.Id.ActorId;
                                 }
-                                catch
+                                catch (Exception ex)
                                 {
+                                    Log.Exception(ex, "[EffectContainer] resolve source actorId failed");
                                 }
                                 try
                                 {
                                     if (context.Target is IUnitFacade t && t.Id.IsValid) targetActorId = t.Id.ActorId;
                                 }
-                                catch
+                                catch (Exception ex)
                                 {
+                                    Log.Exception(ex, "[EffectContainer] resolve target actorId failed");
                                 }
 
                                 var childId = r.CreateChild(
@@ -72,14 +75,16 @@ namespace AbilityKit.Ability.Share.Effect
                             }
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Log.Exception(ex, "[EffectContainer] attach source context failed");
                     }
 
                     inst.SetState(EffectSourceKeys.SourceContextId, sourceContextId);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[EffectContainer] set source context state failed");
                 }
             }
 
@@ -203,8 +208,9 @@ namespace AbilityKit.Ability.Share.Effect
                 if (inst.TryGetState<long>(EffectSourceKeys.SourceContextId, out var scidL)) endContextId = scidL;
                 else if (inst.TryGetState<int>(EffectSourceKeys.SourceContextId, out var scidI)) endContextId = scidI;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[EffectContainer] read SourceContextId from state failed");
                 endContextId = 0L;
             }
 
@@ -238,7 +244,7 @@ namespace AbilityKit.Ability.Share.Effect
                         {
                             var frame = 0;
                             try { frame = context.Time != null ? context.Time.Frame.Value : 0; }
-                            catch { frame = 0; }
+                            catch (Exception ex) { Log.Exception(ex, "[EffectContainer] read frame failed (end)"); frame = 0; }
 
                             var reason = AbilityKit.Ability.Impl.Moba.EffectSourceEndReason.Completed;
                             if (inst.Spec != null && inst.Spec.DurationPolicy == EffectDurationPolicy.Duration && inst.RemainingSeconds <= 0f)
@@ -250,8 +256,9 @@ namespace AbilityKit.Ability.Share.Effect
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[EffectContainer] end source context failed");
                 }
             }
         }
@@ -271,8 +278,9 @@ namespace AbilityKit.Ability.Share.Effect
                         return;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[EffectContainer] read IEffectTriggeringSwitch failed");
                 }
             }
 
@@ -294,8 +302,9 @@ namespace AbilityKit.Ability.Share.Effect
                     if (instance.TryGetState<long>(EffectSourceKeys.SourceContextId, out var scidL)) sourceContextId = scidL;
                     else if (instance.TryGetState<int>(EffectSourceKeys.SourceContextId, out var scidI)) sourceContextId = scidI;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[EffectContainer] read SourceContextId from instance state failed");
                 }
             }
 

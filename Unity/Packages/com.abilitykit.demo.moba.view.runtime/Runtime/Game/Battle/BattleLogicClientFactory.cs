@@ -10,15 +10,7 @@ namespace AbilityKit.Game.Battle
     {
         public static IBattleLogicClient CreateLocal(IWorldManager worlds)
         {
-            if (worlds == null) throw new ArgumentNullException(nameof(worlds));
-            var options = new HostRuntimeOptions();
-            var server = new HostRuntime(worlds, options);
-
-            var modules = new HostRuntimeModuleHost();
-            modules.Add(new FrameSyncDriverModule());
-            modules.InstallAll(server, options);
-
-            return new LocalBattleLogicClient(server);
+            return CreateRemoteInMemory(worlds);
         }
 
         public static IBattleLogicClient CreateRemoteInMemory(IWorldManager worlds, string clientId = "in_memory")
@@ -32,12 +24,12 @@ namespace AbilityKit.Game.Battle
             modules.InstallAll(server, options);
 
             var transport = new InMemoryBattleLogicTransport(server, clientId);
-            return new RemoteBattleLogicClient(transport);
+            return new BattleLogicTransportClient(transport);
         }
 
         public static IBattleLogicClient CreateRemote(IBattleLogicTransport transport)
         {
-            return new RemoteBattleLogicClient(transport);
+            return new BattleLogicTransportClient(transport);
         }
     }
 }

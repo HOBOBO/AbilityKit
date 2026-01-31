@@ -19,26 +19,68 @@ namespace AbilityKit.Game.Flow
             var req = cfg.BuildEnterMobaGameReq();
             var payload = EnterMobaGameCodec.SerializeReq(req);
 
-            var plan = cfg.StartPlan;
+            var legacy = cfg.StartPlan;
+
+            var worldId = legacy != null ? legacy.WorldId : "room_1";
+            var worldType = legacy != null ? legacy.WorldType : "battle";
+            if (cfg.TryGetSelectedWorldPlan(out var world) && world != null)
+            {
+                if (!string.IsNullOrEmpty(world.WorldId)) worldId = world.WorldId;
+                if (!string.IsNullOrEmpty(world.WorldType)) worldType = world.WorldType;
+            }
+
+            var hostMode = cfg.Profile != null && cfg.Profile.Host != null ? cfg.Profile.Host.Mode : BattleStartConfig.BattleHostMode.Local;
+
+            var autoConnect = cfg.Profile != null && cfg.Profile.Client != null ? cfg.Profile.Client.AutoConnect : (legacy != null && legacy.AutoConnect);
+            var clientId = cfg.Profile != null && cfg.Profile.Client != null && !string.IsNullOrEmpty(cfg.Profile.Client.ClientId)
+                ? cfg.Profile.Client.ClientId
+                : (legacy != null ? legacy.ClientId : "battle_client");
+
+            var autoCreateWorld = cfg.Profile != null && cfg.Profile.World != null ? cfg.Profile.World.AutoCreateWorld : (legacy != null && legacy.AutoCreateWorld);
+            var autoJoin = cfg.Profile != null && cfg.Profile.World != null ? cfg.Profile.World.AutoJoin : (legacy != null && legacy.AutoJoin);
+            var autoReady = cfg.Profile != null && cfg.Profile.World != null ? cfg.Profile.World.AutoReady : (legacy != null && legacy.AutoReady);
+
+            var syncMode = cfg.Profile != null ? cfg.Profile.SyncMode : (legacy != null ? legacy.SyncMode : BattleSyncMode.Lockstep);
+            var viewEventSourceMode = cfg.Profile != null ? cfg.Profile.ViewEventSourceMode : (legacy != null ? legacy.ViewEventSourceMode : BattleViewEventSourceMode.SnapshotOnly);
+
+            var runMode = cfg.Profile != null && cfg.Profile.RunMode != null ? cfg.Profile.RunMode.Mode : BattleStartConfig.BattleRunMode.Normal;
+            if (legacy != null)
+            {
+                if (legacy.EnableInputReplay) runMode = BattleStartConfig.BattleRunMode.Replay;
+                else if (legacy.EnableInputRecording) runMode = BattleStartConfig.BattleRunMode.Record;
+            }
+
+            var enableInputRecording = runMode == BattleStartConfig.BattleRunMode.Record;
+            var enableInputReplay = runMode == BattleStartConfig.BattleRunMode.Replay;
+
+            var recordPath = cfg.Profile != null && cfg.Profile.RunMode != null && !string.IsNullOrEmpty(cfg.Profile.RunMode.RecordOutputPath)
+                ? cfg.Profile.RunMode.RecordOutputPath
+                : (legacy != null ? legacy.InputRecordOutputPath : "battle_record.json");
+
+            var replayPath = cfg.Profile != null && cfg.Profile.RunMode != null && !string.IsNullOrEmpty(cfg.Profile.RunMode.ReplayInputPath)
+                ? cfg.Profile.RunMode.ReplayInputPath
+                : (legacy != null ? legacy.InputReplayPath : "battle_record.json");
 
             return new BattleStartPlan(
-                worldId: plan != null ? plan.WorldId : "room_1",
-                worldType: plan != null ? plan.WorldType : "battle",
-                clientId: plan != null ? plan.ClientId : "battle_client",
+                worldId: worldId,
+                worldType: worldType,
+                clientId: clientId,
                 playerId: req.PlayerId.Value,
+                hostMode: hostMode,
                 useGatewayTransport: cfg.Gateway != null && cfg.Gateway.UseGatewayTransport,
                 gatewayHost: cfg.Gateway != null ? cfg.Gateway.Host : "127.0.0.1",
                 gatewayPort: cfg.Gateway != null ? cfg.Gateway.Port : 4000,
-                autoConnect: plan != null && plan.AutoConnect,
-                autoCreateWorld: plan != null && plan.AutoCreateWorld,
-                autoJoin: plan != null && plan.AutoJoin,
-                autoReady: plan != null && plan.AutoReady,
-                syncMode: plan != null ? plan.SyncMode : BattleSyncMode.Lockstep,
-                viewEventSourceMode: plan != null ? plan.ViewEventSourceMode : BattleViewEventSourceMode.SnapshotOnly,
-                enableInputRecording: plan != null && plan.EnableInputRecording,
-                inputRecordOutputPath: plan != null ? plan.InputRecordOutputPath : "battle_record.json",
-                enableInputReplay: plan != null && plan.EnableInputReplay,
-                inputReplayPath: plan != null && plan.EnableInputReplay ? plan.InputReplayPath : "battle_record.json",
+                autoConnect: autoConnect,
+                autoCreateWorld: autoCreateWorld,
+                autoJoin: autoJoin,
+                autoReady: autoReady,
+                syncMode: syncMode,
+                viewEventSourceMode: viewEventSourceMode,
+                enableInputRecording: enableInputRecording,
+                inputRecordOutputPath: recordPath,
+                enableInputReplay: enableInputReplay,
+                inputReplayPath: replayPath,
+                runMode: runMode,
                 createWorldOpCode: MobaWorldBootstrapModule.InitOpCode,
                 createWorldPayload: payload
             );
