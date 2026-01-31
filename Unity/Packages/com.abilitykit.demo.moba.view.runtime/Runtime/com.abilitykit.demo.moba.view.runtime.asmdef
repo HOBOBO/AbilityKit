@@ -22,7 +22,9 @@
         "AbilityKit.Demo.Moba.Entitas.Generated",
         "AbilityKit.Demo.Moba.Runtime",
         "AbilityKit.Pipeline",
-        "AbilityKit.Host.Extensions"
+        "AbilityKit.Host.Extensions",
+        "AbilityKit.Network.Runtime",
+        "AbilityKit.Protocol.Moba"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

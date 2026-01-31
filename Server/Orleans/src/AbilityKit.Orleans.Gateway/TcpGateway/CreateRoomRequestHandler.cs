@@ -61,6 +61,13 @@ public sealed class CreateRoomRequestHandler : ITcpGatewayRequestHandler
             wire.Tags == null ? null : new Dictionary<string, string>(wire.Tags));
 
         var resp = await directory.CreateRoomAsync(req);
-        return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.Ok, TcpGatewayJson.Serialize(resp));
+
+        // Ensure numeric roomId mapping exists for frame-sync (wire uses numeric roomId, room grain uses string roomId).
+        var mapper = _clusterClient.GetGrain<IRoomIdMappingGrain>("global");
+        var numericRoomId = await mapper.GetOrCreateNumericIdAsync(resp.RoomId);
+
+        return new TcpGatewayResponseEnvelope(
+            TcpGatewayStatusCode.Ok,
+            TcpGatewayJson.Serialize(new { resp.RoomId, NumericRoomId = numericRoomId }));
     }
 }

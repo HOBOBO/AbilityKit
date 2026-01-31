@@ -22,6 +22,9 @@ public sealed class TcpGatewayOptions
 
     public uint CreateSessionForAccountOpCode { get; set; } = 122;
 
+    public uint SubmitFrameInputOpCode { get; set; } = 2001;
+    public uint FramePushedOpCode { get; set; } = 9001;
+
     public uint KickPushOpCode { get; set; } = 9000;
 
     public int RequestTimeoutMs { get; set; } = 5000;

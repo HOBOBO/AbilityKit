@@ -1,14 +1,16 @@
 {
-  "name": "AbilityKit.Network.Runtime",
-  "rootNamespace": "AbilityKit.Network",
-  "references": [],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": true,
-  "defineConstraints": [],
-  "versionDefines": [],
-  "noEngineReferences": true
+    "name": "AbilityKit.Network.Runtime",
+    "rootNamespace": "AbilityKit.Network",
+    "references": [
+        "GUID:5badd913ca4c1c340a7899d9a228bfcb"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
 }

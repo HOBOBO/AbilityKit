@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Impl.Moba.Systems;
@@ -17,6 +18,10 @@ using AbilityKit.Game.Flow.Snapshot;
 using AbilityKit.Ability.Share.Common.Record.Lockstep;
 using AbilityKit.Game.Flow.Battle.Replay;
 using AbilityKit.Game.Battle.Transport;
+using AbilityKit.Network.Runtime;
+using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Network.Protocol;
+using AbilityKit.Network.Abstractions;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -46,15 +51,180 @@ namespace AbilityKit.Game.Flow
 
         private bool _firstFrameReceived;
 
+        private ConnectionManager _gatewayRoomConn;
+        private GatewayRoomClient _gatewayRoomClient;
+        private Task _gatewayRoomTask;
+
         private bool _tickEnteredLogged;
         private bool _autoPlanLogged;
 
         public event Action SessionStarted;
         public event Action FirstFrameReceived;
+        public event Action<Exception> SessionFailed;
 
         public BattleSessionFeature(IBattleBootstrapper bootstrapper)
         {
             _bootstrapper = bootstrapper;
+        }
+
+        private bool ShouldPrepareGatewayRoom()
+        {
+            if (_plan.HostMode != BattleStartConfig.BattleHostMode.GatewayRemote) return false;
+            if (!_plan.UseGatewayTransport) return false;
+            if (_plan.NumericRoomId != 0) return false;
+            if (!_plan.GatewayAutoCreateRoom && !_plan.GatewayAutoJoinRoom) return false;
+            if (string.IsNullOrWhiteSpace(_plan.GatewaySessionToken)) return false;
+            return true;
+        }
+
+        private void StartGatewayRoomPreparation()
+        {
+            StopGatewayRoomPreparation();
+
+            var connOptions = new ConnectionOptions
+            {
+                FrameCodec = LengthPrefixedFrameCodec.Instance,
+                KickPushOpCode = 9000
+            };
+
+            _gatewayRoomConn = new ConnectionManager(() => new TcpTransport(), connOptions);
+            _gatewayRoomConn.Open(_plan.GatewayHost, _plan.GatewayPort);
+
+            var opCodes = new GatewayRoomOpCodes(_plan.GatewayCreateRoomOpCode, _plan.GatewayJoinRoomOpCode);
+            _gatewayRoomClient = new GatewayRoomClient(_gatewayRoomConn, opCodes);
+
+            _gatewayRoomTask = PrepareRoomAsync();
+        }
+
+        private async Task PrepareRoomAsync()
+        {
+            // Wait until connected.
+            while (_gatewayRoomConn != null && _gatewayRoomConn.State == ConnectionState.Connecting)
+            {
+                await Task.Yield();
+            }
+
+            if (_gatewayRoomConn == null || _gatewayRoomConn.State != ConnectionState.Connected)
+            {
+                throw new InvalidOperationException($"Gateway room connection not connected. state={_gatewayRoomConn?.State}");
+            }
+
+            if (_plan.GatewayAutoCreateRoom)
+            {
+                var result = await _gatewayRoomClient.CreateRoomAsync(
+                    sessionToken: _plan.GatewaySessionToken,
+                    region: _plan.GatewayRegion,
+                    serverId: _plan.GatewayServerId,
+                    roomType: string.IsNullOrEmpty(_plan.WorldType) ? "battle" : _plan.WorldType,
+                    title: string.Empty,
+                    isPublic: true,
+                    maxPlayers: 10,
+                    tags: null);
+
+                if (result.NumericRoomId == 0)
+                {
+                    throw new InvalidOperationException($"Gateway CreateRoom returned invalid NumericRoomId. roomId='{result.RoomId}'");
+                }
+
+                _plan = new BattleStartPlan(
+                    worldId: _plan.WorldId,
+                    worldType: _plan.WorldType,
+                    clientId: _plan.ClientId,
+                    playerId: _plan.PlayerId,
+                    hostMode: _plan.HostMode,
+                    useGatewayTransport: _plan.UseGatewayTransport,
+                    gatewayHost: _plan.GatewayHost,
+                    gatewayPort: _plan.GatewayPort,
+                    numericRoomId: result.NumericRoomId,
+                    gatewaySessionToken: _plan.GatewaySessionToken,
+                    gatewayRegion: _plan.GatewayRegion,
+                    gatewayServerId: _plan.GatewayServerId,
+                    gatewayAutoCreateRoom: _plan.GatewayAutoCreateRoom,
+                    gatewayAutoJoinRoom: _plan.GatewayAutoJoinRoom,
+                    gatewayJoinRoomId: _plan.GatewayJoinRoomId,
+                    gatewayCreateRoomOpCode: _plan.GatewayCreateRoomOpCode,
+                    gatewayJoinRoomOpCode: _plan.GatewayJoinRoomOpCode,
+                    autoConnect: _plan.AutoConnect,
+                    autoCreateWorld: _plan.AutoCreateWorld,
+                    autoJoin: _plan.AutoJoin,
+                    autoReady: _plan.AutoReady,
+                    syncMode: _plan.SyncMode,
+                    viewEventSourceMode: _plan.ViewEventSourceMode,
+                    enableInputRecording: _plan.EnableInputRecording,
+                    inputRecordOutputPath: _plan.InputRecordOutputPath,
+                    enableInputReplay: _plan.EnableInputReplay,
+                    inputReplayPath: _plan.InputReplayPath,
+                    runMode: _plan.RunMode,
+                    createWorldOpCode: _plan.CreateWorldOpCode,
+                    createWorldPayload: _plan.CreateWorldPayload);
+                return;
+            }
+
+            if (_plan.GatewayAutoJoinRoom)
+            {
+                var joinRoomId = _plan.GatewayJoinRoomId;
+                if (string.IsNullOrWhiteSpace(joinRoomId)) joinRoomId = _plan.WorldId;
+                if (string.IsNullOrWhiteSpace(joinRoomId))
+                {
+                    throw new InvalidOperationException("GatewayAutoJoinRoom requires JoinRoomId or WorldId.");
+                }
+
+                var result = await _gatewayRoomClient.JoinRoomAsync(
+                    sessionToken: _plan.GatewaySessionToken,
+                    region: _plan.GatewayRegion,
+                    serverId: _plan.GatewayServerId,
+                    roomId: joinRoomId);
+
+                if (result.NumericRoomId == 0)
+                {
+                    throw new InvalidOperationException($"Gateway JoinRoom returned invalid NumericRoomId. roomId='{joinRoomId}'");
+                }
+
+                _plan = new BattleStartPlan(
+                    worldId: _plan.WorldId,
+                    worldType: _plan.WorldType,
+                    clientId: _plan.ClientId,
+                    playerId: _plan.PlayerId,
+                    hostMode: _plan.HostMode,
+                    useGatewayTransport: _plan.UseGatewayTransport,
+                    gatewayHost: _plan.GatewayHost,
+                    gatewayPort: _plan.GatewayPort,
+                    numericRoomId: result.NumericRoomId,
+                    gatewaySessionToken: _plan.GatewaySessionToken,
+                    gatewayRegion: _plan.GatewayRegion,
+                    gatewayServerId: _plan.GatewayServerId,
+                    gatewayAutoCreateRoom: _plan.GatewayAutoCreateRoom,
+                    gatewayAutoJoinRoom: _plan.GatewayAutoJoinRoom,
+                    gatewayJoinRoomId: _plan.GatewayJoinRoomId,
+                    gatewayCreateRoomOpCode: _plan.GatewayCreateRoomOpCode,
+                    gatewayJoinRoomOpCode: _plan.GatewayJoinRoomOpCode,
+                    autoConnect: _plan.AutoConnect,
+                    autoCreateWorld: _plan.AutoCreateWorld,
+                    autoJoin: _plan.AutoJoin,
+                    autoReady: _plan.AutoReady,
+                    syncMode: _plan.SyncMode,
+                    viewEventSourceMode: _plan.ViewEventSourceMode,
+                    enableInputRecording: _plan.EnableInputRecording,
+                    inputRecordOutputPath: _plan.InputRecordOutputPath,
+                    enableInputReplay: _plan.EnableInputReplay,
+                    inputReplayPath: _plan.InputReplayPath,
+                    runMode: _plan.RunMode,
+                    createWorldOpCode: _plan.CreateWorldOpCode,
+                    createWorldPayload: _plan.CreateWorldPayload);
+                return;
+            }
+        }
+
+        private void StopGatewayRoomPreparation()
+        {
+            _gatewayRoomTask = null;
+            _gatewayRoomClient = null;
+
+            if (_gatewayRoomConn != null)
+            {
+                _gatewayRoomConn.Dispose();
+                _gatewayRoomConn = null;
+            }
         }
 
         public BattleLogicSession Session => _session;
@@ -66,9 +236,17 @@ namespace AbilityKit.Game.Flow
             ctx.Root.TryGetComponent(out _ctx);
 
             _plan = _bootstrapper?.Build() ?? default;
-            StartSession();
 
-            SessionStarted?.Invoke();
+            if (ShouldPrepareGatewayRoom())
+            {
+                StartGatewayRoomPreparation();
+            }
+            else
+            {
+                StartSession();
+                SessionStarted?.Invoke();
+                ApplyAutoPlanActions();
+            }
 
             if (_ctx != null)
             {
@@ -77,11 +255,11 @@ namespace AbilityKit.Game.Flow
                 _ctx.LastFrame = _lastFrame;
             }
 
-            ApplyAutoPlanActions();
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
+            StopGatewayRoomPreparation();
             StopSession();
 
             _firstFrameReceived = false;
@@ -96,6 +274,47 @@ namespace AbilityKit.Game.Flow
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
         {
+            if (_gatewayRoomConn != null)
+            {
+                _gatewayRoomConn.Tick(deltaTime);
+
+                if (_gatewayRoomTask != null && _gatewayRoomTask.IsCompleted)
+                {
+                    if (_gatewayRoomTask.IsFaulted)
+                    {
+                        var ex = _gatewayRoomTask.Exception != null ? _gatewayRoomTask.Exception.GetBaseException() : null;
+                        var wrapped = new InvalidOperationException("Gateway room preparation failed.", ex);
+                        Log.Exception(wrapped, "[BattleSessionFeature] Gateway room preparation failed");
+                        StopGatewayRoomPreparation();
+                        SessionFailed?.Invoke(wrapped);
+                        return;
+                    }
+
+                    StopGatewayRoomPreparation();
+
+                    try
+                    {
+                        StartSession();
+                        SessionStarted?.Invoke();
+                        ApplyAutoPlanActions();
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, "[BattleSessionFeature] StartSession failed after gateway room preparation");
+                        StopSession();
+                        SessionFailed?.Invoke(ex);
+                        return;
+                    }
+
+                    if (_ctx != null)
+                    {
+                        _ctx.Plan = _plan;
+                        _ctx.Session = _session;
+                        _ctx.LastFrame = _lastFrame;
+                    }
+                }
+            }
+
             if (_session == null) return;
 
             if (!_tickEnteredLogged)
@@ -185,9 +404,30 @@ namespace AbilityKit.Game.Flow
             {
                 IBattleLogicTransport transport;
 
-                if (_plan.UseGatewayTransport)
+                if (_plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && _plan.UseGatewayTransport)
                 {
-                    transport = new NullBattleLogicTransport();
+                    if (!uint.TryParse(_plan.PlayerId, out var localPlayerId))
+                    {
+                        throw new InvalidOperationException($"GatewayRemote requires numeric PlayerId. playerId='{_plan.PlayerId}'");
+                    }
+
+                    var roomId = _plan.NumericRoomId;
+                    if (roomId == 0 && !ulong.TryParse(_plan.WorldId, out roomId))
+                    {
+                        throw new InvalidOperationException($"GatewayRemote requires numeric WorldId(roomId). worldId='{_plan.WorldId}'");
+                    }
+
+                    var gatewayOptions = GatewayRemoteBattleTransportOptionsFactory.Create(
+                        host: _plan.GatewayHost,
+                        port: _plan.GatewayPort,
+                        transportFactory: () => new TcpTransport(),
+                        playerIdToUInt: pid => uint.TryParse(pid.Value, out var n) ? n : localPlayerId,
+                        playerIdFromUInt: n => new PlayerId(n.ToString()),
+                        worldIdToUlong: wid => ulong.TryParse(wid.Value, out var n) ? n : roomId,
+                        worldIdFromUlong: n => new WorldId(n.ToString()),
+                        roomId: roomId);
+
+                    transport = new GatewayBattleLogicTransport(gatewayOptions);
                 }
                 else
                 {

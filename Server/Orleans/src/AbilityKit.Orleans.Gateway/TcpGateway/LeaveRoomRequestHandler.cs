@@ -42,6 +42,8 @@ public sealed class LeaveRoomRequestHandler : ITcpGatewayRequestHandler
         var room = _clusterClient.GetGrain<IRoomGrain>(wire.RoomId);
         await room.LeaveAsync(v.AccountId);
 
+        _registry.UnbindAccount(v.AccountId);
+
         var snapshot = await room.GetSnapshotAsync();
         return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.Ok, TcpGatewayJson.Serialize(snapshot));
     }

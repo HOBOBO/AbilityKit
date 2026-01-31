@@ -6,6 +6,14 @@ public interface ITcpGatewaySessionRegistry
 
     void Unregister(long connectionId);
 
+    bool TryGetSession(long connectionId, out TcpClientSession session);
+
+    void BindAccount(string accountId, long connectionId);
+
+    void UnbindAccount(string accountId);
+
+    bool TryGetConnectionIdByAccount(string accountId, out long connectionId);
+
     void BindToken(string sessionToken, long connectionId);
 
     void UnbindToken(string sessionToken);

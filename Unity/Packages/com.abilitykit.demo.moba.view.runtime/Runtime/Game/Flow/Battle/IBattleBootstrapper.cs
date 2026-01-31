@@ -31,6 +31,16 @@ namespace AbilityKit.Game.Flow
         public readonly bool UseGatewayTransport;
         public readonly string GatewayHost;
         public readonly int GatewayPort;
+        public readonly ulong NumericRoomId;
+
+        public readonly string GatewaySessionToken;
+        public readonly string GatewayRegion;
+        public readonly string GatewayServerId;
+        public readonly bool GatewayAutoCreateRoom;
+        public readonly bool GatewayAutoJoinRoom;
+        public readonly string GatewayJoinRoomId;
+        public readonly uint GatewayCreateRoomOpCode;
+        public readonly uint GatewayJoinRoomOpCode;
 
         public readonly bool AutoConnect;
         public readonly bool AutoCreateWorld;
@@ -61,6 +71,15 @@ namespace AbilityKit.Game.Flow
             bool useGatewayTransport,
             string gatewayHost,
             int gatewayPort,
+            ulong numericRoomId,
+            string gatewaySessionToken,
+            string gatewayRegion,
+            string gatewayServerId,
+            bool gatewayAutoCreateRoom,
+            bool gatewayAutoJoinRoom,
+            string gatewayJoinRoomId,
+            uint gatewayCreateRoomOpCode,
+            uint gatewayJoinRoomOpCode,
             bool autoConnect,
             bool autoCreateWorld,
             bool autoJoin,
@@ -85,6 +104,16 @@ namespace AbilityKit.Game.Flow
             UseGatewayTransport = useGatewayTransport;
             GatewayHost = gatewayHost;
             GatewayPort = gatewayPort;
+            NumericRoomId = numericRoomId;
+
+            GatewaySessionToken = gatewaySessionToken;
+            GatewayRegion = gatewayRegion;
+            GatewayServerId = gatewayServerId;
+            GatewayAutoCreateRoom = gatewayAutoCreateRoom;
+            GatewayAutoJoinRoom = gatewayAutoJoinRoom;
+            GatewayJoinRoomId = gatewayJoinRoomId;
+            GatewayCreateRoomOpCode = gatewayCreateRoomOpCode;
+            GatewayJoinRoomOpCode = gatewayJoinRoomOpCode;
             AutoConnect = autoConnect;
             AutoCreateWorld = autoCreateWorld;
             AutoJoin = autoJoin;
@@ -112,6 +141,15 @@ namespace AbilityKit.Game.Flow
             bool useGatewayTransport,
             string gatewayHost,
             int gatewayPort,
+            ulong numericRoomId,
+            string gatewaySessionToken,
+            string gatewayRegion,
+            string gatewayServerId,
+            bool gatewayAutoCreateRoom,
+            bool gatewayAutoJoinRoom,
+            string gatewayJoinRoomId,
+            uint gatewayCreateRoomOpCode,
+            uint gatewayJoinRoomOpCode,
             bool autoConnect,
             bool autoCreateWorld,
             bool autoJoin,
@@ -133,6 +171,15 @@ namespace AbilityKit.Game.Flow
                 useGatewayTransport,
                 gatewayHost,
                 gatewayPort,
+                numericRoomId,
+                gatewaySessionToken,
+                gatewayRegion,
+                gatewayServerId,
+                gatewayAutoCreateRoom,
+                gatewayAutoJoinRoom,
+                gatewayJoinRoomId,
+                gatewayCreateRoomOpCode,
+                gatewayJoinRoomOpCode,
                 autoConnect,
                 autoCreateWorld,
                 autoJoin,

@@ -131,6 +131,18 @@ namespace AbilityKit.Game.Flow
             public bool UseGatewayTransport = false;
             public string Host = "127.0.0.1";
             public int Port = 4000;
+            public ulong NumericRoomId = 0;
+
+            public string SessionToken = string.Empty;
+            public string Region = "dev";
+            public string ServerId = "local";
+
+            public bool AutoCreateRoom = false;
+            public bool AutoJoinRoom = false;
+            public string JoinRoomId = string.Empty;
+
+            public uint CreateRoomOpCode = 110;
+            public uint JoinRoomOpCode = 111;
         }
 
         [System.Serializable]

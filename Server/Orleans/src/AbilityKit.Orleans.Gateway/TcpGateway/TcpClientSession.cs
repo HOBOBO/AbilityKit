@@ -29,7 +29,7 @@ public sealed class TcpClientSession
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
-        using var _ = _client;
+        using var clientLifetime = _client;
 
         _stream = _client.GetStream();
         var stream = _stream;
@@ -40,7 +40,7 @@ public sealed class TcpClientSession
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                EnsureCapacity(ref buffer, buffered, _options.MaxFrameLength);
+                buffer = EnsureCapacity(buffer, buffered, _options.MaxFrameLength);
 
                 var n = await stream.ReadAsync(buffer.AsMemory(buffered, buffer.Length - buffered), cancellationToken);
                 if (n <= 0) break;
@@ -50,8 +50,7 @@ public sealed class TcpClientSession
                 var offset = 0;
                 while (true)
                 {
-                    var span = new ReadOnlySpan<byte>(buffer, offset, buffered - offset);
-                    if (!NetworkFrameCodec.TryParseFrame(span, out var totalSize, out var header, out var payload)) break;
+                    if (!NetworkFrameCodec.TryParseFrame(new ReadOnlySpan<byte>(buffer, offset, buffered - offset), out var totalSize, out var header, out _)) break;
 
                     if (totalSize > _options.MaxFrameLength)
                     {
@@ -99,18 +98,18 @@ public sealed class TcpClientSession
         await SendFrameAsync(stream, header, payload, cancellationToken);
     }
 
-    private static void EnsureCapacity(ref byte[] buffer, int buffered, int maxFrameLength)
+    private static byte[] EnsureCapacity(byte[] buffer, int buffered, int maxFrameLength)
     {
         var maxAllowed = Math.Max(4 + NetworkPacketHeader.Size, maxFrameLength);
 
-        if (buffered < buffer.Length) return;
+        if (buffered < buffer.Length) return buffer;
         if (buffer.Length >= maxAllowed) throw new InvalidOperationException($"Receive buffer overflow. Max={maxAllowed}");
 
         var newSize = Math.Min(maxAllowed, buffer.Length * 2);
         var newBuffer = ArrayPool<byte>.Shared.Rent(newSize);
         Buffer.BlockCopy(buffer, 0, newBuffer, 0, buffered);
         ArrayPool<byte>.Shared.Return(buffer);
-        buffer = newBuffer;
+        return newBuffer;
     }
 
     private async Task HandlePacketAsync(NetworkStream stream, NetworkPacketHeader header, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)

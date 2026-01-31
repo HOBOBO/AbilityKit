@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 
@@ -173,8 +174,9 @@ namespace AbilityKit.Network.Runtime
             {
                 _session?.Dispose();
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, "[ConnectionManager] StopInternal: session dispose failed");
             }
 
             _session = null;
@@ -259,8 +261,9 @@ namespace AbilityKit.Network.Runtime
                         reason = TryGetJsonStringValue(json, "reason") ?? string.Empty;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, "[ConnectionManager] Kick push json decode failed");
                     if (payload.Array != null && payload.Count > 0)
                     {
                         reason = Encoding.UTF8.GetString(payload.Array, payload.Offset, payload.Count);
@@ -378,8 +381,9 @@ namespace AbilityKit.Network.Runtime
             {
                 _transport?.Close();
             }
-            catch
+            catch (Exception ex2)
             {
+                Log.Exception(ex2, "[ConnectionManager] ScheduleReconnect: transport close failed");
             }
         }
 

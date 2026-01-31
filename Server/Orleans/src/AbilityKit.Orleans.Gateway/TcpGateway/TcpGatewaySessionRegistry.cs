@@ -8,6 +8,7 @@ public sealed class TcpGatewaySessionRegistry : ITcpGatewaySessionRegistry
 {
     private readonly ConcurrentDictionary<long, TcpClientSession> _connections = new();
     private readonly ConcurrentDictionary<string, long> _tokenToConnection = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, long> _accountToConnection = new(StringComparer.Ordinal);
 
     private readonly IOptions<TcpGatewayOptions> _options;
     private readonly ILogger<TcpGatewaySessionRegistry> _logger;
@@ -34,6 +35,41 @@ public sealed class TcpGatewaySessionRegistry : ITcpGatewaySessionRegistry
                 _tokenToConnection.TryRemove(kv.Key, out _);
             }
         }
+
+        foreach (var kv in _accountToConnection)
+        {
+            if (kv.Value == connectionId)
+            {
+                _accountToConnection.TryRemove(kv.Key, out _);
+            }
+        }
+    }
+
+    public bool TryGetSession(long connectionId, out TcpClientSession session)
+    {
+        return _connections.TryGetValue(connectionId, out session);
+    }
+
+    public void BindAccount(string accountId, long connectionId)
+    {
+        if (string.IsNullOrWhiteSpace(accountId)) return;
+        _accountToConnection[accountId] = connectionId;
+    }
+
+    public void UnbindAccount(string accountId)
+    {
+        if (string.IsNullOrWhiteSpace(accountId)) return;
+        _accountToConnection.TryRemove(accountId, out _);
+    }
+
+    public bool TryGetConnectionIdByAccount(string accountId, out long connectionId)
+    {
+        if (string.IsNullOrWhiteSpace(accountId))
+        {
+            connectionId = 0;
+            return false;
+        }
+        return _accountToConnection.TryGetValue(accountId, out connectionId);
     }
 
     public void BindToken(string sessionToken, long connectionId)

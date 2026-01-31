@@ -31,16 +31,20 @@ namespace AbilityKit.Game.Flow
         private enum BattleState
         {
             Prepare = 0,
-            LoadAssets = 1,
-            InMatch = 2,
-            End = 3
+            Connect = 1,
+            CreateOrJoinWorld = 2,
+            LoadAssets = 3,
+            InMatch = 4,
+            End = 5
         }
 
         private enum BattleEvent
         {
             PrepareDone = 0,
-            LoadingDone = 1,
-            Ended = 2
+            Connected = 1,
+            JoinedWorld = 2,
+            LoadingDone = 3,
+            Ended = 4
         }
 
         private readonly FlowContext _flowContext;
@@ -245,9 +249,34 @@ namespace AbilityKit.Game.Flow
                 _battleSessionFeature = new BattleSessionFeature(_pendingBootstrapper);
                 _battleSessionFeature.SessionStarted += OnBattleSessionStarted;
                 _battleSessionFeature.FirstFrameReceived += OnBattleFirstFrameReceived;
+                _battleSessionFeature.SessionFailed += OnBattleSessionFailed;
                 Attach(_battleSessionFeature);
 
                 Attach(new BattleDebugOnGUIFeature());
+            });
+
+            fsm.AddState(BattleState.Connect, onEnter: _ =>
+            {
+                _activeRoot = RootState.Battle;
+
+                Attach(new BattleDebugOnGUIFeature());
+
+                if (_battleSessionStarted)
+                {
+                    fsm.Trigger(BattleEvent.Connected);
+                }
+            });
+
+            fsm.AddState(BattleState.CreateOrJoinWorld, onEnter: _ =>
+            {
+                _activeRoot = RootState.Battle;
+
+                Attach(new BattleDebugOnGUIFeature());
+
+                if (_battleFirstFrameReceived)
+                {
+                    fsm.Trigger(BattleEvent.JoinedWorld);
+                }
             });
 
             fsm.AddState(BattleState.LoadAssets, onEnter: _ =>
@@ -288,7 +317,9 @@ namespace AbilityKit.Game.Flow
                 _battleFirstFrameReceived = false;
             });
 
-            fsm.AddTriggerTransition(BattleEvent.PrepareDone, BattleState.Prepare, BattleState.LoadAssets);
+            fsm.AddTriggerTransition(BattleEvent.PrepareDone, BattleState.Prepare, BattleState.Connect);
+            fsm.AddTriggerTransition(BattleEvent.Connected, BattleState.Connect, BattleState.CreateOrJoinWorld);
+            fsm.AddTriggerTransition(BattleEvent.JoinedWorld, BattleState.CreateOrJoinWorld, BattleState.LoadAssets);
             fsm.AddTriggerTransition(BattleEvent.LoadingDone, BattleState.LoadAssets, BattleState.InMatch);
             fsm.AddTriggerTransition(BattleEvent.Ended, BattleState.InMatch, BattleState.End);
 
@@ -305,6 +336,10 @@ namespace AbilityKit.Game.Flow
             {
                 _battleFsm.Trigger(BattleEvent.PrepareDone);
             }
+            else if (_activeBattle == BattleState.Connect)
+            {
+                _battleFsm.Trigger(BattleEvent.Connected);
+            }
         }
 
         private void OnBattleFirstFrameReceived()
@@ -312,9 +347,24 @@ namespace AbilityKit.Game.Flow
             _battleFirstFrameReceived = true;
             if (_battleFsm == null) return;
 
-            if (_activeBattle == BattleState.LoadAssets)
+            if (_activeBattle == BattleState.CreateOrJoinWorld)
+            {
+                _battleFsm.Trigger(BattleEvent.JoinedWorld);
+            }
+            else if (_activeBattle == BattleState.LoadAssets)
             {
                 _battleFsm.Trigger(BattleEvent.LoadingDone);
+            }
+        }
+
+        private void OnBattleSessionFailed(Exception ex)
+        {
+            Log.Exception(ex, "[GameFlowDomain] Battle session failed");
+            if (_battleFsm == null) return;
+
+            if (_activeBattle != BattleState.End)
+            {
+                _battleFsm.Trigger(BattleEvent.Ended);
             }
         }
 

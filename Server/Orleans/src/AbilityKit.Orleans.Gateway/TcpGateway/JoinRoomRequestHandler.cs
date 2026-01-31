@@ -42,7 +42,14 @@ public sealed class JoinRoomRequestHandler : ITcpGatewayRequestHandler
         var room = _clusterClient.GetGrain<IRoomGrain>(wire.RoomId);
         await room.JoinAsync(v.AccountId);
 
+        _registry.BindAccount(v.AccountId, context.ConnectionId);
+
+        var mapper = _clusterClient.GetGrain<IRoomIdMappingGrain>("global");
+        var numericRoomId = await mapper.GetOrCreateNumericIdAsync(wire.RoomId);
+
         var snapshot = await room.GetSnapshotAsync();
-        return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.Ok, TcpGatewayJson.Serialize(snapshot));
+        return new TcpGatewayResponseEnvelope(
+            TcpGatewayStatusCode.Ok,
+            TcpGatewayJson.Serialize(new { NumericRoomId = numericRoomId, Snapshot = snapshot }));
     }
 }

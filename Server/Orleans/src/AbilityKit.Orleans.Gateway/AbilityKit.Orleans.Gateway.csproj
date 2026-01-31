@@ -12,6 +12,9 @@
     <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.gameframework\Runtime\GameFramework\**\*.cs"
              Exclude="..\..\..\..\Unity\Packages\com.abilitykit.gameframework\Runtime\GameFramework\Properties\AssemblyInfo.cs"
              Link="GameFramework\%(RecursiveDir)%(Filename)%(Extension)" />
+
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\Generated\**\*.cs"
+             Link="Protocol.Moba.Generated\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>
