@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
-using AbilityKit.Ability.Host.Modules;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Ability.Host.Extensions.Rollback
 {
-    public sealed class ServerRollbackModule : ILogicWorldServerModule
+    public sealed class ServerRollbackModule : IHostRuntimeModule
     {
         private sealed class WorldContext
         {
@@ -28,6 +29,8 @@ namespace AbilityKit.Ability.Host.Extensions.Rollback
         private readonly Action<WorldId, FrameIndex, PlayerInputCommand[]> _onInputsFlushed;
         private readonly Action<FrameIndex, float> _onPostStep;
 
+        private IFrameSyncDriverEvents _frameEvents;
+
         public ServerRollbackModule(int historyFrames, int captureEveryNFrames, Func<IWorld, RollbackRegistry> buildRegistry)
         {
             if (historyFrames <= 0) throw new ArgumentOutOfRangeException(nameof(historyFrames));
@@ -43,24 +46,34 @@ namespace AbilityKit.Ability.Host.Extensions.Rollback
             _onPostStep = OnPostStep;
         }
 
-        public void Install(LogicWorldServerOptions options)
+        public void Install(HostRuntime runtime, HostRuntimeOptions options)
         {
+            if (runtime == null) throw new ArgumentNullException(nameof(runtime));
             if (options == null) throw new ArgumentNullException(nameof(options));
+
+            if (!runtime.Features.TryGetFeature<IFrameSyncDriverEvents>(out _frameEvents) || _frameEvents == null)
+            {
+                throw new InvalidOperationException($"{nameof(ServerRollbackModule)} requires {nameof(IFrameSyncDriverEvents)} feature. Install {nameof(FrameSyncDriverModule)} first.");
+            }
 
             options.WorldCreated.Add(_onWorldCreated);
             options.WorldDestroyed.Add(_onWorldDestroyed);
-            options.InputsFlushed.Add(_onInputsFlushed);
-            options.PostStep.Add(_onPostStep);
+
+            _frameEvents.AddInputsFlushed(_onInputsFlushed);
+            _frameEvents.AddPostStep(_onPostStep);
         }
 
-        public void Uninstall(LogicWorldServerOptions options)
+        public void Uninstall(HostRuntime runtime, HostRuntimeOptions options)
         {
+            if (runtime == null) throw new ArgumentNullException(nameof(runtime));
             if (options == null) throw new ArgumentNullException(nameof(options));
 
             options.WorldCreated.Remove(_onWorldCreated);
             options.WorldDestroyed.Remove(_onWorldDestroyed);
-            options.InputsFlushed.Remove(_onInputsFlushed);
-            options.PostStep.Remove(_onPostStep);
+
+            _frameEvents?.RemoveInputsFlushed(_onInputsFlushed);
+            _frameEvents?.RemovePostStep(_onPostStep);
+            _frameEvents = null;
         }
 
         public bool TryRollbackAndReplay(WorldId worldId, FrameIndex rollbackFrame, FrameIndex replayToFrame, float deltaTimePerFrame)

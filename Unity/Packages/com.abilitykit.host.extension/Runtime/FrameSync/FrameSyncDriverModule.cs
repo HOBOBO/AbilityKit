@@ -7,7 +7,7 @@ using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Ability.Host.Extensions.FrameSync
 {
-    public sealed class FrameSyncDriverModule : IHostRuntimeModule, IFrameSyncInputHub
+    public sealed class FrameSyncDriverModule : IHostRuntimeModule, IFrameSyncInputHub, IFrameSyncDriverEvents
     {
         private sealed class WorldSession
         {
@@ -22,6 +22,9 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         private readonly Action<IWorld> _onWorldCreated;
         private readonly Action<WorldId> _onWorldDestroyed;
         private readonly Action<float> _onPreTick;
+
+        private readonly List<Action<WorldId, FrameIndex, PlayerInputCommand[]>> _inputsFlushed = new List<Action<WorldId, FrameIndex, PlayerInputCommand[]>>(8);
+        private readonly List<Action<FrameIndex, float>> _postStep = new List<Action<FrameIndex, float>>(8);
 
         private FrameIndex _frame;
 
@@ -49,6 +52,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             options.PreTick.Add(_onPreTick);
 
             runtime.Features.RegisterFeature<IFrameSyncInputHub>(this);
+            runtime.Features.RegisterFeature<IFrameSyncDriverEvents>(this);
         }
 
         public void Uninstall(HostRuntime runtime, HostRuntimeOptions options)
@@ -61,10 +65,37 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             options.PreTick.Remove(_onPreTick);
 
             runtime.Features.UnregisterFeature<IFrameSyncInputHub>();
+            runtime.Features.UnregisterFeature<IFrameSyncDriverEvents>();
 
             _sessions.Clear();
+            _inputsFlushed.Clear();
+            _postStep.Clear();
             _runtime = null;
             _options = null;
+        }
+
+        public void AddInputsFlushed(Action<WorldId, FrameIndex, PlayerInputCommand[]> handler)
+        {
+            if (handler == null) throw new ArgumentNullException(nameof(handler));
+            _inputsFlushed.Add(handler);
+        }
+
+        public void RemoveInputsFlushed(Action<WorldId, FrameIndex, PlayerInputCommand[]> handler)
+        {
+            if (handler == null) return;
+            _inputsFlushed.Remove(handler);
+        }
+
+        public void AddPostStep(Action<FrameIndex, float> handler)
+        {
+            if (handler == null) throw new ArgumentNullException(nameof(handler));
+            _postStep.Add(handler);
+        }
+
+        public void RemovePostStep(Action<FrameIndex, float> handler)
+        {
+            if (handler == null) return;
+            _postStep.Remove(handler);
         }
 
         public bool SubmitInput(ServerClientId clientId, WorldId worldId, PlayerInputCommand input)
@@ -111,6 +142,14 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     inputs = Array.Empty<PlayerInputCommand>();
                 }
 
+                if (_inputsFlushed.Count > 0)
+                {
+                    for (int i = 0; i < _inputsFlushed.Count; i++)
+                    {
+                        _inputsFlushed[i]?.Invoke(worldId, nextFrame, inputs);
+                    }
+                }
+
                 if (world.Services != null && world.Services.TryResolve<IWorldInputSink>(out var sink) && sink != null)
                 {
                     sink.Submit(nextFrame, inputs);
@@ -129,6 +168,14 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
                 var packet = new FramePacket(worldId, nextFrame, inputs, state);
                 _runtime.Broadcast(new FrameMessage(packet));
+            }
+
+            if (_postStep.Count > 0)
+            {
+                for (int i = 0; i < _postStep.Count; i++)
+                {
+                    _postStep[i]?.Invoke(nextFrame, deltaTime);
+                }
             }
 
             _frame = nextFrame;

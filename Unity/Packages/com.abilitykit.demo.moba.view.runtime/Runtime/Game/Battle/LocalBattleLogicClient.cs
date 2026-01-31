@@ -1,6 +1,9 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.Host.Framework;
+using AbilityKit.Ability.Host.Transport;
 using AbilityKit.Ability.Impl.Moba.Systems;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
@@ -9,13 +12,14 @@ using AbilityKit.Game.Battle.Requests;
 
 namespace AbilityKit.Game.Battle
 {
-    public sealed class LocalBattleLogicClient : IBattleLogicClient, ILogicServerClient
+    public sealed class LocalBattleLogicClient : IBattleLogicClient, IHostClient
     {
-        private readonly ILogicWorldServer _server;
+        private readonly HostRuntime _server;
         private readonly ServerClientId _clientId;
         private WorldId _worldId;
+        private HostClientConnectionAdapter _connection;
 
-        public LocalBattleLogicClient(ILogicWorldServer server, string clientId = "local")
+        public LocalBattleLogicClient(HostRuntime server, string clientId = "local")
         {
             _server = server ?? throw new ArgumentNullException(nameof(server));
             _clientId = new ServerClientId(clientId);
@@ -25,11 +29,12 @@ namespace AbilityKit.Game.Battle
 
         public WorldId WorldId => _worldId;
 
-        ServerClientId ILogicServerClient.ClientId => _clientId;
+        public ServerClientId ClientId => _clientId;
 
         public void Connect()
         {
-            _server.Connect(this);
+            _connection ??= new HostClientConnectionAdapter(this);
+            _server.Connect(_connection);
         }
 
         public void Disconnect()
@@ -55,17 +60,18 @@ namespace AbilityKit.Game.Battle
 
         public void Join(JoinWorldRequest request)
         {
-            _server.JoinWorld(_clientId, request.WorldId, request.PlayerId);
         }
 
         public void Leave(LeaveWorldRequest request)
         {
-            _server.LeaveWorld(_clientId, request.WorldId, request.PlayerId);
         }
 
         public void SubmitInput(SubmitInputRequest request)
         {
-            _server.SubmitInput(_clientId, request.WorldId, request.Input);
+            if (_server.Features.TryGetFeature<IFrameSyncInputHub>(out var hub) && hub != null)
+            {
+                hub.SubmitInput(_clientId, request.WorldId, request.Input);
+            }
         }
 
         public void Tick(float deltaTime)
@@ -78,25 +84,12 @@ namespace AbilityKit.Game.Battle
             Disconnect();
         }
 
-        void ILogicServerClient.OnWorldCreated(WorldId worldId, string worldType)
+        public void OnMessage(ServerMessage message)
         {
-        }
-
-        void ILogicServerClient.OnWorldDestroyed(WorldId worldId)
-        {
-        }
-
-        void ILogicServerClient.OnPlayerJoined(WorldId worldId, PlayerId player)
-        {
-        }
-
-        void ILogicServerClient.OnPlayerLeft(WorldId worldId, PlayerId player)
-        {
-        }
-
-        void ILogicServerClient.OnFrame(FramePacket packet)
-        {
-            FrameReceived?.Invoke(packet);
+            if (message is FrameMessage frame)
+            {
+                FrameReceived?.Invoke(frame.Packet);
+            }
         }
     }
 }

@@ -1,7 +1,8 @@
 using System;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Host.Modules;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Rollback;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
@@ -12,7 +13,6 @@ using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Game.Battle.Requests;
-using AbilityKit.Ability.Impl.Moba.Systems;
 using AbilityKit.Ability.Host.Extensions.Rollback;
 using AbilityKit.Ability.Host.Extensions.Time;
 
@@ -22,7 +22,7 @@ namespace AbilityKit.Game.Battle
     {
         private readonly BattleLogicSessionOptions _options;
         private readonly IWorldManager _worldManager;
-        private readonly ILogicWorldServer _server;
+        private readonly HostRuntime _server;
         private readonly IBattleLogicClient _client;
 
         public ServerRollbackModule RollbackModule { get; }
@@ -49,8 +49,11 @@ namespace AbilityKit.Game.Battle
                 var factory = new AbilityKit.Ability.Host.WorldBlueprints.WorldBlueprintWorldFactory(baseFactory, blueprints);
                 _worldManager = new WorldManager(factory);
 
-                var serverOptions = new LogicWorldServerOptions();
-                var modules = new LogicWorldServerModuleHost()
+                var serverOptions = new HostRuntimeOptions();
+                var server = new HostRuntime(_worldManager, serverOptions);
+
+                var modules = new HostRuntimeModuleHost()
+                    .Add(new FrameSyncDriverModule())
                     .Add(new ServerFrameTimeModule());
 
                 if (_options.EnableRollback)
@@ -64,8 +67,8 @@ namespace AbilityKit.Game.Battle
                     modules.Add(RollbackModule);
                 }
 
-                modules.InstallAll(serverOptions);
-                _server = new LogicWorldServer(_worldManager, serverOptions);
+                modules.InstallAll(server, serverOptions);
+                _server = server;
             }
 
             if (_options.Mode == BattleLogicMode.Remote)

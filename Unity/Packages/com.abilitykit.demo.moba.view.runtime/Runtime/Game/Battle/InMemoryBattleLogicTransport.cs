@@ -1,6 +1,9 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.Host.Framework;
+using AbilityKit.Ability.Host.Transport;
 using AbilityKit.Ability.Impl.Moba.Systems;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
@@ -8,12 +11,13 @@ using AbilityKit.Game.Battle.Requests;
 
 namespace AbilityKit.Game.Battle
 {
-    public sealed class InMemoryBattleLogicTransport : IBattleLogicTransport, ILogicServerClient
+    public sealed class InMemoryBattleLogicTransport : IBattleLogicTransport, IHostClient
     {
-        private readonly ILogicWorldServer _server;
+        private readonly HostRuntime _server;
         private readonly ServerClientId _clientId;
+        private HostClientConnectionAdapter _connection;
 
-        public InMemoryBattleLogicTransport(ILogicWorldServer server, string clientId = "in_memory")
+        public InMemoryBattleLogicTransport(HostRuntime server, string clientId = "in_memory")
         {
             _server = server ?? throw new ArgumentNullException(nameof(server));
             _clientId = new ServerClientId(clientId);
@@ -21,11 +25,12 @@ namespace AbilityKit.Game.Battle
 
         public event Action<FramePacket> FramePushed;
 
-        ServerClientId ILogicServerClient.ClientId => _clientId;
+        public ServerClientId ClientId => _clientId;
 
         public void Connect()
         {
-            _server.Connect(this);
+            _connection ??= new HostClientConnectionAdapter(this);
+            _server.Connect(_connection);
         }
 
         public void Disconnect()
@@ -49,38 +54,26 @@ namespace AbilityKit.Game.Battle
 
         public void SendJoin(JoinWorldRequest request)
         {
-            _server.JoinWorld(_clientId, request.WorldId, request.PlayerId);
         }
 
         public void SendLeave(LeaveWorldRequest request)
         {
-            _server.LeaveWorld(_clientId, request.WorldId, request.PlayerId);
         }
 
         public void SendInput(SubmitInputRequest request)
         {
-            _server.SubmitInput(_clientId, request.WorldId, request.Input);
+            if (_server.Features.TryGetFeature<IFrameSyncInputHub>(out var hub) && hub != null)
+            {
+                hub.SubmitInput(_clientId, request.WorldId, request.Input);
+            }
         }
 
-        void ILogicServerClient.OnWorldCreated(WorldId worldId, string worldType)
+        public void OnMessage(ServerMessage message)
         {
-        }
-
-        void ILogicServerClient.OnWorldDestroyed(WorldId worldId)
-        {
-        }
-
-        void ILogicServerClient.OnPlayerJoined(WorldId worldId, PlayerId player)
-        {
-        }
-
-        void ILogicServerClient.OnPlayerLeft(WorldId worldId, PlayerId player)
-        {
-        }
-
-        void ILogicServerClient.OnFrame(FramePacket packet)
-        {
-            FramePushed?.Invoke(packet);
+            if (message is FrameMessage frame)
+            {
+                FramePushed?.Invoke(frame.Packet);
+            }
         }
     }
 }

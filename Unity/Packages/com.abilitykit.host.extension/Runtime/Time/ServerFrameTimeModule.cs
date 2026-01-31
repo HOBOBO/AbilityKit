@@ -1,19 +1,22 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Host.Modules;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Host.Extensions.Time
 {
-    public sealed class ServerFrameTimeModule : ILogicWorldServerModule
+    public sealed class ServerFrameTimeModule : IHostRuntimeModule
     {
         private readonly Dictionary<WorldId, FrameTime> _times = new Dictionary<WorldId, FrameTime>();
 
         private readonly Action<WorldCreateOptions> _onBeforeCreateWorld;
         private readonly Action<WorldId> _onWorldDestroyed;
         private readonly Action<FrameIndex, float> _onPostStep;
+
+        private IFrameSyncDriverEvents _frameEvents;
 
         public ServerFrameTimeModule()
         {
@@ -34,22 +37,32 @@ namespace AbilityKit.Ability.Host.Extensions.Time
             return false;
         }
 
-        public void Install(LogicWorldServerOptions options)
+        public void Install(HostRuntime runtime, HostRuntimeOptions options)
         {
+            if (runtime == null) throw new ArgumentNullException(nameof(runtime));
             if (options == null) throw new ArgumentNullException(nameof(options));
+
+            if (!runtime.Features.TryGetFeature<IFrameSyncDriverEvents>(out _frameEvents) || _frameEvents == null)
+            {
+                throw new InvalidOperationException($"{nameof(ServerFrameTimeModule)} requires {nameof(IFrameSyncDriverEvents)} feature. Install {nameof(FrameSyncDriverModule)} first.");
+            }
 
             options.BeforeCreateWorld.Add(_onBeforeCreateWorld);
             options.WorldDestroyed.Add(_onWorldDestroyed);
-            options.PostStep.Add(_onPostStep);
+
+            _frameEvents.AddPostStep(_onPostStep);
         }
 
-        public void Uninstall(LogicWorldServerOptions options)
+        public void Uninstall(HostRuntime runtime, HostRuntimeOptions options)
         {
+            if (runtime == null) throw new ArgumentNullException(nameof(runtime));
             if (options == null) throw new ArgumentNullException(nameof(options));
 
             options.BeforeCreateWorld.Remove(_onBeforeCreateWorld);
             options.WorldDestroyed.Remove(_onWorldDestroyed);
-            options.PostStep.Remove(_onPostStep);
+
+            _frameEvents?.RemovePostStep(_onPostStep);
+            _frameEvents = null;
         }
 
         private void OnBeforeCreateWorld(WorldCreateOptions options)

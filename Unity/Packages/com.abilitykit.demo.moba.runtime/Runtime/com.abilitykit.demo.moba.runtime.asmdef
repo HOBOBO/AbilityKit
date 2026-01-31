@@ -22,7 +22,8 @@
         "AbilityKit.Combat.Collision.Abstractions",
         "AbilityKit.Combat.Collision.Unity",
         "AbilityKit.Triggering",
-        "AbilityKit.Pipeline"
+        "AbilityKit.Pipeline",
+        "AbilityKit.Host.Extensions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

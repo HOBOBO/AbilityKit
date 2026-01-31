@@ -1,6 +1,8 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
@@ -58,43 +60,17 @@ namespace AbilityKit.Ability.Host.Examples
             }
         }
 
-        private sealed class LogClient : ILogicServerClient
-        {
-            public LogClient(string id)
-            {
-                ClientId = new ServerClientId(id);
-            }
-
-            public ServerClientId ClientId { get; }
-
-            public void OnWorldCreated(WorldId worldId, string worldType)
-            {
-            }
-
-            public void OnWorldDestroyed(WorldId worldId)
-            {
-            }
-
-            public void OnPlayerJoined(WorldId worldId, PlayerId player)
-            {
-            }
-
-            public void OnPlayerLeft(WorldId worldId, PlayerId player)
-            {
-            }
-
-            public void OnFrame(FramePacket packet)
-            {
-            }
-        }
-
-        public static LogicWorldServer CreateServerWithOneWorld()
+        public static HostRuntime CreateServerWithOneWorld()
         {
             var registry = new WorldTypeRegistry().RegisterEntitasWorld("battle");
             var manager = new WorldManager(new RegistryWorldFactory(registry));
-            var server = new LogicWorldServer(manager);
 
-            server.Connect(new LogClient("client_1"));
+            var options = new HostRuntimeOptions();
+            var server = new HostRuntime(manager, options);
+
+            var modules = new HostRuntimeModuleHost();
+            modules.Add(new FrameSyncDriverModule());
+            modules.InstallAll(server, options);
 
             var builder = WorldServiceContainerFactory.CreateDefaultOnly();
             builder.AddModule(new AbilityKit.Ability.World.Entitas.Systems.TickCounterWorldModule());
@@ -105,8 +81,10 @@ namespace AbilityKit.Ability.Host.Examples
                 ServiceBuilder = builder
             });
 
-            server.JoinWorld(new ServerClientId("client_1"), new WorldId("room_1"), new PlayerId("p1"));
-            server.SubmitInput(new ServerClientId("client_1"), new WorldId("room_1"), new PlayerInputCommand(new FrameIndex(0), new PlayerId("p1"), 1, new byte[] { 1, 2, 3 }));
+            if (server.Features.TryGetFeature<IFrameSyncInputHub>(out var hub) && hub != null)
+            {
+                hub.SubmitInput(new ServerClientId("client_1"), new WorldId("room_1"), new PlayerInputCommand(new FrameIndex(0), new PlayerId("p1"), 1, new byte[] { 1, 2, 3 }));
+            }
 
             server.Tick(0.016f);
             return server;
