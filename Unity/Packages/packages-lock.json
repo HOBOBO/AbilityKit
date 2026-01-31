@@ -281,18 +281,6 @@
         "com.abilitykit.world.snapshot": "0.0.1"
       }
     },
-    "com.abilitykit.host.framesync": {
-      "version": "file:com.abilitykit.host.framesync",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.abilitykit.host": "0.0.1",
-        "com.abilitykit.core": "0.0.1",
-        "com.abilitykit.world.di": "0.0.1",
-        "com.abilitykit.world.framesync": "0.0.1",
-        "com.abilitykit.world.snapshot": "0.0.1"
-      }
-    },
     "com.abilitykit.hotreload": {
       "version": "file:com.abilitykit.hotreload",
       "depth": 0,
