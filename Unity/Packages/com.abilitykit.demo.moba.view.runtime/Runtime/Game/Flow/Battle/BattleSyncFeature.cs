@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
@@ -51,6 +52,12 @@ namespace AbilityKit.Game.Flow
             }
 
             _localActorId = 0;
+
+            if (_ctx != null)
+            {
+                _ctx.RuntimeWorldId = default;
+                _ctx.HasRuntimeWorldId = false;
+            }
         }
 
         public void OnDetach(in GamePhaseContext ctx)
@@ -65,6 +72,12 @@ namespace AbilityKit.Game.Flow
             _subLobby = null;
             _subActorTransform = null;
             _subStateHash = null;
+
+            if (_ctx != null)
+            {
+                _ctx.RuntimeWorldId = default;
+                _ctx.HasRuntimeWorldId = false;
+            }
 
             _ctx = null;
             _world = null;
@@ -86,10 +99,27 @@ namespace AbilityKit.Game.Flow
         private void OnStateHashSnapshot(FramePacket packet, MobaStateHashSnapshotCodec.SnapshotPayload snap)
         {
             ApplyStateHashSnapshot(snap);
+
+            if (_ctx != null)
+            {
+                _ctx.RuntimeWorldId = packet.WorldId;
+                _ctx.HasRuntimeWorldId = true;
+            }
+
+            var target = _ctx?.PredictionReconcileTarget;
+            if (target != null)
+            {
+                target.OnAuthoritativeStateHash(packet.WorldId, new FrameIndex(snap.Frame), new AbilityKit.Ability.FrameSync.Rollback.WorldStateHash(snap.Hash));
+            }
         }
 
         private void OnActorTransformSnapshot(FramePacket packet, (int actorId, float x, float y, float z)[] entries)
         {
+            if (_ctx != null)
+            {
+                _ctx.RuntimeWorldId = packet.WorldId;
+                _ctx.HasRuntimeWorldId = true;
+            }
             ApplyTransformSnapshot(entries);
         }
 

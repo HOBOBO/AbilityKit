@@ -1,4 +1,5 @@
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Ability.Host.Extensions.FrameSync
@@ -7,9 +8,37 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
     {
         int InputDelayFrames { get; }
 
-        int MaxConsumePredictedFramesPerTick { get; }
+        bool IsReplaying { get; }
 
-        int MaxConsumeConfirmedFramesPerTick { get; }
+        FrameIndex ReplayToFrame { get; }
+
+        FrameIndex LastRollbackFrame { get; }
+
+        long TotalRollbackCount { get; }
+
+        long TotalRollbackRestoreFailed { get; }
+
+        long TotalReconcileMismatch { get; }
+
+        FrameIndex LastReconcileMismatchFrame { get; }
+
+        WorldStateHash LastReconcilePredictedHash { get; }
+
+        WorldStateHash LastReconcileAuthoritativeHash { get; }
+
+        long TotalAuthoritativeHashReceived { get; }
+
+        long TotalPredictedHashRecorded { get; }
+
+        long TotalAuthoritativeHashSkippedNoPredictedHash { get; }
+
+        FrameIndex LastReconcileComparedFrame { get; }
+
+        FrameIndex LastAuthoritativeHashFrame { get; }
+
+        WorldStateHash LastAuthoritativeHash { get; }
+
+        long TotalAuthoritativeHashIgnoredNoReconciler { get; }
 
         int LastConsumedConfirmedFrames { get; }
 
@@ -24,5 +53,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         bool TryGetLocalDelayQueueDepth(WorldId worldId, out int depth);
 
         bool TryGetFrames(WorldId worldId, out FrameIndex confirmed, out FrameIndex predicted);
+
+        bool TryGetReconcileEnabled(WorldId worldId, out bool enabled);
     }
 }

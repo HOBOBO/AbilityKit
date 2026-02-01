@@ -7,6 +7,7 @@ using EC = AbilityKit.Ability.EC;
 using AbilityKit.Game.Battle;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Game.Flow
 {
@@ -32,7 +33,15 @@ namespace AbilityKit.Game.Flow
 
         public BattleLocalInputQueue LocalInputQueue;
 
-        public IClientPredictionDriverStats PredictionStats;
+        public AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionDriverStats PredictionStats;
+
+        public AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionReconcileTarget PredictionReconcileTarget;
+
+        public AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionReconcileControl PredictionReconcileControl;
+
+        public WorldId RuntimeWorldId;
+
+        public bool HasRuntimeWorldId;
 
         public EC.Entity EntityNode;
         public EC.EntityWorld EntityWorld;
@@ -92,6 +101,11 @@ namespace AbilityKit.Game.Flow
             LocalInputQueue = null;
 
             PredictionStats = null;
+            PredictionReconcileTarget = null;
+            PredictionReconcileControl = null;
+
+            RuntimeWorldId = default;
+            HasRuntimeWorldId = false;
 
             EntityNode = default;
             EntityWorld = null;
@@ -136,6 +150,11 @@ namespace AbilityKit.Game.Flow
             LocalInputQueue = null;
 
             PredictionStats = null;
+            PredictionReconcileTarget = null;
+            PredictionReconcileControl = null;
+
+            RuntimeWorldId = default;
+            HasRuntimeWorldId = false;
 
             EntityNode = default;
             EntityWorld = null;

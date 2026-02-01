@@ -21,6 +21,8 @@ namespace AbilityKit.Game.Flow
         private float _lastMoveDx;
         private float _lastMoveDz;
 
+        private int _moveStopRepeatTicks;
+
         public void OnAttach(in GamePhaseContext ctx)
         {
             ctx.Root.TryGetComponent(out _ctx);
@@ -65,6 +67,11 @@ namespace AbilityKit.Game.Flow
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
                 _ctx.LocalInputQueue.Enqueue(new LocalPlayerInputEvent(playerId, (int)MobaOpCode.Move, payload));
 
+                if (!isMoving && wasMoving)
+                {
+                    _moveStopRepeatTicks = 2;
+                }
+
                 _lastMoveDx = dx;
                 _lastMoveDz = dz;
             }
@@ -72,6 +79,16 @@ namespace AbilityKit.Game.Flow
             {
                 _lastMoveDx = dx;
                 _lastMoveDz = dz;
+
+                if (_moveStopRepeatTicks > 0)
+                {
+                    _moveStopRepeatTicks--;
+                    var payload = MobaMoveCodec.Serialize(0f, 0f);
+                    var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, (int)MobaOpCode.Move, payload);
+                    _ctx.InputRecordWriter?.Append(in cmd);
+                    _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
+                    _ctx.LocalInputQueue.Enqueue(new LocalPlayerInputEvent(playerId, (int)MobaOpCode.Move, payload));
+                }
 
                 _inputDiagCooldown -= deltaTime;
                 if (_inputDiagCooldown <= 0f)

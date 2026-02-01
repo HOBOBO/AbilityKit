@@ -27,6 +27,7 @@ using System.Threading.Tasks;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Management;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.Impl.Moba.Rollback;
 
 namespace AbilityKit.Game.Flow
 {
@@ -36,6 +37,10 @@ namespace AbilityKit.Game.Flow
         private const int StateHashRecordIntervalFrames = 10;
         private const int ReplaySeekChunkFrames = 300;
         private const int RollbackSeekProbeFrames = 120;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        public static bool DebugForceClientHashMismatch { get; set; }
+#endif
 
         private readonly IBattleBootstrapper _bootstrapper;
 
@@ -89,6 +94,34 @@ namespace AbilityKit.Game.Flow
         public BattleSessionFeature(IBattleBootstrapper bootstrapper)
         {
             _bootstrapper = bootstrapper;
+        }
+
+        private static void AddByte(ref uint h, byte v)
+        {
+            h ^= v;
+            h *= 16777619u;
+        }
+
+        private static void AddUInt(ref uint h, uint v)
+        {
+            AddByte(ref h, (byte)(v & 0xFF));
+            AddByte(ref h, (byte)((v >> 8) & 0xFF));
+            AddByte(ref h, (byte)((v >> 16) & 0xFF));
+            AddByte(ref h, (byte)((v >> 24) & 0xFF));
+        }
+
+        private static void AddInt(ref uint h, int v)
+        {
+            unchecked
+            {
+                AddUInt(ref h, (uint)v);
+            }
+        }
+
+        private static void AddFloat(ref uint h, float v)
+        {
+            var bits = BitConverter.SingleToInt32Bits(v);
+            AddInt(ref h, bits);
         }
 
         private bool ShouldPrepareGatewayRoom()
@@ -779,8 +812,42 @@ namespace AbilityKit.Game.Flow
                     resolveRemoteInputs: _ => _remoteDrivenConsumable,
                     resolveLocalInputs: _ => _ctx != null ? _ctx.LocalInputQueue : null,
                     inputDelayFrames: _plan.InputDelayFrames < 0 ? 0 : _plan.InputDelayFrames,
-                    maxConsumeConfirmedFramesPerTick: 2,
-                    maxConsumePredictedFramesPerTick: 2))
+                    enableRollback: true,
+                    rollbackHistoryFrames: 240,
+                    rollbackCaptureEveryNFrames: 1,
+                    buildRollbackRegistry: world =>
+                    {
+                        var reg = new AbilityKit.Ability.FrameSync.Rollback.RollbackRegistry();
+                        if (world?.Services == null) return reg;
+
+                        if (world.Services.TryResolve<MobaActorRegistry>(out var actorReg) && actorReg != null)
+                        {
+                            reg.Register(new AbilityKit.Ability.Share.Impl.Moba.Rollback.MobaActorTransformRollbackProvider(actorReg));
+                        }
+
+                        if (world.Services.TryResolve<AbilityKit.Ability.Share.Impl.Moba.Move.MobaMoveService>(out var move) && move != null)
+                        {
+                            reg.Register(new MobaMoveRollbackProvider(move));
+                        }
+
+                        return reg;
+                    },
+                    buildComputeHash: world =>
+                    {
+                        if (world?.Services == null) return null;
+
+                        if (!world.Services.TryResolve<AbilityKit.Ability.Share.Impl.Moba.Services.MobaLobbyStateService>(out var lobby) || lobby == null)
+                        {
+                            return null;
+                        }
+
+                        if (!world.Services.TryResolve<AbilityKit.Ability.Share.Impl.Moba.Services.MobaActorRegistry>(out var registry) || registry == null)
+                        {
+                            return null;
+                        }
+
+                        return _ => new AbilityKit.Ability.FrameSync.Rollback.WorldStateHash(ComputeStateHash(lobby, registry));
+                    }))
                 .Add(new AbilityKit.Ability.Host.Extensions.Time.ServerFrameTimeModule(fixedDelta));
             modules.InstallAll(_remoteDrivenRuntime, serverOptions);
 
@@ -793,6 +860,24 @@ namespace AbilityKit.Game.Flow
                 else
                 {
                     _ctx.PredictionStats = null;
+                }
+
+                if (_remoteDrivenRuntime.Features.TryGetFeature<AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionReconcileTarget>(out var target) && target != null)
+                {
+                    _ctx.PredictionReconcileTarget = target;
+                }
+                else
+                {
+                    _ctx.PredictionReconcileTarget = null;
+                }
+
+                if (_remoteDrivenRuntime.Features.TryGetFeature<AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionReconcileControl>(out var control) && control != null)
+                {
+                    _ctx.PredictionReconcileControl = control;
+                }
+                else
+                {
+                    _ctx.PredictionReconcileControl = null;
                 }
             }
 
@@ -866,6 +951,46 @@ namespace AbilityKit.Game.Flow
             _remoteDrivenInputSource = buf;
             _remoteDrivenConsumable = buf;
             _remoteDrivenSink = buf;
+        }
+
+        private static uint ComputeStateHash(
+            AbilityKit.Ability.Share.Impl.Moba.Services.MobaLobbyStateService lobby,
+            AbilityKit.Ability.Share.Impl.Moba.Services.MobaActorRegistry registry)
+        {
+            var entries = new List<(int actorId, float x, float y, float z)>(16);
+            foreach (var kv in registry.Entries)
+            {
+                var actorId = kv.Key;
+                var e = kv.Value;
+                if (e == null) continue;
+                if (!e.hasTransform) continue;
+                var p = e.transform.Value.Position;
+                entries.Add((actorId, p.X, p.Y, p.Z));
+            }
+
+            entries.Sort((a, b) => a.actorId.CompareTo(b.actorId));
+
+            uint h = 2166136261u;
+            AddByte(ref h, lobby.Started ? (byte)1 : (byte)0);
+            AddInt(ref h, entries.Count);
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                var it = entries[i];
+                AddInt(ref h, it.actorId);
+                AddFloat(ref h, it.x);
+                AddFloat(ref h, it.y);
+                AddFloat(ref h, it.z);
+            }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (DebugForceClientHashMismatch)
+            {
+                h ^= 1u;
+            }
+#endif
+
+            return h;
         }
 
         private void ApplyAutoPlanActions()
