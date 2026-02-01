@@ -66,6 +66,16 @@ namespace AbilityKit.Game.Flow
         public readonly int CreateWorldOpCode;
         public readonly byte[] CreateWorldPayload;
 
+        public readonly uint TimeSyncOpCode;
+        public readonly int TimeSyncIntervalMs;
+        public readonly double TimeSyncAlpha;
+        public readonly int TimeSyncTimeoutMs;
+
+        public readonly int IdealFrameSafetyConstMarginFrames;
+        public readonly double IdealFrameSafetyRttFactor;
+        public readonly int IdealFrameSafetyMinMarginFrames;
+        public readonly int IdealFrameSafetyMaxMarginFrames;
+
         public BattleStartPlan(
             string worldId,
             string worldType,
@@ -98,7 +108,15 @@ namespace AbilityKit.Game.Flow
             string inputReplayPath,
             BattleStartConfig.BattleRunMode runMode,
             int createWorldOpCode,
-            byte[] createWorldPayload)
+            byte[] createWorldPayload,
+            uint timeSyncOpCode = 1300,
+            int timeSyncIntervalMs = 1000,
+            double timeSyncAlpha = 0.20,
+            int timeSyncTimeoutMs = 2000,
+            int idealFrameSafetyConstMarginFrames = 2,
+            double idealFrameSafetyRttFactor = 1.0,
+            int idealFrameSafetyMinMarginFrames = 0,
+            int idealFrameSafetyMaxMarginFrames = 30)
         {
             WorldId = worldId;
             WorldType = worldType;
@@ -140,6 +158,16 @@ namespace AbilityKit.Game.Flow
             RunMode = runMode;
             CreateWorldOpCode = createWorldOpCode;
             CreateWorldPayload = createWorldPayload;
+
+            TimeSyncOpCode = timeSyncOpCode;
+            TimeSyncIntervalMs = timeSyncIntervalMs;
+            TimeSyncAlpha = timeSyncAlpha;
+            TimeSyncTimeoutMs = timeSyncTimeoutMs;
+
+            IdealFrameSafetyConstMarginFrames = idealFrameSafetyConstMarginFrames;
+            IdealFrameSafetyRttFactor = idealFrameSafetyRttFactor;
+            IdealFrameSafetyMinMarginFrames = idealFrameSafetyMinMarginFrames;
+            IdealFrameSafetyMaxMarginFrames = idealFrameSafetyMaxMarginFrames;
         }
 
         public BattleStartPlan(
@@ -172,7 +200,15 @@ namespace AbilityKit.Game.Flow
             bool enableInputReplay,
             string inputReplayPath,
             int createWorldOpCode,
-            byte[] createWorldPayload)
+            byte[] createWorldPayload,
+            uint timeSyncOpCode = 1300,
+            int timeSyncIntervalMs = 1000,
+            double timeSyncAlpha = 0.20,
+            int timeSyncTimeoutMs = 2000,
+            int idealFrameSafetyConstMarginFrames = 2,
+            double idealFrameSafetyRttFactor = 1.0,
+            int idealFrameSafetyMinMarginFrames = 0,
+            int idealFrameSafetyMaxMarginFrames = 30)
             : this(
                 worldId,
                 worldType,
@@ -205,7 +241,15 @@ namespace AbilityKit.Game.Flow
                 inputReplayPath,
                 enableInputReplay ? BattleStartConfig.BattleRunMode.Replay : (enableInputRecording ? BattleStartConfig.BattleRunMode.Record : BattleStartConfig.BattleRunMode.Normal),
                 createWorldOpCode,
-                createWorldPayload)
+                createWorldPayload,
+                timeSyncOpCode,
+                timeSyncIntervalMs,
+                timeSyncAlpha,
+                timeSyncTimeoutMs,
+                idealFrameSafetyConstMarginFrames,
+                idealFrameSafetyRttFactor,
+                idealFrameSafetyMinMarginFrames,
+                idealFrameSafetyMaxMarginFrames)
         {
         }
     }

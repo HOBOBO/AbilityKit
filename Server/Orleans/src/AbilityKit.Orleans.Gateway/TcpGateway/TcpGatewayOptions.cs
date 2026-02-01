@@ -22,6 +22,10 @@ public sealed class TcpGatewayOptions
 
     public uint CreateSessionForAccountOpCode { get; set; } = 122;
 
+    public uint TimeSyncOpCode { get; set; } = 1300;
+
+    public double FixedDeltaSeconds { get; set; } = 0.03333333333333333;
+
     public uint SubmitFrameInputOpCode { get; set; } = 2001;
     public uint FramePushedOpCode { get; set; } = 9001;
 

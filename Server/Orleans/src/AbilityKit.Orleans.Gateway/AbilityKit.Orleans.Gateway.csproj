@@ -15,6 +15,9 @@
 
     <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\Generated\**\*.cs"
              Link="Protocol.Moba.Generated\%(RecursiveDir)%(Filename)%(Extension)" />
+
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\GatewayTimeSync\**\*.cs"
+             Link="Protocol.Moba\GatewayTimeSync\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

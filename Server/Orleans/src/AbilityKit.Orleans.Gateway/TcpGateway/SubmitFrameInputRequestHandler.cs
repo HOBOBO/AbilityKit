@@ -8,6 +8,8 @@ namespace AbilityKit.Orleans.Gateway.TcpGateway;
 
 public sealed class SubmitFrameInputRequestHandler : ITcpGatewayRequestHandler
 {
+    private static readonly bool EnableVerboseFrameInputLog = false;
+
     private readonly IOptions<TcpGatewayOptions> _options;
     private readonly ITcpGatewaySessionRegistry _registry;
     private readonly IClusterClient _clusterClient;
@@ -32,16 +34,19 @@ public sealed class SubmitFrameInputRequestHandler : ITcpGatewayRequestHandler
         {
             var req = WireCustomBinary.DeserializeSubmitFrameInputReq(payload);
 
-            _logger.LogDebug("SubmitFrameInput received. Conn={ConnectionId} OpCode={OpCode} Seq={Seq} RoomId={RoomId} WorldId={WorldId} PlayerId={PlayerId} Frame={Frame} InputOpCode={InputOpCode} PayloadLen={PayloadLen}",
-                context.ConnectionId,
-                header.OpCode,
-                header.Seq,
-                req.RoomId,
-                req.WorldId,
-                req.PlayerId,
-                req.Frame,
-                req.InputOpCode,
-                req.InputPayload.Length);
+            if (EnableVerboseFrameInputLog)
+            {
+                _logger.LogDebug("SubmitFrameInput received. Conn={ConnectionId} OpCode={OpCode} Seq={Seq} RoomId={RoomId} WorldId={WorldId} PlayerId={PlayerId} Frame={Frame} InputOpCode={InputOpCode} PayloadLen={PayloadLen}",
+                    context.ConnectionId,
+                    header.OpCode,
+                    header.Seq,
+                    req.RoomId,
+                    req.WorldId,
+                    req.PlayerId,
+                    req.Frame,
+                    req.InputOpCode,
+                    req.InputPayload.Length);
+            }
 
             // Stage-4: forward to BattleFrameSyncGrain; Gateway receives frame events via FrameSyncObserverHub and broadcasts.
             if (_clusterClient != null)

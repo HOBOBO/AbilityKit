@@ -8,6 +8,34 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
     {
         int InputDelayFrames { get; }
 
+        int MaxPredictionAheadFrames { get; }
+
+        int MinPredictionWindow { get; }
+
+        float BacklogEwmaAlpha { get; }
+
+        int CurrentBacklogRaw { get; }
+
+        float CurrentBacklogEwma { get; }
+
+        int CurrentPredictionWindow { get; }
+
+        bool IsPredictionStalledByWindow { get; }
+
+        long TotalPredictionWindowStalls { get; }
+
+        int CurrentIdealFrameLimit { get; }
+
+        bool IsPredictionStalledByIdealFrame { get; }
+
+        long TotalIdealFrameStalls { get; }
+
+        bool TryGetIdealFrameStallStats(WorldId worldId, out int idealFrameLimit, out bool stalled, out long stallsTotal);
+
+        bool TryGetPredictionWindowStats(WorldId worldId, out int backlogRaw, out float backlogEwma, out int window, out bool stalled);
+
+        bool TryGetPredictionWindowStats(WorldId worldId, out int backlogRaw, out float backlogEwma, out int window, out bool stalled, out long stallsTotal);
+
         bool IsReplaying { get; }
 
         FrameIndex ReplayToFrame { get; }
@@ -17,6 +45,14 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         long TotalRollbackCount { get; }
 
         long TotalRollbackRestoreFailed { get; }
+
+        long TotalReplayTimeout { get; }
+
+        FrameIndex LastReplayTimeoutFrame { get; }
+
+        long TotalReconcileAutoDisabledByReplayTimeout { get; }
+
+        FrameIndex LastReconcileAutoDisabledByReplayTimeoutFrame { get; }
 
         long TotalReconcileMismatch { get; }
 

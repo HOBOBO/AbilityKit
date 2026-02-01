@@ -23,6 +23,7 @@ builder.Services.AddSingleton<ITcpGatewayRequestHandler, CloseRoomRequestHandler
 builder.Services.AddSingleton<ITcpGatewayRequestHandler, RenewSessionRequestHandler>();
 builder.Services.AddSingleton<ITcpGatewayRequestHandler, LogoutRequestHandler>();
 builder.Services.AddSingleton<ITcpGatewayRequestHandler, CreateSessionForAccountRequestHandler>();
+builder.Services.AddSingleton<ITcpGatewayRequestHandler, TimeSyncRequestHandler>();
 builder.Services.AddSingleton<FrameSyncObserverHub>();
 builder.Services.AddSingleton<ITcpGatewayRequestHandler, SubmitFrameInputRequestHandler>();
 builder.Services.AddSingleton<TcpGatewayRequestRouter>();

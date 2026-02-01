@@ -11,6 +11,8 @@ namespace AbilityKit.Orleans.Gateway.TcpGateway;
 
 public sealed class FrameSyncObserverHub : IFrameSyncObserver
 {
+    private static readonly bool EnablePushStatsLog = false;
+
     private readonly IClusterClient _clusterClient;
     private readonly ITcpGatewaySessionRegistry _registry;
     private readonly IOptions<TcpGatewayOptions> _options;
@@ -177,8 +179,11 @@ public sealed class FrameSyncObserverHub : IFrameSyncObserver
                 var avgSerialize = _statsFrames > 0 ? _msSerialize / _statsFrames : 0;
                 var avgSend = _statsFrames > 0 ? _msSend / _statsFrames : 0;
 
-                _logger.LogInformation("[FrameSyncObserverHub] Push stats. RoomId={RoomId} Hz={Hz:F1} AvgMsTotal={AvgTotal:F2} AvgMsMap={AvgMap:F2} AvgMsMembers={AvgMembers:F2} AvgMsSerialize={AvgSerialize:F2} AvgMsSend={AvgSend:F2}",
-                    roomId, hz, avgTotal, avgMap, avgMembers, avgSerialize, avgSend);
+                if (EnablePushStatsLog)
+                {
+                    _logger.LogInformation("[FrameSyncObserverHub] Push stats. RoomId={RoomId} Hz={Hz:F1} AvgMsTotal={AvgTotal:F2} AvgMsMap={AvgMap:F2} AvgMsMembers={AvgMembers:F2} AvgMsSerialize={AvgSerialize:F2} AvgMsSend={AvgSend:F2}",
+                        roomId, hz, avgTotal, avgMap, avgMembers, avgSerialize, avgSend);
+                }
 
                 _statsWindowStartUtc = now;
                 _statsFrames = 0;

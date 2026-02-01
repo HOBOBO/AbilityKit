@@ -28,6 +28,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Management;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.Impl.Moba.Rollback;
+using System.Diagnostics;
 
 namespace AbilityKit.Game.Flow
 {
@@ -78,6 +79,16 @@ namespace AbilityKit.Game.Flow
         private ConnectionManager _gatewayRoomConn;
         private GatewayRoomClient _gatewayRoomClient;
         private Task _gatewayRoomTask;
+
+        private readonly Dictionary<WorldId, GatewayWorldStartAnchor> _gatewayWorldStartAnchors = new Dictionary<WorldId, GatewayWorldStartAnchor>();
+
+        private CancellationTokenSource _timeSyncCts;
+        private Task _timeSyncTask;
+
+        private bool _hasClockSync;
+        private double _clockOffsetSecondsEwma;
+        private double _rttSecondsEwma;
+        private int _timeSyncSamples;
 
         private bool _tickEnteredLogged;
         private bool _autoPlanLogged;
@@ -149,6 +160,29 @@ namespace AbilityKit.Game.Flow
             _gatewayRoomClient = new GatewayRoomClient(_gatewayRoomConn, opCodes);
 
             _gatewayRoomTask = PrepareRoomAsync();
+        }
+
+        private void StopTimeSyncLoop()
+        {
+            if (_timeSyncCts != null)
+            {
+                if (!_timeSyncCts.IsCancellationRequested)
+                {
+                    _timeSyncCts.Cancel();
+                }
+
+                _timeSyncCts.Dispose();
+                _timeSyncCts = null;
+            }
+
+            _timeSyncTask = null;
+            _hasClockSync = false;
+            _clockOffsetSecondsEwma = 0;
+            _rttSecondsEwma = 0;
+            _timeSyncSamples = 0;
+
+            BattleFlowDebugProvider.TimeSyncStats = null;
+            BattleFlowDebugProvider.TimeSyncStatsByWorld = null;
         }
 
         private async Task PrepareRoomAsync()
@@ -270,11 +304,18 @@ namespace AbilityKit.Game.Flow
                     createWorldOpCode: _plan.CreateWorldOpCode,
                     createWorldPayload: _plan.CreateWorldPayload);
 
-                await _gatewayRoomClient.JoinRoomAsync(
+                var joinResult = await _gatewayRoomClient.JoinRoomAsync(
                     sessionToken: _plan.GatewaySessionToken,
                     region: _plan.GatewayRegion,
                     serverId: _plan.GatewayServerId,
                     roomId: string.IsNullOrWhiteSpace(result.RoomId) ? _plan.NumericRoomId.ToString() : result.RoomId);
+
+                var wid = new WorldId(_plan.WorldId);
+                if (joinResult.WorldStartAnchor.ServerTickFrequency != 0)
+                {
+                    _gatewayWorldStartAnchors[wid] = joinResult.WorldStartAnchor;
+                }
+                StartTimeSyncLoop();
 
                 Log.Info($"[BattleSessionFeature] GatewayRoom JoinRoom ok. numericRoomId={_plan.NumericRoomId}");
                 return;
@@ -298,6 +339,13 @@ namespace AbilityKit.Game.Flow
                     region: _plan.GatewayRegion,
                     serverId: _plan.GatewayServerId,
                     roomId: joinRoomId);
+
+                var tmpWid = new WorldId(_plan.WorldId);
+                if (result.WorldStartAnchor.ServerTickFrequency != 0)
+                {
+                    _gatewayWorldStartAnchors[tmpWid] = result.WorldStartAnchor;
+                }
+                StartTimeSyncLoop();
 
                 Log.Info($"[BattleSessionFeature] GatewayRoom JoinRoom ok. numericRoomId={result.NumericRoomId}");
 
@@ -350,11 +398,253 @@ namespace AbilityKit.Game.Flow
             _gatewayRoomTask = null;
             _gatewayRoomClient = null;
 
+            StopTimeSyncLoop();
+            _gatewayWorldStartAnchors.Clear();
+
             if (_gatewayRoomConn != null)
             {
                 _gatewayRoomConn.Dispose();
                 _gatewayRoomConn = null;
             }
+        }
+
+        private void StartTimeSyncLoop()
+        {
+            if (_gatewayRoomClient == null) return;
+            if (_timeSyncTask != null && !_timeSyncTask.IsCompleted) return;
+
+            _timeSyncCts = new CancellationTokenSource();
+            var token = _timeSyncCts.Token;
+
+            _timeSyncTask = Task.Run(async () =>
+            {
+                var alpha = _plan.TimeSyncAlpha;
+                if (alpha < 0) alpha = 0;
+                if (alpha > 1) alpha = 1;
+
+                var intervalMs = _plan.TimeSyncIntervalMs;
+                if (intervalMs <= 0) intervalMs = 1000;
+
+                var opCode = _plan.TimeSyncOpCode;
+                var timeoutMs = _plan.TimeSyncTimeoutMs;
+                if (timeoutMs <= 0) timeoutMs = 2000;
+
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        var t0 = Stopwatch.GetTimestamp();
+                        var res = await _gatewayRoomClient.TimeSyncAsync(timeSyncOpCode: opCode, clientSendTicks: t0, timeout: TimeSpan.FromMilliseconds(timeoutMs), cancellationToken: token);
+                        var t2 = Stopwatch.GetTimestamp();
+
+                        var localFreq = (double)Stopwatch.Frequency;
+                        var rtt = (t2 - t0) / localFreq;
+                        if (rtt < 0) rtt = 0;
+
+                        var serverNowSeconds = res.ServerNowTicks / (double)res.ServerTickFrequency;
+                        var localNowSeconds = t2 / localFreq;
+                        var serverNowEstimatedAtReceive = serverNowSeconds + (rtt * 0.5);
+                        var offsetSeconds = localNowSeconds - serverNowEstimatedAtReceive;
+
+                        if (!_hasClockSync)
+                        {
+                            _hasClockSync = true;
+                            _clockOffsetSecondsEwma = offsetSeconds;
+                            _rttSecondsEwma = rtt;
+                            _timeSyncSamples = 1;
+                        }
+                        else
+                        {
+                            _clockOffsetSecondsEwma = (alpha * offsetSeconds) + ((1.0 - alpha) * _clockOffsetSecondsEwma);
+                            _rttSecondsEwma = (alpha * rtt) + ((1.0 - alpha) * _rttSecondsEwma);
+                            _timeSyncSamples++;
+                        }
+
+                        BattleFlowDebugProvider.TimeSyncStats = new TimeSyncStatsSnapshot
+                        {
+                            OpCode = opCode,
+                            IntervalMs = intervalMs,
+                            Alpha = alpha,
+                            TimeoutMs = timeoutMs,
+
+                            HasAnchor = TryGetWorldStartAnchor(_plan.WorldId != null ? new WorldId(_plan.WorldId) : default, out var anchor),
+                            AnchorStartServerTicks = anchor.StartServerTicks,
+                            AnchorServerTickFrequency = anchor.ServerTickFrequency,
+                            AnchorStartFrame = anchor.StartFrame,
+                            AnchorFixedDeltaSeconds = anchor.FixedDeltaSeconds,
+
+                            HasClockSync = _hasClockSync,
+                            OffsetSecondsEwma = _clockOffsetSecondsEwma,
+                            RttSecondsEwma = _rttSecondsEwma,
+                            Samples = _timeSyncSamples,
+
+                            IdealFrameRaw = ResolveIdealFrameRaw(_plan.WorldId != null ? new WorldId(_plan.WorldId) : default),
+                            IdealFrameSafetyMarginFrames = ResolveIdealFrameSafetyMarginFrames(_plan.WorldId != null ? new WorldId(_plan.WorldId) : default),
+                            IdealFrameLimit = ResolveIdealFrameLimit(_plan.WorldId != null ? new WorldId(_plan.WorldId) : default)
+                        };
+
+                        if (BattleFlowDebugProvider.TimeSyncStatsByWorld == null)
+                        {
+                            BattleFlowDebugProvider.TimeSyncStatsByWorld = new Dictionary<string, TimeSyncStatsSnapshot>();
+                        }
+
+                        // Update per-world snapshots for all known anchors (multi-world).
+                        foreach (var kv in _gatewayWorldStartAnchors)
+                        {
+                            var wid = kv.Key;
+                            var snap = new TimeSyncStatsSnapshot
+                            {
+                                OpCode = opCode,
+                                IntervalMs = intervalMs,
+                                Alpha = alpha,
+                                TimeoutMs = timeoutMs,
+
+                                HasAnchor = kv.Value.ServerTickFrequency != 0,
+                                AnchorStartServerTicks = kv.Value.StartServerTicks,
+                                AnchorServerTickFrequency = kv.Value.ServerTickFrequency,
+                                AnchorStartFrame = kv.Value.StartFrame,
+                                AnchorFixedDeltaSeconds = kv.Value.FixedDeltaSeconds,
+
+                                HasClockSync = _hasClockSync,
+                                OffsetSecondsEwma = _clockOffsetSecondsEwma,
+                                RttSecondsEwma = _rttSecondsEwma,
+                                Samples = _timeSyncSamples,
+
+                                IdealFrameRaw = ResolveIdealFrameRaw(wid),
+                                IdealFrameSafetyMarginFrames = ResolveIdealFrameSafetyMarginFrames(wid),
+                                IdealFrameLimit = ResolveIdealFrameLimit(wid)
+                            };
+
+                            BattleFlowDebugProvider.TimeSyncStatsByWorld[wid.Value] = snap;
+                        }
+
+                        // Backward compatible: also keep the current plan world as the default entry.
+                        if (_plan.WorldId != null)
+                        {
+                            BattleFlowDebugProvider.TimeSyncStatsByWorld[_plan.WorldId] = BattleFlowDebugProvider.TimeSyncStats;
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, "[BattleSessionFeature] TimeSync loop error");
+                    }
+
+                    try
+                    {
+                        await Task.Delay(intervalMs, token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                }
+            }, token);
+        }
+
+        private bool TryGetWorldStartAnchor(WorldId worldId, out GatewayWorldStartAnchor anchor)
+        {
+            anchor = default;
+            if (string.IsNullOrEmpty(worldId.Value)) return false;
+            return _gatewayWorldStartAnchors.TryGetValue(worldId, out anchor) && anchor.ServerTickFrequency != 0;
+        }
+
+        private int ResolveIdealFrameRaw(WorldId worldId)
+        {
+            if (!TryGetWorldStartAnchor(worldId, out var anchor)) return 0;
+            if (!_hasClockSync) return 0;
+
+            var localNowSeconds = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
+
+            var startServerSeconds = anchor.StartServerTicks / (double)anchor.ServerTickFrequency;
+            var localStartSeconds = startServerSeconds + _clockOffsetSecondsEwma;
+
+            var elapsed = localNowSeconds - localStartSeconds;
+            if (elapsed < 0) elapsed = 0;
+
+            var dt = anchor.FixedDeltaSeconds;
+            if (dt <= 0) return 0;
+
+            var frames = (int)Math.Floor(elapsed / dt);
+            return anchor.StartFrame + frames;
+        }
+
+        private int ResolveIdealFrameSafetyMarginFrames(WorldId worldId)
+        {
+            if (!TryGetWorldStartAnchor(worldId, out var anchor)) return 0;
+            if (!_hasClockSync) return 0;
+
+            var dt = anchor.FixedDeltaSeconds;
+            if (dt <= 0) return 0;
+
+            var constMargin = _plan.IdealFrameSafetyConstMarginFrames;
+            if (constMargin < 0) constMargin = 0;
+
+            var rttFactor = _plan.IdealFrameSafetyRttFactor;
+            if (rttFactor < 0) rttFactor = 0;
+
+            var rttFrames = (int)Math.Ceiling((_rttSecondsEwma / dt) * rttFactor);
+            if (rttFrames < 0) rttFrames = 0;
+
+            var margin = constMargin;
+            if (rttFrames > margin) margin = rttFrames;
+
+            var minMargin = _plan.IdealFrameSafetyMinMarginFrames;
+            var maxMargin = _plan.IdealFrameSafetyMaxMarginFrames;
+            if (minMargin < 0) minMargin = 0;
+            if (maxMargin < minMargin) maxMargin = minMargin;
+
+            if (margin < minMargin) margin = minMargin;
+            if (margin > maxMargin) margin = maxMargin;
+
+            return margin;
+        }
+
+        private int ResolveIdealFrameLimit(WorldId worldId)
+        {
+            if (!TryGetWorldStartAnchor(worldId, out var anchor)) return 0;
+            if (!_hasClockSync) return 0;
+
+            var localNowSeconds = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
+
+            var startServerSeconds = anchor.StartServerTicks / (double)anchor.ServerTickFrequency;
+            var localStartSeconds = startServerSeconds + _clockOffsetSecondsEwma;
+
+            var elapsed = localNowSeconds - localStartSeconds;
+            if (elapsed < 0) elapsed = 0;
+
+            var dt = anchor.FixedDeltaSeconds;
+            if (dt <= 0) return 0;
+
+            var frames = (int)Math.Floor(elapsed / dt);
+            var idealRaw = anchor.StartFrame + frames;
+
+            var constMargin = _plan.IdealFrameSafetyConstMarginFrames;
+            if (constMargin < 0) constMargin = 0;
+
+            var rttFactor = _plan.IdealFrameSafetyRttFactor;
+            if (rttFactor < 0) rttFactor = 0;
+
+            var rttFrames = (int)Math.Ceiling((_rttSecondsEwma / dt) * rttFactor);
+            if (rttFrames < 0) rttFrames = 0;
+
+            var margin = constMargin;
+            if (rttFrames > margin) margin = rttFrames;
+
+            var minMargin = _plan.IdealFrameSafetyMinMarginFrames;
+            var maxMargin = _plan.IdealFrameSafetyMaxMarginFrames;
+            if (minMargin < 0) minMargin = 0;
+            if (maxMargin < minMargin) maxMargin = minMargin;
+
+            if (margin < minMargin) margin = minMargin;
+            if (margin > maxMargin) margin = maxMargin;
+
+            var limit = idealRaw - margin;
+            if (limit < anchor.StartFrame) limit = anchor.StartFrame;
+            return limit;
         }
 
         public BattleLogicSession Session => _session;
@@ -811,7 +1101,11 @@ namespace AbilityKit.Game.Flow
                 .Add(new AbilityKit.Ability.Host.Extensions.FrameSync.ClientPredictionDriverModule(
                     resolveRemoteInputs: _ => _remoteDrivenConsumable,
                     resolveLocalInputs: _ => _ctx != null ? _ctx.LocalInputQueue : null,
+                    resolveIdealFrameLimit: _ => ResolveIdealFrameLimit(_),
                     inputDelayFrames: _plan.InputDelayFrames < 0 ? 0 : _plan.InputDelayFrames,
+                    maxPredictionAheadFrames: 30,
+                    minPredictionWindow: 1,
+                    backlogEwmaAlpha: 0.20f,
                     enableRollback: true,
                     rollbackHistoryFrames: 240,
                     rollbackCaptureEveryNFrames: 1,
@@ -878,6 +1172,15 @@ namespace AbilityKit.Game.Flow
                 else
                 {
                     _ctx.PredictionReconcileControl = null;
+                }
+
+                if (_remoteDrivenRuntime.Features.TryGetFeature<AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionTuningControl>(out var tuning) && tuning != null)
+                {
+                    _ctx.PredictionTuningControl = tuning;
+                }
+                else
+                {
+                    _ctx.PredictionTuningControl = null;
                 }
             }
 
@@ -951,6 +1254,23 @@ namespace AbilityKit.Game.Flow
             _remoteDrivenInputSource = buf;
             _remoteDrivenConsumable = buf;
             _remoteDrivenSink = buf;
+
+            AbilityKit.Game.Flow.BattleFlowDebugProvider.JitterBufferStats = new AbilityKit.Game.Flow.JitterBufferStatsSnapshot
+            {
+                DelayFrames = buf.DelayFrames,
+                MissingMode = buf.MissingMode.ToString(),
+                TargetFrame = buf.TargetFrame,
+                MaxReceivedFrame = buf.MaxReceivedFrame,
+                LastConsumedFrame = buf.LastConsumedFrame,
+                BufferedCount = buf.Count,
+                MinBufferedFrame = buf.MinBufferedFrame,
+
+                AddedCount = buf.AddedCount,
+                DuplicateCount = buf.DuplicateCount,
+                LateCount = buf.LateCount,
+                ConsumedCount = buf.ConsumedCount,
+                FilledDefaultCount = buf.FilledDefaultCount,
+            };
         }
 
         private static uint ComputeStateHash(
@@ -1139,9 +1459,46 @@ namespace AbilityKit.Game.Flow
                         _remoteDrivenInputSource = buf;
                         _remoteDrivenConsumable = buf;
                         _remoteDrivenSink = buf;
+
+                        AbilityKit.Game.Flow.BattleFlowDebugProvider.JitterBufferStats = new AbilityKit.Game.Flow.JitterBufferStatsSnapshot
+                        {
+                            DelayFrames = buf.DelayFrames,
+                            MissingMode = buf.MissingMode.ToString(),
+                            TargetFrame = buf.TargetFrame,
+                            MaxReceivedFrame = buf.MaxReceivedFrame,
+                            LastConsumedFrame = buf.LastConsumedFrame,
+                            BufferedCount = buf.Count,
+                            MinBufferedFrame = buf.MinBufferedFrame,
+
+                            AddedCount = buf.AddedCount,
+                            DuplicateCount = buf.DuplicateCount,
+                            LateCount = buf.LateCount,
+                            ConsumedCount = buf.ConsumedCount,
+                            FilledDefaultCount = buf.FilledDefaultCount,
+                        };
                     }
 
                     _remoteDrivenSink?.Add(frame, inputs);
+
+                    if (_remoteDrivenInputSource is FrameJitterBuffer<PlayerInputCommand[]> jb)
+                    {
+                        AbilityKit.Game.Flow.BattleFlowDebugProvider.JitterBufferStats = new AbilityKit.Game.Flow.JitterBufferStatsSnapshot
+                        {
+                            DelayFrames = jb.DelayFrames,
+                            MissingMode = jb.MissingMode.ToString(),
+                            TargetFrame = jb.TargetFrame,
+                            MaxReceivedFrame = jb.MaxReceivedFrame,
+                            LastConsumedFrame = jb.LastConsumedFrame,
+                            BufferedCount = jb.Count,
+                            MinBufferedFrame = jb.MinBufferedFrame,
+
+                            AddedCount = jb.AddedCount,
+                            DuplicateCount = jb.DuplicateCount,
+                            LateCount = jb.LateCount,
+                            ConsumedCount = jb.ConsumedCount,
+                            FilledDefaultCount = jb.FilledDefaultCount,
+                        };
+                    }
 
                     packet = new FramePacket(worldId, new FrameIndex(frame), packet.Inputs, default);
                 }

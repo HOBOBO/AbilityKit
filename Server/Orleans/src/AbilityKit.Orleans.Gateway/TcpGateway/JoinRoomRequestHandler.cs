@@ -1,5 +1,6 @@
 using AbilityKit.Orleans.Contracts.Accounts;
 using AbilityKit.Orleans.Contracts.Rooms;
+using System.Diagnostics;
 using Microsoft.Extensions.Options;
 using Orleans;
 
@@ -59,8 +60,17 @@ public sealed class JoinRoomRequestHandler : ITcpGatewayRequestHandler
         var numericRoomId = await mapper2.GetOrCreateNumericIdAsync(roomId);
 
         var snapshot = await room.GetSnapshotAsync();
+
+        var anchor = new
+        {
+            StartServerTicks = Stopwatch.GetTimestamp(),
+            ServerTickFrequency = Stopwatch.Frequency,
+            StartFrame = 0,
+            FixedDeltaSeconds = _options.Value.FixedDeltaSeconds
+        };
+
         return new TcpGatewayResponseEnvelope(
             TcpGatewayStatusCode.Ok,
-            TcpGatewayJson.Serialize(new { NumericRoomId = numericRoomId, Snapshot = snapshot }));
+            TcpGatewayJson.Serialize(new { NumericRoomId = numericRoomId, Snapshot = snapshot, WorldStartAnchor = anchor }));
     }
 }

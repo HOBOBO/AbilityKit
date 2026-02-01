@@ -73,6 +73,77 @@ namespace AbilityKit.Game.Battle.Agent
             return ulong.TryParse(s, NumberStyles.None, CultureInfo.InvariantCulture, out value);
         }
 
+        public static bool TryGetInt64(string json, string key, out long value)
+        {
+            value = 0;
+            if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(key)) return false;
+
+            var pattern = "\"" + key + "\"";
+            var i = json.IndexOf(pattern, StringComparison.Ordinal);
+            if (i < 0) return false;
+
+            i = json.IndexOf(':', i + pattern.Length);
+            if (i < 0) return false;
+            i++;
+
+            while (i < json.Length && char.IsWhiteSpace(json[i])) i++;
+            if (i >= json.Length) return false;
+
+            var start = i;
+            if (json[i] == '-') i++;
+            while (i < json.Length)
+            {
+                var c = json[i];
+                if ((c >= '0' && c <= '9')) { i++; continue; }
+                break;
+            }
+
+            if (i <= start) return false;
+            var s = json.Substring(start, i - start);
+            return long.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+        }
+
+        public static bool TryGetInt32(string json, string key, out int value)
+        {
+            value = 0;
+            if (!TryGetInt64(json, key, out var v)) return false;
+            if (v < int.MinValue || v > int.MaxValue) return false;
+            value = (int)v;
+            return true;
+        }
+
+        public static bool TryGetDouble(string json, string key, out double value)
+        {
+            value = 0;
+            if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(key)) return false;
+
+            var pattern = "\"" + key + "\"";
+            var i = json.IndexOf(pattern, StringComparison.Ordinal);
+            if (i < 0) return false;
+
+            i = json.IndexOf(':', i + pattern.Length);
+            if (i < 0) return false;
+            i++;
+
+            while (i < json.Length && char.IsWhiteSpace(json[i])) i++;
+            if (i >= json.Length) return false;
+
+            var start = i;
+            if (json[i] == '-') i++;
+            var hasDot = false;
+            while (i < json.Length)
+            {
+                var c = json[i];
+                if ((c >= '0' && c <= '9')) { i++; continue; }
+                if (c == '.' && !hasDot) { hasDot = true; i++; continue; }
+                break;
+            }
+
+            if (i <= start) return false;
+            var s = json.Substring(start, i - start);
+            return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+        }
+
         public static string TryGetObjectJson(string json, string key)
         {
             if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(key)) return null;

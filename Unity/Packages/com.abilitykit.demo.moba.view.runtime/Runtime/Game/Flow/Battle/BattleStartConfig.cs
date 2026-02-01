@@ -143,6 +143,16 @@ namespace AbilityKit.Game.Flow
 
             public uint CreateRoomOpCode = 110;
             public uint JoinRoomOpCode = 111;
+
+            public uint TimeSyncOpCode = 1300;
+            public int TimeSyncIntervalMs = 1000;
+            public double TimeSyncAlpha = 0.20;
+            public int TimeSyncTimeoutMs = 2000;
+
+            public int IdealFrameSafetyConstMarginFrames = 2;
+            public double IdealFrameSafetyRttFactor = 1.0;
+            public int IdealFrameSafetyMinMarginFrames = 0;
+            public int IdealFrameSafetyMaxMarginFrames = 30;
         }
 
         [System.Serializable]

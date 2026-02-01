@@ -61,6 +61,16 @@ namespace AbilityKit.Game.Flow
                 ? cfg.Profile.RunMode.ReplayInputPath
                 : (legacy != null ? legacy.InputReplayPath : "battle_record.json");
 
+            var timeSyncOpCode = cfg.Gateway != null ? cfg.Gateway.TimeSyncOpCode : 1300u;
+            var timeSyncIntervalMs = cfg.Gateway != null ? cfg.Gateway.TimeSyncIntervalMs : 1000;
+            var timeSyncAlpha = cfg.Gateway != null ? cfg.Gateway.TimeSyncAlpha : 0.20;
+            var timeSyncTimeoutMs = cfg.Gateway != null ? cfg.Gateway.TimeSyncTimeoutMs : 2000;
+
+            var idealFrameSafetyConstMarginFrames = cfg.Gateway != null ? cfg.Gateway.IdealFrameSafetyConstMarginFrames : 2;
+            var idealFrameSafetyRttFactor = cfg.Gateway != null ? cfg.Gateway.IdealFrameSafetyRttFactor : 1.0;
+            var idealFrameSafetyMinMarginFrames = cfg.Gateway != null ? cfg.Gateway.IdealFrameSafetyMinMarginFrames : 0;
+            var idealFrameSafetyMaxMarginFrames = cfg.Gateway != null ? cfg.Gateway.IdealFrameSafetyMaxMarginFrames : 30;
+
             return new BattleStartPlan(
                 worldId: worldId,
                 worldType: worldType,
@@ -93,7 +103,15 @@ namespace AbilityKit.Game.Flow
                 inputReplayPath: replayPath,
                 runMode: runMode,
                 createWorldOpCode: MobaWorldBootstrapModule.InitOpCode,
-                createWorldPayload: payload
+                createWorldPayload: payload,
+                timeSyncOpCode: timeSyncOpCode,
+                timeSyncIntervalMs: timeSyncIntervalMs,
+                timeSyncAlpha: timeSyncAlpha,
+                timeSyncTimeoutMs: timeSyncTimeoutMs,
+                idealFrameSafetyConstMarginFrames: idealFrameSafetyConstMarginFrames,
+                idealFrameSafetyRttFactor: idealFrameSafetyRttFactor,
+                idealFrameSafetyMinMarginFrames: idealFrameSafetyMinMarginFrames,
+                idealFrameSafetyMaxMarginFrames: idealFrameSafetyMaxMarginFrames
             );
         }
 

@@ -2,16 +2,18 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
-using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.Services;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Ability.Host.Extensions.FrameSync
 {
-    public sealed class ClientPredictionDriverModule : IHostRuntimeModule, IClientPredictionDriverStats, IClientPredictionReconcileTarget, IClientPredictionReconcileControl
+    public sealed class ClientPredictionDriverModule : IHostRuntimeModule, IClientPredictionDriverStats, IClientPredictionTuningControl, IClientPredictionReconcileTarget, IClientPredictionReconcileControl
     {
+        private const int ReplayWaitTimeoutTicks = 120;
+
         private enum ReplayMode
         {
             Normal = 0,
@@ -44,6 +46,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             ctx.Mode = ReplayMode.Normal;
             ctx.ReplayTo = ctx.PredictedFrame;
             ctx.LastRollbackFrame = new FrameIndex(0);
+            ctx.ReplayWaitTicks = 0;
 
             _isReplaying = false;
             _replayToFrame = default;
@@ -78,6 +81,21 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
             public bool ReconcileEnabled;
 
+            public int ReplayWaitTicks;
+
+            public bool HasBacklogEwma;
+            public float BacklogEwma;
+
+            public int BacklogRaw;
+            public int PredictionWindow;
+            public bool PredictionStalled;
+            public long PredictionWindowStallsTotal;
+
+            public int IdealFrameLimit;
+            public bool IdealFrameStalled;
+            public long IdealFrameStallsTotal;
+            public bool IdealFrameCappedWindow;
+
             public ReplayMode Mode;
             public FrameIndex ReplayTo;
             public FrameIndex LastRollbackFrame;
@@ -87,8 +105,16 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         private readonly Func<WorldId, IConsumableRemoteFrameSource<PlayerInputCommand[]>> _resolveRemoteInputs;
         private readonly Func<WorldId, ILocalInputSource<LocalPlayerInputEvent[]>> _resolveLocalInputs;
-
+        private readonly Func<WorldId, int> _resolveIdealFrameLimit;
         private readonly int _inputDelayFrames;
+
+        private readonly int _defaultMaxPredictionAheadFrames;
+        private readonly int _defaultMinPredictionWindow;
+        private readonly float _defaultBacklogEwmaAlpha;
+
+        private int _tuningMaxPredictionAheadFrames;
+        private int _tuningMinPredictionWindow;
+        private float _tuningBacklogEwmaAlpha;
 
         private readonly int _maxLocalDelayQueueDepth;
 
@@ -106,8 +132,25 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         private long _totalLocalDelayQueueDroppedBatches;
 
+        private int _currentPredictionWindow;
+        private bool _isPredictionStalledByWindow;
+        private long _totalPredictionWindowStalls;
+
+        private int _currentIdealFrameLimit;
+        private bool _isPredictionStalledByIdealFrame;
+        private long _totalIdealFrameStalls;
+
+        private int _currentBacklogRaw;
+        private float _currentBacklogEwma;
+
         private long _totalRollbackCount;
         private long _totalRollbackRestoreFailed;
+
+        private long _totalReplayTimeout;
+        private FrameIndex _lastReplayTimeoutFrame;
+
+        private long _totalReconcileAutoDisabledByReplayTimeout;
+        private FrameIndex _lastReconcileAutoDisabledByReplayTimeoutFrame;
 
         private long _totalReconcileMismatch;
         private long _totalPredictedHashRecorded;
@@ -138,7 +181,11 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         public ClientPredictionDriverModule(
             Func<WorldId, IConsumableRemoteFrameSource<PlayerInputCommand[]>> resolveRemoteInputs,
             Func<WorldId, ILocalInputSource<LocalPlayerInputEvent[]>> resolveLocalInputs,
+            Func<WorldId, int> resolveIdealFrameLimit = null,
             int inputDelayFrames = 0,
+            int maxPredictionAheadFrames = 30,
+            int minPredictionWindow = 1,
+            float backlogEwmaAlpha = 0.20f,
             bool enableRollback = false,
             int rollbackHistoryFrames = 240,
             int rollbackCaptureEveryNFrames = 1,
@@ -147,9 +194,24 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             _resolveRemoteInputs = resolveRemoteInputs;
             _resolveLocalInputs = resolveLocalInputs;
+            _resolveIdealFrameLimit = resolveIdealFrameLimit;
 
             if (inputDelayFrames < 0) inputDelayFrames = 0;
             _inputDelayFrames = inputDelayFrames;
+
+            if (maxPredictionAheadFrames < 0) maxPredictionAheadFrames = 0;
+            _defaultMaxPredictionAheadFrames = maxPredictionAheadFrames;
+            _tuningMaxPredictionAheadFrames = maxPredictionAheadFrames;
+
+            if (minPredictionWindow < 0) minPredictionWindow = 0;
+            if (_tuningMaxPredictionAheadFrames > 0 && minPredictionWindow > _tuningMaxPredictionAheadFrames) minPredictionWindow = _tuningMaxPredictionAheadFrames;
+            _defaultMinPredictionWindow = minPredictionWindow;
+            _tuningMinPredictionWindow = minPredictionWindow;
+
+            if (backlogEwmaAlpha < 0f) backlogEwmaAlpha = 0f;
+            if (backlogEwmaAlpha > 1f) backlogEwmaAlpha = 1f;
+            _defaultBacklogEwmaAlpha = backlogEwmaAlpha;
+            _tuningBacklogEwmaAlpha = backlogEwmaAlpha;
 
             _maxLocalDelayQueueDepth = 2048;
 
@@ -168,6 +230,71 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         public int InputDelayFrames => _inputDelayFrames;
 
+        public int MaxPredictionAheadFrames => _tuningMaxPredictionAheadFrames;
+
+        public int MinPredictionWindow => _tuningMinPredictionWindow;
+
+        public float BacklogEwmaAlpha => _tuningBacklogEwmaAlpha;
+
+        public int CurrentBacklogRaw => _currentBacklogRaw;
+
+        public float CurrentBacklogEwma => _currentBacklogEwma;
+
+        public int CurrentPredictionWindow => _currentPredictionWindow;
+
+        public bool IsPredictionStalledByWindow => _isPredictionStalledByWindow;
+
+        public long TotalPredictionWindowStalls => _totalPredictionWindowStalls;
+
+        public int CurrentIdealFrameLimit => _currentIdealFrameLimit;
+
+        public bool IsPredictionStalledByIdealFrame => _isPredictionStalledByIdealFrame;
+
+        public long TotalIdealFrameStalls => _totalIdealFrameStalls;
+
+        public bool TryGetIdealFrameStallStats(WorldId worldId, out int idealFrameLimit, out bool stalled, out long stallsTotal)
+        {
+            idealFrameLimit = 0;
+            stalled = false;
+            stallsTotal = 0;
+            if (!_contexts.TryGetValue(worldId, out var ctx) || ctx == null) return false;
+            idealFrameLimit = ctx.IdealFrameLimit;
+            stalled = ctx.IdealFrameStalled;
+            stallsTotal = ctx.IdealFrameStallsTotal;
+            return true;
+        }
+
+        void IClientPredictionTuningControl.SetMaxPredictionAheadFrames(int value)
+        {
+            if (value < 0) value = 0;
+            _tuningMaxPredictionAheadFrames = value;
+            if (_tuningMaxPredictionAheadFrames > 0 && _tuningMinPredictionWindow > _tuningMaxPredictionAheadFrames)
+            {
+                _tuningMinPredictionWindow = _tuningMaxPredictionAheadFrames;
+            }
+        }
+
+        void IClientPredictionTuningControl.SetMinPredictionWindow(int value)
+        {
+            if (value < 0) value = 0;
+            if (_tuningMaxPredictionAheadFrames > 0 && value > _tuningMaxPredictionAheadFrames) value = _tuningMaxPredictionAheadFrames;
+            _tuningMinPredictionWindow = value;
+        }
+
+        void IClientPredictionTuningControl.SetBacklogEwmaAlpha(float value)
+        {
+            if (value < 0f) value = 0f;
+            if (value > 1f) value = 1f;
+            _tuningBacklogEwmaAlpha = value;
+        }
+
+        void IClientPredictionTuningControl.ResetDefaults()
+        {
+            _tuningMaxPredictionAheadFrames = _defaultMaxPredictionAheadFrames;
+            _tuningMinPredictionWindow = _defaultMinPredictionWindow;
+            _tuningBacklogEwmaAlpha = _defaultBacklogEwmaAlpha;
+        }
+
         public bool IsReplaying => _isReplaying;
 
         public FrameIndex ReplayToFrame => _replayToFrame;
@@ -177,6 +304,12 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         public long TotalRollbackCount => _totalRollbackCount;
 
         public long TotalRollbackRestoreFailed => _totalRollbackRestoreFailed;
+
+        public long TotalReplayTimeout => _totalReplayTimeout;
+        public FrameIndex LastReplayTimeoutFrame => _lastReplayTimeoutFrame;
+
+        public long TotalReconcileAutoDisabledByReplayTimeout => _totalReconcileAutoDisabledByReplayTimeout;
+        public FrameIndex LastReconcileAutoDisabledByReplayTimeoutFrame => _lastReconcileAutoDisabledByReplayTimeoutFrame;
 
         public long TotalReconcileMismatch => _totalReconcileMismatch;
 
@@ -222,6 +355,44 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             return false;
         }
 
+        public bool TryGetPredictionWindowStats(WorldId worldId, out int backlogRaw, out float backlogEwma, out int window, out bool stalled)
+        {
+            if (_contexts.TryGetValue(worldId, out var ctx) && ctx != null)
+            {
+                backlogRaw = ctx.BacklogRaw;
+                backlogEwma = ctx.BacklogEwma;
+                window = ctx.PredictionWindow;
+                stalled = ctx.PredictionStalled;
+                return true;
+            }
+
+            backlogRaw = 0;
+            backlogEwma = 0;
+            window = 0;
+            stalled = false;
+            return false;
+        }
+
+        public bool TryGetPredictionWindowStats(WorldId worldId, out int backlogRaw, out float backlogEwma, out int window, out bool stalled, out long stallsTotal)
+        {
+            if (_contexts.TryGetValue(worldId, out var ctx) && ctx != null)
+            {
+                backlogRaw = ctx.BacklogRaw;
+                backlogEwma = ctx.BacklogEwma;
+                window = ctx.PredictionWindow;
+                stalled = ctx.PredictionStalled;
+                stallsTotal = ctx.PredictionWindowStallsTotal;
+                return true;
+            }
+
+            backlogRaw = 0;
+            backlogEwma = 0;
+            window = 0;
+            stalled = false;
+            stallsTotal = 0;
+            return false;
+        }
+
         public bool TryGetFrames(WorldId worldId, out FrameIndex confirmed, out FrameIndex predicted)
         {
             if (_contexts.TryGetValue(worldId, out var ctx) && ctx != null)
@@ -250,6 +421,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             options.PostTick.Add(_onPostTick);
 
             runtime.Features.RegisterFeature<IClientPredictionDriverStats>(this);
+            runtime.Features.RegisterFeature<IClientPredictionTuningControl>(this);
             runtime.Features.RegisterFeature<IClientPredictionReconcileTarget>(this);
             runtime.Features.RegisterFeature<IClientPredictionReconcileControl>(this);
         }
@@ -265,6 +437,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             options.PostTick.Remove(_onPostTick);
 
             runtime.Features.UnregisterFeature<IClientPredictionDriverStats>();
+            runtime.Features.UnregisterFeature<IClientPredictionTuningControl>();
             runtime.Features.UnregisterFeature<IClientPredictionReconcileTarget>();
             runtime.Features.UnregisterFeature<IClientPredictionReconcileControl>();
 
@@ -272,6 +445,23 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             _lastConsumedConfirmedFrames = 0;
             _totalConsumedConfirmedFrames = 0;
             _totalPredictedFrames = 0;
+
+            _currentPredictionWindow = 0;
+            _isPredictionStalledByWindow = false;
+            _totalPredictionWindowStalls = 0;
+
+            _currentIdealFrameLimit = 0;
+            _isPredictionStalledByIdealFrame = false;
+            _totalIdealFrameStalls = 0;
+
+            _currentBacklogRaw = 0;
+            _currentBacklogEwma = 0;
+
+            _totalReplayTimeout = 0;
+            _lastReplayTimeoutFrame = default;
+
+            _totalReconcileAutoDisabledByReplayTimeout = 0;
+            _lastReconcileAutoDisabledByReplayTimeoutFrame = default;
             _runtime = null;
             _options = null;
         }
@@ -410,7 +600,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             if (ctx.LastRollbackFrame.Value >= mismatchFrame.Value) return;
 
             var rollbackFrame = new FrameIndex(mismatchFrame.Value - 1);
-            var ok = ctx.Rollback.TryRestore(rollbackFrame);
+            var ok = TryRestoreState(ctx, rollbackFrame);
             if (!ok)
             {
                 _totalRollbackRestoreFailed++;
@@ -429,6 +619,12 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             _lastRollbackFrame = rollbackFrame;
         }
 
+        private static bool TryRestoreState(WorldContext ctx, FrameIndex frame)
+        {
+            if (ctx == null || ctx.Rollback == null) return false;
+            return ctx.Rollback.TryRestore(frame);
+        }
+
         private void OnWorldDestroyed(WorldId worldId)
         {
             _contexts.Remove(worldId);
@@ -441,6 +637,9 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             _lastConsumedConfirmedFrames = 0;
             _lastConsumedPredictedFrames = 0;
 
+            _isPredictionStalledByWindow = false;
+            _isPredictionStalledByIdealFrame = false;
+
             _isReplaying = false;
             _replayToFrame = default;
             _lastRollbackFrame = default;
@@ -448,12 +647,12 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             _lastReconcileMismatchFrame = default;
             _lastReconcilePredictedHash = default;
             _lastReconcileAuthoritativeHash = default;
-
             foreach (var kv in _contexts)
             {
                 var worldId = kv.Key;
                 var ctx = kv.Value;
-                if (ctx?.World == null || ctx.InputSink == null) continue;
+                if (ctx == null) continue;
+                if (ctx.World == null || ctx.InputSink == null) continue;
 
                 _lastConsumedConfirmedFrames = 0;
                 _lastConsumedPredictedFrames = 0;
@@ -461,7 +660,71 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 var remote = _resolveRemoteInputs != null ? _resolveRemoteInputs(worldId) : null;
                 var local = _resolveLocalInputs != null ? _resolveLocalInputs(worldId) : null;
 
+                var localBatch = Array.Empty<LocalPlayerInputEvent>();
+
                 // Exactly one Submit per HostRuntime.Tick.
+
+                // Compute ideal frame limit from time synchronization (if available).
+                var ideal = _resolveIdealFrameLimit != null ? _resolveIdealFrameLimit(worldId) : 0;
+                _currentIdealFrameLimit = ideal;
+                ctx.IdealFrameLimit = ideal;
+                ctx.IdealFrameStalled = false;
+                ctx.IdealFrameCappedWindow = false;
+
+                // Compute adaptive prediction window.
+                // - Hard cap: _maxPredictionAheadFrames
+                // - Dynamic window: based on authoritative backlog (TargetFrame - ConfirmedFrame)
+                // - Smooth backlog via EWMA to avoid jittery window.
+                var rawBacklog = remote != null ? (remote.TargetFrame - ctx.ConfirmedFrame.Value) : 0;
+                if (rawBacklog < 0) rawBacklog = 0;
+
+                ctx.BacklogRaw = rawBacklog;
+
+                if (!ctx.HasBacklogEwma)
+                {
+                    ctx.HasBacklogEwma = true;
+                    ctx.BacklogEwma = rawBacklog;
+                }
+                else
+                {
+                    ctx.BacklogEwma = (_tuningBacklogEwmaAlpha * rawBacklog) + ((1f - _tuningBacklogEwmaAlpha) * ctx.BacklogEwma);
+                }
+
+                _currentBacklogRaw = rawBacklog;
+                _currentBacklogEwma = ctx.BacklogEwma;
+
+                var smoothedBacklogInt = (int)MathF.Round(ctx.BacklogEwma);
+                if (smoothedBacklogInt < 0) smoothedBacklogInt = 0;
+
+                var window = smoothedBacklogInt + _inputDelayFrames;
+                if (window < _tuningMinPredictionWindow) window = _tuningMinPredictionWindow;
+                if (_tuningMaxPredictionAheadFrames > 0 && window > _tuningMaxPredictionAheadFrames) window = _tuningMaxPredictionAheadFrames;
+                if (_tuningMaxPredictionAheadFrames == 0) window = 0;
+                _currentPredictionWindow = window;
+
+                ctx.PredictionWindow = window;
+                ctx.PredictionStalled = false;
+
+                if (_currentIdealFrameLimit > 0)
+                {
+                    var maxAheadByIdeal = _currentIdealFrameLimit - ctx.ConfirmedFrame.Value;
+                    if (maxAheadByIdeal < 0) maxAheadByIdeal = 0;
+
+                    if (maxAheadByIdeal < _currentPredictionWindow)
+                    {
+                        ctx.IdealFrameCappedWindow = true;
+                        _currentPredictionWindow = maxAheadByIdeal;
+                        ctx.PredictionWindow = _currentPredictionWindow;
+
+                        if (_currentPredictionWindow == 0 && window > 0)
+                        {
+                            _isPredictionStalledByIdealFrame = true;
+                            _totalIdealFrameStalls++;
+                            ctx.IdealFrameStalled = true;
+                            ctx.IdealFrameStallsTotal++;
+                        }
+                    }
+                }
 
                 // Step 0: always enqueue one local batch (may be empty) so delay queue advances.
                 if (local != null)
@@ -471,6 +734,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     {
                         evts = dequeued;
                     }
+
+                    localBatch = evts;
 
                     ctx.LocalDelayQueue ??= new Queue<LocalPlayerInputEvent[]>(_inputDelayFrames + 2);
                     ctx.LocalDelayQueue.Enqueue(evts);
@@ -504,7 +769,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                                 if (!InputsEqual(appliedAtFrame, authInputs))
                                 {
                                     var rollbackFrame = new FrameIndex(frame.Value - 1);
-                                    var ok = ctx.Rollback.TryRestore(rollbackFrame);
+                                    var ok = TryRestoreState(ctx, rollbackFrame);
                                     if (ok)
                                     {
                                         _totalRollbackCount++;
@@ -559,11 +824,16 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 // Replay: deterministic re-sim until ReplayTo.
                 if (ctx.Mode == ReplayMode.Replaying)
                 {
+                    _isReplaying = true;
+                    _replayToFrame = ctx.ReplayTo;
+                    _lastRollbackFrame = ctx.LastRollbackFrame;
+
                     var next = new FrameIndex(ctx.PredictedFrame.Value + 1);
 
                     if (next.Value > ctx.ReplayTo.Value)
                     {
                         ctx.Mode = ReplayMode.Normal;
+                        ctx.ReplayWaitTicks = 0;
                         continue;
                     }
 
@@ -589,10 +859,23 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     }
                     else
                     {
-                        // No authoritative input yet for this frame -> pause replay.
-                        ctx.Mode = ReplayMode.Normal;
+                        // No authoritative input yet for this frame -> pause replay (do not submit predicted inputs).
+                        ctx.ReplayWaitTicks++;
+                        if (ctx.ReplayWaitTicks >= ReplayWaitTimeoutTicks)
+                        {
+                            Log.Warning($"[ClientPredictionDriverModule] Replay wait timeout. worldId={worldId} rollbackFrame={ctx.LastRollbackFrame.Value} predicted={ctx.PredictedFrame.Value} replayTo={ctx.ReplayTo.Value} targetFrame={(remote != null ? remote.TargetFrame : -1)}. Disabling reconcile and exiting replay.");
+                            _totalReplayTimeout++;
+                            _lastReplayTimeoutFrame = next;
+                            _totalReconcileAutoDisabledByReplayTimeout++;
+                            _lastReconcileAutoDisabledByReplayTimeoutFrame = next;
+                            ctx.ReconcileEnabled = false;
+                            ctx.Mode = ReplayMode.Normal;
+                            ctx.ReplayWaitTicks = 0;
+                        }
                         continue;
                     }
+
+                    ctx.ReplayWaitTicks = 0;
 
                     ctx.InputSink.Submit(next, inputs);
                     ctx.AppliedInputs.Store(next, inputs);
@@ -602,23 +885,50 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     continue;
                 }
 
-                // Step 2: otherwise, do one predicted step when delay satisfied.
-                if (ctx.LocalDelayQueue != null && (ctx.LocalDelayQueue.Count - _inputDelayFrames) > 0)
+                // Step 2 (A: responsiveness-first): do one predicted step using current tick local inputs.
                 {
-                    var delayed = ctx.LocalDelayQueue.Dequeue() ?? Array.Empty<LocalPlayerInputEvent>();
+                    if (_currentPredictionWindow == 0)
+                    {
+                        if (ctx.IdealFrameCappedWindow)
+                        {
+                            _isPredictionStalledByIdealFrame = true;
+                        }
+                        continue;
+                    }
+
                     var next = new FrameIndex(ctx.PredictedFrame.Value + 1);
 
+                    var ahead = ctx.PredictedFrame.Value - ctx.ConfirmedFrame.Value;
+                    if (ahead >= _currentPredictionWindow)
+                    {
+                        if (ctx.IdealFrameCappedWindow)
+                        {
+                            _isPredictionStalledByIdealFrame = true;
+                            _totalIdealFrameStalls++;
+                            ctx.IdealFrameStalled = true;
+                            ctx.IdealFrameStallsTotal++;
+                        }
+                        else
+                        {
+                            _isPredictionStalledByWindow = true;
+                            _totalPredictionWindowStalls++;
+                            ctx.PredictionStalled = true;
+                            ctx.PredictionWindowStallsTotal++;
+                        }
+                        continue;
+                    }
+
                     PlayerInputCommand[] predictedInputs;
-                    if (delayed.Length == 0)
+                    if (localBatch.Length == 0)
                     {
                         predictedInputs = Array.Empty<PlayerInputCommand>();
                     }
                     else
                     {
-                        predictedInputs = new PlayerInputCommand[delayed.Length];
-                        for (int i = 0; i < delayed.Length; i++)
+                        predictedInputs = new PlayerInputCommand[localBatch.Length];
+                        for (int i = 0; i < localBatch.Length; i++)
                         {
-                            var e = delayed[i];
+                            var e = localBatch[i];
                             predictedInputs[i] = new PlayerInputCommand(next, e.PlayerId, e.OpCode, e.Payload ?? Array.Empty<byte>());
                         }
                     }

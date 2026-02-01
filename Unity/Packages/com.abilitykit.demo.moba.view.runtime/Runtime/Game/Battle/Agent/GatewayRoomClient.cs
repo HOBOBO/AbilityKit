@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Protocol.Moba.GatewayTimeSync;
 
 namespace AbilityKit.Game.Battle.Agent
 {
@@ -26,6 +27,15 @@ namespace AbilityKit.Game.Battle.Agent
             if (json == null) throw new ArgumentNullException(nameof(json));
             var bytes = Encoding.UTF8.GetBytes(json);
             return _request.SendRequestAsync(opCode, new ArraySegment<byte>(bytes), timeout, cancellationToken);
+        }
+
+        public async Task<GatewayTimeSyncResult> TimeSyncAsync(uint timeSyncOpCode, long clientSendTicks, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+        {
+            var req = new WireTimeSyncReq(clientSendTicks);
+            var payload = WireTimeSyncBinary.Serialize(in req);
+            var resp = await _request.SendRequestAsync(timeSyncOpCode, payload, timeout, cancellationToken);
+            var wire = WireTimeSyncBinary.DeserializeTimeSyncRes(resp);
+            return new GatewayTimeSyncResult(wire.ClientSendTicks, wire.ServerNowTicks, wire.ServerTickFrequency);
         }
 
         public async Task<string> GuestLoginAsync(uint guestLoginOpCode, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
@@ -90,7 +100,35 @@ namespace AbilityKit.Game.Battle.Agent
             }
 
             var snapshotJson = TinyJson.TryGetObjectJson(respJson, "Snapshot") ?? TinyJson.TryGetObjectJson(respJson, "snapshot") ?? string.Empty;
-            return new GatewayJoinRoomResult(numericRoomId, snapshotJson);
+
+            var anchorJson = TinyJson.TryGetObjectJson(respJson, "WorldStartAnchor") ?? TinyJson.TryGetObjectJson(respJson, "worldStartAnchor");
+            var anchor = default(GatewayWorldStartAnchor);
+            if (!string.IsNullOrEmpty(anchorJson))
+            {
+                if (!TinyJson.TryGetInt64(anchorJson, "StartServerTicks", out var startServerTicks))
+                {
+                    TinyJson.TryGetInt64(anchorJson, "startServerTicks", out startServerTicks);
+                }
+
+                if (!TinyJson.TryGetInt64(anchorJson, "ServerTickFrequency", out var serverFreq))
+                {
+                    TinyJson.TryGetInt64(anchorJson, "serverTickFrequency", out serverFreq);
+                }
+
+                if (!TinyJson.TryGetInt32(anchorJson, "StartFrame", out var startFrame))
+                {
+                    TinyJson.TryGetInt32(anchorJson, "startFrame", out startFrame);
+                }
+
+                if (!TinyJson.TryGetDouble(anchorJson, "FixedDeltaSeconds", out var fixedDeltaSeconds))
+                {
+                    TinyJson.TryGetDouble(anchorJson, "fixedDeltaSeconds", out fixedDeltaSeconds);
+                }
+
+                anchor = new GatewayWorldStartAnchor(startServerTicks, serverFreq, startFrame, fixedDeltaSeconds);
+            }
+
+            return new GatewayJoinRoomResult(numericRoomId, snapshotJson, in anchor);
         }
 
         private static string BuildCreateRoomJson(

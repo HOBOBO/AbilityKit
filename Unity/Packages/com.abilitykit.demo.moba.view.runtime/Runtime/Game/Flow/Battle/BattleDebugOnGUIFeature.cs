@@ -13,13 +13,20 @@ namespace AbilityKit.Game.Flow
 
         private Vector2 _scroll;
 
+        private bool _showFrameSyncStats;
+
         public void OnAttach(in GamePhaseContext ctx)
         {
             ctx.Root.TryGetComponent(out _ctx);
+            BattleFlowDebugProvider.Current = _ctx;
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
+            if (ReferenceEquals(BattleFlowDebugProvider.Current, _ctx))
+            {
+                BattleFlowDebugProvider.Current = null;
+            }
             _ctx = null;
         }
 
@@ -50,6 +57,11 @@ namespace AbilityKit.Game.Flow
             GUILayout.Label($"LastFrame: {_ctx.LastFrame}");
 
             GUILayout.Label($"RuntimeWorldId: {(_ctx.HasRuntimeWorldId ? _ctx.RuntimeWorldId.ToString() : "(none)")}");
+
+            if (GUILayout.Button(_showFrameSyncStats ? "Hide FrameSync Stats" : "Show FrameSync Stats"))
+            {
+                _showFrameSyncStats = !_showFrameSyncStats;
+            }
 
             if (_ctx.PredictionReconcileControl != null)
             {
@@ -106,7 +118,7 @@ namespace AbilityKit.Game.Flow
                 GUILayout.Label("StateHashSnap: none");
             }
 
-            if (_ctx.PredictionStats != null)
+            if (_showFrameSyncStats && _ctx.PredictionStats != null)
             {
                 var wid = new WorldId(_ctx.Plan.WorldId);
 

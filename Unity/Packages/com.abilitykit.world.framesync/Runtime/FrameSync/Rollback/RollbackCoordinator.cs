@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.Common.Pool;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.FrameSync.Rollback
 {
@@ -20,6 +21,8 @@ namespace AbilityKit.Ability.FrameSync.Rollback
         {
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
             _buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
+
+            _registry.Seal();
         }
 
         public bool CaptureAndStore(FrameIndex frame)
@@ -46,7 +49,16 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                 {
                     var p = providers[i];
                     if (p == null) continue;
-                    var payload = p.Export(frame) ?? Array.Empty<byte>();
+                    byte[] payload;
+                    try
+                    {
+                        payload = p.Export(frame) ?? Array.Empty<byte>();
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, $"Rollback Export failed. key={p.Key} frame={frame.Value}");
+                        throw;
+                    }
                     entries.Add(new WorldRollbackSnapshotEntry(p.Key, payload));
                 }
 
@@ -86,7 +98,15 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                 var e = entries[i];
                 if (_registry.TryGet(e.Key, out var provider) && provider != null)
                 {
-                    provider.Import(snapshot.Frame, e.Payload);
+                    try
+                    {
+                        provider.Import(snapshot.Frame, e.Payload);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, $"Rollback Import failed. key={e.Key} frame={snapshot.Frame.Value} payloadLen={(e.Payload != null ? e.Payload.Length : 0)}");
+                        throw;
+                    }
                 }
             }
         }

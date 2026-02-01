@@ -39,6 +39,8 @@ namespace AbilityKit.Game.Flow
 
         public AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionReconcileControl PredictionReconcileControl;
 
+        public AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionTuningControl PredictionTuningControl;
+
         public WorldId RuntimeWorldId;
 
         public bool HasRuntimeWorldId;
@@ -103,6 +105,7 @@ namespace AbilityKit.Game.Flow
             PredictionStats = null;
             PredictionReconcileTarget = null;
             PredictionReconcileControl = null;
+            PredictionTuningControl = null;
 
             RuntimeWorldId = default;
             HasRuntimeWorldId = false;
@@ -152,6 +155,7 @@ namespace AbilityKit.Game.Flow
             PredictionStats = null;
             PredictionReconcileTarget = null;
             PredictionReconcileControl = null;
+            PredictionTuningControl = null;
 
             RuntimeWorldId = default;
             HasRuntimeWorldId = false;

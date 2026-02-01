@@ -11,6 +11,7 @@
     "AbilityKit.World.ECS",
     "AbilityKit.World.Snapshot",
     "AbilityKit.Host",
+    "AbilityKit.Host.Extensions",
     "AbilityKit.HotReload",
     "AbilityKit.World.DI",
     "AbilityKit.World.Entitas"

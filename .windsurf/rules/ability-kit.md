@@ -37,6 +37,8 @@ trigger: manual
   - 事件溯源（origin.*）与 PublishInherited 规则
 - [performance.md](performance.md)
   - 高频路径性能/池化/生命周期强约束
+- [framesync_prediction_rollback.md](framesync_prediction_rollback.md)
+  - 客户端预测/回滚/重演/对账（reconcile）与 idealFrame gate 的设计约束与调试指标
 
 ## Quick summary
 
