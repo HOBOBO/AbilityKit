@@ -11,11 +11,21 @@ namespace AbilityKit.Game.Flow.Snapshot
     {
         private readonly BattleLogicSession _session;
         private readonly Dictionary<int, IRoute> _routes = new Dictionary<int, IRoute>();
+        private readonly bool _subscribedToSession;
 
         public FrameSnapshotDispatcher(BattleLogicSession session)
+            : this(session, subscribeToSession: true)
+        {
+        }
+
+        public FrameSnapshotDispatcher(BattleLogicSession session, bool subscribeToSession)
         {
             _session = session ?? throw new ArgumentNullException(nameof(session));
-            _session.FrameReceived += OnFrame;
+            _subscribedToSession = subscribeToSession;
+            if (subscribeToSession)
+            {
+                _session.FrameReceived += OnFrame;
+            }
         }
 
         public event Action<FramePacket> FrameReceived;
@@ -69,12 +79,21 @@ namespace AbilityKit.Game.Flow.Snapshot
         {
             try
             {
-                _session.FrameReceived -= OnFrame;
+                if (_subscribedToSession)
+                {
+                    _session.FrameReceived -= OnFrame;
+                }
             }
             catch (Exception ex)
             {
                 Log.Exception(ex);
             }
+        }
+
+        public void Feed(FramePacket packet)
+        {
+            if (packet == null) return;
+            OnFrame(packet);
         }
 
         private void OnFrame(FramePacket packet)

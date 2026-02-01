@@ -66,6 +66,8 @@ namespace AbilityKit.Game.Flow
                 worldType: worldType,
                 clientId: clientId,
                 playerId: req.PlayerId.Value,
+                tickRate: req.TickRate,
+                inputDelayFrames: req.InputDelayFrames,
                 hostMode: hostMode,
                 useGatewayTransport: cfg.Gateway != null && cfg.Gateway.UseGatewayTransport,
                 gatewayHost: cfg.Gateway != null ? cfg.Gateway.Host : "127.0.0.1",

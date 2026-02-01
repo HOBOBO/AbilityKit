@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Framework;
+using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Services;
 
@@ -12,17 +13,32 @@ namespace AbilityKit.Ability.Host.Extensions.Time
     {
         private readonly Dictionary<WorldId, FrameTime> _times = new Dictionary<WorldId, FrameTime>();
 
+        private readonly float _fixedDeltaSeconds;
+
+        private FrameIndex _frame;
+
         private readonly Action<WorldCreateOptions> _onBeforeCreateWorld;
         private readonly Action<WorldId> _onWorldDestroyed;
         private readonly Action<FrameIndex, float> _onPostStep;
 
+        private readonly Action<float> _onPostTick;
+
         private IFrameSyncDriverEvents _frameEvents;
 
         public ServerFrameTimeModule()
+            : this(0f)
         {
+        }
+
+        public ServerFrameTimeModule(float fixedDeltaSeconds)
+        {
+            _fixedDeltaSeconds = fixedDeltaSeconds;
+            _frame = new FrameIndex(0);
             _onBeforeCreateWorld = OnBeforeCreateWorld;
             _onWorldDestroyed = OnWorldDestroyed;
             _onPostStep = OnPostStep;
+
+            _onPostTick = OnPostTick;
         }
 
         public bool TryGet(WorldId worldId, out IFrameTime time)
@@ -42,15 +58,23 @@ namespace AbilityKit.Ability.Host.Extensions.Time
             if (runtime == null) throw new ArgumentNullException(nameof(runtime));
             if (options == null) throw new ArgumentNullException(nameof(options));
 
+            _frame = new FrameIndex(0);
             if (!runtime.Features.TryGetFeature<IFrameSyncDriverEvents>(out _frameEvents) || _frameEvents == null)
             {
-                throw new InvalidOperationException($"{nameof(ServerFrameTimeModule)} requires {nameof(IFrameSyncDriverEvents)} feature. Install {nameof(FrameSyncDriverModule)} first.");
+                _frameEvents = null;
             }
 
             options.BeforeCreateWorld.Add(_onBeforeCreateWorld);
             options.WorldDestroyed.Add(_onWorldDestroyed);
 
-            _frameEvents.AddPostStep(_onPostStep);
+            if (_frameEvents != null)
+            {
+                _frameEvents.AddPostStep(_onPostStep);
+            }
+            else
+            {
+                options.PostTick.Add(_onPostTick);
+            }
         }
 
         public void Uninstall(HostRuntime runtime, HostRuntimeOptions options)
@@ -60,6 +84,8 @@ namespace AbilityKit.Ability.Host.Extensions.Time
 
             options.BeforeCreateWorld.Remove(_onBeforeCreateWorld);
             options.WorldDestroyed.Remove(_onWorldDestroyed);
+
+            options.PostTick.Remove(_onPostTick);
 
             _frameEvents?.RemovePostStep(_onPostStep);
             _frameEvents = null;
@@ -80,6 +106,11 @@ namespace AbilityKit.Ability.Host.Extensions.Time
                 _times[options.Id] = time;
             }
 
+            if (_fixedDeltaSeconds > 0f)
+            {
+                time.Reset(new FrameIndex(0), time: 0f, fixedDelta: _fixedDeltaSeconds);
+            }
+
             options.ServiceBuilder.RegisterInstance<IFrameTime>(time);
         }
 
@@ -93,6 +124,19 @@ namespace AbilityKit.Ability.Host.Extensions.Time
             foreach (var kv in _times)
             {
                 kv.Value?.StepTo(frame, deltaTime);
+            }
+        }
+
+        private void OnPostTick(float deltaTime)
+        {
+            try
+            {
+                _frame = new FrameIndex(_frame.Value + 1);
+                OnPostStep(_frame, deltaTime);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex);
             }
         }
     }

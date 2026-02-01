@@ -16,6 +16,11 @@ namespace AbilityKit.Game.Battle.Transport
         private readonly RequestClient _request;
 
         public GatewayBattleLogicTransport(GatewayBattleLogicTransportOptions options, IDispatcher dispatcher = null)
+            : this(options, dispatcher, dispatcher)
+        {
+        }
+
+        public GatewayBattleLogicTransport(GatewayBattleLogicTransportOptions options, IDispatcher callbackDispatcher, IDispatcher ioDispatcher)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
             if (_options.TransportFactory == null) throw new ArgumentException("TransportFactory is required.", nameof(options));
@@ -26,8 +31,9 @@ namespace AbilityKit.Game.Battle.Transport
                 FrameCodec = _options.FrameCodec
             };
 
-            _connection = new ConnectionManager(_options.TransportFactory, connOptions, dispatcher);
+            _connection = new ConnectionManager(_options.TransportFactory, connOptions, callbackDispatcher, ioDispatcher);
             _connection.PacketReceived += OnPacketReceived;
+            _connection.ServerPushReceived += OnServerPushReceived;
 
             _connection.Connected += OnConnected;
             _connection.Disconnected += OnDisconnected;
@@ -80,6 +86,7 @@ namespace AbilityKit.Game.Battle.Transport
         public void Dispose()
         {
             _connection.PacketReceived -= OnPacketReceived;
+            _connection.ServerPushReceived -= OnServerPushReceived;
 
             _connection.Connected -= OnConnected;
             _connection.Disconnected -= OnDisconnected;
@@ -131,6 +138,15 @@ namespace AbilityKit.Game.Battle.Transport
         }
 
         private void OnPacketReceived(uint opCode, uint seq, ArraySegment<byte> payload)
+        {
+            if (opCode != _options.OpFramePushed) return;
+            if (_options.DeserializeFramePushed == null) return;
+
+            var packet = _options.DeserializeFramePushed.Invoke(payload);
+            FramePushed?.Invoke(packet);
+        }
+
+        private void OnServerPushReceived(uint opCode, ArraySegment<byte> payload)
         {
             if (opCode != _options.OpFramePushed) return;
             if (_options.DeserializeFramePushed == null) return;

@@ -28,7 +28,7 @@ MonoBehaviour:
     InputReplayPath: battle_record.json
   Profile:
     Host:
-      Mode: 1
+      Mode: 0
     Client:
       ClientId: battle_client
       AutoConnect: 1

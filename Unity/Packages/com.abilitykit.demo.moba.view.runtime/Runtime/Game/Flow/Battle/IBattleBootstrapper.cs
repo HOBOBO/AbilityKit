@@ -26,6 +26,10 @@ namespace AbilityKit.Game.Flow
         public readonly string ClientId;
         public readonly string PlayerId;
 
+        public readonly int TickRate;
+
+        public readonly int InputDelayFrames;
+
         public readonly BattleStartConfig.BattleHostMode HostMode;
 
         public readonly bool UseGatewayTransport;
@@ -67,6 +71,8 @@ namespace AbilityKit.Game.Flow
             string worldType,
             string clientId,
             string playerId,
+            int tickRate,
+            int inputDelayFrames,
             BattleStartConfig.BattleHostMode hostMode,
             bool useGatewayTransport,
             string gatewayHost,
@@ -98,6 +104,9 @@ namespace AbilityKit.Game.Flow
             WorldType = worldType;
             ClientId = clientId;
             PlayerId = playerId;
+
+            TickRate = tickRate;
+            InputDelayFrames = inputDelayFrames;
 
             HostMode = hostMode;
 
@@ -138,6 +147,8 @@ namespace AbilityKit.Game.Flow
             string worldType,
             string clientId,
             string playerId,
+            int tickRate,
+            int inputDelayFrames,
             bool useGatewayTransport,
             string gatewayHost,
             int gatewayPort,
@@ -167,6 +178,8 @@ namespace AbilityKit.Game.Flow
                 worldType,
                 clientId,
                 playerId,
+                tickRate,
+                inputDelayFrames,
                 BattleStartConfig.BattleHostMode.Local,
                 useGatewayTransport,
                 gatewayHost,

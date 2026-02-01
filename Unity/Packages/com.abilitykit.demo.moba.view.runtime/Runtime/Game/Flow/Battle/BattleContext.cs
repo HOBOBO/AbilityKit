@@ -6,6 +6,7 @@ using AbilityKit.Ability.Share.Common.Record.Lockstep;
 using EC = AbilityKit.Ability.EC;
 using AbilityKit.Game.Battle;
 using System.Collections.Generic;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
 
 namespace AbilityKit.Game.Flow
 {
@@ -28,6 +29,10 @@ namespace AbilityKit.Game.Flow
         public BattleCmdHandler CmdHandler;
 
         public ILockstepInputRecordWriter InputRecordWriter;
+
+        public BattleLocalInputQueue LocalInputQueue;
+
+        public IClientPredictionDriverStats PredictionStats;
 
         public EC.Entity EntityNode;
         public EC.EntityWorld EntityWorld;
@@ -83,6 +88,11 @@ namespace AbilityKit.Game.Flow
             InputRecordWriter?.Dispose();
             InputRecordWriter = null;
 
+            LocalInputQueue?.Dispose();
+            LocalInputQueue = null;
+
+            PredictionStats = null;
+
             EntityNode = default;
             EntityWorld = null;
             EntityLookup = null;
@@ -121,6 +131,11 @@ namespace AbilityKit.Game.Flow
 
             InputRecordWriter?.Dispose();
             InputRecordWriter = null;
+
+            LocalInputQueue?.Dispose();
+            LocalInputQueue = null;
+
+            PredictionStats = null;
 
             EntityNode = default;
             EntityWorld = null;

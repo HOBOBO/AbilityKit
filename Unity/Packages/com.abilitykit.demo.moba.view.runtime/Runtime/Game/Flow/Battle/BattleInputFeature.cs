@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Math;
@@ -40,6 +41,8 @@ namespace AbilityKit.Game.Flow
             var playerId = new PlayerId(string.IsNullOrEmpty(plan.PlayerId) ? "p1" : plan.PlayerId);
             var worldId = new AbilityKit.Ability.World.Abstractions.WorldId(string.IsNullOrEmpty(plan.WorldId) ? "room_1" : plan.WorldId);
 
+            _ctx.LocalInputQueue ??= new BattleLocalInputQueue();
+
             float dx;
             float dz;
             if (_ctx.HudHasMove)
@@ -60,6 +63,7 @@ namespace AbilityKit.Game.Flow
                 var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, (int)MobaOpCode.Move, payload);
                 _ctx.InputRecordWriter?.Append(in cmd);
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
+                _ctx.LocalInputQueue.Enqueue(new LocalPlayerInputEvent(playerId, (int)MobaOpCode.Move, payload));
 
                 _lastMoveDx = dx;
                 _lastMoveDz = dz;
@@ -82,6 +86,7 @@ namespace AbilityKit.Game.Flow
                 var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, op, Array.Empty<byte>());
                 _ctx.InputRecordWriter?.Append(in cmd);
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
+                _ctx.LocalInputQueue.Enqueue(new LocalPlayerInputEvent(playerId, op, Array.Empty<byte>()));
             }
 
             var hudSlot = _ctx.HudSkillClickSlot;
@@ -91,6 +96,7 @@ namespace AbilityKit.Game.Flow
                 var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, op, Array.Empty<byte>());
                 _ctx.InputRecordWriter?.Append(in cmd);
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
+                _ctx.LocalInputQueue.Enqueue(new LocalPlayerInputEvent(playerId, op, Array.Empty<byte>()));
                 _ctx.HudSkillClickSlot = 0;
             }
 
@@ -108,12 +114,15 @@ namespace AbilityKit.Game.Flow
                 var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, (int)MobaOpCode.SkillInput, payload);
                 _ctx.InputRecordWriter?.Append(in cmd);
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
+                _ctx.LocalInputQueue.Enqueue(new LocalPlayerInputEvent(playerId, (int)MobaOpCode.SkillInput, payload));
 
                 _ctx.HudSkillAimSubmit = false;
                 _ctx.HudSkillAimSubmitSlot = 0;
                 _ctx.HudSkillAimSubmitDx = 0f;
                 _ctx.HudSkillAimSubmitDz = 0f;
             }
+
+            _ctx.LocalInputQueue.Flush();
         }
 
         private static bool GetSkillKeyDown(out int slot)

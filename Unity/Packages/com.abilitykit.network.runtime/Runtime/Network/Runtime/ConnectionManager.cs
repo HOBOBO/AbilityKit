@@ -11,6 +11,7 @@ namespace AbilityKit.Network.Runtime
         private readonly Func<ITransport> _transportFactory;
         private readonly ConnectionOptions _options;
         private readonly IDispatcher _dispatcher;
+        private readonly IDispatcher _ioDispatcher;
 
         private ITransport _transport;
         private NetworkSession _session;
@@ -33,6 +34,17 @@ namespace AbilityKit.Network.Runtime
             _transportFactory = transportFactory ?? throw new ArgumentNullException(nameof(transportFactory));
             _options = options ?? new ConnectionOptions();
             _dispatcher = dispatcher ?? InlineDispatcher.Instance;
+            _ioDispatcher = _dispatcher;
+
+            State = ConnectionState.Disconnected;
+        }
+
+        public ConnectionManager(Func<ITransport> transportFactory, ConnectionOptions options, IDispatcher callbackDispatcher, IDispatcher ioDispatcher)
+        {
+            _transportFactory = transportFactory ?? throw new ArgumentNullException(nameof(transportFactory));
+            _options = options ?? new ConnectionOptions();
+            _dispatcher = callbackDispatcher ?? InlineDispatcher.Instance;
+            _ioDispatcher = ioDispatcher ?? InlineDispatcher.Instance;
 
             State = ConnectionState.Disconnected;
         }
@@ -131,7 +143,7 @@ namespace AbilityKit.Network.Runtime
             _reconnectDelaySeconds = 0f;
 
             _transport = _transportFactory.Invoke();
-            _session = new NetworkSession(_transport, _dispatcher, _options.FrameCodec);
+            _session = new NetworkSession(_transport, _dispatcher, _ioDispatcher, _options.FrameCodec);
 
             _session.Start();
             _session.PacketReceived += OnSessionPacketReceived;

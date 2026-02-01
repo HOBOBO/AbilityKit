@@ -8,6 +8,7 @@ namespace AbilityKit.Network.Runtime
     {
         private readonly ITransport _transport;
         private readonly IDispatcher _dispatcher;
+        private readonly IDispatcher _ioDispatcher;
         private readonly IFrameCodec _frameCodec;
         private readonly IFrameDecoder _frameDecoder;
 
@@ -20,6 +21,19 @@ namespace AbilityKit.Network.Runtime
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _dispatcher = dispatcher ?? InlineDispatcher.Instance;
+            _ioDispatcher = _dispatcher;
+            _frameCodec = frameCodec ?? LengthPrefixedFrameCodec.Instance;
+            _frameDecoder = _frameCodec.CreateDecoder();
+
+            _pipeline = new NetworkPipeline();
+            _context = new SessionContext(this, _dispatcher);
+        }
+
+        public NetworkSession(ITransport transport, IDispatcher callbackDispatcher, IDispatcher ioDispatcher, IFrameCodec frameCodec = null)
+        {
+            _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+            _dispatcher = callbackDispatcher ?? InlineDispatcher.Instance;
+            _ioDispatcher = ioDispatcher ?? InlineDispatcher.Instance;
             _frameCodec = frameCodec ?? LengthPrefixedFrameCodec.Instance;
             _frameDecoder = _frameCodec.CreateDecoder();
 
@@ -92,6 +106,17 @@ namespace AbilityKit.Network.Runtime
         }
 
         private void OnBytesReceived(ArraySegment<byte> bytes)
+        {
+            if (_ioDispatcher == null)
+            {
+                HandleBytesReceived(bytes);
+                return;
+            }
+
+            _ioDispatcher.Post(() => HandleBytesReceived(bytes));
+        }
+
+        private void HandleBytesReceived(ArraySegment<byte> bytes)
         {
             try
             {

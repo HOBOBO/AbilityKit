@@ -1,4 +1,6 @@
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Requests;
 using UnityEngine;
 
@@ -38,6 +40,29 @@ namespace AbilityKit.Game.Flow
 
             GUILayout.Label($"WorldId: {_ctx.Plan.WorldId}");
             GUILayout.Label($"LastFrame: {_ctx.LastFrame}");
+
+            if (_ctx.PredictionStats != null)
+            {
+                var wid = new WorldId(_ctx.Plan.WorldId);
+
+                if (_ctx.PredictionStats.TryGetFrames(wid, out var confirmed, out var predicted))
+                {
+                    GUILayout.Label($"Pred: confirmed={confirmed.Value} predicted={predicted.Value}");
+                }
+                else
+                {
+                    GUILayout.Label("Pred: no world context");
+                }
+
+                GUILayout.Label($"Pred: inputDelay={_ctx.PredictionStats.InputDelayFrames} maxPred/tick={_ctx.PredictionStats.MaxConsumePredictedFramesPerTick} maxConf/tick={_ctx.PredictionStats.MaxConsumeConfirmedFramesPerTick}");
+                GUILayout.Label($"Pred: lastPred={_ctx.PredictionStats.LastConsumedPredictedFrames} lastConf={_ctx.PredictionStats.LastConsumedConfirmedFrames}");
+                GUILayout.Label($"Pred: drops={_ctx.PredictionStats.TotalLocalDelayQueueDroppedBatches} totalPred={_ctx.PredictionStats.TotalPredictedFrames} totalConf={_ctx.PredictionStats.TotalConsumedConfirmedFrames}");
+
+                if (_ctx.PredictionStats.TryGetLocalDelayQueueDepth(wid, out var depth))
+                {
+                    GUILayout.Label($"Pred: delayQueueDepth={depth}");
+                }
+            }
 
             var isGatewayRemote = _ctx.Plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && _ctx.Plan.UseGatewayTransport;
             if (isGatewayRemote)

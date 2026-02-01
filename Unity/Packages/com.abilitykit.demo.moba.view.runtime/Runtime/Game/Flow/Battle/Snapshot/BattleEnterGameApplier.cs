@@ -6,6 +6,7 @@ using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow;
+using AbilityKit.Ability.Share.Common.Log;
 using UnityEngine;
 using EC = AbilityKit.Ability.EC;
 
@@ -16,7 +17,11 @@ namespace AbilityKit.Game.Flow.Battle.Snapshot
         public static void Apply(BattleContext ctx, EnterMobaGameRes res)
         {
             if (ctx == null) return;
-            if (ctx.EntityWorld == null || ctx.EntityLookup == null || ctx.EntityFactory == null) return;
+            if (ctx.EntityWorld == null || ctx.EntityLookup == null || ctx.EntityFactory == null)
+            {
+                Log.Error("[BattleEnterGameApplier] Apply ignored: BattleContext entity wiring not ready.");
+                return;
+            }
 
             ctx.LocalActorId = res.LocalActorId;
 

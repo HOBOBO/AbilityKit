@@ -3,6 +3,7 @@ using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using UnityEngine;
 using AbilityKit.Ability.Share.Math;
+using AbilityKit.Ability.Share.Common.Log;
 using EC = AbilityKit.Ability.EC;
 
 namespace AbilityKit.Game.Flow.Snapshot
@@ -12,7 +13,11 @@ namespace AbilityKit.Game.Flow.Snapshot
         public static void Apply(BattleContext ctx, MobaActorSpawnSnapshotCodec.Entry[] entries)
         {
             if (ctx == null) return;
-            if (ctx.EntityWorld == null || ctx.EntityLookup == null || ctx.EntityFactory == null) return;
+            if (ctx.EntityWorld == null || ctx.EntityLookup == null || ctx.EntityFactory == null)
+            {
+                Log.Error("[BattleActorSpawnApplier] Apply ignored: BattleContext entity wiring not ready.");
+                return;
+            }
             if (entries == null || entries.Length == 0) return;
 
             var world = ctx.EntityWorld;

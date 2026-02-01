@@ -14,6 +14,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private FrameIndex _lastFrame;
         private readonly List<MobaActorSpawnSnapshotCodec.Entry> _pending = new List<MobaActorSpawnSnapshotCodec.Entry>(64);
 
+        public MobaActorSpawnSnapshotService()
+        {
+            _lastFrame = new FrameIndex(-999999);
+        }
+
         public void PublishSpawnPayload(byte[] payload)
         {
             _snapshotPayload = payload;
@@ -71,6 +76,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _sent = false;
             _snapshotPayload = null;
             _pending.Clear();
+            _lastFrame = new FrameIndex(-999999);
         }
     }
 }

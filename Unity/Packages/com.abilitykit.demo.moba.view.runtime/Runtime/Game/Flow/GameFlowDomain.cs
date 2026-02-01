@@ -246,6 +246,7 @@ namespace AbilityKit.Game.Flow
                 _battleFirstFrameReceived = false;
 
                 Attach(new BattleContextFeature());
+                Attach(new BattleEntityFeature());
 
                 _battleSessionFeature = new BattleSessionFeature(_pendingBootstrapper);
                 _battleSessionFeature.SessionStarted += OnBattleSessionStarted;
@@ -298,7 +299,6 @@ namespace AbilityKit.Game.Flow
                 _activeRoot = RootState.Battle;
 
                 // Core battle features (context + session) already attached in Prepare.
-                Attach(new BattleEntityFeature());
                 Attach(new BattleSyncFeature());
                 Attach(new BattleInputFeature());
                 Attach(new BattleViewFeature());
