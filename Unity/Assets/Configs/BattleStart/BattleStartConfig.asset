@@ -28,7 +28,7 @@ MonoBehaviour:
     InputReplayPath: battle_record.json
   Profile:
     Host:
-      Mode: 0
+      Mode: 1
     Client:
       ClientId: battle_client
       AutoConnect: 1
@@ -46,6 +46,8 @@ MonoBehaviour:
       ReplayInputPath: battle_record.json
     SyncMode: 0
     ViewEventSourceMode: 0
+    EnableClientPrediction: 1
+    EnableConfirmedAuthorityWorld: 0
   EnterGame:
     MapId: 1
     RandomSeed: 12345
@@ -92,3 +94,11 @@ MonoBehaviour:
     JoinRoomId: 10001
     CreateRoomOpCode: 110
     JoinRoomOpCode: 111
+    TimeSyncOpCode: 1300
+    TimeSyncIntervalMs: 1000
+    TimeSyncAlpha: 0.2
+    TimeSyncTimeoutMs: 2000
+    IdealFrameSafetyConstMarginFrames: 2
+    IdealFrameSafetyRttFactor: 1
+    IdealFrameSafetyMinMarginFrames: 0
+    IdealFrameSafetyMaxMarginFrames: 30

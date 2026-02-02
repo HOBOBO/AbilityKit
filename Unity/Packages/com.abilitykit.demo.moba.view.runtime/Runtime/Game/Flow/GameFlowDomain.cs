@@ -120,6 +120,13 @@ namespace AbilityKit.Game.Flow
 
             if (!_entry.DebugEnabled) return;
 
+            return;
+
+            if (_activeRoot == RootState.Battle && _activeBattle == BattleState.InMatch)
+            {
+                return;
+            }
+
             GUILayout.BeginArea(new Rect(350, 10, 420, 140), GUI.skin.window);
             GUILayout.Label($"HFSM Root={_activeRoot}, Battle={_activeBattle}");
 

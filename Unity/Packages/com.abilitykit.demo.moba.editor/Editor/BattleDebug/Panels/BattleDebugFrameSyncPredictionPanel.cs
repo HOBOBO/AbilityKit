@@ -59,6 +59,13 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
+            EditorGUILayout.LabelField("启用客户端预测", flowCtx.Plan.EnableClientPrediction.ToString());
+
+            if (!flowCtx.Plan.EnableClientPrediction)
+            {
+                EditorGUILayout.HelpBox("当前为关闭预测模式：仍会驱动远程世界（消费权威输入），但不会进行客户端预测/回滚/对账。此时 predicted≈confirmed 属于预期行为。", MessageType.Info);
+            }
+
             if (flowCtx.PredictionStats == null)
             {
                 EditorGUILayout.HelpBox("PredictionStats 为空。", MessageType.Info);

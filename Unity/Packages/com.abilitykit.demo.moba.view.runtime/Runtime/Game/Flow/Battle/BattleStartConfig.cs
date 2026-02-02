@@ -166,6 +166,7 @@ namespace AbilityKit.Game.Flow
             public BattleSyncMode SyncMode = BattleSyncMode.Lockstep;
             public BattleViewEventSourceMode ViewEventSourceMode = BattleViewEventSourceMode.SnapshotOnly;
 
+            public bool EnableClientPrediction = true;
             public bool EnableConfirmedAuthorityWorld = false;
         }
 

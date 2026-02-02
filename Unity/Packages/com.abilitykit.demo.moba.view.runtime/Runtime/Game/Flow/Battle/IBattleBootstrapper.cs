@@ -55,6 +55,8 @@ namespace AbilityKit.Game.Flow
 
         public readonly BattleViewEventSourceMode ViewEventSourceMode;
 
+        public readonly bool EnableClientPrediction;
+
         public readonly bool EnableConfirmedAuthorityWorld;
 
         public readonly bool EnableInputRecording;
@@ -104,6 +106,7 @@ namespace AbilityKit.Game.Flow
             bool autoReady,
             BattleSyncMode syncMode,
             BattleViewEventSourceMode viewEventSourceMode,
+            bool enableClientPrediction,
             bool enableConfirmedAuthorityWorld,
             bool enableInputRecording,
             string inputRecordOutputPath,
@@ -151,6 +154,8 @@ namespace AbilityKit.Game.Flow
 
             SyncMode = syncMode;
             ViewEventSourceMode = viewEventSourceMode;
+
+            EnableClientPrediction = enableClientPrediction;
 
             EnableConfirmedAuthorityWorld = enableConfirmedAuthorityWorld;
 
@@ -241,6 +246,7 @@ namespace AbilityKit.Game.Flow
                 autoReady,
                 syncMode,
                 viewEventSourceMode,
+                true,
                 enableConfirmedAuthorityWorld,
                 enableInputRecording,
                 inputRecordOutputPath,
