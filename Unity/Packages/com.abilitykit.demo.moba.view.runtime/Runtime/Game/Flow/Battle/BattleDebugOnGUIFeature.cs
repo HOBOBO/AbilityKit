@@ -153,6 +153,23 @@ namespace AbilityKit.Game.Flow
                 }
             }
 
+            if (_showFrameSyncStats && BattleFlowDebugProvider.ConfirmedAuthorityWorldStats != null)
+            {
+                var s = BattleFlowDebugProvider.ConfirmedAuthorityWorldStats;
+                GUILayout.Label($"权威对照世界: worldId={s.WorldId}");
+                GUILayout.Label($"权威对照世界: confirmed={s.ConfirmedFrame} predicted={s.PredictedFrame}");
+                GUILayout.Label($"权威对照世界: inputTarget={s.AuthorityInputTargetFrame} driveTarget={s.AuthorityDriveTargetFrame} ticked={s.AuthorityLastTickedFrame}");
+
+                GUILayout.Label($"权威对照世界: ViewEventTotal={s.ViewEventTotal}");
+                if (s.RecentViewEvents != null)
+                {
+                    for (int i = 0; i < s.RecentViewEvents.Length; i++)
+                    {
+                        GUILayout.Label($"  {s.RecentViewEvents[i]}");
+                    }
+                }
+            }
+
             var isGatewayRemote = _ctx.Plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && _ctx.Plan.UseGatewayTransport;
             if (isGatewayRemote)
             {

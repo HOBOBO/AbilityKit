@@ -8,7 +8,7 @@ namespace AbilityKit.Game.Editor
 {
     internal sealed class BattleDebugFrameSyncTimePanel : IBattleDebugPanel
     {
-        public string Name => "FrameSync/Time";
+        public string Name => "帧同步/时间";
         public int Order => 54;
 
         public bool IsVisible(in BattleDebugContext ctx)
@@ -21,47 +21,47 @@ namespace AbilityKit.Game.Editor
             var flowCtx = BattleFlowDebugProvider.Current;
             if (flowCtx == null)
             {
-                EditorGUILayout.HelpBox("BattleFlowDebugProvider.Current is null.", MessageType.Info);
+                EditorGUILayout.HelpBox("BattleFlowDebugProvider.Current 为空。", MessageType.Info);
                 return;
             }
 
             var session = flowCtx.Session;
             if (session == null)
             {
-                EditorGUILayout.HelpBox("BattleContext.Session is null.", MessageType.Info);
+                EditorGUILayout.HelpBox("BattleContext.Session 为空。", MessageType.Info);
                 return;
             }
 
             if (!session.TryGetWorld(out var world) || world == null)
             {
-                EditorGUILayout.HelpBox("No active world.", MessageType.Info);
+                EditorGUILayout.HelpBox("当前没有活动世界。", MessageType.Info);
                 return;
             }
 
             if (world.Services == null)
             {
-                EditorGUILayout.HelpBox("World.Services is null.", MessageType.Info);
+                EditorGUILayout.HelpBox("World.Services 为空。", MessageType.Info);
                 return;
             }
 
             if (!world.Services.TryResolve<IFrameTime>(out var time) || time == null)
             {
-                EditorGUILayout.HelpBox("IFrameTime not found in world services.", MessageType.Info);
+                EditorGUILayout.HelpBox("世界服务中未找到 IFrameTime。", MessageType.Info);
                 return;
             }
 
-            EditorGUILayout.LabelField("WorldId", world.Id.ToString());
-            EditorGUILayout.LabelField("Frame", time.Frame.Value.ToString());
-            EditorGUILayout.LabelField("Time", time.Time.ToString("F3"));
+            EditorGUILayout.LabelField("世界ID", world.Id.ToString());
+            EditorGUILayout.LabelField("帧", time.Frame.Value.ToString());
+            EditorGUILayout.LabelField("时间（秒）", time.Time.ToString("F3"));
             EditorGUILayout.LabelField("DeltaTime", time.DeltaTime.ToString("F4"));
-            EditorGUILayout.LabelField("FixedDelta", (time.FrameToTime(new FrameIndex(time.Frame.Value + 1)) - time.FrameToTime(time.Frame)).ToString("F4"));
+            EditorGUILayout.LabelField("固定帧间隔", (time.FrameToTime(new FrameIndex(time.Frame.Value + 1)) - time.FrameToTime(time.Frame)).ToString("F4"));
 
             EditorGUILayout.Space();
             var ts = BattleFlowDebugProvider.TimeSyncStats;
             var map = BattleFlowDebugProvider.TimeSyncStatsByWorld;
             if (map != null)
             {
-                EditorGUILayout.LabelField("TimeSyncStatsByWorld.Count", map.Count.ToString());
+                EditorGUILayout.LabelField("TimeSyncStatsByWorld 数量", map.Count.ToString());
                 var key = world.Id.ToString();
                 if (!string.IsNullOrEmpty(key) && map.TryGetValue(key, out var perWorld) && perWorld != null)
                 {
@@ -70,31 +70,31 @@ namespace AbilityKit.Game.Editor
             }
             if (ts == null)
             {
-                EditorGUILayout.HelpBox("TimeSyncStats is null. (Not wired)", MessageType.Info);
+                EditorGUILayout.HelpBox("TimeSyncStats 为空（未接线）。", MessageType.Info);
                 return;
             }
 
-            EditorGUILayout.LabelField("TimeSync.OpCode", ts.OpCode.ToString());
-            EditorGUILayout.LabelField("TimeSync.IntervalMs", ts.IntervalMs.ToString());
-            EditorGUILayout.LabelField("TimeSync.Alpha", ts.Alpha.ToString("F3"));
-            EditorGUILayout.LabelField("TimeSync.TimeoutMs", ts.TimeoutMs.ToString());
+            EditorGUILayout.LabelField("时间同步 OpCode", ts.OpCode.ToString());
+            EditorGUILayout.LabelField("时间同步间隔（ms）", ts.IntervalMs.ToString());
+            EditorGUILayout.LabelField("时间同步 Alpha", ts.Alpha.ToString("F3"));
+            EditorGUILayout.LabelField("时间同步超时（ms）", ts.TimeoutMs.ToString());
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Anchor.Has", ts.HasAnchor.ToString());
-            EditorGUILayout.LabelField("Anchor.StartFrame", ts.AnchorStartFrame.ToString());
-            EditorGUILayout.LabelField("Anchor.FixedDeltaSeconds", ts.AnchorFixedDeltaSeconds.ToString("F6"));
-            EditorGUILayout.LabelField("Anchor.ServerTickFrequency", ts.AnchorServerTickFrequency.ToString());
+            EditorGUILayout.LabelField("锚点是否就绪", ts.HasAnchor.ToString());
+            EditorGUILayout.LabelField("锚点起始帧", ts.AnchorStartFrame.ToString());
+            EditorGUILayout.LabelField("锚点固定帧间隔（秒）", ts.AnchorFixedDeltaSeconds.ToString("F6"));
+            EditorGUILayout.LabelField("服务器 Tick 频率", ts.AnchorServerTickFrequency.ToString());
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("ClockSync.Has", ts.HasClockSync.ToString());
-            EditorGUILayout.LabelField("ClockSync.OffsetSeconds(EWMA)", ts.OffsetSecondsEwma.ToString("F6"));
-            EditorGUILayout.LabelField("ClockSync.RttSeconds(EWMA)", ts.RttSecondsEwma.ToString("F6"));
-            EditorGUILayout.LabelField("ClockSync.Samples", ts.Samples.ToString());
+            EditorGUILayout.LabelField("时钟同步是否就绪", ts.HasClockSync.ToString());
+            EditorGUILayout.LabelField("时钟偏移（EWMA 秒）", ts.OffsetSecondsEwma.ToString("F6"));
+            EditorGUILayout.LabelField("往返延迟（EWMA 秒）", ts.RttSecondsEwma.ToString("F6"));
+            EditorGUILayout.LabelField("采样次数", ts.Samples.ToString());
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("IdealFrame.Raw", ts.IdealFrameRaw.ToString());
-            EditorGUILayout.LabelField("IdealFrame.MarginFrames", ts.IdealFrameSafetyMarginFrames.ToString());
-            EditorGUILayout.LabelField("IdealFrame.Limit", ts.IdealFrameLimit.ToString());
+            EditorGUILayout.LabelField("理想帧（原始）", ts.IdealFrameRaw.ToString());
+            EditorGUILayout.LabelField("理想帧安全边界（帧）", ts.IdealFrameSafetyMarginFrames.ToString());
+            EditorGUILayout.LabelField("理想帧上限", ts.IdealFrameLimit.ToString());
         }
     }
 }

@@ -165,6 +165,8 @@ namespace AbilityKit.Game.Flow
 
             public BattleSyncMode SyncMode = BattleSyncMode.Lockstep;
             public BattleViewEventSourceMode ViewEventSourceMode = BattleViewEventSourceMode.SnapshotOnly;
+
+            public bool EnableConfirmedAuthorityWorld = false;
         }
 
         [Header("Battle Start Plan")]

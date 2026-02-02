@@ -7,7 +7,7 @@ namespace AbilityKit.Game.Editor
 {
     internal sealed class BattleDebugFrameSyncReconcilePanel : IBattleDebugPanel
     {
-        public string Name => "FrameSync/Reconcile";
+        public string Name => "帧同步/对账";
         public int Order => 53;
 
         public bool IsVisible(in BattleDebugContext ctx)
@@ -20,15 +20,15 @@ namespace AbilityKit.Game.Editor
             var flowCtx = BattleFlowDebugProvider.Current;
             if (flowCtx == null)
             {
-                EditorGUILayout.HelpBox("BattleFlowDebugProvider.Current is null.", MessageType.Info);
+                EditorGUILayout.HelpBox("BattleFlowDebugProvider.Current 为空。", MessageType.Info);
                 return;
             }
 
-            EditorGUILayout.LabelField("ReconcileTarget", flowCtx.PredictionReconcileTarget != null ? "set" : "null");
+            EditorGUILayout.LabelField("对账目标", flowCtx.PredictionReconcileTarget != null ? "已设置" : "为空");
 
             if (flowCtx.PredictionStats == null)
             {
-                EditorGUILayout.HelpBox("PredictionStats is null.", MessageType.Info);
+                EditorGUILayout.HelpBox("PredictionStats 为空。", MessageType.Info);
                 return;
             }
 
@@ -36,27 +36,27 @@ namespace AbilityKit.Game.Editor
 
             if (flowCtx.PredictionStats.TryGetReconcileEnabled(wid, out var enabled))
             {
-                EditorGUILayout.LabelField("ReconcileEnabled", enabled.ToString());
+                EditorGUILayout.LabelField("对账是否启用（世界）", enabled.ToString());
             }
 
-            EditorGUILayout.LabelField("MismatchTotal", flowCtx.PredictionStats.TotalReconcileMismatch.ToString());
-            EditorGUILayout.LabelField("LastMismatchFrame", flowCtx.PredictionStats.LastReconcileMismatchFrame.Value.ToString());
-            EditorGUILayout.LabelField("LastPredHash", flowCtx.PredictionStats.LastReconcilePredictedHash.Value.ToString());
-            EditorGUILayout.LabelField("LastAuthHash", flowCtx.PredictionStats.LastReconcileAuthoritativeHash.Value.ToString());
-            EditorGUILayout.LabelField("LastComparedFrame", flowCtx.PredictionStats.LastReconcileComparedFrame.Value.ToString());
-            EditorGUILayout.LabelField("PredHashRecorded", flowCtx.PredictionStats.TotalPredictedHashRecorded.ToString());
-            EditorGUILayout.LabelField("AuthSkippedNoPred", flowCtx.PredictionStats.TotalAuthoritativeHashSkippedNoPredictedHash.ToString());
+            EditorGUILayout.LabelField("不一致次数（总）", flowCtx.PredictionStats.TotalReconcileMismatch.ToString());
+            EditorGUILayout.LabelField("最近不一致帧", flowCtx.PredictionStats.LastReconcileMismatchFrame.Value.ToString());
+            EditorGUILayout.LabelField("最近预测哈希", flowCtx.PredictionStats.LastReconcilePredictedHash.Value.ToString());
+            EditorGUILayout.LabelField("最近权威哈希", flowCtx.PredictionStats.LastReconcileAuthoritativeHash.Value.ToString());
+            EditorGUILayout.LabelField("最近对比帧", flowCtx.PredictionStats.LastReconcileComparedFrame.Value.ToString());
+            EditorGUILayout.LabelField("预测哈希记录次数（总）", flowCtx.PredictionStats.TotalPredictedHashRecorded.ToString());
+            EditorGUILayout.LabelField("权威哈希跳过（无预测哈希）", flowCtx.PredictionStats.TotalAuthoritativeHashSkippedNoPredictedHash.ToString());
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("ReplayTimeout.total", flowCtx.PredictionStats.TotalReplayTimeout.ToString());
-            EditorGUILayout.LabelField("ReplayTimeout.lastFrame", flowCtx.PredictionStats.LastReplayTimeoutFrame.Value.ToString());
+            EditorGUILayout.LabelField("回放超时次数（总）", flowCtx.PredictionStats.TotalReplayTimeout.ToString());
+            EditorGUILayout.LabelField("回放超时最近帧", flowCtx.PredictionStats.LastReplayTimeoutFrame.Value.ToString());
 
             EditorGUILayout.Space();
 
-            EditorGUILayout.LabelField("AuthHashRxTotal", flowCtx.PredictionStats.TotalAuthoritativeHashReceived.ToString());
-            EditorGUILayout.LabelField("AuthHashLastFrame", flowCtx.PredictionStats.LastAuthoritativeHashFrame.Value.ToString());
-            EditorGUILayout.LabelField("AuthHashLast", flowCtx.PredictionStats.LastAuthoritativeHash.Value.ToString());
-            EditorGUILayout.LabelField("AuthHashIgnoredNoReconciler", flowCtx.PredictionStats.TotalAuthoritativeHashIgnoredNoReconciler.ToString());
+            EditorGUILayout.LabelField("权威哈希接收次数（总）", flowCtx.PredictionStats.TotalAuthoritativeHashReceived.ToString());
+            EditorGUILayout.LabelField("最近权威哈希帧", flowCtx.PredictionStats.LastAuthoritativeHashFrame.Value.ToString());
+            EditorGUILayout.LabelField("最近权威哈希", flowCtx.PredictionStats.LastAuthoritativeHash.Value.ToString());
+            EditorGUILayout.LabelField("权威哈希忽略次数（无对账器）", flowCtx.PredictionStats.TotalAuthoritativeHashIgnoredNoReconciler.ToString());
 
             if (flowCtx.PredictionReconcileControl != null)
             {
@@ -64,11 +64,11 @@ namespace AbilityKit.Game.Editor
 
                 if (flowCtx.PredictionReconcileControl.TryGetReconcileEnabled(swid, out var swEnabled))
                 {
-                    EditorGUILayout.LabelField("ReconcileSwitch", swEnabled.ToString());
+                    EditorGUILayout.LabelField("对账开关（运行时）", swEnabled.ToString());
                 }
 
                 EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Recover"))
+                if (GUILayout.Button("恢复"))
                 {
                     flowCtx.PredictionReconcileControl.SetReconcileEnabled(swid, true);
 
@@ -80,7 +80,7 @@ namespace AbilityKit.Game.Editor
                     flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.WorldId));
                 }
 
-                if (GUILayout.Button("Disable Reconcile"))
+                if (GUILayout.Button("关闭对账"))
                 {
                     flowCtx.PredictionReconcileControl.SetReconcileEnabled(swid, false);
 
@@ -92,7 +92,7 @@ namespace AbilityKit.Game.Editor
                     flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.WorldId));
                 }
 
-                if (GUILayout.Button("Enable Reconcile"))
+                if (GUILayout.Button("开启对账"))
                 {
                     flowCtx.PredictionReconcileControl.SetReconcileEnabled(swid, true);
                 }

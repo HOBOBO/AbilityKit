@@ -4,7 +4,7 @@ namespace AbilityKit.Game.Editor
 {
     internal sealed class BattleDebugCopyEntityIdCommand : IBattleDebugToolbarCommand
     {
-        public string Label => "Copy Id";
+        public string Label => "复制 ID";
         public int Order => 200;
 
         public bool IsVisible(in BattleDebugContext ctx) => true;

@@ -11,6 +11,23 @@ namespace AbilityKit.Game.Flow
         public static TimeSyncStatsSnapshot TimeSyncStats { get; set; }
 
         public static Dictionary<string, TimeSyncStatsSnapshot> TimeSyncStatsByWorld { get; set; }
+
+        public static ConfirmedAuthorityWorldStatsSnapshot ConfirmedAuthorityWorldStats { get; set; }
+    }
+
+    public sealed class ConfirmedAuthorityWorldStatsSnapshot
+    {
+        public string WorldId;
+
+        public int ConfirmedFrame;
+        public int PredictedFrame;
+
+        public int AuthorityInputTargetFrame;
+        public int AuthorityDriveTargetFrame;
+        public int AuthorityLastTickedFrame;
+
+        public int ViewEventTotal;
+        public string[] RecentViewEvents;
     }
 
     public sealed class JitterBufferStatsSnapshot

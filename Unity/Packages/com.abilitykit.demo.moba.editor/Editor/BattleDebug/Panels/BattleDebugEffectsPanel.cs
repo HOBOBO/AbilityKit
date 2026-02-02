@@ -4,7 +4,7 @@ namespace AbilityKit.Game.Editor
 {
     internal sealed class BattleDebugEffectsPanel : IBattleDebugPanel
     {
-        public string Name => "Effects";
+        public string Name => "效果";
         public int Order => 300;
 
         public bool IsVisible(in BattleDebugContext ctx) => true;
@@ -13,17 +13,17 @@ namespace AbilityKit.Game.Editor
         {
             if (!ctx.HasSelection)
             {
-                EditorGUILayout.HelpBox("Select an entity.", MessageType.Info);
+                EditorGUILayout.HelpBox("请先选择一个实体。", MessageType.Info);
                 return;
             }
 
             var unit = ctx.SelectedUnit;
-            EditorGUILayout.LabelField("Effects", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("效果", EditorStyles.boldLabel);
 
             var effects = unit.Effects;
             if (effects == null || effects.Active == null || effects.Active.Count == 0)
             {
-                EditorGUILayout.LabelField("(empty)", EditorStyles.miniLabel);
+                EditorGUILayout.LabelField("（空）", EditorStyles.miniLabel);
                 return;
             }
 

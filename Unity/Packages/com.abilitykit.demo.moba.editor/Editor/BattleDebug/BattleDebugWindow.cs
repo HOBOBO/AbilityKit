@@ -20,10 +20,10 @@ namespace AbilityKit.Game.Editor
 
         private int _selectedPanelIndex;
 
-        [MenuItem("Tools/AbilityKit/Battle/Battle Debug")]
+        [MenuItem("Tools/AbilityKit/Battle/战斗调试")]
         private static void Open()
         {
-            GetWindow<BattleDebugWindow>("Battle Debug");
+            GetWindow<BattleDebugWindow>("战斗调试");
         }
 
         private void OnEnable()
@@ -36,7 +36,7 @@ namespace AbilityKit.Game.Editor
             if (!EditorApplication.isPlaying)
             {
                 DrawToolbar(default);
-                EditorGUILayout.HelpBox("Enter Play Mode to use Battle Debug.", MessageType.Info);
+                EditorGUILayout.HelpBox("进入播放模式后才能使用战斗调试窗口。", MessageType.Info);
                 return;
             }
 
@@ -44,14 +44,14 @@ namespace AbilityKit.Game.Editor
             if (facade == null)
             {
                 DrawToolbar(default);
-                EditorGUILayout.HelpBox("BattleDebugFacadeProvider.Current is null. Start a BattleLogicSession via BattleLogicSessionHost.Start().", MessageType.Warning);
+                EditorGUILayout.HelpBox("BattleDebugFacadeProvider.Current 为空。请通过 BattleLogicSessionHost.Start() 启动 BattleLogicSession。", MessageType.Warning);
                 return;
             }
 
             if (!facade.TryGetSession(out _))
             {
                 DrawToolbar(default);
-                EditorGUILayout.HelpBox("No active BattleLogicSession. Start a session first.", MessageType.Info);
+                EditorGUILayout.HelpBox("当前没有活动中的 BattleLogicSession，请先启动会话。", MessageType.Info);
                 return;
             }
 
@@ -85,7 +85,7 @@ namespace AbilityKit.Game.Editor
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
 
-            GUILayout.Label("Filter", GUILayout.Width(35));
+            GUILayout.Label("过滤", GUILayout.Width(35));
             var newFilter = GUILayout.TextField(_filter ?? string.Empty, GUI.skin.textField, GUILayout.MinWidth(100));
             if (!string.Equals(newFilter, _filter, StringComparison.Ordinal))
             {
@@ -110,7 +110,7 @@ namespace AbilityKit.Game.Editor
                 EditorGUI.EndDisabledGroup();
             }
 
-            if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(70)))
+            if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(70)))
             {
                 RefreshEntities();
             }
@@ -123,9 +123,9 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.BeginVertical(GUILayout.Width(220));
 
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("Id", GUILayout.Width(18));
+            GUILayout.Label("ID", GUILayout.Width(22));
             _jumpId = GUILayout.TextField(_jumpId ?? string.Empty, GUILayout.MinWidth(60));
-            if (GUILayout.Button("Go", GUILayout.Width(30)))
+            if (GUILayout.Button("跳转", GUILayout.Width(40)))
             {
                 if (int.TryParse(_jumpId, out var actorId) && actorId > 0)
                 {
@@ -147,7 +147,7 @@ namespace AbilityKit.Game.Editor
 
             if (_visibleEntities.Count == 0)
             {
-                EditorGUILayout.LabelField("No entities", EditorStyles.miniLabel);
+                EditorGUILayout.LabelField("暂无实体", EditorStyles.miniLabel);
             }
             else
             {
@@ -212,7 +212,7 @@ namespace AbilityKit.Game.Editor
             var panels = BattleDebugPanelRegistry.GetAll();
             if (panels == null || panels.Count == 0)
             {
-                EditorGUILayout.HelpBox("No panels registered.", MessageType.Warning);
+                EditorGUILayout.HelpBox("当前没有可用面板。", MessageType.Warning);
                 return;
             }
 
@@ -227,7 +227,7 @@ namespace AbilityKit.Game.Editor
 
             if (visible.Count == 0)
             {
-                EditorGUILayout.HelpBox("No panels visible.", MessageType.Info);
+                EditorGUILayout.HelpBox("当前没有可显示的面板。", MessageType.Info);
                 return;
             }
 
@@ -245,7 +245,7 @@ namespace AbilityKit.Game.Editor
             var panels = BattleDebugPanelRegistry.GetAll();
             if (panels == null || panels.Count == 0)
             {
-                EditorGUILayout.HelpBox("No panels registered.", MessageType.Warning);
+                EditorGUILayout.HelpBox("当前没有可用面板。", MessageType.Warning);
                 return;
             }
 
@@ -260,7 +260,7 @@ namespace AbilityKit.Game.Editor
 
             if (visible.Count == 0)
             {
-                EditorGUILayout.HelpBox("No panels visible.", MessageType.Info);
+                EditorGUILayout.HelpBox("当前没有可显示的面板。", MessageType.Info);
                 return;
             }
 

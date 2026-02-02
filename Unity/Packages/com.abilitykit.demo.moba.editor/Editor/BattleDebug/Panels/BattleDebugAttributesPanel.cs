@@ -5,7 +5,7 @@ namespace AbilityKit.Game.Editor
 {
     internal sealed class BattleDebugAttributesPanel : IBattleDebugPanel
     {
-        public string Name => "Attributes";
+        public string Name => "属性";
         public int Order => 200;
 
         public bool IsVisible(in BattleDebugContext ctx) => true;
@@ -14,23 +14,23 @@ namespace AbilityKit.Game.Editor
         {
             if (!ctx.HasSelection)
             {
-                EditorGUILayout.HelpBox("Select an entity.", MessageType.Info);
+                EditorGUILayout.HelpBox("请先选择一个实体。", MessageType.Info);
                 return;
             }
 
             var unit = ctx.SelectedUnit;
-            EditorGUILayout.LabelField("Attributes", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("属性", EditorStyles.boldLabel);
 
             var attrCtx = unit.Attributes;
             if (attrCtx == null || attrCtx.Groups == null || attrCtx.Groups.Count == 0)
             {
-                EditorGUILayout.LabelField("(empty)", EditorStyles.miniLabel);
+                EditorGUILayout.LabelField("（空）", EditorStyles.miniLabel);
                 return;
             }
 
             foreach (var groupKv in attrCtx.Groups)
             {
-                var groupName = string.IsNullOrEmpty(groupKv.Key) ? "default" : groupKv.Key;
+                var groupName = string.IsNullOrEmpty(groupKv.Key) ? "默认" : groupKv.Key;
                 var group = groupKv.Value;
                 if (group == null) continue;
 
@@ -38,7 +38,7 @@ namespace AbilityKit.Game.Editor
 
                 if (group.Attributes == null || group.Attributes.Count == 0)
                 {
-                    EditorGUILayout.LabelField("(empty)", EditorStyles.miniLabel);
+                    EditorGUILayout.LabelField("（空）", EditorStyles.miniLabel);
                     continue;
                 }
 

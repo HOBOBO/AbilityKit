@@ -18,6 +18,8 @@ using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Share.Impl.Moba.Move;
+using AbilityKit.Ability.Share.Common.TagSystem;
+using AbilityKit.Ability.Tags;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 {
@@ -157,6 +159,11 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 db.LoadFromResources(MobaConfigPaths.DefaultResourcesDir);
                 return db;
             });
+
+            builder.TryRegister<ITagTemplateRegistry>(WorldLifetime.Singleton, r => new MobaTagTemplateRegistry(r.Resolve<MobaConfigDatabase>()));
+            builder.TryRegisterType<IGameplayTagService, GameplayTagService>(WorldLifetime.Scoped);
+            builder.TryRegisterType<IDurableRegistry, DurableRegistry>(WorldLifetime.Scoped);
+            builder.TryRegisterType<ITagEffectRouter, TagEffectRouter>(WorldLifetime.Scoped);
 
             builder.TryRegister<ITextLoader>(WorldLifetime.Singleton, _ => new UnityResourcesTextLoader());
 

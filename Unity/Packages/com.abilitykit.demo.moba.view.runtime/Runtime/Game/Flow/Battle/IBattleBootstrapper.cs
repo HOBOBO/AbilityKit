@@ -55,6 +55,8 @@ namespace AbilityKit.Game.Flow
 
         public readonly BattleViewEventSourceMode ViewEventSourceMode;
 
+        public readonly bool EnableConfirmedAuthorityWorld;
+
         public readonly bool EnableInputRecording;
         public readonly string InputRecordOutputPath;
 
@@ -102,6 +104,7 @@ namespace AbilityKit.Game.Flow
             bool autoReady,
             BattleSyncMode syncMode,
             BattleViewEventSourceMode viewEventSourceMode,
+            bool enableConfirmedAuthorityWorld,
             bool enableInputRecording,
             string inputRecordOutputPath,
             bool enableInputReplay,
@@ -149,6 +152,8 @@ namespace AbilityKit.Game.Flow
             SyncMode = syncMode;
             ViewEventSourceMode = viewEventSourceMode;
 
+            EnableConfirmedAuthorityWorld = enableConfirmedAuthorityWorld;
+
             EnableInputRecording = enableInputRecording;
             InputRecordOutputPath = inputRecordOutputPath;
 
@@ -195,6 +200,7 @@ namespace AbilityKit.Game.Flow
             bool autoReady,
             BattleSyncMode syncMode,
             BattleViewEventSourceMode viewEventSourceMode,
+            bool enableConfirmedAuthorityWorld,
             bool enableInputRecording,
             string inputRecordOutputPath,
             bool enableInputReplay,
@@ -235,6 +241,7 @@ namespace AbilityKit.Game.Flow
                 autoReady,
                 syncMode,
                 viewEventSourceMode,
+                enableConfirmedAuthorityWorld,
                 enableInputRecording,
                 inputRecordOutputPath,
                 enableInputReplay,

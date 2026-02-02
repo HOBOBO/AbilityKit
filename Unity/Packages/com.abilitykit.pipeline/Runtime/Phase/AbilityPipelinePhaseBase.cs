@@ -121,7 +121,7 @@ namespace AbilityKit.Ability
     /// 瞬时阶段基类
     /// Execute 后立即完成
     /// </summary>
-    public abstract class AbilityInstantPhaseBase<TCtx> : AbilityPipelinePhaseBase<TCtx>
+    public abstract class AbilityInstantPhaseBase<TCtx> : AbilityPipelinePhaseBase<TCtx>, IAbilityInstantPhase<TCtx>
         where TCtx : IAbilityPipelineContext
     {
         protected AbilityInstantPhaseBase(AbilityPipelinePhaseId phaseId) : base(phaseId) { }

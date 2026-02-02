@@ -43,6 +43,8 @@ namespace AbilityKit.Game.Flow
             var syncMode = cfg.Profile != null ? cfg.Profile.SyncMode : (legacy != null ? legacy.SyncMode : BattleSyncMode.Lockstep);
             var viewEventSourceMode = cfg.Profile != null ? cfg.Profile.ViewEventSourceMode : (legacy != null ? legacy.ViewEventSourceMode : BattleViewEventSourceMode.SnapshotOnly);
 
+            var enableConfirmedAuthorityWorld = cfg.Profile != null && cfg.Profile.EnableConfirmedAuthorityWorld;
+
             var runMode = cfg.Profile != null && cfg.Profile.RunMode != null ? cfg.Profile.RunMode.Mode : BattleStartConfig.BattleRunMode.Normal;
             if (legacy != null)
             {
@@ -97,6 +99,7 @@ namespace AbilityKit.Game.Flow
                 autoReady: autoReady,
                 syncMode: syncMode,
                 viewEventSourceMode: viewEventSourceMode,
+                enableConfirmedAuthorityWorld: enableConfirmedAuthorityWorld,
                 enableInputRecording: enableInputRecording,
                 inputRecordOutputPath: recordPath,
                 enableInputReplay: enableInputReplay,

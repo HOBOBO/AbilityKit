@@ -8,6 +8,11 @@ namespace AbilityKit.Ability.Share.Common.TagSystem
 
         public int Value => Id;
 
+        public static GameplayTag FromId(int id)
+        {
+            return id == 0 ? default : new GameplayTag(id);
+        }
+
         internal GameplayTag(int id)
         {
             Id = id;

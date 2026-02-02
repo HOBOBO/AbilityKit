@@ -6,7 +6,7 @@ namespace AbilityKit.Game.Editor
 {
     internal sealed class BattleDebugOverviewPanel : IBattleDebugPanel
     {
-        public string Name => "Overview";
+        public string Name => "总览";
         public int Order => 0;
 
         public bool IsVisible(in BattleDebugContext ctx) => true;
@@ -15,33 +15,33 @@ namespace AbilityKit.Game.Editor
         {
             if (!ctx.HasSelection)
             {
-                EditorGUILayout.HelpBox("Select an entity.", MessageType.Info);
+                EditorGUILayout.HelpBox("请先选择一个实体。", MessageType.Info);
                 return;
             }
 
             var unit = ctx.SelectedUnit;
 
-            EditorGUILayout.LabelField("Entity", EditorStyles.boldLabel);
-            EditorGUILayout.LabelField("Id", unit.Id.ToString());
+            EditorGUILayout.LabelField("实体", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("ID", unit.Id.ToString());
 
             var tagCount = unit.Tags?.Count ?? 0;
             var effectCount = unit.Effects?.Active?.Count ?? 0;
 
             EditorGUILayout.Space(4);
-            EditorGUILayout.LabelField("Summary", EditorStyles.boldLabel);
-            EditorGUILayout.LabelField("Tags", tagCount.ToString());
-            EditorGUILayout.LabelField("Effects", effectCount.ToString());
+            EditorGUILayout.LabelField("汇总", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("标签数", tagCount.ToString());
+            EditorGUILayout.LabelField("效果数", effectCount.ToString());
 
             EditorGUILayout.Space(8);
-            EditorGUILayout.LabelField("Actions", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("操作", EditorStyles.boldLabel);
 
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Copy Id", GUILayout.Width(100)))
+            if (GUILayout.Button("复制 ID", GUILayout.Width(100)))
             {
                 EditorGUIUtility.systemCopyBuffer = unit.Id.ToString();
             }
 
-            if (GUILayout.Button("Copy Tags", GUILayout.Width(100)))
+            if (GUILayout.Button("复制标签", GUILayout.Width(100)))
             {
                 EditorGUIUtility.systemCopyBuffer = BuildTagList(unit);
             }

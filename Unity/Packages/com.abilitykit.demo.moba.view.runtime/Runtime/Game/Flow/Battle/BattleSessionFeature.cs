@@ -22,6 +22,9 @@ using AbilityKit.Network.Runtime;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Game.Flow.Battle.ViewEvents;
+using AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot;
+using AbilityKit.Game.Flow.Battle.ViewEvents.Triggering;
 using UnityEngine;
 using System.Threading.Tasks;
 using AbilityKit.Ability.World.DI;
@@ -67,6 +70,15 @@ namespace AbilityKit.Game.Flow
         private IRemoteFrameSource<PlayerInputCommand[]> _remoteDrivenInputSource;
         private IConsumableRemoteFrameSource<PlayerInputCommand[]> _remoteDrivenConsumable;
         private IRemoteFrameSink<PlayerInputCommand[]> _remoteDrivenSink;
+
+        private bool _remoteDrivenIsConfirmedAuthority;
+
+        private FrameSnapshotDispatcher _confirmedSnapshots;
+        private BattleSnapshotPipeline _confirmedPipeline;
+        private BattleCmdHandler _confirmedCmdHandler;
+        private DebugBattleViewEventSink _confirmedViewEventSink;
+        private BattleSnapshotViewAdapter _confirmedSnapshotViewAdapter;
+        private BattleTriggerEventViewBridge _confirmedTriggerBridge;
 
         private AbilityKit.Network.Abstractions.IDispatcher _unityDispatcher;
         private AbilityKit.Network.Abstractions.DedicatedThreadDispatcher _networkIoDispatcher;
@@ -239,6 +251,7 @@ namespace AbilityKit.Game.Flow
                     autoReady: _plan.AutoReady,
                     syncMode: _plan.SyncMode,
                     viewEventSourceMode: _plan.ViewEventSourceMode,
+                    enableConfirmedAuthorityWorld: _plan.EnableConfirmedAuthorityWorld,
                     enableInputRecording: _plan.EnableInputRecording,
                     inputRecordOutputPath: _plan.InputRecordOutputPath,
                     enableInputReplay: _plan.EnableInputReplay,
@@ -296,6 +309,7 @@ namespace AbilityKit.Game.Flow
                     autoReady: _plan.AutoReady,
                     syncMode: _plan.SyncMode,
                     viewEventSourceMode: _plan.ViewEventSourceMode,
+                    enableConfirmedAuthorityWorld: _plan.EnableConfirmedAuthorityWorld,
                     enableInputRecording: _plan.EnableInputRecording,
                     inputRecordOutputPath: _plan.InputRecordOutputPath,
                     enableInputReplay: _plan.EnableInputReplay,
@@ -382,6 +396,7 @@ namespace AbilityKit.Game.Flow
                     autoReady: _plan.AutoReady,
                     syncMode: _plan.SyncMode,
                     viewEventSourceMode: _plan.ViewEventSourceMode,
+                    enableConfirmedAuthorityWorld: _plan.EnableConfirmedAuthorityWorld,
                     enableInputRecording: _plan.EnableInputRecording,
                     inputRecordOutputPath: _plan.InputRecordOutputPath,
                     enableInputReplay: _plan.EnableInputReplay,
@@ -821,10 +836,34 @@ namespace AbilityKit.Game.Flow
             if (_remoteDrivenWorld == null || _remoteDrivenRuntime == null) return;
             if (_remoteDrivenInputSource == null) return;
 
-            _remoteDrivenInputSource.DelayFrames = _plan.InputDelayFrames < 0 ? 0 : _plan.InputDelayFrames;
+            var inputTargetFrame = _remoteDrivenInputSource.TargetFrame;
+            if (inputTargetFrame <= 0) return;
 
-            var targetFrame = _remoteDrivenInputSource.TargetFrame;
-            if (targetFrame <= 0) return;
+            var driveTargetFrame = inputTargetFrame;
+            var confirmedFrame = 0;
+            var predictedFrame = 0;
+
+            if (_remoteDrivenIsConfirmedAuthority)
+            {
+                // Confirmed-authority world: drive only up to confirmed frame.
+                var stats = _ctx != null ? _ctx.PredictionStats : null;
+                if (stats != null)
+                {
+                    var wid = new WorldId(_plan.WorldId);
+                    if (stats.TryGetFrames(wid, out var confirmed, out var predicted))
+                    {
+                        confirmedFrame = confirmed.Value;
+                        predictedFrame = predicted.Value;
+                        driveTargetFrame = Math.Min(inputTargetFrame, confirmedFrame);
+                    }
+                }
+            }
+            else
+            {
+                _remoteDrivenInputSource.DelayFrames = _plan.InputDelayFrames < 0 ? 0 : _plan.InputDelayFrames;
+            }
+
+            if (driveTargetFrame <= 0) return;
 
             var fixedDelta = GetFixedDeltaSeconds();
             var stepsBudget = MaxRemoteDrivenCatchUpStepsPerUpdate;
@@ -847,7 +886,7 @@ namespace AbilityKit.Game.Flow
             }
 
             var steps = 0;
-            while (steps < stepsBudget && _remoteDrivenLastTickedFrame < targetFrame)
+            while (steps < stepsBudget && _remoteDrivenLastTickedFrame < driveTargetFrame)
             {
                 var nextFrame = _remoteDrivenLastTickedFrame + 1;
                 var frameIndex = new FrameIndex(nextFrame);
@@ -864,7 +903,14 @@ namespace AbilityKit.Game.Flow
                         }
 
                         var synthesized = new FramePacket(worldId, frameIndex, Array.Empty<PlayerInputCommand>(), s);
-                        _snapshots?.Feed(synthesized);
+                        if (_remoteDrivenIsConfirmedAuthority)
+                        {
+                            _confirmedSnapshots?.Feed(synthesized);
+                        }
+                        else
+                        {
+                            _snapshots?.Feed(synthesized);
+                        }
                     }
                 }
 
@@ -873,6 +919,214 @@ namespace AbilityKit.Game.Flow
             }
 
             _remoteDrivenInputSource.TrimBefore(_remoteDrivenLastTickedFrame - 120);
+
+            if (_remoteDrivenIsConfirmedAuthority && BattleFlowDebugProvider.ConfirmedAuthorityWorldStats != null)
+            {
+                var s = BattleFlowDebugProvider.ConfirmedAuthorityWorldStats;
+                s.ConfirmedFrame = confirmedFrame;
+                s.PredictedFrame = predictedFrame;
+                s.AuthorityInputTargetFrame = inputTargetFrame;
+                s.AuthorityDriveTargetFrame = driveTargetFrame;
+                s.AuthorityLastTickedFrame = _remoteDrivenLastTickedFrame;
+
+                if (_confirmedViewEventSink != null)
+                {
+                    s.ViewEventTotal = _confirmedViewEventSink.Total;
+                    s.RecentViewEvents = _confirmedViewEventSink.GetRecentLines();
+                }
+            }
+        }
+
+        private void StartConfirmedAuthorityWorld()
+        {
+            if (_remoteDrivenWorld != null) return;
+
+            _remoteDrivenIsConfirmedAuthority = true;
+
+            var typeRegistry = new WorldTypeRegistry()
+                .RegisterEntitasWorld(AbilityKit.Ability.Impl.Moba.Worlds.Blueprints.MobaLobbyWorldBlueprint.Type)
+                .RegisterEntitasWorld(AbilityKit.Ability.Impl.Moba.Worlds.Blueprints.MobaBattleWorldBlueprint.Type);
+
+            var blueprints = new AbilityKit.Ability.Host.WorldBlueprints.WorldBlueprintRegistry();
+            AbilityKit.Ability.Impl.Moba.Worlds.Blueprints.MobaWorldBlueprintsRegistration.RegisterAll(blueprints);
+
+            var baseFactory = new AbilityKit.Ability.World.Management.RegistryWorldFactory(typeRegistry);
+            var factory = new AbilityKit.Ability.Host.WorldBlueprints.WorldBlueprintWorldFactory(baseFactory, blueprints);
+            _remoteDrivenWorlds = new AbilityKit.Ability.World.Management.WorldManager(factory);
+
+            var serverOptions = new AbilityKit.Ability.Host.Framework.HostRuntimeOptions();
+            _remoteDrivenRuntime = new AbilityKit.Ability.Host.Framework.HostRuntime(_remoteDrivenWorlds, serverOptions);
+
+            var fixedDelta = GetFixedDeltaSeconds();
+
+            // Confirmed-authority world: only driven by remote inputs, up to ConfirmedFrame.
+            var modules = new AbilityKit.Ability.Host.Framework.HostRuntimeModuleHost()
+                .Add(new AbilityKit.Ability.Host.Extensions.FrameSync.ClientPredictionDriverModule(
+                    resolveRemoteInputs: _ => _remoteDrivenConsumable,
+                    resolveLocalInputs: _ => null,
+                    resolveIdealFrameLimit: _ => ResolveIdealFrameLimit(_),
+                    inputDelayFrames: 0,
+                    maxPredictionAheadFrames: 1,
+                    minPredictionWindow: 1,
+                    backlogEwmaAlpha: 0.20f,
+                    enableRollback: false,
+                    rollbackHistoryFrames: 0,
+                    rollbackCaptureEveryNFrames: 0,
+                    buildRollbackRegistry: _ => new AbilityKit.Ability.FrameSync.Rollback.RollbackRegistry(),
+                    buildComputeHash: _ => null))
+                .Add(new AbilityKit.Ability.Host.Extensions.Time.ServerFrameTimeModule(fixedDelta));
+
+            modules.InstallAll(_remoteDrivenRuntime, serverOptions);
+
+            var builder = WorldServiceContainerFactory.CreateWithAttributes(
+                AbilityKit.Ability.World.Services.Attributes.WorldServiceProfile.All,
+                new[]
+                {
+                    typeof(WorldServiceContainerFactory).Assembly,
+                    typeof(BattleLogicSession).Assembly,
+                    typeof(AbilityKit.Ability.Impl.Moba.Systems.MobaWorldBootstrapModule).Assembly,
+                    typeof(BattleSessionFeature).Assembly
+                },
+                new[] { "AbilityKit" }
+            );
+            builder.AddModule(new MobaConfigWorldModule());
+            builder.RegisterInstance(new WorldInitData(_plan.CreateWorldOpCode, _plan.CreateWorldPayload));
+            builder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new AbilityKit.Ability.FrameSync.FrameTime());
+
+            var authWorldId = new WorldId((_plan.WorldId ?? "room_1") + "__confirmed");
+            var options = new WorldCreateOptions(authWorldId, _plan.WorldType)
+            {
+                ServiceBuilder = builder,
+            };
+            options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
+
+            _remoteDrivenWorld = _remoteDrivenRuntime.CreateWorld(options);
+
+            _remoteDrivenLastTickedFrame = 0;
+            _remoteDrivenLastLoggedFrame = -1;
+            _remoteDrivenFirstSnapshotLogged = false;
+            _remoteDrivenFirstSpawnLogged = false;
+
+            var buf = new FrameJitterBuffer<PlayerInputCommand[]>(delayFrames: 0, missingMode: MissingFrameMode.FillDefault, missingFrameFactory: Array.Empty<PlayerInputCommand>, initialCapacity: 256);
+            _remoteDrivenInputSource = buf;
+            _remoteDrivenConsumable = buf;
+            _remoteDrivenSink = buf;
+
+            // Build an independent snapshot/view-event pipeline for confirmed authority world.
+            if (_ctx != null)
+            {
+                var tmp = BattleContext.Rent();
+                tmp.Plan = _ctx.Plan;
+                tmp.Session = _ctx.Session;
+
+                _confirmedSnapshots = new FrameSnapshotDispatcher(tmp.Session, subscribeToSession: false);
+                _confirmedPipeline = new BattleSnapshotPipeline(tmp, _confirmedSnapshots);
+                _confirmedCmdHandler = new BattleCmdHandler(tmp, _confirmedSnapshots);
+                BattleSnapshotRegistry.RegisterAll(_confirmedSnapshots, _confirmedPipeline, _confirmedPipeline, _confirmedCmdHandler);
+
+                _confirmedViewEventSink = new DebugBattleViewEventSink(maxLines: 32);
+
+                var mode = _plan.ViewEventSourceMode;
+                if (mode == BattleViewEventSourceMode.SnapshotOnly || mode == BattleViewEventSourceMode.Hybrid)
+                {
+                    _confirmedSnapshotViewAdapter = new BattleSnapshotViewAdapter(_confirmedSnapshots, _confirmedViewEventSink);
+                }
+
+                if (mode == BattleViewEventSourceMode.TriggerOnly || mode == BattleViewEventSourceMode.Hybrid)
+                {
+                    if (_remoteDrivenWorld?.Services != null && _remoteDrivenWorld.Services.TryResolve(out AbilityKit.Ability.Triggering.IEventBus bus) && bus != null)
+                    {
+                        _confirmedTriggerBridge = new BattleTriggerEventViewBridge(bus, _confirmedViewEventSink);
+                    }
+                }
+
+                BattleContext.Return(tmp);
+            }
+
+            BattleFlowDebugProvider.ConfirmedAuthorityWorldStats = new ConfirmedAuthorityWorldStatsSnapshot
+            {
+                WorldId = authWorldId.Value,
+                ConfirmedFrame = 0,
+                PredictedFrame = 0,
+                AuthorityInputTargetFrame = 0,
+                AuthorityDriveTargetFrame = 0,
+                AuthorityLastTickedFrame = 0,
+                ViewEventTotal = 0,
+                RecentViewEvents = null,
+            };
+        }
+
+        private sealed class DebugBattleViewEventSink : IBattleViewEventSink
+        {
+            private readonly string[] _lines;
+            private int _next;
+            private int _count;
+
+            public int Total { get; private set; }
+
+            public DebugBattleViewEventSink(int maxLines)
+            {
+                if (maxLines <= 0) maxLines = 16;
+                _lines = new string[maxLines];
+            }
+
+            public string[] GetRecentLines()
+            {
+                if (_count <= 0) return Array.Empty<string>();
+
+                var n = Math.Min(_count, _lines.Length);
+                var arr = new string[n];
+                var start = (_next - n + _lines.Length) % _lines.Length;
+                for (int i = 0; i < n; i++)
+                {
+                    arr[i] = _lines[(start + i) % _lines.Length];
+                }
+                return arr;
+            }
+
+            private void Push(string line)
+            {
+                if (string.IsNullOrWhiteSpace(line)) return;
+                _lines[_next] = line;
+                _next = (_next + 1) % _lines.Length;
+                if (_count < _lines.Length) _count++;
+                Total++;
+            }
+
+            public void OnTriggerEvent(in AbilityKit.Ability.Triggering.TriggerEvent evt)
+            {
+                var id = evt.Id != null ? evt.Id.ToString() : "<null>";
+                Push($"Trigger:{id}");
+            }
+
+            public void OnEnterGameSnapshot(FramePacket packet, EnterMobaGameRes res)
+            {
+                Push($"Snapshot:EnterGame frame={packet.Frame.Value}");
+            }
+
+            public void OnActorTransformSnapshot(FramePacket packet, (int actorId, float x, float y, float z)[] entries)
+            {
+                var n = entries != null ? entries.Length : 0;
+                Push($"Snapshot:ActorTransform frame={packet.Frame.Value} n={n}");
+            }
+
+            public void OnProjectileEventSnapshot(FramePacket packet, MobaProjectileEventSnapshotCodec.Entry[] entries)
+            {
+                var n = entries != null ? entries.Length : 0;
+                Push($"Snapshot:Projectile frame={packet.Frame.Value} n={n}");
+            }
+
+            public void OnAreaEventSnapshot(FramePacket packet, MobaAreaEventSnapshotCodec.Entry[] entries)
+            {
+                var n = entries != null ? entries.Length : 0;
+                Push($"Snapshot:Area frame={packet.Frame.Value} n={n}");
+            }
+
+            public void OnDamageEventSnapshot(FramePacket packet, MobaDamageEventSnapshotCodec.Entry[] entries)
+            {
+                var n = entries != null ? entries.Length : 0;
+                Push($"Snapshot:Damage frame={packet.Frame.Value} n={n}");
+            }
         }
 
         private void StartSession()
@@ -961,6 +1215,11 @@ namespace AbilityKit.Game.Flow
             if (_plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && _plan.UseGatewayTransport)
             {
                 StartRemoteDrivenLocalWorld();
+            }
+
+            if (_plan.EnableConfirmedAuthorityWorld)
+            {
+                StartConfirmedAuthorityWorld();
             }
 
             var subscribeToSessionFrames = !(_plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && _plan.UseGatewayTransport);
@@ -1054,6 +1313,21 @@ namespace AbilityKit.Game.Flow
                     _remoteDrivenConsumable = null;
                     _remoteDrivenSink = null;
 
+                    _remoteDrivenIsConfirmedAuthority = false;
+
+                    _confirmedSnapshotViewAdapter?.Dispose();
+                    _confirmedSnapshotViewAdapter = null;
+
+                    _confirmedTriggerBridge?.Dispose();
+                    _confirmedTriggerBridge = null;
+
+                    _confirmedViewEventSink = null;
+                    _confirmedCmdHandler = null;
+                    _confirmedPipeline = null;
+                    _confirmedSnapshots = null;
+
+                    BattleFlowDebugProvider.ConfirmedAuthorityWorldStats = null;
+
                     if (_ctx != null)
                     {
                         _ctx.PredictionStats = null;
@@ -1080,6 +1354,8 @@ namespace AbilityKit.Game.Flow
         private void StartRemoteDrivenLocalWorld()
         {
             if (_remoteDrivenWorld != null) return;
+
+            _remoteDrivenIsConfirmedAuthority = false;
 
             var typeRegistry = new WorldTypeRegistry()
                 .RegisterEntitasWorld(AbilityKit.Ability.Impl.Moba.Worlds.Blueprints.MobaLobbyWorldBlueprint.Type)
@@ -1147,40 +1423,45 @@ namespace AbilityKit.Game.Flow
 
             if (_ctx != null)
             {
-                if (_remoteDrivenRuntime.Features.TryGetFeature<AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionDriverStats>(out var stats) && stats != null)
+                // Only bind prediction stats/control from this runtime in GatewayRemote mode.
+                // The confirmed-authority compare world should not override the primary session's prediction modules.
+                if (_plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && _plan.UseGatewayTransport)
                 {
-                    _ctx.PredictionStats = stats;
-                }
-                else
-                {
-                    _ctx.PredictionStats = null;
-                }
+                    if (_remoteDrivenRuntime.Features.TryGetFeature<AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionDriverStats>(out var stats) && stats != null)
+                    {
+                        _ctx.PredictionStats = stats;
+                    }
+                    else
+                    {
+                        _ctx.PredictionStats = null;
+                    }
 
-                if (_remoteDrivenRuntime.Features.TryGetFeature<AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionReconcileTarget>(out var target) && target != null)
-                {
-                    _ctx.PredictionReconcileTarget = target;
-                }
-                else
-                {
-                    _ctx.PredictionReconcileTarget = null;
-                }
+                    if (_remoteDrivenRuntime.Features.TryGetFeature<AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionReconcileTarget>(out var target) && target != null)
+                    {
+                        _ctx.PredictionReconcileTarget = target;
+                    }
+                    else
+                    {
+                        _ctx.PredictionReconcileTarget = null;
+                    }
 
-                if (_remoteDrivenRuntime.Features.TryGetFeature<AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionReconcileControl>(out var control) && control != null)
-                {
-                    _ctx.PredictionReconcileControl = control;
-                }
-                else
-                {
-                    _ctx.PredictionReconcileControl = null;
-                }
+                    if (_remoteDrivenRuntime.Features.TryGetFeature<AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionReconcileControl>(out var control) && control != null)
+                    {
+                        _ctx.PredictionReconcileControl = control;
+                    }
+                    else
+                    {
+                        _ctx.PredictionReconcileControl = null;
+                    }
 
-                if (_remoteDrivenRuntime.Features.TryGetFeature<AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionTuningControl>(out var tuning) && tuning != null)
-                {
-                    _ctx.PredictionTuningControl = tuning;
-                }
-                else
-                {
-                    _ctx.PredictionTuningControl = null;
+                    if (_remoteDrivenRuntime.Features.TryGetFeature<AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionTuningControl>(out var tuning) && tuning != null)
+                    {
+                        _ctx.PredictionTuningControl = tuning;
+                    }
+                    else
+                    {
+                        _ctx.PredictionTuningControl = null;
+                    }
                 }
             }
 
