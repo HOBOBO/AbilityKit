@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using AbilityKit.Ability.Share.CoreDtos;
+using AbilityKit.Ability.Triggering.Runtime;
 using UnityEditor;
 using UnityEngine;
 using Newtonsoft.Json;
@@ -116,7 +117,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 {
                     for (int c = 0; c < dto.Conditions.Count; c++)
                     {
-                        var cc = JsonConditionEditorConfig.FromDto(dto.Conditions[c]);
+                        var cc = BuildConditionEditorConfig(dto.Conditions[c]);
                         if (cc != null) editor.ConditionsStrong.Add(cc);
                     }
                 }
@@ -126,13 +127,86 @@ namespace AbilityKit.Ability.Editor.Utilities
                 {
                     for (int a = 0; a < dto.Actions.Count; a++)
                     {
-                        var aa = JsonActionEditorConfig.FromDto(dto.Actions[a]);
+                        var aa = BuildActionEditorConfig(dto.Actions[a]);
                         if (aa != null) editor.ActionsStrong.Add(aa);
                     }
                 }
             }
 
             module.Triggers.Sort((a, b) => (a?.TriggerId ?? 0).CompareTo(b?.TriggerId ?? 0));
+        }
+
+        private static ConditionEditorConfigBase BuildConditionEditorConfig(ConditionDTO dto)
+        {
+            if (dto == null) return null;
+            // TODO: map common strong condition configs when they exist.
+            return JsonConditionEditorConfig.FromDto(dto);
+        }
+
+        private static ActionEditorConfigBase BuildActionEditorConfig(ActionDTO dto)
+        {
+            if (dto == null || string.IsNullOrEmpty(dto.Type)) return null;
+
+            // Prefer strong editor configs so parameters become real fields (not just Json Args).
+            if (string.Equals(dto.Type, TriggerActionTypes.Seq, StringComparison.Ordinal))
+            {
+                var seq = new SequenceActionEditorConfig();
+                if (dto.Items != null && dto.Items.Count > 0)
+                {
+                    for (int i = 0; i < dto.Items.Count; i++)
+                    {
+                        var child = BuildActionEditorConfig(dto.Items[i]);
+                        if (child != null) seq.Items.Add(child);
+                    }
+                }
+                return seq;
+            }
+
+            if (string.Equals(dto.Type, TriggerActionTypes.DebugLog, StringComparison.Ordinal))
+            {
+                var a = new DebugLogActionEditorConfig();
+                if (dto.Args != null)
+                {
+                    if (TryReadString(dto.Args, "message", out var msg)) a.Message = msg;
+                    if (TryReadBool(dto.Args, "dump_args", out var dump)) a.DumpArgs = dump;
+                }
+                return a;
+            }
+
+            // Fallback: keep exact dto shape.
+            return JsonActionEditorConfig.FromDto(dto);
+        }
+
+        private static bool TryReadString(Dictionary<string, object> args, string key, out string value)
+        {
+            value = null;
+            if (args == null || string.IsNullOrEmpty(key)) return false;
+            if (!args.TryGetValue(key, out var obj) || obj == null) return false;
+            value = obj as string ?? obj.ToString();
+            return true;
+        }
+
+        private static bool TryReadBool(Dictionary<string, object> args, string key, out bool value)
+        {
+            value = false;
+            if (args == null || string.IsNullOrEmpty(key)) return false;
+            if (!args.TryGetValue(key, out var obj) || obj == null) return false;
+
+            if (obj is bool b)
+            {
+                value = b;
+                return true;
+            }
+
+            try
+            {
+                value = Convert.ToBoolean(obj);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static string ToAbsoluteAssetPath(string assetPath)

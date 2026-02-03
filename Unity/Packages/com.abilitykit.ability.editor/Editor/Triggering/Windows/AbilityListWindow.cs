@@ -184,7 +184,7 @@ namespace AbilityKit.Ability.Editor
 
         private void AddAbilityModulesToTree(OdinMenuTree tree, string folder, string filter)
         {
-            var guids = AssetDatabase.FindAssets("t:AbilityModuleSO", new[] { folder });
+            var guids = AbilityTriggerJsonExporter.FindAbilityModuleGuids(folder);
             for (int i = 0; i < guids.Length; i++)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guids[i]);

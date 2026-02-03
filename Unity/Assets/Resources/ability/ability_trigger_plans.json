@@ -1,0 +1,154 @@
+{
+  "Triggers": [
+    {
+      "TriggerId": 20003,
+      "EventId": 0,
+      "AllowExternal": false,
+      "Phase": 0,
+      "Priority": 0,
+      "Predicate": {
+        "Kind": "none",
+        "Nodes": null
+      },
+      "Actions": [
+        {
+          "ActionId": 1241142882,
+          "Arity": 0,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0
+          }
+        }
+      ],
+      "LegacyPredicate": null,
+      "LegacyActions": null
+    },
+    {
+      "TriggerId": 21001,
+      "EventId": 0,
+      "AllowExternal": false,
+      "Phase": 0,
+      "Priority": 0,
+      "Predicate": {
+        "Kind": "none",
+        "Nodes": null
+      },
+      "Actions": [
+        {
+          "ActionId": 289791191,
+          "Arity": 0,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0
+          }
+        }
+      ],
+      "LegacyPredicate": null,
+      "LegacyActions": null
+    },
+    {
+      "TriggerId": 21002,
+      "EventId": 0,
+      "AllowExternal": false,
+      "Phase": 0,
+      "Priority": 0,
+      "Predicate": {
+        "Kind": "none",
+        "Nodes": null
+      },
+      "Actions": [
+        {
+          "ActionId": 176148626,
+          "Arity": 0,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0
+          }
+        },
+        {
+          "ActionId": 356311033,
+          "Arity": 0,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0
+          }
+        }
+      ],
+      "LegacyPredicate": null,
+      "LegacyActions": null
+    },
+    {
+      "TriggerId": 22001,
+      "EventId": 0,
+      "AllowExternal": false,
+      "Phase": 0,
+      "Priority": 0,
+      "Predicate": {
+        "Kind": "none",
+        "Nodes": null
+      },
+      "Actions": [
+        {
+          "ActionId": 1639587692,
+          "Arity": 0,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0
+          }
+        }
+      ],
+      "LegacyPredicate": null,
+      "LegacyActions": null
+    }
+  ]
+}

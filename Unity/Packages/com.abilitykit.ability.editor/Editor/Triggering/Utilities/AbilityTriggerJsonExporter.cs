@@ -111,7 +111,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             skippedDisabledCount = 0;
             skippedInvalidIdCount = 0;
 
-            var guids = AssetDatabase.FindAssets("t:AbilityModuleSO", new[] { assetFolder });
+            var guids = FindAbilityModuleGuids(assetFolder);
             if (guids == null || guids.Length == 0) return db;
 
             for (int i = 0; i < guids.Length; i++)
@@ -155,6 +155,65 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
 
             return db;
+        }
+
+        internal static string[] FindAbilityModuleGuids(string assetFolder)
+        {
+            if (string.IsNullOrEmpty(assetFolder)) assetFolder = "Assets";
+
+            var guids = AssetDatabase.FindAssets("t:AbilityModuleSO", new[] { assetFolder });
+            var primaryCount = guids != null ? guids.Length : 0;
+            if (guids != null && guids.Length > 0)
+            {
+                Debug.Log($"[AbilityTriggerJsonExporter] FindAssets('t:AbilityModuleSO') found {primaryCount} under '{assetFolder}'.");
+                return guids;
+            }
+
+            Debug.LogWarning($"[AbilityTriggerJsonExporter] FindAssets('t:AbilityModuleSO') found 0 under '{assetFolder}'. Trying fallback scan...");
+
+            // Fallback: some Unity setups may fail to resolve t:AbilityModuleSO queries for types defined in packages.
+            // Scan ScriptableObjects and filter by main asset type.
+            var soGuids = AssetDatabase.FindAssets("t:ScriptableObject", new[] { assetFolder });
+            var soCount = soGuids != null ? soGuids.Length : 0;
+            if (soGuids == null || soGuids.Length == 0)
+            {
+                Debug.LogWarning($"[AbilityTriggerJsonExporter] No ScriptableObject assets found under '{assetFolder}'. primaryCount={primaryCount}");
+                return Array.Empty<string>();
+            }
+
+            var list = new List<string>();
+            for (int i = 0; i < soGuids.Length; i++)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(soGuids[i]);
+                if (string.IsNullOrEmpty(path)) continue;
+
+                Type t;
+                try { t = AssetDatabase.GetMainAssetTypeAtPath(path); }
+                catch { continue; }
+                if (t == typeof(AbilityModuleSO))
+                {
+                    list.Add(soGuids[i]);
+                }
+            }
+
+            if (list.Count == 0)
+            {
+                var examplePath = AssetDatabase.GUIDToAssetPath(soGuids[0]);
+                Type exampleType = null;
+                try { exampleType = AssetDatabase.GetMainAssetTypeAtPath(examplePath); }
+                catch { }
+
+                Debug.LogWarning(
+                    $"[AbilityTriggerJsonExporter] No AbilityModuleSO assets found under '{assetFolder}'. " +
+                    $"primaryCount={primaryCount}, soCount={soCount}, matched=0, example='{examplePath}', exampleType='{exampleType?.FullName ?? "<null>"}'. " +
+                    $"This usually means Unity can't resolve AbilityModuleSO type (assembly not loaded / compile errors / domain reload pending)."
+                );
+                return Array.Empty<string>();
+            }
+
+            var exampleFoundPath = AssetDatabase.GUIDToAssetPath(list[0]);
+            Debug.LogWarning($"[AbilityTriggerJsonExporter] FindAssets('t:AbilityModuleSO') returned 0; fallback scan found {list.Count} AbilityModuleSO (soCount={soCount}). example='{exampleFoundPath}'");
+            return list.ToArray();
         }
 
         [Serializable]
@@ -240,7 +299,16 @@ namespace AbilityKit.Ability.Editor.Utilities
             skippedDisabledCount = 0;
             skippedInvalidIdCount = 0;
 
-            var guids = AssetDatabase.FindAssets("t:AbilityModuleSO", new[] { assetFolder });
+            var emptyEventIdCount = 0;
+            var emptyEventIdTriggerIds = new List<int>();
+            var skippedNoActionsCount = 0;
+            var skippedActionCompileFailCount = 0;
+            var skippedConditionCompileFailCount = 0;
+            var skippedExceptionCount = 0;
+            var actionCompileFailByType = new Dictionary<string, int>(StringComparer.Ordinal);
+            var conditionCompileFailByType = new Dictionary<string, int>(StringComparer.Ordinal);
+
+            var guids = FindAbilityModuleGuids(assetFolder);
             if (guids == null || guids.Length == 0) return db;
 
             for (int i = 0; i < guids.Length; i++)
@@ -269,20 +337,90 @@ namespace AbilityKit.Ability.Editor.Utilities
                         continue;
                     }
 
-                    var plan = CompilePlanFromEditor(tr, out var phase, out var priority);
-                    var triggerDto = BuildTriggerPlanDto(tr, plan, phase, priority);
-                    db.Triggers.Add(triggerDto);
-                    exportedTriggerCount++;
+                    if (string.IsNullOrEmpty(tr.EventId))
+                    {
+                        // Active triggers: allow empty EventId, they will be executed by TriggerId.
+                        emptyEventIdCount++;
+                        if (emptyEventIdTriggerIds.Count < 32)
+                        {
+                            emptyEventIdTriggerIds.Add(tr.TriggerId);
+                        }
+                    }
+
+                    try
+                    {
+                        if (!TryCompilePlanFromEditor(tr, out var plan, out var phase, out var priority, out var failReason))
+                        {
+                            if (string.Equals(failReason, "no_actions", StringComparison.Ordinal))
+                            {
+                                skippedNoActionsCount++;
+                            }
+                            else if (string.Equals(failReason, "action_compile_failed", StringComparison.Ordinal))
+                            {
+                                skippedActionCompileFailCount++;
+                                CountOne(actionCompileFailByType, ExtractRootActionType(tr));
+                            }
+                            else if (string.Equals(failReason, "condition_compile_failed", StringComparison.Ordinal))
+                            {
+                                skippedConditionCompileFailCount++;
+                                CountOne(conditionCompileFailByType, ExtractRootConditionType(tr));
+                            }
+                            else
+                            {
+                                skippedExceptionCount++;
+                            }
+
+                            continue;
+                        }
+
+                        var triggerDto = BuildTriggerPlanDto(tr, plan, phase, priority);
+                        db.Triggers.Add(triggerDto);
+                        exportedTriggerCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        skippedExceptionCount++;
+                        Debug.LogWarning($"[AbilityTriggerJsonExporter] Plan export failed (exception). triggerId={tr.TriggerId} eventId='{tr.EventId}' err={ex.Message}");
+                    }
                 }
+            }
+
+            Debug.Log(
+                $"[AbilityTriggerJsonExporter] Plan export summary: " +
+                $"exported={exportedTriggerCount}, " +
+                $"skippedDisabled={skippedDisabledCount}, skippedTriggerId<=0={skippedInvalidIdCount}, " +
+                $"emptyEventId={emptyEventIdCount}, skippedNoActions={skippedNoActionsCount}, " +
+                $"skippedActionCompileFail={skippedActionCompileFailCount}, skippedConditionCompileFail={skippedConditionCompileFailCount}, " +
+                $"skippedException={skippedExceptionCount}");
+
+            if (actionCompileFailByType.Count > 0)
+            {
+                Debug.LogWarning($"[AbilityTriggerJsonExporter] Action compile failures by type: {FormatCounterMap(actionCompileFailByType)}");
+            }
+            if (conditionCompileFailByType.Count > 0)
+            {
+                Debug.LogWarning($"[AbilityTriggerJsonExporter] Condition compile failures by type: {FormatCounterMap(conditionCompileFailByType)}");
+            }
+
+            if (emptyEventIdCount > 0)
+            {
+                Debug.LogWarning($"[AbilityTriggerJsonExporter] Empty EventId triggers (active by TriggerId) (up to 32): {FormatIntList(emptyEventIdTriggerIds)}");
             }
 
             return db;
         }
 
-        private static TriggerPlan<object> CompilePlanFromEditor(TriggerEditorConfig tr, out int phase, out int priority)
+        private static bool TryCompilePlanFromEditor(
+            TriggerEditorConfig tr,
+            out TriggerPlan<object> plan,
+            out int phase,
+            out int priority,
+            out string failReason)
         {
+            plan = default;
             phase = 0;
             priority = 0;
+            failReason = null;
 
             JsonConditionEditorConfig cond = null;
             if (tr.ConditionsStrong != null && tr.ConditionsStrong.Count > 0)
@@ -311,8 +449,88 @@ namespace AbilityKit.Ability.Editor.Utilities
                     act = seq;
                 }
             }
-            return new TriggerPlan<object>();
-            //return TriggerPlanCompilerFromStrong.Compile<object>(phase, priority, cond, act);
+
+            if (act == null)
+            {
+                failReason = "no_actions";
+                return false;
+            }
+
+            if (!GeneratedTriggerPlanCompiler.TryCompileActionTree(
+                    act,
+                    TriggerPlanCompilerResolvers.ResolvePayloadFieldId,
+                    TriggerPlanCompilerResolvers.ResolveActionId,
+                    out var actions) || actions == null || actions.Length == 0)
+            {
+                failReason = "action_compile_failed";
+                return false;
+            }
+
+            if (cond != null)
+            {
+                if (!GeneratedTriggerPlanCompiler.TryCompileConditionTree(
+                        cond,
+                        TriggerPlanCompilerResolvers.ResolvePayloadFieldId,
+                        out var predExpr))
+                {
+                    failReason = "condition_compile_failed";
+                    return false;
+                }
+
+                plan = new TriggerPlan<object>(phase, priority, predExpr, actions);
+                return true;
+            }
+
+            plan = new TriggerPlan<object>(phase, priority, actions);
+            return true;
+        }
+
+        private static void CountOne(Dictionary<string, int> map, string key)
+        {
+            if (map == null) return;
+            if (string.IsNullOrEmpty(key)) key = "<null>";
+            map.TryGetValue(key, out var v);
+            map[key] = v + 1;
+        }
+
+        private static string ExtractRootActionType(TriggerEditorConfig tr)
+        {
+            if (tr?.ActionsStrong == null || tr.ActionsStrong.Count == 0) return null;
+            if (tr.ActionsStrong.Count == 1) return (tr.ActionsStrong[0] as JsonActionEditorConfig)?.TypeValue;
+            return TriggerActionTypes.Seq;
+        }
+
+        private static string ExtractRootConditionType(TriggerEditorConfig tr)
+        {
+            if (tr?.ConditionsStrong == null || tr.ConditionsStrong.Count == 0) return null;
+            if (tr.ConditionsStrong.Count == 1) return (tr.ConditionsStrong[0] as JsonConditionEditorConfig)?.TypeValue;
+            return TriggerConditionTypes.All;
+        }
+
+        private static string FormatCounterMap(Dictionary<string, int> map)
+        {
+            if (map == null || map.Count == 0) return "(empty)";
+            var s = "";
+            var first = true;
+            foreach (var kv in map)
+            {
+                if (!first) s += ", ";
+                first = false;
+                s += kv.Key + "=" + kv.Value;
+            }
+            return s;
+        }
+
+        private static string FormatIntList(List<int> list)
+        {
+            if (list == null || list.Count == 0) return "(empty)";
+            var s = "";
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (i > 0) s += ",";
+                s += list[i];
+            }
+            return s;
         }
 
         private static TriggerPlanDto BuildTriggerPlanDto(TriggerEditorConfig tr, in TriggerPlan<object> plan, int phase, int priority)

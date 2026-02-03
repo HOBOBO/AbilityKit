@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9c92ca45d1a30a34e8cc871c3c837e5a, type: 3}
+  m_Script: {fileID: 11500000, guid: 0db6274327ddaad4dab18f019251984b, type: 3}
   m_Name: ability_triggers.generated
   m_EditorClassIdentifier: 
   AbilityId: ability_triggers.generated
@@ -17,161 +17,152 @@ MonoBehaviour:
   - Core:
       TriggerId: 10001
       EventId: 
-      AllowExternal: 0
     Enabled: 1
     Note: 
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 3080490237987127296
-    - rid: 3080490237987127297
+    - rid: 5516688624983212059
+    - rid: 5516688624983212060
   - Core:
       TriggerId: 20001
       EventId: skill.cast.complete
-      AllowExternal: 0
     Enabled: 1
     Note: 
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 3080490237987127298
-    - rid: 3080490237987127299
+    - rid: 5516688624983212061
+    - rid: 5516688624983212062
   - Core:
       TriggerId: 20002
       EventId: skill.cast.complete
-      AllowExternal: 1
     Enabled: 1
     Note: 
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 3080490237987127300
+    - rid: 5516688624983212063
   - Core:
       TriggerId: 20003
       EventId: 
-      AllowExternal: 0
     Enabled: 1
     Note: 
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 3080490237987127301
+    - rid: 5516688624983212064
   - Core:
       TriggerId: 20004
       EventId: 
-      AllowExternal: 0
     Enabled: 1
     Note: 
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 3080490237987127302
+    - rid: 5516688624983212065
   - Core:
       TriggerId: 20005
       EventId: 
-      AllowExternal: 0
     Enabled: 1
     Note: 
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 3080490237987127303
-    - rid: 3080490237987127304
+    - rid: 5516688624983212066
+    - rid: 5516688624983212067
   - Core:
       TriggerId: 21001
       EventId: 
-      AllowExternal: 0
     Enabled: 1
     Note: 
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 3080490237987127305
+    - rid: 5516688624983212068
   - Core:
       TriggerId: 21002
       EventId: 
-      AllowExternal: 0
     Enabled: 1
     Note: 
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 3080490237987127306
-    - rid: 3080490237987127307
+    - rid: 5516688624983212069
+    - rid: 5516688624983212070
   - Core:
       TriggerId: 22001
       EventId: 
-      AllowExternal: 0
     Enabled: 1
     Note: 
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 3080490237987127308
+    - rid: 5516688624983212071
   references:
     version: 2
     RefIds:
-    - rid: 3080490237987127296
-      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+    - rid: 5516688624983212059
+      type: {class: DebugLogActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
-        TypeValue: debug_log
-        Items: []
-    - rid: 3080490237987127297
+        Message: "\u6D4B\u8BD5\u65E5\u5FD7\u8F93\u51FA1111122233333"
+        DumpArgs: 0
+    - rid: 5516688624983212060
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: shoot_projectile
         Items: []
-    - rid: 3080490237987127298
-      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+    - rid: 5516688624983212061
+      type: {class: DebugLogActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
-        TypeValue: debug_log
-        Items: []
-    - rid: 3080490237987127299
+        Message: "\u91CA\u653E\u6280\u80FD\u5B8C\u6210\u65E5\u5FD7\u8F93\u51FA11111"
+        DumpArgs: 0
+    - rid: 5516688624983212062
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: emit
         Items: []
-    - rid: 3080490237987127300
-      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+    - rid: 5516688624983212063
+      type: {class: DebugLogActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
-        TypeValue: debug_log
-        Items: []
-    - rid: 3080490237987127301
+        Message: "\u76D1\u542C\u522B\u4EBA\u91CA\u653E\u6280\u80FD\u5B8C\u6210\u65E5\u5FD7\u8F93\u51FA22222"
+        DumpArgs: 0
+    - rid: 5516688624983212064
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: add_buff
         Items: []
-    - rid: 3080490237987127302
-      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+    - rid: 5516688624983212065
+      type: {class: DebugLogActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
-        TypeValue: debug_log
-        Items: []
-    - rid: 3080490237987127303
-      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+        Message: "\u88AB\u52A8\u65E5\u5FD7\u8F93\u51FA11111"
+        DumpArgs: 0
+    - rid: 5516688624983212066
+      type: {class: DebugLogActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
-        TypeValue: debug_log
-        Items: []
-    - rid: 3080490237987127304
+        Message: "\u78B0\u649E\u56DE\u8C03\u65E5\u5FD7"
+        DumpArgs: 1
+    - rid: 5516688624983212067
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: give_damage
         Items: []
-    - rid: 3080490237987127305
+    - rid: 5516688624983212068
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: aoe_burst
         Items: []
-    - rid: 3080490237987127306
+    - rid: 5516688624983212069
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: give_damage
         Items: []
-    - rid: 3080490237987127307
+    - rid: 5516688624983212070
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: knock
         Items: []
-    - rid: 3080490237987127308
+    - rid: 5516688624983212071
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: emit

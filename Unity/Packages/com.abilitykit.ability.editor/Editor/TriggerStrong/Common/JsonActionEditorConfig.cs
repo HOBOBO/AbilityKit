@@ -4,6 +4,7 @@ using AbilityKit.Ability.Configs;
 using AbilityKit.Ability.Share.CoreDtos;
 using AbilityKit.Ability.Triggering.Runtime;
 using Sirenix.OdinInspector;
+using Sirenix.Serialization;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Editor
@@ -17,6 +18,7 @@ namespace AbilityKit.Ability.Editor
         public override string Type => TypeValue;
 
         [LabelText("Args")]
+        [OdinSerialize]
         public Dictionary<string, object> Args;
 
         [SerializeReference]

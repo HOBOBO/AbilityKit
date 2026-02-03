@@ -84,8 +84,16 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         }
 
         private List<Record> _records = new List<Record>();
+        private Dictionary<int, TriggerPlan<object>> _byTriggerId = new Dictionary<int, TriggerPlan<object>>();
 
         public IReadOnlyList<Record> Records => _records;
+
+        public bool TryGetPlanByTriggerId(int triggerId, out TriggerPlan<object> plan)
+        {
+            plan = default;
+            if (triggerId <= 0) return false;
+            return _byTriggerId != null && _byTriggerId.TryGetValue(triggerId, out plan);
+        }
 
         public void Load(ITextLoader loader, string id)
         {
@@ -118,6 +126,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             }
 
             var next = new List<Record>();
+            var byTriggerId = new Dictionary<int, TriggerPlan<object>>();
             if (dto?.Triggers != null)
             {
                 for (int i = 0; i < dto.Triggers.Count; i++)
@@ -125,14 +134,15 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     var t = dto.Triggers[i];
                     if (t == null) continue;
                     if (t.TriggerId <= 0) continue;
-                    if (t.EventId == 0) continue;
 
                     var plan = BuildPlan(t);
                     next.Add(new Record(t.TriggerId, t.EventId, in plan));
+                    byTriggerId[t.TriggerId] = plan;
                 }
             }
 
             _records = next;
+            _byTriggerId = byTriggerId;
         }
 
         public void RegisterAll<TCtx>(TriggerRunner<TCtx> runner)
@@ -142,6 +152,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             for (int i = 0; i < _records.Count; i++)
             {
                 var r = _records[i];
+                if (r.EventId == 0) continue;
                 var key = new EventKey<object>(r.EventId);
                 runner.RegisterPlan<object, TCtx>(key, r.Plan);
             }
