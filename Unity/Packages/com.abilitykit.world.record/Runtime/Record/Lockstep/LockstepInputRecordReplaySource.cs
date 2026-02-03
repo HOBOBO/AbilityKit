@@ -10,13 +10,13 @@ namespace AbilityKit.Ability.Share.Common.Record.Lockstep
     public sealed class LockstepInputRecordReplaySource : IFrameReplaySource
     {
         private readonly Dictionary<int, List<PlayerInputCommand>> _inputsByFrame;
-        private readonly Dictionary<int, WorldStateSnapshot> _snapshotsByFrame;
+        private readonly Dictionary<int, List<WorldStateSnapshot>> _snapshotsByFrame;
         private readonly Dictionary<int, (WorldStateHash hash, int version)> _hashByFrame;
 
         public LockstepInputRecordReplaySource(LockstepInputRecordFile file)
         {
             _inputsByFrame = new Dictionary<int, List<PlayerInputCommand>>(file?.Inputs?.Count ?? 0);
-            _snapshotsByFrame = new Dictionary<int, WorldStateSnapshot>(file?.Snapshots?.Count ?? 0);
+            _snapshotsByFrame = new Dictionary<int, List<WorldStateSnapshot>>(file?.Snapshots?.Count ?? 0);
             _hashByFrame = new Dictionary<int, (WorldStateHash hash, int version)>(file?.StateHashes?.Count ?? 0);
 
             if (file?.Inputs != null)
@@ -46,7 +46,12 @@ namespace AbilityKit.Ability.Share.Common.Record.Lockstep
                     if (e == null) continue;
 
                     var payload = string.IsNullOrEmpty(e.PayloadBase64) ? Array.Empty<byte>() : Convert.FromBase64String(e.PayloadBase64);
-                    _snapshotsByFrame[e.Frame] = new WorldStateSnapshot(e.OpCode, payload);
+                    if (!_snapshotsByFrame.TryGetValue(e.Frame, out var list) || list == null)
+                    {
+                        list = new List<WorldStateSnapshot>(2);
+                        _snapshotsByFrame[e.Frame] = list;
+                    }
+                    list.Add(new WorldStateSnapshot(e.OpCode, payload));
                 }
             }
 
@@ -73,9 +78,28 @@ namespace AbilityKit.Ability.Share.Common.Record.Lockstep
             return false;
         }
 
+        public bool TryGetSnapshots(FrameIndex frame, out IReadOnlyList<WorldStateSnapshot> snapshots)
+        {
+            if (_snapshotsByFrame.TryGetValue(frame.Value, out var list) && list != null)
+            {
+                snapshots = list;
+                return true;
+            }
+
+            snapshots = Array.Empty<WorldStateSnapshot>();
+            return false;
+        }
+
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
-            return _snapshotsByFrame.TryGetValue(frame.Value, out snapshot);
+            if (_snapshotsByFrame.TryGetValue(frame.Value, out var list) && list != null && list.Count > 0)
+            {
+                snapshot = list[0];
+                return true;
+            }
+
+            snapshot = default;
+            return false;
         }
 
         public bool TryGetStateHash(FrameIndex frame, out WorldStateHash hash, out int version)

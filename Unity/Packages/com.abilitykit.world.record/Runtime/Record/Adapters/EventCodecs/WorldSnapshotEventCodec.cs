@@ -49,4 +49,49 @@ namespace AbilityKit.Ability.Share.Common.Record.Adapters.EventCodecs
             }
         }
     }
+
+    public static class WorldDeltaEventCodec
+    {
+        public static byte[] Encode(in WorldStateSnapshot delta)
+        {
+            var payload = new Payload(delta.OpCode, delta.Payload);
+            return BinaryObjectCodec.Encode(payload);
+        }
+
+        public static WorldStateSnapshot Decode(byte[] payload)
+        {
+            var p = BinaryObjectCodec.Decode<Payload>(payload);
+            return new WorldStateSnapshot(p.OpCode, p.PayloadBytes);
+        }
+
+        public static void Write(IEventTrackWriter writer, FrameIndex frame, in WorldStateSnapshot delta)
+        {
+            if (writer == null) return;
+            writer.Append(frame, RecordEventTypes.WorldDelta, Encode(in delta));
+        }
+
+        public static bool TryRead(in RecordEvent e, out WorldStateSnapshot delta)
+        {
+            if (e.EventType != RecordEventTypes.WorldDelta)
+            {
+                delta = default;
+                return false;
+            }
+
+            delta = Decode(e.Payload);
+            return true;
+        }
+
+        public readonly struct Payload
+        {
+            [BinaryMember(0)] public readonly int OpCode;
+            [BinaryMember(1)] public readonly byte[] PayloadBytes;
+
+            public Payload(int opCode, byte[] payload)
+            {
+                OpCode = opCode;
+                PayloadBytes = payload;
+            }
+        }
+    }
 }

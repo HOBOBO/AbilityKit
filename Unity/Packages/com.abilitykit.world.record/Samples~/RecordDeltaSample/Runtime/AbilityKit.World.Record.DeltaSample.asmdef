@@ -1,0 +1,16 @@
+{
+  "name": "AbilityKit.World.Record.DeltaSample",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.World.Record"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

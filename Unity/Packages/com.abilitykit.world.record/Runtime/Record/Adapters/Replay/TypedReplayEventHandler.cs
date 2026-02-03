@@ -11,6 +11,7 @@ namespace AbilityKit.Ability.Share.Common.Record.Adapters.Replay
         public Action<PlayerInputCommand> OnInputCommand;
         public Action<int, WorldStateHash> OnStateHash;
         public Action<WorldStateSnapshot> OnSnapshot;
+        public Action<WorldStateSnapshot> OnDelta;
 
         public void Handle(in RecordEvent e)
         {
@@ -29,6 +30,12 @@ namespace AbilityKit.Ability.Share.Common.Record.Adapters.Replay
             if (WorldSnapshotEventCodec.TryRead(in e, out var snap))
             {
                 OnSnapshot?.Invoke(snap);
+                return;
+            }
+
+            if (WorldDeltaEventCodec.TryRead(in e, out var delta))
+            {
+                OnDelta?.Invoke(delta);
             }
         }
     }

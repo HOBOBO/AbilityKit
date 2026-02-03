@@ -9,6 +9,8 @@ namespace AbilityKit.Ability.Share.Common.Record.Core
     {
         bool TryGetInputs(FrameIndex frame, out IReadOnlyList<PlayerInputCommand> inputs);
 
+        bool TryGetSnapshots(FrameIndex frame, out IReadOnlyList<WorldStateSnapshot> snapshots);
+
         bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot);
 
         bool TryGetStateHash(FrameIndex frame, out WorldStateHash hash, out int version);
