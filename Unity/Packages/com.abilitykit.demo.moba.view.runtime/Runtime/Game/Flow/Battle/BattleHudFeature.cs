@@ -332,7 +332,7 @@ namespace AbilityKit.Game.Flow
             return view;
         }
 
-        private void OnEnterGameSnapshot(FramePacket packet, EnterMobaGameRes res)
+        private void OnEnterGameSnapshot(ISnapshotEnvelope packet, EnterMobaGameRes res)
         {
             TryApplySkillButtonTemplates(res);
         }
@@ -500,7 +500,7 @@ namespace AbilityKit.Game.Flow
             _aimPreview.SetActive(true);
         }
 
-        private void OnDamageEventSnapshot(FramePacket packet, MobaDamageEventSnapshotCodec.Entry[] entries)
+        private void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotCodec.Entry[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             _binder?.OnDamageEvents(entries);

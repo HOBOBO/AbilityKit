@@ -10,9 +10,12 @@ namespace AbilityKit.Ability.Flow
         public event Action<FlowStatus, FlowStatus> StatusChanged;
         public event Action<FlowStatus> Finished;
 
+        public event Action<Exception> UnhandledException;
+
         public FlowSession()
         {
             _runner = new FlowRunner(new FlowContext());
+            _runner.UnhandledException += ex => UnhandledException?.Invoke(ex);
         }
 
         public FlowContext Context => _runner.Context;

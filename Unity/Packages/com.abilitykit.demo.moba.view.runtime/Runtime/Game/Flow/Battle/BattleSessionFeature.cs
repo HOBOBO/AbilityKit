@@ -26,6 +26,7 @@ using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot;
 using AbilityKit.Game.Flow.Battle.ViewEvents.Triggering;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Flow;
 using UnityEngine;
 using System.Threading.Tasks;
 using AbilityKit.Ability.World.DI;
@@ -105,7 +106,7 @@ namespace AbilityKit.Game.Flow
 
         private sealed class NullSnapshotPipelineStageRegistry : AbilityKit.Ability.Share.Common.SnapshotRouting.ISnapshotPipelineStageRegistry
         {
-            public IDisposable AddPipelineStage<T>(int opCode, int order, Action<object, AbilityKit.Ability.Host.FramePacket, T> handler)
+            public IDisposable AddPipelineStage<T>(int opCode, int order, Action<object, AbilityKit.Ability.Host.ISnapshotEnvelope, T> handler)
             {
                 return new NullDisposable();
             }
@@ -113,7 +114,7 @@ namespace AbilityKit.Game.Flow
 
         private sealed class NullSnapshotCmdHandlerRegistry : AbilityKit.Ability.Share.Common.SnapshotRouting.ISnapshotCmdHandlerRegistry
         {
-            public void RegisterCmdHandler<T>(int opCode, Action<object, AbilityKit.Ability.Host.FramePacket, T> handler)
+            public void RegisterCmdHandler<T>(int opCode, Action<object, AbilityKit.Ability.Host.ISnapshotEnvelope, T> handler)
             {
                 // Intentionally ignore cmd handlers.
             }
@@ -1285,33 +1286,38 @@ namespace AbilityKit.Game.Flow
                 Push($"Trigger:{id}");
             }
 
-            public void OnEnterGameSnapshot(FramePacket packet, EnterMobaGameRes res)
+            public void OnEnterGameSnapshot(AbilityKit.Ability.Host.ISnapshotEnvelope packet, EnterMobaGameRes res)
             {
-                Push($"Snapshot:EnterGame frame={packet.Frame.Value}");
+                if (packet is not FramePacket fp) return;
+                Push($"Snapshot:EnterGame frame={fp.Frame.Value}");
             }
 
-            public void OnActorTransformSnapshot(FramePacket packet, (int actorId, float x, float y, float z)[] entries)
+            public void OnActorTransformSnapshot(AbilityKit.Ability.Host.ISnapshotEnvelope packet, (int actorId, float x, float y, float z)[] entries)
             {
+                if (packet is not FramePacket fp) return;
                 var n = entries != null ? entries.Length : 0;
-                Push($"Snapshot:ActorTransform frame={packet.Frame.Value} n={n}");
+                Push($"Snapshot:ActorTransform frame={fp.Frame.Value} n={n}");
             }
 
-            public void OnProjectileEventSnapshot(FramePacket packet, MobaProjectileEventSnapshotCodec.Entry[] entries)
+            public void OnProjectileEventSnapshot(AbilityKit.Ability.Host.ISnapshotEnvelope packet, MobaProjectileEventSnapshotCodec.Entry[] entries)
             {
+                if (packet is not FramePacket fp) return;
                 var n = entries != null ? entries.Length : 0;
-                Push($"Snapshot:Projectile frame={packet.Frame.Value} n={n}");
+                Push($"Snapshot:Projectile frame={fp.Frame.Value} n={n}");
             }
 
-            public void OnAreaEventSnapshot(FramePacket packet, MobaAreaEventSnapshotCodec.Entry[] entries)
+            public void OnAreaEventSnapshot(AbilityKit.Ability.Host.ISnapshotEnvelope packet, MobaAreaEventSnapshotCodec.Entry[] entries)
             {
+                if (packet is not FramePacket fp) return;
                 var n = entries != null ? entries.Length : 0;
-                Push($"Snapshot:Area frame={packet.Frame.Value} n={n}");
+                Push($"Snapshot:Area frame={fp.Frame.Value} n={n}");
             }
 
-            public void OnDamageEventSnapshot(FramePacket packet, MobaDamageEventSnapshotCodec.Entry[] entries)
+            public void OnDamageEventSnapshot(AbilityKit.Ability.Host.ISnapshotEnvelope packet, MobaDamageEventSnapshotCodec.Entry[] entries)
             {
+                if (packet is not FramePacket fp) return;
                 var n = entries != null ? entries.Length : 0;
-                Push($"Snapshot:Damage frame={packet.Frame.Value} n={n}");
+                Push($"Snapshot:Damage frame={fp.Frame.Value} n={n}");
             }
         }
 

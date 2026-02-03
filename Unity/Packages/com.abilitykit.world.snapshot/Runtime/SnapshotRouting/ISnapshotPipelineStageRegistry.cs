@@ -5,6 +5,6 @@ namespace AbilityKit.Ability.Share.Common.SnapshotRouting
 {
     public interface ISnapshotPipelineStageRegistry
     {
-        IDisposable AddPipelineStage<T>(int opCode, int order, Action<object, FramePacket, T> handler);
+        IDisposable AddPipelineStage<T>(int opCode, int order, Action<object, ISnapshotEnvelope, T> handler);
     }
 }

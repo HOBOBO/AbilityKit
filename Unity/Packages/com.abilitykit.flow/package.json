@@ -5,6 +5,13 @@
   "unity": "2022.3",
   "description": "Lightweight flow runner/state machine for gameplay logic.",
   "author": { "name": "AbilityKit" },
+  "samples": [
+    {
+      "displayName": "Flow Examples",
+      "description": "Flow 模块用法示例（组合节点 / Tick + Wake / Context + Scope / 异常处理）",
+      "path": "Samples~/FlowExamples"
+    }
+  ],
   "dependencies": {
     "com.abilitykit.core": "0.0.1"
   }

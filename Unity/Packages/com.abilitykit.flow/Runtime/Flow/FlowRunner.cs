@@ -9,8 +9,18 @@ namespace AbilityKit.Ability.Flow
         private FlowStatus _status;
         private bool _entered;
 
+        private IDisposable _rootScope;
+
+        private int _pumpIterations;
+
         private Action<FlowStatus> _onFinished;
         private Action<FlowStatus, FlowStatus> _onStatusChanged;
+
+        public event Action<Exception> UnhandledException;
+
+        public Action<Exception> ExceptionHandler { get; set; }
+
+        public int MaxPumpIterationsPerWake { get; set; } = 128;
 
         private readonly FlowWakeUp _wakeUp;
         private bool _wakeRequested;
@@ -42,6 +52,8 @@ namespace AbilityKit.Ability.Flow
             _onFinished = onFinished;
             _onStatusChanged = onStatusChanged;
 
+            _rootScope?.Dispose();
+            _rootScope = _ctx.BeginScope();
             _ctx.Set(_wakeUp);
             _wakeRequested = false;
 
@@ -58,30 +70,71 @@ namespace AbilityKit.Ability.Flow
             if (_root == null) return _status;
             if (_status != FlowStatus.Running) return _status;
 
-            if (!_entered)
-            {
-                _root.Enter(_ctx);
-                _entered = true;
-            }
-
-            var s = _root.Tick(_ctx, deltaTime);
-            if (s == FlowStatus.Running) return _status;
-
-            SetStatus(s);
             try
             {
-                _root.Exit(_ctx);
+                if (!_entered)
+                {
+                    _root.Enter(_ctx);
+                    _entered = true;
+                }
+
+                var s = _root.Tick(_ctx, deltaTime);
+                if (s == FlowStatus.Running) return _status;
+
+                SetStatus(s);
+
+                try
+                {
+                    _root.Exit(_ctx);
+                }
+                finally
+                {
+                    _root = null;
+                }
+
+                _ctx.Remove<FlowWakeUp>();
+                _rootScope?.Dispose();
+                _rootScope = null;
+                NotifyFinished();
+                return _status;
+            }
+            catch (Exception ex)
+            {
+                HandleUnhandledException(ex);
+                AbortDueToException();
+                return _status;
+            }
+        }
+
+        private void AbortDueToException()
+        {
+            if (_root == null) return;
+
+            try
+            {
+                try
+                {
+                    _root.Interrupt(_ctx);
+                }
+                catch (Exception ex)
+                {
+                    HandleUnhandledException(ex);
+                }
             }
             finally
             {
                 _root = null;
+                _entered = false;
+                if (_status == FlowStatus.Running)
+                {
+                    SetStatus(FlowStatus.Failed);
+                }
+
+                _ctx.Remove<FlowWakeUp>();
+                _rootScope?.Dispose();
+                _rootScope = null;
+                NotifyFinished();
             }
-
-            _ctx.Remove<FlowWakeUp>();
-
-            NotifyFinished();
-
-            return _status;
         }
 
         private void Wake()
@@ -101,8 +154,17 @@ namespace AbilityKit.Ability.Flow
             _pumping = true;
             try
             {
+                _pumpIterations = 0;
                 while (_wakeRequested && _root != null && _status == FlowStatus.Running)
                 {
+                    _pumpIterations++;
+                    if (MaxPumpIterationsPerWake > 0 && _pumpIterations > MaxPumpIterationsPerWake)
+                    {
+                        HandleUnhandledException(new InvalidOperationException($"FlowRunner pump iteration limit exceeded: limit={MaxPumpIterationsPerWake}"));
+                        AbortDueToException();
+                        return;
+                    }
+
                     _wakeRequested = false;
                     Step(0f);
                 }
@@ -110,6 +172,27 @@ namespace AbilityKit.Ability.Flow
             finally
             {
                 _pumping = false;
+            }
+        }
+
+        private void HandleUnhandledException(Exception ex)
+        {
+            try
+            {
+                ExceptionHandler?.Invoke(ex);
+            }
+            catch
+            {
+                // Swallow secondary exceptions from user handlers.
+            }
+
+            try
+            {
+                UnhandledException?.Invoke(ex);
+            }
+            catch
+            {
+                // Swallow secondary exceptions from user handlers.
             }
         }
 
@@ -131,6 +214,9 @@ namespace AbilityKit.Ability.Flow
                 }
 
                 _ctx.Remove<FlowWakeUp>();
+
+                _rootScope?.Dispose();
+                _rootScope = null;
 
                 NotifyFinished();
             }

@@ -15,6 +15,8 @@ namespace AbilityKit.Ability.EC
 
         private readonly Stack<int> _free = new Stack<int>();
 
+        private readonly Dictionary<int, HashSet<int>> _componentIndex = new Dictionary<int, HashSet<int>>();
+
         private int[] _versions = Array.Empty<int>();
         private bool[] _alive = Array.Empty<bool>();
 
@@ -192,6 +194,11 @@ namespace AbilityKit.Ability.EC
                 childList.Clear();
             }
 
+            var store = _components[index];
+            if (store != null)
+            {
+                RemoveFromComponentIndex(index, store);
+            }
             _components[index] = null;
 
 #if UNITY_EDITOR
@@ -473,6 +480,12 @@ namespace AbilityKit.Ability.EC
             EnsureAlive(id);
             var typeId = ComponentTypeId.Get<T>();
 
+            if (component == null)
+            {
+                RemoveComponentById(id, typeId);
+                return;
+            }
+
             var store = _components[id.Index];
             if (store == null || store.Length <= typeId)
             {
@@ -486,7 +499,12 @@ namespace AbilityKit.Ability.EC
                 _components[id.Index] = store;
             }
 
+            var had = store[typeId] != null;
             store[typeId] = component;
+            if (!had)
+            {
+                AddToComponentIndex(typeId, id.Index);
+            }
             ComponentSet?.Invoke(id, typeId, component);
         }
 
@@ -496,6 +514,12 @@ namespace AbilityKit.Ability.EC
             EnsureAlive(id);
             var typeId = ComponentTypeId.Get(componentType);
 
+            if (component == null)
+            {
+                RemoveComponentById(id, typeId);
+                return;
+            }
+
             var store = _components[id.Index];
             if (store == null || store.Length <= typeId)
             {
@@ -509,7 +533,12 @@ namespace AbilityKit.Ability.EC
                 _components[id.Index] = store;
             }
 
+            var had = store[typeId] != null;
             store[typeId] = component;
+            if (!had)
+            {
+                AddToComponentIndex(typeId, id.Index);
+            }
             ComponentSet?.Invoke(id, typeId, component);
         }
 
@@ -549,13 +578,7 @@ namespace AbilityKit.Ability.EC
         {
             EnsureAlive(id);
             var typeId = ComponentTypeId.Get<T>();
-            var store = _components[id.Index];
-            if (store == null || typeId >= store.Length) return false;
-
-            if (store[typeId] == null) return false;
-            store[typeId] = null;
-            ComponentRemoved?.Invoke(id, typeId);
-            return true;
+            return RemoveComponentById(id, typeId);
         }
 
         public bool RemoveComponent(EntityId id, Type componentType)
@@ -574,8 +597,48 @@ namespace AbilityKit.Ability.EC
 
             if (store[typeId] == null) return false;
             store[typeId] = null;
+
+            if (_componentIndex.TryGetValue(typeId, out var set))
+            {
+                set.Remove(id.Index);
+            }
             ComponentRemoved?.Invoke(id, typeId);
             return true;
+        }
+
+        public void ForEachWith<T>(Action<Entity, T> visitor) where T : class
+        {
+            if (visitor == null) throw new ArgumentNullException(nameof(visitor));
+
+            var typeId = ComponentTypeId.Get<T>();
+            if (!_componentIndex.TryGetValue(typeId, out var set) || set.Count == 0) return;
+
+            var snapshot = s_intListPool.Get();
+            try
+            {
+                snapshot.AddRange(set);
+
+                for (int i = 0; i < snapshot.Count; i++)
+                {
+                    var entityIndex = snapshot[i];
+                    if (entityIndex < 0 || entityIndex >= _alive.Length) continue;
+                    if (!_alive[entityIndex]) continue;
+
+                    var eid = new EntityId(entityIndex, _versions[entityIndex]);
+                    if (!IsAlive(eid)) continue;
+
+                    var store = _components[entityIndex];
+                    if (store == null || typeId >= store.Length) continue;
+                    var c = store[typeId] as T;
+                    if (c == null) continue;
+
+                    visitor(new Entity(this, eid), c);
+                }
+            }
+            finally
+            {
+                s_intListPool.Release(snapshot);
+            }
         }
 
         public void ForEachAlive(Action<Entity> visitor)
@@ -646,6 +709,29 @@ namespace AbilityKit.Ability.EC
         private void EnsureAlive(EntityId id)
         {
             if (!IsAlive(id)) throw new InvalidOperationException($"Entity is not alive: {id}");
+        }
+
+        private void AddToComponentIndex(int typeId, int entityIndex)
+        {
+            if (!_componentIndex.TryGetValue(typeId, out var set))
+            {
+                set = new HashSet<int>();
+                _componentIndex[typeId] = set;
+            }
+
+            set.Add(entityIndex);
+        }
+
+        private void RemoveFromComponentIndex(int entityIndex, object[] store)
+        {
+            for (int typeId = 1; typeId < store.Length; typeId++)
+            {
+                if (store[typeId] == null) continue;
+                if (_componentIndex.TryGetValue(typeId, out var set))
+                {
+                    set.Remove(entityIndex);
+                }
+            }
         }
 
         private void RemoveChildLink(int parentIndex, int childIndex)

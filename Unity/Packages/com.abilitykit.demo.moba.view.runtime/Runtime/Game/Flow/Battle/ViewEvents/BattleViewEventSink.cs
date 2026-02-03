@@ -105,17 +105,17 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _floatingTexts?.Spawn(_vfxNode, text, in pos, color);
         }
 
-        public void OnEnterGameSnapshot(FramePacket packet, EnterMobaGameRes res)
+        public void OnEnterGameSnapshot(ISnapshotEnvelope packet, EnterMobaGameRes res)
         {
             RefreshDirtyViews();
         }
 
-        public void OnActorTransformSnapshot(FramePacket packet, (int actorId, float x, float y, float z)[] entries)
+        public void OnActorTransformSnapshot(ISnapshotEnvelope packet, (int actorId, float x, float y, float z)[] entries)
         {
             RefreshDirtyViews();
         }
 
-        public void OnProjectileEventSnapshot(FramePacket packet, MobaProjectileEventSnapshotCodec.Entry[] entries)
+        public void OnProjectileEventSnapshot(ISnapshotEnvelope packet, MobaProjectileEventSnapshotCodec.Entry[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             if (_ctx?.EntityWorld == null) return;
@@ -159,7 +159,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             }
         }
 
-        public void OnAreaEventSnapshot(FramePacket packet, MobaAreaEventSnapshotCodec.Entry[] entries)
+        public void OnAreaEventSnapshot(ISnapshotEnvelope packet, MobaAreaEventSnapshotCodec.Entry[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             if (_ctx?.EntityWorld == null) return;
@@ -168,7 +168,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _areaViews?.HandleSnapshot(_binder, _query, entries);
         }
 
-        public void OnDamageEventSnapshot(FramePacket packet, MobaDamageEventSnapshotCodec.Entry[] entries)
+        public void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotCodec.Entry[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             if (_ctx?.EntityWorld == null) return;

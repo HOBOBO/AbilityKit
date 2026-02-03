@@ -91,12 +91,12 @@ namespace AbilityKit.Game.Flow
         {
         }
 
-        private void OnLobbySnapshot(FramePacket packet, LobbySnapshot snap)
+        private void OnLobbySnapshot(ISnapshotEnvelope packet, LobbySnapshot snap)
         {
             ApplyLobbySnapshot(snap);
         }
 
-        private void OnStateHashSnapshot(FramePacket packet, MobaStateHashSnapshotCodec.SnapshotPayload snap)
+        private void OnStateHashSnapshot(ISnapshotEnvelope packet, MobaStateHashSnapshotCodec.SnapshotPayload snap)
         {
             ApplyStateHashSnapshot(snap);
 
@@ -113,7 +113,7 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private void OnActorTransformSnapshot(FramePacket packet, (int actorId, float x, float y, float z)[] entries)
+        private void OnActorTransformSnapshot(ISnapshotEnvelope packet, (int actorId, float x, float y, float z)[] entries)
         {
             if (_ctx != null)
             {

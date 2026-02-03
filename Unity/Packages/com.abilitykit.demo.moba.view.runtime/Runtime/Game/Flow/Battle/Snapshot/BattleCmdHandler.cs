@@ -35,7 +35,7 @@ namespace AbilityKit.Game.Flow.Snapshot
             _subscriptions.Clear();
         }
 
-        public void Register<T>(int opCode, Action<BattleContext, FramePacket, T> handler)
+        public void Register<T>(int opCode, Action<BattleContext, ISnapshotEnvelope, T> handler)
         {
             if (handler == null) throw new ArgumentNullException(nameof(handler));
 
@@ -52,7 +52,7 @@ namespace AbilityKit.Game.Flow.Snapshot
             _subscriptions[opCode] = sub;
         }
 
-        void ISnapshotCmdHandlerRegistry.RegisterCmdHandler<T>(int opCode, Action<object, FramePacket, T> handler)
+        void ISnapshotCmdHandlerRegistry.RegisterCmdHandler<T>(int opCode, Action<object, ISnapshotEnvelope, T> handler)
         {
             if (handler == null) throw new ArgumentNullException(nameof(handler));
             Register<T>(opCode, (ctx, packet, payload) => handler(ctx, packet, payload));

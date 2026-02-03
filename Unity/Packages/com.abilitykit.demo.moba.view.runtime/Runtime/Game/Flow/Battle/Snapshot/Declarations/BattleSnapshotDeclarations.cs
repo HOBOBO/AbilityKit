@@ -127,21 +127,21 @@ namespace AbilityKit.Game.Flow.Snapshot
         }
 
         [SnapshotCmdHandler("battle", (int)MobaOpCode.EnterGameSnapshot, typeof(EnterMobaGameRes))]
-        internal static void HandleEnterGame(object ctx, FramePacket packet, EnterMobaGameRes res)
+        internal static void HandleEnterGame(object ctx, ISnapshotEnvelope packet, EnterMobaGameRes res)
         {
             if (ctx is not BattleContext battleCtx) return;
             BattleEnterGameApplier.Apply(battleCtx, res);
         }
 
         [SnapshotCmdHandler("battle", (int)MobaOpCode.ActorSpawnSnapshot, typeof(MobaActorSpawnSnapshotCodec.Entry[]))]
-        internal static void HandleActorSpawn(object ctx, FramePacket packet, MobaActorSpawnSnapshotCodec.Entry[] entries)
+        internal static void HandleActorSpawn(object ctx, ISnapshotEnvelope packet, MobaActorSpawnSnapshotCodec.Entry[] entries)
         {
             if (ctx is not BattleContext battleCtx) return;
             BattleActorSpawnApplier.Apply(battleCtx, entries);
         }
 
         [SnapshotCmdHandler("battle", (int)MobaOpCode.ActorDespawnSnapshot, typeof(MobaActorDespawnSnapshotCodec.Entry[]))]
-        internal static void HandleActorDespawn(object ctx, FramePacket packet, MobaActorDespawnSnapshotCodec.Entry[] entries)
+        internal static void HandleActorDespawn(object ctx, ISnapshotEnvelope packet, MobaActorDespawnSnapshotCodec.Entry[] entries)
         {
             if (ctx is not BattleContext battleCtx) return;
             BattleActorDespawnApplier.Apply(battleCtx, entries);

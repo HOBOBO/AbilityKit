@@ -59,7 +59,7 @@ namespace AbilityKit.Game.Flow.Snapshot
             _routes[opCode] = new Route<T>(decoder);
         }
 
-        public IDisposable AddStage<T>(int opCode, int order, Action<BattleContext, FramePacket, T> handler)
+        public IDisposable AddStage<T>(int opCode, int order, Action<BattleContext, ISnapshotEnvelope, T> handler)
         {
             if (handler == null) throw new ArgumentNullException(nameof(handler));
 
@@ -78,13 +78,13 @@ namespace AbilityKit.Game.Flow.Snapshot
             return new Subscription(() => route.Remove(stage));
         }
 
-        IDisposable ISnapshotPipelineStageRegistry.AddPipelineStage<T>(int opCode, int order, Action<object, FramePacket, T> handler)
+        IDisposable ISnapshotPipelineStageRegistry.AddPipelineStage<T>(int opCode, int order, Action<object, ISnapshotEnvelope, T> handler)
         {
             if (handler == null) throw new ArgumentNullException(nameof(handler));
             return AddStage<T>(opCode, order, (ctx, packet, payload) => handler(ctx, packet, payload));
         }
 
-        private void OnSnapshot(FramePacket packet, WorldStateSnapshot snap)
+        private void OnSnapshot(ISnapshotEnvelope packet, WorldStateSnapshot snap)
         {
             if (_routes.TryGetValue(snap.OpCode, out var route) && route != null)
             {
@@ -95,7 +95,7 @@ namespace AbilityKit.Game.Flow.Snapshot
         private interface IRoute
         {
             Type PayloadType { get; }
-            void Dispatch(BattleContext ctx, FramePacket packet, in WorldStateSnapshot snap);
+            void Dispatch(BattleContext ctx, ISnapshotEnvelope packet, in WorldStateSnapshot snap);
         }
 
         private sealed class Route<T> : IRoute
@@ -129,7 +129,7 @@ namespace AbilityKit.Game.Flow.Snapshot
                 _stages.Remove(stage);
             }
 
-            public void Dispatch(BattleContext ctx, FramePacket packet, in WorldStateSnapshot snap)
+            public void Dispatch(BattleContext ctx, ISnapshotEnvelope packet, in WorldStateSnapshot snap)
             {
                 if (_stages.Count == 0) return;
                 if (Decoder == null) return;
@@ -153,9 +153,9 @@ namespace AbilityKit.Game.Flow.Snapshot
         private readonly struct Stage<T>
         {
             public readonly int Order;
-            public readonly Action<BattleContext, FramePacket, T> Handler;
+            public readonly Action<BattleContext, ISnapshotEnvelope, T> Handler;
 
-            public Stage(int order, Action<BattleContext, FramePacket, T> handler)
+            public Stage(int order, Action<BattleContext, ISnapshotEnvelope, T> handler)
             {
                 Order = order;
                 Handler = handler;

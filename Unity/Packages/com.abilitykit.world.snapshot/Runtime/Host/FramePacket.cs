@@ -5,7 +5,7 @@ using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Ability.Host
 {
-    public sealed class FramePacket
+    public sealed class FramePacket : ISnapshotEnvelope
     {
         public FramePacket(WorldId worldId, FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs, WorldStateSnapshot? snapshot)
         {

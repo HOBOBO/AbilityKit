@@ -1,0 +1,16 @@
+{
+  "name": "AbilityKit.FlowExamples",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Flow"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

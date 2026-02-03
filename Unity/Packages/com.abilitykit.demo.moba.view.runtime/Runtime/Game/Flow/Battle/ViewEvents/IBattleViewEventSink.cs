@@ -9,14 +9,14 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
     {
         void OnTriggerEvent(in TriggerEvent evt);
 
-        void OnEnterGameSnapshot(FramePacket packet, EnterMobaGameRes res);
+        void OnEnterGameSnapshot(ISnapshotEnvelope packet, EnterMobaGameRes res);
 
-        void OnActorTransformSnapshot(FramePacket packet, (int actorId, float x, float y, float z)[] entries);
+        void OnActorTransformSnapshot(ISnapshotEnvelope packet, (int actorId, float x, float y, float z)[] entries);
 
-        void OnProjectileEventSnapshot(FramePacket packet, MobaProjectileEventSnapshotCodec.Entry[] entries);
+        void OnProjectileEventSnapshot(ISnapshotEnvelope packet, MobaProjectileEventSnapshotCodec.Entry[] entries);
 
-        void OnAreaEventSnapshot(FramePacket packet, MobaAreaEventSnapshotCodec.Entry[] entries);
+        void OnAreaEventSnapshot(ISnapshotEnvelope packet, MobaAreaEventSnapshotCodec.Entry[] entries);
 
-        void OnDamageEventSnapshot(FramePacket packet, MobaDamageEventSnapshotCodec.Entry[] entries);
+        void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotCodec.Entry[] entries);
     }
 }
