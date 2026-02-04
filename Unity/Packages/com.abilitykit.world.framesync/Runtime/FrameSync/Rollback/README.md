@@ -8,6 +8,10 @@
 
 > 说明：真正的“驱动逻辑”（如何消费 authoritative input、如何推进 predicted frame、如何触发 replay/timeout、如何统计调试数据）当前主要在 `com.abilitykit.host.extension/Runtime/FrameSync/ClientPredictionDriverModule.cs`。
 
+## 文档
+
+- 两种网络同步方案概览：`Document/NetworkSyncModels.md`
+
 ---
 
 ## 核心类型与职责

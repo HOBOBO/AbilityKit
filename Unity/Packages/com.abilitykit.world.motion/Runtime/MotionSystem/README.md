@@ -11,6 +11,11 @@
 - **不依赖 Entitas/Transform**：外部负责读写位置/朝向，本模块只做计算。
 - **不做 Unity Physics**：碰撞/阻挡通过接口 `IMotionSolver` 由外部实现。
 
+## 文档
+
+- 设计文档：`Document/Design.md`
+- 使用文档：`Document/Usage.md`
+
 ## 目录结构
 
 - `Core/`
