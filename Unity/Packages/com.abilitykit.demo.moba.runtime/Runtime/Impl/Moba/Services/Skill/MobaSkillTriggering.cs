@@ -1,6 +1,8 @@
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Eventing;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -71,6 +73,30 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             }
 
             bus.Publish(new TriggerEvent(eventId, payload: ctx, args: args));
+
+            try
+            {
+                var services = ctx.WorldServices;
+                if (services == null)
+                {
+                    Log.Info($"[MobaSkillTriggering] Forward skipped: WorldServices is null. eventId={eventId}");
+                    return;
+                }
+
+                if (!services.TryResolve<AbilityKit.Triggering.Eventing.IEventBus>(out var planBus) || planBus == null)
+                {
+                    Log.Info($"[MobaSkillTriggering] Forward skipped: plan IEventBus not found. eventId={eventId}");
+                    return;
+                }
+
+                var eid = AbilityKit.Triggering.Eventing.StableStringId.Get("event:" + eventId);
+                planBus.Publish(new EventKey<object>(eid), ctx);
+                Log.Info($"[MobaSkillTriggering] Forwarded to plan bus. eventId={eventId} eid={eid}");
+            }
+            catch (System.Exception ex)
+            {
+                Log.Exception(ex, $"[MobaSkillTriggering] Forward to plan eventBus failed. eventId={eventId}");
+            }
         }
     }
 }

@@ -1,6 +1,171 @@
 {
   "Triggers": [
     {
+      "TriggerId": 10001,
+      "EventId": 0,
+      "AllowExternal": false,
+      "Phase": 0,
+      "Priority": 0,
+      "Predicate": {
+        "Kind": "none",
+        "Nodes": null
+      },
+      "Actions": [
+        {
+          "ActionId": 589451731,
+          "Arity": 2,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 299330425.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          }
+        },
+        {
+          "ActionId": 508656420,
+          "Arity": 0,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          }
+        }
+      ],
+      "LegacyPredicate": null,
+      "LegacyActions": null
+    },
+    {
+      "TriggerId": 20001,
+      "EventId": 1035494462,
+      "AllowExternal": false,
+      "Phase": 0,
+      "Priority": 0,
+      "Predicate": {
+        "Kind": "none",
+        "Nodes": null
+      },
+      "Actions": [
+        {
+          "ActionId": 589451731,
+          "Arity": 2,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 1579385643.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          }
+        },
+        {
+          "ActionId": 1639587692,
+          "Arity": 0,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          }
+        }
+      ],
+      "LegacyPredicate": null,
+      "LegacyActions": null
+    },
+    {
+      "TriggerId": 20002,
+      "EventId": 1035494462,
+      "AllowExternal": false,
+      "Phase": 0,
+      "Priority": 0,
+      "Predicate": {
+        "Kind": "none",
+        "Nodes": null
+      },
+      "Actions": [
+        {
+          "ActionId": 589451731,
+          "Arity": 2,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 879858906.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          }
+        }
+      ],
+      "LegacyPredicate": null,
+      "LegacyActions": null
+    },
+    {
       "TriggerId": 20003,
       "EventId": 0,
       "AllowExternal": false,
@@ -16,17 +181,125 @@
           "Arity": 0,
           "Arg0": {
             "Kind": "Const",
-            "ConstValue": 0,
+            "ConstValue": 0.0,
             "BoardId": 0,
             "KeyId": 0,
-            "FieldId": 0
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
           },
           "Arg1": {
             "Kind": "Const",
-            "ConstValue": 0,
+            "ConstValue": 0.0,
             "BoardId": 0,
             "KeyId": 0,
-            "FieldId": 0
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          }
+        }
+      ],
+      "LegacyPredicate": null,
+      "LegacyActions": null
+    },
+    {
+      "TriggerId": 20004,
+      "EventId": 0,
+      "AllowExternal": false,
+      "Phase": 0,
+      "Priority": 0,
+      "Predicate": {
+        "Kind": "none",
+        "Nodes": null
+      },
+      "Actions": [
+        {
+          "ActionId": 589451731,
+          "Arity": 2,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 1201629055.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          }
+        }
+      ],
+      "LegacyPredicate": null,
+      "LegacyActions": null
+    },
+    {
+      "TriggerId": 20005,
+      "EventId": 0,
+      "AllowExternal": false,
+      "Phase": 0,
+      "Priority": 0,
+      "Predicate": {
+        "Kind": "none",
+        "Nodes": null
+      },
+      "Actions": [
+        {
+          "ActionId": 589451731,
+          "Arity": 2,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 1784382139.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 1.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          }
+        },
+        {
+          "ActionId": 176148626,
+          "Arity": 0,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
           }
         }
       ],
@@ -49,17 +322,23 @@
           "Arity": 0,
           "Arg0": {
             "Kind": "Const",
-            "ConstValue": 0,
+            "ConstValue": 0.0,
             "BoardId": 0,
             "KeyId": 0,
-            "FieldId": 0
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
           },
           "Arg1": {
             "Kind": "Const",
-            "ConstValue": 0,
+            "ConstValue": 0.0,
             "BoardId": 0,
             "KeyId": 0,
-            "FieldId": 0
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
           }
         }
       ],
@@ -82,17 +361,23 @@
           "Arity": 0,
           "Arg0": {
             "Kind": "Const",
-            "ConstValue": 0,
+            "ConstValue": 0.0,
             "BoardId": 0,
             "KeyId": 0,
-            "FieldId": 0
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
           },
           "Arg1": {
             "Kind": "Const",
-            "ConstValue": 0,
+            "ConstValue": 0.0,
             "BoardId": 0,
             "KeyId": 0,
-            "FieldId": 0
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
           }
         },
         {
@@ -100,17 +385,23 @@
           "Arity": 0,
           "Arg0": {
             "Kind": "Const",
-            "ConstValue": 0,
+            "ConstValue": 0.0,
             "BoardId": 0,
             "KeyId": 0,
-            "FieldId": 0
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
           },
           "Arg1": {
             "Kind": "Const",
-            "ConstValue": 0,
+            "ConstValue": 0.0,
             "BoardId": 0,
             "KeyId": 0,
-            "FieldId": 0
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
           }
         }
       ],
@@ -133,22 +424,35 @@
           "Arity": 0,
           "Arg0": {
             "Kind": "Const",
-            "ConstValue": 0,
+            "ConstValue": 0.0,
             "BoardId": 0,
             "KeyId": 0,
-            "FieldId": 0
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
           },
           "Arg1": {
             "Kind": "Const",
-            "ConstValue": 0,
+            "ConstValue": 0.0,
             "BoardId": 0,
             "KeyId": 0,
-            "FieldId": 0
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
           }
         }
       ],
       "LegacyPredicate": null,
       "LegacyActions": null
     }
-  ]
+  ],
+  "Strings": {
+    "299330425": "测试日志输出1111122233333",
+    "1579385643": "释放技能完成日志输出11111",
+    "879858906": "监听别人释放技能完成日志输出22222",
+    "1201629055": "被动日志输出11111",
+    "1784382139": "碰撞回调日志"
+  }
 }

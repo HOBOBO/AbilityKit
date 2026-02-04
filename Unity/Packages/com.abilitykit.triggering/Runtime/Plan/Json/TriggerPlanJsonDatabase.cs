@@ -19,6 +19,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         private sealed class TriggerPlanDatabaseDto
         {
             public List<TriggerPlanDto> Triggers;
+
+            public Dictionary<int, string> Strings;
         }
 
         [Serializable]
@@ -88,8 +90,16 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
 
         private List<Record> _records = new List<Record>();
         private Dictionary<int, TriggerPlan<object>> _byTriggerId = new Dictionary<int, TriggerPlan<object>>();
+        private Dictionary<int, string> _strings = new Dictionary<int, string>();
 
         public IReadOnlyList<Record> Records => _records;
+
+        public bool TryGetString(int id, out string value)
+        {
+            value = null;
+            if (id == 0) return false;
+            return _strings != null && _strings.TryGetValue(id, out value);
+        }
 
         public bool TryGetPlanByTriggerId(int triggerId, out TriggerPlan<object> plan)
         {
@@ -130,6 +140,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
 
             var next = new List<Record>();
             var byTriggerId = new Dictionary<int, TriggerPlan<object>>();
+            var strings = dto?.Strings != null ? new Dictionary<int, string>(dto.Strings) : new Dictionary<int, string>();
             if (dto?.Triggers != null)
             {
                 for (int i = 0; i < dto.Triggers.Count; i++)
@@ -146,6 +157,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
 
             _records = next;
             _byTriggerId = byTriggerId;
+            _strings = strings;
         }
 
         public void RegisterAll<TCtx>(TriggerRunner<TCtx> runner)

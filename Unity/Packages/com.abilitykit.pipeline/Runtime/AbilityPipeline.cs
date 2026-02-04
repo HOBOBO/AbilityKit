@@ -140,12 +140,20 @@ namespace AbilityKit.Ability
                             _owner.OnCompositeUpdate(Context, deltaTime);
                         }
 
-                        if (_currentPhase.IsComplete)
+                        if (Context != null && Context.IsAborted)
                         {
-                            OnPhaseComplete(_currentPhase);
-                            _currentPhase = null;
-                            _currentPhaseIndex++;
+                            Fail();
+                            return;
                         }
+
+                        if (!_currentPhase.IsComplete)
+                        {
+                            return;
+                        }
+
+                        OnPhaseComplete(_currentPhase);
+                        _currentPhase = null;
+                        _currentPhaseIndex++;
                     }
 
                     // Execute as many instant phases as possible in this tick.

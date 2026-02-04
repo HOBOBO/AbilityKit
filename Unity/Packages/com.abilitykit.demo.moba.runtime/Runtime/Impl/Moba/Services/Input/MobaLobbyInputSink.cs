@@ -157,6 +157,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             if (cmd.Payload == null || cmd.Payload.Length == 0) return;
             var evt = SkillInputCodec.Deserialize(cmd.Payload);
+
             _skills?.HandleInput(actorId, in evt);
         }
 

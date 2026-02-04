@@ -7,6 +7,7 @@ using AbilityKit.Ability.Share.CoreDtos;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Registry;
 using Newtonsoft.Json;
 using UnityEditor;
 using UnityEngine;
@@ -220,6 +221,9 @@ namespace AbilityKit.Ability.Editor.Utilities
         private sealed class TriggerPlanDatabaseDto
         {
             public readonly List<TriggerPlanDto> Triggers = new List<TriggerPlanDto>();
+
+            // Optional: string table for actions like debug_log.
+            public readonly Dictionary<int, string> Strings = new Dictionary<int, string>();
         }
 
         [Serializable]
@@ -352,7 +356,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
                     try
                     {
-                        if (!TryCompilePlanFromEditor(tr, out var plan, out var phase, out var priority, out var failReason))
+                        if (!TryCompilePlanFromEditor(tr, db.Strings, out var plan, out var phase, out var priority, out var failReason))
                         {
                             if (string.Equals(failReason, "no_actions", StringComparison.Ordinal))
                             {
@@ -415,6 +419,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static bool TryCompilePlanFromEditor(
             TriggerEditorConfig tr,
+            Dictionary<int, string> stringTable,
             out TriggerPlan<object> plan,
             out int phase,
             out int priority,
@@ -430,12 +435,17 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 if (tr.ConditionsStrong.Count == 1)
                 {
-                    cond = tr.ConditionsStrong[0] as JsonConditionEditorConfig;
+                    cond = ToJsonConditionNode(tr.ConditionsStrong[0]);
                 }
                 else
                 {
-                    var all = new JsonConditionEditorConfig { TypeValue = TriggerConditionTypes.All, Items = new List<ConditionEditorConfigBase>(tr.ConditionsStrong) };
-                    cond = all;
+                    var items = new List<ConditionEditorConfigBase>(tr.ConditionsStrong.Count);
+                    for (int i = 0; i < tr.ConditionsStrong.Count; i++)
+                    {
+                        var n = ToJsonConditionNode(tr.ConditionsStrong[i]);
+                        if (n != null) items.Add(n);
+                    }
+                    cond = new JsonConditionEditorConfig { TypeValue = TriggerConditionTypes.All, Items = items };
                 }
             }
 
@@ -444,12 +454,17 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 if (tr.ActionsStrong.Count == 1)
                 {
-                    act = tr.ActionsStrong[0] as JsonActionEditorConfig;
+                    act = ToJsonActionNode(tr.ActionsStrong[0]);
                 }
                 else
                 {
-                    var seq = new JsonActionEditorConfig { TypeValue = TriggerActionTypes.Seq, Items = new List<ActionEditorConfigBase>(tr.ActionsStrong) };
-                    act = seq;
+                    var items = new List<ActionEditorConfigBase>(tr.ActionsStrong.Count);
+                    for (int i = 0; i < tr.ActionsStrong.Count; i++)
+                    {
+                        var n = ToJsonActionNode(tr.ActionsStrong[i]);
+                        if (n != null) items.Add(n);
+                    }
+                    act = new JsonActionEditorConfig { TypeValue = TriggerActionTypes.Seq, Items = items };
                 }
             }
 
@@ -459,8 +474,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return false;
             }
 
-            if (!GeneratedTriggerPlanCompiler.TryCompileActionTree(
+            if (!TryCompileActionTreeWithOverrides(
                     act,
+                    stringTable,
                     TriggerPlanCompilerResolvers.ResolvePayloadFieldId,
                     TriggerPlanCompilerResolvers.ResolveActionId,
                     out var actions) || actions == null || actions.Length == 0)
@@ -488,6 +504,131 @@ namespace AbilityKit.Ability.Editor.Utilities
             return true;
         }
 
+        private static bool TryCompileActionTreeWithOverrides(
+            JsonActionEditorConfig action,
+            Dictionary<int, string> stringTable,
+            Func<string, int> payloadFieldIdResolver,
+            Func<string, ActionId> actionIdResolver,
+            out ActionCallPlan[] plans)
+        {
+            plans = null;
+            if (action == null) return false;
+
+            // Custom: seq flatten
+            if (string.Equals(action.TypeValue, TriggerActionTypes.Seq, StringComparison.Ordinal))
+            {
+                if (action.Items == null || action.Items.Count == 0)
+                {
+                    plans = Array.Empty<ActionCallPlan>();
+                    return true;
+                }
+
+                var list = new List<ActionCallPlan>(action.Items.Count);
+                for (int i = 0; i < action.Items.Count; i++)
+                {
+                    if (!(action.Items[i] is JsonActionEditorConfig child)) return false;
+                    if (!TryCompileActionTreeWithOverrides(child, stringTable, payloadFieldIdResolver, actionIdResolver, out var childPlans)) return false;
+                    if (childPlans == null || childPlans.Length == 0) continue;
+                    for (int j = 0; j < childPlans.Length; j++) list.Add(childPlans[j]);
+                }
+
+                plans = list.ToArray();
+                return true;
+            }
+
+            // Custom: debug_log(message, dump_args)
+            if (string.Equals(action.TypeValue, TriggerActionTypes.DebugLog, StringComparison.Ordinal))
+            {
+                if (actionIdResolver == null) return false;
+                var id = actionIdResolver(action.TypeValue);
+                if (id.Value == 0) return false;
+
+                var msg = string.Empty;
+                var dump = false;
+
+                if (action.Args != null)
+                {
+                    if (action.Args.TryGetValue("message", out var mObj) && mObj != null)
+                    {
+                        msg = mObj as string ?? mObj.ToString();
+                    }
+
+                    if (action.Args.TryGetValue("dump_args", out var dObj) && dObj != null)
+                    {
+                        if (dObj is bool b) dump = b;
+                        else
+                        {
+                            try { dump = Convert.ToBoolean(dObj); }
+                            catch { dump = false; }
+                        }
+                    }
+                }
+
+                var strId = StableStringId.Get("str:" + (msg ?? string.Empty));
+                if (stringTable != null)
+                {
+                    if (!stringTable.TryGetValue(strId, out var existing))
+                    {
+                        stringTable[strId] = msg ?? string.Empty;
+                    }
+                    else if (!string.Equals(existing, msg ?? string.Empty, StringComparison.Ordinal))
+                    {
+                        // collision should be impossible due to StableStringId check, but keep last just in case.
+                        stringTable[strId] = msg ?? string.Empty;
+                    }
+                }
+
+                plans = new[]
+                {
+                    new ActionCallPlan(id,
+                        NumericValueRef.Const(strId),
+                        NumericValueRef.Const(dump ? 1d : 0d))
+                };
+                return true;
+            }
+
+            // Default: codegen/fallback compiler
+            return GeneratedTriggerPlanCompiler.TryCompileActionTree(action, payloadFieldIdResolver, actionIdResolver, out plans);
+        }
+
+        private static JsonActionEditorConfig ToJsonActionNode(ActionEditorConfigBase node)
+        {
+            if (node == null) return null;
+            if (node is JsonActionEditorConfig j) return j;
+
+            try
+            {
+                var rt = node.ToRuntimeStrong();
+                if (rt == null) return null;
+                var def = rt.ToActionDef();
+                var dto = BuildActionDto(def);
+                return JsonActionEditorConfig.FromDto(dto);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static JsonConditionEditorConfig ToJsonConditionNode(ConditionEditorConfigBase node)
+        {
+            if (node == null) return null;
+            if (node is JsonConditionEditorConfig j) return j;
+
+            try
+            {
+                var rt = node.ToRuntimeStrong();
+                if (rt == null) return null;
+                var def = rt.ToConditionDef();
+                var dto = BuildConditionDto(def);
+                return JsonConditionEditorConfig.FromDto(dto);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private static void CountOne(Dictionary<string, int> map, string key)
         {
             if (map == null) return;
@@ -499,14 +640,14 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static string ExtractRootActionType(TriggerEditorConfig tr)
         {
             if (tr?.ActionsStrong == null || tr.ActionsStrong.Count == 0) return null;
-            if (tr.ActionsStrong.Count == 1) return (tr.ActionsStrong[0] as JsonActionEditorConfig)?.TypeValue;
+            if (tr.ActionsStrong.Count == 1) return tr.ActionsStrong[0]?.Type;
             return TriggerActionTypes.Seq;
         }
 
         private static string ExtractRootConditionType(TriggerEditorConfig tr)
         {
             if (tr?.ConditionsStrong == null || tr.ConditionsStrong.Count == 0) return null;
-            if (tr.ConditionsStrong.Count == 1) return (tr.ConditionsStrong[0] as JsonConditionEditorConfig)?.TypeValue;
+            if (tr.ConditionsStrong.Count == 1) return tr.ConditionsStrong[0]?.Type;
             return TriggerConditionTypes.All;
         }
 

@@ -15,6 +15,9 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         private sealed class WorldSession
         {
             public readonly List<PlayerInputCommand> PendingInputs = new List<PlayerInputCommand>(16);
+
+            public FrameIndex PendingFrame;
+            public PlayerInputCommand[] PendingInputsArray;
         }
 
         private readonly Dictionary<WorldId, WorldSession> _sessions = new Dictionary<WorldId, WorldSession>();
@@ -25,6 +28,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         private readonly Action<IWorld> _onWorldCreated;
         private readonly Action<WorldId> _onWorldDestroyed;
         private readonly Action<float> _onPreTick;
+        private readonly Action<float> _onPostTick;
 
         private readonly List<Action<WorldId, FrameIndex, PlayerInputCommand[]>> _inputsFlushed = new List<Action<WorldId, FrameIndex, PlayerInputCommand[]>>(8);
         private readonly List<Action<FrameIndex, float>> _postStep = new List<Action<FrameIndex, float>>(8);
@@ -36,6 +40,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             _onWorldCreated = OnWorldCreated;
             _onWorldDestroyed = OnWorldDestroyed;
             _onPreTick = OnPreTick;
+            _onPostTick = OnPostTick;
         }
 
         public FrameIndex Frame => _frame;
@@ -53,6 +58,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             options.WorldCreated.Add(_onWorldCreated);
             options.WorldDestroyed.Add(_onWorldDestroyed);
             options.PreTick.Add(_onPreTick);
+            options.PostTick.Add(_onPostTick);
 
             runtime.Features.RegisterFeature<IFrameSyncInputHub>(this);
             runtime.Features.RegisterFeature<IFrameSyncDriverEvents>(this);
@@ -66,6 +72,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             options.WorldCreated.Remove(_onWorldCreated);
             options.WorldDestroyed.Remove(_onWorldDestroyed);
             options.PreTick.Remove(_onPreTick);
+            options.PostTick.Remove(_onPostTick);
 
             runtime.Features.UnregisterFeature<IFrameSyncInputHub>();
             runtime.Features.UnregisterFeature<IFrameSyncDriverEvents>();
@@ -149,6 +156,9 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     inputs = Array.Empty<PlayerInputCommand>();
                 }
 
+                session.PendingFrame = nextFrame;
+                session.PendingInputsArray = inputs;
+
                 if (_inputsFlushed.Count > 0)
                 {
                     for (int i = 0; i < _inputsFlushed.Count; i++)
@@ -176,31 +186,50 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                         Log.Error($"[FrameSyncDriverModule] IWorldInputSink resolve failed. worldId={worldId}, servicesType={world.Services.GetType().FullName}");
                     }
                 }
+            }
+        }
 
-                world.Tick(deltaTime);
+        private void OnPostTick(float deltaTime)
+        {
+            if (_runtime == null) return;
+
+            var currentFrame = new FrameIndex(_frame.Value + 1);
+
+            foreach (var kv in _sessions)
+            {
+                var worldId = kv.Key;
+                var session = kv.Value;
+
+                if (!_runtime.Worlds.TryGet(worldId, out var world) || world == null) continue;
+
+                var frame = session.PendingFrame.Value > 0 ? session.PendingFrame : currentFrame;
+                var inputs = session.PendingInputsArray ?? Array.Empty<PlayerInputCommand>();
 
                 WorldStateSnapshot? state = null;
                 if (world.Services != null && world.Services.TryResolve<AbilityKit.Ability.Host.IWorldStateSnapshotProvider>(out var provider) && provider != null)
                 {
-                    if (provider.TryGetSnapshot(nextFrame, out var snapshot))
+                    if (provider.TryGetSnapshot(frame, out var snapshot))
                     {
                         state = snapshot;
                     }
                 }
 
-                var packet = new FramePacket(worldId, nextFrame, inputs, state);
+                var packet = new FramePacket(worldId, frame, inputs, state);
                 _runtime.Broadcast(new FrameMessage(packet));
+
+                session.PendingInputsArray = null;
+                session.PendingFrame = default;
             }
 
             if (_postStep.Count > 0)
             {
                 for (int i = 0; i < _postStep.Count; i++)
                 {
-                    _postStep[i]?.Invoke(nextFrame, deltaTime);
+                    _postStep[i]?.Invoke(currentFrame, deltaTime);
                 }
             }
 
-            _frame = nextFrame;
+            _frame = currentFrame;
         }
     }
 }

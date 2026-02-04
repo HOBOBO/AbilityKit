@@ -20,6 +20,10 @@ using AbilityKit.Ability.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Common.TagSystem;
 using AbilityKit.Ability.Tags;
+using AbilityKit.Core.Eventing;
+using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Runtime.Plan.Json;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 {
@@ -139,6 +143,103 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
     {
         public const int InitOpCode = 2000;
 
+        private sealed class PlanTextLoaderAdapter : TriggerPlanJsonDatabase.ITextLoader
+        {
+            private readonly ITextLoader _inner;
+
+            public PlanTextLoaderAdapter(ITextLoader inner)
+            {
+                _inner = inner;
+            }
+
+            public bool TryLoad(string id, out string text)
+            {
+                if (_inner == null)
+                {
+                    text = null;
+                    return false;
+                }
+
+                return _inner.TryLoad(id, out text);
+            }
+        }
+
+        private sealed class WorldResolverContextSource : AbilityKit.Triggering.Runtime.ITriggerContextSource<IWorldResolver>
+        {
+            private readonly IWorldResolver _services;
+
+            public WorldResolverContextSource(IWorldResolver services)
+            {
+                _services = services;
+            }
+
+            public IWorldResolver GetContext() => _services;
+        }
+
+        private static void RegisterStubActionsFromPlans(TriggerPlanJsonDatabase db, ActionRegistry actions)
+        {
+            if (db == null || actions == null) return;
+
+            var arityById = new System.Collections.Generic.Dictionary<int, byte>();
+            var records = db.Records;
+            if (records == null) return;
+
+            for (int i = 0; i < records.Count; i++)
+            {
+                var plan = records[i].Plan;
+                var calls = plan.Actions;
+                if (calls == null) continue;
+
+                for (int j = 0; j < calls.Length; j++)
+                {
+                    var call = calls[j];
+                    var id = call.Id.Value;
+                    if (id == 0) continue;
+
+                    if (arityById.TryGetValue(id, out var existing))
+                    {
+                        if (existing != call.Arity)
+                        {
+                            arityById[id] = byte.MaxValue;
+                        }
+                    }
+                    else
+                    {
+                        arityById[id] = call.Arity;
+                    }
+                }
+            }
+
+            foreach (var kv in arityById)
+            {
+                var actionId = new ActionId(kv.Key);
+                var arity = kv.Value;
+                if (arity == byte.MaxValue) continue;
+
+                switch (arity)
+                {
+                    case 0:
+                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action0>(
+                            actionId,
+                            static (args, ctx) => { },
+                            isDeterministic: true);
+                        break;
+                    case 1:
+                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action1>(
+                            actionId,
+                            static (args, a0, ctx) => { },
+                            isDeterministic: true);
+                        break;
+                    case 2:
+                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action2>(
+                            actionId,
+                            static (args, a0, a1, ctx) => { },
+                            isDeterministic: true);
+                        break;
+                }
+            }
+        }
+
         public void Configure(WorldContainerBuilder builder)
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
@@ -148,6 +249,18 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
 
             builder.TryRegister<AbilityKit.Ability.Triggering.IEventBus>(WorldLifetime.Scoped, _ => new AbilityKit.Ability.Triggering.EventBus());
             builder.TryRegister<AbilityKit.Triggering.Eventing.IEventBus>(WorldLifetime.Scoped, _ => new AbilityKit.Triggering.Eventing.EventBus());
+
+            builder.TryRegister<FunctionRegistry>(WorldLifetime.Scoped, _ => new FunctionRegistry());
+            builder.TryRegister<ActionRegistry>(WorldLifetime.Scoped, _ => new ActionRegistry());
+            builder.TryRegister<AbilityKit.Triggering.Runtime.ITriggerContextSource<IWorldResolver>>(WorldLifetime.Scoped, r => new WorldResolverContextSource(r));
+            builder.TryRegister<AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver>>(WorldLifetime.Scoped, r =>
+            {
+                var planBus = r.Resolve<AbilityKit.Triggering.Eventing.IEventBus>();
+                var funcs = r.Resolve<FunctionRegistry>();
+                var acts = r.Resolve<ActionRegistry>();
+                var ctxSource = r.Resolve<AbilityKit.Triggering.Runtime.ITriggerContextSource<IWorldResolver>>();
+                return new AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver>(planBus, funcs, acts, contextSource: ctxSource);
+            });
 
             builder.RegisterService<BattleTriggersService, BattleTriggersService>();
 
@@ -166,6 +279,16 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.TryRegisterType<ITagEffectRouter, TagEffectRouter>(WorldLifetime.Scoped);
 
             builder.TryRegister<ITextLoader>(WorldLifetime.Singleton, _ => new UnityResourcesTextLoader());
+
+            builder.TryRegister<TriggerPlanJsonDatabase>(WorldLifetime.Singleton, r =>
+            {
+                var loader = r.Resolve<ITextLoader>();
+                var db = new TriggerPlanJsonDatabase();
+                Log.Info("[MobaWorldBootstrapModule] TriggerPlanJsonDatabase.Load begin");
+                db.Load(new PlanTextLoaderAdapter(loader), "ability/ability_trigger_plans");
+                Log.Info($"[MobaWorldBootstrapModule] TriggerPlanJsonDatabase.Load end. records={db.Records?.Count ?? 0}");
+                return db;
+            });
 
             builder.TryRegisterService<EffectSourceRegistry, EffectSourceRegistry>();
 
@@ -266,6 +389,59 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             );
 
             Log.Info("[MobaWorldBootstrapModule] Install: AutoSystemInstaller.Install done");
+
+            try
+            {
+                if (services.TryResolve<TriggerPlanJsonDatabase>(out var db) && db != null
+                    && services.TryResolve<ActionRegistry>(out var acts) && acts != null
+                    && services.TryResolve<AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver>>(out var runner) && runner != null)
+                {
+                    RegisterStubActionsFromPlans(db, acts);
+
+                    var debugLogId = new ActionId(AbilityKit.Triggering.Eventing.StableStringId.Get("action:debug_log"));
+                    acts.Register<PlannedTrigger<object, IWorldResolver>.Action0>(
+                        debugLogId,
+                        static (args, ctx) =>
+                        {
+                            var ctxType = ctx.Context != null ? ctx.Context.GetType().Name : "<null>";
+                            var argsType = args != null ? args.GetType().Name : "<null>";
+                            Log.Info($"[Plan] debug_log executed. argsType={argsType}, ctxType={ctxType}");
+                        },
+                        isDeterministic: true);
+
+                    acts.Register<PlannedTrigger<object, IWorldResolver>.Action2>(
+                        debugLogId,
+                        static (args, a0, a1, ctx) =>
+                        {
+                            var msgId = (int)a0;
+                            var dump = a1 >= 0.5;
+                            var msg = string.Empty;
+                            if (ctx.Context != null && ctx.Context.TryResolve<TriggerPlanJsonDatabase>(out var db) && db != null)
+                            {
+                                if (!db.TryGetString(msgId, out msg)) msg = string.Empty;
+                            }
+                            Log.Info($"[Plan] debug_log: {msg}");
+                            if (dump)
+                            {
+                                var argsType = args != null ? args.GetType().Name : "<null>";
+                                var ctxType = ctx.Context != null ? ctx.Context.GetType().Name : "<null>";
+                                Log.Info($"[Plan] debug_log dump. argsType={argsType}, ctxType={ctxType}");
+                            }
+                        },
+                        isDeterministic: true);
+
+                    db.RegisterAll(runner);
+                    Log.Info($"[MobaWorldBootstrapModule] PlanTriggering initialized. records={db.Records?.Count ?? 0}");
+                }
+                else
+                {
+                    Log.Info("[MobaWorldBootstrapModule] PlanTriggering init skipped (missing deps)");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[MobaWorldBootstrapModule] PlanTriggering init exception");
+            }
 
             if (!services.TryResolve<WorldInitData>(out var init))
             {

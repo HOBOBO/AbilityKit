@@ -56,6 +56,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     {
                         mode = (EffectExecuteMode)raw;
                     }
+
                     _effects?.Execute(e.EffectId, context, mode);
                     _nextIndex++;
                 }
