@@ -43,7 +43,7 @@ namespace AbilityKit.Triggering.Runtime.Example
             blackboards.Register(combatBoardId, bbCombat);
 
             var atkKeyId = Eventing.StableStringId.Get("bb:combat:atk");
-            bbCombat.SetInt(atkKeyId, 7);
+            bbCombat.SetDouble(atkKeyId, 7d);
 
             var payloads = new PayloadAccessorRegistry();
             payloads.RegisterIntAccessor(new DamageEventPayloadAccessor());
@@ -87,21 +87,21 @@ namespace AbilityKit.Triggering.Runtime.Example
             {
                 // A
                 BoolExprNode.Compare(ECompareOp.Gt,
-                    IntValueRef.PayloadField(Eventing.StableStringId.Get("payload:amount")),
-                    IntValueRef.Const(3)),
+                    NumericValueRef.PayloadField(Eventing.StableStringId.Get("payload:amount")),
+                    NumericValueRef.Const(3d)),
 
                 // B
                 BoolExprNode.Compare(ECompareOp.Ge,
-                    IntValueRef.Blackboard(combatBoardId, atkKeyId),
-                    IntValueRef.Const(7)),
+                    NumericValueRef.Blackboard(combatBoardId, atkKeyId),
+                    NumericValueRef.Const(7d)),
 
                 // AND
                 BoolExprNode.And(),
 
                 // C
                 BoolExprNode.Compare(ECompareOp.Eq,
-                    IntValueRef.PayloadField(Eventing.StableStringId.Get("payload:amount")),
-                    IntValueRef.Const(4)),
+                    NumericValueRef.PayloadField(Eventing.StableStringId.Get("payload:amount")),
+                    NumericValueRef.Const(4d)),
 
                 // NOT
                 BoolExprNode.Not(),
@@ -118,12 +118,12 @@ namespace AbilityKit.Triggering.Runtime.Example
                 actions: new[]
                 {
                     // action1(arg0=bb.combat.atk)
-                    new ActionCallPlan(actionPrintDamage, IntValueRef.Blackboard(combatBoardId, atkKeyId)),
+                    new ActionCallPlan(actionPrintDamage, NumericValueRef.Blackboard(combatBoardId, atkKeyId)),
 
                     // action2(arg0=payload.amount, arg1=bb.combat.atk)
                     new ActionCallPlan(actionPrint2,
-                        IntValueRef.PayloadField(Eventing.StableStringId.Get("payload:amount")),
-                        IntValueRef.Blackboard(combatBoardId, atkKeyId))
+                        NumericValueRef.PayloadField(Eventing.StableStringId.Get("payload:amount")),
+                        NumericValueRef.Blackboard(combatBoardId, atkKeyId))
                 });
 
             runner.RegisterPlan<DamageEvent, TriggerContext>(eventKey, plan);

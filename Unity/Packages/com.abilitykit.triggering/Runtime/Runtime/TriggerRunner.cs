@@ -5,6 +5,8 @@ using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Payload;
+using AbilityKit.Triggering.Variables.Numeric;
+using AbilityKit.Triggering.Variables.Numeric.Expression;
 
 namespace AbilityKit.Triggering.Runtime
 {
@@ -19,13 +21,15 @@ namespace AbilityKit.Triggering.Runtime
         private readonly IBlackboardResolver _blackboards;
         private readonly IPayloadAccessorRegistry _payloads;
         private readonly IIdNameRegistry _idNames;
+        private readonly INumericVarDomainRegistry _numericDomains;
+        private readonly INumericRpnFunctionRegistry _numericFunctions;
         private readonly ExecPolicy _policy;
 
         private readonly Dictionary<Type, object> _triggerListsByArgsType = new Dictionary<Type, object>();
         private readonly Dictionary<Type, object> _subscriptionsByArgsType = new Dictionary<Type, object>();
         private long _registrationOrder;
 
-        public TriggerRunner(IEventBus eventBus, FunctionRegistry functions, ActionRegistry actions, ITriggerContextSource<TCtx> contextSource = null, ITriggerObserver<TCtx> observer = null, IBlackboardResolver blackboards = null, IPayloadAccessorRegistry payloads = null, IIdNameRegistry idNames = null, ExecPolicy policy = default)
+        public TriggerRunner(IEventBus eventBus, FunctionRegistry functions, ActionRegistry actions, ITriggerContextSource<TCtx> contextSource = null, ITriggerObserver<TCtx> observer = null, IBlackboardResolver blackboards = null, IPayloadAccessorRegistry payloads = null, IIdNameRegistry idNames = null, INumericVarDomainRegistry numericDomains = null, INumericRpnFunctionRegistry numericFunctions = null, ExecPolicy policy = default)
         {
             _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
             _functions = functions ?? throw new ArgumentNullException(nameof(functions));
@@ -35,6 +39,8 @@ namespace AbilityKit.Triggering.Runtime
             _blackboards = blackboards;
             _payloads = payloads;
             _idNames = idNames;
+            _numericDomains = numericDomains;
+            _numericFunctions = numericFunctions;
             _policy = policy;
         }
 
@@ -92,7 +98,7 @@ namespace AbilityKit.Triggering.Runtime
             var ctx = _contextSource != null ? _contextSource.GetContext() : default;
             if (control == null) control = new ExecutionControl();
             control.Reset();
-            var execCtx = new ExecCtx<TCtx>(ctx, _eventBus, _functions, _actions, _blackboards, _payloads, _idNames, _policy, control);
+            var execCtx = new ExecCtx<TCtx>(ctx, _eventBus, _functions, _actions, _blackboards, _payloads, _idNames, _numericDomains, _numericFunctions, _policy, control);
 
             for (int i = 0; i < triggers.Count; i++)
             {

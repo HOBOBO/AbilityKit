@@ -27,7 +27,7 @@ Runtime 目录大致按职责拆分：
   - `TriggerPlan<TArgs>`：强类型计划结构（Predicate=Function/Expr/None，Actions=强类型调用）
   - `PlannedTrigger<TArgs, TCtx>`：将 `TriggerPlan` 解析成可执行触发器
   - `PredicateExprPlan`：布尔表达式（RPN 逆波兰）
-  - `RpnIntExprRuntime`：整数 RPN 表达式运行时解析/缓存/求值（用于更复杂的数值来源）
+  - `RpnNumericExprRuntime`：numeric(double) RPN 表达式运行时解析/缓存/求值（用于更复杂的数值来源）
   - `Json/TriggerPlanJsonDatabase`：从 JSON 加载计划并注册到 runner
 
 - `Registry/`
@@ -36,7 +36,7 @@ Runtime 目录大致按职责拆分：
 
 - `Blackboard/` / `Payload/`
   - 黑板：`DictionaryBlackboard` / `IBlackboardResolver` 等
-  - payload：`PayloadAccessorRegistry` / `IPayloadIntAccessor<TArgs>` 等
+  - payload：`PayloadAccessorRegistry` / `IPayloadDoubleAccessor<TArgs>` / `IPayloadIntAccessor<TArgs>` 等（numeric 读取优先 double，其次 int->double fallback）
 
 - `Example/`
   - 纯 C# 示例（无 Unity 场景依赖），用于快速理解 API 组合方式
@@ -57,6 +57,77 @@ Runtime 目录大致按职责拆分：
    - `Evaluate(args, execCtx)` 判定是否满足条件
    - 若满足则 `Execute(args, execCtx)` 执行动作
    - 若 `ExecutionControl.StopPropagation` 或 `ExecutionControl.Cancel` 被置位，则短路退出
+
+### 2.1 Mermaid：运行时架构图
+
+```mermaid
+flowchart LR
+  Bus["EventBus"] -->|"Publish / Flush"| Runner["TriggerRunner<TCtx>"]
+  Runner --> Ctx["ExecCtx<TCtx>"]
+
+  Runner -->|"phase / priority"| Triggers["ITrigger<TArgs,TCtx> ..."]
+  Triggers --> Planned["PlannedTrigger<TArgs,TCtx>"]
+  Planned -->|Evaluate| Pred["Predicate: None | Expr | Function"]
+  Planned -->|Execute| Acts["ActionCallPlan[]"]
+
+  Ctx --> Funcs["FunctionRegistry"]
+  Ctx --> Actions["ActionRegistry"]
+  Ctx --> BB["IBlackboardResolver"]
+  Ctx --> Payloads["IPayloadAccessorRegistry"]
+  Ctx --> Domains["INumericVarDomainRegistry"]
+  Ctx --> Policy["ExecPolicy"]
+  Ctx --> Ctrl["ExecutionControl"]
+```
+
+### 2.2 Mermaid：一次事件触发的执行时序（Publish -> Evaluate/Execute）
+
+```mermaid
+sequenceDiagram
+  participant Gameplay as Gameplay/Host
+  participant Bus as EventBus
+  participant Runner as TriggerRunner
+  participant CtxSrc as ITriggerContextSource
+  participant PlanTrig as PlannedTrigger
+  participant FuncReg as FunctionRegistry
+  participant ActReg as ActionRegistry
+  participant BB as IBlackboardResolver
+  participant Pay as IPayloadAccessorRegistry
+  participant Domains as INumericVarDomainRegistry
+  participant Ctrl as ExecutionControl
+
+  Gameplay->>Bus: Publish(eventKey, args)
+  alt Queued EventBus
+    Gameplay->>Bus: Flush()
+  end
+
+  Bus-->>Runner: OnEvent(eventId, args)
+  Runner->>CtxSrc: GetContext()
+  CtxSrc-->>Runner: TCtx
+  Runner->>Ctrl: Reset()
+  Note over Runner: 构造 ExecCtx 并注入 registries / blackboard / payload / domains / policy / control
+
+  loop Triggers sorted by phase/priority
+    Runner->>PlanTrig: Evaluate(args, execCtx)
+    Note over PlanTrig: 首次执行会 Resolve()（从 registries 解析委托 + 检查 deterministic）
+    PlanTrig->>FuncReg: (optional) TryGet predicate
+    PlanTrig->>BB: (optional) TryResolve/Read double
+    PlanTrig->>Pay: (optional) TryGetDouble (double优先, int->double fallback)
+    PlanTrig->>Domains: (optional) TryGet var(domain.key)
+    PlanTrig-->>Runner: bool passed
+    alt passed
+      Runner->>PlanTrig: Execute(args, execCtx)
+      PlanTrig->>ActReg: TryGet action delegates
+      PlanTrig->>BB: (optional) Read numeric args
+      PlanTrig->>Pay: (optional) Read numeric args
+      PlanTrig->>Domains: (optional) Read numeric args
+    end
+
+    alt StopPropagation or Cancel
+      PlanTrig->>Ctrl: set StopPropagation/Cancel
+      Runner-->>Bus: return (short-circuit)
+    end
+  end
+```
 
 ---
 
@@ -91,7 +162,7 @@ Runtime 目录大致按职责拆分：
 
 ### 4.1 Expr（RPN 布尔表达式）
 `PredicateExprPlan` 目前内置节点：
-- `CompareInt`：对 `IntValueRef` 做 `Eq/Ne/Gt/Ge/Lt/Le`
+- `CompareNumeric`：对 `NumericValueRef` 做 `Eq/Ne/Gt/Ge/Lt/Le`
 - `And/Or/Not`
 - `Const`
 
@@ -124,23 +195,31 @@ Runtime 目录大致按职责拆分：
 
 `ActionCallPlan` 支持：
 - `arity=0`：无参数
-- `arity=1/2`：参数来自 `IntValueRef`（const/payloadField/blackboard）
+- `arity=1/2`：参数来自 `NumericValueRef`（const/payloadField/blackboard/var 等）
+
+说明（重构后）：
+- 参数类型已升级为 `NumericValueRef`（double）
+- payload numeric 读取策略：
+  - 先 `IPayloadDoubleAccessor<TArgs>`
+  - 再 `IPayloadIntAccessor<TArgs>` 并转换为 double
 
 ---
 
-## 6. 数值来源与表达式：IntValueRef 与 RPN Int
+## 6. 数值来源与表达式：NumericValueRef 与 RPN Numeric
 
-### 6.1 IntValueRef
-用于 “从哪里拿 int 值”：
+### 6.1 NumericValueRef
+用于 “从哪里拿 numeric(double) 值”：
 - `Const`
 - `PayloadField(fieldId)`
 - `Blackboard(boardId, keyId)`
+- `Var(domainId, key)`（来自 `INumericVarDomainRegistry`）
+- `Expr(exprText)`（内部 API 可用；**JSON/UGC 默认禁用**，详见第 8 节）
 
-### 6.2 RPN Int（RpnIntExprRuntime）
+### 6.2 RPN Numeric（RpnNumericExprRuntime）
 当你需要更复杂的数值来源（例如 `payload.amount + bb:combat:atk`）且希望运行时解析：
-- `RpnIntExprPlan`：保存 `lang + text`
-- `RpnIntExprRuntime`：运行时解析并缓存节点
-- `RpnIntExprEval`：用 `ExecCtx` 解析 token 并求值
+- `RpnNumericExprPlan`：保存 `lang + text`
+- `RpnNumericExprRuntime`：运行时解析并缓存节点
+- `RpnNumericExprEval`：用 `ExecCtx` 解析 token 并求值
 
 建议：
 - 为 deterministic replay：固定 `lang` 版本、限制 token 集合、避免非确定输入
@@ -168,7 +247,69 @@ Runtime 目录大致按职责拆分：
 当前 DTO 支持：
 - `Predicate.Kind = none/expr`
 - `expr` 里 nodes 对应 `BoolExprNode`
-- `Actions` 支持 arity=0/1/2 + `IntValueRef`
+- `Actions` 支持 arity=0/1/2 + `NumericValueRef`
+
+说明（重构后）：
+- `NumericValueRefDto`（double）替代旧的 int DTO
+- 支持来源：`Const/Blackboard/PayloadField/Var/Expr`
+- **UGC 策略（默认 B）**：JSON 加载路径禁止 `Expr`
+  - `TriggerPlanJsonDatabase.BuildNumericValueRef` 遇到 `Kind=Expr` 会抛 `NotSupportedException`
+  - 如果你希望允许表达式文本，必须改为受控白名单策略（domain/key/function）并重新开启
+
+### 8.1 Mermaid：JSON 加载与注册流程
+
+```mermaid
+sequenceDiagram
+  participant Loader as ITextLoader/InlineJson
+  participant Db as TriggerPlanJsonDatabase
+  participant Runner as TriggerRunner
+  participant Bus as EventBus
+
+  Loader->>Db: LoadFromJson(json)
+  Db->>Db: Deserialize DTO
+  Db->>Db: Build TriggerPlan<object>
+  Db->>Runner: RegisterAll(runner)
+  Runner->>Bus: Subscribe(EventId)
+```
+
+### 8.2 Mermaid：核心数据结构（简化类图）
+
+```mermaid
+classDiagram
+  class TriggerRunner~TCtx~
+  class ExecCtx~TCtx~ {
+    +IBlackboardResolver Blackboards
+    +IPayloadAccessorRegistry Payloads
+    +INumericVarDomainRegistry NumericDomains
+    +INumericRpnFunctionRegistry NumericFunctions
+    +ExecPolicy Policy
+    +ExecutionControl Control
+  }
+  class TriggerPlan~TArgs~
+  class PlannedTrigger~TArgs,TCtx~
+  class PredicateExprPlan
+  class BoolExprNode
+  class ActionCallPlan
+  class NumericValueRef {
+    +ENumericValueRefKind Kind
+    +double ConstValue
+    +int BoardId
+    +int KeyId
+    +int FieldId
+    +string DomainId
+    +string Key
+    +string ExprText
+  }
+
+  TriggerRunner~TCtx~ --> ExecCtx~TCtx~
+  TriggerRunner~TCtx~ --> PlannedTrigger~TArgs,TCtx~
+  PlannedTrigger~TArgs,TCtx~ --> TriggerPlan~TArgs~
+  TriggerPlan~TArgs~ --> PredicateExprPlan
+  PredicateExprPlan --> BoolExprNode
+  TriggerPlan~TArgs~ --> ActionCallPlan
+  ActionCallPlan --> NumericValueRef
+  BoolExprNode --> NumericValueRef
+```
 
 注意：
 - JSON 加载的计划是 `TriggerPlan<object>`，适用于“无强类型 payload / 纯 runtime 配置”的场景。
@@ -181,7 +322,7 @@ Runtime 目录大致按职责拆分：
 建议按顺序阅读：
 
 - `TriggeringExample.cs`
-  - 从零搭建 runner + payload/blackboard + RPN Int 求值
+  - 从零搭建 runner + payload/blackboard + RPN Numeric 求值
 
 - `TriggerPlanExample.cs`
   - 标准计划示例：复合条件（RPN And/Or/Not + Compare）+ 复合行为（多 action）+ 触发事件
@@ -226,7 +367,7 @@ Runtime 目录大致按职责拆分：
 - 当前 `TriggerContext` 仅包含 `Frame/Sequence`，若你需要“服务容器/世界引用”，建议通过泛型上下文 `TCtx` 承载（例如 `BattleTriggerContext`）：
   - 在 predicate/action 内使用 `ctx.Context.Services`
 
-- 对 expression 体系（Bool/Int）可持续扩展：
+- 对 expression 体系（Bool/Numeric）可持续扩展：
   - 增加更多 ValueRef（float/bool/string/entityId/tagset）
   - 增加更多节点（范围、集合包含、标签匹配等）
   - 增加 schema 驱动的 codegen 以确保强类型与性能

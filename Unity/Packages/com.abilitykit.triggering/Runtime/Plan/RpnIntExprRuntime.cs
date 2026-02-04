@@ -2,17 +2,17 @@ using System;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
-    public sealed class RpnIntExprRuntime
+    public sealed class RpnNumericExprRuntime
     {
-        private readonly RpnIntExprPlan _plan;
-        private RpnIntNode[] _cached;
+        private readonly RpnNumericExprPlan _plan;
+        private RpnNumericNode[] _cached;
 
-        public RpnIntExprRuntime(RpnIntExprPlan plan)
+        public RpnNumericExprRuntime(RpnNumericExprPlan plan)
         {
             _plan = plan;
         }
 
-        public int Eval<TArgs, TCtx>(in TArgs args, in ExecCtx<TCtx> ctx,
+        public double Eval<TArgs, TCtx>(in TArgs args, in ExecCtx<TCtx> ctx,
             Func<string, int> payloadFieldIdResolver = null,
             Func<string, int> blackboardDomainIdResolver = null,
             Func<string, int> blackboardKeyIdResolver = null)
@@ -22,15 +22,15 @@ namespace AbilityKit.Triggering.Runtime.Plan
             {
                 if (_cached == null)
                 {
-                    if (!string.Equals(_plan.ExprLang, RpnIntExprParser.LangRpnV1, StringComparison.Ordinal))
+                    if (!string.Equals(_plan.ExprLang, RpnNumericExprParser.LangRpnV1, StringComparison.Ordinal))
                         throw new InvalidOperationException("Unsupported expr lang: " + _plan.ExprLang);
-                    _cached = RpnIntExprParser.Parse(_plan.ExprText, payloadFieldIdResolver, blackboardDomainIdResolver, blackboardKeyIdResolver);
+                    _cached = RpnNumericExprParser.Parse(_plan.ExprText, payloadFieldIdResolver, blackboardDomainIdResolver, blackboardKeyIdResolver);
                 }
 
                 nodes = _cached;
             }
 
-            return RpnIntExprEval.Eval<TArgs, TCtx>(nodes, in args, in ctx);
+            return RpnNumericExprEval.Eval<TArgs, TCtx>(nodes, in args, in ctx);
         }
     }
 }

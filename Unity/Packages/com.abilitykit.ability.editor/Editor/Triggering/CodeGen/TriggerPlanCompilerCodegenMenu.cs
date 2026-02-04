@@ -168,10 +168,10 @@ namespace AbilityKit.Ability.Editor.Utilities
                     continue;
                 }
 
-                code += $"                    var a0 = TryReadSchemaIntValueRef(args, \"{ps[0].Name}\", payloadFieldIdResolver);" + nl;
+                code += $"                    var a0 = TryReadSchemaNumericValueRef(args, \"{ps[0].Name}\", payloadFieldIdResolver);" + nl;
                 if (ps.Length == 2)
                 {
-                    code += $"                    var a1 = TryReadSchemaIntValueRef(args, \"{ps[1].Name}\", payloadFieldIdResolver);" + nl;
+                    code += $"                    var a1 = TryReadSchemaNumericValueRef(args, \"{ps[1].Name}\", payloadFieldIdResolver);" + nl;
                     code += "                    if (a0.HasValue && a1.HasValue) plans = new[] { new ActionCallPlan(id, a0.Value, a1.Value) };" + nl;
                     code += "                    else if (a0.HasValue) plans = new[] { new ActionCallPlan(id, a0.Value) };" + nl;
                     code += "                    else plans = new[] { new ActionCallPlan(id) };" + nl;
@@ -212,8 +212,8 @@ namespace AbilityKit.Ability.Editor.Utilities
 
                 code += $"            if (string.Equals(type, \"{c.Type}\", StringComparison.Ordinal))" + nl;
                 code += "            {" + nl;
-                code += $"                var left = TryReadSchemaIntValueRef(args, \"{leftName}\", payloadFieldIdResolver);" + nl;
-                code += $"                var right = TryReadSchemaIntValueRef(args, \"{rightName}\", payloadFieldIdResolver);" + nl;
+                code += $"                var left = TryReadSchemaNumericValueRef(args, \"{leftName}\", payloadFieldIdResolver);" + nl;
+                code += $"                var right = TryReadSchemaNumericValueRef(args, \"{rightName}\", payloadFieldIdResolver);" + nl;
                 code += "                if (!left.HasValue || !right.HasValue) return false;" + nl;
                 code += $"                plan = new PredicateExprPlan(new[] {{ BoolExprNode.Compare({op}, left.Value, right.Value) }});" + nl;
                 code += "                return true;" + nl;
@@ -224,21 +224,21 @@ namespace AbilityKit.Ability.Editor.Utilities
             code += "        }" + nl;
 
             code += nl;
-            code += "        private static IntValueRef? TryReadSchemaIntValueRef(Dictionary<string, object> args, string name, Func<string, int> payloadFieldIdResolver)" + nl;
+            code += "        private static NumericValueRef? TryReadSchemaNumericValueRef(Dictionary<string, object> args, string name, Func<string, int> payloadFieldIdResolver)" + nl;
             code += "        {" + nl;
             code += "            if (args == null || string.IsNullOrEmpty(name)) return null;" + nl;
             code += "            if (args.TryGetValue(name + \"_field\", out var fObj) && fObj is string f && !string.IsNullOrEmpty(f))" + nl;
             code += "            {" + nl;
-            code += "                return IntValueRef.PayloadField(ResolveFieldId(payloadFieldIdResolver, f));" + nl;
+            code += "                return NumericValueRef.PayloadField(ResolveFieldId(payloadFieldIdResolver, f));" + nl;
             code += "            }" + nl;
             code += "            if (args.TryGetValue(name + \"_const\", out var cObj) && cObj != null)" + nl;
             code += "            {" + nl;
-            code += "                return IntValueRef.Const(Convert.ToInt32(cObj));" + nl;
+            code += "                return NumericValueRef.Const(Convert.ToDouble(cObj));" + nl;
             code += "            }" + nl;
             code += "            if (args.TryGetValue(name, out var vObj) && vObj != null)" + nl;
             code += "            {" + nl;
-            code += "                if (vObj is string s && !string.IsNullOrEmpty(s)) return IntValueRef.PayloadField(ResolveFieldId(payloadFieldIdResolver, s));" + nl;
-            code += "                return IntValueRef.Const(Convert.ToInt32(vObj));" + nl;
+            code += "                if (vObj is string s && !string.IsNullOrEmpty(s)) return NumericValueRef.PayloadField(ResolveFieldId(payloadFieldIdResolver, s));" + nl;
+            code += "                return NumericValueRef.Const(Convert.ToDouble(vObj));" + nl;
             code += "            }" + nl;
             code += "            return null;" + nl;
             code += "        }" + nl;

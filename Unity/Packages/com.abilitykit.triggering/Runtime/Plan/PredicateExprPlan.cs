@@ -15,7 +15,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         Not = 1,
         And = 2,
         Or = 3,
-        CompareInt = 4,
+        CompareNumeric = 4,
     }
 
     public enum ECompareOp : byte
@@ -33,10 +33,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly EBoolExprNodeKind Kind;
         public readonly bool ConstValue;
         public readonly ECompareOp CompareOp;
-        public readonly IntValueRef Left;
-        public readonly IntValueRef Right;
+        public readonly NumericValueRef Left;
+        public readonly NumericValueRef Right;
 
-        private BoolExprNode(EBoolExprNodeKind kind, bool constValue, ECompareOp compareOp, IntValueRef left, IntValueRef right)
+        private BoolExprNode(EBoolExprNodeKind kind, bool constValue, ECompareOp compareOp, NumericValueRef left, NumericValueRef right)
         {
             Kind = kind;
             ConstValue = constValue;
@@ -49,7 +49,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public static BoolExprNode Not() => new BoolExprNode(EBoolExprNodeKind.Not, default, default, default, default);
         public static BoolExprNode And() => new BoolExprNode(EBoolExprNodeKind.And, default, default, default, default);
         public static BoolExprNode Or() => new BoolExprNode(EBoolExprNodeKind.Or, default, default, default, default);
-        public static BoolExprNode Compare(ECompareOp op, IntValueRef left, IntValueRef right) => new BoolExprNode(EBoolExprNodeKind.CompareInt, default, op, left, right);
+        public static BoolExprNode Compare(ECompareOp op, NumericValueRef left, NumericValueRef right) => new BoolExprNode(EBoolExprNodeKind.CompareNumeric, default, op, left, right);
     }
 
     public readonly struct PredicateExprPlan

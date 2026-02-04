@@ -149,5 +149,6 @@
 
 ## 7. 关联文档
 
+- `Runtime/FrameSync/Design.md`
 - `com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/README.md`
 - `com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/Design.md`

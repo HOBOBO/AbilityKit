@@ -1,7 +1,13 @@
 using System;
 using AbilityKit.Core.Eventing;
+using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Eventing;
+using AbilityKit.Triggering.Payload;
+using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
+using AbilityKit.Triggering.Variables.Numeric;
+using AbilityKit.Triggering.Variables.Numeric.Domains;
 
 namespace AbilityKit.Triggering.Runtime.Example
 {
@@ -13,6 +19,21 @@ namespace AbilityKit.Triggering.Runtime.Example
             public Ping(int amount) { Amount = amount; }
         }
 
+        private sealed class PingPayloadAccessor : IPayloadIntAccessor<object>
+        {
+            public bool TryGet(in object args, int fieldId, out int value)
+            {
+                if (fieldId == Eventing.StableStringId.Get("payload:amount") && args is Ping p)
+                {
+                    value = p.Amount;
+                    return true;
+                }
+
+                value = default;
+                return false;
+            }
+        }
+
         private sealed class InlineTextLoader : TriggerPlanJsonDatabase.ITextLoader
         {
             private readonly string _text;
@@ -22,21 +43,72 @@ namespace AbilityKit.Triggering.Runtime.Example
 
         public static void RunOnce_LoadAndRegister()
         {
-            // 最简 JSON：只有一个触发器，没有 predicate、没有 actions。
-            // 注意：这里只演示 Load + Register；你可以自行扩展 Actions/PredicateExpr 等字段。
-            var json = "{\"Triggers\":[{\"TriggerId\":1,\"EventId\":" + Eventing.StableStringId.Get("event:ping") + ",\"AllowExternal\":true,\"Phase\":0,\"Priority\":0,\"Predicate\":{\"Kind\":\"none\"},\"Actions\":[]}] }";
+            var eventId = Eventing.StableStringId.Get("event:ping");
+            var payloadAmountFieldId = Eventing.StableStringId.Get("payload:amount");
+
+            var boardId = Eventing.StableStringId.Get("bb:combat");
+            var atkKeyId = Eventing.StableStringId.Get("bb:combat:atk");
+
+            // 条件：payload.amount >= 3 AND var(actor.hp) >= 7
+            // 动作：打印两个参数（arg0=payload.amount, arg1=var(actor.hp)）
+            var json =
+                "{\"Triggers\":[{" +
+                "\"TriggerId\":1," +
+                "\"EventId\":" + eventId + "," +
+                "\"AllowExternal\":true," +
+                "\"Phase\":0," +
+                "\"Priority\":0," +
+                "\"Predicate\":{\"Kind\":\"expr\",\"Nodes\":[" +
+                // payload.amount >= 3
+                "{\"Kind\":\"CompareNumeric\",\"CompareOp\":\"Ge\",\"Left\":{\"Kind\":\"PayloadField\",\"FieldId\":" + payloadAmountFieldId + "},\"Right\":{\"Kind\":\"Const\",\"ConstValue\":3}}," +
+                // var(actor.hp) >= 7
+                "{\"Kind\":\"CompareNumeric\",\"CompareOp\":\"Ge\",\"Left\":{\"Kind\":\"Var\",\"DomainId\":\"actor\",\"Key\":\"hp\"},\"Right\":{\"Kind\":\"Const\",\"ConstValue\":7}}," +
+                // AND
+                "{\"Kind\":\"And\"}" +
+                "]}," +
+                "\"Actions\":[{" +
+                "\"ActionId\":" + Eventing.StableStringId.Get("action:print_2") + "," +
+                "\"Arity\":2," +
+                "\"Arg0\":{\"Kind\":\"PayloadField\",\"FieldId\":" + payloadAmountFieldId + "}," +
+                "\"Arg1\":{\"Kind\":\"Var\",\"DomainId\":\"actor\",\"Key\":\"hp\"}" +
+                "}]}]}";
 
             var db = new TriggerPlanJsonDatabase();
-            db.Load(new InlineTextLoader(json), id: "inline");
+            db.LoadFromJson(json, sourceName: "inline");
 
             var bus = new EventBus();
-            var runner = new TriggerRunner<TriggerContext>(bus, new Registry.FunctionRegistry(), new Registry.ActionRegistry());
+            var functions = new FunctionRegistry();
+            var actions = new ActionRegistry();
 
+            var blackboards = new DictionaryBlackboardResolver();
+            var bb = new DictionaryBlackboard();
+            blackboards.Register(boardId, bb);
+            bb.SetDouble(atkKeyId, 7d);
+
+            var domainResolver = new DictionaryBlackboardDomainResolver();
+            domainResolver.Register("actor", boardId);
+
+            var numericDomains = new NumericVarDomainRegistry();
+            numericDomains.Register(new BlackboardNumericVarDomain("actor", domainResolver));
+
+            bb.SetDouble(BlackboardIdMapper.KeyId("actor.hp"), 7d);
+
+            var payloads = new PayloadAccessorRegistry();
+            payloads.RegisterIntAccessor(new PingPayloadAccessor());
+
+            actions.Register<PlannedTrigger<object, TriggerContext>.Action2>(
+                new ActionId(Eventing.StableStringId.Get("action:print_2")),
+                (evt, arg0, arg1, ctx) =>
+                {
+                    Console.WriteLine("json action: arg0(amount)=" + arg0 + " arg1(atk)=" + arg1);
+                },
+                isDeterministic: true);
+
+            var runner = new TriggerRunner<TriggerContext>(bus, functions, actions, blackboards: blackboards, payloads: payloads, numericDomains: numericDomains, numericFunctions: null);
             db.RegisterAll<TriggerContext>(runner);
 
-            // Publish 不会做任何事（因为没有 actions），但应该不会抛异常。
-            var key = new EventKey<object>(Eventing.StableStringId.Get("event:ping"));
-            bus.Publish(key, default(object));
+            var key = new EventKey<object>(eventId);
+            bus.Publish(key, new Ping(amount: 5));
             bus.Flush();
         }
     }

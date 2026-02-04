@@ -46,8 +46,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public string Kind;
             public bool ConstValue;
             public string CompareOp;
-            public IntValueRefDto Left;
-            public IntValueRefDto Right;
+            public NumericValueRefDto Left;
+            public NumericValueRefDto Right;
         }
 
         [Serializable]
@@ -55,18 +55,21 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public int ActionId;
             public int Arity;
-            public IntValueRefDto Arg0;
-            public IntValueRefDto Arg1;
+            public NumericValueRefDto Arg0;
+            public NumericValueRefDto Arg1;
         }
 
         [Serializable]
-        private sealed class IntValueRefDto
+        private sealed class NumericValueRefDto
         {
             public string Kind;
-            public int ConstValue;
+            public double ConstValue;
             public int BoardId;
             public int KeyId;
             public int FieldId;
+            public string DomainId;
+            public string Key;
+            public string ExprText;
         }
 
         public readonly struct Record
@@ -198,10 +201,10 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                         arr[i] = new ActionCallPlan(id);
                         break;
                     case 1:
-                        arr[i] = new ActionCallPlan(id, BuildIntValueRef(d.Arg0));
+                        arr[i] = new ActionCallPlan(id, BuildNumericValueRef(d.Arg0));
                         break;
                     case 2:
-                        arr[i] = new ActionCallPlan(id, BuildIntValueRef(d.Arg0), BuildIntValueRef(d.Arg1));
+                        arr[i] = new ActionCallPlan(id, BuildNumericValueRef(d.Arg0), BuildNumericValueRef(d.Arg1));
                         break;
                     default:
                         throw new InvalidOperationException($"Unsupported action arity: {d.Arity} actionId={d.ActionId}");
@@ -244,14 +247,14 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     case EBoolExprNodeKind.Or:
                         arr[i] = BoolExprNode.Or();
                         break;
-                    case EBoolExprNodeKind.CompareInt:
+                    case EBoolExprNodeKind.CompareNumeric:
                     {
                         if (!Enum.TryParse<ECompareOp>(d.CompareOp, out var op))
                         {
                             throw new InvalidOperationException($"Unknown compare op: {d.CompareOp}");
                         }
 
-                        arr[i] = BoolExprNode.Compare(op, BuildIntValueRef(d.Left), BuildIntValueRef(d.Right));
+                        arr[i] = BoolExprNode.Compare(op, BuildNumericValueRef(d.Left), BuildNumericValueRef(d.Right));
                         break;
                     }
                     default:
@@ -262,25 +265,29 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             return arr;
         }
 
-        private static IntValueRef BuildIntValueRef(IntValueRefDto dto)
+        private static NumericValueRef BuildNumericValueRef(NumericValueRefDto dto)
         {
             if (dto == null) return default;
 
-            if (!Enum.TryParse<EIntValueRefKind>(dto.Kind, out var kind))
+            if (!Enum.TryParse<ENumericValueRefKind>(dto.Kind, out var kind))
             {
-                throw new InvalidOperationException($"Unknown IntValueRef kind: {dto.Kind}");
+                throw new InvalidOperationException($"Unknown NumericValueRef kind: {dto.Kind}");
             }
 
             switch (kind)
             {
-                case EIntValueRefKind.Const:
-                    return IntValueRef.Const(dto.ConstValue);
-                case EIntValueRefKind.Blackboard:
-                    return IntValueRef.Blackboard(dto.BoardId, dto.KeyId);
-                case EIntValueRefKind.PayloadField:
-                    return IntValueRef.PayloadField(dto.FieldId);
+                case ENumericValueRefKind.Const:
+                    return NumericValueRef.Const(dto.ConstValue);
+                case ENumericValueRefKind.Blackboard:
+                    return NumericValueRef.Blackboard(dto.BoardId, dto.KeyId);
+                case ENumericValueRefKind.PayloadField:
+                    return NumericValueRef.PayloadField(dto.FieldId);
+                case ENumericValueRefKind.Var:
+                    return NumericValueRef.Var(dto.DomainId, dto.Key);
+                case ENumericValueRefKind.Expr:
+                    throw new NotSupportedException("UGC numeric value source kind 'Expr' is not allowed in JSON");
                 default:
-                    throw new InvalidOperationException($"Unsupported IntValueRef kind: {kind}");
+                    throw new InvalidOperationException($"Unsupported NumericValueRef kind: {kind}");
             }
         }
     }

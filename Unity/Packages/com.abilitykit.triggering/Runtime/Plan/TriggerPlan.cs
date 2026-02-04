@@ -7,8 +7,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
     {
         public readonly ActionId Id;
         public readonly byte Arity;
-        public readonly IntValueRef Arg0;
-        public readonly IntValueRef Arg1;
+        public readonly NumericValueRef Arg0;
+        public readonly NumericValueRef Arg1;
 
         public ActionCallPlan(ActionId id)
         {
@@ -18,7 +18,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Arg1 = default;
         }
 
-        public ActionCallPlan(ActionId id, IntValueRef arg0)
+        public ActionCallPlan(ActionId id, NumericValueRef arg0)
         {
             Id = id;
             Arity = 1;
@@ -26,12 +26,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Arg1 = default;
         }
 
-        public ActionCallPlan(ActionId id, int arg0)
-            : this(id, IntValueRef.Const(arg0))
+        public ActionCallPlan(ActionId id, double arg0)
+            : this(id, NumericValueRef.Const(arg0))
         {
         }
 
-        public ActionCallPlan(ActionId id, IntValueRef arg0, IntValueRef arg1)
+        public ActionCallPlan(ActionId id, NumericValueRef arg0, NumericValueRef arg1)
         {
             Id = id;
             Arity = 2;
@@ -39,8 +39,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Arg1 = arg1;
         }
 
-        public ActionCallPlan(ActionId id, int arg0, int arg1)
-            : this(id, IntValueRef.Const(arg0), IntValueRef.Const(arg1))
+        public ActionCallPlan(ActionId id, double arg0, double arg1)
+            : this(id, NumericValueRef.Const(arg0), NumericValueRef.Const(arg1))
         {
         }
     }
@@ -55,8 +55,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly FunctionId PredicateId;
 
         public readonly byte PredicateArity;
-        public readonly IntValueRef PredicateArg0;
-        public readonly IntValueRef PredicateArg1;
+        public readonly NumericValueRef PredicateArg0;
+        public readonly NumericValueRef PredicateArg1;
 
         public readonly PredicateExprPlan PredicateExpr;
 
@@ -76,7 +76,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Actions = actions;
         }
 
-        public TriggerPlan(int phase, int priority, FunctionId predicateId, IntValueRef predicateArg0, ActionCallPlan[] actions)
+        public TriggerPlan(int phase, int priority, FunctionId predicateId, NumericValueRef predicateArg0, ActionCallPlan[] actions)
         {
             Phase = phase;
             Priority = priority;
@@ -90,12 +90,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Actions = actions;
         }
 
-        public TriggerPlan(int phase, int priority, FunctionId predicateId, int predicateArg0, ActionCallPlan[] actions)
-            : this(phase, priority, predicateId, IntValueRef.Const(predicateArg0), actions)
+        public TriggerPlan(int phase, int priority, FunctionId predicateId, double predicateArg0, ActionCallPlan[] actions)
+            : this(phase, priority, predicateId, NumericValueRef.Const(predicateArg0), actions)
         {
         }
 
-        public TriggerPlan(int phase, int priority, FunctionId predicateId, IntValueRef predicateArg0, IntValueRef predicateArg1, ActionCallPlan[] actions)
+        public TriggerPlan(int phase, int priority, FunctionId predicateId, NumericValueRef predicateArg0, NumericValueRef predicateArg1, ActionCallPlan[] actions)
         {
             Phase = phase;
             Priority = priority;
@@ -109,8 +109,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Actions = actions;
         }
 
-        public TriggerPlan(int phase, int priority, FunctionId predicateId, int predicateArg0, int predicateArg1, ActionCallPlan[] actions)
-            : this(phase, priority, predicateId, IntValueRef.Const(predicateArg0), IntValueRef.Const(predicateArg1), actions)
+        public TriggerPlan(int phase, int priority, FunctionId predicateId, double predicateArg0, double predicateArg1, ActionCallPlan[] actions)
+            : this(phase, priority, predicateId, NumericValueRef.Const(predicateArg0), NumericValueRef.Const(predicateArg1), actions)
         {
         }
 

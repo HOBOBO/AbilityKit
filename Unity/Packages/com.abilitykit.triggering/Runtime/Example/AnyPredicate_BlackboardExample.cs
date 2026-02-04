@@ -24,6 +24,7 @@ namespace AbilityKit.Triggering.Runtime.Example
             var bus = new EventBus();
             var functions = new FunctionRegistry();
             var actions = new ActionRegistry();
+            var idNames = new IdNameRegistry();
 
             // 1) 准备黑板
             var blackboards = new DictionaryBlackboardResolver();
@@ -33,6 +34,9 @@ namespace AbilityKit.Triggering.Runtime.Example
 
             var shieldKey = StableStringId.Get("bb:combat:shield");
             bb.SetInt(shieldKey, 10);
+
+            idNames.RegisterBoard(boardId, "bb:combat");
+            idNames.RegisterKey(shieldKey, "bb:combat:shield");
 
             // 2) 注册任意条件函数：只有当 (damage.amount - shield) > 0 才触发
             var predicateId = new FunctionId(StableStringId.Get("pred:damage_after_shield_positive"));
@@ -62,7 +66,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 },
                 isDeterministic: true);
 
-            var runner = new TriggerRunner<TriggerContext>(bus, functions, actions, contextSource: null, observer: null, blackboards: blackboards, payloads: null, idNames: null, policy: ExecPolicy.DeterministicOnly);
+            var runner = new TriggerRunner<TriggerContext>(bus, functions, actions, contextSource: null, observer: null, blackboards: blackboards, payloads: null, idNames: idNames, policy: ExecPolicy.DeterministicOnly);
 
             var key = new EventKey<Damage>(StableStringId.Get("event:damage"));
 

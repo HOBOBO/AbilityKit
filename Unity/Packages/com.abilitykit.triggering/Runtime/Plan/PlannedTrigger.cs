@@ -3,18 +3,21 @@ using System.Buffers;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Payload;
+using AbilityKit.Triggering.Variables.Numeric;
+using AbilityKit.Triggering.Variables.Numeric.Expression;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
     public sealed class PlannedTrigger<TArgs, TCtx> : ITrigger<TArgs, TCtx>
     {
+        // ...
         public delegate bool Predicate0(TArgs args, ExecCtx<TCtx> ctx);
-        public delegate bool Predicate1(TArgs args, int arg0, ExecCtx<TCtx> ctx);
-        public delegate bool Predicate2(TArgs args, int arg0, int arg1, ExecCtx<TCtx> ctx);
+        public delegate bool Predicate1(TArgs args, double arg0, ExecCtx<TCtx> ctx);
+        public delegate bool Predicate2(TArgs args, double arg0, double arg1, ExecCtx<TCtx> ctx);
 
         public delegate void Action0(TArgs args, ExecCtx<TCtx> ctx);
-        public delegate void Action1(TArgs args, int arg0, ExecCtx<TCtx> ctx);
-        public delegate void Action2(TArgs args, int arg0, int arg1, ExecCtx<TCtx> ctx);
+        public delegate void Action1(TArgs args, double arg0, ExecCtx<TCtx> ctx);
+        public delegate void Action2(TArgs args, double arg0, double arg1, ExecCtx<TCtx> ctx);
 
         private readonly TriggerPlan<TArgs> _plan;
         private bool _resolved;
@@ -52,9 +55,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 case 0:
                     return _predicate0(args, ctx);
                 case 1:
-                    return _predicate1(args, ResolveInt(in args, in _plan.PredicateArg0, in ctx), ctx);
+                    return _predicate1(args, ResolveNumeric(in args, in _plan.PredicateArg0, in ctx), ctx);
                 case 2:
-                    return _predicate2(args, ResolveInt(in args, in _plan.PredicateArg0, in ctx), ResolveInt(in args, in _plan.PredicateArg1, in ctx), ctx);
+                    return _predicate2(args, ResolveNumeric(in args, in _plan.PredicateArg0, in ctx), ResolveNumeric(in args, in _plan.PredicateArg1, in ctx), ctx);
                 default:
                     throw new InvalidOperationException($"Unsupported predicate arity: {_plan.PredicateArity}");
             }
@@ -77,10 +80,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
                             _actions0[i](args, ctx);
                             break;
                         case 1:
-                            _actions1[i](args, ResolveInt(in args, in call.Arg0, in ctx), ctx);
+                            _actions1[i](args, ResolveNumeric(in args, in call.Arg0, in ctx), ctx);
                             break;
                         case 2:
-                            _actions2[i](args, ResolveInt(in args, in call.Arg0, in ctx), ResolveInt(in args, in call.Arg1, in ctx), ctx);
+                            _actions2[i](args, ResolveNumeric(in args, in call.Arg0, in ctx), ResolveNumeric(in args, in call.Arg1, in ctx), ctx);
                             break;
                         default:
                             throw new InvalidOperationException($"Unsupported action arity: {call.Arity}");
@@ -228,11 +231,11 @@ namespace AbilityKit.Triggering.Runtime.Plan
                         stack[sp++] = a || b;
                         break;
                     }
-                    case EBoolExprNodeKind.CompareInt:
+                    case EBoolExprNodeKind.CompareNumeric:
                     {
-                        var left = ResolveInt(in args, in n.Left, in ctx);
-                        var right = ResolveInt(in args, in n.Right, in ctx);
-                        stack[sp++] = CompareInt(n.CompareOp, left, right);
+                        var left = ResolveNumeric(in args, in n.Left, in ctx);
+                        var right = ResolveNumeric(in args, in n.Right, in ctx);
+                        stack[sp++] = CompareNumeric(n.CompareOp, left, right);
                         break;
                     }
                     default:
@@ -241,7 +244,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
         }
 
-        private static bool CompareInt(ECompareOp op, int left, int right)
+        private static bool CompareNumeric(ECompareOp op, double left, double right)
         {
             switch (op)
             {
@@ -256,11 +259,11 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
         }
 
-        private static int ResolveInt(in TArgs args, in IntValueRef valueRef, in ExecCtx<TCtx> ctx)
+        private static double ResolveNumeric(in TArgs args, in NumericValueRef valueRef, in ExecCtx<TCtx> ctx)
         {
-            if (valueRef.Kind == EIntValueRefKind.Const) return valueRef.ConstValue;
+            if (valueRef.Kind == ENumericValueRefKind.Const) return valueRef.ConstValue;
 
-            if (valueRef.Kind == EIntValueRefKind.Blackboard)
+            if (valueRef.Kind == ENumericValueRefKind.Blackboard)
             {
                 var resolver = ctx.Blackboards;
                 if (resolver == null)
@@ -273,15 +276,15 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     throw new InvalidOperationException($"Blackboard not found. boardId={FormatBoardId(in ctx, valueRef.BoardId)}");
                 }
 
-                if (!bb.TryGetInt(valueRef.KeyId, out var v))
+                if (!bb.TryGetDouble(valueRef.KeyId, out var v))
                 {
-                    throw new InvalidOperationException($"Blackboard int key not found. boardId={FormatBoardId(in ctx, valueRef.BoardId)} keyId={FormatKeyId(in ctx, valueRef.KeyId)}");
+                    throw new InvalidOperationException($"Blackboard numeric key not found. boardId={FormatBoardId(in ctx, valueRef.BoardId)} keyId={FormatKeyId(in ctx, valueRef.KeyId)}");
                 }
 
                 return v;
             }
 
-            if (valueRef.Kind == EIntValueRefKind.PayloadField)
+            if (valueRef.Kind == ENumericValueRefKind.PayloadField)
             {
                 var payloads = ctx.Payloads;
                 if (payloads == null)
@@ -289,15 +292,50 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     throw new InvalidOperationException($"Payload accessor registry is null. fieldId={FormatFieldId(in ctx, valueRef.FieldId)}");
                 }
 
-                if (!payloads.TryGetInt(in args, valueRef.FieldId, out var v))
+                if (!payloads.TryGetDouble(in args, valueRef.FieldId, out var v))
                 {
-                    throw new InvalidOperationException($"Payload int field not found. fieldId={FormatFieldId(in ctx, valueRef.FieldId)}");
+                    throw new InvalidOperationException($"Payload numeric field not found. fieldId={FormatFieldId(in ctx, valueRef.FieldId)}");
                 }
 
                 return v;
             }
 
-            throw new InvalidOperationException($"Unsupported IntValueRef kind: {valueRef.Kind}");
+            if (valueRef.Kind == ENumericValueRefKind.Var)
+            {
+                if (string.IsNullOrEmpty(valueRef.DomainId) || string.IsNullOrEmpty(valueRef.Key))
+                {
+                    throw new InvalidOperationException("Numeric var ref is empty");
+                }
+
+                if (!ctx.TryGetNumericVar(valueRef.DomainId, valueRef.Key, out var v))
+                {
+                    throw new InvalidOperationException($"Numeric var not found. domainId='{valueRef.DomainId}' key='{valueRef.Key}'");
+                }
+
+                return v;
+            }
+
+            if (valueRef.Kind == ENumericValueRefKind.Expr)
+            {
+                if (string.IsNullOrEmpty(valueRef.ExprText))
+                {
+                    throw new InvalidOperationException("Numeric expr text is empty");
+                }
+
+                if (!NumericExpressionCompiler.TryCompileCached(valueRef.ExprText, out var program) || program == null)
+                {
+                    throw new InvalidOperationException("Numeric expr compile failed: " + valueRef.ExprText);
+                }
+
+                if (!NumericExpressionEvaluator.TryEvaluate(in ctx, program, out var v))
+                {
+                    throw new InvalidOperationException("Numeric expr evaluate failed: " + valueRef.ExprText);
+                }
+
+                return v;
+            }
+
+            throw new InvalidOperationException($"Unsupported NumericValueRef kind: {valueRef.Kind}");
         }
 
         private static string FormatFunctionId(in ExecCtx<TCtx> ctx, FunctionId id)

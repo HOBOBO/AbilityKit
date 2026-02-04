@@ -263,8 +263,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             public string Kind;
             public bool ConstValue;
             public string CompareOp;
-            public IntValueRefDto Left;
-            public IntValueRefDto Right;
+            public NumericValueRefDto Left;
+            public NumericValueRefDto Right;
         }
 
         [Serializable]
@@ -272,18 +272,21 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             public int ActionId;
             public int Arity;
-            public IntValueRefDto Arg0;
-            public IntValueRefDto Arg1;
+            public NumericValueRefDto Arg0;
+            public NumericValueRefDto Arg1;
         }
 
         [Serializable]
-        private sealed class IntValueRefDto
+        private sealed class NumericValueRefDto
         {
             public string Kind;
-            public int ConstValue;
+            public double ConstValue;
             public int BoardId;
             public int KeyId;
             public int FieldId;
+            public string DomainId;
+            public string Key;
+            public string ExprText;
         }
 
         private static TriggerPlanDatabaseDto BuildPlanDto(
@@ -601,8 +604,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                             Kind = n.Kind.ToString(),
                             ConstValue = n.ConstValue,
                             CompareOp = n.CompareOp.ToString(),
-                            Left = BuildIntValueRefDto(in n.Left),
-                            Right = BuildIntValueRefDto(in n.Right)
+                            Left = BuildNumericValueRefDto(in n.Left),
+                            Right = BuildNumericValueRefDto(in n.Right)
                         });
                     }
                 }
@@ -626,22 +629,25 @@ namespace AbilityKit.Ability.Editor.Utilities
                 {
                     ActionId = a.Id.Value,
                     Arity = a.Arity,
-                    Arg0 = BuildIntValueRefDto(in a.Arg0),
-                    Arg1 = BuildIntValueRefDto(in a.Arg1)
+                    Arg0 = BuildNumericValueRefDto(in a.Arg0),
+                    Arg1 = BuildNumericValueRefDto(in a.Arg1)
                 });
             }
             return list;
         }
 
-        private static IntValueRefDto BuildIntValueRefDto(in IntValueRef r)
+        private static NumericValueRefDto BuildNumericValueRefDto(in NumericValueRef r)
         {
-            return new IntValueRefDto
+            return new NumericValueRefDto
             {
                 Kind = r.Kind.ToString(),
                 ConstValue = r.ConstValue,
                 BoardId = r.BoardId,
                 KeyId = r.KeyId,
-                FieldId = r.FieldId
+                FieldId = r.FieldId,
+                DomainId = r.DomainId,
+                Key = r.Key,
+                ExprText = r.ExprText
             };
         }
 

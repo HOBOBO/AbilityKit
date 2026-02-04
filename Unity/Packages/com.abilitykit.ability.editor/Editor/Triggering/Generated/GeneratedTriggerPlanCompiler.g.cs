@@ -101,10 +101,10 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return true;
             }
 
-            var a0 = TryReadSchemaIntValueRef(args, ps[0].Name, payloadFieldIdResolver);
+            var a0 = TryReadSchemaNumericValueRef(args, ps[0].Name, payloadFieldIdResolver);
             if (ps.Length == 2)
             {
-                var a1 = TryReadSchemaIntValueRef(args, ps[1].Name, payloadFieldIdResolver);
+                var a1 = TryReadSchemaNumericValueRef(args, ps[1].Name, payloadFieldIdResolver);
                 if (a0.HasValue && a1.HasValue) plans = new[] { new ActionCallPlan(id, a0.Value, a1.Value) };
                 else if (a0.HasValue) plans = new[] { new ActionCallPlan(id, a0.Value) };
                 else plans = new[] { new ActionCallPlan(id) };
@@ -139,8 +139,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             var leftName = ps.Length > 0 ? ps[0].Name : "key";
             var rightName = ps.Length > 1 ? ps[1].Name : "value";
 
-            var left = TryReadSchemaIntValueRef(args, leftName, payloadFieldIdResolver);
-            var right = TryReadSchemaIntValueRef(args, rightName, payloadFieldIdResolver);
+            var left = TryReadSchemaNumericValueRef(args, leftName, payloadFieldIdResolver);
+            var right = TryReadSchemaNumericValueRef(args, rightName, payloadFieldIdResolver);
             if (!left.HasValue || !right.HasValue) return false;
 
             var op = string.Equals(type, TriggerConditionTypes.ArgEq, StringComparison.Ordinal) ? ECompareOp.Eq : ECompareOp.Gt;
@@ -148,24 +148,24 @@ namespace AbilityKit.Ability.Editor.Utilities
             return true;
         }
 
-        private static IntValueRef? TryReadSchemaIntValueRef(Dictionary<string, object> args, string name, Func<string, int> payloadFieldIdResolver)
+        private static NumericValueRef? TryReadSchemaNumericValueRef(Dictionary<string, object> args, string name, Func<string, int> payloadFieldIdResolver)
         {
             if (args == null || string.IsNullOrEmpty(name)) return null;
 
             if (args.TryGetValue(name + "_field", out var fObj) && fObj is string f && !string.IsNullOrEmpty(f))
             {
-                return IntValueRef.PayloadField(ResolveFieldId(payloadFieldIdResolver, f));
+                return NumericValueRef.PayloadField(ResolveFieldId(payloadFieldIdResolver, f));
             }
 
             if (args.TryGetValue(name + "_const", out var cObj) && cObj != null)
             {
-                return IntValueRef.Const(Convert.ToInt32(cObj));
+                return NumericValueRef.Const(Convert.ToDouble(cObj));
             }
 
             if (args.TryGetValue(name, out var vObj) && vObj != null)
             {
-                if (vObj is string s && !string.IsNullOrEmpty(s)) return IntValueRef.PayloadField(ResolveFieldId(payloadFieldIdResolver, s));
-                return IntValueRef.Const(Convert.ToInt32(vObj));
+                if (vObj is string s && !string.IsNullOrEmpty(s)) return NumericValueRef.PayloadField(ResolveFieldId(payloadFieldIdResolver, s));
+                return NumericValueRef.Const(Convert.ToDouble(vObj));
             }
 
             return null;

@@ -4,22 +4,22 @@ using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
-    public static class RpnIntExprParser
+    public static class RpnNumericExprParser
     {
         public const string LangRpnV1 = "rpn_v1";
 
-        public static RpnIntNode[] Parse(
+        public static RpnNumericNode[] Parse(
             string exprText,
             Func<string, int> payloadFieldIdResolver = null,
             Func<string, int> blackboardDomainIdResolver = null,
             Func<string, int> blackboardKeyIdResolver = null)
         {
-            if (string.IsNullOrWhiteSpace(exprText)) return Array.Empty<RpnIntNode>();
+            if (string.IsNullOrWhiteSpace(exprText)) return Array.Empty<RpnNumericNode>();
 
             var tokens = exprText.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            if (tokens.Length == 0) return Array.Empty<RpnIntNode>();
+            if (tokens.Length == 0) return Array.Empty<RpnNumericNode>();
 
-            var nodes = new List<RpnIntNode>(tokens.Length);
+            var nodes = new List<RpnNumericNode>(tokens.Length);
             for (int i = 0; i < tokens.Length; i++)
             {
                 var t = tokens[i];
@@ -31,9 +31,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     continue;
                 }
 
-                if (TryParseConstInt(t, out var c))
+                if (TryParseConstNumeric(t, out var c))
                 {
-                    nodes.Add(RpnIntNode.Push(IntValueRef.Const(c)));
+                    nodes.Add(RpnNumericNode.Push(NumericValueRef.Const(c)));
                     continue;
                 }
 
@@ -41,7 +41,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 {
                     var id = payloadFieldIdResolver != null ? payloadFieldIdResolver(payloadName) : StableStringId.Get("payload:" + payloadName);
                     if (id == 0) throw new InvalidOperationException("Payload field id resolve failed: " + payloadName);
-                    nodes.Add(RpnIntNode.Push(IntValueRef.PayloadField(id)));
+                    nodes.Add(RpnNumericNode.Push(NumericValueRef.PayloadField(id)));
                     continue;
                 }
 
@@ -50,7 +50,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     var boardId = blackboardDomainIdResolver != null ? blackboardDomainIdResolver(domain) : StableStringId.Get("bb:" + domain);
                     var keyId = blackboardKeyIdResolver != null ? blackboardKeyIdResolver(domain + ":" + key) : StableStringId.Get("bb:" + domain + ":" + key);
                     if (boardId == 0 || keyId == 0) throw new InvalidOperationException("Blackboard id resolve failed: " + domain + ":" + key);
-                    nodes.Add(RpnIntNode.Push(IntValueRef.Blackboard(boardId, keyId)));
+                    nodes.Add(RpnNumericNode.Push(NumericValueRef.Blackboard(boardId, keyId)));
                     continue;
                 }
 
@@ -60,21 +60,21 @@ namespace AbilityKit.Triggering.Runtime.Plan
             return nodes.ToArray();
         }
 
-        private static bool TryParseOp(string token, out RpnIntNode node)
+        private static bool TryParseOp(string token, out RpnNumericNode node)
         {
             switch (token)
             {
                 case "+":
-                    node = RpnIntNode.Add();
+                    node = RpnNumericNode.Add();
                     return true;
                 case "-":
-                    node = RpnIntNode.Sub();
+                    node = RpnNumericNode.Sub();
                     return true;
                 case "*":
-                    node = RpnIntNode.Mul();
+                    node = RpnNumericNode.Mul();
                     return true;
                 case "/":
-                    node = RpnIntNode.Div();
+                    node = RpnNumericNode.Div();
                     return true;
                 default:
                     node = default;
@@ -82,9 +82,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
         }
 
-        private static bool TryParseConstInt(string token, out int value)
+        private static bool TryParseConstNumeric(string token, out double value)
         {
-            return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out value);
+            return double.TryParse(token, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out value);
         }
 
         private static bool TryParsePayload(string token, out string name)

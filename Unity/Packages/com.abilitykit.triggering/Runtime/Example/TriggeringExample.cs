@@ -49,7 +49,7 @@ namespace AbilityKit.Triggering.Runtime.Example
             blackboards.Register(boardId, bbCombat);
 
             var atkKeyId = Eventing.StableStringId.Get("bb:combat:atk");
-            bbCombat.SetInt(atkKeyId, 7);
+            bbCombat.SetDouble(atkKeyId, 7d);
 
             // 4) Payload 访问器
             var payloads = new PayloadAccessorRegistry();
@@ -59,7 +59,7 @@ namespace AbilityKit.Triggering.Runtime.Example
             var runner = new TriggerRunner<TriggerContext>(bus, functions, actions, contextSource: null, observer: null, blackboards: blackboards, payloads: payloads);
 
             // 6) 构建一个使用 RPN 的表达式：(payload.amount + bb.combat.atk)
-            var expr = new RpnIntExprRuntime(new RpnIntExprPlan(RpnIntExprParser.LangRpnV1, "payload:amount bb:combat:atk +"));
+            var expr = new RpnNumericExprRuntime(new RpnNumericExprPlan(RpnNumericExprParser.LangRpnV1, "payload:amount bb:combat:atk +"));
 
             var key = new EventKey<DamageEvent>(Eventing.StableStringId.Get("event:damage"));
 
