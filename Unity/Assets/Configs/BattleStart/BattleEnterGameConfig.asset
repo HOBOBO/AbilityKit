@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76e1774657609074ebcfa9b179e6b218, type: 3}
+  m_Name: BattleEnterGameConfig
+  m_EditorClassIdentifier: 
+  MapId: 1
+  RandomSeed: 12345
+  TickRate: 30
+  InputDelayFrames: 2
+  OpCode: 0
+  PayloadBase64: 

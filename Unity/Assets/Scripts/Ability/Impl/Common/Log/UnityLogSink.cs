@@ -16,7 +16,7 @@ namespace AbilityKit.Ability.Impl.Common.Log
         {
             if (!string.IsNullOrEmpty(message))
             {
-                Debug.LogError(message);
+                Debug.LogError($"{message}:{exception}");
             }
 
             Debug.LogException(exception);

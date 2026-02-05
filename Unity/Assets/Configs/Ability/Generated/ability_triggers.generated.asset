@@ -22,8 +22,8 @@ MonoBehaviour:
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 5516688646411649024
-    - rid: 5516688646411649025
+    - rid: 5516688670232936448
+    - rid: 5516688670232936449
   - Core:
       TriggerId: 20001
       EventId: skill.cast.complete
@@ -32,8 +32,8 @@ MonoBehaviour:
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 5516688646411649026
-    - rid: 5516688646411649027
+    - rid: 5516688670232936450
+    - rid: 5516688670232936451
   - Core:
       TriggerId: 20002
       EventId: skill.cast.complete
@@ -42,7 +42,7 @@ MonoBehaviour:
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 5516688646411649028
+    - rid: 5516688670232936452
   - Core:
       TriggerId: 20003
       EventId: 
@@ -51,7 +51,7 @@ MonoBehaviour:
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 5516688646411649029
+    - rid: 5516688670232936453
   - Core:
       TriggerId: 20004
       EventId: 
@@ -60,7 +60,7 @@ MonoBehaviour:
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 5516688646411649030
+    - rid: 5516688670232936454
   - Core:
       TriggerId: 20005
       EventId: 
@@ -69,8 +69,8 @@ MonoBehaviour:
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 5516688646411649031
-    - rid: 5516688646411649032
+    - rid: 5516688670232936455
+    - rid: 5516688670232936456
   - Core:
       TriggerId: 21001
       EventId: 
@@ -79,7 +79,7 @@ MonoBehaviour:
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 5516688646411649033
+    - rid: 5516688670232936457
   - Core:
       TriggerId: 21002
       EventId: 
@@ -88,8 +88,8 @@ MonoBehaviour:
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 5516688646411649034
-    - rid: 5516688646411649035
+    - rid: 5516688670232936458
+    - rid: 5516688670232936459
   - Core:
       TriggerId: 22001
       EventId: 
@@ -98,71 +98,71 @@ MonoBehaviour:
     LocalVars: []
     ConditionsStrong: []
     ActionsStrong:
-    - rid: 5516688646411649036
+    - rid: 5516688670232936460
   references:
     version: 2
     RefIds:
-    - rid: 5516688646411649024
+    - rid: 5516688670232936448
       type: {class: DebugLogActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         Message: "\u6D4B\u8BD5\u65E5\u5FD7\u8F93\u51FA1111122233333"
         DumpArgs: 0
-    - rid: 5516688646411649025
-      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+    - rid: 5516688670232936449
+      type: {class: ShootProjectileActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
-        TypeValue: shoot_projectile
-        Items: []
-    - rid: 5516688646411649026
+        LauncherId: 100001
+        ProjectileId: 200001
+    - rid: 5516688670232936450
       type: {class: DebugLogActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         Message: "\u91CA\u653E\u6280\u80FD\u5B8C\u6210\u65E5\u5FD7\u8F93\u51FA11111"
         DumpArgs: 0
-    - rid: 5516688646411649027
+    - rid: 5516688670232936451
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: emit
         Items: []
-    - rid: 5516688646411649028
+    - rid: 5516688670232936452
       type: {class: DebugLogActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         Message: "\u76D1\u542C\u522B\u4EBA\u91CA\u653E\u6280\u80FD\u5B8C\u6210\u65E5\u5FD7\u8F93\u51FA22222"
         DumpArgs: 0
-    - rid: 5516688646411649029
+    - rid: 5516688670232936453
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: add_buff
         Items: []
-    - rid: 5516688646411649030
+    - rid: 5516688670232936454
       type: {class: DebugLogActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         Message: "\u88AB\u52A8\u65E5\u5FD7\u8F93\u51FA11111"
         DumpArgs: 0
-    - rid: 5516688646411649031
+    - rid: 5516688670232936455
       type: {class: DebugLogActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         Message: "\u78B0\u649E\u56DE\u8C03\u65E5\u5FD7"
         DumpArgs: 1
-    - rid: 5516688646411649032
+    - rid: 5516688670232936456
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: give_damage
         Items: []
-    - rid: 5516688646411649033
+    - rid: 5516688670232936457
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: aoe_burst
         Items: []
-    - rid: 5516688646411649034
+    - rid: 5516688670232936458
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: give_damage
         Items: []
-    - rid: 5516688646411649035
+    - rid: 5516688670232936459
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: knock
         Items: []
-    - rid: 5516688646411649036
+    - rid: 5516688670232936460
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
         TypeValue: emit

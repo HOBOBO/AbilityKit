@@ -1,10 +1,14 @@
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Triggering.CodeGen;
 using UnityEngine.Scripting;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {
     [TriggerActionType("shoot_projectile", "发射子弹", "行为/Projectile", 0)]
+    [TriggerAction("shoot_projectile")]
+    [TriggerParam(0, "launcherId")]
+    [TriggerParam(1, "projectileId")]
     [Preserve]
     public sealed class ShootProjectileActionFactory : IActionFactory
     {

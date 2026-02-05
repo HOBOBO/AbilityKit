@@ -16,7 +16,7 @@ MonoBehaviour:
   - Id: 10001
     Name: 
     Phases:
-    - rid: 3080489919452282880
+    - rid: 5516688646411649038
   legacyDataList:
   - Id: 0
     Name: 
@@ -33,8 +33,8 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 3080489919452282880
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Game.Editor}
+    - rid: 5516688646411649038
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         Timeline:
           DurationMs: 3000

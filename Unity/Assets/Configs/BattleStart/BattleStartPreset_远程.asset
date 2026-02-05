@@ -9,15 +9,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 817406b655394cd428a1ec4c7a61e9fc, type: 3}
-  m_Name: BattleStartConfig
+  m_Script: {fileID: 11500000, guid: 4e1b6b1291856de4c9fda26c00fc50e2, type: 3}
+  m_Name: "BattleStartPreset_\u8FDC\u7A0B"
   m_EditorClassIdentifier: 
-  Preset: {fileID: 11400000, guid: 8d3da6860dfaff9439d982857e24b28d, type: 2}
-  RuntimeOverrides: {fileID: 0}
   WorldId: room_1
   WorldType: battle
   ClientId: battle_client
-  HostMode: 0
+  HostMode: 1
   AutoConnect: 1
   AutoCreateWorld: 1
   AutoJoin: 1

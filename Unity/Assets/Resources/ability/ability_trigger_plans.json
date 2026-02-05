@@ -37,10 +37,10 @@
         },
         {
           "ActionId": 508656420,
-          "Arity": 0,
+          "Arity": 2,
           "Arg0": {
             "Kind": "Const",
-            "ConstValue": 0.0,
+            "ConstValue": 100001.0,
             "BoardId": 0,
             "KeyId": 0,
             "FieldId": 0,
@@ -50,7 +50,7 @@
           },
           "Arg1": {
             "Kind": "Const",
-            "ConstValue": 0.0,
+            "ConstValue": 200001.0,
             "BoardId": 0,
             "KeyId": 0,
             "FieldId": 0,

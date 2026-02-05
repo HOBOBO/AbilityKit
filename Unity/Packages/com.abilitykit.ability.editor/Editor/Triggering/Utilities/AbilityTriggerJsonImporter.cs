@@ -173,6 +173,17 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return a;
             }
 
+            if (string.Equals(dto.Type, TriggerActionTypes.ShootProjectile, StringComparison.Ordinal))
+            {
+                var a = new ShootProjectileActionEditorConfig();
+                if (dto.Args != null)
+                {
+                    if (TryReadInt(dto.Args, "launcherId", out var launcherId)) a.LauncherId = launcherId;
+                    if (TryReadInt(dto.Args, "projectileId", out var projectileId)) a.ProjectileId = projectileId;
+                }
+                return a;
+            }
+
             // Fallback: keep exact dto shape.
             return JsonActionEditorConfig.FromDto(dto);
         }
@@ -201,6 +212,53 @@ namespace AbilityKit.Ability.Editor.Utilities
             try
             {
                 value = Convert.ToBoolean(obj);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool TryReadInt(Dictionary<string, object> args, string key, out int value)
+        {
+            value = 0;
+            if (args == null || string.IsNullOrEmpty(key)) return false;
+            if (!args.TryGetValue(key, out var obj) || obj == null) return false;
+
+            if (obj is int i)
+            {
+                value = i;
+                return true;
+            }
+
+            if (obj is long l)
+            {
+                value = (int)l;
+                return true;
+            }
+
+            if (obj is float f)
+            {
+                value = (int)f;
+                return true;
+            }
+
+            if (obj is double d)
+            {
+                value = (int)d;
+                return true;
+            }
+
+            if (obj is string s && int.TryParse(s, out var parsed))
+            {
+                value = parsed;
+                return true;
+            }
+
+            try
+            {
+                value = Convert.ToInt32(obj);
                 return true;
             }
             catch
