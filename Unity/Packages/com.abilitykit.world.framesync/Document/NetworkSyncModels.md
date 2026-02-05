@@ -194,3 +194,197 @@ sequenceDiagram
   - 方案 A：可记录网络快照流（用于复盘展示）
   - 方案 B：更推荐记录 authoritative inputs（可完全重演）
 
+---
+
+## 5. 混合架构：同局多模式客户端与切换策略
+
+本节回答一个常见诉求：
+
+- 服务器既运行权威逻辑世界，又能同时推送：
+  - **状态快照（State Stream）**
+  - **权威帧/权威输入/权威 hash（Authority Stream）**
+- 从而让“偏状态同步的客户端”和“偏预测回滚的客户端”在**同一局**共存。
+- 并允许在一定条件下（设备性能/带宽/网络质量）切换同步模式。
+
+结论：**可以做到同局共存**，但“动态切换”要严格限制时机，并且需要明确权威边界与对齐流程。
+
+### 5.1 前提：服务器权威世界是唯一真相
+
+同局多模式要稳定，通常需要：
+
+- 服务器始终运行权威逻辑世界（最终判定、最终状态）。
+- 两类客户端都以服务器为准：
+  - 状态同步客户端：主要消费快照做插值。
+  - 预测回滚客户端：本地可预测推进，但必须能被权威输入/hash/快照纠正。
+
+这意味着“帧同步客户端”在这里更准确的称呼是：**客户端预测 + 服务器权威纠错**，而不是“服务器不跑逻辑的纯 lockstep”。
+
+### 5.2 双通道输出（概念）
+
+- **State Stream（状态流）**：
+  - 世界/实体状态快照（全量或差量），用于插值与纠正。
+- **Authority Stream（权威流）**：
+  - 权威帧进度、authoritative inputs、authoritative hash（或关键校验数据）。
+  - 用于 predicted 客户端收敛与触发 rollback/replay。
+
+```mermaid
+flowchart LR
+  Srv["服务器：权威逻辑世界"]
+
+  Srv -->|"State Stream<br/>(snapshot/delta + timestamp/frame)"| NetA[网络 A]
+  Srv -->|"Authority Stream<br/>(authoritative inputs/hash/confirmed)"| NetB[网络 B]
+
+  NetA --> AClient["客户端 A<br/>状态同步+插值"]
+  NetB --> BClient["客户端 B<br/>预测+回滚+重演"]
+
+  NetA --> BClient
+
+  AClient --> ViewA["表现层<br/>插值/事件触发"]
+  BClient --> ViewB["表现层<br/>建议跟 confirmed<br/>(或可选预测表现)"]
+```
+
+说明：
+
+- 客户端 A 可以只订阅 State Stream。
+- 客户端 B 通常需要 Authority Stream，并可选订阅 State Stream 作为“强校正/补帧/观测”的来源。
+
+### 5.3 同局共存的收益与代价
+
+收益：
+
+- 可按客户端能力分级：
+  - 低端机/高丢包：偏方案 A（少算力，多带宽）
+  - 高端机/低延迟：偏方案 B（多算力，少延迟）
+
+代价：
+
+- 服务器可能需要同时维护两类下发（带宽上升）。
+- 你需要明确“哪些数据属于逻辑判定、哪些属于表现”，避免两种客户端看到的世界在语义上不一致。
+
+### 5.4 动态切换：可以做，但建议限制在“安全窗口”
+
+#### 5.4.1 为什么切换有成本
+
+两种客户端在本地维护的状态不同：
+
+- 状态同步：快照缓冲 + renderTime
+- 预测回滚：predictedFrame/confirmedFrame + inputHistory + rollbackSnapshots + hashes
+
+要切换，必须建立一个一致的“基线帧”。
+
+#### 5.4.2 推荐切换流程（从 A 切到 B）
+
+原则：**以服务器发出的基线快照为准**，并在基线帧之后开始记录 inputs/hash。
+
+```mermaid
+sequenceDiagram
+  participant S as 服务器
+  participant C as 客户端
+
+  Note over C: 当前模式：状态同步（A）
+  C->>S: 请求切换到预测模式（B）
+  S-->>C: 下发基线（baselineFrame + baselineSnapshot）
+  C->>C: 清空插值缓冲/预测历史
+  C->>C: Restore 到 baselineSnapshot
+  C->>C: 初始化 predictedFrame=baselineFrame<br/>confirmedFrame=baselineFrame
+  S-->>C: 下发 baselineFrame 之后的 authoritative inputs/hash（持续流）
+  loop 后续帧
+    C->>C: 本地预测 tick + capture + record predicted hash
+    C->>C: 收到 authoritative hash/input -> reconcile/rollback/replay
+  end
+```
+
+从 B 切回 A：
+
+- 通常更简单：客户端丢弃预测历史，开始以 State Stream 快照插值渲染即可。
+
+#### 5.4.3 建议的切换时机
+
+- 更推荐：
+  - 进入战斗/加载完成时
+  - 复活/重连/重建世界时
+- 尽量避免：
+  - 激烈战斗中频繁切换（会增加纠正与表现突变概率）
+
+### 5.5 公平性与安全性注意事项
+
+同局多模式必须保证：
+
+- **最终判定一致**：命中、打断、伤害、buff 生效全部以服务器为准。
+- **客户端预测只影响表现与短期操控反馈**，最终都要能被权威纠正。
+- 对“状态同步客户端”的插值延迟与“预测客户端”的输入延迟差异，需要从体验上做权衡（例如统一 UI 呈现的时间基准）。
+
+### 5.6 切换触发策略（建议）
+
+如果你的目标是“按算力/带宽/网络质量自动选择模式”，推荐以**会话级策略**为主，而不是战斗中间高频切换。
+
+建议的指标与阈值（示例，需结合你的 tickRate/玩法调参）：
+
+- **CPU/帧预算（客户端）**：
+  - predicted 模式（B）在低端机上可能因为 multi-step replay 造成卡顿。
+  - 触发降级：连续 N 秒逻辑帧耗时超过预算（例如超过 `fixedDelta * 0.8`）。
+
+- **网络质量（客户端）**：
+  - 指标：RTT、jitter、loss、out-of-order。
+  - 触发降级：丢包率持续偏高 / jitter 过大导致 authoritative inputs 长时间缺失（replay 等待频繁）。
+  - 触发升级：网络稳定后，且设备性能允许，再申请升级到 B。
+
+- **回滚压力（预测客户端）**：
+  - 指标：mismatch 频率、平均 rollback 距离、TryRestore 失败次数、ReplayWaitTimeout 次数。
+  - 触发降级：频繁 mismatch + replay 等待（说明“预测收敛性”差或权威输入不稳定）。
+
+建议策略：
+
+- 初次进入对局时，根据设备分档与网络探测选择默认模式。
+- 对局中只允许少量次切换，并要求进入“安全窗口”（例如死亡/复活/加载段）。
+
+### 5.7 服务器侧消息/通道设计建议
+
+为了支持两类客户端共存，建议把输出明确分层：
+
+- **State Stream（状态流）**：
+  - payload 面向“可渲染状态”，例如 Transform/Velocity、关键动画状态、离散事件（spawn/damage/cc）。
+  - 可做 delta 压缩与聚合打包。
+
+- **Authority Stream（权威流）**：
+  - payload 面向“收敛与可重演”：authoritative inputs、authoritative hash、confirmed frame。
+  - 要求：有序/可去重（至少每条带 `frameIndex`）。
+
+一个常见的工程化拆法是：
+
+- State Stream：允许丢包（UDP），靠下一包快照覆盖；客户端插值缓冲自然容错。
+- Authority Stream：尽量保证有序与到达（或至少可请求补齐），否则 predicted 侧会出现 replay 等待/降级。
+
+### 5.8 切换实现清单（Checklist）
+
+从 A 切到 B 时，你至少需要保证：
+
+- **基线帧**：服务器下发 `baselineFrame`。
+- **基线状态**：服务器下发与该帧严格对齐的 `baselineSnapshot`（建议全量）。
+- **重建预测上下文**：
+  - 清空输入历史与 rollback ring buffers。
+  - `confirmedFrame = baselineFrame`，`predictedFrame = baselineFrame`。
+- **权威流补齐策略**：
+  - baselineFrame 之后的 authoritative inputs/hash 必须能持续到达。
+  - 若缺失，驱动层需要等待或超时降级。
+
+从 B 切到 A 时，你至少需要保证：
+
+- 丢弃 predicted 历史与本地预测状态（避免旧预测继续影响表现）。
+- 进入插值缓冲渲染：
+  - 选定插值延迟。
+  - 处理瞬移阈值与软纠正。
+
+### 5.9 常见误区（FAQ）
+
+- **误区 1：服务器同时发 inputs 和 snapshots，就等于两种架构都免费得到。**
+  - 现实是：两种客户端维护的本地时间线不同；切换需要基线与历史重建。
+
+- **误区 2：预测客户端一定比状态同步客户端“更公平/更强”。**
+  - 预测只是更低输入延迟；最终判定仍必须以服务器为准，否则会引入作弊面。
+
+- **误区 3：战斗中可以随意频繁切换模式。**
+  - 频繁切换会导致大量纠正与表现突变；推荐限制在安全窗口。
+
+
+

@@ -1,0 +1,62 @@
+using System;
+using System.Collections.Generic;
+using AbilityKit.Ability.Share.Common.SnapshotRouting;
+
+namespace AbilityKit.Game.Flow
+{
+    public sealed partial class BattleSessionFeature
+    {
+        private SnapshotRoutingInstance _snapshotRouting;
+
+        private void BuildSnapshotRouting()
+        {
+            var catalog = new SnapshotRegistryCatalog()
+                .Add("battle", AbilityKit.Game.Flow.Snapshot.BattleSnapshotRegistry.RegisterAll)
+                .Add("lobby", AbilityKit.Game.Flow.Snapshot.LobbySnapshotRegistry.RegisterAll)
+                .Add("shared", AbilityKit.Game.Flow.Snapshot.SharedSnapshotRegistry.RegisterAll);
+
+            ISet<string> enabledRegistryIds = null;
+            if (_plan.EnabledSnapshotRegistryIds != null && _plan.EnabledSnapshotRegistryIds.Length > 0)
+            {
+                enabledRegistryIds = new HashSet<string>(_plan.EnabledSnapshotRegistryIds, StringComparer.Ordinal);
+            }
+
+            _snapshotRouting = enabledRegistryIds == null
+                ? SnapshotRoutingBuilder.Build(_ctx, catalog)
+                : SnapshotRoutingBuilder.Build(_ctx, catalog, enabledRegistryIds);
+
+            _snapshots = _snapshotRouting.Snapshots;
+            _pipeline = _snapshotRouting.Pipeline;
+            _cmdHandler = _snapshotRouting.CmdHandler;
+
+            _netAdapterCtx = new BattleSessionNetAdapterContext(this);
+            _netAdapter = new BattleSessionNetAdapter(_netAdapterCtx);
+
+            if (_ctx != null)
+            {
+                _ctx.FrameSnapshots = _snapshots;
+                _ctx.SnapshotPipeline = _pipeline;
+                _ctx.CmdHandler = _cmdHandler;
+            }
+        }
+
+        private void DisposeSnapshotRouting()
+        {
+            _snapshotRouting?.Dispose();
+            _snapshotRouting = null;
+
+            if (_ctx != null)
+            {
+                _ctx.SnapshotPipeline = null;
+                _ctx.CmdHandler = null;
+                _ctx.FrameSnapshots = null;
+            }
+
+            _netAdapter = null;
+            _netAdapterCtx = null;
+            _cmdHandler = null;
+            _pipeline = null;
+            _snapshots = null;
+        }
+    }
+}

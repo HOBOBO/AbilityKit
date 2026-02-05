@@ -12,9 +12,6 @@ namespace AbilityKit.Game.Flow.Snapshot
             ISnapshotCmdHandlerRegistry cmd)
         {
             RegisterAllGenerated(dispatcherDecoders, pipelineDecoders, pipeline, cmd);
-
-            dispatcherDecoders.RegisterDecoder<AbilityKit.Ability.Share.Impl.Moba.Services.MobaAreaEventSnapshotCodec.Entry[]>((int)AbilityKit.Ability.Share.Impl.Moba.Services.MobaOpCode.AreaEventSnapshot, AbilityKit.Game.Flow.Snapshot.BattleSnapshotDeclarations.DecodeAreaEvents);
-            pipelineDecoders.RegisterDecoder<AbilityKit.Ability.Share.Impl.Moba.Services.MobaAreaEventSnapshotCodec.Entry[]>((int)AbilityKit.Ability.Share.Impl.Moba.Services.MobaOpCode.AreaEventSnapshot, AbilityKit.Game.Flow.Snapshot.BattleSnapshotDeclarations.DecodeAreaEvents);
         }
 
         static partial void RegisterAllGenerated(

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
@@ -7,6 +8,8 @@ using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Rollback;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Impl.Moba.Worlds.Blueprints;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Share.Common.SnapshotRouting;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
@@ -15,6 +18,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Ability.Host.Extensions.Rollback;
 using AbilityKit.Ability.Host.Extensions.Time;
+using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Game.Battle
 {
@@ -25,6 +29,10 @@ namespace AbilityKit.Game.Battle
         private readonly HostRuntime _server;
         private readonly IBattleLogicClient _client;
         private readonly IBattleLogicTransport _transport;
+
+        private RemoteFrameBuffer<RemoteInputFrame> _remoteInputFrames;
+        private RemoteFrameBuffer<RemoteSnapshotFrame> _remoteSnapshotFrames;
+        private readonly RemoteFrameAggregator _remoteFrameAggregator = new RemoteFrameAggregator();
 
         public ServerRollbackModule RollbackModule { get; }
 
@@ -138,6 +146,8 @@ namespace AbilityKit.Game.Battle
             {
                 _client.Join(new JoinWorldRequest(_options.WorldId, new PlayerId(_options.PlayerId)));
             }
+
+            _client.FrameReceived += OnFrameReceivedForStreams;
         }
 
         private RollbackRegistry BuildRollbackRegistry(IWorld world)
@@ -162,6 +172,42 @@ namespace AbilityKit.Game.Battle
         {
             add => _client.FrameReceived += value;
             remove => _client.FrameReceived -= value;
+        }
+
+        public IRemoteFrameSource<RemoteInputFrame> RemoteInputFrames
+        {
+            get
+            {
+                EnsureRemoteFrameStreamsCreated();
+                return _remoteInputFrames;
+            }
+        }
+
+        public IRemoteFrameSink<RemoteInputFrame> RemoteInputSink
+        {
+            get
+            {
+                EnsureRemoteFrameStreamsCreated();
+                return _remoteInputFrames;
+            }
+        }
+
+        public IRemoteFrameSource<RemoteSnapshotFrame> RemoteSnapshotFrames
+        {
+            get
+            {
+                EnsureRemoteFrameStreamsCreated();
+                return _remoteSnapshotFrames;
+            }
+        }
+
+        public IRemoteFrameSink<RemoteSnapshotFrame> RemoteSnapshotSink
+        {
+            get
+            {
+                EnsureRemoteFrameStreamsCreated();
+                return _remoteSnapshotFrames;
+            }
         }
 
         public WorldId WorldId => _client.WorldId;
@@ -215,9 +261,39 @@ namespace AbilityKit.Game.Battle
 
         public void Dispose()
         {
+            _client.FrameReceived -= OnFrameReceivedForStreams;
             _client?.Dispose();
             (_transport as IDisposable)?.Dispose();
             _worldManager?.DisposeAll();
+
+            _remoteInputFrames?.Dispose();
+            _remoteSnapshotFrames?.Dispose();
+        }
+
+        private void EnsureRemoteFrameStreamsCreated()
+        {
+            _remoteInputFrames ??= new RemoteFrameBuffer<RemoteInputFrame>(initialCapacity: 256);
+            _remoteSnapshotFrames ??= new RemoteFrameBuffer<RemoteSnapshotFrame>(initialCapacity: 256);
+        }
+
+        private void OnFrameReceivedForStreams(FramePacket packet)
+        {
+            if (packet == null) return;
+            EnsureRemoteFrameStreamsCreated();
+
+            var frame = packet.Frame.Value;
+
+            _remoteFrameAggregator.AddPacket(packet);
+            _remoteInputFrames.Add(frame, _remoteFrameAggregator.BuildInputFrame(packet.Frame));
+            _remoteSnapshotFrames.Add(frame, _remoteFrameAggregator.BuildSnapshotFrame(packet.Frame));
+
+            var trimBefore = frame - 256;
+            if (trimBefore > 0)
+            {
+                _remoteFrameAggregator.TrimBefore(trimBefore);
+                _remoteInputFrames.TrimBefore(trimBefore);
+                _remoteSnapshotFrames.TrimBefore(trimBefore);
+            }
         }
     }
 }

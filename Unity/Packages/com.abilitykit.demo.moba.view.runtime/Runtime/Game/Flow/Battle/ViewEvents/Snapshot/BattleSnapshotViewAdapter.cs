@@ -1,7 +1,7 @@
 using System;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Game.Flow.Snapshot;
+using AbilityKit.Ability.Share.Common.SnapshotRouting;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot
 {

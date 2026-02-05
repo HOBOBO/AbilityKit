@@ -7,6 +7,18 @@
     "author":  {
                    "name":  "AbilityKit"
                },
+    "samples":  [
+                     {
+                         "displayName":  "Record Delta Sample",
+                         "description":  "record 模块 delta/change-set 事件写入 + 序列化 + 回放示例",
+                         "path":  "Samples~/RecordDeltaSample"
+                     },
+                     {
+                         "displayName":  "Battle Log Sample",
+                         "description":  "record 模块记录战斗技能效果事件（cast/buff/damage）写入 + 序列化 + 回放示例",
+                         "path":  "Samples~/BattleLogSample"
+                     }
+                 ],
     "dependencies":  {
                          "com.abilitykit.core":  "0.0.1",
                          "com.abilitykit.world.framesync":  "0.0.1",

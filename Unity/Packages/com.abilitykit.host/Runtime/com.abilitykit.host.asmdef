@@ -4,8 +4,7 @@
   "references": [
     "AbilityKit.Core",
     "AbilityKit.World.DI",
-    "AbilityKit.World.FrameSync",
-    "AbilityKit.World.Snapshot"
+    "AbilityKit.World.FrameSync"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
