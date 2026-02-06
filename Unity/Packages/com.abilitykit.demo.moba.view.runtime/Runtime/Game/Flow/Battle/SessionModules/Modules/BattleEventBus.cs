@@ -6,6 +6,7 @@ namespace AbilityKit.Game.Flow.Battle.Modules
     public sealed class BattleEventBus : IDisposable
     {
         private readonly Dictionary<Type, List<Delegate>> _handlers = new Dictionary<Type, List<Delegate>>();
+        private readonly Dictionary<Type, List<Delegate>> _interceptors = new Dictionary<Type, List<Delegate>>();
         private readonly Queue<object> _queue = new Queue<object>(32);
 
         public IDisposable Subscribe<T>(Action<T> handler)
@@ -29,6 +30,42 @@ namespace AbilityKit.Game.Flow.Battle.Modules
             if (!_handlers.TryGetValue(t, out var list) || list == null) return;
             list.Remove(handler);
             if (list.Count == 0) _handlers.Remove(t);
+        }
+
+        public IDisposable SubscribeIntercept<T>(Func<T, bool> handler)
+        {
+            if (handler == null) throw new ArgumentNullException(nameof(handler));
+
+            var t = typeof(T);
+            if (!_interceptors.TryGetValue(t, out var list) || list == null)
+            {
+                list = new List<Delegate>(4);
+                _interceptors[t] = list;
+            }
+
+            list.Add(handler);
+            return new Subscription(() => UnsubscribeIntercept(handler));
+        }
+
+        private void UnsubscribeIntercept<T>(Func<T, bool> handler)
+        {
+            var t = typeof(T);
+            if (!_interceptors.TryGetValue(t, out var list) || list == null) return;
+            list.Remove(handler);
+            if (list.Count == 0) _interceptors.Remove(t);
+        }
+
+        public bool Intercept<T>(T evt)
+        {
+            var t = typeof(T);
+            if (!_interceptors.TryGetValue(t, out var list) || list == null || list.Count == 0) return false;
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] is Func<T, bool> h && h.Invoke(evt)) return true;
+            }
+
+            return false;
         }
 
         public void Publish<T>(T evt)
@@ -63,6 +100,7 @@ namespace AbilityKit.Game.Flow.Battle.Modules
         public void Dispose()
         {
             _handlers.Clear();
+            _interceptors.Clear();
             _queue.Clear();
         }
 

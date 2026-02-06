@@ -1,9 +1,70 @@
 using System;
+using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Game.Flow.Battle.Modules
 {
     public readonly struct StartSessionRequested
     {
+    }
+
+    public readonly struct SessionStartingEvent
+    {
+        public readonly BattleStartPlan Plan;
+
+        public SessionStartingEvent(BattleStartPlan plan)
+        {
+            Plan = plan;
+        }
+    }
+
+    public readonly struct SessionStoppingEvent
+    {
+        public readonly BattleStartPlan Plan;
+
+        public SessionStoppingEvent(BattleStartPlan plan)
+        {
+            Plan = plan;
+        }
+    }
+
+    public readonly struct ViewBinderReadyEvent
+    {
+        public readonly bool IsConfirmed;
+        public readonly WorldId WorldId;
+
+        public ViewBinderReadyEvent(bool isConfirmed, WorldId worldId)
+        {
+            IsConfirmed = isConfirmed;
+            WorldId = worldId;
+        }
+    }
+
+    public readonly struct ViewsReboundEvent
+    {
+        public readonly bool IsConfirmed;
+        public readonly WorldId WorldId;
+        public readonly int Frame;
+
+        public ViewsReboundEvent(bool isConfirmed, WorldId worldId, int frame)
+        {
+            IsConfirmed = isConfirmed;
+            WorldId = worldId;
+            Frame = frame;
+        }
+    }
+
+    public readonly struct ViewFrameAlignedEvent
+    {
+        public readonly bool IsConfirmed;
+        public readonly WorldId WorldId;
+        public readonly int Frame;
+
+        public ViewFrameAlignedEvent(bool isConfirmed, WorldId worldId, int frame)
+        {
+            IsConfirmed = isConfirmed;
+            WorldId = worldId;
+            Frame = frame;
+        }
     }
 
     public sealed class BattleSessionHooks

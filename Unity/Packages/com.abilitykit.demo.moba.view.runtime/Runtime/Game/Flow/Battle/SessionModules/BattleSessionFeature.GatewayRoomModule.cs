@@ -12,7 +12,6 @@ namespace AbilityKit.Game.Flow
             private readonly BattleSessionFeature _feature;
 
             private IDisposable _planBuiltSub;
-            private IDisposable _preTickSub;
 
             private BattleEventBus _events;
 
@@ -29,23 +28,18 @@ namespace AbilityKit.Game.Flow
             {
                 _events = ctx.Events;
 
-                _planBuiltSub = ctx.Hooks?.PlanBuilt.Add(_ =>
+                _planBuiltSub = ctx.Events?.SubscribeIntercept<PlanBuiltEvent>(_ =>
                 {
                     if (!_feature.ShouldPrepareGatewayRoom()) return false;
                     _feature.StartGatewayRoomPreparation();
                     return true;
                 });
-
-                _preTickSub = ctx.Hooks?.PreTick.Add(PreTick);
             }
 
             public void OnDetach(in BattleSessionModuleContext ctx)
             {
                 _planBuiltSub?.Dispose();
                 _planBuiltSub = null;
-
-                _preTickSub?.Dispose();
-                _preTickSub = null;
 
                 _events = null;
 
@@ -56,7 +50,7 @@ namespace AbilityKit.Game.Flow
             {
             }
 
-            private void PreTick(float deltaTime)
+            public void PreTick(in BattleSessionModuleContext ctx, float deltaTime)
             {
                 if (_feature._gatewayRoomConn == null) return;
 

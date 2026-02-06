@@ -24,8 +24,8 @@ namespace AbilityKit.Game.Flow
 
             public void OnAttach(in BattleSessionModuleContext ctx)
             {
-                _sessionStartingSub = ctx.Hooks?.SessionStarting.Add(() => _feature.BuildSnapshotRouting());
-                _sessionStoppingSub = ctx.Hooks?.SessionStopping.Add(() => _feature.DisposeSnapshotRouting());
+                _sessionStartingSub = ctx.Events?.Subscribe<SessionStartingEvent>(_ => _feature.BuildSnapshotRouting());
+                _sessionStoppingSub = ctx.Events?.Subscribe<SessionStoppingEvent>(_ => _feature.DisposeSnapshotRouting());
             }
 
             public void OnDetach(in BattleSessionModuleContext ctx)

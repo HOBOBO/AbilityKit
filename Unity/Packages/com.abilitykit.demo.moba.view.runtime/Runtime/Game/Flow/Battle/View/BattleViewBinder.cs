@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
@@ -50,6 +51,29 @@ namespace AbilityKit.Game.Flow
 
         private readonly Dictionary<EC.EntityId, Handle> _handles = new Dictionary<EC.EntityId, Handle>();
         private readonly Dictionary<int, EC.EntityId> _actorIdToEntityId = new Dictionary<int, EC.EntityId>();
+
+        public bool TryGetShellGameObject(EC.EntityId id, out GameObject go)
+        {
+            go = null;
+            if (!_handles.TryGetValue(id, out var h) || h == null) return false;
+            if (h.Destroyed) return false;
+            if (h.GameObject == null) return false;
+            go = h.GameObject;
+            return true;
+        }
+
+        public void ForEachShellGameObject(Action<int, EC.EntityId, GameObject> visitor)
+        {
+            if (visitor == null) return;
+
+            foreach (var kv in _handles)
+            {
+                var id = kv.Key;
+                var h = kv.Value;
+                if (h == null || h.Destroyed || h.GameObject == null) continue;
+                visitor(h.ActorId, id, h.GameObject);
+            }
+        }
 
         public bool TryGetAttachRoot(BattleNetId netId, out Transform t)
         {
@@ -109,7 +133,7 @@ namespace AbilityKit.Game.Flow
                 if (h.GameObject != null)
                 {
                     if (h.ViewHandle != null) h.ViewHandle.Registry = null;
-                    Object.Destroy(h.GameObject);
+                    UnityEngine.Object.Destroy(h.GameObject);
                     h.GameObject = null;
                     h.ViewHandle = null;
                 }
@@ -167,7 +191,7 @@ namespace AbilityKit.Game.Flow
             if (h.GameObject != null)
             {
                 if (h.ViewHandle != null) h.ViewHandle.Registry = null;
-                Object.Destroy(h.GameObject);
+                UnityEngine.Object.Destroy(h.GameObject);
                 h.GameObject = null;
                 h.ViewHandle = null;
             }
@@ -189,7 +213,7 @@ namespace AbilityKit.Game.Flow
                 if (h?.GameObject != null)
                 {
                     if (h.ViewHandle != null) h.ViewHandle.Registry = null;
-                    Object.Destroy(h.GameObject);
+                    UnityEngine.Object.Destroy(h.GameObject);
                 }
 
                 if (h != null && h.VfxEntityId.Index != 0 && _vfx != null)

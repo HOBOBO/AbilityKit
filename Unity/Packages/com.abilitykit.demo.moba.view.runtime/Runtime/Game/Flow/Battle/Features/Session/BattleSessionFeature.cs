@@ -1,19 +1,23 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Impl.Moba.Systems;
 using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Ability.Share.Common.Record.Lockstep;
 using AbilityKit.Ability.Share.Common.SnapshotRouting;
 using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Game.Battle;
-using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Game.Battle.Moba.Config;
-using AbilityKit.Game.Flow.Battle.Replay;
+using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Game.Flow.Battle.Modules;
+using AbilityKit.Game.Flow.Battle.Replay;
+using AbilityKit.Game.Flow.Modules;
+using AbilityKit.Network.Abstractions;
+using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
@@ -54,7 +58,10 @@ namespace AbilityKit.Game.Flow
         private bool _tickEnteredLogged;
         private bool _autoPlanLogged;
 
-        private List<IBattleSessionModule> _modules;
+        private Exception _pendingModuleValidationFailure;
+
+        private List<ISessionSubFeature<BattleSessionFeature>> _subFeatures;
+        private ModuleHost<FeatureModuleContext<BattleSessionFeature>, ISessionSubFeature<BattleSessionFeature>> _subFeatureHost;
 
         internal BattleEventBus Events { get; private set; }
         internal BattleSessionHooks Hooks { get; private set; }
@@ -86,71 +93,14 @@ namespace AbilityKit.Game.Flow
             _root = ctx.Root;
             _flow = ctx.Entry != null ? ctx.Entry.Get<GameFlowDomain>() : null;
 
-            Hooks = new BattleSessionHooks();
-            Events = new BattleEventBus();
-            Events.Subscribe<StartSessionRequested>(_ => OnStartSessionRequested());
-            Events.Subscribe<SessionFailedEvent>(e =>
-            {
-                SessionFailed?.Invoke(e.Exception);
-                Hooks?.SessionFailed.Invoke(e.Exception);
-            });
-            Events.Subscribe<FirstFrameReceivedEvent>(_ =>
-            {
-                FirstFrameReceived?.Invoke();
-                Hooks?.FirstFrameReceived.Invoke();
-            });
-
             EnsureModulesCreated();
-            InvokeModulesAttach(ctx);
-
-            _unityDispatcher = AbilityKit.Network.Abstractions.UnityMainThreadDispatcher.CaptureCurrent();
-            _networkIoDispatcher ??= new AbilityKit.Network.Abstractions.DedicatedThreadDispatcher("GatewayNetworkThread");
-
-#if UNITY_EDITOR
-            TryInstallEditorPlayModeStopHook();
-#endif
-
-            _plan = _bootstrapper?.Build() ?? default;
-
-            Events?.Publish(new PlanBuiltEvent(_plan));
-            var planBuiltHandled = Hooks != null && Hooks.PlanBuilt.Invoke(_plan);
-
-            Log.Info($"[BattleSessionFeature] OnAttach Plan: HostMode={_plan.HostMode}, UseGatewayTransport={_plan.UseGatewayTransport}, Gateway={_plan.GatewayHost}:{_plan.GatewayPort}, NumericRoomId={_plan.NumericRoomId}, AutoConnect={_plan.AutoConnect}, AutoCreateWorld={_plan.AutoCreateWorld}, AutoJoin={_plan.AutoJoin}, AutoReady={_plan.AutoReady}, WorldId={_plan.WorldId}, PlayerId={_plan.PlayerId}");
-
-            if (!(planBuiltHandled || InvokeModulesPlanBuilt()))
-            {
-                try
-                {
-                    StartSession();
-                    SessionStarted?.Invoke();
-                    Events?.Publish(new SessionStartedEvent(_plan));
-                    Hooks?.SessionStarted.Invoke(_plan);
-                    ApplyAutoPlanActions();
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, "[BattleSessionFeature] StartSession failed in OnAttach");
-                    StopSession();
-                    Events?.Publish(new SessionFailedEvent(ex));
-                    return;
-                }
-            }
-
-            if (_ctx != null)
-            {
-                _ctx.Plan = _plan;
-                _ctx.Session = _session;
-                _ctx.LastFrame = _lastFrame;
-            }
-
+            _subFeatureHost?.Attach(new FeatureModuleContext<BattleSessionFeature>(ctx, this));
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-#if UNITY_EDITOR
-            TryUninstallEditorPlayModeStopHook();
-#endif
-            InvokeModulesDetach(ctx);
+            _subFeatureHost?.Detach(new FeatureModuleContext<BattleSessionFeature>(ctx, this));
+
             StopSession();
 
             Events?.Dispose();
@@ -163,6 +113,7 @@ namespace AbilityKit.Game.Flow
             if (_ctx != null)
             {
                 _ctx.Session = null;
+                _ctx.Events = null;
             }
 
             _ctx = null;
@@ -177,155 +128,56 @@ namespace AbilityKit.Game.Flow
 
             if (_session == null) return;
 
-            if (!_tickEnteredLogged)
-            {
-                _tickEnteredLogged = true;
-            }
+            InvokeMainTickSubFeatures(ctx, deltaTime);
 
-            _tickAcc += deltaTime;
-            var fixedDelta = GetFixedDeltaSeconds();
-            while (_tickAcc >= fixedDelta)
-            {
-                var nextFrame = _lastFrame + 1;
-                _replay?.Pump(_session, nextFrame);
-                _session.Tick(fixedDelta);
-                _tickAcc -= fixedDelta;
-            }
-
-            TickRemoteDrivenLocalSim(deltaTime);
-            TickConfirmedAuthorityWorldSim(deltaTime);
-
-            InvokeModulesTick(ctx, deltaTime);
+            _subFeatureHost?.Tick(new FeatureModuleContext<BattleSessionFeature>(ctx, this), deltaTime);
             Hooks?.PostTick.Invoke(deltaTime);
+            Events?.Flush();
+        }
+
+        private void InvokeMainTickSubFeatures(in GamePhaseContext ctx, float deltaTime)
+        {
+            if (_subFeatureHost == null) return;
+            var fctx = new FeatureModuleContext<BattleSessionFeature>(ctx, this);
+            _subFeatureHost.ForEach<ISessionMainTickSubFeature<BattleSessionFeature>>(m => m.MainTick(fctx, deltaTime));
         }
 
         private void EnsureModulesCreated()
         {
-            _modules ??= new List<IBattleSessionModule>(capacity: 8);
-            if (_modules.Count == 0)
-            {
-                CreateModules(_modules);
-                if (!TrySortModulesByDependencies(_modules))
-                {
-                    return;
-                }
-            }
-        }
-
-        private bool TrySortModulesByDependencies(List<IBattleSessionModule> modules)
-        {
-            if (modules == null || modules.Count <= 1) return true;
+            _subFeatures ??= new List<ISessionSubFeature<BattleSessionFeature>>(capacity: 8);
+            if (_subFeatureHost != null && _subFeatures.Count > 0) return;
 
             void Fail(string message)
             {
                 Log.Error($"[BattleSessionFeature] Module dependency validation failed: {message}");
-                Events?.Publish(new SessionFailedEvent(new InvalidOperationException(message)));
-            }
 
-            var ids = new Dictionary<string, IBattleSessionModule>(StringComparer.Ordinal);
-            for (int i = 0; i < modules.Count; i++)
-            {
-                if (modules[i] is not IBattleSessionModuleId mid || string.IsNullOrEmpty(mid.Id))
+                var ex = new InvalidOperationException(message);
+                if (Events != null)
                 {
-                    Fail($"Module at index {i} ({modules[i]?.GetType().Name ?? "<null>"}) does not implement IBattleSessionModuleId or Id is empty.");
-                    return false;
+                    Events.Publish(new SessionFailedEvent(ex));
+                    Events.Flush();
                 }
-
-                if (ids.ContainsKey(mid.Id))
+                else
                 {
-                    Fail($"Duplicate module id '{mid.Id}'.");
-                    return false;
-                }
-
-                ids[mid.Id] = modules[i];
-            }
-
-            var deps = new Dictionary<IBattleSessionModule, List<IBattleSessionModule>>();
-            for (int i = 0; i < modules.Count; i++)
-            {
-                var m = modules[i];
-                if (m is not IBattleSessionModuleDependencies d) continue;
-
-                var list = new List<IBattleSessionModule>();
-                if (d.Dependencies != null)
-                {
-                    foreach (var depId in d.Dependencies)
-                    {
-                        if (string.IsNullOrEmpty(depId))
-                        {
-                            Fail($"Module '{((IBattleSessionModuleId)m).Id}' declares an empty dependency id.");
-                            return false;
-                        }
-
-                        if (!ids.TryGetValue(depId, out var dep))
-                        {
-                            Fail($"Module '{((IBattleSessionModuleId)m).Id}' depends on missing module '{depId}'.");
-                            return false;
-                        }
-                        list.Add(dep);
-                    }
-                }
-
-                deps[m] = list;
-            }
-
-            var inDegree = new Dictionary<IBattleSessionModule, int>();
-            for (int i = 0; i < modules.Count; i++) inDegree[modules[i]] = 0;
-            foreach (var kv in deps)
-            {
-                var m = kv.Key;
-                for (int i = 0; i < kv.Value.Count; i++)
-                {
-                    inDegree[m] = inDegree[m] + 1;
+                    _pendingModuleValidationFailure = ex;
                 }
             }
 
-            var queue = new List<IBattleSessionModule>(modules.Count);
-            for (int i = 0; i < modules.Count; i++)
-            {
-                var m = modules[i];
-                if (inDegree[m] == 0) queue.Add(m);
-            }
+            _subFeatureHost = SessionSubFeaturePipeline.CreateModuleHost(_subFeatures, Fail);
 
-            var sorted = new List<IBattleSessionModule>(modules.Count);
-            while (queue.Count > 0)
+            if (_subFeatures.Count == 0)
             {
-                var n = queue[0];
-                queue.RemoveAt(0);
-                sorted.Add(n);
+                SessionSubFeaturePipeline.AddStandardSessionSubFeatures(_subFeatures);
+                var raw = new List<IBattleSessionModule>(capacity: 8);
+                CreateModules(raw);
+                SessionSubFeaturePipeline.AddLegacySessionModules(_subFeatures, raw);
+                SessionSubFeaturePipeline.AddPostLegacySessionSubFeatures(_subFeatures);
 
-                for (int i = 0; i < modules.Count; i++)
+                if (!_subFeatureHost.TrySortByDependencies())
                 {
-                    var m = modules[i];
-                    if (!deps.TryGetValue(m, out var mdeps) || mdeps == null || mdeps.Count == 0) continue;
-                    var removed = false;
-                    for (int j = 0; j < mdeps.Count; j++)
-                    {
-                        if (ReferenceEquals(mdeps[j], n))
-                        {
-                            removed = true;
-                            break;
-                        }
-                    }
-                    if (!removed) continue;
-
-                    inDegree[m] = inDegree[m] - 1;
-                    if (inDegree[m] == 0)
-                    {
-                        if (!queue.Contains(m)) queue.Add(m);
-                    }
+                    return;
                 }
             }
-
-            if (sorted.Count != modules.Count)
-            {
-                Fail("Cyclic module dependencies detected.");
-                return false;
-            }
-
-            modules.Clear();
-            modules.AddRange(sorted);
-            return true;
         }
 
         private void CreateModules(List<IBattleSessionModule> modules)
@@ -336,7 +188,6 @@ namespace AbilityKit.Game.Flow
             {
                 modules.Add(new GatewayRoomModule(this));
                 modules.Add(new SnapshotRoutingModule(this));
-                modules.Add(new ReplaySeekModule(this));
                 return;
             }
 
@@ -353,9 +204,6 @@ namespace AbilityKit.Game.Flow
                     case "snapshot_routing":
                         modules.Add(new SnapshotRoutingModule(this));
                         break;
-                    case "replay_seek":
-                        modules.Add(new ReplaySeekModule(this));
-                        break;
                 }
             }
         }
@@ -365,8 +213,8 @@ namespace AbilityKit.Game.Flow
             try
             {
                 StartSession();
-                SessionStarted?.Invoke();
                 Events?.Publish(new SessionStartedEvent(_plan));
+                Events?.Flush();
                 ApplyAutoPlanActions();
             }
             catch (Exception ex)
@@ -374,6 +222,7 @@ namespace AbilityKit.Game.Flow
                 Log.Exception(ex, "[BattleSessionFeature] StartSession failed after gateway room preparation");
                 StopSession();
                 Events?.Publish(new SessionFailedEvent(ex));
+                Events?.Flush();
                 return;
             }
 
@@ -385,88 +234,46 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private void InvokeModulesAttach(in GamePhaseContext ctx)
-        {
-            if (_modules == null || _modules.Count == 0) return;
-            var mctx = new BattleSessionModuleContext(ctx, this);
-            for (int i = 0; i < _modules.Count; i++)
-            {
-                _modules[i]?.OnAttach(mctx);
-            }
-        }
-
-        private void InvokeModulesDetach(in GamePhaseContext ctx)
-        {
-            if (_modules == null || _modules.Count == 0) return;
-            var mctx = new BattleSessionModuleContext(ctx, this);
-            for (int i = _modules.Count - 1; i >= 0; i--)
-            {
-                _modules[i]?.OnDetach(mctx);
-            }
-        }
-
-        private void InvokeModulesTick(in GamePhaseContext ctx, float deltaTime)
-        {
-            if (_modules == null || _modules.Count == 0) return;
-            var mctx = new BattleSessionModuleContext(ctx, this);
-            for (int i = 0; i < _modules.Count; i++)
-            {
-                _modules[i]?.Tick(mctx, deltaTime);
-            }
-        }
-
         private void InvokeModulesPreTick(in GamePhaseContext ctx, float deltaTime)
         {
-            if (_modules == null || _modules.Count == 0) return;
-            var mctx = new BattleSessionModuleContext(ctx, this);
-            for (int i = 0; i < _modules.Count; i++)
-            {
-                if (_modules[i] is IBattleSessionPreTickModule preTick)
-                {
-                    preTick.PreTick(mctx, deltaTime);
-                }
-            }
+            if (_subFeatureHost == null) return;
+            var fctx = new FeatureModuleContext<BattleSessionFeature>(ctx, this);
+            _subFeatureHost.ForEach<ISessionPreTickSubFeature<BattleSessionFeature>>(m => m.PreTick(fctx, deltaTime));
         }
 
         private bool InvokeModulesPlanBuilt()
         {
-            if (_modules == null || _modules.Count == 0) return false;
-            var mctx = new BattleSessionModuleContext(_phaseCtx, this);
-            for (int i = 0; i < _modules.Count; i++)
+            if (_subFeatureHost == null) return false;
+            var fctx = new FeatureModuleContext<BattleSessionFeature>(_phaseCtx, this);
+            var handled = false;
+            _subFeatureHost.ForEach<ISessionPlanSubFeature<BattleSessionFeature>>(m =>
             {
-                if (_modules[i] is IBattleSessionPlanModule plan)
-                {
-                    if (plan.OnPlanBuilt(mctx)) return true;
-                }
-            }
-
-            return false;
+                if (!handled && m.OnPlanBuilt(fctx)) handled = true;
+            });
+            return handled;
         }
 
-        private void InvokeModulesSessionStarting()
+        private void InvokeSessionStartingPipeline()
         {
-            if (_modules == null || _modules.Count == 0) return;
-            var mctx = new BattleSessionModuleContext(_phaseCtx, this);
-            for (int i = 0; i < _modules.Count; i++)
-            {
-                if (_modules[i] is IBattleSessionLifecycleModule lifecycle)
-                {
-                    lifecycle.OnSessionStarting(mctx);
-                }
-            }
+            if (_subFeatureHost == null) return;
+            var fctx = new FeatureModuleContext<BattleSessionFeature>(_phaseCtx, this);
+            _subFeatureHost.ForEach<ISessionLifecycleNotifySubFeature<BattleSessionFeature>>(m => m.NotifySessionStarting(fctx));
+            _subFeatureHost.ForEach<ISessionLifecycleSubFeature<BattleSessionFeature>>(m => m.OnSessionStarting(fctx));
         }
 
-        private void InvokeModulesSessionStopping()
+        private void InvokeSessionStoppingPipeline()
         {
-            if (_modules == null || _modules.Count == 0) return;
-            var mctx = new BattleSessionModuleContext(_phaseCtx, this);
-            for (int i = _modules.Count - 1; i >= 0; i--)
-            {
-                if (_modules[i] is IBattleSessionLifecycleModule lifecycle)
-                {
-                    lifecycle.OnSessionStopping(mctx);
-                }
-            }
+            if (_subFeatureHost == null) return;
+            var fctx = new FeatureModuleContext<BattleSessionFeature>(_phaseCtx, this);
+            _subFeatureHost.ForEach<ISessionLifecycleNotifySubFeature<BattleSessionFeature>>(m => m.NotifySessionStopping(fctx));
+            _subFeatureHost.ForEachReverse<ISessionLifecycleSubFeature<BattleSessionFeature>>(m => m.OnSessionStopping(fctx));
+        }
+
+        private void InvokeReplaySetupPipeline()
+        {
+            if (_subFeatureHost == null) return;
+            var fctx = new FeatureModuleContext<BattleSessionFeature>(_phaseCtx, this);
+            _subFeatureHost.ForEach<ISessionReplaySetupSubFeature<BattleSessionFeature>>(m => m.SetupReplayOrRecord(fctx));
         }
 
         private float GetFixedDeltaSeconds()
@@ -523,8 +330,7 @@ namespace AbilityKit.Game.Flow
                 StartConfirmedAuthorityWorld();
             }
 
-            Hooks?.SessionStarting.Invoke();
-            InvokeModulesSessionStarting();
+            InvokeSessionStartingPipeline();
 
             _lastFrame = 0;
             _tickAcc = 0f;
@@ -536,7 +342,7 @@ namespace AbilityKit.Game.Flow
                 _ctx.LastFrame = _lastFrame;
             }
 
-            BuildReplayOrRecord(runMode);
+            InvokeReplaySetupPipeline();
         }
 
         private void StopSession()
@@ -546,8 +352,8 @@ namespace AbilityKit.Game.Flow
             try
             {
                 _session.FrameReceived -= OnFrame;
-                Hooks?.SessionStopping.Invoke();
-                InvokeModulesSessionStopping();
+
+                InvokeSessionStoppingPipeline();
                 BattleLogicSessionHost.Stop();
             }
             catch (Exception ex)
@@ -625,20 +431,10 @@ namespace AbilityKit.Game.Flow
 
         private void OnFrame(FramePacket packet)
         {
-            if (_netAdapter != null && _session != null)
+            if (_subFeatureHost != null)
             {
-                var frame = packet.Frame.Value;
-                if (_session.RemoteInputFrames != null
-                    && _session.RemoteSnapshotFrames != null
-                    && _session.RemoteInputFrames.TryGet(frame, out var inputFrame)
-                    && _session.RemoteSnapshotFrames.TryGet(frame, out var snapshotFrame))
-                {
-                    packet = _netAdapter.ProcessAndFeed(packet.WorldId, inputFrame, snapshotFrame);
-                }
-                else
-                {
-                    packet = _netAdapter.ProcessAndFeed(packet);
-                }
+                var fctx = new FeatureModuleContext<BattleSessionFeature>(_phaseCtx, this);
+                _subFeatureHost.ForEach<ISessionFramePacketTransformSubFeature<BattleSessionFeature>>(m => packet = m.TransformFramePacket(fctx, packet));
             }
 
             _lastFrame = packet.Frame.Value;
@@ -652,8 +448,12 @@ namespace AbilityKit.Game.Flow
             if (_ctx != null)
             {
                 _ctx.LastFrame = _lastFrame;
+            }
 
-                OnFrameReplayAndRecording(packet);
+            if (_subFeatureHost != null)
+            {
+                var fctx = new FeatureModuleContext<BattleSessionFeature>(_phaseCtx, this);
+                _subFeatureHost.ForEach<ISessionFrameReceivedSubFeature<BattleSessionFeature>>(m => m.OnFrameReceived(fctx, packet));
             }
         }
 

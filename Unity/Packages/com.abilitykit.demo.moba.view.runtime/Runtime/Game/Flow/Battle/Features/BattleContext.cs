@@ -8,6 +8,7 @@ using AbilityKit.Game.Battle;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Game.Flow.Battle.Modules;
 
 namespace AbilityKit.Game.Flow
 {
@@ -22,6 +23,8 @@ namespace AbilityKit.Game.Flow
         public BattleLogicSession Session;
         public BattleStartPlan Plan;
         public int LastFrame;
+
+        public BattleEventBus Events;
 
         public int LocalActorId;
 
@@ -90,6 +93,8 @@ namespace AbilityKit.Game.Flow
             Plan = default;
             LastFrame = 0;
 
+            Events = null;
+
             LocalActorId = 0;
 
             FrameSnapshots = null;
@@ -139,6 +144,8 @@ namespace AbilityKit.Game.Flow
             Session = null;
             Plan = default;
             LastFrame = 0;
+
+            Events = null;
 
             LocalActorId = 0;
 

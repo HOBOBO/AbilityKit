@@ -9,8 +9,7 @@ namespace AbilityKit.Game.Flow
         public List<string> ModuleIds = new List<string>
         {
             "gateway_room",
-            "snapshot_routing",
-            "replay_seek"
+            "snapshot_routing"
         };
     }
 }
