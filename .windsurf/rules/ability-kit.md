@@ -33,6 +33,10 @@ trigger: manual
   - 表现（Presentation）模板表与 play/stop 事件契约
 - [battle_view_runtime.md](battle_view_runtime.md)
   - 表现层（Game/Battle）实体与 View/Snapshot/VFX 流程
+- [state_handles_controllers.md](state_handles_controllers.md)
+  - Session/Flow 业务代码：State(纯数据)/Handles(资源)/Controllers(行为) 分离 + 中文注释规范
+- [code_decomposition_and_folders.md](code_decomposition_and_folders.md)
+  - 业务代码复杂度控制：复杂代码必须拆分文件并按需分目录（避免单文件/单目录膨胀）
 - [origin_and_event_contract.md](origin_and_event_contract.md)
   - 事件溯源（origin.*）与 PublishInherited 规则
 - [performance.md](performance.md)

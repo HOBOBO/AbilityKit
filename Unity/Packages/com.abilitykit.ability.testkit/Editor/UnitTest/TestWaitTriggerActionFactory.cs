@@ -4,7 +4,7 @@ using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
 using UnityEngine.Scripting;
 
-namespace AbilityKit.Ability.Share.Impl.UnitTest
+namespace AbilityKit.Ability.UnitTest
 {
     [TriggerActionType("test_wait", "Test Wait", "Test", 0)]
     [Preserve]

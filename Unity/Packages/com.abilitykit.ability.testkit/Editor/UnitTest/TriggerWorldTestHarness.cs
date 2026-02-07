@@ -4,7 +4,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Ability.Share.Impl.UnitTest
+namespace AbilityKit.Ability.UnitTest
 {
     public sealed class TriggerWorldTestHarness : IDisposable
     {

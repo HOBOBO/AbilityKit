@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Impl.UnitTest;
+using AbilityKit.Ability.UnitTest;
 using AbilityKit.Ability.Triggering.Definitions;
 using NUnit.Framework;
 

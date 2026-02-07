@@ -62,9 +62,5 @@ namespace AbilityKit.Game.Flow
         [Header("Composition")]
         [LabelText("FeatureSet(战斗阶段Feature组合)")]
         public BattleFeatureSetConfig FeatureSet;
-
-        [Header("Composition")]
-        [LabelText("SessionModuleSet(Session内部模块组合)")]
-        public BattleSessionModuleSetConfig SessionModuleSet;
     }
 }

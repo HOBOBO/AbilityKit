@@ -6,16 +6,22 @@ namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleSessionFeature
     {
+        private interface ISnapshotRoutingModuleHost
+        {
+            void BuildSnapshotRouting();
+            void DisposeSnapshotRouting();
+        }
+
         private sealed class SnapshotRoutingModule : IBattleSessionModule, IBattleSessionModuleId, IBattleSessionModuleDependencies
         {
-            private readonly BattleSessionFeature _feature;
+            private readonly ISnapshotRoutingModuleHost _host;
 
             private IDisposable _sessionStartingSub;
             private IDisposable _sessionStoppingSub;
 
-            public SnapshotRoutingModule(BattleSessionFeature feature)
+            public SnapshotRoutingModule(ISnapshotRoutingModuleHost host)
             {
-                _feature = feature;
+                _host = host;
             }
 
             public string Id => "snapshot_routing";
@@ -24,8 +30,8 @@ namespace AbilityKit.Game.Flow
 
             public void OnAttach(in BattleSessionModuleContext ctx)
             {
-                _sessionStartingSub = ctx.Events?.Subscribe<SessionStartingEvent>(_ => _feature.BuildSnapshotRouting());
-                _sessionStoppingSub = ctx.Events?.Subscribe<SessionStoppingEvent>(_ => _feature.DisposeSnapshotRouting());
+                _sessionStartingSub = ctx.Events?.Subscribe<SessionStartingEvent>(_ => _host?.BuildSnapshotRouting());
+                _sessionStoppingSub = ctx.Events?.Subscribe<SessionStoppingEvent>(_ => _host?.DisposeSnapshotRouting());
             }
 
             public void OnDetach(in BattleSessionModuleContext ctx)

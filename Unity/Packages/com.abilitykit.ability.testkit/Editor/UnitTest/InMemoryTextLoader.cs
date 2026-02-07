@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Triggering.Json;
 
-namespace AbilityKit.Ability.Share.Impl.UnitTest
+namespace AbilityKit.Ability.UnitTest
 {
     public sealed class InMemoryTextLoader : ITextLoader
     {

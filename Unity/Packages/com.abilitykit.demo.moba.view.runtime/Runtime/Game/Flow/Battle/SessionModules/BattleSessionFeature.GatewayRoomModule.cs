@@ -7,17 +7,28 @@ namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleSessionFeature
     {
+        private interface IGatewayRoomModuleHost
+        {
+            bool ShouldPrepareGatewayRoom();
+            void StartGatewayRoomPreparation();
+            void StopGatewayRoomPreparation();
+
+            bool HasGatewayRoomConnection { get; }
+            void TickGatewayRoomConnection(float deltaTime);
+            System.Threading.Tasks.Task GatewayRoomTask { get; }
+        }
+
         private sealed class GatewayRoomModule : IBattleSessionModule, IBattleSessionModuleId, IBattleSessionModuleDependencies
         {
-            private readonly BattleSessionFeature _feature;
+            private readonly IGatewayRoomModuleHost _host;
 
             private IDisposable _planBuiltSub;
 
             private BattleEventBus _events;
 
-            public GatewayRoomModule(BattleSessionFeature feature)
+            public GatewayRoomModule(IGatewayRoomModuleHost host)
             {
-                _feature = feature;
+                _host = host;
             }
 
             public string Id => "gateway_room";
@@ -30,8 +41,8 @@ namespace AbilityKit.Game.Flow
 
                 _planBuiltSub = ctx.Events?.SubscribeIntercept<PlanBuiltEvent>(_ =>
                 {
-                    if (!_feature.ShouldPrepareGatewayRoom()) return false;
-                    _feature.StartGatewayRoomPreparation();
+                    if (_host == null || !_host.ShouldPrepareGatewayRoom()) return false;
+                    _host.StartGatewayRoomPreparation();
                     return true;
                 });
             }
@@ -43,7 +54,7 @@ namespace AbilityKit.Game.Flow
 
                 _events = null;
 
-                _feature.StopGatewayRoomPreparation();
+                _host?.StopGatewayRoomPreparation();
             }
 
             public void Tick(in BattleSessionModuleContext ctx, float deltaTime)
@@ -52,23 +63,24 @@ namespace AbilityKit.Game.Flow
 
             public void PreTick(in BattleSessionModuleContext ctx, float deltaTime)
             {
-                if (_feature._gatewayRoomConn == null) return;
+                if (_host == null || !_host.HasGatewayRoomConnection) return;
 
-                _feature._gatewayRoomConn.Tick(deltaTime);
+                _host.TickGatewayRoomConnection(deltaTime);
 
-                if (_feature._gatewayRoomTask == null || !_feature._gatewayRoomTask.IsCompleted) return;
+                var task = _host.GatewayRoomTask;
+                if (task == null || !task.IsCompleted) return;
 
-                if (_feature._gatewayRoomTask.IsFaulted)
+                if (task.IsFaulted)
                 {
-                    var ex = _feature._gatewayRoomTask.Exception != null ? _feature._gatewayRoomTask.Exception.GetBaseException() : null;
+                    var ex = task.Exception != null ? task.Exception.GetBaseException() : null;
                     var wrapped = new InvalidOperationException("Gateway room preparation failed.", ex);
                     Log.Exception(wrapped, "[BattleSessionFeature] Gateway room preparation failed");
-                    _feature.StopGatewayRoomPreparation();
+                    _host.StopGatewayRoomPreparation();
                     _events?.Publish(new SessionFailedEvent(wrapped));
                     return;
                 }
 
-                _feature.StopGatewayRoomPreparation();
+                _host.StopGatewayRoomPreparation();
 
                 _events?.Publish(new StartSessionRequested());
             }
