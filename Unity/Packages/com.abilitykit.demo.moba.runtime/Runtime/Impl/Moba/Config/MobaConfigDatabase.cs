@@ -92,6 +92,28 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 {
+    public interface IMobaConfigTextSink
+    {
+        bool TryGetText(string key, out string text);
+    }
+
+    public sealed class DictionaryMobaConfigTextSink : IMobaConfigTextSink
+    {
+        private readonly IReadOnlyDictionary<string, string> _texts;
+
+        public DictionaryMobaConfigTextSink(IReadOnlyDictionary<string, string> texts)
+        {
+            _texts = texts ?? throw new ArgumentNullException(nameof(texts));
+        }
+
+        public bool TryGetText(string key, out string text)
+        {
+            text = null;
+            if (_texts == null) return false;
+            return _texts.TryGetValue(key, out text);
+        }
+    }
+
     public sealed class MobaConfigDatabase
     {
         private const string ConfigKey = "moba.config";
@@ -101,6 +123,60 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         private long _version;
 
         public long Version => _version;
+
+        public void LoadFromTextSink(IMobaConfigTextSink sink, string resourcesDir = null)
+        {
+            if (sink == null) throw new ArgumentNullException(nameof(sink));
+
+            var jsonByKey = new Dictionary<string, string>(StringComparer.Ordinal);
+            var tables = MobaRuntimeConfigTableRegistry.Tables;
+            for (var i = 0; i < tables.Length; i++)
+            {
+                var t = tables[i];
+                var fullPath = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
+
+                if (!sink.TryGetText(fullPath, out var json) || string.IsNullOrEmpty(json))
+                {
+                    if (!sink.TryGetText(t.FileWithoutExt, out json) || string.IsNullOrEmpty(json))
+                    {
+                        throw new InvalidOperationException($"Config json not found in sink: {fullPath}");
+                    }
+                }
+
+                jsonByKey[fullPath] = json;
+                jsonByKey[t.FileWithoutExt] = json;
+            }
+
+            LoadFromJsonTexts(jsonByKey, resourcesDir);
+        }
+
+        public ConfigReloadResult ReloadFromTextSink(IMobaConfigTextSink sink, string resourcesDir = null)
+        {
+            if (sink == null) throw new ArgumentNullException(nameof(sink));
+
+            var jsonByKey = new Dictionary<string, string>(StringComparer.Ordinal);
+            var tables = MobaRuntimeConfigTableRegistry.Tables;
+            for (var i = 0; i < tables.Length; i++)
+            {
+                var t = tables[i];
+                var fullPath = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
+
+                if (!sink.TryGetText(fullPath, out var json) || string.IsNullOrEmpty(json))
+                {
+                    if (!sink.TryGetText(t.FileWithoutExt, out json) || string.IsNullOrEmpty(json))
+                    {
+                        var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config json not found in sink: {fullPath}");
+                        ConfigReloadBus.Publish(fail);
+                        return fail;
+                    }
+                }
+
+                jsonByKey[fullPath] = json;
+                jsonByKey[t.FileWithoutExt] = json;
+            }
+
+            return ReloadFromJsonTexts(jsonByKey, resourcesDir);
+        }
 
         public void LoadFromResources(string resourcesDir)
         {

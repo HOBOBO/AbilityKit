@@ -79,7 +79,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
             var actorContext = (contexts as global::Contexts)?.actor;
             if (actorContext == null) return false;
 
-            var bullet = MobaEntitySpawnFactory.Create(actorContext, in info);
+            var bullet = AbilityKit.Ability.Impl.Moba.Util.Generator.ActorArchetypeFactory.Create(actorContext, in info);
             if (bullet == null) return false;
 
             bullet.isFlyingProjectileTag = true;
@@ -302,7 +302,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
                 ownerPlayer: ownerPlayer,
                 templateId: launcher.Id);
 
-            var launcherEntity = MobaEntitySpawnFactory.Create(actorContext, in launcherInfo);
+            var launcherEntity = AbilityKit.Ability.Impl.Moba.Util.Generator.ActorArchetypeFactory.Create(actorContext, in launcherInfo);
             if (launcherEntity == null) return false;
 
             _registry.Register(launcherActorId, launcherEntity);

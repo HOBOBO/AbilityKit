@@ -22,7 +22,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaActorRegistry _registry;
         private readonly MobaEntityManager _entities;
         private readonly MobaActorLookupService _actors;
-        private readonly MobaActorEntityGenerator _generator;
+        private readonly AbilityKit.Ability.Impl.Moba.Util.Generator.ActorEntityInitPipeline _generator;
         private readonly MobaConfigDatabase _config;
         private readonly MobaComponentTemplateService _componentTemplates;
         private readonly IFrameTime _frameTime;
@@ -37,7 +37,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             MobaActorRegistry registry,
             MobaEntityManager entities,
             MobaActorLookupService actors,
-            MobaActorEntityGenerator generator,
+            AbilityKit.Ability.Impl.Moba.Util.Generator.ActorEntityInitPipeline generator,
             MobaConfigDatabase config,
             MobaComponentTemplateService componentTemplates,
             IEventBus eventBus)
@@ -100,7 +100,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             var ownerPlayer = caster.hasOwnerPlayerId ? caster.ownerPlayerId.Value : default(AbilityKit.Ability.Host.PlayerId);
 
             var unitSubType = (UnitSubType)summon.UnitSubType;
-            var kind = MobaEntitySpawnFactory.CreateKindFromType(EntityMainType.Unit, unitSubType);
+            var kind = AbilityKit.Ability.Impl.Moba.Util.Generator.ActorArchetypeFactory.CreateKindFromType(EntityMainType.Unit, unitSubType);
 
             var contexts = ContextsFromServices();
             var actorContext = (contexts as global::Contexts)?.actor;
@@ -116,7 +116,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 ownerPlayer: ownerPlayer,
                 templateId: summon.AttributeTemplateId);
 
-            var entity = MobaEntitySpawnFactory.Create(actorContext, in info);
+            var entity = AbilityKit.Ability.Impl.Moba.Util.Generator.ActorArchetypeFactory.Create(actorContext, in info);
             if (entity == null) return false;
 
             var rootOwner = OwnerLinkUtil.ResolveRootOwner(caster);

@@ -6,6 +6,14 @@ using AbilityKit.Ability.Share.Math;
 
 namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 {
+    /*
+     * 这里提供“按 Archetype(原型/类别) 生成 ActorEntity 骨架”的能力。
+     *
+     * 职责边界：
+     * - 只负责挂载基础组件（Transform/Motion/Collider 等）与 Meta（Team/Owner 等）。
+     * - 不负责读表初始化（属性/技能）。
+     * - 不负责批量编排（那部分由 ActorSpawnPipeline 负责）。
+     */
     public enum MobaEntityKind
     {
         Unknown = 0,
@@ -15,6 +23,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
         Projectile = 4,
     }
 
+    /* 生成 ActorEntity 骨架所需的最小信息集合。 */
     public readonly struct MobaEntityInfo
     {
         public readonly int ActorId;
@@ -51,10 +60,11 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
         }
     }
 
-    public static class MobaEntitySpawnFactory
+    public static class ActorArchetypeFactory
     {
         private const int CollisionLayer_Unit = 1 << 0;
         private const int CollisionLayer_Projectile = 1 << 1;
+        /* World 层当前未使用，保留位用于后续扩展（地形/障碍物等） */
         private const int CollisionLayer_World = 1 << 2;
 
         public delegate ActorEntity CreateHandler(ActorContext context, in MobaEntityInfo info);
@@ -111,6 +121,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 
         private static ActorEntity CreateHero(ActorContext context, in MobaEntityInfo info)
         {
+            /* Hero 的骨架组件组合（Transform + Motion + Input + Collider + Meta） */
             var b = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)
                 .WithTransform(info.Transform)
@@ -126,6 +137,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 
         private static ActorEntity CreateProjectile(ActorContext context, in MobaEntityInfo info)
         {
+            /* Projectile 的骨架组件组合（Transform + Collider + Meta） */
             var b = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)
                 .WithTransform(info.Transform)
@@ -139,6 +151,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 
         private static ActorEntity CreateMinion(ActorContext context, in MobaEntityInfo info)
         {
+            /* Minion 的骨架组件组合（Transform + Motion + Collider + Meta） */
             var b = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)
                 .WithTransform(info.Transform)
@@ -153,6 +166,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 
         private static ActorEntity CreateMonster(ActorContext context, in MobaEntityInfo info)
         {
+            /* Monster 的骨架组件组合（Transform + Motion + Collider + Meta） */
             var b = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)
                 .WithTransform(info.Transform)
@@ -182,5 +196,20 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             else e.AddOwnerPlayerId(info.OwnerPlayer);
 
         }
+    }
+
+    /*
+     * 兼容层（历史命名）。
+     * 未来新代码请使用 ActorArchetypeFactory。
+     */
+    public static class MobaEntitySpawnFactory
+    {
+        public static void Register(MobaEntityKind kind, ActorArchetypeFactory.CreateHandler handler) => ActorArchetypeFactory.Register(kind, handler);
+
+        public static bool TryCreate(ActorContext context, in MobaEntityInfo info, out ActorEntity entity) => ActorArchetypeFactory.TryCreate(context, in info, out entity);
+
+        public static ActorEntity Create(ActorContext context, in MobaEntityInfo info) => ActorArchetypeFactory.Create(context, in info);
+
+        public static MobaEntityKind CreateKindFromType(EntityMainType mainType, UnitSubType unitSubType) => ActorArchetypeFactory.CreateKindFromType(mainType, unitSubType);
     }
 }

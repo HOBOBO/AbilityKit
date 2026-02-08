@@ -12,12 +12,18 @@ using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
-using UnityEngine;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 {
-    public sealed class MobaActorEntityGenerator : IService
+    /*
+     * 初始化管线：把已 Spawn 出来的 ActorEntity 根据配置/Loadout 填充为可战斗态。
+     *
+     * 职责边界：
+     * - 典型工作：属性模板初始化、技能装配、资源容器/属性容器兜底等。
+     * - 不负责创建实体（创建由 ActorArchetypeFactory/ActorSpawnPipeline 负责）。
+     */
+    public sealed class ActorEntityInitPipeline : IService
     {
         private static readonly HashSet<int> LoggedMissingCharacterIds = new HashSet<int>();
         private static readonly HashSet<int> LoggedMissingAttributeTemplateIds = new HashSet<int>();
@@ -26,7 +32,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
         private readonly IWorldResolver _services;
         private MobaConfigDatabase _config;
 
-        public MobaActorEntityGenerator(IWorldResolver services)
+        public ActorEntityInitPipeline(IWorldResolver services)
         {
             _services = services;
             TryResolveConfig();
@@ -55,7 +61,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
                 if (!LoggedMissingConfig)
                 {
                     LoggedMissingConfig = true;
-                    Debug.LogError($"[MobaActorEntityGenerator] Failed to resolve MobaConfigDatabase. Ensure MobaConfigWorldModule is added and config json exists in Resources. ex={ex}");
+                    Log.Exception(ex, "[ActorEntityInitPipeline] Failed to resolve MobaConfigDatabase");
                 }
                 return false;
             }
@@ -74,7 +80,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
                 if (!LoggedMissingConfig)
                 {
                     LoggedMissingConfig = true;
-                    Debug.LogError("[MobaActorEntityGenerator] MobaConfigDatabase is not available. Ensure MobaConfigWorldModule is added when creating the world.");
+                    Log.Error("[ActorEntityInitPipeline] MobaConfigDatabase is not available. Ensure it is registered when creating the world.");
                 }
                 return;
             }
@@ -89,7 +95,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             {
                 if (LoggedMissingAttributeTemplateIds.Add(attributeTemplateId))
                 {
-                    Debug.LogError($"[MobaActorEntityGenerator] AttributeTemplate not found. templateId={attributeTemplateId} ex={ex.Message}");
+                    Log.Exception(ex, $"[ActorEntityInitPipeline] AttributeTemplate not found. templateId={attributeTemplateId}");
                 }
                 return;
             }
@@ -98,7 +104,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             {
                 if (LoggedMissingAttributeTemplateIds.Add(attributeTemplateId))
                 {
-                    Debug.LogError($"[MobaActorEntityGenerator] AttributeTemplate is null. templateId={attributeTemplateId}");
+                    Log.Error($"[ActorEntityInitPipeline] AttributeTemplate is null. templateId={attributeTemplateId}");
                 }
                 return;
             }
@@ -148,11 +154,11 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
                     var character = _config.GetCharacter(loadout.HeroId);
                     templateId = character != null ? character.AttributeTemplateId : 0;
                 }
-                catch
+                catch (Exception ex)
                 {
                     if (LoggedMissingCharacterIds.Add(loadout.HeroId))
                     {
-                        Debug.LogError($"[MobaActorEntityGenerator] Character not found. heroId={loadout.HeroId}");
+                        Log.Exception(ex, $"[ActorEntityInitPipeline] Character not found. heroId={loadout.HeroId}");
                     }
                     templateId = 0;
                 }
@@ -162,7 +168,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             {
                 if (LoggedMissingAttributeTemplateIds.Add(templateId))
                 {
-                    Debug.LogError($"[MobaActorEntityGenerator] AttributeTemplateId is invalid. heroId={loadout.HeroId} loadoutTemplateId={loadout.AttributeTemplateId}");
+                    Log.Error($"[ActorEntityInitPipeline] AttributeTemplateId is invalid. heroId={loadout.HeroId} loadoutTemplateId={loadout.AttributeTemplateId}");
                 }
             }
 
@@ -205,7 +211,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, "[MobaActorEntityGenerator] InitializeSkillLoadout failed");
+                Log.Exception(ex, "[ActorEntityInitPipeline] InitializeSkillLoadout failed");
             }
         }
 

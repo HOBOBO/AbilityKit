@@ -23,7 +23,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaPlayerActorMapService _playerActorMap;
         private readonly MobaSkillLoadoutService _skills;
         private readonly MobaConfigDatabase _config;
-        private readonly MobaActorEntityGenerator _generator;
+        private readonly ActorEntityInitPipeline _generator;
         private readonly MobaActorSpawnSnapshotService _spawn;
 
         public MobaEnterGameFlowService(
@@ -36,12 +36,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             MobaEntityManager entities,
             MobaPlayerActorMapService playerActorMap,
             MobaSkillLoadoutService skills,
-            MobaActorEntityGenerator generator)
+            ActorEntityInitPipeline generator)
             : this(lobby, snapshot, spawn, worldContext, actorIds, registry, entities, playerActorMap, skills, generator, config: null)
         {
         }
 
-        public MobaEnterGameFlowService(MobaLobbyStateService lobby, MobaEnterGameSnapshotService snapshot, MobaActorSpawnSnapshotService spawn, IWorldContext worldContext, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaEntityManager entities, MobaPlayerActorMapService playerActorMap, MobaSkillLoadoutService skills, MobaActorEntityGenerator generator, MobaConfigDatabase config)
+        public MobaEnterGameFlowService(MobaLobbyStateService lobby, MobaEnterGameSnapshotService snapshot, MobaActorSpawnSnapshotService spawn, IWorldContext worldContext, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaEntityManager entities, MobaPlayerActorMapService playerActorMap, MobaSkillLoadoutService skills, ActorEntityInitPipeline generator, MobaConfigDatabase config)
         {
             _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
             _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
@@ -81,21 +81,25 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 return false;
             }
 
-            Log.Info($"[MobaEnterGameFlowService] TryStartGame: begin (players={(req.Players != null ? req.Players.Length : 0)}, playerId={req.PlayerId.Value})");
+            var effectiveReq = NormalizeEnterGameReq(_config, in req);
 
-            var spawnEntries = new System.Collections.Generic.List<MobaActorSpawnSnapshotCodec.Entry>(req.Players != null ? req.Players.Length : 4);
+            Log.Info($"[MobaEnterGameFlowService] TryStartGame: begin (players={(effectiveReq.Players != null ? effectiveReq.Players.Length : 0)}, playerId={effectiveReq.PlayerId.Value})");
 
-            var built = EntityBuilder.BuildEnterGameActors(
+            var spawnEntries = new System.Collections.Generic.List<MobaActorSpawnSnapshotCodec.Entry>(effectiveReq.Players != null ? effectiveReq.Players.Length : 4);
+
+            var built = ActorSpawnPipeline.BuildActorsFromEnterGameReqAndInitialize(
                 actorContext,
                 _actorIds,
                 _registry,
                 _entities,
-                req,
-                onActorBuilt: (entity, loadout) =>
+                effectiveReq,
+                initializer: (entity, loadout) =>
                 {
                     if (_generator == null) return;
                     _generator.InitializeFromLoadout(entity, loadout);
-
+                },
+                onActorBuilt: (entity, loadout) =>
+                {
                     try
                     {
                         var actorId = entity != null && entity.hasActorId ? entity.actorId.Value : 0;
@@ -126,15 +130,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             var res = new EnterMobaGameRes(
                 worldId: _worldContext.Id,
-                playerId: req.PlayerId,
+                playerId: effectiveReq.PlayerId,
                 localActorId: built.LocalActorId,
-                randomSeed: req.RandomSeed,
-                tickRate: req.TickRate,
-                inputDelayFrames: req.InputDelayFrames,
+                randomSeed: effectiveReq.RandomSeed,
+                tickRate: effectiveReq.TickRate,
+                inputDelayFrames: effectiveReq.InputDelayFrames,
                 players: built.Players,
                 opCode: EnterMobaGamePayloadCodec.PayloadOpCode,
                 payload: payload,
-                playersLoadout: req.Players
+                playersLoadout: effectiveReq.Players
             );
 
             _snapshot.PublishEnterGameResPayload(EnterMobaGameCodec.SerializeRes(res));
@@ -149,6 +153,94 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 Log.Exception(ex, "[MobaEnterGameFlowService] publish spawn payload failed");
             }
             return true;
+        }
+
+        /*
+         * 职责边界/数据流：
+         * 1) EnterMobaGameReq 是“外部传入初始实体信息”的一种入口（adapter）。
+         *    外部可以动态提供出生点/队伍/英雄/等级等信息，本函数不会改写这些关键输入。
+         * 2) 逻辑层允许部分字段缺省（例如 AttributeTemplateId、SkillIds）。
+         *    当缺省时，本函数使用 MobaConfigDatabase（读表结果）进行兜底补齐。
+         * 3) 该步骤位于 Spawn 之前：
+         *    - Spawn（ActorSpawnPipeline）只消费 loadout 并创建“骨架实体”，不做读表。
+         *    - Init（ActorEntityInitPipeline）会根据 loadout/template 初始化属性/技能。
+         *    因此必须在进入 Spawn/Init 管线前把 loadout 尽量规范化。
+         */
+        private static EnterMobaGameReq NormalizeEnterGameReq(MobaConfigDatabase config, in EnterMobaGameReq req)
+        {
+            if (config == null) return req;
+            if (req.Players == null || req.Players.Length == 0) return req;
+
+            try
+            {
+                var src = req.Players;
+                var dst = new MobaPlayerLoadout[src.Length];
+
+                for (int i = 0; i < src.Length; i++)
+                {
+                    var p = src[i];
+
+                    /*
+                     * - Spawn/坐标等动态信息来自外部输入，保持不变。
+                     * - AttributeTemplateId/SkillIds 如果外部不填，则从角色表兜底。
+                     */
+                    var attributeTemplateId = p.AttributeTemplateId;
+                    int[] skillIds = p.SkillIds;
+
+                    if ((attributeTemplateId <= 0 || skillIds == null) && config.TryGetCharacter(p.HeroId, out var character) && character != null)
+                    {
+                        if (attributeTemplateId <= 0)
+                        {
+                            attributeTemplateId = character.AttributeTemplateId;
+                        }
+
+                        if (skillIds == null)
+                        {
+                            var list = character.SkillIds;
+                            if (list is int[] arr) skillIds = arr;
+                            else if (list == null || list.Count == 0) skillIds = Array.Empty<int>();
+                            else
+                            {
+                                var tmp = new int[list.Count];
+                                for (int j = 0; j < list.Count; j++) tmp[j] = list[j];
+                                skillIds = tmp;
+                            }
+                        }
+                    }
+
+                    dst[i] = new MobaPlayerLoadout(
+                        playerId: p.PlayerId,
+                        teamId: p.TeamId,
+                        heroId: p.HeroId,
+                        attributeTemplateId: attributeTemplateId,
+                        level: p.Level,
+                        basicAttackSkillId: p.BasicAttackSkillId,
+                        skillIds: skillIds,
+                        spawnIndex: p.SpawnIndex,
+                        unitSubType: p.UnitSubType,
+                        mainType: p.MainType,
+                        hasSpawnPosition: p.HasSpawnPosition,
+                        spawnX: p.SpawnX,
+                        spawnY: p.SpawnY,
+                        spawnZ: p.SpawnZ);
+                }
+
+                return new EnterMobaGameReq(
+                    playerId: req.PlayerId,
+                    matchId: req.MatchId,
+                    mapId: req.MapId,
+                    randomSeed: req.RandomSeed,
+                    tickRate: req.TickRate,
+                    inputDelayFrames: req.InputDelayFrames,
+                    opCode: req.OpCode,
+                    payload: req.Payload,
+                    players: dst);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[MobaEnterGameFlowService] NormalizeEnterGameReq failed");
+                return req;
+            }
         }
 
         public void Dispose()

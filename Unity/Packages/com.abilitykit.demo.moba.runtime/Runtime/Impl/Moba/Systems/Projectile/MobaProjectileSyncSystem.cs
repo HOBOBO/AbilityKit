@@ -98,7 +98,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                     ownerPlayer: ownerPlayer,
                     templateId: evt.TemplateId);
 
-                var bullet = MobaEntitySpawnFactory.Create(Contexts.Actor(), in info);
+                var bullet = AbilityKit.Ability.Impl.Moba.Util.Generator.ActorArchetypeFactory.Create(Contexts.Actor(), in info);
                 if (bullet == null) continue;
 
                 bullet.isFlyingProjectileTag = true;
