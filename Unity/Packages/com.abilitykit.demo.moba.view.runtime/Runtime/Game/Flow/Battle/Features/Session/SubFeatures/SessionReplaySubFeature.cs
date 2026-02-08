@@ -17,8 +17,14 @@ namespace AbilityKit.Game.Flow
             ISessionSubFeature<BattleSessionFeature>,
             ISessionPreTickSubFeature<BattleSessionFeature>,
             ISessionReplaySetupSubFeature<BattleSessionFeature>,
-            ISessionFrameReceivedSubFeature<BattleSessionFeature>
+            ISessionFrameReceivedSubFeature<BattleSessionFeature>,
+            IGameModuleId,
+            IGameModuleDependencies
         {
+            public string Id => "session_replay";
+
+            public System.Collections.Generic.IEnumerable<string> Dependencies => new[] { "session_events" };
+
             public void OnAttach(in FeatureModuleContext<BattleSessionFeature> ctx) { }
 
             public void OnDetach(in FeatureModuleContext<BattleSessionFeature> ctx) { }
@@ -36,7 +42,11 @@ namespace AbilityKit.Game.Flow
                 var f = ctx.Feature;
                 if (f == null) return;
 
-                var provider = ctx.Phase.Entry != null ? ctx.Phase.Entry.Get<IBattleReplayDriverProvider>() : null;
+                IBattleReplayDriverProvider provider = null;
+                if (ctx.Phase.Entry != null)
+                {
+                    ctx.Phase.Entry.TryGet(out provider);
+                }
                 f._replayCtrl.SetupReplayOrRecord(provider, f._plan, f._handles, f._ctx);
             }
 

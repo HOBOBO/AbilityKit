@@ -6,6 +6,8 @@ using AbilityKit.Ability.Share.Common.Record.Lockstep;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Game.Flow.Battle.Replay;
+using AbilityKit.Game.Flow.Modules;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
 

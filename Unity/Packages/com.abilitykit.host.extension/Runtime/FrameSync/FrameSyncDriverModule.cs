@@ -7,6 +7,7 @@ using AbilityKit.Ability.Host.Transport;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Network.Runtime;
 
 namespace AbilityKit.Ability.Host.Extensions.FrameSync
 {
@@ -231,5 +232,93 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
             _frame = currentFrame;
         }
+    }
+
+    public static class WorldCatchUpDriver
+    {
+        public static int CatchUpAndFeedSnapshots(
+            HostRuntime runtime,
+            IWorld world,
+            int lastTickedFrame,
+            int driveTargetFrame,
+            float fixedDelta,
+            int stepsBudget,
+            AbilityKit.Ability.Host.IWorldStateSnapshotProvider provider,
+            int maxSnapshotsPerStep,
+            Action<FramePacket> feed)
+        {
+            if (runtime == null) return lastTickedFrame;
+            if (world == null) return lastTickedFrame;
+            if (driveTargetFrame <= 0) return lastTickedFrame;
+            if (stepsBudget <= 0) return lastTickedFrame;
+
+            if (maxSnapshotsPerStep <= 0) maxSnapshotsPerStep = 0;
+
+            var worldId = world.Id;
+
+            var steps = 0;
+            while (steps < stepsBudget && lastTickedFrame < driveTargetFrame)
+            {
+                var nextFrame = lastTickedFrame + 1;
+                var frameIndex = new FrameIndex(nextFrame);
+
+                runtime.Tick(fixedDelta);
+
+                if (provider != null && feed != null && maxSnapshotsPerStep > 0)
+                {
+                    SnapshotProviderDrain.DrainSnapshots(provider, worldId, frameIndex, maxSnapshotsPerStep, feed);
+                }
+
+                lastTickedFrame = nextFrame;
+                steps++;
+            }
+
+            return lastTickedFrame;
+        }
+    }
+
+    public static class FrameSyncInputHubFactory
+    {
+        public static FrameJitterBufferHub<TFrame> CreateJitterBufferHub<TFrame>(
+            int delayFrames,
+            MissingFrameMode missingMode,
+            Func<TFrame> missingFrameFactory,
+            int initialCapacity = 256)
+        {
+            var buf = new AbilityKit.Network.Runtime.FrameJitterBuffer<TFrame>(delayFrames, missingMode, missingFrameFactory, initialCapacity);
+            return new FrameJitterBufferHub<TFrame>(buf);
+        }
+    }
+
+    public sealed class FrameJitterBufferHub<TFrame> :
+        AbilityKit.Network.Abstractions.IConsumableRemoteFrameSource<TFrame>,
+        AbilityKit.Network.Abstractions.IRemoteFrameSink<TFrame>
+    {
+        private readonly AbilityKit.Network.Runtime.FrameJitterBuffer<TFrame> _buf;
+
+        public FrameJitterBufferHub(AbilityKit.Network.Runtime.FrameJitterBuffer<TFrame> buf)
+        {
+            _buf = buf ?? throw new ArgumentNullException(nameof(buf));
+        }
+
+        public int DelayFrames
+        {
+            get => _buf.DelayFrames;
+            set => _buf.DelayFrames = value;
+        }
+
+        public int MaxReceivedFrame => _buf.MaxReceivedFrame;
+
+        public int TargetFrame => _buf.TargetFrame;
+
+        public bool TryGet(int frame, out TFrame frameData) => _buf.TryGet(frame, out frameData);
+
+        public bool TryConsume(int frame, out TFrame frameData) => _buf.TryConsume(frame, out frameData);
+
+        public void TrimBefore(int minFrameInclusive) => _buf.TrimBefore(minFrameInclusive);
+
+        public void Add(int frame, TFrame frameData) => _buf.Add(frame, frameData);
+
+        public void Dispose() => _buf.Dispose();
     }
 }

@@ -1,10 +1,12 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Game.Battle;
@@ -87,10 +89,14 @@ namespace AbilityKit.Game.Flow
         {
             _confirmedLastTickedFrame = 0;
 
-            var buf = new FrameJitterBuffer<PlayerInputCommand[]>(delayFrames: 0, missingMode: MissingFrameMode.FillDefault, missingFrameFactory: Array.Empty<PlayerInputCommand>, initialCapacity: 256);
-            _confirmedInputSource = buf;
-            _confirmedConsumable = buf;
-            _confirmedSink = buf;
+            var hub = FrameSyncInputHubFactory.CreateJitterBufferHub<PlayerInputCommand[]>(
+                delayFrames: 0,
+                missingMode: MissingFrameMode.FillDefault,
+                missingFrameFactory: Array.Empty<PlayerInputCommand>,
+                initialCapacity: 256);
+            _confirmedInputSource = hub;
+            _confirmedConsumable = hub;
+            _confirmedSink = hub;
 
             try
             {

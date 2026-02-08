@@ -1,8 +1,12 @@
 using System;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Game.Battle;
+
+using HostWorldStateSnapshotProvider = AbilityKit.Ability.Host.IWorldStateSnapshotProvider;
 
 namespace AbilityKit.Game.Flow
 {
@@ -25,9 +29,7 @@ namespace AbilityKit.Game.Flow
             var fixedDelta = GetFixedDeltaSeconds();
             var stepsBudget = MaxRemoteDrivenCatchUpStepsPerUpdate;
             if (stepsBudget <= 0) return;
-
-            var worldId = _remoteDrivenWorld.Id;
-            IWorldStateSnapshotProvider provider = null;
+            HostWorldStateSnapshotProvider provider = null;
 
             try
             {
@@ -42,31 +44,17 @@ namespace AbilityKit.Game.Flow
                 provider = null;
             }
 
-            var steps = 0;
-            while (steps < stepsBudget && _remoteDrivenLastTickedFrame < driveTargetFrame)
-            {
-                var nextFrame = _remoteDrivenLastTickedFrame + 1;
-                var frameIndex = new FrameIndex(nextFrame);
 
-                _remoteDrivenRuntime.Tick(fixedDelta);
-
-                if (provider != null)
-                {
-                    for (int i = 0; i < 16; i++)
-                    {
-                        if (!provider.TryGetSnapshot(frameIndex, out var s))
-                        {
-                            break;
-                        }
-
-                        var synthesized = new FramePacket(worldId, frameIndex, Array.Empty<PlayerInputCommand>(), s);
-                        _snapshots?.Feed(synthesized);
-                    }
-                }
-
-                _remoteDrivenLastTickedFrame = nextFrame;
-                steps++;
-            }
+            _remoteDrivenLastTickedFrame = WorldCatchUpDriver.CatchUpAndFeedSnapshots(
+                runtime: _remoteDrivenRuntime,
+                world: _remoteDrivenWorld,
+                lastTickedFrame: _remoteDrivenLastTickedFrame,
+                driveTargetFrame: driveTargetFrame,
+                fixedDelta: fixedDelta,
+                stepsBudget: stepsBudget,
+                provider: provider,
+                maxSnapshotsPerStep: 16,
+                feed: packet => _snapshots?.Feed(packet));
 
             _remoteDrivenInputSource.TrimBefore(_remoteDrivenLastTickedFrame - 120);
         }

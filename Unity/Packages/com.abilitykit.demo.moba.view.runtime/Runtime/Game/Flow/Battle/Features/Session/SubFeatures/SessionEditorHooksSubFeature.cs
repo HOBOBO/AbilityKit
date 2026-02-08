@@ -4,8 +4,15 @@ namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleSessionFeature
     {
-        private sealed class SessionEditorHooksSubFeature : ISessionSubFeature<BattleSessionFeature>
+        private sealed class SessionEditorHooksSubFeature :
+            ISessionSubFeature<BattleSessionFeature>,
+            IGameModuleId,
+            IGameModuleDependencies
         {
+            public string Id => "session_editor_hooks";
+
+            public System.Collections.Generic.IEnumerable<string> Dependencies => new[] { "session_events" };
+
             public void OnAttach(in FeatureModuleContext<BattleSessionFeature> ctx)
             {
 #if UNITY_EDITOR

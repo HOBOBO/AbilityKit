@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.Share.Common.Log;
+using DisposeUtils = AbilityKit.Ability.Share.Common.Log.DisposeUtils;
 using AbilityKit.Ability.Share.Common.Record.Lockstep;
 using AbilityKit.Ability.Share.Common.SnapshotRouting;
 using AbilityKit.Ability.World.Abstractions;
@@ -13,7 +14,6 @@ using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot;
 using AbilityKit.Game.Flow.Battle.ViewEvents.Triggering;
-using AbilityKit.Game.Flow.Battle.Replay;
 using AbilityKit.Game.Flow.Modules;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
@@ -21,7 +21,7 @@ using AbilityKit.Network.Runtime;
 
 namespace AbilityKit.Game.Flow
 {
-    internal sealed class BattleSessionHandles
+    internal sealed partial class BattleSessionHandles
     {
         internal sealed class PhaseHandles
         {
@@ -45,74 +45,6 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        internal sealed class SnapshotHandles
-        {
-            internal FrameSnapshotDispatcher Snapshots;
-            internal SnapshotPipeline Pipeline;
-            internal SnapshotCmdHandler CmdHandler;
-            internal SnapshotRoutingInstance Routing;
-
-            public void Reset()
-            {
-                if (CmdHandler != null)
-                {
-                    try
-                    {
-                        CmdHandler.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    CmdHandler = null;
-                }
-
-                if (Pipeline != null)
-                {
-                    try
-                    {
-                        Pipeline.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    Pipeline = null;
-                }
-
-                if (Snapshots != null)
-                {
-                    try
-                    {
-                        Snapshots.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    Snapshots = null;
-                }
-
-                if (Routing != null)
-                {
-                    try
-                    {
-                        Routing.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    Routing = null;
-                }
-
-                Snapshots = null;
-                Pipeline = null;
-                CmdHandler = null;
-                Routing = null;
-            }
-        }
-
         internal sealed class RemoteDrivenHandles
         {
             internal IWorldManager Worlds;
@@ -129,60 +61,11 @@ namespace AbilityKit.Game.Flow
                 Runtime = null;
                 World = null;
 
-                if (InputSource is IDisposable d)
-                {
-                    try
-                    {
-                        d.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                }
-
+                IDisposable inputSourceDisposable = InputSource;
                 InputSource = null;
+                DisposeUtils.TryDispose(ref inputSourceDisposable, ex => Log.Exception(ex));
                 Consumable = null;
                 Sink = null;
-
-                if (SnapshotViewAdapter != null)
-                {
-                    try
-                    {
-                        SnapshotViewAdapter.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    SnapshotViewAdapter = null;
-                }
-
-                if (TriggerBridge != null)
-                {
-                    try
-                    {
-                        TriggerBridge.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    TriggerBridge = null;
-                }
-
-                if (Snapshots != null)
-                {
-                    try
-                    {
-                        Snapshots.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    Snapshots = null;
-                }
             }
         }
 
@@ -219,21 +102,19 @@ namespace AbilityKit.Game.Flow
                 Runtime = null;
                 World = null;
 
-                if (InputSource is IDisposable d)
-                {
-                    try
-                    {
-                        d.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                }
-
+                IDisposable inputSourceDisposable = InputSource;
                 InputSource = null;
+                DisposeUtils.TryDispose(ref inputSourceDisposable, ex => Log.Exception(ex));
                 Consumable = null;
                 Sink = null;
+
+                DisposeUtils.TryDispose(ref ViewCmdHandler, ex => Log.Exception(ex));
+                DisposeUtils.TryDispose(ref ViewPipeline, ex => Log.Exception(ex));
+                DisposeUtils.TryDispose(ref ViewSnapshots, ex => Log.Exception(ex));
+
+                DisposeUtils.TryDispose(ref ViewSubLobby, ex => Log.Exception(ex));
+                DisposeUtils.TryDispose(ref ViewSubActorTransform, ex => Log.Exception(ex));
+                DisposeUtils.TryDispose(ref ViewSubStateHash, ex => Log.Exception(ex));
 
                 Snapshots = null;
                 ViewEventSink = null;
@@ -242,92 +123,7 @@ namespace AbilityKit.Game.Flow
                 TriggerBridge = null;
 
                 ViewCtx = null;
-                ViewSnapshots = null;
-                ViewPipeline = null;
-                ViewCmdHandler = null;
                 ViewFeature = null;
-
-                if (ViewCmdHandler != null)
-                {
-                    try
-                    {
-                        ViewCmdHandler.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    ViewCmdHandler = null;
-                }
-
-                if (ViewPipeline != null)
-                {
-                    try
-                    {
-                        ViewPipeline.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    ViewPipeline = null;
-                }
-
-                if (ViewSnapshots != null)
-                {
-                    try
-                    {
-                        ViewSnapshots.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    ViewSnapshots = null;
-                }
-
-                if (ViewSubLobby != null)
-                {
-                    try
-                    {
-                        ViewSubLobby.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    ViewSubLobby = null;
-                }
-
-                if (ViewSubActorTransform != null)
-                {
-                    try
-                    {
-                        ViewSubActorTransform.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    ViewSubActorTransform = null;
-                }
-
-                if (ViewSubStateHash != null)
-                {
-                    try
-                    {
-                        ViewSubStateHash.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    ViewSubStateHash = null;
-                }
-
-                ViewSubLobby = null;
-                ViewSubActorTransform = null;
-                ViewSubStateHash = null;
             }
         }
 
@@ -335,7 +131,7 @@ namespace AbilityKit.Game.Flow
         {
             internal ConnectionManager Conn;
             internal GatewayRoomClient Client;
-            internal Task Task;
+            internal System.Threading.Tasks.Task Task;
 
             internal readonly Dictionary<WorldId, GatewayWorldStartAnchor> WorldStartAnchors = new Dictionary<WorldId, GatewayWorldStartAnchor>();
 
@@ -344,13 +140,18 @@ namespace AbilityKit.Game.Flow
 
             public void Reset()
             {
+                TimeSyncTask = null;
+
                 if (TimeSyncCts != null)
                 {
+                    var cts = TimeSyncCts;
+                    TimeSyncCts = null;
+
                     try
                     {
-                        if (!TimeSyncCts.IsCancellationRequested)
+                        if (!cts.IsCancellationRequested)
                         {
-                            TimeSyncCts.Cancel();
+                            cts.Cancel();
                         }
                     }
                     catch (Exception ex)
@@ -358,38 +159,19 @@ namespace AbilityKit.Game.Flow
                         Log.Exception(ex);
                     }
 
-                    try
-                    {
-                        TimeSyncCts.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-
-                    TimeSyncCts = null;
+                    DisposeUtils.TryDispose(ref cts, ex => Log.Exception(ex));
                 }
 
                 if (Conn != null)
                 {
-                    try
-                    {
-                        Conn.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
+                    var conn = Conn;
                     Conn = null;
+                    DisposeUtils.TryDispose(ref conn, ex => Log.Exception(ex));
                 }
-
-                Conn = null;
                 Client = null;
                 Task = null;
 
                 WorldStartAnchors.Clear();
-
-                TimeSyncTask = null;
             }
         }
 
@@ -402,52 +184,6 @@ namespace AbilityKit.Game.Flow
             {
                 Adapter = null;
                 Ctx = null;
-            }
-        }
-
-        internal sealed class DispatcherHandles
-        {
-            internal IDispatcher UnityDispatcher;
-            internal DedicatedThreadDispatcher NetworkIoDispatcher;
-
-            public void Reset()
-            {
-                UnityDispatcher = null;
-                if (NetworkIoDispatcher != null)
-                {
-                    try
-                    {
-                        NetworkIoDispatcher.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                    NetworkIoDispatcher = null;
-                }
-
-                NetworkIoDispatcher = null;
-            }
-        }
-
-        internal sealed class ReplayHandles
-        {
-            internal LockstepReplayDriver Driver;
-
-            public void Reset()
-            {
-                if (Driver is IDisposable d)
-                {
-                    try
-                    {
-                        d.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex);
-                    }
-                }
-                Driver = null;
             }
         }
 

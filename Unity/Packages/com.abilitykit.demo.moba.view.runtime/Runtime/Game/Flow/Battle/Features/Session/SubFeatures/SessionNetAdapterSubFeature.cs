@@ -7,8 +7,14 @@ namespace AbilityKit.Game.Flow
     {
         private sealed class SessionNetAdapterSubFeature :
             ISessionSubFeature<BattleSessionFeature>,
-            ISessionFramePacketTransformSubFeature<BattleSessionFeature>
+            ISessionFramePacketTransformSubFeature<BattleSessionFeature>,
+            IGameModuleId,
+            IGameModuleDependencies
         {
+            public string Id => "session_net_adapter";
+
+            public System.Collections.Generic.IEnumerable<string> Dependencies => new[] { "session_events" };
+
             public void OnAttach(in FeatureModuleContext<BattleSessionFeature> ctx) { }
 
             public void OnDetach(in FeatureModuleContext<BattleSessionFeature> ctx) { }
