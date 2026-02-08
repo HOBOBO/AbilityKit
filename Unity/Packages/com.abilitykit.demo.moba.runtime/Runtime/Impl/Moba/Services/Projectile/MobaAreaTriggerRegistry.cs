@@ -1,7 +1,4 @@
-#if false
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.Projectile;
-using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
@@ -10,19 +7,44 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
     {
         private readonly Dictionary<int, Entry> _entries = new Dictionary<int, Entry>();
 
-        public void Register(AreaId areaId, int ownerId, in Vec3 center, float radius, int onEnterTriggerId, int onExitTriggerId, int onExpireTriggerId)
+        public void Register(
+            AbilityKit.Ability.Share.Common.Projectile.AreaId areaId,
+            int templateId,
+            int ownerId,
+            in AbilityKit.Ability.Share.Math.Vec3 center,
+            float radius,
+            int collisionLayerMask,
+            int maxTargets,
+            int onEnterTriggerId,
+            int onExitTriggerId,
+            int[] onExpireTriggerIds)
         {
             if (areaId.Value <= 0) return;
-            _entries[areaId.Value] = new Entry(ownerId, center, radius, onEnterTriggerId, onExitTriggerId, onExpireTriggerId);
+            _entries[areaId.Value] = new Entry(templateId, ownerId, center, radius, collisionLayerMask, maxTargets, onEnterTriggerId, onExitTriggerId, onExpireTriggerIds);
         }
 
-        public void Unregister(AreaId areaId)
+        public void Register(
+            AbilityKit.Ability.Share.Common.Projectile.AreaId areaId,
+            int templateId,
+            int ownerId,
+            in AbilityKit.Ability.Share.Math.Vec3 center,
+            float radius,
+            int collisionLayerMask,
+            int maxTargets,
+            int onEnterTriggerId,
+            int onExitTriggerId,
+            int onExpireTriggerId)
+        {
+            Register(areaId, templateId, ownerId, in center, radius, collisionLayerMask, maxTargets, onEnterTriggerId, onExitTriggerId, onExpireTriggerId > 0 ? new[] { onExpireTriggerId } : null);
+        }
+
+        public void Unregister(AbilityKit.Ability.Share.Common.Projectile.AreaId areaId)
         {
             if (areaId.Value <= 0) return;
             _entries.Remove(areaId.Value);
         }
 
-        public bool TryGet(AreaId areaId, out Entry entry)
+        public bool TryGet(AbilityKit.Ability.Share.Common.Projectile.AreaId areaId, out Entry entry)
         {
             if (areaId.Value <= 0)
             {
@@ -40,23 +62,28 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 
         public readonly struct Entry
         {
+            public readonly int TemplateId;
             public readonly int OwnerId;
-            public readonly Vec3 Center;
+            public readonly AbilityKit.Ability.Share.Math.Vec3 Center;
             public readonly float Radius;
+            public readonly int CollisionLayerMask;
+            public readonly int MaxTargets;
             public readonly int OnEnterTriggerId;
             public readonly int OnExitTriggerId;
-            public readonly int OnExpireTriggerId;
+            public readonly int[] OnExpireTriggerIds;
 
-            public Entry(int ownerId, in Vec3 center, float radius, int onEnterTriggerId, int onExitTriggerId, int onExpireTriggerId)
+            public Entry(int templateId, int ownerId, in AbilityKit.Ability.Share.Math.Vec3 center, float radius, int collisionLayerMask, int maxTargets, int onEnterTriggerId, int onExitTriggerId, int[] onExpireTriggerIds)
             {
+                TemplateId = templateId;
                 OwnerId = ownerId;
                 Center = center;
                 Radius = radius;
+                CollisionLayerMask = collisionLayerMask;
+                MaxTargets = maxTargets;
                 OnEnterTriggerId = onEnterTriggerId;
                 OnExitTriggerId = onExitTriggerId;
-                OnExpireTriggerId = onExpireTriggerId;
+                OnExpireTriggerIds = onExpireTriggerIds;
             }
         }
     }
 }
-#endif
