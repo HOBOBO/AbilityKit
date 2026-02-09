@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using AbilityKit.Ability.Triggering;
+using System;
 using Entitas;
 using Entitas.CodeGeneration.Attributes;
 
@@ -21,7 +21,7 @@ namespace AbilityKit.Ability.Impl.Moba.Conponents
 
         public List<PassiveSkillTriggerEntryRuntime> Entries;
 
-        public IEventSubscription Sub;
+        public IDisposable Sub;
     }
 
     public sealed class PassiveSkillTriggerEntryRuntime

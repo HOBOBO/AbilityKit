@@ -43,9 +43,16 @@
   - `MotionStacking`：同组叠加策略（Additive/ExclusiveHighestPriority/OverrideLowerPriority）
   - `MotionPipelinePolicy`：跨组抑制规则（例如 Control 抑制 Locomotion/Ability/Path）
 
+- `Runtime/MotionSystem/Constraints/`
+  - `MotionConstraints`：约束聚合入口（按域拆分，避免“参数含义混杂”）
+  - `MotionCollisionConstraints`：碰撞域约束（碰撞开关/过滤/半径等）
+  - `MotionLeashConstraints`：活动范围域约束（中心点 + 半径 + 策略）
+
 - `Runtime/MotionSystem/Collision/`
   - `IMotionSolver`：碰撞/阻挡求解器接口
   - `MotionSolveResult/MotionHit`：求解结果
+  - `IMotionCollisionWorld`：外部碰撞查询接口（Sweep/Overlap/Project）
+  - `ConfigurableMotionSolver`：基础 solver 外壳（通过 provider 获取 MotionConstraints，并按约束顺序处理）
 
 - `Runtime/MotionSystem/Events/`
   - `IMotionEventSink`：事件回调（OnHit/OnArrive/OnExpired）
@@ -173,6 +180,22 @@ sequenceDiagram
 - 纯逻辑格子/导航网格约束
 - AABB/圆柱体碰撞
 - “滑墙”/“停止”策略
+
+#### 推荐接入方式（约束 + 碰撞查询拆分）
+
+为了让上层（技能/控制/区域限制等）能以统一方式表达运动限制，本模块提供一套“约束聚合 + 可插拔查询”的骨架：
+
+- `MotionConstraints`：由上层在每 tick 通过 provider 返回，描述本帧约束（例如活动范围限制、碰撞过滤等）
+- `IMotionCollisionWorld`：由上层实现，负责提供 sweep/overlap/project 等几何查询
+- `ConfigurableMotionSolver`：本模块提供的基础实现
+  - 先应用 `Leash`（活动范围）裁剪
+  - 再根据 `Collision` 域决定是否执行 sweep（允许穿越则 passthrough）
+
+这样做的好处是：
+
+- 上层不需要把“约束逻辑”散落在各个 `IMotionSource` 中
+- 同一套 `MotionPipeline` 能同时承载 Locomotion / Ability / Control 等多个来源的位移，并统一受约束影响
+- 后续新增约束类型时，只需扩展 `Constraints/` 目录与 provider，不需要改动 `MotionPipeline` 主体
 
 ### 3) 事件（IMotionEventSink）
 

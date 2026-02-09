@@ -138,11 +138,6 @@ namespace AbilityKit.Ability.Impl.Triggering
                 return spc.EventBus;
             }
 
-            if (payload is global::AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastRequest scr)
-            {
-                return scr.EventBus;
-            }
-
             return null;
         }
 
@@ -246,11 +241,6 @@ namespace AbilityKit.Ability.Impl.Triggering
                     targetActorIds.Add(scc.TargetActorId);
                     return true;
                 }
-                if (payload is global::AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastRequest scr && scr.TargetActorId > 0)
-                {
-                    targetActorIds.Add(scr.TargetActorId);
-                    return true;
-                }
                 return false;
             }
 
@@ -260,11 +250,6 @@ namespace AbilityKit.Ability.Impl.Triggering
                 if (payload is global::AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastContext scc && scc.CasterActorId > 0)
                 {
                     targetActorIds.Add(scc.CasterActorId);
-                    return true;
-                }
-                if (payload is global::AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastRequest scr && scr.CasterActorId > 0)
-                {
-                    targetActorIds.Add(scr.CasterActorId);
                     return true;
                 }
                 return false;

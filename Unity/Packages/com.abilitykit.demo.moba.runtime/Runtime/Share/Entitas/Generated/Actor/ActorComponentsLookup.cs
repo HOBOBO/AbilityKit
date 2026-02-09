@@ -26,16 +26,31 @@ public static class ActorComponentsLookup {
     public const int OwnerLink = 15;
     public const int OwnerPlayerId = 16;
     public const int PassiveSkillTriggerListeners = 17;
-    public const int ProjectileLauncher = 18;
-    public const int RemoveBuffRequest = 19;
-    public const int ResourceContainer = 20;
-    public const int SkillLoadout = 21;
-    public const int SummonMeta = 22;
-    public const int Team = 23;
-    public const int Transform = 24;
-    public const int UnitSubType = 25;
+    public const int ProjectileEffectSnapshot = 18;
+    public const int ProjectileLauncher = 19;
+    public const int RemoveBuffRequest = 20;
+    public const int ResourceContainer = 21;
+    public const int SkillCastAim = 22;
+    public const int SkillCastCancelRequest = 23;
+    public const int SkillCastDestroyRequest = 24;
+    public const int SkillCastInstanceId = 25;
+    public const int SkillCastOwnerActorId = 26;
+    public const int SkillCastRunningTag = 27;
+    public const int SkillCastSequence = 28;
+    public const int SkillCastSkillId = 29;
+    public const int SkillCastSkillLevel = 30;
+    public const int SkillCastSlot = 31;
+    public const int SkillCastStage = 32;
+    public const int SkillCastStartFrame = 33;
+    public const int SkillCastTargetActorId = 34;
+    public const int SkillCastTimelineRuntime = 35;
+    public const int SkillLoadout = 36;
+    public const int SummonMeta = 37;
+    public const int Team = 38;
+    public const int Transform = 39;
+    public const int UnitSubType = 40;
 
-    public const int TotalComponents = 26;
+    public const int TotalComponents = 41;
 
     public static readonly string[] componentNames = {
         "ActorId",
@@ -56,9 +71,24 @@ public static class ActorComponentsLookup {
         "OwnerLink",
         "OwnerPlayerId",
         "PassiveSkillTriggerListeners",
+        "ProjectileEffectSnapshot",
         "ProjectileLauncher",
         "RemoveBuffRequest",
         "ResourceContainer",
+        "SkillCastAim",
+        "SkillCastCancelRequest",
+        "SkillCastDestroyRequest",
+        "SkillCastInstanceId",
+        "SkillCastOwnerActorId",
+        "SkillCastRunningTag",
+        "SkillCastSequence",
+        "SkillCastSkillId",
+        "SkillCastSkillLevel",
+        "SkillCastSlot",
+        "SkillCastStage",
+        "SkillCastStartFrame",
+        "SkillCastTargetActorId",
+        "SkillCastTimelineRuntime",
         "SkillLoadout",
         "SummonMeta",
         "Team",
@@ -85,9 +115,24 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerLinkComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillTriggerListenersComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.ProjectileEffectSnapshotComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ProjectileLauncherComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.RemoveBuffRequestComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainerComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastAimComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastCancelRequestComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastDestroyRequestComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastInstanceIdComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastOwnerActorIdComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastRunningTagComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastSequenceComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastSkillIdComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastSkillLevelComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastSlotComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStageComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStartFrameComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastTargetActorIdComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastTimelineRuntimeComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillLoadoutComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.SummonMetaComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.TeamComponent),

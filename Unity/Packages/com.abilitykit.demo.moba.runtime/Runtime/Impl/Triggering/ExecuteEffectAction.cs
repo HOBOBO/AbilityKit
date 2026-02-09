@@ -57,11 +57,7 @@ namespace AbilityKit.Ability.Impl.Triggering
             else
             {
                 SkillCastRequest req;
-                if (context?.Event.Payload is SkillCastRequest r)
-                {
-                    req = r;
-                }
-                else if (context?.Event.Payload is SkillCastContext sc)
+                if (context?.Event.Payload is SkillCastContext sc)
                 {
                     req = new SkillCastRequest(
                         skillId: sc.SkillId,
@@ -90,7 +86,7 @@ namespace AbilityKit.Ability.Impl.Triggering
 
             if (ctx == null)
             {
-                Log.Warning($"[Trigger] effect_execute requires payload IAbilityPipelineContext / SkillCastRequest / SkillCastContext, got: {context?.Event.Payload?.GetType().FullName ?? "null"}");
+                Log.Warning($"[Trigger] effect_execute requires payload IAbilityPipelineContext / SkillCastContext, got: {context?.Event.Payload?.GetType().FullName ?? "null"}");
                 return;
             }
 

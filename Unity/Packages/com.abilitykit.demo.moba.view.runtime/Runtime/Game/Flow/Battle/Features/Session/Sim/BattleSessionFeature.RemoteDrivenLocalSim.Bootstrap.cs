@@ -15,6 +15,8 @@ using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Game.Flow;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Game.Flow.Battle.FrameSync;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
 
 namespace AbilityKit.Game.Flow
 {
@@ -45,6 +47,16 @@ namespace AbilityKit.Game.Flow
 
             BindRemoteDrivenPredictionFeaturesToBattleContext();
 
+            IClientPredictionDriverStats stats = null;
+            try
+            {
+                _remoteDrivenRuntime.Features.TryGetFeature<IClientPredictionDriverStats>(out stats);
+            }
+            catch
+            {
+                stats = null;
+            }
+
             var builder = WorldServiceContainerFactory.CreateWithAttributes(
                 AbilityKit.Ability.World.Services.Attributes.WorldServiceProfile.All,
                 new[]
@@ -60,6 +72,11 @@ namespace AbilityKit.Game.Flow
             builder.RegisterInstance(new WorldInitData(_plan.CreateWorldOpCode, _plan.CreateWorldPayload));
             builder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new AbilityKit.Ability.FrameSync.FrameTime());
 
+            if (stats != null)
+            {
+                builder.RegisterInstance<AbilityKit.Ability.Share.Impl.Moba.Services.IWorldAuthorityFramesSource>(new ClientPredictionDriverStatsFramesSource(stats));
+            }
+
             var options = new WorldCreateOptions(new WorldId(_plan.WorldId), _plan.WorldType)
             {
                 ServiceBuilder = builder,
@@ -67,6 +84,18 @@ namespace AbilityKit.Game.Flow
             options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
 
             _remoteDrivenWorld = _remoteDrivenRuntime.CreateWorld(options);
+
+            try
+            {
+                if (_remoteDrivenWorld?.Services != null && _remoteDrivenWorld.Services.TryResolve<MobaAuthorityFrameService>(out var auth) && auth != null)
+                {
+                    auth.BindWorld(_remoteDrivenWorld.Id);
+                }
+            }
+            catch
+            {
+                // ignored
+            }
 
             try
             {

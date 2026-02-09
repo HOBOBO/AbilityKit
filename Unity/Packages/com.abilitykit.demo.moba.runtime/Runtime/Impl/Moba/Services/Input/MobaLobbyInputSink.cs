@@ -41,9 +41,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 { (int)MobaOpCode.Ready, cmd => _lobby.SetReady(cmd.Player, true) },
                 { (int)MobaOpCode.Unready, cmd => _lobby.SetReady(cmd.Player, false) },
                 { (int)MobaOpCode.Move, HandleMove },
-                { (int)MobaOpCode.Skill1, cmd => HandleSkillLegacy(cmd, 1) },
-                { (int)MobaOpCode.Skill2, cmd => HandleSkillLegacy(cmd, 2) },
-                { (int)MobaOpCode.Skill3, cmd => HandleSkillLegacy(cmd, 3) },
                 { (int)MobaOpCode.SkillInput, HandleSkillInput },
             };
         }
@@ -135,17 +132,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 entity.ReplaceMoveInput(dx, dz);
             }
-        }
-
-        private void HandleSkillLegacy(PlayerInputCommand cmd, int slot)
-        {
-            if (!_lobby.Started) return;
-            if (!_playerActorMap.TryGetActorId(cmd.Player, out var actorId)) return;
-            if (!TryGetEntity(actorId, out var entity) || entity == null) return;
-            if (!entity.hasTransform) return;
-
-            var evt = new SkillInputEvent(slot: slot, phase: SkillInputPhase.Press);
-            _skills?.HandleInput(actorId, in evt);
         }
 
         private void HandleSkillInput(PlayerInputCommand cmd)

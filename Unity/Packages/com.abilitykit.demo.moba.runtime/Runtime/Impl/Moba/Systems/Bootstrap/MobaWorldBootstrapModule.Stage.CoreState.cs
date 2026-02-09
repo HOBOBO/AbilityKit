@@ -8,6 +8,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
         private static void RegisterCoreState(WorldContainerBuilder builder)
         {
             builder.RegisterService<MobaLobbyStateService, MobaLobbyStateService>();
+            builder.RegisterService<MobaAuthorityFrameService, MobaAuthorityFrameService>();
         }
     }
 }

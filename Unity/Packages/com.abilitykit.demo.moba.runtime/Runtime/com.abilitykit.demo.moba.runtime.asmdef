@@ -3,6 +3,7 @@
     "rootNamespace": "AbilityKit",
     "references": [
         "AbilityKit.Core",
+        "AbilityKit.Effects",
         "AbilityKit.Attributes",
         "AbilityKit.Host",
         "AbilityKit.Demo.Moba.Entitas.Generated",

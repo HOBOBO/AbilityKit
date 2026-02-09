@@ -7,6 +7,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
     {
         private static void RegisterBuffAndSkillPipelines(WorldContainerBuilder builder)
         {
+            builder.TryRegister<MobaSkillCastInstanceSyncSettings>(WorldLifetime.Singleton, _ => new MobaSkillCastInstanceSyncSettings());
             builder.TryRegisterService<MobaBuffService, MobaBuffService>();
             builder.RegisterService<IMobaSkillPipelineLibrary, TableDrivenMobaSkillPipelineLibrary>();
             builder.RegisterService<SkillExecutor, SkillExecutor>();
