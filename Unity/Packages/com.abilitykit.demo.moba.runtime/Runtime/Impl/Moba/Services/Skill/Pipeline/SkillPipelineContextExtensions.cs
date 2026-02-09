@@ -8,31 +8,37 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     {
         public static int GetSkillId(this IAbilityPipelineContext ctx)
         {
+            if (ctx is SkillPipelineContext spc) return spc.SkillId;
             return ctx.GetData<int>(MobaSkillPipelineSharedKeys.SkillId);
         }
 
         public static int GetSkillSlot(this IAbilityPipelineContext ctx)
         {
+            if (ctx is SkillPipelineContext spc) return spc.SkillSlot;
             return ctx.GetData<int>(MobaSkillPipelineSharedKeys.SkillSlot);
         }
 
         public static int GetCasterActorId(this IAbilityPipelineContext ctx)
         {
+            if (ctx is SkillPipelineContext spc) return spc.CasterActorId;
             return ctx.GetData<int>(MobaSkillPipelineSharedKeys.CasterActorId);
         }
 
         public static int GetTargetActorId(this IAbilityPipelineContext ctx)
         {
+            if (ctx is SkillPipelineContext spc) return spc.TargetActorId;
             return ctx.GetData<int>(MobaSkillPipelineSharedKeys.TargetActorId);
         }
 
         public static Vec3 GetAimPos(this IAbilityPipelineContext ctx)
         {
+            if (ctx is SkillPipelineContext spc) return spc.AimPos;
             return ctx.GetData<Vec3>(MobaSkillPipelineSharedKeys.AimPos);
         }
 
         public static Vec3 GetAimDir(this IAbilityPipelineContext ctx)
         {
+            if (ctx is SkillPipelineContext spc) return spc.AimDir;
             return ctx.GetData<Vec3>(MobaSkillPipelineSharedKeys.AimDir);
         }
 

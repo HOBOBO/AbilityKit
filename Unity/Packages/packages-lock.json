@@ -209,6 +209,14 @@
         "com.abilitykit.demo.moba.runtime": "0.0.1"
       }
     },
+    "com.abilitykit.effects": {
+      "version": "file:com.abilitykit.effects",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "0.0.1"
+      }
+    },
     "com.abilitykit.example": {
       "version": "file:com.abilitykit.example",
       "depth": 0,

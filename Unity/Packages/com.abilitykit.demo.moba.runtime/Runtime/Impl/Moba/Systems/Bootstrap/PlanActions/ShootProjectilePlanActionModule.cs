@@ -36,22 +36,13 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                         if (!ctx.Context.TryResolve<MobaProjectileService>(out var projectileSvc) || projectileSvc == null) return;
                         if (!ctx.Context.TryResolve<MobaConfigDatabase>(out var configs) || configs == null) return;
 
-                        var casterActorId = 0;
-                        var aimPos = Vec3.Zero;
-                        var aimDir = Vec3.Zero;
-                        if (args is SkillCastContext scc)
-                        {
-                            casterActorId = scc.CasterActorId;
-                            aimPos = scc.AimPos;
-                            aimDir = scc.AimDir;
-                        }
-
-                        if (casterActorId <= 0) return;
+                        if (!PlanContextValueResolver.TryGetCasterActorId(args, out var casterActorId)) return;
+                        PlanContextValueResolver.TryGetAim(args, out var aimPos, out var aimDir);
 
                         ProjectileLauncherMO launcher = null;
                         ProjectileMO projectile = null;
-                        if (launcherId > 0) configs.TryGetProjectileLauncher(launcherId, out launcher);
-                        if (projectileId > 0) configs.TryGetProjectile(projectileId, out projectile);
+                        if (!configs.TryGetProjectileLauncher(launcherId, out launcher)) return;
+                        if (!configs.TryGetProjectile(projectileId, out projectile)) return;
                         if (launcher == null || projectile == null) return;
 
                         var casterPos = Vec3.Zero;
