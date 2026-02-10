@@ -1,3 +1,5 @@
+using System;
+using AbilityKit.Ability.Share.Common.Log;
 using UnityEngine;
 using AbilityKit.Game.Flow.Modules;
 
@@ -7,6 +9,8 @@ namespace AbilityKit.Game.Flow
     {
         public void OnAttach(in GamePhaseContext ctx)
         {
+            TryInstallUnityLogSinkIfNeeded();
+
             _phaseCtx = ctx;
             BattleContext battleCtx;
             ctx.Root.TryGetComponent(out battleCtx);
@@ -16,6 +20,26 @@ namespace AbilityKit.Game.Flow
 
             EnsureModulesCreated();
             _subFeatureHost?.Attach(new FeatureModuleContext<BattleSessionFeature>(ctx, this));
+        }
+
+        private static void TryInstallUnityLogSinkIfNeeded()
+        {
+            if (!(Log.Sink is NullLogSink)) return;
+
+            try
+            {
+                var type = Type.GetType("AbilityKit.Ability.Impl.Common.Log.UnityLogSink, AbilityKit.Ability.Unity");
+                if (type == null) return;
+                if (!typeof(ILogSink).IsAssignableFrom(type)) return;
+
+                var sink = Activator.CreateInstance(type) as ILogSink;
+                if (sink == null) return;
+                Log.SetSink(sink);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[BattleSessionFeature] TryInstallUnityLogSinkIfNeeded failed");
+            }
         }
 
         public void OnDetach(in GamePhaseContext ctx)

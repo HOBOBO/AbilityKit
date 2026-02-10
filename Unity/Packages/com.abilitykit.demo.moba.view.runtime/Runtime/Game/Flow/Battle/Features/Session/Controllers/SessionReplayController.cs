@@ -77,17 +77,25 @@ namespace AbilityKit.Game.Flow
                         var tickRate = plan.TickRate;
                         if (tickRate <= 0) tickRate = 30;
 
-                        ctx.InputRecordWriter = new LockstepJsonInputRecordWriter(
-                            outPath,
-                            new LockstepInputRecordMeta
-                            {
-                                WorldId = plan.WorldId,
-                                WorldType = plan.WorldType,
-                                TickRate = tickRate,
-                                RandomSeed = 0,
-                                PlayerId = plan.PlayerId,
-                                StartedAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                            });
+                        var meta = new LockstepInputRecordMeta
+                        {
+                            WorldId = plan.WorldId,
+                            WorldType = plan.WorldType,
+                            TickRate = tickRate,
+                            RandomSeed = 0,
+                            PlayerId = plan.PlayerId,
+                            StartedAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                        };
+
+                        var ext = Path.GetExtension(outPath);
+                        if (string.Equals(ext, ".bin", StringComparison.OrdinalIgnoreCase))
+                        {
+                            ctx.InputRecordWriter = new LockstepBinaryInputRecordWriter(outPath, meta);
+                        }
+                        else
+                        {
+                            ctx.InputRecordWriter = new LockstepJsonInputRecordWriter(outPath, meta);
+                        }
                     }
                 }
             }

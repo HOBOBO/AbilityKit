@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Common.Record.Lockstep;
 using AbilityKit.Ability.World.Abstractions;
@@ -18,7 +19,16 @@ namespace AbilityKit.Game.Flow.Battle.Replay
                 var path = plan.InputReplayPath;
                 if (string.IsNullOrEmpty(path)) return false;
 
-                var file = LockstepJsonInputRecordReader.Load(path);
+                LockstepInputRecordFile file;
+                var ext = Path.GetExtension(path);
+                if (string.Equals(ext, ".bin", StringComparison.OrdinalIgnoreCase))
+                {
+                    file = LockstepBinaryInputRecordReader.Load(path);
+                }
+                else
+                {
+                    file = LockstepJsonInputRecordReader.Load(path);
+                }
                 if (file == null) return false;
 
                 driver = new LockstepReplayDriver(new WorldId(plan.WorldId), file);

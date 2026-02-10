@@ -112,6 +112,20 @@ namespace AbilityKit.Game.Flow
                 }
                 finally
                 {
+                    try
+                    {
+                        var ctx = _host.Context;
+                        if (ctx != null)
+                        {
+                            ctx.InputRecordWriter?.Dispose();
+                            ctx.InputRecordWriter = null;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, "[BattleSessionFeature] Dispose InputRecordWriter on StopSession failed");
+                    }
+
                     _host.TryDestroyBattleWorlds();
                     _host.DisposeSnapshotRouting();
                     _host.DisposeConfirmedView();

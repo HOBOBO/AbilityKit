@@ -158,7 +158,8 @@ namespace AbilityKit.Game.Flow
             var recordDirectory = runModeSo != null ? runModeSo.RecordOutputDirectory : "battle_records";
             if (string.IsNullOrEmpty(recordDirectory)) recordDirectory = "battle_records";
 
-            var recordFileName = $"battle_record_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+            var recordExt = (runModeSo != null && runModeSo.RecordFormat == BattleRunModeConfigSO.InputRecordFormat.Binary) ? "bin" : "json";
+            var recordFileName = $"battle_record_{DateTime.Now:yyyyMMdd_HHmmss}.{recordExt}";
             var recordPath = Path.Combine(recordDirectory, recordFileName);
             if (!Path.IsPathRooted(recordPath)) recordPath = Path.Combine(Application.persistentDataPath, recordPath);
 
