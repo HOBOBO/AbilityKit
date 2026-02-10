@@ -26,11 +26,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             try
             {
-                var running = _ongoing.Start(buff.OngoingEffectId, sourceActorId, targetActorId, ownerKey: runtime.SourceContextId);
-                if (running != null)
-                {
-                    _actionRunner.Add(running, runtime.SourceContextId);
-                }
+                _ongoing.Start(buff.OngoingEffectId, sourceActorId, targetActorId, ownerKey: runtime.SourceContextId);
             }
             catch (Exception ex)
             {

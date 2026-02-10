@@ -20,5 +20,7 @@ namespace AbilityKit.Ability.Impl.Moba.Conponents
         public int NextTickMs;
 
         public long OwnerKey;
+
+        public bool Applied;
     }
 }

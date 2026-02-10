@@ -70,14 +70,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.OngoingEffects
                         continue;
                     }
 
-                    // OwnerKey != 0 means this instance is currently driven by RunningAction (buff bridge etc.).
-                    // To avoid double ticking, ECS tick system only drives ownerKey == 0 instances.
-                    if (rt.OwnerKey != 0) continue;
-
                     if (!_configs.TryGetOngoingEffect(rt.OngoingEffectId, out var cfg) || cfg == null)
                     {
                         list.RemoveAt(j);
                         continue;
+                    }
+
+                    if (!rt.Applied)
+                    {
+                        ExecuteEffect(cfg.OnApplyEffectId, sourceActorId: rt.SourceActorId, targetActorId: targetActorId);
+                        rt.Applied = true;
                     }
 
                     if (rt.RemainingMs > 0)
