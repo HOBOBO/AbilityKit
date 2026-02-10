@@ -190,6 +190,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public int StackingPolicy;
         public int RefreshPolicy;
         public int MaxStacks;
+        public int[] TriggerIds;
         public int[] Tags;
     }
 

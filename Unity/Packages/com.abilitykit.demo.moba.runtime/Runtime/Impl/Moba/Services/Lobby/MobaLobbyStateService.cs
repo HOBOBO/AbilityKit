@@ -101,15 +101,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public int Version => _version;
 
-        public PlayerReadyEntry[] GetPlayers()
+        public global::AbilityKit.Ability.Share.Impl.Moba.Services.PlayerReadyEntry[] GetPlayers()
         {
-            if (_players.Count == 0) return Array.Empty<PlayerReadyEntry>();
+            if (_players.Count == 0) return Array.Empty<global::AbilityKit.Ability.Share.Impl.Moba.Services.PlayerReadyEntry>();
 
-            var arr = new PlayerReadyEntry[_players.Count];
+            var arr = new global::AbilityKit.Ability.Share.Impl.Moba.Services.PlayerReadyEntry[_players.Count];
             var i = 0;
             foreach (var kv in _players)
             {
-                arr[i++] = new PlayerReadyEntry(new PlayerId(kv.Key), kv.Value);
+                arr[i++] = new global::AbilityKit.Ability.Share.Impl.Moba.Services.PlayerReadyEntry(new PlayerId(kv.Key), kv.Value);
             }
             return arr;
         }

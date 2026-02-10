@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Impl.Moba.Effects.Runtime;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Common.MotionSystem.Core;
 using AbilityKit.Ability.Share.Common.MotionSystem.Trajectory;
@@ -80,13 +81,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                             launcherId = launcherEntityForEffect.projectileLauncher.LauncherId;
                         }
 
-                        var ctx = EffectQueryContext.CreateForProjectile(
+                        var ctx = MobaEffectQueryContext.CreateForProjectile(
                             actorId: evt.RootActorId > 0 ? evt.RootActorId : evt.OwnerId,
                             skillId: 0,
                             launcherId: launcherId,
                             projectileId: evt.TemplateId);
 
-                        var snapshot = _sys.EffectRegistry.BuildProjectileSnapshot(in ctx);
+                        var snapshot = MobaEffectSnapshotBuilder.BuildProjectileSnapshot(_sys.EffectRegistry, in ctx);
                         if (bullet.hasProjectileEffectSnapshot)
                         {
                             bullet.ReplaceProjectileEffectSnapshot(snapshot.DamageMul, snapshot.SpeedMul, snapshot.Pierce);

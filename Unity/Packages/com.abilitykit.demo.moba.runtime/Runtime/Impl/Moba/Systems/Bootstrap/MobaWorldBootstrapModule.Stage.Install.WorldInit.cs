@@ -1,9 +1,11 @@
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Ability.Share.Impl.Moba.Rollback;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Impl.Moba.Systems
 {
@@ -32,6 +34,13 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             {
                 lobby2.SetEnterGameReq(req);
                 Log.Info("[MobaWorldBootstrapModule] Install: SetEnterGameReq success");
+
+                // Seed deterministic world random as early as possible.
+                if (services.TryResolve<IWorldRandom>(out var random) && random is RollbackWorldRandom rr)
+                {
+                    rr.SetSeed(req.RandomSeed);
+                    Log.Info($"[MobaWorldBootstrapModule] Install: Seed world random success (seed={req.RandomSeed})");
+                }
             }
             else
             {

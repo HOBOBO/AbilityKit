@@ -10,6 +10,9 @@ namespace AbilityKit.Ability.Impl.Moba.Conponents
         public int BuffId;
         public int SourceId;
         public int DurationOverrideMs;
+        public long ParentContextId;
+        public int OriginSourceActorId;
+        public int OriginTargetActorId;
     }
 
     [Actor]

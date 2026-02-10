@@ -165,6 +165,11 @@ namespace AbilityKit.Game.Battle
                 reg.Register(new MobaMoveRollbackProvider(move));
             }
 
+            if (world.Services.TryResolve<AbilityKit.Ability.Share.Impl.Moba.Rollback.RollbackWorldRandom>(out var rng) && rng != null)
+            {
+                reg.Register(rng);
+            }
+
             return reg;
         }
 

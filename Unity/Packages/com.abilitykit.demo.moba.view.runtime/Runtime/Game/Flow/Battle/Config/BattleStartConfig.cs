@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Sirenix.OdinInspector;
 using UnityEngine;
 using System;
+using System.IO;
 
 namespace AbilityKit.Game.Flow
 {
@@ -153,11 +154,25 @@ namespace AbilityKit.Game.Flow
             var runMode = runModeSo != null ? runModeSo.Mode : BattleRunMode.Normal;
             var enableInputRecording = runMode == BattleRunMode.Record;
             var enableInputReplay = runMode == BattleRunMode.Replay;
-            var recordPath = runModeSo != null ? runModeSo.RecordOutputPath : "battle_record.json";
-            var replayPath = runModeSo != null ? runModeSo.ReplayInputPath : "battle_record.json";
 
-            if (RuntimeOverrides != null && RuntimeOverrides.HasRecordOutputPath) recordPath = RuntimeOverrides.RecordOutputPath;
-            if (RuntimeOverrides != null && RuntimeOverrides.HasReplayInputPath) replayPath = RuntimeOverrides.ReplayInputPath;
+            var recordDirectory = runModeSo != null ? runModeSo.RecordOutputDirectory : "battle_records";
+            if (string.IsNullOrEmpty(recordDirectory)) recordDirectory = "battle_records";
+
+            var recordFileName = $"battle_record_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+            var recordPath = Path.Combine(recordDirectory, recordFileName);
+            if (!Path.IsPathRooted(recordPath)) recordPath = Path.Combine(Application.persistentDataPath, recordPath);
+
+            var replayPath = runModeSo != null ? runModeSo.ReplayInputFilePath : string.Empty;
+
+            if (RuntimeOverrides != null)
+            {
+                if (RuntimeOverrides.HasRecordOutputDirectory) recordDirectory = RuntimeOverrides.RecordOutputDirectory;
+                if (RuntimeOverrides.HasReplayInputFilePath) replayPath = RuntimeOverrides.ReplayInputFilePath;
+            }
+
+            if (string.IsNullOrEmpty(recordDirectory)) recordDirectory = "battle_records";
+            recordPath = Path.Combine(recordDirectory, recordFileName);
+            if (!Path.IsPathRooted(recordPath)) recordPath = Path.Combine(Application.persistentDataPath, recordPath);
 
             var hostMode = Preset != null ? Preset.HostMode : HostMode;
             var gateway = gatewaySo;

@@ -1,6 +1,8 @@
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.Impl.Moba.Triggering;
+using AbilityKit.Ability.Share.Impl.Moba.Rollback;
 using AbilityKit.Triggering.Registry;
 
 namespace AbilityKit.Ability.Impl.Moba.Systems
@@ -10,7 +12,22 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
         private static void RegisterTriggeringRuntime(WorldContainerBuilder builder)
         {
             builder.TryRegister<AbilityKit.Ability.Triggering.IEventBus>(WorldLifetime.Scoped, _ => new AbilityKit.Ability.Triggering.EventBus());
-            builder.TryRegister<AbilityKit.Triggering.Eventing.IEventBus>(WorldLifetime.Scoped, _ => new AbilityKit.Triggering.Eventing.EventBus());
+            builder.TryRegister<PassiveSkillTriggerEventRollbackLog>(WorldLifetime.Scoped, _ => new PassiveSkillTriggerEventRollbackLog());
+            builder.TryRegister<AbilityKit.Triggering.Eventing.IEventBus>(WorldLifetime.Scoped, r =>
+            {
+                var inner = new AbilityKit.Triggering.Eventing.EventBus();
+                if (!r.TryResolve<AbilityKit.Ability.FrameSync.IFrameTime>(out var frameTime) || frameTime == null)
+                {
+                    return inner;
+                }
+
+                if (!r.TryResolve<PassiveSkillTriggerEventRollbackLog>(out var log) || log == null)
+                {
+                    return inner;
+                }
+
+                return new PassiveSkillTriggerRecordingEventBus(inner, frameTime, log);
+            });
 
             builder.TryRegister<FunctionRegistry>(WorldLifetime.Scoped, _ => new FunctionRegistry());
             builder.TryRegister<ActionRegistry>(WorldLifetime.Scoped, _ => new ActionRegistry());
@@ -25,6 +42,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             });
 
             builder.RegisterService<BattleTriggersService, BattleTriggersService>();
+            builder.RegisterService<MobaOngoingTriggerPlanService, MobaOngoingTriggerPlanService>();
         }
     }
 }

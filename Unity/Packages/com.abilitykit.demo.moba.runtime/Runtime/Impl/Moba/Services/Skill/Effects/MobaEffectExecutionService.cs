@@ -227,8 +227,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 args[EffectTriggering.Args.Target] = targetActorId;
 
                 var sourceContextId = 0L;
-                try { sourceContextId = ctx.GetData<long>(MobaSkillPipelineSharedKeys.SourceContextId); }
+                try { sourceContextId = ctx.GetData<long>(MobaEffectPipelineSharedKeys.SourceContextId); }
                 catch { sourceContextId = 0; }
+                if (sourceContextId == 0)
+                {
+                    try { sourceContextId = ctx.GetData<long>(MobaSkillPipelineSharedKeys.SourceContextId); }
+                    catch { sourceContextId = 0; }
+                }
 
                 if (sourceContextId != 0)
                 {

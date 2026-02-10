@@ -1,18 +1,16 @@
-﻿using System;
+﻿using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Impl.Moba.Conponents;
 using AbilityKit.Ability.Share.Impl.Moba;
-using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
 {
@@ -24,8 +22,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
         private IEventBus _eventBus;
         private ITriggerActionRunner _actionRunner;
         private EffectSourceRegistry _effectSource;
-        private IFrameTime _frameTime;
         private MobaEffectExecutionService _effectExec;
+        private BuffContextService _buffContext;
+        private BuffEventPublisher _buffEvents;
+        private BuffStageEffectExecutor _stageEffects;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
         public MobaBuffTickSystem(global::Entitas.IContexts contexts, IWorldResolver services)
@@ -40,8 +40,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             Services.TryResolve(out _eventBus);
             Services.TryResolve(out _actionRunner);
             Services.TryResolve(out _effectSource);
-            Services.TryResolve(out _frameTime);
             Services.TryResolve(out _effectExec);
+
+            Services.TryResolve(out IFrameTime frameTime);
+
+            _buffContext = new BuffContextService(_effectSource, _actionRunner, frameTime);
+            _buffEvents = new BuffEventPublisher(_eventBus, _effectSource);
+            _stageEffects = new BuffStageEffectExecutor(_effectExec, Services, _eventBus);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.Buffs));
         }
 
@@ -80,42 +85,58 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                     b.Remaining -= dt;
                     if (b.Remaining > 0f) continue;
 
-                    try
-                    {
-                        if (b.SourceContextId != 0)
-                        {
-                            _actionRunner?.CancelByOwnerKey(b.SourceContextId);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex, $"[MobaBuffTickSystem] CancelByOwnerKey failed (buffId={b.BuffId}, sourceContextId={b.SourceContextId})");
-                    }
+                    _buffContext?.EndByRuntimeNoClear(b, EffectSourceEndReason.Expired);
 
-                    try
+                    if (b.SourceContextId != 0)
                     {
-                        if (b.SourceContextId != 0)
-                        {
-                            _effectSource?.End(b.SourceContextId, GetFrame(), EffectSourceEndReason.Expired);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex, $"[MobaBuffTickSystem] EffectSource.End failed (buffId={b.BuffId}, sourceContextId={b.SourceContextId})");
+                        RemoveOngoingTriggerPlansEntry(e, b.SourceContextId);
                     }
 
                     if (_configs != null)
                     {
                         if (_configs.TryGetBuff(b.BuffId, out var buff) && buff != null)
                         {
-                            PublishBuffRemove(_eventBus, buff, b.SourceId, e.actorId.Value, b, EffectSourceEndReason.Expired);
-                            ExecuteStageEffects(buff.OnRemoveEffects, stage: "remove", sourceActorId: b.SourceId, targetActorId: e.actorId.Value);
+                            _buffEvents?.PublishRemove(buff, b.SourceId, e.actorId.Value, b, EffectSourceEndReason.Expired);
+                            _stageEffects?.Execute(buff.OnRemoveEffects, buff.Id, b.SourceId, e.actorId.Value, b.SourceContextId);
                         }
                     }
+
+                    b.SourceContextId = 0;
 
                     list.RemoveAt(j);
                 }
             }
+        }
+
+        private static void RemoveOngoingTriggerPlansEntry(global::ActorEntity e, long ownerKey)
+        {
+            if (e == null) return;
+            if (ownerKey == 0) return;
+            if (!e.hasOngoingTriggerPlans) return;
+
+            var oldList = e.ongoingTriggerPlans.Active;
+            if (oldList == null || oldList.Count == 0) return;
+
+            var newList = new List<OngoingTriggerPlanEntry>(oldList.Count);
+            var removedAny = false;
+
+            for (int i = 0; i < oldList.Count; i++)
+            {
+                var it = oldList[i];
+                if (it == null) continue;
+                if (it.OwnerKey == ownerKey)
+                {
+                    removedAny = true;
+                    continue;
+                }
+                newList.Add(new OngoingTriggerPlanEntry { OwnerKey = it.OwnerKey, TriggerIds = it.TriggerIds });
+            }
+
+            if (!removedAny) return;
+
+            var rev = e.ongoingTriggerPlans.Revision + 1;
+            if (newList.Count == 0) e.RemoveOngoingTriggerPlans();
+            else e.ReplaceOngoingTriggerPlans(newList, rev);
         }
 
         private void TryIntervalTick(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.BuffMO buff, global::AbilityKit.Ability.Impl.Moba.Conponents.BuffRuntime rt, int targetActorId, float dt)
@@ -131,154 +152,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             // reset first to avoid re-entrancy issues
             rt.IntervalRemainingSeconds = buff.IntervalMs / 1000f;
 
-            ExecuteStageEffects(buff.OnIntervalEffects, stage: "interval", sourceActorId: rt.SourceId, targetActorId: targetActorId);
-            PublishBuffInterval(_eventBus, buff, rt.SourceId, targetActorId, rt);
-        }
-
-        private void PublishBuffInterval(IEventBus bus, global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.BuffMO buff, int sourceActorId, int targetActorId, global::AbilityKit.Ability.Impl.Moba.Conponents.BuffRuntime runtime)
-        {
-            if (bus == null) return;
-            if (buff == null) return;
-
-            // base interval event
-            {
-                var args0 = PooledTriggerArgs.Rent();
-                args0[EffectTriggering.Args.Source] = sourceActorId;
-                args0[EffectTriggering.Args.Target] = targetActorId;
-                args0[EffectSourceKeys.SourceActorId] = sourceActorId;
-                args0[EffectSourceKeys.TargetActorId] = targetActorId;
-                args0[MobaBuffTriggering.Args.BuffId] = runtime != null ? runtime.BuffId : 0;
-                args0[MobaBuffTriggering.Args.EffectId] = 0;
-                args0[MobaBuffTriggering.Args.Stage] = "interval";
-                args0[MobaBuffTriggering.Args.StackCount] = runtime != null ? runtime.StackCount : 0;
-                if (runtime != null && runtime.SourceContextId != 0)
-                {
-                    args0[EffectSourceKeys.SourceContextId] = runtime.SourceContextId;
-
-                    EffectOriginArgsHelper.FillFromRegistry(args0, runtime.SourceContextId, _effectSource);
-                }
-                bus.Publish(new TriggerEvent(MobaBuffTriggering.Events.Interval, payload: runtime, args: args0));
-            }
-
-            var effects = buff.OnIntervalEffects;
-            if (effects == null || effects.Count == 0) return;
-            for (int i = 0; i < effects.Count; i++)
-            {
-                var effectId = effects[i];
-                if (effectId <= 0) continue;
-                var args1 = PooledTriggerArgs.Rent();
-                args1[EffectTriggering.Args.Source] = sourceActorId;
-                args1[EffectTriggering.Args.Target] = targetActorId;
-                args1[EffectSourceKeys.SourceActorId] = sourceActorId;
-                args1[EffectSourceKeys.TargetActorId] = targetActorId;
-                args1[MobaBuffTriggering.Args.BuffId] = runtime != null ? runtime.BuffId : 0;
-                args1[MobaBuffTriggering.Args.EffectId] = effectId;
-                args1[MobaBuffTriggering.Args.Stage] = "interval";
-                args1[MobaBuffTriggering.Args.StackCount] = runtime != null ? runtime.StackCount : 0;
-                if (runtime != null && runtime.SourceContextId != 0)
-                {
-                    args1[EffectSourceKeys.SourceContextId] = runtime.SourceContextId;
-
-                    EffectOriginArgsHelper.FillFromRegistry(args1, runtime.SourceContextId, _effectSource);
-                }
-                bus.Publish(new TriggerEvent(MobaBuffTriggering.Events.WithEffect(MobaBuffTriggering.Events.Interval, effectId), payload: runtime, args: args1));
-            }
-        }
-
-        private void ExecuteStageEffects(System.Collections.Generic.IReadOnlyList<int> effectIds, string stage, int sourceActorId, int targetActorId)
-        {
-            // 涓枃娉ㄩ噴锛歍ickSystem 鎵ц interval/remove 闃舵 effects銆?
-            if (_effectExec == null) return;
-            if (effectIds == null || effectIds.Count == 0) return;
-            for (int i = 0; i < effectIds.Count; i++)
-            {
-                var effectId = effectIds[i];
-                if (effectId <= 0) continue;
-                var ctx = BuildEffectContext(sourceActorId, targetActorId);
-                _effectExec.Execute(effectId, ctx, EffectExecuteMode.InternalOnly);
-            }
-        }
-
-        private static SkillPipelineContext BuildEffectContext(int sourceActorId, int targetActorId)
-        {
-            var ctx = new SkillPipelineContext();
-            var req = new SkillCastRequest(
-                skillId: 0,
-                skillSlot: 0,
-                casterActorId: sourceActorId,
-                targetActorId: targetActorId,
-                aimPos: Vec3.Zero,
-                aimDir: Vec3.Forward,
-                worldServices: null,
-                eventBus: null,
-                casterUnit: null,
-                targetUnit: null);
-            ctx.Initialize(abilityInstance: null, in req);
-            return ctx;
-        }
-
-        private void PublishBuffRemove(IEventBus bus, global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.BuffMO buff, int sourceActorId, int targetActorId, global::AbilityKit.Ability.Impl.Moba.Conponents.BuffRuntime runtime, EffectSourceEndReason reason)
-        {
-            if (bus == null) return;
-            if (buff == null) return;
-
-            // base remove event
-            {
-                var args0 = PooledTriggerArgs.Rent();
-                args0[EffectTriggering.Args.Source] = sourceActorId;
-                args0[EffectTriggering.Args.Target] = targetActorId;
-                args0[EffectSourceKeys.SourceActorId] = sourceActorId;
-                args0[EffectSourceKeys.TargetActorId] = targetActorId;
-                args0[MobaBuffTriggering.Args.BuffId] = runtime != null ? runtime.BuffId : 0;
-                args0[MobaBuffTriggering.Args.EffectId] = 0;
-                args0[MobaBuffTriggering.Args.Stage] = "remove";
-                args0[MobaBuffTriggering.Args.StackCount] = runtime != null ? runtime.StackCount : 0;
-                args0[MobaBuffTriggering.Args.RemoveReason] = (int)reason;
-                if (runtime != null && runtime.SourceContextId != 0)
-                {
-                    args0[EffectSourceKeys.SourceContextId] = runtime.SourceContextId;
-
-                    EffectOriginArgsHelper.FillFromRegistry(args0, runtime.SourceContextId, _effectSource);
-                }
-                bus.Publish(new TriggerEvent(MobaBuffTriggering.Events.Remove, payload: runtime, args: args0));
-            }
-
-            var effects = buff.OnRemoveEffects;
-            if (effects == null || effects.Count == 0) return;
-            for (int i = 0; i < effects.Count; i++)
-            {
-                var effectId = effects[i];
-                if (effectId <= 0) continue;
-                var args1 = PooledTriggerArgs.Rent();
-                args1[EffectTriggering.Args.Source] = sourceActorId;
-                args1[EffectTriggering.Args.Target] = targetActorId;
-                args1[EffectSourceKeys.SourceActorId] = sourceActorId;
-                args1[EffectSourceKeys.TargetActorId] = targetActorId;
-                args1[MobaBuffTriggering.Args.BuffId] = runtime != null ? runtime.BuffId : 0;
-                args1[MobaBuffTriggering.Args.EffectId] = effectId;
-                args1[MobaBuffTriggering.Args.Stage] = "remove";
-                args1[MobaBuffTriggering.Args.StackCount] = runtime != null ? runtime.StackCount : 0;
-                args1[MobaBuffTriggering.Args.RemoveReason] = (int)reason;
-                if (runtime != null && runtime.SourceContextId != 0)
-                {
-                    args1[EffectSourceKeys.SourceContextId] = runtime.SourceContextId;
-
-                    EffectOriginArgsHelper.FillFromRegistry(args1, runtime.SourceContextId, _effectSource);
-                }
-                bus.Publish(new TriggerEvent(MobaBuffTriggering.Events.WithEffect(MobaBuffTriggering.Events.Remove, effectId), payload: runtime, args: args1));
-            }
-        }
-
-        private int GetFrame()
-        {
-            try
-            {
-                return _frameTime != null ? _frameTime.Frame.Value : 0;
-            }
-            catch
-            {
-                return 0;
-            }
+            _stageEffects?.Execute(buff.OnIntervalEffects, buff.Id, rt.SourceId, targetActorId, rt.SourceContextId);
+            _buffEvents?.PublishInterval(buff, rt.SourceId, targetActorId, rt);
+            _buffEvents?.PublishPerEffect(MobaBuffTriggering.Events.Interval, buff.OnIntervalEffects, stage: "interval", sourceActorId: rt.SourceId, targetActorId: targetActorId, runtime: rt);
         }
     }
 }

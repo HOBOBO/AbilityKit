@@ -1,5 +1,6 @@
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Ability.Share.Impl.Moba.Systems;
 using AbilityKit.Ability.Triggering.Json;
 using AbilityKit.Ability.World.DI;
 
@@ -11,6 +12,15 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
         {
             builder.RegisterService<SearchTargetService, SearchTargetService>();
             builder.RegisterService<MobaSkillLoadoutService, MobaSkillLoadoutService>();
+
+            builder.TryRegister<MobaEventSubscriptionRegistry>(WorldLifetime.Singleton, _ =>
+            {
+                var reg = new MobaEventSubscriptionRegistry();
+                reg.RegisterPrefix<SkillCastContext>("skill.");
+                reg.RegisterPrefix<BuffEventArgs>("buff.");
+                return reg;
+            });
+
             builder.TryRegister<MobaTriggerIndexService>(WorldLifetime.Singleton, _ =>
             {
                 var loader = _.Resolve<ITextLoader>();

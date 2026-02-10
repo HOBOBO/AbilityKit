@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Common.Record.Lockstep;
@@ -45,9 +46,21 @@ namespace AbilityKit.Game.Flow
                 var runMode = plan.RunMode;
                 if (runMode == BattleStartConfig.BattleRunMode.Replay)
                 {
-                    if (provider != null && provider.TryCreate(in plan, out var injected) && injected != null)
+                    provider ??= new DefaultBattleReplayDriverProvider();
+                    if (provider.TryCreate(in plan, out var injected) && injected != null)
                     {
                         handles.Replay.Driver = injected;
+                    }
+                    else
+                    {
+                        if (string.IsNullOrEmpty(plan.InputReplayPath))
+                        {
+                            Log.Error("[BattleReplay] 回放启动失败：InputReplayPath 为空，请在 RunMode 配置中选择回放文件。 ");
+                        }
+                        else
+                        {
+                            Log.Error($"[BattleReplay] 回放启动失败：无法创建回放驱动，path={plan.InputReplayPath}");
+                        }
                     }
                 }
 
@@ -56,13 +69,21 @@ namespace AbilityKit.Game.Flow
                     if (runMode == BattleStartConfig.BattleRunMode.Record)
                     {
                         ctx.InputRecordWriter?.Dispose();
+
+                        var outPath = plan.InputRecordOutputPath;
+                        var outDir = Path.GetDirectoryName(outPath);
+                        if (!string.IsNullOrEmpty(outDir)) Directory.CreateDirectory(outDir);
+
+                        var tickRate = plan.TickRate;
+                        if (tickRate <= 0) tickRate = 30;
+
                         ctx.InputRecordWriter = new LockstepJsonInputRecordWriter(
-                            plan.InputRecordOutputPath,
+                            outPath,
                             new LockstepInputRecordMeta
                             {
                                 WorldId = plan.WorldId,
                                 WorldType = plan.WorldType,
-                                TickRate = 30,
+                                TickRate = tickRate,
                                 RandomSeed = 0,
                                 PlayerId = plan.PlayerId,
                                 StartedAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),

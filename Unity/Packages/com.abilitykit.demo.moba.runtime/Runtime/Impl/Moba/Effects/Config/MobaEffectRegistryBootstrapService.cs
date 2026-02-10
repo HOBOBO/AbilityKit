@@ -44,7 +44,7 @@ namespace AbilityKit.Ability.Impl.Moba.Effects.Config
             for (int i = 0; i < defs.Effects.Length; i++)
             {
                 var dto = defs.Effects[i];
-                if (!EffectDefMapper.TryMap(dto, out var def) || def == null) continue;
+                if (!MobaEffectDefMapper.TryMap(dto, out var def) || def == null) continue;
 
                 var inst = new EffectInstance(instanceId: def.EffectId, def: def, scope: def.DefaultScope);
                 _registry.Register(inst);

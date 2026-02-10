@@ -29,6 +29,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             SharedData[MobaEffectPipelineSharedKeys.ContextKind] = contextKind;
             SharedData[MobaEffectPipelineSharedKeys.SourceContextId] = sourceContextId;
 
+            FillSkillCompatibleKeys(sourceActorId, targetActorId);
+        }
+
+        private void FillSkillCompatibleKeys(int sourceActorId, int targetActorId)
+        {
             // keep skill-compatible keys for triggers/effects that still read skill args
             SharedData[MobaSkillPipelineSharedKeys.SkillId] = 0;
             SharedData[MobaSkillPipelineSharedKeys.SkillSlot] = 0;

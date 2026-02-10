@@ -11,21 +11,27 @@ public partial class ActorEntity {
     public AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent applyBuffRequest { get { return (AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent)GetComponent(ActorComponentsLookup.ApplyBuffRequest); } }
     public bool hasApplyBuffRequest { get { return HasComponent(ActorComponentsLookup.ApplyBuffRequest); } }
 
-    public void AddApplyBuffRequest(int newBuffId, int newSourceId, int newDurationOverrideMs) {
+    public void AddApplyBuffRequest(int newBuffId, int newSourceId, int newDurationOverrideMs, long newParentContextId, int newOriginSourceActorId, int newOriginTargetActorId) {
         var index = ActorComponentsLookup.ApplyBuffRequest;
         var component = (AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent));
         component.BuffId = newBuffId;
         component.SourceId = newSourceId;
         component.DurationOverrideMs = newDurationOverrideMs;
+        component.ParentContextId = newParentContextId;
+        component.OriginSourceActorId = newOriginSourceActorId;
+        component.OriginTargetActorId = newOriginTargetActorId;
         AddComponent(index, component);
     }
 
-    public void ReplaceApplyBuffRequest(int newBuffId, int newSourceId, int newDurationOverrideMs) {
+    public void ReplaceApplyBuffRequest(int newBuffId, int newSourceId, int newDurationOverrideMs, long newParentContextId, int newOriginSourceActorId, int newOriginTargetActorId) {
         var index = ActorComponentsLookup.ApplyBuffRequest;
         var component = (AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ApplyBuffRequestComponent));
         component.BuffId = newBuffId;
         component.SourceId = newSourceId;
         component.DurationOverrideMs = newDurationOverrideMs;
+        component.ParentContextId = newParentContextId;
+        component.OriginSourceActorId = newOriginSourceActorId;
+        component.OriginTargetActorId = newOriginTargetActorId;
         ReplaceComponent(index, component);
     }
 

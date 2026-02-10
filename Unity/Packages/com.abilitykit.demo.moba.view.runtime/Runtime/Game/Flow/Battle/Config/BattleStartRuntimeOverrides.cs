@@ -19,17 +19,17 @@ namespace AbilityKit.Game.Flow
         [LabelText("GatewayJoinRoomId 覆盖(可选)")]
         public string GatewayJoinRoomId;
 
-        [LabelText("RecordOutputPath 覆盖(可选)")]
-        public string RecordOutputPath;
+        [LabelText("RecordOutputDirectory 覆盖(可选)")]
+        public string RecordOutputDirectory;
 
-        [LabelText("ReplayInputPath 覆盖(可选)")]
-        public string ReplayInputPath;
+        [LabelText("ReplayInputFilePath 覆盖(可选)")]
+        public string ReplayInputFilePath;
 
         public bool HasWorldId => !string.IsNullOrEmpty(WorldId);
         public bool HasClientId => !string.IsNullOrEmpty(ClientId);
         public bool HasNumericRoomId => NumericRoomId != 0;
         public bool HasGatewayJoinRoomId => !string.IsNullOrEmpty(GatewayJoinRoomId);
-        public bool HasRecordOutputPath => !string.IsNullOrEmpty(RecordOutputPath);
-        public bool HasReplayInputPath => !string.IsNullOrEmpty(ReplayInputPath);
+        public bool HasRecordOutputDirectory => !string.IsNullOrEmpty(RecordOutputDirectory);
+        public bool HasReplayInputFilePath => !string.IsNullOrEmpty(ReplayInputFilePath);
     }
 }

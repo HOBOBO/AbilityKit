@@ -9,10 +9,12 @@ namespace AbilityKit.Game.Flow
         [LabelText("运行模式")]
         public BattleStartConfig.BattleRunMode Mode = BattleStartConfig.BattleRunMode.Normal;
 
-        [LabelText("录制输出路径")]
-        public string RecordOutputPath = "battle_record.json";
+        [LabelText("录制输出目录")]
+        [FolderPath(AbsolutePath = false, ParentFolder = "$persistentDataPath")]
+        public string RecordOutputDirectory = "battle_records";
 
-        [LabelText("回放输入路径")]
-        public string ReplayInputPath = "battle_record.json";
+        [LabelText("回放文件")]
+        [FilePath(AbsolutePath = false, ParentFolder = "$persistentDataPath", Extensions = "json")]
+        public string ReplayInputFilePath = "";
     }
 }

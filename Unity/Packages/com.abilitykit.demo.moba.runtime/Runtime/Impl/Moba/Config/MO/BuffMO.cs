@@ -19,6 +19,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         public BuffStackingPolicy StackingPolicy { get; }
         public BuffRefreshPolicy RefreshPolicy { get; }
         public int MaxStacks { get; }
+        public IReadOnlyList<int> TriggerIds { get; }
         public IReadOnlyList<int> Tags { get; }
 
         public BuffMO(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BuffDTO dto)
@@ -37,6 +38,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
             StackingPolicy = (BuffStackingPolicy)dto.StackingPolicy;
             RefreshPolicy = (BuffRefreshPolicy)dto.RefreshPolicy;
             MaxStacks = dto.MaxStacks;
+            TriggerIds = dto.TriggerIds ?? Array.Empty<int>();
             Tags = dto.Tags ?? Array.Empty<int>();
         }
     }

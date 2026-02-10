@@ -23,34 +23,35 @@ public static class ActorComponentsLookup {
     public const int Motion = 12;
     public const int MoveInput = 13;
     public const int OngoingEffects = 14;
-    public const int OwnerLink = 15;
-    public const int OwnerPlayerId = 16;
-    public const int PassiveSkillTriggerListeners = 17;
-    public const int ProjectileEffectSnapshot = 18;
-    public const int ProjectileLauncher = 19;
-    public const int RemoveBuffRequest = 20;
-    public const int ResourceContainer = 21;
-    public const int SkillCastAim = 22;
-    public const int SkillCastCancelRequest = 23;
-    public const int SkillCastDestroyRequest = 24;
-    public const int SkillCastInstanceId = 25;
-    public const int SkillCastOwnerActorId = 26;
-    public const int SkillCastRunningTag = 27;
-    public const int SkillCastSequence = 28;
-    public const int SkillCastSkillId = 29;
-    public const int SkillCastSkillLevel = 30;
-    public const int SkillCastSlot = 31;
-    public const int SkillCastStage = 32;
-    public const int SkillCastStartFrame = 33;
-    public const int SkillCastTargetActorId = 34;
-    public const int SkillCastTimelineRuntime = 35;
-    public const int SkillLoadout = 36;
-    public const int SummonMeta = 37;
-    public const int Team = 38;
-    public const int Transform = 39;
-    public const int UnitSubType = 40;
+    public const int OngoingTriggerPlans = 15;
+    public const int OwnerLink = 16;
+    public const int OwnerPlayerId = 17;
+    public const int PassiveSkillTriggerListeners = 18;
+    public const int ProjectileEffectSnapshot = 19;
+    public const int ProjectileLauncher = 20;
+    public const int RemoveBuffRequest = 21;
+    public const int ResourceContainer = 22;
+    public const int SkillCastAim = 23;
+    public const int SkillCastCancelRequest = 24;
+    public const int SkillCastDestroyRequest = 25;
+    public const int SkillCastInstanceId = 26;
+    public const int SkillCastOwnerActorId = 27;
+    public const int SkillCastRunningTag = 28;
+    public const int SkillCastSequence = 29;
+    public const int SkillCastSkillId = 30;
+    public const int SkillCastSkillLevel = 31;
+    public const int SkillCastSlot = 32;
+    public const int SkillCastStage = 33;
+    public const int SkillCastStartFrame = 34;
+    public const int SkillCastTargetActorId = 35;
+    public const int SkillCastTimelineRuntime = 36;
+    public const int SkillLoadout = 37;
+    public const int SummonMeta = 38;
+    public const int Team = 39;
+    public const int Transform = 40;
+    public const int UnitSubType = 41;
 
-    public const int TotalComponents = 41;
+    public const int TotalComponents = 42;
 
     public static readonly string[] componentNames = {
         "ActorId",
@@ -68,6 +69,7 @@ public static class ActorComponentsLookup {
         "Motion",
         "MoveInput",
         "OngoingEffects",
+        "OngoingTriggerPlans",
         "OwnerLink",
         "OwnerPlayerId",
         "PassiveSkillTriggerListeners",
@@ -112,6 +114,7 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.OngoingEffectsComponent),
+        typeof(AbilityKit.Ability.Impl.Moba.Conponents.OngoingTriggerPlansComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerLinkComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerPlayerIdComponent),
         typeof(AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillTriggerListenersComponent),

@@ -3,9 +3,11 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
+using AbilityKit.Ability.FrameSync.Rollback;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.Share.Impl.Moba.Rollback;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Management;
@@ -16,7 +18,6 @@ using AbilityKit.Game.Flow;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Game.Flow.Battle.FrameSync;
-using AbilityKit.Ability.Host.Extensions.FrameSync;
 
 namespace AbilityKit.Game.Flow
 {
@@ -162,6 +163,16 @@ namespace AbilityKit.Game.Flow
                         if (world.Services.TryResolve<AbilityKit.Ability.Share.Impl.Moba.Move.MobaMoveService>(out var move) && move != null)
                         {
                             reg.Register(new MobaMoveRollbackProvider(move));
+                        }
+
+                        if (world.Services.TryResolve<PassiveSkillTriggerEventRollbackLog>(out var passiveLog) && passiveLog != null)
+                        {
+                            reg.Register(passiveLog);
+                        }
+
+                        if (world.Services.TryResolve<RollbackWorldRandom>(out var rng) && rng != null)
+                        {
+                            reg.Register(rng);
                         }
 
                         return reg;

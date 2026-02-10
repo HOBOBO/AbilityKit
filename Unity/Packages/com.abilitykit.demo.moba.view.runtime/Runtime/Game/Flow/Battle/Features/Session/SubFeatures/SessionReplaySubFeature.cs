@@ -43,7 +43,11 @@ namespace AbilityKit.Game.Flow
                 if (f == null) return;
 
                 IBattleReplayDriverProvider provider = null;
-                if (ctx.Phase.Entry != null)
+                if (ctx.Phase.Root.IsValid)
+                {
+                    ctx.Phase.Root.TryGetComponent(out provider);
+                }
+                if (provider == null && ctx.Phase.Entry != null)
                 {
                     ctx.Phase.Entry.TryGet(out provider);
                 }
