@@ -10,7 +10,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     {
         private readonly Dictionary<string, bool> _players = new Dictionary<string, bool>();
         private bool _started;
-        private EnterMobaGameReq? _pendingEnterReq;
+        private MobaGameStartSpec? _pendingSpec;
         private int _version;
 
         private int _minPlayers = 1;
@@ -18,9 +18,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private MobaStartCondition _startCondition = MobaStartCondition.AllReady;
         private MobaRoomPhase _phase = MobaRoomPhase.Lobby;
 
-        public void SetEnterGameReq(in EnterMobaGameReq req)
+        public void SetGameStartSpec(in MobaGameStartSpec spec)
         {
-            _pendingEnterReq = req;
+            _pendingSpec = spec;
             _version++;
         }
 
@@ -46,15 +46,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _version++;
         }
 
-        public bool TryGetEnterGameReq(out EnterMobaGameReq req)
+        public bool TryGetGameStartSpec(out MobaGameStartSpec spec)
         {
-            if (_pendingEnterReq.HasValue)
+            if (_pendingSpec.HasValue)
             {
-                req = _pendingEnterReq.Value;
+                spec = _pendingSpec.Value;
                 return true;
             }
 
-            req = default;
+            spec = default;
             return false;
         }
 
@@ -127,7 +127,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         {
             _players.Clear();
             _started = false;
-            _pendingEnterReq = null;
+            _pendingSpec = null;
             _phase = MobaRoomPhase.Lobby;
             _version++;
         }
@@ -159,7 +159,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public void Dispose()
         {
             _players.Clear();
-            _pendingEnterReq = null;
+            _pendingSpec = null;
         }
     }
 

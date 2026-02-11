@@ -28,12 +28,13 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 return;
             }
 
-            // CreateWorld stage: store EnterGame request for later StartGame (server adjudication)
+            // CreateWorld stage: store game start spec for later StartGame (server adjudication)
             var req = EnterMobaGameCodec.DeserializeReq(init.Payload);
+            var spec = new MobaGameStartSpec(in req);
             if (services.TryResolve<MobaLobbyStateService>(out var lobby2) && lobby2 != null)
             {
-                lobby2.SetEnterGameReq(req);
-                Log.Info("[MobaWorldBootstrapModule] Install: SetEnterGameReq success");
+                lobby2.SetGameStartSpec(in spec);
+                Log.Info("[MobaWorldBootstrapModule] Install: SetGameStartSpec success");
 
                 // Seed deterministic world random as early as possible.
                 if (services.TryResolve<IWorldRandom>(out var random) && random is RollbackWorldRandom rr)

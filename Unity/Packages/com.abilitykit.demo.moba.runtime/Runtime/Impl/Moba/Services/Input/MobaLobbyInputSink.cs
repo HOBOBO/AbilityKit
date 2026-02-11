@@ -16,7 +16,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     public sealed class MobaLobbyInputSink : IWorldInputSink, IWorldInitializable
     {
         private readonly MobaLobbyStateService _lobby;
-        private readonly MobaEnterGameFlowService _enterGame;
+        private readonly IMobaGameStartOrchestrator _startGame;
         private readonly MobaPlayerActorMapService _playerActorMap;
         private readonly MobaEntityManager _entities;
         private readonly Entitas.IContexts _contexts;
@@ -26,10 +26,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         private readonly Dictionary<int, Action<PlayerInputCommand>> _handlers;
 
-        public MobaLobbyInputSink(MobaLobbyStateService lobby, MobaEnterGameFlowService enterGame, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, Entitas.IContexts contexts)
+        public MobaLobbyInputSink(MobaLobbyStateService lobby, IMobaGameStartOrchestrator startGame, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, Entitas.IContexts contexts)
         {
             _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
-            _enterGame = enterGame ?? throw new ArgumentNullException(nameof(enterGame));
+            _startGame = startGame ?? throw new ArgumentNullException(nameof(startGame));
             _playerActorMap = playerActorMap ?? throw new ArgumentNullException(nameof(playerActorMap));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
             _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
@@ -170,7 +170,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             if (!_lobby.Started && _lobby.CanStartGame())
             {
-                _enterGame.TryStartGame(((global::Contexts)_contexts).actor);
+                _startGame.TryStartGame(((global::Contexts)_contexts).actor);
             }
         }
 

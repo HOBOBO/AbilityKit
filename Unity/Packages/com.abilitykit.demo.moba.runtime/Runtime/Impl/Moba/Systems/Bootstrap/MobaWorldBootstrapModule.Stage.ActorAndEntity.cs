@@ -19,6 +19,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.RegisterService<MobaPlayerActorMapService, MobaPlayerActorMapService>();
 
             builder.RegisterService<MobaEnterGameFlowService, MobaEnterGameFlowService>();
+            builder.RegisterService<IMobaGameStartOrchestrator, MobaGameStartOrchestrator>();
             builder.RegisterService<IWorldInputSink, MobaLobbyInputSink>();
             builder.RegisterService<ActorEntityInitPipeline, ActorEntityInitPipeline>();
         }

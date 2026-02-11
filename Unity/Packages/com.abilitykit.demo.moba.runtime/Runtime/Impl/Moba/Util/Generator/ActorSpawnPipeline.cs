@@ -140,61 +140,6 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
         }
     }
 
-    public static class EntityBuilder
-    {
-        /*
-         * 兼容层（历史命名）。
-         * 新代码请直接使用 ActorSpawnPipeline。
-         */
-        public static BuildActorsResult BuildActorsFromLoadoutsAndInitialize(
-            ActorContext actorContext,
-            ActorIdAllocator actorIds,
-            MobaActorRegistry registry,
-            MobaEntityManager entities,
-            PlayerId localPlayerId,
-            MobaPlayerLoadout[] loadouts,
-            Action<ActorEntity, MobaPlayerLoadout> initializer,
-            Action<ActorEntity, MobaPlayerLoadout> onActorBuilt = null)
-        {
-            return ActorSpawnPipeline.BuildActorsFromLoadoutsAndInitialize(actorContext, actorIds, registry, entities, localPlayerId, loadouts, initializer, onActorBuilt);
-        }
-
-        public static BuildActorsResult BuildActorsFromLoadouts(
-            ActorContext actorContext,
-            ActorIdAllocator actorIds,
-            MobaActorRegistry registry,
-            MobaEntityManager entities,
-            PlayerId localPlayerId,
-            MobaPlayerLoadout[] loadouts,
-            Action<ActorEntity, MobaPlayerLoadout> onActorBuilt = null)
-        {
-            return ActorSpawnPipeline.BuildActorsFromLoadouts(actorContext, actorIds, registry, entities, localPlayerId, loadouts, onActorBuilt);
-        }
-
-        public static BuildActorsResult BuildActorsFromEnterGameReqAndInitialize(
-            ActorContext actorContext,
-            ActorIdAllocator actorIds,
-            MobaActorRegistry registry,
-            MobaEntityManager entities,
-            in EnterMobaGameReq req,
-            Action<ActorEntity, MobaPlayerLoadout> initializer,
-            Action<ActorEntity, MobaPlayerLoadout> onActorBuilt = null)
-        {
-            return ActorSpawnPipeline.BuildActorsFromEnterGameReqAndInitialize(actorContext, actorIds, registry, entities, req, initializer, onActorBuilt);
-        }
-
-        public static BuildActorsResult BuildActorsFromEnterGameReq(
-            ActorContext actorContext,
-            ActorIdAllocator actorIds,
-            MobaActorRegistry registry,
-            MobaEntityManager entities,
-            in EnterMobaGameReq req,
-            Action<ActorEntity, MobaPlayerLoadout> onActorBuilt = null)
-        {
-            return ActorSpawnPipeline.BuildActorsFromEnterGameReq(actorContext, actorIds, registry, entities, req, onActorBuilt);
-        }
-    }
-
     public readonly struct BuildActorsResult
     {
         public readonly int LocalActorId;

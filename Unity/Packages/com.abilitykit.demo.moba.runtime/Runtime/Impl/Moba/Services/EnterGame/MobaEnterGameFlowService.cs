@@ -56,32 +56,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _config = config;
         }
 
-        public bool TryStartGame(ActorContext actorContext)
+        public bool ApplyGameStartSpec(ActorContext actorContext, in MobaGameStartSpec spec)
         {
             if (actorContext == null) throw new ArgumentNullException(nameof(actorContext));
-            if (_lobby.Started)
-            {
-                Log.Info("[MobaEnterGameFlowService] TryStartGame: already started");
-                return false;
-            }
-            if (!_lobby.CanStartGame())
-            {
-                Log.Info($"[MobaEnterGameFlowService] TryStartGame: CanStartGame=false (playerCount={_lobby.PlayerCount}, allReady={_lobby.AllReady})");
-                return false;
-            }
-            if (!_lobby.TryMarkStarted())
-            {
-                Log.Info("[MobaEnterGameFlowService] TryStartGame: TryMarkStarted failed");
-                return false;
-            }
 
-            if (!_lobby.TryGetEnterGameReq(out var req))
-            {
-                Log.Info("[MobaEnterGameFlowService] TryStartGame: EnterGameReq not found");
-                return false;
-            }
+            var req = spec.EnterReq;
 
-            var effectiveReq = NormalizeEnterGameReq(_config, in req);
+            var effectiveReq = MobaGameStartSpecNormalizer.Normalize(_config, in req);
 
             Log.Info($"[MobaEnterGameFlowService] TryStartGame: begin (players={(effectiveReq.Players != null ? effectiveReq.Players.Length : 0)}, playerId={effectiveReq.PlayerId.Value})");
 
@@ -153,94 +134,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 Log.Exception(ex, "[MobaEnterGameFlowService] publish spawn payload failed");
             }
             return true;
-        }
-
-        /*
-         * 职责边界/数据流：
-         * 1) EnterMobaGameReq 是“外部传入初始实体信息”的一种入口（adapter）。
-         *    外部可以动态提供出生点/队伍/英雄/等级等信息，本函数不会改写这些关键输入。
-         * 2) 逻辑层允许部分字段缺省（例如 AttributeTemplateId、SkillIds）。
-         *    当缺省时，本函数使用 MobaConfigDatabase（读表结果）进行兜底补齐。
-         * 3) 该步骤位于 Spawn 之前：
-         *    - Spawn（ActorSpawnPipeline）只消费 loadout 并创建“骨架实体”，不做读表。
-         *    - Init（ActorEntityInitPipeline）会根据 loadout/template 初始化属性/技能。
-         *    因此必须在进入 Spawn/Init 管线前把 loadout 尽量规范化。
-         */
-        private static EnterMobaGameReq NormalizeEnterGameReq(MobaConfigDatabase config, in EnterMobaGameReq req)
-        {
-            if (config == null) return req;
-            if (req.Players == null || req.Players.Length == 0) return req;
-
-            try
-            {
-                var src = req.Players;
-                var dst = new MobaPlayerLoadout[src.Length];
-
-                for (int i = 0; i < src.Length; i++)
-                {
-                    var p = src[i];
-
-                    /*
-                     * - Spawn/坐标等动态信息来自外部输入，保持不变。
-                     * - AttributeTemplateId/SkillIds 如果外部不填，则从角色表兜底。
-                     */
-                    var attributeTemplateId = p.AttributeTemplateId;
-                    int[] skillIds = p.SkillIds;
-
-                    if ((attributeTemplateId <= 0 || skillIds == null) && config.TryGetCharacter(p.HeroId, out var character) && character != null)
-                    {
-                        if (attributeTemplateId <= 0)
-                        {
-                            attributeTemplateId = character.AttributeTemplateId;
-                        }
-
-                        if (skillIds == null)
-                        {
-                            var list = character.SkillIds;
-                            if (list is int[] arr) skillIds = arr;
-                            else if (list == null || list.Count == 0) skillIds = Array.Empty<int>();
-                            else
-                            {
-                                var tmp = new int[list.Count];
-                                for (int j = 0; j < list.Count; j++) tmp[j] = list[j];
-                                skillIds = tmp;
-                            }
-                        }
-                    }
-
-                    dst[i] = new MobaPlayerLoadout(
-                        playerId: p.PlayerId,
-                        teamId: p.TeamId,
-                        heroId: p.HeroId,
-                        attributeTemplateId: attributeTemplateId,
-                        level: p.Level,
-                        basicAttackSkillId: p.BasicAttackSkillId,
-                        skillIds: skillIds,
-                        spawnIndex: p.SpawnIndex,
-                        unitSubType: p.UnitSubType,
-                        mainType: p.MainType,
-                        hasSpawnPosition: p.HasSpawnPosition,
-                        spawnX: p.SpawnX,
-                        spawnY: p.SpawnY,
-                        spawnZ: p.SpawnZ);
-                }
-
-                return new EnterMobaGameReq(
-                    playerId: req.PlayerId,
-                    matchId: req.MatchId,
-                    mapId: req.MapId,
-                    randomSeed: req.RandomSeed,
-                    tickRate: req.TickRate,
-                    inputDelayFrames: req.InputDelayFrames,
-                    opCode: req.OpCode,
-                    payload: req.Payload,
-                    players: dst);
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[MobaEnterGameFlowService] NormalizeEnterGameReq failed");
-                return req;
-            }
         }
 
         public void Dispose()

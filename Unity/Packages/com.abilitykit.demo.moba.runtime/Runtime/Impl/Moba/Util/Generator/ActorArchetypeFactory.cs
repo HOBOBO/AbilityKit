@@ -197,19 +197,4 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
 
         }
     }
-
-    /*
-     * 兼容层（历史命名）。
-     * 未来新代码请使用 ActorArchetypeFactory。
-     */
-    public static class MobaEntitySpawnFactory
-    {
-        public static void Register(MobaEntityKind kind, ActorArchetypeFactory.CreateHandler handler) => ActorArchetypeFactory.Register(kind, handler);
-
-        public static bool TryCreate(ActorContext context, in MobaEntityInfo info, out ActorEntity entity) => ActorArchetypeFactory.TryCreate(context, in info, out entity);
-
-        public static ActorEntity Create(ActorContext context, in MobaEntityInfo info) => ActorArchetypeFactory.Create(context, in info);
-
-        public static MobaEntityKind CreateKindFromType(EntityMainType mainType, UnitSubType unitSubType) => ActorArchetypeFactory.CreateKindFromType(mainType, unitSubType);
-    }
 }
