@@ -588,6 +588,97 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return true;
             }
 
+            if (string.Equals(action.TypeValue, TriggerActionTypes.GiveDamage, StringComparison.Ordinal))
+            {
+                if (actionIdResolver == null) return false;
+                var id = actionIdResolver(action.TypeValue);
+                if (id.Value == 0) return false;
+
+                static bool TryReadDouble(Dictionary<string, object> args, string key, out double value)
+                {
+                    value = 0d;
+                    if (args == null || string.IsNullOrEmpty(key)) return false;
+
+                    object obj = null;
+                    if (!args.TryGetValue(key, out obj) || obj == null)
+                    {
+                        foreach (var kv in args)
+                        {
+                            if (kv.Key == null) continue;
+                            if (string.Equals(kv.Key, key, StringComparison.OrdinalIgnoreCase))
+                            {
+                                obj = kv.Value;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (obj == null) return false;
+                    try
+                    {
+                        value = Convert.ToDouble(obj);
+                        return true;
+                    }
+                    catch
+                    {
+                        if (obj is string s && double.TryParse(s, out var parsed))
+                        {
+                            value = parsed;
+                            return true;
+                        }
+                        return false;
+                    }
+                }
+
+                var value = 0d;
+                var reasonParam = 0d;
+                if (action.Args != null)
+                {
+                    // Common key casing/aliases: value/Value/damageValue
+                    if (!TryReadDouble(action.Args, "value", out value))
+                    {
+                        TryReadDouble(action.Args, "Value", out value);
+                    }
+
+                    if (value == 0d)
+                    {
+                        TryReadDouble(action.Args, "damageValue", out value);
+                    }
+
+                    // reasonParam/ReasonParam
+                    if (!TryReadDouble(action.Args, "reasonParam", out reasonParam))
+                    {
+                        TryReadDouble(action.Args, "ReasonParam", out reasonParam);
+                    }
+
+                    if (value == 0d && action.Args.Count > 0)
+                    {
+                        var dump = string.Empty;
+                        foreach (var kv in action.Args)
+                        {
+                            if (!string.IsNullOrEmpty(dump)) dump += ", ";
+                            dump += kv.Key + "=" + (kv.Value != null ? kv.Value.ToString() : "<null>");
+                        }
+                        Debug.LogWarning($"[AbilityTriggerJsonExporter] give_damage compiled with value=0. type='{action.TypeValue}' actionId={id.Value} Available args: {dump}");
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning($"[AbilityTriggerJsonExporter] give_damage has null args. type='{action.TypeValue}' actionId={id.Value}");
+                }
+
+                if (action.Args != null && action.Args.Count == 0)
+                {
+                    Debug.LogWarning($"[AbilityTriggerJsonExporter] give_damage has empty args. type='{action.TypeValue}' actionId={id.Value}");
+                }
+
+                plans = new[]
+                {
+                    new ActionCallPlan(id, NumericValueRef.Const(value), NumericValueRef.Const(reasonParam))
+                };
+                return true;
+            }
+
             // Default: codegen/fallback compiler
             return GeneratedTriggerPlanCompiler.TryCompileActionTree(action, payloadFieldIdResolver, actionIdResolver, out plans);
         }
@@ -596,6 +687,20 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (node == null) return null;
             if (node is JsonActionEditorConfig j) return j;
+
+            if (node is GiveDamageActionEditorConfig gd)
+            {
+                Debug.LogWarning($"[AbilityTriggerJsonExporter] give_damage strong node exported. value={gd.Value:0.###} reasonParam={gd.ReasonParam}");
+                return new JsonActionEditorConfig
+                {
+                    TypeValue = TriggerActionTypes.GiveDamage,
+                    Args = new Dictionary<string, object>(StringComparer.Ordinal)
+                    {
+                        ["value"] = gd.Value,
+                        ["reasonParam"] = gd.ReasonParam,
+                    },
+                };
+            }
 
             try
             {

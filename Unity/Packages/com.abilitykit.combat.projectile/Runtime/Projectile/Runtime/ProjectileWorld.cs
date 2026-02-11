@@ -55,7 +55,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             proj.ReturnSpeed = p.ReturnSpeed;
             proj.ReturnStopDistance = p.ReturnStopDistance;
             proj.IsReturning = false;
-            proj.LifetimeFramesLeft = p.LifetimeFrames;
+            proj.LifetimeFramesLeft = p.LifetimeFrames > 0 ? p.LifetimeFrames : int.MaxValue;
             proj.DistanceLeft = p.MaxDistance;
             proj.CollisionLayerMask = p.CollisionLayerMask;
             proj.IgnoreCollider = p.IgnoreCollider;
@@ -144,7 +144,7 @@ namespace AbilityKit.Ability.Share.Common.Projectile
                 p.ReturnSpeed = it.ReturnSpeed;
                 p.ReturnStopDistance = it.ReturnStopDistance;
                 p.IsReturning = it.IsReturning != 0;
-                p.LifetimeFramesLeft = it.LifetimeFramesLeft;
+                p.LifetimeFramesLeft = it.LifetimeFramesLeft > 0 ? it.LifetimeFramesLeft : int.MaxValue;
                 p.DistanceLeft = it.DistanceLeft;
                 p.CollisionLayerMask = it.CollisionLayerMask;
                 p.IgnoreCollider = new ColliderId(it.IgnoreCollider);

@@ -13,5 +13,6 @@ MonoBehaviour:
   m_Name: BattleRunModeConfig
   m_EditorClassIdentifier: 
   Mode: 0
-  RecordOutputPath: battle_record.json
-  ReplayInputPath: battle_record.json
+  RecordFormat: 0
+  RecordOutputDirectory: battle_records
+  ReplayInputFilePath: battle_records/battle_record_20260212_005938.json

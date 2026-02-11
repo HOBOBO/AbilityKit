@@ -41,7 +41,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private void EnsurePlanInitialized()
         {
             if (_planInitialized) return;
-            _planInitialized = true;
             if (_planDb == null || _planRunner == null || _planActions == null) return;
 
             // Register real actions (override stubs)
@@ -84,6 +83,145 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 Log.Exception(ex, "[MobaEffectExecutionService] EnsurePlanInitialized: register debug_log action failed");
             }
+
+            // Register stubs first to avoid missing action errors when plans contain actions
+            // that are not yet installed (real modules will override stubs).
+            try
+            {
+                RegisterStubActionsFromPlans(_planDb, _planActions);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[MobaEffectExecutionService] EnsurePlanInitialized: RegisterStubActionsFromPlans failed");
+            }
+
+            // Register real action modules (override stubs).
+            try
+            {
+                if (_services != null
+                    && _services.TryResolve<AbilityKit.Ability.Impl.Moba.Systems.PlanActionModuleRegistry>(out var registry)
+                    && registry != null
+                    && registry.Modules != null)
+                {
+                    var modules = registry.Modules;
+                    for (int i = 0; i < modules.Length; i++)
+                    {
+                        var m = modules[i];
+                        if (m == null) continue;
+                        try { m.Register(_planActions, _services); }
+                        catch (Exception ex) { Log.Exception(ex, $"[MobaEffectExecutionService] EnsurePlanInitialized: PlanActionModule register failed. module={m.GetType().Name}"); }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[MobaEffectExecutionService] EnsurePlanInitialized: register PlanActionModules failed");
+            }
+
+            _planInitialized = true;
+        }
+
+        private void TryRepairMissingActions()
+        {
+            if (_planDb == null || _planActions == null) return;
+
+            try
+            {
+                RegisterStubActionsFromPlans(_planDb, _planActions);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[MobaEffectExecutionService] TryRepairMissingActions: RegisterStubActionsFromPlans failed");
+            }
+
+            try
+            {
+                if (_services != null
+                    && _services.TryResolve<AbilityKit.Ability.Impl.Moba.Systems.PlanActionModuleRegistry>(out var registry)
+                    && registry != null
+                    && registry.Modules != null)
+                {
+                    var modules = registry.Modules;
+                    for (int i = 0; i < modules.Length; i++)
+                    {
+                        var m = modules[i];
+                        if (m == null) continue;
+                        try { m.Register(_planActions, _services); }
+                        catch (Exception ex) { Log.Exception(ex, $"[MobaEffectExecutionService] TryRepairMissingActions: PlanActionModule register failed. module={m.GetType().Name}"); }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[MobaEffectExecutionService] TryRepairMissingActions: register PlanActionModules failed");
+            }
+        }
+
+        private void TryRepairMissingActions(in AbilityKit.Triggering.Runtime.Plan.TriggerPlan<object> plan)
+        {
+            if (_planActions == null) return;
+
+            try
+            {
+                RegisterStubActionsFromPlan(in plan, _planActions);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[MobaEffectExecutionService] TryRepairMissingActions(plan): RegisterStubActionsFromPlan failed");
+            }
+
+            try
+            {
+                if (_services != null
+                    && _services.TryResolve<AbilityKit.Ability.Impl.Moba.Systems.PlanActionModuleRegistry>(out var registry)
+                    && registry != null
+                    && registry.Modules != null)
+                {
+                    var modules = registry.Modules;
+                    for (int i = 0; i < modules.Length; i++)
+                    {
+                        var m = modules[i];
+                        if (m == null) continue;
+                        try { m.Register(_planActions, _services); }
+                        catch (Exception ex) { Log.Exception(ex, $"[MobaEffectExecutionService] TryRepairMissingActions(plan): PlanActionModule register failed. module={m.GetType().Name}"); }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[MobaEffectExecutionService] TryRepairMissingActions(plan): register PlanActionModules failed");
+            }
+        }
+
+        private static void RegisterStubActionsFromPlan(in AbilityKit.Triggering.Runtime.Plan.TriggerPlan<object> plan, ActionRegistry actions)
+        {
+            if (actions == null) return;
+
+            var calls = plan.Actions;
+            if (calls == null || calls.Length == 0) return;
+
+            for (int i = 0; i < calls.Length; i++)
+            {
+                var call = calls[i];
+                var actionId = call.Id;
+                if (actionId.Value == 0) continue;
+
+                // Prefer registering by call.Arity if available; otherwise infer by parameter presence.
+                // ActionCallPlan.Arity is expected to be set by TriggerPlanJsonDatabase.BuildActions.
+                var arity = call.Arity;
+                switch (arity)
+                {
+                    case 0:
+                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action0>(actionId, static (args, ctx) => { }, true);
+                        break;
+                    case 1:
+                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action1>(actionId, static (args, a0, ctx) => { }, true);
+                        break;
+                    case 2:
+                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action2>(actionId, static (args, a0, a1, ctx) => { }, true);
+                        break;
+                }
+            }
         }
 
         private bool TryExecutePlanByTriggerId(int triggerId, object args)
@@ -98,30 +236,50 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 return false;
             }
 
-            try
+            var ctrl = new AbilityKit.Triggering.Runtime.ExecutionControl();
+            ctrl.Reset();
+
+            var execCtx = new AbilityKit.Triggering.Runtime.ExecCtx<IWorldResolver>(
+                context: _services,
+                eventBus: _planEventBus,
+                functions: _planFunctions,
+                actions: _planActions,
+                blackboards: null,
+                payloads: null,
+                idNames: null,
+                numericDomains: null,
+                numericFunctions: null,
+                policy: default,
+                control: ctrl);
+
+            bool ExecuteOnce()
             {
-                var ctrl = new AbilityKit.Triggering.Runtime.ExecutionControl();
-                ctrl.Reset();
-
-                var execCtx = new AbilityKit.Triggering.Runtime.ExecCtx<IWorldResolver>(
-                    context: _services,
-                    eventBus: _planEventBus,
-                    functions: _planFunctions,
-                    actions: _planActions,
-                    blackboards: null,
-                    payloads: null,
-                    idNames: null,
-                    numericDomains: null,
-                    numericFunctions: null,
-                    policy: default,
-                    control: ctrl);
-
                 var planned = new PlannedTrigger<object, IWorldResolver>(plan);
                 var ok = planned.Evaluate(args, execCtx);
                 if (ctrl.StopPropagation || ctrl.Cancel) return ok;
                 if (!ok) return true;
                 planned.Execute(args, execCtx);
                 return true;
+            }
+
+            try
+            {
+                return ExecuteOnce();
+            }
+            catch (InvalidOperationException)
+            {
+                // Common cause: actions not registered yet due to init timing.
+                // Attempt one-time repair and retry.
+                try
+                {
+                    TryRepairMissingActions(in plan);
+                    return ExecuteOnce();
+                }
+                catch (Exception ex2)
+                {
+                    Log.Exception(ex2, $"[MobaEffectExecutionService] Plan execution failed. triggerId={triggerId}");
+                    return false;
+                }
             }
             catch (Exception ex)
             {

@@ -96,9 +96,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _hits.Clear();
             _exits.Clear();
 
-            _projectiles.DrainSpawnEvents(_spawns);
-            _projectiles.DrainHitEvents(_hits);
-            _projectiles.DrainExitEvents(_exits);
+            if (_projectiles is AbilityKit.Ability.Share.Common.Projectile.ProjectileService ps)
+            {
+                ps.PeekSpawnEvents(_spawns);
+                ps.PeekHitEvents(_hits);
+                ps.PeekExitEvents(_exits);
+            }
+            else
+            {
+                _projectiles.DrainSpawnEvents(_spawns);
+                _projectiles.DrainHitEvents(_hits);
+                _projectiles.DrainExitEvents(_exits);
+            }
 
             if (_spawns.Count == 0 && _hits.Count == 0 && _exits.Count == 0)
             {
@@ -221,8 +230,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _spawns.Clear();
             _expires.Clear();
 
-            _projectiles.DrainAreaSpawnEvents(_spawns);
-            _projectiles.DrainAreaExpireEvents(_expires);
+            if (_projectiles is AbilityKit.Ability.Share.Common.Projectile.ProjectileService ps)
+            {
+                ps.PeekAreaSpawnEvents(_spawns);
+                ps.PeekAreaExpireEvents(_expires);
+            }
+            else
+            {
+                _projectiles.DrainAreaSpawnEvents(_spawns);
+                _projectiles.DrainAreaExpireEvents(_expires);
+            }
 
             if (_spawns.Count == 0 && _expires.Count == 0)
             {

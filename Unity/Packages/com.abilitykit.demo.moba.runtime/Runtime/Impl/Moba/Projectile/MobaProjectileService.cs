@@ -86,6 +86,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 
             _registry?.Register(projectileActorId, bullet);
 
+            if (_services != null && _services.TryResolve<MobaActorSpawnSnapshotService>(out var spawnSnapshots) && spawnSnapshots != null)
+            {
+                spawnSnapshots.Enqueue(new MobaActorSpawnSnapshotCodec.Entry(
+                    netId: projectileActorId,
+                    kind: (int)SpawnEntityKind.Projectile,
+                    code: projectileCode,
+                    ownerNetId: casterActorId,
+                    x: spawnPos.X,
+                    y: spawnPos.Y,
+                    z: spawnPos.Z));
+            }
+
             // Optional: register immediately, otherwise MobaEntityManagerSyncSystem will pick it up next tick.
             try { _entities?.TryRegisterFromEntity(bullet); }
             catch (Exception ex) { Log.Exception(ex, "[MobaProjectileService] TryRegisterFromEntity failed"); }
@@ -95,12 +107,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 
             var collisionMask = CollisionLayer_Unit | CollisionLayer_World;
 
+            var spawnFrame = 0;
+            if (_services != null && _services.TryResolve<IFrameTime>(out var frameTime) && frameTime != null)
+            {
+                spawnFrame = frameTime.Frame.Value;
+            }
+
             var spawn = new ProjectileSpawnParams(
                 ownerId: casterActorId,
                 templateId: projectileCode,
                 launcherActorId: 0,
                 rootActorId: casterActorId,
-                spawnFrame: 0,
+                spawnFrame: spawnFrame,
                 position: spawnPos,
                 direction: dir,
                 speed: speed,

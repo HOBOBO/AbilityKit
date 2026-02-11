@@ -2,6 +2,7 @@
   "Triggers": [
     {
       "TriggerId": 10001,
+      "EventName": "",
       "EventId": 0,
       "AllowExternal": false,
       "Phase": 0,
@@ -65,6 +66,7 @@
     },
     {
       "TriggerId": 20001,
+      "EventName": "skill.cast.complete",
       "EventId": 1035494462,
       "AllowExternal": false,
       "Phase": 0,
@@ -128,6 +130,7 @@
     },
     {
       "TriggerId": 20002,
+      "EventName": "skill.cast.complete",
       "EventId": 1035494462,
       "AllowExternal": false,
       "Phase": 0,
@@ -167,6 +170,7 @@
     },
     {
       "TriggerId": 20003,
+      "EventName": "",
       "EventId": 0,
       "AllowExternal": false,
       "Phase": 0,
@@ -206,6 +210,7 @@
     },
     {
       "TriggerId": 20004,
+      "EventName": "",
       "EventId": 0,
       "AllowExternal": false,
       "Phase": 0,
@@ -245,6 +250,7 @@
     },
     {
       "TriggerId": 20005,
+      "EventName": "",
       "EventId": 0,
       "AllowExternal": false,
       "Phase": 0,
@@ -280,10 +286,10 @@
         },
         {
           "ActionId": 176148626,
-          "Arity": 0,
+          "Arity": 2,
           "Arg0": {
             "Kind": "Const",
-            "ConstValue": 0.0,
+            "ConstValue": 50.0,
             "BoardId": 0,
             "KeyId": 0,
             "FieldId": 0,
@@ -308,6 +314,7 @@
     },
     {
       "TriggerId": 21001,
+      "EventName": "",
       "EventId": 0,
       "AllowExternal": false,
       "Phase": 0,
@@ -347,6 +354,7 @@
     },
     {
       "TriggerId": 21002,
+      "EventName": "",
       "EventId": 0,
       "AllowExternal": false,
       "Phase": 0,
@@ -358,7 +366,7 @@
       "Actions": [
         {
           "ActionId": 176148626,
-          "Arity": 0,
+          "Arity": 2,
           "Arg0": {
             "Kind": "Const",
             "ConstValue": 0.0,
@@ -410,6 +418,7 @@
     },
     {
       "TriggerId": 22001,
+      "EventName": "",
       "EventId": 0,
       "AllowExternal": false,
       "Phase": 0,

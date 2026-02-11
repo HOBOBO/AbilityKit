@@ -88,6 +88,12 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             _spawnEvents.Clear();
         }
 
+        public void PeekSpawnEvents(List<ProjectileSpawnEvent> results)
+        {
+            if (results == null) return;
+            results.AddRange(_spawnEvents);
+        }
+
         public ProjectileScheduleId ScheduleEmit(IProjectileSpawnPattern pattern, in ProjectileSpawnParams baseSpawn, in ProjectileScheduleParams schedule)
         {
             if (pattern == null) throw new ArgumentNullException(nameof(pattern));
@@ -197,11 +203,23 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             _hitEvents.Clear();
         }
 
+        public void PeekHitEvents(List<ProjectileHitEvent> results)
+        {
+            if (results == null) return;
+            results.AddRange(_hitEvents);
+        }
+
         public void DrainExitEvents(List<ProjectileExitEvent> results)
         {
             if (results == null) return;
             results.AddRange(_exitEvents);
             _exitEvents.Clear();
+        }
+
+        public void PeekExitEvents(List<ProjectileExitEvent> results)
+        {
+            if (results == null) return;
+            results.AddRange(_exitEvents);
         }
 
         public void DrainTickEvents(List<ProjectileTickEvent> results)
@@ -211,11 +229,23 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             _tickEvents.Clear();
         }
 
+        public void PeekTickEvents(List<ProjectileTickEvent> results)
+        {
+            if (results == null) return;
+            results.AddRange(_tickEvents);
+        }
+
         public void DrainAreaSpawnEvents(List<AreaSpawnEvent> results)
         {
             if (results == null) return;
             results.AddRange(_areaSpawnEvents);
             _areaSpawnEvents.Clear();
+        }
+
+        public void PeekAreaSpawnEvents(List<AreaSpawnEvent> results)
+        {
+            if (results == null) return;
+            results.AddRange(_areaSpawnEvents);
         }
 
         public void DrainAreaEnterEvents(List<AreaEnterEvent> results)
@@ -225,11 +255,23 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             _areaEnterEvents.Clear();
         }
 
+        public void PeekAreaEnterEvents(List<AreaEnterEvent> results)
+        {
+            if (results == null) return;
+            results.AddRange(_areaEnterEvents);
+        }
+
         public void DrainAreaStayEvents(List<AreaStayEvent> results)
         {
             if (results == null) return;
             results.AddRange(_areaStayEvents);
             _areaStayEvents.Clear();
+        }
+
+        public void PeekAreaStayEvents(List<AreaStayEvent> results)
+        {
+            if (results == null) return;
+            results.AddRange(_areaStayEvents);
         }
 
         public void DrainAreaExitEvents(List<AreaExitEvent> results)
@@ -239,11 +281,23 @@ namespace AbilityKit.Ability.Share.Common.Projectile
             _areaExitEvents.Clear();
         }
 
+        public void PeekAreaExitEvents(List<AreaExitEvent> results)
+        {
+            if (results == null) return;
+            results.AddRange(_areaExitEvents);
+        }
+
         public void DrainAreaExpireEvents(List<AreaExpireEvent> results)
         {
             if (results == null) return;
             results.AddRange(_areaExpireEvents);
             _areaExpireEvents.Clear();
+        }
+
+        public void PeekAreaExpireEvents(List<AreaExpireEvent> results)
+        {
+            if (results == null) return;
+            results.AddRange(_areaExpireEvents);
         }
 
         public byte[] ExportRollback(FrameIndex frame)

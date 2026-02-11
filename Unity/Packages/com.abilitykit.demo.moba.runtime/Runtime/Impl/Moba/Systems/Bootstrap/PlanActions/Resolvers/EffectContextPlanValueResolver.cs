@@ -1,4 +1,5 @@
 using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Ability.Share.Math;
 
 namespace AbilityKit.Ability.Impl.Moba.Systems
@@ -8,6 +9,12 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
         public static bool TryGetCasterActorId(object args, out int casterActorId)
         {
             casterActorId = 0;
+
+            if (args is ProjectileHitArgs pha)
+            {
+                casterActorId = pha.CasterActorId;
+                return casterActorId > 0;
+            }
 
             if (args is EffectContextWrapper ec)
             {
@@ -24,6 +31,12 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
         public static bool TryGetTargetActorId(object args, out int targetActorId)
         {
             targetActorId = 0;
+
+            if (args is ProjectileHitArgs pha)
+            {
+                targetActorId = pha.TargetActorId;
+                return targetActorId > 0;
+            }
 
             if (args is EffectContextWrapper ec)
             {

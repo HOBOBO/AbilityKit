@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Common.Projectile;
 using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Eventing;
 
@@ -44,6 +45,38 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                     eventBus.Publish(new EventKey<ProjectileHitEvent>(eid), in evt);
                     object boxed = evt;
                     eventBus.Publish(new EventKey<object>(eid), in boxed);
+                }
+
+                var effects = _sys.Effects;
+                var cfgs = _sys.Configs;
+                if (effects != null && cfgs != null)
+                {
+                    try
+                    {
+                        var proj = cfgs.GetProjectile(evt.TemplateId);
+                        var onHitTriggerId = proj != null ? proj.OnHitEffectId : 0;
+                        if (onHitTriggerId > 0)
+                        {
+                            var payload = new ProjectileHitArgs
+                            {
+                                CasterActorId = evt.OwnerId,
+                                TargetActorId = hitActorId,
+                                Frame = evt.Frame,
+                                ProjectileTemplateId = evt.TemplateId,
+                                ProjectileId = evt.Projectile,
+                                Point = evt.Point,
+                                Normal = evt.Normal,
+                                HitCollider = evt.HitCollider,
+                                Raw = evt,
+                            };
+
+                            effects.ExecuteTriggerId(onHitTriggerId, payload);
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Log.Exception(ex, "[MobaProjectileHitSyncHandler] Execute projectile OnHitEffectId failed");
+                    }
                 }
             }
         }

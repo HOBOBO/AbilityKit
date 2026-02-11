@@ -70,7 +70,7 @@ MonoBehaviour:
     ConditionsStrong: []
     ActionsStrong:
     - rid: 5516688670232936455
-    - rid: 5516688670232936456
+    - rid: 5516688806473629697
   - Core:
       TriggerId: 21001
       EventId: 
@@ -142,11 +142,6 @@ MonoBehaviour:
       data:
         Message: "\u78B0\u649E\u56DE\u8C03\u65E5\u5FD7"
         DumpArgs: 1
-    - rid: 5516688670232936456
-      type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
-      data:
-        TypeValue: give_damage
-        Items: []
     - rid: 5516688670232936457
       type: {class: JsonActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
       data:
@@ -167,3 +162,16 @@ MonoBehaviour:
       data:
         TypeValue: emit
         Items: []
+    - rid: 5516688806473629697
+      type: {class: GiveDamageActionEditorConfig, ns: AbilityKit.Ability.Editor, asm: AbilityKit.Ability.Editor}
+      data:
+        Value: 50
+        DamageType: 1
+        Crit: 0
+        ReasonKind: 1
+        ReasonParam: 0
+        TargetKey: 
+        AttackerKey: 
+        QueryTemplateId: 0
+        AimPosKey: 
+        Log: 0

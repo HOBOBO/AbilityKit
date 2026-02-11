@@ -28,7 +28,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 contexts,
                 systems,
                 services,
-                assemblies: new[] { typeof(MobaWorldBootstrapModule).Assembly },
+                assemblies: new[] { typeof(MobaWorldBootstrapModule).Assembly, typeof(AbilityKit.Ability.Share.Common.Projectile.ProjectileTickSystem).Assembly },
                 namespacePrefixes: new[]
                 {
                     "AbilityKit.Ability.Share.Impl.Moba",
