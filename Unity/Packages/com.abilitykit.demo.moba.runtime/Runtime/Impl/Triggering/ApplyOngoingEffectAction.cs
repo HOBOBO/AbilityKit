@@ -33,10 +33,10 @@ namespace AbilityKit.Ability.Impl.Triggering
         {
             if (_ongoingEffectId <= 0) return null;
 
-            var svc = context?.Services?.GetService(typeof(MobaOngoingEffectService)) as MobaOngoingEffectService;
+            var svc = context?.Services?.GetService(typeof(MobaPeriodicEffectService)) as MobaPeriodicEffectService;
             if (svc == null)
             {
-                Log.Warning("[Trigger] apply_ongoing_effect cannot resolve MobaOngoingEffectService from DI");
+                Log.Warning("[Trigger] apply_ongoing_effect cannot resolve MobaPeriodicEffectService from DI");
                 return null;
             }
 

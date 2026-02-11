@@ -57,7 +57,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     ctx.FailReason = failReason;
                 }
 
-                var eid = AbilityKit.Triggering.Eventing.StableStringId.Get("event:" + eventId);
+                var eid = TriggeringIdUtil.GetEventEid(eventId);
                 planBus.Publish(new EventKey<SkillCastContext>(eid), ctx);
                 planBus.Publish(new EventKey<object>(eid), ctx);
                 Log.Info($"[MobaSkillTriggering] Forwarded to plan bus. eventId={eventId} eid={eid}");

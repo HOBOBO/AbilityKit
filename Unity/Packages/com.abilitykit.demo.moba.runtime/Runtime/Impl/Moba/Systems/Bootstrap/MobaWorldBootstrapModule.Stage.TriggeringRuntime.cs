@@ -11,7 +11,6 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
     {
         private static void RegisterTriggeringRuntime(WorldContainerBuilder builder)
         {
-            builder.TryRegister<AbilityKit.Ability.Triggering.IEventBus>(WorldLifetime.Scoped, _ => new AbilityKit.Ability.Triggering.EventBus());
             builder.TryRegister<PassiveSkillTriggerEventRollbackLog>(WorldLifetime.Scoped, _ => new PassiveSkillTriggerEventRollbackLog());
             builder.TryRegister<AbilityKit.Triggering.Eventing.IEventBus>(WorldLifetime.Scoped, r =>
             {
@@ -41,8 +40,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 return new AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver>(planBus, funcs, acts, contextSource: ctxSource);
             });
 
-            builder.RegisterService<BattleTriggersService, BattleTriggersService>();
-            builder.RegisterService<MobaOngoingTriggerPlanService, MobaOngoingTriggerPlanService>();
+            builder.RegisterService<MobaTriggerPlanSubscriptionService, MobaTriggerPlanSubscriptionService>();
         }
     }
 }

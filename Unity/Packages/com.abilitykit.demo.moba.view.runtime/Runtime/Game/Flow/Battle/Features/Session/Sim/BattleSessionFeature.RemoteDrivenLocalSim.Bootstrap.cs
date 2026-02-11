@@ -160,11 +160,6 @@ namespace AbilityKit.Game.Flow
                             reg.Register(new AbilityKit.Ability.Share.Impl.Moba.Rollback.MobaActorTransformRollbackProvider(actorReg));
                         }
 
-                        if (world.Services.TryResolve<AbilityKit.Ability.Share.Impl.Moba.Move.MobaMoveService>(out var move) && move != null)
-                        {
-                            reg.Register(new MobaMoveRollbackProvider(move));
-                        }
-
                         if (world.Services.TryResolve<PassiveSkillTriggerEventRollbackLog>(out var passiveLog) && passiveLog != null)
                         {
                             reg.Register(passiveLog);

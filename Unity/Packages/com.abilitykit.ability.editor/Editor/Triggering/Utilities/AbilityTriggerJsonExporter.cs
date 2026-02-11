@@ -230,6 +230,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         private sealed class TriggerPlanDto
         {
             public int TriggerId;
+            public string EventName;
             public int EventId;
             public bool AllowExternal;
             public int Phase;
@@ -685,6 +686,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             var dto = new TriggerPlanDto
             {
                 TriggerId = tr.TriggerId,
+                EventName = eventName,
                 EventId = eventId,
                 Phase = phase,
                 Priority = priority,

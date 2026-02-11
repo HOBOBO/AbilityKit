@@ -2,6 +2,7 @@ using System;
 using AbilityKit.Ability;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -9,11 +10,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     {
         private readonly int _durationMs;
         private readonly SkillTimelineEventDTO[] _events;
-        private readonly MobaEffectExecutionService _effects;
+        private readonly MobaEffectInvokerService _effects;
 
         private int _nextIndex;
 
-        public SkillTimelinePhase(AbilityPipelinePhaseId phaseId, int durationMs, SkillTimelineEventDTO[] events, MobaEffectExecutionService effects)
+        public SkillTimelinePhase(AbilityPipelinePhaseId phaseId, int durationMs, SkillTimelineEventDTO[] events, MobaEffectInvokerService effects)
             : base(phaseId)
         {
             _durationMs = durationMs;
@@ -53,14 +54,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
                     if (elapsedMs < e.AtMs) break;
 
-                    var mode = EffectExecuteMode.InternalOnly;
                     var raw = e.ExecuteMode;
                     if (raw == (int)EffectExecuteMode.PublishEventOnly || raw == (int)EffectExecuteMode.InternalThenPublishEvent)
                     {
-                        mode = (EffectExecuteMode)raw;
+                        Log.Warning($"[SkillTimelinePhase] ExecuteMode={raw} is not supported (legacy publish removed). effectId={e.EffectId}");
                     }
 
-                    _effects?.Execute(e.EffectId, context, mode);
+                    _effects?.Execute(e.EffectId, context);
                     _nextIndex++;
 
                     try { context?.SetData(MobaSkillPipelineSharedKeys.TimelineNextEventIndex, _nextIndex); }

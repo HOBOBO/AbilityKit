@@ -7,11 +7,11 @@ using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
-using AbilityKit.Ability.Triggering;
-using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Core.Eventing;
+using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -27,7 +27,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaComponentTemplateService _componentTemplates;
         private readonly IFrameTime _frameTime;
         private readonly IWorldClock _clock;
-        private readonly IEventBus _eventBus;
+        private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
 
         private readonly Dictionary<int, List<int>> _summonsByRootOwner = new Dictionary<int, List<int>>();
 
@@ -40,7 +40,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             AbilityKit.Ability.Impl.Moba.Util.Generator.ActorEntityInitPipeline generator,
             MobaConfigDatabase config,
             MobaComponentTemplateService componentTemplates,
-            IEventBus eventBus)
+            AbilityKit.Triggering.Eventing.IEventBus eventBus)
         {
             _services = services;
             _actorIds = actorIds;
@@ -255,16 +255,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (_eventBus == null) return;
             if (string.IsNullOrEmpty(eventId)) return;
 
-            var args = PooledTriggerArgs.Rent();
-            args[EffectTriggering.Args.Source] = rootOwnerActorId;
-            args[EffectTriggering.Args.Target] = summonActorId;
-
-            args[MobaSummonTriggering.Args.SummonActorId] = summonActorId;
-            args[MobaSummonTriggering.Args.SummonId] = summonId;
-            args[MobaSummonTriggering.Args.OwnerActorId] = ownerActorId;
-            args[MobaSummonTriggering.Args.RootOwnerActorId] = rootOwnerActorId;
-            args[MobaSummonTriggering.Args.Reason] = reason;
-
             var payload = new SummonEventPayload
             {
                 SummonActorId = summonActorId,
@@ -274,7 +264,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 Reason = reason,
             };
 
-            _eventBus.Publish(new TriggerEvent(eventId, payload: payload, args: args));
+            var eid = TriggeringIdUtil.GetEventEid(eventId);
+            _eventBus.Publish(new EventKey<SummonEventPayload>(eid), in payload);
+            object boxed = payload;
+            _eventBus.Publish(new EventKey<object>(eid), in boxed);
         }
 
         private void TryInitSkillLoadout(global::ActorEntity entity, IReadOnlyList<int> skillIds, IReadOnlyList<int> passiveSkillIds)

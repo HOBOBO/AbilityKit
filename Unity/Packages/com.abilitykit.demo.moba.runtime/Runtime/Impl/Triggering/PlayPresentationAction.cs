@@ -7,6 +7,9 @@ using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Ability.World.Services;
+using AbilityKit.Core.Eventing;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {
@@ -76,7 +79,7 @@ namespace AbilityKit.Ability.Impl.Triggering
             var bus = ResolveEventBus(context);
             if (bus == null)
             {
-                Log.Warning("[Trigger] play_presentation cannot resolve IEventBus");
+                Log.Warning("[Trigger] play_presentation cannot resolve plan IEventBus");
                 return;
             }
 
@@ -89,32 +92,27 @@ namespace AbilityKit.Ability.Impl.Triggering
                     return;
                 }
 
-                var evtArgs = PooledTriggerArgs.Rent();
-                evtArgs["templateId"] = templateId;
-                if (!string.IsNullOrEmpty(requestKey)) evtArgs["requestKey"] = requestKey;
-                if (durationMs > 0) evtArgs["durationMsOverride"] = durationMs;
-
-                // Dynamic targets
-                if (targetActorIds.Count > 0)
-                {
-                    evtArgs["targets"] = targetActorIds.ToArray();
-                }
-
-                if (positions.Count > 0)
-                {
-                    evtArgs["positions"] = positions.ToArray();
-                }
-
-                // Propagate sourceContextId when possible
+                var evtId = stop ? Events.Stop : Events.Play;
                 var scid = ResolveSourceContextId(context);
-                if (scid != 0) evtArgs["sourceContextId"] = scid;
 
-                // Optional overrides passthrough
-                if (args.TryGetValue("scale", out var scaleObj) && scaleObj != null) evtArgs["scale"] = scaleObj;
-                if (args.TryGetValue("radius", out var radiusObj) && radiusObj != null) evtArgs["radius"] = radiusObj;
-                if (args.TryGetValue("color", out var colorObj) && colorObj != null) evtArgs["color"] = colorObj;
+                var payload = new PresentationEventArgs
+                {
+                    EventId = evtId,
+                    TemplateId = templateId,
+                    RequestKey = requestKey,
+                    DurationMsOverride = durationMs,
+                    Targets = targetActorIds.Count > 0 ? targetActorIds.ToArray() : null,
+                    Positions = positions.Count > 0 ? positions.ToArray() : null,
+                    SourceContextId = scid,
+                    Scale = args.TryGetValue("scale", out var scaleObj) ? scaleObj : null,
+                    Radius = args.TryGetValue("radius", out var radiusObj) ? radiusObj : null,
+                    Color = args.TryGetValue("color", out var colorObj) ? colorObj : null,
+                };
 
-                bus.Publish(new TriggerEvent(stop ? Events.Stop : Events.Play, payload: null, args: evtArgs));
+                var eid = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(evtId);
+                bus.Publish(new EventKey<PresentationEventArgs>(eid), in payload);
+                object boxed = payload;
+                bus.Publish(new EventKey<object>(eid), in boxed);
             }
             finally
             {
@@ -123,22 +121,10 @@ namespace AbilityKit.Ability.Impl.Triggering
             }
         }
 
-        private static IEventBus ResolveEventBus(TriggerContext context)
+        private static AbilityKit.Triggering.Eventing.IEventBus ResolveEventBus(TriggerContext context)
         {
             if (context == null) return null;
-
-            var payload = context.Event.Payload;
-            if (payload is global::AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastContext scc)
-            {
-                return scc.EventBus;
-            }
-
-            if (payload is global::AbilityKit.Ability.Share.Impl.Moba.Services.SkillPipelineContext spc)
-            {
-                return spc.EventBus;
-            }
-
-            return null;
+            return context.Services?.GetService(typeof(AbilityKit.Triggering.Eventing.IEventBus)) as AbilityKit.Triggering.Eventing.IEventBus;
         }
 
         private static long ResolveSourceContextId(TriggerContext context)

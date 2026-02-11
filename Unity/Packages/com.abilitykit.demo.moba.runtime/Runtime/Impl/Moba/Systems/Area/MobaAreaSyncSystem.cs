@@ -6,18 +6,36 @@ using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Ability.Share.Math;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Core.Eventing;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Area
 {
     [WorldSystem(order: MobaSystemOrder.ProjectileSync + 1, Phase = WorldSystemPhase.PostExecute)]
     public sealed class MobaAreaSyncSystem : WorldSystemBase
     {
+        private sealed class AreaTriggerPayload
+        {
+            public int TriggerId;
+            public AreaSpawnEvent Spawn;
+            public AreaEnterEvent Enter;
+            public AreaExitEvent Exit;
+            public AreaExpireEvent Expire;
+            public int OwnerId;
+            public int TargetActorId;
+            public int Frame;
+            public Vec3 Center;
+            public float Radius;
+            public ColliderId Collider;
+            public int CollisionLayerMask;
+            public int MaxTargets;
+        }
+
         private IProjectileService _projectiles;
         private MobaActorRegistry _registry;
-        private IEventBus _eventBus;
+        private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private MobaEffectExecutionService _effects;
         private MobaAreaTriggerRegistry _areaTriggers;
 
@@ -48,22 +66,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Area
             for (int i = 0; i < _spawns.Count; i++)
             {
                 var evt = _spawns[i];
-                if (_eventBus != null)
-                {
-                    var args = PooledTriggerArgs.Rent();
-                    args[EffectTriggering.Args.Source] = evt.OwnerId;
-                    args[EffectTriggering.Args.Target] = 0;
-                    args[EffectTriggering.Args.OriginSource] = evt.OwnerId;
-                    args[EffectTriggering.Args.OriginTarget] = 0;
-
-                    args[AreaTriggering.Args.AreaId] = evt.Area.Value;
-                    args[AreaTriggering.Args.OwnerId] = evt.OwnerId;
-                    args[AreaTriggering.Args.Frame] = evt.Frame;
-                    args[AreaTriggering.Args.Center] = evt.Center;
-                    args[AreaTriggering.Args.Radius] = evt.Radius;
-
-                    _eventBus.Publish(new TriggerEvent(AreaTriggering.Events.Spawn, payload: evt, args: args));
-                }
+                PublishAreaEvent(AreaTriggering.Events.Spawn, evt, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: evt.Center, radius: evt.Radius, collider: default);
             }
 
             _enters.Clear();
@@ -73,40 +76,23 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Area
                 var evt = _enters[i];
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
 
-                if (_eventBus != null)
-                {
-                    var args = PooledTriggerArgs.Rent();
-                    args[EffectTriggering.Args.Source] = evt.OwnerId;
-                    args[EffectTriggering.Args.Target] = hitActorId;
-                    args[EffectTriggering.Args.OriginSource] = evt.OwnerId;
-                    args[EffectTriggering.Args.OriginTarget] = hitActorId;
-
-                    args[AreaTriggering.Args.AreaId] = evt.Area.Value;
-                    args[AreaTriggering.Args.OwnerId] = evt.OwnerId;
-                    args[AreaTriggering.Args.Frame] = evt.Frame;
-                    args[AreaTriggering.Args.Collider] = evt.Collider;
-
-                    _eventBus.Publish(new TriggerEvent(AreaTriggering.Events.Enter, payload: evt, args: args));
-                }
+                PublishAreaEvent(AreaTriggering.Events.Enter, evt, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: default, radius: 0f, collider: evt.Collider);
 
                 if (_effects != null && _areaTriggers != null && _areaTriggers.TryGet(evt.Area, out var entry) && entry.OnEnterTriggerId > 0)
                 {
-                    var args2 = PooledTriggerArgs.Rent();
-                    args2[EffectTriggering.Args.Source] = evt.OwnerId;
-                    args2[EffectTriggering.Args.Target] = hitActorId;
-                    args2[EffectTriggering.Args.OriginSource] = evt.OwnerId;
-                    args2[EffectTriggering.Args.OriginTarget] = hitActorId;
-
-                    args2[AreaTriggering.Args.AreaId] = evt.Area.Value;
-                    args2[AreaTriggering.Args.OwnerId] = evt.OwnerId;
-                    args2[AreaTriggering.Args.Frame] = evt.Frame;
-                    args2[AreaTriggering.Args.Collider] = evt.Collider;
-                    args2[AreaTriggering.Args.Center] = entry.Center;
-                    args2[AreaTriggering.Args.Radius] = entry.Radius;
-                    args2["trigger.id"] = entry.OnEnterTriggerId;
-
-                    _effects.ExecuteTriggerId(entry.OnEnterTriggerId, source: evt.OwnerId, target: hitActorId, payload: evt, args: args2);
-                    args2.Dispose();
+                    _effects.ExecuteTriggerId(entry.OnEnterTriggerId, new AreaTriggerPayload
+                    {
+                        TriggerId = entry.OnEnterTriggerId,
+                        Enter = evt,
+                        OwnerId = evt.OwnerId,
+                        TargetActorId = hitActorId,
+                        Frame = evt.Frame,
+                        Collider = evt.Collider,
+                        Center = entry.Center,
+                        Radius = entry.Radius,
+                        CollisionLayerMask = entry.CollisionLayerMask,
+                        MaxTargets = entry.MaxTargets,
+                    });
                 }
             }
 
@@ -117,40 +103,23 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Area
                 var evt = _exits[i];
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
 
-                if (_eventBus != null)
-                {
-                    var args = PooledTriggerArgs.Rent();
-                    args[EffectTriggering.Args.Source] = evt.OwnerId;
-                    args[EffectTriggering.Args.Target] = hitActorId;
-                    args[EffectTriggering.Args.OriginSource] = evt.OwnerId;
-                    args[EffectTriggering.Args.OriginTarget] = hitActorId;
-
-                    args[AreaTriggering.Args.AreaId] = evt.Area.Value;
-                    args[AreaTriggering.Args.OwnerId] = evt.OwnerId;
-                    args[AreaTriggering.Args.Frame] = evt.Frame;
-                    args[AreaTriggering.Args.Collider] = evt.Collider;
-
-                    _eventBus.Publish(new TriggerEvent(AreaTriggering.Events.Exit, payload: evt, args: args));
-                }
+                PublishAreaEvent(AreaTriggering.Events.Exit, evt, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: default, radius: 0f, collider: evt.Collider);
 
                 if (_effects != null && _areaTriggers != null && _areaTriggers.TryGet(evt.Area, out var entry) && entry.OnExitTriggerId > 0)
                 {
-                    var args2 = PooledTriggerArgs.Rent();
-                    args2[EffectTriggering.Args.Source] = evt.OwnerId;
-                    args2[EffectTriggering.Args.Target] = hitActorId;
-                    args2[EffectTriggering.Args.OriginSource] = evt.OwnerId;
-                    args2[EffectTriggering.Args.OriginTarget] = hitActorId;
-
-                    args2[AreaTriggering.Args.AreaId] = evt.Area.Value;
-                    args2[AreaTriggering.Args.OwnerId] = evt.OwnerId;
-                    args2[AreaTriggering.Args.Frame] = evt.Frame;
-                    args2[AreaTriggering.Args.Collider] = evt.Collider;
-                    args2[AreaTriggering.Args.Center] = entry.Center;
-                    args2[AreaTriggering.Args.Radius] = entry.Radius;
-                    args2["trigger.id"] = entry.OnExitTriggerId;
-
-                    _effects.ExecuteTriggerId(entry.OnExitTriggerId, source: evt.OwnerId, target: hitActorId, payload: evt, args: args2);
-                    args2.Dispose();
+                    _effects.ExecuteTriggerId(entry.OnExitTriggerId, new AreaTriggerPayload
+                    {
+                        TriggerId = entry.OnExitTriggerId,
+                        Exit = evt,
+                        OwnerId = evt.OwnerId,
+                        TargetActorId = hitActorId,
+                        Frame = evt.Frame,
+                        Collider = evt.Collider,
+                        Center = entry.Center,
+                        Radius = entry.Radius,
+                        CollisionLayerMask = entry.CollisionLayerMask,
+                        MaxTargets = entry.MaxTargets,
+                    });
                 }
             }
 
@@ -160,20 +129,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Area
             {
                 var evt = _expires[i];
 
-                if (_eventBus != null)
-                {
-                    var args = PooledTriggerArgs.Rent();
-                    args[EffectTriggering.Args.Source] = evt.OwnerId;
-                    args[EffectTriggering.Args.Target] = 0;
-                    args[EffectTriggering.Args.OriginSource] = evt.OwnerId;
-                    args[EffectTriggering.Args.OriginTarget] = 0;
-
-                    args[AreaTriggering.Args.AreaId] = evt.Area.Value;
-                    args[AreaTriggering.Args.OwnerId] = evt.OwnerId;
-                    args[AreaTriggering.Args.Frame] = evt.Frame;
-
-                    _eventBus.Publish(new TriggerEvent(AreaTriggering.Events.Expire, payload: evt, args: args));
-                }
+                PublishAreaEvent(AreaTriggering.Events.Expire, evt, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: default, radius: 0f, collider: default);
 
                 if (_effects != null && _areaTriggers != null && _areaTriggers.TryGet(evt.Area, out var entry) && entry.OnExpireTriggerIds != null && entry.OnExpireTriggerIds.Length > 0)
                 {
@@ -182,28 +138,47 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Area
                         var triggerId = entry.OnExpireTriggerIds[ti];
                         if (triggerId <= 0) continue;
 
-                        var args2 = PooledTriggerArgs.Rent();
-                        args2[EffectTriggering.Args.Source] = evt.OwnerId;
-                        args2[EffectTriggering.Args.Target] = 0;
-                        args2[EffectTriggering.Args.OriginSource] = evt.OwnerId;
-                        args2[EffectTriggering.Args.OriginTarget] = 0;
-
-                        args2[AreaTriggering.Args.AreaId] = evt.Area.Value;
-                        args2[AreaTriggering.Args.OwnerId] = evt.OwnerId;
-                        args2[AreaTriggering.Args.Frame] = evt.Frame;
-                        args2[AreaTriggering.Args.Center] = entry.Center;
-                        args2[AreaTriggering.Args.Radius] = entry.Radius;
-                        args2["area.layerMask"] = entry.CollisionLayerMask;
-                        args2["area.maxTargets"] = entry.MaxTargets;
-                        args2["trigger.id"] = triggerId;
-
-                        _effects.ExecuteTriggerId(triggerId, source: evt.OwnerId, target: 0, payload: evt, args: args2);
-                        args2.Dispose();
+                        _effects.ExecuteTriggerId(triggerId, new AreaTriggerPayload
+                        {
+                            TriggerId = triggerId,
+                            Expire = evt,
+                            OwnerId = evt.OwnerId,
+                            TargetActorId = 0,
+                            Frame = evt.Frame,
+                            Center = entry.Center,
+                            Radius = entry.Radius,
+                            CollisionLayerMask = entry.CollisionLayerMask,
+                            MaxTargets = entry.MaxTargets,
+                        });
                     }
                 }
 
                 _areaTriggers?.Unregister(evt.Area);
             }
+        }
+
+        private void PublishAreaEvent(string eventId, object raw, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider)
+        {
+            if (_eventBus == null) return;
+            if (string.IsNullOrEmpty(eventId)) return;
+
+            var eid = TriggeringIdUtil.GetEventEid(eventId);
+            var payload = new AreaEventArgs
+            {
+                EventId = eventId,
+                AreaId = 0,
+                OwnerActorId = ownerActorId,
+                TargetActorId = targetActorId,
+                Frame = frame,
+                Center = center,
+                Radius = radius,
+                Collider = collider,
+                Raw = raw,
+            };
+
+            _eventBus.Publish(new EventKey<AreaEventArgs>(eid), in payload);
+            object boxed = payload;
+            _eventBus.Publish(new EventKey<object>(eid), in boxed);
         }
 
         private int ResolveActorIdByCollider(ColliderId id)

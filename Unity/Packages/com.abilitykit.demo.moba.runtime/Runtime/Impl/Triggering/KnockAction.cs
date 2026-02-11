@@ -2,7 +2,6 @@ using System;
 using AbilityKit.Ability;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Share.Math;
@@ -10,6 +9,7 @@ using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Ability.Share.Common.MotionSystem.Core;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {
@@ -56,16 +56,23 @@ namespace AbilityKit.Ability.Impl.Triggering
         {
             if (context == null) return;
 
-            var move = context.Services?.GetService(typeof(MobaMoveService)) as MobaMoveService;
-            if (move == null)
-            {
-                Log.Warning("[Trigger] knock cannot resolve MobaMoveService from DI");
-                return;
-            }
-
             if (!TriggerActionArgUtil.TryResolveActorId(context.Target, out var targetActorId) || targetActorId <= 0)
             {
                 Log.Warning("[Trigger] knock requires context.Target with valid actorId");
+                return;
+            }
+
+            var actorRegistry = context.Services?.GetService(typeof(MobaActorRegistry)) as MobaActorRegistry;
+            if (actorRegistry == null || !actorRegistry.TryGet(targetActorId, out var targetEntity) || targetEntity == null || !targetEntity.hasMotion)
+            {
+                Log.Warning("[Trigger] knock requires target has Motion component");
+                return;
+            }
+
+            var m = targetEntity.motion;
+            if (!m.Initialized || m.Pipeline == null)
+            {
+                Log.Warning("[Trigger] knock requires Motion initialized");
                 return;
             }
 
@@ -108,8 +115,7 @@ namespace AbilityKit.Ability.Impl.Triggering
                     }
                 }
 
-                var actorRegistry = context.Services?.GetService(typeof(MobaActorRegistry)) as MobaActorRegistry;
-                if (actorRegistry != null && actorRegistry.TryGet(targetActorId, out var te) && te != null && te.hasTransform)
+                if (actorRegistry.TryGet(targetActorId, out var te) && te != null && te.hasTransform)
                 {
                     to = te.transform.Value.Position;
                 }
@@ -126,12 +132,77 @@ namespace AbilityKit.Ability.Impl.Triggering
             var velocity = dir * _horizontalSpeed + Vec3.Up * _verticalSpeed;
             var duration = _durationMs > 0 ? (_durationMs / 1000f) : 0.1f;
 
-            move.Knock(targetActorId, in velocity, duration, gravity: _gravity, priority: _priority);
+            var knock = new KnockMotionSource(velocity, duration, gravity: _gravity, priority: _priority);
+            m.Pipeline.AddSource(knock);
+
+            targetEntity.ReplaceMotion(
+                newPipeline: m.Pipeline,
+                newState: m.State,
+                newOutput: m.Output,
+                newSolver: m.Solver,
+                newPolicy: m.Policy,
+                newEvents: m.Events,
+                newInitialized: m.Initialized);
 
             var frameTime = context.Services?.GetService(typeof(IFrameTime)) as IFrameTime;
             if (context.Event.Args is System.Collections.Generic.IDictionary<string, object> dict && frameTime != null)
             {
                 dict["knock.frame"] = frameTime.Frame.Value;
+            }
+        }
+
+        private sealed class KnockMotionSource : IMotionSource, IMotionFinishEventSource
+        {
+            private readonly int _priority;
+            private Vec3 _velocity;
+            private float _gravity;
+            private float _timeLeft;
+            private bool _active;
+
+            public KnockMotionSource(in Vec3 velocity, float duration, float gravity, int priority)
+            {
+                _velocity = velocity;
+                _timeLeft = duration;
+                _gravity = gravity;
+                _priority = priority;
+                _active = duration > 0f;
+            }
+
+            public int GroupId => MotionGroups.Control;
+            public MotionStacking Stacking => MotionStacking.ExclusiveHighestPriority;
+            public MotionFinishEvent FinishEvent => MotionFinishEvent.Expired;
+            public int Priority => _priority;
+            public bool IsActive => _active;
+
+            public void Cancel()
+            {
+                _timeLeft = 0f;
+                _active = false;
+            }
+
+            public void Tick(int id, ref MotionState state, float dt, ref Vec3 outDesiredDelta)
+            {
+                if (!_active) return;
+                if (dt <= 0f) return;
+
+                if (_timeLeft <= 0f)
+                {
+                    _active = false;
+                    return;
+                }
+
+                var step = dt;
+                if (step > _timeLeft) step = _timeLeft;
+                _timeLeft -= dt;
+
+                outDesiredDelta = outDesiredDelta + _velocity * step;
+
+                if (_gravity > 0f)
+                {
+                    _velocity = _velocity + Vec3.Down * (_gravity * dt);
+                }
+
+                if (_timeLeft <= 0f) _active = false;
             }
         }
 

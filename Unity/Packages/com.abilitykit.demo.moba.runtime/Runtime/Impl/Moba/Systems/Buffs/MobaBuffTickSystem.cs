@@ -11,6 +11,7 @@ using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Moba.Conponents;
 using AbilityKit.Ability.Share.Impl.Moba;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
 {
@@ -19,10 +20,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
     {
         private MobaConfigDatabase _configs;
         private IWorldClock _clock;
-        private IEventBus _eventBus;
+        private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private ITriggerActionRunner _actionRunner;
+        private MobaPeriodicEffectService _ongoing;
         private EffectSourceRegistry _effectSource;
-        private MobaEffectExecutionService _effectExec;
+        private MobaEffectInvokerService _invoker;
         private BuffContextService _buffContext;
         private BuffEventPublisher _buffEvents;
         private BuffStageEffectExecutor _stageEffects;
@@ -39,14 +41,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             Services.TryResolve(out _clock);
             Services.TryResolve(out _eventBus);
             Services.TryResolve(out _actionRunner);
+            Services.TryResolve(out _ongoing);
             Services.TryResolve(out _effectSource);
-            Services.TryResolve(out _effectExec);
+            Services.TryResolve(out _invoker);
 
             Services.TryResolve(out IFrameTime frameTime);
 
             _buffContext = new BuffContextService(_effectSource, _actionRunner, frameTime);
-            _buffEvents = new BuffEventPublisher(_eventBus, _effectSource);
-            _stageEffects = new BuffStageEffectExecutor(_effectExec, Services, _eventBus);
+            _buffEvents = new BuffEventPublisher(_eventBus);
+            _stageEffects = new BuffStageEffectExecutor(_invoker);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.Buffs));
         }
 
@@ -87,6 +90,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
 
                     _buffContext?.EndByRuntimeNoClear(b, EffectSourceEndReason.Expired);
 
+                    var ownerKey = b.SourceContextId;
+                    if (ownerKey != 0)
+                    {
+                        try
+                        {
+                            _ongoing?.StopByOwnerKey(e.actorId.Value, ownerKey);
+                        }
+                        catch
+                        {
+                        }
+                    }
+
                     if (b.SourceContextId != 0)
                     {
                         RemoveOngoingTriggerPlansEntry(e, b.SourceContextId);
@@ -98,6 +113,21 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                         {
                             _buffEvents?.PublishRemove(buff, b.SourceId, e.actorId.Value, b, EffectSourceEndReason.Expired);
                             _stageEffects?.Execute(buff.OnRemoveEffects, buff.Id, b.SourceId, e.actorId.Value, b.SourceContextId);
+                        }
+                    }
+
+                    if (b.SourceContextId != 0 && e.hasEffectListeners)
+                    {
+                        var listeners = e.effectListeners.Active;
+                        if (listeners != null && listeners.Count > 0)
+                        {
+                            for (int k = listeners.Count - 1; k >= 0; k--)
+                            {
+                                var l = listeners[k];
+                                if (l == null) continue;
+                                if (l.SourceContextId != b.SourceContextId) continue;
+                                listeners.RemoveAt(k);
+                            }
                         }
                     }
 

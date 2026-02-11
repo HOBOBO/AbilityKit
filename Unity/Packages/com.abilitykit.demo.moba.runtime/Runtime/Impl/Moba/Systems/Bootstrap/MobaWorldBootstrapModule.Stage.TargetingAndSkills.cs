@@ -3,6 +3,8 @@ using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Systems;
 using AbilityKit.Ability.Triggering.Json;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.Share.Common.Projectile;
+using AbilityKit.Ability.Share.Effect;
 
 namespace AbilityKit.Ability.Impl.Moba.Systems
 {
@@ -18,6 +20,34 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 var reg = new MobaEventSubscriptionRegistry();
                 reg.RegisterPrefix<SkillCastContext>("skill.");
                 reg.RegisterPrefix<BuffEventArgs>("buff.");
+                reg.RegisterPrefix<AbilityKit.Ability.Share.Impl.Moba.Services.Projectile.AreaEventArgs>("area.");
+                reg.RegisterPrefix<AbilityKit.Ability.Impl.Triggering.PresentationEventArgs>("presentation.");
+
+                // damage.* uses multiple payload types, so we register exact mappings.
+                reg.RegisterExact<AttackInfo>(DamagePipelineEvents.AttackCreated);
+                reg.RegisterExact<AttackInfo>(DamagePipelineEvents.BeforeCalc);
+
+                reg.RegisterExact<AttackCalcInfo>(DamagePipelineEvents.CalcBegin);
+                reg.RegisterExact<AttackCalcInfo>(DamagePipelineEvents.AfterBase);
+                reg.RegisterExact<AttackCalcInfo>(DamagePipelineEvents.AfterMitigate);
+                reg.RegisterExact<AttackCalcInfo>(DamagePipelineEvents.AfterShield);
+                reg.RegisterExact<AttackCalcInfo>(DamagePipelineEvents.CalcFinal);
+                reg.RegisterExact<AttackCalcInfo>(DamagePipelineEvents.BeforeApply);
+
+                reg.RegisterExact<DamageResult>(DamagePipelineEvents.AfterApply);
+
+                // projectile.*
+                reg.RegisterExact<ProjectileHitEvent>(ProjectileTriggering.Events.Hit);
+                reg.RegisterExact<ProjectileSpawnEvent>(ProjectileTriggering.Events.Spawn);
+                reg.RegisterExact<ProjectileTickEvent>(ProjectileTriggering.Events.Tick);
+                reg.RegisterExact<ProjectileExitEvent>(ProjectileTriggering.Events.Exit);
+
+                // summon.*
+                reg.RegisterPrefix<SummonEventPayload>("summon.");
+
+                // unit.*
+                reg.RegisterPrefix<UnitEventPayload>("unit.");
+                reg.RegisterExact<UnitDieEventPayload>(MobaUnitTriggering.Events.Die);
                 return reg;
             });
 
@@ -31,11 +61,9 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 return s;
             });
             builder.RegisterService<MobaEffectExecutionService, MobaEffectExecutionService>();
+            builder.RegisterService<MobaEffectInvokerService, MobaEffectInvokerService>();
 
-            builder.RegisterService<MobaOngoingEffectService, MobaOngoingEffectService>();
-            builder.RegisterService<MobaEffectExecuteSubscriber, MobaEffectExecuteSubscriber>();
-            builder.RegisterService<MobaEffectExecuteDemoSubscriber, MobaEffectExecuteDemoSubscriber>();
-            builder.RegisterService<MobaEffectApplyDemoSubscriber, MobaEffectApplyDemoSubscriber>();
+            builder.RegisterService<MobaPeriodicEffectService, MobaPeriodicEffectService>();
         }
     }
 }

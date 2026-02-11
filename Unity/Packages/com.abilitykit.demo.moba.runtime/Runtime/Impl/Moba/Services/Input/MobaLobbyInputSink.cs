@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Common.Log;
@@ -10,6 +9,7 @@ using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.Triggering;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -20,21 +20,19 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaPlayerActorMapService _playerActorMap;
         private readonly MobaEntityManager _entities;
         private readonly Entitas.IContexts _contexts;
-        private readonly MobaMoveService _moves;
         private SkillExecutor _skills;
 
         private IWorldResolver _services;
 
         private readonly Dictionary<int, Action<PlayerInputCommand>> _handlers;
 
-        public MobaLobbyInputSink(MobaLobbyStateService lobby, MobaEnterGameFlowService enterGame, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, Entitas.IContexts contexts, MobaMoveService moves)
+        public MobaLobbyInputSink(MobaLobbyStateService lobby, MobaEnterGameFlowService enterGame, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, Entitas.IContexts contexts)
         {
             _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
             _enterGame = enterGame ?? throw new ArgumentNullException(nameof(enterGame));
             _playerActorMap = playerActorMap ?? throw new ArgumentNullException(nameof(playerActorMap));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
             _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
-            _moves = moves ?? throw new ArgumentNullException(nameof(moves));
 
             _handlers = new Dictionary<int, Action<PlayerInputCommand>>
             {
@@ -66,11 +64,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
                 if (services is IWorldServiceContainer c)
                 {
-                    Log.Error($"[MobaLobbyInputSink] Registered: SkillExecutor={c.IsRegistered(typeof(SkillExecutor))}, IFrameTime={c.IsRegistered(typeof(AbilityKit.Ability.FrameSync.IFrameTime))}, IUnitResolver={c.IsRegistered(typeof(AbilityKit.Ability.Share.ECS.IUnitResolver))}, IMobaSkillPipelineLibrary={c.IsRegistered(typeof(IMobaSkillPipelineLibrary))}, IWorldClock={c.IsRegistered(typeof(IWorldClock))}, IEventBus={c.IsRegistered(typeof(IEventBus))}");
+                    Log.Error($"[MobaLobbyInputSink] Registered: SkillExecutor={c.IsRegistered(typeof(SkillExecutor))}, IFrameTime={c.IsRegistered(typeof(AbilityKit.Ability.FrameSync.IFrameTime))}, IUnitResolver={c.IsRegistered(typeof(AbilityKit.Ability.Share.ECS.IUnitResolver))}, IMobaSkillPipelineLibrary={c.IsRegistered(typeof(IMobaSkillPipelineLibrary))}, IWorldClock={c.IsRegistered(typeof(IWorldClock))}, IEventBus={c.IsRegistered(typeof(AbilityKit.Triggering.Eventing.IEventBus))}");
 
                     if (services.TryResolve(typeof(IWorldClock), out _) == false) Log.Error("[MobaLobbyInputSink] Resolve check failed: IWorldClock");
                     if (services.TryResolve(typeof(IFrameTime), out _) == false) Log.Error("[MobaLobbyInputSink] Resolve check failed: IFrameTime");
-                    if (services.TryResolve(typeof(IEventBus), out _) == false) Log.Error("[MobaLobbyInputSink] Resolve check failed: IEventBus");
+                    if (services.TryResolve(typeof(AbilityKit.Triggering.Eventing.IEventBus), out _) == false) Log.Error("[MobaLobbyInputSink] Resolve check failed: IEventBus");
                     if (services.TryResolve(typeof(AbilityKit.Ability.Share.ECS.IUnitResolver), out _) == false) Log.Error("[MobaLobbyInputSink] Resolve check failed: IUnitResolver");
                     if (services.TryResolve(typeof(MobaSkillLoadoutService), out _) == false) Log.Error("[MobaLobbyInputSink] Resolve check failed: MobaSkillLoadoutService");
                     if (services.TryResolve(typeof(MobaActorLookupService), out _) == false) Log.Error("[MobaLobbyInputSink] Resolve check failed: MobaActorLookupService");
@@ -106,7 +104,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
                 try
                 {
-                    services.Resolve<IEventBus>();
+                    services.Resolve<AbilityKit.Triggering.Eventing.IEventBus>();
                 }
                 catch (Exception busEx)
                 {

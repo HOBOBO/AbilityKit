@@ -80,14 +80,6 @@ namespace AbilityKit.Ability.Impl.Triggering
 
             if (aimPos.Equals(Vec3.Zero))
             {
-                if (context?.Event.Args != null && context.Event.Args.TryGetValue("pos", out var posObj) && posObj is Vec3 v3)
-                {
-                    aimPos = v3;
-                }
-            }
-
-            if (aimPos.Equals(Vec3.Zero))
-            {
                 Log.Warning("[Trigger] spawn_area cannot resolve center (AimPos/pos)");
                 return;
             }
@@ -100,11 +92,6 @@ namespace AbilityKit.Ability.Impl.Triggering
 
             var registry = context?.Services?.GetService(typeof(MobaAreaTriggerRegistry)) as MobaAreaTriggerRegistry;
             registry?.Register(areaId, templateId: 0, ownerId, in aimPos, _radius, _collisionLayerMask, maxTargets: 0, _onEnterTriggerId, _onExitTriggerId, _onExpireTriggerId);
-
-            if (context?.Event.Args is System.Collections.Generic.IDictionary<string, object> dict)
-            {
-                dict["area.id"] = areaId.Value;
-            }
         }
     }
 }

@@ -1,8 +1,8 @@
 using System;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Core.Eventing;
+using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -10,13 +10,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     {
         private readonly MobaActorLookupService _actors;
         private readonly MobaDamageService _damage;
-        private readonly IEventBus _events;
+        private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
 
-        public DamagePipelineService(MobaActorLookupService actors, MobaDamageService damage, IEventBus events)
+        public DamagePipelineService(MobaActorLookupService actors, MobaDamageService damage, AbilityKit.Triggering.Eventing.IEventBus eventBus)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _damage = damage ?? throw new ArgumentNullException(nameof(damage));
-            _events = events;
+            _eventBus = eventBus;
         }
 
         public DamageResult Execute(AttackInfo attack)
@@ -122,53 +122,35 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         private void Publish(string eventId, object payload)
         {
-            var bus = _events;
-            if (bus == null) return;
+            var eventBus = _eventBus;
+            if (eventBus == null) return;
             if (string.IsNullOrEmpty(eventId)) return;
 
-            var args = PooledTriggerArgs.Rent();
-            try
+            var eid = TriggeringIdUtil.GetEventEid(eventId);
+
+            if (payload is AttackInfo ai2)
             {
-                if (payload is AttackInfo ai)
-                {
-                    FillArgs(args, ai);
-                }
-                else if (payload is AttackCalcInfo ac && ac.Attack != null)
-                {
-                    FillArgs(args, ac.Attack);
-                }
-                else if (payload is DamageResult dr)
-                {
-                    args[EffectTriggering.Args.Source] = dr.AttackerActorId;
-                    args[EffectTriggering.Args.Target] = dr.TargetActorId;
-                    args[EffectTriggering.Args.OriginSource] = dr.OriginSource ?? dr.AttackerActorId;
-                    args[EffectTriggering.Args.OriginTarget] = dr.OriginTarget ?? dr.TargetActorId;
-
-                    if (dr.OriginKind != EffectSourceKind.None) args[EffectTriggering.Args.OriginKind] = dr.OriginKind;
-                    if (dr.OriginConfigId != 0) args[EffectTriggering.Args.OriginConfigId] = dr.OriginConfigId;
-                    if (dr.OriginContextId != 0) args[EffectTriggering.Args.OriginContextId] = dr.OriginContextId;
-                }
-
-                bus.Publish(new TriggerEvent(eventId, payload: payload, args: args));
+                eventBus.Publish(new EventKey<AttackInfo>(eid), in ai2);
+                object boxed = ai2;
+                eventBus.Publish(new EventKey<object>(eid), in boxed);
             }
-            catch
+            else if (payload is AttackCalcInfo ac2)
             {
-                args.Dispose();
-                throw;
+                eventBus.Publish(new EventKey<AttackCalcInfo>(eid), in ac2);
+                object boxed = ac2;
+                eventBus.Publish(new EventKey<object>(eid), in boxed);
             }
-        }
-
-        private static void FillArgs(PooledTriggerArgs args, AttackInfo attack)
-        {
-            if (args == null || attack == null) return;
-            args[EffectTriggering.Args.Source] = attack.AttackerActorId;
-            args[EffectTriggering.Args.Target] = attack.TargetActorId;
-            args[EffectTriggering.Args.OriginSource] = attack.OriginSource ?? attack.AttackerActorId;
-            args[EffectTriggering.Args.OriginTarget] = attack.OriginTarget ?? attack.TargetActorId;
-
-            if (attack.OriginKind != EffectSourceKind.None) args[EffectTriggering.Args.OriginKind] = attack.OriginKind;
-            if (attack.OriginConfigId != 0) args[EffectTriggering.Args.OriginConfigId] = attack.OriginConfigId;
-            if (attack.OriginContextId != 0) args[EffectTriggering.Args.OriginContextId] = attack.OriginContextId;
+            else if (payload is DamageResult dr2)
+            {
+                eventBus.Publish(new EventKey<DamageResult>(eid), in dr2);
+                object boxed = dr2;
+                eventBus.Publish(new EventKey<object>(eid), in boxed);
+            }
+            else
+            {
+                object boxed = payload;
+                eventBus.Publish(new EventKey<object>(eid), in boxed);
+            }
         }
 
         private static float Clamp(float v, float min, float max)

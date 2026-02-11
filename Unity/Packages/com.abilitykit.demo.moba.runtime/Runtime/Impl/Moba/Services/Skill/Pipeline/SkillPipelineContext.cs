@@ -5,6 +5,7 @@ using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -29,7 +30,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public Vec3 AimDir { get; private set; }
 
         public IWorldResolver WorldServices { get; private set; }
-        public IEventBus EventBus { get; private set; }
+        public AbilityKit.Triggering.Eventing.IEventBus EventBus { get; private set; }
         public IUnitFacade CasterUnit { get; private set; }
         public IUnitFacade TargetUnit { get; private set; }
 
@@ -175,7 +176,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public readonly Vec3 AimDir;
 
         public readonly IWorldResolver WorldServices;
-        public readonly IEventBus EventBus;
+        public readonly AbilityKit.Triggering.Eventing.IEventBus EventBus;
         public readonly IUnitFacade CasterUnit;
         public readonly IUnitFacade TargetUnit;
 
@@ -187,7 +188,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             in Vec3 aimPos,
             in Vec3 aimDir,
             IWorldResolver worldServices,
-            IEventBus eventBus,
+            AbilityKit.Triggering.Eventing.IEventBus eventBus,
             IUnitFacade casterUnit,
             IUnitFacade targetUnit)
         {

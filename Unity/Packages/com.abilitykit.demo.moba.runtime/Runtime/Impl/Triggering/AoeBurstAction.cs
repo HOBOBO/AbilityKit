@@ -4,6 +4,7 @@ using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
+using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
@@ -14,6 +15,16 @@ namespace AbilityKit.Ability.Impl.Triggering
 {
     public sealed class AoeBurstAction : ITriggerAction
     {
+        private sealed class AoeBurstTriggerPayload
+        {
+            public int TriggerId;
+            public int SourceActorId;
+            public int TargetActorId;
+            public Vec3 Center;
+            public float Radius;
+            public object OriginalPayload;
+        }
+
         private static readonly AbilityKit.Ability.Share.Common.Pool.ObjectPool<List<ColliderId>> s_colliderListPool = AbilityKit.Ability.Share.Common.Pool.Pools.GetPool(
             key: "AoeBurstAction.ColliderList",
             createFunc: () => new List<ColliderId>(32),
@@ -79,19 +90,16 @@ namespace AbilityKit.Ability.Impl.Triggering
 
             var center = Vec3.Zero;
             var radius = _radius;
+            var mask = _collisionLayerMask;
+            var maxTargets = _maxTargets;
 
-            var evtArgs = context.Event.Args;
-            if (evtArgs != null)
+            var payload = context.Event.Payload;
+            if (payload is AreaEventArgs area)
             {
-                if (evtArgs.TryGetValue("area.center", out var c) && c is Vec3 v3)
-                {
-                    center = v3;
-                }
-
-                if (evtArgs.TryGetValue("area.radius", out var r) && r is float rf)
-                {
-                    if (rf > 0f) radius = rf;
-                }
+                center = area.Center;
+                if (area.Radius > 0f) radius = area.Radius;
+                if (area.CollisionLayerMask != 0) mask = area.CollisionLayerMask;
+                if (area.MaxTargets > 0) maxTargets = area.MaxTargets;
             }
 
             if (center.Equals(Vec3.Zero))
@@ -106,18 +114,6 @@ namespace AbilityKit.Ability.Impl.Triggering
                 return;
             }
 
-            var mask = _collisionLayerMask;
-            if (evtArgs != null && evtArgs.TryGetValue("area.layerMask", out var lmObj))
-            {
-                if (lmObj is int i) mask = i;
-            }
-
-            var maxTargets = _maxTargets;
-            if (evtArgs != null && evtArgs.TryGetValue("area.maxTargets", out var mtObj))
-            {
-                if (mtObj is int mti) maxTargets = mti;
-            }
-
             List<ColliderId> colliders = null;
             try
             {
@@ -130,7 +126,7 @@ namespace AbilityKit.Ability.Impl.Triggering
                     uniqueTargets = new HashSet<int>();
                 }
 
-                var source = context.Source;
+                TriggerActionArgUtil.TryResolveActorId(context.Source, out var sourceActorId);
                 for (int i = 0; i < colliders.Count; i++)
                 {
                     var actorId = ResolveActorIdByCollider(registry, colliders[i]);
@@ -138,17 +134,15 @@ namespace AbilityKit.Ability.Impl.Triggering
 
                     if (uniqueTargets != null && !uniqueTargets.Add(actorId)) continue;
 
-                    var args2 = PooledTriggerArgs.Rent();
-                    args2[EffectTriggering.Args.Source] = source;
-                    args2[EffectTriggering.Args.Target] = actorId;
-                    args2[EffectTriggering.Args.OriginSource] = source;
-                    args2[EffectTriggering.Args.OriginTarget] = actorId;
-                    args2["aoe.center"] = center;
-                    args2["aoe.radius"] = radius;
-                    args2["trigger.id"] = _perTargetTriggerId;
-
-                    effects.ExecuteTriggerId(_perTargetTriggerId, source: source, target: actorId, payload: context.Event.Payload, args: args2);
-                    args2.Dispose();
+                    effects.ExecuteTriggerId(_perTargetTriggerId, new AoeBurstTriggerPayload
+                    {
+                        TriggerId = _perTargetTriggerId,
+                        SourceActorId = sourceActorId,
+                        TargetActorId = actorId,
+                        Center = center,
+                        Radius = radius,
+                        OriginalPayload = context.Event.Payload,
+                    });
 
                     if (maxTargets > 0 && uniqueTargets != null && uniqueTargets.Count >= maxTargets) break;
                 }

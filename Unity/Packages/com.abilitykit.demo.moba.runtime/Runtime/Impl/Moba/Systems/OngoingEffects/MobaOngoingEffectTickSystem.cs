@@ -5,7 +5,6 @@ using AbilityKit.Ability.Impl.Moba.Conponents;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;
@@ -18,8 +17,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.OngoingEffects
     {
         private MobaConfigDatabase _configs;
         private IWorldClock _clock;
-        private MobaEffectExecutionService _effectExec;
-        private IEventBus _eventBus;
+        private MobaEffectInvokerService _invoker;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
         public MobaOngoingEffectTickSystem(global::Entitas.IContexts contexts, IWorldResolver services)
@@ -31,8 +29,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.OngoingEffects
         {
             Services.TryResolve(out _configs);
             Services.TryResolve(out _clock);
-            Services.TryResolve(out _effectExec);
-            Services.TryResolve(out _eventBus);
+            Services.TryResolve(out _invoker);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.OngoingEffects));
         }
 
@@ -43,7 +40,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.OngoingEffects
             if (dt <= 0f) return;
 
             if (_configs == null) return;
-            if (_effectExec == null) return;
+            if (_invoker == null) return;
 
             var addMs = (int)System.Math.Round(dt * 1000f);
             if (addMs <= 0) return;
@@ -109,22 +106,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.OngoingEffects
         private void ExecuteEffect(int effectId, int sourceActorId, int targetActorId)
         {
             if (effectId <= 0) return;
-            var ctx = BuildEffectContext(sourceActorId, targetActorId);
-            _effectExec.Execute(effectId, ctx, EffectExecuteMode.InternalOnly);
-        }
-
-        private MobaEffectPipelineContext BuildEffectContext(int sourceActorId, int targetActorId)
-        {
-            var ctx = new MobaEffectPipelineContext();
-            ctx.Initialize(
-                abilityInstance: null,
+            _invoker.Execute(
+                effectId: effectId,
                 sourceActorId: sourceActorId,
                 targetActorId: targetActorId,
                 contextKind: 0,
-                sourceContextId: 0,
-                worldServices: Services,
-                eventBus: _eventBus);
-            return ctx;
+                sourceContextId: 0);
         }
     }
 }

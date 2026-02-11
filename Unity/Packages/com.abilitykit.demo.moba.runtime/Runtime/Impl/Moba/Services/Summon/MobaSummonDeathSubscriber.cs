@@ -1,29 +1,35 @@
-using AbilityKit.Ability.Triggering;
+using System;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Core.Eventing;
+using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
-    public sealed class MobaSummonDeathSubscriber : IService, IEventHandler
+    public sealed class MobaSummonDeathSubscriber : IService
     {
-        private readonly IEventBus _eventBus;
+        private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly MobaActorRegistry _registry;
         private readonly MobaSummonService _summons;
-        private IEventSubscription _sub;
+        private IDisposable _sub;
 
-        public MobaSummonDeathSubscriber(IEventBus eventBus, MobaActorRegistry registry, MobaSummonService summons)
+        public MobaSummonDeathSubscriber(AbilityKit.Triggering.Eventing.IEventBus eventBus, MobaActorRegistry registry, MobaSummonService summons)
         {
             _eventBus = eventBus;
             _registry = registry;
             _summons = summons;
-            _sub = _eventBus?.Subscribe(DamagePipelineEvents.AfterApply, this);
+
+            if (_eventBus != null)
+            {
+                var eid = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply);
+                _sub = _eventBus.Subscribe(new EventKey<DamageResult>(eid), HandleAfterApply);
+            }
         }
 
-        public void Handle(in TriggerEvent evt)
+        private void HandleAfterApply(DamageResult r)
         {
             if (_summons == null) return;
             if (_registry == null) return;
 
-            var r = evt.Payload as DamageResult;
             if (r == null) return;
             if (r.TargetActorId <= 0) return;
             if (r.TargetHp > 0f) return;
@@ -40,7 +46,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (s != null)
             {
                 _sub = null;
-                s.Unsubscribe();
+                s.Dispose();
             }
         }
     }

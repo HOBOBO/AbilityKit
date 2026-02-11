@@ -77,7 +77,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                 return false;
             }
 
-            var eid = StableStringId.Get("event:" + eventId);
+            var eid = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
             var key = new EventKey<TArgs>(eid);
             sub = eventBus.Subscribe(key, handler);
             return true;

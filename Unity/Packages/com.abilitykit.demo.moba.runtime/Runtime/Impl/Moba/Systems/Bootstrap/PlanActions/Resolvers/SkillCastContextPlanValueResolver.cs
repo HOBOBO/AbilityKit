@@ -17,6 +17,18 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             return false;
         }
 
+        public static bool TryGetTargetActorId(object args, out int targetActorId)
+        {
+            targetActorId = 0;
+            if (args is SkillCastContext scc)
+            {
+                targetActorId = scc.TargetActorId;
+                return targetActorId > 0;
+            }
+
+            return false;
+        }
+
         public static bool TryGetAim(object args, out Vec3 aimPos, out Vec3 aimDir)
         {
             aimPos = Vec3.Zero;

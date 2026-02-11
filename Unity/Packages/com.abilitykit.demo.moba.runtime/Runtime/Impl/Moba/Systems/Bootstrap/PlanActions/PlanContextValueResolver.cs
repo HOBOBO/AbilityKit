@@ -12,6 +12,14 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             return SkillCastContextPlanValueResolver.TryGetCasterActorId(args, out casterActorId);
         }
 
+        public static bool TryGetTargetActorId(object args, out int targetActorId)
+        {
+            targetActorId = 0;
+            if (EffectContextPlanValueResolver.TryGetTargetActorId(args, out targetActorId)) return true;
+            if (SkillPipelineContextPlanValueResolver.TryGetTargetActorId(args, out targetActorId)) return true;
+            return SkillCastContextPlanValueResolver.TryGetTargetActorId(args, out targetActorId);
+        }
+
         public static bool TryGetAimPos(object args, out Vec3 aimPos)
         {
             if (EffectContextPlanValueResolver.TryGetAimPos(args, out aimPos)) return true;

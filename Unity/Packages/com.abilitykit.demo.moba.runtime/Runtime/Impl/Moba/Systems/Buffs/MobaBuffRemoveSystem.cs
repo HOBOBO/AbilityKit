@@ -12,6 +12,7 @@ using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
 {
@@ -19,10 +20,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
     public sealed class MobaBuffRemoveSystem : WorldSystemBase
     {
         private MobaConfigDatabase _configs;
-        private IEventBus _eventBus;
+        private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private ITriggerActionRunner _actionRunner;
+        private MobaPeriodicEffectService _ongoing;
         private EffectSourceRegistry _effectSource;
-        private MobaEffectExecutionService _effectExec;
+        private MobaEffectInvokerService _invoker;
 
         private BuffContextService _ctx;
         private BuffEventPublisher _events;
@@ -40,14 +42,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             Services.TryResolve(out _configs);
             Services.TryResolve(out _eventBus);
             Services.TryResolve(out _actionRunner);
+            Services.TryResolve(out _ongoing);
             Services.TryResolve(out _effectSource);
-            Services.TryResolve(out _effectExec);
+            Services.TryResolve(out _invoker);
 
             Services.TryResolve(out IFrameTime frameTime);
 
             _ctx = new BuffContextService(_effectSource, _actionRunner, frameTime);
-            _events = new BuffEventPublisher(_eventBus, _effectSource);
-            _stageEffects = new BuffStageEffectExecutor(_effectExec, Services, _eventBus);
+            _events = new BuffEventPublisher(_eventBus);
+            _stageEffects = new BuffStageEffectExecutor(_invoker);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.RemoveBuffRequest));
         }
 
@@ -80,6 +83,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                     if (reason == EffectSourceEndReason.None) reason = EffectSourceEndReason.Dispelled;
                     _ctx?.EndByRuntimeNoClear(b, reason);
 
+                    var ownerKey = b.SourceContextId;
+                    if (ownerKey != 0)
+                    {
+                        try
+                        {
+                            _ongoing?.StopByOwnerKey(e.actorId.Value, ownerKey);
+                        }
+                        catch
+                        {
+                        }
+                    }
+
                     if (b.SourceContextId != 0)
                     {
                         RemoveOngoingTriggerPlansEntry(e, b.SourceContextId);
@@ -104,15 +119,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                                 var l = listeners[k];
                                 if (l == null) continue;
                                 if (l.SourceContextId != b.SourceContextId) continue;
-                                try
-                                {
-                                    l.Sub?.Unsubscribe();
-                                }
-                                catch (Exception ex)
-                                {
-                                    Log.Exception(ex, $"[MobaBuffRemoveSystem] unsubscribe effect listener failed (sourceContextId={l.SourceContextId})");
-                                }
-                                l.Sub = null;
                                 listeners.RemoveAt(k);
                             }
                         }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Eventing;
+using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Registry;
@@ -27,6 +28,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         private sealed class TriggerPlanDto
         {
             public int TriggerId;
+            public string EventName;
             public int EventId;
             public bool AllowExternal;
             public int Phase;
@@ -77,12 +79,14 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         public readonly struct Record
         {
             public readonly int TriggerId;
+            public readonly string EventName;
             public readonly int EventId;
             public readonly TriggerPlan<object> Plan;
 
-            public Record(int triggerId, int eventId, in TriggerPlan<object> plan)
+            public Record(int triggerId, string eventName, int eventId, in TriggerPlan<object> plan)
             {
                 TriggerId = triggerId;
+                EventName = eventName;
                 EventId = eventId;
                 Plan = plan;
             }
@@ -149,8 +153,14 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     if (t == null) continue;
                     if (t.TriggerId <= 0) continue;
 
+                    var eid = t.EventId;
+                    if (eid == 0 && !string.IsNullOrEmpty(t.EventName))
+                    {
+                        eid = StableStringId.Get("event:" + t.EventName);
+                    }
+
                     var plan = BuildPlan(t);
-                    next.Add(new Record(t.TriggerId, t.EventId, in plan));
+                    next.Add(new Record(t.TriggerId, t.EventName, eid, in plan));
                     byTriggerId[t.TriggerId] = plan;
                 }
             }

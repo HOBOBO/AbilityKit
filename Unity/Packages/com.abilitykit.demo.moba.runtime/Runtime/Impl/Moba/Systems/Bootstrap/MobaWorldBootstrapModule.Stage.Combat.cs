@@ -9,6 +9,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
         {
             builder.RegisterService<MobaDamageService, MobaDamageService>();
             builder.RegisterService<DamagePipelineService, DamagePipelineService>();
+            builder.RegisterService<MobaUnitDeathSubscriber, MobaUnitDeathSubscriber>();
         }
     }
 }

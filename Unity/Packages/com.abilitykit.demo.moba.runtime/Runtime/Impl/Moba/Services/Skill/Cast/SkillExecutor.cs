@@ -10,6 +10,7 @@ using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -18,7 +19,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly IWorldResolver _services;
         private readonly IWorldClock _clock;
         private readonly IFrameTime _time;
-        private readonly IEventBus _eventBus;
+        private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly IUnitResolver _units;
         private readonly MobaSkillLoadoutService _loadout;
         private readonly MobaActorLookupService _actors;
@@ -34,7 +35,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             IWorldResolver services,
             IWorldClock clock,
             IFrameTime time,
-            IEventBus eventBus,
+            AbilityKit.Triggering.Eventing.IEventBus eventBus,
             IUnitResolver units,
             MobaSkillLoadoutService loadout,
             MobaActorLookupService actors,

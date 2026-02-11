@@ -11,7 +11,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Triggering
     [WorldSystem(order: MobaSystemOrder.OngoingTriggerPlansReconcile, Phase = WorldSystemPhase.Execute)]
     public sealed class MobaOngoingTriggerPlansReconcileSystem : WorldSystemBase
     {
-        private MobaOngoingTriggerPlanService _plans;
+        private MobaTriggerPlanSubscriptionService _plans;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
         private readonly Dictionary<long, int> _hashByOwnerKey = new Dictionary<long, int>();

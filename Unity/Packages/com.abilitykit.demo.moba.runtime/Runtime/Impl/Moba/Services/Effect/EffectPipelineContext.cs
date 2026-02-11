@@ -2,13 +2,14 @@ using AbilityKit.Ability;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class MobaEffectPipelineContext : AAbilityPipelineContext
     {
         public IWorldResolver WorldServices { get; private set; }
-        public IEventBus EventBus { get; private set; }
+        public AbilityKit.Triggering.Eventing.IEventBus EventBus { get; private set; }
 
         public void Initialize(
             object abilityInstance,
@@ -17,7 +18,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             int contextKind,
             long sourceContextId,
             IWorldResolver worldServices,
-            IEventBus eventBus)
+            AbilityKit.Triggering.Eventing.IEventBus eventBus)
         {
             base.Initialize(abilityInstance);
 

@@ -4,7 +4,6 @@ using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Rollback;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Impl.Moba.Worlds.Blueprints;
@@ -158,11 +157,6 @@ namespace AbilityKit.Game.Battle
             if (world.Services.TryResolve<MobaActorRegistry>(out var actorReg) && actorReg != null)
             {
                 reg.Register(new MobaActorTransformRollbackProvider(actorReg));
-            }
-
-            if (world.Services.TryResolve<MobaMoveService>(out var move) && move != null)
-            {
-                reg.Register(new MobaMoveRollbackProvider(move));
             }
 
             if (world.Services.TryResolve<AbilityKit.Ability.Share.Impl.Moba.Rollback.RollbackWorldRandom>(out var rng) && rng != null)

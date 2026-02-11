@@ -12,6 +12,7 @@ using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.Share.Impl.Moba;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
 {
@@ -19,17 +20,17 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
     public sealed class MobaBuffApplySystem : WorldSystemBase
     {
         private MobaConfigDatabase _configs;
-        private IEventBus _eventBus;
+        private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private ITriggerActionRunner _actionRunner;
-        private MobaOngoingEffectService _ongoing;
+        private MobaPeriodicEffectService _ongoing;
         private EffectSourceRegistry _effectSource;
-        private MobaEffectExecutionService _effectExec;
+        private MobaEffectInvokerService _invoker;
 
         private BuffRepository _repo;
         private BuffStackingPolicyApplier _stacking;
         private BuffContextService _ctx;
         private BuffEventPublisher _events;
-        private BuffOngoingEffectBinder _ongoingBinder;
+        private BuffPeriodicEffectBinder _periodicBinder;
         private BuffStageEffectExecutor _stageEffects;
 
         private global::Entitas.IGroup<global::ActorEntity> _group;
@@ -46,16 +47,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             Services.TryResolve(out _actionRunner);
             Services.TryResolve(out _ongoing);
             Services.TryResolve(out _effectSource);
-            Services.TryResolve(out _effectExec);
+            Services.TryResolve(out _invoker);
 
             Services.TryResolve(out IFrameTime frameTime);
 
             _repo = new BuffRepository();
             _stacking = new BuffStackingPolicyApplier();
             _ctx = new BuffContextService(_effectSource, _actionRunner, frameTime);
-            _events = new BuffEventPublisher(_eventBus, _effectSource);
-            _ongoingBinder = new BuffOngoingEffectBinder(_ongoing, _actionRunner);
-            _stageEffects = new BuffStageEffectExecutor(_effectExec, Services, _eventBus);
+            _events = new BuffEventPublisher(_eventBus);
+            _periodicBinder = new BuffPeriodicEffectBinder(_ongoing, _actionRunner);
+            _stageEffects = new BuffStageEffectExecutor(_invoker);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.ApplyBuffRequest));
         }
 
@@ -89,11 +90,41 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                 if (existingIndex >= 0)
                 {
                     var rt = list[existingIndex];
+                    var oldOwnerKey = rt != null ? rt.SourceContextId : 0;
                     var applied = _stacking.ApplyToExisting(rt, buff, req.SourceId, durationSeconds, _ctx);
                     var originSource = req.OriginSourceActorId > 0 ? (object)req.OriginSourceActorId : null;
                     var originTarget = req.OriginTargetActorId > 0 ? (object)req.OriginTargetActorId : null;
+
+                    // If stacking policy replaced the buff, its SourceContextId may be cleared.
+                    // Stop any ongoing effects bound to the old ownerKey before a new context is created.
+                    if (oldOwnerKey != 0 && rt != null && rt.SourceContextId == 0)
+                    {
+                        try
+                        {
+                            _ongoing?.StopByOwnerKey(targetActorId, oldOwnerKey);
+                        }
+                        catch
+                        {
+                        }
+
+                        if (e.hasEffectListeners)
+                        {
+                            var listeners = e.effectListeners.Active;
+                            if (listeners != null && listeners.Count > 0)
+                            {
+                                for (int k = listeners.Count - 1; k >= 0; k--)
+                                {
+                                    var l = listeners[k];
+                                    if (l == null) continue;
+                                    if (l.SourceContextId != oldOwnerKey) continue;
+                                    listeners.RemoveAt(k);
+                                }
+                            }
+                        }
+                    }
+
                     _ctx.EnsureBuffContext(rt, buff.Id, req.SourceId, targetActorId, originSource: originSource, originTarget: originTarget, parentContextId: req.ParentContextId);
-                    _ongoingBinder.TryStartOngoingEffectByBuff(buff, rt, req.SourceId, targetActorId);
+                    _periodicBinder.TryStartPeriodicEffectByBuff(buff, rt, req.SourceId, targetActorId);
                     TryUpsertOngoingTriggerPlans(e, rt.SourceContextId, buff);
                     _events.PublishApplyOrRefresh(buff, req.SourceId, targetActorId, durationSeconds, rt);
                     if (applied)
@@ -110,7 +141,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
                     var originTarget = req.OriginTargetActorId > 0 ? (object)req.OriginTargetActorId : null;
                     _ctx.EnsureBuffContext(rt, buff.Id, req.SourceId, targetActorId, originSource: originSource, originTarget: originTarget, parentContextId: req.ParentContextId);
                     list.Add(rt);
-                    _ongoingBinder.TryStartOngoingEffectByBuff(buff, rt, req.SourceId, targetActorId);
+                    _periodicBinder.TryStartPeriodicEffectByBuff(buff, rt, req.SourceId, targetActorId);
                     TryUpsertOngoingTriggerPlans(e, rt.SourceContextId, buff);
                     _events.PublishApplyOrRefresh(buff, req.SourceId, targetActorId, durationSeconds, rt);
                     _stageEffects.Execute(buff.OnAddEffects, buff.Id, req.SourceId, targetActorId, rt.SourceContextId);

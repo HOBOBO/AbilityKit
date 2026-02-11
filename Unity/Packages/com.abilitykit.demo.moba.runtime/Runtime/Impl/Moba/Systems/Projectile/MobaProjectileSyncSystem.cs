@@ -12,7 +12,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.Share.Math;
-using AbilityKit.Ability.Triggering;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Effects.Core;
@@ -25,7 +25,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
         private IProjectileService _projectiles;
         private MobaProjectileLinkService _links;
         private MobaActorRegistry _registry;
-        private IEventBus _eventBus;
+        private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private MobaEffectExecutionService _effects;
         private ActorIdAllocator _actorIds;
         private MobaEntityManager _entities;
@@ -46,7 +46,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
 
         internal MobaProjectileLinkService Links => _links;
         internal MobaActorRegistry Registry => _registry;
-        internal IEventBus EventBus => _eventBus;
+        internal AbilityKit.Triggering.Eventing.IEventBus EventBus => _eventBus;
         internal MobaEffectExecutionService Effects => _effects;
         internal ActorIdAllocator ActorIds => _actorIds;
         internal MobaEntityManager Entities => _entities;

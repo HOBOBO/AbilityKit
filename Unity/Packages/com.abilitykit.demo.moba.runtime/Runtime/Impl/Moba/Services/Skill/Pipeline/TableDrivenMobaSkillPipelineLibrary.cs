@@ -12,9 +12,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private static readonly AbilityPipelinePhaseId CastTimelinePhaseId = new AbilityPipelinePhaseId("skill.timeline.cast");
 
         private readonly MobaConfigDatabase _configs;
-        private readonly MobaEffectExecutionService _effects;
+        private readonly MobaEffectInvokerService _effects;
 
-        public TableDrivenMobaSkillPipelineLibrary(MobaConfigDatabase configs, MobaEffectExecutionService effects)
+        public TableDrivenMobaSkillPipelineLibrary(MobaConfigDatabase configs, MobaEffectInvokerService effects)
         {
             _configs = configs;
             _effects = effects;

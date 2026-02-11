@@ -5,7 +5,6 @@ using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Impl.Moba.Systems;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Impl.Moba.Rollback;
-using AbilityKit.Ability.Share.Impl.Moba.Move;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Impl.Moba;
@@ -106,14 +105,12 @@ namespace AbilityKit.Game.Test.FrameSync
 
             var registry = new RollbackRegistry();
             registry.Register(new MobaActorTransformRollbackProvider(_predRegistry));
-            registry.Register(new MobaMoveRollbackProvider(_pred.Services.Resolve<MobaMoveService>()));
             registry.Register(_pred.Services.Resolve<PassiveSkillTriggerEventRollbackLog>());
             registry.Register(_pred.Services.Resolve<RollbackWorldRandom>());
             _rollback = new RollbackCoordinator(registry, new RollbackSnapshotRingBuffer(rollbackBufferFrames));
 
             var authRegistry = new RollbackRegistry();
             authRegistry.Register(new MobaActorTransformRollbackProvider(_authRegistry));
-            authRegistry.Register(new MobaMoveRollbackProvider(_auth.Services.Resolve<MobaMoveService>()));
             authRegistry.Register(_auth.Services.Resolve<PassiveSkillTriggerEventRollbackLog>());
             authRegistry.Register(_auth.Services.Resolve<RollbackWorldRandom>());
             _authRollback = new RollbackCoordinator(authRegistry, new RollbackSnapshotRingBuffer(rollbackBufferFrames));

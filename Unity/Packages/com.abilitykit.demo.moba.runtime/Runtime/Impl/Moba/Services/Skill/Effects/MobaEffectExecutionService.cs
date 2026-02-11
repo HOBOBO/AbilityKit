@@ -1,11 +1,8 @@
 using System;
 using AbilityKit.Ability;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Ability.Triggering;
-using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Eventing;
@@ -17,10 +14,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class MobaEffectExecutionService : IService
     {
-        private readonly AbilityKit.Ability.Triggering.IEventBus _eventBus;
-        private readonly TriggerRunner _triggers;
-        private readonly MobaTriggerIndexService _index;
-
         private readonly IWorldResolver _services;
         private readonly TriggerPlanJsonDatabase _planDb;
         private readonly AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver> _planRunner;
@@ -31,9 +24,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public MobaEffectExecutionService(
             IWorldResolver services,
-            AbilityKit.Ability.Triggering.IEventBus eventBus,
-            TriggerRunner triggers,
-            MobaTriggerIndexService index,
             TriggerPlanJsonDatabase planDb,
             AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver> planRunner,
             AbilityKit.Triggering.Eventing.IEventBus planEventBus,
@@ -41,9 +31,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             ActionRegistry planActions)
         {
             _services = services;
-            _eventBus = eventBus;
-            _triggers = triggers;
-            _index = index;
             _planDb = planDb;
             _planRunner = planRunner;
             _planEventBus = planEventBus;
@@ -203,76 +190,23 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             var wrappedContext = EffectContextWrapper.Wrap(context);
             if (wrappedContext == null) return;
 
-            var needInternal = mode == EffectExecuteMode.InternalOnly || mode == EffectExecuteMode.InternalThenPublishEvent;
-            var needPublish = mode == EffectExecuteMode.PublishEventOnly || mode == EffectExecuteMode.InternalThenPublishEvent;
-
-            if (needInternal && _triggers == null) return;
-            if (needPublish && _eventBus == null) return;
-
-            static void FillArgs(PooledTriggerArgs args, int effectId2, IAbilityPipelineContext ctx)
+            if (mode == EffectExecuteMode.PublishEventOnly || mode == EffectExecuteMode.InternalThenPublishEvent)
             {
-                var skillId = ctx.GetSkillId();
-                var casterActorId = ctx.GetCasterActorId();
-                var targetActorId = ctx.GetTargetActorId();
-
-                args[MobaSkillTriggering.Args.SkillId] = skillId;
-                args[MobaSkillTriggering.Args.SkillSlot] = ctx.GetSkillSlot();
-                args[MobaSkillTriggering.Args.CasterActorId] = casterActorId;
-                args[MobaSkillTriggering.Args.TargetActorId] = targetActorId;
-                args[MobaSkillTriggering.Args.AimPos] = ctx.GetAimPos();
-                args[MobaSkillTriggering.Args.AimDir] = ctx.GetAimDir();
-                args["effect.id"] = effectId2;
-
-                args[EffectTriggering.Args.Source] = casterActorId;
-                args[EffectTriggering.Args.Target] = targetActorId;
-
-                var sourceContextId = 0L;
-                try { sourceContextId = ctx.GetData<long>(MobaEffectPipelineSharedKeys.SourceContextId); }
-                catch { sourceContextId = 0; }
-                if (sourceContextId == 0)
-                {
-                    try { sourceContextId = ctx.GetData<long>(MobaSkillPipelineSharedKeys.SourceContextId); }
-                    catch { sourceContextId = 0; }
-                }
-
-                if (sourceContextId != 0)
-                {
-                    args[EffectSourceKeys.SourceContextId] = sourceContextId;
-                    args[EffectTriggering.Args.OriginSource] = casterActorId;
-                    args[EffectTriggering.Args.OriginTarget] = targetActorId;
-                    args[EffectTriggering.Args.OriginContextId] = sourceContextId;
-                    if (skillId > 0)
-                    {
-                        args[EffectTriggering.Args.OriginKind] = EffectSourceKind.SkillCast;
-                        args[EffectTriggering.Args.OriginConfigId] = skillId;
-                    }
-                }
+                Log.Warning($"[MobaEffectExecutionService] EffectExecuteMode.{mode} is not supported (legacy publish removed). effectId={effectId}");
             }
 
-            if (needInternal)
+            EnsurePlanInitialized();
+            if (TryExecutePlanByTriggerId(effectId, wrappedContext))
             {
-                EnsurePlanInitialized();
-                var args = PooledTriggerArgs.Rent();
-                FillArgs(args, effectId, wrappedContext);
-                RunByTriggerId(effectId, args, wrappedContext);
-                args.Dispose();
+                return;
             }
 
-            if (needPublish)
-            {
-                var args1 = PooledTriggerArgs.Rent();
-                FillArgs(args1, effectId, wrappedContext);
-                _eventBus.Publish(new TriggerEvent(MobaTriggerEventIds.EffectExecute, payload: wrappedContext, args: args1));
-
-                var args2 = PooledTriggerArgs.Rent();
-                FillArgs(args2, effectId, wrappedContext);
-                _eventBus.Publish(new TriggerEvent(MobaTriggerEventIds.EffectExecuteById(effectId), payload: wrappedContext, args: args2));
-            }
+            Log.Warning($"[MobaEffectExecutionService] Effect execution skipped (no TriggerPlan found for triggerId={effectId}).");
         }
 
         // Active invocation: execute triggers by triggerId directly (no event subscription involved).
         // Note: This is intentionally different from publishing an event; it is used by systems like projectiles that own their triggers.
-        public void ExecuteTriggerId(int triggerId, object source = null, object target = null, object payload = null, PooledTriggerArgs args = null)
+        public void ExecuteTriggerId(int triggerId, object payload = null)
         {
             if (triggerId <= 0) return;
 
@@ -281,58 +215,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             // Plan first (active triggers may have EventId=0 and are executed by TriggerId).
             if (TryExecutePlanByTriggerId(triggerId, payload)) return;
 
-            // Legacy fallback
-            if (_triggers == null) return;
-            if (_index == null) return;
-            if (!_index.TryGetByTriggerId(triggerId, out var list) || list == null) return;
-
-            for (int i = 0; i < list.Count; i++)
-            {
-                var e = list[i];
-                var def = e.Def;
-                if (def == null) continue;
-
-                if (!string.IsNullOrEmpty(def.EventId))
-                {
-                    Log.Warning($"[MobaEffectExecutionService] ExecuteTriggerId found trigger with EventId set. triggerId={triggerId}, eventId={def.EventId} (should be empty for active triggers)");
-                }
-
-                try
-                {
-                    _triggers.RunOnce(def, source: source, target: target, payload: payload, args: args, initialLocalVars: e.InitialLocalVars);
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, $"[MobaEffectExecutionService] ExecuteTriggerId exception: triggerId={triggerId}");
-                }
-            }
-        }
-
-        private void RunByTriggerId(int triggerId, PooledTriggerArgs args, IAbilityPipelineContext context)
-        {
-            EnsurePlanInitialized();
-
-            // Plan first
-            if (TryExecutePlanByTriggerId(triggerId, context)) return;
-
-            if (_triggers == null) return;
-            if (_index == null) return;
-            if (!_index.TryGetByTriggerId(triggerId, out var list) || list == null) return;
-
-            object caster = null;
-            if (context is IEffectContext ec && ec.TryGetSkill(out var skill))
-            {
-                caster = skill.CasterUnit;
-            }
-
-            for (int i = 0; i < list.Count; i++)
-            {
-                var e = list[i];
-                var def = e.Def;
-                if (def == null) continue;
-
-                _triggers.RunOnce(def, source: caster, target: caster, payload: context, args: args, initialLocalVars: e.InitialLocalVars);
-            }
+            Log.Warning($"[MobaEffectExecutionService] ExecuteTriggerId skipped (no TriggerPlan found for triggerId={triggerId}).");
         }
 
         public void Dispose()

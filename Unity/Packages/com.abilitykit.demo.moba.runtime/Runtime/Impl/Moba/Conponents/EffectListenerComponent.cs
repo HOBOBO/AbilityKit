@@ -28,7 +28,5 @@ namespace AbilityKit.Ability.Impl.Moba.Conponents
         public EffectExecuteMode ExecuteMode;
 
         public long SourceContextId;
-
-        public AbilityKit.Ability.Triggering.IEventSubscription Sub;
     }
 }
