@@ -35,7 +35,7 @@ namespace AbilityKit.Game.Flow
             AddInt(ref h, bits);
         }
 
-        private static uint ComputeStateHash(MobaLobbyStateService lobby, MobaActorRegistry registry)
+        private static uint ComputeStateHash(MobaGamePhaseService phase, MobaActorRegistry registry)
         {
             var entries = new List<(int actorId, float x, float y, float z)>(16);
             foreach (var kv in registry.Entries)
@@ -51,7 +51,7 @@ namespace AbilityKit.Game.Flow
             entries.Sort((a, b) => a.actorId.CompareTo(b.actorId));
 
             uint h = 2166136261u;
-            AddByte(ref h, lobby.Started ? (byte)1 : (byte)0);
+            AddByte(ref h, phase != null && phase.InGame ? (byte)1 : (byte)0);
             AddInt(ref h, entries.Count);
 
             for (int i = 0; i < entries.Count; i++)

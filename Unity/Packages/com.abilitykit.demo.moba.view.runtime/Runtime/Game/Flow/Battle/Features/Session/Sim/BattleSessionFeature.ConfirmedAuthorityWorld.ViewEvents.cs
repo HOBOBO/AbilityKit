@@ -21,12 +21,6 @@ namespace AbilityKit.Game.Flow
                 pipeline: new NullSnapshotPipelineStageRegistry(),
                 cmd: new NullSnapshotCmdHandlerRegistry());
 
-            AbilityKit.Game.Flow.Snapshot.LobbySnapshotRegistry.RegisterAll(
-                dispatcherDecoders: _confirmedSnapshots,
-                pipelineDecoders: _confirmedSnapshots,
-                pipeline: new NullSnapshotPipelineStageRegistry(),
-                cmd: new NullSnapshotCmdHandlerRegistry());
-
             AbilityKit.Game.Flow.Snapshot.SharedSnapshotRegistry.RegisterAll(
                 dispatcherDecoders: _confirmedSnapshots,
                 pipelineDecoders: _confirmedSnapshots,

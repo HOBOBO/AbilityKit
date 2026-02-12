@@ -6,18 +6,6 @@ namespace AbilityKit.Game.Flow.Snapshot
 {
     public sealed class MobaFrameSnapshotDeserializer : IFrameSnapshotDeserializer
     {
-        public bool TryDeserializeLobby(in WorldStateSnapshot snap, out LobbySnapshot lobby)
-        {
-            if (snap.OpCode != (int)MobaOpCode.LobbySnapshot || snap.Payload == null || snap.Payload.Length == 0)
-            {
-                lobby = default;
-                return false;
-            }
-
-            lobby = MobaLobbyCodec.DeserializeSnapshot(snap.Payload);
-            return true;
-        }
-
         public bool TryDeserializeEnterGame(in WorldStateSnapshot snap, out EnterMobaGameRes enterGame)
         {
             if (snap.OpCode != (int)MobaOpCode.EnterGameSnapshot || snap.Payload == null || snap.Payload.Length == 0)

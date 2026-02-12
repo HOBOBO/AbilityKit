@@ -1,8 +1,12 @@
+
+using MemoryPack;
+
 namespace AbilityKit.Protocol.Moba.GatewayTimeSync
 {
-    public readonly struct WireTimeSyncReq
+    [MemoryPackable]
+    public readonly partial struct WireTimeSyncReq
     {
-        public readonly long ClientSendTicks;
+        [MemoryPackOrder(0)] public readonly long ClientSendTicks;
 
         public WireTimeSyncReq(long clientSendTicks)
         {
@@ -10,11 +14,12 @@ namespace AbilityKit.Protocol.Moba.GatewayTimeSync
         }
     }
 
-    public readonly struct WireTimeSyncRes
+    [MemoryPackable]
+    public readonly partial struct WireTimeSyncRes
     {
-        public readonly long ClientSendTicks;
-        public readonly long ServerNowTicks;
-        public readonly long ServerTickFrequency;
+        [MemoryPackOrder(0)] public readonly long ClientSendTicks;
+        [MemoryPackOrder(1)] public readonly long ServerNowTicks;
+        [MemoryPackOrder(2)] public readonly long ServerTickFrequency;
 
         public WireTimeSyncRes(long clientSendTicks, long serverNowTicks, long serverTickFrequency)
         {

@@ -15,8 +15,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class MobaLobbyInputSink : IWorldInputSink, IWorldInitializable
     {
-        private readonly MobaLobbyStateService _lobby;
-        private readonly IMobaGameStartOrchestrator _startGame;
+        private readonly MobaGamePhaseService _phase;
         private readonly MobaPlayerActorMapService _playerActorMap;
         private readonly MobaEntityManager _entities;
         private readonly Entitas.IContexts _contexts;
@@ -26,18 +25,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         private readonly Dictionary<int, Action<PlayerInputCommand>> _handlers;
 
-        public MobaLobbyInputSink(MobaLobbyStateService lobby, IMobaGameStartOrchestrator startGame, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, Entitas.IContexts contexts)
+        public MobaLobbyInputSink(MobaGamePhaseService phase, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, Entitas.IContexts contexts)
         {
-            _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
-            _startGame = startGame ?? throw new ArgumentNullException(nameof(startGame));
+            _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _playerActorMap = playerActorMap ?? throw new ArgumentNullException(nameof(playerActorMap));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
             _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
 
             _handlers = new Dictionary<int, Action<PlayerInputCommand>>
             {
-                { (int)MobaOpCode.Ready, cmd => _lobby.SetReady(cmd.Player, true) },
-                { (int)MobaOpCode.Unready, cmd => _lobby.SetReady(cmd.Player, false) },
                 { (int)MobaOpCode.Move, HandleMove },
                 { (int)MobaOpCode.SkillInput, HandleSkillInput },
             };
@@ -115,7 +111,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         private void HandleMove(PlayerInputCommand cmd)
         {
-            if (!_lobby.Started) return;
+            if (!_phase.InGame) return;
             if (!_playerActorMap.TryGetActorId(cmd.Player, out var actorId)) return;
             if (!TryGetEntity(actorId, out var entity) || entity == null) return;
             if (!entity.hasTransform) return;
@@ -134,7 +130,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         private void HandleSkillInput(PlayerInputCommand cmd)
         {
-            if (!_lobby.Started) return;
+            if (!_phase.InGame) return;
             if (!_playerActorMap.TryGetActorId(cmd.Player, out var actorId)) return;
             if (!TryGetEntity(actorId, out var entity) || entity == null) return;
             if (!entity.hasTransform) return;
@@ -166,11 +162,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 }
 
                 if (_handlers.TryGetValue(cmd.OpCode, out var handler)) handler(cmd);
-            }
-
-            if (!_lobby.Started && _lobby.CanStartGame())
-            {
-                _startGame.TryStartGame(((global::Contexts)_contexts).actor);
             }
         }
 

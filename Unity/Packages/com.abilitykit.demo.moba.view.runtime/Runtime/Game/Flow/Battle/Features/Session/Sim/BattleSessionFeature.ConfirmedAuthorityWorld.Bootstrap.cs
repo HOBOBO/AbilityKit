@@ -2,6 +2,7 @@ using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.Host.Extensions.WorldStart;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
 using AbilityKit.Ability.World.Abstractions;
@@ -58,6 +59,8 @@ namespace AbilityKit.Game.Flow
                     buildComputeHash: _ => null))
                 .Add(new AbilityKit.Ability.Host.Extensions.Time.ServerFrameTimeModule(fixedDelta));
 
+            modules.Add(new WorldAutoStartModule());
+
             modules.InstallAll(_confirmedRuntime, serverOptions);
 
             var builder = WorldServiceContainerFactory.CreateWithAttributes(
@@ -107,26 +110,6 @@ namespace AbilityKit.Game.Flow
                 else
                 {
                     var p = new PlayerId(_plan.PlayerId);
-
-                    if (_confirmedWorld.Services.TryResolve<AbilityKit.Ability.Share.Impl.Moba.Services.MobaLobbyStateService>(out var lobby) && lobby != null)
-                    {
-                        lobby.OnPlayerJoined(p);
-                    }
-                    else
-                    {
-                        Log.Error("[BattleSessionFeature] ConfirmedAuthorityWorld bootstrap failed: MobaLobbyStateService not found");
-                    }
-
-                    if (_confirmedWorld.Services.TryResolve<AbilityKit.Ability.Host.IWorldInputSink>(out var sink) && sink != null)
-                    {
-                        var frame0 = new FrameIndex(0);
-                        var ready = new PlayerInputCommand(frame0, p, (int)AbilityKit.Ability.Share.Impl.Moba.Services.MobaOpCode.Ready, Array.Empty<byte>());
-                        sink.Submit(frame0, new[] { ready });
-                    }
-                    else
-                    {
-                        Log.Error("[BattleSessionFeature] ConfirmedAuthorityWorld bootstrap failed: IWorldInputSink not found");
-                    }
                 }
             }
             catch (Exception ex)

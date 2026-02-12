@@ -11,6 +11,17 @@
              Link="Protocol\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\**\*.cs"
              Link="Protocol.Moba\%(RecursiveDir)%(Filename)%(Extension)" />
+
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.world.framesync\Runtime\Host\PlayerId.cs"
+             Link="World.FrameSync\Host\PlayerId.cs" />
+
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.world.di\Runtime\World\Abstractions\WorldId.cs"
+             Link="World.DI\World\Abstractions\WorldId.cs" />
+
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.core\Runtime\Core\Generic\BinaryObjectCodec.cs"
+             Link="AbilityKit.Core\Generic\BinaryObjectCodec.cs" />
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.core\Runtime\Core\Common\Pool\*.cs"
+             Link="AbilityKit.Core\Common\Pool\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

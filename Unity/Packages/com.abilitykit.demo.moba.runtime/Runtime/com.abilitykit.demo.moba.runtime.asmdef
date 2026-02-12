@@ -3,6 +3,7 @@
     "rootNamespace": "AbilityKit",
     "references": [
         "AbilityKit.Core",
+        "AbilityKit.Protocol.Moba",
         "AbilityKit.Effects",
         "AbilityKit.Attributes",
         "AbilityKit.Host",
@@ -23,8 +24,7 @@
         "AbilityKit.Combat.Collision.Abstractions",
         "AbilityKit.Combat.Collision.Unity",
         "AbilityKit.Triggering",
-        "AbilityKit.Pipeline",
-        "AbilityKit.Host.Extensions"
+        "AbilityKit.Pipeline"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

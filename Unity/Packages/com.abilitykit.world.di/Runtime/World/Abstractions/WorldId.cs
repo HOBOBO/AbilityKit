@@ -1,11 +1,14 @@
 using System;
+using MemoryPack;
 
 namespace AbilityKit.Ability.World.Abstractions
 {
-    public readonly struct WorldId : IEquatable<WorldId>
+    [MemoryPackable]
+    public readonly partial struct WorldId : IEquatable<WorldId>
     {
-        public readonly string Value;
+        [MemoryPackOrder(0)] public readonly string Value;
 
+        [MemoryPackConstructor]
         public WorldId(string value)
         {
             Value = value;

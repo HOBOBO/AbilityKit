@@ -112,15 +112,7 @@ namespace AbilityKit.Game.Battle
         {
             if (_server.TryGetWorld(request.WorldId, out var world) && world != null)
             {
-                var services = world.Services;
-                if (services != null && services.TryResolve<MobaLobbyStateService>(out var lobby) && lobby != null)
-                {
-                    lobby.OnPlayerJoined(request.PlayerId);
-                    return true;
-                }
-
-                Log.Error($"[InMemoryBattleLogicTransport] Join ignored: MobaLobbyStateService not found. worldId={request.WorldId}, playerId={request.PlayerId.Value}");
-                return false;
+                return true;
             }
 
             Log.Error($"[InMemoryBattleLogicTransport] Join ignored: world not found. worldId={request.WorldId}, playerId={request.PlayerId.Value}");
@@ -131,12 +123,7 @@ namespace AbilityKit.Game.Battle
         {
             if (_server.TryGetWorld(request.WorldId, out var world) && world != null)
             {
-                var services = world.Services;
-                if (services != null && services.TryResolve<MobaLobbyStateService>(out var lobby) && lobby != null)
-                {
-                    lobby.OnPlayerLeft(request.PlayerId);
-                    return true;
-                }
+                return true;
             }
             return false;
         }

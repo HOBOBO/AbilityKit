@@ -1,6 +1,7 @@
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Host.Extensions.Moba.Struct;
 using System.Collections.Generic;
 using Sirenix.OdinInspector;
 using UnityEngine;
@@ -78,6 +79,9 @@ namespace AbilityKit.Game.Flow
         [LabelText("玩家配置(可复用SO)")]
         public BattlePlayersConfigSO PlayersSO;
 
+        [LabelText("UseRoomGameStartSpec(用外部RoomSpec生成CreateWorldPayload)")]
+        public bool UseRoomGameStartSpec;
+
         [LabelText("运行模式配置(可复用SO)")]
         public BattleRunModeConfigSO RunModeSO;
 
@@ -144,6 +148,66 @@ namespace AbilityKit.Game.Flow
                 payload: payload,
                 players: loadouts
             );
+        }
+
+        public MobaRoomGameStartSpec BuildRoomGameStartSpec()
+        {
+            var playersSo = Preset != null ? Preset.PlayersSO : PlayersSO;
+            var enterGameSo = Preset != null ? Preset.EnterGameSO : EnterGameSO;
+
+            if (playersSo == null) throw new InvalidOperationException("PlayersSO is required.");
+            if (enterGameSo == null) throw new InvalidOperationException("EnterGameSO is required.");
+
+            var slots = new List<MobaRoomPlayerSlot>(4);
+
+            if (playersSo.Team1Players != null)
+            {
+                for (int i = 0; i < playersSo.Team1Players.Count; i++)
+                {
+                    var p = playersSo.Team1Players[i];
+                    if (p == null || string.IsNullOrEmpty(p.PlayerId)) continue;
+
+                    var ov = new MobaRoomLoadoutOverrides(p.Level, p.AttributeTemplateId, p.BasicAttackSkillId, p.SkillIds);
+                    slots.Add(new MobaRoomPlayerSlot(new PlayerId(p.PlayerId), (int)p.TeamId, p.HeroId, p.SpawnIndex, in ov));
+                }
+            }
+
+            if (playersSo.Team2Players != null)
+            {
+                for (int i = 0; i < playersSo.Team2Players.Count; i++)
+                {
+                    var p = playersSo.Team2Players[i];
+                    if (p == null || string.IsNullOrEmpty(p.PlayerId)) continue;
+
+                    var ov = new MobaRoomLoadoutOverrides(p.Level, p.AttributeTemplateId, p.BasicAttackSkillId, p.SkillIds);
+                    slots.Add(new MobaRoomPlayerSlot(new PlayerId(p.PlayerId), (int)p.TeamId, p.HeroId, p.SpawnIndex, in ov));
+                }
+            }
+
+            return new MobaRoomGameStartSpec(
+                matchId: GetEffectiveWorldId(),
+                mapId: enterGameSo.MapId,
+                randomSeed: enterGameSo.RandomSeed,
+                tickRate: enterGameSo.TickRate,
+                inputDelayFrames: enterGameSo.InputDelayFrames,
+                players: slots.Count == 0 ? null : slots.ToArray());
+        }
+
+        public EnterMobaGameReq BuildEnterMobaGameReq(in MobaRoomGameStartSpec roomSpec)
+        {
+            var playersSo = Preset != null ? Preset.PlayersSO : PlayersSO;
+            var enterGameSo = Preset != null ? Preset.EnterGameSO : EnterGameSO;
+
+            if (playersSo == null) throw new InvalidOperationException("PlayersSO is required.");
+            if (enterGameSo == null) throw new InvalidOperationException("EnterGameSO is required.");
+
+            var playerId = !string.IsNullOrEmpty(playersSo.LocalPlayerId) ? playersSo.LocalPlayerId : "p1";
+
+            byte[] payload = null;
+            TryBuildCreateWorldPayload(out _, out payload);
+
+            var spec = AbilityKit.Ability.Host.Extensions.Moba.CreateWorld.MobaCreateWorldSpec.FromRoomSpec(in roomSpec);
+            return spec.ToLegacyEnterReq(new PlayerId(playerId), enterGameSo.OpCode, payload);
         }
 
         public BattleStartPlanOptions BuildPlanOptions(in EnterMobaGameReq req, byte[] createWorldPayload, int createWorldOpCode)

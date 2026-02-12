@@ -44,8 +44,8 @@ namespace AbilityKit.Game.Test.FrameSync
         private MobaActorRegistry _authRegistry;
         private MobaActorRegistry _predRegistry;
 
-        private MobaLobbyStateService _authLobby;
-        private MobaLobbyStateService _predLobby;
+        private MobaGamePhaseService _authPhase;
+        private MobaGamePhaseService _predPhase;
 
         private ClientPredictionRunner _runner;
         private RollbackCoordinator _rollback;
@@ -97,11 +97,11 @@ namespace AbilityKit.Game.Test.FrameSync
             _authRegistry = _auth.Services.Resolve<MobaActorRegistry>();
             _predRegistry = _pred.Services.Resolve<MobaActorRegistry>();
 
-            _authLobby = _auth.Services.Resolve<MobaLobbyStateService>();
-            _predLobby = _pred.Services.Resolve<MobaLobbyStateService>();
+            _authPhase = _auth.Services.Resolve<MobaGamePhaseService>();
+            _predPhase = _pred.Services.Resolve<MobaGamePhaseService>();
 
-            BootstrapLobby(_auth, _authLobby);
-            BootstrapLobby(_pred, _predLobby);
+            _authPhase?.SetInGame();
+            _predPhase?.SetInGame();
 
             var registry = new RollbackRegistry();
             registry.Register(new MobaActorTransformRollbackProvider(_predRegistry));
@@ -137,8 +137,8 @@ namespace AbilityKit.Game.Test.FrameSync
             _authRegistry = null;
             _predRegistry = null;
 
-            _authLobby = null;
-            _predLobby = null;
+            _authPhase = null;
+            _predPhase = null;
 
             _auth?.Dispose();
             _pred?.Dispose();
@@ -201,17 +201,6 @@ namespace AbilityKit.Game.Test.FrameSync
             return manager.Create(options);
         }
 
-        private void BootstrapLobby(IWorld world, MobaLobbyStateService lobby)
-        {
-            var p = new PlayerId(playerId);
-            lobby.OnPlayerJoined(p);
-
-            // Bootstrap without advancing simulation frames; keep both worlds aligned at frame 0.
-            var frame0 = new FrameIndex(0);
-            var ready = new PlayerInputCommand(frame0, p, (int)MobaOpCode.Ready, Array.Empty<byte>());
-            world.Services.Resolve<IWorldInputSink>().Submit(frame0, new[] { ready });
-        }
-
         private void StepOnce()
         {
             var next = new FrameIndex(_frame.Value + 1);
@@ -262,15 +251,15 @@ namespace AbilityKit.Game.Test.FrameSync
 
         private WorldStateHash ComputePredictedHash(FrameIndex frame)
         {
-            return ComputeHash(_predLobby, _predRegistry);
+            return ComputeHash(_predPhase, _predRegistry);
         }
 
         private WorldStateHash ComputeAuthoritativeHash(FrameIndex frame)
         {
-            return ComputeHash(_authLobby, _authRegistry);
+            return ComputeHash(_authPhase, _authRegistry);
         }
 
-        private static WorldStateHash ComputeHash(MobaLobbyStateService lobby, MobaActorRegistry registry)
+        private static WorldStateHash ComputeHash(MobaGamePhaseService phase, MobaActorRegistry registry)
         {
             var entries = new List<(int actorId, float x, float y, float z)>(16);
             foreach (var kv in registry.Entries)
@@ -286,7 +275,7 @@ namespace AbilityKit.Game.Test.FrameSync
             entries.Sort((a, b) => a.actorId.CompareTo(b.actorId));
 
             uint h = 2166136261u;
-            AddByte(ref h, lobby != null && lobby.Started ? (byte)1 : (byte)0);
+            AddByte(ref h, phase != null && phase.InGame ? (byte)1 : (byte)0);
             AddInt(ref h, entries.Count);
 
             for (int i = 0; i < entries.Count; i++)

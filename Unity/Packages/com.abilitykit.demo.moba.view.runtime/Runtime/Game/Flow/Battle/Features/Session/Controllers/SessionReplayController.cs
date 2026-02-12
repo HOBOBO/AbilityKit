@@ -43,6 +43,8 @@ namespace AbilityKit.Game.Flow
             {
                 if (handles == null) return;
 
+                BattleRecordCodecBootstrap.TryInstallMemoryPack();
+
                 var runMode = plan.RunMode;
                 if (runMode == BattleStartConfig.BattleRunMode.Replay)
                 {
@@ -87,15 +89,7 @@ namespace AbilityKit.Game.Flow
                             StartedAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                         };
 
-                        var ext = Path.GetExtension(outPath);
-                        if (string.Equals(ext, ".bin", StringComparison.OrdinalIgnoreCase))
-                        {
-                            ctx.InputRecordWriter = new LockstepBinaryInputRecordWriter(outPath, meta);
-                        }
-                        else
-                        {
-                            ctx.InputRecordWriter = new LockstepJsonInputRecordWriter(outPath, meta);
-                        }
+                        ctx.InputRecordWriter = LockstepInputRecordCodecs.Current.CreateWriter(outPath, meta);
                     }
                 }
             }

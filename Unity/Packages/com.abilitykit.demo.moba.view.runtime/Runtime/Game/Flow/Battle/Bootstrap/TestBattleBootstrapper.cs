@@ -21,8 +21,28 @@ namespace AbilityKit.Game.Flow
             var cfg = LoadConfig();
             _config = cfg;
 
-            var req = cfg.BuildEnterMobaGameReq();
-            var payload = EnterMobaGameCodec.SerializeReq(req);
+            EnterMobaGameReq req;
+            if (cfg.UseRoomGameStartSpec)
+            {
+                var roomSpec = cfg.BuildRoomGameStartSpec();
+                req = cfg.BuildEnterMobaGameReq(in roomSpec);
+            }
+            else
+            {
+                req = cfg.BuildEnterMobaGameReq();
+            }
+
+            byte[] payload;
+            if (cfg.UseRoomGameStartSpec)
+            {
+                var spec = MobaCreateWorldSpec.FromEnterReq(in req);
+                var initPayload = new MobaCreateWorldInitPayload(req.PlayerId, in spec, req.OpCode, req.Payload);
+                payload = MobaCreateWorldInitCodec.Serialize(in initPayload);
+            }
+            else
+            {
+                payload = EnterMobaGameCodec.SerializeReq(req);
+            }
 
             var options = cfg.BuildPlanOptions(req, payload, MobaWorldBootstrapModule.InitOpCode);
             return new BattleStartPlan(options);

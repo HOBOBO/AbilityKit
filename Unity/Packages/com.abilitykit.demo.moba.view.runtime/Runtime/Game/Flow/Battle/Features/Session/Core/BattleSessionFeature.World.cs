@@ -1,4 +1,7 @@
 using System.Collections.Generic;
+using System.IO;
+using AbilityKit.Ability.Impl.Moba.Serialization;
+using AbilityKit.Ability.Share.Common.Config;
 using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Entitas;
@@ -6,11 +9,15 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Game.Battle.Requests;
+using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleSessionFeature
     {
+        private const string ProtocolWireSerializerModuleKey = "protocol.wire_serializer";
+        private const string FeatureConfigFileName = "abilitykit.features.json";
+
         private static void DestroyEntityTree(AbilityKit.Ability.EC.Entity root)
         {
             if (!root.IsValid) return;
@@ -43,6 +50,8 @@ namespace AbilityKit.Game.Flow
         {
             if (_session == null) return;
 
+            TrySetupProtocolWireSerializerInstaller();
+
             var builder = WorldServiceContainerFactory.CreateWithAttributes(
                 AbilityKit.Ability.World.Services.Attributes.WorldServiceProfile.All,
                 new[]
@@ -64,6 +73,24 @@ namespace AbilityKit.Game.Flow
 
             var req = new CreateWorldRequest(options, _plan.CreateWorldOpCode, _plan.CreateWorldPayload);
             _session.CreateWorld(req);
+        }
+
+        private void TrySetupProtocolWireSerializerInstaller()
+        {
+            var path = ResolveConfigPath(FeatureConfigFileName);
+            var cfg = PersistentJsonConfigLoader.LoadOrDefault<ModuleInstallerConfigSet>(path, JsonUtility.FromJson<ModuleInstallerConfigSet>);
+            var module = cfg != null ? cfg.FindModule(ProtocolWireSerializerModuleKey) : null;
+            if (module == null || !module.IsValid) return;
+
+            DemoWireSerializerBootstrap.SetProtocolWireSerializerInstaller(module);
+        }
+
+        private static string ResolveConfigPath(string fileName)
+        {
+            var baseDir = Application.persistentDataPath;
+            if (string.IsNullOrEmpty(baseDir)) baseDir = Application.dataPath;
+            if (string.IsNullOrEmpty(baseDir)) return fileName;
+            return Path.Combine(baseDir, fileName);
         }
     }
 }

@@ -13,6 +13,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.core\Runtime\Core\Common\Config\PersistentJsonConfigLoader.cs"
+             Link="AbilityKit.Core\Common\Config\PersistentJsonConfigLoader.cs" />
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.core\Runtime\Core\Common\Config\ModuleInstallerConfig.cs"
+             Link="AbilityKit.Core\Common\Config\ModuleInstallerConfig.cs" />
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.core\Runtime\Core\Common\Config\ModuleInstallerConfigSet.cs"
+             Link="AbilityKit.Core\Common\Config\ModuleInstallerConfigSet.cs" />
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.core\Runtime\Core\Common\Reflection\ReflectionInvokeUtils.cs"
+             Link="AbilityKit.Core\Common\Reflection\ReflectionInvokeUtils.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
     <PackageReference Include="Microsoft.Orleans.Server" Version="8.0.0" />

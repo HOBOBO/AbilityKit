@@ -10,7 +10,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class MobaProjectileEventSnapshotService_Obsolete2 : IService
     {
-        private readonly MobaLobbyStateService _lobby;
+        private readonly MobaGamePhaseService _phase;
         private readonly IProjectileService _projectiles;
         private readonly MobaProjectileLinkService _links;
 
@@ -20,9 +20,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly List<ProjectileHitEvent> _hits = new List<ProjectileHitEvent>(32);
         private readonly List<ProjectileExitEvent> _exits = new List<ProjectileExitEvent>(32);
 
-        public MobaProjectileEventSnapshotService_Obsolete2(MobaLobbyStateService lobby, IProjectileService projectiles, MobaProjectileLinkService links)
+        public MobaProjectileEventSnapshotService_Obsolete2(MobaGamePhaseService phase, IProjectileService projectiles, MobaProjectileLinkService links)
         {
-            _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
+            _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _projectiles = projectiles ?? throw new ArgumentNullException(nameof(projectiles));
             _links = links;
             _lastFrame = new FrameIndex(-999999);
@@ -30,7 +30,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
-            if (!_lobby.Started)
+            if (!_phase.InGame)
             {
                 snapshot = default;
                 return false;

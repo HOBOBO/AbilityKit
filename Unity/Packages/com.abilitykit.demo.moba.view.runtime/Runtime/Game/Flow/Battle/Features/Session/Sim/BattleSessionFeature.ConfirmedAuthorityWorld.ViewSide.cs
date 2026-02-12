@@ -46,15 +46,9 @@ namespace AbilityKit.Game.Flow
                 _confirmedViewPipeline = new SnapshotPipeline(_confirmedViewCtx, _confirmedViewSnapshots);
                 _confirmedViewCmdHandler = new SnapshotCmdHandler(_confirmedViewCtx, _confirmedViewSnapshots);
                 AbilityKit.Game.Flow.Snapshot.BattleSnapshotRegistry.RegisterAll(_confirmedViewSnapshots, _confirmedViewPipeline, _confirmedViewPipeline, _confirmedViewCmdHandler);
-
-                AbilityKit.Game.Flow.Snapshot.LobbySnapshotRegistry.RegisterAll(_confirmedViewSnapshots, _confirmedViewPipeline, _confirmedViewPipeline, _confirmedViewCmdHandler);
-
                 AbilityKit.Game.Flow.Snapshot.SharedSnapshotRegistry.RegisterAll(_confirmedViewSnapshots, _confirmedViewPipeline, _confirmedViewPipeline, _confirmedViewCmdHandler);
 
                 // Apply snapshots to confirmed view-side entity world (same logic as BattleSyncFeature subscriptions).
-                _confirmedViewSubLobby = _confirmedViewSnapshots.Subscribe<LobbySnapshot>(
-                    (int)MobaOpCode.LobbySnapshot,
-                    (packet, snap) => ApplyConfirmedViewLobbySnapshot(snap));
                 _confirmedViewSubActorTransform = _confirmedViewSnapshots.Subscribe<(int actorId, float x, float y, float z)[]>(
                     (int)MobaOpCode.ActorTransformSnapshot,
                     (packet, entries) => ApplyConfirmedViewTransformSnapshot(entries));
@@ -154,24 +148,6 @@ namespace AbilityKit.Game.Flow
                 if (entries == null) return;
                 Push($"Damage: n={entries.Length}");
             }
-        }
-
-        private void ApplyConfirmedViewLobbySnapshot(LobbySnapshot snap)
-        {
-            if (_confirmedViewCtx == null) return;
-            var node = _confirmedViewCtx.EntityNode;
-            if (!node.IsValid) return;
-
-            var comp = node.TryGetComponent(out BattleLobbySnapshotComponent existing) ? existing : null;
-            if (comp == null)
-            {
-                comp = new BattleLobbySnapshotComponent();
-                node.AddComponent(comp);
-            }
-
-            comp.Started = snap.Started;
-            comp.Version = snap.Version;
-            comp.Players = snap.Players;
         }
 
         private void ApplyConfirmedViewStateHashSnapshot(MobaStateHashSnapshotCodec.SnapshotPayload p)

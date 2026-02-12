@@ -17,6 +17,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Ability.Host.Extensions.Rollback;
 using AbilityKit.Ability.Host.Extensions.Time;
+using AbilityKit.Ability.Host.Extensions.WorldStart;
 using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Game.Battle
@@ -62,7 +63,8 @@ namespace AbilityKit.Game.Battle
 
                 var modules = new HostRuntimeModuleHost()
                     .Add(new FrameSyncDriverModule())
-                    .Add(new ServerFrameTimeModule());
+                    .Add(new ServerFrameTimeModule())
+                    .Add(new WorldAutoStartModule());
 
                 if (_options.EnableRollback)
                 {

@@ -7,13 +7,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class MobaActorTransformSnapshotService : IService
     {
-        private readonly MobaLobbyStateService _lobby;
+        private readonly MobaGamePhaseService _phase;
         private readonly MobaActorRegistry _registry;
         private FrameIndex _lastFrame;
 
-        public MobaActorTransformSnapshotService(MobaLobbyStateService lobby, MobaActorRegistry registry)
+        public MobaActorTransformSnapshotService(MobaGamePhaseService phase, MobaActorRegistry registry)
         {
-            _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
+            _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
             _lastFrame = new FrameIndex(-999999);
         }
@@ -21,7 +21,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
             // Only after game started.
-            if (!_lobby.Started)
+            if (!_phase.InGame)
             {
                 snapshot = default;
                 return false;

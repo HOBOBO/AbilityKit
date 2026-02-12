@@ -14,7 +14,6 @@ namespace AbilityKit.Game.Flow
         {
             var catalog = new SnapshotRegistryCatalog()
                 .Add("battle", AbilityKit.Game.Flow.Snapshot.BattleSnapshotRegistry.RegisterAll)
-                .Add("lobby", AbilityKit.Game.Flow.Snapshot.LobbySnapshotRegistry.RegisterAll)
                 .Add("shared", AbilityKit.Game.Flow.Snapshot.SharedSnapshotRegistry.RegisterAll);
 
             ISet<string> enabledRegistryIds = null;

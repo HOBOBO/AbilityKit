@@ -1,11 +1,15 @@
+using MemoryPack;
+
 namespace AbilityKit.Protocol.Moba.Generated.GatewayFrameSync
 {
-    public readonly struct WireInputItem
+    [MemoryPackable]
+    public readonly partial struct WireInputItem
     {
-        public readonly uint PlayerId;
-        public readonly int OpCode;
-        public readonly byte[] Payload;
+        [MemoryPackOrder(0)] public readonly uint PlayerId;
+        [MemoryPackOrder(1)] public readonly int OpCode;
+        [MemoryPackOrder(2)] public readonly byte[] Payload;
 
+        [MemoryPackConstructor]
         public WireInputItem(uint playerId, int opCode, byte[] payload)
         {
             PlayerId = playerId;
@@ -14,15 +18,17 @@ namespace AbilityKit.Protocol.Moba.Generated.GatewayFrameSync
         }
     }
 
-    public readonly struct WireSubmitFrameInputReq
+    [MemoryPackable]
+    public readonly partial struct WireSubmitFrameInputReq
     {
-        public readonly ulong RoomId;
-        public readonly ulong WorldId;
-        public readonly uint PlayerId;
-        public readonly int Frame;
-        public readonly int InputOpCode;
-        public readonly byte[] InputPayload;
+        [MemoryPackOrder(0)] public readonly ulong RoomId;
+        [MemoryPackOrder(1)] public readonly ulong WorldId;
+        [MemoryPackOrder(2)] public readonly uint PlayerId;
+        [MemoryPackOrder(3)] public readonly int Frame;
+        [MemoryPackOrder(4)] public readonly int InputOpCode;
+        [MemoryPackOrder(5)] public readonly byte[] InputPayload;
 
+        [MemoryPackConstructor]
         public WireSubmitFrameInputReq(ulong roomId, ulong worldId, uint playerId, int frame, int inputOpCode, byte[] inputPayload)
         {
             RoomId = roomId;
@@ -34,11 +40,12 @@ namespace AbilityKit.Protocol.Moba.Generated.GatewayFrameSync
         }
     }
 
-    public readonly struct WireSubmitFrameInputRes
+    [MemoryPackable]
+    public readonly partial struct WireSubmitFrameInputRes
     {
-        public readonly bool Accepted;
-        public readonly int ServerFrame;
-        public readonly int ReasonCode;
+        [MemoryPackOrder(0)] public readonly bool Accepted;
+        [MemoryPackOrder(1)] public readonly int ServerFrame;
+        [MemoryPackOrder(2)] public readonly int ReasonCode;
 
         public WireSubmitFrameInputRes(bool accepted, int serverFrame, int reasonCode)
         {
@@ -48,13 +55,15 @@ namespace AbilityKit.Protocol.Moba.Generated.GatewayFrameSync
         }
     }
 
-    public readonly struct WireFramePushedPush
+    [MemoryPackable]
+    public readonly partial struct WireFramePushedPush
     {
-        public readonly ulong RoomId;
-        public readonly ulong WorldId;
-        public readonly int Frame;
-        public readonly WireInputItem[] Inputs;
+        [MemoryPackOrder(0)] public readonly ulong RoomId;
+        [MemoryPackOrder(1)] public readonly ulong WorldId;
+        [MemoryPackOrder(2)] public readonly int Frame;
+        [MemoryPackOrder(3)] public readonly WireInputItem[] Inputs;
 
+        [MemoryPackConstructor]
         public WireFramePushedPush(ulong roomId, ulong worldId, int frame, WireInputItem[] inputs)
         {
             RoomId = roomId;

@@ -1,0 +1,8 @@
+{
+  "name": "com.abilitykit.protocol.memorypack",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Protocol (MemoryPack)",
+  "unity": "2022.3",
+  "description": "Optional MemoryPack-based wire serializer implementation for AbilityKit.Protocol.",
+  "author": { "name": "AbilityKit" }
+}

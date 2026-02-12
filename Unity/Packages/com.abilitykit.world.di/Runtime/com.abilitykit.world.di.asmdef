@@ -2,7 +2,9 @@
   "name": "AbilityKit.World.DI",
   "rootNamespace": "AbilityKit",
   "references": [
-    "AbilityKit.Core"
+    "AbilityKit.Core",
+    "MemoryPack",
+    "AbilityKit.Attributes"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

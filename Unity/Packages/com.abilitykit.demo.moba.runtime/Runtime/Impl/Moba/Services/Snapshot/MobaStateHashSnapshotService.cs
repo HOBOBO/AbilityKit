@@ -8,23 +8,23 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class MobaStateHashSnapshotService : IService
     {
-        private readonly MobaLobbyStateService _lobby;
+        private readonly MobaGamePhaseService _phase;
         private readonly MobaActorRegistry _registry;
 
         private FrameIndex _lastFrame;
 
         public int IntervalFrames { get; set; } = 10;
 
-        public MobaStateHashSnapshotService(MobaLobbyStateService lobby, MobaActorRegistry registry)
+        public MobaStateHashSnapshotService(MobaGamePhaseService phase, MobaActorRegistry registry)
         {
-            _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
+            _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
             _lastFrame = new FrameIndex(-999999);
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
-            if (!_lobby.Started)
+            if (!_phase.InGame)
             {
                 snapshot = default;
                 return false;
@@ -72,7 +72,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             uint h = 2166136261u;
 
-            AddByte(ref h, _lobby.Started ? (byte)1 : (byte)0);
+            AddByte(ref h, _phase.InGame ? (byte)1 : (byte)0);
             AddInt(ref h, entries.Count);
 
             for (int i = 0; i < entries.Count; i++)

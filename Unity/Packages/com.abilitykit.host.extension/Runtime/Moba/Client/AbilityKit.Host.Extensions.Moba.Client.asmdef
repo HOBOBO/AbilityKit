@@ -1,0 +1,26 @@
+{
+    "name": "AbilityKit.Host.Extensions.Moba.Client",
+    "rootNamespace": "AbilityKit",
+    "references": [
+        "AbilityKit.Host.Extensions.Moba",
+        "AbilityKit.Host.Extensions.Client",
+        "AbilityKit.Host.Extensions",
+        "AbilityKit.Protocol.Moba",
+        "AbilityKit.Host",
+        "AbilityKit.Core",
+        "AbilityKit.World.DI",
+        "AbilityKit.World.FrameSync",
+        "AbilityKit.World.Snapshot",
+        "AbilityKit.Network.Runtime",
+        "AbilityKit.Demo.Moba.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

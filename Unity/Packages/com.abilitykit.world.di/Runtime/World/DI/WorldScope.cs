@@ -50,6 +50,12 @@ namespace AbilityKit.Ability.World.DI
                 return false;
             }
 
+            if (_disposed)
+            {
+                instance = null;
+                return false;
+            }
+
             if (serviceType != typeof(IWorldServiceContainer)
                 && serviceType != typeof(IWorldResolver)
                 && serviceType != typeof(IWorldScope)
@@ -64,6 +70,11 @@ namespace AbilityKit.Ability.World.DI
             {
                 instance = Resolve(serviceType);
                 return true;
+            }
+            catch (ObjectDisposedException)
+            {
+                instance = null;
+                return false;
             }
             catch (Exception ex)
             {

@@ -1,9 +1,13 @@
+using MemoryPack;
+
 namespace AbilityKit.Ability.Host
 {
-    public readonly struct PlayerId
+    [MemoryPackable]
+    public readonly partial struct PlayerId
     {
-        public readonly string Value;
+        [MemoryPackOrder(0)] public readonly string Value;
 
+        [MemoryPackConstructor]
         public PlayerId(string value)
         {
             Value = value;

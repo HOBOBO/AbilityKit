@@ -1,0 +1,19 @@
+{
+  "name": "AbilityKit.World.Record.MemoryPack",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.World.Record",
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.Host",
+    "AbilityKit.Protocol.MemoryPack"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

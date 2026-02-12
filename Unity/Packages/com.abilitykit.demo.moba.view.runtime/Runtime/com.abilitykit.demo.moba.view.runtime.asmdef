@@ -23,6 +23,7 @@
         "AbilityKit.Demo.Moba.Runtime",
         "AbilityKit.Pipeline",
         "AbilityKit.Host.Extensions",
+        "AbilityKit.Host.Extensions.Moba",
         "AbilityKit.Network.Runtime",
         "AbilityKit.Protocol.Moba"
     ],

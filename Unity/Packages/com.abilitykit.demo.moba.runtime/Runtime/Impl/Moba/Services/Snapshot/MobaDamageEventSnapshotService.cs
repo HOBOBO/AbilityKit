@@ -8,16 +8,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class MobaDamageEventSnapshotService : IService
     {
-        private readonly MobaLobbyStateService _lobby;
+        private readonly MobaGamePhaseService _phase;
 
         private FrameIndex _lastFrame;
 
         private readonly List<MobaDamageEventSnapshotCodec.Entry> _events = new List<MobaDamageEventSnapshotCodec.Entry>(64);
         private readonly List<MobaDamageEventSnapshotCodec.Entry> _drain = new List<MobaDamageEventSnapshotCodec.Entry>(64);
 
-        public MobaDamageEventSnapshotService(MobaLobbyStateService lobby)
+        public MobaDamageEventSnapshotService(MobaGamePhaseService phase)
         {
-            _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
+            _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _lastFrame = new FrameIndex(-999999);
         }
 
@@ -37,7 +37,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
-            if (!_lobby.Started)
+            if (!_phase.InGame)
             {
                 snapshot = default;
                 return false;

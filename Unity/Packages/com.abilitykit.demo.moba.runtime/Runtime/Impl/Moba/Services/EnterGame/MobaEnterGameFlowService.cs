@@ -14,7 +14,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class MobaEnterGameFlowService : IService
     {
-        private readonly MobaLobbyStateService _lobby;
         private readonly MobaEnterGameSnapshotService _snapshot;
         private readonly IWorldContext _worldContext;
         private readonly ActorIdAllocator _actorIds;
@@ -27,7 +26,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaActorSpawnSnapshotService _spawn;
 
         public MobaEnterGameFlowService(
-            MobaLobbyStateService lobby,
             MobaEnterGameSnapshotService snapshot,
             MobaActorSpawnSnapshotService spawn,
             IWorldContext worldContext,
@@ -37,13 +35,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             MobaPlayerActorMapService playerActorMap,
             MobaSkillLoadoutService skills,
             ActorEntityInitPipeline generator)
-            : this(lobby, snapshot, spawn, worldContext, actorIds, registry, entities, playerActorMap, skills, generator, config: null)
+            : this(snapshot, spawn, worldContext, actorIds, registry, entities, playerActorMap, skills, generator, config: null)
         {
         }
 
-        public MobaEnterGameFlowService(MobaLobbyStateService lobby, MobaEnterGameSnapshotService snapshot, MobaActorSpawnSnapshotService spawn, IWorldContext worldContext, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaEntityManager entities, MobaPlayerActorMapService playerActorMap, MobaSkillLoadoutService skills, ActorEntityInitPipeline generator, MobaConfigDatabase config)
+        public MobaEnterGameFlowService(MobaEnterGameSnapshotService snapshot, MobaActorSpawnSnapshotService spawn, IWorldContext worldContext, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaEntityManager entities, MobaPlayerActorMapService playerActorMap, MobaSkillLoadoutService skills, ActorEntityInitPipeline generator, MobaConfigDatabase config)
         {
-            _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
             _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
             _spawn = spawn ?? throw new ArgumentNullException(nameof(spawn));
             _worldContext = worldContext ?? throw new ArgumentNullException(nameof(worldContext));

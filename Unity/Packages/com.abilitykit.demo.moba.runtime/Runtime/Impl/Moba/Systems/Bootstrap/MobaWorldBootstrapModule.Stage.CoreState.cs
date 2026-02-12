@@ -9,7 +9,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
     {
         private static void RegisterCoreState(WorldContainerBuilder builder)
         {
-            builder.RegisterService<MobaLobbyStateService, MobaLobbyStateService>();
+            builder.RegisterService<MobaGamePhaseService, MobaGamePhaseService>();
             builder.RegisterService<MobaAuthorityFrameService, MobaAuthorityFrameService>();
 
             // Deterministic + rollbackable RNG (override default world random)

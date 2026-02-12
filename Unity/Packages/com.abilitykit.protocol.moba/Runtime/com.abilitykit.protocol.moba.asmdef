@@ -4,8 +4,11 @@
   "references": [
     "AbilityKit.Core",
     "AbilityKit.Protocol",
+    "AbilityKit.Host",
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.World.DI",
     "AbilityKit.World.Snapshot",
-    "AbilityKit.Demo.Moba.Runtime"
+    "MemoryPack"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

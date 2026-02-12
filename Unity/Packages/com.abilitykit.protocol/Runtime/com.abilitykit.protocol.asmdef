@@ -1,7 +1,9 @@
 {
   "name": "AbilityKit.Protocol",
   "rootNamespace": "AbilityKit",
-  "references": [],
+  "references": [
+    "AbilityKit.Core"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

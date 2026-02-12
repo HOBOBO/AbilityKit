@@ -1,0 +1,22 @@
+{
+    "name": "AbilityKit.Host.Extensions.Client",
+    "rootNamespace": "AbilityKit",
+    "references": [
+        "AbilityKit.Host.Extensions",
+        "AbilityKit.Host",
+        "AbilityKit.Core",
+        "AbilityKit.World.DI",
+        "AbilityKit.World.FrameSync",
+        "AbilityKit.World.Snapshot",
+        "AbilityKit.Network.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

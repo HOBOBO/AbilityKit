@@ -18,8 +18,6 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             builder.RegisterService<MobaAreaEventSnapshotService, MobaAreaEventSnapshotService>();
             builder.RegisterService<MobaDamageEventSnapshotService, MobaDamageEventSnapshotService>();
             builder.RegisterService<MobaEnterGameSnapshotService, MobaEnterGameSnapshotService>();
-
-            builder.RegisterService<MobaLobbySnapshotService, MobaLobbySnapshotService>();
             builder.RegisterService<MobaSnapshotRouter, MobaSnapshotRouter>();
             builder.RegisterServiceAlias<HostWorldStateSnapshotProvider, MobaSnapshotRouter>();
         }

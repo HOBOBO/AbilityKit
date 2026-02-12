@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.Host.Extensions.WorldStart;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World.Management;
 
@@ -21,6 +22,7 @@ namespace AbilityKit.Game.Battle
 
             var modules = new HostRuntimeModuleHost();
             modules.Add(new FrameSyncDriverModule());
+            modules.Add(new WorldAutoStartModule());
             modules.InstallAll(server, options);
 
             var transport = new InMemoryBattleLogicTransport(server, clientId);

@@ -23,10 +23,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly MobaAreaEventSnapshotService _areaEvents;
         private readonly MobaDamageEventSnapshotService _damageEvents;
         private readonly MobaActorTransformSnapshotService _transform;
-        private readonly MobaLobbySnapshotService _lobby;
         private readonly MobaStateHashSnapshotService _hash;
 
-        public MobaSnapshotRouter(MobaEnterGameSnapshotService enter, MobaActorSpawnSnapshotService spawn, MobaActorDespawnSnapshotService despawn, MobaProjectileEventSnapshotService projectileEvents, MobaAreaEventSnapshotService areaEvents, MobaDamageEventSnapshotService damageEvents, MobaActorTransformSnapshotService transform, MobaLobbySnapshotService lobby, MobaStateHashSnapshotService hash)
+        public MobaSnapshotRouter(MobaEnterGameSnapshotService enter, MobaActorSpawnSnapshotService spawn, MobaActorDespawnSnapshotService despawn, MobaProjectileEventSnapshotService projectileEvents, MobaAreaEventSnapshotService areaEvents, MobaDamageEventSnapshotService damageEvents, MobaActorTransformSnapshotService transform, MobaStateHashSnapshotService hash)
         {
             _enter = enter ?? throw new ArgumentNullException(nameof(enter));
             _spawn = spawn ?? throw new ArgumentNullException(nameof(spawn));
@@ -35,7 +34,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _areaEvents = areaEvents ?? throw new ArgumentNullException(nameof(areaEvents));
             _damageEvents = damageEvents ?? throw new ArgumentNullException(nameof(damageEvents));
             _transform = transform ?? throw new ArgumentNullException(nameof(transform));
-            _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
             _hash = hash ?? throw new ArgumentNullException(nameof(hash));
         }
 
@@ -49,7 +47,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (_damageEvents.TryGetSnapshot(frame, out snapshot)) return true;
             if (_hash.TryGetSnapshot(frame, out snapshot)) return true;
             if (_transform.TryGetSnapshot(frame, out snapshot)) return true;
-            return _lobby.TryGetSnapshot(frame, out snapshot);
+            snapshot = default;
+            return false;
         }
 
         public void Dispose()
@@ -59,7 +58,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
     public sealed class MobaProjectileEventSnapshotService : IService
     {
-        private readonly MobaLobbyStateService _lobby;
+        private readonly MobaGamePhaseService _phase;
         private readonly IProjectileService _projectiles;
         private readonly MobaProjectileLinkService _links;
 
@@ -69,9 +68,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly List<ProjectileHitEvent> _hits = new List<ProjectileHitEvent>(32);
         private readonly List<ProjectileExitEvent> _exits = new List<ProjectileExitEvent>(32);
 
-        public MobaProjectileEventSnapshotService(MobaLobbyStateService lobby, IProjectileService projectiles, MobaProjectileLinkService links)
+        public MobaProjectileEventSnapshotService(MobaGamePhaseService phase, IProjectileService projectiles, MobaProjectileLinkService links)
         {
-            _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
+            _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _projectiles = projectiles ?? throw new ArgumentNullException(nameof(projectiles));
             _links = links;
             _lastFrame = new FrameIndex(-999999);
@@ -79,7 +78,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
-            if (!_lobby.Started)
+            if (!_phase.InGame)
             {
                 snapshot = default;
                 return false;
@@ -195,7 +194,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
     public sealed class MobaAreaEventSnapshotService : IService
     {
-        private readonly MobaLobbyStateService _lobby;
+        private readonly MobaGamePhaseService _phase;
         private readonly IProjectileService _projectiles;
         private readonly MobaAreaTriggerRegistry _areaTriggers;
 
@@ -204,9 +203,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly List<AreaSpawnEvent> _spawns = new List<AreaSpawnEvent>(32);
         private readonly List<AreaExpireEvent> _expires = new List<AreaExpireEvent>(32);
 
-        public MobaAreaEventSnapshotService(MobaLobbyStateService lobby, IProjectileService projectiles, MobaAreaTriggerRegistry areaTriggers)
+        public MobaAreaEventSnapshotService(MobaGamePhaseService phase, IProjectileService projectiles, MobaAreaTriggerRegistry areaTriggers)
         {
-            _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
+            _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _projectiles = projectiles ?? throw new ArgumentNullException(nameof(projectiles));
             _areaTriggers = areaTriggers;
             _lastFrame = new FrameIndex(-999999);
@@ -214,7 +213,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
-            if (!_lobby.Started)
+            if (!_phase.InGame)
             {
                 snapshot = default;
                 return false;
@@ -516,13 +515,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
     public sealed class MobaActorDespawnSnapshotService : IService
     {
-        private readonly MobaLobbyStateService _lobby;
+        private readonly MobaGamePhaseService _phase;
         private FrameIndex _lastFrame;
         private readonly List<MobaActorDespawnSnapshotCodec.Entry> _pending = new List<MobaActorDespawnSnapshotCodec.Entry>(64);
 
-        public MobaActorDespawnSnapshotService(MobaLobbyStateService lobby)
+        public MobaActorDespawnSnapshotService(MobaGamePhaseService phase)
         {
-            _lobby = lobby ?? throw new ArgumentNullException(nameof(lobby));
+            _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _lastFrame = new FrameIndex(-999999);
         }
 
@@ -534,7 +533,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
-            if (!_lobby.Started)
+            if (!_phase.InGame)
             {
                 snapshot = default;
                 return false;

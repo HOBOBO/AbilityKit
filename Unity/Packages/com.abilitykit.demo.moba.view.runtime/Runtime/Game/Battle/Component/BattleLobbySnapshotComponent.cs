@@ -1,11 +1,11 @@
-using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Ability.Host.Extensions.Moba.Room;
 
 namespace AbilityKit.Game.Battle.Component
 {
     public sealed class BattleLobbySnapshotComponent
     {
-        public bool Started;
-        public int Version;
-        public PlayerReadyEntry[] Players;
+        public int Revision;
+        public bool CanStart;
+        public MobaRoomPlayerSnapshot[] Players;
     }
 }

@@ -20,15 +20,7 @@ namespace AbilityKit.Game.Flow.Battle.Replay
                 if (string.IsNullOrEmpty(path)) return false;
 
                 LockstepInputRecordFile file;
-                var ext = Path.GetExtension(path);
-                if (string.Equals(ext, ".bin", StringComparison.OrdinalIgnoreCase))
-                {
-                    file = LockstepBinaryInputRecordReader.Load(path);
-                }
-                else
-                {
-                    file = LockstepJsonInputRecordReader.Load(path);
-                }
+                file = LockstepInputRecordCodecs.Current.Load(path);
                 if (file == null) return false;
 
                 driver = new LockstepReplayDriver(new WorldId(plan.WorldId), file);
