@@ -329,6 +329,12 @@
         "com.abilitykit.protocol": "0.0.1"
       }
     },
+    "com.abilitykit.protocol.memorypack": {
+      "version": "file:com.abilitykit.protocol.memorypack",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.abilitykit.protocol.moba": {
       "version": "file:com.abilitykit.protocol.moba",
       "depth": 0,
@@ -442,6 +448,12 @@
         "com.abilitykit.host": "0.0.1"
       }
     },
+    "com.abilitykit.world.record.memorypack": {
+      "version": "file:com.abilitykit.world.record.memorypack",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.abilitykit.world.snapshot": {
       "version": "file:com.abilitykit.world.snapshot",
       "depth": 0,
@@ -449,6 +461,13 @@
       "dependencies": {
         "com.abilitykit.core": "0.0.1"
       }
+    },
+    "com.cysharp.memorypack": {
+      "version": "1.10.0",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://package.openupm.com"
     },
     "com.unity.collab-proxy": {
       "version": "2.11.2",

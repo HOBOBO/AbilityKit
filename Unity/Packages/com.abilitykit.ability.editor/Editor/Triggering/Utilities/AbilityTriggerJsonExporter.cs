@@ -24,14 +24,14 @@ namespace AbilityKit.Ability.Editor.Utilities
         [MenuItem("AbilityKit/Ability/Export Trigger Json")]
         public static void ExportSelectedFolder()
         {
-            var folder = TryGetSelectedFolderPath();
+            var folder = AbilityTriggerExportUtils.TryGetSelectedFolderPath();
             ExportFromFolder(folder);
         }
 
         [MenuItem("AbilityKit/Ability/Export Trigger Plan Json")]
         public static void ExportSelectedFolderPlans()
         {
-            var folder = TryGetSelectedFolderPath();
+            var folder = AbilityTriggerExportUtils.TryGetSelectedFolderPath();
             ExportPlanFromFolder(folder);
         }
 
@@ -82,11 +82,11 @@ namespace AbilityKit.Ability.Editor.Utilities
             var outputDir = Path.Combine(Application.dataPath, "Resources", OutputResourcesDir);
             Directory.CreateDirectory(outputDir);
 
-            var dto = BuildPlanDto(assetFolder, out var moduleCount, out var exportedTriggerCount, out var skippedDisabledCount, out var skippedInvalidIdCount);
+            var dto = TriggerPlanExportPipeline.BuildPlanDto(assetFolder, out var moduleCount, out var exportedTriggerCount, out var skippedDisabledCount, out var skippedInvalidIdCount);
             if (assetFolder != "Assets" && (moduleCount == 0 || exportedTriggerCount == 0))
             {
                 Debug.Log($"[AbilityTriggerJsonExporter] No trigger plans exported from '{assetFolder}'. Fallback to scan whole 'Assets'.");
-                dto = BuildPlanDto("Assets", out moduleCount, out exportedTriggerCount, out skippedDisabledCount, out skippedInvalidIdCount);
+                dto = TriggerPlanExportPipeline.BuildPlanDto("Assets", out moduleCount, out exportedTriggerCount, out skippedDisabledCount, out skippedInvalidIdCount);
             }
 
             Debug.Log($"[AbilityTriggerJsonExporter] Plan Modules={moduleCount}, ExportedTriggers={exportedTriggerCount}, SkippedDisabled={skippedDisabledCount}, SkippedTriggerId<=0={skippedInvalidIdCount}");
@@ -217,208 +217,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             return list.ToArray();
         }
 
-        [Serializable]
-        private sealed class TriggerPlanDatabaseDto
-        {
-            public readonly List<TriggerPlanDto> Triggers = new List<TriggerPlanDto>();
-
-            // Optional: string table for actions like debug_log.
-            public readonly Dictionary<int, string> Strings = new Dictionary<int, string>();
-        }
-
-        [Serializable]
-        private sealed class TriggerPlanDto
-        {
-            public int TriggerId;
-            public string EventName;
-            public int EventId;
-            public bool AllowExternal;
-            public int Phase;
-            public int Priority;
-            public PredicatePlanDto Predicate;
-            public List<ActionCallPlanDto> Actions;
-            public LegacyPredicateDto LegacyPredicate;
-            public List<LegacyActionDto> LegacyActions;
-        }
-
-        [Serializable]
-        private sealed class LegacyPredicateDto
-        {
-            public string Type;
-            public Dictionary<string, object> Args;
-        }
-
-        [Serializable]
-        private sealed class LegacyActionDto
-        {
-            public string Type;
-            public Dictionary<string, object> Args;
-        }
-
-        [Serializable]
-        private sealed class PredicatePlanDto
-        {
-            public string Kind;
-            public List<BoolExprNodeDto> Nodes;
-        }
-
-        [Serializable]
-        private sealed class BoolExprNodeDto
-        {
-            public string Kind;
-            public bool ConstValue;
-            public string CompareOp;
-            public NumericValueRefDto Left;
-            public NumericValueRefDto Right;
-        }
-
-        [Serializable]
-        private sealed class ActionCallPlanDto
-        {
-            public int ActionId;
-            public int Arity;
-            public NumericValueRefDto Arg0;
-            public NumericValueRefDto Arg1;
-        }
-
-        [Serializable]
-        private sealed class NumericValueRefDto
-        {
-            public string Kind;
-            public double ConstValue;
-            public int BoardId;
-            public int KeyId;
-            public int FieldId;
-            public string DomainId;
-            public string Key;
-            public string ExprText;
-        }
-
-        private static TriggerPlanDatabaseDto BuildPlanDto(
-            string assetFolder,
-            out int moduleCount,
-            out int exportedTriggerCount,
-            out int skippedDisabledCount,
-            out int skippedInvalidIdCount)
-        {
-            var db = new TriggerPlanDatabaseDto();
-            moduleCount = 0;
-            exportedTriggerCount = 0;
-            skippedDisabledCount = 0;
-            skippedInvalidIdCount = 0;
-
-            var emptyEventIdCount = 0;
-            var emptyEventIdTriggerIds = new List<int>();
-            var skippedNoActionsCount = 0;
-            var skippedActionCompileFailCount = 0;
-            var skippedConditionCompileFailCount = 0;
-            var skippedExceptionCount = 0;
-            var actionCompileFailByType = new Dictionary<string, int>(StringComparer.Ordinal);
-            var conditionCompileFailByType = new Dictionary<string, int>(StringComparer.Ordinal);
-
-            var guids = FindAbilityModuleGuids(assetFolder);
-            if (guids == null || guids.Length == 0) return db;
-
-            for (int i = 0; i < guids.Length; i++)
-            {
-                var path = AssetDatabase.GUIDToAssetPath(guids[i]);
-                var asset = AssetDatabase.LoadAssetAtPath<AbilityModuleSO>(path);
-                if (asset == null) continue;
-
-                moduleCount++;
-
-                if (asset.Triggers == null) continue;
-
-                for (int t = 0; t < asset.Triggers.Count; t++)
-                {
-                    var tr = asset.Triggers[t];
-                    if (tr == null) continue;
-                    if (!tr.Enabled)
-                    {
-                        skippedDisabledCount++;
-                        continue;
-                    }
-
-                    if (tr.TriggerId <= 0)
-                    {
-                        skippedInvalidIdCount++;
-                        continue;
-                    }
-
-                    if (string.IsNullOrEmpty(tr.EventId))
-                    {
-                        // Active triggers: allow empty EventId, they will be executed by TriggerId.
-                        emptyEventIdCount++;
-                        if (emptyEventIdTriggerIds.Count < 32)
-                        {
-                            emptyEventIdTriggerIds.Add(tr.TriggerId);
-                        }
-                    }
-
-                    try
-                    {
-                        if (!TryCompilePlanFromEditor(tr, db.Strings, out var plan, out var phase, out var priority, out var failReason))
-                        {
-                            if (string.Equals(failReason, "no_actions", StringComparison.Ordinal))
-                            {
-                                skippedNoActionsCount++;
-                            }
-                            else if (string.Equals(failReason, "action_compile_failed", StringComparison.Ordinal))
-                            {
-                                skippedActionCompileFailCount++;
-                                CountOne(actionCompileFailByType, ExtractRootActionType(tr));
-                            }
-                            else if (string.Equals(failReason, "condition_compile_failed", StringComparison.Ordinal))
-                            {
-                                skippedConditionCompileFailCount++;
-                                CountOne(conditionCompileFailByType, ExtractRootConditionType(tr));
-                            }
-                            else
-                            {
-                                skippedExceptionCount++;
-                            }
-
-                            continue;
-                        }
-
-                        var triggerDto = BuildTriggerPlanDto(tr, plan, phase, priority);
-                        db.Triggers.Add(triggerDto);
-                        exportedTriggerCount++;
-                    }
-                    catch (Exception ex)
-                    {
-                        skippedExceptionCount++;
-                        Debug.LogWarning($"[AbilityTriggerJsonExporter] Plan export failed (exception). triggerId={tr.TriggerId} eventId='{tr.EventId}' err={ex.Message}");
-                    }
-                }
-            }
-
-            Debug.Log(
-                $"[AbilityTriggerJsonExporter] Plan export summary: " +
-                $"exported={exportedTriggerCount}, " +
-                $"skippedDisabled={skippedDisabledCount}, skippedTriggerId<=0={skippedInvalidIdCount}, " +
-                $"emptyEventId={emptyEventIdCount}, skippedNoActions={skippedNoActionsCount}, " +
-                $"skippedActionCompileFail={skippedActionCompileFailCount}, skippedConditionCompileFail={skippedConditionCompileFailCount}, " +
-                $"skippedException={skippedExceptionCount}");
-
-            if (actionCompileFailByType.Count > 0)
-            {
-                Debug.LogWarning($"[AbilityTriggerJsonExporter] Action compile failures by type: {FormatCounterMap(actionCompileFailByType)}");
-            }
-            if (conditionCompileFailByType.Count > 0)
-            {
-                Debug.LogWarning($"[AbilityTriggerJsonExporter] Condition compile failures by type: {FormatCounterMap(conditionCompileFailByType)}");
-            }
-
-            if (emptyEventIdCount > 0)
-            {
-                Debug.LogWarning($"[AbilityTriggerJsonExporter] Empty EventId triggers (active by TriggerId) (up to 32): {FormatIntList(emptyEventIdTriggerIds)}");
-            }
-
-            return db;
-        }
-
-        private static bool TryCompilePlanFromEditor(
+        internal static bool TryCompilePlanFromEditor(
             TriggerEditorConfig tr,
             Dictionary<int, string> stringTable,
             out TriggerPlan<object> plan,
@@ -475,7 +274,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return false;
             }
 
-            if (!TryCompileActionTreeWithOverrides(
+            if (!TryCompileActionTree(
                     act,
                     stringTable,
                     TriggerPlanCompilerResolvers.ResolvePayloadFieldId,
@@ -488,7 +287,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             if (cond != null)
             {
-                if (!GeneratedTriggerPlanCompiler.TryCompileConditionTree(
+                if (!TryCompileConditionTree(
                         cond,
                         TriggerPlanCompilerResolvers.ResolvePayloadFieldId,
                         out var predExpr))
@@ -505,7 +304,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             return true;
         }
 
-        private static bool TryCompileActionTreeWithOverrides(
+        private static bool TryCompileActionTree(
             JsonActionEditorConfig action,
             Dictionary<int, string> stringTable,
             Func<string, int> payloadFieldIdResolver,
@@ -528,7 +327,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 for (int i = 0; i < action.Items.Count; i++)
                 {
                     if (!(action.Items[i] is JsonActionEditorConfig child)) return false;
-                    if (!TryCompileActionTreeWithOverrides(child, stringTable, payloadFieldIdResolver, actionIdResolver, out var childPlans)) return false;
+                    if (!TryCompileActionTree(child, stringTable, payloadFieldIdResolver, actionIdResolver, out var childPlans)) return false;
                     if (childPlans == null || childPlans.Length == 0) continue;
                     for (int j = 0; j < childPlans.Length; j++) list.Add(childPlans[j]);
                 }
@@ -537,150 +336,47 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return true;
             }
 
-            // Custom: debug_log(message, dump_args)
-            if (string.Equals(action.TypeValue, TriggerActionTypes.DebugLog, StringComparison.Ordinal))
+            var handlers = TriggerPlanExportActionHandlerRegistry.Handlers;
+            if (handlers != null)
             {
-                if (actionIdResolver == null) return false;
-                var id = actionIdResolver(action.TypeValue);
-                if (id.Value == 0) return false;
-
-                var msg = string.Empty;
-                var dump = false;
-
-                if (action.Args != null)
+                for (int i = 0; i < handlers.Length; i++)
                 {
-                    if (action.Args.TryGetValue("message", out var mObj) && mObj != null)
+                    var h = handlers[i];
+                    if (h == null) continue;
+                    if (h.TryCompileAction(action, stringTable, payloadFieldIdResolver, actionIdResolver, out plans))
                     {
-                        msg = mObj as string ?? mObj.ToString();
-                    }
-
-                    if (action.Args.TryGetValue("dump_args", out var dObj) && dObj != null)
-                    {
-                        if (dObj is bool b) dump = b;
-                        else
-                        {
-                            try { dump = Convert.ToBoolean(dObj); }
-                            catch { dump = false; }
-                        }
+                        return plans != null;
                     }
                 }
-
-                var strId = StableStringId.Get("str:" + (msg ?? string.Empty));
-                if (stringTable != null)
-                {
-                    if (!stringTable.TryGetValue(strId, out var existing))
-                    {
-                        stringTable[strId] = msg ?? string.Empty;
-                    }
-                    else if (!string.Equals(existing, msg ?? string.Empty, StringComparison.Ordinal))
-                    {
-                        // collision should be impossible due to StableStringId check, but keep last just in case.
-                        stringTable[strId] = msg ?? string.Empty;
-                    }
-                }
-
-                plans = new[]
-                {
-                    new ActionCallPlan(id,
-                        NumericValueRef.Const(strId),
-                        NumericValueRef.Const(dump ? 1d : 0d))
-                };
-                return true;
-            }
-
-            if (string.Equals(action.TypeValue, TriggerActionTypes.GiveDamage, StringComparison.Ordinal))
-            {
-                if (actionIdResolver == null) return false;
-                var id = actionIdResolver(action.TypeValue);
-                if (id.Value == 0) return false;
-
-                static bool TryReadDouble(Dictionary<string, object> args, string key, out double value)
-                {
-                    value = 0d;
-                    if (args == null || string.IsNullOrEmpty(key)) return false;
-
-                    object obj = null;
-                    if (!args.TryGetValue(key, out obj) || obj == null)
-                    {
-                        foreach (var kv in args)
-                        {
-                            if (kv.Key == null) continue;
-                            if (string.Equals(kv.Key, key, StringComparison.OrdinalIgnoreCase))
-                            {
-                                obj = kv.Value;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (obj == null) return false;
-                    try
-                    {
-                        value = Convert.ToDouble(obj);
-                        return true;
-                    }
-                    catch
-                    {
-                        if (obj is string s && double.TryParse(s, out var parsed))
-                        {
-                            value = parsed;
-                            return true;
-                        }
-                        return false;
-                    }
-                }
-
-                var value = 0d;
-                var reasonParam = 0d;
-                if (action.Args != null)
-                {
-                    // Common key casing/aliases: value/Value/damageValue
-                    if (!TryReadDouble(action.Args, "value", out value))
-                    {
-                        TryReadDouble(action.Args, "Value", out value);
-                    }
-
-                    if (value == 0d)
-                    {
-                        TryReadDouble(action.Args, "damageValue", out value);
-                    }
-
-                    // reasonParam/ReasonParam
-                    if (!TryReadDouble(action.Args, "reasonParam", out reasonParam))
-                    {
-                        TryReadDouble(action.Args, "ReasonParam", out reasonParam);
-                    }
-
-                    if (value == 0d && action.Args.Count > 0)
-                    {
-                        var dump = string.Empty;
-                        foreach (var kv in action.Args)
-                        {
-                            if (!string.IsNullOrEmpty(dump)) dump += ", ";
-                            dump += kv.Key + "=" + (kv.Value != null ? kv.Value.ToString() : "<null>");
-                        }
-                        Debug.LogWarning($"[AbilityTriggerJsonExporter] give_damage compiled with value=0. type='{action.TypeValue}' actionId={id.Value} Available args: {dump}");
-                    }
-                }
-                else
-                {
-                    Debug.LogWarning($"[AbilityTriggerJsonExporter] give_damage has null args. type='{action.TypeValue}' actionId={id.Value}");
-                }
-
-                if (action.Args != null && action.Args.Count == 0)
-                {
-                    Debug.LogWarning($"[AbilityTriggerJsonExporter] give_damage has empty args. type='{action.TypeValue}' actionId={id.Value}");
-                }
-
-                plans = new[]
-                {
-                    new ActionCallPlan(id, NumericValueRef.Const(value), NumericValueRef.Const(reasonParam))
-                };
-                return true;
             }
 
             // Default: codegen/fallback compiler
             return GeneratedTriggerPlanCompiler.TryCompileActionTree(action, payloadFieldIdResolver, actionIdResolver, out plans);
+        }
+
+        private static bool TryCompileConditionTree(
+            JsonConditionEditorConfig condition,
+            Func<string, int> payloadFieldIdResolver,
+            out PredicateExprPlan plan)
+        {
+            plan = default;
+            if (condition == null) return false;
+
+            var handlers = TriggerPlanExportConditionHandlerRegistry.Handlers;
+            if (handlers != null)
+            {
+                for (int i = 0; i < handlers.Length; i++)
+                {
+                    var h = handlers[i];
+                    if (h == null) continue;
+                    if (h.TryCompileCondition(condition, payloadFieldIdResolver, out plan))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return GeneratedTriggerPlanCompiler.TryCompileConditionTree(condition, payloadFieldIdResolver, out plan);
         }
 
         private static JsonActionEditorConfig ToJsonActionNode(ActionEditorConfigBase node)
@@ -688,18 +384,18 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (node == null) return null;
             if (node is JsonActionEditorConfig j) return j;
 
-            if (node is GiveDamageActionEditorConfig gd)
+            var handlers = TriggerPlanExportActionHandlerRegistry.Handlers;
+            if (handlers != null)
             {
-                Debug.LogWarning($"[AbilityTriggerJsonExporter] give_damage strong node exported. value={gd.Value:0.###} reasonParam={gd.ReasonParam}");
-                return new JsonActionEditorConfig
+                for (int i = 0; i < handlers.Length; i++)
                 {
-                    TypeValue = TriggerActionTypes.GiveDamage,
-                    Args = new Dictionary<string, object>(StringComparer.Ordinal)
+                    var h = handlers[i];
+                    if (h == null) continue;
+                    if (h.TryConvertActionNode(node, out var converted) && converted != null)
                     {
-                        ["value"] = gd.Value,
-                        ["reasonParam"] = gd.ReasonParam,
-                    },
-                };
+                        return converted;
+                    }
+                }
             }
 
             try
@@ -721,6 +417,20 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (node == null) return null;
             if (node is JsonConditionEditorConfig j) return j;
 
+            var handlers = TriggerPlanExportConditionHandlerRegistry.Handlers;
+            if (handlers != null)
+            {
+                for (int i = 0; i < handlers.Length; i++)
+                {
+                    var h = handlers[i];
+                    if (h == null) continue;
+                    if (h.TryConvertConditionNode(node, out var converted) && converted != null)
+                    {
+                        return converted;
+                    }
+                }
+            }
+
             try
             {
                 var rt = node.ToRuntimeStrong();
@@ -735,55 +445,21 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
         }
 
-        private static void CountOne(Dictionary<string, int> map, string key)
-        {
-            if (map == null) return;
-            if (string.IsNullOrEmpty(key)) key = "<null>";
-            map.TryGetValue(key, out var v);
-            map[key] = v + 1;
-        }
-
-        private static string ExtractRootActionType(TriggerEditorConfig tr)
+        internal static string ExtractRootActionType(TriggerEditorConfig tr)
         {
             if (tr?.ActionsStrong == null || tr.ActionsStrong.Count == 0) return null;
             if (tr.ActionsStrong.Count == 1) return tr.ActionsStrong[0]?.Type;
             return TriggerActionTypes.Seq;
         }
 
-        private static string ExtractRootConditionType(TriggerEditorConfig tr)
+        internal static string ExtractRootConditionType(TriggerEditorConfig tr)
         {
             if (tr?.ConditionsStrong == null || tr.ConditionsStrong.Count == 0) return null;
             if (tr.ConditionsStrong.Count == 1) return tr.ConditionsStrong[0]?.Type;
             return TriggerConditionTypes.All;
         }
 
-        private static string FormatCounterMap(Dictionary<string, int> map)
-        {
-            if (map == null || map.Count == 0) return "(empty)";
-            var s = "";
-            var first = true;
-            foreach (var kv in map)
-            {
-                if (!first) s += ", ";
-                first = false;
-                s += kv.Key + "=" + kv.Value;
-            }
-            return s;
-        }
-
-        private static string FormatIntList(List<int> list)
-        {
-            if (list == null || list.Count == 0) return "(empty)";
-            var s = "";
-            for (int i = 0; i < list.Count; i++)
-            {
-                if (i > 0) s += ",";
-                s += list[i];
-            }
-            return s;
-        }
-
-        private static TriggerPlanDto BuildTriggerPlanDto(TriggerEditorConfig tr, in TriggerPlan<object> plan, int phase, int priority)
+        internal static TriggerPlanDto BuildTriggerPlanDto(TriggerEditorConfig tr, in TriggerPlan<object> plan, int phase, int priority)
         {
             var eventName = tr.EventId;
             var eventId = !string.IsNullOrEmpty(eventName) ? StableStringId.Get("event:" + eventName) : 0;
@@ -996,7 +672,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             var dto = new ConditionDTO
             {
                 Type = def.Type,
-                Args = CopyArgs(def.Args)
+                Args = AbilityTriggerExportUtils.CopyArgs(def.Args)
             };
             return dto;
         }
@@ -1030,36 +706,11 @@ namespace AbilityKit.Ability.Editor.Utilities
             var node = new ActionDTO
             {
                 Type = def.Type,
-                Args = CopyArgs(def.Args)
+                Args = AbilityTriggerExportUtils.CopyArgs(def.Args)
             };
             return node;
         }
 
-        private static Dictionary<string, object> CopyArgs(IReadOnlyDictionary<string, object> args)
-        {
-            if (args == null) return null;
-            var dict = new Dictionary<string, object>(StringComparer.Ordinal);
-            foreach (var kv in args)
-            {
-                if (kv.Key == null) continue;
-                dict[kv.Key] = kv.Value;
-            }
-            return dict.Count > 0 ? dict : null;
-        }
-
-        private static string TryGetSelectedFolderPath()
-        {
-            var obj = Selection.activeObject;
-            if (obj == null) return "Assets";
-
-            var path = AssetDatabase.GetAssetPath(obj);
-            if (string.IsNullOrEmpty(path)) return "Assets";
-
-            if (AssetDatabase.IsValidFolder(path)) return path;
-
-            var dir = Path.GetDirectoryName(path);
-            return string.IsNullOrEmpty(dir) ? "Assets" : dir.Replace('\\', '/');
-        }
     }
 }
 #endif
