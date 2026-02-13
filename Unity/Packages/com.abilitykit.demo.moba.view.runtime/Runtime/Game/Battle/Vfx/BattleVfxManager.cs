@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Game.Battle.Component;
+using AbilityKit.Game.Flow;
 using UnityEngine;
 using EC = AbilityKit.Ability.EC;
 
@@ -10,6 +11,10 @@ namespace AbilityKit.Game.Battle.Vfx
     {
         private readonly VfxDatabase _db;
         private readonly Dictionary<string, GameObject> _prefabCache = new Dictionary<string, GameObject>(StringComparer.Ordinal);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private readonly HashSet<ulong> _interpFallbackWarned = new HashSet<ulong>();
+#endif
 
         public BattleVfxManager(VfxDatabase db)
         {
@@ -65,6 +70,11 @@ namespace AbilityKit.Game.Battle.Vfx
 
         public void Tick(in EC.Entity vfxRoot)
         {
+            Tick(vfxRoot, binder: null);
+        }
+
+        public void Tick(in EC.Entity vfxRoot, BattleViewBinder binder)
+        {
             if (!vfxRoot.IsValid) return;
             var world = vfxRoot.World;
             if (world == null) return;
@@ -95,7 +105,27 @@ namespace AbilityKit.Game.Battle.Vfx
 
                 if (e.TryGetComponent(out BattleViewFollowComponent follow) && follow != null && follow.Target.Index != 0)
                 {
-                    if (world.IsAlive(follow.Target) && world.Wrap(follow.Target).TryGetComponent(out BattleTransformComponent t) && t != null)
+                    if (!world.IsAlive(follow.Target)) continue;
+
+                    // Prefer view-interpolated position when available.
+                    if (binder != null && binder.TryGetInterpolatedPos(follow.Target, out var viewPos))
+                    {
+                        SyncFollow(world, id, viewPos);
+                        continue;
+                    }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (binder != null)
+                    {
+                        var key = ((ulong)(uint)id.Index << 32) | (uint)follow.Target.Index;
+                        if (_interpFallbackWarned.Add(key))
+                        {
+                            Debug.LogWarning($"[BattleVfxManager] VFX follow fallback to logic position: vfx={id.Index} target={follow.Target.Index} frame={Time.frameCount}");
+                        }
+                    }
+#endif
+
+                    if (world.Wrap(follow.Target).TryGetComponent(out BattleTransformComponent t) && t != null)
                     {
                         SyncFollow(world, id, t.Position);
                     }

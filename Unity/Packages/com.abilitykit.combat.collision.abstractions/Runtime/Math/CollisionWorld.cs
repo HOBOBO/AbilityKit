@@ -48,7 +48,26 @@ namespace AbilityKit.Ability.Share.Math
         int OverlapSphere(in Sphere sphere, int layerMask, List<ColliderId> results);
     }
 
-    public sealed class NaiveCollisionWorld : ICollisionWorld
+    public readonly struct CollisionWorldDebugShape
+    {
+        public readonly ColliderId Id;
+        public readonly ColliderShape WorldShape;
+        public readonly int LayerMask;
+
+        public CollisionWorldDebugShape(ColliderId id, in ColliderShape worldShape, int layerMask)
+        {
+            Id = id;
+            WorldShape = worldShape;
+            LayerMask = layerMask;
+        }
+    }
+
+    public interface ICollisionWorldDebugView
+    {
+        int CopyWorldShapes(List<CollisionWorldDebugShape> results);
+    }
+
+    public sealed class NaiveCollisionWorld : ICollisionWorld, ICollisionWorldDebugView
     {
         private struct Entry
         {
@@ -177,6 +196,22 @@ namespace AbilityKit.Ability.Share.Math
             }
 
             return count;
+        }
+
+        public int CopyWorldShapes(List<CollisionWorldDebugShape> results)
+        {
+            if (results == null) throw new ArgumentNullException(nameof(results));
+            results.Clear();
+
+            for (var i = 0; i < _entries.Count; i++)
+            {
+                var e = _entries[i];
+                if (!e.Alive) continue;
+                var worldShape = ToWorldShape(in e.Transform, in e.LocalShape);
+                results.Add(new CollisionWorldDebugShape(new ColliderId(i + 1), in worldShape, e.LayerMask));
+            }
+
+            return results.Count;
         }
 
         private static ColliderShape ToWorldShape(in Transform3 t, in ColliderShape local)

@@ -23,6 +23,7 @@ namespace AbilityKit.Game.Flow
         public BattleLogicSession Session;
         public BattleStartPlan Plan;
         public int LastFrame;
+        public double LogicTimeSeconds;
 
         public BattleEventBus Events;
 
@@ -92,6 +93,7 @@ namespace AbilityKit.Game.Flow
             Session = null;
             Plan = default;
             LastFrame = 0;
+            LogicTimeSeconds = 0d;
 
             Events = null;
 
@@ -144,6 +146,7 @@ namespace AbilityKit.Game.Flow
             Session = null;
             Plan = default;
             LastFrame = 0;
+            LogicTimeSeconds = 0d;
 
             Events = null;
 

@@ -9,15 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.gameframework\Runtime\GameFramework\**\*.cs"
-             Exclude="..\..\..\..\Unity\Packages\com.abilitykit.gameframework\Runtime\GameFramework\Properties\AssemblyInfo.cs"
-             Link="GameFramework\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.gameframework\Runtime\GameFramework\**\*.cs" Exclude="..\..\..\..\Unity\Packages\com.abilitykit.gameframework\Runtime\GameFramework\Properties\AssemblyInfo.cs" Link="GameFramework\%(RecursiveDir)%(Filename)%(Extension)" />
 
-    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\Generated\**\*.cs"
-             Link="Protocol.Moba.Generated\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\Generated\**\*.cs" Link="Protocol.Moba.Generated\%(RecursiveDir)%(Filename)%(Extension)" />
 
-    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\GatewayTimeSync\**\*.cs"
-             Link="Protocol.Moba\GatewayTimeSync\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\GatewayTimeSync\**\*.cs" Link="Protocol.Moba\GatewayTimeSync\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="MemoryPack" Version="1.21.4" />
     <PackageReference Include="Microsoft.Orleans.Client" Version="8.0.0" />
     <PackageReference Include="Microsoft.Orleans.Sdk" Version="8.0.0" PrivateAssets="all" />
   </ItemGroup>

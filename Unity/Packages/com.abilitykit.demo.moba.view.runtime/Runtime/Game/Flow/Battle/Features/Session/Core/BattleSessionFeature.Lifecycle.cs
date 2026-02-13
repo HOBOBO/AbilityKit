@@ -72,6 +72,20 @@ namespace AbilityKit.Game.Flow
 
             InvokeMainTickSubFeatures(ctx, deltaTime);
 
+            if (_ctx != null)
+            {
+                _ctx.LastFrame = _lastFrame;
+                var fixedDelta = GetFixedDeltaSeconds();
+                if (fixedDelta > 0f)
+                {
+                    _ctx.LogicTimeSeconds = _lastFrame * (double)fixedDelta + (double)_tickAcc;
+                }
+                else
+                {
+                    _ctx.LogicTimeSeconds = 0d;
+                }
+            }
+
             _subFeatureHost?.Tick(new FeatureModuleContext<BattleSessionFeature>(ctx, this), deltaTime);
             Hooks?.PostTick.Invoke(deltaTime);
             Events?.Flush();

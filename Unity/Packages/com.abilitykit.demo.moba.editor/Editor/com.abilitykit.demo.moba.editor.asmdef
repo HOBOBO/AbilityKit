@@ -6,6 +6,8 @@
     "AbilityKit.Demo.Moba.View.Runtime",
     "AbilityKit.Ability.RuntimePkg",
     "AbilityKit.Core",
+    "AbilityKit.Core.Editor",
+    "AbilityKit.Combat.Collision.Abstractions",
     "AbilityKit.Attributes",
     "AbilityKit.World.FrameSync",
     "AbilityKit.World.ECS",

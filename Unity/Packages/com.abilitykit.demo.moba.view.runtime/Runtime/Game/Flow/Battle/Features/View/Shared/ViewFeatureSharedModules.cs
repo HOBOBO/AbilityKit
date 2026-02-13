@@ -141,6 +141,23 @@ namespace AbilityKit.Game.Flow
         public void RebindAll(in FeatureModuleContext<TFeature> ctx) { }
     }
 
+    internal sealed class SharedInterpolationModule<TFeature> : IViewFeatureModule<TFeature>
+        where TFeature : class, IViewFeatureModulesHost
+    {
+        public void OnAttach(in FeatureModuleContext<TFeature> ctx) { }
+        public void OnDetach(in FeatureModuleContext<TFeature> ctx) { }
+
+        public void Tick(in FeatureModuleContext<TFeature> ctx, float deltaTime)
+        {
+            var f = ctx.Feature;
+            var binder = f?.Binder;
+            if (binder == null) return;
+            binder.TickInterpolation(f.Context, deltaTime);
+        }
+
+        public void RebindAll(in FeatureModuleContext<TFeature> ctx) { }
+    }
+
     internal sealed class SharedFloatingTextModule<TFeature> : IViewFeatureModule<TFeature>
         where TFeature : class, IViewFeatureModulesHost
     {

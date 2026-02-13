@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Flow
             {
                 var id = dirty[i];
                 if (!_query.World.IsAlive(id)) continue;
-                _binder?.Sync(_query.World.Wrap(id));
+                _binder?.Sync(_query.World.Wrap(id), _ctx);
                 RegisterSeekablesForEntity(id);
             }
 

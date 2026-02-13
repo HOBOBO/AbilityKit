@@ -14,6 +14,7 @@ namespace AbilityKit.Game.Flow
 
             subFeatures.Add(new SharedDirtySyncModule<TFeature>());
             subFeatures.Add(new SharedTimelineModule<TFeature>());
+            subFeatures.Add(new SharedInterpolationModule<TFeature>());
             subFeatures.Add(new SharedVfxTickModule<TFeature>());
             subFeatures.Add(new SharedFloatingTextModule<TFeature>());
         }

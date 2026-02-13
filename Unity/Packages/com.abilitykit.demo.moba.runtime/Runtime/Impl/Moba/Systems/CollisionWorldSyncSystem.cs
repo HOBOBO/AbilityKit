@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
@@ -12,6 +13,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
         private readonly ICollisionWorld _world;
         private readonly IGroup<global::ActorEntity> _withShape;
         private readonly IGroup<global::ActorEntity> _withCollisionId;
+
+        private readonly HashSet<int> _validIds = new HashSet<int>();
+        private readonly List<CollisionWorldDebugShape> _worldShapes = new List<CollisionWorldDebugShape>(2048);
 
         public CollisionWorldSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
@@ -31,12 +35,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 
         protected override void OnExecute()
         {
+            _validIds.Clear();
+
             // Add / Update all active colliders.
             var entities = _withShape.GetEntities();
             for (int i = 0; i < entities.Length; i++)
             {
                 var e = entities[i];
                 if (e == null) continue;
+                if (!e.isEnabled) continue;
                 if (!e.hasTransform || !e.hasCollider) continue;
 
                 var t = e.transform.Value;
@@ -47,12 +54,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                 {
                     var id = _world.Add(t, shape, layerMask);
                     e.AddCollisionId(id);
+                    _validIds.Add(id.Value);
                 }
                 else
                 {
                     var id = e.collisionId.Value;
                     _world.Update(id, t, shape);
                     _world.UpdateLayer(id, layerMask);
+                    _validIds.Add(id.Value);
                 }
             }
 
@@ -64,11 +73,27 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                 if (e == null) continue;
                 if (!e.hasCollisionId) continue;
 
-                if (!e.hasTransform || !e.hasCollider)
+                if (!e.isEnabled || !e.hasTransform || !e.hasCollider)
                 {
                     var id = e.collisionId.Value;
                     _world.Remove(id);
                     e.RemoveCollisionId();
+                }
+            }
+
+            // Mark-and-sweep cleanup:
+            // Some entities may be destroyed/disabled and no longer appear in groups,
+            // which would leave stale collider entries in the collision world.
+            // We conservatively remove any collider ids that are not associated with
+            // currently active (Transform+Collider) entities.
+            if (_world is ICollisionWorldDebugView debugView)
+            {
+                debugView.CopyWorldShapes(_worldShapes);
+                for (int i = 0; i < _worldShapes.Count; i++)
+                {
+                    var id = _worldShapes[i].Id;
+                    if (_validIds.Contains(id.Value)) continue;
+                    _world.Remove(id);
                 }
             }
         }

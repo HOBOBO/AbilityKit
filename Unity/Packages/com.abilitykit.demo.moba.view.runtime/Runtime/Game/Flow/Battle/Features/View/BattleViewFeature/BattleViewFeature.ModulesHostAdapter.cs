@@ -19,12 +19,12 @@ namespace AbilityKit.Game.Flow
         void IViewFeatureModulesHost.RebindAllViews()
         {
             if (_ctx?.EntityWorld == null) return;
-            _binder?.RebindAll(_ctx.EntityWorld);
+            _binder?.RebindAll(_ctx.EntityWorld, _ctx);
         }
 
         void IViewFeatureModulesHost.TickVfx()
         {
-            if (_vfxNode.IsValid) _vfx?.Tick(_vfxNode);
+            if (_vfxNode.IsValid) _vfx?.Tick(_vfxNode, _binder);
         }
 
         void IViewFeatureModulesHost.TickFloatingTexts(float deltaTime)

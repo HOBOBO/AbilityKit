@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Flow;
 using AbilityKit.Ability.EC;
+using AbilityKit.Ability.Share.Common.Config;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Game;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityHFSM;
 using static AbilityKit.Game.Flow.GameFlowDomain;
@@ -15,12 +18,63 @@ namespace AbilityKit.Game.Flow
         private readonly GameEntry _entry;
         private readonly GamePhaseContext _ctx;
 
+        public LayeredJsonSettingsStore Settings { get; } = new LayeredJsonSettingsStore();
+
         public enum RootState
         {
             Boot = 0,
             Lobby = 1,
             Battle = 2
         }
+
+    public static class RuntimeJsonSettingsCodec
+    {
+        public static Dictionary<string, object> DeserializeFlat(string json)
+        {
+            var map = JsonConvert.DeserializeObject<Dictionary<string, JToken>>(json);
+            if (map == null || map.Count == 0) return new Dictionary<string, object>(StringComparer.Ordinal);
+
+            var dict = new Dictionary<string, object>(map.Count, StringComparer.Ordinal);
+            foreach (var kv in map)
+            {
+                if (string.IsNullOrEmpty(kv.Key)) continue;
+                var t = kv.Value;
+                if (t == null) continue;
+
+                object v;
+                switch (t.Type)
+                {
+                    case JTokenType.Boolean:
+                        v = t.Value<bool>();
+                        break;
+                    case JTokenType.Integer:
+                        v = t.Value<long>();
+                        break;
+                    case JTokenType.Float:
+                        v = t.Value<double>();
+                        break;
+                    case JTokenType.String:
+                        v = t.Value<string>();
+                        break;
+                    case JTokenType.Null:
+                    case JTokenType.Undefined:
+                        continue;
+                    default:
+                        v = t.ToString(Formatting.None);
+                        break;
+                }
+
+                dict[kv.Key] = v;
+            }
+
+            return dict;
+        }
+
+        public static string SerializeFlat(IReadOnlyDictionary<string, object> dict)
+        {
+            return JsonConvert.SerializeObject(dict, Formatting.Indented);
+        }
+    }
 
         private enum RootEvent
         {
@@ -82,6 +136,16 @@ namespace AbilityKit.Game.Flow
         {
             _runner.Start();
             _rootEvents.Enqueue(RootEvent.BootCompleted);
+
+            if (_entry != null)
+            {
+                _entry.StartCoroutine(UnityJsonSettingsBootstrap.LoadPersistentInto(Settings, RuntimeJsonSettingsCodec.DeserializeFlat));
+            }
+        }
+
+        public bool TrySaveSettingsOverridesToPersistent()
+        {
+            return UnityJsonSettingsBootstrap.TrySaveOverridesToPersistent(Settings.OverrideValues, RuntimeJsonSettingsCodec.SerializeFlat);
         }
 
         public void Tick(float deltaTime)
