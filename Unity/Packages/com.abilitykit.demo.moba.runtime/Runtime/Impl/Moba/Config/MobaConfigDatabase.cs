@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
 using AbilityKit.Ability.HotReload;
-using Newtonsoft.Json;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
@@ -118,116 +117,52 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
     {
         private const string ConfigKey = "moba.config";
 
+        private readonly IMobaConfigTableRegistry _registry;
+        private readonly IMobaConfigDtoDeserializer _deserializer;
         private readonly Dictionary<Type, object> _tables = new Dictionary<Type, object>();
         private readonly Dictionary<Type, object> _dtoTables = new Dictionary<Type, object>();
         private long _version;
 
         public long Version => _version;
 
+        public MobaConfigDatabase(
+            IMobaConfigTableRegistry registry = null,
+            IMobaConfigDtoDeserializer deserializer = null)
+        {
+            _registry = registry ?? DefaultMobaConfigTableRegistry.Instance;
+            _deserializer = deserializer ?? JsonNetMobaConfigDtoDeserializer.Instance;
+        }
+
         public void LoadFromTextSink(IMobaConfigTextSink sink, string resourcesDir = null)
         {
             if (sink == null) throw new ArgumentNullException(nameof(sink));
 
-            var jsonByKey = new Dictionary<string, string>(StringComparer.Ordinal);
-            var tables = MobaRuntimeConfigTableRegistry.Tables;
-            for (var i = 0; i < tables.Length; i++)
-            {
-                var t = tables[i];
-                var fullPath = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
-
-                if (!sink.TryGetText(fullPath, out var json) || string.IsNullOrEmpty(json))
-                {
-                    if (!sink.TryGetText(t.FileWithoutExt, out json) || string.IsNullOrEmpty(json))
-                    {
-                        throw new InvalidOperationException($"Config json not found in sink: {fullPath}");
-                    }
-                }
-
-                jsonByKey[fullPath] = json;
-                jsonByKey[t.FileWithoutExt] = json;
-            }
-
-            LoadFromJsonTexts(jsonByKey, resourcesDir);
+            var loader = new DefaultMobaConfigLoader(_registry);
+            loader.Load(this, new MobaConfigTextSinkAdapter(sink), resourcesDir);
         }
 
         public ConfigReloadResult ReloadFromTextSink(IMobaConfigTextSink sink, string resourcesDir = null)
         {
             if (sink == null) throw new ArgumentNullException(nameof(sink));
 
-            var jsonByKey = new Dictionary<string, string>(StringComparer.Ordinal);
-            var tables = MobaRuntimeConfigTableRegistry.Tables;
-            for (var i = 0; i < tables.Length; i++)
-            {
-                var t = tables[i];
-                var fullPath = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
-
-                if (!sink.TryGetText(fullPath, out var json) || string.IsNullOrEmpty(json))
-                {
-                    if (!sink.TryGetText(t.FileWithoutExt, out json) || string.IsNullOrEmpty(json))
-                    {
-                        var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config json not found in sink: {fullPath}");
-                        ConfigReloadBus.Publish(fail);
-                        return fail;
-                    }
-                }
-
-                jsonByKey[fullPath] = json;
-                jsonByKey[t.FileWithoutExt] = json;
-            }
-
-            return ReloadFromJsonTexts(jsonByKey, resourcesDir);
+            var loader = new DefaultMobaConfigLoader(_registry);
+            return loader.Reload(this, new MobaConfigTextSinkAdapter(sink), resourcesDir);
         }
 
         public void LoadFromResources(string resourcesDir)
         {
             if (string.IsNullOrEmpty(resourcesDir)) throw new ArgumentException(nameof(resourcesDir));
 
-            var jsonByKey = new Dictionary<string, string>(StringComparer.Ordinal);
-            var tables = MobaRuntimeConfigTableRegistry.Tables;
-            for (var i = 0; i < tables.Length; i++)
-            {
-                var t = tables[i];
-                var path = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
-                var asset = Resources.Load<TextAsset>(path);
-                if (asset == null) throw new InvalidOperationException($"Config json not found in Resources: {path}");
-                var json = asset.text;
-                if (string.IsNullOrEmpty(json)) throw new InvalidOperationException($"Config json is empty: {path}");
-                jsonByKey[path] = json;
-                jsonByKey[t.FileWithoutExt] = json;
-            }
-
-            LoadFromJsonTexts(jsonByKey, resourcesDir);
+            var loader = new DefaultMobaConfigLoader(_registry);
+            loader.LoadFromResources(this, resourcesDir);
         }
 
         public ConfigReloadResult ReloadFromResources(string resourcesDir)
         {
             if (string.IsNullOrEmpty(resourcesDir)) throw new ArgumentException(nameof(resourcesDir));
 
-            var jsonByKey = new Dictionary<string, string>(StringComparer.Ordinal);
-            var tables = MobaRuntimeConfigTableRegistry.Tables;
-            for (var i = 0; i < tables.Length; i++)
-            {
-                var t = tables[i];
-                var path = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
-                var asset = Resources.Load<TextAsset>(path);
-                if (asset == null)
-                {
-                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config json not found in Resources: {path}");
-                    ConfigReloadBus.Publish(fail);
-                    return fail;
-                }
-                var json = asset.text;
-                if (string.IsNullOrEmpty(json))
-                {
-                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config json is empty: {path}");
-                    ConfigReloadBus.Publish(fail);
-                    return fail;
-                }
-                jsonByKey[path] = json;
-                jsonByKey[t.FileWithoutExt] = json;
-            }
-
-            return ReloadFromJsonTexts(jsonByKey, resourcesDir);
+            var loader = new DefaultMobaConfigLoader(_registry);
+            return loader.ReloadFromResources(this, resourcesDir);
         }
 
         public void LoadFromJsonTexts(IReadOnlyDictionary<string, string> jsonByKey, string resourcesDir = null)
@@ -248,7 +183,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             var nextTables = new Dictionary<Type, object>();
             var nextDtoTables = new Dictionary<Type, object>();
 
-            var tables = MobaRuntimeConfigTableRegistry.Tables;
+            var tables = _registry.Tables;
             for (var i = 0; i < tables.Length; i++)
             {
                 var t = tables[i];
@@ -263,8 +198,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 
                 try
                 {
-                    var dtoArrayType = t.DtoType.MakeArrayType();
-                    var arr = (Array)JsonConvert.DeserializeObject(json, dtoArrayType);
+                    var arr = _deserializer.DeserializeDtoArray(json, t.DtoType);
                     var dtoTableObj = CreateDtoTableFromDtos(t.DtoType, arr);
                     nextDtoTables[t.DtoType] = dtoTableObj;
                     var tableObj = CreateTableFromDtos(t.DtoType, t.MoType, arr);

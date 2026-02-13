@@ -13,7 +13,12 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
         {
             builder.TryRegister<MobaConfigDatabase>(WorldLifetime.Singleton, _ =>
             {
-                var db = new MobaConfigDatabase();
+                _.TryResolve<IMobaConfigTableRegistry>(out var registry);
+                _.TryResolve<IMobaConfigDtoDeserializer>(out var deserializer);
+                var db = new MobaConfigDatabase(registry, deserializer);
+                var loader = _.TryResolve<IMobaConfigLoader>(out var injected) && injected != null
+                    ? injected
+                    : new DefaultMobaConfigLoader(registry ?? DefaultMobaConfigTableRegistry.Instance);
                 try
                 {
                     /*
@@ -22,13 +27,17 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                      * - 接入方只需提供 IMobaConfigTextSink（表数据读取 sink），逻辑层负责解析与建库。
                      * - 若未提供 sink，则 fallback 到 Unity Resources（保持旧行为）。
                      */
-                    if (_.TryResolve<IMobaConfigTextSink>(out var sink) && sink != null)
+                    if (_.TryResolve<IMobaConfigSource>(out var source) && source != null)
                     {
-                        db.LoadFromTextSink(sink, MobaConfigPaths.DefaultResourcesDir);
+                        loader.Load(db, source, MobaConfigPaths.DefaultResourcesDir);
+                    }
+                    else if (_.TryResolve<IMobaConfigTextSink>(out var sink) && sink != null)
+                    {
+                        loader.Load(db, new MobaConfigTextSinkAdapter(sink), MobaConfigPaths.DefaultResourcesDir);
                     }
                     else
                     {
-                        db.LoadFromResources(MobaConfigPaths.DefaultResourcesDir);
+                        loader.LoadFromResources(db, MobaConfigPaths.DefaultResourcesDir);
                     }
 
                     return db;

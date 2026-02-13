@@ -5,7 +5,6 @@ using AbilityKit.Ability.Editor;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Plan;
-using UnityEngine;
 
 namespace AbilityKit.Ability.Editor.Utilities
 {
@@ -17,7 +16,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             jsonNode = null;
             if (strongNode is GiveDamageActionEditorConfig gd)
             {
-                Debug.LogWarning($"[AbilityTriggerJsonExporter] give_damage strong node exported. value={gd.Value:0.###} reasonParam={gd.ReasonParam}");
+                ExportLog.Warning($"give_damage strong node exported. value={gd.Value:0.###} reasonParam={gd.ReasonParam}");
                 jsonNode = new JsonActionEditorConfig
                 {
                     TypeValue = TriggerActionTypes.GiveDamage,

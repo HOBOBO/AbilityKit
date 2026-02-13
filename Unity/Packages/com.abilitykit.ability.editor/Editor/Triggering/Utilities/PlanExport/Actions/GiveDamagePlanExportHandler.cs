@@ -5,7 +5,6 @@ using AbilityKit.Ability.Editor;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Plan;
-using UnityEngine;
 
 namespace AbilityKit.Ability.Editor.Utilities
 {
@@ -54,17 +53,17 @@ namespace AbilityKit.Ability.Editor.Utilities
                 if (value == 0d && action.Args.Count > 0)
                 {
                     var dump = PlanExportArgReadUtil.DumpArgs(action.Args);
-                    Debug.LogWarning($"[AbilityTriggerJsonExporter] give_damage compiled with value=0. type='{action.TypeValue}' actionId={id.Value} Available args: {dump}");
+                    ExportLog.Warning($"give_damage compiled with value=0. type='{action.TypeValue}' actionId={id.Value} Available args: {dump}");
                 }
             }
             else
             {
-                Debug.LogWarning($"[AbilityTriggerJsonExporter] give_damage has null args. type='{action.TypeValue}' actionId={id.Value}");
+                ExportLog.Warning($"give_damage has null args. type='{action.TypeValue}' actionId={id.Value}");
             }
 
             if (action.Args != null && action.Args.Count == 0)
             {
-                Debug.LogWarning($"[AbilityTriggerJsonExporter] give_damage has empty args. type='{action.TypeValue}' actionId={id.Value}");
+                ExportLog.Warning($"give_damage has empty args. type='{action.TypeValue}' actionId={id.Value}");
             }
 
             plans = new[]

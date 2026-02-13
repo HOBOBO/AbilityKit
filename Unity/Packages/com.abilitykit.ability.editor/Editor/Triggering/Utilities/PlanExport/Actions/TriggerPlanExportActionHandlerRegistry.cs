@@ -30,7 +30,23 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 Type[] types;
                 try { types = asm.GetTypes(); }
-                catch (ReflectionTypeLoadException ex) { types = ex.Types; }
+                catch (ReflectionTypeLoadException ex)
+                {
+                    types = ex.Types;
+                    if (ex.LoaderExceptions != null)
+                    {
+                        for (int e = 0; e < ex.LoaderExceptions.Length; e++)
+                        {
+                            var le = ex.LoaderExceptions[e];
+                            if (le == null) continue;
+                            ExportLog.Exception(le, $"action handler scan: asm.GetTypes failed. asm={asm.FullName}");
+                        }
+                    }
+                    else
+                    {
+                        ExportLog.Exception(ex, $"action handler scan: asm.GetTypes failed. asm={asm.FullName}");
+                    }
+                }
                 if (types == null) continue;
 
                 for (int i = 0; i < types.Length; i++)
@@ -50,8 +66,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                             list.Add((attr.Order, h));
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        ExportLog.Exception(ex, $"create action handler failed. type={t.FullName}");
                     }
                 }
             }
