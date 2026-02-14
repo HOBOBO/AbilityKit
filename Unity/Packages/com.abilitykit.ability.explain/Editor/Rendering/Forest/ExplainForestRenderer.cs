@@ -10,6 +10,7 @@ namespace AbilityKit.Ability.Explain.Editor
     {
         private const int DiscoveryExpandedIndentPx = 16;
         private static readonly Color SelectedNodeColor = new Color(0.2f, 0.55f, 0.95f, 0.22f);
+        private static readonly Color SelectedDiscoveryColor = new Color(0.2f, 0.55f, 0.95f, 0.22f);
 
         private readonly ScrollView _forestView;
         private readonly ExplainNodeRowFactory _nodeRowFactory;
@@ -22,7 +23,10 @@ namespace AbilityKit.Ability.Explain.Editor
         private readonly Dictionary<string, NodeRowRef> _nodeIndex = new Dictionary<string, NodeRowRef>();
         private readonly Dictionary<string, DiscoveryRowRef> _discoveryIndex = new Dictionary<string, DiscoveryRowRef>();
 
+        private Dictionary<string, ExplainDiffKind> _diffMap;
+
         private string _selectedNodeId;
+        private string _selectedDiscoveryKey;
 
         public ExplainForestRenderer(
             ScrollView forestView,
@@ -32,6 +36,11 @@ namespace AbilityKit.Ability.Explain.Editor
             _forestView = forestView;
             _nodeRowFactory = nodeRowFactory;
             _onToggleDiscovery = onToggleDiscovery;
+        }
+
+        public void SetDiffMap(Dictionary<string, ExplainDiffKind> diffMap)
+        {
+            _diffMap = diffMap;
         }
 
         public void Render(ExplainForest forest)
@@ -104,7 +113,11 @@ namespace AbilityKit.Ability.Explain.Editor
                 tmp.style.flexShrink = 0;
 
                 var renderer = new ExplainForestRenderer(tmp, _nodeRowFactory, null);
-                renderer.AppendRoot(root);
+                if (!string.IsNullOrEmpty(_selectedNodeId)) renderer.SetSelectedNodeId(_selectedNodeId);
+
+                var prefixedRoot = CloneTreeRootWithPrefixedNodeIds(root, dk);
+                renderer.AppendRoot(prefixedRoot);
+                r.NestedRenderer = renderer;
 
                 var snapshot = new List<VisualElement>();
                 foreach (var child in tmp.Children())
@@ -128,6 +141,47 @@ namespace AbilityKit.Ability.Explain.Editor
             }
         }
 
+        private static ExplainTreeRoot CloneTreeRootWithPrefixedNodeIds(ExplainTreeRoot root, string discoveryKey)
+        {
+            if (root == null) return null;
+
+            return new ExplainTreeRoot
+            {
+                Kind = root.Kind,
+                Key = root.Key,
+                Title = root.Title,
+                Root = CloneNodeWithPrefixedNodeId(root.Root, discoveryKey)
+            };
+        }
+
+        private static ExplainNode CloneNodeWithPrefixedNodeId(ExplainNode node, string discoveryKey)
+        {
+            if (node == null) return null;
+
+            var cloned = new ExplainNode
+            {
+                NodeId = string.IsNullOrEmpty(node.NodeId) ? null : $"d:{discoveryKey}/{node.NodeId}",
+                Kind = node.Kind,
+                Title = node.Title,
+                Severity = node.Severity,
+                SummaryLines = node.SummaryLines,
+                Source = node.Source,
+                Actions = node.Actions,
+                Children = null
+            };
+
+            if (node.Children != null && node.Children.Count > 0)
+            {
+                cloned.Children = new List<ExplainNode>(node.Children.Count);
+                for (var i = 0; i < node.Children.Count; i++)
+                {
+                    cloned.Children.Add(CloneNodeWithPrefixedNodeId(node.Children[i], discoveryKey));
+                }
+            }
+
+            return cloned;
+        }
+
         public void SetDiscoveryCollapsed(ExplainTreeDiscovery discovery)
         {
             if (discovery == null) return;
@@ -140,6 +194,8 @@ namespace AbilityKit.Ability.Explain.Editor
             {
                 r.Container.style.display = DisplayStyle.None;
             }
+
+            r.NestedRenderer = null;
 
             if (r.ToggleButton != null) r.ToggleButton.text = "展开";
             r.IsExpanded = false;
@@ -185,6 +241,19 @@ namespace AbilityKit.Ability.Explain.Editor
             return true;
         }
 
+        public bool TryFocusDiscovery(in PipelineItemKey key)
+        {
+            if (string.IsNullOrEmpty(key.Type) && string.IsNullOrEmpty(key.Id)) return false;
+
+            var dk = $"{key.Type}:{key.Id}";
+            if (string.IsNullOrEmpty(dk)) return false;
+            if (!_discoveryIndex.TryGetValue(dk, out var r) || r.Row == null) return false;
+
+            SetSelectedDiscoveryKey(dk);
+            _forestView.ScrollTo(r.Row);
+            return true;
+        }
+
         public void SetSelectedNodeId(string nodeId)
         {
             if (string.IsNullOrEmpty(nodeId)) return;
@@ -199,6 +268,32 @@ namespace AbilityKit.Ability.Explain.Editor
             if (_nodeIndex.TryGetValue(nodeId, out var cur) && cur.Row != null)
             {
                 cur.Row.style.backgroundColor = SelectedNodeColor;
+            }
+
+            foreach (var kv in _discoveryIndex)
+            {
+                var r = kv.Value;
+                if (r.NestedRenderer == null) continue;
+                r.NestedRenderer.SetSelectedNodeId(nodeId);
+            }
+        }
+
+        private void SetSelectedDiscoveryKey(string discoveryKey)
+        {
+            if (string.IsNullOrEmpty(discoveryKey)) return;
+            if (_selectedDiscoveryKey == discoveryKey) return;
+
+            if (!string.IsNullOrEmpty(_selectedDiscoveryKey)
+                && _discoveryIndex.TryGetValue(_selectedDiscoveryKey, out var prev)
+                && prev.Row != null)
+            {
+                prev.Row.style.backgroundColor = new Color(0f, 0f, 0f, 0f);
+            }
+
+            _selectedDiscoveryKey = discoveryKey;
+            if (_discoveryIndex.TryGetValue(discoveryKey, out var cur) && cur.Row != null)
+            {
+                cur.Row.style.backgroundColor = SelectedDiscoveryColor;
             }
         }
 
@@ -229,6 +324,11 @@ namespace AbilityKit.Ability.Explain.Editor
             var row = new VisualElement();
             AbilityExplainStyles.ApplyDiscoveryRow(row);
 
+            if (!string.IsNullOrEmpty(key) && key == _selectedDiscoveryKey)
+            {
+                row.style.backgroundColor = SelectedDiscoveryColor;
+            }
+
             var label = new Label($"{d.Title} (x{d.RefCount})") { style = { flexGrow = 1 } };
             row.Add(label);
 
@@ -240,6 +340,8 @@ namespace AbilityKit.Ability.Explain.Editor
                     _onToggleDiscovery?.Invoke(d, true);
                     return;
                 }
+
+                SetSelectedDiscoveryKey(dk);
 
                 if (_discoveryIndex.TryGetValue(dk, out var r))
                 {
@@ -256,6 +358,16 @@ namespace AbilityKit.Ability.Explain.Editor
             btn.style.marginLeft = AbilityExplainStyles.Padding;
             row.Add(btn);
 
+            row.RegisterCallback<MouseDownEvent>(evt =>
+            {
+                if (evt.button != 0) return;
+
+                var dk = GetDiscoveryKey(d);
+                if (string.IsNullOrEmpty(dk)) return;
+                SetSelectedDiscoveryKey(dk);
+                evt.StopPropagation();
+            });
+
             parent.Add(row);
 
             if (!string.IsNullOrEmpty(key) && !_discoveryIndex.ContainsKey(key))
@@ -270,6 +382,11 @@ namespace AbilityKit.Ability.Explain.Editor
                     ParentContainer = parent,
                     IsExpanded = false
                 };
+
+                if (key == _selectedDiscoveryKey)
+                {
+                    row.style.backgroundColor = SelectedDiscoveryColor;
+                }
             }
 
             if (!string.IsNullOrEmpty(d.Key.Type))
@@ -392,7 +509,13 @@ namespace AbilityKit.Ability.Explain.Editor
 
         private void AppendNodeRecursive(ExplainNode node, int indent)
         {
-            var row = _nodeRowFactory.Create(node, indent);
+            var diffKind = ExplainDiffKind.None;
+            if (_diffMap != null && node != null && !string.IsNullOrEmpty(node.NodeId) && _diffMap.TryGetValue(node.NodeId, out var k))
+            {
+                diffKind = k;
+            }
+
+            var row = _nodeRowFactory.Create(node, indent, diffKind);
             _forestView.Add(row);
 
             if (!string.IsNullOrEmpty(node.NodeId) && !_nodeIndex.ContainsKey(node.NodeId))
@@ -422,6 +545,7 @@ namespace AbilityKit.Ability.Explain.Editor
             public VisualElement Container;
             public VisualElement ParentContainer;
             public bool IsExpanded;
+            public ExplainForestRenderer NestedRenderer;
         }
 
         private struct DiscoveryGroupRef

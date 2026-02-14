@@ -15,6 +15,8 @@ namespace AbilityKit.Ability.Explain.Editor
         private IntegerField _maxDepthField;
         private VisualElement _entityListRoot;
         private VisualElement _entityFiltersContainer;
+        private VisualElement _entityHeaderContainer;
+        private Button _contextEditorButton;
         private ScrollView _entityGroupsContainer;
         private ScrollView _forestView;
         private ScrollView _detailsView;
@@ -32,6 +34,7 @@ namespace AbilityKit.Ability.Explain.Editor
         public event Action RefreshClicked;
         public event Action OptionsChanged;
         public event Action<PipelineItemKey> EntitySelected;
+        public event Action ContextEditorClicked;
         public event Action<ExplainNode, bool> NodeInvoked;
         public event Action<ExplainNode, DropdownMenu> NodeContextMenuPopulateRequested;
         public event Action<ExplainTreeDiscovery, bool> DiscoveryToggleRequested;
@@ -158,6 +161,11 @@ namespace AbilityKit.Ability.Explain.Editor
             _forestRenderer?.Render(forest);
         }
 
+        public void SetForestDiffMap(Dictionary<string, ExplainDiffKind> diffMap)
+        {
+            _forestRenderer?.SetDiffMap(diffMap);
+        }
+
         public void SetSelectedNodeId(string nodeId)
         {
             _forestRenderer?.SetSelectedNodeId(nodeId);
@@ -189,9 +197,21 @@ namespace AbilityKit.Ability.Explain.Editor
             return _forestRenderer != null && _forestRenderer.TryFocusNode(nodeId, out node);
         }
 
+        public bool TryFocusDiscovery(in PipelineItemKey key)
+        {
+            return _forestRenderer != null && _forestRenderer.TryFocusDiscovery(in key);
+        }
+
         public void RenderNodeDetails(ExplainNode node)
         {
             _detailsRenderer?.Render(node, _detailsContext);
+        }
+
+        public void SetContextEditorButton(string text, bool visible)
+        {
+            if (_contextEditorButton == null) return;
+            _contextEditorButton.text = string.IsNullOrEmpty(text) ? "强化/构筑" : text;
+            _contextEditorButton.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         public void SetDetailsContext(ExplainDetailsContext context)
@@ -240,15 +260,126 @@ namespace AbilityKit.Ability.Explain.Editor
 
             var main = new VisualElement { style = { flexGrow = 1, flexDirection = FlexDirection.Row } };
 
-            var left = new VisualElement { style = { width = 260, flexShrink = 0, borderRightWidth = 1 } };
-            var center = new VisualElement { style = { flexGrow = 1, borderRightWidth = 1 } };
-            var right = new VisualElement { style = { width = 360, flexShrink = 0 } };
+            const float minLeftWidth = 180f;
+            const float minCenterWidth = 240f;
+            const float minRightWidth = 220f;
+            const float splitterWidth = 4f;
+
+            var left = new VisualElement { style = { width = 260, flexShrink = 0, borderRightWidth = 1, minWidth = minLeftWidth } };
+            var center = new VisualElement { style = { flexGrow = 1, borderRightWidth = 1, minWidth = minCenterWidth } };
+            var right = new VisualElement { style = { width = 360, flexShrink = 0, minWidth = minRightWidth } };
+
+            VisualElement CreateSplitter()
+            {
+                var s = new VisualElement();
+                s.style.width = splitterWidth;
+                s.style.flexShrink = 0;
+                s.style.backgroundColor = new Color(0f, 0f, 0f, 0.06f);
+                return s;
+            }
+
+            void AttachLeftSplitterDrag(VisualElement splitter)
+            {
+                var dragging = false;
+                var startX = 0f;
+                var startLeftWidth = 0f;
+
+                splitter.RegisterCallback<MouseDownEvent>(evt =>
+                {
+                    if (evt.button != 0) return;
+                    dragging = true;
+                    startX = evt.mousePosition.x;
+                    startLeftWidth = left.resolvedStyle.width;
+                    splitter.CaptureMouse();
+                    evt.StopPropagation();
+                });
+
+                splitter.RegisterCallback<MouseMoveEvent>(evt =>
+                {
+                    if (!dragging) return;
+
+                    var mainWidth = main.resolvedStyle.width;
+                    var rightWidth = right.resolvedStyle.width;
+                    var dx = evt.mousePosition.x - startX;
+
+                    var maxLeft = mainWidth - rightWidth - minCenterWidth - splitterWidth - splitterWidth;
+                    var nextLeft = Mathf.Clamp(startLeftWidth + dx, minLeftWidth, maxLeft);
+                    left.style.width = nextLeft;
+                    evt.StopPropagation();
+                });
+
+                splitter.RegisterCallback<MouseUpEvent>(evt =>
+                {
+                    if (evt.button != 0) return;
+                    if (!dragging) return;
+                    dragging = false;
+                    splitter.ReleaseMouse();
+                    evt.StopPropagation();
+                });
+            }
+
+            void AttachRightSplitterDrag(VisualElement splitter)
+            {
+                var dragging = false;
+                var startX = 0f;
+                var startRightWidth = 0f;
+
+                splitter.RegisterCallback<MouseDownEvent>(evt =>
+                {
+                    if (evt.button != 0) return;
+                    dragging = true;
+                    startX = evt.mousePosition.x;
+                    startRightWidth = right.resolvedStyle.width;
+                    splitter.CaptureMouse();
+                    evt.StopPropagation();
+                });
+
+                splitter.RegisterCallback<MouseMoveEvent>(evt =>
+                {
+                    if (!dragging) return;
+
+                    var mainWidth = main.resolvedStyle.width;
+                    var leftWidth = left.resolvedStyle.width;
+                    var dx = evt.mousePosition.x - startX;
+
+                    var maxRight = mainWidth - leftWidth - minCenterWidth - splitterWidth - splitterWidth;
+                    var nextRight = Mathf.Clamp(startRightWidth - dx, minRightWidth, maxRight);
+                    right.style.width = nextRight;
+                    evt.StopPropagation();
+                });
+
+                splitter.RegisterCallback<MouseUpEvent>(evt =>
+                {
+                    if (evt.button != 0) return;
+                    if (!dragging) return;
+                    dragging = false;
+                    splitter.ReleaseMouse();
+                    evt.StopPropagation();
+                });
+            }
+
+            var splitterLC = CreateSplitter();
+            var splitterCR = CreateSplitter();
+            AttachLeftSplitterDrag(splitterLC);
+            AttachRightSplitterDrag(splitterCR);
 
             _entityListRoot = new VisualElement { style = { flexGrow = 1 } };
             _entityFiltersContainer = new VisualElement { style = { flexGrow = 0 } };
             _entityGroupsContainer = new ScrollView(ScrollViewMode.Vertical) { style = { flexGrow = 1 } };
 
+            _entityHeaderContainer = new VisualElement { style = { flexGrow = 0, flexDirection = FlexDirection.Row } };
+            _entityHeaderContainer.style.paddingLeft = 6;
+            _entityHeaderContainer.style.paddingRight = 6;
+            _entityHeaderContainer.style.paddingTop = 6;
+            _entityHeaderContainer.style.paddingBottom = 4;
+
+            _contextEditorButton = new Button(() => ContextEditorClicked?.Invoke()) { text = "强化/构筑" };
+            _contextEditorButton.style.flexGrow = 1;
+            _contextEditorButton.style.display = DisplayStyle.None;
+            _entityHeaderContainer.Add(_contextEditorButton);
+
             _entityListRoot.Add(_entityFiltersContainer);
+            _entityListRoot.Add(_entityHeaderContainer);
             _entityListRoot.Add(_entityGroupsContainer);
             left.Add(_entityListRoot);
 
@@ -273,7 +404,9 @@ namespace AbilityKit.Ability.Explain.Editor
             _forestRenderer = new ExplainForestRenderer(_forestView, nodeRowFactory, (d, expand) => DiscoveryToggleRequested?.Invoke(d, expand));
 
             main.Add(left);
+            main.Add(splitterLC);
             main.Add(center);
+            main.Add(splitterCR);
             main.Add(right);
 
             _root.Add(main);

@@ -9,6 +9,14 @@
         "com.abilitykit.core": "0.0.1"
       }
     },
+    "com.abilitykit.ability.explain": {
+      "version": "file:com.abilitykit.ability.explain",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "0.0.1"
+      }
+    },
     "com.abilitykit.ability.runtime": {
       "version": "file:com.abilitykit.ability.runtime",
       "depth": 0,

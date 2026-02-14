@@ -10,6 +10,10 @@ namespace AbilityKit.Ability.Explain.Editor
         public const int EntityRowHeight = 20;
         public const int DiscoveryRowHeight = 22;
 
+        private static readonly Color DiffAddedColor = new Color(0.2f, 0.85f, 0.45f, 0.16f);
+        private static readonly Color DiffRemovedColor = new Color(0.95f, 0.35f, 0.35f, 0.16f);
+        private static readonly Color DiffChangedColor = new Color(0.95f, 0.75f, 0.25f, 0.16f);
+
         public static Color GetSeverityColor(ExplainSeverity severity)
         {
             switch (severity)
@@ -74,6 +78,31 @@ namespace AbilityKit.Ability.Explain.Editor
             row.style.paddingLeft = Padding + indent * 16;
             row.style.paddingRight = Padding;
             row.style.height = EntityRowHeight;
+        }
+
+        public static void ApplyDiffBadge(Label label, ExplainDiffKind kind)
+        {
+            label.style.width = 14;
+            label.style.marginRight = 6;
+            label.style.unityTextAlign = TextAnchor.MiddleCenter;
+            label.style.unityFontStyleAndWeight = FontStyle.Bold;
+            label.style.opacity = kind == ExplainDiffKind.None ? 0f : 1f;
+        }
+
+        public static void ApplyDiffRowBackground(VisualElement row, ExplainDiffKind kind)
+        {
+            switch (kind)
+            {
+                case ExplainDiffKind.Added:
+                    row.style.backgroundColor = DiffAddedColor;
+                    break;
+                case ExplainDiffKind.Removed:
+                    row.style.backgroundColor = DiffRemovedColor;
+                    break;
+                case ExplainDiffKind.Changed:
+                    row.style.backgroundColor = DiffChangedColor;
+                    break;
+            }
         }
 
         public static void ApplyDiscoveryRow(VisualElement row)

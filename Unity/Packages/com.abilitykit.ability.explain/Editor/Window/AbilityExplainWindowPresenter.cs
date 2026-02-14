@@ -25,6 +25,7 @@ namespace AbilityKit.Ability.Explain.Editor
             _view.RefreshClicked += OnRefreshClicked;
             _view.OptionsChanged += OnOptionsChanged;
             _view.EntitySelected += OnEntitySelected;
+            _view.ContextEditorClicked += OnContextEditorClicked;
             _view.NodeInvoked += OnNodeInvoked;
             _view.NodeContextMenuPopulateRequested += OnNodeContextMenuPopulateRequested;
             _view.DiscoveryToggleRequested += OnDiscoveryToggleRequested;
@@ -40,6 +41,7 @@ namespace AbilityKit.Ability.Explain.Editor
             _view.RefreshClicked -= OnRefreshClicked;
             _view.OptionsChanged -= OnOptionsChanged;
             _view.EntitySelected -= OnEntitySelected;
+            _view.ContextEditorClicked -= OnContextEditorClicked;
             _view.NodeInvoked -= OnNodeInvoked;
             _view.NodeContextMenuPopulateRequested -= OnNodeContextMenuPopulateRequested;
             _view.DiscoveryToggleRequested -= OnDiscoveryToggleRequested;
@@ -65,8 +67,30 @@ namespace AbilityKit.Ability.Explain.Editor
         private void OnEntitySelected(PipelineItemKey key)
         {
             _state.SelectedEntity = key;
+            _state.ResolveContext = ExplainResolveContext.For(key);
             RefreshEntities();
             RefreshForest();
+        }
+
+        private void OnContextEditorClicked()
+        {
+            if (_state.SelectedEntity == null) return;
+            if (!_state.ResolveContextIsBoundToSelectedEntity)
+            {
+                _state.ResolveContext = ExplainResolveContext.For(_state.SelectedEntity.Value);
+            }
+
+            var key = _state.SelectedEntity.Value;
+            var provider = AbilityExplainRegistry.GetContextEditorProvider(in key);
+            if (provider == null) return;
+
+            var title = provider.GetWindowTitle(in key);
+            var window = AbilityExplainContextEditorWindow.Open(title, content: null);
+            if (window == null) return;
+
+            var ctx = new ExplainContextEditorContext(key, _state.ResolveContext, RefreshForest, window.Close);
+            var content = provider.BuildEditor(ctx);
+            window.SetContent(content);
         }
 
         private void OnNodeInvoked(ExplainNode node, bool isDoubleClick)
@@ -208,10 +232,87 @@ namespace AbilityKit.Ability.Explain.Editor
         {
             if (action == null || action.NavigateTo == null) return;
 
+            if (TryHandleInWindowNavigation(action.NavigateTo)) return;
+
             var nav = AbilityExplainRegistry.GetNavigator();
             if (nav == null) return;
             if (!nav.CanNavigate(action.NavigateTo)) return;
             nav.Navigate(action.NavigateTo);
+        }
+
+        private bool TryHandleInWindowNavigation(NavigationTarget target)
+        {
+            if (target == null) return false;
+
+            if (target.Kind == "open_editor" && target.EditorId == "focus_tree")
+            {
+                if (target.Extra == null) return true;
+                target.Extra.TryGetValue("type", out var type);
+                target.Extra.TryGetValue("id", out var id);
+
+                if (string.IsNullOrEmpty(type) || string.IsNullOrEmpty(id)) return true;
+
+                if (!_view.IncludeDiscovered)
+                {
+                    _view.SetIncludeDiscoveredWithoutNotify(true);
+                    RefreshForest();
+                }
+
+                if (_lastResolveResult == null || _lastResolveResult.Forest == null)
+                {
+                    RefreshForest();
+                }
+
+                var k = new PipelineItemKey(type, id);
+                _view.TryFocusDiscovery(in k);
+
+                var forest = _lastResolveResult != null ? _lastResolveResult.Forest : null;
+                if (forest?.Discovered == null || forest.Discovered.Count <= 0) return true;
+
+                ExplainTreeDiscovery discovery = null;
+                for (var i = 0; i < forest.Discovered.Count; i++)
+                {
+                    var d = forest.Discovered[i];
+                    if (d == null) continue;
+                    if (d.Key.Type == k.Type && d.Key.Id == k.Id)
+                    {
+                        discovery = d;
+                        break;
+                    }
+                }
+
+                if (discovery == null) return true;
+
+                var request = ExplainExpandRequest.For(discovery.Key, options: BuildResolveOptions());
+                var resolver = AbilityExplainRegistry.GetResolverForExpand(request);
+                if (resolver == null) return true;
+                if (!resolver.TryExpandDiscoveredRoot(request, out var root) || root == null) return true;
+
+                _view.SetDiscoveryExpanded(discovery, root);
+
+                var nested = CollectNestedDiscoveries(root);
+                if (nested != null && nested.Count > 0)
+                {
+                    _view.AppendOrUpdateDiscoveries(nested);
+                }
+
+                if (root.Root != null)
+                {
+                    _state.SelectedNode = root.Root;
+
+                    var dk = $"{k.Type}:{k.Id}";
+                    if (!string.IsNullOrEmpty(root.Root.NodeId))
+                    {
+                        _view.SetSelectedNodeId($"d:{dk}/{root.Root.NodeId}");
+                    }
+
+                    _view.RenderNodeDetails(root.Root);
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         private void RefreshEntities()
@@ -270,6 +371,7 @@ namespace AbilityKit.Ability.Explain.Editor
                 if (!found) selected = null;
             }
 
+            RefreshContextEditorButton(selected);
             _view.RenderEntityGroups(groups, selected);
 
             if (!selected.HasValue)
@@ -303,11 +405,17 @@ namespace AbilityKit.Ability.Explain.Editor
             _view.ClearForest();
             _view.ClearDetails();
             _view.ClearIssues();
+            _view.SetForestDiffMap(null);
 
             if (_state.SelectedEntity == null)
             {
                 _view.RenderMissingSetupHint();
                 return;
+            }
+
+            if (!_state.ResolveContextIsBoundToSelectedEntity)
+            {
+                _state.ResolveContext = ExplainResolveContext.For(_state.SelectedEntity.Value);
             }
 
             var resolver = AbilityExplainRegistry.GetResolver();
@@ -317,18 +425,56 @@ namespace AbilityKit.Ability.Explain.Editor
                 return;
             }
 
-            var request = ExplainResolveRequest.For(_state.SelectedEntity.Value, options: BuildResolveOptions());
+            var request = ExplainResolveRequest.For(_state.SelectedEntity.Value, context: _state.ResolveContext, options: BuildResolveOptions());
             if (!resolver.TryResolve(request, out var result) || result == null || result.Forest == null)
             {
                 _view.RenderMissingSetupHint();
                 return;
             }
 
+            var forestToRender = result.Forest;
+            if (IsShowDiffEnabled(_state.ResolveContext))
+            {
+                var baseCtx = ExplainResolveContext.For(_state.SelectedEntity.Value);
+                var baseReq = ExplainResolveRequest.For(_state.SelectedEntity.Value, context: baseCtx, options: BuildResolveOptions());
+                if (resolver.TryResolve(baseReq, out var baseResult) && baseResult != null && baseResult.Forest != null)
+                {
+                    var diffMap = ExplainForestDiff.BuildDiffMap(baseResult.Forest, result.Forest);
+                    forestToRender = ExplainForestDiff.BuildForestWithRemoved(baseResult.Forest, result.Forest, diffMap);
+                    _view.SetForestDiffMap(diffMap);
+                }
+            }
+
             _lastResolveRequest = request;
             _lastResolveResult = result;
 
-            _view.RenderForest(result.Forest);
+            _view.RenderForest(forestToRender);
             _view.RenderIssues(result.Issues);
+        }
+
+        private static bool IsShowDiffEnabled(ExplainResolveContext ctx)
+        {
+            if (ctx?.Values == null) return false;
+            return ctx.Values.TryGetValue("ui_show_diff", out var v) && v == "1";
+        }
+
+        private void RefreshContextEditorButton(PipelineItemKey? selected)
+        {
+            if (!selected.HasValue)
+            {
+                _view.SetContextEditorButton(null, visible: false);
+                return;
+            }
+
+            var key = selected.Value;
+            var p = AbilityExplainRegistry.GetContextEditorProvider(in key);
+            if (p == null)
+            {
+                _view.SetContextEditorButton(null, visible: false);
+                return;
+            }
+
+            _view.SetContextEditorButton(p.GetButtonText(in key), visible: true);
         }
 
         private ExplainResolveOptions BuildResolveOptions()
@@ -362,6 +508,19 @@ namespace AbilityKit.Ability.Explain.Editor
             public readonly List<PipelineItemKey> Entities = new List<PipelineItemKey>();
             public PipelineItemKey? SelectedEntity;
             public ExplainNode SelectedNode;
+
+            public ExplainResolveContext ResolveContext;
+
+            public bool ResolveContextIsBoundToSelectedEntity
+            {
+                get
+                {
+                    return SelectedEntity.HasValue
+                        && ResolveContext != null
+                        && ResolveContext.Key.Type == SelectedEntity.Value.Type
+                        && ResolveContext.Key.Id == SelectedEntity.Value.Id;
+                }
+            }
         }
     }
 }

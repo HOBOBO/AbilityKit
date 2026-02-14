@@ -15,6 +15,91 @@ namespace AbilityKit.Ability.Explain.Samples.MockIntegration
             AbilityExplainRegistry.Register(new MockNavigator());
             AbilityExplainRegistry.Register(new MockDiscoveryPolicy());
             AbilityExplainRegistry.Register(new MockEntityListModule());
+            AbilityExplainRegistry.Register(new MockContextEditorProvider());
+        }
+
+        private sealed class MockContextEditorProvider : IExplainContextEditorProvider
+        {
+            public int Priority => 0;
+
+            public bool CanEdit(in PipelineItemKey key)
+            {
+                return key.Type == "Ability";
+            }
+
+            public string GetButtonText(in PipelineItemKey key)
+            {
+                return "强化/构筑";
+            }
+
+            public string GetWindowTitle(in PipelineItemKey key)
+            {
+                return $"Build: {key}";
+            }
+
+            public UnityEngine.UIElements.VisualElement BuildEditor(ExplainContextEditorContext context)
+            {
+                var root = new UnityEngine.UIElements.VisualElement();
+                root.style.paddingLeft = 6;
+                root.style.paddingRight = 6;
+                root.style.paddingTop = 6;
+                root.style.paddingBottom = 6;
+                root.style.flexDirection = UnityEngine.UIElements.FlexDirection.Column;
+
+                if (context.ResolveContext.Values == null)
+                {
+                    context.ResolveContext.Values = new Dictionary<string, string>();
+                }
+
+                bool Has(string k) => context.ResolveContext.Values.TryGetValue(k, out var v) && v == "1";
+                void Set(string k, bool on)
+                {
+                    context.ResolveContext.Values[k] = on ? "1" : "0";
+                }
+
+                var title = new UnityEngine.UIElements.Label("Modifiers");
+                title.style.unityFontStyleAndWeight = UnityEngine.FontStyle.Bold;
+                title.style.marginBottom = 4;
+                root.Add(title);
+
+                var close = new UnityEngine.UIElements.Button(context.Close) { text = "Close" };
+                close.style.marginBottom = 6;
+                root.Add(close);
+
+                var tDiff = new UnityEngine.UIElements.Toggle("Show Diff") { value = Has("ui_show_diff") };
+                tDiff.RegisterCallback<UnityEngine.UIElements.ChangeEvent<bool>>(evt =>
+                {
+                    Set("ui_show_diff", evt.newValue);
+                    context.RequestResolve();
+                });
+                root.Add(tDiff);
+
+                var tDamage = new UnityEngine.UIElements.Toggle("Damage +20%") { value = Has("mod_damage_plus") };
+                tDamage.RegisterCallback<UnityEngine.UIElements.ChangeEvent<bool>>(evt =>
+                {
+                    Set("mod_damage_plus", evt.newValue);
+                    context.RequestResolve();
+                });
+                root.Add(tDamage);
+
+                var tSplit = new UnityEngine.UIElements.Toggle("Split Shot") { value = Has("mod_split_shot") };
+                tSplit.RegisterCallback<UnityEngine.UIElements.ChangeEvent<bool>>(evt =>
+                {
+                    Set("mod_split_shot", evt.newValue);
+                    context.RequestResolve();
+                });
+                root.Add(tSplit);
+
+                var tReplaceProjectile = new UnityEngine.UIElements.Toggle("Replace Projectile (700 -> 701)") { value = Has("mod_replace_projectile") };
+                tReplaceProjectile.RegisterCallback<UnityEngine.UIElements.ChangeEvent<bool>>(evt =>
+                {
+                    Set("mod_replace_projectile", evt.newValue);
+                    context.RequestResolve();
+                });
+                root.Add(tReplaceProjectile);
+
+                return root;
+            }
         }
 
         private sealed class MockDiscoveryPolicy : IDiscoveryPolicy
@@ -124,7 +209,20 @@ namespace AbilityKit.Ability.Explain.Samples.MockIntegration
             public bool TryResolve(ExplainResolveRequest request, out ExplainResolveResult result)
             {
                 var key = request != null ? request.Key : default;
-                if (_cache.TryGetValue(key, out var cachedForest))
+                var ctx = request != null ? request.Context : null;
+                var hasMods = ctx != null && ctx.Values != null && ctx.Values.Count > 0;
+                var cacheKey = key;
+
+                if (hasMods)
+                {
+                    var suffix = "";
+                    if (TryGetMod(ctx, "mod_damage_plus")) suffix += "+dmg";
+                    if (TryGetMod(ctx, "mod_split_shot")) suffix += "+split";
+                    if (TryGetMod(ctx, "mod_replace_projectile")) suffix += "+proj";
+                    if (!string.IsNullOrEmpty(suffix)) cacheKey = new PipelineItemKey(key.Type, key.Id + suffix);
+                }
+
+                if (_cache.TryGetValue(cacheKey, out var cachedForest))
                 {
                     result = ExplainResolveResult.FromForest(cachedForest);
                     result.CacheHit = true;
@@ -157,6 +255,23 @@ namespace AbilityKit.Ability.Explain.Samples.MockIntegration
                 projectileRef.Source = ExplainSourceRef.TableRow("SkillTimeline", "9001", "event[2]");
                 projectileRef.Actions.Add(ExplainAction.Navigate("打开表行", NavigationTarget.OpenTableRow("Projectile", "700")));
                 projectileRef.Actions.Add(ExplainAction.Navigate("跳转到子弹树", NavigationTarget.OpenEditor("focus_tree", new Dictionary<string, string> { { "type", "Projectile" }, { "id", "700" } })));
+
+                if (TryGetMod(ctx, "mod_replace_projectile"))
+                {
+                    projectileRef.Title = "发射子弹 (Projectile#701)";
+                    projectileRef.NodeId = ExplainNodeId.FromParts("mock_proj", "Projectile", "701");
+                    projectileRef.Actions.Clear();
+                    projectileRef.Actions.Add(ExplainAction.Navigate("打开表行", NavigationTarget.OpenTableRow("Projectile", "701")));
+                    projectileRef.Actions.Add(ExplainAction.Navigate("跳转到子弹树", NavigationTarget.OpenEditor("focus_tree", new Dictionary<string, string> { { "type", "Projectile" }, { "id", "701" } })));
+                }
+
+                if (TryGetMod(ctx, "mod_split_shot"))
+                {
+                    var split = ExplainNode.Create("词条：分裂射击 x3");
+                    split.Kind = "modifier";
+                    split.SummaryLines.Add("示例：子弹命中后分裂") ;
+                    projectileRef.Children.Add(split);
+                }
 
                 var timelineNode = ExplainNode.Create("时间轴 (SkillTimeline#9001)");
                 timelineNode.NodeId = ExplainNodeId.FromParts("mock_timeline", "SkillTimeline", "9001");
@@ -199,7 +314,9 @@ namespace AbilityKit.Ability.Explain.Samples.MockIntegration
                 var damage = ExplainNode.Create("造成伤害 (Damage)");
                 damage.NodeId = ExplainNodeId.FromParts("mock_damage", "Damage", "500");
                 damage.Kind = "effect";
-                damage.SummaryLines.Add("基础 120 + 系数 0.8AP");
+                var dmgLine = "基础 120 + 系数 0.8AP";
+                if (TryGetMod(ctx, "mod_damage_plus")) dmgLine += " (x1.2)";
+                damage.SummaryLines.Add(dmgLine);
                 damage.Source = ExplainSourceRef.TableRow("SkillTimeline", "9001", "event[3]");
                 damage.Actions.Add(ExplainAction.Navigate("打开表行", NavigationTarget.OpenTableRow("Damage", "500")));
 
@@ -233,13 +350,19 @@ namespace AbilityKit.Ability.Explain.Samples.MockIntegration
                     PrefetchDiscoveries(forest, forest.Roots);
                 }
 
-                _cache[key] = forest;
+                _cache[cacheKey] = forest;
                 result = ExplainResolveResult.FromForest(forest);
                 result.CacheHit = false;
                 result.Debug = "Mock resolver: built new forest";
 
                 AppendMockIssues(result, key, cond.NodeId, projectileRef.NodeId);
                 return true;
+            }
+
+            private static bool TryGetMod(ExplainResolveContext ctx, string key)
+            {
+                if (ctx == null || ctx.Values == null) return false;
+                return ctx.Values.TryGetValue(key, out var v) && v == "1";
             }
 
             private static void PrefetchDiscoveries(ExplainForest forest, List<ExplainTreeRoot> roots)

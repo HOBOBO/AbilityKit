@@ -8,6 +8,7 @@ namespace AbilityKit.Ability.Explain.Editor
         private static readonly List<IEntityProvider> EntityProviders = new List<IEntityProvider>();
         private static readonly List<IExplainResolver> Resolvers = new List<IExplainResolver>();
         private static readonly List<INavigator> Navigators = new List<INavigator>();
+        private static readonly List<IExplainContextEditorProvider> ContextEditorProviders = new List<IExplainContextEditorProvider>();
         private static readonly List<IExplainDetailsSectionProvider> DetailsSectionProviders = new List<IExplainDetailsSectionProvider>();
         private static readonly List<IDiscoveryPolicy> DiscoveryPolicies = new List<IDiscoveryPolicy>();
         private static readonly List<IExplainEntityListModule> EntityListModules = new List<IExplainEntityListModule>();
@@ -29,6 +30,12 @@ namespace AbilityKit.Ability.Explain.Editor
         {
             if (navigator == null) return;
             if (!Navigators.Contains(navigator)) Navigators.Add(navigator);
+        }
+
+        public static void Register(IExplainContextEditorProvider provider)
+        {
+            if (provider == null) return;
+            if (!ContextEditorProviders.Contains(provider)) ContextEditorProviders.Add(provider);
         }
 
         public static void Register(IExplainDetailsSectionProvider provider)
@@ -73,6 +80,30 @@ namespace AbilityKit.Ability.Explain.Editor
                 if (p == null) continue;
 
                 if (p is IEntityProviderEx ex && !ex.CanProvide(searchText)) continue;
+
+                var pri = GetPriority(p);
+                if (best == null || pri > bestPriority)
+                {
+                    best = p;
+                    bestPriority = pri;
+                }
+            }
+
+            return best;
+        }
+
+        public static IExplainContextEditorProvider GetContextEditorProvider(in PipelineItemKey key)
+        {
+            if (ContextEditorProviders.Count <= 0) return null;
+
+            IExplainContextEditorProvider best = null;
+            var bestPriority = int.MinValue;
+
+            for (var i = 0; i < ContextEditorProviders.Count; i++)
+            {
+                var p = ContextEditorProviders[i];
+                if (p == null) continue;
+                if (!p.CanEdit(in key)) continue;
 
                 var pri = GetPriority(p);
                 if (best == null || pri > bestPriority)

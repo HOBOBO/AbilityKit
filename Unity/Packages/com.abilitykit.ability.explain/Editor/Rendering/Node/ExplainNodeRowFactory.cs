@@ -15,10 +15,16 @@ namespace AbilityKit.Ability.Explain.Editor
             _onContextMenuPopulate = onContextMenuPopulate;
         }
 
-        public VisualElement Create(ExplainNode node, int indent)
+        public VisualElement Create(ExplainNode node, int indent, ExplainDiffKind diffKind)
         {
             var row = new VisualElement();
             AbilityExplainStyles.ApplyNodeRow(row, indent);
+
+            AbilityExplainStyles.ApplyDiffRowBackground(row, diffKind);
+
+            var diff = new Label(DiffToText(diffKind));
+            AbilityExplainStyles.ApplyDiffBadge(diff, diffKind);
+            row.Add(diff);
 
             var badge = new VisualElement();
             AbilityExplainStyles.ApplySeverityBadge(badge, node.Severity);
@@ -42,6 +48,21 @@ namespace AbilityKit.Ability.Explain.Editor
             }
 
             return row;
+        }
+
+        private static string DiffToText(ExplainDiffKind kind)
+        {
+            switch (kind)
+            {
+                case ExplainDiffKind.Added:
+                    return "+";
+                case ExplainDiffKind.Removed:
+                    return "-";
+                case ExplainDiffKind.Changed:
+                    return "~";
+                default:
+                    return string.Empty;
+            }
         }
     }
 }
