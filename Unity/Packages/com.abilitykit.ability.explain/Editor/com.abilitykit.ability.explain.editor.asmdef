@@ -1,0 +1,17 @@
+{
+  "name": "AbilityKit.Ability.Explain.Editor",
+  "references": [
+    "AbilityKit.Ability.Explain"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

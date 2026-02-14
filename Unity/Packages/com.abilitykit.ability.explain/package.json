@@ -1,0 +1,20 @@
+{
+  "name": "com.abilitykit.ability.explain",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Ability Explain",
+  "unity": "2022.3",
+  "description": "Editor explain/inspect framework (forest/tree + navigation protocol) for config-driven abilities.",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "samples": [
+    {
+      "displayName": "Mock Integration",
+      "description": "Mock provider/resolver/navigator for verifying the Ability Explain window UI skeleton.",
+      "path": "Samples~/MockIntegration"
+    }
+  ],
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1"
+  }
+}
