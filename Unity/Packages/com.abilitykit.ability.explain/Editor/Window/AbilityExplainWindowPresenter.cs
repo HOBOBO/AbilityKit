@@ -9,14 +9,59 @@ namespace AbilityKit.Ability.Explain.Editor
         private readonly AbilityExplainWindowView _view;
         private readonly AbilityExplainWindowState _state = new AbilityExplainWindowState();
 
+        private AbilityExplainContextEditorWindow _contextEditorWindow;
+
         private IExplainEntityListModule _entityListModule;
 
         private ExplainResolveRequest _lastResolveRequest;
         private ExplainResolveResult _lastResolveResult;
+        private ExplainForest _lastForest;
+        private bool _relationMode;
+
+        private readonly Dictionary<string, ExplainTreeRoot> _relationExpandedRoots = new Dictionary<string, ExplainTreeRoot>();
 
         public AbilityExplainWindowPresenter(AbilityExplainWindowView view)
         {
             _view = view;
+        }
+
+        private void OnRelationEntityInvoked(PipelineItemKey key)
+        {
+            if (string.IsNullOrEmpty(key.Type) || string.IsNullOrEmpty(key.Id)) return;
+
+            if (_relationMode)
+            {
+                if (TryExpandDiscoveredInline(in key)) return;
+            }
+
+            if (_relationMode)
+            {
+                _relationMode = false;
+                _view.SetRelationModeWithoutNotify(false);
+            }
+
+            var extra = new Dictionary<string, string> { { "type", key.Type }, { "id", key.Id } };
+            ExecuteAction(ExplainAction.Navigate("Focus", NavigationTarget.OpenEditor("focus_tree", extra)));
+        }
+
+        private bool TryExpandDiscoveredInline(in PipelineItemKey key)
+        {
+            var request = ExplainExpandRequest.For(key, options: BuildResolveOptions());
+            var resolver = AbilityExplainRegistry.GetResolverForExpand(request);
+            if (resolver == null) return false;
+            if (!resolver.TryExpandDiscoveredRoot(request, out var root) || root == null || root.Root == null) return false;
+
+            _state.SelectedNode = root.Root;
+            _view.RenderNodeDetails(root.Root);
+
+            if (_relationMode && _lastForest != null)
+            {
+                var k = key.ToString();
+                if (!string.IsNullOrEmpty(k)) _relationExpandedRoots[k] = root;
+                _view.RenderRelation(_lastForest, _relationExpandedRoots);
+            }
+
+            return true;
         }
 
         public void Initialize()
@@ -24,6 +69,8 @@ namespace AbilityKit.Ability.Explain.Editor
             _view.SearchChanged += OnSearchChanged;
             _view.RefreshClicked += OnRefreshClicked;
             _view.OptionsChanged += OnOptionsChanged;
+            _view.RelationModeChanged += OnRelationModeChanged;
+            _view.RelationEntityInvoked += OnRelationEntityInvoked;
             _view.EntitySelected += OnEntitySelected;
             _view.ContextEditorClicked += OnContextEditorClicked;
             _view.NodeInvoked += OnNodeInvoked;
@@ -40,6 +87,8 @@ namespace AbilityKit.Ability.Explain.Editor
             _view.SearchChanged -= OnSearchChanged;
             _view.RefreshClicked -= OnRefreshClicked;
             _view.OptionsChanged -= OnOptionsChanged;
+            _view.RelationModeChanged -= OnRelationModeChanged;
+            _view.RelationEntityInvoked -= OnRelationEntityInvoked;
             _view.EntitySelected -= OnEntitySelected;
             _view.ContextEditorClicked -= OnContextEditorClicked;
             _view.NodeInvoked -= OnNodeInvoked;
@@ -47,6 +96,41 @@ namespace AbilityKit.Ability.Explain.Editor
             _view.DiscoveryToggleRequested -= OnDiscoveryToggleRequested;
             _view.ActionInvoked -= OnActionInvoked;
             _view.IssueInvoked -= OnIssueInvoked;
+
+            if (_contextEditorWindow != null)
+            {
+                _contextEditorWindow.Close();
+                _contextEditorWindow = null;
+            }
+        }
+
+        private void OnContextEditorClicked()
+        {
+            if (!_state.SelectedEntity.HasValue) return;
+
+            var key = _state.SelectedEntity.Value;
+            var p = AbilityExplainRegistry.GetContextEditorProvider(in key);
+            if (p == null) return;
+
+            if (_contextEditorWindow != null)
+            {
+                _contextEditorWindow.Close();
+                _contextEditorWindow = null;
+            }
+
+            var ctx = new ExplainContextEditorContext(
+                in key,
+                _state.ResolveContext,
+                requestResolve: () => RefreshForest(),
+                close: () =>
+                {
+                    if (_contextEditorWindow == null) return;
+                    _contextEditorWindow.Close();
+                    _contextEditorWindow = null;
+                });
+
+            var content = p.BuildEditor(ctx);
+            _contextEditorWindow = AbilityExplainContextEditorWindow.Open(p.GetWindowTitle(in key), content);
         }
 
         private void OnSearchChanged(string _)
@@ -64,33 +148,32 @@ namespace AbilityKit.Ability.Explain.Editor
             RefreshForest();
         }
 
+        private void OnRelationModeChanged(bool enabled)
+        {
+            _relationMode = enabled;
+            _view.SetRelationMode(enabled);
+
+            if (_lastForest != null)
+            {
+                if (_relationMode)
+                {
+                    _view.ClearForest();
+                    _view.RenderRelation(_lastForest);
+                }
+                else
+                {
+                    _view.ClearRelation();
+                    _view.RenderForest(_lastForest);
+                }
+            }
+        }
+
         private void OnEntitySelected(PipelineItemKey key)
         {
             _state.SelectedEntity = key;
             _state.ResolveContext = ExplainResolveContext.For(key);
             RefreshEntities();
             RefreshForest();
-        }
-
-        private void OnContextEditorClicked()
-        {
-            if (_state.SelectedEntity == null) return;
-            if (!_state.ResolveContextIsBoundToSelectedEntity)
-            {
-                _state.ResolveContext = ExplainResolveContext.For(_state.SelectedEntity.Value);
-            }
-
-            var key = _state.SelectedEntity.Value;
-            var provider = AbilityExplainRegistry.GetContextEditorProvider(in key);
-            if (provider == null) return;
-
-            var title = provider.GetWindowTitle(in key);
-            var window = AbilityExplainContextEditorWindow.Open(title, content: null);
-            if (window == null) return;
-
-            var ctx = new ExplainContextEditorContext(key, _state.ResolveContext, RefreshForest, window.Close);
-            var content = provider.BuildEditor(ctx);
-            window.SetContent(content);
         }
 
         private void OnNodeInvoked(ExplainNode node, bool isDoubleClick)
@@ -181,9 +264,9 @@ namespace AbilityKit.Ability.Explain.Editor
 
                 if (n.Actions != null)
                 {
-                    foreach (var a in n.Actions)
+                    for (var i = 0; i < n.Actions.Count; i++)
                     {
-                        var t = a != null ? a.NavigateTo : null;
+                        var t = n.Actions[i] != null ? n.Actions[i].NavigateTo : null;
                         if (t != null && t.Kind == "open_table_row")
                         {
                             AddKey(t.TableName, t.RowId);
@@ -192,7 +275,10 @@ namespace AbilityKit.Ability.Explain.Editor
                 }
 
                 if (n.Children == null) return;
-                foreach (var c in n.Children) Walk(c);
+                for (var i = 0; i < n.Children.Count; i++)
+                {
+                    Walk(n.Children[i]);
+                }
             }
 
             Walk(expandedRoot.Root);
@@ -403,6 +489,7 @@ namespace AbilityKit.Ability.Explain.Editor
         private void RefreshForest()
         {
             _view.ClearForest();
+            _view.ClearRelation();
             _view.ClearDetails();
             _view.ClearIssues();
             _view.SetForestDiffMap(null);
@@ -447,8 +534,18 @@ namespace AbilityKit.Ability.Explain.Editor
 
             _lastResolveRequest = request;
             _lastResolveResult = result;
+            _lastForest = result.Forest;
 
-            _view.RenderForest(forestToRender);
+            _view.SetDetailsContext(new ExplainDetailsContext(request, result));
+
+            if (_relationMode)
+            {
+                _view.RenderRelation(result.Forest);
+            }
+            else
+            {
+                _view.RenderForest(result.Forest);
+            }
             _view.RenderIssues(result.Issues);
         }
 

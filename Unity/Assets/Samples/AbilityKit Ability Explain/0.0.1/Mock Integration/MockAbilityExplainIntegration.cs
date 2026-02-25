@@ -469,12 +469,12 @@ namespace AbilityKit.Ability.Explain.Samples.MockIntegration
             {
                 if (result == null) return;
 
-                var warn = ExplainIssue.Create(ExplainSeverity.Warning, "Timeline event missing", $"Ability {key} has a missing timeline event.");
+                var warn = ExplainIssue.Create(ExplainSeverity.Warning, "示例：技能时间轴缺少事件", $"Ability {key} has a missing timeline event.");
                 warn.NodeId = condNodeId;
                 warn.Source = ExplainSourceRef.TableRow("SkillTimeline", "9001", "event[3]");
                 result.Issues.Add(warn);
 
-                var err = ExplainIssue.Create(ExplainSeverity.Error, "Projectile not found", "Referenced projectile id=700 is missing in projectile table.");
+                var err = ExplainIssue.Create(ExplainSeverity.Error, "示例：子弹配置找不到", "Referenced projectile id=700 is missing in projectile table.");
                 err.NodeId = projectileNodeId;
                 err.NavigateTo = NavigationTarget.OpenTableRow("Projectile", "700");
                 result.Issues.Add(err);

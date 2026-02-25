@@ -28,7 +28,7 @@ namespace AbilityKit.Ability.Explain.Editor
 
             _issuesView.Clear();
 
-            var header = new Label("Issues")
+            var header = new Label("问题")
             {
                 style =
                 {
@@ -43,7 +43,7 @@ namespace AbilityKit.Ability.Explain.Editor
 
             if (issues == null || issues.Count <= 0)
             {
-                var empty = new Label("(none)")
+                var empty = new Label("（无）")
                 {
                     style =
                     {

@@ -230,7 +230,9 @@ namespace AbilityKit.Ability.Explain.Editor
             if (r.Row == null || r.Node == null) return false;
 
             node = r.Node;
-            _forestView.ScrollTo(r.Row);
+            var scrollTarget = GetScrollTarget(r.Row);
+            if (scrollTarget == null) return false;
+            _forestView.ScrollTo(scrollTarget);
 
             SetSelectedNodeId(nodeId);
 
@@ -250,8 +252,27 @@ namespace AbilityKit.Ability.Explain.Editor
             if (!_discoveryIndex.TryGetValue(dk, out var r) || r.Row == null) return false;
 
             SetSelectedDiscoveryKey(dk);
-            _forestView.ScrollTo(r.Row);
+            var scrollTarget = GetScrollTarget(r.Row);
+            if (scrollTarget == null) return false;
+            _forestView.ScrollTo(scrollTarget);
             return true;
+        }
+
+        private VisualElement GetScrollTarget(VisualElement element)
+        {
+            if (_forestView == null || element == null) return null;
+
+            var c = _forestView.contentContainer;
+            if (c == null) return null;
+
+            var cur = element;
+            while (cur != null)
+            {
+                if (cur.parent == c) return cur;
+                cur = cur.parent;
+            }
+
+            return null;
         }
 
         public void SetSelectedNodeId(string nodeId)

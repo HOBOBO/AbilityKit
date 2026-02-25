@@ -7,11 +7,11 @@ namespace AbilityKit.Ability.Explain.Editor
     {
         private AbilityExplainWindowPresenter _presenter;
 
-        [MenuItem("Tools/Ability Explain")]
+        [MenuItem("Tools/技能解释器")]
         public static void Open()
         {
             var w = GetWindow<AbilityExplainWindow>();
-            w.titleContent = new GUIContent("Ability Explain");
+            w.titleContent = new GUIContent("技能解释器");
             w.minSize = new Vector2(1100, 650);
         }
 

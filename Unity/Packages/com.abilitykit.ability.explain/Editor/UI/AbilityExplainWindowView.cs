@@ -13,17 +13,20 @@ namespace AbilityKit.Ability.Explain.Editor
         private TextField _searchField;
         private Toggle _includeDiscoveredToggle;
         private IntegerField _maxDepthField;
+        private Toggle _relationToggle;
         private VisualElement _entityListRoot;
         private VisualElement _entityFiltersContainer;
         private VisualElement _entityHeaderContainer;
         private Button _contextEditorButton;
         private ScrollView _entityGroupsContainer;
         private ScrollView _forestView;
+        private ScrollView _relationView;
         private ScrollView _detailsView;
         private ScrollView _issuesView;
         private ScrollView _debugView;
 
         private ExplainForestRenderer _forestRenderer;
+        private ExplainRelationRenderer _relationRenderer;
         private ExplainDetailsRenderer _detailsRenderer;
         private ExplainIssuesRenderer _issuesRenderer;
         private ExplainDebugRenderer _debugRenderer;
@@ -33,6 +36,8 @@ namespace AbilityKit.Ability.Explain.Editor
         public event Action<string> SearchChanged;
         public event Action RefreshClicked;
         public event Action OptionsChanged;
+        public event Action<bool> RelationModeChanged;
+        public event Action<PipelineItemKey> RelationEntityInvoked;
         public event Action<PipelineItemKey> EntitySelected;
         public event Action ContextEditorClicked;
         public event Action<ExplainNode, bool> NodeInvoked;
@@ -161,6 +166,18 @@ namespace AbilityKit.Ability.Explain.Editor
             _forestRenderer?.Render(forest);
         }
 
+        public void ClearRelation() => _relationRenderer?.Clear();
+
+        public void RenderRelation(ExplainForest forest)
+        {
+            RenderRelation(forest, null);
+        }
+
+        public void RenderRelation(ExplainForest forest, Dictionary<string, ExplainTreeRoot> expandedRoots)
+        {
+            _relationRenderer?.Render(forest, expandedRoots);
+        }
+
         public void SetForestDiffMap(Dictionary<string, ExplainDiffKind> diffMap)
         {
             _forestRenderer?.SetDiffMap(diffMap);
@@ -238,23 +255,30 @@ namespace AbilityKit.Ability.Explain.Editor
 
             _searchField = new TextField { value = string.Empty };
             _searchField.style.flexGrow = 1;
+            _searchField.style.flexShrink = 1;
+            _searchField.style.minWidth = 140;
             _searchField.RegisterValueChangedCallback(evt => SearchChanged?.Invoke(evt.newValue));
             toolbar.Add(_searchField);
 
-            _includeDiscoveredToggle = new Toggle("Discovered") { value = true };
-            _includeDiscoveredToggle.style.marginLeft = 8;
-            _includeDiscoveredToggle.RegisterValueChangedCallback(_ => OptionsChanged?.Invoke());
-            toolbar.Add(_includeDiscoveredToggle);
+            // _includeDiscoveredToggle = new Toggle("自发现") { value = true };
+            // _includeDiscoveredToggle.style.marginLeft = 8;
+            // _includeDiscoveredToggle.RegisterValueChangedCallback(_ => OptionsChanged?.Invoke());
+            // toolbar.Add(_includeDiscoveredToggle);
 
-            _maxDepthField = new IntegerField("MaxDepth") { value = 0 };
-            _maxDepthField.style.marginLeft = 8;
-            _maxDepthField.style.width = 140;
-            _maxDepthField.RegisterValueChangedCallback(_ => OptionsChanged?.Invoke());
-            toolbar.Add(_maxDepthField);
+            // _maxDepthField = new IntegerField("最大深度") { value = 0 };
+            // _maxDepthField.style.marginLeft = 8;
+            // _maxDepthField.style.width = 140;
+            // _maxDepthField.RegisterValueChangedCallback(_ => OptionsChanged?.Invoke());
+            // toolbar.Add(_maxDepthField);
 
-            var refreshBtn = new Button(() => RefreshClicked?.Invoke()) { text = "刷新" };
-            refreshBtn.style.marginLeft = 8;
-            toolbar.Add(refreshBtn);
+            _relationToggle = new Toggle("关系图") { value = false };
+            _relationToggle.style.marginLeft = 8;
+            _relationToggle.RegisterValueChangedCallback(evt => RelationModeChanged?.Invoke(evt.newValue));
+            toolbar.Add(_relationToggle);
+
+            // var refreshBtn = new Button(() => RefreshClicked?.Invoke()) { text = "刷新" };
+            // refreshBtn.style.marginLeft = 8;
+            // toolbar.Add(refreshBtn);
 
             _root.Add(toolbar);
 
@@ -386,6 +410,9 @@ namespace AbilityKit.Ability.Explain.Editor
             _forestView = new ScrollView(ScrollViewMode.Vertical) { style = { flexGrow = 1 } };
             center.Add(_forestView);
 
+            _relationView = new ScrollView(ScrollViewMode.Vertical) { style = { flexGrow = 1, display = DisplayStyle.None } };
+            center.Add(_relationView);
+
             _detailsView = new ScrollView(ScrollViewMode.Vertical) { style = { flexGrow = 1 } };
             right.Add(_detailsView);
 
@@ -402,6 +429,13 @@ namespace AbilityKit.Ability.Explain.Editor
                 (n, dbl) => NodeInvoked?.Invoke(n, dbl),
                 (n, menu) => NodeContextMenuPopulateRequested?.Invoke(n, menu));
             _forestRenderer = new ExplainForestRenderer(_forestView, nodeRowFactory, (d, expand) => DiscoveryToggleRequested?.Invoke(d, expand));
+            _relationRenderer = new ExplainRelationRenderer(_relationView, nodeId =>
+            {
+                if (!string.IsNullOrEmpty(nodeId) && TryFocusNode(nodeId, out var _))
+                {
+                    SetSelectedNodeId(nodeId);
+                }
+            }, key => RelationEntityInvoked?.Invoke(key));
 
             main.Add(left);
             main.Add(splitterLC);
@@ -410,6 +444,18 @@ namespace AbilityKit.Ability.Explain.Editor
             main.Add(right);
 
             _root.Add(main);
+        }
+
+        public void SetRelationMode(bool enabled)
+        {
+            if (_forestView != null) _forestView.style.display = enabled ? DisplayStyle.None : DisplayStyle.Flex;
+            if (_relationView != null) _relationView.style.display = enabled ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        public void SetRelationModeWithoutNotify(bool enabled)
+        {
+            if (_relationToggle != null) _relationToggle.SetValueWithoutNotify(enabled);
+            SetRelationMode(enabled);
         }
     }
 }
