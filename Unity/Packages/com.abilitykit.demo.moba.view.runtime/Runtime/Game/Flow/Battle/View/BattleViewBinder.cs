@@ -514,7 +514,8 @@ namespace AbilityKit.Game.Flow
             if (h.GameObject != null)
             {
                 if (h.ViewHandle != null) h.ViewHandle.Registry = null;
-                UnityEngine.Object.Destroy(h.GameObject);
+                if (Application.isPlaying) UnityEngine.Object.Destroy(h.GameObject);
+                else UnityEngine.Object.DestroyImmediate(h.GameObject);
                 h.GameObject = null;
                 h.ViewHandle = null;
             }
@@ -536,7 +537,8 @@ namespace AbilityKit.Game.Flow
                 if (h?.GameObject != null)
                 {
                     if (h.ViewHandle != null) h.ViewHandle.Registry = null;
-                    UnityEngine.Object.Destroy(h.GameObject);
+                    if (Application.isPlaying) UnityEngine.Object.Destroy(h.GameObject);
+                    else UnityEngine.Object.DestroyImmediate(h.GameObject);
                 }
 
                 if (h != null)

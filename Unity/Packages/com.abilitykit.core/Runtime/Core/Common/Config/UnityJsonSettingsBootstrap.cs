@@ -66,6 +66,21 @@ namespace AbilityKit.Ability.Share.Common.Config
             store.ReplacePersistent(settings);
         }
 
+        public static void LoadPersistentIntoSync(LayeredJsonSettingsStore store, Func<string, Dictionary<string, object>> deserialize, string fileName = null)
+        {
+            if (store == null) return;
+            if (deserialize == null) return;
+
+            fileName ??= DefaultFileName;
+
+            var persistentBase = Application.persistentDataPath;
+            if (string.IsNullOrEmpty(persistentBase)) return;
+
+            var persistentPath = Path.Combine(persistentBase, fileName);
+            var settings = JsonSettingsFiles.LoadFlatOrEmpty(persistentPath, deserialize);
+            store.ReplacePersistent(settings);
+        }
+
         public static bool TrySaveOverridesToPersistent(IReadOnlyDictionary<string, object> overrides, Func<IReadOnlyDictionary<string, object>, string> serialize, string fileName = null)
         {
             if (serialize == null) return false;

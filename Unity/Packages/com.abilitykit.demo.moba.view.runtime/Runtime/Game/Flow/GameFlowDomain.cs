@@ -120,9 +120,26 @@ namespace AbilityKit.Game.Flow
         private bool _battleFirstFrameReceived;
 
         public GameFlowDomain(GameEntry entry)
+            : this(entry, rootOverride: default)
         {
-            _entry = entry ?? throw new ArgumentNullException(nameof(entry));
-            _ctx = new GamePhaseContext(_entry, _entry.Root);
+        }
+
+        public GameFlowDomain(GameEntry entry, Entity rootOverride)
+        {
+            _entry = entry;
+
+            var root = rootOverride;
+            if (!root.IsValid && entry != null)
+            {
+                root = entry.Root;
+            }
+
+            if (!root.IsValid)
+            {
+                throw new ArgumentNullException(nameof(rootOverride));
+            }
+
+            _ctx = new GamePhaseContext(_entry, root);
 
             _flowContext = new FlowContext();
             _rootEvents = new FlowEventQueue<RootEvent>();
@@ -141,6 +158,13 @@ namespace AbilityKit.Game.Flow
             {
                 _entry.StartCoroutine(UnityJsonSettingsBootstrap.LoadPersistentInto(Settings, RuntimeJsonSettingsCodec.DeserializeFlat));
             }
+        }
+
+        public void StartWithPersistentSettingsSync()
+        {
+            _runner.Start();
+            _rootEvents.Enqueue(RootEvent.BootCompleted);
+            UnityJsonSettingsBootstrap.LoadPersistentIntoSync(Settings, RuntimeJsonSettingsCodec.DeserializeFlat);
         }
 
         public bool TrySaveSettingsOverridesToPersistent()
