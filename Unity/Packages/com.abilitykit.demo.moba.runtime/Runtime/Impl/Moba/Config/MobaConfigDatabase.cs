@@ -119,6 +119,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 
         private readonly IMobaConfigTableRegistry _registry;
         private readonly IMobaConfigDtoDeserializer _deserializer;
+        private readonly IMobaConfigDtoBytesDeserializer _bytesDeserializer;
         private readonly Dictionary<Type, object> _tables = new Dictionary<Type, object>();
         private readonly Dictionary<Type, object> _dtoTables = new Dictionary<Type, object>();
         private long _version;
@@ -127,10 +128,12 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 
         public MobaConfigDatabase(
             IMobaConfigTableRegistry registry = null,
-            IMobaConfigDtoDeserializer deserializer = null)
+            IMobaConfigDtoDeserializer deserializer = null,
+            IMobaConfigDtoBytesDeserializer bytesDeserializer = null)
         {
             _registry = registry ?? DefaultMobaConfigTableRegistry.Instance;
             _deserializer = deserializer ?? JsonNetMobaConfigDtoDeserializer.Instance;
+            _bytesDeserializer = bytesDeserializer;
         }
 
         public void LoadFromTextSink(IMobaConfigTextSink sink, string resourcesDir = null)
@@ -155,6 +158,77 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 
             var loader = new DefaultMobaConfigLoader(_registry);
             loader.LoadFromResources(this, resourcesDir);
+        }
+
+        public void LoadFromBytes(IReadOnlyDictionary<string, byte[]> bytesByKey, string resourcesDir = null)
+        {
+            if (bytesByKey == null) throw new ArgumentNullException(nameof(bytesByKey));
+
+            var result = ReloadFromBytes(bytesByKey, resourcesDir);
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException(result.Error ?? "Config reload failed");
+            }
+        }
+
+        public ConfigReloadResult ReloadFromBytes(IReadOnlyDictionary<string, byte[]> bytesByKey, string resourcesDir = null)
+        {
+            if (bytesByKey == null) throw new ArgumentNullException(nameof(bytesByKey));
+            if (_bytesDeserializer == null)
+            {
+                var fail = ConfigReloadResult.Fail(ConfigKey, _version, "Bytes deserializer not provided. Register IMobaConfigDtoBytesDeserializer into DI or pass it into MobaConfigDatabase ctor.");
+                ConfigReloadBus.Publish(fail);
+                return fail;
+            }
+
+            var nextTables = new Dictionary<Type, object>();
+            var nextDtoTables = new Dictionary<Type, object>();
+
+            var tables = _registry.Tables;
+            for (var i = 0; i < tables.Length; i++)
+            {
+                var t = tables[i];
+                var fullPath = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
+
+                if (!TryGetBytes(bytesByKey, fullPath, t.FileWithoutExt, out var bytes) || bytes == null || bytes.Length == 0)
+                {
+                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config bytes not found: {fullPath}");
+                    ConfigReloadBus.Publish(fail);
+                    return fail;
+                }
+
+                try
+                {
+                    var arr = _bytesDeserializer.DeserializeDtoArray(bytes, t.DtoType);
+                    var dtoTableObj = CreateDtoTableFromDtos(t.DtoType, arr);
+                    nextDtoTables[t.DtoType] = dtoTableObj;
+                    var tableObj = CreateTableFromDtos(t.DtoType, t.MoType, arr);
+                    nextTables[t.MoType] = tableObj;
+                }
+                catch (Exception ex)
+                {
+                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Failed to parse config bytes: {fullPath}. {ex.Message}");
+                    ConfigReloadBus.Publish(fail);
+                    return fail;
+                }
+            }
+
+            _tables.Clear();
+            foreach (var kv in nextTables)
+            {
+                _tables[kv.Key] = kv.Value;
+            }
+
+            _dtoTables.Clear();
+            foreach (var kv in nextDtoTables)
+            {
+                _dtoTables[kv.Key] = kv.Value;
+            }
+
+            _version++;
+            var ok = ConfigReloadResult.Success(ConfigKey, _version, fullReload: true, changedIds: null);
+            ConfigReloadBus.Publish(ok);
+            return ok;
         }
 
         public ConfigReloadResult ReloadFromResources(string resourcesDir)
@@ -236,6 +310,15 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             if (jsonByKey == null) return false;
             if (fullPath != null && jsonByKey.TryGetValue(fullPath, out json)) return true;
             if (fileWithoutExt != null && jsonByKey.TryGetValue(fileWithoutExt, out json)) return true;
+            return false;
+        }
+
+        private static bool TryGetBytes(IReadOnlyDictionary<string, byte[]> bytesByKey, string fullPath, string fileWithoutExt, out byte[] bytes)
+        {
+            bytes = null;
+            if (bytesByKey == null) return false;
+            if (fullPath != null && bytesByKey.TryGetValue(fullPath, out bytes)) return true;
+            if (fileWithoutExt != null && bytesByKey.TryGetValue(fileWithoutExt, out bytes)) return true;
             return false;
         }
 

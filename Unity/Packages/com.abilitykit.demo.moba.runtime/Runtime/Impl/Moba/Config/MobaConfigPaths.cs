@@ -3,6 +3,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
     public static class MobaConfigPaths
     {
         public const string DefaultResourcesDir = "moba";
+        public const string DefaultResourcesBytesDir = "moba_bytes";
 
         public const string CharactersFile = "characters";
         public const string SkillsFile = "skills";
