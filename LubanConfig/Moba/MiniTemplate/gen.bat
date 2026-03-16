@@ -15,7 +15,7 @@ dotnet %LUBAN_DLL% ^
 
 dotnet %LUBAN_DLL% ^
     -t all ^
-    -d msgpack ^
+    -d bin ^
     --conf %CONF_ROOT%\luban.conf ^
     -x outputDataDir=%OUTPUT_BYTES_DIR%
 

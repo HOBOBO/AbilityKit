@@ -385,6 +385,12 @@
       "source": "embedded",
       "dependencies": {}
     },
+    "com.abilitykit.thirdparty.luban.runtime": {
+      "version": "file:com.abilitykit.thirdparty.luban.runtime",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.abilitykit.triggering": {
       "version": "file:com.abilitykit.triggering",
       "depth": 0,

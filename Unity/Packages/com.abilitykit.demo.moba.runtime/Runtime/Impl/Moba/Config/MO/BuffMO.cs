@@ -22,24 +22,24 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         public IReadOnlyList<int> TriggerIds { get; }
         public IReadOnlyList<int> Tags { get; }
 
-        public BuffMO(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BuffDTO dto)
+        public BuffMO(global::cfg.DRBuff dto)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
             Id = dto.Id;
-            Name = dto.Name;
+            Name = string.Empty;
             DurationMs = dto.DurationMs;
 
             OngoingEffectId = dto.OngoingEffectId;
 
-            OnAddEffects = dto.OnAddEffects ?? Array.Empty<int>();
-            OnRemoveEffects = dto.OnRemoveEffects ?? Array.Empty<int>();
-            OnIntervalEffects = dto.OnIntervalEffects ?? Array.Empty<int>();
+            OnAddEffects = dto.OnAddEffects;
+            OnRemoveEffects = dto.OnRemoveEffects;
+            OnIntervalEffects = dto.OnIntervalEffects;
             IntervalMs = dto.IntervalMs;
             StackingPolicy = (BuffStackingPolicy)dto.StackingPolicy;
             RefreshPolicy = (BuffRefreshPolicy)dto.RefreshPolicy;
             MaxStacks = dto.MaxStacks;
-            TriggerIds = dto.TriggerIds ?? Array.Empty<int>();
-            Tags = dto.Tags ?? Array.Empty<int>();
+            TriggerIds = dto.TriggerIds;
+            Tags = dto.Tags;
         }
     }
 }

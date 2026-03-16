@@ -1,0 +1,14 @@
+{
+  "name": "AbilityKit.ThirdParty.Luban.Runtime",
+  "rootNamespace": "AbilityKit",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": true,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

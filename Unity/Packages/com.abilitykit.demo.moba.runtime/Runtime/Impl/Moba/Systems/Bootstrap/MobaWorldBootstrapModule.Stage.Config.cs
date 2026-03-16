@@ -11,6 +11,8 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
     {
         private static void RegisterConfig(WorldContainerBuilder builder)
         {
+            builder.TryRegister<IMobaConfigDtoBytesDeserializer>(WorldLifetime.Singleton, _ => new LubanMobaConfigDtoBytesDeserializer());
+
             builder.TryRegister<MobaConfigDatabase>(WorldLifetime.Singleton, _ =>
             {
                 _.TryResolve<IMobaConfigTableRegistry>(out var registry);

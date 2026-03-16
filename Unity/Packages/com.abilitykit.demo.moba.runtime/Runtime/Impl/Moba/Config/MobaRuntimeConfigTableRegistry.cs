@@ -28,7 +28,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             new Entry(MobaConfigPaths.AttributeTypesFile, typeof(AttrTypeDTO), typeof(MO.AttrTypeMO)),
             new Entry(MobaConfigPaths.AttributeTemplatesFile, typeof(BattleAttributeTemplateDTO), typeof(MO.BattleAttributeTemplateMO)),
             new Entry(MobaConfigPaths.ModelsFile, typeof(ModelDTO), typeof(MO.ModelMO)),
-            new Entry(MobaConfigPaths.BuffsFile, typeof(BuffDTO), typeof(MO.BuffMO)),
+            new Entry(MobaConfigPaths.BuffsFile, typeof(global::cfg.DRBuff), typeof(MO.BuffMO)),
             new Entry(MobaConfigPaths.ProjectileLaunchersFile, typeof(ProjectileLauncherDTO), typeof(MO.ProjectileLauncherMO)),
             new Entry(MobaConfigPaths.ProjectilesFile, typeof(ProjectileDTO), typeof(MO.ProjectileMO)),
             new Entry(MobaConfigPaths.AoesFile, typeof(AoeDTO), typeof(MO.AoeMO)),

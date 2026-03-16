@@ -1,0 +1,10 @@
+{
+  "name": "com.abilitykit.thirdparty.luban.runtime",
+  "version": "0.0.1",
+  "displayName": "AbilityKit ThirdParty Luban Runtime",
+  "description": "C# runtime sources for Luban config deserialization (Unity-compatible).",
+  "unity": "2021.3",
+  "author": {
+    "name": "AbilityKit"
+  }
+}

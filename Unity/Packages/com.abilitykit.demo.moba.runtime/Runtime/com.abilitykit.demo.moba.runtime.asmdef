@@ -2,6 +2,7 @@
     "name": "AbilityKit.Demo.Moba.Runtime",
     "rootNamespace": "AbilityKit",
     "references": [
+        "AbilityKit.ThirdParty.Luban.Runtime",
         "AbilityKit.Core",
         "AbilityKit.Protocol.Moba",
         "AbilityKit.Effects",
