@@ -240,6 +240,12 @@
         "com.abilitykit.host": "0.0.1"
       }
     },
+    "com.abilitykit.excel-sync": {
+      "version": "file:com.abilitykit.excel-sync",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.abilitykit.flow": {
       "version": "file:com.abilitykit.flow",
       "depth": 0,
