@@ -1,0 +1,10 @@
+{
+  "name": "com.abilitykit.excel-sync",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Excel Sync",
+  "description": "Excel <-> ScriptableObject 同步工具（EPPlus 后端，支持三方合并基线）。",
+  "unity": "2021.3",
+  "author": {
+    "name": "AbilityKit"
+  }
+}

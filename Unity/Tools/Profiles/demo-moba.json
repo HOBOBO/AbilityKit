@@ -1,0 +1,33 @@
+{
+  "name": "demo-moba",
+  "description": "MOBA Demo 运行时+编辑器（用于跑通示例；会包含 entitas generated 包）",
+  "packages": [
+    "com.abilitykit.core",
+    "com.abilitykit.world.di",
+    "com.abilitykit.world.ecs",
+    "com.abilitykit.world.snapshot",
+    "com.abilitykit.attributes",
+    "com.abilitykit.triggering",
+    "com.abilitykit.pipeline",
+
+    "com.abilitykit.world.framesync",
+    "com.abilitykit.combat.collision.abstractions",
+    "com.abilitykit.combat.collision.unity",
+    "com.abilitykit.thirdparty.entitas.runtime",
+    "com.abilitykit.world.entitas",
+    "com.abilitykit.combat.projectile",
+    "com.abilitykit.combat.entitymanager",
+    "com.abilitykit.combat.damage",
+    "com.abilitykit.combat.targeting",
+    "com.abilitykit.world.motion",
+    "com.abilitykit.hfsm",
+    "com.abilitykit.actionschema",
+    "com.abilitykit.host",
+    "com.abilitykit.ability.runtime",
+
+    "com.abilitykit.demo.moba.entitas.generated",
+    "com.abilitykit.demo.moba.runtime",
+    "com.abilitykit.demo.moba.view.runtime",
+    "com.abilitykit.demo.moba.editor"
+  ]
+}

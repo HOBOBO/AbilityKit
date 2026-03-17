@@ -1,0 +1,13 @@
+{
+  "name": "foundation",
+  "description": "新工程最小底座（Core/DI/ECS/Snapshot/Triggering/Pipeline 等）",
+  "packages": [
+    "com.abilitykit.core",
+    "com.abilitykit.world.di",
+    "com.abilitykit.world.ecs",
+    "com.abilitykit.world.snapshot",
+    "com.abilitykit.attributes",
+    "com.abilitykit.triggering",
+    "com.abilitykit.pipeline"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "ability-runtime",
+  "description": "技能运行时开发/验证（在 foundation 基础上补齐 ability runtime + framesync + projectile + entitas 等）",
+  "packages": [
+    "com.abilitykit.core",
+    "com.abilitykit.world.di",
+    "com.abilitykit.world.ecs",
+    "com.abilitykit.world.snapshot",
+    "com.abilitykit.attributes",
+    "com.abilitykit.triggering",
+    "com.abilitykit.pipeline",
+
+    "com.abilitykit.world.framesync",
+    "com.abilitykit.combat.collision.abstractions",
+    "com.abilitykit.thirdparty.entitas.runtime",
+    "com.abilitykit.world.entitas",
+    "com.abilitykit.combat.projectile",
+    "com.abilitykit.ability.runtime"
+  ]
+}
