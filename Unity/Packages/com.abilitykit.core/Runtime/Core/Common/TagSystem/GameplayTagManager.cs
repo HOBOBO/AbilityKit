@@ -13,6 +13,7 @@ namespace AbilityKit.Ability.Share.Common.TagSystem
 
         private readonly Dictionary<string, int> _byName = new Dictionary<string, int>(StringComparer.Ordinal);
         private readonly List<Node> _nodes = new List<Node>(256);
+        private readonly Dictionary<int, HashSet<int>> _ancestors = new Dictionary<int, HashSet<int>>();
 
         public static GameplayTagManager Instance { get; } = new GameplayTagManager();
 
@@ -65,11 +66,9 @@ namespace AbilityKit.Ability.Share.Common.TagSystem
             if (!tag.IsValid || !parent.IsValid) return false;
             if (tag.Id == parent.Id) return false;
 
-            var cur = tag.Id;
-            while (cur != 0)
+            if (_ancestors.TryGetValue(tag.Id, out var ancestors))
             {
-                cur = _nodes[cur].ParentId;
-                if (cur == parent.Id) return true;
+                return ancestors.Contains(parent.Id);
             }
 
             return false;
@@ -97,7 +96,28 @@ namespace AbilityKit.Ability.Share.Common.TagSystem
             var id = _nodes.Count;
             _nodes.Add(new Node { Name = normalized, ParentId = parentId });
             _byName[normalized] = id;
+            BuildAncestorCache(id, parentId);
             return id;
+        }
+
+        private void BuildAncestorCache(int id, int parentId)
+        {
+            var ancestors = new HashSet<int>();
+
+            if (parentId != 0)
+            {
+                ancestors.Add(parentId);
+
+                if (_ancestors.TryGetValue(parentId, out var parentAncestors))
+                {
+                    foreach (var ancestor in parentAncestors)
+                    {
+                        ancestors.Add(ancestor);
+                    }
+                }
+            }
+
+            _ancestors[id] = ancestors;
         }
 
         private static bool TryNormalize(string name, out string normalized)
