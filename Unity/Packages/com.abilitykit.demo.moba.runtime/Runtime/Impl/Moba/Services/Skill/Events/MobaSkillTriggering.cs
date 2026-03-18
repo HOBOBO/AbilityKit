@@ -36,6 +36,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (string.IsNullOrEmpty(eventId)) return;
             if (ctx == null) return;
 
+            SkillLogger.Instance.LogTriggerEvent(ctx.CasterActorId, ctx.SkillId, ctx.SourceContextId, eventId);
+
             try
             {
                 var services = ctx.WorldServices;
@@ -60,7 +62,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 var eid = TriggeringIdUtil.GetEventEid(eventId);
                 planBus.Publish(new EventKey<SkillCastContext>(eid), ctx);
                 planBus.Publish(new EventKey<object>(eid), ctx);
-                Log.Info($"[MobaSkillTriggering] Forwarded to plan bus. eventId={eventId} eid={eid}");
 
                 ctx.FailReason = oldFailReason;
             }

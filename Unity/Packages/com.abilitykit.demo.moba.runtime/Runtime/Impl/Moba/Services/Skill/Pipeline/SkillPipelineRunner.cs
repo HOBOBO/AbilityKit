@@ -187,21 +187,40 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 if (interruptRunning)
                 {
+                    SkillLogger.Instance.LogSkillCancel(request.CasterActorId, request.SkillId, triggerContext?.SourceContextId ?? 0, "InterruptRunning");
                     CancelAll();
                 }
                 else
                 {
                     failReason = "Skill is already running.";
                     LastFailReason = failReason;
+                    SkillLogger.Instance.LogSkillFail(request.CasterActorId, request.SkillId, triggerContext?.SourceContextId ?? 0, failReason);
                     return false;
                 }
             }
 
-            if (castConfig == null) return false;
-            if (castPhases == null || castPhases.Count == 0) return false;
+            if (castConfig == null)
+            {
+                SkillLogger.Instance.LogWarning($"Start failed: castConfig is null. Caster={request.CasterActorId} SkillId={request.SkillId}");
+                return false;
+            }
+            if (castPhases == null || castPhases.Count == 0)
+            {
+                SkillLogger.Instance.LogWarning($"Start failed: castPhases is null or empty. Caster={request.CasterActorId} SkillId={request.SkillId}");
+                return false;
+            }
 
-            // PreCast is optional.
             triggerContext ??= SkillCastContext.FromRequest(in request, skillLevel: 0);
+
+            SkillLogger.Instance.LogSkillStart(
+                request.CasterActorId,
+                request.SkillId,
+                request.SkillSlot,
+                triggerContext.SkillLevel,
+                request.TargetActorId,
+                request.AimPos,
+                request.AimDir,
+                triggerContext.SourceContextId);
 
             var entry = new Entry(
                 preCastConfig,
@@ -255,6 +274,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             entry.Context.Initialize(entry.AbilityInstance, in entry.Request, entry.TriggerContext);
             entry.Run = entry.Pipeline.Start(entry.PreCastConfig, entry.Context);
 
+            var instanceId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
+            SkillLogger.Instance.LogSkillStage(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, "PreCast", "Starting");
+
             MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastStart, entry.TriggerContext);
 
             entry.Run.Tick(0f);
@@ -262,6 +284,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (state == EAbilityPipelineState.Executing) return true;
             if (state == EAbilityPipelineState.Completed)
             {
+                SkillLogger.Instance.LogSkillStage(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, "PreCast", "Completed");
                 MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastComplete, entry.TriggerContext);
                 try { entry.Context?.RunAndClearCleanups(); }
                 catch { }
@@ -270,6 +293,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             }
 
             entry.FailReason = TryGetFailReason(entry);
+            SkillLogger.Instance.LogSkillFail(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, $"PreCastFailed: {entry.FailReason}");
             MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastFail, entry.TriggerContext, entry.FailReason);
 
             TryEndEffectSource(entry, EffectSourceEndReason.Cancelled);
@@ -291,6 +315,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             entry.Context.Initialize(entry.AbilityInstance, in entry.Request, entry.TriggerContext);
             entry.Run = entry.Pipeline.Start(entry.CastConfig, entry.Context);
 
+            var instanceId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
+            SkillLogger.Instance.LogSkillStage(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, "Cast", "Starting");
+
             MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastStart, entry.TriggerContext);
 
             entry.Run.Tick(0f);
@@ -304,12 +331,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (state != EAbilityPipelineState.Completed)
             {
                 entry.FailReason = TryGetFailReason(entry);
+                SkillLogger.Instance.LogSkillFail(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, $"CastFailed: {entry.FailReason}");
                 MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastFail, entry.TriggerContext, entry.FailReason);
 
                 TryEndEffectSource(entry, EffectSourceEndReason.Cancelled);
             }
             else
             {
+                SkillLogger.Instance.LogSkillComplete(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, (int)(entry.Context.ElapsedTime * 1000f));
                 MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastComplete, entry.TriggerContext);
 
                 TryEndEffectSource(entry, EffectSourceEndReason.Completed);
@@ -397,10 +426,17 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public void CancelAll()
         {
             if (_running.Count == 0) return;
+
+            SkillLogger.Instance.LogInfo($"CancelAll: ActorId={_actorId} Count={_running.Count}");
+
             for (int i = 0; i < _running.Count; i++)
             {
                 var e = _running[i];
                 var p = e.Run;
+
+                var instanceId = e.TriggerContext != null ? e.TriggerContext.SourceContextId : 0L;
+                var stageStr = e.Stage == EntryStage.PreCast ? "PreCast" : "Cast";
+                SkillLogger.Instance.LogSkillInterrupt(e.TriggerContext.CasterActorId, e.TriggerContext.SkillId, instanceId, stageStr);
 
                 if (e.Stage == EntryStage.PreCast)
                 {
@@ -435,6 +471,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 if (e.Context.SkillId != skillId) continue;
 
                 var p = e.Run;
+
+                var instanceId = e.TriggerContext != null ? e.TriggerContext.SourceContextId : 0L;
+                var stageStr = e.Stage == EntryStage.PreCast ? "PreCast" : "Cast";
+                SkillLogger.Instance.LogSkillCancel(e.TriggerContext.CasterActorId, skillId, instanceId, $"CancelBySkillId_{stageStr}");
+
                 if (e.Stage == EntryStage.PreCast)
                 {
                     MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastInterrupt, e.TriggerContext);
@@ -473,12 +514,25 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 {
                     entry.Context.AdvanceTime(deltaTime);
                     p.Tick(deltaTime);
+
+                    var instanceId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
+                    var stageStr = entry.Stage == EntryStage.PreCast ? "PreCast" : "Cast";
+                    SkillLogger.Instance.LogSkillTick(
+                        entry.Context.CasterActorId,
+                        entry.Context.SkillId,
+                        instanceId,
+                        deltaTime,
+                        entry.Context.ElapsedTime,
+                        $"{stageStr}_{p.State}");
                 }
 
                 if (p.State != EAbilityPipelineState.Executing)
                 {
+                    var instanceId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
+
                     if (p.State == EAbilityPipelineState.Completed && entry.Stage == EntryStage.PreCast)
                     {
+                        SkillLogger.Instance.LogSkillStage(entry.Context.CasterActorId, entry.Context.SkillId, instanceId, "PreCast", "Completed_ChainingToCast");
                         MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastComplete, entry.TriggerContext);
                         try { entry.Context?.RunAndClearCleanups(); }
                         catch { }
@@ -492,6 +546,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
                     if (p.State == EAbilityPipelineState.Completed && entry.Stage == EntryStage.Cast)
                     {
+                        SkillLogger.Instance.LogSkillComplete(entry.Context.CasterActorId, entry.Context.SkillId, instanceId, (int)(entry.Context.ElapsedTime * 1000f));
                         MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastComplete, entry.TriggerContext);
 
                         TryEndEffectSource(entry, EffectSourceEndReason.Completed);
@@ -506,6 +561,9 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     {
                         entry.FailReason = entry.FailReason ?? TryGetFailReason(entry);
                         LastFailReason = entry.FailReason;
+
+                        var stageStr = entry.Stage == EntryStage.PreCast ? "PreCast" : "Cast";
+                        SkillLogger.Instance.LogSkillFail(entry.Context.CasterActorId, entry.Context.SkillId, instanceId, $"{stageStr}Failed: {entry.FailReason}");
 
                         if (entry.Stage == EntryStage.PreCast)
                         {

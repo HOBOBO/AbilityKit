@@ -34,7 +34,7 @@ namespace AbilityKit.ExcelSync.Editor
             var maxCols = sheet.Dimension.End.Column;
             for (var c = 1; c <= maxCols; c++)
             {
-                var v = sheet.Cells[options.HeaderRowIndex, c].Value;
+                var v = GetCellValueWithMerge(options.HeaderRowIndex, c);
                 if (v == null)
                 {
                     headers.Add(string.Empty);
@@ -61,12 +61,36 @@ namespace AbilityKit.ExcelSync.Editor
                 var row = new List<object>(maxCols);
                 for (var c = 1; c <= maxCols; c++)
                 {
-                    var v = sheet.Cells[r, c].Value;
+                    var v = GetCellValueWithMerge(r, c);
                     row.Add(v);
                 }
 
                 yield return row;
             }
+        }
+
+        private object GetCellValueWithMerge(int row, int col)
+        {
+            var cell = sheet.Cells[row, col];
+            var v = cell.Value;
+            if (v != null)
+            {
+                return v;
+            }
+
+            if (!cell.Merge)
+            {
+                return null;
+            }
+
+            var mergedAddress = sheet.MergedCells[row, col];
+            if (string.IsNullOrEmpty(mergedAddress))
+            {
+                return null;
+            }
+
+            var addr = new ExcelAddress(mergedAddress);
+            return sheet.Cells[addr.Start.Row, addr.Start.Column].Value;
         }
 
         public void Dispose()
