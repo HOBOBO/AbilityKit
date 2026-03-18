@@ -11,61 +11,57 @@ namespace AbilityKit.ExcelSync.Generated
 {
     public sealed partial class BuffRow
     {
-        [LabelText("##")]
-        [ExcelColumn("##", Order = 0)]
-        public string __;
+        [LabelText("属性编号")]
+        [ExcelColumn("Id", Order = 0)]
+        public int Id;
 
-        [LabelText("1")]
-        [ExcelColumn("属性编号", Order = 1)]
-        public string 属性编号;
+        [LabelText("名字")]
+        [ExcelColumn("Name", Order = 1)]
+        public string Name;
 
-        [LabelText("buff1")]
-        [ExcelColumn("名字", Order = 2)]
-        public string 名字;
-
-        [LabelText("3000")]
-        [ExcelColumn("持续毫秒", Order = 3)]
-        public string 持续毫秒;
+        [LabelText("持续毫秒")]
+        [ExcelColumn("DurationMs", Order = 2)]
+        public int DurationMs;
 
         [LabelText("持续生效效果id")]
-        [ExcelColumn("持续生效效果id", Order = 4)]
-        public string 持续生效效果id;
+        [ExcelColumn("OngoingEffectId", Order = 3)]
+        public int OngoingEffectId;
 
-        [LabelText("1000001")]
-        [ExcelColumn("添加时效果", Order = 5)]
-        public string 添加时效果;
+        [LabelText("添加时效果")]
+        [ExcelColumn("OnAddEffects", Order = 4)]
+        public List<int> OnAddEffects;
 
         [LabelText("移除时效果")]
-        [ExcelColumn("移除时效果", Order = 6)]
-        public string 移除时效果;
+        [ExcelColumn("OnRemoveEffects", Order = 5)]
+        public List<int> OnRemoveEffects;
 
         [LabelText("间隔触发效果")]
-        [ExcelColumn("间隔触发效果", Order = 7)]
-        public string 间隔触发效果;
+        [ExcelColumn("OnIntervalEffects", Order = 6)]
+        public List<int> OnIntervalEffects;
 
         [LabelText("间隔毫秒")]
-        [ExcelColumn("间隔毫秒", Order = 8)]
-        public string 间隔毫秒;
+        [ExcelColumn("IntervalMs", Order = 7)]
+        public int IntervalMs;
 
         [LabelText("叠加方式")]
-        [ExcelColumn("叠加方式", Order = 9)]
-        public string 叠加方式;
+        [ExcelColumn("StackingPolicy", Order = 8)]
+        public int StackingPolicy;
 
         [LabelText("刷新方式")]
-        [ExcelColumn("刷新方式", Order = 10)]
-        public string 刷新方式;
+        [ExcelColumn("RefreshPolicy", Order = 9)]
+        public int RefreshPolicy;
 
         [LabelText("最大层数")]
-        [ExcelColumn("最大层数", Order = 11)]
-        public string 最大层数;
+        [ExcelColumn("MaxStacks", Order = 10)]
+        public int MaxStacks;
 
         [LabelText("监听效果列表")]
-        [ExcelColumn("监听效果列表", Order = 12)]
-        public string 监听效果列表;
+        [ExcelColumn("TriggerIds", Order = 11)]
+        public List<int> TriggerIds;
 
         [LabelText("标签列表")]
-        [ExcelColumn("标签列表", Order = 13)]
-        public string 标签列表;
+        [ExcelColumn("Tags", Order = 12)]
+        public List<int> Tags;
 
     }
 }

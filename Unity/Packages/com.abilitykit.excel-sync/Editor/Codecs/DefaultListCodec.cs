@@ -45,6 +45,12 @@ namespace AbilityKit.ExcelSync.Editor.Codecs
             }
 
             var seps = context.GetListSeparatorsOrDefault();
+            // 检查是否有自定义分隔符
+            var sepStr = context.GetCustomParameter("sep");
+            if (!string.IsNullOrEmpty(sepStr))
+            {
+                seps = new[] { sepStr[0] }; // 将字符串转换为字符数组
+            }
             var parts = s.Split(seps, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
 
             var list = (IList)Activator.CreateInstance(nonNullable);

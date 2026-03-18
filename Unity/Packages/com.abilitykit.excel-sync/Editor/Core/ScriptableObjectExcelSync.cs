@@ -1033,7 +1033,7 @@ namespace AbilityKit.ExcelSync.Editor
 
                     try
                     {
-                        var v = ExcelReflectionMapper.ConvertCellValue(row[b.ColumnIndex], b.ValueType, b.ColumnName, registry ?? ExcelCodecRegistry.Default);
+                        var v = ExcelReflectionMapper.ConvertCellValue(row[b.ColumnIndex], b.ValueType, b.ColumnName, registry ?? ExcelCodecRegistry.Default, b.CustomParameters);
                         ExcelReflectionMapper.SetValue(item, b.Member, v);
                     }
                     catch (Exception e)
@@ -1472,7 +1472,7 @@ namespace AbilityKit.ExcelSync.Editor
                         continue;
                     }
 
-                    var v = ExcelReflectionMapper.ConvertCellValue(row[b.ColumnIndex], b.ValueType, b.ColumnName, ExcelCodecRegistry.Default);
+                    var v = ExcelReflectionMapper.ConvertCellValue(row[b.ColumnIndex], b.ValueType, b.ColumnName, ExcelCodecRegistry.Default, b.CustomParameters);
                     ExcelReflectionMapper.SetValue(asset, b.Member, v);
                 }
 

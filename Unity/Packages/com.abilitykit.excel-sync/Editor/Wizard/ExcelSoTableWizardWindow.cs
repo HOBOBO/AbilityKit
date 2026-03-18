@@ -117,7 +117,7 @@ namespace AbilityKit.ExcelSync.Editor
                 var options = BuildOptions();
                 var sheetName = string.IsNullOrWhiteSpace(options.SheetName) ? "Sheet1" : options.SheetName.Trim();
 
-                var (headers, labels) = ReadHeadersAndLabels(_excelAbsolutePath, options);
+                var (headers, labels, types) = ReadHeadersLabelsAndTypes(_excelAbsolutePath, options);
 
                 var rowTypeName = sheetName + "Row";
                 var tableTypeName = sheetName + "Table";
@@ -131,7 +131,7 @@ namespace AbilityKit.ExcelSync.Editor
                 var tablePath = _codeOutputFolderAssetsPath.TrimEnd('/', '\\') + "/" + tableTypeName + ".cs";
 
                 WriteRowShellIfMissing(rowShellPath, rowTypeName);
-                WriteRowRaw(rowRawPath, rowTypeName, headers, labels, schema);
+                WriteRowRaw(rowRawPath, rowTypeName, headers, labels, types, schema);
                 WriteTableShell(tablePath, tableTypeName, rowTypeName);
 
                 AssetDatabase.Refresh();
@@ -295,16 +295,15 @@ namespace AbilityKit.ExcelSync.Editor
             return null;
         }
 
-        private static (IReadOnlyList<string> headers, IReadOnlyList<string> labels) ReadHeadersAndLabels(string excelFilePath, ExcelTableOptions options)
+        private static (IReadOnlyList<string> headers, IReadOnlyList<string> labels, IReadOnlyList<string> types) ReadHeadersLabelsAndTypes(string excelFilePath, ExcelTableOptions options)
         {
             #if EPPLUS_4_5_OR_NEWER
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             #endif
-
             using var package = new ExcelPackage(new FileInfo(excelFilePath));
             if (package.Workbook.Worksheets.Count == 0)
             {
-                return (new List<string>(), new List<string>());
+                return (new List<string>(), new List<string>(), new List<string>());
             }
 
             var sheet = string.IsNullOrEmpty(options.SheetName)
@@ -313,21 +312,24 @@ namespace AbilityKit.ExcelSync.Editor
 
             if (sheet.Dimension == null)
             {
-                return (new List<string>(), new List<string>());
+                return (new List<string>(), new List<string>(), new List<string>());
             }
 
             var maxCols = sheet.Dimension.End.Column;
             var headers = new List<string>(maxCols);
             var labels = new List<string>(maxCols);
+            var types = new List<string>(maxCols);
 
-            var labelRow = options.HeaderRowIndex + 1;
+            var typeRow = options.HeaderRowIndex + 1;
+            var labelRow = options.HeaderRowIndex + 2;
             for (var c = 1; c <= maxCols; c++)
             {
                 headers.Add((sheet.Cells[options.HeaderRowIndex, c].Value?.ToString() ?? string.Empty).Trim());
+                types.Add((sheet.Cells[typeRow, c].Value?.ToString() ?? string.Empty).Trim());
                 labels.Add((sheet.Cells[labelRow, c].Value?.ToString() ?? string.Empty).Trim());
             }
 
-            return (headers, labels);
+            return (headers, labels, types);
         }
 
         private static Dictionary<string, Type> TryBuildRuntimeSchema(string runtimeRowTypeName)
@@ -433,6 +435,7 @@ namespace AbilityKit.ExcelSync.Editor
             string rowTypeName,
             IReadOnlyList<string> headers,
             IReadOnlyList<string> labels,
+            IReadOnlyList<string> types,
             Dictionary<string, Type> runtimeSchema)
         {
             var abs = ToAbsolutePathFromAssetsPath(assetsPath);
@@ -453,10 +456,25 @@ namespace AbilityKit.ExcelSync.Editor
             sb.AppendLine("    {");
 
             var order = 0;
-            for (var i = 0; i < headers.Count; i++)
+            var startColIndex = 0;
+            if (headers != null && headers.Count > 0)
+            {
+                var first = (headers[0] ?? string.Empty).Trim();
+                if (string.Equals(first, "##var", StringComparison.OrdinalIgnoreCase))
+                {
+                    startColIndex = 1;
+                }
+            }
+
+            for (var i = startColIndex; i < headers.Count; i++)
             {
                 var header = (headers[i] ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(header))
+                {
+                    continue;
+                }
+
+                if (header.StartsWith("##", StringComparison.OrdinalIgnoreCase) || header.StartsWith("#", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -469,13 +487,36 @@ namespace AbilityKit.ExcelSync.Editor
                 }
 
                 var fieldType = typeof(string);
+                var customParams = new Dictionary<string, string>();
+                
                 if (runtimeSchema != null && runtimeSchema.TryGetValue(header, out var rt) && rt != null)
                 {
                     fieldType = rt;
                 }
+                else
+                {
+                    var typeStr = (types != null && i < types.Count ? types[i] : string.Empty) ?? string.Empty;
+                    fieldType = ParseLubanType(typeStr, out var sep);
+                    if (!string.IsNullOrEmpty(sep) && sep != ",")
+                    {
+                        customParams["sep"] = sep;
+                    }
+                }
 
                 sb.Append("        [LabelText(\"").Append(EscapeStringLiteral(label)).AppendLine("\")]");
-                sb.Append("        [ExcelColumn(\"").Append(EscapeStringLiteral(header)).Append("\", Order = ").Append(order).AppendLine(")]" );
+                if (customParams.Count > 0)
+                {
+                    sb.Append("        [ExcelColumn(\"").Append(EscapeStringLiteral(header)).Append("\", Order = ").Append(order);
+                    foreach (var kvp in customParams)
+                    {
+                        sb.Append(", CustomParameters = new Dictionary<string, string> { { \"").Append(kvp.Key).Append("\", \"").Append(kvp.Value).Append("\" } }");
+                    }
+                    sb.AppendLine(")]");
+                }
+                else
+                {
+                    sb.Append("        [ExcelColumn(\"").Append(EscapeStringLiteral(header)).Append("\", Order = ").Append(order).AppendLine(")]");
+                }
                 sb.Append("        public ").Append(GetCSharpTypeName(fieldType)).Append(' ').Append(SanitizeIdentifier(header)).AppendLine(";");
                 sb.AppendLine();
 
@@ -486,6 +527,74 @@ namespace AbilityKit.ExcelSync.Editor
             sb.AppendLine("}");
 
             File.WriteAllText(abs, sb.ToString(), Encoding.UTF8);
+        }
+
+        private static Type ParseLubanType(string typeStr, out string sep)
+        {
+            sep = ",";
+            if (string.IsNullOrWhiteSpace(typeStr))
+            {
+                return typeof(string);
+            }
+
+            var s = typeStr.Trim();
+            var amp = s.IndexOf('&');
+            if (amp >= 0)
+            {
+                s = s.Substring(0, amp).Trim();
+            }
+
+            // 处理 (list#sep=|),Modifier 格式
+            if (s.StartsWith("(list#sep=", StringComparison.OrdinalIgnoreCase) && s.Contains("),"))
+            {
+                var endSep = s.IndexOf(')');
+                if (endSep > 10)
+                {
+                    var sepPart = s.Substring(10, endSep - 10);
+                    sep = sepPart.Trim();
+                    var afterComma = s.Substring(endSep + 2).Trim();
+                    var elemType = ParseLubanType(afterComma, out _);
+                    return typeof(List<>).MakeGenericType(elemType);
+                }
+            }
+
+            // 处理 list<T>#sep=| 格式
+            if (s.StartsWith("list<", StringComparison.OrdinalIgnoreCase) && s.EndsWith(">", StringComparison.Ordinal))
+            {
+                var inner = s.Substring(5, s.Length - 6).Trim();
+                var elemType = typeof(string);
+                
+                // 检查是否有 #sep 参数
+                var hashIndex = inner.IndexOf('#');
+                if (hashIndex >= 0)
+                {
+                    var sepPart = inner.Substring(hashIndex);
+                    if (sepPart.StartsWith("#sep=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        sep = sepPart.Substring(5).Trim();
+                        inner = inner.Substring(0, hashIndex).Trim();
+                    }
+                }
+                
+                elemType = ParseLubanType(inner, out _);
+                return typeof(List<>).MakeGenericType(elemType);
+            }
+
+            if (s.EndsWith("[]", StringComparison.Ordinal))
+            {
+                var elem = ParseLubanType(s.Substring(0, s.Length - 2), out _);
+                return elem.MakeArrayType();
+            }
+
+            if (string.Equals(s, "string", StringComparison.OrdinalIgnoreCase)) return typeof(string);
+            if (string.Equals(s, "int", StringComparison.OrdinalIgnoreCase)) return typeof(int);
+            if (string.Equals(s, "long", StringComparison.OrdinalIgnoreCase)) return typeof(long);
+            if (string.Equals(s, "float", StringComparison.OrdinalIgnoreCase)) return typeof(float);
+            if (string.Equals(s, "double", StringComparison.OrdinalIgnoreCase)) return typeof(double);
+            if (string.Equals(s, "bool", StringComparison.OrdinalIgnoreCase)) return typeof(bool);
+
+            // 对于自定义类型（如 Modifier），暂时返回 string，实际使用时会有具体类型
+            return typeof(string);
         }
 
         private static void WriteTableShell(string assetsPath, string tableTypeName, string rowTypeName)

@@ -18,6 +18,7 @@ namespace AbilityKit.ExcelSync.Editor
             public int ColumnIndex;
             public MemberInfo Member;
             public Type ValueType;
+            public Dictionary<string, string> CustomParameters;
         }
 
         public static IReadOnlyList<ColumnBinding> BuildBindings(Type targetType, IReadOnlyList<string> headers)
@@ -80,12 +81,14 @@ namespace AbilityKit.ExcelSync.Editor
                 }
 
                 var vt = GetMemberType(m.member);
+                var attr = m.member.GetCustomAttribute<ExcelColumnAttribute>();
                 result.Add(new ColumnBinding
                 {
                     ColumnName = m.name,
                     ColumnIndex = idx,
                     Member = m.member,
-                    ValueType = vt
+                    ValueType = vt,
+                    CustomParameters = attr?.CustomParameters ?? new Dictionary<string, string>()
                 });
             }
 
@@ -185,39 +188,44 @@ namespace AbilityKit.ExcelSync.Editor
          }
 
          public static object ConvertCellValue(object cellValue, Type targetType, string columnName, ExcelCodecRegistry registry)
-         {
-             if (targetType == null)
-             {
-                 return null;
-             }
+        {
+            return ConvertCellValue(cellValue, targetType, columnName, registry, null);
+        }
 
-             if (cellValue == null)
-             {
-                 return GetDefault(targetType);
-             }
+        public static object ConvertCellValue(object cellValue, Type targetType, string columnName, ExcelCodecRegistry registry, Dictionary<string, string> customParameters)
+        {
+            if (targetType == null)
+            {
+                return null;
+            }
 
-             var nonNullable = Nullable.GetUnderlyingType(targetType) ?? targetType;
-             var rawString = cellValue.ToString();
-             if (string.IsNullOrEmpty(rawString))
-             {
-                 return GetDefault(targetType);
-             }
+            if (cellValue == null)
+            {
+                return GetDefault(targetType);
+            }
 
-             object normalizedCellValue = cellValue;
-             if (cellValue is string s0 && nonNullable != typeof(string))
-             {
-                 normalizedCellValue = NormalizeNumberLikeString(s0);
-             }
+            var nonNullable = Nullable.GetUnderlyingType(targetType) ?? targetType;
+            var rawString = cellValue.ToString();
+            if (string.IsNullOrEmpty(rawString))
+            {
+                return GetDefault(targetType);
+            }
 
-             registry ??= ExcelCodecRegistry.Default;
-             var ctx = new ExcelCodecContext(columnName, registry);
-             foreach (var codec in registry.GetCodecs())
-             {
-                 if (codec.TryDecode(normalizedCellValue, targetType, ctx, out var v))
-                 {
-                     return v;
-                 }
-             }
+            object normalizedCellValue = cellValue;
+            if (cellValue is string s0 && nonNullable != typeof(string))
+            {
+                normalizedCellValue = NormalizeNumberLikeString(s0);
+            }
+
+            registry ??= ExcelCodecRegistry.Default;
+            var ctx = new ExcelCodecContext(columnName, registry, customParameters);
+            foreach (var codec in registry.GetCodecs())
+            {
+                if (codec.TryDecode(normalizedCellValue, targetType, ctx, out var v))
+                {
+                    return v;
+                }
+            }
 
              // Fallback: keep legacy behavior for JToken -> custom types
              if (normalizedCellValue is JToken customToken)
