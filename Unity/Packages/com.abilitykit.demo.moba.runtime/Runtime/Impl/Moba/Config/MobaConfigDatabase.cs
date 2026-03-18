@@ -231,6 +231,93 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             return ok;
         }
 
+        public void LoadFromMixed(
+            IReadOnlyDictionary<string, byte[]> bytesByKey,
+            IReadOnlyDictionary<string, string> jsonByKey,
+            string bytesResourcesDir,
+            string jsonResourcesDir)
+        {
+            var result = ReloadFromMixed(bytesByKey, jsonByKey, bytesResourcesDir, jsonResourcesDir);
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException(result.Error ?? "Config reload failed");
+            }
+        }
+
+        public ConfigReloadResult ReloadFromMixed(
+            IReadOnlyDictionary<string, byte[]> bytesByKey,
+            IReadOnlyDictionary<string, string> jsonByKey,
+            string bytesResourcesDir,
+            string jsonResourcesDir)
+        {
+            if (bytesByKey == null) throw new ArgumentNullException(nameof(bytesByKey));
+            if (jsonByKey == null) throw new ArgumentNullException(nameof(jsonByKey));
+            if (_bytesDeserializer == null)
+            {
+                var fail = ConfigReloadResult.Fail(ConfigKey, _version, "Bytes deserializer not provided. Register IMobaConfigDtoBytesDeserializer into DI or pass it into MobaConfigDatabase ctor.");
+                ConfigReloadBus.Publish(fail);
+                return fail;
+            }
+
+            var nextTables = new Dictionary<Type, object>();
+            var nextDtoTables = new Dictionary<Type, object>();
+
+            var tables = _registry.Tables;
+            for (var i = 0; i < tables.Length; i++)
+            {
+                var t = tables[i];
+                var bytesFullPath = string.IsNullOrEmpty(bytesResourcesDir) ? t.FileWithoutExt : $"{bytesResourcesDir}/{t.FileWithoutExt}";
+                var jsonFullPath = string.IsNullOrEmpty(jsonResourcesDir) ? t.FileWithoutExt : $"{jsonResourcesDir}/{t.FileWithoutExt}";
+
+                Array arr;
+                try
+                {
+                    if (TryGetBytes(bytesByKey, bytesFullPath, t.FileWithoutExt, out var bytes) && bytes != null && bytes.Length > 0)
+                    {
+                        arr = _bytesDeserializer.DeserializeDtoArray(bytes, t.DtoType);
+                    }
+                    else if (TryGetJson(jsonByKey, jsonFullPath, t.FileWithoutExt, out var json) && !string.IsNullOrEmpty(json))
+                    {
+                        arr = _deserializer.DeserializeDtoArray(json, t.DtoType);
+                    }
+                    else
+                    {
+                        var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config not found (bytes/json): {t.FileWithoutExt}");
+                        ConfigReloadBus.Publish(fail);
+                        return fail;
+                    }
+
+                    var dtoTableObj = CreateDtoTableFromDtos(t.DtoType, arr);
+                    nextDtoTables[t.DtoType] = dtoTableObj;
+                    var tableObj = CreateTableFromDtos(t.DtoType, t.MoType, arr);
+                    nextTables[t.MoType] = tableObj;
+                }
+                catch (Exception ex)
+                {
+                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Failed to parse config (mixed): {t.FileWithoutExt}. {ex.Message}");
+                    ConfigReloadBus.Publish(fail);
+                    return fail;
+                }
+            }
+
+            _tables.Clear();
+            foreach (var kv in nextTables)
+            {
+                _tables[kv.Key] = kv.Value;
+            }
+
+            _dtoTables.Clear();
+            foreach (var kv in nextDtoTables)
+            {
+                _dtoTables[kv.Key] = kv.Value;
+            }
+
+            _version++;
+            var ok = ConfigReloadResult.Success(ConfigKey, _version, fullReload: true, changedIds: null);
+            ConfigReloadBus.Publish(ok);
+            return ok;
+        }
+
         public ConfigReloadResult ReloadFromResources(string resourcesDir)
         {
             if (string.IsNullOrEmpty(resourcesDir)) throw new ArgumentException(nameof(resourcesDir));

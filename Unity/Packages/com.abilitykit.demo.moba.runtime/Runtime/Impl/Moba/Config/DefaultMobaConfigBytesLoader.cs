@@ -121,6 +121,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
                 var t = tables[i];
                 var path = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
                 var asset = Resources.Load<TextAsset>(path);
+                if (asset == null)
+                {
+                    asset = Resources.Load<TextAsset>(t.FileWithoutExt);
+                }
 
                 if (asset == null)
                 {

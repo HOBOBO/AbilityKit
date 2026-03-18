@@ -1,0 +1,9 @@
+{
+  "Id": 10001,
+  "Name": "",
+  "DurationMs": 1000,
+  "PeriodMs": 0,
+  "OnApplyEffectId": 0,
+  "OnTickEffectId": 0,
+  "OnRemoveEffectId": 0
+}

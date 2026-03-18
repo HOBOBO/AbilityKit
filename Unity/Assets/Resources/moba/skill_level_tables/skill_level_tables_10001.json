@@ -1,0 +1,10 @@
+{
+  "Id": 10001,
+  "Levels": [
+    {
+      "CooldownMs": 0,
+      "Cost": 0,
+      "Params": []
+    }
+  ]
+}

@@ -38,15 +38,25 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                         ? fp.Format
                         : DefaultMobaConfigFormatProvider.Instance.Format;
 
+                    format = MobaConfigFormat.Json;
+
                     if (format == MobaConfigFormat.Bytes)
                     {
-                        if (_.TryResolve<IMobaConfigBytesSource>(out var bsource) && bsource != null)
+                        try
                         {
-                            bytesLoader.Load(db, bsource, MobaConfigPaths.DefaultResourcesBytesDir);
+                            if (_.TryResolve<IMobaConfigBytesSource>(out var bsource) && bsource != null)
+                            {
+                                bytesLoader.Load(db, bsource, MobaConfigPaths.DefaultResourcesBytesDir);
+                            }
+                            else
+                            {
+                                bytesLoader.LoadFromResources(db, MobaConfigPaths.DefaultResourcesBytesDir);
+                            }
                         }
-                        else
+                        catch (InvalidOperationException ex) when (IsMissingConfigResource(ex))
                         {
-                            bytesLoader.LoadFromResources(db, MobaConfigPaths.DefaultResourcesBytesDir);
+                            Log.Warning($"[MobaWorldBootstrapModule] Bytes config missing, fallback to legacy json resources. err={ex.Message}");
+                            loader.LoadFromResources(db, MobaConfigPaths.DefaultResourcesDir);
                         }
                     }
                     else
@@ -76,6 +86,16 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             });
 
             builder.TryRegister<ITextLoader>(WorldLifetime.Singleton, _ => new UnityResourcesTextLoader());
+        }
+
+        private static bool IsMissingConfigResource(InvalidOperationException ex)
+        {
+            if (ex == null) return false;
+            var msg = ex.Message ?? string.Empty;
+            return msg.IndexOf("Config bytes not found", StringComparison.OrdinalIgnoreCase) >= 0
+                || msg.IndexOf("Config bytes is empty", StringComparison.OrdinalIgnoreCase) >= 0
+                || msg.IndexOf("Config json not found", StringComparison.OrdinalIgnoreCase) >= 0
+                || msg.IndexOf("Resources", StringComparison.OrdinalIgnoreCase) >= 0;
         }
     }
 }

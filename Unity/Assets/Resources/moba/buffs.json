@@ -1,19 +1,20 @@
 [
   {
-    "Id": 1,
-    "Name": "buff1",
-    "DurationMs": 3000,
+    "Id": 100001,
+    "Name": "",
+    "DurationMs": 10000,
     "OngoingEffectId": 0,
-    "OnAddEffects": [
-      1000001
-    ],
+    "OnAddEffects": [],
     "OnRemoveEffects": [],
-    "OnIntervalEffects": [],
-    "IntervalMs": 0,
+    "OnIntervalEffects": [
+      20004
+    ],
+    "IntervalMs": 2000,
     "StackingPolicy": 0,
     "RefreshPolicy": 0,
     "MaxStacks": 0,
-    "TriggerIds": [],
-    "Tags": []
+    "Tags": [
+      0
+    ]
   }
 ]
