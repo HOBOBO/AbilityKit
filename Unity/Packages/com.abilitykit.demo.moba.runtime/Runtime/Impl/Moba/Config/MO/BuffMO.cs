@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Ability.Impl.Moba;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
@@ -22,24 +23,24 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         public IReadOnlyList<int> TriggerIds { get; }
         public IReadOnlyList<int> Tags { get; }
 
-        public BuffMO(global::cfg.DRBuff dto)
+        public BuffMO(BuffDTO dto)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
             Id = dto.Id;
-            Name = string.Empty;
+            Name = dto.Name;
             DurationMs = dto.DurationMs;
 
             OngoingEffectId = dto.OngoingEffectId;
 
-            OnAddEffects = dto.OnAddEffects;
-            OnRemoveEffects = dto.OnRemoveEffects;
-            OnIntervalEffects = dto.OnIntervalEffects;
+            OnAddEffects = dto.OnAddEffects ?? Array.Empty<int>();
+            OnRemoveEffects = dto.OnRemoveEffects ?? Array.Empty<int>();
+            OnIntervalEffects = dto.OnIntervalEffects ?? Array.Empty<int>();
             IntervalMs = dto.IntervalMs;
             StackingPolicy = (BuffStackingPolicy)dto.StackingPolicy;
             RefreshPolicy = (BuffRefreshPolicy)dto.RefreshPolicy;
             MaxStacks = dto.MaxStacks;
-            TriggerIds = dto.TriggerIds;
-            Tags = dto.Tags;
+            TriggerIds = dto.TriggerIds ?? Array.Empty<int>();
+            Tags = dto.Tags ?? Array.Empty<int>();
         }
     }
 }

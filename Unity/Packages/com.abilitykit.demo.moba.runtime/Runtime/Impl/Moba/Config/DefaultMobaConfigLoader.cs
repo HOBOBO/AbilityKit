@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.HotReload;
+using AbilityKit.Ability.Share.Common.Log;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
@@ -93,6 +94,18 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
                     }
                 }
 
+                // Validate JSON format - must be an array
+                if (!ValidateJsonArrayFormat(json, t.FileWithoutExt))
+                {
+                    if (strict)
+                    {
+                        throw new InvalidOperationException($"Config json is not a valid array format: {fullPath}");
+                    }
+                    hasFail = true;
+                    fail = ConfigReloadResult.Fail("moba.config", db != null ? db.Version : 0, $"Config json is not a valid array format: {fullPath}");
+                    return jsonByKey;
+                }
+
                 jsonByKey[fullPath] = json;
                 jsonByKey[t.FileWithoutExt] = json;
             }
@@ -116,13 +129,25 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             {
                 var t = tables[i];
                 var path = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
-                var asset = Resources.Load<TextAsset>(path);
-                if (asset == null)
+
+                // Try to load merged JSON file with explicit .json extension
+                var json = TryLoadMergedJsonWithExtension(path);
+                if (string.IsNullOrEmpty(json))
                 {
-                    asset = Resources.Load<TextAsset>(t.FileWithoutExt);
+                    json = TryLoadMergedJsonWithExtension(t.FileWithoutExt);
                 }
 
-                if (asset == null)
+                // Fallback: try without extension (original behavior)
+                if (string.IsNullOrEmpty(json))
+                {
+                    json = TryLoadMergedJson(path);
+                }
+                if (string.IsNullOrEmpty(json))
+                {
+                    json = TryLoadMergedJson(t.FileWithoutExt);
+                }
+
+                if (string.IsNullOrEmpty(json))
                 {
                     if (strict) throw new InvalidOperationException($"Config json not found in Resources: {path}");
                     hasFail = true;
@@ -130,12 +155,15 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
                     return jsonByKey;
                 }
 
-                var json = asset.text;
-                if (string.IsNullOrEmpty(json))
+                // Validate JSON format - must be an array for merged config files
+                if (!ValidateJsonArrayFormat(json, t.FileWithoutExt))
                 {
-                    if (strict) throw new InvalidOperationException($"Config json is empty: {path}");
+                    if (strict)
+                    {
+                        throw new InvalidOperationException($"Config json is not a valid array format: {path}. Expected array format like [{{...}}, {{...}}]");
+                    }
                     hasFail = true;
-                    fail = ConfigReloadResult.Fail("moba.config", db != null ? db.Version : 0, $"Config json is empty: {path}");
+                    fail = ConfigReloadResult.Fail("moba.config", db != null ? db.Version : 0, $"Config json is not a valid array format: {path}");
                     return jsonByKey;
                 }
 
@@ -144,6 +172,60 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             }
 
             return jsonByKey;
+        }
+
+        private string TryLoadMergedJsonWithExtension(string pathWithoutExt)
+        {
+            // Explicitly add .json extension to avoid loading folder
+            var pathWithExt = pathWithoutExt + ".json";
+            var asset = Resources.Load<TextAsset>(pathWithExt);
+            if (asset != null && !string.IsNullOrEmpty(asset.text))
+            {
+                var text = asset.text.TrimStart();
+                // Must be an array format (merged JSON)
+                if (text.StartsWith("["))
+                {
+                    return asset.text;
+                }
+            }
+            return null;
+        }
+
+        private string TryLoadMergedJson(string path)
+        {
+            // Fallback: try without extension
+            var asset = Resources.Load<TextAsset>(path);
+            if (asset != null && !string.IsNullOrEmpty(asset.text))
+            {
+                var text = asset.text.TrimStart();
+                // Check if it's a valid array format (starts with '[')
+                if (text.StartsWith("["))
+                {
+                    return asset.text;
+                }
+            }
+            return null;
+        }
+
+        private bool ValidateJsonArrayFormat(string json, string fileName)
+        {
+            if (string.IsNullOrEmpty(json))
+                return false;
+
+            var trimmed = json.TrimStart();
+            // Valid config format is an array: [...]
+            if (trimmed.StartsWith("["))
+                return true;
+
+            // If it starts with '{', it's likely Luban's individual file format
+            if (trimmed.StartsWith("{"))
+            {
+                Log.Warning($"[ConfigLoader] File '{fileName}' contains single object format (Luban separate export). Expected merged array format.");
+                return false;
+            }
+
+            Log.Warning($"[ConfigLoader] File '{fileName}' has invalid format. Expected array '[...]' but got: {trimmed.Substring(0, Math.Min(50, trimmed.Length))}...");
+            return false;
         }
     }
 }
