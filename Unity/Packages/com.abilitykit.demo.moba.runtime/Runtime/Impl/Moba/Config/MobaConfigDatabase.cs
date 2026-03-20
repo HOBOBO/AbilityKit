@@ -160,6 +160,18 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             loader.LoadFromResources(this, resourcesDir);
         }
 
+        public void LoadFromResources(string resourcesDir, bool strict)
+        {
+            if (string.IsNullOrEmpty(resourcesDir)) throw new ArgumentException(nameof(resourcesDir));
+
+            var loader = new DefaultMobaConfigLoader(_registry);
+            var result = loader.ReloadFromResources(this, resourcesDir, strict);
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException(result.Error ?? "Config reload failed");
+            }
+        }
+
         public void LoadFromBytes(IReadOnlyDictionary<string, byte[]> bytesByKey, string resourcesDir = null)
         {
             if (bytesByKey == null) throw new ArgumentNullException(nameof(bytesByKey));
@@ -237,7 +249,21 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             string bytesResourcesDir,
             string jsonResourcesDir)
         {
-            var result = ReloadFromMixed(bytesByKey, jsonByKey, bytesResourcesDir, jsonResourcesDir);
+            var result = ReloadFromMixed(bytesByKey, jsonByKey, bytesResourcesDir, jsonResourcesDir, strict: true);
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException(result.Error ?? "Config reload failed");
+            }
+        }
+
+        public void LoadFromMixed(
+            IReadOnlyDictionary<string, byte[]> bytesByKey,
+            IReadOnlyDictionary<string, string> jsonByKey,
+            string bytesResourcesDir,
+            string jsonResourcesDir,
+            bool strict)
+        {
+            var result = ReloadFromMixed(bytesByKey, jsonByKey, bytesResourcesDir, jsonResourcesDir, strict);
             if (!result.Succeeded)
             {
                 throw new InvalidOperationException(result.Error ?? "Config reload failed");
@@ -249,6 +275,16 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             IReadOnlyDictionary<string, string> jsonByKey,
             string bytesResourcesDir,
             string jsonResourcesDir)
+        {
+            return ReloadFromMixed(bytesByKey, jsonByKey, bytesResourcesDir, jsonResourcesDir, strict: true);
+        }
+
+        public ConfigReloadResult ReloadFromMixed(
+            IReadOnlyDictionary<string, byte[]> bytesByKey,
+            IReadOnlyDictionary<string, string> jsonByKey,
+            string bytesResourcesDir,
+            string jsonResourcesDir,
+            bool strict)
         {
             if (bytesByKey == null) throw new ArgumentNullException(nameof(bytesByKey));
             if (jsonByKey == null) throw new ArgumentNullException(nameof(jsonByKey));
@@ -282,9 +318,14 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
                     }
                     else
                     {
-                        var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config not found (bytes/json): {t.FileWithoutExt}");
-                        ConfigReloadBus.Publish(fail);
-                        return fail;
+                        if (strict)
+                        {
+                            var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config not found (bytes/json): {t.FileWithoutExt}");
+                            ConfigReloadBus.Publish(fail);
+                            return fail;
+                        }
+
+                        arr = Array.CreateInstance(t.DtoType, 0);
                     }
 
                     var dtoTableObj = CreateDtoTableFromDtos(t.DtoType, arr);
@@ -337,7 +378,23 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             }
         }
 
+        public void LoadFromJsonTexts(IReadOnlyDictionary<string, string> jsonByKey, string resourcesDir, bool strict)
+        {
+            if (jsonByKey == null) throw new ArgumentNullException(nameof(jsonByKey));
+
+            var result = ReloadFromJsonTexts(jsonByKey, resourcesDir, strict);
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException(result.Error ?? "Config reload failed");
+            }
+        }
+
         public ConfigReloadResult ReloadFromJsonTexts(IReadOnlyDictionary<string, string> jsonByKey, string resourcesDir = null)
+        {
+            return ReloadFromJsonTexts(jsonByKey, resourcesDir, strict: true);
+        }
+
+        public ConfigReloadResult ReloadFromJsonTexts(IReadOnlyDictionary<string, string> jsonByKey, string resourcesDir, bool strict)
         {
             if (jsonByKey == null) throw new ArgumentNullException(nameof(jsonByKey));
 
@@ -352,9 +409,20 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 
                 if (!TryGetJson(jsonByKey, fullPath, t.FileWithoutExt, out var json) || string.IsNullOrEmpty(json))
                 {
-                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config json not found: {fullPath}");
-                    ConfigReloadBus.Publish(fail);
-                    return fail;
+                    if (strict)
+                    {
+                        var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config json not found: {fullPath}");
+                        ConfigReloadBus.Publish(fail);
+                        return fail;
+                    }
+
+                    // Create empty table for missing config in non-strict mode
+                    var emptyArr = Array.CreateInstance(t.DtoType, 0);
+                    var dtoTableObj = CreateDtoTableFromDtos(t.DtoType, emptyArr);
+                    nextDtoTables[t.DtoType] = dtoTableObj;
+                    var tableObj = CreateTableFromDtos(t.DtoType, t.MoType, emptyArr);
+                    nextTables[t.MoType] = tableObj;
+                    continue;
                 }
 
                 try

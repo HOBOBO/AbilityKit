@@ -61,6 +61,20 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             return db.ReloadFromJsonTexts(jsonByKey, resourcesDir);
         }
 
+        public ConfigReloadResult ReloadFromResources(MobaConfigDatabase db, string resourcesDir, bool strict)
+        {
+            if (db == null) throw new ArgumentNullException(nameof(db));
+            if (string.IsNullOrEmpty(resourcesDir)) throw new ArgumentException(nameof(resourcesDir));
+
+            var jsonByKey = BuildJsonByKeyFromResources(db, resourcesDir, strict, out var hasFail, out var fail);
+            if (hasFail)
+            {
+                ConfigReloadBus.Publish(fail);
+                return fail;
+            }
+            return db.ReloadFromJsonTexts(jsonByKey, resourcesDir);
+        }
+
         private Dictionary<string, string> BuildJsonByKeyFromSource(
             MobaConfigDatabase db,
             IMobaConfigSource source,

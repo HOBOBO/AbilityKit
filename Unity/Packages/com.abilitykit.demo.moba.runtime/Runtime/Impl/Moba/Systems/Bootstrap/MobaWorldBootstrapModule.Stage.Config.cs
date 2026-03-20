@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Triggering.Json;
 using AbilityKit.Ability.World.DI;
+using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.Moba.Systems
 {
@@ -38,40 +40,46 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                         ? fp.Format
                         : DefaultMobaConfigFormatProvider.Instance.Format;
 
-                    format = MobaConfigFormat.Json;
-
                     if (format == MobaConfigFormat.Bytes)
                     {
-                        try
-                        {
-                            if (_.TryResolve<IMobaConfigBytesSource>(out var bsource) && bsource != null)
-                            {
-                                bytesLoader.Load(db, bsource, MobaConfigPaths.DefaultResourcesBytesDir);
-                            }
-                            else
-                            {
-                                bytesLoader.LoadFromResources(db, MobaConfigPaths.DefaultResourcesBytesDir);
-                            }
-                        }
-                        catch (InvalidOperationException ex) when (IsMissingConfigResource(ex))
-                        {
-                            Log.Warning($"[MobaWorldBootstrapModule] Bytes config missing, fallback to legacy json resources. err={ex.Message}");
-                            loader.LoadFromResources(db, MobaConfigPaths.DefaultResourcesDir);
-                        }
+                        _.TryResolve<IMobaConfigBytesSource>(out var bsource);
+                        _.TryResolve<IMobaConfigSource>(out var jsource);
+                        _.TryResolve<IMobaConfigTextSink>(out var sink);
+
+                        var bytesByKey = BuildPartialBytesByKey(bsource, MobaConfigPaths.DefaultResourcesBytesDir, registry ?? DefaultMobaConfigTableRegistry.Instance);
+                        var jsonByKey = BuildPartialJsonByKey(jsource, sink, MobaConfigPaths.DefaultResourcesDir, registry ?? DefaultMobaConfigTableRegistry.Instance);
+
+                        db.LoadFromMixed(
+                            bytesByKey,
+                            jsonByKey,
+                            MobaConfigPaths.DefaultResourcesBytesDir,
+                            MobaConfigPaths.DefaultResourcesDir,
+                            strict: false);
                     }
                     else
                     {
                         if (_.TryResolve<IMobaConfigSource>(out var source) && source != null)
                         {
-                            loader.Load(db, source, MobaConfigPaths.DefaultResourcesDir);
+                            var result = loader.Reload(db, source, MobaConfigPaths.DefaultResourcesDir);
+                            if (!result.Succeeded)
+                            {
+                                Log.Warning($"[MobaWorldBootstrapModule] Json source loading failed, falling back to tolerant Resources loading. err={result.Error}");
+                                db.LoadFromResources(MobaConfigPaths.DefaultResourcesDir, strict: false);
+                            }
                         }
                         else if (_.TryResolve<IMobaConfigTextSink>(out var sink) && sink != null)
                         {
-                            loader.Load(db, new MobaConfigTextSinkAdapter(sink), MobaConfigPaths.DefaultResourcesDir);
+                            var result = loader.Reload(db, new MobaConfigTextSinkAdapter(sink), MobaConfigPaths.DefaultResourcesDir);
+                            if (!result.Succeeded)
+                            {
+                                Log.Warning($"[MobaWorldBootstrapModule] Json sink loading failed, falling back to tolerant Resources loading. err={result.Error}");
+                                db.LoadFromResources(MobaConfigPaths.DefaultResourcesDir, strict: false);
+                            }
                         }
                         else
                         {
-                            loader.LoadFromResources(db, MobaConfigPaths.DefaultResourcesDir);
+                            // Default tolerant loading for Resources
+                            db.LoadFromResources(MobaConfigPaths.DefaultResourcesDir, strict: false);
                         }
                     }
 
@@ -86,6 +94,86 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             });
 
             builder.TryRegister<ITextLoader>(WorldLifetime.Singleton, _ => new UnityResourcesTextLoader());
+        }
+
+        private static Dictionary<string, byte[]> BuildPartialBytesByKey(
+            IMobaConfigBytesSource source,
+            string resourcesDir,
+            IMobaConfigTableRegistry registry)
+        {
+            var result = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+            if (registry == null) return result;
+
+            var tables = registry.Tables;
+            for (int i = 0; i < tables.Length; i++)
+            {
+                var t = tables[i];
+                var fullPath = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
+
+                byte[] bytes = null;
+                if (source != null)
+                {
+                    source.TryGetBytes(fullPath, out bytes);
+                    if (bytes == null || bytes.Length == 0)
+                    {
+                        source.TryGetBytes(t.FileWithoutExt, out bytes);
+                    }
+                }
+
+                if (bytes == null || bytes.Length == 0)
+                {
+                    var asset = Resources.Load<TextAsset>(fullPath) ?? Resources.Load<TextAsset>(t.FileWithoutExt);
+                    if (asset != null) bytes = asset.bytes;
+                }
+
+                if (bytes == null || bytes.Length == 0) continue;
+                result[fullPath] = bytes;
+                result[t.FileWithoutExt] = bytes;
+            }
+
+            return result;
+        }
+
+        private static Dictionary<string, string> BuildPartialJsonByKey(
+            IMobaConfigSource source,
+            IMobaConfigTextSink sink,
+            string resourcesDir,
+            IMobaConfigTableRegistry registry)
+        {
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (registry == null) return result;
+
+            var tables = registry.Tables;
+            for (int i = 0; i < tables.Length; i++)
+            {
+                var t = tables[i];
+                var fullPath = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
+
+                string json = null;
+                if (source != null)
+                {
+                    source.TryGetText(fullPath, out json);
+                    if (string.IsNullOrEmpty(json)) source.TryGetText(t.FileWithoutExt, out json);
+                }
+
+                if (string.IsNullOrEmpty(json) && sink != null)
+                {
+                    sink.TryGetText(fullPath, out json);
+                    if (string.IsNullOrEmpty(json)) sink.TryGetText(t.FileWithoutExt, out json);
+                }
+
+                if (string.IsNullOrEmpty(json))
+                {
+                    var asset = Resources.Load<TextAsset>(fullPath) ?? Resources.Load<TextAsset>(t.FileWithoutExt);
+                    if (asset != null) json = asset.text;
+                }
+
+                if (string.IsNullOrEmpty(json)) continue;
+                result[fullPath] = json;
+                result[t.FileWithoutExt] = json;
+            }
+
+            return result;
         }
 
         private static bool IsMissingConfigResource(InvalidOperationException ex)
