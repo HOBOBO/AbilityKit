@@ -12,4 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e53098fff95b030498c1cae260a09221, type: 3}
   m_Name: BuffTable
   m_EditorClassIdentifier: 
-  DataList: []
+  DataList:
+  - Id: 0
+    Name: 
+    DurationMs: 0
+    OngoingEffectId: 0
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    StackingPolicy: 0
+    RefreshPolicy: 0
+    MaxStacks: 0
+    TriggerIds: 
+    Tags: 

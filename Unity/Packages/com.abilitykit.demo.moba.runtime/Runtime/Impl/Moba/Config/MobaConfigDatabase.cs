@@ -359,6 +359,122 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             return ok;
         }
 
+        /// <summary>
+        /// 从配置组加载配置
+        /// </summary>
+        /// <param name="groups">配置组列表，按顺序处理</param>
+        public void LoadFromGroups(IReadOnlyList<IConfigGroup> groups)
+        {
+            var result = ReloadFromGroups(groups);
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException(result.Error ?? "Config reload from groups failed");
+            }
+        }
+
+        /// <summary>
+        /// 从配置组重新加载配置
+        /// </summary>
+        /// <param name="groups">配置组列表，按顺序处理</param>
+        public ConfigReloadResult ReloadFromGroups(IReadOnlyList<IConfigGroup> groups)
+        {
+            if (groups == null || groups.Count == 0)
+            {
+                var fail = ConfigReloadResult.Fail(ConfigKey, _version, "No config groups provided");
+                ConfigReloadBus.Publish(fail);
+                return fail;
+            }
+
+            var nextTables = new Dictionary<Type, object>();
+            var nextDtoTables = new Dictionary<Type, object>();
+
+            // 按组处理所有配置表
+            for (var gi = 0; gi < groups.Count; gi++)
+            {
+                var group = groups[gi];
+
+                for (var i = 0; i < group.Tables.Count; i++)
+                {
+                    var entry = group.Tables[i];
+
+                    // 尝试加载配置数据
+                    if (!group.Loader.TryLoad(entry.FileWithoutExt, out var bytes, out var text))
+                    {
+                        // 如果该组没有配置，尝试下一个组
+                        var found = false;
+                        for (var gj = gi + 1; gj < groups.Count; gj++)
+                        {
+                            if (groups[gj].Loader.TryLoad(entry.FileWithoutExt, out bytes, out text))
+                            {
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        if (!found)
+                        {
+                            var fail = ConfigReloadResult.Fail(ConfigKey, _version,
+                                $"Config not found: {entry.FileWithoutExt} in any group");
+                            ConfigReloadBus.Publish(fail);
+                            return fail;
+                        }
+                    }
+
+                    // 反序列化
+                    Array arr;
+                    try
+                    {
+                        if (bytes != null && bytes.Length > 0)
+                        {
+                            arr = group.Deserializer.DeserializeFromBytes(bytes, entry.DtoType);
+                        }
+                        else if (!string.IsNullOrEmpty(text))
+                        {
+                            arr = group.Deserializer.DeserializeFromText(text, entry.DtoType);
+                        }
+                        else
+                        {
+                            var fail = ConfigReloadResult.Fail(ConfigKey, _version,
+                                $"Config data is empty: {entry.FileWithoutExt}");
+                            ConfigReloadBus.Publish(fail);
+                            return fail;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        var fail = ConfigReloadResult.Fail(ConfigKey, _version,
+                            $"Failed to deserialize: {entry.FileWithoutExt}. {ex.Message}");
+                        ConfigReloadBus.Publish(fail);
+                        return fail;
+                    }
+
+                    // 创建表
+                    var dtoTableObj = CreateDtoTableFromDtos(entry.DtoType, arr);
+                    nextDtoTables[entry.DtoType] = dtoTableObj;
+                    var tableObj = CreateTableFromDtos(entry.DtoType, entry.MoType, arr);
+                    nextTables[entry.MoType] = tableObj;
+                }
+            }
+
+            // 提交变更
+            _tables.Clear();
+            foreach (var kv in nextTables)
+            {
+                _tables[kv.Key] = kv.Value;
+            }
+
+            _dtoTables.Clear();
+            foreach (var kv in nextDtoTables)
+            {
+                _dtoTables[kv.Key] = kv.Value;
+            }
+
+            _version++;
+            var success = ConfigReloadResult.Success(ConfigKey, _version, fullReload: true, changedIds: null);
+            ConfigReloadBus.Publish(success);
+            return success;
+        }
+
         public ConfigReloadResult ReloadFromResources(string resourcesDir)
         {
             if (string.IsNullOrEmpty(resourcesDir)) throw new ArgumentException(nameof(resourcesDir));

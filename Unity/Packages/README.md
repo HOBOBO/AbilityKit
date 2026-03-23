@@ -4,7 +4,15 @@
 
 ---
 
-## 📚 模块文档列表
+## 总览文档
+
+| 文档 | 定位 |
+|------|------|
+| [技术选型文档](./技术选型文档.md) | 从零开发通用战斗框架的技术选型，涵盖逻辑表现分离、ECS、管线系统、依赖注入、帧同步等核心设计 |
+
+---
+
+## 模块文档列表
 
 ### 1. [Host 模块](./com.abilitykit.host.extension/Document/)
 
@@ -146,6 +154,14 @@
 
 **核心内容**：基于分层状态机和 Feature 扩展的表现层游戏流程管理
 
+### 16. [World 依赖注入模块](./com.abilitykit.world.di/Document/)
+
+| 文档 | 定位 |
+|------|------|
+| [开发设计文档](./com.abilitykit.world.di/Document/World依赖注入与组合系统开发设计文档.md) | 设计理念、服务容器、生命周期隔离、模块化注册 |
+
+**核心内容**：逻辑世界的服务依赖注入框架，支持 Singleton/Scoped/Transient 三种生命周期，提供模块化服务注册
+
 ---
 
 ## 🎯 快速导航
@@ -161,6 +177,7 @@
 | 扩展 Host 模块 | [Host 模块扩展指南](./com.abilitykit.host.extension/Document/Host模块扩展指南.md) |
 | 编排复杂流程 | [Flow 模块扩展指南](./com.abilitykit.flow/Document/Flow模块扩展指南.md) |
 | 开发自定义节点 | [Flow 模块扩展指南 - 第二章](./com.abilitykit.flow/Document/Flow模块扩展指南.md#二自定义节点开发) |
+| 管理世界服务依赖 | [World DI 开发设计文档](./com.abilitykit.world.di/Document/World依赖注入与组合系统开发设计文档.md) |
 
 ### 想理解架构设计？
 
@@ -168,6 +185,8 @@
 |------|----------|
 | 为什么用 Hook/Feature | [Host 模块扩展指南 - 设计理念](./com.abilitykit.host.extension/Document/Host模块扩展指南.md#一设计理念host-为什么是一个扩展框架) |
 | 为什么用节点树 | [Flow 模块开发设计文档 - 设计理念](./com.abilitykit.flow/Document/Flow模块开发设计文档.md#一设计理念为什么要做-flow-模块) |
+| 为什么用 Scope | [World DI 开发设计文档 - 生命周期](./com.abilitykit.world.di/Document/World依赖注入与组合系统开发设计文档.md#23-什么是生命周期lifetime) |
+| 为什么用 Module | [World DI 开发设计文档 - 模块系统](./com.abilitykit.world.di/Document/World依赖注入与组合系统开发设计文档.md#四五-iworldmodule---模块接口) |
 | 为什么分 Track | [通用录像模块开发设计文档 - 设计理念](./com.abilitykit.world.record/Document/通用录像模块开发设计文档.md#一设计理念为什么要做录像模块) |
 | 为什么用 Phase | [能力管线模块开发设计文档 - 设计理念](./com.abilitykit.pipeline/Document/能力管线模块开发设计文档.md#一设计理念为什么要做-pipeline-模块) |
 | 为什么用索引 | [技能库模块开发设计文档 - 设计理念](./com.abilitykit.combat.skilllibrary/Document/技能库模块开发设计文档.md#一设计理念为什么要做技能库模块) |
