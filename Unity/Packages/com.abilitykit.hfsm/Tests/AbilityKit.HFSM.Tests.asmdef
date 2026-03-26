@@ -1,0 +1,22 @@
+{
+    "name": "AbilityKit.HFSM.Tests",
+    "rootNamespace": "AbilityKit.Tests",
+    "references": [
+        "AbilityKit.HFSM",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

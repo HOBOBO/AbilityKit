@@ -1,8 +1,10 @@
-﻿{
+{
   "name": "AbilityKit.HFSM",
   "rootNamespace": "AbilityKit",
   "references": [
-    "AbilityKit.Core"
+    "AbilityKit.Core",
+    "UnityEngine",
+    "UnityEditor"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

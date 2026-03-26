@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UXML xmlns="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <VisualElement name="Root" style="flex-grow: 1; flex-shrink: 1;">
+        <VisualElement name="breadcrumb-area" style="height: 24px; flex-shrink: 0; background-color: #3c3c3c; flex-direction: row; align-items: center; padding-left: 8px;">
+            <uie:ToolbarButton name="BackButton" text="&lt; Back" style="margin-left: 2px;" />
+            <Label name="BreadcrumbLabel" text="No graph loaded" style="flex-grow: 1; margin-left: 10px; color: #cccccc; -unity-font-style: bold;" />
+            <uie:ToolbarButton name="NewButton" text="New" style="margin-left: 4px;" />
+            <uie:ToolbarButton name="LoadButton" text="Load" style="margin-left: 4px;" />
+            <uie:ToolbarButton name="ValidateButton" text="Validate" style="margin-left: 4px;" />
+            <uie:ToolbarButton name="FrameButton" text="Frame" style="margin-left: 4px; margin-right: 4px;" />
+        </VisualElement>
+        <VisualElement name="MainContent" style="flex-grow: 1; flex-shrink: 1; flex-direction: row;">
+            <VisualElement name="LeftPane" style="width: 280px; min-width: 220px; max-width: 400px; background-color: #333333; border-right-width: 1px; border-right-color: #232323;">
+                <IMGUIContainer name="ParameterPanel" style="flex-grow: 1;" />
+            </VisualElement>
+            <VisualElement name="CenterPane" style="flex-grow: 1; flex-shrink: 1;">
+                <VisualElement name="content-area" style="flex-grow: 1; flex-shrink: 1; background-color: #262626;">
+                    <IMGUIContainer name="graph-view" style="flex-grow: 1; flex-shrink: 1;" />
+                </VisualElement>
+            </VisualElement>
+            <VisualElement name="RightPane" style="width: 250px; min-width: 200px; max-width: 400px; background-color: #333333; border-left-width: 1px; border-left-color: #232323;">
+                <IMGUIContainer name="InspectorPanel" style="flex-grow: 1;" />
+            </VisualElement>
+        </VisualElement>
+    </VisualElement>
+</UXML>

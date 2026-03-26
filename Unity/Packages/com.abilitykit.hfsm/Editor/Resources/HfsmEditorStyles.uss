@@ -1,0 +1,31 @@
+/* HFSM Editor Styles */
+
+#graph-view {
+    background-color: #262626;
+}
+
+#breadcrumb-area {
+    background-color: #3c3c3c;
+    border-bottom-width: 1px;
+    border-bottom-color: #232323;
+}
+
+#breadcrumb-area Label {
+    color: #cccccc;
+    -unity-font-style: bold;
+}
+
+#breadcrumb-area .unity-toolbar-button {
+    margin: 2px;
+}
+
+#LeftPane {
+    background-color: #333333;
+}
+
+.help-box {
+    background-color: #3c3c3c;
+    border-radius: 3px;
+    padding: 8px;
+    margin: 4px;
+}
