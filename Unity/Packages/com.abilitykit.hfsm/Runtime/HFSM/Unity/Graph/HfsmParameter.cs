@@ -87,6 +87,45 @@ namespace UnityHFSM.Graph
             return clone;
         }
 
+        /// <summary>
+        /// 获取序列化的默认值（用于导出）
+        /// </summary>
+        public object GetSerializedDefaultValue()
+        {
+            if (string.IsNullOrEmpty(_defaultValueJson))
+            {
+                return _parameterType switch
+                {
+                    HfsmParameterType.Bool => false,
+                    HfsmParameterType.Float => 0f,
+                    HfsmParameterType.Int => 0,
+                    HfsmParameterType.Trigger => false,
+                    _ => null
+                };
+            }
+
+            try
+            {
+                return JsonUtility.FromJson<object>(_defaultValueJson);
+            }
+            catch
+            {
+                return _parameterType switch
+                {
+                    HfsmParameterType.Bool => false,
+                    HfsmParameterType.Float => 0f,
+                    HfsmParameterType.Int => 0,
+                    HfsmParameterType.Trigger => false,
+                    _ => null
+                };
+            }
+        }
+
+        /// <summary>
+        /// Type alias for compatibility
+        /// </summary>
+        public HfsmParameterType Type => ParameterType;
+
         public override string ToString()
         {
             return $"{_name} ({_parameterType})";

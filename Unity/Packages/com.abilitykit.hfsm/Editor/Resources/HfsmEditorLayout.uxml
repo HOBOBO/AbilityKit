@@ -7,7 +7,8 @@
             <uie:ToolbarButton name="NewButton" text="New" style="margin-left: 4px;" />
             <uie:ToolbarButton name="LoadButton" text="Load" style="margin-left: 4px;" />
             <uie:ToolbarButton name="ValidateButton" text="Validate" style="margin-left: 4px;" />
-            <uie:ToolbarButton name="FrameButton" text="Frame" style="margin-left: 4px; margin-right: 4px;" />
+            <uie:ToolbarButton name="FrameButton" text="Frame" style="margin-left: 4px;" />
+            <uie:ToolbarButton name="ExportButton" text="Export" style="margin-left: 4px; margin-right: 4px;" />
         </VisualElement>
         <VisualElement name="MainContent" style="flex-grow: 1; flex-shrink: 1; flex-direction: row;">
             <VisualElement name="LeftPane" style="width: 280px; min-width: 220px; max-width: 400px; background-color: #333333; border-right-width: 1px; border-right-color: #232323;">

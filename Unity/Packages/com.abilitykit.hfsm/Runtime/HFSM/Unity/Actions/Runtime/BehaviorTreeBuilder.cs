@@ -563,6 +563,34 @@ namespace UnityHFSM
                 return (T)(object)objectValue;
             return default(T);
         }
+
+        /// <summary>
+        /// 获取值作为 object 类型（用于导出）
+        /// </summary>
+        public object GetValueAsObject()
+        {
+            switch (ValueType)
+            {
+                case HfsmBehaviorParameterType.Float:
+                    return floatValue;
+                case HfsmBehaviorParameterType.Int:
+                    return intValue;
+                case HfsmBehaviorParameterType.Bool:
+                    return boolValue;
+                case HfsmBehaviorParameterType.String:
+                    return stringValue;
+                case HfsmBehaviorParameterType.Vector2:
+                    return new { x = vector2Value.x, y = vector2Value.y };
+                case HfsmBehaviorParameterType.Vector3:
+                    return new { x = vector3Value.x, y = vector3Value.y, z = vector3Value.z };
+                case HfsmBehaviorParameterType.Color:
+                    return new { r = colorValue.r, g = colorValue.g, b = colorValue.b, a = colorValue.a };
+                case HfsmBehaviorParameterType.Object:
+                    return objectValue != null ? objectValue.name : null;
+                default:
+                    return null;
+            }
+        }
     }
 
     /// <summary>

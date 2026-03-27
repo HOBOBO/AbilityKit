@@ -1,4 +1,5 @@
 using System;
+using UnityHFSM.Config;
 
 namespace UnityHFSM.Actions
 {
@@ -6,6 +7,7 @@ namespace UnityHFSM.Actions
     /// 重复执行器：重复执行子行为指定次数，-1 表示无限重复
     /// </summary>
     [System.Serializable]
+    [HfsmActionType("Repeat", "重复", "重复执行子行为指定次数", "装饰器")]
     public class RepeatAction : ActionBase
     {
         public IAction child;
@@ -79,6 +81,7 @@ namespace UnityHFSM.Actions
     /// 反转器：反转子行为的结果（成功变失败，失败变成成功）
     /// </summary>
     [System.Serializable]
+    [HfsmActionType("Invert", "反转", "反转子行为的结果", "装饰器")]
     public class InvertAction : ActionBase
     {
         public IAction child;
@@ -130,6 +133,7 @@ namespace UnityHFSM.Actions
     /// 时间限制器：限制子行为的最大执行时间
     /// </summary>
     [System.Serializable]
+    [HfsmActionType("TimeLimit", "时间限制", "限制子行为的最大执行时间", "装饰器")]
     public class TimeLimitAction : ActionBase
     {
         public IAction child;
@@ -193,6 +197,7 @@ namespace UnityHFSM.Actions
     /// 直到成功：重复执行直到成功
     /// </summary>
     [System.Serializable]
+    [HfsmActionType("UntilSuccess", "直到成功", "重复执行直到成功", "装饰器")]
     public class UntilSuccessAction : ActionBase
     {
         public IAction child;

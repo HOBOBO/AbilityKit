@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor.UIElements;
+using UnityHFSM.Editor.Export;
 
 namespace UnityHFSM.Editor
 {
@@ -70,8 +71,9 @@ namespace UnityHFSM.Editor
             CreateUI();
             CreateLayers();
 
-            // Try to restore last opened graph
-            if (EditorPrefs.HasKey(EditorPrefLastZoom))
+            // Initialize view state
+            bool hasSavedView = EditorPrefs.HasKey(EditorPrefLastZoom);
+            if (hasSavedView)
             {
                 float zoom = EditorPrefs.GetFloat(EditorPrefLastZoom);
                 float panX = EditorPrefs.GetFloat(EditorPrefLastPanX);
@@ -79,15 +81,25 @@ namespace UnityHFSM.Editor
                 _context.ZoomFactor = zoom;
                 _context.PanOffset = new Vector2(panX, panY);
             }
+            else
+            {
+                // No saved view - will auto-frame on first render
+                _context.ZoomFactor = 1f;
+                _context.PanOffset = Vector2.zero;
+                _pendingFrameAll = true;
+            }
 
-            // Try to restore last opened graph asset
+            // Try to restore last opened graph
             RestoreLastGraph();
         }
 
         private void RestoreLastGraph()
         {
             if (!EditorPrefs.HasKey(EditorPrefLastGraphGuid))
+            {
+                // No saved graph - will need auto-frame when a graph is loaded
                 return;
+            }
 
             string guid = EditorPrefs.GetString(EditorPrefLastGraphGuid);
             if (string.IsNullOrEmpty(guid))
@@ -209,11 +221,73 @@ namespace UnityHFSM.Editor
             ToolbarButton frameButton = _root.Q<ToolbarButton>("FrameButton");
             if (frameButton != null)
                 frameButton.clickable = new Clickable(() => FrameAll());
+
+            ToolbarButton exportButton = _root.Q<ToolbarButton>("ExportButton");
+            if (exportButton != null)
+                exportButton.clickable = new Clickable(() => ExportToJson());
+        }
+
+        private void ExportToJson()
+        {
+            if (_context.GraphAsset == null)
+            {
+                EditorUtility.DisplayDialog("Export", "No graph loaded to export.", "OK");
+                return;
+            }
+
+            // Initialize the export manager to register exporters
+            HfsmExportManager.Initialize();
+
+            var exporter = HfsmExportManager.GetExporter("json");
+            if (exporter == null)
+            {
+                EditorUtility.DisplayDialog("Export", "JSON exporter not found.", "OK");
+                return;
+            }
+
+            string path = EditorUtility.SaveFilePanelInProject(
+                "Export HFSM Graph",
+                _context.GraphAsset.GraphName + "_export",
+                exporter.FileExtension,
+                "Choose where to save the exported file");
+
+            if (string.IsNullOrEmpty(path))
+                return;
+
+            try
+            {
+                var options = ExportOptions.ForRuntime;
+
+                var result = HfsmExportManager.ExportToFile(_context.GraphAsset, path, "json", options);
+
+                if (result.success)
+                {
+                    EditorUtility.DisplayDialog("Export Successful",
+                        $"Graph exported to:\n{path}\n\nElapsed time: {result.elapsedMilliseconds}ms\nSize: {result.data.Length} bytes",
+                        "OK");
+                    AssetDatabase.Refresh();
+                }
+                else
+                {
+                    EditorUtility.DisplayDialog("Export Failed",
+                        $"Failed to export graph:\n{result.errorMessage}",
+                        "OK");
+                }
+            }
+            catch (System.Exception e)
+            {
+                EditorUtility.DisplayDialog("Export Failed",
+                    $"Failed to export graph:\n{e.Message}",
+                    "OK");
+            }
         }
 
         // Panels
         private HfsmInspectorPanel _inspectorPanel;
         private HfsmParameterPanel _parameterPanel;
+
+        // Auto-frame flag to defer framing until view has valid size
+        private bool _pendingFrameAll = false;
 
         private void CreateMainContent()
         {
@@ -290,6 +364,12 @@ namespace UnityHFSM.Editor
 
             // Update layer bounds
             Rect viewRect = _graphContainer.contentRect;
+
+            // Auto-frame if pending (for initial load)
+            if (_pendingFrameAll)
+            {
+                TryAutoFrameOnValidView(viewRect);
+            }
 
             if (viewRect.width <= 0 || viewRect.height <= 0)
                 return;
@@ -469,8 +549,48 @@ namespace UnityHFSM.Editor
             _context.Reset();
             UpdateBreadcrumb();
 
-            // Auto-frame all nodes when loading
-            FrameAll();
+            // Defer framing until view has valid size
+            _pendingFrameAll = true;
+
+            Repaint();
+        }
+
+        private void TryAutoFrameOnValidView(Rect viewRect)
+        {
+            if (!_pendingFrameAll)
+                return;
+
+            // Determine the view rect to use
+            float viewWidth = viewRect.width > 0 ? viewRect.width : 800f;
+            float viewHeight = viewRect.height > 0 ? viewRect.height : 600f;
+            Rect effectiveRect = new Rect(0, 0, viewWidth, viewHeight);
+
+            _pendingFrameAll = false;
+
+            // Update context view bounds for calculations
+            _context.UpdateViewBounds(effectiveRect);
+
+            // Check if we have nodes
+            if (_context.CurrentChildNodes.Count > 0)
+            {
+                // Frame all nodes
+                Rect bounds = _context.GetNodesBounds();
+                float zoomX = viewWidth / (bounds.width + 100);
+                float zoomY = viewHeight / (bounds.height + 100);
+                float zoom = Mathf.Min(zoomX, zoomY, 1f);
+
+                _context.ZoomFactor = zoom;
+                _context.PanOffset = new Vector2(
+                    viewWidth / 2 - (bounds.x + bounds.width / 2) * zoom,
+                    viewHeight / 2 - (bounds.y + bounds.height / 2) * zoom
+                );
+            }
+            else
+            {
+                // No nodes - center on origin (where new nodes will be placed)
+                _context.ZoomFactor = 1f;
+                _context.PanOffset = new Vector2(viewWidth / 2, viewHeight / 2);
+            }
 
             Repaint();
         }

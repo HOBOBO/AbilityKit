@@ -76,5 +76,15 @@ namespace UnityHFSM.Graph.Conditions
         /// 序列化为配置字典
         /// </summary>
         public abstract Dictionary<string, object> ToConfig();
+
+        /// <summary>
+        /// 获取序列化的数据（用于导出）
+        /// </summary>
+        public object GetSerializedData()
+        {
+            var config = ToConfig();
+            config["$type"] = TypeName;
+            return config;
+        }
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityHFSM.Config;
 
 namespace UnityHFSM.Actions
 {
@@ -7,6 +8,7 @@ namespace UnityHFSM.Actions
     /// 等待指定时间的行为
     /// </summary>
     [System.Serializable]
+    [HfsmActionType("Wait", "等待", "等待指定的时间后完成", "基础")]
     public class WaitAction : YieldActionBase
     {
         public float duration = 1f;
@@ -56,6 +58,7 @@ namespace UnityHFSM.Actions
     /// 等待条件满足的行为
     /// </summary>
     [System.Serializable]
+    [HfsmActionType("WaitUntil", "等待条件", "等待指定条件满足后完成", "基础")]
     public class WaitUntilAction : YieldActionBase
     {
         public System.Func<bool> condition;
@@ -91,6 +94,7 @@ namespace UnityHFSM.Actions
     /// 日志行为
     /// </summary>
     [System.Serializable]
+    [HfsmActionType("Log", "日志", "输出日志信息", "基础")]
     public class LogAction : ActionBase
     {
         public string message = "";
@@ -121,6 +125,7 @@ namespace UnityHFSM.Actions
     /// 设置浮点变量
     /// </summary>
     [System.Serializable]
+    [HfsmActionType("SetFloat", "设置浮点数", "设置上下文中的浮点变量", "变量")]
     public class SetFloatAction : ActionBase
     {
         public string variableName = "";
@@ -148,6 +153,7 @@ namespace UnityHFSM.Actions
     /// 设置布尔变量
     /// </summary>
     [System.Serializable]
+    [HfsmActionType("SetBool", "设置布尔值", "设置上下文中的布尔变量", "变量")]
     public class SetBoolAction : ActionBase
     {
         public string variableName = "";
@@ -175,6 +181,7 @@ namespace UnityHFSM.Actions
     /// 设置整数变量
     /// </summary>
     [System.Serializable]
+    [HfsmActionType("SetInt", "设置整数值", "设置上下文中的整型变量", "变量")]
     public class SetIntAction : ActionBase
     {
         public string variableName = "";
