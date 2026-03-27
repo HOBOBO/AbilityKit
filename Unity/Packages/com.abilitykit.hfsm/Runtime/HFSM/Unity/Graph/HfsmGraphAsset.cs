@@ -51,7 +51,12 @@ namespace UnityHFSM.Graph
         private string _rootStateMachineId;
 
         [SerializeField]
-        private HfsmGraphMetadata _metadata = new HfsmGraphMetadata();
+        private HfsmGraphEditorData _editorData = new HfsmGraphEditorData();
+
+        /// <summary>
+        /// 图编辑器数据（包含视图状态和节点编辑器信息）
+        /// </summary>
+        public HfsmGraphEditorData EditorData => _editorData;
 
         /// <summary>
         /// The display name of this graph.
@@ -89,7 +94,7 @@ namespace UnityHFSM.Graph
         /// <summary>
         /// Metadata for the graph editor view (zoom, pan, etc.).
         /// </summary>
-        public HfsmGraphMetadata Metadata => _metadata;
+        public HfsmGraphEditorData Metadata => _editorData;
 
         /// <summary>
         /// Event raised when the graph structure changes.
@@ -454,7 +459,7 @@ namespace UnityHFSM.Graph
 #endif
             clone._graphName = _graphName + " (Clone)";
             clone._rootStateMachineId = _rootStateMachineId;
-            clone._metadata = new HfsmGraphMetadata(_metadata);
+            clone._editorData = _editorData.Clone();
 
             var nodeIdMap = new Dictionary<string, string>();
 
@@ -531,62 +536,6 @@ namespace UnityHFSM.Graph
         RootChanged,
         MetadataChanged,
         Cleared
-    }
-
-    /// <summary>
-    /// Metadata for the graph editor view.
-    /// </summary>
-    [Serializable]
-    public class HfsmGraphMetadata
-    {
-        [SerializeField]
-        private float _zoom = 1.0f;
-
-        public float Zoom
-        {
-            get => _zoom;
-            set => _zoom = Mathf.Clamp(value, 0.1f, 2.0f);
-        }
-
-        [SerializeField]
-        private Vector2 _pan;
-
-        public Vector2 Pan
-        {
-            get => _pan;
-            set => _pan = value;
-        }
-
-        [SerializeField]
-        private List<string> _expandedStateMachineIds = new List<string>();
-
-        public IReadOnlyList<string> ExpandedStateMachineIds => _expandedStateMachineIds;
-
-        public HfsmGraphMetadata() { }
-
-        public HfsmGraphMetadata(HfsmGraphMetadata other)
-        {
-            _zoom = other._zoom;
-            _pan = other._pan;
-            _expandedStateMachineIds = new List<string>(other._expandedStateMachineIds);
-        }
-
-        public void ToggleExpanded(string stateMachineId)
-        {
-            if (_expandedStateMachineIds.Contains(stateMachineId))
-            {
-                _expandedStateMachineIds.Remove(stateMachineId);
-            }
-            else
-            {
-                _expandedStateMachineIds.Add(stateMachineId);
-            }
-        }
-
-        public bool IsExpanded(string stateMachineId)
-        {
-            return _expandedStateMachineIds.Contains(stateMachineId);
-        }
     }
 
     /// <summary>

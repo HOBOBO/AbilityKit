@@ -160,96 +160,15 @@ namespace UnityHFSM.Actions
             if (item == null)
                 return null;
 
-            switch (item.Type)
+            // 确保注册表已初始化
+            if (!HfsmBehaviorTypeRegistry.IsInitialized)
             {
-                // Primitive
-                case UnityHFSM.HfsmBehaviorType.Wait:
-                    return new WaitAction(item.GetParamValue<float>("duration"));
-
-                case UnityHFSM.HfsmBehaviorType.WaitUntil:
-                    return new WaitUntilAction();
-
-                case UnityHFSM.HfsmBehaviorType.Log:
-                    return new LogAction(item.GetParamValue<string>("message"));
-
-                case UnityHFSM.HfsmBehaviorType.SetFloat:
-                    return new SetFloatAction(
-                        item.GetParamValue<string>("variableName"),
-                        item.GetParamValue<float>("value"));
-
-                case UnityHFSM.HfsmBehaviorType.SetBool:
-                    return new SetBoolAction(
-                        item.GetParamValue<string>("variableName"),
-                        item.GetParamValue<bool>("value"));
-
-                case UnityHFSM.HfsmBehaviorType.SetInt:
-                    return new SetIntAction(
-                        item.GetParamValue<string>("variableName"),
-                        item.GetParamValue<int>("value"));
-
-                case UnityHFSM.HfsmBehaviorType.PlayAnimation:
-                    return new PlayAnimationAction(
-                        item.GetParamValue<string>("stateName"),
-                        item.GetParamValue<float>("crossFadeDuration"));
-
-                case UnityHFSM.HfsmBehaviorType.SetActive:
-                    {
-                        var action = new SetActiveAction();
-                        action.targetObject = item.GetParamValue<UnityEngine.Object>("target");
-                        action.active = item.GetParamValue<bool>("active");
-                        return action;
-                    }
-
-                case UnityHFSM.HfsmBehaviorType.MoveTo:
-                    {
-                        var action = new MoveToAction(
-                            item.GetParamValue<UnityEngine.Transform>("target"),
-                            item.GetParamValue<UnityEngine.Vector3>("destination"),
-                            item.GetParamValue<float>("speed"));
-                        return action;
-                    }
-
-                // Composite
-                case UnityHFSM.HfsmBehaviorType.Sequence:
-                    return new SequenceAction();
-
-                case UnityHFSM.HfsmBehaviorType.Selector:
-                    return new SelectorAction();
-
-                case UnityHFSM.HfsmBehaviorType.Parallel:
-                    return new ParallelAction(null, item.GetParamValue<bool>("failOnAnyFailure"));
-
-                case UnityHFSM.HfsmBehaviorType.RandomSelector:
-                    return new RandomSelectorAction();
-
-                case UnityHFSM.HfsmBehaviorType.RandomSequence:
-                    return new RandomSequenceAction();
-
-                // Decorator
-                case UnityHFSM.HfsmBehaviorType.Repeat:
-                    return new RepeatAction(null, item.GetParamValue<int>("count"));
-
-                case UnityHFSM.HfsmBehaviorType.Invert:
-                    return new InvertAction();
-
-                case UnityHFSM.HfsmBehaviorType.TimeLimit:
-                    return new TimeLimitAction(null, item.GetParamValue<float>("timeLimit"));
-
-                case UnityHFSM.HfsmBehaviorType.UntilSuccess:
-                    return new UntilSuccessAction();
-
-                case UnityHFSM.HfsmBehaviorType.UntilFailure:
-                    return new UntilFailureAction();
-
-                case UnityHFSM.HfsmBehaviorType.Cooldown:
-                    return new CooldownAction(null, item.GetParamValue<float>("cooldownDuration"));
-
-                case UnityHFSM.HfsmBehaviorType.If:
-                    return new IfAction();
-
-                default:
-                    return null;
+                HfsmBehaviorTypeRegistry.Initialize();
             }
+
+            // 使用注册表创建并配置行为
+            string typeName = item.TypeName;
+            return HfsmBehaviorTypeRegistry.CreateAndConfigure(typeName, item);
         }
 
         private static IAction CreateAction(BehaviorItemConfig item)
@@ -638,10 +557,38 @@ namespace UnityHFSM
         [UnityEngine.SerializeField]
         private int typeIndex;
 
+        /// <summary>
+        /// 兼容旧版本的枚举类型（已弃用，推荐使用 TypeName）
+        /// </summary>
+        [Obsolete("Use TypeName instead for better extensibility.")]
         public HfsmBehaviorType Type
         {
             get => (HfsmBehaviorType)typeIndex;
             set => typeIndex = (int)value;
+        }
+
+        /// <summary>
+        /// 行为类型名称（用于注册表查找）
+        /// 支持包外扩展
+        /// </summary>
+        public string TypeName
+        {
+            get
+            {
+                // 如果注册表已初始化且有对应的类型名，直接返回
+                if (HfsmBehaviorTypeRegistry.IsInitialized)
+                {
+                    // 从枚举值转换为类型名
+                    return EnumToTypeName((HfsmBehaviorType)typeIndex);
+                }
+                // 否则使用旧的枚举名称
+                return EnumToTypeName((HfsmBehaviorType)typeIndex);
+            }
+            set
+            {
+                // 将类型名转换回枚举索引
+                typeIndex = TypeNameToIndex(value);
+            }
         }
 
         public string parentId;
@@ -664,8 +611,46 @@ namespace UnityHFSM
             SetupDefaultParameters();
         }
 
+        /// <summary>
+        /// 使用类型名称创建行为项
+        /// </summary>
+        public HfsmBehaviorItem(string typeName, string displayName = null)
+        {
+            id = Guid.NewGuid().ToString();
+            TypeName = typeName;
+            this.displayName = displayName ?? GetDefaultDisplayNameFromTypeName(typeName);
+            SetupDefaultParametersFromTypeName(typeName);
+        }
+
+        private static string EnumToTypeName(HfsmBehaviorType type)
+        {
+            return type.ToString();
+        }
+
+        private static int TypeNameToIndex(string typeName)
+        {
+            // 如果注册表已初始化，从注册表获取枚举值
+            if (HfsmBehaviorTypeRegistry.IsInitialized && HfsmBehaviorTypeRegistry.IsRegistered(typeName))
+            {
+                return (int)Enum.Parse(typeof(HfsmBehaviorType), typeName);
+            }
+            // 否则尝试直接解析
+            if (Enum.TryParse<HfsmBehaviorType>(typeName, out var result))
+            {
+                return (int)result;
+            }
+            return 0;
+        }
+
         private static string GetDefaultDisplayName(HfsmBehaviorType type)
         {
+            // 优先从注册表获取
+            if (HfsmBehaviorTypeRegistry.IsInitialized)
+            {
+                var def = HfsmBehaviorTypeRegistry.GetDefinition(type.ToString());
+                if (def != null)
+                    return def.displayName;
+            }
             return type switch
             {
                 HfsmBehaviorType.Wait => "Wait",
@@ -693,7 +678,95 @@ namespace UnityHFSM
             };
         }
 
+        /// <summary>
+        /// 根据类型名称获取默认显示名称
+        /// </summary>
+        private static string GetDefaultDisplayNameFromTypeName(string typeName)
+        {
+            // 优先从注册表获取
+            if (HfsmBehaviorTypeRegistry.IsInitialized)
+            {
+                var def = HfsmBehaviorTypeRegistry.GetDefinition(typeName);
+                if (def != null)
+                    return def.displayName;
+            }
+            // 回退到枚举
+            if (Enum.TryParse<HfsmBehaviorType>(typeName, out var type))
+            {
+                return GetDefaultDisplayName(type);
+            }
+            return typeName;
+        }
+
+        /// <summary>
+        /// 根据类型名称设置默认参数
+        /// </summary>
+        private void SetupDefaultParametersFromTypeName(string typeName)
+        {
+            parameters.Clear();
+
+            // 优先从注册表获取参数定义
+            if (HfsmBehaviorTypeRegistry.IsInitialized)
+            {
+                var def = HfsmBehaviorTypeRegistry.GetDefinition(typeName);
+                if (def != null)
+                {
+                    foreach (var paramDef in def.parameters)
+                    {
+                        var param = new HfsmBehaviorParameter
+                        {
+                            name = paramDef.name,
+                            ValueType = paramDef.valueType
+                        };
+                        // 从 JSON 恢复默认值
+                        RestoreDefaultValue(param, paramDef.defaultValueJson);
+                        parameters.Add(param);
+                    }
+                    return;
+                }
+            }
+
+            // 回退到旧的 switch 逻辑
+            if (Enum.TryParse<HfsmBehaviorType>(typeName, out var type))
+            {
+                SetupDefaultParametersForEnum(type);
+            }
+        }
+
+        private static void RestoreDefaultValue(HfsmBehaviorParameter param, string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                var jsonValue = UnityEngine.JsonUtility.FromJson<JsonValue>(json);
+                if (jsonValue?.value == null) return;
+
+                switch (param.ValueType)
+                {
+                    case HfsmBehaviorParameterType.Float:
+                        param.floatValue = Convert.ToSingle(jsonValue.value);
+                        break;
+                    case HfsmBehaviorParameterType.Int:
+                        param.intValue = Convert.ToInt32(jsonValue.value);
+                        break;
+                    case HfsmBehaviorParameterType.Bool:
+                        param.boolValue = Convert.ToBoolean(jsonValue.value);
+                        break;
+                    case HfsmBehaviorParameterType.String:
+                        param.stringValue = jsonValue.value?.ToString() ?? "";
+                        break;
+                }
+            }
+            catch { }
+        }
+
         private void SetupDefaultParameters()
+        {
+            // 使用新的基于类型名称的逻辑
+            SetupDefaultParametersFromTypeName(TypeName);
+        }
+
+        private void SetupDefaultParametersForEnum(HfsmBehaviorType type)
         {
             parameters.Clear();
 
@@ -801,8 +874,29 @@ namespace UnityHFSM
             }
         }
 
-        public bool IsComposite => Type >= HfsmBehaviorType.Sequence && Type <= HfsmBehaviorType.RandomSequence;
-        public bool IsDecorator => Type >= HfsmBehaviorType.Repeat;
+        public bool IsComposite
+        {
+            get
+            {
+                if (HfsmBehaviorTypeRegistry.IsInitialized)
+                {
+                    return HfsmBehaviorTypeRegistry.GetCategory(TypeName) == BehaviorCategory.Composite;
+                }
+                return Type >= HfsmBehaviorType.Sequence && Type <= HfsmBehaviorType.RandomSequence;
+            }
+        }
+
+        public bool IsDecorator
+        {
+            get
+            {
+                if (HfsmBehaviorTypeRegistry.IsInitialized)
+                {
+                    return HfsmBehaviorTypeRegistry.GetCategory(TypeName) == BehaviorCategory.Decorator;
+                }
+                return Type >= HfsmBehaviorType.Repeat;
+            }
+        }
 
         public string GetDescription()
         {

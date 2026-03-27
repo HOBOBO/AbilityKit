@@ -1,3 +1,8 @@
+// ============================================================================
+// JSON Serializer Implementations - JSON 序列化器实现
+// ============================================================================
+
+using System;
 using UnityEngine;
 
 namespace UnityHFSM.Editor.Export
@@ -12,9 +17,13 @@ namespace UnityHFSM.Editor.Export
         public string Serialize<T>(T obj, bool prettyPrint = false) where T : class
         {
             if (obj == null)
-                return "null";
+                return null;
 
-            return JsonUtility.ToJson(obj, prettyPrint);
+            if (prettyPrint)
+            {
+                return JsonUtility.ToJson(obj, true);
+            }
+            return JsonUtility.ToJson(obj, false);
         }
 
         public T Deserialize<T>(string json) where T : class

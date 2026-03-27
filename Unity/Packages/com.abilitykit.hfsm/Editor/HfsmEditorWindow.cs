@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor.UIElements;
 using UnityHFSM.Editor.Export;
+using UnityHFSM.Graph.Descriptor;
 
 namespace UnityHFSM.Editor
 {
@@ -235,10 +236,10 @@ namespace UnityHFSM.Editor
                 return;
             }
 
-            // Initialize the export manager to register exporters
-            HfsmExportManager.Initialize();
+            // Initialize the extension registry to register exporters
+            HfsmExtensionRegistry.Initialize();
 
-            var exporter = HfsmExportManager.GetExporter("json");
+            var exporter = HfsmExtensionRegistry.GetExporter("JSON");
             if (exporter == null)
             {
                 EditorUtility.DisplayDialog("Export", "JSON exporter not found.", "OK");
@@ -256,12 +257,14 @@ namespace UnityHFSM.Editor
 
             try
             {
+                // Create graph descriptor from the asset
+                var graphDescriptor = Graph.Descriptor.Impl.GraphDescriptorFactory.Create(_context.GraphAsset);
                 var options = ExportOptions.ForRuntime;
-
-                var result = HfsmExportManager.ExportToFile(_context.GraphAsset, path, "json", options);
+                var result = exporter.Export(graphDescriptor, options);
 
                 if (result.success)
                 {
+                    System.IO.File.WriteAllText(path, result.data);
                     EditorUtility.DisplayDialog("Export Successful",
                         $"Graph exported to:\n{path}\n\nElapsed time: {result.elapsedMilliseconds}ms\nSize: {result.data.Length} bytes",
                         "OK");
