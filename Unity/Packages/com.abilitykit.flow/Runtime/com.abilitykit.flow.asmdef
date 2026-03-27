@@ -1,9 +1,11 @@
-﻿{
+{
   "name": "AbilityKit.Flow",
   "rootNamespace": "AbilityKit",
   "references": [
     "AbilityKit.Core",
-    "AbilityKit.HFSM"
+    "AbilityKit.HFSM",
+    "AbilityKit.HFSM.Core",
+    "AbilityKit.HFSM.Unity"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

@@ -3,6 +3,8 @@
     "rootNamespace": "AbilityKit.Tests",
     "references": [
         "AbilityKit.HFSM",
+        "AbilityKit.HFSM.Core",
+        "AbilityKit.HFSM.Unity",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

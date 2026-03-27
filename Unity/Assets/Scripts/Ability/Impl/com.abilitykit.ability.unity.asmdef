@@ -5,6 +5,8 @@
     "AbilityKit.Ability.RuntimePkg",
     "AbilityKit.Core",
     "AbilityKit.HFSM",
+    "AbilityKit.HFSM.Core",
+    "AbilityKit.HFSM.Unity",
     "AbilityKit.World.FrameSync",
     "AbilityKit.World.DI",
     "AbilityKit.Server",

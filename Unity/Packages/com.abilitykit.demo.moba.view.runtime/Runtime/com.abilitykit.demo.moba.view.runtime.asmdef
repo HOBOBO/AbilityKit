@@ -12,6 +12,8 @@
         "AbilityKit.Game.Battle.Runtime",
         "AbilityKit.Game.Battle.Transport.Runtime",
         "AbilityKit.HFSM",
+        "AbilityKit.HFSM.Core",
+        "AbilityKit.HFSM.Unity",
         "AbilityKit.Host",
         "AbilityKit.World.DI",
         "AbilityKit.World.Entitas",
