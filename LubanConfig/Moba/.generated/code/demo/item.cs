@@ -8,21 +8,25 @@
 //------------------------------------------------------------------------------
 
 using Luban;
+using Newtonsoft.Json.Linq;
+
 
 
 namespace cfg.demo
 {
+
 public sealed partial class item : Luban.BeanBase
 {
-    public item(ByteBuf _buf) 
+    public item(JToken _buf) 
     {
-        Id = _buf.ReadInt();
-        Name = _buf.ReadString();
-        Desc = _buf.ReadString();
-        Count = _buf.ReadInt();
+        JObject _obj = _buf as JObject;
+        Id = (int)_obj.GetValue("id");
+        Name = (string)_obj.GetValue("name");
+        Desc = (string)_obj.GetValue("desc");
+        Count = (int)_obj.GetValue("count");
     }
 
-    public static item Deserializeitem(ByteBuf _buf)
+    public static item Deserializeitem(JToken _buf)
     {
         return new demo.item(_buf);
     }
@@ -43,7 +47,8 @@ public sealed partial class item : Luban.BeanBase
     /// 个数
     /// </summary>
     public readonly int Count;
-   
+
+
     public const int __ID__ = 750578750;
     public override int GetTypeId() => __ID__;
 

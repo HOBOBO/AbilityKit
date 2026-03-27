@@ -8,26 +8,31 @@
 //------------------------------------------------------------------------------
 
 using Luban;
+using Newtonsoft.Json.Linq;
+
 
 
 namespace cfg
 {
+
 public partial struct vector2
 {
-    public vector2(ByteBuf _buf) 
+    public vector2(JToken _buf) 
     {
-        X = _buf.ReadFloat();
-        Y = _buf.ReadFloat();
+        JObject _obj = _buf as JObject;
+        X = (float)_obj.GetValue("x");
+        Y = (float)_obj.GetValue("y");
     }
 
-    public static vector2 Deserializevector2(ByteBuf _buf)
+    public static vector2 Deserializevector2(JToken _buf)
     {
         return new vector2(_buf);
     }
 
     public readonly float X;
     public readonly float Y;
-   
+
+
 
     public  void ResolveRef(Tables tables)
     {

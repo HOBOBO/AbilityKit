@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 
@@ -32,14 +33,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
                         if (skillIds == null)
                         {
-                            var list = character.SkillIds;
-                            if (list is int[] arr) skillIds = arr;
-                            else if (list == null || list.Count == 0) skillIds = Array.Empty<int>();
+                            // 从 AttributeTemplate 获取技能列表
+                            if (attributeTemplateId > 0 && config.TryGetAttributeTemplate(attributeTemplateId, out var attrTemplate) && attrTemplate != null)
+                            {
+                                skillIds = attrTemplate.ActiveSkills?.ToArray() ?? Array.Empty<int>();
+                            }
                             else
                             {
-                                var tmp = new int[list.Count];
-                                for (int j = 0; j < list.Count; j++) tmp[j] = list[j];
-                                skillIds = tmp;
+                                skillIds = Array.Empty<int>();
                             }
                         }
                     }

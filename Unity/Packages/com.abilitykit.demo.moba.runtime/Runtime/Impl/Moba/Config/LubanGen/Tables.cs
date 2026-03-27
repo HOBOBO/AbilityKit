@@ -7,27 +7,35 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-using Luban;
+using Newtonsoft.Json.Linq;
 
 namespace cfg
 {
 public partial class Tables
 {
     public Buffs Buffs {get; }
+    public Characters Characters {get; }
+    public AttributeTemplates AttributeTemplates {get; }
     public demo.Tbitem Tbitem {get; }
 
-    public Tables(System.Func<string, ByteBuf> loader)
+
+      public Tables(System.Func<string, JArray> loader)
     {
         Buffs = new Buffs(loader("buffs"));
+        Characters = new Characters(loader("characters"));
+        AttributeTemplates = new AttributeTemplates(loader("attributetemplates"));
         Tbitem = new demo.Tbitem(loader("demo_tbitem"));
         ResolveRef();
     }
     
-    private void ResolveRef()
+     private void ResolveRef()
     {
         Buffs.ResolveRef(this);
+        Characters.ResolveRef(this);
+        AttributeTemplates.ResolveRef(this);
         Tbitem.ResolveRef(this);
     }
 }
 
 }
+

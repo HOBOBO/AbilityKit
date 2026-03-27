@@ -7,29 +7,33 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
+using Newtonsoft.Json.Linq;
 using Luban;
+
 
 
 namespace cfg.demo
 {
+
 public partial class Tbitem
 {
     private readonly System.Collections.Generic.Dictionary<int, demo.item> _dataMap;
     private readonly System.Collections.Generic.List<demo.item> _dataList;
     
-    public Tbitem(ByteBuf _buf)
+    public Tbitem(JArray _buf)
     {
-        int n = _buf.ReadSize();
-        _dataMap = new System.Collections.Generic.Dictionary<int, demo.item>(n);
-        _dataList = new System.Collections.Generic.List<demo.item>(n);
-        for(int i = n ; i > 0 ; --i)
+        _dataMap = new System.Collections.Generic.Dictionary<int, demo.item>(_buf.Count);
+        _dataList = new System.Collections.Generic.List<demo.item>(_buf.Count);
+        
+        foreach(JObject _ele in _buf)
         {
             demo.item _v;
-            _v = global::cfg.demo.item.Deserializeitem(_buf);
+            _v = global::cfg.demo.item.Deserializeitem(_ele);
             _dataList.Add(_v);
             _dataMap.Add(_v.Id, _v);
-        }
+         }
     }
+
 
     public System.Collections.Generic.Dictionary<int, demo.item> DataMap => _dataMap;
     public System.Collections.Generic.List<demo.item> DataList => _dataList;
@@ -47,6 +51,5 @@ public partial class Tbitem
     }
 
 }
-
 }
 

@@ -10,25 +10,18 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
     public static class MobaConfigGroups
     {
         /// <summary>
-        /// Luban 二进制组 - 目前仅支持 Buffs 表
-        /// </summary>
-        public static readonly LubanBinaryConfigGroup LubanBinary = new(
-            new ConfigTableEntry(MobaConfigPaths.BuffsFile, typeof(global::cfg.DRBuff), typeof(BuffMO), ConfigGroupNames.LubanBinary)
-        );
-
-        /// <summary>
-        /// 传统 JSON 组 - 所有其他配置表
+        /// 传统 JSON 组 - 所有配置表统一使用普通 JSON 模式
         /// </summary>
         public static readonly LegacyJsonConfigGroup LegacyJson = new(
             new ConfigTableEntry(MobaConfigPaths.CharactersFile, typeof(CharacterDTO), typeof(CharacterMO), ConfigGroupNames.LegacyJson),
+            new ConfigTableEntry(MobaConfigPaths.AttributeTemplatesFile, typeof(BattleAttributeTemplateDTO), typeof(BattleAttributeTemplateMO), ConfigGroupNames.LegacyJson),
+            new ConfigTableEntry(MobaConfigPaths.BuffsFile, typeof(BuffDTO), typeof(BuffMO), ConfigGroupNames.LegacyJson),
             new ConfigTableEntry(MobaConfigPaths.SkillsFile, typeof(SkillDTO), typeof(SkillMO), ConfigGroupNames.LegacyJson),
             new ConfigTableEntry(MobaConfigPaths.PassiveSkillsFile, typeof(PassiveSkillDTO), typeof(PassiveSkillMO), ConfigGroupNames.LegacyJson),
             new ConfigTableEntry(MobaConfigPaths.SkillFlowsFile, typeof(SkillFlowDTO), typeof(SkillFlowMO), ConfigGroupNames.LegacyJson),
             new ConfigTableEntry(MobaConfigPaths.SkillLevelTablesFile, typeof(SkillLevelTableDTO), typeof(SkillLevelTableMO), ConfigGroupNames.LegacyJson),
             new ConfigTableEntry(MobaConfigPaths.AttributeTypesFile, typeof(AttrTypeDTO), typeof(AttrTypeMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableEntry(MobaConfigPaths.AttributeTemplatesFile, typeof(BattleAttributeTemplateDTO), typeof(BattleAttributeTemplateMO), ConfigGroupNames.LegacyJson),
             new ConfigTableEntry(MobaConfigPaths.ModelsFile, typeof(ModelDTO), typeof(ModelMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableEntry(MobaConfigPaths.BuffsFile, typeof(BuffDTO), typeof(BuffMO), ConfigGroupNames.LegacyJson),
             new ConfigTableEntry(MobaConfigPaths.ProjectileLaunchersFile, typeof(ProjectileLauncherDTO), typeof(ProjectileLauncherMO), ConfigGroupNames.LegacyJson),
             new ConfigTableEntry(MobaConfigPaths.ProjectilesFile, typeof(ProjectileDTO), typeof(ProjectileMO), ConfigGroupNames.LegacyJson),
             new ConfigTableEntry(MobaConfigPaths.AoesFile, typeof(AoeDTO), typeof(AoeMO), ConfigGroupNames.LegacyJson),
@@ -46,7 +39,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         /// <summary>
         /// 获取所有配置组
         /// </summary>
-        public static IReadOnlyList<IConfigGroup> All => new IConfigGroup[] { LubanBinary, LegacyJson };
+        public static IReadOnlyList<IConfigGroup> All => new IConfigGroup[] { LegacyJson };
 
         /// <summary>
         /// 根据组名获取配置组

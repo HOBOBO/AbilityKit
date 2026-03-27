@@ -1,11 +1,11 @@
 [
   {
-    "Id": 10001,
+    "Id": 1001,
     "PrefabPath": "character/character1",
     "Scale": 1.0
   },
   {
-    "Id": 10002,
+    "Id": 1002,
     "PrefabPath": "character/character2",
     "Scale": 2.0
   }

@@ -13,7 +13,11 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
     {
         private static void RegisterConfig(WorldContainerBuilder builder)
         {
+            builder.TryRegister<IMobaConfigDtoDeserializer>(WorldLifetime.Singleton, _ => JsonNetMobaConfigDtoDeserializer.Instance);
             builder.TryRegister<IMobaConfigDtoBytesDeserializer>(WorldLifetime.Singleton, _ => new LubanMobaConfigDtoBytesDeserializer());
+
+            // 临时使用 JSON 格式加载配置，因为 Luban 的 bin 格式与 cs-bin 代码存在兼容性问题
+            builder.TryRegister<IMobaConfigFormatProvider>(WorldLifetime.Singleton, _ => DefaultMobaConfigFormatProvider.Instance);
 
             builder.TryRegister<MobaConfigDatabase>(WorldLifetime.Singleton, _ =>
             {
@@ -40,19 +44,16 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                         ? fp.Format
                         : DefaultMobaConfigFormatProvider.Instance.Format;
 
+                    // 统一使用 Luban JSON 模式加载，避免混合模式
                     if (format == MobaConfigFormat.Bytes)
                     {
-                        _.TryResolve<IMobaConfigBytesSource>(out var bsource);
                         _.TryResolve<IMobaConfigSource>(out var jsource);
                         _.TryResolve<IMobaConfigTextSink>(out var sink);
 
-                        var bytesByKey = BuildPartialBytesByKey(bsource, MobaConfigPaths.DefaultResourcesBytesDir, registry ?? DefaultMobaConfigTableRegistry.Instance);
                         var jsonByKey = BuildPartialJsonByKey(jsource, sink, MobaConfigPaths.DefaultResourcesDir, registry ?? DefaultMobaConfigTableRegistry.Instance);
 
-                        db.LoadFromMixed(
-                            bytesByKey,
+                        db.LoadFromJsonTexts(
                             jsonByKey,
-                            MobaConfigPaths.DefaultResourcesBytesDir,
                             MobaConfigPaths.DefaultResourcesDir,
                             strict: false);
                     }

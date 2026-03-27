@@ -190,12 +190,20 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             {
                 var character = _config != null ? _config.GetCharacter(loadout.HeroId) : null;
                 var activeSkillIds = loadout.SkillIds;
-                if (activeSkillIds == null)
-                {
-                    activeSkillIds = ToArray(character != null ? character.SkillIds : null);
-                }
+                int[] passiveSkillIds = null;
 
-                var passiveSkillIds = ToArray(character != null ? character.PassiveSkillIds : null);
+                // 如果 loadout 中没有技能，从 AttributeTemplate 获取
+                if (activeSkillIds == null || activeSkillIds.Length == 0)
+                {
+                    var attributeTemplateId = loadout.AttributeTemplateId > 0 ? loadout.AttributeTemplateId :
+                        (character != null ? character.AttributeTemplateId : 0);
+
+                    if (attributeTemplateId > 0 && _config.TryGetAttributeTemplate(attributeTemplateId, out var attrTemplate) && attrTemplate != null)
+                    {
+                        activeSkillIds = ToArray(attrTemplate.ActiveSkills);
+                        passiveSkillIds = ToArray(attrTemplate.PassiveSkills);
+                    }
+                }
 
                 var activeSkills = CreateActiveSkillRuntimes(activeSkillIds);
                 var passiveSkills = CreatePassiveSkillRuntimes(passiveSkillIds);

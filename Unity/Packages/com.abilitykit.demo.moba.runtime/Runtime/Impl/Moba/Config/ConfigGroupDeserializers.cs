@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 {
     /// <summary>
-    /// Luban 二进制格式配置组反序列化器
+    /// Luban 二进制格式配置组反序列化器（已弃用）
     /// </summary>
     public sealed class LubanBinaryConfigGroupDeserializer : ConfigGroupDeserializerBase
     {
@@ -14,30 +14,20 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 
         public override Array DeserializeFromBytes(byte[] bytes, Type dtoType)
         {
-            if (bytes == null || bytes.Length == 0)
-                throw new ArgumentNullException(nameof(bytes));
-
-            if (dtoType == null)
-                throw new ArgumentNullException(nameof(dtoType));
-
-            if (dtoType == typeof(global::cfg.DRBuff))
-            {
-                var buf = global::Luban.ByteBuf.Wrap(bytes);
-                var table = new global::cfg.Buffs(buf);
-                return table.DataList.ToArray();
-            }
-
-            throw CreateNotSupportedException(dtoType, nameof(LubanBinaryConfigGroupDeserializer));
+            throw new NotSupportedException(
+                "Luban binary format is no longer supported. Please use JSON format instead.");
         }
 
         public override Array DeserializeFromText(string text, Type dtoType)
         {
-            throw CreateNotSupportedException(dtoType, nameof(LubanBinaryConfigGroupDeserializer));
+            throw new NotSupportedException(
+                "Luban binary format is no longer supported. Please use JSON format instead.");
         }
 
         public override bool CanHandle(Type dtoType)
         {
-            return dtoType == typeof(global::cfg.DRBuff);
+            // 不处理任何类型
+            return false;
         }
     }
 
@@ -59,7 +49,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             typeof(SearchQueryTemplateDTO),
             typeof(PassiveSkillDTO),
             typeof(SkillFlowDTO),
+            typeof(SkillLevelTableDTO),
             typeof(BattleAttributeTemplateDTO),
+            typeof(AttrTypeDTO),
             typeof(ModelDTO),
             typeof(BuffDTO),
             typeof(ProjectileLauncherDTO),

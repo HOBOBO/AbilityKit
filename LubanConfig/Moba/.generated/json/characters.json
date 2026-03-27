@@ -1,0 +1,863 @@
+[
+  {
+    "Code": 1001,
+    "Name": "廉颇",
+    "Career": [],
+    "ModelId": 1001,
+    "AttributeTemplateId": 1001
+  },
+  {
+    "Code": 1002,
+    "Name": "小乔",
+    "Career": [],
+    "ModelId": 1002,
+    "AttributeTemplateId": 1002
+  },
+  {
+    "Code": 1003,
+    "Name": "赵云",
+    "Career": [],
+    "ModelId": 1003,
+    "AttributeTemplateId": 1003
+  },
+  {
+    "Code": 1004,
+    "Name": "墨子",
+    "Career": [],
+    "ModelId": 1004,
+    "AttributeTemplateId": 1004
+  },
+  {
+    "Code": 1005,
+    "Name": "妲己",
+    "Career": [],
+    "ModelId": 1005,
+    "AttributeTemplateId": 1005
+  },
+  {
+    "Code": 1006,
+    "Name": "嬴政",
+    "Career": [],
+    "ModelId": 1006,
+    "AttributeTemplateId": 1006
+  },
+  {
+    "Code": 1007,
+    "Name": "孙尚香",
+    "Career": [],
+    "ModelId": 1007,
+    "AttributeTemplateId": 1007
+  },
+  {
+    "Code": 1008,
+    "Name": "鲁班七号",
+    "Career": [],
+    "ModelId": 1008,
+    "AttributeTemplateId": 1008
+  },
+  {
+    "Code": 1009,
+    "Name": "庄周",
+    "Career": [],
+    "ModelId": 1009,
+    "AttributeTemplateId": 1009
+  },
+  {
+    "Code": 1010,
+    "Name": "刘禅",
+    "Career": [],
+    "ModelId": 1010,
+    "AttributeTemplateId": 1010
+  },
+  {
+    "Code": 1011,
+    "Name": "高渐离",
+    "Career": [],
+    "ModelId": 1011,
+    "AttributeTemplateId": 1011
+  },
+  {
+    "Code": 1012,
+    "Name": "阿珂",
+    "Career": [],
+    "ModelId": 1012,
+    "AttributeTemplateId": 1012
+  },
+  {
+    "Code": 1013,
+    "Name": "钟无艳",
+    "Career": [],
+    "ModelId": 1013,
+    "AttributeTemplateId": 1013
+  },
+  {
+    "Code": 1014,
+    "Name": "孙膑",
+    "Career": [],
+    "ModelId": 1014,
+    "AttributeTemplateId": 1014
+  },
+  {
+    "Code": 1015,
+    "Name": "扁鹊",
+    "Career": [],
+    "ModelId": 1015,
+    "AttributeTemplateId": 1015
+  },
+  {
+    "Code": 1016,
+    "Name": "白起",
+    "Career": [],
+    "ModelId": 1016,
+    "AttributeTemplateId": 1016
+  },
+  {
+    "Code": 1017,
+    "Name": "芈月",
+    "Career": [],
+    "ModelId": 1017,
+    "AttributeTemplateId": 1017
+  },
+  {
+    "Code": 1018,
+    "Name": "吕布",
+    "Career": [],
+    "ModelId": 1018,
+    "AttributeTemplateId": 1018
+  },
+  {
+    "Code": 1019,
+    "Name": "周瑜",
+    "Career": [],
+    "ModelId": 1019,
+    "AttributeTemplateId": 1019
+  },
+  {
+    "Code": 1020,
+    "Name": "夏侯惇",
+    "Career": [],
+    "ModelId": 1020,
+    "AttributeTemplateId": 1020
+  },
+  {
+    "Code": 1021,
+    "Name": "甄姬",
+    "Career": [],
+    "ModelId": 1021,
+    "AttributeTemplateId": 1021
+  },
+  {
+    "Code": 1022,
+    "Name": "曹操",
+    "Career": [],
+    "ModelId": 1022,
+    "AttributeTemplateId": 1022
+  },
+  {
+    "Code": 1023,
+    "Name": "典韦",
+    "Career": [],
+    "ModelId": 1023,
+    "AttributeTemplateId": 1023
+  },
+  {
+    "Code": 1024,
+    "Name": "宫本武藏",
+    "Career": [],
+    "ModelId": 1024,
+    "AttributeTemplateId": 1024
+  },
+  {
+    "Code": 1025,
+    "Name": "李白",
+    "Career": [],
+    "ModelId": 1025,
+    "AttributeTemplateId": 1025
+  },
+  {
+    "Code": 1026,
+    "Name": "马可波罗",
+    "Career": [],
+    "ModelId": 1026,
+    "AttributeTemplateId": 1026
+  },
+  {
+    "Code": 1027,
+    "Name": "狄仁杰",
+    "Career": [],
+    "ModelId": 1027,
+    "AttributeTemplateId": 1027
+  },
+  {
+    "Code": 1028,
+    "Name": "达摩",
+    "Career": [],
+    "ModelId": 1028,
+    "AttributeTemplateId": 1028
+  },
+  {
+    "Code": 1029,
+    "Name": "项羽",
+    "Career": [],
+    "ModelId": 1029,
+    "AttributeTemplateId": 1029
+  },
+  {
+    "Code": 1030,
+    "Name": "武则天",
+    "Career": [],
+    "ModelId": 1030,
+    "AttributeTemplateId": 1030
+  },
+  {
+    "Code": 1031,
+    "Name": "老夫子",
+    "Career": [],
+    "ModelId": 1031,
+    "AttributeTemplateId": 1031
+  },
+  {
+    "Code": 1032,
+    "Name": "关羽",
+    "Career": [],
+    "ModelId": 1032,
+    "AttributeTemplateId": 1032
+  },
+  {
+    "Code": 1033,
+    "Name": "貂蝉",
+    "Career": [],
+    "ModelId": 1033,
+    "AttributeTemplateId": 1033
+  },
+  {
+    "Code": 1034,
+    "Name": "安琪拉",
+    "Career": [],
+    "ModelId": 1034,
+    "AttributeTemplateId": 1034
+  },
+  {
+    "Code": 1035,
+    "Name": "程咬金",
+    "Career": [],
+    "ModelId": 1035,
+    "AttributeTemplateId": 1035
+  },
+  {
+    "Code": 1036,
+    "Name": "露娜",
+    "Career": [],
+    "ModelId": 1036,
+    "AttributeTemplateId": 1036
+  },
+  {
+    "Code": 1037,
+    "Name": "姜子牙",
+    "Career": [],
+    "ModelId": 1037,
+    "AttributeTemplateId": 1037
+  },
+  {
+    "Code": 1038,
+    "Name": "刘邦",
+    "Career": [],
+    "ModelId": 1038,
+    "AttributeTemplateId": 1038
+  },
+  {
+    "Code": 1039,
+    "Name": "韩信",
+    "Career": [],
+    "ModelId": 1039,
+    "AttributeTemplateId": 1039
+  },
+  {
+    "Code": 1040,
+    "Name": "王昭君",
+    "Career": [],
+    "ModelId": 1040,
+    "AttributeTemplateId": 1040
+  },
+  {
+    "Code": 1041,
+    "Name": "兰陵王",
+    "Career": [],
+    "ModelId": 1041,
+    "AttributeTemplateId": 1041
+  },
+  {
+    "Code": 1042,
+    "Name": "花木兰",
+    "Career": [],
+    "ModelId": 1042,
+    "AttributeTemplateId": 1042
+  },
+  {
+    "Code": 1043,
+    "Name": "张良",
+    "Career": [],
+    "ModelId": 1043,
+    "AttributeTemplateId": 1043
+  },
+  {
+    "Code": 1044,
+    "Name": "不知火舞",
+    "Career": [],
+    "ModelId": 1044,
+    "AttributeTemplateId": 1044
+  },
+  {
+    "Code": 1045,
+    "Name": "娜可露露",
+    "Career": [],
+    "ModelId": 1045,
+    "AttributeTemplateId": 1045
+  },
+  {
+    "Code": 1046,
+    "Name": "橘右京",
+    "Career": [],
+    "ModelId": 1046,
+    "AttributeTemplateId": 1046
+  },
+  {
+    "Code": 1047,
+    "Name": "亚瑟",
+    "Career": [],
+    "ModelId": 1047,
+    "AttributeTemplateId": 1047
+  },
+  {
+    "Code": 1048,
+    "Name": "孙悟空",
+    "Career": [],
+    "ModelId": 1048,
+    "AttributeTemplateId": 1048
+  },
+  {
+    "Code": 1049,
+    "Name": "牛魔",
+    "Career": [],
+    "ModelId": 1049,
+    "AttributeTemplateId": 1049
+  },
+  {
+    "Code": 1050,
+    "Name": "后裔",
+    "Career": [],
+    "ModelId": 1050,
+    "AttributeTemplateId": 1050
+  },
+  {
+    "Code": 1051,
+    "Name": "刘备",
+    "Career": [],
+    "ModelId": 1051,
+    "AttributeTemplateId": 1051
+  },
+  {
+    "Code": 1052,
+    "Name": "张飞",
+    "Career": [],
+    "ModelId": 1052,
+    "AttributeTemplateId": 1052
+  },
+  {
+    "Code": 1053,
+    "Name": "李元芳",
+    "Career": [],
+    "ModelId": 1053,
+    "AttributeTemplateId": 1053
+  },
+  {
+    "Code": 1054,
+    "Name": "虞姬",
+    "Career": [],
+    "ModelId": 1054,
+    "AttributeTemplateId": 1054
+  },
+  {
+    "Code": 1055,
+    "Name": "钟馗",
+    "Career": [],
+    "ModelId": 1055,
+    "AttributeTemplateId": 1055
+  },
+  {
+    "Code": 1056,
+    "Name": "杨戬",
+    "Career": [],
+    "ModelId": 1056,
+    "AttributeTemplateId": 1056
+  },
+  {
+    "Code": 1057,
+    "Name": "雅典娜",
+    "Career": [],
+    "ModelId": 1057,
+    "AttributeTemplateId": 1057
+  },
+  {
+    "Code": 1058,
+    "Name": "蔡文姬",
+    "Career": [],
+    "ModelId": 1058,
+    "AttributeTemplateId": 1058
+  },
+  {
+    "Code": 1059,
+    "Name": "太乙真人",
+    "Career": [],
+    "ModelId": 1059,
+    "AttributeTemplateId": 1059
+  },
+  {
+    "Code": 1060,
+    "Name": "哪吒",
+    "Career": [],
+    "ModelId": 1060,
+    "AttributeTemplateId": 1060
+  },
+  {
+    "Code": 1061,
+    "Name": "诸葛亮",
+    "Career": [],
+    "ModelId": 1061,
+    "AttributeTemplateId": 1061
+  },
+  {
+    "Code": 1062,
+    "Name": "黄忠",
+    "Career": [],
+    "ModelId": 1062,
+    "AttributeTemplateId": 1062
+  },
+  {
+    "Code": 1063,
+    "Name": "大乔",
+    "Career": [],
+    "ModelId": 1063,
+    "AttributeTemplateId": 1063
+  },
+  {
+    "Code": 1064,
+    "Name": "东皇太一",
+    "Career": [],
+    "ModelId": 1064,
+    "AttributeTemplateId": 1064
+  },
+  {
+    "Code": 1065,
+    "Name": "干将莫邪",
+    "Career": [],
+    "ModelId": 1065,
+    "AttributeTemplateId": 1065
+  },
+  {
+    "Code": 1066,
+    "Name": "鬼谷子",
+    "Career": [],
+    "ModelId": 1066,
+    "AttributeTemplateId": 1066
+  },
+  {
+    "Code": 1067,
+    "Name": "铠",
+    "Career": [],
+    "ModelId": 1067,
+    "AttributeTemplateId": 1067
+  },
+  {
+    "Code": 1068,
+    "Name": "百里守约",
+    "Career": [],
+    "ModelId": 1068,
+    "AttributeTemplateId": 1068
+  },
+  {
+    "Code": 1069,
+    "Name": "百里玄策",
+    "Career": [],
+    "ModelId": 1069,
+    "AttributeTemplateId": 1069
+  },
+  {
+    "Code": 1070,
+    "Name": "苏烈",
+    "Career": [],
+    "ModelId": 1070,
+    "AttributeTemplateId": 1070
+  },
+  {
+    "Code": 1071,
+    "Name": "梦奇",
+    "Career": [],
+    "ModelId": 1071,
+    "AttributeTemplateId": 1071
+  },
+  {
+    "Code": 1072,
+    "Name": "女娲",
+    "Career": [],
+    "ModelId": 1072,
+    "AttributeTemplateId": 1072
+  },
+  {
+    "Code": 1073,
+    "Name": "明世隐",
+    "Career": [],
+    "ModelId": 1073,
+    "AttributeTemplateId": 1073
+  },
+  {
+    "Code": 1074,
+    "Name": "公孙离",
+    "Career": [],
+    "ModelId": 1074,
+    "AttributeTemplateId": 1074
+  },
+  {
+    "Code": 1075,
+    "Name": "杨玉环",
+    "Career": [],
+    "ModelId": 1075,
+    "AttributeTemplateId": 1075
+  },
+  {
+    "Code": 1076,
+    "Name": "裴擒虎",
+    "Career": [],
+    "ModelId": 1076,
+    "AttributeTemplateId": 1076
+  },
+  {
+    "Code": 1077,
+    "Name": "奕星",
+    "Career": [],
+    "ModelId": 1077,
+    "AttributeTemplateId": 1077
+  },
+  {
+    "Code": 1078,
+    "Name": "狂铁",
+    "Career": [],
+    "ModelId": 1078,
+    "AttributeTemplateId": 1078
+  },
+  {
+    "Code": 1079,
+    "Name": "米莱狄",
+    "Career": [],
+    "ModelId": 1079,
+    "AttributeTemplateId": 1079
+  },
+  {
+    "Code": 1080,
+    "Name": "元歌",
+    "Career": [],
+    "ModelId": 1080,
+    "AttributeTemplateId": 1080
+  },
+  {
+    "Code": 1081,
+    "Name": "孙策",
+    "Career": [],
+    "ModelId": 1081,
+    "AttributeTemplateId": 1081
+  },
+  {
+    "Code": 1082,
+    "Name": "司马懿",
+    "Career": [],
+    "ModelId": 1082,
+    "AttributeTemplateId": 1082
+  },
+  {
+    "Code": 1083,
+    "Name": "盾山",
+    "Career": [],
+    "ModelId": 1083,
+    "AttributeTemplateId": 1083
+  },
+  {
+    "Code": 1084,
+    "Name": "伽罗",
+    "Career": [],
+    "ModelId": 1084,
+    "AttributeTemplateId": 1084
+  },
+  {
+    "Code": 1085,
+    "Name": "沈梦溪",
+    "Career": [],
+    "ModelId": 1085,
+    "AttributeTemplateId": 1085
+  },
+  {
+    "Code": 1086,
+    "Name": "李信",
+    "Career": [],
+    "ModelId": 1086,
+    "AttributeTemplateId": 1086
+  },
+  {
+    "Code": 1087,
+    "Name": "上官婉儿",
+    "Career": [],
+    "ModelId": 1087,
+    "AttributeTemplateId": 1087
+  },
+  {
+    "Code": 1088,
+    "Name": "嫦娥",
+    "Career": [],
+    "ModelId": 1088,
+    "AttributeTemplateId": 1088
+  },
+  {
+    "Code": 1089,
+    "Name": "猪八戒",
+    "Career": [],
+    "ModelId": 1089,
+    "AttributeTemplateId": 1089
+  },
+  {
+    "Code": 1090,
+    "Name": "盘古",
+    "Career": [],
+    "ModelId": 1090,
+    "AttributeTemplateId": 1090
+  },
+  {
+    "Code": 1091,
+    "Name": "瑶",
+    "Career": [],
+    "ModelId": 1091,
+    "AttributeTemplateId": 1091
+  },
+  {
+    "Code": 1092,
+    "Name": "云中君",
+    "Career": [],
+    "ModelId": 1092,
+    "AttributeTemplateId": 1092
+  },
+  {
+    "Code": 1093,
+    "Name": "曜",
+    "Career": [],
+    "ModelId": 1093,
+    "AttributeTemplateId": 1093
+  },
+  {
+    "Code": 1094,
+    "Name": "马超",
+    "Career": [],
+    "ModelId": 1094,
+    "AttributeTemplateId": 1094
+  },
+  {
+    "Code": 1095,
+    "Name": "西施",
+    "Career": [],
+    "ModelId": 1095,
+    "AttributeTemplateId": 1095
+  },
+  {
+    "Code": 1096,
+    "Name": "鲁班大师",
+    "Career": [],
+    "ModelId": 1096,
+    "AttributeTemplateId": 1096
+  },
+  {
+    "Code": 1097,
+    "Name": "蒙犽",
+    "Career": [],
+    "ModelId": 1097,
+    "AttributeTemplateId": 1097
+  },
+  {
+    "Code": 1098,
+    "Name": "镜",
+    "Career": [],
+    "ModelId": 1098,
+    "AttributeTemplateId": 1098
+  },
+  {
+    "Code": 1099,
+    "Name": "蒙恬",
+    "Career": [],
+    "ModelId": 1099,
+    "AttributeTemplateId": 1099
+  },
+  {
+    "Code": 1100,
+    "Name": "阿古朵",
+    "Career": [],
+    "ModelId": 1100,
+    "AttributeTemplateId": 1100
+  },
+  {
+    "Code": 1101,
+    "Name": "夏洛特",
+    "Career": [],
+    "ModelId": 1101,
+    "AttributeTemplateId": 1101
+  },
+  {
+    "Code": 1102,
+    "Name": "澜",
+    "Career": [],
+    "ModelId": 1102,
+    "AttributeTemplateId": 1102
+  },
+  {
+    "Code": 1103,
+    "Name": "司空震",
+    "Career": [],
+    "ModelId": 1103,
+    "AttributeTemplateId": 1103
+  },
+  {
+    "Code": 1104,
+    "Name": "艾琳",
+    "Career": [],
+    "ModelId": 1104,
+    "AttributeTemplateId": 1104
+  },
+  {
+    "Code": 1105,
+    "Name": "云樱",
+    "Career": [],
+    "ModelId": 1105,
+    "AttributeTemplateId": 1105
+  },
+  {
+    "Code": 1106,
+    "Name": "金蝉",
+    "Career": [],
+    "ModelId": 1106,
+    "AttributeTemplateId": 1106
+  },
+  {
+    "Code": 1107,
+    "Name": "暃",
+    "Career": [],
+    "ModelId": 1107,
+    "AttributeTemplateId": 1107
+  },
+  {
+    "Code": 1108,
+    "Name": "桑启",
+    "Career": [],
+    "ModelId": 1108,
+    "AttributeTemplateId": 1108
+  },
+  {
+    "Code": 1109,
+    "Name": "戈娅",
+    "Career": [],
+    "ModelId": 1109,
+    "AttributeTemplateId": 1109
+  },
+  {
+    "Code": 1110,
+    "Name": "海月",
+    "Career": [],
+    "ModelId": 1110,
+    "AttributeTemplateId": 1110
+  },
+  {
+    "Code": 1111,
+    "Name": "赵怀真",
+    "Career": [],
+    "ModelId": 1111,
+    "AttributeTemplateId": 1111
+  },
+  {
+    "Code": 1112,
+    "Name": "莱西奥",
+    "Career": [],
+    "ModelId": 1112,
+    "AttributeTemplateId": 1112
+  },
+  {
+    "Code": 1113,
+    "Name": "姬小满",
+    "Career": [],
+    "ModelId": 1113,
+    "AttributeTemplateId": 1113
+  },
+  {
+    "Code": 1114,
+    "Name": "亚连",
+    "Career": [],
+    "ModelId": 1114,
+    "AttributeTemplateId": 1114
+  },
+  {
+    "Code": 1115,
+    "Name": "朵莉亚",
+    "Career": [],
+    "ModelId": 1115,
+    "AttributeTemplateId": 1115
+  },
+  {
+    "Code": 1116,
+    "Name": "海诺",
+    "Career": [],
+    "ModelId": 1116,
+    "AttributeTemplateId": 1116
+  },
+  {
+    "Code": 1117,
+    "Name": "敖隐",
+    "Career": [],
+    "ModelId": 1117,
+    "AttributeTemplateId": 1117
+  },
+  {
+    "Code": 1118,
+    "Name": "大司命",
+    "Career": [],
+    "ModelId": 1118,
+    "AttributeTemplateId": 1118
+  },
+  {
+    "Code": 1119,
+    "Name": "元流之子(法师)",
+    "Career": [],
+    "ModelId": 1119,
+    "AttributeTemplateId": 1119
+  },
+  {
+    "Code": 1120,
+    "Name": "元流之子(坦克)",
+    "Career": [],
+    "ModelId": 1120,
+    "AttributeTemplateId": 1120
+  },
+  {
+    "Code": 1121,
+    "Name": "少司缘",
+    "Career": [],
+    "ModelId": 1121,
+    "AttributeTemplateId": 1121
+  },
+  {
+    "Code": 1122,
+    "Name": "影",
+    "Career": [],
+    "ModelId": 1122,
+    "AttributeTemplateId": 1122
+  },
+  {
+    "Code": 1123,
+    "Name": "苍",
+    "Career": [],
+    "ModelId": 1123,
+    "AttributeTemplateId": 1123
+  }
+]

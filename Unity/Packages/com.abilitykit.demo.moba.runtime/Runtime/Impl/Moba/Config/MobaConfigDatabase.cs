@@ -680,7 +680,14 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             if (f != null && f.FieldType == typeof(int)) return (int)f.GetValue(dto);
             var p = t.GetProperty("Id");
             if (p != null && p.PropertyType == typeof(int)) return (int)p.GetValue(dto);
-            throw new InvalidOperationException($"DTO must have int Id field/property. type={t.FullName}");
+
+            // Fallback: try "Code" field (used by Luban DR* types like DRCharacters)
+            f = t.GetField("Code");
+            if (f != null && f.FieldType == typeof(int)) return (int)f.GetValue(dto);
+            p = t.GetProperty("Code");
+            if (p != null && p.PropertyType == typeof(int)) return (int)p.GetValue(dto);
+
+            throw new InvalidOperationException($"DTO must have int Id or Code field/property. type={t.FullName}");
         }
 
         private ConfigTable<TMO> GetTable<TMO>()
@@ -706,10 +713,26 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 
         public bool TryGetDto<TDto>(int id, out TDto dto) => GetDtoTable<TDto>().TryGet(id, out dto);
 
+        /// <summary>
+        /// 获取角色配置
+        /// </summary>
         public CharacterMO GetCharacter(int id)
         {
             return GetTable<CharacterMO>().Get(id);
         }
+
+        /// <summary>
+        /// 获取属性模板配置
+        /// </summary>
+        public BattleAttributeTemplateMO GetAttributeTemplate(int id)
+        {
+            return GetTable<BattleAttributeTemplateMO>().Get(id);
+        }
+
+        /// <summary>
+        /// 尝试获取属性模板配置
+        /// </summary>
+        public bool TryGetAttributeTemplate(int id, out BattleAttributeTemplateMO mo) => GetTable<BattleAttributeTemplateMO>().TryGet(id, out mo);
 
         public SkillMO GetSkill(int id)
         {
@@ -734,11 +757,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public AttrTypeMO GetAttrType(int id)
         {
             return GetTable<AttrTypeMO>().Get(id);
-        }
-
-        public BattleAttributeTemplateMO GetAttributeTemplate(int id)
-        {
-            return GetTable<BattleAttributeTemplateMO>().Get(id);
         }
 
         public ModelMO GetModel(int id)
@@ -802,7 +820,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
         public bool TryGetSkillFlow(int id, out SkillFlowMO mo) => GetTable<SkillFlowMO>().TryGet(id, out mo);
         public bool TryGetSkillLevelTable(int id, out SkillLevelTableMO mo) => GetTable<SkillLevelTableMO>().TryGet(id, out mo);
         public bool TryGetAttrType(int id, out AttrTypeMO mo) => GetTable<AttrTypeMO>().TryGet(id, out mo);
-        public bool TryGetAttributeTemplate(int id, out BattleAttributeTemplateMO mo) => GetTable<BattleAttributeTemplateMO>().TryGet(id, out mo);
         public bool TryGetModel(int id, out ModelMO mo) => GetTable<ModelMO>().TryGet(id, out mo);
         public bool TryGetBuff(int id, out BuffMO mo) => GetTable<BuffMO>().TryGet(id, out mo);
         public bool TryGetSummon(int id, out global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SummonMO mo) => GetTable<global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SummonMO>().TryGet(id, out mo);

@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
 {
     public sealed class BattleAttributeTemplateMO
     {
         public int Id { get; }
+        public IReadOnlyList<int> ActiveSkills { get; }
+        public IReadOnlyList<int> PassiveSkills { get; }
         public int Hp { get; }
         public int MaxHp { get; }
         public int ExtraHp { get; }
@@ -33,6 +36,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
             Id = dto.Id;
+            ActiveSkills = dto.ActiveSkills ?? Array.Empty<int>();
+            PassiveSkills = dto.PassiveSkills ?? Array.Empty<int>();
             Hp = dto.Hp;
             MaxHp = dto.MaxHp;
             ExtraHp = dto.ExtraHp;

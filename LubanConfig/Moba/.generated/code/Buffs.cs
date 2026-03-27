@@ -7,29 +7,33 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
+using Newtonsoft.Json.Linq;
 using Luban;
+
 
 
 namespace cfg
 {
+
 public partial class Buffs
 {
     private readonly System.Collections.Generic.Dictionary<int, DRBuff> _dataMap;
     private readonly System.Collections.Generic.List<DRBuff> _dataList;
     
-    public Buffs(ByteBuf _buf)
+    public Buffs(JArray _buf)
     {
-        int n = _buf.ReadSize();
-        _dataMap = new System.Collections.Generic.Dictionary<int, DRBuff>(n);
-        _dataList = new System.Collections.Generic.List<DRBuff>(n);
-        for(int i = n ; i > 0 ; --i)
+        _dataMap = new System.Collections.Generic.Dictionary<int, DRBuff>(_buf.Count);
+        _dataList = new System.Collections.Generic.List<DRBuff>(_buf.Count);
+        
+        foreach(JObject _ele in _buf)
         {
             DRBuff _v;
-            _v = global::cfg.DRBuff.DeserializeDRBuff(_buf);
+            _v = global::cfg.DRBuff.DeserializeDRBuff(_ele);
             _dataList.Add(_v);
             _dataMap.Add(_v.Id, _v);
-        }
+         }
     }
+
 
     public System.Collections.Generic.Dictionary<int, DRBuff> DataMap => _dataMap;
     public System.Collections.Generic.List<DRBuff> DataList => _dataList;
@@ -47,6 +51,5 @@ public partial class Buffs
     }
 
 }
-
 }
 

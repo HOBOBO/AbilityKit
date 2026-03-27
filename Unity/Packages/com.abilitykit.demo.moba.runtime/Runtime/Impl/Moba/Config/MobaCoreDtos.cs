@@ -141,6 +141,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
     public sealed class BattleAttributeTemplateDTO
     {
         public int Id;
+        public int[] ActiveSkills;
+        public int[] PassiveSkills;
         public int Hp;
         public int MaxHp;
         public int ExtraHp;

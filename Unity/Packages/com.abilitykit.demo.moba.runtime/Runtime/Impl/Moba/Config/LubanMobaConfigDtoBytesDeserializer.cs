@@ -2,21 +2,16 @@ using System;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
 {
+    /// <summary>
+    /// Luban 字节码反序列化器（已弃用，改用 JSON 格式）
+    /// </summary>
     public sealed class LubanMobaConfigDtoBytesDeserializer : IMobaConfigDtoBytesDeserializer
     {
         public Array DeserializeDtoArray(byte[] bytes, Type dtoType)
         {
-            if (bytes == null) throw new ArgumentNullException(nameof(bytes));
-            if (dtoType == null) throw new ArgumentNullException(nameof(dtoType));
-
-            if (dtoType == typeof(global::cfg.DRBuff))
-            {
-                var buf = global::Luban.ByteBuf.Wrap(bytes);
-                var table = new global::cfg.Buffs(buf);
-                return table.DataList.ToArray();
-            }
-
-            throw new NotSupportedException($"Luban bytes deserialization not supported for dtoType: {dtoType.FullName}. Migrate the table and extend {nameof(LubanMobaConfigDtoBytesDeserializer)}.");
+            throw new NotSupportedException(
+                "Luban bytes deserialization is no longer supported. " +
+                "Please use JSON format (IMobaConfigDtoDeserializer) instead.");
         }
     }
 }

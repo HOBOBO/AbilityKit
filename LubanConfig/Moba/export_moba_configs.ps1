@@ -51,9 +51,17 @@ if (!(Test-Path $absConf)) {
     exit 1
 }
 
+# 生成 JSON 数据
 dotnet $absLubanDll -t all -d json --conf $absConf -x outputDataDir=$stageJsonDir
-dotnet $absLubanDll -t all -d bin --conf $absConf -x outputDataDir=$stageBytesDir
-dotnet $absLubanDll -t client -c cs-bin --conf $absConf -x outputCodeDir=$stageCodeDir
+
+# 生成 cs-newtonsoft-json 代码（使用 Newtonsoft.Json）
+dotnet $absLubanDll -t all -c cs-newtonsoft-json --conf $absConf -x outputCodeDir=$stageCodeDir
 
 Copy-Item -Path (Join-Path $stageJsonDir "*") -Destination $absJsonDir -Recurse -Force
 Copy-Item -Path (Join-Path $stageBytesDir "*") -Destination $absBytesDir -Recurse -Force
+
+# 拷贝代码到 LubanGen
+$lubanGenDir = [System.IO.Path]::GetFullPath((Join-Path $root "..\..\Unity\Packages\com.abilitykit.demo.moba.runtime\Runtime\Impl\Moba\Config\LubanGen"))
+New-Item -ItemType Directory -Force -Path $lubanGenDir | Out-Null
+Copy-Item -Path (Join-Path $stageCodeDir "*") -Destination $lubanGenDir -Recurse -Force
+Write-Host "[export_moba_configs] Code copied to LubanGen: $lubanGenDir"

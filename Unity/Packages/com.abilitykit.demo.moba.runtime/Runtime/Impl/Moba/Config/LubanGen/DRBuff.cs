@@ -8,29 +8,34 @@
 //------------------------------------------------------------------------------
 
 using Luban;
+using Newtonsoft.Json.Linq;
+
 
 
 namespace cfg
 {
+
 public sealed partial class DRBuff : Luban.BeanBase
 {
-    public DRBuff(ByteBuf _buf) 
+    public DRBuff(JToken _buf) 
     {
-        Id = _buf.ReadInt();
-        DurationMs = _buf.ReadInt();
-        OngoingEffectId = _buf.ReadInt();
-        {int n0 = _buf.ReadSize(); OnAddEffects = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnAddEffects.Add(_e0);}}
-        {int n0 = _buf.ReadSize(); OnRemoveEffects = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnRemoveEffects.Add(_e0);}}
-        {int n0 = _buf.ReadSize(); OnIntervalEffects = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnIntervalEffects.Add(_e0);}}
-        IntervalMs = _buf.ReadInt();
-        StackingPolicy = _buf.ReadInt();
-        RefreshPolicy = _buf.ReadInt();
-        MaxStacks = _buf.ReadInt();
-        {int n0 = _buf.ReadSize(); TriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); TriggerIds.Add(_e0);}}
-        {int n0 = _buf.ReadSize(); Tags = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); Tags.Add(_e0);}}
+        JObject _obj = _buf as JObject;
+        Id = (int)_obj.GetValue("Id");
+        Name = (string)_obj.GetValue("Name");
+        DurationMs = (int)_obj.GetValue("DurationMs");
+        OngoingEffectId = (int)_obj.GetValue("OngoingEffectId");
+        { var __json0 = _obj.GetValue("OnAddEffects"); OnAddEffects = new System.Collections.Generic.List<int>((__json0 as JArray).Count); foreach(JToken __e0 in __json0) { int __v0;  __v0 = (int)__e0;  OnAddEffects.Add(__v0); }   }
+        { var __json0 = _obj.GetValue("OnRemoveEffects"); OnRemoveEffects = new System.Collections.Generic.List<int>((__json0 as JArray).Count); foreach(JToken __e0 in __json0) { int __v0;  __v0 = (int)__e0;  OnRemoveEffects.Add(__v0); }   }
+        { var __json0 = _obj.GetValue("OnIntervalEffects"); OnIntervalEffects = new System.Collections.Generic.List<int>((__json0 as JArray).Count); foreach(JToken __e0 in __json0) { int __v0;  __v0 = (int)__e0;  OnIntervalEffects.Add(__v0); }   }
+        IntervalMs = (int)_obj.GetValue("IntervalMs");
+        StackingPolicy = (int)_obj.GetValue("StackingPolicy");
+        RefreshPolicy = (int)_obj.GetValue("RefreshPolicy");
+        MaxStacks = (int)_obj.GetValue("MaxStacks");
+        { var __json0 = _obj.GetValue("TriggerIds"); TriggerIds = new System.Collections.Generic.List<int>((__json0 as JArray).Count); foreach(JToken __e0 in __json0) { int __v0;  __v0 = (int)__e0;  TriggerIds.Add(__v0); }   }
+        { var __json0 = _obj.GetValue("Tags"); Tags = new System.Collections.Generic.List<int>((__json0 as JArray).Count); foreach(JToken __e0 in __json0) { int __v0;  __v0 = (int)__e0;  Tags.Add(__v0); }   }
     }
 
-    public static DRBuff DeserializeDRBuff(ByteBuf _buf)
+    public static DRBuff DeserializeDRBuff(JToken _buf)
     {
         return new DRBuff(_buf);
     }
@@ -39,6 +44,10 @@ public sealed partial class DRBuff : Luban.BeanBase
     /// 属性编号
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 名字
+    /// </summary>
+    public readonly string Name;
     /// <summary>
     /// 持续毫秒
     /// </summary>
@@ -83,7 +92,8 @@ public sealed partial class DRBuff : Luban.BeanBase
     /// 标签列表
     /// </summary>
     public readonly System.Collections.Generic.List<int> Tags;
-   
+
+
     public const int __ID__ = 2024592897;
     public override int GetTypeId() => __ID__;
 
@@ -95,6 +105,7 @@ public sealed partial class DRBuff : Luban.BeanBase
     {
         return "{ "
         + "Id:" + Id + ","
+        + "Name:" + Name + ","
         + "DurationMs:" + DurationMs + ","
         + "OngoingEffectId:" + OngoingEffectId + ","
         + "OnAddEffects:" + Luban.StringUtil.CollectionToString(OnAddEffects) + ","

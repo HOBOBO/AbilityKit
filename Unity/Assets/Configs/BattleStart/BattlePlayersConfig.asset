@@ -18,7 +18,7 @@ MonoBehaviour:
     TeamId: 1
     MainType: 1
     UnitSubType: 1
-    HeroId: 10001
+    HeroId: 1001
     AttributeTemplateId: 1001
     Level: 1
     BasicAttackSkillId: 0
@@ -30,7 +30,7 @@ MonoBehaviour:
     TeamId: 2
     MainType: 1
     UnitSubType: 1
-    HeroId: 10002
+    HeroId: 1002
     AttributeTemplateId: 1001
     Level: 1
     BasicAttackSkillId: 0
