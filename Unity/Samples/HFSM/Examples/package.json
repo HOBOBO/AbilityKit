@@ -1,0 +1,10 @@
+{
+    "name": "com.abilitykit.hfsm.examples",
+    "displayName": "AbilityKit HFSM Examples",
+    "version": "0.0.1",
+    "unity": "2022.3",
+    "description": "Code examples for AbilityKit HFSM module. Demonstrates hierarchical state machines, transitions, parameters, actions, and any-state transitions.",
+    "dependencies": {
+        "com.abilitykit.hfsm": "0.0.1"
+    }
+}

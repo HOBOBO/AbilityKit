@@ -1,0 +1,19 @@
+{
+    "name": "AbilityKit.HFSM.Examples",
+    "rootNamespace": "UnityHFSM.Examples",
+    "references": [
+        "AbilityKit.HFSM",
+        "AbilityKit.HFSM.Unity",
+        "AbilityKit.HFSM.Core",
+        "AbilityKit.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
