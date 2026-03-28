@@ -1,7 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using Sirenix.OdinInspector;
 using UnityEditor;
 using UnityEngine;

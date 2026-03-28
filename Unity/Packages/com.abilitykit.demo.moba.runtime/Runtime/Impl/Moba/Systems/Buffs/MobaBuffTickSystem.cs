@@ -1,10 +1,11 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Triggering.Runtime;
@@ -169,7 +170,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             else e.ReplaceOngoingTriggerPlans(newList, rev);
         }
 
-        private void TryIntervalTick(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.BuffMO buff, global::AbilityKit.Ability.Impl.Moba.Conponents.BuffRuntime rt, int targetActorId, float dt)
+        private void TryIntervalTick(BuffMO buff, BuffRuntime rt, int targetActorId, float dt)
         {
             if (buff == null) return;
             if (rt == null) return;

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Moba.Conponents;
 using AbilityKit.Ability.Share.Effect;
@@ -15,7 +16,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _eventBus = eventBus;
         }
 
-        public void PublishApplyOrRefresh(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.BuffMO buff, int sourceActorId, int targetActorId, float durationSeconds, BuffRuntime runtime)
+        public void PublishApplyOrRefresh(BuffMO buff, int sourceActorId, int targetActorId, float durationSeconds, BuffRuntime runtime)
         {
             if (_eventBus == null) return;
             if (buff == null) return;
@@ -23,7 +24,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             PublishBaseEvent(MobaBuffTriggering.Events.ApplyOrRefresh, buff.Id, sourceActorId, targetActorId, durationSeconds, runtime);
         }
 
-        public void PublishRemove(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, EffectSourceEndReason reason)
+        public void PublishRemove(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, EffectSourceEndReason reason)
         {
             if (_eventBus == null) return;
             if (buff == null) return;
@@ -66,7 +67,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             }
         }
 
-        public void PublishInterval(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime)
+        public void PublishInterval(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime)
         {
             if (_eventBus == null) return;
             if (buff == null) return;

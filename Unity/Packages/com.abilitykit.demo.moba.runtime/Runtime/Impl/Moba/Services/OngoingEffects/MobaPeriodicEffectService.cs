@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Impl.Moba.Conponents;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Triggering.Runtime;

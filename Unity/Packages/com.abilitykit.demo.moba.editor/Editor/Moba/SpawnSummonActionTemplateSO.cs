@@ -1,7 +1,8 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor

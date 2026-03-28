@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Share.Common.Log;
 

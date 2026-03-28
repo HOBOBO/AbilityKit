@@ -9,7 +9,9 @@ using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Game.Battle.View;
 using AbilityKit.Game.Battle.View.Lib.Joystick;
 using AbilityKit.Game.Battle.View.Lib.Skill;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -385,7 +387,7 @@ namespace AbilityKit.Game.Flow
             var skillId = skills[slot - 1];
             if (skillId <= 0) { view.Config = cfg; return; }
 
-            global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SkillMO skill;
+            SkillMO skill;
             try { skill = configs.GetSkill(skillId); }
             catch { view.Config = cfg; return; }
             if (skill == null) { view.Config = cfg; return; }
@@ -393,7 +395,7 @@ namespace AbilityKit.Game.Flow
             var templateId = skill.SkillButtonTemplateId;
             if (templateId <= 0) { view.Config = cfg; return; }
 
-            global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SkillButtonTemplateMO template;
+            SkillButtonTemplateMO template;
             try { template = configs.GetSkillButtonTemplate(templateId); }
             catch { view.Config = cfg; return; }
             if (template == null) { view.Config = cfg; return; }

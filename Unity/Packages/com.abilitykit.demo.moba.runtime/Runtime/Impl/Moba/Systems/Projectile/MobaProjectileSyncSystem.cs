@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Moba.Util.Generator;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Common.Projectile;

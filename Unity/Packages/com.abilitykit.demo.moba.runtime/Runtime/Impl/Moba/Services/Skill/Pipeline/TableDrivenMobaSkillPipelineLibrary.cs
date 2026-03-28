@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -53,7 +55,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         }
 
         private IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> BuildFlowPhases(
-            AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.SkillFlowMO flow,
+            SkillFlowMO flow,
             AbilityPipelinePhaseId checksPhaseId,
             AbilityPipelinePhaseId timelinePhaseId)
         {
@@ -68,13 +70,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 var p = flow.Phases[i];
                 if (p == null) continue;
 
-                var type = (AbilityKit.Ability.Impl.BattleDemo.Moba.Config.SkillPhaseType)p.Type;
+                var type = (SkillPhaseType)p.Type;
                 switch (type)
                 {
-                    case AbilityKit.Ability.Impl.BattleDemo.Moba.Config.SkillPhaseType.Checks:
+                    case SkillPhaseType.Checks:
                         list.Add(new SkillFlowChecksPhase(checksPhaseId, p.Checks));
                         break;
-                    case AbilityKit.Ability.Impl.BattleDemo.Moba.Config.SkillPhaseType.Timeline:
+                    case SkillPhaseType.Timeline:
                         if (p.Timeline == null) break;
                         list.Add(new SkillTimelinePhase(timelinePhaseId, p.Timeline.DurationMs, ToArray(p.Timeline.Events), _effects));
                         break;

@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Ability.Impl.Moba.Conponents;
 using AbilityKit.Ability.Impl.Moba;
 

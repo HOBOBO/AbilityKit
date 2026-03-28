@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.Impl.Moba.Conponents;
@@ -16,7 +17,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _actionRunner = actionRunner;
         }
 
-        public void TryStartPeriodicEffectByBuff(global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.BuffMO buff, BuffRuntime runtime, int sourceActorId, int targetActorId)
+        public void TryStartPeriodicEffectByBuff(BuffMO buff, BuffRuntime runtime, int sourceActorId, int targetActorId)
         {
             if (_periodic == null) return;
             if (_actionRunner == null) return;

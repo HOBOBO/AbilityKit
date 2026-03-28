@@ -6,7 +6,7 @@ using AbilityKit.Ability.Share.Common.Projectile;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.World.DI;

@@ -9,6 +9,9 @@ using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.Triggering;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
+using BattleDemo = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
 using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
@@ -82,7 +85,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
                 try
                 {
-                    services.Resolve<AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MobaConfigDatabase>();
+                    services.Resolve<MobaConfigDatabase>();
                 }
                 catch (Exception cfgEx)
                 {

@@ -1,8 +1,9 @@
 using System;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
+namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
 {
     public sealed class JsonNetMobaConfigDtoDeserializer : IMobaConfigDtoDeserializer
     {

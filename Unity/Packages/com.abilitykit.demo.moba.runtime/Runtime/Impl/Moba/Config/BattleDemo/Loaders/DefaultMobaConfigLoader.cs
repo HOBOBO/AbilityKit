@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.HotReload;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Share.Common.Log;
 using UnityEngine;
 
-namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
+namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
 {
     public sealed class DefaultMobaConfigLoader : IMobaConfigLoader
     {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Share.Battle.SearchTarget;
 using AbilityKit.Ability.Share.Battle.SearchTarget.Rules;
 using AbilityKit.Ability.Share.Battle.SearchTarget.Scorers;

@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {

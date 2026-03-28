@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Triggering.Json;
 using AbilityKit.Ability.World.DI;

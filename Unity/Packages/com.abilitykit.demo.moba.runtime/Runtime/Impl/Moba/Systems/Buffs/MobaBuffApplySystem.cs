@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Moba.Conponents;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
@@ -150,7 +150,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             }
         }
 
-        private static void TryUpsertOngoingTriggerPlans(global::ActorEntity e, long ownerKey, global::AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.BuffMO buff)
+        private static void TryUpsertOngoingTriggerPlans(ActorEntity e, long ownerKey, BuffMO buff)
         {
             if (e == null) return;
             if (ownerKey == 0) return;
@@ -197,7 +197,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
             else e.AddOngoingTriggerPlans(newList, rev);
         }
 
-        private static void RemoveOngoingTriggerPlansEntry(global::ActorEntity e, long ownerKey)
+        private static void RemoveOngoingTriggerPlansEntry(ActorEntity e, long ownerKey)
         {
             if (e == null) return;
             if (ownerKey == 0) return;

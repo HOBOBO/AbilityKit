@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
+using MO = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
+using BattleDemo = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Editor
 {

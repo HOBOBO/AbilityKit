@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
+using BattleDemo = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
+using MO = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Common.AttributeSystem;
 using AbilityKit.Ability.Impl.Moba.Conponents;
@@ -86,7 +87,7 @@ namespace AbilityKit.Ability.Impl.Moba.Util.Generator
             }
             if (attributeTemplateId <= 0) return;
 
-            AbilityKit.Ability.Impl.BattleDemo.Moba.Config.MO.BattleAttributeTemplateMO template;
+            MO.BattleAttributeTemplateMO template;
             try
             {
                 template = _config.GetAttributeTemplate(attributeTemplateId);
