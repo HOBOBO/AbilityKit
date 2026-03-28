@@ -8,8 +8,12 @@ using UnityEditor.Animations;
 using UnityEngine;
 using UnityHFSM.Visualization;
 
-namespace UnityHFSM.Visualization
+namespace UnityHFSM.Editor.Debugger
 {
+	/// <summary>
+	/// HFSM Animator 调试器窗口
+	/// 将运行中的 HFSM 状态机绑定到 Unity Animator 窗口进行可视化调试
+	/// </summary>
 	public sealed class HfsmAnimatorDebuggerWindow : EditorWindow
 	{
 		[MenuItem("Window/AbilityKit/HFSM Animator Debugger")]
@@ -45,33 +49,21 @@ namespace UnityHFSM.Visualization
 
 		void OnGUI()
 		{
+			DrawHeader();
+
 			using (new EditorGUI.DisabledScope(!EditorApplication.isPlaying))
 			{
-				EditorGUILayout.LabelField("Play Mode Only", EditorStyles.boldLabel);
 				EditorGUILayout.Space(6);
 
 				DrawRegistrySelection();
 				EditorGUILayout.Space(8);
 
-				_outputFolderPath = EditorGUILayout.TextField("Output Folder", _outputFolderPath);
-				_animatorName = EditorGUILayout.TextField("Animator Name", _animatorName);
-				_tickInterval = EditorGUILayout.Slider("Preview Tick (s)", _tickInterval, 0.02f, 1.0f);
-
-				using (new EditorGUILayout.HorizontalScope())
-				{
-					if (GUILayout.Button("Bind / Refresh"))
-					{
-						BindSelected();
-					}
-
-					if (GUILayout.Button("Open Animator Window"))
-					{
-						EditorApplication.ExecuteMenuItem("Window/Animation/Animator");
-						Selection.activeObject = _previewGo;
-					}
-				}
-
+				DrawSettings();
 				EditorGUILayout.Space(8);
+
+				DrawActions();
+				EditorGUILayout.Space(8);
+
 				DrawStatus();
 			}
 
@@ -81,6 +73,12 @@ namespace UnityHFSM.Visualization
 			}
 		}
 
+		void DrawHeader()
+		{
+			EditorGUILayout.LabelField("HFSM Animator Debugger", EditorStyles.boldLabel);
+			EditorGUILayout.LabelField("Bind running HFSM to Unity Animator window", EditorStyles.miniLabel);
+		}
+
 		void DrawRegistrySelection()
 		{
 			var entries = HfsmLiveRegistry.GetEntries();
@@ -88,7 +86,7 @@ namespace UnityHFSM.Visualization
 
 			if (names.Length == 0)
 			{
-				EditorGUILayout.HelpBox("No registered state machines. Call HfsmLiveRegistry.Register(name, fsm) from your runtime code.", MessageType.Warning);
+				EditorGUILayout.HelpBox("No registered state machines. Call LiveRegistry.Register(name, fsm) from your runtime code.", MessageType.Warning);
 				_selectedIndex = -1;
 				return;
 			}
@@ -107,6 +105,32 @@ namespace UnityHFSM.Visualization
 				list.Add($"{i}: {e.Name} ({typeName})");
 			}
 			return list.ToArray();
+		}
+
+		void DrawSettings()
+		{
+			EditorGUILayout.LabelField("Settings", EditorStyles.boldLabel);
+			_outputFolderPath = EditorGUILayout.TextField("Output Folder", _outputFolderPath);
+			_animatorName = EditorGUILayout.TextField("Animator Name", _animatorName);
+			_tickInterval = EditorGUILayout.Slider("Preview Tick (s)", _tickInterval, 0.02f, 1.0f);
+		}
+
+		void DrawActions()
+		{
+			EditorGUILayout.LabelField("Actions", EditorStyles.boldLabel);
+
+			using (new EditorGUILayout.HorizontalScope())
+			{
+				if (GUILayout.Button("Bind / Refresh"))
+				{
+					BindSelected();
+				}
+
+				if (GUILayout.Button("Open Animator Window"))
+				{
+					OpenAnimatorWindow();
+				}
+			}
 		}
 
 		void DrawStatus()
@@ -162,7 +186,13 @@ namespace UnityHFSM.Visualization
 			_previewAnimator.runtimeAnimatorController = _controller;
 
 			Selection.activeObject = _previewGo;
+			OpenAnimatorWindow();
+		}
+
+		void OpenAnimatorWindow()
+		{
 			EditorApplication.ExecuteMenuItem("Window/Animation/Animator");
+			Selection.activeObject = _previewGo;
 		}
 
 		void EnsurePreviewObjects()

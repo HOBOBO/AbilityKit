@@ -2,8 +2,9 @@
   "name": "AbilityKit.HFSM.Editor",
   "rootNamespace": "AbilityKit",
   "references": [
-    "AbilityKit.HFSM",
-    "AbilityKit.HFSM.Unity"
+    "AbilityKit.HFSM.Core",
+    "AbilityKit.HFSM.Unity",
+    "AbilityKit.Core"
   ],
   "includePlatforms": [
     "Editor"
