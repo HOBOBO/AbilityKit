@@ -131,7 +131,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             IMobaConfigDtoDeserializer deserializer = null,
             IMobaConfigDtoBytesDeserializer bytesDeserializer = null)
         {
-            _registry = registry ?? DefaultMobaConfigTableRegistry.Instance;
+            _registry = registry ?? MobaConfigRegistry.Instance;
             _deserializer = deserializer ?? JsonNetMobaConfigDtoDeserializer.Instance;
             _bytesDeserializer = bytesDeserializer;
         }
@@ -653,9 +653,11 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             public bool TryGet(int id, out TDto dto) => _byId.TryGetValue(id, out dto);
         }
 
-        private sealed class ConfigTable<TMO>
+        public sealed class ConfigTable<TMO>
         {
             private readonly Dictionary<int, TMO> _byId = new Dictionary<int, TMO>();
+
+            public int Count => _byId.Count;
 
             public void AddFromDto(object dto)
             {
@@ -690,7 +692,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config
             throw new InvalidOperationException($"DTO must have int Id or Code field/property. type={t.FullName}");
         }
 
-        private ConfigTable<TMO> GetTable<TMO>()
+        public ConfigTable<TMO> GetTable<TMO>()
         {
             if (_tables.TryGetValue(typeof(TMO), out var o) && o is ConfigTable<TMO> t) return t;
             t = new ConfigTable<TMO>();

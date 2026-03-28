@@ -27,11 +27,11 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 var db = new MobaConfigDatabase(registry, deserializer, bytesDeserializer);
                 var loader = _.TryResolve<IMobaConfigLoader>(out var injected) && injected != null
                     ? injected
-                    : new DefaultMobaConfigLoader(registry ?? DefaultMobaConfigTableRegistry.Instance);
+                    : new DefaultMobaConfigLoader(registry ?? MobaConfigRegistry.Instance);
 
                 var bytesLoader = _.TryResolve<IMobaConfigBytesLoader>(out var injectedBytesLoader) && injectedBytesLoader != null
                     ? injectedBytesLoader
-                    : new DefaultMobaConfigBytesLoader(registry ?? DefaultMobaConfigTableRegistry.Instance);
+                    : new DefaultMobaConfigBytesLoader(registry ?? MobaConfigRegistry.Instance);
                 try
                 {
                     /*
@@ -50,7 +50,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                         _.TryResolve<IMobaConfigSource>(out var jsource);
                         _.TryResolve<IMobaConfigTextSink>(out var sink);
 
-                        var jsonByKey = BuildPartialJsonByKey(jsource, sink, MobaConfigPaths.DefaultResourcesDir, registry ?? DefaultMobaConfigTableRegistry.Instance);
+                        var jsonByKey = BuildPartialJsonByKey(jsource, sink, MobaConfigPaths.DefaultResourcesDir, registry ?? MobaConfigRegistry.Instance);
 
                         db.LoadFromJsonTexts(
                             jsonByKey,
