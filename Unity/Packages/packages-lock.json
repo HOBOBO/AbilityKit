@@ -280,6 +280,14 @@
         "com.abilitykit.core": "0.0.1"
       }
     },
+    "com.abilitykit.hfsm.examples": {
+      "version": "file:com.abilitykit.hfsm.examples",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.hfsm": "1.0.0"
+      }
+    },
     "com.abilitykit.host": {
       "version": "file:com.abilitykit.host",
       "depth": 0,
