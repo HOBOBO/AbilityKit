@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Config;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
 {
@@ -26,7 +28,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
 
         public override bool CanHandle(Type dtoType)
         {
-            // 不处理任何类型
             return false;
         }
     }
@@ -74,15 +75,12 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
         {
             if (string.IsNullOrEmpty(text))
                 throw new ArgumentNullException(nameof(text));
-
             if (dtoType == null)
                 throw new ArgumentNullException(nameof(dtoType));
-
             if (!CanHandle(dtoType))
                 throw CreateNotSupportedException(dtoType, nameof(LegacyJsonConfigGroupDeserializer));
 
-            var arr = BattleDemo.JsonNetMobaConfigDtoDeserializer.Instance.DeserializeDtoArray(text, dtoType);
-            return arr;
+            return BattleDemo.JsonNetMobaConfigDtoDeserializer.Instance.DeserializeDtoArray(text, dtoType);
         }
 
         public override bool CanHandle(Type dtoType)

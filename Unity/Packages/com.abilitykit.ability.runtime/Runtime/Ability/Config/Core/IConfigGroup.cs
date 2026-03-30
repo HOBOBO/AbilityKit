@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
+namespace AbilityKit.Ability.Config
 {
     /// <summary>
-    /// 配置组接口，定义一组配置表的加载和解析方式
+    /// 配置组接口，定义一组配置表的加载和反序列化方式
     /// </summary>
     public interface IConfigGroup
     {
@@ -26,7 +26,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
         /// <summary>
         /// 该组包含的配置表
         /// </summary>
-        IReadOnlyList<ConfigTableEntry> Tables { get; }
+        IReadOnlyList<ConfigTableDefinition> Tables { get; }
     }
 
     /// <summary>
@@ -85,5 +85,16 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
                 $"[{deserializerName}] Deserialization not supported for dtoType: {dtoType.FullName}. " +
                 $"Please migrate the table or extend {deserializerName}.");
         }
+    }
+
+    /// <summary>
+    /// 配置组提供者接口，用于 DI 注入自定义配置组
+    /// </summary>
+    public interface IConfigGroupProvider
+    {
+        /// <summary>
+        /// 获取所有配置组
+        /// </summary>
+        IReadOnlyList<IConfigGroup> GetGroups();
     }
 }

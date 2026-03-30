@@ -80,7 +80,13 @@ namespace AbilityKit.Ability.Config
             var property = type.GetProperty("Id");
             if (property != null && property.PropertyType == typeof(int)) return (int)property.GetValue(dto);
 
-            throw new InvalidOperationException($"DTO must have int Id field/property. type={type.FullName}");
+            // Fallback: try "Code" field (used by Luban DR* types like DRCharacters)
+            field = type.GetField("Code");
+            if (field != null && field.FieldType == typeof(int)) return (int)field.GetValue(dto);
+            property = type.GetProperty("Code");
+            if (property != null && property.PropertyType == typeof(int)) return (int)property.GetValue(dto);
+
+            throw new InvalidOperationException($"DTO must have int Id or Code field/property. type={type.FullName}");
         }
     }
 }

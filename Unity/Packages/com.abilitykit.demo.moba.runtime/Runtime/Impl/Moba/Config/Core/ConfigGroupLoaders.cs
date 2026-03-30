@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using AbilityKit.Ability.Config;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
 {

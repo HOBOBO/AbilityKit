@@ -6,7 +6,7 @@ namespace AbilityKit.Ability.Config
     /// <summary>
     /// 配置表定义，描述单个配置表的元数据
     /// </summary>
-    public sealed class ConfigTableDefinition
+    public class ConfigTableDefinition
     {
         /// <summary>
         /// 配置文件路径（不含扩展名）
@@ -14,7 +14,7 @@ namespace AbilityKit.Ability.Config
         public string FilePath { get; }
 
         /// <summary>
-        /// 配置文件路径（不含扩展名）- FilePath 的别名，兼容旧 API
+        /// 配置文件路径（不含扩展名）- FilePath 的别名
         /// </summary>
         public string FileWithoutExt => FilePath;
 
@@ -28,11 +28,17 @@ namespace AbilityKit.Ability.Config
         /// </summary>
         public Type EntryType { get; }
 
-        public ConfigTableDefinition(string filePath, Type dtoType, Type entryType)
+        /// <summary>
+        /// 所属配置组名称（可选，用于分组加载）
+        /// </summary>
+        public string GroupName { get; }
+
+        public ConfigTableDefinition(string filePath, Type dtoType, Type entryType, string groupName = null)
         {
             FilePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
             DtoType = dtoType ?? throw new ArgumentNullException(nameof(dtoType));
             EntryType = entryType ?? throw new ArgumentNullException(nameof(entryType));
+            GroupName = groupName;
         }
     }
 

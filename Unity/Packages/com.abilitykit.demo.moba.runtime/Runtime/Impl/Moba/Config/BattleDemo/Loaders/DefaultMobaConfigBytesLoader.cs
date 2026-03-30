@@ -77,7 +77,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
             var bytesByKey = new Dictionary<string, byte[]>(StringComparer.Ordinal);
             var tables = _registry.Tables;
 
-            for (var i = 0; i < tables.Length; i++)
+            for (var i = 0; i < tables.Count; i++)
             {
                 var t = tables[i];
                 var fullPath = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
@@ -117,7 +117,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
             var bytesByKey = new Dictionary<string, byte[]>(StringComparer.Ordinal);
             var tables = _registry.Tables;
 
-            for (var i = 0; i < tables.Length; i++)
+            for (var i = 0; i < tables.Count; i++)
             {
                 var t = tables[i];
                 var path = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";

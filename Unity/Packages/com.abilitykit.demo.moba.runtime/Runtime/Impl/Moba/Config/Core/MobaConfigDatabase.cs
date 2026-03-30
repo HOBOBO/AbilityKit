@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
+using AbilityKit.Ability.Config;
 using AbilityKit.Ability.HotReload;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
-using UnityEngine;
+using ConfigReloadResult = AbilityKit.Ability.HotReload.ConfigReloadResult;
+using ConfigReloadBus = AbilityKit.Ability.HotReload.ConfigReloadBus;
 using CharacterMO = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO.CharacterMO;
 using BattleAttributeTemplateMO = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO.BattleAttributeTemplateMO;
 using SkillMO = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO.SkillMO;
@@ -25,26 +26,6 @@ using OngoingEffectMO = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDem
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
 {
-    /// <summary>
-    /// Type.FullName-based equality comparer for Dictionary keys.
-    /// Works around IL2CPP/AOT issues where two Type objects representing the same type
-    /// may not be reference-equal or Equals-equal (they can have identical GetHashCode
-    /// but Equals returns false due to AOT type reconstruction).
-    /// Using FullName ensures consistent string-based identity across assembly loads.
-    /// </summary>
-    internal sealed class TypeNameComparer : IEqualityComparer<Type>
-    {
-        public static readonly TypeNameComparer Instance = new TypeNameComparer();
-        private TypeNameComparer() { }
-        public bool Equals(Type x, Type y)
-        {
-            if (ReferenceEquals(x, y)) return true;
-            if (x == null || y == null) return false;
-            return x.FullName == y.FullName;
-        }
-        public int GetHashCode(Type obj) => obj != null ? obj.FullName.GetHashCode() : 0;
-    }
-
     public interface IMobaConfigTextSink
     {
         bool TryGetText(string key, out string text);
@@ -67,19 +48,19 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
         }
     }
 
+    /// <summary>
+    /// MOBA 配置数据库实现
+    /// 提供便捷的 MOBA 特定配置访问方法
+    /// 内部使用通用的 ConfigDatabase 进行配置管理
+    /// </summary>
     public sealed class MobaConfigDatabase
     {
-        private const string ConfigKey = "moba.config";
-
+        private readonly ConfigDatabase _innerDb;
         private readonly IMobaConfigTableRegistry _registry;
         private readonly IMobaConfigDtoDeserializer _deserializer;
         private readonly IMobaConfigDtoBytesDeserializer _bytesDeserializer;
-        // Use TypeNameComparer to work around IL2CPP Type.Equals() identity issues
-        private readonly Dictionary<Type, object> _tables = new Dictionary<Type, object>(TypeNameComparer.Instance);
-        private readonly Dictionary<Type, object> _dtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
-        private long _version;
 
-        public long Version => _version;
+        public long Version => _innerDb.Version;
 
         public MobaConfigDatabase(
             IMobaConfigTableRegistry registry = null,
@@ -89,6 +70,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
             _registry = registry ?? BattleDemo.MobaConfigRegistry.Instance;
             _deserializer = deserializer ?? BattleDemo.JsonNetMobaConfigDtoDeserializer.Instance;
             _bytesDeserializer = bytesDeserializer;
+
+            // Create internal ConfigDatabase with MOBA-specific deserializer adapter
+            var adapter = new MobaDeserializerAdapter(_deserializer, _bytesDeserializer);
+            _innerDb = new ConfigDatabase(_registry, adapter);
         }
 
         public void LoadFromTextSink(IMobaConfigTextSink sink, string resourcesDir = null)
@@ -143,59 +128,23 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
             if (bytesByKey == null) throw new ArgumentNullException(nameof(bytesByKey));
             if (_bytesDeserializer == null)
             {
-                var fail = ConfigReloadResult.Fail(ConfigKey, _version, "Bytes deserializer not provided. Register IMobaConfigDtoBytesDeserializer into DI or pass it into MobaConfigDatabase ctor.");
+                var fail = ConfigReloadResult.Fail("moba.config", _innerDb.Version, "Bytes deserializer not provided. Register IMobaConfigDtoBytesDeserializer into DI or pass it into MobaConfigDatabase ctor.");
                 ConfigReloadBus.Publish(fail);
                 return fail;
             }
 
-            var nextTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
-            var nextDtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
-
-            var tables = _registry.Tables;
-            for (var i = 0; i < tables.Length; i++)
+            // Use internal ConfigDatabase for bytes loading
+            var result = _innerDb.ReloadFromBytes(bytesByKey, resourcesDir);
+            if (!result.Succeeded)
             {
-                var t = tables[i];
-                var fullPath = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
-
-                if (!TryGetBytes(bytesByKey, fullPath, t.FileWithoutExt, out var bytes) || bytes == null || bytes.Length == 0)
-                {
-                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config bytes not found: {fullPath}");
-                    ConfigReloadBus.Publish(fail);
-                    return fail;
-                }
-
-                try
-                {
-                    var arr = _bytesDeserializer.DeserializeDtoArray(bytes, t.DtoType);
-                    var dtoTableObj = CreateDtoTableFromDtos(t.DtoType, arr);
-                    nextDtoTables[t.DtoType] = dtoTableObj;
-                    var tableObj = CreateTableFromDtos(t.DtoType, t.MoType, arr);
-                    nextTables[t.MoType] = tableObj;
-                }
-                catch (Exception ex)
-                {
-                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Failed to parse config bytes: {fullPath}. {ex.Message}");
-                    ConfigReloadBus.Publish(fail);
-                    return fail;
-                }
+                var fail = ConfigReloadResult.Fail("moba.config", _innerDb.Version, result.Error);
+                ConfigReloadBus.Publish(fail);
+                return fail;
             }
 
-            _tables.Clear();
-            foreach (var kv in nextTables)
-            {
-                _tables[kv.Key] = kv.Value;
-            }
-
-            _dtoTables.Clear();
-            foreach (var kv in nextDtoTables)
-            {
-                _dtoTables[kv.Key] = kv.Value;
-            }
-
-            _version++;
-            var ok = ConfigReloadResult.Success(ConfigKey, _version, fullReload: true, changedIds: null);
-            ConfigReloadBus.Publish(ok);
-            return ok;
+            var success = ConfigReloadResult.Success("moba.config", _innerDb.Version, fullReload: true, changedIds: null);
+            ConfigReloadBus.Publish(success);
+            return success;
         }
 
         public void LoadFromMixed(
@@ -245,73 +194,23 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
             if (jsonByKey == null) throw new ArgumentNullException(nameof(jsonByKey));
             if (_bytesDeserializer == null)
             {
-                var fail = ConfigReloadResult.Fail(ConfigKey, _version, "Bytes deserializer not provided. Register IMobaConfigDtoBytesDeserializer into DI or pass it into MobaConfigDatabase ctor.");
+                var fail = ConfigReloadResult.Fail("moba.config", _innerDb.Version, "Bytes deserializer not provided.");
                 ConfigReloadBus.Publish(fail);
                 return fail;
             }
 
-            var nextTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
-            var nextDtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
-
-            var tables = _registry.Tables;
-            for (var i = 0; i < tables.Length; i++)
+            // Use internal ConfigDatabase for mixed loading
+            var result = _innerDb.ReloadFromMixed(bytesByKey, jsonByKey, bytesResourcesDir, jsonResourcesDir, strict);
+            if (!result.Succeeded)
             {
-                var t = tables[i];
-                var bytesFullPath = string.IsNullOrEmpty(bytesResourcesDir) ? t.FileWithoutExt : $"{bytesResourcesDir}/{t.FileWithoutExt}";
-                var jsonFullPath = string.IsNullOrEmpty(jsonResourcesDir) ? t.FileWithoutExt : $"{jsonResourcesDir}/{t.FileWithoutExt}";
-
-                Array arr;
-                try
-                {
-                    if (TryGetBytes(bytesByKey, bytesFullPath, t.FileWithoutExt, out var bytes) && bytes != null && bytes.Length > 0)
-                    {
-                        arr = _bytesDeserializer.DeserializeDtoArray(bytes, t.DtoType);
-                    }
-                    else if (TryGetJson(jsonByKey, jsonFullPath, t.FileWithoutExt, out var json) && !string.IsNullOrEmpty(json))
-                    {
-                        arr = _deserializer.DeserializeDtoArray(json, t.DtoType);
-                    }
-                    else
-                    {
-                        if (strict)
-                        {
-                            var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config not found (bytes/json): {t.FileWithoutExt}");
-                            ConfigReloadBus.Publish(fail);
-                            return fail;
-                        }
-
-                        arr = Array.CreateInstance(t.DtoType, 0);
-                    }
-
-                    var dtoTableObj = CreateDtoTableFromDtos(t.DtoType, arr);
-                    nextDtoTables[t.DtoType] = dtoTableObj;
-                    var tableObj = CreateTableFromDtos(t.DtoType, t.MoType, arr);
-                    nextTables[t.MoType] = tableObj;
-                }
-                catch (Exception ex)
-                {
-                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Failed to parse config (mixed): {t.FileWithoutExt}. {ex.Message}");
-                    ConfigReloadBus.Publish(fail);
-                    return fail;
-                }
+                var fail = ConfigReloadResult.Fail("moba.config", _innerDb.Version, result.Error);
+                ConfigReloadBus.Publish(fail);
+                return fail;
             }
 
-            _tables.Clear();
-            foreach (var kv in nextTables)
-            {
-                _tables[kv.Key] = kv.Value;
-            }
-
-            _dtoTables.Clear();
-            foreach (var kv in nextDtoTables)
-            {
-                _dtoTables[kv.Key] = kv.Value;
-            }
-
-            _version++;
-            var ok = ConfigReloadResult.Success(ConfigKey, _version, fullReload: true, changedIds: null);
-            ConfigReloadBus.Publish(ok);
-            return ok;
+            var success = ConfigReloadResult.Success("moba.config", _innerDb.Version, fullReload: true, changedIds: null);
+            ConfigReloadBus.Publish(success);
+            return success;
         }
 
         /// <summary>
@@ -335,97 +234,21 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
         {
             if (groups == null || groups.Count == 0)
             {
-                var fail = ConfigReloadResult.Fail(ConfigKey, _version, "No config groups provided");
+                var fail = ConfigReloadResult.Fail("moba.config", _innerDb.Version, "No config groups provided");
                 ConfigReloadBus.Publish(fail);
                 return fail;
             }
 
-            var nextTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
-            var nextDtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
-
-            // 按组处理所有配置表
-            for (var gi = 0; gi < groups.Count; gi++)
+            // Use internal ConfigDatabase for groups loading
+            var result = _innerDb.ReloadFromGroups(groups);
+            if (!result.Succeeded)
             {
-                var group = groups[gi];
-
-                for (var i = 0; i < group.Tables.Count; i++)
-                {
-                    var entry = group.Tables[i];
-
-                    // 尝试加载配置数据
-                    if (!group.Loader.TryLoad(entry.FileWithoutExt, out var bytes, out var text))
-                    {
-                        // 如果该组没有配置，尝试下一个组
-                        var found = false;
-                        for (var gj = gi + 1; gj < groups.Count; gj++)
-                        {
-                            if (groups[gj].Loader.TryLoad(entry.FileWithoutExt, out bytes, out text))
-                            {
-                                found = true;
-                                break;
-                            }
-                        }
-
-                        if (!found)
-                        {
-                            var fail = ConfigReloadResult.Fail(ConfigKey, _version,
-                                $"Config not found: {entry.FileWithoutExt} in any group");
-                            ConfigReloadBus.Publish(fail);
-                            return fail;
-                        }
-                    }
-
-                    // 反序列化
-                    Array arr;
-                    try
-                    {
-                        if (bytes != null && bytes.Length > 0)
-                        {
-                            arr = group.Deserializer.DeserializeFromBytes(bytes, entry.DtoType);
-                        }
-                        else if (!string.IsNullOrEmpty(text))
-                        {
-                            arr = group.Deserializer.DeserializeFromText(text, entry.DtoType);
-                        }
-                        else
-                        {
-                            var fail = ConfigReloadResult.Fail(ConfigKey, _version,
-                                $"Config data is empty: {entry.FileWithoutExt}");
-                            ConfigReloadBus.Publish(fail);
-                            return fail;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        var fail = ConfigReloadResult.Fail(ConfigKey, _version,
-                            $"Failed to deserialize: {entry.FileWithoutExt}. {ex.Message}");
-                        ConfigReloadBus.Publish(fail);
-                        return fail;
-                    }
-
-                    // 创建表
-                    var dtoTableObj = CreateDtoTableFromDtos(entry.DtoType, arr);
-                    nextDtoTables[entry.DtoType] = dtoTableObj;
-                    var tableObj = CreateTableFromDtos(entry.DtoType, entry.MoType, arr);
-                    nextTables[entry.MoType] = tableObj;
-                }
+                var fail = ConfigReloadResult.Fail("moba.config", _innerDb.Version, result.Error);
+                ConfigReloadBus.Publish(fail);
+                return fail;
             }
 
-            // 提交变更
-            _tables.Clear();
-            foreach (var kv in nextTables)
-            {
-                _tables[kv.Key] = kv.Value;
-            }
-
-            _dtoTables.Clear();
-            foreach (var kv in nextDtoTables)
-            {
-                _dtoTables[kv.Key] = kv.Value;
-            }
-
-            _version++;
-            var success = ConfigReloadResult.Success(ConfigKey, _version, fullReload: true, changedIds: null);
+            var success = ConfigReloadResult.Success("moba.config", _innerDb.Version, fullReload: true, changedIds: null);
             ConfigReloadBus.Publish(success);
             return success;
         }
@@ -469,206 +292,45 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
         {
             if (jsonByKey == null) throw new ArgumentNullException(nameof(jsonByKey));
 
-            var nextTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
-            var nextDtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
-
-            var tables = _registry.Tables;
-            for (var i = 0; i < tables.Length; i++)
+            // Use internal ConfigDatabase for JSON texts loading
+            var result = _innerDb.ReloadFromTexts(jsonByKey, resourcesDir);
+            if (!result.Succeeded)
             {
-                var t = tables[i];
-                var fullPath = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
-
-                if (!TryGetJson(jsonByKey, fullPath, t.FileWithoutExt, out var json) || string.IsNullOrEmpty(json))
-                {
-                    if (strict)
-                    {
-                        var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Config json not found: {fullPath}");
-                        ConfigReloadBus.Publish(fail);
-                        return fail;
-                    }
-
-                    // Create empty table for missing config in non-strict mode
-                    var emptyArr = Array.CreateInstance(t.DtoType, 0);
-                    var dtoTableObj = CreateDtoTableFromDtos(t.DtoType, emptyArr);
-                    nextDtoTables[t.DtoType] = dtoTableObj;
-                    var tableObj = CreateTableFromDtos(t.DtoType, t.MoType, emptyArr);
-                    nextTables[t.MoType] = tableObj;
-                    continue;
-                }
-
-                try
-                {
-                    var arr = _deserializer.DeserializeDtoArray(json, t.DtoType);
-                    var dtoTableObj = CreateDtoTableFromDtos(t.DtoType, arr);
-                    nextDtoTables[t.DtoType] = dtoTableObj;
-                    var tableObj = CreateTableFromDtos(t.DtoType, t.MoType, arr);
-                    nextTables[t.MoType] = tableObj;
-                }
-                catch (Exception ex)
-                {
-                    var fail = ConfigReloadResult.Fail(ConfigKey, _version, $"Failed to parse config json: {fullPath}. {ex.Message}");
-                    ConfigReloadBus.Publish(fail);
-                    return fail;
-                }
+                var fail = ConfigReloadResult.Fail("moba.config", _innerDb.Version, result.Error);
+                ConfigReloadBus.Publish(fail);
+                return fail;
             }
 
-            _tables.Clear();
-            foreach (var kv in nextTables)
-            {
-                _tables[kv.Key] = kv.Value;
-            }
-
-            _dtoTables.Clear();
-            foreach (var kv in nextDtoTables)
-            {
-                _dtoTables[kv.Key] = kv.Value;
-            }
-
-            _version++;
-            var ok = ConfigReloadResult.Success(ConfigKey, _version, fullReload: true, changedIds: null);
-            ConfigReloadBus.Publish(ok);
-            return ok;
+            var success = ConfigReloadResult.Success("moba.config", _innerDb.Version, fullReload: true, changedIds: null);
+            ConfigReloadBus.Publish(success);
+            return success;
         }
 
-        private static bool TryGetJson(IReadOnlyDictionary<string, string> jsonByKey, string fullPath, string fileWithoutExt, out string json)
+        // ==================== MOBA-specific convenience methods ====================
+
+        /// <summary>
+        /// 获取配置表
+        /// </summary>
+        public IConfigTable<TMO> GetTable<TMO>() where TMO : class
         {
-            json = null;
-            if (jsonByKey == null) return false;
-            if (fullPath != null && jsonByKey.TryGetValue(fullPath, out json)) return true;
-            if (fileWithoutExt != null && jsonByKey.TryGetValue(fileWithoutExt, out json)) return true;
-            return false;
+            return _innerDb.GetTable<TMO>();
         }
 
-        private static bool TryGetBytes(IReadOnlyDictionary<string, byte[]> bytesByKey, string fullPath, string fileWithoutExt, out byte[] bytes)
+        /// <summary>
+        /// 获取 DTO
+        /// </summary>
+        public TDto GetDto<TDto>(int id) where TDto : class
         {
-            bytes = null;
-            if (bytesByKey == null) return false;
-            if (fullPath != null && bytesByKey.TryGetValue(fullPath, out bytes)) return true;
-            if (fileWithoutExt != null && bytesByKey.TryGetValue(fileWithoutExt, out bytes)) return true;
-            return false;
+            return _innerDb.GetDto<TDto>(id);
         }
 
-
-        private static object CreateTableFromDtos(Type dtoType, Type moType, Array dtoArray)
+        /// <summary>
+        /// 尝试获取 DTO
+        /// </summary>
+        public bool TryGetDto<TDto>(int id, out TDto dto) where TDto : class
         {
-            var tableType = typeof(ConfigTable<>).MakeGenericType(moType);
-            var table = Activator.CreateInstance(tableType);
-            var addFromDto = tableType.GetMethod("AddFromDto", BindingFlags.Instance | BindingFlags.Public);
-            if (addFromDto == null) throw new InvalidOperationException($"AddFromDto not found. tableType={tableType.FullName}");
-
-            if (dtoArray != null)
-            {
-                for (var i = 0; i < dtoArray.Length; i++)
-                {
-                    var dto = dtoArray.GetValue(i);
-                    if (dto == null) continue;
-                    addFromDto.Invoke(table, new[] { dto });
-                }
-            }
-
-            return table;
+            return _innerDb.TryGetDto(id, out dto);
         }
-
-        private static object CreateDtoTableFromDtos(Type dtoType, Array dtoArray)
-        {
-            var tableType = typeof(ConfigDtoTable<>).MakeGenericType(dtoType);
-            var table = Activator.CreateInstance(tableType);
-            var addFromDto = tableType.GetMethod("Add", BindingFlags.Instance | BindingFlags.Public);
-            if (addFromDto == null) throw new InvalidOperationException($"Add not found. tableType={tableType.FullName}");
-
-            if (dtoArray != null)
-            {
-                for (var i = 0; i < dtoArray.Length; i++)
-                {
-                    var dto = dtoArray.GetValue(i);
-                    if (dto == null) continue;
-                    addFromDto.Invoke(table, new[] { dto });
-                }
-            }
-
-            return table;
-        }
-
-        private sealed class ConfigDtoTable<TDto>
-        {
-            private readonly Dictionary<int, TDto> _byId = new Dictionary<int, TDto>();
-
-            public void Add(object dto)
-            {
-                if (dto == null) return;
-                var id = ReadId(dto);
-                _byId[id] = (TDto)dto;
-            }
-
-            public TDto Get(int id)
-            {
-                return _byId.TryGetValue(id, out var v) ? v : throw new KeyNotFoundException($"Config not found: type={typeof(TDto).Name} id={id}");
-            }
-
-            public bool TryGet(int id, out TDto dto) => _byId.TryGetValue(id, out dto);
-        }
-
-        public sealed class ConfigTable<TMO>
-        {
-            private readonly Dictionary<int, TMO> _byId = new Dictionary<int, TMO>();
-
-            public int Count => _byId.Count;
-
-            public void AddFromDto(object dto)
-            {
-                if (dto == null) return;
-                var id = ReadId(dto);
-                var mo = (TMO)Activator.CreateInstance(typeof(TMO), dto);
-                _byId[id] = mo;
-            }
-
-            public TMO Get(int id)
-            {
-                return _byId.TryGetValue(id, out var v) ? v : throw new KeyNotFoundException($"Config not found: type={typeof(TMO).Name} id={id}");
-            }
-
-            public bool TryGet(int id, out TMO mo) => _byId.TryGetValue(id, out mo);
-        }
-
-        private static int ReadId(object dto)
-        {
-            var t = dto.GetType();
-            var f = t.GetField("Id");
-            if (f != null && f.FieldType == typeof(int)) return (int)f.GetValue(dto);
-            var p = t.GetProperty("Id");
-            if (p != null && p.PropertyType == typeof(int)) return (int)p.GetValue(dto);
-
-            // Fallback: try "Code" field (used by Luban DR* types like DRCharacters)
-            f = t.GetField("Code");
-            if (f != null && f.FieldType == typeof(int)) return (int)f.GetValue(dto);
-            p = t.GetProperty("Code");
-            if (p != null && p.PropertyType == typeof(int)) return (int)p.GetValue(dto);
-
-            throw new InvalidOperationException($"DTO must have int Id or Code field/property. type={t.FullName}");
-        }
-
-        public ConfigTable<TMO> GetTable<TMO>()
-        {
-            if (_tables.TryGetValue(typeof(TMO), out var o) && o is ConfigTable<TMO> t) return t;
-            t = new ConfigTable<TMO>();
-            _tables[typeof(TMO)] = t;
-            return t;
-        }
-
-        private ConfigDtoTable<TDto> GetDtoTable<TDto>()
-        {
-            if (_dtoTables.TryGetValue(typeof(TDto), out var o) && o is ConfigDtoTable<TDto> t) return t;
-            t = new ConfigDtoTable<TDto>();
-            _dtoTables[typeof(TDto)] = t;
-            return t;
-        }
-
-        public TDto GetDto<TDto>(int id)
-        {
-            return GetDtoTable<TDto>().Get(id);
-        }
-
-        public bool TryGetDto<TDto>(int id, out TDto dto) => GetDtoTable<TDto>().TryGet(id, out dto);
 
         /// <summary>
         /// 获取角色配置
@@ -788,5 +450,68 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
         public bool TryGetProjectile(int id, out ProjectileMO mo) => GetTable<ProjectileMO>().TryGet(id, out mo);
         public bool TryGetAoe(int id, out AoeMO mo) => GetTable<AoeMO>().TryGet(id, out mo);
         public bool TryGetEmitter(int id, out EmitterMO mo) => GetTable<EmitterMO>().TryGet(id, out mo);
+
+        // ==================== Internal adapter for MOBA deserializer ====================
+
+        /// <summary>
+        /// 将 IMobaConfigDtoDeserializer 适配为 IConfigDeserializer
+        /// </summary>
+        private sealed class MobaDeserializerAdapter : IConfigDeserializer
+        {
+            private readonly IMobaConfigDtoDeserializer _jsonDeserializer;
+            private readonly IMobaConfigDtoBytesDeserializer _bytesDeserializer;
+
+            public MobaDeserializerAdapter(IMobaConfigDtoDeserializer jsonDeserializer, IMobaConfigDtoBytesDeserializer bytesDeserializer)
+            {
+                _jsonDeserializer = jsonDeserializer;
+                _bytesDeserializer = bytesDeserializer;
+            }
+
+            public Array DeserializeBytes(byte[] bytes, Type targetType)
+            {
+                if (_bytesDeserializer == null)
+                {
+                    throw new NotSupportedException("Bytes deserializer not configured. Please register IMobaConfigDtoBytesDeserializer.");
+                }
+                return _bytesDeserializer.DeserializeDtoArray(bytes, targetType);
+            }
+
+            public Array DeserializeText(string text, Type targetType)
+            {
+                return _jsonDeserializer.DeserializeDtoArray(text, targetType);
+            }
+
+            public bool CanHandle(Type targetType)
+            {
+                return _jsonDeserializer.CanHandle(targetType);
+            }
+        }
+    }
+
+    /// <summary>
+    /// MOBA 配置表，提供强类型的配置访问
+    /// </summary>
+    public sealed class ConfigTable<TMO> where TMO : class
+    {
+        private readonly IntKeyConfigTable<TMO> _inner = new IntKeyConfigTable<TMO>();
+
+        public int Count => _inner.Count;
+
+        public void Add(int id, TMO entry)
+        {
+            _inner.Add(id, entry);
+        }
+
+        public void AddFromDto(object dto)
+        {
+            _inner.AddFromDto(dto, d => (TMO)Activator.CreateInstance(typeof(TMO), d));
+        }
+
+        public TMO Get(int id)
+        {
+            return _inner.Get(id);
+        }
+
+        public bool TryGet(int id, out TMO mo) => _inner.TryGet(id, out mo);
     }
 }

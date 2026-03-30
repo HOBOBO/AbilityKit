@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AbilityKit.Ability.Config;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
 {
@@ -13,15 +14,15 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
 
         public IConfigGroupDeserializer Deserializer => LubanBinaryConfigGroupDeserializer.Instance;
 
-        public IReadOnlyList<ConfigTableEntry> Tables { get; }
+        public IReadOnlyList<ConfigTableDefinition> Tables { get; }
 
-        public LubanBinaryConfigGroup(params ConfigTableEntry[] tables)
+        public LubanBinaryConfigGroup(params ConfigTableDefinition[] tables)
         {
             Loader = new ResourcesBytesConfigGroupLoader("moba_bytes");
             Tables = tables;
         }
 
-        public LubanBinaryConfigGroup(IConfigGroupLoader loader, params ConfigTableEntry[] tables)
+        public LubanBinaryConfigGroup(IConfigGroupLoader loader, params ConfigTableDefinition[] tables)
         {
             Loader = loader ?? new ResourcesBytesConfigGroupLoader("moba_bytes");
             Tables = tables;
@@ -39,15 +40,15 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
 
         public IConfigGroupDeserializer Deserializer => LegacyJsonConfigGroupDeserializer.Instance;
 
-        public IReadOnlyList<ConfigTableEntry> Tables { get; }
+        public IReadOnlyList<ConfigTableDefinition> Tables { get; }
 
-        public LegacyJsonConfigGroup(params ConfigTableEntry[] tables)
+        public LegacyJsonConfigGroup(params ConfigTableDefinition[] tables)
         {
             Loader = new ResourcesTextConfigGroupLoader("moba");
             Tables = tables;
         }
 
-        public LegacyJsonConfigGroup(IConfigGroupLoader loader, params ConfigTableEntry[] tables)
+        public LegacyJsonConfigGroup(IConfigGroupLoader loader, params ConfigTableDefinition[] tables)
         {
             Loader = loader ?? new ResourcesTextConfigGroupLoader("moba");
             Tables = tables;

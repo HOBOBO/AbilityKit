@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Config;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
@@ -12,8 +14,25 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
 
         private MobaConfigRegistry() { }
 
-        public MobaRuntimeConfigTableRegistry.Entry[] Tables => MobaRuntimeConfigTableRegistry.Tables;
+        // IConfigTableRegistry (generic)
+        public IReadOnlyList<ConfigTableDefinition> Tables => MobaRuntimeConfigTableRegistry.Tables;
 
+        public ConfigTableDefinition GetTable(string filePath)
+        {
+            foreach (var t in MobaRuntimeConfigTableRegistry.Tables)
+            {
+                if (t.FilePath == filePath) return t;
+            }
+            return null;
+        }
+
+        public bool TryGetTable(string filePath, out ConfigTableDefinition definition)
+        {
+            definition = GetTable(filePath);
+            return definition != null;
+        }
+
+        // IMobaConfigTableRegistry (MOBA-specific)
         public MobaRuntimeConfigTableRegistry.Entry[] MobaTables => MobaRuntimeConfigTableRegistry.Tables;
     }
 
@@ -22,17 +41,21 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
     /// </summary>
     public static class MobaRuntimeConfigTableRegistry
     {
-        public sealed class Entry
+        public sealed class Entry : ConfigTableDefinition
         {
-            public readonly string FileWithoutExt;
-            public readonly System.Type DtoType;
-            public readonly System.Type MoType;
+            /// <summary>
+            /// MO 类型的别名（与 EntryType 相同，方便 MOBA 层使用）
+            /// </summary>
+            public Type MoType => EntryType;
 
-            public Entry(string fileWithoutExt, System.Type dtoType, System.Type moType)
+            public Entry(string fileWithoutExt, Type dtoType, Type moType)
+                : base(fileWithoutExt, dtoType, moType, groupName: null)
             {
-                FileWithoutExt = fileWithoutExt;
-                DtoType = dtoType;
-                MoType = moType;
+            }
+
+            public Entry(string fileWithoutExt, Type dtoType, Type moType, string groupName)
+                : base(fileWithoutExt, dtoType, moType, groupName)
+            {
             }
         }
 
