@@ -8,10 +8,15 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
     /// </summary>
     public static class MobaConfigGroups
     {
+        private static readonly LegacyJsonConfigGroupDeserializer _legacyJsonDeserializer = LegacyJsonConfigGroupDeserializer.Instance;
+
         /// <summary>
         /// 传统 JSON 组 - 所有配置表统一使用普通 JSON 模式
         /// </summary>
-        public static readonly LegacyJsonConfigGroup LegacyJson = new(
+        public static readonly ConfigGroup LegacyJson = new ConfigGroup(
+            ConfigGroupNames.LegacyJson,
+            MobaConfigPaths.DefaultResourcesDir,
+            _legacyJsonDeserializer,
             new ConfigTableDefinition(MobaConfigPaths.CharactersFile, typeof(BattleDemo.MO.CharacterDTO), typeof(BattleDemo.MO.CharacterMO), ConfigGroupNames.LegacyJson),
             new ConfigTableDefinition(MobaConfigPaths.AttributeTemplatesFile, typeof(BattleDemo.MO.BattleAttributeTemplateDTO), typeof(BattleDemo.MO.BattleAttributeTemplateMO), ConfigGroupNames.LegacyJson),
             new ConfigTableDefinition(MobaConfigPaths.BuffsFile, typeof(BattleDemo.MO.BuffDTO), typeof(BattleDemo.MO.BuffMO), ConfigGroupNames.LegacyJson),

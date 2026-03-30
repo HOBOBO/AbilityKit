@@ -1,20 +1,32 @@
 using UnityEngine;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
+using AbilityKit.Ability.Config;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
 {
-    public sealed class UnityResourcesMobaConfigSource : IMobaConfigSource
+    public sealed class UnityResourcesConfigSource : IConfigSource
     {
-        public bool TryGetText(string key, out string text)
+        public bool TryGetText(string path, out string text)
         {
             text = null;
-            if (string.IsNullOrEmpty(key)) return false;
+            if (string.IsNullOrEmpty(path)) return false;
 
-            var asset = Resources.Load<TextAsset>(key);
+            var asset = Resources.Load<TextAsset>(path);
             if (asset == null) return false;
 
             text = asset.text;
             return !string.IsNullOrEmpty(text);
+        }
+
+        public bool TryGetBytes(string path, out byte[] bytes)
+        {
+            bytes = null;
+            if (string.IsNullOrEmpty(path)) return false;
+
+            var asset = Resources.Load<TextAsset>(path);
+            if (asset == null) return false;
+
+            bytes = asset.bytes;
+            return bytes != null && bytes.Length > 0;
         }
     }
 }

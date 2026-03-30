@@ -113,7 +113,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Editor
         /// <summary>
         /// 从 TextSink 验证配置
         /// </summary>
-        public static ValidationResult ValidateFromTextSink(IMobaConfigTextSink sink, string resourcesDir = null, ValidationMode mode = ValidationMode.All)
+        public static ValidationResult ValidateFromTextSink(IConfigTextSink sink, string resourcesDir = null, ValidationMode mode = ValidationMode.All)
         {
             var result = new ValidationResult { IsSuccess = true };
 
@@ -256,9 +256,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Editor
         /// <summary>
         /// 创建内存 TextSink 用于测试
         /// </summary>
-        public static IMobaConfigTextSink CreateTextSinkFromDictionary(IReadOnlyDictionary<string, string> texts)
+        public static IConfigTextSink CreateTextSinkFromDictionary(IReadOnlyDictionary<string, string> texts)
         {
-            return new DictionaryMobaConfigTextSink(texts);
+            return new DictionaryConfigTextSink(texts);
         }
     }
 }

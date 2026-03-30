@@ -1,9 +1,9 @@
 using UnityEngine;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
+using AbilityKit.Ability.Config;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
 {
-    public sealed class UnityResourcesMobaConfigBytesSource : IMobaConfigBytesSource
+    public sealed class UnityResourcesConfigBytesSource : IConfigBytesSource
     {
         public bool TryGetBytes(string key, out byte[] bytes)
         {

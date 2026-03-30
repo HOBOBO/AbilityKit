@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.HotReload;
+using AbilityKit.Ability.Config;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Share.Common.Log;
 using UnityEngine;
+using ConfigReloadResult = AbilityKit.Ability.HotReload.ConfigReloadResult;
+using ConfigReloadBus = AbilityKit.Ability.HotReload.ConfigReloadBus;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
 {
-    public sealed class DefaultMobaConfigLoader : IMobaConfigLoader
+    public sealed class DefaultMobaConfigLoader
     {
         private readonly IMobaConfigTableRegistry _registry;
 
@@ -16,7 +18,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         }
 
-        public void Load(MobaConfigDatabase db, IMobaConfigSource source, string resourcesDir = null)
+        public void Load(MobaConfigDatabase db, IConfigSource source, string resourcesDir = null)
         {
             if (db == null) throw new ArgumentNullException(nameof(db));
             if (source == null) throw new ArgumentNullException(nameof(source));
@@ -25,7 +27,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
             db.LoadFromJsonTexts(jsonByKey, resourcesDir);
         }
 
-        public ConfigReloadResult Reload(MobaConfigDatabase db, IMobaConfigSource source, string resourcesDir = null)
+        public ConfigReloadResult Reload(MobaConfigDatabase db, IConfigSource source, string resourcesDir = null)
         {
             if (db == null) throw new ArgumentNullException(nameof(db));
             if (source == null) throw new ArgumentNullException(nameof(source));
@@ -78,7 +80,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
 
         private Dictionary<string, string> BuildJsonByKeyFromSource(
             MobaConfigDatabase db,
-            IMobaConfigSource source,
+            IConfigSource source,
             string resourcesDir,
             bool strict,
             out bool hasFail,

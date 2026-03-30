@@ -26,28 +26,6 @@ using OngoingEffectMO = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDem
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
 {
-    public interface IMobaConfigTextSink
-    {
-        bool TryGetText(string key, out string text);
-    }
-
-    public sealed class DictionaryMobaConfigTextSink : IMobaConfigTextSink
-    {
-        private readonly IReadOnlyDictionary<string, string> _texts;
-
-        public DictionaryMobaConfigTextSink(IReadOnlyDictionary<string, string> texts)
-        {
-            _texts = texts ?? throw new ArgumentNullException(nameof(texts));
-        }
-
-        public bool TryGetText(string key, out string text)
-        {
-            text = null;
-            if (_texts == null) return false;
-            return _texts.TryGetValue(key, out text);
-        }
-    }
-
     /// <summary>
     /// MOBA 配置数据库实现
     /// 提供便捷的 MOBA 特定配置访问方法
@@ -76,20 +54,20 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
             _innerDb = new ConfigDatabase(_registry, adapter);
         }
 
-        public void LoadFromTextSink(IMobaConfigTextSink sink, string resourcesDir = null)
+        public void LoadFromTextSink(IConfigTextSink sink, string resourcesDir = null)
         {
             if (sink == null) throw new ArgumentNullException(nameof(sink));
 
             var loader = new BattleDemo.DefaultMobaConfigLoader(_registry);
-            loader.Load(this, new MobaConfigTextSinkAdapter(sink), resourcesDir);
+            loader.Load(this, new ConfigTextSinkAdapter(sink), resourcesDir);
         }
 
-        public ConfigReloadResult ReloadFromTextSink(IMobaConfigTextSink sink, string resourcesDir = null)
+        public ConfigReloadResult ReloadFromTextSink(IConfigTextSink sink, string resourcesDir = null)
         {
             if (sink == null) throw new ArgumentNullException(nameof(sink));
 
             var loader = new BattleDemo.DefaultMobaConfigLoader(_registry);
-            return loader.Reload(this, new MobaConfigTextSinkAdapter(sink), resourcesDir);
+            return loader.Reload(this, new ConfigTextSinkAdapter(sink), resourcesDir);
         }
 
         public void LoadFromResources(string resourcesDir)

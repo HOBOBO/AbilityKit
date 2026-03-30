@@ -1,37 +1,9 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
 {
-    /// <summary>
-    /// Luban 二进制格式配置组反序列化器（已弃用）
-    /// </summary>
-    public sealed class LubanBinaryConfigGroupDeserializer : ConfigGroupDeserializerBase
-    {
-        public static readonly LubanBinaryConfigGroupDeserializer Instance = new LubanBinaryConfigGroupDeserializer();
-
-        private LubanBinaryConfigGroupDeserializer() { }
-
-        public override Array DeserializeFromBytes(byte[] bytes, Type dtoType)
-        {
-            throw new NotSupportedException(
-                "Luban binary format is no longer supported. Please use JSON format instead.");
-        }
-
-        public override Array DeserializeFromText(string text, Type dtoType)
-        {
-            throw new NotSupportedException(
-                "Luban binary format is no longer supported. Please use JSON format instead.");
-        }
-
-        public override bool CanHandle(Type dtoType)
-        {
-            return false;
-        }
-    }
-
     /// <summary>
     /// 传统 JSON 格式配置组反序列化器
     /// </summary>
