@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Config;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
@@ -14,6 +15,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
     {
         private static void RegisterConfig(WorldContainerBuilder builder)
         {
+            Debug.Log("[RegisterConfig] Entered");
             builder.TryRegister<IMobaConfigDtoDeserializer>(WorldLifetime.Singleton, _ => JsonNetMobaConfigDtoDeserializer.Instance);
             builder.TryRegister<IMobaConfigDtoBytesDeserializer>(WorldLifetime.Singleton, _ => new LubanMobaConfigDtoBytesDeserializer());
 
@@ -22,10 +24,13 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
 
             builder.TryRegister<MobaConfigDatabase>(WorldLifetime.Singleton, _ =>
             {
+                Debug.Log("[MobaConfigDatabase Factory] invoked");
                 _.TryResolve<IMobaConfigTableRegistry>(out var registry);
                 _.TryResolve<IMobaConfigDtoDeserializer>(out var deserializer);
                 _.TryResolve<IMobaConfigDtoBytesDeserializer>(out var bytesDeserializer);
+                Debug.Log($"[MobaConfigDatabase Factory] registry={(registry != null ? registry.GetType().Name : "null")}, deserializer={(deserializer != null ? "set" : "null")}, bytesDeserializer={(bytesDeserializer != null ? "set" : "null")}");
                 var db = new MobaConfigDatabase(registry, deserializer, bytesDeserializer);
+                Debug.Log($"[MobaConfigDatabase Factory] after ctor: _tables.Count={CountTables(db)}, dbHash={db.GetHashCode()}");
                 var loader = _.TryResolve<IMobaConfigLoader>(out var injected) && injected != null
                     ? injected
                     : new DefaultMobaConfigLoader(registry ?? MobaConfigRegistry.Instance);
@@ -35,17 +40,10 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                     : new DefaultMobaConfigBytesLoader(registry ?? MobaConfigRegistry.Instance);
                 try
                 {
-                    /*
-                     * 职责边界/数据流：
-                     * - MobaConfigDatabase 是逻辑层“读表后的配置数据库”，供技能/BUFF/召唤/初始化等系统查询。
-                     * - 接入方只需提供 IMobaConfigTextSink（表数据读取 sink），逻辑层负责解析与建库。
-                     * - 若未提供 sink，则 fallback 到 Unity Resources（保持旧行为）。
-                     */
                     var format = _.TryResolve<IMobaConfigFormatProvider>(out var fp) && fp != null
                         ? fp.Format
                         : DefaultMobaConfigFormatProvider.Instance.Format;
 
-                    // 统一使用 Luban JSON 模式加载，避免混合模式
                     if (format == MobaConfigFormat.Bytes)
                     {
                         _.TryResolve<IMobaConfigSource>(out var jsource);
@@ -62,40 +60,55 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                     {
                         if (_.TryResolve<IMobaConfigSource>(out var source) && source != null)
                         {
+                            Debug.Log("[MobaConfigDatabase Factory] Loading from IMobaConfigSource");
                             var result = loader.Reload(db, source, MobaConfigPaths.DefaultResourcesDir);
+                            Debug.Log($"[MobaConfigDatabase Factory] Reload result: Succeeded={result.Succeeded}, Error={result.Error ?? "null"}");
                             if (!result.Succeeded)
                             {
-                                Log.Warning($"[MobaWorldBootstrapModule] Json source loading failed, falling back to tolerant Resources loading. err={result.Error}");
+                                Log.Warning($"[MobaWorldBootstrapModule] Json source loading failed, falling back. err={result.Error}");
                                 db.LoadFromResources(MobaConfigPaths.DefaultResourcesDir, strict: false);
                             }
                         }
                         else if (_.TryResolve<IMobaConfigTextSink>(out var sink) && sink != null)
                         {
-                            var result = loader.Reload(db, new MobaConfigTextSinkAdapter(sink), MobaConfigPaths.DefaultResourcesDir);
+                            Debug.Log("[MobaConfigDatabase Factory] Loading from IMobaConfigTextSink");
+                            var result = loader.Reload(db, new MobaConfigSourceAdapter(sink), MobaConfigPaths.DefaultResourcesDir);
+                            Debug.Log($"[MobaConfigDatabase Factory] Reload (TextSink) result: Succeeded={result.Succeeded}, Error={result.Error ?? "null"}");
                             if (!result.Succeeded)
                             {
-                                Log.Warning($"[MobaWorldBootstrapModule] Json sink loading failed, falling back to tolerant Resources loading. err={result.Error}");
+                                Log.Warning($"[MobaWorldBootstrapModule] Json sink loading failed, falling back. err={result.Error}");
                                 db.LoadFromResources(MobaConfigPaths.DefaultResourcesDir, strict: false);
                             }
                         }
                         else
                         {
-                            // Default tolerant loading for Resources
+                            Debug.Log("[MobaConfigDatabase Factory] No source/sink registered, loading from Resources");
                             db.LoadFromResources(MobaConfigPaths.DefaultResourcesDir, strict: false);
                         }
                     }
 
+                    Debug.Log($"[MobaConfigDatabase Factory] completed: CountTables={CountTables(db)}, dbHash={db.GetHashCode()}");
                     return db;
                 }
                 catch (Exception ex)
                 {
-                    /* 建库失败属于启动期关键错误，需要可观测（Log）且不能静默吞掉（rethrow）。 */
+                    Debug.LogException(ex);
                     Log.Exception(ex, "[MobaWorldBootstrapModule] MobaConfigDatabase load failed");
                     throw;
                 }
             });
 
+            Debug.Log("[RegisterConfig] MobaConfigDatabase registered");
             builder.TryRegister<ITextLoader>(WorldLifetime.Singleton, _ => new UnityResourcesTextLoader());
+        }
+
+        private static int CountTables(MobaConfigDatabase db)
+        {
+            var field = typeof(MobaConfigDatabase).GetField("_tables",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (field?.GetValue(db) is Dictionary<Type, object> tables)
+                return tables.Count;
+            return -1;
         }
 
         private static Dictionary<string, byte[]> BuildPartialBytesByKey(
@@ -106,7 +119,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             var result = new Dictionary<string, byte[]>(StringComparer.Ordinal);
             if (registry == null) return result;
 
-            var tables = registry.Tables;
+            var tables = registry.MobaTables;
             for (int i = 0; i < tables.Length; i++)
             {
                 var t = tables[i];
@@ -145,7 +158,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             var result = new Dictionary<string, string>(StringComparer.Ordinal);
             if (registry == null) return result;
 
-            var tables = registry.Tables;
+            var tables = registry.MobaTables;
             for (int i = 0; i < tables.Length; i++)
             {
                 var t = tables[i];

@@ -25,6 +25,26 @@ using OngoingEffectMO = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDem
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
 {
+    /// <summary>
+    /// Type.FullName-based equality comparer for Dictionary keys.
+    /// Works around IL2CPP/AOT issues where two Type objects representing the same type
+    /// may not be reference-equal or Equals-equal (they can have identical GetHashCode
+    /// but Equals returns false due to AOT type reconstruction).
+    /// Using FullName ensures consistent string-based identity across assembly loads.
+    /// </summary>
+    internal sealed class TypeNameComparer : IEqualityComparer<Type>
+    {
+        public static readonly TypeNameComparer Instance = new TypeNameComparer();
+        private TypeNameComparer() { }
+        public bool Equals(Type x, Type y)
+        {
+            if (ReferenceEquals(x, y)) return true;
+            if (x == null || y == null) return false;
+            return x.FullName == y.FullName;
+        }
+        public int GetHashCode(Type obj) => obj != null ? obj.FullName.GetHashCode() : 0;
+    }
+
     public interface IMobaConfigTextSink
     {
         bool TryGetText(string key, out string text);
@@ -54,8 +74,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
         private readonly IMobaConfigTableRegistry _registry;
         private readonly IMobaConfigDtoDeserializer _deserializer;
         private readonly IMobaConfigDtoBytesDeserializer _bytesDeserializer;
-        private readonly Dictionary<Type, object> _tables = new Dictionary<Type, object>();
-        private readonly Dictionary<Type, object> _dtoTables = new Dictionary<Type, object>();
+        // Use TypeNameComparer to work around IL2CPP Type.Equals() identity issues
+        private readonly Dictionary<Type, object> _tables = new Dictionary<Type, object>(TypeNameComparer.Instance);
+        private readonly Dictionary<Type, object> _dtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
         private long _version;
 
         public long Version => _version;
@@ -127,8 +148,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
                 return fail;
             }
 
-            var nextTables = new Dictionary<Type, object>();
-            var nextDtoTables = new Dictionary<Type, object>();
+            var nextTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
+            var nextDtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
 
             var tables = _registry.Tables;
             for (var i = 0; i < tables.Length; i++)
@@ -229,8 +250,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
                 return fail;
             }
 
-            var nextTables = new Dictionary<Type, object>();
-            var nextDtoTables = new Dictionary<Type, object>();
+            var nextTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
+            var nextDtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
 
             var tables = _registry.Tables;
             for (var i = 0; i < tables.Length; i++)
@@ -319,8 +340,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
                 return fail;
             }
 
-            var nextTables = new Dictionary<Type, object>();
-            var nextDtoTables = new Dictionary<Type, object>();
+            var nextTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
+            var nextDtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
 
             // 按组处理所有配置表
             for (var gi = 0; gi < groups.Count; gi++)
@@ -448,8 +469,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
         {
             if (jsonByKey == null) throw new ArgumentNullException(nameof(jsonByKey));
 
-            var nextTables = new Dictionary<Type, object>();
-            var nextDtoTables = new Dictionary<Type, object>();
+            var nextTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
+            var nextDtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
 
             var tables = _registry.Tables;
             for (var i = 0; i < tables.Length; i++)

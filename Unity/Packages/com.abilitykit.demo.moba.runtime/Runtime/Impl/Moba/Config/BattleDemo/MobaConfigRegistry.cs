@@ -13,6 +13,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo
         private MobaConfigRegistry() { }
 
         public MobaRuntimeConfigTableRegistry.Entry[] Tables => MobaRuntimeConfigTableRegistry.Tables;
+
+        public MobaRuntimeConfigTableRegistry.Entry[] MobaTables => MobaRuntimeConfigTableRegistry.Tables;
     }
 
     /// <summary>
