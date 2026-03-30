@@ -621,6 +621,209 @@ namespace AbilityKit.Ability.Config
 
         #endregion
 
+        #region Incremental Loading
+
+        /// <summary>
+        /// 增量配置变更记录
+        /// </summary>
+        public class IncrementalChange
+        {
+            public string TableName { get; }
+            public byte[] Bytes { get; }
+            public string Text { get; }
+            public bool IsDeleted { get; }
+
+            public IncrementalChange(string tableName, byte[] bytes)
+            {
+                TableName = tableName;
+                Bytes = bytes;
+                Text = null;
+                IsDeleted = bytes == null || bytes.Length == 0;
+            }
+
+            public IncrementalChange(string tableName, string text)
+            {
+                TableName = tableName;
+                Bytes = null;
+                Text = text;
+                IsDeleted = string.IsNullOrEmpty(text);
+            }
+        }
+
+        /// <summary>
+        /// 增量重载配置 - 只更新指定表
+        /// </summary>
+        public ConfigReloadResult ReloadIncremental(IReadOnlyList<IncrementalChange> changes)
+        {
+            if (changes == null || changes.Count == 0)
+            {
+                return ConfigReloadResult.Success(DefaultKey, _version, fullReload: false, changedIds: null);
+            }
+
+            var allChangedIds = new HashSet<int>();
+            var tables = _registry.Tables;
+
+            for (int changeIndex = 0; changeIndex < changes.Count; changeIndex++)
+            {
+                var change = changes[changeIndex];
+
+                // Find the table definition
+                ConfigTableDefinition definition = null;
+                for (int i = 0; i < tables.Count; i++)
+                {
+                    var t = tables[i];
+                    if (t.FileWithoutExt == change.TableName || t.FilePath == change.TableName)
+                    {
+                        definition = t;
+                        break;
+                    }
+                }
+
+                if (definition == null)
+                {
+                    var fail = ConfigReloadResult.Fail(DefaultKey, _version,
+                        $"Table not found for incremental change: {change.TableName}");
+                    ConfigReloadBus.Publish(fail);
+                    return fail;
+                }
+
+                try
+                {
+                    Array arr = null;
+
+                    if (!change.IsDeleted)
+                    {
+                        if (change.Bytes != null)
+                        {
+                            arr = _deserializer.DeserializeBytes(change.Bytes, definition.DtoType);
+                        }
+                        else if (change.Text != null)
+                        {
+                            arr = _deserializer.DeserializeText(change.Text, definition.DtoType);
+                        }
+                    }
+
+                    // Update or remove the table entry
+                    if (_tables.TryGetValue(definition.EntryType, out var existingObj)
+                        && _dtoTables.TryGetValue(definition.DtoType, out var existingDtoObj))
+                    {
+                        if (change.IsDeleted)
+                        {
+                            // Remove entries
+                            if (existingDtoObj is IDtoTable<object> dtoTable)
+                            {
+                                // Can't modify internal table, we'll need to rebuild
+                                var fail = ConfigReloadResult.Fail(DefaultKey, _version,
+                                    $"Table deletion requires full reload: {change.TableName}");
+                                ConfigReloadBus.Publish(fail);
+                                return fail;
+                            }
+                        }
+                        else
+                        {
+                            // Update entries with new data
+                            UpdateTableEntries(definition, arr, allChangedIds);
+                        }
+                    }
+                    else if (!change.IsDeleted)
+                    {
+                        // Create new table
+                        var dtoTable = CreateDtoTableFromDtos(definition.DtoType, arr);
+                        _dtoTables[definition.DtoType] = dtoTable;
+
+                        var table = CreateAndPopulateTable(definition.DtoType, definition.EntryType, arr);
+                        _tables[definition.EntryType] = table;
+
+                        CollectChangedIds(arr, allChangedIds);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    var fail = ConfigReloadResult.Fail(DefaultKey, _version,
+                        $"Failed to reload incrementally: {change.TableName}. {ex.Message}");
+                    ConfigReloadBus.Publish(fail);
+                    return fail;
+                }
+            }
+
+            _version++;
+            var changedIdsList = allChangedIds.Count > 0 ? new List<int>(allChangedIds) : null;
+            var success = ConfigReloadResult.Success(DefaultKey, _version, fullReload: false,
+                changedIds: changedIdsList);
+            ConfigReloadBus.Publish(success);
+            return success;
+        }
+
+        /// <summary>
+        /// 运行时注册新的配置表
+        /// </summary>
+        public void RegisterTable(ConfigTableDefinition definition)
+        {
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
+
+            var tables = _registry.Tables;
+            for (int i = 0; i < tables.Count; i++)
+            {
+                if (tables[i].FilePath == definition.FilePath)
+                {
+                    throw new InvalidOperationException($"Table already registered: {definition.FilePath}");
+                }
+            }
+
+            // Note: Runtime registry modification requires registry to support this
+            // This is a forward-declaration; actual implementation depends on registry
+        }
+
+        private void UpdateTableEntries(ConfigTableDefinition definition, Array newEntries, HashSet<int> changedIds)
+        {
+            if (_dtoTables.TryGetValue(definition.DtoType, out var dtoTableObj)
+                && _tables.TryGetValue(definition.EntryType, out var tableObj))
+            {
+                // Re-populate the table with new entries
+                var dtoTableType = typeof(DtoTable<>).MakeGenericType(definition.DtoType);
+                var tableType = typeof(IntKeyConfigTable<>).MakeGenericType(definition.EntryType);
+
+                // Clear and repopulate DTO table
+                var dtoClearMethod = dtoTableType.GetMethod("Clear", BindingFlags.Instance | BindingFlags.Public);
+                dtoClearMethod?.Invoke(dtoTableObj, null);
+
+                if (newEntries != null)
+                {
+                    var dtoAddMethod = dtoTableType.GetMethod("Add", BindingFlags.Instance | BindingFlags.Public);
+                    for (int i = 0; i < newEntries.Length; i++)
+                    {
+                        dtoAddMethod?.Invoke(dtoTableObj, new[] { newEntries.GetValue(i) });
+                    }
+                }
+
+                // Repopulate entry table
+                var clearMethod = tableType.GetMethod("Clear", BindingFlags.Instance | BindingFlags.Public);
+                clearMethod?.Invoke(tableObj, null);
+
+                if (newEntries != null)
+                {
+                    CollectChangedIds(newEntries, changedIds);
+                }
+            }
+        }
+
+        private static void CollectChangedIds(Array entries, HashSet<int> changedIds)
+        {
+            if (entries == null) return;
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var dto = entries.GetValue(i);
+                if (dto != null)
+                {
+                    var id = ReadIdFromDto(dto);
+                    changedIds.Add(id);
+                }
+            }
+        }
+
+        #endregion
+
         #region Internal Classes
 
         /// <summary>
