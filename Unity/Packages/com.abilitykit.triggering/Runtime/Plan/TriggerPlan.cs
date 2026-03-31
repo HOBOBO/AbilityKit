@@ -50,6 +50,17 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly int Phase;
         public readonly int Priority;
 
+        /// <summary>
+        /// 优先级打断阈值。Execute 成功后自动调用 StopBelowPriority。
+        /// 0 = 不自动打断；>0 = 以此值为阈值打断更低优先级的触发器。
+        /// </summary>
+        public readonly int InterruptPriority;
+
+        /// <summary>
+        /// 触发器唯一标识（用于打断溯源）
+        /// </summary>
+        public readonly int TriggerId;
+
         public readonly EPredicateKind PredicateKind;
         public readonly bool HasPredicate;
         public readonly FunctionId PredicateId;
@@ -62,10 +73,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         public readonly ActionCallPlan[] Actions;
 
-        public TriggerPlan(int phase, int priority, FunctionId predicateId, ActionCallPlan[] actions)
+        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, int interruptPriority, ActionCallPlan[] actions)
         {
             Phase = phase;
             Priority = priority;
+            TriggerId = triggerId;
+            InterruptPriority = interruptPriority;
             PredicateKind = EPredicateKind.Function;
             HasPredicate = true;
             PredicateId = predicateId;
@@ -76,10 +89,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Actions = actions;
         }
 
-        public TriggerPlan(int phase, int priority, FunctionId predicateId, NumericValueRef predicateArg0, ActionCallPlan[] actions)
+        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, NumericValueRef predicateArg0, int interruptPriority, ActionCallPlan[] actions)
         {
             Phase = phase;
             Priority = priority;
+            TriggerId = triggerId;
+            InterruptPriority = interruptPriority;
             PredicateKind = EPredicateKind.Function;
             HasPredicate = true;
             PredicateId = predicateId;
@@ -90,15 +105,17 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Actions = actions;
         }
 
-        public TriggerPlan(int phase, int priority, FunctionId predicateId, double predicateArg0, ActionCallPlan[] actions)
-            : this(phase, priority, predicateId, NumericValueRef.Const(predicateArg0), actions)
+        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, double predicateArg0, int interruptPriority, ActionCallPlan[] actions)
+            : this(phase, priority, triggerId, predicateId, NumericValueRef.Const(predicateArg0), interruptPriority, actions)
         {
         }
 
-        public TriggerPlan(int phase, int priority, FunctionId predicateId, NumericValueRef predicateArg0, NumericValueRef predicateArg1, ActionCallPlan[] actions)
+        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, NumericValueRef predicateArg0, NumericValueRef predicateArg1, int interruptPriority, ActionCallPlan[] actions)
         {
             Phase = phase;
             Priority = priority;
+            TriggerId = triggerId;
+            InterruptPriority = interruptPriority;
             PredicateKind = EPredicateKind.Function;
             HasPredicate = true;
             PredicateId = predicateId;
@@ -109,15 +126,17 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Actions = actions;
         }
 
-        public TriggerPlan(int phase, int priority, FunctionId predicateId, double predicateArg0, double predicateArg1, ActionCallPlan[] actions)
-            : this(phase, priority, predicateId, NumericValueRef.Const(predicateArg0), NumericValueRef.Const(predicateArg1), actions)
+        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, double predicateArg0, double predicateArg1, int interruptPriority, ActionCallPlan[] actions)
+            : this(phase, priority, triggerId, predicateId, NumericValueRef.Const(predicateArg0), NumericValueRef.Const(predicateArg1), interruptPriority, actions)
         {
         }
 
-        public TriggerPlan(int phase, int priority, PredicateExprPlan predicateExpr, ActionCallPlan[] actions)
+        public TriggerPlan(int phase, int priority, int triggerId, PredicateExprPlan predicateExpr, int interruptPriority, ActionCallPlan[] actions)
         {
             Phase = phase;
             Priority = priority;
+            TriggerId = triggerId;
+            InterruptPriority = interruptPriority;
             PredicateKind = EPredicateKind.Expr;
             HasPredicate = true;
             PredicateId = default;
@@ -128,10 +147,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Actions = actions;
         }
 
-        public TriggerPlan(int phase, int priority, ActionCallPlan[] actions)
+        public TriggerPlan(int phase, int priority, int triggerId, int interruptPriority, ActionCallPlan[] actions)
         {
             Phase = phase;
             Priority = priority;
+            TriggerId = triggerId;
+            InterruptPriority = interruptPriority;
             PredicateKind = EPredicateKind.None;
             HasPredicate = false;
             PredicateId = default;

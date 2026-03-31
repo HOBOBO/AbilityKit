@@ -79,7 +79,9 @@ namespace AbilityKit.Triggering.Runtime.Example
             var plan = new TriggerPlan<Ping>(
                 phase: 0,
                 priority: 0,
+                triggerId: 0,
                 predicateId: predicateId,
+                interruptPriority: 0,
                 actions: new[] { new ActionCallPlan(actionId) });
 
             runner.RegisterPlan<Ping, TriggerContext>(key, plan);

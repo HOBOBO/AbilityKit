@@ -50,6 +50,78 @@ namespace AbilityKit.Ability.Share.Common.Log
             }
         }
 
+        public void OnConditionPassed<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName, in ExecCtx<TCtx> ctx)
+        {
+            if (!_enabled) return;
+            var (casterId, skillId, instanceId, extra) = ExtractContextInfo(in args);
+            using (var scope = _logger.Scope(casterId, skillId, instanceId))
+            {
+                scope.WithExtra("EventKey", key.ToString())
+                     .WithExtra("ConditionName", conditionName)
+                     .WithExtra("ConditionId", conditionId)
+                     .Log(SkillLogLevel.Debug, "Condition", $"ConditionPassed: {conditionName}(Id={conditionId})");
+            }
+        }
+
+        public void OnConditionFailed<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName, in ExecCtx<TCtx> ctx)
+        {
+            if (!_enabled) return;
+            var (casterId, skillId, instanceId, extra) = ExtractContextInfo(in args);
+            using (var scope = _logger.Scope(casterId, skillId, instanceId))
+            {
+                scope.WithExtra("EventKey", key.ToString())
+                     .WithExtra("ConditionName", conditionName)
+                     .WithExtra("ConditionId", conditionId)
+                     .Log(SkillLogLevel.Debug, "Condition", $"ConditionFailed: {conditionName}(Id={conditionId})");
+            }
+        }
+
+        public void OnActionExecuting<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, in ExecCtx<TCtx> ctx)
+        {
+            if (!_enabled) return;
+            var (casterId, skillId, instanceId, extra) = ExtractContextInfo(in args);
+            using (var scope = _logger.Scope(casterId, skillId, instanceId))
+            {
+                scope.WithExtra("EventKey", key.ToString())
+                     .WithExtra("ActionName", actionName)
+                     .WithExtra("ActionId", actionId)
+                     .WithExtra("ActionIndex", actionIndex)
+                     .WithExtra("TotalActions", totalActions)
+                     .Log(SkillLogLevel.Debug, "Action", $"ActionExecuting: [{actionIndex}/{totalActions}] {actionName}(Id={actionId})");
+            }
+        }
+
+        public void OnActionExecuted<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted, in ExecCtx<TCtx> ctx)
+        {
+            if (!_enabled) return;
+            var (casterId, skillId, instanceId, extra) = ExtractContextInfo(in args);
+            using (var scope = _logger.Scope(casterId, skillId, instanceId))
+            {
+                scope.WithExtra("EventKey", key.ToString())
+                     .WithExtra("ActionName", actionName)
+                     .WithExtra("ActionId", actionId)
+                     .WithExtra("ActionIndex", actionIndex)
+                     .WithExtra("TotalActions", totalActions)
+                     .WithExtra("WasInterrupted", wasInterrupted)
+                     .Log(wasInterrupted ? SkillLogLevel.Warning : SkillLogLevel.Debug, "Action", $"ActionExecuted: [{actionIndex}/{totalActions}] {actionName}(Id={actionId}) Interrupted={wasInterrupted}");
+            }
+        }
+
+        public void OnActionFailed<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage, in ExecCtx<TCtx> ctx)
+        {
+            if (!_enabled) return;
+            var (casterId, skillId, instanceId, extra) = ExtractContextInfo(in args);
+            using (var scope = _logger.Scope(casterId, skillId, instanceId))
+            {
+                scope.WithExtra("EventKey", key.ToString())
+                     .WithExtra("ActionName", actionName)
+                     .WithExtra("ActionId", actionId)
+                     .WithExtra("ActionIndex", actionIndex)
+                     .WithExtra("TotalActions", totalActions)
+                     .Log(SkillLogLevel.Error, "Action", $"ActionFailed: [{actionIndex}/{totalActions}] {actionName}(Id={actionId}) Error={errorMessage}");
+            }
+        }
+
         private static (int casterId, int skillId, long instanceId, string extra) ExtractContextInfo<TArgs>(in TArgs args)
         {
             int casterId = 0;

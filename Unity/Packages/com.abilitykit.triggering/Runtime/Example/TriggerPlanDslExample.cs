@@ -104,7 +104,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 BoolExprNode.And(),
             });
 
-            var traditionalPlan = new TriggerPlan<DamageEvent>(0, 0, traditionalPredicateExpr, new[]
+            var traditionalPlan = new TriggerPlan<DamageEvent>(0, 0, 0, traditionalPredicateExpr, 0, new[]
             {
                 new ActionCallPlan(actionPrintDamage, NumericValueRef.Blackboard(combatBoardId, atkKeyId))
             });

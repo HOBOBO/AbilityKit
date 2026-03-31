@@ -59,6 +59,65 @@ namespace AbilityKit.Triggering.Runtime
         /// 层级切换时调用（从父级进入子级或反之）
         /// </summary>
         void OnScopeTransition(string fromScope, string toScope);
+
+        // ========================================================================
+        // 条件节点专用 Hook（细粒度，补充 OnAfterEvaluate）
+        // ========================================================================
+
+        /// <summary>
+        /// 条件评估成功时调用
+        /// </summary>
+        /// <param name="key">事件键</param>
+        /// <param name="args">事件参数</param>
+        /// <param name="phase">优先级相位</param>
+        /// <param name="priority">优先级</param>
+        /// <param name="order">注册顺序</param>
+        /// <param name="conditionId">条件节点标识（由触发器定义，用于定位具体条件）</param>
+        /// <param name="conditionName">条件节点名称（用于调试）</param>
+        void OnConditionPassed<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName);
+
+        /// <summary>
+        /// 条件评估失败时调用
+        /// </summary>
+        void OnConditionFailed<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName);
+
+        // ========================================================================
+        // 行为节点专用 Hook（细粒度，补充 OnAfterExecute）
+        // ========================================================================
+
+        /// <summary>
+        /// 单个行为执行前调用
+        /// </summary>
+        /// <param name="key">事件键</param>
+        /// <param name="args">事件参数</param>
+        /// <param name="phase">优先级相位</param>
+        /// <param name="priority">优先级</param>
+        /// <param name="order">注册顺序</param>
+        /// <param name="actionId">行为节点标识（由触发器定义，用于定位具体行为）</param>
+        /// <param name="actionName">行为节点名称（用于调试）</param>
+        /// <param name="actionIndex">当前行为在行为列表中的索引</param>
+        /// <param name="totalActions">行为总数</param>
+        void OnActionExecuting<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions);
+
+        /// <summary>
+        /// 单个行为执行完成后调用
+        /// </summary>
+        /// <param name="key">事件键</param>
+        /// <param name="args">事件参数</param>
+        /// <param name="phase">优先级相位</param>
+        /// <param name="priority">优先级</param>
+        /// <param name="order">注册顺序</param>
+        /// <param name="actionId">行为节点标识</param>
+        /// <param name="actionName">行为节点名称</param>
+        /// <param name="actionIndex">当前行为在行为列表中的索引</param>
+        /// <param name="totalActions">行为总数</param>
+        /// <param name="wasInterrupted">是否被 ExecutionControl 中断</param>
+        void OnActionExecuted<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted);
+
+        /// <summary>
+        /// 单个行为执行异常时调用
+        /// </summary>
+        void OnActionFailed<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage);
     }
 
     /// <summary>
@@ -71,6 +130,11 @@ namespace AbilityKit.Triggering.Runtime
         Cancel = 2,
         ParentBlocked = 3,
         ConditionFailed = 4,
+        ActionInterrupted = 5,
+        LimitReached = 6,
+        GuardFailed = 7,
+        InterruptedByHigherPriority = 8,   // 被更高优先级触发器打断
+        InterruptedByFailedCondition = 9, // 被条件失败的触发器打断
     }
 
     /// <summary>

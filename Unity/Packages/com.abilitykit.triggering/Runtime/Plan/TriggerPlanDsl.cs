@@ -29,11 +29,42 @@ namespace AbilityKit.Triggering.Runtime.Plan
         private readonly int _priority;
         private PredicateExprPlan _predicate;
         private readonly List<ActionCallPlan> _actions = new List<ActionCallPlan>();
+        private int _triggerId;
+        private int _interruptPriority;
 
         internal TriggerPlanBuilder(int phase, int priority)
         {
             _phase = phase;
             _priority = priority;
+        }
+
+        /// <summary>
+        /// 设置触发器标识（用于打断溯源）
+        /// </summary>
+        public TriggerPlanBuilder<TArgs> WithTriggerId(int id)
+        {
+            _triggerId = id;
+            return this;
+        }
+
+        /// <summary>
+        /// 设置执行成功后打断更低优先级的触发器（自身优先级作为阈值）
+        /// 等价于 Execute 成功后调用 control.StopBelowPriority(_priority, ...)
+        /// </summary>
+        public TriggerPlanBuilder<TArgs> WithPriorityInterrupt()
+        {
+            _interruptPriority = _priority;
+            return this;
+        }
+
+        /// <summary>
+        /// 设置打断优先级阈值。Execute 成功后以此值为阈值打断所有 Priority 更低的触发器。
+        /// </summary>
+        /// <param name="threshold">打断阈值（通常设为自身 Priority）</param>
+        public TriggerPlanBuilder<TArgs> WithInterruptThreshold(int threshold)
+        {
+            _interruptPriority = threshold;
+            return this;
         }
 
         /// <summary>
@@ -116,10 +147,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
             if (_predicate.Nodes != null && _predicate.Nodes.Length > 0)
             {
-                return new TriggerPlan<TArgs>(_phase, _priority, _predicate, actions);
+                return new TriggerPlan<TArgs>(_phase, _priority, _triggerId, _predicate, _interruptPriority, actions);
             }
 
-            return new TriggerPlan<TArgs>(_phase, _priority, actions);
+            return new TriggerPlan<TArgs>(_phase, _priority, _triggerId, _interruptPriority, actions);
         }
     }
 

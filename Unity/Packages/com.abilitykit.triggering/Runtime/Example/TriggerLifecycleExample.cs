@@ -174,6 +174,31 @@ namespace AbilityKit.Triggering.Example
         {
             foreach (var l in _lifecycles) l.OnScopeTransition(fromScope, toScope);
         }
+
+        public void OnConditionPassed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
+        {
+            foreach (var l in _lifecycles) l.OnConditionPassed(key, in args, phase, priority, order, conditionId, conditionName);
+        }
+
+        public void OnConditionFailed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
+        {
+            foreach (var l in _lifecycles) l.OnConditionFailed(key, in args, phase, priority, order, conditionId, conditionName);
+        }
+
+        public void OnActionExecuting<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions)
+        {
+            foreach (var l in _lifecycles) l.OnActionExecuting(key, in args, phase, priority, order, actionId, actionName, actionIndex, totalActions);
+        }
+
+        public void OnActionExecuted<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted)
+        {
+            foreach (var l in _lifecycles) l.OnActionExecuted(key, in args, phase, priority, order, actionId, actionName, actionIndex, totalActions, wasInterrupted);
+        }
+
+        public void OnActionFailed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage)
+        {
+            foreach (var l in _lifecycles) l.OnActionFailed(key, in args, phase, priority, order, actionId, actionName, actionIndex, totalActions, errorMessage);
+        }
     }
 
     /// <summary>

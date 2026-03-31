@@ -114,7 +114,9 @@ namespace AbilityKit.Triggering.Runtime.Example
             var plan = new TriggerPlan<DamageEvent>(
                 phase: 0,
                 priority: 0,
+                triggerId: 0,
                 predicateExpr: predicateExpr,
+                interruptPriority: 0,
                 actions: new[]
                 {
                     // action1(arg0=bb.combat.atk)

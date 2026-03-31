@@ -80,6 +80,7 @@ namespace AbilityKit.Triggering.Runtime
         private readonly IEventBus _eventBus;
         private readonly ITriggerContextSource<TCtx> _contextSource;
         private readonly ITriggerLifecycle<TCtx> _lifecycle;
+        private readonly ITriggerObserver<TCtx> _observer;
 
         private readonly FunctionRegistry _functions;
         private readonly ActionRegistry _actions;
@@ -89,6 +90,7 @@ namespace AbilityKit.Triggering.Runtime
         private readonly INumericVarDomainRegistry _numericDomains;
         private readonly INumericRpnFunctionRegistry _numericFunctions;
         private readonly ExecPolicy _policy;
+        private readonly EInterruptPolicy _interruptPolicy;
         private readonly HierarchicalOptions _options;
 
         private readonly Dictionary<Type, object> _triggerListsByArgsType = new Dictionary<Type, object>();
@@ -138,13 +140,15 @@ namespace AbilityKit.Triggering.Runtime
             INumericRpnFunctionRegistry numericFunctions = null,
             ExecPolicy policy = default,
             HierarchicalOptions options = default,
-            HierarchicalTriggerRunner<TCtx> parent = null)
+            HierarchicalTriggerRunner<TCtx> parent = null,
+            EInterruptPolicy interruptPolicy = EInterruptPolicy.None)
         {
             _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
             _functions = functions ?? throw new ArgumentNullException(nameof(functions));
             _actions = actions ?? throw new ArgumentNullException(nameof(actions));
             _contextSource = contextSource;
             _lifecycle = lifecycle ?? NullTriggerLifecycle<TCtx>.Instance;
+            _observer = NullTriggerObserver<TCtx>.Instance;
             _blackboards = blackboards;
             _payloads = payloads;
             _idNames = idNames;
@@ -153,6 +157,7 @@ namespace AbilityKit.Triggering.Runtime
             _policy = policy;
             _options = options;
             Parent = parent;
+            _interruptPolicy = interruptPolicy;
         }
 
         /// <summary>
@@ -173,7 +178,8 @@ namespace AbilityKit.Triggering.Runtime
                 _numericFunctions,
                 _policy,
                 options,
-                this
+                this,
+                _interruptPolicy
             );
         }
 
@@ -332,37 +338,95 @@ namespace AbilityKit.Triggering.Runtime
             for (int i = 0; i < triggers.Count; i++)
             {
                 var entry = triggers[i];
-                var trigger = entry.Trigger;
 
-                _lifecycle.OnBeforeEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order);
-
-                var ok = trigger.Evaluate(in args, in execCtx);
-
-                _lifecycle.OnAfterEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok);
-
-                if (control.StopPropagation || control.Cancel)
+                // ========== 检查优先级打断 ==========
+                if (control.ShouldBlock(entry.Phase, entry.Priority))
                 {
-                    _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ShortCircuitReason.StopPropagation);
+                    var reason = control.InterruptConditionPassed
+                        ? ShortCircuitReason.InterruptedByHigherPriority
+                        : ShortCircuitReason.InterruptedByFailedCondition;
+                    _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, reason);
+                    _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order,
+                        control.InterruptConditionPassed
+                            ? ETriggerShortCircuitReason.InterruptedByHigherPriority
+                            : ETriggerShortCircuitReason.InterruptedByFailedCondition,
+                        in execCtx);
                     shortCircuitedCount++;
+                    continue;
+                }
+
+                // ========== Evaluate 阶段 ==========
+                _lifecycle.OnBeforeEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order);
+                _observer.OnEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, false, in execCtx);
+
+                bool ok;
+                try
+                {
+                    ok = entry.Trigger.Evaluate(in args, in execCtx);
+                }
+                catch (Exception ex)
+                {
+                    _lifecycle.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name);
+                    _observer.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
+                    _lifecycle.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, "Evaluate", 0, 0, ex.Message);
+                    _observer.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, "Evaluate", 0, 0, ex.Message, in execCtx);
                     break;
                 }
 
+                _lifecycle.OnAfterEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok);
+                _observer.OnEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok, in execCtx);
+
                 if (ok)
                 {
-                    _lifecycle.OnBeforeExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
+                    _lifecycle.OnConditionPassed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name);
+                    _observer.OnConditionPassed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
+                }
+                else
+                {
+                    _lifecycle.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name);
+                    _observer.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
+                    shortCircuitedCount++;
 
-                    trigger.Execute(in args, in execCtx);
-                    executedCount++;
-
-                    _lifecycle.OnAfterExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
-
-                    if (control.StopPropagation || control.Cancel)
+                    if (_interruptPolicy == EInterruptPolicy.Strict)
                     {
-                        _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ShortCircuitReason.Cancel);
-                        shortCircuitedCount++;
+                        _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ShortCircuitReason.ConditionFailed);
+                        _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ETriggerShortCircuitReason.ConditionFailed, in execCtx);
                         break;
                     }
+
+                    continue;
                 }
+
+                // ========== Execute 阶段 ==========
+                _lifecycle.OnBeforeExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
+
+                bool wasInterrupted = false;
+                try
+                {
+                    entry.Trigger.Execute(in args, in execCtx);
+                }
+                catch (Exception ex)
+                {
+                    _lifecycle.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, ex.Message);
+                    _observer.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, ex.Message, in execCtx);
+                }
+
+                if (control.StopPropagation || control.Cancel)
+                {
+                    wasInterrupted = true;
+                    shortCircuitedCount++;
+                    var reason = control.StopPropagation ? ShortCircuitReason.StopPropagation : ShortCircuitReason.Cancel;
+                    _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, reason);
+                    _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order,
+                        control.StopPropagation ? ETriggerShortCircuitReason.StopPropagation : ETriggerShortCircuitReason.Cancel, in execCtx);
+                    break;
+                }
+
+                _lifecycle.OnAfterExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
+                _observer.OnExecute(key, in args, entry.Phase, entry.Priority, entry.Order, in execCtx);
+
+                if (!wasInterrupted)
+                    executedCount++;
             }
 
             _lifecycle.OnEventDispatched(key, in args, executedCount, shortCircuitedCount);

@@ -67,9 +67,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
         {
             Resolve(ctx);
             var actions = _plan.Actions;
-            var hasStrong = actions != null && actions.Length > 0;
+            var hasActions = actions != null && actions.Length > 0;
 
-            if (hasStrong)
+            if (hasActions)
             {
                 for (int i = 0; i < actions.Length; i++)
                 {
@@ -91,6 +91,17 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
                     if (ctx.Control != null && (ctx.Control.StopPropagation || ctx.Control.Cancel)) return;
                 }
+            }
+
+            // 执行成功后：如果声明了 InterruptPriority，自动设置优先级打断
+            if (ctx.Control != null && _plan.InterruptPriority > 0)
+            {
+                ctx.Control.StopBelowPriority(
+                    _plan.InterruptPriority,
+                    conditionPassed: true,
+                    _plan.TriggerId,
+                    $"Trigger[{_plan.TriggerId}]"
+                );
             }
         }
 

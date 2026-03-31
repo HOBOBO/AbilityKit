@@ -190,13 +190,13 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             var pred = dto.Predicate;
             if (pred == null || string.Equals(pred.Kind, "none", StringComparison.OrdinalIgnoreCase))
             {
-                return new TriggerPlan<object>(dto.Phase, dto.Priority, actions);
+                return new TriggerPlan<object>(dto.Phase, dto.Priority, 0, 0, actions);
             }
 
             if (string.Equals(pred.Kind, "expr", StringComparison.OrdinalIgnoreCase))
             {
                 var expr = new PredicateExprPlan(BuildExprNodes(pred.Nodes));
-                return new TriggerPlan<object>(dto.Phase, dto.Priority, expr, actions);
+                return new TriggerPlan<object>(dto.Phase, dto.Priority, 0, expr, 0, actions);
             }
 
             throw new NotSupportedException($"Predicate kind not supported by loader: {pred.Kind}");

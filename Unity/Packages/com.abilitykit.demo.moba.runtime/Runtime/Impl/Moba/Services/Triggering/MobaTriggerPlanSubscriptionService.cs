@@ -149,24 +149,24 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             if (!src.HasPredicate || src.PredicateKind == EPredicateKind.None)
             {
-                return new TriggerPlan<TArgs>(src.Phase, src.Priority, actions);
+                return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, src.InterruptPriority, actions);
             }
 
             if (src.PredicateKind == EPredicateKind.Expr)
             {
-                return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.PredicateExpr, actions);
+                return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, src.PredicateExpr, src.InterruptPriority, actions);
             }
 
             switch (src.PredicateArity)
             {
                 case 0:
-                    return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.PredicateId, actions);
+                    return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, src.PredicateId, src.InterruptPriority, actions);
                 case 1:
-                    return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.PredicateId, src.PredicateArg0, actions);
+                    return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, src.PredicateId, src.PredicateArg0, src.InterruptPriority, actions);
                 case 2:
-                    return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.PredicateId, src.PredicateArg0, src.PredicateArg1, actions);
+                    return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, src.PredicateId, src.PredicateArg0, src.PredicateArg1, src.InterruptPriority, actions);
                 default:
-                    return new TriggerPlan<TArgs>(src.Phase, src.Priority, actions);
+                    return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, src.InterruptPriority, actions);
             }
         }
 
