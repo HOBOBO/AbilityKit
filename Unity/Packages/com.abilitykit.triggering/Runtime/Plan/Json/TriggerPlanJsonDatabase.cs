@@ -11,6 +11,31 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
 {
     public sealed class TriggerPlanJsonDatabase
     {
+        /// <summary>
+        /// Cue 工厂接口
+        /// 负责将 JSON 中的 CueKind / CueVfxId / CueSfxId 解析为具体的 ITriggerCue 实例
+        /// </summary>
+        public interface ICueFactory
+        {
+            ITriggerCue Create(string cueKind, string cueVfxId, string cueSfxId);
+        }
+
+        /// <summary>
+        /// 默认 Cue 工厂：始终返回 NullTriggerCue
+        /// 业务项目可注册自定义实现
+        /// </summary>
+        public sealed class DefaultCueFactory : ICueFactory
+        {
+            public static readonly DefaultCueFactory Instance = new DefaultCueFactory();
+
+            private DefaultCueFactory() { }
+
+            public ITriggerCue Create(string cueKind, string cueVfxId, string cueSfxId)
+            {
+                return NullTriggerCue.Instance;
+            }
+        }
+
         public interface ITextLoader
         {
             bool TryLoad(string id, out string text);
@@ -35,6 +60,21 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public int Priority;
             public PredicatePlanDto Predicate;
             public List<ActionCallPlanDto> Actions;
+
+            /// <summary>
+            /// 表现 Cue 类型名，由 ICueFactory 解析为 ITriggerCue 实例
+            /// </summary>
+            public string CueKind;
+
+            /// <summary>
+            /// Cue VFX 标识（供工厂实现使用）
+            /// </summary>
+            public string CueVfxId;
+
+            /// <summary>
+            /// Cue SFX 标识（供工厂实现使用）
+            /// </summary>
+            public string CueSfxId;
         }
 
         [Serializable]
@@ -95,6 +135,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         private List<Record> _records = new List<Record>();
         private Dictionary<int, TriggerPlan<object>> _byTriggerId = new Dictionary<int, TriggerPlan<object>>();
         private Dictionary<int, string> _strings = new Dictionary<int, string>();
+        private ICueFactory _cueFactory = DefaultCueFactory.Instance;
 
         public IReadOnlyList<Record> Records => _records;
 

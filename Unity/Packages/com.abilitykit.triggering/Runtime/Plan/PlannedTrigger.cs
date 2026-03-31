@@ -3,14 +3,14 @@ using System.Buffers;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Payload;
+using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Variables.Numeric;
 using AbilityKit.Triggering.Variables.Numeric.Expression;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
-    public sealed class PlannedTrigger<TArgs, TCtx> : ITrigger<TArgs, TCtx>
+    public sealed class PlannedTrigger<TArgs, TCtx> : ITrigger<TArgs, TCtx>, ITriggerWithId
     {
-        // ...
         public delegate bool Predicate0(TArgs args, ExecCtx<TCtx> ctx);
         public delegate bool Predicate1(TArgs args, double arg0, ExecCtx<TCtx> ctx);
         public delegate bool Predicate2(TArgs args, double arg0, double arg1, ExecCtx<TCtx> ctx);
@@ -29,6 +29,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
         private Action0[] _actions0;
         private Action1[] _actions1;
         private Action2[] _actions2;
+
+        /// <inheritdoc />
+        public ITriggerCue Cue => _plan.Cue;
+
+        /// <inheritdoc />
+        public int TriggerId => _plan.TriggerId;
 
         public PlannedTrigger(in TriggerPlan<TArgs> plan)
         {

@@ -126,6 +126,7 @@ namespace AbilityKit.Triggering.Runtime
             for (int i = 0; i < triggers.Count; i++)
             {
                 var entry = triggers[i];
+                var cue = entry.Trigger.Cue;
 
                 // ========== 检查优先级打断 ==========
                 if (control.ShouldBlock(entry.Phase, entry.Priority))
@@ -140,7 +141,12 @@ namespace AbilityKit.Triggering.Runtime
                             : ETriggerShortCircuitReason.InterruptedByFailedCondition,
                         in execCtx);
                     shortCircuitedCount++;
-                    continue; // 被打断，跳过但继续检查后续触发器
+
+                    // --- Cue: 被优先级打断跳过 ---
+                    var cueCtx = BuildCueContext(key, in args, entry.Phase, entry.Priority, entry.Order, entry.Trigger, reason,
+                        control.InterruptSourceName, control.InterruptTriggerId, control.InterruptConditionPassed, control);
+                    cue.OnSkipped(in cueCtx);
+                    continue;
                 }
 
                 // ========== Evaluate 阶段 ==========
@@ -158,6 +164,11 @@ namespace AbilityKit.Triggering.Runtime
                     _observer.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
                     _lifecycle.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, "Evaluate", 0, 0, ex.Message);
                     _observer.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, "Evaluate", 0, 0, ex.Message, in execCtx);
+
+                    // --- Cue: 条件异常视为失败 ---
+                    var failCtx = BuildCueContext(key, in args, entry.Phase, entry.Priority, entry.Order, entry.Trigger,
+                        ShortCircuitReason.ConditionFailed, null, 0, false, control);
+                    cue.OnConditionFailed(in failCtx);
                     break;
                 }
 
@@ -168,6 +179,11 @@ namespace AbilityKit.Triggering.Runtime
                 {
                     _lifecycle.OnConditionPassed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name);
                     _observer.OnConditionPassed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
+
+                    // --- Cue: 条件通过，进入 Execute ---
+                    var passCtx = BuildCueContext(key, in args, entry.Phase, entry.Priority, entry.Order, entry.Trigger,
+                        ShortCircuitReason.None, null, 0, true, control);
+                    cue.OnConditionPassed(in passCtx);
                 }
                 else
                 {
@@ -177,23 +193,36 @@ namespace AbilityKit.Triggering.Runtime
                     _observer.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
                     shortCircuitedCount++;
 
+                    // --- Cue: 条件失败跳过 ---
+                    var failCtx = BuildCueContext(key, in args, entry.Phase, entry.Priority, entry.Order, entry.Trigger,
+                        ShortCircuitReason.ConditionFailed, null, 0, false, control);
+                    cue.OnConditionFailed(in failCtx);
+
                     if (_interruptPolicy == EInterruptPolicy.Strict)
                     {
                         _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ShortCircuitReason.ConditionFailed);
                         _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ETriggerShortCircuitReason.ConditionFailed, in execCtx);
+
+                        // --- Cue: 严格模式下被条件失败打断 ---
+                        var strictCtx = BuildCueContext(key, in args, entry.Phase, entry.Priority, entry.Order, entry.Trigger,
+                            ShortCircuitReason.ConditionFailed, null, 0, false, control);
+                        cue.OnInterrupted(in strictCtx);
                         break;
                     }
 
-                    continue; // 跳过当前，继续下一个触发器
+                    continue;
                 }
 
                 // ========== Execute 阶段 ==========
                 _lifecycle.OnBeforeExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
 
                 bool wasInterrupted = false;
+                bool actionExecuted = false;
+
                 try
                 {
                     entry.Trigger.Execute(in args, in execCtx);
+                    actionExecuted = true;
                 }
                 catch (Exception ex)
                 {
@@ -209,17 +238,70 @@ namespace AbilityKit.Triggering.Runtime
                     _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, reason);
                     _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order,
                         control.StopPropagation ? ETriggerShortCircuitReason.StopPropagation : ETriggerShortCircuitReason.Cancel, in execCtx);
-                    break; // StopPropagation / Cancel 永远打断全部
+
+                    // --- Cue: Execute 被打断 ---
+                    var interruptCtx = BuildCueContext(key, in args, entry.Phase, entry.Priority, entry.Order, entry.Trigger,
+                        ShortCircuitReason.StopPropagation, control.InterruptSourceName ?? entry.Trigger.GetType().Name, 0, true, control);
+                    cue.OnInterrupted(in interruptCtx);
+                    break;
                 }
 
                 _lifecycle.OnAfterExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
                 _observer.OnExecute(key, in args, entry.Phase, entry.Priority, entry.Order, in execCtx);
 
-                if (!wasInterrupted)
+                if (!wasInterrupted && actionExecuted)
+                {
                     executedCount++;
+                }
             }
 
             _lifecycle.OnEventDispatched(key, in args, executedCount, shortCircuitedCount);
+        }
+
+        private TriggerCueContext BuildCueContext<TArgs>(
+            EventKey<TArgs> key,
+            in TArgs args,
+            int phase,
+            int priority,
+            long order,
+            ITrigger<TArgs, TCtx> trigger,
+            ShortCircuitReason reason,
+            string interruptSourceName,
+            int interruptTriggerId,
+            bool interruptConditionPassed,
+            ExecutionControl control)
+        {
+            var triggerId = 0;
+            var triggerTypeName = trigger?.GetType().Name ?? "Unknown";
+            if (trigger is ITriggerWithId tid) triggerId = tid.TriggerId;
+
+            return new TriggerCueContext(
+                key.IntId,
+                key.StringId,
+                args,
+                phase,
+                priority,
+                order,
+                triggerId,
+                triggerTypeName,
+                MapReason(reason),
+                interruptSourceName,
+                interruptTriggerId,
+                interruptConditionPassed,
+                control);
+        }
+
+        private static ETriggerShortCircuitReason MapReason(ShortCircuitReason reason)
+        {
+            switch (reason)
+            {
+                case ShortCircuitReason.ConditionFailed: return ETriggerShortCircuitReason.ConditionFailed;
+                case ShortCircuitReason.StopPropagation: return ETriggerShortCircuitReason.StopPropagation;
+                case ShortCircuitReason.Cancel: return ETriggerShortCircuitReason.Cancel;
+                case ShortCircuitReason.InterruptedByHigherPriority: return ETriggerShortCircuitReason.InterruptedByHigherPriority;
+                case ShortCircuitReason.InterruptedByFailedCondition: return ETriggerShortCircuitReason.InterruptedByFailedCondition;
+                default: return ETriggerShortCircuitReason.None;
+            }
         }
 
         private static void InsertSorted<TArgs>(List<Entry<TArgs>> list, Entry<TArgs> entry)

@@ -1,4 +1,5 @@
 using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Runtime;
 using System.Collections.Generic;
 
 namespace AbilityKit.Triggering.Runtime.Plan
@@ -73,7 +74,19 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         public readonly ActionCallPlan[] Actions;
 
-        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, int interruptPriority, ActionCallPlan[] actions)
+        /// <summary>
+        /// 表现层 Cue（VFX / SFX / UI 反馈）
+        /// </summary>
+        public readonly ITriggerCue Cue;
+
+        public TriggerPlan(
+            int phase,
+            int priority,
+            int triggerId,
+            FunctionId predicateId,
+            int interruptPriority,
+            ActionCallPlan[] actions,
+            ITriggerCue cue)
         {
             Phase = phase;
             Priority = priority;
@@ -87,9 +100,18 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateArg1 = default;
             PredicateExpr = default;
             Actions = actions;
+            Cue = cue ?? NullTriggerCue.Instance;
         }
 
-        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, NumericValueRef predicateArg0, int interruptPriority, ActionCallPlan[] actions)
+        public TriggerPlan(
+            int phase,
+            int priority,
+            int triggerId,
+            FunctionId predicateId,
+            NumericValueRef predicateArg0,
+            int interruptPriority,
+            ActionCallPlan[] actions,
+            ITriggerCue cue)
         {
             Phase = phase;
             Priority = priority;
@@ -103,14 +125,32 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateArg1 = default;
             PredicateExpr = default;
             Actions = actions;
+            Cue = cue ?? NullTriggerCue.Instance;
         }
 
-        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, double predicateArg0, int interruptPriority, ActionCallPlan[] actions)
-            : this(phase, priority, triggerId, predicateId, NumericValueRef.Const(predicateArg0), interruptPriority, actions)
+        public TriggerPlan(
+            int phase,
+            int priority,
+            int triggerId,
+            FunctionId predicateId,
+            double predicateArg0,
+            int interruptPriority,
+            ActionCallPlan[] actions,
+            ITriggerCue cue)
+            : this(phase, priority, triggerId, predicateId, NumericValueRef.Const(predicateArg0), interruptPriority, actions, cue)
         {
         }
 
-        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, NumericValueRef predicateArg0, NumericValueRef predicateArg1, int interruptPriority, ActionCallPlan[] actions)
+        public TriggerPlan(
+            int phase,
+            int priority,
+            int triggerId,
+            FunctionId predicateId,
+            NumericValueRef predicateArg0,
+            NumericValueRef predicateArg1,
+            int interruptPriority,
+            ActionCallPlan[] actions,
+            ITriggerCue cue)
         {
             Phase = phase;
             Priority = priority;
@@ -124,14 +164,31 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateArg1 = predicateArg1;
             PredicateExpr = default;
             Actions = actions;
+            Cue = cue ?? NullTriggerCue.Instance;
         }
 
-        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, double predicateArg0, double predicateArg1, int interruptPriority, ActionCallPlan[] actions)
-            : this(phase, priority, triggerId, predicateId, NumericValueRef.Const(predicateArg0), NumericValueRef.Const(predicateArg1), interruptPriority, actions)
+        public TriggerPlan(
+            int phase,
+            int priority,
+            int triggerId,
+            FunctionId predicateId,
+            double predicateArg0,
+            double predicateArg1,
+            int interruptPriority,
+            ActionCallPlan[] actions,
+            ITriggerCue cue)
+            : this(phase, priority, triggerId, predicateId, NumericValueRef.Const(predicateArg0), NumericValueRef.Const(predicateArg1), interruptPriority, actions, cue)
         {
         }
 
-        public TriggerPlan(int phase, int priority, int triggerId, PredicateExprPlan predicateExpr, int interruptPriority, ActionCallPlan[] actions)
+        public TriggerPlan(
+            int phase,
+            int priority,
+            int triggerId,
+            PredicateExprPlan predicateExpr,
+            int interruptPriority,
+            ActionCallPlan[] actions,
+            ITriggerCue cue)
         {
             Phase = phase;
             Priority = priority;
@@ -145,9 +202,16 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateArg1 = default;
             PredicateExpr = predicateExpr;
             Actions = actions;
+            Cue = cue ?? NullTriggerCue.Instance;
         }
 
-        public TriggerPlan(int phase, int priority, int triggerId, int interruptPriority, ActionCallPlan[] actions)
+        public TriggerPlan(
+            int phase,
+            int priority,
+            int triggerId,
+            int interruptPriority,
+            ActionCallPlan[] actions,
+            ITriggerCue cue)
         {
             Phase = phase;
             Priority = priority;
@@ -161,6 +225,44 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateArg1 = default;
             PredicateExpr = default;
             Actions = actions;
+            Cue = cue ?? NullTriggerCue.Instance;
+        }
+
+        // ========== 便捷构造器（向后兼容，不传 Cue）==========
+
+        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, int interruptPriority, ActionCallPlan[] actions)
+            : this(phase, priority, triggerId, predicateId, interruptPriority, actions, null)
+        {
+        }
+
+        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, NumericValueRef predicateArg0, int interruptPriority, ActionCallPlan[] actions)
+            : this(phase, priority, triggerId, predicateId, predicateArg0, interruptPriority, actions, null)
+        {
+        }
+
+        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, double predicateArg0, int interruptPriority, ActionCallPlan[] actions)
+            : this(phase, priority, triggerId, predicateId, predicateArg0, interruptPriority, actions, null)
+        {
+        }
+
+        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, NumericValueRef predicateArg0, NumericValueRef predicateArg1, int interruptPriority, ActionCallPlan[] actions)
+            : this(phase, priority, triggerId, predicateId, predicateArg0, predicateArg1, interruptPriority, actions, null)
+        {
+        }
+
+        public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, double predicateArg0, double predicateArg1, int interruptPriority, ActionCallPlan[] actions)
+            : this(phase, priority, triggerId, predicateId, predicateArg0, predicateArg1, interruptPriority, actions, null)
+        {
+        }
+
+        public TriggerPlan(int phase, int priority, int triggerId, PredicateExprPlan predicateExpr, int interruptPriority, ActionCallPlan[] actions)
+            : this(phase, priority, triggerId, predicateExpr, interruptPriority, actions, null)
+        {
+        }
+
+        public TriggerPlan(int phase, int priority, int triggerId, int interruptPriority, ActionCallPlan[] actions)
+            : this(phase, priority, triggerId, interruptPriority, actions, null)
+        {
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Triggering.Runtime.Plan
@@ -31,6 +32,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         private readonly List<ActionCallPlan> _actions = new List<ActionCallPlan>();
         private int _triggerId;
         private int _interruptPriority;
+        private ITriggerCue _cue;
 
         internal TriggerPlanBuilder(int phase, int priority)
         {
@@ -64,6 +66,17 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public TriggerPlanBuilder<TArgs> WithInterruptThreshold(int threshold)
         {
             _interruptPriority = threshold;
+            return this;
+        }
+
+        /// <summary>
+        /// 设置表现层 Cue（VFX / SFX / UI 反馈）
+        /// Cue 与触发器生命周期绑定，在条件通过/失败/执行/打断/跳过时触发对应回调
+        /// </summary>
+        /// <param name="cue">表现层实现，不传则使用 NullTriggerCue（无任何表现）</param>
+        public TriggerPlanBuilder<TArgs> WithCue(ITriggerCue cue)
+        {
+            _cue = cue;
             return this;
         }
 
@@ -147,10 +160,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
             if (_predicate.Nodes != null && _predicate.Nodes.Length > 0)
             {
-                return new TriggerPlan<TArgs>(_phase, _priority, _triggerId, _predicate, _interruptPriority, actions);
+                return new TriggerPlan<TArgs>(
+                    _phase, _priority, _triggerId, _predicate, _interruptPriority, actions, _cue);
             }
 
-            return new TriggerPlan<TArgs>(_phase, _priority, _triggerId, _interruptPriority, actions);
+            return new TriggerPlan<TArgs>(
+                _phase, _priority, _triggerId, _interruptPriority, actions, _cue);
         }
     }
 
