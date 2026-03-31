@@ -7,37 +7,52 @@ namespace AbilityKit.Ability.Impl.Moba.Effects.Runtime
 {
     internal static class MobaEffectSnapshotBuilder
     {
+        /// <summary>
+        /// 预分配的缓冲区用于减少 GC
+        /// </summary>
+        private static readonly EffectScopeKey[] ScopeBuffer = new EffectScopeKey[8];
+
+        /// <summary>
+        /// 构建发射器快照（合并所有相关作用域的效果）
+        /// </summary>
         public static MobaLauncherEffectSnapshot BuildLauncherSnapshot(EffectRegistry registry, in MobaEffectQueryContext ctx)
         {
             var snapshot = MobaLauncherEffectSnapshot.Default;
             if (registry == null) return snapshot;
 
-            ApplyLauncherScope(registry, ref snapshot, MobaEffectScopeKeys.Global());
-            if (ctx.ActorId != 0) ApplyLauncherScope(registry, ref snapshot, MobaEffectScopeKeys.Unit(ctx.ActorId));
-            if (ctx.SkillId != 0) ApplyLauncherScope(registry, ref snapshot, MobaEffectScopeKeys.SkillId(ctx.SkillId));
-            if (ctx.LauncherId != 0) ApplyLauncherScope(registry, ref snapshot, MobaEffectScopeKeys.LauncherId(ctx.LauncherId));
+            int scopeCount = ctx.GetAllScopes(ScopeBuffer, 0);
+
+            for (int i = 0; i < scopeCount; i++)
+            {
+                ApplyLauncherScope(registry, ref snapshot, ScopeBuffer[i]);
+            }
 
             return snapshot;
         }
 
+        /// <summary>
+        /// 构建弹丸快照（合并所有相关作用域的效果）
+        /// </summary>
         public static MobaProjectileEffectSnapshot BuildProjectileSnapshot(EffectRegistry registry, in MobaEffectQueryContext ctx)
         {
             var snapshot = MobaProjectileEffectSnapshot.Default;
             if (registry == null) return snapshot;
 
-            ApplyProjectileScope(registry, ref snapshot, MobaEffectScopeKeys.Global());
-            if (ctx.ActorId != 0) ApplyProjectileScope(registry, ref snapshot, MobaEffectScopeKeys.Unit(ctx.ActorId));
-            if (ctx.SkillId != 0) ApplyProjectileScope(registry, ref snapshot, MobaEffectScopeKeys.SkillId(ctx.SkillId));
-            if (ctx.LauncherId != 0) ApplyProjectileScope(registry, ref snapshot, MobaEffectScopeKeys.LauncherId(ctx.LauncherId));
-            if (ctx.ProjectileId != 0) ApplyProjectileScope(registry, ref snapshot, MobaEffectScopeKeys.ProjectileId(ctx.ProjectileId));
+            int scopeCount = ctx.GetAllScopes(ScopeBuffer, 0);
+
+            for (int i = 0; i < scopeCount; i++)
+            {
+                ApplyProjectileScope(registry, ref snapshot, ScopeBuffer[i]);
+            }
 
             return snapshot;
         }
 
         private static void ApplyLauncherScope(EffectRegistry registry, ref MobaLauncherEffectSnapshot snapshot, in EffectScopeKey scope)
         {
-            var list = registry.GetInstances(in scope);
-            for (var i = 0; i < list.Count; i++)
+            if (!registry.TryGetScopeList(scope, out var list)) return;
+
+            for (int i = 0; i < list.Count; i++)
             {
                 ApplyLauncherInstance(ref snapshot, list[i]);
             }
@@ -45,8 +60,9 @@ namespace AbilityKit.Ability.Impl.Moba.Effects.Runtime
 
         private static void ApplyProjectileScope(EffectRegistry registry, ref MobaProjectileEffectSnapshot snapshot, in EffectScopeKey scope)
         {
-            var list = registry.GetInstances(in scope);
-            for (var i = 0; i < list.Count; i++)
+            if (!registry.TryGetScopeList(scope, out var list)) return;
+
+            for (int i = 0; i < list.Count; i++)
             {
                 ApplyProjectileInstance(ref snapshot, list[i]);
             }
@@ -57,28 +73,36 @@ namespace AbilityKit.Ability.Impl.Moba.Effects.Runtime
             var stats = inst?.Def?.Stats;
             if (stats == null) return;
 
-            for (var i = 0; i < stats.Length; i++)
+            for (int i = 0; i < stats.Length; i++)
             {
                 var s = stats[i];
                 if (s == null) continue;
 
-                switch ((MobaEffectStatKey)s.KeyId)
+                var mobaKey = (MobaEffectStatKey)s.KeyId;
+
+                if (s.Op == EffectOp.Add)
                 {
-                    case MobaEffectStatKey.LauncherIntervalBaseAddFrames:
-                        if (s.Op == EffectOp.Add) snapshot.IntervalBaseAddFrames += s.Value.I;
-                        break;
+                    switch (mobaKey)
+                    {
+                        case MobaEffectStatKey.LauncherIntervalBaseAddFrames:
+                            snapshot.IntervalBaseAddFrames += s.GetIntValue();
+                            break;
 
-                    case MobaEffectStatKey.LauncherIntervalPostMul:
-                        if (s.Op == EffectOp.Mul) snapshot.IntervalPostMul *= s.Value.F;
-                        break;
+                        case MobaEffectStatKey.LauncherExtraProjectilesPerShot:
+                            snapshot.ExtraProjectilesPerShot += s.GetIntValue();
+                            break;
 
-                    case MobaEffectStatKey.LauncherExtraProjectilesPerShot:
-                        if (s.Op == EffectOp.Add) snapshot.ExtraProjectilesPerShot += s.Value.I;
-                        break;
-
-                    case MobaEffectStatKey.LauncherExtraTotalCount:
-                        if (s.Op == EffectOp.Add) snapshot.ExtraTotalCount += s.Value.I;
-                        break;
+                        case MobaEffectStatKey.LauncherExtraTotalCount:
+                            snapshot.ExtraTotalCount += s.GetIntValue();
+                            break;
+                    }
+                }
+                else if (s.Op == EffectOp.Mul)
+                {
+                    if (mobaKey == MobaEffectStatKey.LauncherIntervalPostMul)
+                    {
+                        snapshot.IntervalPostMul *= s.GetFloatValue();
+                    }
                 }
             }
         }
@@ -88,24 +112,32 @@ namespace AbilityKit.Ability.Impl.Moba.Effects.Runtime
             var stats = inst?.Def?.Stats;
             if (stats == null) return;
 
-            for (var i = 0; i < stats.Length; i++)
+            for (int i = 0; i < stats.Length; i++)
             {
                 var s = stats[i];
                 if (s == null) continue;
 
-                switch ((MobaEffectStatKey)s.KeyId)
+                var mobaKey = (MobaEffectStatKey)s.KeyId;
+
+                if (s.Op == EffectOp.Mul)
                 {
-                    case MobaEffectStatKey.ProjectileDamageMul:
-                        if (s.Op == EffectOp.Mul) snapshot.DamageMul *= s.Value.F;
-                        break;
+                    switch (mobaKey)
+                    {
+                        case MobaEffectStatKey.ProjectileDamageMul:
+                            snapshot.DamageMul *= s.GetFloatValue();
+                            break;
 
-                    case MobaEffectStatKey.ProjectileSpeedMul:
-                        if (s.Op == EffectOp.Mul) snapshot.SpeedMul *= s.Value.F;
-                        break;
-
-                    case MobaEffectStatKey.ProjectilePierce:
-                        if (s.Op == EffectOp.Add) snapshot.Pierce += s.Value.I;
-                        break;
+                        case MobaEffectStatKey.ProjectileSpeedMul:
+                            snapshot.SpeedMul *= s.GetFloatValue();
+                            break;
+                    }
+                }
+                else if (s.Op == EffectOp.Add)
+                {
+                    if (mobaKey == MobaEffectStatKey.ProjectilePierce)
+                    {
+                        snapshot.Pierce += s.GetIntValue();
+                    }
                 }
             }
         }
