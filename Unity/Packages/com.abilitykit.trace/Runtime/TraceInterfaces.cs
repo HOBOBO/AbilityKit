@@ -3,6 +3,10 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Trace
 {
+    // ============================================================================
+    // 枚举
+    // ============================================================================
+
     /// <summary>
     /// 溯源节点种类枚举
     /// 具体值由外部扩展，业务层可以定义自己的枚举值
@@ -21,26 +25,21 @@ namespace AbilityKit.Trace
         None = 0,
     }
 
+    // ============================================================================
+    // ITraceContextSource
+    // ============================================================================
+
     /// <summary>
     /// 溯源上下文来源接口
     /// 允许不同玩法自定义"来源"如何提取和存储
-    /// 默认实现将所有对象转为字符串描述
     /// </summary>
     public interface ITraceContextSource
     {
-        /// <summary>
-        /// 从给定的原始来源对象中提取可追溯的标识
-        /// </summary>
-        /// <param name="origin">原始来源对象</param>
-        /// <param name="traceableId">输出：溯源用的唯一标识</param>
-        /// <param name="displayName">输出：调试用显示名称</param>
-        /// <returns>是否成功提取</returns>
         bool TryExtractTraceId(object origin, out long traceableId, out string displayName);
     }
 
     /// <summary>
     /// 默认的空溯源上下文来源
-    /// 所有对象都返回 false，由调用方自行处理
     /// </summary>
     public sealed class DefaultTraceContextSource : ITraceContextSource
     {
@@ -58,7 +57,7 @@ namespace AbilityKit.Trace
 
     /// <summary>
     /// 简单溯源上下文来源
-    /// 支持 int/long 直接转换，以及 DateTime.Ticks 作为唯一标识
+    /// 支持 int/long/Guid 直接转换
     /// </summary>
     public sealed class SimpleTraceContextSource : ITraceContextSource
     {
@@ -72,35 +71,30 @@ namespace AbilityKit.Trace
                 displayName = l.ToString();
                 return true;
             }
-
             if (origin is int i)
             {
                 traceableId = i;
                 displayName = i.ToString();
                 return true;
             }
-
             if (origin is ulong ul)
             {
                 traceableId = (long)ul;
                 displayName = ul.ToString();
                 return true;
             }
-
             if (origin is uint ui)
             {
                 traceableId = ui;
                 displayName = ui.ToString();
                 return true;
             }
-
             if (origin is Guid g)
             {
                 traceableId = g.GetHashCode();
                 displayName = g.ToString();
                 return true;
             }
-
             traceableId = 0;
             displayName = origin?.ToString();
             return false;
@@ -109,126 +103,66 @@ namespace AbilityKit.Trace
         private SimpleTraceContextSource() { }
     }
 
+    // ============================================================================
+    // TraceMetadata（抽象基类，业务层继承）
+    // ============================================================================
+
     /// <summary>
-    /// 溯源元数据存储接口
-    /// 允许不同玩法自定义根节点上存储的元数据类型
+    /// 溯源元数据抽象基类
+    /// 业务层继承此类，添加任意字段（如 SkillId, Damage, BuffLevel 等）
+    /// 每个根节点对应一个 TMetadata 实例，由 ITraceMetadataStore 统一管理生命周期
     /// </summary>
-    public interface ITraceMetadataStore
+    public abstract class TraceMetadata { }
+
+    // ============================================================================
+    // ITraceMetadataStore<T>
+    // ============================================================================
+
+    /// <summary>
+    /// 溯源元数据存储接口（泛型）
+    /// 负责按 rootId 存取 TraceMetadata 实例
+    /// 业务层可注入自己的实现（如接入数据库、对象池等）
+    /// </summary>
+    public interface ITraceMetadataStore<T>
+        where T : TraceMetadata
     {
-        /// <summary>
-        /// 设置整数元数据
-        /// </summary>
-        void SetInt(long rootId, string key, int value);
-
-        /// <summary>
-        /// 获取整数元数据
-        /// </summary>
-        bool TryGetInt(long rootId, string key, out int value);
-
-        /// <summary>
-        /// 获取根节点的所有元数据快照
-        /// </summary>
-        IReadOnlyDictionary<string, int> GetAllMetadata(long rootId);
-
-        /// <summary>
-        /// 清除根节点的所有元数据
-        /// </summary>
+        void SetMetadata(long rootId, T metadata);
+        bool TryGetMetadata(long rootId, out T metadata);
         void Clear(long rootId);
     }
 
     /// <summary>
-    /// 简单的字典元数据存储
-    /// 使用 Dictionary&lt;long, Dictionary&lt;string, int&gt;&gt; 实现
+    /// 字典实现的元数据存储
     /// </summary>
-    public sealed class DictionaryTraceMetadataStore : ITraceMetadataStore
+    public sealed class DictionaryTraceMetadataStore<T> : ITraceMetadataStore<T>
+        where T : TraceMetadata
     {
-        private readonly Dictionary<long, Dictionary<string, int>> _metadata = new();
-        private readonly Dictionary<string, int> _empty = new(0);
+        private readonly Dictionary<long, T> _metadata = new();
 
-        public void SetInt(long rootId, string key, int value)
-        {
-            if (!_metadata.TryGetValue(rootId, out var dict))
-            {
-                dict = new Dictionary<string, int>();
-                _metadata[rootId] = dict;
-            }
-            dict[key] = value;
-        }
-
-        public bool TryGetInt(long rootId, string key, out int value)
-        {
-            if (_metadata.TryGetValue(rootId, out var dict) && dict.TryGetValue(key, out value))
-                return true;
-            value = 0;
-            return false;
-        }
-
-        public IReadOnlyDictionary<string, int> GetAllMetadata(long rootId)
-        {
-            return _metadata.TryGetValue(rootId, out var dict) ? dict : _empty;
-        }
-
-        public void Clear(long rootId)
-        {
-            _metadata.Remove(rootId);
-        }
-
-        /// <summary>
-        /// 获取所有根ID
-        /// </summary>
-        public IEnumerable<long> GetAllRootIds()
-        {
-            return _metadata.Keys;
-        }
+        public void SetMetadata(long rootId, T metadata) => _metadata[rootId] = metadata;
+        public bool TryGetMetadata(long rootId, out T metadata) => _metadata.TryGetValue(rootId, out metadata);
+        public void Clear(long rootId) => _metadata.Remove(rootId);
+        public IEnumerable<long> GetAllRootIds() => _metadata.Keys;
     }
 
     /// <summary>
     /// 空元数据存储
-    /// 用于不需要元数据存储的场景
     /// </summary>
-    public sealed class NullTraceMetadataStore : ITraceMetadataStore
+    public sealed class NullTraceMetadataStore<T> : ITraceMetadataStore<T>
+        where T : TraceMetadata
     {
-        public static readonly NullTraceMetadataStore Instance = new NullTraceMetadataStore();
+        public static readonly NullTraceMetadataStore<T> Instance = new NullTraceMetadataStore<T>();
 
-        public void SetInt(long rootId, string key, int value) { }
-
-        public bool TryGetInt(long rootId, string key, out int value)
-        {
-            value = 0;
-            return false;
-        }
-
-        public IReadOnlyDictionary<string, int> GetAllMetadata(long rootId)
-        {
-            return EmptyDict;
-        }
-
+        public void SetMetadata(long rootId, T metadata) { }
+        public bool TryGetMetadata(long rootId, out T metadata) { metadata = null; return false; }
         public void Clear(long rootId) { }
 
-        private static readonly Dictionary<string, int> EmptyDict = new Dictionary<string, int>(0);
         private NullTraceMetadataStore() { }
     }
 
-    /// <summary>
-    /// 溯源快照接口
-    /// </summary>
-    public interface ITraceSnapshot
-    {
-        long ContextId { get; }
-        long RootId { get; }
-        long ParentId { get; }
-        int Kind { get; }
-        int EndReason { get; }
-        long SourceActorId { get; }
-        long TargetActorId { get; }
-        long OriginSourceId { get; }
-        string OriginSourceDisplay { get; }
-        long OriginTargetId { get; }
-        string OriginTargetDisplay { get; }
-        int CreatedFrame { get; }
-        int EndedFrame { get; }
-        bool IsEnded { get; }
-    }
+    // ============================================================================
+    // RootState / RootStats
+    // ============================================================================
 
     /// <summary>
     /// 根节点状态快照
@@ -268,5 +202,53 @@ namespace AbilityKit.Trace
             EndedNodes = endedNodes;
             MaxDepth = maxDepth;
         }
+    }
+
+    // ============================================================================
+    // ITraceLeafDataStore
+    // ============================================================================
+
+    /// <summary>
+    /// 叶子节点附加数据存储接口
+    /// 用于为最终叶节点挂接额外的快照数据（例如数值快照、调试信息等）
+    /// </summary>
+    public interface ITraceLeafDataStore
+    {
+        void Set(long contextId, object data);
+        bool TryGet(long contextId, out object data);
+        void Clear(long contextId);
+    }
+
+    /// <summary>
+    /// 字典实现的叶子节点数据存储
+    /// </summary>
+    public sealed class DictionaryTraceLeafDataStore : ITraceLeafDataStore
+    {
+        private readonly Dictionary<long, object> _data = new();
+
+        public void Set(long contextId, object data)
+        {
+            if (data == null) { _data.Remove(contextId); return; }
+            _data[contextId] = data;
+        }
+
+        public bool TryGet(long contextId, out object data)
+            => _data.TryGetValue(contextId, out data);
+
+        public void Clear(long contextId) => _data.Remove(contextId);
+    }
+
+    /// <summary>
+    /// 空叶子节点数据存储
+    /// </summary>
+    public sealed class NullTraceLeafDataStore : ITraceLeafDataStore
+    {
+        public static readonly NullTraceLeafDataStore Instance = new NullTraceLeafDataStore();
+
+        public void Set(long contextId, object data) { }
+        public bool TryGet(long contextId, out object data) { data = null; return false; }
+        public void Clear(long contextId) { }
+
+        private NullTraceLeafDataStore() { }
     }
 }

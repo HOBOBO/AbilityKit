@@ -8,7 +8,7 @@ namespace AbilityKit.Trace
     /// </summary>
     public readonly struct TraceTreeScope : IDisposable
     {
-        private readonly TraceTreeRegistry _registry;
+        private readonly TraceTreeRegistryBase _registry;
         private readonly long _contextId;
         private readonly int _frame;
         private readonly int _reason;
@@ -17,7 +17,7 @@ namespace AbilityKit.Trace
         /// 内部构造函数
         /// </summary>
         internal TraceTreeScope(
-            TraceTreeRegistry registry,
+            TraceTreeRegistryBase registry,
             long contextId,
             int frame,
             int reason = 0)
@@ -83,7 +83,6 @@ namespace AbilityKit.Trace
         {
             if (!IsValid)
                 return "TraceTreeScope[Invalid]";
-
             return $"TraceTreeScope[Id={_contextId}, Frame={_frame}]";
         }
     }
@@ -94,7 +93,7 @@ namespace AbilityKit.Trace
     /// </summary>
     public readonly struct TraceRootScope : IDisposable
     {
-        private readonly TraceTreeRegistry _registry;
+        private readonly TraceTreeRegistryBase _registry;
         private readonly long _rootId;
         private readonly int _frame;
 
@@ -102,7 +101,7 @@ namespace AbilityKit.Trace
         /// 内部构造函数
         /// </summary>
         internal TraceRootScope(
-            TraceTreeRegistry registry,
+            TraceTreeRegistryBase registry,
             long rootId,
             int frame)
         {
@@ -155,7 +154,6 @@ namespace AbilityKit.Trace
         {
             if (!IsValid)
                 return 0;
-
             return _registry.EndRoot(_rootId, reason);
         }
 
@@ -178,27 +176,27 @@ namespace AbilityKit.Trace
         {
             if (!IsValid)
                 return "TraceRootScope[Invalid]";
-
             return $"TraceRootScope[RootId={_rootId}, Frame={_frame}]";
         }
     }
 
     /// <summary>
-    /// TraceTreeRegistry 的扩展方法，用于创建作用域
+    /// TraceTreeRegistry&lt;T&gt; 的扩展方法，用于创建作用域
     /// </summary>
     public static class TraceTreeRegistryExtensions
     {
         /// <summary>
         /// 创建根节点作用域
         /// </summary>
-        public static TraceRootScope CreateRootScope(
-            this TraceTreeRegistry registry,
+        public static TraceRootScope CreateRootScope<T>(
+            this TraceTreeRegistry<T> registry,
             int kind,
             long sourceActorId = 0,
             long targetActorId = 0,
             object originSource = null,
             object originTarget = null,
             int configId = 0)
+            where T : TraceMetadata
         {
             var rootId = registry.BeginRoot(kind, sourceActorId, targetActorId, originSource, originTarget, configId);
             return new TraceRootScope(registry, rootId, registry.Frame);
@@ -207,8 +205,8 @@ namespace AbilityKit.Trace
         /// <summary>
         /// 创建子节点作用域
         /// </summary>
-        public static TraceTreeScope CreateChildScope(
-            this TraceTreeRegistry registry,
+        public static TraceTreeScope CreateChildScope<T>(
+            this TraceTreeRegistry<T> registry,
             long parentContextId,
             int kind,
             long sourceActorId = 0,
@@ -216,6 +214,7 @@ namespace AbilityKit.Trace
             object originSource = null,
             object originTarget = null,
             int configId = 0)
+            where T : TraceMetadata
         {
             var childId = registry.BeginChild(parentContextId, kind, sourceActorId, targetActorId, originSource, originTarget, configId);
             return new TraceTreeScope(registry, childId, registry.Frame, 0);
@@ -224,8 +223,8 @@ namespace AbilityKit.Trace
         /// <summary>
         /// 创建子节点作用域（带结束原因）
         /// </summary>
-        public static TraceTreeScope CreateChildScope(
-            this TraceTreeRegistry registry,
+        public static TraceTreeScope CreateChildScope<T>(
+            this TraceTreeRegistry<T> registry,
             long parentContextId,
             int kind,
             int endReason,
@@ -234,6 +233,7 @@ namespace AbilityKit.Trace
             object originSource = null,
             object originTarget = null,
             int configId = 0)
+            where T : TraceMetadata
         {
             var childId = registry.BeginChild(parentContextId, kind, sourceActorId, targetActorId, originSource, originTarget, configId);
             return new TraceTreeScope(registry, childId, registry.Frame, endReason);
