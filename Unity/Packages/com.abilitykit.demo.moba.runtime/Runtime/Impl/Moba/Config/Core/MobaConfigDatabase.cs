@@ -116,9 +116,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
             if (!result.Succeeded)
             {
                 var fail = ConfigReloadResult.Fail("moba.config", _innerDb.Version, result.Error);
-                ConfigReloadBus.Publish(fail);
-                return fail;
-            }
+                    ConfigReloadBus.Publish(fail);
+                    return fail;
+                }
 
             var success = ConfigReloadResult.Success("moba.config", _innerDb.Version, fullReload: true, changedIds: null);
             ConfigReloadBus.Publish(success);
@@ -182,9 +182,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
             if (!result.Succeeded)
             {
                 var fail = ConfigReloadResult.Fail("moba.config", _innerDb.Version, result.Error);
-                ConfigReloadBus.Publish(fail);
-                return fail;
-            }
+                            ConfigReloadBus.Publish(fail);
+                            return fail;
+                        }
 
             var success = ConfigReloadResult.Success("moba.config", _innerDb.Version, fullReload: true, changedIds: null);
             ConfigReloadBus.Publish(success);
@@ -222,9 +222,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
             if (!result.Succeeded)
             {
                 var fail = ConfigReloadResult.Fail("moba.config", _innerDb.Version, result.Error);
-                ConfigReloadBus.Publish(fail);
-                return fail;
-            }
+                        ConfigReloadBus.Publish(fail);
+                        return fail;
+                    }
 
             var success = ConfigReloadResult.Success("moba.config", _innerDb.Version, fullReload: true, changedIds: null);
             ConfigReloadBus.Publish(success);
@@ -275,9 +275,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
             if (!result.Succeeded)
             {
                 var fail = ConfigReloadResult.Fail("moba.config", _innerDb.Version, result.Error);
-                ConfigReloadBus.Publish(fail);
-                return fail;
-            }
+                        ConfigReloadBus.Publish(fail);
+                        return fail;
+                    }
 
             var success = ConfigReloadResult.Success("moba.config", _innerDb.Version, fullReload: true, changedIds: null);
             ConfigReloadBus.Publish(success);
