@@ -21,6 +21,11 @@ namespace AbilityKit.Triggering.Runtime
         public readonly ExecPolicy Policy;
         public readonly ExecutionControl Control;
 
+        /// <summary>
+        /// 强类型 Payload 访问器注册表（避免装箱开销）
+        /// </summary>
+        public readonly IStronglyTypedPayloadAccessorRegistry StronglyTypedPayloads;
+
         public ExecCtx(TCtx context, IEventBus eventBus, FunctionRegistry functions, ActionRegistry actions, IBlackboardResolver blackboards, IPayloadAccessorRegistry payloads, IIdNameRegistry idNames, INumericVarDomainRegistry numericDomains, INumericRpnFunctionRegistry numericFunctions, ExecPolicy policy, ExecutionControl control)
         {
             Context = context;
@@ -34,6 +39,63 @@ namespace AbilityKit.Triggering.Runtime
             NumericFunctions = numericFunctions;
             Policy = policy;
             Control = control;
+            StronglyTypedPayloads = null;
+        }
+
+        public ExecCtx(TCtx context, IEventBus eventBus, FunctionRegistry functions, ActionRegistry actions, IBlackboardResolver blackboards, IPayloadAccessorRegistry payloads, IStronglyTypedPayloadAccessorRegistry stronglyTypedPayloads, IIdNameRegistry idNames, INumericVarDomainRegistry numericDomains, INumericRpnFunctionRegistry numericFunctions, ExecPolicy policy, ExecutionControl control)
+        {
+            Context = context;
+            EventBus = eventBus;
+            Functions = functions;
+            Actions = actions;
+            Blackboards = blackboards;
+            Payloads = payloads;
+            IdNames = idNames;
+            NumericDomains = numericDomains;
+            NumericFunctions = numericFunctions;
+            Policy = policy;
+            Control = control;
+            StronglyTypedPayloads = stronglyTypedPayloads;
+        }
+
+        /// <summary>
+        /// 尝试使用强类型访问器获取 Payload 字段值
+        /// </summary>
+        public bool TryGetPayloadDouble<TPayload>(in TPayload payload, int fieldId, out double value) where TPayload : struct
+        {
+            if (StronglyTypedPayloads != null && StronglyTypedPayloads.TryGetAccessor<TPayload>(out var accessor))
+            {
+                return accessor.TryGetDouble(in payload, fieldId, out value);
+            }
+
+            // Fallback to legacy accessor
+            if (Payloads != null)
+            {
+                return Payloads.TryGetDouble(in payload, fieldId, out value);
+            }
+
+            value = default;
+            return false;
+        }
+
+        /// <summary>
+        /// 尝试使用强类型访问器获取 Payload 字段值
+        /// </summary>
+        public bool TryGetPayloadInt<TPayload>(in TPayload payload, int fieldId, out int value) where TPayload : struct
+        {
+            if (StronglyTypedPayloads != null && StronglyTypedPayloads.TryGetAccessor<TPayload>(out var accessor))
+            {
+                return accessor.TryGetInt(in payload, fieldId, out value);
+            }
+
+            // Fallback to legacy accessor
+            if (Payloads != null)
+            {
+                return Payloads.TryGetInt(in payload, fieldId, out value);
+            }
+
+            value = default;
+            return false;
         }
     }
 }

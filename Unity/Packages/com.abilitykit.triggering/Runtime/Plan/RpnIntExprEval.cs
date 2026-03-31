@@ -100,6 +100,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
             if (valueRef.Kind == ENumericValueRefKind.PayloadField)
             {
+                // 使用 ExecCtx 的强类型访问方法（如果可用）
+                // 注意：这里需要 struct 约束，所以在低级别评估中直接使用 legacy accessor
                 var payloads = ctx.Payloads;
                 if (payloads == null) throw new InvalidOperationException("Payload accessor registry is null");
                 if (!payloads.TryGetDouble(in args, valueRef.FieldId, out var v)) throw new InvalidOperationException("Payload numeric field not found: " + valueRef.FieldId);

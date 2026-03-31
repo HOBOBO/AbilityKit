@@ -286,6 +286,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
             if (valueRef.Kind == ENumericValueRefKind.PayloadField)
             {
+                // 使用 legacy accessor（强类型访问在 ExecCtx 层面提供）
                 var payloads = ctx.Payloads;
                 if (payloads == null)
                 {
