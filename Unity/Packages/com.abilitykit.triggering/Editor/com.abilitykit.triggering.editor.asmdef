@@ -2,7 +2,8 @@
   "name": "AbilityKit.Triggering.Editor",
   "rootNamespace": "AbilityKit.Triggering",
   "references": [
-    "AbilityKit.Triggering"
+    "AbilityKit.Triggering",
+    "AbilityKit.Modifiers"
   ],
   "includePlatforms": [
     "Editor"

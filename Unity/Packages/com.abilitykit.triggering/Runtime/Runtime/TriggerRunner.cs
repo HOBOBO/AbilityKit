@@ -76,7 +76,8 @@ namespace AbilityKit.Triggering.Runtime
 
             var entry = new Entry<TArgs>(phase, priority, _registrationOrder++, trigger);
             InsertSorted(triggers, entry);
-            return new Registration<TArgs>(triggers, entry, this, key);
+            var subscription = GetSubscription<TArgs>(key);
+            return new Registration<TArgs>(triggers, entry, this, key, subscription);
         }
 
         private Dictionary<EventKey<TArgs>, List<Entry<TArgs>>> GetOrCreateTriggerList<TArgs>()
@@ -92,20 +93,43 @@ namespace AbilityKit.Triggering.Runtime
         private void EnsureSubscribed<TArgs>(EventKey<TArgs> key, Dictionary<EventKey<TArgs>, List<Entry<TArgs>>> list)
         {
             var type = typeof(TArgs);
+            var dispatcher = new Dispatcher<TArgs>(this, key, list);
+
             if (_subscriptionsByArgsType.TryGetValue(type, out var obj))
             {
                 var subs = (Dictionary<EventKey<TArgs>, IDisposable>)obj;
                 if (subs.ContainsKey(key)) return;
-                var dispatcher = new Dispatcher<TArgs>(this, key, list);
-                subs[key] = _eventBus.Subscribe(key, dispatcher.OnEvent);
+
+                subs[key] = _eventBus.Subscribe(key, (args, control) => dispatcher.OnEvent(args, control));
                 return;
             }
 
             var newSubs = new Dictionary<EventKey<TArgs>, IDisposable>();
             _subscriptionsByArgsType.Add(type, newSubs);
+
+            newSubs[key] = _eventBus.Subscribe(key, (args, control) => dispatcher.OnEvent(args, control));
+        }
+
+        private IDisposable GetSubscription<TArgs>(EventKey<TArgs> key)
+        {
+            var type = typeof(TArgs);
+            if (_subscriptionsByArgsType.TryGetValue(type, out var obj))
             {
-                var dispatcher = new Dispatcher<TArgs>(this, key, list);
-                newSubs[key] = _eventBus.Subscribe(key, dispatcher.OnEvent);
+                var subs = (Dictionary<EventKey<TArgs>, IDisposable>)obj;
+                if (subs.TryGetValue(key, out var subscription))
+                    return subscription;
+            }
+            return null;
+        }
+
+        private void TryUnsubscribe<TArgs>(EventKey<TArgs> key, IDisposable subscription)
+        {
+            var type = typeof(TArgs);
+            if (_subscriptionsByArgsType.TryGetValue(type, out var obj))
+            {
+                var subs = (Dictionary<EventKey<TArgs>, IDisposable>)obj;
+                subs.Remove(key);
+                subscription?.Dispose();
             }
         }
 
@@ -372,36 +396,56 @@ namespace AbilityKit.Triggering.Runtime
                 private Entry<TArgs> _entry;
                 private readonly TriggerRunner<TCtx> _runner;
                 private readonly EventKey<TArgs> _key;
+                private readonly IDisposable _subscription;
                 private bool _disposed;
 
-            public Registration(List<Entry<TArgs>> list, Entry<TArgs> entry, TriggerRunner<TCtx> runner, EventKey<TArgs> key)
-            {
-                _list = list;
-                _entry = entry;
-                _runner = runner;
-                _key = key;
-            }
-
-            public void Dispose()
-            {
-                if (_list == null || _disposed) return;
-                _disposed = true;
-                for (int i = 0; i < _list.Count; i++)
+                public Registration(List<Entry<TArgs>> list, Entry<TArgs> entry, TriggerRunner<TCtx> runner, EventKey<TArgs> key, IDisposable subscription)
                 {
-                    if (!ReferenceEquals(_list[i].Trigger, _entry.Trigger)) continue;
-                    if (_list[i].Phase != _entry.Phase) continue;
-                    if (_list[i].Priority != _entry.Priority) continue;
-                    if (_list[i].Order != _entry.Order) continue;
-                    _list.RemoveAt(i);
-                    break;
+                    _list = list;
+                    _entry = entry;
+                    _runner = runner;
+                    _key = key;
+                    _subscription = subscription;
                 }
-                var entry = _entry;
-                var key = _key;
-                var runner = _runner;
-                _list = null;
-                _entry = default;
-                runner._lifecycle.OnUnregistered(key, entry.Trigger);
+
+                public void Dispose()
+                {
+                    if (_list == null || _disposed) return;
+                    _disposed = true;
+
+                    // 从列表中移除条目
+                    int removeIndex = -1;
+                    for (int i = 0; i < _list.Count; i++)
+                    {
+                        if (!ReferenceEquals(_list[i].Trigger, _entry.Trigger)) continue;
+                        if (_list[i].Phase != _entry.Phase) continue;
+                        if (_list[i].Priority != _entry.Priority) continue;
+                        if (_list[i].Order != _entry.Order) continue;
+                        removeIndex = i;
+                        break;
+                    }
+
+                    if (removeIndex >= 0)
+                    {
+                        _list.RemoveAt(removeIndex);
+                    }
+
+                    var entry = _entry;
+                    var key = _key;
+                    var runner = _runner;
+                    var subscription = _subscription;
+                    var listWasEmpty = _list.Count == 0;
+                    _list = null;
+                    _entry = default;
+
+                    runner._lifecycle.OnUnregistered(key, entry.Trigger);
+
+                    // 检查列表是否为空，如果为空则取消事件订阅
+                    if (listWasEmpty && subscription != null)
+                    {
+                        runner.TryUnsubscribe(key, subscription);
+                    }
+                }
             }
-        }
     }
 }

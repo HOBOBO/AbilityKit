@@ -2,7 +2,8 @@
   "name": "AbilityKit.Triggering",
   "rootNamespace": "AbilityKit.Triggering",
   "references": [
-    "AbilityKit.Core"
+    "AbilityKit.Core",
+    "AbilityKit.Modifiers"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
