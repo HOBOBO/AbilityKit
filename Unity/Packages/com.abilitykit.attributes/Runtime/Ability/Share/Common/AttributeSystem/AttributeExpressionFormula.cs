@@ -1,9 +1,28 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using AbilityKit.Modifiers;
 
 namespace AbilityKit.Ability.Share.Common.AttributeSystem
 {
+    /// <summary>
+    /// 表达式属性公式。
+    /// 支持自定义计算表达式，如 "base * 2 + strength * 0.5"
+    ///
+    /// 支持的内置变量：
+    /// - base: 基础值
+    /// - add: 加法值之和
+    /// - mul: 乘法值之和
+    /// - finalAdd: 最终加法值
+    /// - override: 覆盖值
+    /// - hasOverride: 是否有覆盖（0 或 1）
+    ///
+    /// 支持的函数：
+    /// - abs(x): 绝对值
+    /// - min(a, b): 最小值
+    /// - max(a, b): 最大值
+    /// - clamp(x, min, max): 限制范围
+    /// </summary>
     public sealed class AttributeExpressionFormula : IAttributeFormula, IAttributeDependencyProvider
     {
         private readonly string _expr;
@@ -23,7 +42,12 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             return _deps;
         }
 
-        public float Evaluate(AttributeContext ctx, AttributeId self, float baseValue, in AttributeModifierSet modifiers)
+        #region IAttributeFormula 实现
+
+        /// <summary>
+        /// 评估属性值（新版 API，直接使用 ModifierResult）
+        /// </summary>
+        public float Evaluate(AttributeContext ctx, AttributeId self, float baseValue, ModifierResult modifierResult)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
             if (!self.IsValid) throw new ArgumentException("Invalid AttributeId", nameof(self));
@@ -56,12 +80,15 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                     case OpCode.Const:
                         Push(ref stack, ref sp, ins.Const);
                         break;
+
                     case OpCode.VarBuiltin:
-                        Push(ref stack, ref sp, ResolveBuiltin(ins.Builtin, baseValue, in modifiers));
+                        Push(ref stack, ref sp, ResolveBuiltin(ins.Builtin, baseValue, modifierResult));
                         break;
+
                     case OpCode.VarAttr:
                         Push(ref stack, ref sp, ctx.GetValue(ins.Attr));
                         break;
+
                     case OpCode.Add:
                     {
                         var b = Pop(stack, ref sp);
@@ -69,6 +96,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                         Push(ref stack, ref sp, a + b);
                         break;
                     }
+
                     case OpCode.Sub:
                     {
                         var b = Pop(stack, ref sp);
@@ -76,6 +104,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                         Push(ref stack, ref sp, a - b);
                         break;
                     }
+
                     case OpCode.Mul:
                     {
                         var b = Pop(stack, ref sp);
@@ -83,6 +112,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                         Push(ref stack, ref sp, a * b);
                         break;
                     }
+
                     case OpCode.Div:
                     {
                         var b = Pop(stack, ref sp);
@@ -90,18 +120,21 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                         Push(ref stack, ref sp, a / b);
                         break;
                     }
+
                     case OpCode.Neg:
                     {
                         var a = Pop(stack, ref sp);
                         Push(ref stack, ref sp, -a);
                         break;
                     }
+
                     case OpCode.FuncAbs:
                     {
                         var a = Pop(stack, ref sp);
                         Push(ref stack, ref sp, System.Math.Abs(a));
                         break;
                     }
+
                     case OpCode.FuncMin:
                     {
                         var b = Pop(stack, ref sp);
@@ -109,6 +142,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                         Push(ref stack, ref sp, System.Math.Min(a, b));
                         break;
                     }
+
                     case OpCode.FuncMax:
                     {
                         var b = Pop(stack, ref sp);
@@ -116,6 +150,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                         Push(ref stack, ref sp, System.Math.Max(a, b));
                         break;
                     }
+
                     case OpCode.FuncClamp:
                     {
                         var hi = Pop(stack, ref sp);
@@ -124,6 +159,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                         Push(ref stack, ref sp, Clamp(x, lo, hi));
                         break;
                     }
+
                     default:
                         throw new InvalidOperationException($"Unsupported opcode: {ins.Op}");
                 }
@@ -135,6 +171,26 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             if (float.IsNaN(v) || float.IsInfinity(v)) return 0f;
             return v;
         }
+
+        /// <summary>
+        /// 评估属性值（旧版 API，保留兼容）
+        /// </summary>
+        public float Evaluate(AttributeContext ctx, AttributeId self, float baseValue, in AttributeModifierSet modifiers)
+        {
+            // 转换为 ModifierResult
+            var result = new ModifierResult
+            {
+                BaseValue = baseValue,
+                AddSum = modifiers.Add,
+                MulProduct = 1f + modifiers.Mul,
+                OverrideValue = modifiers.HasOverride ? modifiers.Override : null,
+                Count = 0
+            };
+
+            return Evaluate(ctx, self, baseValue, result);
+        }
+
+        #endregion
 
         private void EnsureParsed(AttributeId self)
         {
@@ -153,16 +209,16 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             return x;
         }
 
-        private static float ResolveBuiltin(BuiltinVar v, float baseValue, in AttributeModifierSet modifiers)
+        private static float ResolveBuiltin(BuiltinVar v, float baseValue, ModifierResult modifierResult)
         {
             switch (v)
             {
                 case BuiltinVar.Base: return baseValue;
-                case BuiltinVar.Add: return modifiers.Add;
-                case BuiltinVar.Mul: return modifiers.Mul;
-                case BuiltinVar.FinalAdd: return modifiers.FinalAdd;
-                case BuiltinVar.Override: return modifiers.Override;
-                case BuiltinVar.HasOverride: return modifiers.HasOverride ? 1f : 0f;
+                case BuiltinVar.Add: return modifierResult.AddSum;
+                case BuiltinVar.Mul: return modifierResult.MulProduct - 1f;
+                case BuiltinVar.FinalAdd: return 0f;  // FinalAdd 单独处理
+                case BuiltinVar.Override: return modifierResult.OverrideValue ?? 0f;
+                case BuiltinVar.HasOverride: return modifierResult.HasOverride ? 1f : 0f;
                 default: return 0f;
             }
         }
@@ -304,63 +360,70 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                             output.Add(Instruction.C(t.Number));
                             prevWasValue = true;
                             break;
-                        case TokenKind.Ident:
-                        {
-                            var nextIsLParen = i + 1 < tokens.Count && tokens[i + 1].Kind == TokenKind.LParen;
-                            if (nextIsLParen)
-                            {
-                                stack.Add(StackItem.F(t.Text));
-                                prevWasValue = false;
-                                break;
-                            }
 
-                            if (TryBuiltin(t.Text, out var b))
+                        case TokenKind.Ident:
                             {
-                                output.Add(Instruction.B(b));
+                                var nextIsLParen = i + 1 < tokens.Count && tokens[i + 1].Kind == TokenKind.LParen;
+                                if (nextIsLParen)
+                                {
+                                    stack.Add(StackItem.F(t.Text));
+                                    prevWasValue = false;
+                                    break;
+                                }
+
+                                if (TryBuiltin(t.Text, out var b))
+                                {
+                                    output.Add(Instruction.B(b));
+                                    prevWasValue = true;
+                                    break;
+                                }
+
+                                if (!AttributeRegistry.Instance.TryGet(t.Text, out var attrId))
+                                {
+                                    throw new InvalidOperationException($"Attribute not registered: {t.Text}");
+                                }
+
+                                if (self.IsValid && attrId == self)
+                                {
+                                    throw new InvalidOperationException($"Expression cannot reference itself: {t.Text}");
+                                }
+
+                                deps.Add(attrId.Id);
+                                output.Add(Instruction.A(attrId));
                                 prevWasValue = true;
                                 break;
                             }
 
-                            if (!AttributeRegistry.Instance.TryGet(t.Text, out var attrId))
-                            {
-                                throw new InvalidOperationException($"Attribute not registered: {t.Text}");
-                            }
-
-                            if (self.IsValid && attrId == self)
-                            {
-                                throw new InvalidOperationException($"Expression cannot reference itself: {t.Text}");
-                            }
-
-                            deps.Add(attrId.Id);
-                            output.Add(Instruction.A(attrId));
-                            prevWasValue = true;
-                            break;
-                        }
                         case TokenKind.LParen:
                             stack.Add(StackItem.L());
                             prevWasValue = false;
                             break;
+
                         case TokenKind.RParen:
                             PopUntilLParen(output, stack);
                             prevWasValue = true;
                             break;
+
                         case TokenKind.Comma:
                             PopUntilLParen(output, stack, keepLParen: true);
                             prevWasValue = false;
                             break;
+
                         case TokenKind.Plus:
                         case TokenKind.Minus:
                         case TokenKind.Star:
                         case TokenKind.Slash:
-                        {
-                            var unary = (t.Kind == TokenKind.Minus || t.Kind == TokenKind.Plus) && !prevWasValue;
-                            PushOperator(output, stack, t.Kind, unary);
-                            prevWasValue = false;
-                            break;
-                        }
+                            {
+                                var unary = (t.Kind == TokenKind.Minus || t.Kind == TokenKind.Plus) && !prevWasValue;
+                                PushOperator(output, stack, t.Kind, unary);
+                                prevWasValue = false;
+                                break;
+                            }
+
                         case TokenKind.End:
                             i = tokens.Count;
                             break;
+
                         default:
                             throw new InvalidOperationException($"Unsupported token: {t.Kind}");
                     }

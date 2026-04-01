@@ -37,6 +37,42 @@
 
 ---
 
+## 📖 与 AbilityKit.Modifiers 的集成
+
+属性系统基于 AbilityKit.Modifiers 构建，享受统一的修改器计算框架。
+
+### 架构关系
+
+```
+┌─────────────────────────────────────────────────────┐
+│              AbilityKit.Attributes                    │
+│  ┌─────────────────────────────────────────────┐  │
+│  │ AttributeContext      ← 属性存储、生命周期    │  │
+│  │ AttributeInstance    ← 修改器槽、脏值追踪    │  │
+│  │ AttributeEffect      ← 修改器效果应用        │  │
+│  │ 依赖追踪、约束、公式  ← 属性特有逻辑         │  │
+│  └─────────────────────────────────────────────┘  │
+│                       ↓ 使用                        │
+│  ┌─────────────────────────────────────────────┐  │
+│  │           AbilityKit.Modifiers               │  │
+│  │  ModifierData    ← 通用数据结构              │  │
+│  │  ModifierCalculator ← 通用计算引擎            │  │
+│  │  IModifierHandler<T> ← 扩展接口              │  │
+│  └─────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+```
+
+### 兼容性
+
+| 功能 | 说明 |
+|------|------|
+| AttributeModifier → ModifierData | 支持双向转换 |
+| AttributeModifierSet → ModifierResult | 支持转换 |
+| AttributeContext 实现 IModifierContext | 可与 ModifierCalculator 配合 |
+| IAttributeFormula 支持新版 API | 可直接使用 ModifierResult |
+
+---
+
 ## 📖 概念速查
 
 ### 核心类
@@ -48,7 +84,7 @@
 | `AttributeContext` | 属性上下文，管理实体的所有属性 |
 | `AttributeGroup` | 属性组，管理一组相关属性 |
 | `AttributeInstance` | 属性实例，具体的属性值 |
-| `AttributeModifier` | 修饰器，修改属性值 |
+| `AttributeModifier` | 修饰器，修改属性值（可转换为 ModifierData） |
 | `AttributeEffect` | 效果，多个修饰器的组合 |
 
 ### 修饰器操作
@@ -78,6 +114,7 @@ value = Override (如果有 Override)
 
 ## 🔗 相关文档
 
+- [修改器模块](../com.abilitykit.modifiers/README.md) - 通用修改器计算框架
 - [实体管理模块](../com.abilitykit.combat.entitymanager/Document/) - 实体查询系统
 - [技能库模块](../com.abilitykit.combat.skilllibrary/Document/) - 技能数据管理
 - [能力管线模块](../com.abilitykit.pipeline/Document/能力管线模块开发设计文档.md) - 技能执行
@@ -103,18 +140,20 @@ com.abilitykit.attributes/Runtime/Ability/Share/Common/AttributeSystem/
 ├── Attributes.cs                        # 静态门面类
 ├── AttributeId.cs                       # 属性ID
 ├── AttributeDef.cs                      # 属性定义
-├── AttributeContext.cs                  # 属性上下文
+├── AttributeContext.cs                  # 属性上下文（实现 IModifierContext）
 ├── AttributeGroup.cs                    # 属性组
-├── AttributeInstance.cs                 # 属性实例
-├── AttributeModifier.cs                 # 修饰器
+├── AttributeInstance.cs                 # 属性实例（可使用 ModifierCalculator）
+├── AttributeModifier.cs                 # 修饰器（可转换为 ModifierData）
 ├── AttributeEffect.cs                   # 效果
 ├── AttributeRegistry.cs                  # 注册表
-├── IAttributeFormula.cs                 # 公式接口
+├── IAttributeFormula.cs                # 公式接口（支持 ModifierResult）
 ├── DefaultAttributeFormula.cs           # 默认公式
+├── AttributeExpressionFormula.cs       # 表达式公式
 ├── IAttributeConstraint.cs              # 约束接口
-└── RangeAttributeConstraint.cs          # 范围约束
+├── RangeAttributeConstraint.cs          # 范围约束
+└── IAttributeDependencyProvider.cs     # 依赖提供者
 ```
 
 ---
 
-*最后更新：2026-03-19*
+*最后更新：2026-03-31*

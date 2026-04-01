@@ -1,0 +1,20 @@
+{
+    "name": "com.abilitykit.modifiers",
+    "version": "0.1.0",
+    "displayName": "AbilityKit Modifiers",
+    "description": "通用修改器计算模块，对标 GAS 的 Attribute Modifiers",
+    "unity": "2022.3",
+    "documentationUrl": "",
+    "changelogUrl": "",
+    "licensesUrl": "",
+    "keywords": [
+        "abilitykit",
+        "modifiers",
+        "gameplay"
+    ],
+    "author": {
+        "name": "AbilityKit Team"
+    },
+    "dependencies": {},
+    "samples": []
+}

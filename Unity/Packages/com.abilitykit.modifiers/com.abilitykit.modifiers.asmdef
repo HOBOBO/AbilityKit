@@ -1,0 +1,14 @@
+{
+    "name": "AbilityKit.Modifiers",
+    "rootNamespace": "AbilityKit.Modifiers",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

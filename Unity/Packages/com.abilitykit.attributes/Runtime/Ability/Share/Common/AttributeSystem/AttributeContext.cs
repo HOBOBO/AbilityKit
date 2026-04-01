@@ -1,15 +1,41 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Modifiers;
 
 namespace AbilityKit.Ability.Share.Common.AttributeSystem
 {
-    public sealed class AttributeContext : IAttributeProvider
+    /// <summary>
+    /// 属性上下文。
+    /// 实现 IModifierContext 接口，可以与 AbilityKit.Modifiers 配合使用。
+    /// </summary>
+    public sealed class AttributeContext : IModifierContext
     {
         private readonly Dictionary<string, AttributeGroup> _groups = new Dictionary<string, AttributeGroup>(StringComparer.Ordinal);
 
         public IReadOnlyDictionary<string, AttributeGroup> Groups => _groups;
 
+        /// <summary>
+        /// 当前等级（用于 ScalableFloat 曲线插值）
+        /// </summary>
+        public float Level { get; set; } = 1f;
+
         public event Action<string, AttributeId, float, float> AttributeChanged;
+
+        #region IModifierContext
+
+        /// <summary>
+        /// 获取属性值（实现 IModifierContext）
+        /// </summary>
+        float IModifierContext.GetAttribute(ModifierKey key)
+        {
+            // 将 ModifierKey 转换回 AttributeId
+            // 这里需要通过 ModifierKey 的 Packed 值来查找
+            var attrId = FindAttributeIdByKey(key);
+            if (!attrId.IsValid) return 0f;
+            return GetValue(attrId);
+        }
+
+        #endregion
 
         public AttributeGroup GetOrCreateGroup(string group)
         {
@@ -87,5 +113,22 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
 
             return list.Count == 0 ? null : new AttributeEffectHandle(this, list);
         }
+
+        #region 内部方法
+
+        /// <summary>
+        /// 通过 ModifierKey 查找 AttributeId
+        /// 默认实现：ModifierKey.Packed 与 AttributeId.Id 相同
+        /// 业务层可继承后实现更复杂的映射
+        /// </summary>
+        internal AttributeId FindAttributeIdByKey(ModifierKey key)
+        {
+            // 默认映射：ModifierKey.Packed 的低 8 位作为 AttributeId
+            // 业务层可以在子类中实现更复杂的映射逻辑
+            if (key.IsEmpty) return default;
+            return new AttributeId((int)key.Packed);
+        }
+
+        #endregion
     }
 }

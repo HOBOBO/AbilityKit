@@ -1,8 +1,9 @@
-﻿{
+{
     "name":  "AbilityKit.Attributes",
     "rootNamespace":  "AbilityKit",
     "references":  [
-                       "AbilityKit.Core"
+                       "AbilityKit.Core",
+                       "AbilityKit.Modifiers"
                    ],
     "includePlatforms":  [
 
