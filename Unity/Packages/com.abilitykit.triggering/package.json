@@ -6,6 +6,7 @@
   "description": "AbilityKit triggering runtime/editor package (typed events + triggers).",
   "author": { "name": "AbilityKit" },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1"
+    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.modifiers": "0.0.1"
   }
 }

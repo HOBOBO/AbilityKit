@@ -4,21 +4,57 @@ using System.Collections.Generic;
 namespace AbilityKit.Triggering.Runtime.Executable
 {
     /// <summary>
-    /// 调度执行器
+    /// 调度执行器 - 支持 IScheduledExecutable 和 IComposableExecutable
     /// </summary>
     public sealed class ScheduledExecutor
     {
         private readonly Dictionary<long, ControllerEntry> _controllers = new();
         private long _nextHandleId;
 
+        /// <summary>行为句柄信息</summary>
         public long Start(
             IScheduledExecutable executable,
             object ctx,
             Action<long> onCompleted = null,
             Action<long, string> onInterrupted = null)
         {
+            return StartInternal(executable, ctx, onCompleted, onInterrupted);
+        }
+
+        /// <summary>
+        /// 启动可组合行为
+        /// </summary>
+        public long StartComposable(
+            IComposableExecutable executable,
+            object ctx,
+            Action<long> onCompleted = null,
+            Action<long, string> onInterrupted = null)
+        {
+            return StartInternal(executable, ctx, onCompleted, onInterrupted);
+        }
+
+        private long StartInternal(
+            ISimpleExecutable executable,
+            object ctx,
+            Action<long> onCompleted,
+            Action<long, string> onInterrupted)
+        {
             var handleId = ++_nextHandleId;
-            var controller = ScheduledExecutableFactory.CreateController(executable, ctx);
+            IScheduleController controller;
+
+            if (executable is IScheduledExecutable scheduled)
+            {
+                controller = ScheduledExecutableFactory.CreateController(scheduled, ctx);
+            }
+            else if (executable is IComposableExecutable composable && composable.Inner is IScheduledExecutable innerScheduled)
+            {
+                controller = ScheduledExecutableFactory.CreateController(innerScheduled, ctx);
+            }
+            else
+            {
+                // 不支持调度的行为，创建一个虚拟控制器
+                controller = NullScheduleController.Instance;
+            }
 
             _controllers[handleId] = new ControllerEntry
             {
@@ -29,7 +65,34 @@ namespace AbilityKit.Triggering.Runtime.Executable
                 OnInterrupted = onInterrupted
             };
 
+            // 初始化 DurationDecorator
+            if (executable is IComposableExecutable comp)
+            {
+                InitializeDecorators(comp, ctx, handleId);
+            }
+
             return handleId;
+        }
+
+        private void InitializeDecorators(IComposableExecutable executable, object ctx, long handleId)
+        {
+            // 设置 DurationDecorator 的过期回调
+            if (executable is IDurationDecorator durationDeco)
+            {
+                durationDeco.OnExpired += _ =>
+                {
+                    if (_controllers.TryGetValue(handleId, out var entry))
+                    {
+                        entry.Controller.RequestInterrupt("Duration expired");
+                    }
+                };
+            }
+
+            // 递归初始化内部行为
+            if (executable.Inner is IComposableExecutable innerDeco)
+            {
+                InitializeDecorators(innerDeco, ctx, handleId);
+            }
         }
 
         public bool Interrupt(long handleId, string reason)
@@ -40,10 +103,22 @@ namespace AbilityKit.Triggering.Runtime.Executable
             if (entry.Controller.IsCompleted || entry.Controller.IsInterrupted)
                 return false;
 
-            if (entry.Executable is ExternalControlledExecutable ext && !ext.CanBeInterrupted)
+            // 检查 CanBeInterrupted
+            if (!CanBeInterrupted(entry.Executable))
                 return false;
 
             entry.Controller.RequestInterrupt(reason);
+            return true;
+        }
+
+        private bool CanBeInterrupted(ISimpleExecutable executable)
+        {
+            if (executable is ExternalControlledExecutable ext && !ext.CanBeInterrupted)
+                return false;
+
+            if (executable is IComposableExecutable comp && comp.Inner != null)
+                return CanBeInterrupted(comp.Inner);
+
             return true;
         }
 
@@ -72,7 +147,14 @@ namespace AbilityKit.Triggering.Runtime.Executable
                 }
                 else
                 {
+                    // 更新调度控制器
                     entry.Controller.Update(deltaTimeMs);
+
+                    // 更新 DurationDecorator
+                    if (entry.Executable is IComposableExecutable comp)
+                    {
+                        UpdateDecorators(comp, entry.Context, deltaTimeMs, kvp.Key);
+                    }
                 }
             }
 
@@ -82,12 +164,74 @@ namespace AbilityKit.Triggering.Runtime.Executable
             }
         }
 
+        private void UpdateDecorators(IComposableExecutable executable, object ctx, float deltaTimeMs, long handleId)
+        {
+            if (executable is IDurationDecorator durationDeco)
+            {
+                if (durationDeco.Update(ctx, deltaTimeMs))
+                {
+                    // DurationDecorator 过期，通知控制器
+                    if (_controllers.TryGetValue(handleId, out var entry))
+                    {
+                        entry.Controller.RequestInterrupt("Duration expired");
+                    }
+                }
+            }
+
+            if (executable.Inner is IComposableExecutable innerDeco)
+            {
+                UpdateDecorators(innerDeco, ctx, deltaTimeMs, handleId);
+            }
+        }
+
+        /// <summary>
+        /// 获取行为的持续时间装饰器
+        /// </summary>
+        public bool TryGetDurationDecorator(long handleId, out IDurationDecorator decorator)
+        {
+            decorator = null;
+            if (!_controllers.TryGetValue(handleId, out var entry))
+                return false;
+
+            return TryFindDurationDecorator(entry.Executable, out decorator);
+        }
+
+        private bool TryFindDurationDecorator(ISimpleExecutable executable, out IDurationDecorator decorator)
+        {
+            decorator = null;
+            if (executable is IDurationDecorator deco)
+            {
+                decorator = deco;
+                return true;
+            }
+
+            if (executable is IComposableExecutable comp && comp.Inner != null)
+            {
+                return TryFindDurationDecorator(comp.Inner, out decorator);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 刷新行为的持续时间
+        /// </summary>
+        public bool RefreshDuration(long handleId, float additionalMs)
+        {
+            if (TryGetDurationDecorator(handleId, out var decorator))
+            {
+                decorator.Refresh(additionalMs);
+                return true;
+            }
+            return false;
+        }
+
         public void InterruptAll(string reason)
         {
             foreach (var kvp in _controllers)
             {
                 var entry = kvp.Value;
-                if (entry.Executable is ExternalControlledExecutable ext && !ext.CanBeInterrupted) continue;
+                if (!CanBeInterrupted(entry.Executable)) continue;
 
                 if (!entry.Controller.IsCompleted && !entry.Controller.IsInterrupted)
                 {
@@ -104,7 +248,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         public struct ControllerEntry
         {
-            public IScheduledExecutable Executable;
+            public ISimpleExecutable Executable;
             public IScheduleController Controller;
             public object Context;
             public Action<long> OnCompleted;

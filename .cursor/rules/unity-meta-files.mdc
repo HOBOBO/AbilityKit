@@ -1,0 +1,35 @@
+---
+description: Unity meta file handling - never manually create .meta files
+alwaysApply: true
+---
+
+# Unity .meta File Handling
+
+## Important
+
+**Never manually create .meta files.** Unity automatically generates and manages .meta files for all assets. When creating new .cs, .asset, .json, or any other asset files in the Unity project, do NOT create corresponding .meta files manually.
+
+### What to do instead
+
+- Only create the actual asset/source files
+- Unity will generate .meta files automatically when importing
+- If .meta files are missing or need regeneration, let the user handle it via Unity Editor
+
+### Examples
+
+```csharp
+// ❌ WRONG - Don't do this
+Write: "Unity/Packages/example/Example.cs"
+Write: "Unity/Packages/example/Example.cs.meta"  // Don't create this!
+
+// ✅ CORRECT - Only create the main file
+Write: "Unity/Packages/example/Example.cs"
+// Unity will handle the .meta file automatically
+```
+
+## Summary
+
+| Action | Required? |
+|--------|-----------|
+| Create .cs/.asset/.json files | Yes |
+| Create corresponding .meta files | No |
