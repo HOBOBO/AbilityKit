@@ -1,10 +1,3 @@
+// Re-export IPlanActionModule from the triggering package (non-generic)
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Triggering.Registry;
-
-namespace AbilityKit.Ability.Impl.Moba.Systems
-{
-    public interface IPlanActionModule
-    {
-        void Register(ActionRegistry actions, IWorldResolver services);
-    }
-}
+using IPlanActionModule = AbilityKit.Triggering.Runtime.Plan.IPlanActionModule;

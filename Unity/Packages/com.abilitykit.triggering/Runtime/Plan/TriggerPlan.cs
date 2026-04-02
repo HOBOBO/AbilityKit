@@ -1,6 +1,7 @@
+using System;
+using System.Collections.Generic;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
-using System.Collections.Generic;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
@@ -11,12 +12,19 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly NumericValueRef Arg0;
         public readonly NumericValueRef Arg1;
 
+        /// <summary>
+        /// 具名参数字典（key=参数名，value=参数值引用）
+        /// 为 null 时表示向后兼容的位置参数模式（使用 Arg0/Arg1）
+        /// </summary>
+        public readonly Dictionary<string, ActionArgValue> Args;
+
         public ActionCallPlan(ActionId id)
         {
             Id = id;
             Arity = 0;
             Arg0 = default;
             Arg1 = default;
+            Args = null;
         }
 
         public ActionCallPlan(ActionId id, NumericValueRef arg0)
@@ -25,6 +33,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Arity = 1;
             Arg0 = arg0;
             Arg1 = default;
+            Args = null;
         }
 
         public ActionCallPlan(ActionId id, double arg0)
@@ -38,12 +47,36 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Arity = 2;
             Arg0 = arg0;
             Arg1 = arg1;
+            Args = null;
         }
 
         public ActionCallPlan(ActionId id, double arg0, double arg1)
             : this(id, NumericValueRef.Const(arg0), NumericValueRef.Const(arg1))
         {
         }
+
+        /// <summary>
+        /// 创建带有具名参数的 ActionCallPlan
+        /// Arity 由 Args 字典中的条目数量决定
+        /// </summary>
+        public static ActionCallPlan WithArgs(ActionId id, Dictionary<string, ActionArgValue> args)
+        {
+            return new ActionCallPlan(id, args);
+        }
+
+        private ActionCallPlan(ActionId id, Dictionary<string, ActionArgValue> args)
+        {
+            Id = id;
+            Arity = (byte)(args != null ? args.Count : 0);
+            Arg0 = default;
+            Arg1 = default;
+            Args = args;
+        }
+
+        /// <summary>
+        /// 是否使用了具名参数模式
+        /// </summary>
+        public bool HasNamedArgs => Args != null && Args.Count > 0;
     }
 
     public readonly struct TriggerPlan<TArgs>
@@ -263,6 +296,56 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public TriggerPlan(int phase, int priority, int triggerId, int interruptPriority, ActionCallPlan[] actions)
             : this(phase, priority, triggerId, interruptPriority, actions, null)
         {
+        }
+    }
+
+    /// <summary>
+    /// ActionCallPlan 的扩展方法
+    /// </summary>
+    public static class ActionCallPlanExtensions
+    {
+        /// <summary>
+        /// 创建带有一个具名参数的 ActionCallPlan
+        /// </summary>
+        public static ActionCallPlan WithArg(this ActionId id, string name, double value)
+        {
+            return ActionCallPlan.WithArgs(id, new Dictionary<string, ActionArgValue>
+            {
+                [name] = ActionArgValue.OfConst(value, name)
+            });
+        }
+
+        /// <summary>
+        /// 创建带有两个具名参数的 ActionCallPlan
+        /// </summary>
+        public static ActionCallPlan WithArgs(this ActionId id, string name0, double value0, string name1, double value1)
+        {
+            return ActionCallPlan.WithArgs(id, new Dictionary<string, ActionArgValue>
+            {
+                [name0] = ActionArgValue.OfConst(value0, name0),
+                [name1] = ActionArgValue.OfConst(value1, name1)
+            });
+        }
+
+        /// <summary>
+        /// 创建带有三个具名参数的 ActionCallPlan
+        /// </summary>
+        public static ActionCallPlan WithArgs(this ActionId id, string name0, double value0, string name1, double value1, string name2, double value2)
+        {
+            return ActionCallPlan.WithArgs(id, new Dictionary<string, ActionArgValue>
+            {
+                [name0] = ActionArgValue.OfConst(value0, name0),
+                [name1] = ActionArgValue.OfConst(value1, name1),
+                [name2] = ActionArgValue.OfConst(value2, name2)
+            });
+        }
+
+        /// <summary>
+        /// 创建带有具名参数的 ActionCallPlan
+        /// </summary>
+        public static ActionCallPlan WithArgs(this ActionId id, Dictionary<string, ActionArgValue> args)
+        {
+            return ActionCallPlan.WithArgs(id, args);
         }
     }
 }

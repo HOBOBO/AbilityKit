@@ -80,13 +80,35 @@ namespace AbilityKit.Ability.Editor.Utilities
             for (int i = 0; i < actions.Length; i++)
             {
                 var a = actions[i];
-                list.Add(new ActionCallPlanDto
+                var dto = new ActionCallPlanDto
                 {
                     ActionId = a.Id.Value,
                     Arity = a.Arity,
                     Arg0 = BuildNumericValueRefDto(in a.Arg0),
                     Arg1 = BuildNumericValueRefDto(in a.Arg1)
-                });
+                };
+
+                // 优先序列化具名参数（新版格式）
+                if (a.HasNamedArgs)
+                {
+                    dto.Args = new Dictionary<string, NumericValueRefDto>(a.Args.Count);
+                    foreach (var kv in a.Args)
+                    {
+                        dto.Args[kv.Key] = new NumericValueRefDto
+                        {
+                            Kind = kv.Value.Ref.Kind.ToString(),
+                            ConstValue = kv.Value.Ref.ConstValue,
+                            BoardId = kv.Value.Ref.BoardId,
+                            KeyId = kv.Value.Ref.KeyId,
+                            FieldId = kv.Value.Ref.FieldId,
+                            DomainId = kv.Value.Ref.DomainId,
+                            Key = kv.Value.Ref.Key,
+                            ExprText = kv.Value.Ref.ExprText
+                        };
+                    }
+                }
+
+                list.Add(dto);
             }
             return list;
         }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
+using IPlanActionModule = AbilityKit.Triggering.Runtime.Plan.IPlanActionModule;
 
 namespace AbilityKit.Ability.Impl.Moba.Systems
 {

@@ -40,8 +40,18 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         private void EnsurePlanInitialized()
         {
-            if (_planInitialized) return;
-            if (_planDb == null || _planRunner == null || _planActions == null) return;
+            if (_planInitialized)
+            {
+                Log.Info("[MobaEffectExecutionService] EnsurePlanInitialized: already initialized");
+                return;
+            }
+            if (_planDb == null || _planRunner == null || _planActions == null)
+            {
+                Log.Warning($"[MobaEffectExecutionService] EnsurePlanInitialized: skipped. _planDb={_planDb != null}, _planRunner={_planRunner != null}, _planActions={_planActions != null}");
+                return;
+            }
+
+            Log.Info("[MobaEffectExecutionService] EnsurePlanInitialized: starting...");
 
             // Register real actions (override stubs)
             try
@@ -206,8 +216,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 var actionId = call.Id;
                 if (actionId.Value == 0) continue;
 
-                // Prefer registering by call.Arity if available; otherwise infer by parameter presence.
-                // ActionCallPlan.Arity is expected to be set by TriggerPlanJsonDatabase.BuildActions.
+                var hasNamedArgs = call.HasNamedArgs;
+                if (hasNamedArgs)
+                {
+                    // 具名参数模式的 Action 不注册 stub
+                    // 因为 PlanActionModule 会注册正确类型的 NamedAction<TArgs> 委托
+                    // 注册 stub 会导致类型不匹配
+                    continue;
+                }
+
+                // 注册传统 Action stub（向后兼容）
                 var arity = call.Arity;
                 switch (arity)
                 {
@@ -228,7 +246,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         {
             if (triggerId <= 0) return false;
             if (_planDb == null) return false;
-            if (!_planDb.TryGetPlanByTriggerId(triggerId, out var plan)) return false;
+            if (!_planDb.TryGetPlanByTriggerId(triggerId, out var plan))
+            {
+                Log.Warning($"[MobaEffectExecutionService] TryExecutePlanByTriggerId: triggerId={triggerId} not found in _planDb");
+                return false;
+            }
+
+            Log.Info($"[MobaEffectExecutionService] TryExecutePlanByTriggerId: found plan for triggerId={triggerId}, actions count={plan.Actions?.Length ?? 0}");
 
             if (_planEventBus == null || _planFunctions == null || _planActions == null)
             {
@@ -362,13 +386,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             Log.Warning($"[MobaEffectExecutionService] Effect execution skipped (no TriggerPlan found for triggerId={effectId}).");
         }
 
-        // Active invocation: execute triggers by triggerId directly (no event subscription involved).
-        // Note: This is intentionally different from publishing an event; it is used by systems like projectiles that own their triggers.
         public void ExecuteTriggerId(int triggerId, object payload = null)
         {
             if (triggerId <= 0) return;
 
             EnsurePlanInitialized();
+
+            Log.Info($"[MobaEffectExecutionService] ExecuteTriggerId: triggerId={triggerId}, initialized={_planInitialized}");
 
             // Plan first (active triggers may have EventId=0 and are executed by TriggerId).
             if (TryExecutePlanByTriggerId(triggerId, payload)) return;

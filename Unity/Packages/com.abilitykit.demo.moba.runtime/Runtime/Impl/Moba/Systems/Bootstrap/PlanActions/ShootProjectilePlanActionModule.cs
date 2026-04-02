@@ -1,8 +1,7 @@
-using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
@@ -15,27 +14,32 @@ using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Ability.Impl.Moba.Systems
 {
+    /// <summary>
+    /// 发射投射物的Plan Action模块
+    /// 使用强类型参数 Schema API
+    /// </summary>
     [PlanActionModule(order: 10)]
-    public sealed class ShootProjectilePlanActionModule : PlanActionModuleBase
+    public sealed class ShootProjectilePlanActionModule : NamedArgsPlanActionModuleBase<ShootProjectileArgs, IWorldResolver, ShootProjectilePlanActionModule>
     {
-        protected override string ActionName => "shoot_projectile";
-        protected override bool HasAction2 => true;
+        protected override ActionId ActionId => TriggeringConstants.ShootProjectileId;
+        protected override IActionSchema<ShootProjectileArgs, IWorldResolver> Schema => ShootProjectileSchema.Instance;
 
-        protected override void Execute2(object args, double a0, double a1, ExecCtx<IWorldResolver> ctx)
+        protected override void Execute(object triggerArgs, ShootProjectileArgs args, ExecCtx<IWorldResolver> ctx)
         {
-            if (!PlanActionRegisterUtil.TryToIntId(a0, out var launcherId, logScope: "Plan")
-                || !PlanActionRegisterUtil.TryToIntId(a1, out var projectileId, logScope: "Plan"))
+            var launcherId = args.LauncherId;
+            var projectileId = args.ProjectileId;
+
+            if (launcherId <= 0 || projectileId <= 0)
             {
-                Log.Warning($"[Plan] shoot_projectile invalid args. launcherIdRaw={a0} projectileIdRaw={a1}");
+                Log.Warning($"[Plan] shoot_projectile invalid args. launcherId={launcherId} projectileId={projectileId}");
                 return;
             }
-            if (launcherId <= 0 || projectileId <= 0) return;
 
             if (!ctx.Context.TryResolve<MobaProjectileService>(out var projectileSvc) || projectileSvc == null) return;
             if (!ctx.Context.TryResolve<MobaConfigDatabase>(out var configs) || configs == null) return;
 
-            if (!PlanContextValueResolver.TryGetCasterActorId(args, out var casterActorId)) return;
-            PlanContextValueResolver.TryGetAim(args, out var aimPos, out var aimDir);
+            if (!PlanContextValueResolver.TryGetCasterActorId(triggerArgs, out var casterActorId)) return;
+            PlanContextValueResolver.TryGetAim(triggerArgs, out var aimPos, out var aimDir);
 
             ProjectileLauncherMO launcher = null;
             ProjectileMO projectile = null;

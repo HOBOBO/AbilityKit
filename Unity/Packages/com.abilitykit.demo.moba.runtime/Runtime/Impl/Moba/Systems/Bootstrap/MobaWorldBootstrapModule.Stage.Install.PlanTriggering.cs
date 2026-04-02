@@ -12,15 +12,19 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
         {
             try
             {
+                Log.Info("[MobaWorldBootstrapModule] InstallPlanTriggering: starting...");
                 if (services.TryResolve<TriggerPlanJsonDatabase>(out var db) && db != null
                     && services.TryResolve<ActionRegistry>(out var acts) && acts != null
                     && services.TryResolve<AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver>>(out var runner) && runner != null)
                 {
+                    Log.Info($"[MobaWorldBootstrapModule] InstallPlanTriggering: found deps. db={db != null}, acts={acts != null}, runner={runner != null}");
+
                     RegisterStubActionsFromPlans(db, acts);
 
                     if (services.TryResolve<PlanActionModuleRegistry>(out var registry) && registry != null && registry.Modules != null)
                     {
                         var modules = registry.Modules;
+                        Log.Info($"[MobaWorldBootstrapModule] InstallPlanTriggering: registering {modules.Length} PlanActionModules");
                         for (int i = 0; i < modules.Length; i++)
                         {
                             var m = modules[i];
@@ -35,7 +39,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 }
                 else
                 {
-                    Log.Info("[MobaWorldBootstrapModule] PlanTriggering init skipped (missing deps)");
+                    Log.Info("[MobaWorldBootstrapModule] InstallPlanTriggering init skipped (missing deps)");
                 }
             }
             catch (Exception ex)

@@ -19,6 +19,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public delegate void Action1(TArgs args, double arg0, ExecCtx<TCtx> ctx);
         public delegate void Action2(TArgs args, double arg0, double arg1, ExecCtx<TCtx> ctx);
 
+        // NamedAction0/1/2 delegates are defined in NamedArgsPlanActionModuleBase.cs
+        // to avoid circular dependency
+
         private readonly TriggerPlan<TArgs> _plan;
         private bool _resolved;
 
@@ -29,6 +32,20 @@ namespace AbilityKit.Triggering.Runtime.Plan
         private Action0[] _actions0;
         private Action1[] _actions1;
         private Action2[] _actions2;
+
+        /// <summary>
+        /// 具名参数模式的 Action 委托数组
+        /// 与 _actions0/1/2 并行存储，但优先级更高（有 NamedArgs 时用这些）
+        /// 注意：TActionArgs 固定为 object，因为 Schema 会在运行时将其解析为强类型
+        /// </summary>
+        private NamedAction0<TArgs, object, TCtx>[] _namedActions0;
+        private NamedAction1<TArgs, object, TCtx>[] _namedActions1;
+        private NamedAction2<TArgs, object, TCtx>[] _namedActions2;
+
+        /// <summary>
+        /// 标记哪些 Action 使用了具名参数模式（与 actions 数组索引对应）
+        /// </summary>
+        private bool[] _useNamedArgs;
 
         /// <inheritdoc />
         public ITriggerCue Cue => _plan.Cue;
@@ -80,19 +97,43 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 for (int i = 0; i < actions.Length; i++)
                 {
                     var call = actions[i];
-                    switch (call.Arity)
+
+                    if (call.HasNamedArgs && _useNamedArgs[i])
                     {
-                        case 0:
-                            _actions0[i](args, ctx);
-                            break;
-                        case 1:
-                            _actions1[i](args, ResolveNumeric(in args, in call.Arg0, in ctx), ctx);
-                            break;
-                        case 2:
-                            _actions2[i](args, ResolveNumeric(in args, in call.Arg0, in ctx), ResolveNumeric(in args, in call.Arg1, in ctx), ctx);
-                            break;
-                        default:
-                            throw new InvalidOperationException($"Unsupported action arity: {call.Arity}");
+                        // 具名参数模式：通过 Schema 解析后传给 NamedAction 委托
+                        var rawArgs = ResolveNamedArgs(in args, in call, in ctx);
+                        switch (call.Arity)
+                        {
+                            case 0:
+                                _namedActions0[i](args, default, ctx);
+                                break;
+                            case 1:
+                                _namedActions1[i](args, rawArgs, ctx);
+                                break;
+                            case 2:
+                                _namedActions2[i](args, rawArgs, ctx);
+                                break;
+                            default:
+                                throw new InvalidOperationException($"Unsupported action arity (named): {call.Arity}");
+                        }
+                    }
+                    else
+                    {
+                        // 向后兼容位置参数模式
+                        switch (call.Arity)
+                        {
+                            case 0:
+                                _actions0[i](args, ctx);
+                                break;
+                            case 1:
+                                _actions1[i](args, ResolveNumeric(in args, in call.Arg0, in ctx), ctx);
+                                break;
+                            case 2:
+                                _actions2[i](args, ResolveNumeric(in args, in call.Arg0, in ctx), ResolveNumeric(in args, in call.Arg1, in ctx), ctx);
+                                break;
+                            default:
+                                throw new InvalidOperationException($"Unsupported action arity: {call.Arity}");
+                        }
                     }
 
                     if (ctx.Control != null && (ctx.Control.StopPropagation || ctx.Control.Cancel)) return;
@@ -151,40 +192,129 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 _actions0 = new Action0[len];
                 _actions1 = new Action1[len];
                 _actions2 = new Action2[len];
+                _namedActions0 = new NamedAction0<TArgs, object, TCtx>[len];
+                _namedActions1 = new NamedAction1<TArgs, object, TCtx>[len];
+                _namedActions2 = new NamedAction2<TArgs, object, TCtx>[len];
+                _useNamedArgs = new bool[len];
 
                 for (int i = 0; i < len; i++)
                 {
                     var call = _plan.Actions[i];
-                    switch (call.Arity)
+
+                    if (call.HasNamedArgs)
                     {
-                        case 0:
-                            if (!ctx.Actions.TryGet<Action0>(call.Id, out var a0, out var a0Det))
-                                throw new InvalidOperationException($"Action not found or signature mismatch. id={FormatActionId(in ctx, call.Id)} arity=0");
-                            if (ctx.Policy.RequireDeterministic && !a0Det)
-                                throw new InvalidOperationException($"Non-deterministic action is not allowed by policy. id={FormatActionId(in ctx, call.Id)}");
-                            _actions0[i] = a0;
-                            break;
-                        case 1:
-                            if (!ctx.Actions.TryGet<Action1>(call.Id, out var a1, out var a1Det))
-                                throw new InvalidOperationException($"Action not found or signature mismatch. id={FormatActionId(in ctx, call.Id)} arity=1");
-                            if (ctx.Policy.RequireDeterministic && !a1Det)
-                                throw new InvalidOperationException($"Non-deterministic action is not allowed by policy. id={FormatActionId(in ctx, call.Id)}");
-                            _actions1[i] = a1;
-                            break;
-                        case 2:
-                            if (!ctx.Actions.TryGet<Action2>(call.Id, out var a2, out var a2Det))
-                                throw new InvalidOperationException($"Action not found or signature mismatch. id={FormatActionId(in ctx, call.Id)} arity=2");
-                            if (ctx.Policy.RequireDeterministic && !a2Det)
-                                throw new InvalidOperationException($"Non-deterministic action is not allowed by policy. id={FormatActionId(in ctx, call.Id)}");
-                            _actions2[i] = a2;
-                            break;
-                        default:
-                            throw new InvalidOperationException($"Unsupported action arity: {call.Arity}");
+                        // 具名参数模式：尝试注册 NamedAction 委托
+                        var namedResolved = TryResolveNamedAction(call, i, ctx);
+                        if (!namedResolved)
+                        {
+                            // 如果 NamedAction 注册失败，fallback 到位置参数模式
+                            TryResolveLegacyAction(call, i, ctx);
+                        }
+                    }
+                    else
+                    {
+                        // 传统位置参数模式
+                        TryResolveLegacyAction(call, i, ctx);
                     }
                 }
             }
 
             _resolved = true;
+        }
+
+        /// <summary>
+        /// 尝试解析具名参数模式的 Action 委托
+        /// </summary>
+        private bool TryResolveNamedAction(ActionCallPlan call, int i, in ExecCtx<TCtx> ctx)
+        {
+            switch (call.Arity)
+            {
+                case 0:
+                    if (ctx.Actions.TryGet<NamedAction0<TArgs, object, TCtx>>(call.Id, out var na0, out var na0Det))
+                    {
+                        if (ctx.Policy.RequireDeterministic && !na0Det)
+                            throw new InvalidOperationException($"Non-deterministic named action is not allowed. id={FormatActionId(in ctx, call.Id)}");
+                        _namedActions0[i] = na0;
+                        _useNamedArgs[i] = true;
+                        return true;
+                    }
+                    return false;
+
+                case 1:
+                    if (ctx.Actions.TryGet<NamedAction1<TArgs, object, TCtx>>(call.Id, out var na1, out var na1Det))
+                    {
+                        if (ctx.Policy.RequireDeterministic && !na1Det)
+                            throw new InvalidOperationException($"Non-deterministic named action is not allowed. id={FormatActionId(in ctx, call.Id)}");
+                        _namedActions1[i] = na1;
+                        _useNamedArgs[i] = true;
+                        return true;
+                    }
+                    return false;
+
+                case 2:
+                    if (ctx.Actions.TryGet<NamedAction2<TArgs, object, TCtx>>(call.Id, out var na2, out var na2Det))
+                    {
+                        if (ctx.Policy.RequireDeterministic && !na2Det)
+                            throw new InvalidOperationException($"Non-deterministic named action is not allowed. id={FormatActionId(in ctx, call.Id)}");
+                        _namedActions2[i] = na2;
+                        _useNamedArgs[i] = true;
+                        return true;
+                    }
+                    return false;
+
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// 解析传统位置参数模式的 Action 委托
+        /// </summary>
+        private void TryResolveLegacyAction(ActionCallPlan call, int i, in ExecCtx<TCtx> ctx)
+        {
+            switch (call.Arity)
+            {
+                case 0:
+                    if (!ctx.Actions.TryGet<Action0>(call.Id, out var a0, out var a0Det))
+                        throw new InvalidOperationException($"Action not found or signature mismatch. id={FormatActionId(in ctx, call.Id)} arity=0");
+                    if (ctx.Policy.RequireDeterministic && !a0Det)
+                        throw new InvalidOperationException($"Non-deterministic action is not allowed by policy. id={FormatActionId(in ctx, call.Id)}");
+                    _actions0[i] = a0;
+                    break;
+                case 1:
+                    if (!ctx.Actions.TryGet<Action1>(call.Id, out var a1, out var a1Det))
+                        throw new InvalidOperationException($"Action not found or signature mismatch. id={FormatActionId(in ctx, call.Id)} arity=1");
+                    if (ctx.Policy.RequireDeterministic && !a1Det)
+                        throw new InvalidOperationException($"Non-deterministic action is not allowed by policy. id={FormatActionId(in ctx, call.Id)}");
+                    _actions1[i] = a1;
+                    break;
+                case 2:
+                    if (!ctx.Actions.TryGet<Action2>(call.Id, out var a2, out var a2Det))
+                        throw new InvalidOperationException($"Action not found or signature mismatch. id={FormatActionId(in ctx, call.Id)} arity=2");
+                    if (ctx.Policy.RequireDeterministic && !a2Det)
+                        throw new InvalidOperationException($"Non-deterministic action is not allowed by policy. id={FormatActionId(in ctx, call.Id)}");
+                    _actions2[i] = a2;
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unsupported action arity: {call.Arity}");
+            }
+        }
+
+        /// <summary>
+        /// 将具名参数字典解析为可传递给 NamedAction 委托的 rawArgs 对象
+        /// </summary>
+        private static object ResolveNamedArgs<TArgs, TCtx>(in TArgs args, in ActionCallPlan call, in ExecCtx<TCtx> ctx)
+        {
+            if (call.Args == null || call.Args.Count == 0)
+                return null;
+
+            // 通过 ActionSchemaRegistry 泛型方法解析
+            var parsed = ActionSchemaRegistry.GetParsedArgs<TArgs, TCtx>(call.Id, call.Args, ctx);
+            if (parsed != null)
+                return parsed;
+
+            // 没有 Schema：返回原始字典（供 fallback 处理）
+            return new NamedArgsDict(call.Args);
         }
 
         private bool EvaluateExpr(in TArgs args, in ExecCtx<TCtx> ctx)

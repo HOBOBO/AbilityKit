@@ -28,8 +28,8 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 return new PassiveSkillTriggerRecordingEventBus(inner, frameTime, log);
             });
 
-            builder.TryRegister<FunctionRegistry>(WorldLifetime.Scoped, _ => new FunctionRegistry());
-            builder.TryRegister<ActionRegistry>(WorldLifetime.Scoped, _ => new ActionRegistry());
+            builder.TryRegister<FunctionRegistry>(WorldLifetime.Singleton, _ => new FunctionRegistry());
+            builder.TryRegister<ActionRegistry>(WorldLifetime.Singleton, _ => new ActionRegistry());
             builder.TryRegister<AbilityKit.Triggering.Runtime.ITriggerContextSource<IWorldResolver>>(WorldLifetime.Scoped, r => new WorldResolverContextSource(r));
             builder.TryRegister<AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver>>(WorldLifetime.Scoped, r =>
             {

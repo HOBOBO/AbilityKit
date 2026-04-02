@@ -101,6 +101,12 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public int Arity;
             public NumericValueRefDto Arg0;
             public NumericValueRefDto Arg1;
+
+            /// <summary>
+            /// 具名参数字典（key=参数名）
+            /// 优先级高于 Arg0/Arg1
+            /// </summary>
+            public Dictionary<string, NumericValueRefDto> Args;
         }
 
         [Serializable]
@@ -258,6 +264,20 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 }
 
                 var id = new ActionId(d.ActionId);
+
+                // 优先使用具名参数（新版 JSON）
+                if (d.Args != null && d.Args.Count > 0)
+                {
+                    var namedArgs = new Dictionary<string, ActionArgValue>(d.Args.Count, StringComparer.OrdinalIgnoreCase);
+                    foreach (var kv in d.Args)
+                    {
+                        namedArgs[kv.Key] = new ActionArgValue(BuildNumericValueRef(kv.Value), kv.Key);
+                    }
+                    arr[i] = ActionCallPlan.WithArgs(id, namedArgs);
+                    continue;
+                }
+
+                // Fallback: 向后兼容位置参数
                 switch (d.Arity)
                 {
                     case 0:

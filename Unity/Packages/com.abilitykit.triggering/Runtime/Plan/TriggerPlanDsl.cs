@@ -125,6 +125,24 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
+        /// 添加一个带具名参数的动作
+        /// </summary>
+        public TriggerPlanBuilder<TArgs> DoArgs(ActionId actionId, Dictionary<string, ActionArgValue> args)
+        {
+            _actions.Add(ActionCallPlan.WithArgs(actionId, args));
+            return this;
+        }
+
+        /// <summary>
+        /// 添加一个带两个具名参数的动作（便捷重载）
+        /// </summary>
+        public TriggerPlanBuilder<TArgs> DoArgs(ActionId actionId, string name0, double value0, string name1, double value1)
+        {
+            _actions.Add(actionId.WithArgs(name0, value0, name1, value1));
+            return this;
+        }
+
+        /// <summary>
         /// 添加一个带常量参数的动作
         /// </summary>
         public TriggerPlanBuilder<TArgs> DoConst(ActionId actionId, double arg0)
@@ -212,6 +230,30 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public static ActionCallPlan CallConst(ActionId actionId, double arg0, double arg1)
         {
             return new ActionCallPlan(actionId, arg0, arg1);
+        }
+
+        /// <summary>
+        /// 创建一个带具名参数的动作调用
+        /// </summary>
+        public static ActionCallPlan CallArgs(ActionId actionId, Dictionary<string, ActionArgValue> args)
+        {
+            return ActionCallPlan.WithArgs(actionId, args);
+        }
+
+        /// <summary>
+        /// 创建一个带两个具名参数的动作调用（便捷重载）
+        /// </summary>
+        public static ActionCallPlan CallArgs(ActionId actionId, string name0, double value0, string name1, double value1)
+        {
+            return actionId.WithArgs(name0, value0, name1, value1);
+        }
+
+        /// <summary>
+        /// 创建一个带三个具名参数的动作调用（便捷重载）
+        /// </summary>
+        public static ActionCallPlan CallArgs(ActionId actionId, string name0, double value0, string name1, double value1, string name2, double value2)
+        {
+            return actionId.WithArgs(name0, value0, name1, value1, name2, value2);
         }
     }
 }

@@ -66,6 +66,12 @@ namespace AbilityKit.Ability.Editor.Utilities
         public int Arity;
         public NumericValueRefDto Arg0;
         public NumericValueRefDto Arg1;
+
+        /// <summary>
+        /// 具名参数字典（key=参数名，value=参数值）
+        /// 优先级高于 Arg0/Arg1，JSON 导出时优先序列化
+        /// </summary>
+        public Dictionary<string, NumericValueRefDto> Args;
     }
 
     [Serializable]

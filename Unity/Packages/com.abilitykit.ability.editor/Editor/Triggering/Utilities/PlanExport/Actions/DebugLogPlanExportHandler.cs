@@ -54,12 +54,14 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
             }
 
-            plans = new[]
+            // 具名参数格式
+            var args = new Dictionary<string, ActionArgValue>
             {
-                new ActionCallPlan(id,
-                    NumericValueRef.Const(strId),
-                    NumericValueRef.Const(dump ? 1d : 0d))
+                ["msg_id"] = ActionArgValue.OfConst(strId, "msg_id"),
+                ["dump"] = ActionArgValue.OfConst(dump ? 1d : 0d, "dump")
             };
+
+            plans = new[] { ActionCallPlan.WithArgs(id, args) };
             return true;
         }
     }

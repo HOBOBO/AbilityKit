@@ -13,6 +13,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             if (db == null || actions == null) return;
 
             var arityById = new Dictionary<int, byte>();
+            var hasNamedArgsById = new Dictionary<int, bool>();
             var records = db.Records;
             if (records == null) return;
 
@@ -27,6 +28,11 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                     var call = calls[j];
                     var id = call.Id.Value;
                     if (id == 0) continue;
+
+                    if (call.HasNamedArgs)
+                    {
+                        hasNamedArgsById[id] = true;
+                    }
 
                     if (arityById.TryGetValue(id, out var existing))
                     {
@@ -48,6 +54,16 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 var arity = kv.Value;
                 if (arity == byte.MaxValue) continue;
 
+                var hasNamedArgs = hasNamedArgsById.TryGetValue(kv.Key, out var hna) && hna;
+                if (hasNamedArgs)
+                {
+                    // 具名参数模式的 Action 不注册 stub
+                    // 因为 PlanActionModule 会注册正确类型的 NamedAction<TArgs> 委托
+                    // 注册 stub 会导致类型不匹配
+                    continue;
+                }
+
+                // 注册传统 Action stub（向后兼容）
                 switch (arity)
                 {
                     case 0:

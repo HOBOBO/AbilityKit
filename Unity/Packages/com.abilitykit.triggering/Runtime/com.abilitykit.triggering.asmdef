@@ -3,7 +3,8 @@
   "rootNamespace": "AbilityKit.Triggering",
   "references": [
     "AbilityKit.Core",
-    "AbilityKit.Modifiers"
+    "AbilityKit.Modifiers",
+    "AbilityKit.World.DI"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

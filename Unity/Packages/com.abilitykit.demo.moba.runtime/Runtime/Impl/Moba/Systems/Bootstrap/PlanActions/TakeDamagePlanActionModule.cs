@@ -1,30 +1,37 @@
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Ability.Impl.Moba.Systems
 {
+    /// <summary>
+    /// 承受伤害的Plan Action模块
+    /// 使用强类型参数 Schema API
+    /// </summary>
     [PlanActionModule(order: 12)]
-    public sealed class TakeDamagePlanActionModule : PlanActionModuleBase
+    public sealed class TakeDamagePlanActionModule : NamedArgsPlanActionModuleBase<TakeDamageArgs, IWorldResolver, TakeDamagePlanActionModule>
     {
-        protected override string ActionName => "take_damage";
-        protected override bool HasAction2 => true;
+        protected override ActionId ActionId => TriggeringConstants.TakeDamageId;
+        protected override IActionSchema<TakeDamageArgs, IWorldResolver> Schema => TakeDamageSchema.Instance;
 
-        protected override void Execute2(object args, double a0, double a1, ExecCtx<IWorldResolver> ctx)
+        protected override void Execute(object triggerArgs, TakeDamageArgs args, ExecCtx<IWorldResolver> ctx)
         {
             if (!ctx.Context.TryResolve<DamagePipelineService>(out var pipeline) || pipeline == null) return;
 
-            if (!TryResolveTakeDamageContext(args, out var attackerActorId, out var targetActorId, out var baseValue, out var origin))
+            if (!TryResolveTakeDamageContext(triggerArgs, out var attackerActorId, out var targetActorId, out var baseValue, out var origin))
             {
                 return;
             }
 
-            if (!PlanActionRegisterUtil.TryToFloat(a0, out var rate)) return;
+            var rate = args.Rate;
             if (rate <= 0f) rate = 1f;
 
-            var reasonParam = PlanActionRegisterUtil.ToIntRound(a1);
+            var reasonParam = args.ReasonParam;
 
             baseValue *= rate;
             if (baseValue <= 0f) return;
