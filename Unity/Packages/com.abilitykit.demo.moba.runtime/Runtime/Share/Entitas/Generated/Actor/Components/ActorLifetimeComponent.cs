@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.LifetimeComponent lifetime { get { return (AbilityKit.Ability.Impl.Moba.Conponents.LifetimeComponent)GetComponent(ActorComponentsLookup.Lifetime); } }
+    public AbilityKit.Ability.Impl.Moba.Components.LifetimeComponent lifetime { get { return (AbilityKit.Ability.Impl.Moba.Components.LifetimeComponent)GetComponent(ActorComponentsLookup.Lifetime); } }
     public bool hasLifetime { get { return HasComponent(ActorComponentsLookup.Lifetime); } }
 
     public void AddLifetime(long newEndTimeMs) {
         var index = ActorComponentsLookup.Lifetime;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.LifetimeComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.LifetimeComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.LifetimeComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.LifetimeComponent));
         component.EndTimeMs = newEndTimeMs;
         AddComponent(index, component);
     }
 
     public void ReplaceLifetime(long newEndTimeMs) {
         var index = ActorComponentsLookup.Lifetime;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.LifetimeComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.LifetimeComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.LifetimeComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.LifetimeComponent));
         component.EndTimeMs = newEndTimeMs;
         ReplaceComponent(index, component);
     }

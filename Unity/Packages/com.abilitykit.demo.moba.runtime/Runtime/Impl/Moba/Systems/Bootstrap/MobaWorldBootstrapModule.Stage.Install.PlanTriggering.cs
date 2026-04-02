@@ -14,32 +14,20 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             {
                 Log.Info("[MobaWorldBootstrapModule] InstallPlanTriggering: starting...");
                 if (services.TryResolve<TriggerPlanJsonDatabase>(out var db) && db != null
-                    && services.TryResolve<ActionRegistry>(out var acts) && acts != null
-                    && services.TryResolve<AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver>>(out var runner) && runner != null)
+                    && services.TryResolve<AbilityKit.Ability.Share.Impl.Moba.Services.MobaEffectExecutionService>(out var effects) && effects != null)
                 {
-                    Log.Info($"[MobaWorldBootstrapModule] InstallPlanTriggering: found deps. db={db != null}, acts={acts != null}, runner={runner != null}");
+                    Log.Info("[MobaWorldBootstrapModule] InstallPlanTriggering: initializing plan actions...");
+                    effects.InitializePlanActions();
 
-                    RegisterStubActionsFromPlans(db, acts);
-
-                    if (services.TryResolve<PlanActionModuleRegistry>(out var registry) && registry != null && registry.Modules != null)
+                    if (services.TryResolve<AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver>>(out var runner) && runner != null)
                     {
-                        var modules = registry.Modules;
-                        Log.Info($"[MobaWorldBootstrapModule] InstallPlanTriggering: registering {modules.Length} PlanActionModules");
-                        for (int i = 0; i < modules.Length; i++)
-                        {
-                            var m = modules[i];
-                            if (m == null) continue;
-                            try { m.Register(acts, services); }
-                            catch (Exception ex) { Log.Exception(ex, $"[MobaWorldBootstrapModule] PlanActionModule register failed. module={m.GetType().Name}"); }
-                        }
+                        db.RegisterAll(runner);
                     }
-
-                    db.RegisterAll(runner);
                     Log.Info($"[MobaWorldBootstrapModule] PlanTriggering initialized. records={db.Records?.Count ?? 0}");
                 }
                 else
                 {
-                    Log.Info("[MobaWorldBootstrapModule] InstallPlanTriggering init skipped (missing deps)");
+                    Log.Warning("[MobaWorldBootstrapModule] InstallPlanTriggering init skipped (missing deps: db or effects)");
                 }
             }
             catch (Exception ex)

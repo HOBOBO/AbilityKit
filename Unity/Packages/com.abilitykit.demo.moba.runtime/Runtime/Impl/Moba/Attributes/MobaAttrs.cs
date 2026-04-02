@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Ability.Impl.Moba.Conponents;
+using AbilityKit.Ability.Impl.Moba.Components;
 using AbilityKit.Ability.Share.Common.AttributeSystem;
 
 namespace AbilityKit.Ability.Impl.Moba.Attributes

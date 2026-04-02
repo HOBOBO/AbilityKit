@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
-using AbilityKit.Ability.Impl.Moba.Conponents;
+using AbilityKit.Ability.Impl.Moba.Components;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.FrameSync;

@@ -8,12 +8,12 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.SummonMetaComponent summonMeta { get { return (AbilityKit.Ability.Impl.Moba.Conponents.SummonMetaComponent)GetComponent(ActorComponentsLookup.SummonMeta); } }
+    public AbilityKit.Ability.Impl.Moba.Components.SummonMetaComponent summonMeta { get { return (AbilityKit.Ability.Impl.Moba.Components.SummonMetaComponent)GetComponent(ActorComponentsLookup.SummonMeta); } }
     public bool hasSummonMeta { get { return HasComponent(ActorComponentsLookup.SummonMeta); } }
 
     public void AddSummonMeta(int newSummonId, bool newDespawnOnOwnerDie) {
         var index = ActorComponentsLookup.SummonMeta;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SummonMetaComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SummonMetaComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SummonMetaComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SummonMetaComponent));
         component.SummonId = newSummonId;
         component.DespawnOnOwnerDie = newDespawnOnOwnerDie;
         AddComponent(index, component);
@@ -21,7 +21,7 @@ public partial class ActorEntity {
 
     public void ReplaceSummonMeta(int newSummonId, bool newDespawnOnOwnerDie) {
         var index = ActorComponentsLookup.SummonMeta;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SummonMetaComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SummonMetaComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SummonMetaComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SummonMetaComponent));
         component.SummonId = newSummonId;
         component.DespawnOnOwnerDie = newDespawnOnOwnerDie;
         ReplaceComponent(index, component);

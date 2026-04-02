@@ -67,12 +67,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             {
                 if (componentIndex != ActorComponentsLookup.ActorId) return;
 
-                if (previousComponent is AbilityKit.Ability.Impl.Moba.Conponents.ActorIdComponent prev)
+                if (previousComponent is AbilityKit.Ability.Impl.Moba.Components.ActorIdComponent prev)
                 {
                     if (prev.Value > 0) _map.Remove(prev.Value);
                 }
 
-                if (newComponent is AbilityKit.Ability.Impl.Moba.Conponents.ActorIdComponent cur)
+                if (newComponent is AbilityKit.Ability.Impl.Moba.Components.ActorIdComponent cur)
                 {
                     if (cur.Value > 0) _map[cur.Value] = (global::ActorEntity)e;
                 }

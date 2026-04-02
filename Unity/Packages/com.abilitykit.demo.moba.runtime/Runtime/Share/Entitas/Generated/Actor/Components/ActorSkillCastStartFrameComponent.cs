@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStartFrameComponent skillCastStartFrame { get { return (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStartFrameComponent)GetComponent(ActorComponentsLookup.SkillCastStartFrame); } }
+    public AbilityKit.Ability.Impl.Moba.Components.SkillCastStartFrameComponent skillCastStartFrame { get { return (AbilityKit.Ability.Impl.Moba.Components.SkillCastStartFrameComponent)GetComponent(ActorComponentsLookup.SkillCastStartFrame); } }
     public bool hasSkillCastStartFrame { get { return HasComponent(ActorComponentsLookup.SkillCastStartFrame); } }
 
     public void AddSkillCastStartFrame(int newValue) {
         var index = ActorComponentsLookup.SkillCastStartFrame;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStartFrameComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStartFrameComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastStartFrameComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastStartFrameComponent));
         component.Value = newValue;
         AddComponent(index, component);
     }
 
     public void ReplaceSkillCastStartFrame(int newValue) {
         var index = ActorComponentsLookup.SkillCastStartFrame;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStartFrameComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStartFrameComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastStartFrameComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastStartFrameComponent));
         component.Value = newValue;
         ReplaceComponent(index, component);
     }

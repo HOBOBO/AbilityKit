@@ -8,7 +8,7 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    static readonly AbilityKit.Ability.Impl.Moba.Conponents.FlyingProjectileTagComponent flyingProjectileTagComponent = new AbilityKit.Ability.Impl.Moba.Conponents.FlyingProjectileTagComponent();
+    static readonly AbilityKit.Ability.Impl.Moba.Components.FlyingProjectileTagComponent flyingProjectileTagComponent = new AbilityKit.Ability.Impl.Moba.Components.FlyingProjectileTagComponent();
 
     public bool isFlyingProjectileTag {
         get { return HasComponent(ActorComponentsLookup.FlyingProjectileTag); }

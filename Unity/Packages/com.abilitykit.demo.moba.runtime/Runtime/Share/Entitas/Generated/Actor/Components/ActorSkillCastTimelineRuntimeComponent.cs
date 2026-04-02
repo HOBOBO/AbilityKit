@@ -8,12 +8,12 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.SkillCastTimelineRuntimeComponent skillCastTimelineRuntime { get { return (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastTimelineRuntimeComponent)GetComponent(ActorComponentsLookup.SkillCastTimelineRuntime); } }
+    public AbilityKit.Ability.Impl.Moba.Components.SkillCastTimelineRuntimeComponent skillCastTimelineRuntime { get { return (AbilityKit.Ability.Impl.Moba.Components.SkillCastTimelineRuntimeComponent)GetComponent(ActorComponentsLookup.SkillCastTimelineRuntime); } }
     public bool hasSkillCastTimelineRuntime { get { return HasComponent(ActorComponentsLookup.SkillCastTimelineRuntime); } }
 
     public void AddSkillCastTimelineRuntime(int newElapsedMs, int newNextEventIndex) {
         var index = ActorComponentsLookup.SkillCastTimelineRuntime;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastTimelineRuntimeComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastTimelineRuntimeComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastTimelineRuntimeComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastTimelineRuntimeComponent));
         component.ElapsedMs = newElapsedMs;
         component.NextEventIndex = newNextEventIndex;
         AddComponent(index, component);
@@ -21,7 +21,7 @@ public partial class ActorEntity {
 
     public void ReplaceSkillCastTimelineRuntime(int newElapsedMs, int newNextEventIndex) {
         var index = ActorComponentsLookup.SkillCastTimelineRuntime;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastTimelineRuntimeComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastTimelineRuntimeComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastTimelineRuntimeComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastTimelineRuntimeComponent));
         component.ElapsedMs = newElapsedMs;
         component.NextEventIndex = newNextEventIndex;
         ReplaceComponent(index, component);

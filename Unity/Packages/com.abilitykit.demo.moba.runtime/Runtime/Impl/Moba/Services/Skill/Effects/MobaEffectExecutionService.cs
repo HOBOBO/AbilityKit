@@ -6,6 +6,7 @@ using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Eventing;
+using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
@@ -20,7 +21,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private readonly AbilityKit.Triggering.Eventing.IEventBus _planEventBus;
         private readonly FunctionRegistry _planFunctions;
         private readonly ActionRegistry _planActions;
-        private bool _planInitialized;
 
         public MobaEffectExecutionService(
             IWorldResolver services,
@@ -38,25 +38,24 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _planActions = planActions;
         }
 
-        private void EnsurePlanInitialized()
+        /// <summary>
+        /// 初始化 Plan Actions 注册
+        /// 由 InstallPlanTriggering 在 World 启动时统一调用
+        /// </summary>
+        public void InitializePlanActions()
         {
-            if (_planInitialized)
+            if (_planDb == null || _planActions == null)
             {
-                Log.Info("[MobaEffectExecutionService] EnsurePlanInitialized: already initialized");
-                return;
-            }
-            if (_planDb == null || _planRunner == null || _planActions == null)
-            {
-                Log.Warning($"[MobaEffectExecutionService] EnsurePlanInitialized: skipped. _planDb={_planDb != null}, _planRunner={_planRunner != null}, _planActions={_planActions != null}");
+                Log.Warning("[MobaEffectExecutionService] InitializePlanActions: skipped. _planDb or _planActions is null");
                 return;
             }
 
-            Log.Info("[MobaEffectExecutionService] EnsurePlanInitialized: starting...");
+            Log.Info("[MobaEffectExecutionService] InitializePlanActions: starting...");
 
-            // Register real actions (override stubs)
+            // Register debug_log action
             try
             {
-                var debugLogId = new ActionId(AbilityKit.Triggering.Eventing.StableStringId.Get("action:debug_log"));
+                var debugLogId = new ActionId(StableStringId.Get("action:debug_log"));
                 _planActions.Register<PlannedTrigger<object, IWorldResolver>.Action0>(
                     debugLogId,
                     static (args, ctx) =>
@@ -91,21 +90,20 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, "[MobaEffectExecutionService] EnsurePlanInitialized: register debug_log action failed");
+                Log.Exception(ex, "[MobaEffectExecutionService] InitializePlanActions: register debug_log action failed");
             }
 
-            // Register stubs first to avoid missing action errors when plans contain actions
-            // that are not yet installed (real modules will override stubs).
+            // Register stubs first (skip named-args actions since real modules will register them)
             try
             {
                 RegisterStubActionsFromPlans(_planDb, _planActions);
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, "[MobaEffectExecutionService] EnsurePlanInitialized: RegisterStubActionsFromPlans failed");
+                Log.Exception(ex, "[MobaEffectExecutionService] InitializePlanActions: RegisterStubActionsFromPlans failed");
             }
 
-            // Register real action modules (override stubs).
+            // Register real action modules (override stubs)
             try
             {
                 if (_services != null
@@ -119,16 +117,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                         var m = modules[i];
                         if (m == null) continue;
                         try { m.Register(_planActions, _services); }
-                        catch (Exception ex) { Log.Exception(ex, $"[MobaEffectExecutionService] EnsurePlanInitialized: PlanActionModule register failed. module={m.GetType().Name}"); }
+                        catch (Exception ex) { Log.Exception(ex, $"[MobaEffectExecutionService] InitializePlanActions: PlanActionModule register failed. module={m.GetType().Name}"); }
                     }
                 }
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, "[MobaEffectExecutionService] EnsurePlanInitialized: register PlanActionModules failed");
+                Log.Exception(ex, "[MobaEffectExecutionService] InitializePlanActions: register PlanActionModules failed");
             }
 
-            _planInitialized = true;
+            Log.Info("[MobaEffectExecutionService] InitializePlanActions: completed");
         }
 
         private void TryRepairMissingActions()
@@ -248,11 +246,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (_planDb == null) return false;
             if (!_planDb.TryGetPlanByTriggerId(triggerId, out var plan))
             {
-                Log.Warning($"[MobaEffectExecutionService] TryExecutePlanByTriggerId: triggerId={triggerId} not found in _planDb");
                 return false;
             }
-
-            Log.Info($"[MobaEffectExecutionService] TryExecutePlanByTriggerId: found plan for triggerId={triggerId}, actions count={plan.Actions?.Length ?? 0}");
 
             if (_planEventBus == null || _planFunctions == null || _planActions == null)
             {
@@ -377,7 +372,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 Log.Warning($"[MobaEffectExecutionService] EffectExecuteMode.{mode} is not supported (legacy publish removed). effectId={effectId}");
             }
 
-            EnsurePlanInitialized();
             if (TryExecutePlanByTriggerId(effectId, wrappedContext))
             {
                 return;
@@ -386,18 +380,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             Log.Warning($"[MobaEffectExecutionService] Effect execution skipped (no TriggerPlan found for triggerId={effectId}).");
         }
 
-        public void ExecuteTriggerId(int triggerId, object payload = null)
+        /// <summary>
+        /// 通过 triggerId 直接执行触发计划
+        /// 用于 Projectile hit、Area enter/exit、Buff interval 等场景
+        /// </summary>
+        public void ExecuteTriggerId(int triggerId, object payload)
         {
             if (triggerId <= 0) return;
-
-            EnsurePlanInitialized();
-
-            Log.Info($"[MobaEffectExecutionService] ExecuteTriggerId: triggerId={triggerId}, initialized={_planInitialized}");
-
-            // Plan first (active triggers may have EventId=0 and are executed by TriggerId).
-            if (TryExecutePlanByTriggerId(triggerId, payload)) return;
-
-            Log.Warning($"[MobaEffectExecutionService] ExecuteTriggerId skipped (no TriggerPlan found for triggerId={triggerId}).");
+            TryExecutePlanByTriggerId(triggerId, payload);
         }
 
         public void Dispose()

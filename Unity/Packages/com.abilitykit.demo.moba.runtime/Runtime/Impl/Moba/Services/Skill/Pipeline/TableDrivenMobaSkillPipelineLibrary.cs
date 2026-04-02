@@ -15,11 +15,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         private readonly MobaConfigDatabase _configs;
         private readonly MobaEffectInvokerService _effects;
+        private readonly SkillConditionRegistry _conditionRegistry;
 
-        public TableDrivenMobaSkillPipelineLibrary(MobaConfigDatabase configs, MobaEffectInvokerService effects)
+        public TableDrivenMobaSkillPipelineLibrary(
+            MobaConfigDatabase configs,
+            MobaEffectInvokerService effects,
+            SkillConditionRegistry conditionRegistry = null)
         {
             _configs = configs;
             _effects = effects;
+            _conditionRegistry = conditionRegistry;
         }
 
         public bool TryGet(
@@ -74,7 +79,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 switch (type)
                 {
                     case SkillPhaseType.Checks:
-                        list.Add(new SkillFlowChecksPhase(checksPhaseId, p.Checks));
+                        list.Add(new SkillFlowChecksPhase(checksPhaseId, p.Checks, _conditionRegistry));
                         break;
                     case SkillPhaseType.Timeline:
                         if (p.Timeline == null) break;

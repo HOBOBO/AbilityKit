@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.CollisionIdComponent collisionId { get { return (AbilityKit.Ability.Impl.Moba.Conponents.CollisionIdComponent)GetComponent(ActorComponentsLookup.CollisionId); } }
+    public AbilityKit.Ability.Impl.Moba.Components.CollisionIdComponent collisionId { get { return (AbilityKit.Ability.Impl.Moba.Components.CollisionIdComponent)GetComponent(ActorComponentsLookup.CollisionId); } }
     public bool hasCollisionId { get { return HasComponent(ActorComponentsLookup.CollisionId); } }
 
     public void AddCollisionId(AbilityKit.Ability.Share.Math.ColliderId newValue) {
         var index = ActorComponentsLookup.CollisionId;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.CollisionIdComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.CollisionIdComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.CollisionIdComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.CollisionIdComponent));
         component.Value = newValue;
         AddComponent(index, component);
     }
 
     public void ReplaceCollisionId(AbilityKit.Ability.Share.Math.ColliderId newValue) {
         var index = ActorComponentsLookup.CollisionId;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.CollisionIdComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.CollisionIdComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.CollisionIdComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.CollisionIdComponent));
         component.Value = newValue;
         ReplaceComponent(index, component);
     }

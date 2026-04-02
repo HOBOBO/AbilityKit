@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.ColliderComponent collider { get { return (AbilityKit.Ability.Impl.Moba.Conponents.ColliderComponent)GetComponent(ActorComponentsLookup.Collider); } }
+    public AbilityKit.Ability.Impl.Moba.Components.ColliderComponent collider { get { return (AbilityKit.Ability.Impl.Moba.Components.ColliderComponent)GetComponent(ActorComponentsLookup.Collider); } }
     public bool hasCollider { get { return HasComponent(ActorComponentsLookup.Collider); } }
 
     public void AddCollider(AbilityKit.Ability.Share.Math.ColliderShape newLocalShape) {
         var index = ActorComponentsLookup.Collider;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.ColliderComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ColliderComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.ColliderComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.ColliderComponent));
         component.LocalShape = newLocalShape;
         AddComponent(index, component);
     }
 
     public void ReplaceCollider(AbilityKit.Ability.Share.Math.ColliderShape newLocalShape) {
         var index = ActorComponentsLookup.Collider;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.ColliderComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ColliderComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.ColliderComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.ColliderComponent));
         component.LocalShape = newLocalShape;
         ReplaceComponent(index, component);
     }

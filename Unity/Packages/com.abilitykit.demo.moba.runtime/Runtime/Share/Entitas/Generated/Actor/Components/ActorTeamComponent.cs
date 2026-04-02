@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.TeamComponent team { get { return (AbilityKit.Ability.Impl.Moba.Conponents.TeamComponent)GetComponent(ActorComponentsLookup.Team); } }
+    public AbilityKit.Ability.Impl.Moba.Components.TeamComponent team { get { return (AbilityKit.Ability.Impl.Moba.Components.TeamComponent)GetComponent(ActorComponentsLookup.Team); } }
     public bool hasTeam { get { return HasComponent(ActorComponentsLookup.Team); } }
 
     public void AddTeam(AbilityKit.Ability.Impl.Moba.Team newValue) {
         var index = ActorComponentsLookup.Team;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.TeamComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.TeamComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.TeamComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.TeamComponent));
         component.Value = newValue;
         AddComponent(index, component);
     }
 
     public void ReplaceTeam(AbilityKit.Ability.Impl.Moba.Team newValue) {
         var index = ActorComponentsLookup.Team;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.TeamComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.TeamComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.TeamComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.TeamComponent));
         component.Value = newValue;
         ReplaceComponent(index, component);
     }

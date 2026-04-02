@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.OngoingEffectsComponent ongoingEffects { get { return (AbilityKit.Ability.Impl.Moba.Conponents.OngoingEffectsComponent)GetComponent(ActorComponentsLookup.OngoingEffects); } }
+    public AbilityKit.Ability.Impl.Moba.Components.OngoingEffectsComponent ongoingEffects { get { return (AbilityKit.Ability.Impl.Moba.Components.OngoingEffectsComponent)GetComponent(ActorComponentsLookup.OngoingEffects); } }
     public bool hasOngoingEffects { get { return HasComponent(ActorComponentsLookup.OngoingEffects); } }
 
-    public void AddOngoingEffects(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Conponents.OngoingEffectRuntime> newActive) {
+    public void AddOngoingEffects(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Components.OngoingEffectRuntime> newActive) {
         var index = ActorComponentsLookup.OngoingEffects;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.OngoingEffectsComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.OngoingEffectsComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.OngoingEffectsComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.OngoingEffectsComponent));
         component.Active = newActive;
         AddComponent(index, component);
     }
 
-    public void ReplaceOngoingEffects(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Conponents.OngoingEffectRuntime> newActive) {
+    public void ReplaceOngoingEffects(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Components.OngoingEffectRuntime> newActive) {
         var index = ActorComponentsLookup.OngoingEffects;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.OngoingEffectsComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.OngoingEffectsComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.OngoingEffectsComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.OngoingEffectsComponent));
         component.Active = newActive;
         ReplaceComponent(index, component);
     }

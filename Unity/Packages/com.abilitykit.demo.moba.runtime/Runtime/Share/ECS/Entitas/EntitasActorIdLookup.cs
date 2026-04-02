@@ -66,7 +66,7 @@ namespace AbilityKit.Ability.Share.ECS.Entitas
 
             if (index != ActorComponentsLookup.ActorId) return;
 
-            if (previousComponent is AbilityKit.Ability.Impl.Moba.Conponents.ActorIdComponent prev)
+            if (previousComponent is AbilityKit.Ability.Impl.Moba.Components.ActorIdComponent prev)
             {
                 if (_byActorId.TryGetValue(prev.Value, out var cached) && ReferenceEquals(cached, entity))
                 {
@@ -74,7 +74,7 @@ namespace AbilityKit.Ability.Share.ECS.Entitas
                 }
             }
 
-            if (newComponent is AbilityKit.Ability.Impl.Moba.Conponents.ActorIdComponent cur)
+            if (newComponent is AbilityKit.Ability.Impl.Moba.Components.ActorIdComponent cur)
             {
                 _byActorId[cur.Value] = entity;
             }

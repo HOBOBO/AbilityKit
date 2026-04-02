@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Impl.Moba.Conponents;
+using AbilityKit.Ability.Impl.Moba.Components;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.Impl.Moba.Conponents;
+using AbilityKit.Ability.Impl.Moba.Components;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {

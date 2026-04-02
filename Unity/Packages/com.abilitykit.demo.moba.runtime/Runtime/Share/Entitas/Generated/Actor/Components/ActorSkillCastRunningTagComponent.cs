@@ -8,7 +8,7 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    static readonly AbilityKit.Ability.Impl.Moba.Conponents.SkillCastRunningTagComponent skillCastRunningTagComponent = new AbilityKit.Ability.Impl.Moba.Conponents.SkillCastRunningTagComponent();
+    static readonly AbilityKit.Ability.Impl.Moba.Components.SkillCastRunningTagComponent skillCastRunningTagComponent = new AbilityKit.Ability.Impl.Moba.Components.SkillCastRunningTagComponent();
 
     public bool isSkillCastRunningTag {
         get { return HasComponent(ActorComponentsLookup.SkillCastRunningTag); }

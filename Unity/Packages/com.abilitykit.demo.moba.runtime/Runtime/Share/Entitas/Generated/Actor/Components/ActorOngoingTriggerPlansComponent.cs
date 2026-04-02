@@ -8,20 +8,20 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.OngoingTriggerPlansComponent ongoingTriggerPlans { get { return (AbilityKit.Ability.Impl.Moba.Conponents.OngoingTriggerPlansComponent)GetComponent(ActorComponentsLookup.OngoingTriggerPlans); } }
+    public AbilityKit.Ability.Impl.Moba.Components.OngoingTriggerPlansComponent ongoingTriggerPlans { get { return (AbilityKit.Ability.Impl.Moba.Components.OngoingTriggerPlansComponent)GetComponent(ActorComponentsLookup.OngoingTriggerPlans); } }
     public bool hasOngoingTriggerPlans { get { return HasComponent(ActorComponentsLookup.OngoingTriggerPlans); } }
 
-    public void AddOngoingTriggerPlans(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Conponents.OngoingTriggerPlanEntry> newActive, int newRevision) {
+    public void AddOngoingTriggerPlans(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Components.OngoingTriggerPlanEntry> newActive, int newRevision) {
         var index = ActorComponentsLookup.OngoingTriggerPlans;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.OngoingTriggerPlansComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.OngoingTriggerPlansComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.OngoingTriggerPlansComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.OngoingTriggerPlansComponent));
         component.Active = newActive;
         component.Revision = newRevision;
         AddComponent(index, component);
     }
 
-    public void ReplaceOngoingTriggerPlans(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Conponents.OngoingTriggerPlanEntry> newActive, int newRevision) {
+    public void ReplaceOngoingTriggerPlans(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Components.OngoingTriggerPlanEntry> newActive, int newRevision) {
         var index = ActorComponentsLookup.OngoingTriggerPlans;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.OngoingTriggerPlansComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.OngoingTriggerPlansComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.OngoingTriggerPlansComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.OngoingTriggerPlansComponent));
         component.Active = newActive;
         component.Revision = newRevision;
         ReplaceComponent(index, component);

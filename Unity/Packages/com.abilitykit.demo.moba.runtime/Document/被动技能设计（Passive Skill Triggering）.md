@@ -127,7 +127,7 @@
 
 文件：
 
-- `Runtime/Impl/Moba/Conponents/PassiveSkillTriggerListenersComponent.cs`
+- `Runtime/Impl/Moba/Components/PassiveSkillTriggerListenersComponent.cs`
 
 结构：
 
@@ -308,7 +308,7 @@ sequenceDiagram
 
 - `Runtime/Impl/Moba/Systems/Skill/MobaPassiveSkillTriggerRegisterSystem.cs`
 - `Runtime/Impl/Moba/Systems/Skill/PassiveSkillTriggerListenerManager.cs`
-- `Runtime/Impl/Moba/Conponents/PassiveSkillTriggerListenersComponent.cs`
+- `Runtime/Impl/Moba/Components/PassiveSkillTriggerListenersComponent.cs`
 - `Runtime/Impl/Moba/Services/Triggering/MobaOngoingTriggerPlanService.cs`
 - `Document/被动触发事件回滚接入方案A.md`
 - `Document/技能流程总览.md`

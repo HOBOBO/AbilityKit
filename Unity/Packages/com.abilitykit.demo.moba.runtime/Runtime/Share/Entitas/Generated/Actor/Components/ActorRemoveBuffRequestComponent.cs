@@ -8,12 +8,12 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.RemoveBuffRequestComponent removeBuffRequest { get { return (AbilityKit.Ability.Impl.Moba.Conponents.RemoveBuffRequestComponent)GetComponent(ActorComponentsLookup.RemoveBuffRequest); } }
+    public AbilityKit.Ability.Impl.Moba.Components.RemoveBuffRequestComponent removeBuffRequest { get { return (AbilityKit.Ability.Impl.Moba.Components.RemoveBuffRequestComponent)GetComponent(ActorComponentsLookup.RemoveBuffRequest); } }
     public bool hasRemoveBuffRequest { get { return HasComponent(ActorComponentsLookup.RemoveBuffRequest); } }
 
     public void AddRemoveBuffRequest(int newBuffId, int newSourceId, AbilityKit.Ability.Impl.Moba.EffectSourceEndReason newReason) {
         var index = ActorComponentsLookup.RemoveBuffRequest;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.RemoveBuffRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.RemoveBuffRequestComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.RemoveBuffRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.RemoveBuffRequestComponent));
         component.BuffId = newBuffId;
         component.SourceId = newSourceId;
         component.Reason = newReason;
@@ -22,7 +22,7 @@ public partial class ActorEntity {
 
     public void ReplaceRemoveBuffRequest(int newBuffId, int newSourceId, AbilityKit.Ability.Impl.Moba.EffectSourceEndReason newReason) {
         var index = ActorComponentsLookup.RemoveBuffRequest;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.RemoveBuffRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.RemoveBuffRequestComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.RemoveBuffRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.RemoveBuffRequestComponent));
         component.BuffId = newBuffId;
         component.SourceId = newSourceId;
         component.Reason = newReason;

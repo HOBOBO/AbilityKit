@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.TransformComponent transform { get { return (AbilityKit.Ability.Impl.Moba.Conponents.TransformComponent)GetComponent(ActorComponentsLookup.Transform); } }
+    public AbilityKit.Ability.Impl.Moba.Components.TransformComponent transform { get { return (AbilityKit.Ability.Impl.Moba.Components.TransformComponent)GetComponent(ActorComponentsLookup.Transform); } }
     public bool hasTransform { get { return HasComponent(ActorComponentsLookup.Transform); } }
 
     public void AddTransform(AbilityKit.Ability.Share.Math.Transform3 newValue) {
         var index = ActorComponentsLookup.Transform;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.TransformComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.TransformComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.TransformComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.TransformComponent));
         component.Value = newValue;
         AddComponent(index, component);
     }
 
     public void ReplaceTransform(AbilityKit.Ability.Share.Math.Transform3 newValue) {
         var index = ActorComponentsLookup.Transform;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.TransformComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.TransformComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.TransformComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.TransformComponent));
         component.Value = newValue;
         ReplaceComponent(index, component);
     }

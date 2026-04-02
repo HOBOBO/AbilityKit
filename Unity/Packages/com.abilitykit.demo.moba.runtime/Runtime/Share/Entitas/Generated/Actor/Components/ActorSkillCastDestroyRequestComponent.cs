@@ -8,21 +8,21 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.SkillCastDestroyRequestComponent skillCastDestroyRequest { get { return (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastDestroyRequestComponent)GetComponent(ActorComponentsLookup.SkillCastDestroyRequest); } }
+    public AbilityKit.Ability.Impl.Moba.Components.SkillCastDestroyRequestComponent skillCastDestroyRequest { get { return (AbilityKit.Ability.Impl.Moba.Components.SkillCastDestroyRequestComponent)GetComponent(ActorComponentsLookup.SkillCastDestroyRequest); } }
     public bool hasSkillCastDestroyRequest { get { return HasComponent(ActorComponentsLookup.SkillCastDestroyRequest); } }
 
-    public void AddSkillCastDestroyRequest(int newRequestFrame, int newMinConfirmedFrame, AbilityKit.Ability.Impl.Moba.Conponents.SkillDestroyReason newReason) {
+    public void AddSkillCastDestroyRequest(int newRequestFrame, int newMinConfirmedFrame, AbilityKit.Ability.Impl.Moba.Components.SkillDestroyReason newReason) {
         var index = ActorComponentsLookup.SkillCastDestroyRequest;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastDestroyRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastDestroyRequestComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastDestroyRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastDestroyRequestComponent));
         component.RequestFrame = newRequestFrame;
         component.MinConfirmedFrame = newMinConfirmedFrame;
         component.Reason = newReason;
         AddComponent(index, component);
     }
 
-    public void ReplaceSkillCastDestroyRequest(int newRequestFrame, int newMinConfirmedFrame, AbilityKit.Ability.Impl.Moba.Conponents.SkillDestroyReason newReason) {
+    public void ReplaceSkillCastDestroyRequest(int newRequestFrame, int newMinConfirmedFrame, AbilityKit.Ability.Impl.Moba.Components.SkillDestroyReason newReason) {
         var index = ActorComponentsLookup.SkillCastDestroyRequest;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastDestroyRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastDestroyRequestComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastDestroyRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastDestroyRequestComponent));
         component.RequestFrame = newRequestFrame;
         component.MinConfirmedFrame = newMinConfirmedFrame;
         component.Reason = newReason;

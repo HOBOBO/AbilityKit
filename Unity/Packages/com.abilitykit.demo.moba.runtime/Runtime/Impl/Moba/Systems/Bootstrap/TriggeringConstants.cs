@@ -37,6 +37,14 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
             public const string PlaySound = "play_sound";
             public const string Heal = "heal";
             public const string Summon = "summon";
+
+            // Motion Actions
+            public const string Dash = "dash";
+            public const string Blink = "blink";
+            public const string Pull = "pull";
+
+            // Resource Actions
+            public const string ConsumeResource = "consume_resource";
         }
 
         /// <summary>
@@ -103,6 +111,14 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
         public static ActionId DebugLogId => GetActionId(Actions.DebugLog);
         public static ActionId ShootProjectileId => GetActionId(Actions.ShootProjectile);
         public static ActionId AddBuffId => GetActionId(Actions.AddBuff);
+
+        // Motion Action IDs
+        public static ActionId DashId => GetActionId(Actions.Dash);
+        public static ActionId BlinkId => GetActionId(Actions.Blink);
+        public static ActionId PullId => GetActionId(Actions.Pull);
+
+        // Resource Action IDs
+        public static ActionId ConsumeResourceId => GetActionId(Actions.ConsumeResource);
 
         /// <summary>
         /// 获取预定义的Event ID

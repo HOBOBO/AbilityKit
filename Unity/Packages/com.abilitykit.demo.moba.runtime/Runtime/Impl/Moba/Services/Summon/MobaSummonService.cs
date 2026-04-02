@@ -281,30 +281,30 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             else entity.AddSkillLoadout(active, passive);
         }
 
-        private static AbilityKit.Ability.Impl.Moba.Conponents.ActiveSkillRuntime[] CreateActiveSkillRuntimes(IReadOnlyList<int> skillIds)
+        private static AbilityKit.Ability.Impl.Moba.Components.ActiveSkillRuntime[] CreateActiveSkillRuntimes(IReadOnlyList<int> skillIds)
         {
-            if (skillIds == null || skillIds.Count == 0) return Array.Empty<AbilityKit.Ability.Impl.Moba.Conponents.ActiveSkillRuntime>();
-            var list = new List<AbilityKit.Ability.Impl.Moba.Conponents.ActiveSkillRuntime>(skillIds.Count);
+            if (skillIds == null || skillIds.Count == 0) return Array.Empty<AbilityKit.Ability.Impl.Moba.Components.ActiveSkillRuntime>();
+            var list = new List<AbilityKit.Ability.Impl.Moba.Components.ActiveSkillRuntime>(skillIds.Count);
             for (int i = 0; i < skillIds.Count; i++)
             {
                 var id = skillIds[i];
                 if (id <= 0) continue;
-                list.Add(new AbilityKit.Ability.Impl.Moba.Conponents.ActiveSkillRuntime { SkillId = id, Level = 1, CooldownEndTimeMs = 0L });
+                list.Add(new AbilityKit.Ability.Impl.Moba.Components.ActiveSkillRuntime { SkillId = id, Level = 1, CooldownEndTimeMs = 0L });
             }
-            return list.Count == 0 ? Array.Empty<AbilityKit.Ability.Impl.Moba.Conponents.ActiveSkillRuntime>() : list.ToArray();
+            return list.Count == 0 ? Array.Empty<AbilityKit.Ability.Impl.Moba.Components.ActiveSkillRuntime>() : list.ToArray();
         }
 
-        private static AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillRuntime[] CreatePassiveSkillRuntimes(IReadOnlyList<int> passiveSkillIds)
+        private static AbilityKit.Ability.Impl.Moba.Components.PassiveSkillRuntime[] CreatePassiveSkillRuntimes(IReadOnlyList<int> passiveSkillIds)
         {
-            if (passiveSkillIds == null || passiveSkillIds.Count == 0) return Array.Empty<AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillRuntime>();
-            var list = new List<AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillRuntime>(passiveSkillIds.Count);
+            if (passiveSkillIds == null || passiveSkillIds.Count == 0) return Array.Empty<AbilityKit.Ability.Impl.Moba.Components.PassiveSkillRuntime>();
+            var list = new List<AbilityKit.Ability.Impl.Moba.Components.PassiveSkillRuntime>(passiveSkillIds.Count);
             for (int i = 0; i < passiveSkillIds.Count; i++)
             {
                 var id = passiveSkillIds[i];
                 if (id <= 0) continue;
-                list.Add(new AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillRuntime { PassiveSkillId = id, Level = 1, CooldownEndTimeMs = 0L });
+                list.Add(new AbilityKit.Ability.Impl.Moba.Components.PassiveSkillRuntime { PassiveSkillId = id, Level = 1, CooldownEndTimeMs = 0L });
             }
-            return list.Count == 0 ? Array.Empty<AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillRuntime>() : list.ToArray();
+            return list.Count == 0 ? Array.Empty<AbilityKit.Ability.Impl.Moba.Components.PassiveSkillRuntime>() : list.ToArray();
         }
 
         private long NowMs()

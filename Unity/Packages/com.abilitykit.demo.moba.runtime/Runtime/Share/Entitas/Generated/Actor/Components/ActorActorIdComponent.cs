@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.ActorIdComponent actorId { get { return (AbilityKit.Ability.Impl.Moba.Conponents.ActorIdComponent)GetComponent(ActorComponentsLookup.ActorId); } }
+    public AbilityKit.Ability.Impl.Moba.Components.ActorIdComponent actorId { get { return (AbilityKit.Ability.Impl.Moba.Components.ActorIdComponent)GetComponent(ActorComponentsLookup.ActorId); } }
     public bool hasActorId { get { return HasComponent(ActorComponentsLookup.ActorId); } }
 
     public void AddActorId(int newValue) {
         var index = ActorComponentsLookup.ActorId;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.ActorIdComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ActorIdComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.ActorIdComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.ActorIdComponent));
         component.Value = newValue;
         AddComponent(index, component);
     }
 
     public void ReplaceActorId(int newValue) {
         var index = ActorComponentsLookup.ActorId;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.ActorIdComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ActorIdComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.ActorIdComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.ActorIdComponent));
         component.Value = newValue;
         ReplaceComponent(index, component);
     }

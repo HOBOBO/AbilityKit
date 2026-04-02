@@ -8,20 +8,20 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.SkillLoadoutComponent skillLoadout { get { return (AbilityKit.Ability.Impl.Moba.Conponents.SkillLoadoutComponent)GetComponent(ActorComponentsLookup.SkillLoadout); } }
+    public AbilityKit.Ability.Impl.Moba.Components.SkillLoadoutComponent skillLoadout { get { return (AbilityKit.Ability.Impl.Moba.Components.SkillLoadoutComponent)GetComponent(ActorComponentsLookup.SkillLoadout); } }
     public bool hasSkillLoadout { get { return HasComponent(ActorComponentsLookup.SkillLoadout); } }
 
-    public void AddSkillLoadout(AbilityKit.Ability.Impl.Moba.Conponents.ActiveSkillRuntime[] newActiveSkills, AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillRuntime[] newPassiveSkills) {
+    public void AddSkillLoadout(AbilityKit.Ability.Impl.Moba.Components.ActiveSkillRuntime[] newActiveSkills, AbilityKit.Ability.Impl.Moba.Components.PassiveSkillRuntime[] newPassiveSkills) {
         var index = ActorComponentsLookup.SkillLoadout;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillLoadoutComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillLoadoutComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillLoadoutComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillLoadoutComponent));
         component.ActiveSkills = newActiveSkills;
         component.PassiveSkills = newPassiveSkills;
         AddComponent(index, component);
     }
 
-    public void ReplaceSkillLoadout(AbilityKit.Ability.Impl.Moba.Conponents.ActiveSkillRuntime[] newActiveSkills, AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillRuntime[] newPassiveSkills) {
+    public void ReplaceSkillLoadout(AbilityKit.Ability.Impl.Moba.Components.ActiveSkillRuntime[] newActiveSkills, AbilityKit.Ability.Impl.Moba.Components.PassiveSkillRuntime[] newPassiveSkills) {
         var index = ActorComponentsLookup.SkillLoadout;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillLoadoutComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillLoadoutComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillLoadoutComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillLoadoutComponent));
         component.ActiveSkills = newActiveSkills;
         component.PassiveSkills = newPassiveSkills;
         ReplaceComponent(index, component);

@@ -36,6 +36,16 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         public Dictionary<string, object> SharedData { get; } = new();
 
+        /// <summary>
+        /// 当前正在执行的处理项 DTO（用于 Handler 内部访问配置）
+        /// </summary>
+        internal SkillHandlerDTO CurrentHandlerDto { get; set; }
+
+        /// <summary>
+        /// 技能冷却时间（毫秒）
+        /// </summary>
+        public int SkillCooldownMs { get; set; }
+
         private readonly List<IDisposable> _disposables = new List<IDisposable>(4);
         private readonly List<Action> _cleanupActions = new List<Action>(4);
 

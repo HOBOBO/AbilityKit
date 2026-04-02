@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.EffectListenersComponent effectListeners { get { return (AbilityKit.Ability.Impl.Moba.Conponents.EffectListenersComponent)GetComponent(ActorComponentsLookup.EffectListeners); } }
+    public AbilityKit.Ability.Impl.Moba.Components.EffectListenersComponent effectListeners { get { return (AbilityKit.Ability.Impl.Moba.Components.EffectListenersComponent)GetComponent(ActorComponentsLookup.EffectListeners); } }
     public bool hasEffectListeners { get { return HasComponent(ActorComponentsLookup.EffectListeners); } }
 
-    public void AddEffectListeners(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Conponents.EffectListenerRuntime> newActive) {
+    public void AddEffectListeners(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Components.EffectListenerRuntime> newActive) {
         var index = ActorComponentsLookup.EffectListeners;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.EffectListenersComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.EffectListenersComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.EffectListenersComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.EffectListenersComponent));
         component.Active = newActive;
         AddComponent(index, component);
     }
 
-    public void ReplaceEffectListeners(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Conponents.EffectListenerRuntime> newActive) {
+    public void ReplaceEffectListeners(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Components.EffectListenerRuntime> newActive) {
         var index = ActorComponentsLookup.EffectListeners;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.EffectListenersComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.EffectListenersComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.EffectListenersComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.EffectListenersComponent));
         component.Active = newActive;
         ReplaceComponent(index, component);
     }

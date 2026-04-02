@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.CollisionLayerComponent collisionLayer { get { return (AbilityKit.Ability.Impl.Moba.Conponents.CollisionLayerComponent)GetComponent(ActorComponentsLookup.CollisionLayer); } }
+    public AbilityKit.Ability.Impl.Moba.Components.CollisionLayerComponent collisionLayer { get { return (AbilityKit.Ability.Impl.Moba.Components.CollisionLayerComponent)GetComponent(ActorComponentsLookup.CollisionLayer); } }
     public bool hasCollisionLayer { get { return HasComponent(ActorComponentsLookup.CollisionLayer); } }
 
     public void AddCollisionLayer(int newMask) {
         var index = ActorComponentsLookup.CollisionLayer;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.CollisionLayerComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.CollisionLayerComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.CollisionLayerComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.CollisionLayerComponent));
         component.Mask = newMask;
         AddComponent(index, component);
     }
 
     public void ReplaceCollisionLayer(int newMask) {
         var index = ActorComponentsLookup.CollisionLayer;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.CollisionLayerComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.CollisionLayerComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.CollisionLayerComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.CollisionLayerComponent));
         component.Mask = newMask;
         ReplaceComponent(index, component);
     }

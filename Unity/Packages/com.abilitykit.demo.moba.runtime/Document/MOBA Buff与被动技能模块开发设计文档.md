@@ -1020,7 +1020,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 | **配置与组件** | |
 | `Runtime/Impl/Moba/Config/MO/BuffMO.cs` | Buff 配置对象 |
 | `Runtime/Impl/Moba/Config/MO/PassiveSkillMO.cs` | 被动技能配置对象 |
-| `Runtime/Impl/Moba/Conponents/BuffComponent.cs` | Buff 运行时组件 |
-| `Runtime/Impl/Moba/Conponents/SkillRuntime.cs` | 技能运行时组件 |
-| `Runtime/Impl/Moba/Conponents/OngoingTriggerPlansComponent.cs` | 触发计划组件 |
+| `Runtime/Impl/Moba/Components/BuffComponent.cs` | Buff 运行时组件 |
+| `Runtime/Impl/Moba/Components/SkillRuntime.cs` | 技能运行时组件 |
+| `Runtime/Impl/Moba/Components/OngoingTriggerPlansComponent.cs` | 触发计划组件 |
 | `Runtime/Impl/Moba/Services/Skill/Pipeline/SkillPipelineRunner.cs` | 技能管线运行器 |

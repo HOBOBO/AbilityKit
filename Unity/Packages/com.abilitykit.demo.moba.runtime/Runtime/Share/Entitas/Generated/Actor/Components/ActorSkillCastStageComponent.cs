@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStageComponent skillCastStage { get { return (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStageComponent)GetComponent(ActorComponentsLookup.SkillCastStage); } }
+    public AbilityKit.Ability.Impl.Moba.Components.SkillCastStageComponent skillCastStage { get { return (AbilityKit.Ability.Impl.Moba.Components.SkillCastStageComponent)GetComponent(ActorComponentsLookup.SkillCastStage); } }
     public bool hasSkillCastStage { get { return HasComponent(ActorComponentsLookup.SkillCastStage); } }
 
-    public void AddSkillCastStage(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStage newValue) {
+    public void AddSkillCastStage(AbilityKit.Ability.Impl.Moba.Components.SkillCastStage newValue) {
         var index = ActorComponentsLookup.SkillCastStage;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStageComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStageComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastStageComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastStageComponent));
         component.Value = newValue;
         AddComponent(index, component);
     }
 
-    public void ReplaceSkillCastStage(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStage newValue) {
+    public void ReplaceSkillCastStage(AbilityKit.Ability.Impl.Moba.Components.SkillCastStage newValue) {
         var index = ActorComponentsLookup.SkillCastStage;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStageComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastStageComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastStageComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastStageComponent));
         component.Value = newValue;
         ReplaceComponent(index, component);
     }

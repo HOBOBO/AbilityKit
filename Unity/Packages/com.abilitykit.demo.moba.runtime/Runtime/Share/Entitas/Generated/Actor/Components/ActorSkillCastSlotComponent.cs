@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.SkillCastSlotComponent skillCastSlot { get { return (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastSlotComponent)GetComponent(ActorComponentsLookup.SkillCastSlot); } }
+    public AbilityKit.Ability.Impl.Moba.Components.SkillCastSlotComponent skillCastSlot { get { return (AbilityKit.Ability.Impl.Moba.Components.SkillCastSlotComponent)GetComponent(ActorComponentsLookup.SkillCastSlot); } }
     public bool hasSkillCastSlot { get { return HasComponent(ActorComponentsLookup.SkillCastSlot); } }
 
     public void AddSkillCastSlot(int newValue) {
         var index = ActorComponentsLookup.SkillCastSlot;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastSlotComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastSlotComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastSlotComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastSlotComponent));
         component.Value = newValue;
         AddComponent(index, component);
     }
 
     public void ReplaceSkillCastSlot(int newValue) {
         var index = ActorComponentsLookup.SkillCastSlot;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastSlotComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastSlotComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastSlotComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastSlotComponent));
         component.Value = newValue;
         ReplaceComponent(index, component);
     }

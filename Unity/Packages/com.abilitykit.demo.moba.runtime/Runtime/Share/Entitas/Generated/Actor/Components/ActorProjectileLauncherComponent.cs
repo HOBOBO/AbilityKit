@@ -8,12 +8,12 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.ProjectileLauncherComponent projectileLauncher { get { return (AbilityKit.Ability.Impl.Moba.Conponents.ProjectileLauncherComponent)GetComponent(ActorComponentsLookup.ProjectileLauncher); } }
+    public AbilityKit.Ability.Impl.Moba.Components.ProjectileLauncherComponent projectileLauncher { get { return (AbilityKit.Ability.Impl.Moba.Components.ProjectileLauncherComponent)GetComponent(ActorComponentsLookup.ProjectileLauncher); } }
     public bool hasProjectileLauncher { get { return HasComponent(ActorComponentsLookup.ProjectileLauncher); } }
 
     public void AddProjectileLauncher(int newLauncherId, int newProjectileId, int newRootActorId, long newEndTimeMs, int newActiveBullets, int newScheduleId, int newIntervalFrames, int newTotalCount) {
         var index = ActorComponentsLookup.ProjectileLauncher;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.ProjectileLauncherComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ProjectileLauncherComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.ProjectileLauncherComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.ProjectileLauncherComponent));
         component.LauncherId = newLauncherId;
         component.ProjectileId = newProjectileId;
         component.RootActorId = newRootActorId;
@@ -27,7 +27,7 @@ public partial class ActorEntity {
 
     public void ReplaceProjectileLauncher(int newLauncherId, int newProjectileId, int newRootActorId, long newEndTimeMs, int newActiveBullets, int newScheduleId, int newIntervalFrames, int newTotalCount) {
         var index = ActorComponentsLookup.ProjectileLauncher;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.ProjectileLauncherComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ProjectileLauncherComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.ProjectileLauncherComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.ProjectileLauncherComponent));
         component.LauncherId = newLauncherId;
         component.ProjectileId = newProjectileId;
         component.RootActorId = newRootActorId;

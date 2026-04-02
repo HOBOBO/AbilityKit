@@ -8,12 +8,12 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.ProjectileEffectSnapshotComponent projectileEffectSnapshot { get { return (AbilityKit.Ability.Impl.Moba.Conponents.ProjectileEffectSnapshotComponent)GetComponent(ActorComponentsLookup.ProjectileEffectSnapshot); } }
+    public AbilityKit.Ability.Impl.Moba.Components.ProjectileEffectSnapshotComponent projectileEffectSnapshot { get { return (AbilityKit.Ability.Impl.Moba.Components.ProjectileEffectSnapshotComponent)GetComponent(ActorComponentsLookup.ProjectileEffectSnapshot); } }
     public bool hasProjectileEffectSnapshot { get { return HasComponent(ActorComponentsLookup.ProjectileEffectSnapshot); } }
 
     public void AddProjectileEffectSnapshot(float newDamageMul, float newSpeedMul, int newPierce) {
         var index = ActorComponentsLookup.ProjectileEffectSnapshot;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.ProjectileEffectSnapshotComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ProjectileEffectSnapshotComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.ProjectileEffectSnapshotComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.ProjectileEffectSnapshotComponent));
         component.DamageMul = newDamageMul;
         component.SpeedMul = newSpeedMul;
         component.Pierce = newPierce;
@@ -22,7 +22,7 @@ public partial class ActorEntity {
 
     public void ReplaceProjectileEffectSnapshot(float newDamageMul, float newSpeedMul, int newPierce) {
         var index = ActorComponentsLookup.ProjectileEffectSnapshot;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.ProjectileEffectSnapshotComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ProjectileEffectSnapshotComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.ProjectileEffectSnapshotComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.ProjectileEffectSnapshotComponent));
         component.DamageMul = newDamageMul;
         component.SpeedMul = newSpeedMul;
         component.Pierce = newPierce;

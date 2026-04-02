@@ -8,12 +8,12 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent moveInput { get { return (AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent)GetComponent(ActorComponentsLookup.MoveInput); } }
+    public AbilityKit.Ability.Impl.Moba.Components.MoveInputComponent moveInput { get { return (AbilityKit.Ability.Impl.Moba.Components.MoveInputComponent)GetComponent(ActorComponentsLookup.MoveInput); } }
     public bool hasMoveInput { get { return HasComponent(ActorComponentsLookup.MoveInput); } }
 
     public void AddMoveInput(float newDx, float newDz) {
         var index = ActorComponentsLookup.MoveInput;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.MoveInputComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.MoveInputComponent));
         component.Dx = newDx;
         component.Dz = newDz;
         AddComponent(index, component);
@@ -21,7 +21,7 @@ public partial class ActorEntity {
 
     public void ReplaceMoveInput(float newDx, float newDz) {
         var index = ActorComponentsLookup.MoveInput;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.MoveInputComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.MoveInputComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.MoveInputComponent));
         component.Dx = newDx;
         component.Dz = newDz;
         ReplaceComponent(index, component);

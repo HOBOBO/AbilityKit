@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.UnitSubTypeComponent unitSubType { get { return (AbilityKit.Ability.Impl.Moba.Conponents.UnitSubTypeComponent)GetComponent(ActorComponentsLookup.UnitSubType); } }
+    public AbilityKit.Ability.Impl.Moba.Components.UnitSubTypeComponent unitSubType { get { return (AbilityKit.Ability.Impl.Moba.Components.UnitSubTypeComponent)GetComponent(ActorComponentsLookup.UnitSubType); } }
     public bool hasUnitSubType { get { return HasComponent(ActorComponentsLookup.UnitSubType); } }
 
     public void AddUnitSubType(AbilityKit.Ability.Impl.Moba.UnitSubType newValue) {
         var index = ActorComponentsLookup.UnitSubType;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.UnitSubTypeComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.UnitSubTypeComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.UnitSubTypeComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.UnitSubTypeComponent));
         component.Value = newValue;
         AddComponent(index, component);
     }
 
     public void ReplaceUnitSubType(AbilityKit.Ability.Impl.Moba.UnitSubType newValue) {
         var index = ActorComponentsLookup.UnitSubType;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.UnitSubTypeComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.UnitSubTypeComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.UnitSubTypeComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.UnitSubTypeComponent));
         component.Value = newValue;
         ReplaceComponent(index, component);
     }

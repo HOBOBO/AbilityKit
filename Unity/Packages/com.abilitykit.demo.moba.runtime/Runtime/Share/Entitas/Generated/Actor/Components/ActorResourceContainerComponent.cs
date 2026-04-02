@@ -8,20 +8,20 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainerComponent resourceContainer { get { return (AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainerComponent)GetComponent(ActorComponentsLookup.ResourceContainer); } }
+    public AbilityKit.Ability.Impl.Moba.Components.ResourceContainerComponent resourceContainer { get { return (AbilityKit.Ability.Impl.Moba.Components.ResourceContainerComponent)GetComponent(ActorComponentsLookup.ResourceContainer); } }
     public bool hasResourceContainer { get { return HasComponent(ActorComponentsLookup.ResourceContainer); } }
 
-    public void AddResourceContainer(AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainer newValue, bool newInitialized) {
+    public void AddResourceContainer(AbilityKit.Ability.Impl.Moba.Components.ResourceContainer newValue, bool newInitialized) {
         var index = ActorComponentsLookup.ResourceContainer;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainerComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainerComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.ResourceContainerComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.ResourceContainerComponent));
         component.Value = newValue;
         component.Initialized = newInitialized;
         AddComponent(index, component);
     }
 
-    public void ReplaceResourceContainer(AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainer newValue, bool newInitialized) {
+    public void ReplaceResourceContainer(AbilityKit.Ability.Impl.Moba.Components.ResourceContainer newValue, bool newInitialized) {
         var index = ActorComponentsLookup.ResourceContainer;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainerComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.ResourceContainerComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.ResourceContainerComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.ResourceContainerComponent));
         component.Value = newValue;
         component.Initialized = newInitialized;
         ReplaceComponent(index, component);

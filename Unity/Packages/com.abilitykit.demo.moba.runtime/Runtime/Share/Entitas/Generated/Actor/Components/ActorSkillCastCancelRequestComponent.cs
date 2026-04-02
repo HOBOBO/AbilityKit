@@ -8,20 +8,20 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.SkillCastCancelRequestComponent skillCastCancelRequest { get { return (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastCancelRequestComponent)GetComponent(ActorComponentsLookup.SkillCastCancelRequest); } }
+    public AbilityKit.Ability.Impl.Moba.Components.SkillCastCancelRequestComponent skillCastCancelRequest { get { return (AbilityKit.Ability.Impl.Moba.Components.SkillCastCancelRequestComponent)GetComponent(ActorComponentsLookup.SkillCastCancelRequest); } }
     public bool hasSkillCastCancelRequest { get { return HasComponent(ActorComponentsLookup.SkillCastCancelRequest); } }
 
-    public void AddSkillCastCancelRequest(int newFrame, AbilityKit.Ability.Impl.Moba.Conponents.SkillCancelReason newReason) {
+    public void AddSkillCastCancelRequest(int newFrame, AbilityKit.Ability.Impl.Moba.Components.SkillCancelReason newReason) {
         var index = ActorComponentsLookup.SkillCastCancelRequest;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastCancelRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastCancelRequestComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastCancelRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastCancelRequestComponent));
         component.Frame = newFrame;
         component.Reason = newReason;
         AddComponent(index, component);
     }
 
-    public void ReplaceSkillCastCancelRequest(int newFrame, AbilityKit.Ability.Impl.Moba.Conponents.SkillCancelReason newReason) {
+    public void ReplaceSkillCastCancelRequest(int newFrame, AbilityKit.Ability.Impl.Moba.Components.SkillCancelReason newReason) {
         var index = ActorComponentsLookup.SkillCastCancelRequest;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastCancelRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastCancelRequestComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastCancelRequestComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastCancelRequestComponent));
         component.Frame = newFrame;
         component.Reason = newReason;
         ReplaceComponent(index, component);

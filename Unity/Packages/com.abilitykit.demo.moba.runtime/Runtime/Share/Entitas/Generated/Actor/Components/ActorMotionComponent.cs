@@ -8,12 +8,12 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent motion { get { return (AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent)GetComponent(ActorComponentsLookup.Motion); } }
+    public AbilityKit.Ability.Impl.Moba.Components.MotionComponent motion { get { return (AbilityKit.Ability.Impl.Moba.Components.MotionComponent)GetComponent(ActorComponentsLookup.Motion); } }
     public bool hasMotion { get { return HasComponent(ActorComponentsLookup.Motion); } }
 
     public void AddMotion(AbilityKit.Ability.Share.Common.MotionSystem.Core.MotionPipeline newPipeline, AbilityKit.Ability.Share.Common.MotionSystem.Core.MotionState newState, AbilityKit.Ability.Share.Common.MotionSystem.Core.MotionOutput newOutput, AbilityKit.Ability.Share.Common.MotionSystem.Collision.IMotionSolver newSolver, AbilityKit.Ability.Share.Common.MotionSystem.Core.MotionPipelinePolicy newPolicy, AbilityKit.Ability.Share.Common.MotionSystem.Events.IMotionEventSink newEvents, bool newInitialized) {
         var index = ActorComponentsLookup.Motion;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.MotionComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.MotionComponent));
         component.Pipeline = newPipeline;
         component.State = newState;
         component.Output = newOutput;
@@ -26,7 +26,7 @@ public partial class ActorEntity {
 
     public void ReplaceMotion(AbilityKit.Ability.Share.Common.MotionSystem.Core.MotionPipeline newPipeline, AbilityKit.Ability.Share.Common.MotionSystem.Core.MotionState newState, AbilityKit.Ability.Share.Common.MotionSystem.Core.MotionOutput newOutput, AbilityKit.Ability.Share.Common.MotionSystem.Collision.IMotionSolver newSolver, AbilityKit.Ability.Share.Common.MotionSystem.Core.MotionPipelinePolicy newPolicy, AbilityKit.Ability.Share.Common.MotionSystem.Events.IMotionEventSink newEvents, bool newInitialized) {
         var index = ActorComponentsLookup.Motion;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.MotionComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.MotionComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.MotionComponent));
         component.Pipeline = newPipeline;
         component.State = newState;
         component.Output = newOutput;

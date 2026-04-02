@@ -8,12 +8,12 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.SkillCastAimComponent skillCastAim { get { return (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastAimComponent)GetComponent(ActorComponentsLookup.SkillCastAim); } }
+    public AbilityKit.Ability.Impl.Moba.Components.SkillCastAimComponent skillCastAim { get { return (AbilityKit.Ability.Impl.Moba.Components.SkillCastAimComponent)GetComponent(ActorComponentsLookup.SkillCastAim); } }
     public bool hasSkillCastAim { get { return HasComponent(ActorComponentsLookup.SkillCastAim); } }
 
     public void AddSkillCastAim(AbilityKit.Ability.Share.Math.Vec3 newPos, AbilityKit.Ability.Share.Math.Vec3 newDir) {
         var index = ActorComponentsLookup.SkillCastAim;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastAimComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastAimComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastAimComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastAimComponent));
         component.Pos = newPos;
         component.Dir = newDir;
         AddComponent(index, component);
@@ -21,7 +21,7 @@ public partial class ActorEntity {
 
     public void ReplaceSkillCastAim(AbilityKit.Ability.Share.Math.Vec3 newPos, AbilityKit.Ability.Share.Math.Vec3 newDir) {
         var index = ActorComponentsLookup.SkillCastAim;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.SkillCastAimComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.SkillCastAimComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.SkillCastAimComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.SkillCastAimComponent));
         component.Pos = newPos;
         component.Dir = newDir;
         ReplaceComponent(index, component);

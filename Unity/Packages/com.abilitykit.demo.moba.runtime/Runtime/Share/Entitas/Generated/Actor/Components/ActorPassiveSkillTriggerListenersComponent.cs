@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillTriggerListenersComponent passiveSkillTriggerListeners { get { return (AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillTriggerListenersComponent)GetComponent(ActorComponentsLookup.PassiveSkillTriggerListeners); } }
+    public AbilityKit.Ability.Impl.Moba.Components.PassiveSkillTriggerListenersComponent passiveSkillTriggerListeners { get { return (AbilityKit.Ability.Impl.Moba.Components.PassiveSkillTriggerListenersComponent)GetComponent(ActorComponentsLookup.PassiveSkillTriggerListeners); } }
     public bool hasPassiveSkillTriggerListeners { get { return HasComponent(ActorComponentsLookup.PassiveSkillTriggerListeners); } }
 
-    public void AddPassiveSkillTriggerListeners(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillTriggerListenerRuntime> newActive) {
+    public void AddPassiveSkillTriggerListeners(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Components.PassiveSkillTriggerListenerRuntime> newActive) {
         var index = ActorComponentsLookup.PassiveSkillTriggerListeners;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillTriggerListenersComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillTriggerListenersComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.PassiveSkillTriggerListenersComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.PassiveSkillTriggerListenersComponent));
         component.Active = newActive;
         AddComponent(index, component);
     }
 
-    public void ReplacePassiveSkillTriggerListeners(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillTriggerListenerRuntime> newActive) {
+    public void ReplacePassiveSkillTriggerListeners(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Components.PassiveSkillTriggerListenerRuntime> newActive) {
         var index = ActorComponentsLookup.PassiveSkillTriggerListeners;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillTriggerListenersComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.PassiveSkillTriggerListenersComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.PassiveSkillTriggerListenersComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.PassiveSkillTriggerListenersComponent));
         component.Active = newActive;
         ReplaceComponent(index, component);
     }

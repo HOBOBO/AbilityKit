@@ -8,12 +8,12 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.OwnerLinkComponent ownerLink { get { return (AbilityKit.Ability.Impl.Moba.Conponents.OwnerLinkComponent)GetComponent(ActorComponentsLookup.OwnerLink); } }
+    public AbilityKit.Ability.Impl.Moba.Components.OwnerLinkComponent ownerLink { get { return (AbilityKit.Ability.Impl.Moba.Components.OwnerLinkComponent)GetComponent(ActorComponentsLookup.OwnerLink); } }
     public bool hasOwnerLink { get { return HasComponent(ActorComponentsLookup.OwnerLink); } }
 
     public void AddOwnerLink(int newOwnerActorId, int newRootOwnerActorId) {
         var index = ActorComponentsLookup.OwnerLink;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.OwnerLinkComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerLinkComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.OwnerLinkComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.OwnerLinkComponent));
         component.OwnerActorId = newOwnerActorId;
         component.RootOwnerActorId = newRootOwnerActorId;
         AddComponent(index, component);
@@ -21,7 +21,7 @@ public partial class ActorEntity {
 
     public void ReplaceOwnerLink(int newOwnerActorId, int newRootOwnerActorId) {
         var index = ActorComponentsLookup.OwnerLink;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.OwnerLinkComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.OwnerLinkComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.OwnerLinkComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.OwnerLinkComponent));
         component.OwnerActorId = newOwnerActorId;
         component.RootOwnerActorId = newRootOwnerActorId;
         ReplaceComponent(index, component);

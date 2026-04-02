@@ -8,19 +8,19 @@
 //------------------------------------------------------------------------------
 public partial class ActorEntity {
 
-    public AbilityKit.Ability.Impl.Moba.Conponents.BuffsComponent buffs { get { return (AbilityKit.Ability.Impl.Moba.Conponents.BuffsComponent)GetComponent(ActorComponentsLookup.Buffs); } }
+    public AbilityKit.Ability.Impl.Moba.Components.BuffsComponent buffs { get { return (AbilityKit.Ability.Impl.Moba.Components.BuffsComponent)GetComponent(ActorComponentsLookup.Buffs); } }
     public bool hasBuffs { get { return HasComponent(ActorComponentsLookup.Buffs); } }
 
-    public void AddBuffs(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Conponents.BuffRuntime> newActive) {
+    public void AddBuffs(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Components.BuffRuntime> newActive) {
         var index = ActorComponentsLookup.Buffs;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.BuffsComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.BuffsComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.BuffsComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.BuffsComponent));
         component.Active = newActive;
         AddComponent(index, component);
     }
 
-    public void ReplaceBuffs(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Conponents.BuffRuntime> newActive) {
+    public void ReplaceBuffs(System.Collections.Generic.List<AbilityKit.Ability.Impl.Moba.Components.BuffRuntime> newActive) {
         var index = ActorComponentsLookup.Buffs;
-        var component = (AbilityKit.Ability.Impl.Moba.Conponents.BuffsComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Conponents.BuffsComponent));
+        var component = (AbilityKit.Ability.Impl.Moba.Components.BuffsComponent)CreateComponent(index, typeof(AbilityKit.Ability.Impl.Moba.Components.BuffsComponent));
         component.Active = newActive;
         ReplaceComponent(index, component);
     }
