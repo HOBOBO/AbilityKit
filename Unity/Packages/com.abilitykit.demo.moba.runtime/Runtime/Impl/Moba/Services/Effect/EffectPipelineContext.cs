@@ -3,6 +3,7 @@ using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Triggering.Eventing;
+using System.Collections.Generic;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -25,10 +26,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             WorldServices = worldServices;
             EventBus = eventBus;
 
-            SharedData[MobaEffectPipelineSharedKeys.SourceActorId] = sourceActorId;
-            SharedData[MobaEffectPipelineSharedKeys.TargetActorId] = targetActorId;
-            SharedData[MobaEffectPipelineSharedKeys.ContextKind] = contextKind;
-            SharedData[MobaEffectPipelineSharedKeys.SourceContextId] = sourceContextId;
+            // 使用强类型键枚举
+            this.SetParticipants(sourceActorId, targetActorId);
+            this.SetContextKind(contextKind);
+            this.SetSourceContextId(sourceContextId);
 
             FillSkillCompatibleKeys(sourceActorId, targetActorId);
         }
@@ -36,12 +37,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         private void FillSkillCompatibleKeys(int sourceActorId, int targetActorId)
         {
             // keep skill-compatible keys for triggers/effects that still read skill args
-            SharedData[MobaSkillPipelineSharedKeys.SkillId] = 0;
-            SharedData[MobaSkillPipelineSharedKeys.SkillSlot] = 0;
-            SharedData[MobaSkillPipelineSharedKeys.CasterActorId] = sourceActorId;
-            SharedData[MobaSkillPipelineSharedKeys.TargetActorId] = targetActorId;
-            SharedData[MobaSkillPipelineSharedKeys.AimPos] = Vec3.Zero;
-            SharedData[MobaSkillPipelineSharedKeys.AimDir] = Vec3.Forward;
+            this.SetSkillInfo(0, 0, 0);
+            this.SetParticipants(sourceActorId, targetActorId);
+            Vec3 zero = Vec3.Zero;
+            Vec3 forward = Vec3.Forward;
+            this.SetAim(in zero, in forward);
         }
 
         public override void Reset()

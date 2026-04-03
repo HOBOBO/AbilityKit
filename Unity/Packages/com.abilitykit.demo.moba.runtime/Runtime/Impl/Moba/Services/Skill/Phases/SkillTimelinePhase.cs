@@ -36,7 +36,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         {
             if (IsComplete) return;
 
-            try { context?.SetData(MobaSkillPipelineSharedKeys.TimelineNextEventIndex, _nextIndex); }
+            try { context?.SetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), _nextIndex); }
             catch { }
 
             var elapsedMs = (int)(context.ElapsedTime * 1000f);
@@ -63,7 +63,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     _effects?.Execute(e.EffectId, context);
                     _nextIndex++;
 
-                    try { context?.SetData(MobaSkillPipelineSharedKeys.TimelineNextEventIndex, _nextIndex); }
+                    try { context?.SetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), _nextIndex); }
                     catch { }
                 }
             }

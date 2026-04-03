@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Systems;
@@ -14,6 +16,14 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
         {
             builder.RegisterService<SearchTargetService, SearchTargetService>();
             builder.RegisterService<MobaSkillLoadoutService, MobaSkillLoadoutService>();
+
+            builder.TryRegister<SkillConditionRegistry>(WorldLifetime.Singleton, _ =>
+            {
+                var reg = new SkillConditionRegistry();
+                reg.DiscoverAndRegister();
+                Log.Info($"[MobaWorldBootstrapModule] SkillConditionRegistry initialized with {reg.GetAllConditionIds().Count()} conditions");
+                return reg;
+            });
 
             builder.TryRegister<MobaEventSubscriptionRegistry>(WorldLifetime.Singleton, _ =>
             {

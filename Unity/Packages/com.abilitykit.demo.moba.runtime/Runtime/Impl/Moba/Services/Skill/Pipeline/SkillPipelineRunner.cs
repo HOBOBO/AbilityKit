@@ -100,7 +100,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 catch { elapsedMs = 0; }
 
                 var nextEventIndex = 0;
-                try { nextEventIndex = e.Context.GetData<int>(MobaSkillPipelineSharedKeys.TimelineNextEventIndex); }
+                try { nextEventIndex = e.Context.GetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), 0); }
                 catch { nextEventIndex = 0; }
 
                 buffer.Add(new RunningSnapshot(
@@ -602,7 +602,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             catch { elapsedMs = 0; }
 
             var nextEventIndex = 0;
-            try { nextEventIndex = e.Context.GetData<int>(MobaSkillPipelineSharedKeys.TimelineNextEventIndex); }
+            try { nextEventIndex = e.Context.GetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), 0); }
             catch { nextEventIndex = 0; }
 
             _ended.Add(new RunningSnapshot(

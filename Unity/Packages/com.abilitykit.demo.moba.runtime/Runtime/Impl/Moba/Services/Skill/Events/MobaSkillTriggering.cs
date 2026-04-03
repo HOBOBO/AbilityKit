@@ -28,7 +28,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             public const string AimPos = MobaSkillTriggerArgs.AimPos;
             public const string AimDir = MobaSkillTriggerArgs.AimDir;
 
-            public const string FailReason = MobaSkillPipelineSharedKeys.FailReason;
+            public const string FailReason = "fail.reason";
         }
 
         public static void Publish(string eventId, SkillCastContext ctx, string failReason = null)

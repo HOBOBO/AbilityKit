@@ -61,6 +61,17 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             SharedData[key] = value;
         }
 
+        public bool TryGetData<T>(string key, out T value)
+        {
+            if (SharedData.TryGetValue(key, out var obj) && obj is T typedValue)
+            {
+                value = typedValue;
+                return true;
+            }
+            value = default;
+            return false;
+        }
+
         public bool RemoveData(string key)
         {
             return SharedData.Remove(key);
@@ -115,16 +126,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _disposables.Clear();
             _cleanupActions.Clear();
 
-            SourceContextId = 0L;
-            try
-            {
-                SourceContextId = triggerContext != null ? triggerContext.SourceContextId : 0L;
-            }
-            catch
-            {
-                SourceContextId = 0L;
-            }
+            SourceContextId = triggerContext?.SourceContextId ?? 0L;
 
+            SkillId = request.SkillId;
+            SkillSlot = request.SkillSlot;
+            CasterActorId = request.CasterActorId;
+            TargetActorId = request.TargetActorId;
+            // 先设置属性值
             SkillId = request.SkillId;
             SkillSlot = request.SkillSlot;
             CasterActorId = request.CasterActorId;
@@ -136,6 +144,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             EventBus = request.EventBus;
             CasterUnit = request.CasterUnit;
             TargetUnit = request.TargetUnit;
+
+            // 使用扩展方法填充共享数据（兼容旧代码）
+            Vec3 aimPos = AimPos;
+            Vec3 aimDir = AimDir;
+            this.SetSkillInfo(SkillId, SkillSlot, triggerContext?.SkillLevel ?? 0);
+            this.SetParticipants(CasterActorId, TargetActorId);
+            this.SetAim(in aimPos, in aimDir);
+            this.SetContextKind((int)EffectContextKind.Skill);
+            this.SetSourceContextId(SourceContextId);
         }
 
         public void AdvanceTime(float deltaTime)
@@ -159,7 +176,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _disposables.Clear();
             _cleanupActions.Clear();
 
-            SourceContextId = 0L;
+            this.SetSourceContextId(0L);
             FailReason = null;
 
             SkillId = 0;

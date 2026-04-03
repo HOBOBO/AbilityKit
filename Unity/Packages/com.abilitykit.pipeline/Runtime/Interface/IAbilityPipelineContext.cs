@@ -1,4 +1,4 @@
-﻿namespace AbilityKit.Ability
+namespace AbilityKit.Ability
 {
     /// <summary>
     /// 管线上下文接口
@@ -24,6 +24,11 @@
         /// 设置共享数据
         /// </summary>
         void SetData<T>(string key, T value);
+
+        /// <summary>
+        /// 尝试获取共享数据（强类型安全版本）
+        /// </summary>
+        bool TryGetData<T>(string key, out T value);
 
         /// <summary>
         /// 移除共享数据

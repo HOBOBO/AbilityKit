@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AbilityKit.Ability;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.World.DI;
@@ -31,7 +32,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     targetActorId: targetActorId,
                     contextKind: (int)EffectContextKind.Buff,
                     sourceContextId: sourceContextId,
-                    configure: ctx => { ctx.SharedData[MobaBuffTriggering.Args.BuffId] = buffId; });
+                    configure: ctx => ctx.SetBuffId(buffId));
             }
         }
     }

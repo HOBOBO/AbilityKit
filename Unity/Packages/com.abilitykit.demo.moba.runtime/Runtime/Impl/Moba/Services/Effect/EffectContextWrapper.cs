@@ -7,23 +7,24 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     {
         private readonly IAbilityPipelineContext _inner;
         private readonly EffectContextKind _kind;
-        private readonly long _sourceContextId;
 
         public static IEffectContext Wrap(IAbilityPipelineContext ctx)
         {
             if (ctx == null) return null;
             if (ctx is IEffectContext ec) return ec;
 
-            if (ctx is SkillPipelineContext)
+            EffectContextKind kind;
+            if (ctx.TryGetData(AbilityContextKeys.ContextKind.ToKeyString(), out int kindInt))
             {
-                return new EffectContextWrapper(ctx, EffectContextKind.Skill);
+                kind = (EffectContextKind)kindInt;
             }
-
-            var kind = EffectContextKind.Unknown;
-            if (ctx.SharedData != null && ctx.SharedData.TryGetValue(MobaEffectPipelineSharedKeys.ContextKind, out var kindObj))
+            else if (ctx is SkillPipelineContext)
             {
-                if (kindObj is int ki) kind = (EffectContextKind)ki;
-                else if (kindObj is long kl) kind = (EffectContextKind)(int)kl;
+                kind = EffectContextKind.Skill;
+            }
+            else
+            {
+                kind = EffectContextKind.Unknown;
             }
 
             return new EffectContextWrapper(ctx, kind);
@@ -33,20 +34,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         {
             _inner = inner;
             _kind = kind;
-
-            long sourceContextId = 0;
-            if (inner.SharedData != null && inner.SharedData.TryGetValue(MobaEffectPipelineSharedKeys.SourceContextId, out var idObj))
-            {
-                if (idObj is long l) sourceContextId = l;
-                else if (idObj is int i) sourceContextId = i;
-            }
-            _sourceContextId = sourceContextId;
         }
 
         public EffectContextKind Kind => _kind;
-        public int SourceActorId => _inner.GetCasterActorId();
+        public int SourceActorId => _inner.GetSourceActorId();
         public int TargetActorId => _inner.GetTargetActorId();
-        public long SourceContextId => _sourceContextId;
 
         public bool TryGetSkill(out SkillContextView skill)
         {
@@ -67,6 +59,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public bool IsPaused { get => _inner.IsPaused; set => _inner.IsPaused = value; }
         public float StartTime { get => _inner.StartTime; set => _inner.StartTime = value; }
         public float ElapsedTime => _inner.ElapsedTime;
+        public long SourceContextId { get => _inner.GetSourceContextId(); set => _inner.SetSourceContextId(value); }
         public Dictionary<string, object> SharedData => _inner.SharedData;
 
         public T GetData<T>(string key, T defaultValue = default)
@@ -77,6 +70,11 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public void SetData<T>(string key, T value)
         {
             _inner.SetData(key, value);
+        }
+
+        public bool TryGetData<T>(string key, out T value)
+        {
+            return _inner.TryGetData(key, out value);
         }
 
         public bool RemoveData(string key)

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AbilityKit.Ability
@@ -64,6 +64,20 @@ namespace AbilityKit.Ability
         public void SetData<T>(string key, T value)
         {
             SharedData[key] = value;
+        }
+
+        /// <summary>
+        /// 尝试获取共享数据（强类型安全版本）
+        /// </summary>
+        public bool TryGetData<T>(string key, out T value)
+        {
+            if (SharedData.TryGetValue(key, out var obj) && obj is T typedValue)
+            {
+                value = typedValue;
+                return true;
+            }
+            value = default;
+            return false;
         }
         
         /// <summary>
