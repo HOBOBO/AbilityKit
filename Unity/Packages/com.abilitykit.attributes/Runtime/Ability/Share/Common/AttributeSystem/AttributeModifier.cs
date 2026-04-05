@@ -100,8 +100,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             {
                 Key = key,
                 Op = op,
-                Value = Value,
-                MagnitudeSource = MagnitudeType.None,
+                Magnitude = MagnitudeStrategyData.Fixed(Value),
                 Priority = Priority,
                 SourceId = SourceId,
                 SourceNameIndex = SourceNameIndex,
@@ -129,7 +128,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
 
             return new AttributeModifier(
                 attrOp,
-                data.Value,
+                data.Magnitude.BaseValue,
                 data.SourceId,
                 data.Priority,
                 data.SourceNameIndex

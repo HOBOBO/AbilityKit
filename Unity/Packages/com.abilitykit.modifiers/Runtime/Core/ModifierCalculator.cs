@@ -13,11 +13,13 @@ namespace AbilityKit.Modifiers
     /// - 支持多种数值来源（固定值 / ScalableFloat / AttributeBased）
     /// - 支持缓存（基于修改器数量检测变化）
     /// - 支持自定义 Handler 扩展
+    /// - 支持策略模式（Strategy）
     ///
     /// 设计原则：
     /// - 无 GC：所有方法返回值均为值类型，无 List/Array 分配
     /// - 缓存本地化：计算器本身无状态
     /// - 可扩展：通过 IModifierHandler 支持任意类型
+    /// - 策略驱动：通过策略注册表支持业务层扩展
     /// </summary>
     public sealed class ModifierCalculator
     {
@@ -35,6 +37,30 @@ namespace AbilityKit.Modifiers
 
         /// <summary>是否启用缓存</summary>
         public bool EnableCache { get; set; } = true;
+
+        /// <summary>策略注册表（用于策略模式）</summary>
+        public IStrategyRegistry StrategyRegistry { get; set; }
+
+        /// <summary>数值来源策略注册表（用于 Magnitude 策略）</summary>
+        public IMagnitudeStrategyRegistry MagnitudeRegistry { get; set; }
+
+        #endregion
+
+        #region 构造函数
+
+        /// <summary>
+        /// 创建计算器（无策略支持）
+        /// </summary>
+        public ModifierCalculator() { }
+
+        /// <summary>
+        /// 创建计算器（带策略支持）
+        /// </summary>
+        public ModifierCalculator(IStrategyRegistry strategyRegistry, IMagnitudeStrategyRegistry magnitudeRegistry = null)
+        {
+            StrategyRegistry = strategyRegistry;
+            MagnitudeRegistry = magnitudeRegistry ?? MagnitudeStrategyExtensions.CreateDefaultRegistry();
+        }
 
         #endregion
 
@@ -175,6 +201,37 @@ namespace AbilityKit.Modifiers
             for (int i = 0; i < count; i++)
             {
                 var mod = modifiers[i];
+
+                // 处理策略模式
+                if (mod.HasStrategy && StrategyRegistry != null)
+                {
+                    if (mod.Strategy.StrategyId == "numeric.override")
+                    {
+                        hasOverride = true;
+                        overrideValue = mod.Strategy.GetFloatValue();
+
+                        if (!sources.IsEmpty && sourceIndex < sources.Length)
+                        {
+                            sources[sourceIndex++] = new ModifierSourceEntry
+                            {
+                                Op = ModifierOp.Override,
+                                Value = overrideValue,
+                                SourceId = mod.SourceId,
+                                SourceNameIndex = mod.SourceNameIndex
+                            };
+                        }
+
+                        // Override 直接返回
+                        var result = new ModifierResult<T>
+                        {
+                            BaseValue = baseValue,
+                            FinalValue = handler.Apply(baseValue, mod, context),
+                            Count = 1
+                        };
+                        return result;
+                    }
+                }
+
                 if (mod.Op == ModifierOp.Override)
                 {
                     hasOverride = true;

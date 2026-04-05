@@ -486,6 +486,297 @@ public float Apply(float baseValue, in ModifierData modifier, IModifierContext c
 
 ---
 
+## 策略模式（Strategy）
+
+### 设计背景
+
+原有的 `ModifierOp` 枚举定义了基础的数值操作（Add、Mult、Override），但游戏中的修改需求远不止数值：
+
+- 状态修改（保存原始值、设置新值、还原）
+- 标签管理（添加、移除、切换）
+- 列表操作（增、删、改）
+- 技能ID修改
+- 碰撞参数修改
+
+如果继续在框架层扩展枚举，会导致：
+1. 违反开闭原则（OCP）
+2. 业务包无法在不修改框架的情况下扩展
+3. 枚举膨胀，难以维护
+
+### 设计思路
+
+使用**策略模式**替代枚举扩展：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     策略模式架构                                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  框架层定义：                                                    │
+│  ├── IStrategy (接口) - 定义策略契约                              │
+│  ├── IStrategyRegistry (接口) - 管理策略注册                       │
+│  ├── StrategyContext (结构) - 携带执行数据                         │
+│  └── StrategyData (结构) - 可序列化的配置                         │
+│                                                                  │
+│  业务层实现：                                                    │
+│  ├── IStrategy 实现类 - 定义具体修改逻辑                           │
+│  └── 注册到 IStrategyRegistry                                    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 核心接口
+
+```csharp
+/// <summary>
+/// 策略接口 - 框架定义契约，业务层实现
+/// </summary>
+public interface IStrategy
+{
+    StrategyId StrategyId { get; }
+    string Description { get; }
+
+    // 应用策略
+    StrategyApplyResult Apply(object target, in StrategyContext context);
+
+    // 还原策略
+    StrategyRevertResult Revert(object target, in StrategyContext context);
+
+    // 计算数值（用于数值类策略）
+    T Calculate<T>(T baseValue, in StrategyContext context);
+}
+
+/// <summary>
+/// 策略注册表 - 业务层注册策略
+/// </summary>
+public interface IStrategyRegistry
+{
+    void Register(IStrategy strategy);
+    bool TryGet(StrategyId strategyId, out IStrategy strategy);
+    IReadOnlyList<IStrategy> GetAll();
+}
+```
+
+### 内置策略
+
+框架提供默认实现，业务层可直接使用或替换：
+
+| 策略ID | 说明 | 实现类 |
+|--------|------|--------|
+| `numeric.add` | 数值加法 | `NumericAddStrategy` |
+| `numeric.mult` | 数值乘法 | `NumericMultStrategy` |
+| `numeric.override` | 数值覆盖 | `NumericOverrideStrategy` |
+| `numeric.percent` | 百分比加成 | `NumericPercentStrategy` |
+| `state.set` | 状态保存并设置 | `StateSetStrategy` |
+| `state.restore` | 状态还原 | `StateRestoreStrategy` |
+| `tag.add` | 添加标签 | `TagAddStrategy` |
+| `tag.remove` | 移除标签 | `TagRemoveStrategy` |
+
+### 状态修改示例
+
+```csharp
+// 1. 注册策略
+var registry = StrategyExtensions.CreateDefaultRegistry();
+
+// 2. 创建状态修改策略数据
+var data = StrategyData.State(
+    strategyId: "state.set",
+    op: StrategyOperationKind.SaveAndSet,
+    stateKey: "MovementMode",
+    value: "Ghost",
+    ownerKey: contextId
+);
+
+// 3. 执行策略
+var executor = new StrategyExecutor(registry);
+var result = executor.Execute(target, in data);
+
+// 4. 还原（按 OwnerKey）
+executor.RevertByOwner(target, ownerKey);
+```
+
+### 与原有系统的兼容性
+
+ModifierData 新增 `StrategyData` 和 `Magnitude` 字段：
+
+```csharp
+public struct ModifierData
+{
+    // 原有字段
+    public ModifierOp Op;
+    // ...
+
+    // 新增：数值来源策略（替代 MagnitudeType 枚举）
+    public MagnitudeStrategyData Magnitude;
+    public bool HasMagnitude => !string.IsNullOrEmpty(Magnitude.StrategyId);
+
+    // 新增：通用策略数据
+    public StrategyData StrategyData;
+    public bool HasStrategyData => !string.IsNullOrEmpty(StrategyData.StrategyId);
+}
+```
+
+---
+
+## 数值来源策略（Magnitude Strategy）
+
+### 设计背景
+
+原有的 `MagnitudeType` 枚举定义了基础的数值来源类型：
+- `None` - 固定值
+- `ScalableFloat` - 等级曲线
+- `AttributeBased` - 基于属性
+
+但业务层可能需要自定义数值来源：
+- 公式计算
+- 外部数据引用
+- 动态计算
+- 随机值
+- 复杂条件判断
+
+### 设计思路
+
+使用**数值来源策略**替代 `MagnitudeType` 枚举：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│               数值来源策略架构                                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  框架层定义：                                                    │
+│  ├── IMagnitudeStrategy (接口) - 定义数值来源契约                 │
+│  ├── IMagnitudeStrategyRegistry (接口) - 管理策略注册             │
+│  └── MagnitudeStrategyData (结构) - 可序列化的配置               │
+│                                                                  │
+│  内置策略：                                                      │
+│  ├── "fixed" - 固定值                                            │
+│  ├── "scalable" - 等级曲线                                       │
+│  ├── "attribute" - 属性引用                                      │
+│  └── "formula" - 公式计算                                        │
+│                                                                  │
+│  业务层扩展：                                                    │
+│  └── 自定义 IMagnitudeStrategy 实现                               │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 核心接口
+
+```csharp
+/// <summary>
+/// 数值来源策略接口
+/// </summary>
+public interface IMagnitudeStrategy
+{
+    MagnitudeStrategyId StrategyId { get; }
+    string Description { get; }
+
+    /// <summary>
+    /// 计算数值
+    /// </summary>
+    float Calculate(float level, IModifierContext context);
+
+    /// <summary>
+    /// 获取原始数值
+    /// </summary>
+    float GetBaseValue();
+}
+
+/// <summary>
+/// 数值来源策略注册表
+/// </summary>
+public interface IMagnitudeStrategyRegistry
+{
+    void Register(IMagnitudeStrategy strategy);
+    bool TryGet(MagnitudeStrategyId strategyId, out IMagnitudeStrategy strategy);
+}
+```
+
+### 内置数值来源策略
+
+| 策略ID | 说明 | 实现类 |
+|--------|------|--------|
+| `fixed` | 固定值 | `FixedMagnitudeStrategy` |
+| `scalable` | 等级曲线 | `ScalableMagnitudeStrategy` |
+| `attribute` | 属性引用 | `AttributeMagnitudeStrategy` |
+| `formula` | 公式计算 | `FormulaMagnitudeStrategy` |
+
+### 使用示例
+
+```csharp
+// 1. 创建注册表
+var registry = MagnitudeStrategyRegistry.CreateDefault();
+
+// 2. 注册自定义策略（业务层）
+registry.Register(new RandomMagnitudeStrategy(seed: 12345));
+
+// 3. 创建修改器
+var mod = ModifierData.MagnitudeStrategy(
+    key: ModifierKey.Damage,
+    op: ModifierOp.Add,
+    magnitude: new MagnitudeStrategyData
+    {
+        StrategyId = "random",
+        BaseValue = 100f,
+        Parameters = new[] { 0.8f, 1.2f }  // 80%~120%
+    },
+    sourceId: buffId
+);
+
+// 4. 计算数值
+var result = calculator.Calculate(new[] { mod }, baseValue: 1000f);
+```
+
+### 业务层扩展示例
+
+```csharp
+[MagnitudeStrategyImpl("cooldown_scaling")]
+public sealed class CooldownScalingStrategy : IMagnitudeStrategy
+{
+    public MagnitudeStrategyId StrategyId => new("cooldown_scaling");
+    public string Description => "Cooldown scales with ability power";
+
+    // 公式：BaseCooldown / (1 + AbilityPower * 0.01)
+    public float Calculate(float level, IModifierContext context)
+    {
+        var baseCooldown = BaseValue;
+        var abilityPower = context.GetAttribute(ModifierKey.AbilityPower);
+        return baseCooldown / (1f + abilityPower * 0.01f);
+    }
+
+    public float GetBaseValue() => BaseValue;
+    public float BaseValue { get; set; }
+}
+```
+
+// 工厂方法
+public static ModifierData StateStrategy(
+    ModifierKey key,
+    string stateKey,
+    object stateValue,
+    long ownerKey,
+    int sourceId = 0)
+{
+    return new ModifierData
+    {
+        Key = key,
+        Op = ModifierOp.Custom,
+        StrategyData = StrategyData.State("state.set", ...),
+        // ...
+    };
+}
+```
+
+### 设计优势
+
+1. **开闭原则**：框架定义契约，业务层实现，无需修改框架即可扩展
+2. **统一抽象**：数值、状态、标签、列表等都用同一套模式处理
+3. **配置驱动**：`StrategyData` 可序列化，适合存储在配置文件中
+4. **生命周期管理**：`IStrategyRepository` 支持按 `OwnerKey` 批量还原
+5. **向后兼容**：原有 `ModifierOp` 枚举仍然可用
+
+---
+
 ## 扩展方向
 
 ### 已支持
@@ -495,6 +786,8 @@ public float Apply(float baseValue, in ModifierData modifier, IModifierContext c
 | 泛型 Handler | 通过 IModifierHandler<T> 支持任意类型 |
 | 自定义 Op | ModifierOp.Custom 可扩展 |
 | CustomData | 用于存储非数值数据 |
+| **策略模式** | 通过 IStrategy 支持业务层扩展 |
+| **数值来源策略** | 通过 IMagnitudeStrategy 支持业务层扩展 |
 
 ### 计划中
 

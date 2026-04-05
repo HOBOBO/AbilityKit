@@ -202,6 +202,36 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>
+        /// 创建带持续行为的行为
+        /// </summary>
+        public static IContinuousDecorator Continuous(ISimpleExecutable inner, string continuationId = null)
+        {
+            var deco = DecoratorRegistry.CreateContinuous(continuationId);
+            deco.Inner = inner;
+            return deco;
+        }
+
+        /// <summary>
+        /// 创建带能力的行为
+        /// </summary>
+        public static ICapabilityDecorator Capability(ISimpleExecutable inner, CapabilityId capabilityId = default)
+        {
+            var deco = DecoratorRegistry.CreateCapability(capabilityId);
+            deco.Inner = inner;
+            return deco;
+        }
+
+        /// <summary>
+        /// 创建带能力的行为 (使用能力ID字符串)
+        /// </summary>
+        public static ICapabilityDecorator Capability(ISimpleExecutable inner, string capabilityNamespace, string capabilityName)
+        {
+            var deco = DecoratorRegistry.CreateCapability(new CapabilityId(capabilityNamespace, capabilityName));
+            deco.Inner = inner;
+            return deco;
+        }
+
+        /// <summary>
         /// DOT: 持续伤害
         /// </summary>
         public static IScheduledExecutable DOT(
@@ -384,6 +414,54 @@ namespace AbilityKit.Triggering.Runtime.Executable
             var hierDeco = DecoratorRegistry.CreateHierarchy(parentId);
             hierDeco.Inner = inner;
             return (T)(ISimpleExecutable)hierDeco;
+        }
+
+        /// <summary>添加持续行为修饰器</summary>
+        public static IContinuousDecorator WithContinuous(this ISimpleExecutable inner, string continuationId = null)
+        {
+            var deco = DecoratorRegistry.CreateContinuous(continuationId);
+            deco.Inner = inner;
+            return deco;
+        }
+
+        /// <summary>添加持续行为修饰器 (链式)</summary>
+        public static T WithContinuous<T>(this T inner, string continuationId = null) where T : ISimpleExecutable
+        {
+            var deco = DecoratorRegistry.CreateContinuous(continuationId);
+            deco.Inner = inner;
+            return (T)(ISimpleExecutable)deco;
+        }
+
+        /// <summary>添加能力修饰器</summary>
+        public static ICapabilityDecorator WithCapability(this ISimpleExecutable inner, CapabilityId capabilityId = default)
+        {
+            var deco = DecoratorRegistry.CreateCapability(capabilityId);
+            deco.Inner = inner;
+            return deco;
+        }
+
+        /// <summary>添加能力修饰器 (链式)</summary>
+        public static T WithCapability<T>(this T inner, CapabilityId capabilityId = default) where T : ISimpleExecutable
+        {
+            var deco = DecoratorRegistry.CreateCapability(capabilityId);
+            deco.Inner = inner;
+            return (T)(ISimpleExecutable)deco;
+        }
+
+        /// <summary>添加能力修饰器 (使用能力ID字符串)</summary>
+        public static ICapabilityDecorator WithCapability(this ISimpleExecutable inner, string capabilityNamespace, string capabilityName)
+        {
+            var deco = DecoratorRegistry.CreateCapability(new CapabilityId(capabilityNamespace, capabilityName));
+            deco.Inner = inner;
+            return deco;
+        }
+
+        /// <summary>添加能力修饰器 (使用能力ID字符串，链式)</summary>
+        public static T WithCapability<T>(this T inner, string capabilityNamespace, string capabilityName) where T : ISimpleExecutable
+        {
+            var deco = DecoratorRegistry.CreateCapability(new CapabilityId(capabilityNamespace, capabilityName));
+            deco.Inner = inner;
+            return (T)(ISimpleExecutable)deco;
         }
     }
 }

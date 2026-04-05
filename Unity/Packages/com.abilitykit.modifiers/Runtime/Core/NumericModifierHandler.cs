@@ -13,10 +13,18 @@ namespace AbilityKit.Modifiers
     /// - PercentAdd: Base × (1 + Value)
     /// - Override: 直接替换
     ///
+    /// 策略支持：
+    /// - 当 ModifierData.HasStrategyData 为 true 时，优先使用策略计算
+    ///
     /// 业务层可通过继承或组合扩展自定义操作。
     /// </summary>
     public class NumericModifierHandler : IModifierHandler<float>
     {
+        /// <summary>
+        /// 策略注册表（可选）
+        /// </summary>
+        public IStrategyRegistry StrategyRegistry { get; set; }
+
         #region IModifierHandler<float>
 
         /// <summary>
@@ -25,6 +33,12 @@ namespace AbilityKit.Modifiers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public virtual float Apply(float baseValue, in ModifierData modifier, IModifierContext context)
         {
+            // 策略模式优先
+            if (modifier.HasStrategy && StrategyRegistry != null)
+            {
+                return ApplyStrategy(baseValue, modifier, context);
+            }
+
             float value = modifier.GetMagnitude(context?.Level ?? 1f, context);
 
             return modifier.Op switch
@@ -34,6 +48,41 @@ namespace AbilityKit.Modifiers
                 ModifierOp.PercentAdd => baseValue * (1f + value),
                 ModifierOp.Override => value,
                 ModifierOp.Custom => ApplyCustom(baseValue, modifier, context),
+                _ => baseValue
+            };
+        }
+
+        /// <summary>
+        /// 使用策略应用修改器
+        /// </summary>
+        protected virtual float ApplyStrategy(float baseValue, in ModifierData modifier, IModifierContext context)
+        {
+            var strategyId = modifier.Strategy.StrategyId;
+
+            if (StrategyRegistry.TryGet(strategyId, out var strategy))
+            {
+                var ctx = modifier.Strategy.ToContext();
+                return strategy.Calculate(baseValue, ctx);
+            }
+
+            // 降级到默认数值计算
+            return ApplyDefault(baseValue, modifier, context);
+        }
+
+        /// <summary>
+        /// 默认数值计算（无策略时使用）
+        /// </summary>
+        protected float ApplyDefault(float baseValue, in ModifierData modifier, IModifierContext context)
+        {
+            float value = modifier.Strategy.GetFloatValue();
+
+            var op = modifier.Strategy.OperationKind;
+            return op switch
+            {
+                StrategyOperationKind.Add => baseValue + value,
+                StrategyOperationKind.Mult => baseValue * value,
+                StrategyOperationKind.Override => value,
+                StrategyOperationKind.PercentAdd => baseValue * (1f + value),
                 _ => baseValue
             };
         }
@@ -134,8 +183,8 @@ namespace AbilityKit.Modifiers
         {
             return modifier.Op switch
             {
-                ModifierOp.Override => modifier.Value > 0.5f,
-                ModifierOp.Add => baseValue ^ (modifier.Value > 0.5f),
+                ModifierOp.Override => modifier.Strategy.Value != null && Convert.ToSingle(modifier.Strategy.Value) > 0.5f,
+                ModifierOp.Add => baseValue ^ (modifier.Strategy.Value != null && Convert.ToSingle(modifier.Strategy.Value) > 0.5f),
                 _ => baseValue
             };
         }

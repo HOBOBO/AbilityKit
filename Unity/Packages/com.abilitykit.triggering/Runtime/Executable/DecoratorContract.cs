@@ -167,6 +167,259 @@ namespace AbilityKit.Triggering.Runtime.Executable
     }
 
     // ========================================================================
+    // 持续行为修饰器接口
+    //
+    //  与 IDurationDecorator 的区别:
+    //    IDurationDecorator: 有时间限制的持续行为，到期自动结束
+    //    IContinuousDecorator: 无时间限制的持续行为，需要外部触发退出
+    //
+    //  生命周期:
+    //    OnApplied()     -> 能力被应用时 (Enter)
+    //    OnTick()        -> 每帧Tick (Update)
+    //    OnRemoved()     -> 能力被移除时 (Exit)
+    // ========================================================================
+
+    /// <summary>
+    /// 持续行为修饰器接口
+    /// 
+    /// 与 IDurationDecorator 的区别:
+    /// - IDurationDecorator: 有时间限制的持续行为，到期自动结束
+    /// - IContinuousDecorator: 无时间限制的持续行为，需要外部触发退出
+    /// </summary>
+    public interface IContinuousDecorator : IDecorator
+    {
+        /// <summary>持续行为唯一标识</summary>
+        string ContinuationId { get; }
+
+        /// <summary>
+        /// 行为被应用时调用 (相当于 OnEnter)
+        /// </summary>
+        void OnApplied(object ctx);
+
+        /// <summary>
+        /// 行为每帧Tick (相当于 Update)
+        /// </summary>
+        void OnTick(object ctx, float deltaTimeMs);
+
+        /// <summary>
+        /// 行为被移除时调用 (相当于 OnExit)
+        /// </summary>
+        void OnRemoved(object ctx);
+
+        /// <summary>
+        /// 检查是否能与另一个持续行为共存
+        /// </summary>
+        bool CanCoexistWith(IContinuousDecorator other);
+
+        /// <summary>
+        /// 行为是否已结束
+        /// </summary>
+        bool IsTerminated { get; }
+
+        /// <summary>
+        /// 终止原因 (如果 IsTerminated 为 true)
+        /// </summary>
+        string TerminationReason { get; }
+
+        /// <summary>
+        /// 请求终止此持续行为
+        /// </summary>
+        void RequestTermination(string reason);
+    }
+
+    // ========================================================================
+    // 能力修饰器接口 — 用于替换/修改实体的核心行为能力
+    //
+    //  能力修饰器 vs 数值修饰器:
+    //    IModifierDecorator: 修改数值属性 (Add/Mul/Override)
+    //    ICapabilityDecorator: 改变实体行为策略 (移动/攻击/可见性)
+    //
+    // ========================================================================
+
+    /// <summary>
+    /// 能力标识
+    /// </summary>
+    public readonly struct CapabilityId : IEquatable<CapabilityId>
+    {
+        public readonly string Namespace;
+        public readonly string Name;
+
+        public CapabilityId(string ns, string name)
+        {
+            Namespace = ns ?? string.Empty;
+            Name = name ?? string.Empty;
+        }
+
+        public static CapabilityId Invalid => new(string.Empty, string.Empty);
+
+        public static CapabilityId Vehicle => new("Ability", "Vehicle");
+        public static CapabilityId Flying => new("Ability", "Flying");
+        public static CapabilityId Stealth => new("Ability", "Stealth");
+        public static CapabilityId Shapeshift => new("Ability", "Shapeshift");
+
+        public bool IsValid => !string.IsNullOrEmpty(Namespace) || !string.IsNullOrEmpty(Name);
+
+        public string FullName => string.IsNullOrEmpty(Namespace) ? Name : $"{Namespace}.{Name}";
+
+        public bool Equals(CapabilityId other)
+            => Namespace == other.Namespace && Name == other.Name;
+
+        public override bool Equals(object obj)
+            => obj is CapabilityId other && Equals(other);
+
+        public override int GetHashCode() => HashCode.Combine(Namespace, Name);
+
+        public override string ToString() => FullName;
+
+        public static bool operator ==(CapabilityId left, CapabilityId right) => left.Equals(right);
+        public static bool operator !=(CapabilityId left, CapabilityId right) => !left.Equals(right);
+    }
+
+    /// <summary>
+    /// 能力修饰器接口
+    /// 用于替换/修改实体的核心行为能力
+    /// 
+    /// 与 IModifierDecorator (数值修饰器) 的区别:
+    /// - IModifierDecorator: 修改数值属性 (Add/Mul/Override)
+    /// - ICapabilityDecorator: 改变实体行为策略 (移动/攻击/可见性)
+    /// </summary>
+    public interface ICapabilityDecorator : IDecorator
+    {
+        /// <summary>能力唯一标识</summary>
+        CapabilityId CapabilityId { get; }
+
+        /// <summary>
+        /// 能力应用器引用 (用于获取/创建能力容器)
+        /// </summary>
+        ICapabilityApplier CapabilityApplier { get; set; }
+
+        /// <summary>
+        /// 能力被应用时调用 (相当于 OnEnter)
+        /// </summary>
+        void OnApplied(object ctx);
+
+        /// <summary>
+        /// 能力每帧Tick (相当于 Update)
+        /// </summary>
+        void OnTick(object ctx, float deltaTimeMs);
+
+        /// <summary>
+        /// 能力被移除时调用 (相当于 OnExit)
+        /// </summary>
+        void OnRemoved(object ctx);
+
+        /// <summary>
+        /// 检查是否能与另一个能力共存
+        /// </summary>
+        bool CanCoexistWith(ICapabilityDecorator other);
+
+        /// <summary>
+        /// 获取此能力替换的能力ID列表 (用于优先级管理)
+        /// </summary>
+        IReadOnlyList<CapabilityId> ReplacedCapabilities { get; }
+
+        /// <summary>
+        /// 能力是否已终止
+        /// </summary>
+        bool IsTerminated { get; }
+
+        /// <summary>
+        /// 请求终止此能力
+        /// </summary>
+        void RequestTermination(string reason);
+    }
+
+    // ========================================================================
+    // 能力容器接口 — 管理实体的所有能力修饰器
+    //
+    //  设计说明:
+    //    能力容器由业务层实现并注册到 ICapabilityApplier
+    //    框架只定义接口契约，不关心具体存储方式
+    // ========================================================================
+
+    /// <summary>
+    /// 能力容器接口
+    /// 管理实体的所有能力修饰器
+    /// 
+    /// 由业务层实现并注册到 ICapabilityApplier
+    /// 框架只定义接口契约，不关心具体存储方式
+    /// </summary>
+    public interface ICapabilityContainer
+    {
+        /// <summary>添加能力修饰器</summary>
+        bool AddCapability(ICapabilityDecorator capability, object ctx);
+
+        /// <summary>移除能力修饰器</summary>
+        bool RemoveCapability(CapabilityId capabilityId, object ctx);
+
+        /// <summary>检查是否拥有指定能力</summary>
+        bool HasCapability(CapabilityId capabilityId);
+
+        /// <summary>获取指定能力修饰器</summary>
+        ICapabilityDecorator GetCapability(CapabilityId capabilityId);
+
+        /// <summary>获取所有活跃能力</summary>
+        IReadOnlyList<ICapabilityDecorator> GetAllCapabilities();
+
+        /// <summary>获取指定类型的有效能力 (用于策略查询)</summary>
+        T GetEffectiveCapability<T>() where T : class, ICapabilityDecorator;
+
+        /// <summary>容器Tick</summary>
+        void Tick(object ctx, float deltaTimeMs);
+
+        /// <summary>清空所有能力</summary>
+        void Clear(object ctx);
+    }
+
+    // ========================================================================
+    // 能力应用器接口 — 创建/获取能力容器
+    //
+    //  设计说明:
+    //    业务层实现此接口来创建具体的能力容器
+    //    框架通过此接口获取能力容器来管理能力修饰器
+    // ========================================================================
+
+    /// <summary>
+    /// 能力应用器接口
+    /// 创建/获取能力容器
+    /// 
+    /// 业务层实现此接口来创建具体的能力容器
+    /// 框架通过此接口获取能力容器来管理能力修饰器
+    /// </summary>
+    public interface ICapabilityApplier
+    {
+        /// <summary>
+        /// 获取或创建指定实体的能力容器
+        /// </summary>
+        ICapabilityContainer GetOrCreateContainer(object target);
+
+        /// <summary>
+        /// 获取指定实体的能力容器 (如果不存在返回 null)
+        /// </summary>
+        ICapabilityContainer GetContainer(object target);
+
+        /// <summary>
+        /// 销毁指定实体的能力容器
+        /// </summary>
+        void DestroyContainer(object target);
+    }
+
+    /// <summary>
+    /// 能力应用器注册 Attribute
+    /// 业务包实现 ICapabilityApplier 后用此特性标记，框架自动发现并注册
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    public sealed class CapabilityApplierAttribute : Attribute
+    {
+        public int Priority { get; }
+
+        public CapabilityApplierAttribute(int priority = 0)
+        {
+            Priority = priority;
+        }
+    }
+
+    // ========================================================================
     // 修饰器实现标记 Attribute — 业务包注册实现的核心契约
     //
     //  使用方式:

@@ -76,6 +76,24 @@ namespace AbilityKit.Triggering.Runtime.Executable
             return this;
         }
 
+        /// <summary>添加持续行为修饰器</summary>
+        public DecoratorBuilder WithContinuous(string continuationId = null)
+        {
+            var deco = DecoratorRegistry.CreateContinuous(continuationId);
+            deco.Inner = _inner;
+            _inner = deco;
+            return this;
+        }
+
+        /// <summary>添加能力修饰器</summary>
+        public DecoratorBuilder WithCapability(CapabilityId capabilityId = default)
+        {
+            var deco = DecoratorRegistry.CreateCapability(capabilityId);
+            deco.Inner = _inner;
+            _inner = deco;
+            return this;
+        }
+
         /// <summary>构建最终行为</summary>
         public ISimpleExecutable Build() => _inner;
     }

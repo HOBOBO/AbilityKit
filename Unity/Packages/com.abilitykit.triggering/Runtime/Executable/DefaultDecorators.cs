@@ -471,4 +471,195 @@ namespace AbilityKit.Triggering.Runtime.Executable
             return result;
         }
     }
+
+    // ========================================================================
+    // 持续行为修饰器默认实现
+    // ========================================================================
+
+    [DecoratorImpl(typeof(IContinuousDecorator))]
+    internal sealed class DefaultContinuousDecorator : IContinuousDecorator
+    {
+        private readonly List<string> _conflictingIds = new();
+
+        public string Name => $"Continuous({Inner?.Name ?? "null"}, {_continuationId})";
+        public ExecutableMetadata Metadata => new(4000, "Continuous", isScheduled: true);
+        public Type DecoratorType => typeof(IContinuousDecorator);
+        public bool IsReady => true;
+
+        public string ContinuationId => _continuationId;
+        public ISimpleExecutable Inner { get; set; }
+        public ICapabilityApplier CapabilityApplier { get; set; }
+        public event Action<object, string> OnTerminated;
+
+        private string _continuationId;
+        private bool _isTerminated;
+        private string _terminationReason;
+
+        public DefaultContinuousDecorator() { }
+
+        public DefaultContinuousDecorator(string continuationId)
+        {
+            _continuationId = continuationId ?? string.Empty;
+        }
+
+        public bool IsTerminated => _isTerminated;
+        public string TerminationReason => _terminationReason;
+
+        public bool CanCoexistWith(IContinuousDecorator other)
+        {
+            if (other == null) return true;
+            return !_conflictingIds.Contains(other.ContinuationId);
+        }
+
+        public void AddConflictingId(string id)
+        {
+            if (!string.IsNullOrEmpty(id) && !_conflictingIds.Contains(id))
+                _conflictingIds.Add(id);
+        }
+
+        public void OnApplied(object ctx)
+        {
+            if (_isTerminated) return;
+            Inner?.Execute(ctx);
+        }
+
+        public void OnTick(object ctx, float deltaTimeMs)
+        {
+            if (_isTerminated) return;
+        }
+
+        public void OnRemoved(object ctx)
+        {
+            if (_isTerminated) return;
+            _isTerminated = true;
+            _terminationReason = "ManualRemoval";
+            OnTerminated?.Invoke(ctx, _terminationReason);
+        }
+
+        public void RequestTermination(string reason)
+        {
+            if (_isTerminated) return;
+            _isTerminated = true;
+            _terminationReason = reason ?? "Requested";
+            OnTerminated?.Invoke(null, _terminationReason);
+        }
+
+        public bool OnBeforeExecute(object ctx) => !_isTerminated;
+
+        public void OnAfterExecute(object ctx, ref ExecutionResult result)
+        {
+            if (!_isTerminated)
+                OnApplied(ctx);
+        }
+
+        public ExecutionResult Execute(object ctx)
+        {
+            if (!OnBeforeExecute(ctx))
+                return ExecutionResult.Skipped("Continuous decorator already terminated");
+            var innerResult = Inner?.Execute(ctx) ?? ExecutionResult.Success();
+            OnApplied(ctx);
+            return innerResult;
+        }
+    }
+
+    // ========================================================================
+    // 能力修饰器默认实现
+    // ========================================================================
+
+    [DecoratorImpl(typeof(ICapabilityDecorator))]
+    internal sealed class DefaultCapabilityDecorator : ICapabilityDecorator
+    {
+        private readonly List<CapabilityId> _replacedCapabilities = new();
+        private bool _isTerminated;
+
+        public string Name => $"Capability({Inner?.Name ?? "null"}, {CapabilityId})";
+        public ExecutableMetadata Metadata => new(4001, "Capability");
+        public Type DecoratorType => typeof(ICapabilityDecorator);
+        public bool IsReady => true;
+        public bool IsTerminated => _isTerminated;
+
+        public CapabilityId CapabilityId { get; set; }
+        public ISimpleExecutable Inner { get; set; }
+        public ICapabilityApplier CapabilityApplier { get; set; }
+        public IReadOnlyList<CapabilityId> ReplacedCapabilities => _replacedCapabilities;
+        public event Action<object> OnAppliedEvent;
+        public event Action<object> OnRemovedEvent;
+        public event Action<object, string> OnTerminatedEvent;
+
+        public DefaultCapabilityDecorator() { }
+
+        public DefaultCapabilityDecorator(CapabilityId capabilityId)
+        {
+            CapabilityId = capabilityId;
+        }
+
+        public void AddReplacedCapability(CapabilityId capabilityId)
+        {
+            if (!capabilityId.IsValid || _replacedCapabilities.Contains(capabilityId))
+                return;
+            _replacedCapabilities.Add(capabilityId);
+        }
+
+        public bool CanCoexistWith(ICapabilityDecorator other)
+        {
+            if (other == null) return true;
+            if (!CapabilityId.IsValid || !other.CapabilityId.IsValid) return true;
+
+            if (_replacedCapabilities.Contains(other.CapabilityId))
+                return false;
+            if (other.ReplacedCapabilities.Contains(CapabilityId))
+                return false;
+
+            return true;
+        }
+
+        public void OnApplied(object ctx)
+        {
+            var container = CapabilityApplier?.GetOrCreateContainer(ctx);
+            if (container != null)
+            {
+                container.AddCapability(this, ctx);
+            }
+            Inner?.Execute(ctx);
+            OnAppliedEvent?.Invoke(ctx);
+        }
+
+        public void OnTick(object ctx, float deltaTimeMs)
+        {
+        }
+
+        public void OnRemoved(object ctx)
+        {
+            _isTerminated = true;
+            var container = CapabilityApplier?.GetOrCreateContainer(ctx);
+            if (container != null)
+            {
+                container.RemoveCapability(CapabilityId, ctx);
+            }
+            OnRemovedEvent?.Invoke(ctx);
+        }
+
+        public void RequestTermination(string reason)
+        {
+            if (_isTerminated) return;
+            _isTerminated = true;
+            OnTerminatedEvent?.Invoke(null, reason);
+        }
+
+        public bool OnBeforeExecute(object ctx) => true;
+
+        public void OnAfterExecute(object ctx, ref ExecutionResult result)
+        {
+            OnApplied(ctx);
+        }
+
+        public ExecutionResult Execute(object ctx)
+        {
+            if (!OnBeforeExecute(ctx))
+                return ExecutionResult.Skipped("Capability condition not met");
+            var innerResult = Inner?.Execute(ctx) ?? ExecutionResult.Success();
+            OnApplied(ctx);
+            return innerResult;
+        }
+    }
 }

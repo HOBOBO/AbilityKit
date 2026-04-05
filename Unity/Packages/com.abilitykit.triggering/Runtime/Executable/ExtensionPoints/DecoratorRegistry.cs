@@ -128,6 +128,26 @@ namespace AbilityKit.Triggering.Runtime.Executable
             return deco;
         }
 
+        /// <summary>
+        /// 创建持续行为修饰器
+        /// </summary>
+        public static IContinuousDecorator CreateContinuous(string continuationId = null)
+        {
+            var deco = Create<IContinuousDecorator>(typeof(IContinuousDecorator), () => new DefaultContinuousDecorator(continuationId));
+            deco.Inner = null;
+            return deco;
+        }
+
+        /// <summary>
+        /// 创建能力修饰器
+        /// </summary>
+        public static ICapabilityDecorator CreateCapability(CapabilityId capabilityId = default)
+        {
+            var deco = Create<ICapabilityDecorator>(typeof(ICapabilityDecorator), () => new DefaultCapabilityDecorator(capabilityId));
+            deco.Inner = null;
+            return deco;
+        }
+
         private static T Create<T>(Type decoratorInterfaceType, Func<T> defaultFactory) where T : class
         {
             // 如果有业务包注册的类型，优先使用

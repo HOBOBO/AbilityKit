@@ -17,6 +17,7 @@
         "AbilityKit.World.Snapshot",
         "AbilityKit.Ability.RuntimePkg",
         "AbilityKit.Ability.Unity",
+        "AbilityKit.Ability.Behavior",
         "AbilityKit.ActionSchema",
         "AbilityKit.Combat.Projectile",
         "AbilityKit.Combat.Damage",

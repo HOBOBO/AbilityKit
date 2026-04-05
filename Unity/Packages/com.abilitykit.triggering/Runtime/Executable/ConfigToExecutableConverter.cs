@@ -347,8 +347,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
             {
                 Key = key,
                 Op = op,
-                Value = config.Value,
-                MagnitudeSource = MagnitudeType.None,
+                Magnitude = MagnitudeStrategyData.Fixed(config.Value),
                 SourceId = sourceId
             };
         }

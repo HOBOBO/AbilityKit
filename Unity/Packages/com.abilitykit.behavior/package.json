@@ -1,0 +1,13 @@
+{
+  "name": "com.abilitykit.behavior",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Behavior",
+  "unity": "2022.3",
+  "description": "Continuous behavior framework for AbilityKit. Provides a layered architecture for behaviors with decoupled decision-making and execution layers.",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1"
+  }
+}

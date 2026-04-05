@@ -203,6 +203,30 @@ namespace AbilityKit.Triggering.Runtime.Executable
                     periodic.DurationMs,
                     periodic.MaxExecutions),
                 ExternalControlledExecutable external => new ExternalScheduleController(external, ctx),
+                IContinuousDecorator continuous => new ContinuousScheduleController(continuous, ctx),
+                ICapabilityDecorator capability => CreateCapabilityController(capability, ctx),
+                _ => NullScheduleController.Instance
+            };
+        }
+
+        private static IScheduleController CreateCapabilityController(ICapabilityDecorator capability, object ctx)
+        {
+            var applier = capability.CapabilityApplier;
+            if (applier != null)
+            {
+                var container = applier.GetOrCreateContainer(ctx);
+                return new CapabilityScheduleController(capability, ctx, container);
+            }
+            return NullScheduleController.Instance;
+        }
+
+        public static IScheduleController CreateController(IDecorator decorator, object ctx)
+        {
+            return decorator switch
+            {
+                IContinuousDecorator continuous => new ContinuousScheduleController(continuous, ctx),
+                ICapabilityDecorator capability => CreateCapabilityController(capability, ctx),
+                IScheduledExecutable scheduled => CreateController(scheduled, ctx),
                 _ => NullScheduleController.Instance
             };
         }
@@ -268,6 +292,89 @@ namespace AbilityKit.Triggering.Runtime.Executable
         public void MarkCompleted()
         {
             _isCompleted = true;
+        }
+    }
+
+    // ========================================================================
+    // 持续调度控制器 — 用于持续行为 (非周期，外部终止)
+    // ========================================================================
+
+    /// <summary>
+    /// 持续调度控制器
+    /// 用于持续行为 (非周期，外部终止)
+    ///
+    /// 与 PeriodicScheduleController 的区别:
+    /// - PeriodicScheduleController: 有周期性的重复执行
+    /// - ContinuousScheduleController: 无周期性，只是持续运行直到外部终止
+    /// </summary>
+    public sealed class ContinuousScheduleController : IScheduleController
+    {
+        private readonly IContinuousDecorator _owner;
+        private readonly object _ctx;
+        private float _elapsedMs;
+
+        public bool IsCompleted => _owner.IsTerminated;
+        public bool IsInterrupted => _owner.IsTerminated && !string.IsNullOrEmpty(_owner.TerminationReason);
+        public string InterruptionReason => _owner.TerminationReason;
+
+        public float ElapsedMs => _elapsedMs;
+
+        public ContinuousScheduleController(IContinuousDecorator owner, object ctx)
+        {
+            _owner = owner;
+            _ctx = ctx;
+            _elapsedMs = 0f;
+        }
+
+        public void Update(float deltaTimeMs)
+        {
+            if (IsCompleted || IsInterrupted) return;
+
+            _elapsedMs += deltaTimeMs;
+            _owner.OnTick(_ctx, deltaTimeMs);
+        }
+
+        public void RequestInterrupt(string reason)
+        {
+            _owner.RequestTermination(reason);
+        }
+    }
+
+    /// <summary>
+    /// 能力调度控制器
+    /// 用于能力修饰器 (外部终止 + 能力容器管理)
+    /// </summary>
+    public sealed class CapabilityScheduleController : IScheduleController
+    {
+        private readonly ICapabilityDecorator _owner;
+        private readonly object _ctx;
+        private readonly ICapabilityContainer _container;
+        private float _elapsedMs;
+
+        public bool IsCompleted => _owner.IsTerminated;
+        public bool IsInterrupted => false;
+        public string InterruptionReason => null;
+
+        public float ElapsedMs => _elapsedMs;
+
+        public CapabilityScheduleController(ICapabilityDecorator owner, object ctx, ICapabilityContainer container)
+        {
+            _owner = owner;
+            _ctx = ctx;
+            _container = container;
+            _elapsedMs = 0f;
+        }
+
+        public void Update(float deltaTimeMs)
+        {
+            if (IsCompleted) return;
+
+            _elapsedMs += deltaTimeMs;
+            _container.Tick(_ctx, deltaTimeMs);
+        }
+
+        public void RequestInterrupt(string reason)
+        {
         }
     }
 

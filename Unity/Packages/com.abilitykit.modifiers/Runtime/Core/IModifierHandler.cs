@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 
 namespace AbilityKit.Modifiers
 {
@@ -7,6 +8,7 @@ namespace AbilityKit.Modifiers
     /// 定义如何将修改器应用到基础值上。
     ///
     /// 泛型设计：支持任意类型的值（float、int、struct 等）
+    /// 策略支持：通过 IStrategy 扩展自定义修改逻辑
     /// </summary>
     public interface IModifierHandler<TValue>
     {
@@ -57,5 +59,30 @@ namespace AbilityKit.Modifiers
 
         public float GetAttribute(ModifierKey key) => 0f;
         public float Level => 1f;
+    }
+
+    /// <summary>
+    /// 策略感知的修改器上下文。
+    /// 在计算时携带策略注册表。
+    /// </summary>
+    public readonly struct StrategyAwareModifierContext : IModifierContext
+    {
+        public float GetAttribute(ModifierKey key) => _getAttribute?.Invoke(key) ?? 0f;
+        public float Level => _level;
+        public IStrategyRegistry StrategyRegistry => _registry;
+
+        private readonly IStrategyRegistry _registry;
+        private readonly float _level;
+        private readonly Func<ModifierKey, float> _getAttribute;
+
+        public StrategyAwareModifierContext(
+            IStrategyRegistry registry,
+            float level = 1f,
+            Func<ModifierKey, float> getAttribute = null)
+        {
+            _registry = registry;
+            _level = level;
+            _getAttribute = getAttribute;
+        }
     }
 }
