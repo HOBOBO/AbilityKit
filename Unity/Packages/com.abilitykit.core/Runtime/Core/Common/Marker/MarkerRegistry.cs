@@ -16,7 +16,7 @@ namespace AbilityKit.Common.Marker
 
         public IReadOnlyList<Type> Types => _types;
 
-        public void Register(Type implType)
+        public virtual void Register(Type implType)
         {
             if (implType == null) return;
             if (implType.IsAbstract) return;

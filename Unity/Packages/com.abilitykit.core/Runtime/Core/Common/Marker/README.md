@@ -13,6 +13,7 @@
 | `MarkerRegistry.cs` | 基于类型的注册表，直接存储所有扫描到的 Type |
 | `KeyedMarkerRegistry.cs` | 基于 Key-Type 的注册表，通过 Key（如 string）查找 Type |
 | `MarkerScanner.cs` | 扫描器，扫描程序集并调用 Attribute.OnScanned |
+| `MarkerScannerExtensions.cs` | 扫描器扩展方法，提供高级扫描功能 |
 
 ## 命名空间
 
@@ -20,18 +21,20 @@
 AbilityKit.Common.Marker
 ```
 
-## 使用方式
+## 快速开始
 
-### 1. 框架层：定义 Attribute + Registry
+### 1. 定义 Attribute + Registry
 
 ```csharp
 namespace AbilityKit.Ability.Triggering
 {
+    // 定义 Registry
     public sealed class TriggerActionRegistry : KeyedMarkerRegistry<string, TriggerActionAttribute>
     {
         public static readonly TriggerActionRegistry Instance = new();
     }
 
+    // 定义 Attribute
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class TriggerActionAttribute : MarkerAttribute
     {
@@ -53,19 +56,13 @@ namespace AbilityKit.Ability.Triggering
 }
 ```
 
-### 2. 业务层：标记类型
+### 2. 业务层标记类型
 
 ```csharp
 namespace MyGame.Skills.Actions
 {
     [TriggerAction("damage_apply")]
     public sealed class DamageApplyAction : ITriggerAction
-    {
-        public void Execute(TriggerContext ctx) { /* ... */ }
-    }
-
-    [TriggerAction("heal_apply")]
-    public sealed class HealApplyAction : ITriggerAction
     {
         public void Execute(TriggerContext ctx) { /* ... */ }
     }
@@ -77,10 +74,11 @@ namespace MyGame.Skills.Actions
 ```csharp
 public static class TriggeringBootstrap
 {
-    public static void RegisterAll()
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void Initialize()
     {
-        MarkerScanner<TriggerActionAttribute>.ScanAll(
-            TriggerActionRegistry.Instance);
+        // 扫描所有程序集
+        MarkerScanner<TriggerActionAttribute>.ScanAll(TriggerActionRegistry.Instance);
     }
 }
 ```
@@ -110,3 +108,16 @@ if (TriggerActionRegistry.Instance.TryGet("damage_apply", out var type))
 | 需要通过 Key（如 string）查找实现 | `KeyedMarkerRegistry<TKey, TAttr>` |
 | Key 是 string（如 actionType） | `KeyedMarkerRegistry<string, TAttr>` |
 | Key 是 int（如枚举值） | `KeyedMarkerRegistry<int, TAttr>` |
+
+## API 参考
+
+### MarkerScanner
+
+- `Scan(assemblies, registry)` - 扫描指定程序集
+- `ScanAll(registry)` - 扫描所有已加载的程序集
+
+### MarkerScannerExtensions
+
+- `ScanAllExcludingSystem<TAttr>()` - 扫描并排除系统程序集
+- `ScanByNamespace<TAttr>(namespace)` - 按命名空间扫描
+- `ScanWithReferences<TAttr>(assembly)` - 扫描程序集及其引用
