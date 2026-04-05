@@ -1,18 +1,9 @@
-using AbilityKit.Ability.Impl.Moba.Effects.Config;
-using AbilityKit.Ability.Triggering.Json;
-using AbilityKit.Ability.World.DI;
-using AbilityKit.Effects.Core;
+// [REMOVED] Effects 包已删除，相关功能待重构
+// 残留的 Effects Stage 仅作标记，不再注册任何服务
 
 namespace AbilityKit.Ability.Impl.Moba.Systems
 {
     public sealed partial class MobaWorldBootstrapModule
     {
-        private static void RegisterEffects(WorldContainerBuilder builder)
-        {
-            builder.TryRegister<EffectRegistry>(WorldLifetime.Singleton, _ => new EffectRegistry());
-            builder.TryRegisterService<MobaEffectRegistryBootstrapService, MobaEffectRegistryBootstrapService>(WorldLifetime.Singleton);
-
-            builder.TryRegister<ITextLoader>(WorldLifetime.Singleton, _ => new UnityResourcesTextLoader());
-        }
     }
 }

@@ -2,14 +2,14 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Impl.Moba.Effects.Runtime;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Common.MotionSystem.Core;
 using AbilityKit.Ability.Share.Common.MotionSystem.Trajectory;
 using AbilityKit.Ability.Share.Common.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Math;
-using AbilityKit.Effects.Core;
+// [REMOVED] using AbilityKit.Ability.Impl.Moba.Effects.Runtime;
+// [REMOVED] using AbilityKit.Effects.Core;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
 {
@@ -68,40 +68,41 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
 
                 bullet.isFlyingProjectileTag = true;
 
-                if (_sys.EffectRegistry != null)
-                {
-                    try
-                    {
-                        var launcherId = 0;
-                        if (evt.LauncherActorId > 0
-                            && _sys.Registry.TryGet(evt.LauncherActorId, out var launcherEntityForEffect)
-                            && launcherEntityForEffect != null
-                            && launcherEntityForEffect.hasProjectileLauncher)
-                        {
-                            launcherId = launcherEntityForEffect.projectileLauncher.LauncherId;
-                        }
-
-                        var ctx = MobaEffectQueryContext.CreateForProjectile(
-                            actorId: evt.RootActorId > 0 ? evt.RootActorId : evt.OwnerId,
-                            skillId: 0,
-                            launcherId: launcherId,
-                            projectileId: evt.TemplateId);
-
-                        var snapshot = MobaEffectSnapshotBuilder.BuildProjectileSnapshot(_sys.EffectRegistry, in ctx);
-                        if (bullet.hasProjectileEffectSnapshot)
-                        {
-                            bullet.ReplaceProjectileEffectSnapshot(snapshot.DamageMul, snapshot.SpeedMul, snapshot.Pierce);
-                        }
-                        else
-                        {
-                            bullet.AddProjectileEffectSnapshot(snapshot.DamageMul, snapshot.SpeedMul, snapshot.Pierce);
-                        }
-                    }
-                    catch (System.Exception ex)
-                    {
-                        Log.Exception(ex, "[MobaProjectileSyncSystem] init projectile effect snapshot failed");
-                    }
-                }
+                // [REMOVED] Effects 包已删除，弹丸效果快照功能待重构
+                // if (_sys.EffectRegistry != null)
+                // {
+                //     try
+                //     {
+                //         var launcherId = 0;
+                //         if (evt.LauncherActorId > 0
+                //             && _sys.Registry.TryGet(evt.LauncherActorId, out var launcherEntityForEffect)
+                //             && launcherEntityForEffect != null
+                //             && launcherEntityForEffect.hasProjectileLauncher)
+                //         {
+                //             launcherId = launcherEntityForEffect.projectileLauncher.LauncherId;
+                //         }
+                //
+                //         var ctx = MobaEffectQueryContext.CreateForProjectile(
+                //             actorId: evt.RootActorId > 0 ? evt.RootActorId : evt.OwnerId,
+                //             skillId: 0,
+                //             launcherId: launcherId,
+                //             projectileId: evt.TemplateId);
+                //
+                //         var snapshot = MobaEffectSnapshotBuilder.BuildProjectileSnapshot(_sys.EffectRegistry, in ctx);
+                //         if (bullet.hasProjectileEffectSnapshot)
+                //         {
+                //             bullet.ReplaceProjectileEffectSnapshot(snapshot.DamageMul, snapshot.SpeedMul, snapshot.Pierce);
+                //         }
+                //         else
+                //         {
+                //             bullet.AddProjectileEffectSnapshot(snapshot.DamageMul, snapshot.SpeedMul, snapshot.Pierce);
+                //         }
+                //     }
+                //     catch (System.Exception ex)
+                //     {
+                //         Log.Exception(ex, "[MobaProjectileSyncSystem] init projectile effect snapshot failed");
+                //     }
+                // }
 
                 // Use MotionSystem to drive projectile movement (scheme B simplified).
                 // Trajectory duration is derived from projectile config (lifetime/maxDistance/speed).

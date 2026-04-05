@@ -32,7 +32,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 new BootstrapStage("TriggeringRuntime", RegisterTriggeringRuntime, install: null),
                 new BootstrapStage("CoreState", RegisterCoreState, install: null),
                 new BootstrapStage("Config", RegisterConfig, install: null),
-                new BootstrapStage("Effects", RegisterEffects, install: null),
+                // [REMOVED] Effects 包已删除 new BootstrapStage("Effects", RegisterEffects, install: null),
                 new BootstrapStage("Tags", RegisterTags, install: null),
                 new BootstrapStage("TriggerPlans", RegisterTriggerPlans, install: null),
                 new BootstrapStage("EffectSources", RegisterEffectSources, install: null),

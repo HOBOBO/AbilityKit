@@ -9,6 +9,10 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
     {
         private static void RegisterTriggerPlans(WorldContainerBuilder builder)
         {
+            // [RESTORED] ITextLoader 原本在 Effects Stage 注册，但 Effects 包已删除
+            // 需要保留此服务供 TriggerPlanJsonDatabase 使用
+            builder.TryRegister<ITextLoader>(WorldLifetime.Singleton, _ => new UnityResourcesTextLoader());
+
             builder.TryRegister<PlanActionModuleRegistry>(WorldLifetime.Singleton, _ => PlanActionModuleRegistry.CreateDefault());
 
             builder.TryRegister<TriggerPlanJsonDatabase>(WorldLifetime.Singleton, r =>

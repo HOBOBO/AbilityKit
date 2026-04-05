@@ -7,7 +7,6 @@ using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Ability.Share.Common.Projectile;
 using AbilityKit.Ability.Share.Common.MotionSystem.Core;
 using AbilityKit.Ability.Share.Common.MotionSystem.Trajectory;
-using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
@@ -15,7 +14,6 @@ using AbilityKit.Ability.Share.Math;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
-using AbilityKit.Effects.Core;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
 {
@@ -32,7 +30,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
         private MobaActorSpawnSnapshotService _spawnSnapshots;
         private MobaConfigDatabase _configs;
         private MobaActorDespawnSnapshotService _despawnSnapshots;
-        private EffectRegistry _effectRegistry;
+        
+        // [REMOVED] private EffectRegistry _effectRegistry; // TODO: Effects包已删除，待重构
 
         private readonly List<ProjectileSpawnEvent> _spawns = new List<ProjectileSpawnEvent>(64);
         private readonly List<ProjectileHitEvent> _hits = new List<ProjectileHitEvent>(128);
@@ -53,7 +52,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
         internal MobaActorSpawnSnapshotService SpawnSnapshots => _spawnSnapshots;
         internal MobaConfigDatabase Configs => _configs;
         internal MobaActorDespawnSnapshotService DespawnSnapshots => _despawnSnapshots;
-        internal EffectRegistry EffectRegistry => _effectRegistry;
+        // [REMOVED] internal EffectRegistry EffectRegistry => _effectRegistry;
         internal global::ActorContext ActorContext => Contexts.Actor();
 
         public MobaProjectileSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services)
@@ -73,7 +72,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
             Services.TryResolve(out _spawnSnapshots);
             Services.TryResolve(out _configs);
             Services.TryResolve(out _despawnSnapshots);
-            Services.TryResolve(out _effectRegistry);
+            // [REMOVED] Services.TryResolve(out _effectRegistry);
 
             _spawnHandler = new MobaProjectileSpawnSyncHandler(this);
             _tickHandler = new MobaProjectileTickSyncHandler(this);
