@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Common.Marker;
 
 namespace AbilityKit.Triggering.Runtime.Extensions
 {
@@ -6,38 +7,24 @@ namespace AbilityKit.Triggering.Runtime.Extensions
     /// 标记 Payload 字段访问器的 Attribute
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-    public sealed class PayloadFieldAccessorAttribute : Attribute
+    public sealed class PayloadFieldAccessorAttribute : MarkerAttribute
     {
-        /// <summary>
-        /// Payload 类型
-        /// </summary>
         public Type PayloadType { get; }
-        
-        /// <summary>
-        /// 构造函数
-        /// </summary>
-        /// <param name="payloadType">Payload 类型</param>
+
         public PayloadFieldAccessorAttribute(Type payloadType)
         {
             PayloadType = payloadType ?? throw new ArgumentNullException(nameof(payloadType));
         }
     }
-    
+
     /// <summary>
     /// 标记 Blackboard 解析器的 Attribute
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-    public sealed class BlackboardResolverAttribute : Attribute
+    public sealed class BlackboardResolverAttribute : MarkerAttribute
     {
-        /// <summary>
-        /// Blackboard 域
-        /// </summary>
         public string Domain { get; }
-        
-        /// <summary>
-        /// 构造函数
-        /// </summary>
-        /// <param name="domain">Blackboard 域</param>
+
         public BlackboardResolverAttribute(string domain)
         {
             Domain = domain ?? throw new ArgumentNullException(nameof(domain));
@@ -47,22 +34,15 @@ namespace AbilityKit.Triggering.Runtime.Extensions
             }
         }
     }
-    
+
     /// <summary>
     /// 标记 变量域 解析器的 Attribute
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-    public sealed class VarDomainResolverAttribute : Attribute
+    public sealed class VarDomainResolverAttribute : MarkerAttribute
     {
-        /// <summary>
-        /// 变量域名称
-        /// </summary>
         public string Domain { get; }
-        
-        /// <summary>
-        /// 构造函数
-        /// </summary>
-        /// <param name="domain">变量域名称</param>
+
         public VarDomainResolverAttribute(string domain)
         {
             Domain = domain ?? throw new ArgumentNullException(nameof(domain));

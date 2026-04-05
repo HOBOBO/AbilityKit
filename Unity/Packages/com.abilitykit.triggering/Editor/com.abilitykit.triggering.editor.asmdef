@@ -2,6 +2,7 @@
   "name": "AbilityKit.Triggering.Editor",
   "rootNamespace": "AbilityKit.Triggering",
   "references": [
+    "AbilityKit.Core",
     "AbilityKit.Triggering",
     "AbilityKit.Modifiers"
   ],

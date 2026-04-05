@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Common.Marker;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Triggering.Runtime.Executable
@@ -44,7 +45,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// 标记实现 IModifierApplier 的类型的 Attribute
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class ModifierApplierAttribute : Attribute
+    public sealed class ModifierApplierAttribute : MarkerAttribute
     {
         public int Priority { get; }
 

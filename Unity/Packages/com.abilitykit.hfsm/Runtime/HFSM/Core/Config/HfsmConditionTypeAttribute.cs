@@ -1,12 +1,18 @@
 using System;
+using AbilityKit.Common.Marker;
 
 namespace UnityHFSM.Config
 {
+    public sealed class HfsmConditionTypeRegistry : KeyedMarkerRegistry<string, HfsmConditionTypeAttribute>
+    {
+        public static readonly HfsmConditionTypeRegistry Instance = new();
+    }
+
     /// <summary>
     /// 标记一个条件类对应的配置类型名称，用于序列化/反序列化
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = false)]
-    public class HfsmConditionTypeAttribute : Attribute
+    public sealed class HfsmConditionTypeAttribute : MarkerAttribute
     {
         /// <summary>
         /// 类型的唯一标识符，用于序列化
@@ -34,6 +40,14 @@ namespace UnityHFSM.Config
             DisplayName = displayName ?? typeName;
             Description = description ?? string.Empty;
             Category = category ?? "Default";
+        }
+
+        public override void OnScanned(Type implType, IMarkerRegistry registry)
+        {
+            if (registry is HfsmConditionTypeRegistry r)
+            {
+                r.Register(TypeName, implType);
+            }
         }
     }
 }

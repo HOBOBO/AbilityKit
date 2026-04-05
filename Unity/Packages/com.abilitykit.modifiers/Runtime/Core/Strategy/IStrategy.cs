@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using AbilityKit.Common.Marker;
 
 namespace AbilityKit.Modifiers
 {
@@ -449,12 +450,17 @@ namespace AbilityKit.Modifiers
     // 策略标记 Attribute — 用于声明式注册
     // ============================================================================
 
+    public sealed class StrategyImplRegistry : KeyedMarkerRegistry<string, StrategyImplAttribute>
+    {
+        public static readonly StrategyImplRegistry Instance = new();
+    }
+
     /// <summary>
     /// 标记策略实现的 Attribute
     /// 框架可扫描程序集自动发现并注册
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class StrategyImplAttribute : Attribute
+    public sealed class StrategyImplAttribute : MarkerAttribute
     {
         /// <summary>
         /// 策略ID
@@ -470,6 +476,14 @@ namespace AbilityKit.Modifiers
         {
             StrategyId = strategyId ?? throw new ArgumentNullException(nameof(strategyId));
         }
+
+        public override void OnScanned(Type implType, IMarkerRegistry registry)
+        {
+            if (registry is StrategyImplRegistry r)
+            {
+                r.Register(StrategyId, implType);
+            }
+        }
     }
 
     /// <summary>
@@ -480,34 +494,17 @@ namespace AbilityKit.Modifiers
         /// <summary>
         /// 扫描程序集并注册所有策略
         /// </summary>
-        public static void ScanAndRegister(Assembly assembly, IStrategyRegistry registry)
+        public static void ScanAndRegister(Assembly assembly)
         {
-            if (assembly == null || registry == null) return;
-
-            foreach (var type in assembly.GetTypes())
-            {
-                var attr = type.GetCustomAttribute<StrategyImplAttribute>();
-                if (attr != null)
-                {
-                    var ctor = type.GetConstructor(Type.EmptyTypes);
-                    if (ctor != null)
-                    {
-                        var strategy = ctor.Invoke(null) as IStrategy;
-                        if (strategy != null)
-                        {
-                            registry.Register(strategy);
-                        }
-                    }
-                }
-            }
+            MarkerScanner<StrategyImplAttribute>.Scan(assembly != null ? new[] { assembly } : Array.Empty<Assembly>(), StrategyImplRegistry.Instance);
         }
 
         /// <summary>
         /// 扫描调用程序集并注册所有策略
         /// </summary>
-        public static void ScanAndRegister(IStrategyRegistry registry)
+        public static void ScanAndRegister()
         {
-            ScanAndRegister(Assembly.GetCallingAssembly(), registry);
+            ScanAndRegister(Assembly.GetCallingAssembly());
         }
     }
 }

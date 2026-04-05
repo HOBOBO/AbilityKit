@@ -2,6 +2,7 @@
   "name": "AbilityKit.Triggering.Tests",
   "rootNamespace": "",
   "references": [
+    "AbilityKit.Core",
     "AbilityKit.Triggering",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner"

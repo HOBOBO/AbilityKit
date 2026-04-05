@@ -1,7 +1,9 @@
 {
     "name": "AbilityKit.Modifiers",
     "rootNamespace": "AbilityKit.Modifiers",
-    "references": [],
+    "references": [
+        "AbilityKit.Core"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

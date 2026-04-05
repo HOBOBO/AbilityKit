@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Common.Marker;
 using AbilityKit.Triggering.Registry;
 
 namespace AbilityKit.Triggering.Runtime.Executable
@@ -30,7 +31,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// 标记调度行为工厂的 Attribute
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class ScheduledExecutableFactoryAttribute : Attribute
+    public sealed class ScheduledExecutableFactoryAttribute : MarkerAttribute
     {
         public string ScheduleMode { get; }
         public int Priority { get; }

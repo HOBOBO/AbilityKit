@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Common.Marker;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
@@ -35,9 +36,24 @@ namespace AbilityKit.Ability.Triggering.Runtime
         public const string Item = "item";
     }
 
-    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class TriggerConditionTypeAttribute : Attribute
+    public sealed class TriggerConditionTypeRegistry : KeyedMarkerRegistry<string, TriggerConditionTypeAttribute>
     {
+        public static readonly TriggerConditionTypeRegistry Instance = new();
+    }
+
+    public sealed class TriggerActionTypeRegistry : KeyedMarkerRegistry<string, TriggerActionTypeAttribute>
+    {
+        public static readonly TriggerActionTypeRegistry Instance = new();
+    }
+
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    public sealed class TriggerConditionTypeAttribute : MarkerAttribute
+    {
+        public string Type { get; }
+        public string DisplayName { get; set; }
+        public string Category { get; set; }
+        public int Order { get; set; }
+
         public TriggerConditionTypeAttribute(string type)
         {
             Type = type;
@@ -54,15 +70,23 @@ namespace AbilityKit.Ability.Triggering.Runtime
             Order = order;
         }
 
-        public string Type { get; }
-        public string DisplayName { get; }
-        public string Category { get; }
-        public int Order { get; }
+        public override void OnScanned(Type implType, IMarkerRegistry registry)
+        {
+            if (registry is TriggerConditionTypeRegistry r)
+            {
+                r.Register(Type, implType);
+            }
+        }
     }
 
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class TriggerActionTypeAttribute : Attribute
+    public sealed class TriggerActionTypeAttribute : MarkerAttribute
     {
+        public string Type { get; }
+        public string DisplayName { get; set; }
+        public string Category { get; set; }
+        public int Order { get; set; }
+
         public TriggerActionTypeAttribute(string type)
         {
             Type = type;
@@ -79,9 +103,12 @@ namespace AbilityKit.Ability.Triggering.Runtime
             Order = order;
         }
 
-        public string Type { get; }
-        public string DisplayName { get; }
-        public string Category { get; }
-        public int Order { get; }
+        public override void OnScanned(Type implType, IMarkerRegistry registry)
+        {
+            if (registry is TriggerActionTypeRegistry r)
+            {
+                r.Register(Type, implType);
+            }
+        }
     }
 }

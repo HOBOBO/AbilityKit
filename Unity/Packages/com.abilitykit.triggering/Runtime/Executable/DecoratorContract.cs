@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Common.Marker;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Triggering.Runtime.Executable
@@ -409,7 +410,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// 业务包实现 ICapabilityApplier 后用此特性标记，框架自动发现并注册
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class CapabilityApplierAttribute : Attribute
+    public sealed class CapabilityApplierAttribute : MarkerAttribute
     {
         public int Priority { get; }
 
@@ -434,7 +435,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// 业务包实现接口后用此特性标记，框架自动发现并注册
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class DecoratorImplAttribute : Attribute
+    public sealed class DecoratorImplAttribute : MarkerAttribute
     {
         /// <summary>
         /// 该实现所实现的修饰器接口类型

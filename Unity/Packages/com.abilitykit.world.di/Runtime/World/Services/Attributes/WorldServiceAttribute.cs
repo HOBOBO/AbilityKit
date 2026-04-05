@@ -1,10 +1,11 @@
 using System;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Common.Marker;
 
 namespace AbilityKit.Ability.World.Services.Attributes
 {
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
-    public sealed class WorldServiceAttribute : Attribute
+    public sealed class WorldServiceAttribute : MarkerAttribute
     {
         public Type ServiceType { get; }
         public WorldLifetime Lifetime { get; }

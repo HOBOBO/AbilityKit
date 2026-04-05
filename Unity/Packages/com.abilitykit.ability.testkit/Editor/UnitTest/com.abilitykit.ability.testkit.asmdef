@@ -1,7 +1,8 @@
-﻿{
+{
     "name":  "AbilityKit.Ability.TestKit",
     "rootNamespace":  "",
     "references":  [
+                       "AbilityKit.Core",
                        "AbilityKit.Ability.RuntimePkg",
                        "AbilityKit.World.DI",
                        "AbilityKit.World.Entitas"

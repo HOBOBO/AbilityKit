@@ -1,7 +1,9 @@
 {
     "name": "AbilityKit.HFSM.Core",
     "rootNamespace": "UnityHFSM",
-    "references": [],
+    "references": [
+        "AbilityKit.Core"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
