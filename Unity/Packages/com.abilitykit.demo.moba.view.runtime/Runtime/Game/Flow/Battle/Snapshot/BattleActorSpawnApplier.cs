@@ -4,7 +4,8 @@ using AbilityKit.Game.Battle.Entity;
 using UnityEngine;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Ability.Share.Common.Log;
-using EC = AbilityKit.Ability.EC;
+using AbilityKit.World.ECS;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Snapshot
 {
@@ -27,7 +28,7 @@ namespace AbilityKit.Game.Flow.Snapshot
             var dirty = ctx.DirtyEntities;
             if (dirty == null)
             {
-                dirty = new System.Collections.Generic.List<EC.EntityId>(entries.Length);
+                dirty = new System.Collections.Generic.List<EC.IEntityId>(entries.Length);
                 ctx.DirtyEntities = dirty;
             }
 
@@ -50,7 +51,7 @@ namespace AbilityKit.Game.Flow.Snapshot
                 }
                 else
                 {
-                    if (e.TryGetComponent(out BattleEntityMetaComponent meta) && meta != null)
+                    if (e.TryGetRef(out BattleEntityMetaComponent meta) && meta != null)
                     {
                         meta.Kind = en.Kind == (int)SpawnEntityKind.Projectile ? BattleEntityKind.Projectile : BattleEntityKind.Character;
                         meta.EntityCode = en.Code;
@@ -58,17 +59,17 @@ namespace AbilityKit.Game.Flow.Snapshot
 
                     if (en.Kind == (int)SpawnEntityKind.Projectile)
                     {
-                        if (e.TryGetComponent(out BattleProjectileComponent proj) && proj != null)
+                        if (e.TryGetRef(out BattleProjectileComponent proj) && proj != null)
                         {
                             proj.OwnerNetId = new BattleNetId(en.OwnerNetId);
                         }
                     }
                 }
 
-                if (!e.TryGetComponent(out BattleTransformComponent t) || t == null)
+                if (!e.TryGetRef(out BattleTransformComponent t) || t == null)
                 {
                     t = new BattleTransformComponent();
-                    e.AddComponent(t);
+                    e.WithRef(t);
                 }
 
                 t.Position = new Vector3(en.X, en.Y, en.Z);

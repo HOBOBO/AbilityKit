@@ -1,5 +1,6 @@
 using System;
-using EC = AbilityKit.Ability.EC;
+using AbilityKit.World.ECS;
+using EC = AbilityKit.World.ECS;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.EntityCreation;
 using AbilityKit.Game;
@@ -8,14 +9,14 @@ namespace AbilityKit.Game.Flow
 {
     public sealed class BattleEntityFeature : IGamePhaseFeature
     {
-        private EC.EntityWorld _world;
+        private EC.IECWorld _world;
         private BattleEntityLookup _lookup;
         private BattleEntityFactory _factory;
         private IBattleEntityQuery _query;
 
-        private EC.Entity _node;
+        private EC.IEntity _node;
 
-        public EC.EntityWorld World => _world;
+        public EC.IECWorld World => _world;
         public BattleEntityLookup Lookup => _lookup;
         public BattleEntityFactory Factory => _factory;
         public IBattleEntityQuery Query => _query;
@@ -24,7 +25,7 @@ namespace AbilityKit.Game.Flow
         {
             if (!ctx.Root.IsValid) return;
 
-            if (!ctx.Root.TryGetComponent(out BattleContext battleCtx) || battleCtx == null) return;
+            if (!ctx.Root.TryGetRef(out BattleContext battleCtx)) return;
 
             _world = ctx.Root.World;
 
@@ -34,9 +35,9 @@ namespace AbilityKit.Game.Flow
             _query = new BattleEntityQuery(_world, _lookup);
             if (_node.IsValid)
             {
-                _node.AddComponent(_lookup);
-                _node.AddComponent(_factory);
-                _node.AddComponent(_query);
+                _node.WithRef(_lookup);
+                _node.WithRef(_factory);
+                _node.WithRef(_query);
             }
 
             battleCtx.EntityNode = _node;
@@ -48,7 +49,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            if (ctx.Root.IsValid && ctx.Root.TryGetComponent(out BattleContext battleCtx) && battleCtx != null)
+            if (ctx.Root.IsValid && ctx.Root.TryGetRef(out BattleContext battleCtx))
             {
                 battleCtx.EntityNode = default;
                 battleCtx.EntityWorld = null;
@@ -70,14 +71,12 @@ namespace AbilityKit.Game.Flow
             _node = default;
         }
 
-        private static void DestroyTree(EC.Entity root)
+        private static void DestroyTree(EC.IEntity root)
         {
             if (!root.IsValid) return;
 
-            // EntityWorld.Destroy will detach children without destroying them.
-            // So we must collect the full subtree first, then destroy bottom-up.
-            var list = new System.Collections.Generic.List<EC.Entity>(16);
-            var stack = new System.Collections.Generic.Stack<EC.Entity>();
+            var list = new System.Collections.Generic.List<EC.IEntity>(16);
+            var stack = new System.Collections.Generic.Stack<EC.IEntity>();
             stack.Push(root);
 
             while (stack.Count > 0)

@@ -7,8 +7,9 @@ using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.World.ECS;
 using UnityEngine;
-using EC = AbilityKit.Ability.EC;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
@@ -16,10 +17,10 @@ namespace AbilityKit.Game.Flow
     {
         private BattleContext _ctx;
 
-        private EC.EntityWorld _world;
+        private EC.IECWorld _world;
         private BattleEntityLookup _lookup;
         private BattleEntityFactory _factory;
-        private EC.Entity _node;
+        private EC.IEntity _node;
 
         private int _localActorId;
 
@@ -28,7 +29,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Root.TryGetComponent(out _ctx);
+            ctx.Root.TryGetRef(out _ctx);
             _world = _ctx?.EntityWorld;
             _lookup = _ctx?.EntityLookup;
             _factory = _ctx?.EntityFactory;
@@ -119,11 +120,11 @@ namespace AbilityKit.Game.Flow
         {
             if (!_node.IsValid) return;
 
-            var comp = _node.TryGetComponent(out BattleStateHashSnapshotComponent existing) ? existing : null;
+            var comp = _node.TryGetRef(out BattleStateHashSnapshotComponent existing) ? existing : null;
             if (comp == null)
             {
                 comp = new BattleStateHashSnapshotComponent();
-                _node.AddComponent(comp);
+                _node.WithRef(comp);
             }
 
             comp.Version = p.Version;
@@ -138,7 +139,7 @@ namespace AbilityKit.Game.Flow
             var dirty = _ctx != null ? _ctx.DirtyEntities : null;
             if (dirty == null)
             {
-                dirty = new System.Collections.Generic.List<EC.EntityId>(64);
+                dirty = new System.Collections.Generic.List<EC.IEntityId>(64);
                 if (_ctx != null) _ctx.DirtyEntities = dirty;
             }
             else
@@ -157,10 +158,10 @@ namespace AbilityKit.Game.Flow
                     continue;
                 }
 
-                if (!e.TryGetComponent(out BattleTransformComponent t) || t == null)
+                if (!e.TryGetRef(out BattleTransformComponent t) || t == null)
                 {
                     t = new BattleTransformComponent();
-                    e.AddComponent(t);
+                    e.WithRef(t);
                 }
 
                 t.Position.x = en.x;

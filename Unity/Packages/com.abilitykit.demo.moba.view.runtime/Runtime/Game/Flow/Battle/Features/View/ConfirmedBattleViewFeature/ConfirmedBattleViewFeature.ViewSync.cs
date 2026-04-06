@@ -1,4 +1,5 @@
-using EC = AbilityKit.Ability.EC;
+using AbilityKit.World.ECS;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
@@ -15,7 +16,12 @@ namespace AbilityKit.Game.Flow
             {
                 var id = dirty[i];
                 if (!_query.World.IsAlive(id)) continue;
-                _binder?.Sync(_query.World.Wrap(id), _confirmedCtx);
+
+                var entity = _query.World.Wrap(id);
+                if (!entity.TryGetRef(out AbilityKit.Game.Battle.Entity.BattleNetIdComponent netIdComp)) continue;
+                if (!entity.TryGetRef(out AbilityKit.Game.Battle.Component.BattleTransformComponent t)) continue;
+
+                _binder?.Sync(entity, _confirmedCtx);
                 RegisterSeekablesForEntity(id);
             }
 
@@ -24,8 +30,9 @@ namespace AbilityKit.Game.Flow
             dirty.Clear();
         }
 
-        private void OnEntityDestroyed(EC.EntityId id)
+        private void OnEntityDestroyed(EC.EntityDestroyed evt)
         {
+            var id = evt.EntityId;
             _confirmedCtx?.EntityLookup?.UnbindByEntityId(id);
             _binder?.OnDestroyed(id);
         }

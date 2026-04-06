@@ -1,6 +1,6 @@
-using AbilityKit.Ability.Share.Impl.Moba.Services;
+﻿using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Game.Battle.Entity;
-using EC = AbilityKit.Ability.EC;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Battle.Snapshot
 {

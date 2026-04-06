@@ -6,6 +6,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Math;
 using AbilityKit.Game.Battle.Requests;
+using AbilityKit.World.ECS;
 using UnityEngine;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -25,7 +26,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Root.TryGetComponent(out _ctx);
+            ctx.Root.TryGetRef(out _ctx);
         }
 
         public void OnDetach(in GamePhaseContext ctx)

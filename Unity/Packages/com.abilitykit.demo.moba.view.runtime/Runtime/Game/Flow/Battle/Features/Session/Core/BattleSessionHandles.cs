@@ -27,7 +27,7 @@ namespace AbilityKit.Game.Flow
         {
             internal GamePhaseContext PhaseCtx;
             internal BattleContext Ctx;
-            internal AbilityKit.Ability.EC.Entity Root;
+            internal AbilityKit.World.ECS.IEntity Root;
 
             internal List<ISessionSubFeature<BattleSessionFeature>> SubFeatures;
             internal ModuleHost<FeatureModuleContext<BattleSessionFeature>, ISessionSubFeature<BattleSessionFeature>> SubFeatureHost;
@@ -95,6 +95,7 @@ namespace AbilityKit.Game.Flow
             internal IDisposable ViewSubLobby;
             internal IDisposable ViewSubActorTransform;
             internal IDisposable ViewSubStateHash;
+            internal IDisposable ViewSubActorSpawn;
 
             public void Reset()
             {
@@ -115,6 +116,7 @@ namespace AbilityKit.Game.Flow
                 DisposeUtils.TryDispose(ref ViewSubLobby, ex => Log.Exception(ex));
                 DisposeUtils.TryDispose(ref ViewSubActorTransform, ex => Log.Exception(ex));
                 DisposeUtils.TryDispose(ref ViewSubStateHash, ex => Log.Exception(ex));
+                DisposeUtils.TryDispose(ref ViewSubActorSpawn, ex => Log.Exception(ex));
 
                 Snapshots = null;
                 ViewEventSink = null;

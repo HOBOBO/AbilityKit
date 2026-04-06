@@ -1,14 +1,14 @@
 using System;
-using AbilityKit.Ability.EC;
+using AbilityKit.World.ECS;
 
 namespace AbilityKit.Ability.Impl.Examples
 {
     public sealed class ECExampleInstance
     {
-        public readonly EntityWorld World;
-        public Entity Root { get; private set; }
-        public Entity Player { get; private set; }
-        public Entity Pet { get; private set; }
+        public EntityWorld World;
+        public IEntity Root { get; private set; }
+        public IEntity Player { get; private set; }
+        public IEntity Pet { get; private set; }
 
         public ECExampleInstance()
         {
@@ -18,31 +18,35 @@ namespace AbilityKit.Ability.Impl.Examples
         public void Start()
         {
             Root = World.Create();
-            Root.AddComponent(new NameComponent("Root"));
+            Root.WithRef(new NameComponent("Root"));
 
             Player = Root.AddChild();
-            Player.AddComponent(new NameComponent("Player"));
-            Player.AddComponent(new HealthComponent(100));
+            Player
+                .WithRef(new NameComponent("Player"))
+                .With(new HealthComponent(100));
 
             Pet = Player.AddChild();
-            Pet.AddComponent(new NameComponent("Pet"));
-            Pet.AddComponent(new HealthComponent(30));
+            Pet
+                .WithRef(new NameComponent("Pet"))
+                .With(new HealthComponent(30));
         }
 
         public void DealDamageToPlayer(int damage)
         {
             if (!Player.IsValid) throw new InvalidOperationException("Player is not valid");
 
-            var hp = Player.GetComponent<HealthComponent>();
-            hp.Damage(damage);
+            var hp = Player.Get<HealthComponent>();
+            hp = hp.Damage(damage);
+            Player.With(hp);
         }
 
         public void DealDamageToPet(int damage)
         {
             if (!Pet.IsValid) throw new InvalidOperationException("Pet is not valid");
 
-            var hp = Pet.GetComponent<HealthComponent>();
-            hp.Damage(damage);
+            var hp = Pet.Get<HealthComponent>();
+            hp = hp.Damage(damage);
+            Pet.With(hp);
         }
 
         public void StopAndCleanup()
@@ -69,26 +73,27 @@ namespace AbilityKit.Ability.Impl.Examples
         }
     }
 
-    public sealed class HealthComponent
+    public readonly struct HealthComponent
     {
-        public int Current;
+        public readonly int Current;
 
         public HealthComponent(int current)
         {
             Current = current;
         }
 
-        public void Damage(int amount)
+        public HealthComponent Damage(int amount)
         {
             if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
-            Current -= amount;
-            if (Current < 0) Current = 0;
+            var newCurrent = Current - amount;
+            if (newCurrent < 0) newCurrent = 0;
+            return new HealthComponent(newCurrent);
         }
 
-        public void Heal(int amount)
+        public HealthComponent Heal(int amount)
         {
             if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
-            Current += amount;
+            return new HealthComponent(Current + amount);
         }
     }
 }

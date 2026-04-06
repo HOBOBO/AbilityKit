@@ -1,5 +1,7 @@
 using AbilityKit.Game.Flow.Battle.View;
 using AbilityKit.Game.Flow.Modules;
+using AbilityKit.World.ECS;
+using System;
 
 namespace AbilityKit.Game.Flow
 {
@@ -18,6 +20,8 @@ namespace AbilityKit.Game.Flow
             if (settings.TryGetFloat("View.Interp.MaxLagTicks", out var maxLagTicks)) binder.MaxLagTicks = maxLagTicks;
         }
 
+        private IDisposable _entityDestroyedSub;
+
         private sealed class BindingSubFeature : IViewSubFeature<BattleViewFeature>
         {
             public void OnAttach(in FeatureModuleContext<BattleViewFeature> ctx)
@@ -29,9 +33,10 @@ namespace AbilityKit.Game.Flow
                 f._binder = new BattleViewBinder(f._vfx, f._vfxNode);
                 ApplyInterpolationSettingsIfAny(ctx, f._binder);
 
+                f._entityDestroyedSub?.Dispose();
                 if (f._ctx?.EntityWorld != null)
                 {
-                    f._ctx.EntityWorld.EntityDestroyed += f.OnEntityDestroyed;
+                    f._entityDestroyedSub = f._ctx.EntityWorld.EntityDestroyed(f.OnEntityDestroyed);
                 }
             }
 
@@ -40,10 +45,8 @@ namespace AbilityKit.Game.Flow
                 var f = ctx.Feature;
                 if (f == null) return;
 
-                if (f._ctx?.EntityWorld != null)
-                {
-                    f._ctx.EntityWorld.EntityDestroyed -= f.OnEntityDestroyed;
-                }
+                f._entityDestroyedSub?.Dispose();
+                f._entityDestroyedSub = null;
 
                 f._binder?.Clear();
                 f._binder = null;
@@ -76,6 +79,8 @@ namespace AbilityKit.Game.Flow
             if (settings.TryGetFloat("View.Interp.MaxLagTicks", out var maxLagTicks)) binder.MaxLagTicks = maxLagTicks;
         }
 
+        private IDisposable _entityDestroyedSub;
+
         private sealed class BindingSubFeature : IViewSubFeature<ConfirmedBattleViewFeature>
         {
             public void OnAttach(in FeatureModuleContext<ConfirmedBattleViewFeature> ctx)
@@ -87,9 +92,10 @@ namespace AbilityKit.Game.Flow
                 f._binder = new BattleViewBinder(f._vfx, f._vfxNode);
                 ApplyInterpolationSettingsIfAny(ctx, f._binder);
 
+                f._entityDestroyedSub?.Dispose();
                 if (f._confirmedCtx?.EntityWorld != null)
                 {
-                    f._confirmedCtx.EntityWorld.EntityDestroyed += f.OnEntityDestroyed;
+                    f._entityDestroyedSub = f._confirmedCtx.EntityWorld.EntityDestroyed(f.OnEntityDestroyed);
                 }
             }
 
@@ -98,10 +104,8 @@ namespace AbilityKit.Game.Flow
                 var f = ctx.Feature;
                 if (f == null) return;
 
-                if (f._confirmedCtx?.EntityWorld != null)
-                {
-                    f._confirmedCtx.EntityWorld.EntityDestroyed -= f.OnEntityDestroyed;
-                }
+                f._entityDestroyedSub?.Dispose();
+                f._entityDestroyedSub = null;
 
                 f._binder?.Clear();
                 f._binder = null;

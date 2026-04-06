@@ -1,15 +1,15 @@
-using EC = AbilityKit.Ability.EC;
+﻿using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game
 {
     public interface IEntityCreator
     {
-        EC.Entity Create();
-        EC.Entity Create(string debugName);
+        EC.IEntity Create();
+        EC.IEntity Create(string debugName);
 
-        EC.Entity CreateChild(EC.Entity parent);
-        EC.Entity CreateChild(EC.Entity parent, string debugName);
-        EC.Entity CreateChild(EC.Entity parent, int childId);
-        EC.Entity CreateChild(EC.Entity parent, int childId, string debugName);
+        EC.IEntity CreateChild(EC.IEntity parent);
+        EC.IEntity CreateChild(EC.IEntity parent, string debugName);
+        EC.IEntity CreateChild(EC.IEntity parent, int childId);
+        EC.IEntity CreateChild(EC.IEntity parent, int childId, string debugName);
     }
 }

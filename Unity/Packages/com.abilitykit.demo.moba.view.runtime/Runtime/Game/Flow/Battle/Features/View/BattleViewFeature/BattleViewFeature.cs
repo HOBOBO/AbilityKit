@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
@@ -13,7 +13,7 @@ using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Game.Flow.Modules;
 using AbilityKit.Ability.World.Abstractions;
 using UnityEngine;
-using EC = AbilityKit.Ability.EC;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
@@ -23,7 +23,7 @@ namespace AbilityKit.Game.Flow
         private IBattleEntityQuery _query;
         private BattleViewBinder _binder;
         private BattleVfxManager _vfx;
-        private EC.Entity _vfxNode;
+        private EC.IEntity _vfxNode;
 
         private ViewTimeline _timeline;
 

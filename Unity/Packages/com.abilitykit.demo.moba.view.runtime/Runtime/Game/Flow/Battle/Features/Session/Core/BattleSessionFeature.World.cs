@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using AbilityKit.Ability.Impl.Moba.Serialization;
 using AbilityKit.Ability.Share.Common.Config;
@@ -18,12 +18,12 @@ namespace AbilityKit.Game.Flow
         private const string ProtocolWireSerializerModuleKey = "protocol.wire_serializer";
         private const string FeatureConfigFileName = "abilitykit.features.json";
 
-        private static void DestroyEntityTree(AbilityKit.Ability.EC.Entity root)
+        private static void DestroyEntityTree(AbilityKit.World.ECS.IEntity root)
         {
             if (!root.IsValid) return;
 
-            var list = new List<AbilityKit.Ability.EC.Entity>(16);
-            var stack = new Stack<AbilityKit.Ability.EC.Entity>();
+            var list = new List<AbilityKit.World.ECS.IEntity>(16);
+            var stack = new Stack<AbilityKit.World.ECS.IEntity>();
             stack.Push(root);
 
             while (stack.Count > 0)

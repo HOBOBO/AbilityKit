@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Game.EntityCreation;
 using UnityEngine;
@@ -25,8 +25,8 @@ namespace AbilityKit.Game
 
             const int SystemsNodeId = 1;
             var systems = EntityGenerator.CreateChild(entry.Root, SystemsNodeId, "SystemsNode");
-            systems.AddComponent(new SystemsTag());
-            systems.AddComponent(new SystemsInfo());
+            systems.WithRef(new SystemsTag());
+            systems.WithRef(new SystemsInfo());
         }
 
         private static void TryInstallUnityLogSink()

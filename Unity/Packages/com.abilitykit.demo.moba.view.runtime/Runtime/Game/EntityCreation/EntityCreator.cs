@@ -1,58 +1,50 @@
 using System;
-using EC = AbilityKit.Ability.EC;
+using AbilityKit.World.ECS;
 using UnityEngine;
 
 namespace AbilityKit.Game.EntityCreation
 {
     public sealed class EntityCreator : IEntityCreator
     {
-        private readonly EC.EntityWorld _world;
+        private readonly IECWorld _world;
 
-        public EntityCreator(EC.EntityWorld world)
+        public EntityCreator(IECWorld world)
         {
             _world = world ?? throw new ArgumentNullException(nameof(world));
         }
 
-        public EC.Entity Create()
+        public IEntity Create()
         {
             return _world.Create();
         }
 
-        public EC.Entity Create(string debugName)
+        public IEntity Create(string debugName)
         {
-#if UNITY_EDITOR
             return _world.Create(debugName);
-#else
-            return _world.Create();
-#endif
         }
 
-        public EC.Entity CreateChild(EC.Entity parent)
+        public IEntity CreateChild(IEntity parent)
         {
-            return parent.AddChild();
+            return _world.CreateChild(parent);
         }
 
-        public EC.Entity CreateChild(EC.Entity parent, string debugName)
+        public IEntity CreateChild(IEntity parent, string debugName)
         {
-#if UNITY_EDITOR
-            return parent.AddChild(debugName);
-#else
-            return parent.AddChild();
-#endif
+            var child = _world.Create(debugName);
+            child.SetParent(parent);
+            return child;
         }
 
-        public EC.Entity CreateChild(EC.Entity parent, int childId)
+        public IEntity CreateChild(IEntity parent, int childId)
         {
-            return parent.AddChild(childId);
+            return _world.CreateChild(parent, childId);
         }
 
-        public EC.Entity CreateChild(EC.Entity parent, int childId, string debugName)
+        public IEntity CreateChild(IEntity parent, int childId, string debugName)
         {
-#if UNITY_EDITOR
-            return parent.AddChild(childId, debugName);
-#else
-            return parent.AddChild(childId);
-#endif
+            var child = _world.Create(debugName);
+            child.SetParent(parent, childId);
+            return child;
         }
     }
 }

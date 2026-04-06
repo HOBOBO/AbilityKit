@@ -1,6 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
-using EC = AbilityKit.Ability.EC;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Battle.View
 {
@@ -18,7 +18,7 @@ namespace AbilityKit.Game.Flow.Battle.View
 
         private readonly List<FloatingText> _floatingTexts = new List<FloatingText>(64);
 
-        public void Spawn(in EC.Entity vfxNode, string text, in Vector3 worldPos, Color color)
+        public void Spawn(in EC.IEntity vfxNode, string text, in Vector3 worldPos, Color color)
         {
             if (!vfxNode.IsValid) return;
 

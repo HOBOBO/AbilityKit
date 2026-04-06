@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using EC = AbilityKit.Ability.EC;
+using AbilityKit.World.ECS;
+using EC = AbilityKit.World.ECS;
 using UnityEngine;
 
 namespace AbilityKit.Game.EntityDebug
@@ -8,9 +9,14 @@ namespace AbilityKit.Game.EntityDebug
     [ExecuteAlways]
     public sealed class EntityDebugVisualizer : MonoBehaviour
     {
-        private EC.EntityWorld _world;
-        private readonly Dictionary<EC.EntityId, GameObject> _views = new Dictionary<EC.EntityId, GameObject>();
+        private EC.IECWorld _world;
+        private readonly Dictionary<EC.IEntityId, GameObject> _views = new Dictionary<EC.IEntityId, GameObject>();
         private GameObject _root;
+        private IDisposable _entityCreatedSub;
+        private IDisposable _entityDestroyedSub;
+        private IDisposable _parentChangedSub;
+        private IDisposable _componentSetSub;
+        private IDisposable _componentRemovedSub;
 
         private void OnEnable()
         {
@@ -49,11 +55,11 @@ namespace AbilityKit.Game.EntityDebug
                 Detach();
                 _world = entry.World;
 
-                _world.EntityCreated += OnEntityCreated;
-                _world.EntityDestroyed += OnEntityDestroyed;
-                _world.ParentChanged += OnParentChanged;
-                _world.ComponentSet += OnComponentChanged;
-                _world.ComponentRemoved += OnComponentRemoved;
+                _entityCreatedSub = _world.EntityCreated(OnEntityCreated);
+                _entityDestroyedSub = _world.EntityDestroyed(OnEntityDestroyed);
+                _parentChangedSub = _world.ParentChanged(OnParentChanged);
+                _componentSetSub = _world.ComponentSet(OnComponentChanged);
+                _componentRemovedSub = _world.ComponentRemoved(OnComponentRemoved);
 
                 EnsureRootContainer();
                 RebuildAll();
@@ -62,14 +68,11 @@ namespace AbilityKit.Game.EntityDebug
 
         private void Detach()
         {
-            if (_world != null)
-            {
-                _world.EntityCreated -= OnEntityCreated;
-                _world.EntityDestroyed -= OnEntityDestroyed;
-                _world.ParentChanged -= OnParentChanged;
-                _world.ComponentSet -= OnComponentChanged;
-                _world.ComponentRemoved -= OnComponentRemoved;
-            }
+            _entityCreatedSub?.Dispose();
+            _entityDestroyedSub?.Dispose();
+            _parentChangedSub?.Dispose();
+            _componentSetSub?.Dispose();
+            _componentRemovedSub?.Dispose();
 
             _world = null;
 
@@ -131,8 +134,9 @@ namespace AbilityKit.Game.EntityDebug
             }
         }
 
-        private void OnEntityCreated(EC.Entity e)
+        private void OnEntityCreated(EC.EntityCreated evt)
         {
+            var e = evt.Entity;
             EnsureRootContainer();
             EnsureView(e.Id);
 
@@ -155,8 +159,9 @@ namespace AbilityKit.Game.EntityDebug
             }
         }
 
-        private void OnEntityDestroyed(EC.EntityId id)
+        private void OnEntityDestroyed(EC.EntityDestroyed evt)
         {
+            var id = evt.EntityId;
             if (_views.TryGetValue(id, out var go) && go != null)
             {
                 DestroyImmediate(go);
@@ -164,8 +169,10 @@ namespace AbilityKit.Game.EntityDebug
             _views.Remove(id);
         }
 
-        private void OnParentChanged(EC.EntityId child, EC.EntityId oldParent, EC.EntityId newParent)
+        private void OnParentChanged(EC.ParentChanged evt)
         {
+            var child = evt.ChildId;
+            var newParent = evt.NewParentId;
             if (_views.TryGetValue(child, out var childGo) == false || childGo == null) return;
 
             if (newParent.Version != 0 && _views.TryGetValue(newParent, out var parentGo) && parentGo != null)
@@ -181,8 +188,9 @@ namespace AbilityKit.Game.EntityDebug
             }
         }
 
-        private void OnComponentChanged(EC.EntityId entity, int typeId, object value)
+        private void OnComponentChanged(EC.ComponentSet evt)
         {
+            var entity = evt.EntityId;
             if (_views.TryGetValue(entity, out var go) && go != null)
             {
                 var view = go.GetComponent<EntityComponentView>();
@@ -191,12 +199,12 @@ namespace AbilityKit.Game.EntityDebug
             }
         }
 
-        private void OnComponentRemoved(EC.EntityId entity, int typeId)
+        private void OnComponentRemoved(EC.ComponentRemoved evt)
         {
-            OnComponentChanged(entity, typeId, null);
+            OnComponentChanged(new EC.ComponentSet(evt.EntityId, evt.ComponentTypeId, null));
         }
 
-        private GameObject EnsureView(EC.EntityId id)
+        private GameObject EnsureView(EC.IEntityId id)
         {
             if (_views.TryGetValue(id, out var go) && go != null) return go;
 
@@ -218,14 +226,14 @@ namespace AbilityKit.Game.EntityDebug
             return GameEntry.IsInitialized && GameEntry.Instance.DebugEnabled;
         }
 
-        private EC.EntityId GetCurrentParent(EC.EntityId entity)
+        private EC.IEntityId GetCurrentParent(EC.IEntityId entity)
         {
             if (_world == null || !_world.IsAlive(entity)) return default;
             var e = _world.Wrap(entity);
             return e.TryGetParent(out var p) ? p.Id : default;
         }
 
-        private void UpdateViewName(EC.EntityId entity, EC.EntityId parent)
+        private void UpdateViewName(EC.IEntityId entity, EC.IEntityId parent)
         {
             if (!_views.TryGetValue(entity, out var go) || go == null) return;
 

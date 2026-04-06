@@ -1,7 +1,7 @@
-using AbilityKit.Game.Flow.Battle.Modules;
+﻿using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Game.Flow.Battle.View;
 using UnityEngine;
-using EC = AbilityKit.Ability.EC;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
@@ -17,7 +17,7 @@ namespace AbilityKit.Game.Flow
             _lastAlignedFrame = int.MinValue;
         }
 
-        private void RegisterSeekablesForEntity(EC.EntityId id)
+        private void RegisterSeekablesForEntity(EC.IEntityId id)
         {
             if (_timeline == null || _binder == null) return;
             if (!_binder.TryGetShellGameObject(id, out var go)) return;

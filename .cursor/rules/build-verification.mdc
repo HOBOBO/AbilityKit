@@ -1,0 +1,57 @@
+---
+description: Build verification - always run dotnet build after writing code
+alwaysApply: true
+---
+
+# Build Verification Rule
+
+## Important
+
+**After writing any new code or making changes to C# files, always run `dotnet build` to verify compilation.** This ensures all code compiles correctly before considering the task complete.
+
+## Workflow
+
+1. Write or modify C# code
+2. Immediately run `dotnet build` to check for compilation errors
+3. If errors occur:
+   - Read the error messages carefully
+   - Fix all compilation errors
+   - Re-run `dotnet build` to verify fixes
+4. Only mark task as complete when `dotnet build` succeeds with no errors
+
+## Why This Matters
+
+- Catches type mismatches early
+- Prevents API breakage from spreading
+- Ensures refactoring changes are consistent across the codebase
+- Maintains code quality and integration health
+
+## Examples
+
+### Good: Always verify after writing code
+
+```bash
+# After creating a new file
+Write: "Unity/Packages/example/MyClass.cs"
+# Immediately run build
+dotnet build Unity/Packages/example/example.csproj
+# Fix any errors if they appear
+```
+
+### Bad: Skip verification
+
+```bash
+# Writing code but not verifying
+Write: "Unity/Packages/example/MyClass.cs"
+# User later finds compilation errors
+```
+
+## Summary
+
+| Step | Action |
+|------|--------|
+| 1 | Write/modify C# code |
+| 2 | Run `dotnet build` |
+| 3 | Fix any errors found |
+| 4 | Repeat until build succeeds |
+| 5 | Task complete |

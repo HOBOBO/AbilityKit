@@ -4,11 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.EC;
+using AbilityKit.World.ECS;
 using AbilityKit.Game.EntityDebug;
 using UnityEditor;
 using UnityEngine;
-using EC = AbilityKit.Ability.EC;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.EntityDebug.Editor
 {
@@ -56,7 +56,7 @@ namespace AbilityKit.Game.EntityDebug.Editor
             {
                 if (obj == null) return;
 
-                var t = ComponentTypeId.TryGetType(typeId, out var type) ? type : obj.GetType();
+                var t = obj.GetType();
                 using (new EditorGUILayout.VerticalScope("box"))
                 {
                     EditorGUILayout.LabelField(t.Name);

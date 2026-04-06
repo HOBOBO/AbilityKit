@@ -1,8 +1,9 @@
 using System;
 using System.Reflection;
 using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.World.ECS;
 using UnityEngine;
-using EC = AbilityKit.Ability.EC;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.EntityDebug
 {
@@ -10,7 +11,7 @@ namespace AbilityKit.Game.EntityDebug
     {
         private const BindingFlags Flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
-        public static string GetEntityName(EC.EntityWorld world, EC.EntityId id)
+        public static string GetEntityName(EC.IECWorld world, EC.IEntityId id)
         {
             if (world == null || !world.IsAlive(id)) return null;
 

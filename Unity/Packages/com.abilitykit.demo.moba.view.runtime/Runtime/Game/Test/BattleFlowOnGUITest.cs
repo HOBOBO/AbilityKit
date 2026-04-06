@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Game.Flow;
+using AbilityKit.World.ECS;
 using UnityEngine;
 
 namespace AbilityKit.Game.Test
@@ -13,7 +14,7 @@ namespace AbilityKit.Game.Test
             // var entry = AbilityKit.Game.GameEntry.Instance;
             // entry.DebugEnabled = true;
 
-            // if (entry.Root.IsValid && entry.Root.TryGetComponent(out GameFlowDomain flow) && flow != null)
+            // if (entry.Root.IsValid && entry.Root.TryGetRef(out GameFlowDomain flow) && flow != null)
             // {
             //     flow.EnterBattle(new TestBattleBootstrapper());
             // }

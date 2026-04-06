@@ -1,5 +1,6 @@
 using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Game.Flow.Modules;
+using AbilityKit.World.ECS;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -8,7 +9,8 @@ namespace AbilityKit.Game.Flow
     {
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Root.TryGetComponent(out _ctx);
+            ctx.Root.TryGetRef(out _ctx);
+            _query = _ctx?.EntityQuery;
 
             EnsureModulesCreated();
             _moduleHost?.Attach(new FeatureModuleContext<BattleViewFeature>(ctx, this));

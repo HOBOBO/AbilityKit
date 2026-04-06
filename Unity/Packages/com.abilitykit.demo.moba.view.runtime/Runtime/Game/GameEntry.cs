@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Ability.EC;
+using AbilityKit.World.ECS;
 using AbilityKit.Game.EntityCreation;
 using AbilityKit.Game.Flow;
 using UnityEngine;
@@ -30,7 +30,7 @@ namespace AbilityKit.Game
         }
 
         public EntityWorld World { get; private set; }
-        public Entity Root { get; private set; }
+        public IEntity Root { get; private set; }
 
         private void Awake()
         {
@@ -46,17 +46,17 @@ namespace AbilityKit.Game
             World = new EntityWorld();
             Root = EntityGenerator.CreateRoot(World, "GameRoot");
 
-            if (!Root.TryGetComponent(out GameFlowDomain flow) || flow == null)
+            if (!Root.TryGetRef<GameFlowDomain>(out var existingFlow))
             {
-                flow = new GameFlowDomain(this);
-                Root.AddComponent(flow);
+                var flow = new GameFlowDomain(this);
+                Root.WithRef(flow);
             }
         }
 
         private void Start()
         {
             if (!Root.IsValid) return;
-            if (Root.TryGetComponent(out GameFlowDomain flow) && flow != null)
+            if (Root.TryGetRef<GameFlowDomain>(out var flow))
             {
                 flow.Start();
             }
@@ -65,7 +65,7 @@ namespace AbilityKit.Game
         private void Update()
         {
             if (!Root.IsValid) return;
-            if (Root.TryGetComponent(out GameFlowDomain flow) && flow != null)
+            if (Root.TryGetRef<GameFlowDomain>(out var flow))
             {
                 flow.Tick(Time.deltaTime);
             }
@@ -74,7 +74,7 @@ namespace AbilityKit.Game
         private void OnGUI()
         {
             if (!Root.IsValid) return;
-            if (Root.TryGetComponent(out GameFlowDomain flow) && flow != null)
+            if (Root.TryGetRef<GameFlowDomain>(out var flow))
             {
                 flow.OnGUI();
             }
@@ -88,43 +88,44 @@ namespace AbilityKit.Game
         public T Get<T>() where T : class
         {
             if (!Root.IsValid) throw new InvalidOperationException("Root entity is not valid");
-            return Root.GetComponent<T>();
+            return Root.GetRef<T>();
         }
 
         public bool TryGet<T>(out T component) where T : class
         {
             if (!Root.IsValid)
             {
-                component = null;
+                component = default(T);
                 return false;
             }
 
-            return Root.TryGetComponent(out component);
+            return Root.TryGetRef(out component);
         }
 
         public void Set<T>(T component) where T : class
         {
             if (!Root.IsValid) throw new InvalidOperationException("Root entity is not valid");
-            Root.AddComponent(component);
+            Root.WithRef(component);
         }
 
-        public Entity CreateNode(int childId)
+        public IEntity CreateNode(int childId)
         {
             if (!Root.IsValid) throw new InvalidOperationException("Root entity is not valid");
-            return Root.AddChild(childId);
+            return Root.World.CreateChild(Root, childId);
         }
 
-        public Entity GetNode(int childId)
+        public IEntity GetNode(int childId)
         {
             if (!Root.IsValid) throw new InvalidOperationException("Root entity is not valid");
-            return Root.GetChildById(childId);
+            Root.TryGetChildById(childId, out var node);
+            return node;
         }
 
-        public bool TryGetNode(int childId, out Entity node)
+        public bool TryGetNode(int childId, out IEntity node)
         {
             if (!Root.IsValid)
             {
-                node = default;
+                node = default(IEntity);
                 return false;
             }
 

@@ -1,3 +1,0 @@
-namespace AbilityKit.Ability.EC
-{
-}

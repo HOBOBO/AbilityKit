@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Vfx;
+using AbilityKit.World.ECS;
 using UnityEngine;
-using EC = AbilityKit.Ability.EC;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
@@ -23,17 +24,17 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        public void Sync(EC.Entity entity)
+        public void Sync(EC.IEntity entity)
         {
             Sync(entity, ctx: null);
         }
 
         private readonly BattleVfxManager _vfx;
-        private readonly EC.Entity _vfxNode;
+        private readonly EC.IEntity _vfxNode;
 
         private readonly IBattleViewShellLoader _shellLoader;
 
-        public BattleViewBinder(BattleVfxManager vfx, in EC.Entity vfxNode, IBattleViewShellLoader shellLoader = null)
+        public BattleViewBinder(BattleVfxManager vfx, in EC.IEntity vfxNode, IBattleViewShellLoader shellLoader = null)
         {
             _vfx = vfx;
             _vfxNode = vfxNode;
@@ -49,7 +50,7 @@ namespace AbilityKit.Game.Flow
             public GameObject GameObject;
             public MonoViewHandle ViewHandle;
             public int VfxId;
-            public EC.EntityId VfxEntityId;
+            public EC.IEntityId VfxEntityId;
             public Vector3 PendingPos;
             public bool HasPendingPos;
 
@@ -213,8 +214,8 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private readonly Dictionary<EC.EntityId, Handle> _handles = new Dictionary<EC.EntityId, Handle>();
-        private readonly Dictionary<int, EC.EntityId> _actorIdToEntityId = new Dictionary<int, EC.EntityId>();
+        private readonly Dictionary<EC.IEntityId, Handle> _handles = new Dictionary<EC.IEntityId, Handle>();
+        private readonly Dictionary<int, EC.IEntityId> _actorIdToEntityId = new Dictionary<int, EC.IEntityId>();
 
         private double _renderTime;
         private int _renderTimeLastFrame;
@@ -226,7 +227,7 @@ namespace AbilityKit.Game.Flow
 
         public float MaxLagTicks { get; set; } = 4f;
 
-        public bool TryGetShellGameObject(EC.EntityId id, out GameObject go)
+        public bool TryGetShellGameObject(EC.IEntityId id, out GameObject go)
         {
             go = null;
             if (!_handles.TryGetValue(id, out var h) || h == null) return false;
@@ -236,7 +237,7 @@ namespace AbilityKit.Game.Flow
             return true;
         }
 
-        public bool TryGetInterpolatedPos(EC.EntityId id, out Vector3 pos)
+        public bool TryGetInterpolatedPos(EC.IEntityId id, out Vector3 pos)
         {
             pos = default;
             if (!_handles.TryGetValue(id, out var h) || h == null) return false;
@@ -263,7 +264,7 @@ namespace AbilityKit.Game.Flow
             return false;
         }
 
-        public void ForEachShellGameObject(Action<int, EC.EntityId, GameObject> visitor)
+        public void ForEachShellGameObject(Action<int, EC.IEntityId, GameObject> visitor)
         {
             if (visitor == null) return;
 
@@ -300,16 +301,17 @@ namespace AbilityKit.Game.Flow
             return false;
         }
 
-        public void Sync(EC.Entity entity, BattleContext ctx)
+        public void Sync(EC.IEntity entity, BattleContext ctx)
         {
-            if (!entity.TryGetComponent(out BattleNetIdComponent netIdComp) || netIdComp == null) return;
-            if (!entity.TryGetComponent(out BattleTransformComponent t) || t == null) return;
-            var meta = entity.TryGetComponent(out BattleEntityMetaComponent metaComp) ? metaComp : null;
+            if (!entity.TryGetRef(out BattleNetIdComponent netIdComp) || netIdComp == null) return;
+            if (!entity.TryGetRef(out BattleTransformComponent t) || t == null) return;
+            var meta = entity.TryGetRef(out BattleEntityMetaComponent metaComp) ? metaComp : null;
 
             var actorId = netIdComp.NetId.Value;
             if (actorId <= 0) return;
 
             var desiredModelId = BattleViewFactory.ResolveModelId(meta);
+
             if (!_handles.TryGetValue(entity.Id, out var h))
             {
                 h = new Handle();
@@ -332,6 +334,7 @@ namespace AbilityKit.Game.Flow
                 if (tickRate <= 0) tickRate = 30;
                 sampleTime = (double)ctx.LastFrame / tickRate;
             }
+
             SampleEntity(entity, in t.Position, sampleTime);
 
             if (desiredModelId > 0 && (h.GameObject == null || h.ModelId != desiredModelId))
@@ -380,7 +383,7 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private void SampleEntity(in EC.Entity entity, in Vector3 pos, double sampleTime)
+        private void SampleEntity(in EC.IEntity entity, in Vector3 pos, double sampleTime)
         {
             if (!_handles.TryGetValue(entity.Id, out var h) || h == null)
             {
@@ -393,7 +396,7 @@ namespace AbilityKit.Game.Flow
             h.HasPendingPos = true;
             h.Pos.Add(sampleTime, in h.PendingPos);
 
-            if (entity.TryGetComponent(out BattleNetIdComponent netIdComp) && netIdComp != null)
+            if (entity.TryGetRef(out BattleNetIdComponent netIdComp) && netIdComp != null)
             {
                 var actorId = netIdComp.NetId.Value;
                 if (actorId > 0)
@@ -465,8 +468,8 @@ namespace AbilityKit.Game.Flow
                 var sampleTime = frame * fixedDelta;
                 ctx.EntityWorld.ForEachAlive(e =>
                 {
-                    if (!e.TryGetComponent(out BattleNetIdComponent netIdComp) || netIdComp == null) return;
-                    if (!e.TryGetComponent(out BattleTransformComponent t) || t == null) return;
+                    if (!e.TryGetRef(out BattleNetIdComponent netIdComp) || netIdComp == null) return;
+                    if (!e.TryGetRef(out BattleTransformComponent t) || t == null) return;
                     SampleEntity(e, in t.Position, sampleTime);
                 });
             }
@@ -489,7 +492,8 @@ namespace AbilityKit.Game.Flow
                 if (h == null || h.Destroyed) continue;
                 if (h.GameObject == null) continue;
 
-                if (!h.Pos.TryEvaluate(_renderTime, out var pos))
+                Vector3 pos;
+                if (!h.Pos.TryEvaluate(_renderTime, out pos))
                 {
                     if (h.HasPendingPos) pos = h.PendingPos;
                     else continue;
@@ -504,7 +508,7 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        public void OnDestroyed(EC.EntityId id)
+        public void OnDestroyed(EC.IEntityId id)
         {
             if (!_handles.TryGetValue(id, out var h) || h == null) return;
             h.Destroyed = true;
@@ -560,13 +564,13 @@ namespace AbilityKit.Game.Flow
             _renderFrameAlpha = 0d;
         }
 
-        public void RebindAll(EC.EntityWorld world)
+        public void RebindAll(EC.IECWorld world)
         {
             if (world == null) return;
-            world.ForEachAlive(Sync);
+            world.ForEachAlive(e => Sync(e));
         }
 
-        public void RebindAll(EC.EntityWorld world, BattleContext ctx)
+        public void RebindAll(EC.IECWorld world, BattleContext ctx)
         {
             if (world == null) return;
             world.ForEachAlive(e => Sync(e, ctx));

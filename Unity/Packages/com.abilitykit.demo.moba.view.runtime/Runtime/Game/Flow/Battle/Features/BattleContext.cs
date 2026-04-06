@@ -3,7 +3,8 @@ using AbilityKit.Ability.Share.Common.Pool;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Ability.Share.Common.SnapshotRouting;
 using AbilityKit.Ability.Share.Common.Record.Lockstep;
-using EC = AbilityKit.Ability.EC;
+using AbilityKit.World.ECS;
+using EC = AbilityKit.World.ECS;
 using AbilityKit.Game.Battle;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
@@ -49,13 +50,13 @@ namespace AbilityKit.Game.Flow
 
         public bool HasRuntimeWorldId;
 
-        public EC.Entity EntityNode;
-        public EC.EntityWorld EntityWorld;
+        public EC.IEntity EntityNode;
+        public EC.IECWorld EntityWorld;
         public BattleEntityLookup EntityLookup;
         public BattleEntityFactory EntityFactory;
         public IBattleEntityQuery EntityQuery;
 
-        public List<EC.EntityId> DirtyEntities;
+        public List<EC.IEntityId> DirtyEntities;
 
         public float HudMoveDx;
         public float HudMoveDz;
@@ -199,15 +200,15 @@ namespace AbilityKit.Game.Flow
     {
         public void OnAttach(in GamePhaseContext ctx)
         {
-            if (ctx.Root.TryGetComponent(out BattleContext existing) && existing != null) return;
-            ctx.Root.AddComponent(BattleContext.Rent());
+            if (ctx.Root.TryGetRef(out BattleContext existing) && existing != null) return;
+            ctx.Root.WithRef(BattleContext.Rent());
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
             if (ctx.Root.IsValid)
             {
-                if (ctx.Root.TryGetComponent(out BattleContext existing) && existing != null)
+                if (ctx.Root.TryGetRef(out BattleContext existing) && existing != null)
                 {
                     ctx.Root.RemoveComponent(typeof(BattleContext));
                     BattleContext.Return(existing);

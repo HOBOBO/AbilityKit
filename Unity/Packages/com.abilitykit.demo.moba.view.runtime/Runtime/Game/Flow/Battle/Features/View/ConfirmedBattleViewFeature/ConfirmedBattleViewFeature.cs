@@ -9,7 +9,7 @@ using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Game.Flow.Modules;
 using AbilityKit.Ability.World.Abstractions;
 using UnityEngine;
-using EC = AbilityKit.Ability.EC;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
@@ -20,7 +20,7 @@ namespace AbilityKit.Game.Flow
         private IBattleEntityQuery _query;
         private BattleViewBinder _binder;
         private BattleVfxManager _vfx;
-        private EC.Entity _vfxNode;
+        private EC.IEntity _vfxNode;
 
         private ViewTimeline _timeline;
 
@@ -41,6 +41,7 @@ namespace AbilityKit.Game.Flow
         public ConfirmedBattleViewFeature(BattleContext confirmedCtx)
         {
             _confirmedCtx = confirmedCtx;
+            _query = confirmedCtx?.EntityQuery;
         }
     }
 }

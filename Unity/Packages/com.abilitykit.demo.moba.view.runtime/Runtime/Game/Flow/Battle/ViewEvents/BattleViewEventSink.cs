@@ -6,9 +6,10 @@ using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow.Battle.View;
+using AbilityKit.World.ECS;
 using UnityEngine;
 using AbilityKit.Game.Flow;
-using EC = AbilityKit.Ability.EC;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
@@ -16,7 +17,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
     {
         private readonly BattleContext _ctx;
         private readonly BattleVfxManager _vfx;
-        private readonly EC.Entity _vfxNode;
+        private readonly EC.IEntity _vfxNode;
         private readonly BattleFloatingTextSystem _floatingTexts;
         private readonly BattleAreaViewSystem _areaViews;
         private readonly BattleViewBinder _binder;
@@ -27,7 +28,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             IBattleEntityQuery query,
             BattleViewBinder binder,
             BattleVfxManager vfx,
-            EC.Entity vfxNode,
+            EC.IEntity vfxNode,
             BattleFloatingTextSystem floatingTexts,
             BattleAreaViewSystem areaViews)
         {
@@ -149,7 +150,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
                 var pos = new Vector3(evt.X, evt.Y, evt.Z);
 
-                var followId = default(EC.EntityId);
+                var followId = default(EC.IEntityId);
                 if (evt.ProjectileActorId > 0 && _query.TryResolve(new BattleNetId(evt.ProjectileActorId), out var projEntity))
                 {
                     followId = projEntity.Id;

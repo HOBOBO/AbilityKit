@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.EC;
+using AbilityKit.World.ECS;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Game.EntityCreation;
 using AbilityKit.Game.Flow;
@@ -39,7 +39,7 @@ namespace AbilityKit.Game.Editor
         private bool _prevActiveSceneCaptured;
 
         private EntityWorld _world;
-        private Entity _root;
+        private IEntity _root;
         private GameFlowDomain _flow;
 
         [MenuItem("Tools/AbilityKit/Preview/编辑器驱动(Flow Pump)")]
@@ -165,7 +165,7 @@ namespace AbilityKit.Game.Editor
                 _root = EntityGenerator.CreateRoot(_world, "EditorGameRoot");
 
                 _flow = new GameFlowDomain(entry: null, rootOverride: _root);
-                _root.AddComponent(_flow);
+                _root.WithRef(_flow);
 
                 _flow.StartWithPersistentSettingsSync();
                 _flow.EnterBattle(new TestBattleBootstrapper());

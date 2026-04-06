@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using AbilityKit.Ability.Share.Common.SnapshotRouting;
@@ -193,7 +193,7 @@ namespace AbilityKit.Game.Flow
             set => _handles.Phase.Ctx = value;
         }
 
-        private AbilityKit.Ability.EC.Entity _root
+        private AbilityKit.World.ECS.IEntity _root
         {
             get => _handles.Phase.Root;
             set => _handles.Phase.Root = value;

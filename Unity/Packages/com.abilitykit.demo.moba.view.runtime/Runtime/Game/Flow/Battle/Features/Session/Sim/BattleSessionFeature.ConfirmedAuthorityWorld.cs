@@ -119,6 +119,12 @@ namespace AbilityKit.Game.Flow
             set => _handles.Confirmed.ViewSubStateHash = value;
         }
 
+        private IDisposable _confirmedViewSubActorSpawn
+        {
+            get => _handles.Confirmed.ViewSubActorSpawn;
+            set => _handles.Confirmed.ViewSubActorSpawn = value;
+        }
+
         private void StartConfirmedAuthorityWorld()
         {
             if (_confirmedWorld != null) return;
@@ -129,7 +135,7 @@ namespace AbilityKit.Game.Flow
             EnsureConfirmedAuthorityViewEventPipeline();
 
             // Build a dedicated view context for confirmed authority world and attach an extra view feature.
-            // This context owns its own EC.EntityWorld and view binder mappings, isolated from the main battle context.
+            // This context owns its own EC.IECWorld and view binder mappings, isolated from the main battle context.
             EnsureConfirmedAuthorityViewSide(authWorldId);
         }
     }

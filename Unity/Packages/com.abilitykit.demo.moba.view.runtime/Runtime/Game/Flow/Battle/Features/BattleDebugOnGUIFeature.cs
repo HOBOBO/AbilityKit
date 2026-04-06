@@ -3,6 +3,7 @@ using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Requests;
+using AbilityKit.World.ECS;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -17,7 +18,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Root.TryGetComponent(out _ctx);
+            ctx.Root.TryGetRef(out _ctx);
             BattleFlowDebugProvider.Current = _ctx;
         }
 
@@ -52,11 +53,11 @@ namespace AbilityKit.Game.Flow
             {
                 if (ctx.Root.IsValid)
                 {
-                    if (ctx.Root.TryGetComponent(out BattleViewFeature view) && view != null)
+                    if (ctx.Root.TryGetRef(out BattleViewFeature view) && view != null)
                     {
                         view.RebindAll();
                     }
-                    if (ctx.Root.TryGetComponent(out ConfirmedBattleViewFeature confirmed) && confirmed != null)
+                    if (ctx.Root.TryGetRef(out ConfirmedBattleViewFeature confirmed) && confirmed != null)
                     {
                         confirmed.RebindAll();
                     }

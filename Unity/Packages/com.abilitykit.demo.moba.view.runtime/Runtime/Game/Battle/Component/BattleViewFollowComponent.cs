@@ -1,11 +1,11 @@
-using UnityEngine;
-using EC = global::AbilityKit.Ability.EC;
+﻿using UnityEngine;
+using EC = global::AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Battle.Component
 {
     public sealed class BattleViewFollowComponent
     {
-        public EC.EntityId Target;
+        public EC.IEntityId Target;
         public Vector3 Offset;
     }
 }

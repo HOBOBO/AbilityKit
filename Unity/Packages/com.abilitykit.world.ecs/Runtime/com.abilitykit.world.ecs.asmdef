@@ -1,16 +1,8 @@
-﻿{
-  "name": "AbilityKit.World.ECS",
-  "rootNamespace": "AbilityKit",
-  "references": [
-    "AbilityKit.Core"
-  ],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": true,
-  "defineConstraints": [],
-  "versionDefines": [],
-  "noEngineReferences": false
+{
+    "name": "AbilityKit.World.ECS",
+    "rootNamespace": "AbilityKit.World.ECS",
+    "references": [
+        "AbilityKit.Core"
+    ],
+    "allowUnsafeCode": false
 }

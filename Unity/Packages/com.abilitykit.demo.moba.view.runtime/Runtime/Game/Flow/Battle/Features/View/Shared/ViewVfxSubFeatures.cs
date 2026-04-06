@@ -2,6 +2,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Flow.Battle.View;
 using AbilityKit.Game.Flow.Modules;
+using AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
@@ -20,7 +21,8 @@ namespace AbilityKit.Game.Flow
                 f._vfxNode = default;
                 if (f._ctx != null && f._ctx.EntityNode.IsValid)
                 {
-                    f._vfxNode = f._ctx.EntityNode.AddChild("BattleVfx");
+                    f._vfxNode = f._ctx.EntityNode.World.CreateChild(f._ctx.EntityNode);
+                    f._vfxNode.SetName("BattleVfx");
                 }
             }
 
@@ -54,7 +56,8 @@ namespace AbilityKit.Game.Flow
                 f._vfxNode = default;
                 if (f._confirmedCtx != null && f._confirmedCtx.EntityNode.IsValid)
                 {
-                    f._vfxNode = f._confirmedCtx.EntityNode.AddChild("BattleVfx__confirmed");
+                    f._vfxNode = f._confirmedCtx.EntityNode.World.CreateChild(f._confirmedCtx.EntityNode);
+                    f._vfxNode.SetName("BattleVfx_confirmed");
                 }
             }
 

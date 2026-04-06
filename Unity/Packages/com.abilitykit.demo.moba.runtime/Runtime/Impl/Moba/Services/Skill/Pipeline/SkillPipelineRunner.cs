@@ -515,15 +515,15 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                     entry.Context.AdvanceTime(deltaTime);
                     p.Tick(deltaTime);
 
-                    var instanceId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
-                    var stageStr = entry.Stage == EntryStage.PreCast ? "PreCast" : "Cast";
-                    SkillLogger.Instance.LogSkillTick(
-                        entry.Context.CasterActorId,
-                        entry.Context.SkillId,
-                        instanceId,
-                        deltaTime,
-                        entry.Context.ElapsedTime,
-                        $"{stageStr}_{p.State}");
+                    // var instanceId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
+                    // var stageStr = entry.Stage == EntryStage.PreCast ? "PreCast" : "Cast";
+                    // SkillLogger.Instance.LogSkillTick(
+                    //     entry.Context.CasterActorId,
+                    //     entry.Context.SkillId,
+                    //     instanceId,
+                    //     deltaTime,
+                    //     entry.Context.ElapsedTime,
+                    //     $"{stageStr}_{p.State}");
                 }
 
                 if (p.State != EAbilityPipelineState.Executing)

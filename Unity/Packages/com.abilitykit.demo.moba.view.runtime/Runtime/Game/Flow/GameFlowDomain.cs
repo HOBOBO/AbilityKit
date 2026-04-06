@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Flow;
-using AbilityKit.Ability.EC;
+using AbilityKit.World.ECS;
 using AbilityKit.Ability.Share.Common.Config;
 using AbilityKit.Ability.Share.Common.Log;
 using AbilityKit.Game;
@@ -124,7 +124,7 @@ namespace AbilityKit.Game.Flow
         {
         }
 
-        public GameFlowDomain(GameEntry entry, Entity rootOverride)
+        public GameFlowDomain(GameEntry entry, IEntity rootOverride)
         {
             _entry = entry;
 
@@ -139,7 +139,7 @@ namespace AbilityKit.Game.Flow
                 throw new ArgumentNullException(nameof(rootOverride));
             }
 
-            _ctx = new GamePhaseContext(_entry, root);
+            _ctx = new GamePhaseContext(_entry, (IEntity)root);
 
             _flowContext = new FlowContext();
             _rootEvents = new FlowEventQueue<RootEvent>();
@@ -260,7 +260,7 @@ namespace AbilityKit.Game.Flow
 
             if (_ctx.Root.IsValid)
             {
-                _ctx.Root.AddComponent((object)feature);
+                _ctx.Root.WithRef((object)feature);
             }
 
             feature.OnAttach(_ctx);
@@ -484,9 +484,9 @@ namespace AbilityKit.Game.Flow
     public readonly struct GamePhaseContext
     {
         public readonly GameEntry Entry;
-        public readonly Entity Root;
+        public readonly IEntity Root;
 
-        public GamePhaseContext(GameEntry entry, Entity root)
+        public GamePhaseContext(GameEntry entry, IEntity root)
         {
             Entry = entry;
             Root = root;

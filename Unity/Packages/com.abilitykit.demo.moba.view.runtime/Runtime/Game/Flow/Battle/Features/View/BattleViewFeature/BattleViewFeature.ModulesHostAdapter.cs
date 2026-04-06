@@ -1,6 +1,7 @@
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Game.Flow.Battle.View;
+using AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
@@ -19,7 +20,7 @@ namespace AbilityKit.Game.Flow
         void IViewFeatureModulesHost.RebindAllViews()
         {
             if (_ctx?.EntityWorld == null) return;
-            _binder?.RebindAll(_ctx.EntityWorld, _ctx);
+            _binder?.RebindAll((IECWorld)_ctx.EntityWorld, _ctx);
         }
 
         void IViewFeatureModulesHost.TickVfx()

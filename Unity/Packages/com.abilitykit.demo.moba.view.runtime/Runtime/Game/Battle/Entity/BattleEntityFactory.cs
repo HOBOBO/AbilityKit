@@ -1,43 +1,62 @@
 using System;
-using EC = AbilityKit.Ability.EC;
+using AbilityKit.World.ECS;
+using EC = AbilityKit.World.ECS;
 using AbilityKit.Game.Battle.Component;
 
 namespace AbilityKit.Game.Battle.Entity
 {
     public sealed class BattleEntityFactory
     {
-        private readonly EC.EntityWorld _world;
+        private readonly EC.IECWorld _world;
         private readonly BattleEntityLookup _lookup;
-        private readonly EC.Entity _parent;
+        private readonly EC.IEntity _parent;
 
-        public BattleEntityFactory(EC.EntityWorld world, BattleEntityLookup lookup = null, EC.Entity parent = default)
+        public BattleEntityFactory(EC.IECWorld world, BattleEntityLookup lookup = null, EC.IEntity parent = default)
         {
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _lookup = lookup;
             _parent = parent;
         }
 
-        public EC.Entity CreateCharacter(BattleNetId netId, int entityCode = 0)
+        public EC.IEntity CreateCharacter(BattleNetId netId, int entityCode = 0)
         {
-            var e = _parent.IsValid ? _parent.AddChild($"Actor_{netId.Value}") : _world.Create();
-            e.AddComponent(new BattleNetIdComponent { NetId = netId });
-            e.AddComponent(new BattleEntityMetaComponent { Kind = BattleEntityKind.Character, EntityCode = entityCode });
-            e.AddComponent(new BattleTransformComponent());
-            e.AddComponent(new BattleCharacterComponent());
-            e.AddComponent(new SkillListComponent());
-            e.AddComponent(new BuffListComponent());
+            EC.IEntity e;
+            if (_parent.IsValid)
+            {
+                e = _world.CreateChild(_parent);
+                e.SetName($"Actor_{netId.Value}");
+            }
+            else
+            {
+                e = _world.Create($"Actor_{netId.Value}");
+            }
+            e.WithRef(new BattleNetIdComponent { NetId = netId });
+            e.WithRef(new BattleEntityMetaComponent { Kind = BattleEntityKind.Character, EntityCode = entityCode });
+            e.WithRef(new BattleTransformComponent());
+            e.WithRef(new BattleCharacterComponent());
+            e.WithRef(new SkillListComponent());
+            e.WithRef(new BuffListComponent());
 
             _lookup?.Bind(netId, e);
             return e;
         }
 
-        public EC.Entity CreateProjectile(BattleNetId netId, BattleNetId ownerNetId, int entityCode = 0)
+        public EC.IEntity CreateProjectile(BattleNetId netId, BattleNetId ownerNetId, int entityCode = 0)
         {
-            var e = _parent.IsValid ? _parent.AddChild($"Projectile_{netId.Value}") : _world.Create();
-            e.AddComponent(new BattleNetIdComponent { NetId = netId });
-            e.AddComponent(new BattleEntityMetaComponent { Kind = BattleEntityKind.Projectile, EntityCode = entityCode });
-            e.AddComponent(new BattleTransformComponent());
-            e.AddComponent(new BattleProjectileComponent { OwnerNetId = ownerNetId });
+            EC.IEntity e;
+            if (_parent.IsValid)
+            {
+                e = _world.CreateChild(_parent);
+                e.SetName($"Projectile_{netId.Value}");
+            }
+            else
+            {
+                e = _world.Create($"Projectile_{netId.Value}");
+            }
+            e.WithRef(new BattleNetIdComponent { NetId = netId });
+            e.WithRef(new BattleEntityMetaComponent { Kind = BattleEntityKind.Projectile, EntityCode = entityCode });
+            e.WithRef(new BattleTransformComponent());
+            e.WithRef(new BattleProjectileComponent { OwnerNetId = ownerNetId });
 
             _lookup?.Bind(netId, e);
             return e;

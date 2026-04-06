@@ -12,10 +12,11 @@ using AbilityKit.Game.Battle.View.Lib.Skill;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
+using AbilityKit.World.ECS;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
-using EC = AbilityKit.Ability.EC;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
@@ -26,7 +27,7 @@ namespace AbilityKit.Game.Flow
         private BattleContext _ctx;
         private Camera _camera;
 
-        private EC.Entity _hudNode;
+        private EC.IEntity _hudNode;
         private Canvas _canvas;
         private RectTransform _root;
 
@@ -37,6 +38,7 @@ namespace AbilityKit.Game.Flow
         private JoystickAreaView _moveJoystick;
         private BattleHudInputView _inputView;
         private Button _infoButton;
+        private IDisposable _entityDestroyedSub;
 
         private BattleHudSkillAimInputMapper _skillAimMapper;
 
@@ -51,7 +53,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Root.TryGetComponent(out _ctx);
+            ctx.Root.TryGetRef(out _ctx);
 
             _camera = Camera.main;
             _config = BattleHudConfig.Default;
@@ -73,9 +75,10 @@ namespace AbilityKit.Game.Flow
             EnsureEventSystem();
             EnsureInputUi();
 
+            _entityDestroyedSub?.Dispose();
             if (_ctx?.EntityWorld != null)
             {
-                _ctx.EntityWorld.EntityDestroyed += OnEntityDestroyed;
+                _entityDestroyedSub = _ctx.EntityWorld.EntityDestroyed(OnEntityDestroyed);
             }
 
             if (_ctx?.FrameSnapshots != null)
@@ -95,10 +98,8 @@ namespace AbilityKit.Game.Flow
             _subEnterGame = null;
             _subDamageEvents = null;
 
-            if (_ctx?.EntityWorld != null)
-            {
-                _ctx.EntityWorld.EntityDestroyed -= OnEntityDestroyed;
-            }
+            _entityDestroyedSub?.Dispose();
+            _entityDestroyedSub = null;
 
             _binder?.Clear();
             _binder = null;
@@ -480,7 +481,7 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            if (!caster.TryGetComponent(out AbilityKit.Game.Battle.Component.BattleTransformComponent t) || t == null)
+            if (!caster.TryGetRef(out AbilityKit.Game.Battle.Component.BattleTransformComponent t) || t == null)
             {
                 if (_aimPreview != null) _aimPreview.SetActive(false);
                 return;
@@ -508,9 +509,9 @@ namespace AbilityKit.Game.Flow
             _binder?.OnDamageEvents(entries);
         }
 
-        private void OnEntityDestroyed(EC.EntityId id)
+        private void OnEntityDestroyed(EC.EntityDestroyed evt)
         {
-            _binder?.OnEntityDestroyed(id);
+            _binder?.OnEntityDestroyed(evt.EntityId);
         }
 
         private sealed class BattleHudBinder
@@ -631,13 +632,13 @@ namespace AbilityKit.Game.Flow
                 }
             }
 
-            public void OnEntityDestroyed(EC.EntityId id)
+            public void OnEntityDestroyed(EC.IEntityId id)
             {
                 if (_ctx?.EntityQuery == null) return;
                 if (!_ctx.EntityQuery.World.IsAlive(id)) return;
 
                 var e = _ctx.EntityQuery.World.Wrap(id);
-                if (!e.TryGetComponent(out BattleNetIdComponent netIdComp) || netIdComp == null) return;
+                if (!e.TryGetRef(out BattleNetIdComponent netIdComp) || netIdComp == null) return;
                 var actorId = netIdComp.NetId.Value;
                 if (actorId <= 0) return;
 
@@ -772,7 +773,7 @@ namespace AbilityKit.Game.Flow
                 pos = default;
                 if (_ctx?.EntityQuery == null) return false;
                 if (!_ctx.EntityQuery.TryResolve(new BattleNetId(actorId), out var e)) return false;
-                if (!e.TryGetComponent(out AbilityKit.Game.Battle.Component.BattleTransformComponent t) || t == null) return false;
+                if (!e.TryGetRef(out AbilityKit.Game.Battle.Component.BattleTransformComponent t) || t == null) return false;
                 pos = t.Position;
                 return true;
             }

@@ -1,22 +1,22 @@
 using System;
 using System.Collections.Generic;
-using EC = AbilityKit.Ability.EC;
+using AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Battle.Entity
 {
     public sealed class BattleEntityLookup
     {
-        private readonly Dictionary<int, EC.EntityId> _netIdToEntityId = new Dictionary<int, EC.EntityId>();
+        private readonly Dictionary<int, IEntityId> _netIdToEntityId = new Dictionary<int, IEntityId>();
 
         public int Count => _netIdToEntityId.Count;
 
-        public void Bind(BattleNetId netId, EC.Entity entity)
+        public void Bind(BattleNetId netId, IEntity entity)
         {
             if (entity.World == null) throw new ArgumentException("Entity has no world", nameof(entity));
             _netIdToEntityId[netId.Value] = entity.Id;
         }
 
-        public bool TryResolve(EC.EntityWorld world, BattleNetId netId, out EC.Entity entity)
+        public bool TryResolve(IECWorld world, BattleNetId netId, out IEntity entity)
         {
             entity = default;
             if (world == null) return false;
@@ -31,7 +31,7 @@ namespace AbilityKit.Game.Battle.Entity
             return _netIdToEntityId.Remove(netId.Value);
         }
 
-        public bool UnbindByEntityId(EC.EntityId id)
+        public bool UnbindByEntityId(IEntityId id)
         {
             foreach (var kv in _netIdToEntityId)
             {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 using AbilityKit.Ability.Share.Common.SnapshotRouting;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
@@ -7,6 +8,7 @@ using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
@@ -15,14 +17,14 @@ namespace AbilityKit.Game.Flow
         private void EnsureConfirmedAuthorityViewSide(WorldId authWorldId)
         {
             // Build a dedicated view context for confirmed authority world and attach an extra view feature.
-            // This context owns its own EC.EntityWorld and view binder mappings, isolated from the main battle context.
+            // This context owns its own EC.IECWorld and view binder mappings, isolated from the main battle context.
             if (_flow != null && _confirmedViewFeature == null && _plan.EnableConfirmedAuthorityWorld)
             {
                 _confirmedViewCtx = BattleContext.Rent();
                 _confirmedViewCtx.Plan = _ctx != null ? _ctx.Plan : default;
                 _confirmedViewCtx.Session = null;
 
-                var viewWorld = new AbilityKit.Ability.EC.EntityWorld();
+                var viewWorld = new AbilityKit.World.ECS.EntityWorld();
                 var lookup = new BattleEntityLookup();
                 var node = viewWorld.Create("BattleEntity__confirmed");
                 var entityFactory = new BattleEntityFactory(viewWorld, lookup, node);
@@ -30,9 +32,9 @@ namespace AbilityKit.Game.Flow
 
                 if (node.IsValid)
                 {
-                    node.AddComponent(lookup);
-                    node.AddComponent(entityFactory);
-                    node.AddComponent(query);
+                    node.WithRef(lookup);
+                    node.WithRef(entityFactory);
+                    node.WithRef(query);
                 }
 
                 _confirmedViewCtx.EntityNode = node;
@@ -40,7 +42,9 @@ namespace AbilityKit.Game.Flow
                 _confirmedViewCtx.EntityLookup = lookup;
                 _confirmedViewCtx.EntityFactory = entityFactory;
                 _confirmedViewCtx.EntityQuery = query;
-                _confirmedViewCtx.DirtyEntities = new List<AbilityKit.Ability.EC.EntityId>(128);
+                _confirmedViewCtx.DirtyEntities = new List<AbilityKit.World.ECS.IEntityId>(128);
+                _confirmedViewCtx.RuntimeWorldId = authWorldId;
+                _confirmedViewCtx.HasRuntimeWorldId = true;
 
                 _confirmedViewSnapshots = new FrameSnapshotDispatcher();
                 _confirmedViewPipeline = new SnapshotPipeline(_confirmedViewCtx, _confirmedViewSnapshots);
@@ -55,6 +59,9 @@ namespace AbilityKit.Game.Flow
                 _confirmedViewSubStateHash = _confirmedViewSnapshots.Subscribe<MobaStateHashSnapshotCodec.SnapshotPayload>(
                     (int)MobaOpCode.StateHashSnapshot,
                     (packet, snap) => ApplyConfirmedViewStateHashSnapshot(snap));
+                _confirmedViewSubActorSpawn = _confirmedViewSnapshots.Subscribe<MobaActorSpawnSnapshotCodec.Entry[]>(
+                    (int)MobaOpCode.ActorSpawnSnapshot,
+                    (packet, entries) => ApplyConfirmedViewSpawnSnapshot(entries));
 
                 _confirmedViewCtx.FrameSnapshots = _confirmedViewSnapshots;
                 _confirmedViewCtx.SnapshotPipeline = _confirmedViewPipeline;
@@ -156,11 +163,11 @@ namespace AbilityKit.Game.Flow
             var node = _confirmedViewCtx.EntityNode;
             if (!node.IsValid) return;
 
-            var comp = node.TryGetComponent(out BattleStateHashSnapshotComponent existing) ? existing : null;
+            var comp = node.TryGetRef(out BattleStateHashSnapshotComponent existing) ? existing : null;
             if (comp == null)
             {
                 comp = new BattleStateHashSnapshotComponent();
-                node.AddComponent(comp);
+                node.WithRef(comp);
             }
 
             comp.Version = p.Version;
@@ -180,7 +187,7 @@ namespace AbilityKit.Game.Flow
             var dirty = _confirmedViewCtx.DirtyEntities;
             if (dirty == null)
             {
-                dirty = new List<AbilityKit.Ability.EC.EntityId>(64);
+                dirty = new List<AbilityKit.World.ECS.IEntityId>(64);
                 _confirmedViewCtx.DirtyEntities = dirty;
             }
             else
@@ -199,15 +206,68 @@ namespace AbilityKit.Game.Flow
                     continue;
                 }
 
-                if (!e.TryGetComponent(out BattleTransformComponent t) || t == null)
+                if (!e.TryGetRef(out BattleTransformComponent t) || t == null)
                 {
                     t = new BattleTransformComponent();
-                    e.AddComponent(t);
+                    e.WithRef(t);
                 }
 
                 t.Position.x = en.x;
                 t.Position.y = en.y;
                 t.Position.z = en.z;
+                if (t.Forward == default) t.Forward = UnityEngine.Vector3.forward;
+
+                dirty.Add(e.Id);
+            }
+        }
+
+        private void ApplyConfirmedViewSpawnSnapshot(MobaActorSpawnSnapshotCodec.Entry[] entries)
+        {
+            if (_confirmedViewCtx == null) return;
+
+            var world = _confirmedViewCtx.EntityWorld;
+            var lookup = _confirmedViewCtx.EntityLookup;
+            var entityFactory = _confirmedViewCtx.EntityFactory;
+            if (world == null || lookup == null || entityFactory == null) return;
+
+            var dirty = _confirmedViewCtx.DirtyEntities;
+            if (dirty == null)
+            {
+                dirty = new List<AbilityKit.World.ECS.IEntityId>(entries?.Length ?? 8);
+                _confirmedViewCtx.DirtyEntities = dirty;
+            }
+            else
+            {
+                dirty.Clear();
+            }
+
+            if (entries == null || entries.Length == 0) return;
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var en = entries[i];
+                if (en.NetId <= 0) continue;
+
+                var netId = new BattleNetId(en.NetId);
+                if (!lookup.TryResolve(world, netId, out var e))
+                {
+                    if (en.Kind == (int)SpawnEntityKind.Projectile)
+                    {
+                        e = entityFactory.CreateProjectile(netId, ownerNetId: new BattleNetId(en.OwnerNetId), entityCode: en.Code);
+                    }
+                    else
+                    {
+                        e = entityFactory.CreateCharacter(netId, entityCode: en.Code);
+                    }
+                }
+
+                if (!e.TryGetRef(out BattleTransformComponent t) || t == null)
+                {
+                    t = new BattleTransformComponent();
+                    e.WithRef(t);
+                }
+
+                t.Position = new UnityEngine.Vector3(en.X, en.Y, en.Z);
                 if (t.Forward == default) t.Forward = UnityEngine.Vector3.forward;
 
                 dirty.Add(e.Id);

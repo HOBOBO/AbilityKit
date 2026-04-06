@@ -8,7 +8,7 @@ using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow;
 using AbilityKit.Ability.Share.Common.Log;
 using UnityEngine;
-using EC = AbilityKit.Ability.EC;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Battle.Snapshot
 {
@@ -32,7 +32,7 @@ namespace AbilityKit.Game.Flow.Battle.Snapshot
             var dirty = ctx.DirtyEntities;
             if (dirty == null)
             {
-                dirty = new System.Collections.Generic.List<EC.EntityId>(8);
+                dirty = new System.Collections.Generic.List<EC.IEntityId>(8);
                 ctx.DirtyEntities = dirty;
             }
             else
@@ -53,10 +53,10 @@ namespace AbilityKit.Game.Flow.Battle.Snapshot
                 return;
             }
 
-            if (!e.TryGetComponent(out BattleTransformComponent t) || t == null)
+            if (!e.TryGetRef(out BattleTransformComponent t) || t == null)
             {
                 t = new BattleTransformComponent();
-                e.AddComponent(t);
+                e.WithRef(t);
             }
 
             t.Position = pos;
