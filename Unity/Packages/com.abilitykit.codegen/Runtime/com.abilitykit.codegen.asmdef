@@ -1,0 +1,19 @@
+{
+  "name": "AbilityKit.CodeGen",
+  "rootNamespace": "AbilityKit.CodeGen",
+  "references": [
+    "AbilityKit.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "analyzerReferences": [
+    "Packages/com.abilitykit.analyzer/Runtime/com.abilitykit.analyzer.asmdef"
+  ]
+}

@@ -1,18 +1,19 @@
 {
-  "name": "AbilityKit.Triggering",
-  "rootNamespace": "AbilityKit.Triggering",
-  "references": [
-    "AbilityKit.Core",
-    "AbilityKit.Modifiers",
-    "AbilityKit.World.DI"
-  ],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": true,
-  "defineConstraints": [],
-  "versionDefines": [],
-  "noEngineReferences": false
+    "name": "AbilityKit.Triggering",
+    "rootNamespace": "AbilityKit.Triggering",
+    "references": [
+        "AbilityKit.Core",
+        "AbilityKit.Modifiers",
+        "AbilityKit.World.DI",
+        "AbilityKit.Analyzer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

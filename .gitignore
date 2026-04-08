@@ -3,5 +3,6 @@
 **/Bin/
 **/.idea
 **/Temp
+**/.nuget
 
 .vs/

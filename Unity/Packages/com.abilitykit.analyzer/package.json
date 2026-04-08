@@ -1,0 +1,11 @@
+{
+  "name": "com.abilitykit.analyzer",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Analyzer",
+  "unity": "2022.3",
+  "description": "AbilityKit code analysis infrastructure. Provides diagnostic rules, naming conventions, and namespace constraint enforcement for the AbilityKit framework.",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {}
+}

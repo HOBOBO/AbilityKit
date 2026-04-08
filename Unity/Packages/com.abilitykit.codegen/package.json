@@ -1,0 +1,14 @@
+{
+  "name": "com.abilitykit.codegen",
+  "version": "0.0.1",
+  "displayName": "AbilityKit CodeGen",
+  "unity": "2022.3",
+  "description": "AbilityKit source generator infrastructure. Provides base classes for code generation, template system, and incremental generation support.",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.analyzer": "0.0.1",
+    "com.abilitykit.core": "0.0.1"
+  }
+}
