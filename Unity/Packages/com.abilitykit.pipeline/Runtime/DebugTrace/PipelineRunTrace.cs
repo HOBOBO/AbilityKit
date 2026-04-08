@@ -1,10 +1,11 @@
-#if UNITY_EDITOR
-
 using System;
 using System.Collections.Generic;
 
 namespace AbilityKit.Ability
 {
+    /// <summary>
+    /// 管线运行追踪器（Ring Buffer 实现）
+    /// </summary>
     public sealed class PipelineRunTrace
     {
         private readonly PipelineTraceEvent[] _buffer;
@@ -47,5 +48,3 @@ namespace AbilityKit.Ability
         }
     }
 }
-
-#endif

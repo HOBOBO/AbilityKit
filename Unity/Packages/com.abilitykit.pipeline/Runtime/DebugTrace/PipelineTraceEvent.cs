@@ -1,9 +1,10 @@
-#if UNITY_EDITOR
-
 using System;
 
 namespace AbilityKit.Ability
 {
+    /// <summary>
+    /// 管线追踪事件记录
+    /// </summary>
     public readonly struct PipelineTraceEvent
     {
         public readonly int Seq;
@@ -29,5 +30,3 @@ namespace AbilityKit.Ability
         }
     }
 }
-
-#endif

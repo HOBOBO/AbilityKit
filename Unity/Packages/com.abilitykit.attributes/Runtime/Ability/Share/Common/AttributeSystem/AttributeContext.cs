@@ -21,6 +21,113 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
 
         public event Action<string, AttributeId, float, float> AttributeChanged;
 
+        #region 时间属性
+
+        /// <summary>当前时间（秒）</summary>
+        public float CurrentTime { get; set; }
+
+        /// <summary>增量时间（秒）</summary>
+        public float DeltaTime { get; set; }
+
+        /// <summary>距离修改器生效的已过时间（秒）</summary>
+        public float ElapsedTime { get; set; }
+
+        #endregion
+
+        #region 数据槽
+
+        private readonly Dictionary<string, object> _dataSlots = new Dictionary<string, object>();
+
+        /// <summary>
+        /// 获取数据（泛型）
+        /// </summary>
+        public T GetData<T>(string key) where T : class
+        {
+            return _dataSlots.TryGetValue(key, out var obj) ? obj as T : null;
+        }
+
+        /// <summary>
+        /// 尝试获取数据
+        /// </summary>
+        public bool TryGetData<T>(string key, out T value) where T : class
+        {
+            value = GetData<T>(key);
+            return value != null;
+        }
+
+        /// <summary>
+        /// 获取浮点数据
+        /// </summary>
+        public float GetFloat(string key)
+        {
+            if (_dataSlots.TryGetValue(key, out var obj))
+            {
+                return obj switch
+                {
+                    float f => f,
+                    int i => i,
+                    double d => (float)d,
+                    _ => 0f
+                };
+            }
+            return 0f;
+        }
+
+        /// <summary>
+        /// 尝试获取浮点数据
+        /// </summary>
+        public bool TryGetFloat(string key, out float value)
+        {
+            value = GetFloat(key);
+            return _dataSlots.ContainsKey(key);
+        }
+
+        /// <summary>
+        /// 获取整型数据
+        /// </summary>
+        public int GetInt(string key)
+        {
+            if (_dataSlots.TryGetValue(key, out var obj))
+            {
+                return obj switch
+                {
+                    int i => i,
+                    float f => (int)f,
+                    double d => (int)d,
+                    _ => 0
+                };
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// 尝试获取整型数据
+        /// </summary>
+        public bool TryGetInt(string key, out int value)
+        {
+            value = GetInt(key);
+            return _dataSlots.ContainsKey(key);
+        }
+
+        /// <summary>
+        /// 设置数据
+        /// </summary>
+        public void SetData<T>(string key, T value) where T : class
+        {
+            _dataSlots[key] = value;
+        }
+
+        #endregion
+
+        #region 元数据
+
+        /// <summary>
+        /// 修改器元数据
+        /// </summary>
+        public ModifierMetadata Metadata { get; set; }
+
+        #endregion
+
         #region IModifierContext
 
         /// <summary>
@@ -28,12 +135,16 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         /// </summary>
         float IModifierContext.GetAttribute(ModifierKey key)
         {
-            // 将 ModifierKey 转换回 AttributeId
-            // 这里需要通过 ModifierKey 的 Packed 值来查找
             var attrId = FindAttributeIdByKey(key);
             if (!attrId.IsValid) return 0f;
             return GetValue(attrId);
         }
+
+        float IModifierContext.Level => Level;
+        float IModifierContext.CurrentTime => CurrentTime;
+        float IModifierContext.DeltaTime => DeltaTime;
+        float IModifierContext.ElapsedTime => ElapsedTime;
+        ModifierMetadata IModifierContext.Metadata => Metadata;
 
         #endregion
 

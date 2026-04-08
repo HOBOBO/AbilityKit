@@ -8,15 +8,15 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
     /// - Add → Add
     /// - Mul → Mul
     /// - Override → Override
-    /// - FinalAdd → Custom(FinalAdd)
-    /// - Custom → Custom
+    /// - FinalAdd → PercentAdd（语义相似）
+    /// - Custom → 自定义操作
     /// </summary>
     public enum AttributeModifierOp
     {
         /// <summary>加法：Base + Value</summary>
         Add = 0,
 
-        /// <summary>乘法：Base × (1 + Value)</summary>
+        /// <summary>百分比加成：Base × (1 + Value)。Value=0.2 表示 +20%</summary>
         Mul = 1,
 
         /// <summary>最终加法：在公式最后执行的加法。用于 FinalAdd = Base + Add 后再 + FinalAdd</summary>
@@ -26,13 +26,12 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         Override = 3,
 
         /// <summary>自定义操作（业务层扩展）</summary>
-        Custom = 4
+        Custom = 100
     }
 
     /// <summary>
     /// 属性修改器。
-    /// 这是属性系统特有的修改器类型，兼容现有的 AttributeModifierOp。
-    /// 内部可以转换为 AbilityKit.Modifiers.ModifierData。
+    /// 业务层友好的修改器 API，内部会转换为 ModifierData。
     /// </summary>
     public readonly struct AttributeModifier
     {
@@ -42,16 +41,16 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         /// <summary>数值</summary>
         public readonly float Value;
 
-        /// <summary>来源标识</summary>
+        /// <summary>来源标识（用于批量移除）</summary>
         public readonly int SourceId;
 
         /// <summary>优先级（数字越小越先计算）</summary>
-        public readonly int Priority;
+        public readonly byte Priority;
 
-        /// <summary>来源名称索引（用于调试）</summary>
-        public readonly int SourceNameIndex;
+        /// <summary>来源名称索引（用于调试，-1 表示无名称）</summary>
+        public readonly short SourceNameIndex;
 
-        public AttributeModifier(AttributeModifierOp op, float value, int sourceId = 0, int priority = 10, int sourceNameIndex = 0)
+        public AttributeModifier(AttributeModifierOp op, float value, int sourceId = 0, byte priority = 10, short sourceNameIndex = -1)
         {
             Op = op;
             Value = value;
@@ -62,20 +61,17 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
 
         #region 工厂方法
 
-        public static AttributeModifier Add(float value, int sourceId = 0, int priority = 10)
+        public static AttributeModifier Add(float value, int sourceId = 0, byte priority = 10)
             => new(AttributeModifierOp.Add, value, sourceId, priority);
 
-        public static AttributeModifier Mul(float value, int sourceId = 0, int priority = 10)
+        public static AttributeModifier Mul(float value, int sourceId = 0, byte priority = 10)
             => new(AttributeModifierOp.Mul, value, sourceId, priority);
 
-        public static AttributeModifier FinalAdd(float value, int sourceId = 0, int priority = 5)
+        public static AttributeModifier FinalAdd(float value, int sourceId = 0, byte priority = 5)
             => new(AttributeModifierOp.FinalAdd, value, sourceId, priority);
 
         public static AttributeModifier Override(float value, int sourceId = 0)
             => new(AttributeModifierOp.Override, value, sourceId, priority: 0);
-
-        public static AttributeModifier Custom(float value, int sourceId = 0, int priority = 10)
-            => new(AttributeModifierOp.Custom, value, sourceId, priority);
 
         #endregion
 
@@ -89,10 +85,9 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             var op = Op switch
             {
                 AttributeModifierOp.Add => ModifierOp.Add,
-                AttributeModifierOp.Mul => ModifierOp.Mul,
-                AttributeModifierOp.FinalAdd => ModifierOp.Custom,  // 自定义操作
+                AttributeModifierOp.Mul => ModifierOp.PercentAdd,
+                AttributeModifierOp.FinalAdd => ModifierOp.Add,  // FinalAdd 也转为加法
                 AttributeModifierOp.Override => ModifierOp.Override,
-                AttributeModifierOp.Custom => ModifierOp.Custom,
                 _ => ModifierOp.Add
             };
 
@@ -100,37 +95,37 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             {
                 Key = key,
                 Op = op,
-                Magnitude = MagnitudeStrategyData.Fixed(Value),
+                Magnitude = MagnitudeSource.Fixed(Value),
                 Priority = Priority,
                 SourceId = SourceId,
                 SourceNameIndex = SourceNameIndex,
-                CustomData = new CustomModifierData
-                {
-                    CustomTypeId = (int)Op,  // 存储原始的 AttributeModifierOp
-                    IntValue = 0
-                }
+                CustomData = CustomModifierData.None
             };
         }
 
+        #endregion
+
+        #region 从 ModifierData 创建
+
         /// <summary>
-        /// 从 AbilityKit.Modifiers.ModifierData 创建（如果 CustomTypeId 是 AttributeModifierOp）
+        /// 从 AbilityKit.Modifiers.ModifierData 创建 AttributeModifier
         /// </summary>
-        public static AttributeModifier FromModifierData(ModifierData data)
+        public static AttributeModifier FromModifierData(ModifierData data, AttributeModifierOp defaultOp = AttributeModifierOp.Add)
         {
-            var attrOp = data.CustomData.CustomTypeId switch
+            var attrOp = data.Op switch
             {
-                (int)AttributeModifierOp.Add => AttributeModifierOp.Add,
-                (int)AttributeModifierOp.Mul => AttributeModifierOp.Mul,
-                (int)AttributeModifierOp.FinalAdd => AttributeModifierOp.FinalAdd,
-                (int)AttributeModifierOp.Override => AttributeModifierOp.Override,
-                _ => AttributeModifierOp.Add
+                ModifierOp.Add => AttributeModifierOp.Add,
+                ModifierOp.Mul => AttributeModifierOp.Mul,
+                ModifierOp.PercentAdd => AttributeModifierOp.Mul,
+                ModifierOp.Override => AttributeModifierOp.Override,
+                _ => defaultOp
             };
 
             return new AttributeModifier(
                 attrOp,
-                data.Magnitude.BaseValue,
+                data.GetMagnitude(),
                 data.SourceId,
-                data.Priority,
+                (byte)data.Priority,
                 data.SourceNameIndex
             );
         }
@@ -152,56 +147,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         }
 
         public bool IsValid => Value != 0;
-    }
 
-    /// <summary>
-    /// 属性修改器聚合结果。
-    /// 这是属性系统在旧版本中使用的中间格式。
-    /// 新代码建议使用 AbilityKit.Modifiers.ModifierResult。
-    /// </summary>
-    public readonly struct AttributeModifierSet
-    {
-        /// <summary>加法值之和</summary>
-        public readonly float Add;
-
-        /// <summary>乘法值之和（原版是乘积，新版改用加法以支持多来源叠加）</summary>
-        public readonly float Mul;
-
-        /// <summary>最终加法值之和</summary>
-        public readonly float FinalAdd;
-
-        /// <summary>覆盖值（多个 Override 时取最后一个）</summary>
-        public readonly float Override;
-
-        /// <summary>是否有覆盖操作</summary>
-        public readonly bool HasOverride;
-
-        public AttributeModifierSet(float add, float mul, float finalAdd, float @override, bool hasOverride)
-        {
-            Add = add;
-            Mul = mul;
-            FinalAdd = finalAdd;
-            Override = @override;
-            HasOverride = hasOverride;
-        }
-
-        /// <summary>
-        /// 创建空结果
-        /// </summary>
-        public static AttributeModifierSet Empty => new(0f, 0f, 0f, 0f, false);
-
-        /// <summary>
-        /// 从 ModifierResult 创建
-        /// </summary>
-        public static AttributeModifierSet FromResult(ModifierResult result)
-        {
-            return new AttributeModifierSet(
-                result.AddSum,
-                result.MulProduct - 1f,  // MulProduct 是 (1 + M1) × (1 + M2) ...，需要减 1
-                0f,  // FinalAdd 单独处理
-                result.OverrideValue ?? 0f,
-                result.HasOverride
-            );
-        }
+        public static readonly AttributeModifierHandle Invalid = new(0);
     }
 }

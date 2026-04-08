@@ -347,7 +347,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
             {
                 Key = key,
                 Op = op,
-                Magnitude = MagnitudeStrategyData.Fixed(config.Value),
+                Magnitude = MagnitudeSource.Fixed(config.Value),
                 SourceId = sourceId
             };
         }
@@ -378,10 +378,10 @@ namespace AbilityKit.Triggering.Runtime.Executable
                 "movespeed" or "movespeed%max" => ModifierKey.MoveSpeed,
                 "shieldmax" or "shield" => ModifierKey.ShieldMax,
                 "shieldregen" => ModifierKey.ShieldRegen,
-                "dotdamage" or "dot" => ModifierKey.DOTDamage,
-                "hotheal" or "hot" => ModifierKey.HOTHeal,
-                "healtaken" => ModifierKey.HealTaken,
-                _ => ModifierKey.Create(key.GetHashCode() & 0xFF)
+                "dotdamage" or "dot" => ModifierKey.Create(100),
+                "hotheal" or "hot" => ModifierKey.Create(101),
+                "healtaken" => ModifierKey.Create(102),
+                _ => ModifierKey.Create((byte)(key.GetHashCode() & 0xFF))
             };
         }
 

@@ -2,142 +2,124 @@ using System;
 
 namespace AbilityKit.Modifiers
 {
+    // ============================================================================
+    // 修改器键
+    // ============================================================================
+
     /// <summary>
     /// 修改器键。
-    /// 用于唯一标识一个可修改的目标（属性、技能参数、弹道配置等）。
+    /// 用于标识修改器的作用目标（属性、技能参数、状态等）。
     ///
-    /// 设计：32位压缩存储 = [Reserved:8][Custom:8][SubCategory:8][Category:8]
+    /// 32 位压缩存储：
+    /// [Reserved:8][Custom:8][SubCategory:8][Category:8]
     ///
-    /// 对标 GAS 的 GameplayTag。
+    /// 使用示例：
+    /// ```csharp
+    /// // 预定义键
+    /// ModifierKey.AttackPower
+    /// ModifierKey.MaxHealth
+    ///
+    /// // 自定义键
+    /// var key = ModifierKey.Create(categoryId: 10, subCategoryId: 2, customId: 0);
+    ///
+    /// // 业务层扩展分类
+    /// ModifierKey.Categories.Projectile = 30;
+    /// ```
     /// </summary>
-    public readonly struct ModifierKey : IEquatable<ModifierKey>
+    public struct ModifierKey : IEquatable<ModifierKey>
     {
-        /// <summary>完整的打包值</summary>
-        public readonly uint Packed;
-
-        #region 工厂方法
-
-        /// <summary>空键</summary>
-        public static readonly ModifierKey None = new(0);
-
-        /// <summary>创建键</summary>
-        public static ModifierKey Create(int category, int subCategory = 0, int custom = 0)
-            => new(((uint)category & 0xFF) | (((uint)subCategory & 0xFF) << 8) | (((uint)custom & 0xFF) << 16));
-
-        /// <summary>从打包值创建</summary>
-        public static ModifierKey FromPacked(uint packed) => new(packed);
-
-        #endregion
-
-        #region 属性
-
-        private ModifierKey(uint packed) => Packed = packed;
-
-        /// <summary>分类 ID（8bit）</summary>
-        public int Category => (int)(Packed & 0xFF);
-
-        /// <summary>子分类 ID（8bit）</summary>
-        public int SubCategory => (int)((Packed >> 8) & 0xFF);
-
-        /// <summary>自定义 ID（8bit）</summary>
-        public int Custom => (int)((Packed >> 16) & 0xFF);
-
-        /// <summary>是否为空</summary>
-        public bool IsEmpty => Packed == 0;
-
-        /// <summary>匹配分类</summary>
-        public bool MatchesCategory(int category) => (Packed & 0xFF) == (category & 0xFF);
-
-        #endregion
-
-        #region 预定义分类（业务层可自行扩展）
+        /// <summary>压缩后的键值</summary>
+        public uint Packed;
 
         /// <summary>
-        /// 预定义分类常量。
-        /// 业务层可按需使用或自行定义。
+        /// 创建自定义键
+        /// </summary>
+        /// <param name="categoryId">分类 ID (0-255)</param>
+        /// <param name="subCategoryId">子分类 ID (0-255)</param>
+        /// <param name="customId">自定义 ID (0-255)</param>
+        public static ModifierKey Create(byte categoryId = 0, byte subCategoryId = 0, byte customId = 0)
+        {
+            return new ModifierKey
+            {
+                Packed = (uint)((categoryId << 16) | (subCategoryId << 8) | customId)
+            };
+        }
+
+        /// <summary>
+        /// 从压缩值创建
+        /// </summary>
+        public static ModifierKey FromPacked(uint packed) => new ModifierKey { Packed = packed };
+
+        /// <summary>
+        /// 无效键
+        /// </summary>
+        public static ModifierKey None => default;
+
+        /// <summary>是否为有效键</summary>
+        public bool IsValid => Packed != 0;
+
+        /// <summary>是否为空键</summary>
+        public bool IsEmpty => Packed == 0;
+
+        #region 预定义键
+
+        // 属性相关
+        public static ModifierKey AttackPower => Create(1, 0);
+        public static ModifierKey MaxHealth => Create(1, 1);
+        public static ModifierKey MoveSpeed => Create(1, 2);
+        public static ModifierKey Defense => Create(1, 3);
+
+        // 护盾相关
+        public static ModifierKey ShieldMax => Create(2, 0);
+        public static ModifierKey ShieldRegen => Create(2, 1);
+
+        // 伤害相关
+        public static ModifierKey DamageBonus => Create(3, 0);
+        public static ModifierKey CriticalRate => Create(3, 1);
+        public static ModifierKey CriticalDamage => Create(3, 2);
+
+        // 状态相关
+        public static ModifierKey StateInvincible => Create(100, 0);
+        public static ModifierKey StateSilence => Create(100, 1);
+        public static ModifierKey StateImmune => Create(100, 2);
+
+        #endregion
+
+        #region 分类访问器
+
+        public byte Category => (byte)(Packed >> 16);
+        public byte SubCategory => (byte)(Packed >> 8);
+        public byte CustomId => (byte)Packed;
+
+        #endregion
+
+        #region 分类扩展
+
+        /// <summary>
+        /// 分类扩展点
         /// </summary>
         public static class Categories
         {
-            // 属性类
-            public const int Health = 1;
-            public const int Shield = 2;
-            public const int Mana = 3;
-            public const int Speed = 4;
-
-            // 战斗类
-            public const int Damage = 10;
-            public const int Defense = 11;
-            public const int AttackSpeed = 12;
-            public const int Cooldown = 13;
-            public const int Range = 14;
-
-            // 效果类
-            public const int DOT = 20;
-            public const int HOT = 21;
-            public const int Lifesteal = 22;
-
-            // 弹道类
-            public const int Projectile = 30;
-            public const int AOE = 31;
-
-            // 技能类
-            public const int Skill = 40;
-            public const int Cost = 41;
-        }
-
-        /// <summary>
-        /// 预定义子分类
-        /// </summary>
-        public static class SubCategories
-        {
-            public const int None = 0;
-            public const int Max = 1;
-            public const int Current = 2;
-            public const int Regen = 3;
-            public const int Incoming = 4;
-            public const int Outgoing = 5;
-            public const int Mul = 6;
+            public const byte Attribute = 1;
+            public const byte Shield = 2;
+            public const byte Damage = 3;
+            public const byte State = 100;
+            public const byte Projectile = 30;
+            public const byte AOE = 31;
+            public const byte Skill = 40;
+            public const byte Custom = 200;
         }
 
         #endregion
 
-        #region 便捷工厂
+        #region IEquatable
 
-        /// <summary>护盾最大值</summary>
-        public static ModifierKey ShieldMax => Create(Categories.Shield, SubCategories.Max);
-
-        /// <summary>移动速度</summary>
-        public static ModifierKey MoveSpeed => Create(Categories.Speed, SubCategories.Max);
-
-        /// <summary>护盾回复速率</summary>
-        public static ModifierKey ShieldRegen => Create(Categories.Shield, SubCategories.Regen);
-
-        /// <summary>DOT 伤害</summary>
-        public static ModifierKey DOTDamage => Create(Categories.DOT, SubCategories.Outgoing);
-
-        /// <summary>HOT 治疗</summary>
-        public static ModifierKey HOTHeal => Create(Categories.HOT, SubCategories.Outgoing);
-
-        /// <summary>受到的治疗加成</summary>
-        public static ModifierKey HealTaken => Create(Categories.HOT, SubCategories.Incoming);
-
-        #endregion
-
-        #region Object
-
-        public static bool operator ==(ModifierKey a, ModifierKey b) => a.Packed == b.Packed;
-        public static bool operator !=(ModifierKey a, ModifierKey b) => a.Packed != b.Packed;
         public bool Equals(ModifierKey other) => Packed == other.Packed;
         public override bool Equals(object obj) => obj is ModifierKey other && Equals(other);
         public override int GetHashCode() => (int)Packed;
-
-        public override string ToString()
-        {
-            if (IsEmpty) return "None";
-            if (Custom != 0) return $"[{Category}:{SubCategory}:{Custom}]";
-            if (SubCategory != 0) return $"[{Category}:{SubCategory}]";
-            return $"[{Category}]";
-        }
+        public static bool operator ==(ModifierKey a, ModifierKey b) => a.Packed == b.Packed;
+        public static bool operator !=(ModifierKey a, ModifierKey b) => a.Packed != b.Packed;
+        public override string ToString() => $"ModifierKey({Category}.{SubCategory}.{CustomId})";
 
         #endregion
     }

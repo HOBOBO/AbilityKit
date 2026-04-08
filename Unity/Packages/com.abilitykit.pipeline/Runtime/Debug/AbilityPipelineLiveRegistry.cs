@@ -1,11 +1,12 @@
-#if UNITY_EDITOR
-
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 
 namespace AbilityKit.Ability
 {
+    /// <summary>
+    /// 管线运行注册表（编辑器调试工具）
+    /// </summary>
     public static class AbilityPipelineLiveRegistry
     {
         public struct Snapshot
@@ -24,9 +25,7 @@ namespace AbilityKit.Ability
             public readonly WeakReference Pipeline;
             public readonly WeakReference Run;
 
-#if UNITY_EDITOR
             public readonly PipelineRunTrace Trace;
-#endif
 
             public Snapshot LastSnapshot;
 
@@ -38,10 +37,7 @@ namespace AbilityKit.Ability
                 Pipeline = new WeakReference(pipeline);
                 Run = new WeakReference(run);
                 LastSnapshot = snapshot;
-
-#if UNITY_EDITOR
                 Trace = trace;
-#endif
             }
         }
 
@@ -74,14 +70,12 @@ namespace AbilityKit.Ability
 
         static bool EnsureSelectedRunValid()
         {
-            // If SelectedRun is set but not registered/alive anymore, clear it.
             if (SelectedRun != null && !IsRunRegistered(SelectedRun))
             {
                 SelectedRun = null;
                 return true;
             }
 
-            // If nothing selected but we have live entries, pick the most recently registered.
             if (SelectedRun == null && _entries.Count > 0)
             {
                 for (var i = _entries.Count - 1; i >= 0; i--)
@@ -142,7 +136,6 @@ namespace AbilityKit.Ability
                 var target = e.Run.Target;
                 if (target == null || ReferenceEquals(target, run))
                 {
-#if UNITY_EDITOR
                     try
                     {
                         var s = e.LastSnapshot;
@@ -151,7 +144,6 @@ namespace AbilityKit.Ability
                     catch
                     {
                     }
-#endif
                     _entries.RemoveAt(i);
                     removed = true;
                 }
@@ -292,7 +284,6 @@ namespace AbilityKit.Ability
                 var e = _entries[i];
                 if (e.Run.Target == null)
                 {
-#if UNITY_EDITOR
                     try
                     {
                         var s = e.LastSnapshot;
@@ -301,7 +292,6 @@ namespace AbilityKit.Ability
                     catch
                     {
                     }
-#endif
                     _entries.RemoveAt(i);
                     removed = true;
                 }
@@ -314,5 +304,3 @@ namespace AbilityKit.Ability
         }
     }
 }
-
-#endif

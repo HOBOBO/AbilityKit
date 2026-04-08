@@ -261,7 +261,8 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                 BaseValue = 0f,
                 AddSum = set.Add,
                 MulProduct = 1f + set.Mul,
-                OverrideValue = null,
+                OverrideValue = 0f,
+                OverrideFlag = 0,
                 Count = 0
             };
         }

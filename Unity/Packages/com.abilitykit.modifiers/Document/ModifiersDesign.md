@@ -1,4 +1,11 @@
-# AbilityKit.Modifiers 设计文档
+﻿# AbilityKit.Modifiers 设计文档
+
+## 文档版本历史
+
+| 版本 | 日期 | 更新内容 |
+|------|------|----------|
+| 2.0 | 2026-04 | 重构版：引入 MagnitudeSource、IModifierOperator、ModifierPipeline |
+| 1.0 | 早期 | 初版设计 |
 
 ## 目录
 
@@ -10,7 +17,7 @@
 - [使用指南](#使用指南)
 - [与 GAS 对比](#与-gas-对比)
 - [性能考量](#性能考量)
-- [扩展方向](#扩展方向)
+- [架构演进](#架构演进)
 
 ---
 
@@ -158,14 +165,25 @@ AbilityKit.Modifiers/
 ├── com.abilitykit.modifiers.asmdef
 └── Runtime/
     └── Core/
-        ├── ModifierKey.cs              # 修改器键
-        ├── ModifierOp.cs               # 操作类型枚举
-        ├── ModifierData.cs             # 修改器数据结构 + MagnitudeSource
+        ├── ModifierKey.cs              # 修改器键（32位压缩存储）
+        ├── ModifierOp.cs               # 操作类型枚举 + 扩展方法
+        ├── ModifierData.cs             # 修改器数据结构 + 工厂方法
         ├── ModifierResult.cs           # 计算结果 + 来源追踪接口
-        ├── ModifierStacking.cs         # 叠加逻辑
-        ├── ModifierCalculator.cs       # 核心计算引擎
-        ├── NumericModifierHandler.cs   # 默认数值型处理器 + 示例处理器
-        └── IModifierHandler.cs         # Handler 接口 + Context 接口
+        ├── ModifierStacking.cs         # 叠加逻辑（独占/聚合）
+        ├── ModifierCalculator.cs       # 核心计算引擎（带缓存）
+        ├── ModifierCacheAndCore.cs     # 缓存 + 计算核心
+        ├── MagnitudeSource.cs          # 统一数值来源（时间衰减等）
+        ├── OperatorComposer.cs         # 操作组合器
+        ├── ModifierComposer.cs         # 修饰器组合类型（链式/并行/条件）
+        ├── Data/
+        │   └── CustomModifierData.cs  # 自定义数据槽
+        ├── Handler/
+        │   ├── IModifierHandler.cs    # 处理器接口 + 基类
+        │   └── ModifierHandlers.cs    # 内置处理器（数值/布尔/枚举）
+        ├── Magnitude/
+        │   └── MagnitudeModifier.cs   # IMagnitudeModifier + 管道
+        └── Source/
+            └── IValueSource.cs         # IValueSource 接口 + 实现
 ```
 
 ### 依赖关系
@@ -228,52 +246,106 @@ public enum ModifierOp : byte
 ```csharp
 public struct ModifierData
 {
+    // 核心字段
     public ModifierKey Key;                    // 修改目标键
     public ModifierOp Op;                     // 操作类型
-    public MagnitudeType MagnitudeSource;     // 数值来源类型
-    public float Value;                       // 固定值
-    public ScalableFloat ScalableValue;        // 等级曲线
-    public AttributeBasedMagnitude AttrValue;  // 基于属性
-    public int Priority;                       // 优先级
-    public int SourceId;                       // 来源标识
-    public int SourceNameIndex;                // 调试用
-    public StackingConfig? Stacking;          // 叠加配置
-    public CustomModifierData CustomData;      // 自定义数据
+    public int Priority;                      // 优先级
+    public int SourceId;                      // 来源标识
+    public short SourceNameIndex;             // 调试用
+
+    // 数值来源（重构核心）
+    public MagnitudeSource Magnitude;         // 统一数值来源
+
+    // 元数据
+    public ModifierMetadata Metadata;          // 调试/显示用
+
+    // 自定义数据
+    public CustomModifierData CustomData;      // 非数值类型
 }
 ```
 
-### 数值来源
+### 数值来源（重构核心）
 
-支持三种数值计算方式：
-
-#### 1. 固定值
+统一数值来源结构 `MagnitudeSource`，支持多种计算模式：
 
 ```csharp
-ModifierData.Add(key, 100f);  // 直接加 100
+// 固定值
+var source = MagnitudeSource.Fixed(100f);
+
+// 时间衰减
+var source = MagnitudeSource.TimeDecay(50f, 5f, DecayType.Exponential);
+
+// 等级曲线
+var source = MagnitudeSource.LevelCurve(10f, curve, 1f);
+
+// 属性引用
+var source = MagnitudeSource.Attribute(ModifierKey.Strength, 0.5f);
+
+// 修饰器管道（支持组合）
+var pipeline = ModifierPipeline.Create()
+    .ThenTimeDecay(50f, 5f, DecayType.Exponential)
+    .ThenLevelCurve(10f, curve);
+var source = MagnitudeSource.Pipeline(pipeline);
 ```
 
-#### 2. ScalableFloat（等级曲线）
+### IModifierOperator（重构核心）
+
+操作接口，替代原有的枚举硬编码逻辑：
 
 ```csharp
-var sf = new ScalableFloat
+public interface IModifierOperator
 {
-    BaseValue = 100f,
-    Coefficient = 1f,
-    Curve = new[] { 1f, 0.5f, 5f, 1.0f, 10f, 1.5f }
-};
+    ModifierOp OpCode { get; }
+    string Name { get; }
+    float Apply(float baseValue, float modifierValue);
+    float CalculateContribution(float baseValue, float modifierValue);
+    int Priority { get; }
+    bool IsTerminal { get; }    // 是否为终止操作（如 Override）
+    bool IsAdditive { get; }    // 是否为加法类操作
+}
 
-float value = sf.Calculate(level: 7);  // → 125
+// 内置操作
+public readonly struct AddOperator : IModifierOperator { ... }
+public readonly struct MulOperator : IModifierOperator { ... }
+public readonly struct OverrideOperator : IModifierOperator { ... }
+public readonly struct PercentAddOperator : IModifierOperator { ... }
+
+// 操作注册表
+public static class ModifierOperatorRegistry
+{
+    public static void Register(IModifierOperator op);
+    public static IModifierOperator Get(ModifierOp op);
+}
 ```
 
-#### 3. AttributeBasedMagnitude（基于属性）
+### IMagnitudeModifier（修饰器管道）
+
+支持链式组合的修饰器接口：
 
 ```csharp
-var attrBased = new AttributeBasedMagnitude
+public interface IMagnitudeModifier
 {
-    AttributeKey = ModifierKey.Create(1),  // 攻击力
-    CaptureType = AttributeCaptureType.Current,
-    Coefficient = 0.5f  // 50% 转化
-};
+    byte ModifierTypeId { get; }
+    string Name { get; }
+    float Modify(IModifierContext context, float input);
+    float GetBaseValue();
+}
+
+// 内置修饰器
+public struct FixedModifier : IMagnitudeModifier { ... }
+public struct TimeDecayModifier : IMagnitudeModifier { ... }
+public struct LevelCurveModifier : IMagnitudeModifier { ... }
+public struct AttributeRefModifier : IMagnitudeModifier { ... }
+public struct ScaleModifier : IMagnitudeModifier { ... }
+
+// 修饰器管道
+public struct ModifierPipeline : IMagnitudeModifier
+{
+    public ModifierPipeline Then(IMagnitudeModifier modifier);
+    public ModifierPipeline ThenTimeDecay(float initialValue, float duration, DecayType decayType);
+    public ModifierPipeline ThenLevelCurve(float baseValue, float[] curve);
+    public ModifierPipeline ThenAttributeRef(ModifierKey key, float coefficient);
+}
 ```
 
 ### ModifierResult — 计算结果
@@ -350,9 +422,31 @@ var result = calculator.Calculate(modifiers, baseValue: 500f, level: 5);
 var recorder = new DefaultRecorder(capacity: 16);
 var result = calculator.Calculate(modifiers, baseValue, recorder, level: 5, captureDelegate);
 
-// 泛型版本（使用 Handler）
+// 批量计算
+Span<float> bases = stackalloc float[3] { 100f, 200f, 300f };
+Span<ModifierResult> results = stackalloc ModifierResult[3];
+calculator.CalculateBatch(modifiers, bases, level: 5, context, results);
+
+// 缓存控制
+calculator.EnableCache = false;
+calculator.Invalidate();
+```
+
+### IModifierHandler<T> — 泛型处理器
+
+```csharp
+// 数值型处理器
 var handler = new NumericModifierHandler();
-var result = calculator.Calculate(modifiers, baseValue, handler, context, sources);
+var result = handler.Apply(100f, modifier, context);
+
+// 整数型处理器
+var intHandler = new IntModifierHandler();
+
+// 布尔型处理器
+var boolHandler = new BooleanModifierHandler();
+
+// 枚举型处理器
+var enumHandler = new EnumModifierHandler<SkillPhase>();
 ```
 
 ---
@@ -432,13 +526,14 @@ public class StatusSystem
 |---------|---------------------|------|
 | `UAttributeSet` | 业务层自管 | 属性存储和修改器来源由业务层决定 |
 | `FGameplayEffectModifier` | `ModifierData` | 修改器数据结构 |
-| `FScalableFloat` | `ScalableFloat` | 等级曲线支持 |
-| `FAttributeBasedMagnitude` | `AttributeBasedMagnitude` | 基于属性计算 |
+| `FScalableFloat` | `MagnitudeSource` (LevelCurve) | 等级曲线支持 |
+| `FAttributeBasedMagnitude` | `MagnitudeSource` (Attribute) | 基于属性计算 |
 | `FGameplayEffectStackingModule` | `ModifierStacking` | 叠加逻辑 |
 | `SourceTags` / `TargetTags` | 业务层自管 | 标签条件过滤暂未实现 |
 | `EvaluationChannel` | 业务层自管 | 评估通道暂未实现 |
-| **Modifiers 计算逻辑** | ✅ 完整实现 | 核心计算算法一致 |
-| **Handler 扩展** | ✅ 支持 | GAS 无对应功能 |
+| **Modifiers 计算逻辑** | 完整实现 | 核心计算算法一致 |
+| **Handler 扩展** | 支持 | GAS 无对应功能 |
+| **修饰器管道** | 支持 | 链式组合复杂数值变换 |
 
 ### 简化点
 
@@ -453,8 +548,9 @@ public class StatusSystem
 - **无反射**：纯 C# struct，可用于 Burst 编译
 - **轻量**：无 Unity 依赖，可单独使用
 - **可定制**：业务层完全控制存储和生命周期
+- **修饰器管道**：支持复杂的数值变换组合
 
----
+------
 
 ## 性能考量
 
@@ -777,17 +873,90 @@ public static ModifierData StateStrategy(
 
 ---
 
-## 扩展方向
+## 架构演进
 
-### 已支持
+### 从 v1.0 到 v2.0 的重构
 
-| 特性 | 说明 |
-|------|------|
-| 泛型 Handler | 通过 IModifierHandler<T> 支持任意类型 |
-| 自定义 Op | ModifierOp.Custom 可扩展 |
-| CustomData | 用于存储非数值数据 |
-| **策略模式** | 通过 IStrategy 支持业务层扩展 |
-| **数值来源策略** | 通过 IMagnitudeStrategy 支持业务层扩展 |
+#### 重构前的问题
+
+1. **数值来源耦合在 ModifierData 中**
+   - 每种来源类型都需要在 ModifierData 中添加字段
+   - 新增来源类型需要修改数据结构
+
+2. **操作类型硬编码**
+   - Add/Mul/Override 等操作逻辑直接写死
+   - 业务层无法自定义操作类型
+
+3. **缺少组合抽象**
+   - 无法表达"时间衰减 + 等级曲线"的组合效果
+   - 复杂的数值变换需要手动拼接
+
+#### 重构后的改进
+
+1. **MagnitudeSource 统一抽象**
+   - 所有数值来源类型统一为 MagnitudeSource
+   - 支持固定值、时间衰减、等级曲线、属性引用、修饰器管道
+   - 可扩展：业务层可实现自定义 MagnitudeSource
+
+2. **IModifierOperator 操作接口**
+   - 操作逻辑从枚举硬编码变为接口实现
+   - 支持自定义操作注册到 ModifierOperatorRegistry
+   - 职责分离：Operator 只负责"如何计算"
+
+3. **ModifierPipeline 组合抽象**
+   - 多个 IMagnitudeModifier 可以链式组合
+   - 支持时间衰减 + 等级曲线 + 属性引用的复杂组合
+   - 可序列化：MagnitudePipelineData 支持存储到配置
+
+#### 重构后的架构图
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     重构后的修饰器架构                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────┐    ┌──────────────────┐    ┌─────────────────┐  │
+│  │ModifierData │───▶│ MagnitudeSource  │───▶│  IMagnitudeModifier │
+│  └─────────────┘    └──────────────────┘    └─────────────────┘  │
+│         │                  │                         │            │
+│         │                  │                         ▼            │
+│         │                  │            ┌─────────────────────┐   │
+│         │                  │            │  ModifierPipeline   │   │
+│         │                  │            │  (可组合多个修饰器)   │   │
+│         │                  │            └─────────────────────┘   │
+│         │                  │                                        │
+│         ▼                  ▼                                        │
+│  ┌─────────────┐    ┌──────────────────┐                           │
+│  │ModifierOp   │───▶│IModifierOperator │                           │
+│  └─────────────┘    └──────────────────┘                           │
+│                             │                                        │
+│                             ▼                                        │
+│                    ┌──────────────────┐                              │
+│                    │OperatorRegistry   │                              │
+│                    │(可注册自定义操作)  │                              │
+│                    └──────────────────┘                              │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 设计优势
+
+1. **开闭原则（OCP）**
+   - 框架定义契约，业务层实现
+   - 无需修改框架即可扩展数值来源和操作类型
+
+2. **统一抽象**
+   - 数值、状态、标签、列表等都用同一套模式处理
+   - ModifierPipeline 支持复杂的组合逻辑
+
+3. **零 GC 设计**
+   - 所有公共 API 返回值均为值类型
+   - 使用 Span<T> 进行批处理
+   - 内置缓存避免重复计算
+
+4. **可序列化**
+   - MagnitudeSource 可存储到配置文件
+   - MagnitudePipelineData 支持修饰器管道序列化
 
 ### 计划中
 
@@ -827,3 +996,4 @@ public static ModifierData StateStrategy(
 
 - [GAS Documentation - Attribute Modifiers](https://github.com/tranek/GASDocumentation)
 - [Gameplay Effects and Attribute Modifiers - Epic Games](https://docs.unrealengine.com/5.3/en-US/gameplay-effects-and-attribute-modifiers-in-unreal-engine/)
+

@@ -183,7 +183,8 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                 BaseValue = baseValue,
                 AddSum = modifiers.Add,
                 MulProduct = 1f + modifiers.Mul,
-                OverrideValue = modifiers.HasOverride ? modifiers.Override : null,
+                OverrideValue = modifiers.HasOverride ? modifiers.Override : 0f,
+                OverrideFlag = modifiers.HasOverride ? (byte)1 : (byte)0,
                 Count = 0
             };
 
@@ -217,7 +218,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                 case BuiltinVar.Add: return modifierResult.AddSum;
                 case BuiltinVar.Mul: return modifierResult.MulProduct - 1f;
                 case BuiltinVar.FinalAdd: return 0f;  // FinalAdd 单独处理
-                case BuiltinVar.Override: return modifierResult.OverrideValue ?? 0f;
+                case BuiltinVar.Override: return modifierResult.OverrideValue;
                 case BuiltinVar.HasOverride: return modifierResult.HasOverride ? 1f : 0f;
                 default: return 0f;
             }

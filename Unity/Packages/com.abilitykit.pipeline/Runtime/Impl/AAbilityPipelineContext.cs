@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace AbilityKit.Ability
 {
@@ -41,7 +40,7 @@ namespace AbilityKit.Ability
         /// <summary>
         /// 已运行时间
         /// </summary>
-        public float ElapsedTime => Time.realtimeSinceStartup - StartTime;
+        public float ElapsedTime => Pipeline.TimeProvider.RealtimeSinceStartup - StartTime;
         
         /// <summary>
         /// 共享数据
@@ -119,7 +118,7 @@ namespace AbilityKit.Ability
             PipelineState = EAbilityPipelineState.Ready;
             IsAborted = false;
             IsPaused = false;
-            StartTime = Time.realtimeSinceStartup;
+            StartTime = Pipeline.TimeProvider.RealtimeSinceStartup;
         }
     }
 }

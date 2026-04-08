@@ -1,7 +1,8 @@
-#if UNITY_EDITOR
-
 namespace AbilityKit.Ability
 {
+    /// <summary>
+    /// 管线追踪事件类型
+    /// </summary>
     public enum PipelineTraceEventType
     {
         RunStart = 0,
@@ -12,5 +13,3 @@ namespace AbilityKit.Ability
         Tick = 5,
     }
 }
-
-#endif
