@@ -33,24 +33,4 @@ namespace AbilityKit.Core.Common.Log
             try { _sink.Exception(exception, message); } catch { }
         }
     }
-
-    public static class DisposeUtils
-    {
-        public static void TryDispose<T>(ref T disposable, Action<Exception> onException) where T : class, IDisposable
-        {
-            if (disposable == null) return;
-            try
-            {
-                disposable.Dispose();
-            }
-            catch (Exception ex)
-            {
-                onException?.Invoke(ex);
-            }
-            finally
-            {
-                disposable = null;
-            }
-        }
-    }
 }
