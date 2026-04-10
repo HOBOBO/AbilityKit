@@ -1,9 +1,10 @@
-using System;
-using AbilityKit.Ability;
-using AbilityKit.Ability.Share.Math;
+﻿using System;
+using AbilityKit.Core.Generic;
+using AbilityKit.Core.Math;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability;
     /// <summary>
     /// SkillPipelineContext 专用扩展方法
     /// 提供从上下文属性或共享数据读取的能力

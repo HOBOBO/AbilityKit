@@ -1,11 +1,11 @@
-using AbilityKit.Ability.Share.Common.Log;
+﻿using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     /// <summary>
     /// 调试日志Plan Action模块

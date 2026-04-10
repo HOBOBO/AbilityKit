@@ -1,8 +1,8 @@
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.Pool;
+﻿using AbilityKit.Ability.Host;
+using AbilityKit.Core.Common.Pool;
 using AbilityKit.Game.Battle.Entity;
-using AbilityKit.Ability.Share.Common.SnapshotRouting;
-using AbilityKit.Ability.Share.Common.Record.Lockstep;
+using AbilityKit.Core.Common.SnapshotRouting;
+using AbilityKit.Core.Common.Record.Lockstep;
 using AbilityKit.World.ECS;
 using EC = AbilityKit.World.ECS;
 using AbilityKit.Game.Battle;

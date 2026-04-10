@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Share;
-using AbilityKit.Ability.Share.Common.Record.Core;
+using AbilityKit.Core.Generic;
+using AbilityKit.Core.Common.Record.Core;
 using UnityEngine;
 
 namespace AbilityKit.World.Record.Samples

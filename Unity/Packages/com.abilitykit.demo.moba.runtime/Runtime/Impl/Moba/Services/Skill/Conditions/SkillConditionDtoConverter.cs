@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Triggering.Runtime.Executable;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Variables.Numeric;

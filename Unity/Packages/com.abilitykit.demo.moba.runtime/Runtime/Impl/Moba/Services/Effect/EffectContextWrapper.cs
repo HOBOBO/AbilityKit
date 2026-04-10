@@ -1,8 +1,9 @@
-using System.Collections.Generic;
-using AbilityKit.Ability;
+﻿using System.Collections.Generic;
+using AbilityKit.Core.Generic;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability;
     public sealed class EffectContextWrapper : IEffectContext
     {
         private readonly IAbilityPipelineContext _inner;

@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 
-namespace AbilityKit.Ability.Share.Math
+namespace AbilityKit.Core.Math
 {
     public static class CollisionQueries
     {

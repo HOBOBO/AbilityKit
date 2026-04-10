@@ -1,12 +1,12 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Impl.Moba.Rollback;
 using AbilityKit.Ability.Share.Impl.Moba.Systems;
-using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Runtime;
 
-namespace AbilityKit.Ability.Impl.Moba.Triggering
+namespace AbilityKit.Ability.Share.Impl.Moba.Triggering
 {
     public sealed class PassiveSkillTriggerRecordingEventBus : IEventBus
     {

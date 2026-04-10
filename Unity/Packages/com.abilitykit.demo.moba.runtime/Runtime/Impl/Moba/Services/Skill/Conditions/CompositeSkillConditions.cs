@@ -4,14 +4,16 @@ using System.Linq;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability;
+    
     /// <summary>
     /// 组合条件 - And
     /// </summary>
     public sealed class SkillAndCondition : ISkillCondition
     {
         public string Id => "and";
-        public string DisplayName => "且";
-        public string Description => string.Join(" 且 ", _conditions.Select(c => c.DisplayName));
+        public string DisplayName => "与";
+        public string Description => string.Join(" 与 ", _conditions.Select(c => c.DisplayName));
         public bool SupportsContinuousCheck => _conditions.All(c => c.SupportsContinuousCheck);
 
         private readonly List<ISkillCondition> _conditions;
@@ -48,7 +50,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public string Id => "or";
         public string DisplayName => "或";
         public string Description => string.Join(" 或 ", _conditions.Select(c => c.DisplayName));
-        public bool SupportsContinuousCheck => false; // Or 条件不支持持续检测
+        public bool SupportsContinuousCheck => false; // Or 条件不支持持续检查
 
         private readonly List<ISkillCondition> _conditions;
 

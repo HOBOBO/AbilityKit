@@ -1,7 +1,8 @@
-using AbilityKit.Ability.Triggering;
+﻿using AbilityKit.Ability.Triggering;
 
 namespace AbilityKit.Ability.Share.Effect
 {
+    using AbilityKit.Ability.Share.Effect;
     public static class EffectTriggerContextExtensions
     {
         public static bool TryGetEffectInstance(this TriggerContext context, out EffectInstance instance)

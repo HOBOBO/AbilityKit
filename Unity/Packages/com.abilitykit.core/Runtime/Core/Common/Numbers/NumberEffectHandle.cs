@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Ability.Share.Common.Numbers
+namespace AbilityKit.Core.Common.Numbers
 {
     public sealed class NumberEffectHandle : IDisposable
     {

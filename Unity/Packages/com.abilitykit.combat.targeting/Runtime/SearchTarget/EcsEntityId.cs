@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Legacy
+﻿namespace AbilityKit.Battle.SearchTarget.Legacy
 {
     [System.Obsolete("Use AbilityKit.Ability.Share.ECS.EcsEntityId instead.")]
     public readonly struct EcsEntityId

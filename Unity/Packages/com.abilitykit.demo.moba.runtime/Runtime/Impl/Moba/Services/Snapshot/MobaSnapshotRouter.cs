@@ -1,12 +1,12 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share;
-using AbilityKit.Ability.Share.Common.Numbers;
-using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Ability.Share.Common.Projectile;
-using AbilityKit.Ability.Impl.Moba.Attributes;
+using AbilityKit.Core.Generic;
+using AbilityKit.Core.Common.Numbers;
+using AbilityKit.Effect;
+using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Ability.Share.Impl.Moba.Attributes;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
@@ -95,7 +95,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _hits.Clear();
             _exits.Clear();
 
-            if (_projectiles is AbilityKit.Ability.Share.Common.Projectile.ProjectileService ps)
+            if (_projectiles is AbilityKit.Core.Common.Projectile.ProjectileService ps)
             {
                 ps.PeekSpawnEvents(_spawns);
                 ps.PeekHitEvents(_hits);
@@ -229,7 +229,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _spawns.Clear();
             _expires.Clear();
 
-            if (_projectiles is AbilityKit.Ability.Share.Common.Projectile.ProjectileService ps)
+            if (_projectiles is AbilityKit.Core.Common.Projectile.ProjectileService ps)
             {
                 ps.PeekAreaSpawnEvents(_spawns);
                 ps.PeekAreaExpireEvents(_expires);

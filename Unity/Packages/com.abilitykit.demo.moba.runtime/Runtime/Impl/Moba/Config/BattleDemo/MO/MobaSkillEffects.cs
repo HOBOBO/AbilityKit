@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO
 {
+    using AbilityKit.Ability.Impl.Moba;
     public enum SkillEffectType
     {
         Damage = 1,

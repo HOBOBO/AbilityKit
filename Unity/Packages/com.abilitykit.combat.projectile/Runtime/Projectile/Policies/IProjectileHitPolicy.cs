@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability.Share.Common.Projectile
+﻿namespace AbilityKit.Core.Common.Projectile
 {
     public interface IProjectileHitPolicy
     {

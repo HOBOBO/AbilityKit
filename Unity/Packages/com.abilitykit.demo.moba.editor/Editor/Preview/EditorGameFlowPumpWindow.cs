@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.World.ECS;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Game.EntityCreation;
 using AbilityKit.Game.Flow;
 using UnityEditor;

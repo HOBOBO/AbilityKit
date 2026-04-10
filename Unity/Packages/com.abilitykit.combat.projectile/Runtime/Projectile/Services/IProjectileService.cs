@@ -1,8 +1,8 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Ability.Share.Common.Projectile
+namespace AbilityKit.Core.Common.Projectile
 {
     public interface IProjectileService : IService
     {

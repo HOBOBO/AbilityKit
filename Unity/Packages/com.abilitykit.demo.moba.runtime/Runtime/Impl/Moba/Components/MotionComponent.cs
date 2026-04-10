@@ -1,11 +1,11 @@
-
-using AbilityKit.Ability.Share.Common.MotionSystem.Collision;
-using AbilityKit.Ability.Share.Common.MotionSystem.Core;
-using AbilityKit.Ability.Share.Common.MotionSystem.Events;
+﻿
+using AbilityKit.Core.Common.MotionSystem.Collision;
+using AbilityKit.Core.Common.MotionSystem.Core;
+using AbilityKit.Core.Common.MotionSystem.Events;
 using Entitas;
 using Entitas.CodeGeneration.Attributes;
 
-namespace AbilityKit.Ability.Impl.Moba.Components
+namespace AbilityKit.Ability.Share.Impl.Moba.Components
 {
     [Actor]
     public sealed class MotionComponent : IComponent

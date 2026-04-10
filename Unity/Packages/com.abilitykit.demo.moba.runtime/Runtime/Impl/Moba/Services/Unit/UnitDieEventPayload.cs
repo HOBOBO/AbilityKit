@@ -1,5 +1,6 @@
-namespace AbilityKit.Ability.Share.Impl.Moba.Services
+﻿namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability.Impl.Moba;
     public readonly struct UnitDieEventPayload
     {
         public readonly int ActorId;

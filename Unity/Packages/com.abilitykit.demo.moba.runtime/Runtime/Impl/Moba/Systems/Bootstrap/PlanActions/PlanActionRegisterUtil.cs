@@ -1,7 +1,7 @@
-using AbilityKit.Ability.Share.Common.Log;
+﻿using AbilityKit.Core.Common.Log;
 using AbilityKit.Triggering.Registry;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     /// <summary>
     /// Plan Action 注册工具类

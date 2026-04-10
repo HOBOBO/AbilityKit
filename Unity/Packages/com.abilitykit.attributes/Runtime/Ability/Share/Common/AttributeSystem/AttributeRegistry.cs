@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Ability.Share.Common.AttributeSystem
+namespace AbilityKit.Core.Common.AttributeSystem
 {
     public sealed class AttributeRegistry
     {

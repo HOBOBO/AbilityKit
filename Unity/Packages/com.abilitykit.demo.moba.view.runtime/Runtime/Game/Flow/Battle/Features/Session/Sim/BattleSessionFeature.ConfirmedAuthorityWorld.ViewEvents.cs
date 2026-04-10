@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Share.Common.SnapshotRouting;
+﻿using AbilityKit.Core.Common.SnapshotRouting;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot;
 using AbilityKit.Game.Flow.Battle.ViewEvents.Triggering;

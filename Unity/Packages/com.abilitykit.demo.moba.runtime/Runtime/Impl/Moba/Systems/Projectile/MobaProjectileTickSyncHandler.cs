@@ -1,6 +1,6 @@
-using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.Projectile;
-using AbilityKit.Ability.Share.Math;
+﻿using System.Collections.Generic;
+using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Core.Math;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
 {

@@ -1,12 +1,13 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Triggering.Definitions;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Ability.Share.Common.Pool;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Effect;
+using AbilityKit.Core.Common.Pool;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
+    using AbilityKit.Ability.Share.Effect;
     public sealed class TriggerRunner
     {
         private static readonly ObjectPool<Dictionary<string, object>> _localVarsPool = Pools.GetPool(

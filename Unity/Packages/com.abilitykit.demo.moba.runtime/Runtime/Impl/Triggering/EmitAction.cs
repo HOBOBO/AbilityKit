@@ -1,20 +1,22 @@
-using System;
-using AbilityKit.Ability;
+﻿using System;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.Projectile;
-using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {
+    using AbilityKit.Ability.Impl.Moba;
+    using AbilityKit.Ability;
     public sealed class EmitAction : ITriggerRunningAction
     {
         private readonly int _emitterId;

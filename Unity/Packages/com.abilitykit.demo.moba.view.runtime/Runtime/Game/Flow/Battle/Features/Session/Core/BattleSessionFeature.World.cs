@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
-using AbilityKit.Ability.Impl.Moba.Serialization;
-using AbilityKit.Ability.Share.Common.Config;
+using AbilityKit.Ability.Share.Impl.Moba.Serialization;
+using AbilityKit.Core.Common.Config;
 using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Entitas;
@@ -57,7 +57,7 @@ namespace AbilityKit.Game.Flow
                 new[]
                 {
                     typeof(WorldServiceContainerFactory).Assembly,
-                    typeof(AbilityKit.Ability.Impl.Moba.Systems.MobaWorldBootstrapModule).Assembly,
+                    typeof(AbilityKit.Ability.Share.Impl.Moba.Systems.MobaWorldBootstrapModule).Assembly,
                     typeof(BattleSessionFeature).Assembly
                 },
                 new[] { "AbilityKit" }

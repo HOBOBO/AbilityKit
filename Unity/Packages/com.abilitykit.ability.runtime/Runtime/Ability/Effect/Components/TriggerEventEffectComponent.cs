@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Triggering;
+using AbilityKit.Effect;
 using AbilityKit.Ability.Share.Effect;
 
-namespace AbilityKit.Ability.Share.Effect.Components
+namespace AbilityKit.Effect.Components
 {
     public sealed class TriggerEventEffectComponent : IEffectComponent
     {

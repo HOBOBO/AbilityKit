@@ -1,9 +1,9 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba;
 using Entitas;
 using Entitas.CodeGeneration.Attributes;
 
-namespace AbilityKit.Ability.Impl.Moba.Components
+namespace AbilityKit.Ability.Share.Impl.Moba.Components
 {
     public enum ListenScope
     {

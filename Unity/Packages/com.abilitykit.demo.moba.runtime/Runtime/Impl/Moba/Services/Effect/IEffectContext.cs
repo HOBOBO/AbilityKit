@@ -1,7 +1,8 @@
-using AbilityKit.Ability;
+﻿using AbilityKit.Core.Generic;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability;
     public interface IEffectContext : IAbilityPipelineContext
     {
         EffectContextKind Kind { get; }

@@ -1,9 +1,9 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Impl.Moba.Components;
-using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Core.Eventing;
+using AbilityKit.Ability.Share.Impl.Moba.Components;
+using AbilityKit.Effect;
+using AbilityKit.Core.Common.Event;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -44,7 +44,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 if (effectId <= 0) continue;
 
                 var eventId = MobaBuffTriggering.Events.WithEffect(baseEventId, effectId);
-                var eid = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
+                var eid = AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
                 var key = new EventKey<BuffEventArgs>(eid);
                 var args = new BuffEventArgs
                 {
@@ -73,7 +73,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (buff == null) return;
 
             var eventId = MobaBuffTriggering.Events.Interval;
-            var eid = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
+            var eid = AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
             var key = new EventKey<BuffEventArgs>(eid);
             var args = new BuffEventArgs
             {
@@ -97,7 +97,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
         private void PublishBaseEvent(string eventId, int buffId, int sourceActorId, int targetActorId, float durationSeconds, BuffRuntime runtime)
         {
-            var eid = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
+            var eid = AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
             var key = new EventKey<BuffEventArgs>(eid);
             var args = new BuffEventArgs
             {
@@ -125,7 +125,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (string.IsNullOrEmpty(baseEventId)) return;
 
             var eventId0 = baseEventId;
-            var eid0 = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId0);
+            var eid0 = AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId0);
             var key0 = new EventKey<BuffEventArgs>(eid0);
             var args0 = new BuffEventArgs
             {
@@ -153,7 +153,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 if (effectId <= 0) continue;
 
                 var eventId = MobaBuffTriggering.Events.WithEffect(baseEventId, effectId);
-                var eid = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
+                var eid = AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
                 var key = new EventKey<BuffEventArgs>(eid);
                 var args = new BuffEventArgs
                 {

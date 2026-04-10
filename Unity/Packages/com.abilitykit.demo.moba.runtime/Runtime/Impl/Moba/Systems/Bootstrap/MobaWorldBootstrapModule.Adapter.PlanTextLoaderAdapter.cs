@@ -1,7 +1,7 @@
-using AbilityKit.Ability.Triggering.Json;
+﻿using AbilityKit.Ability.Triggering.Json;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     public sealed partial class MobaWorldBootstrapModule
     {

@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Game.Flow.Battle.Replay;
 

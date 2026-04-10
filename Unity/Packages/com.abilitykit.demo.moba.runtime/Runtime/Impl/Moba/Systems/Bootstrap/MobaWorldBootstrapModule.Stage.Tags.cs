@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Share.Impl.Moba.Services;
+﻿using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Tags;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
@@ -9,7 +9,7 @@ using ITagEffectRouter = AbilityKit.GameplayTags.ITagEffectRouter;
 using IDurableRegistry = AbilityKit.GameplayTags.IDurableRegistry;
 using AbilityTagService = AbilityKit.Ability.Tags.GameplayTagService;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     public sealed partial class MobaWorldBootstrapModule
     {

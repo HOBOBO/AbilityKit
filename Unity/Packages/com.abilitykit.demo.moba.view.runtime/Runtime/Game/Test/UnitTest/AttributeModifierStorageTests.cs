@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using System.Diagnostics;
-using AbilityKit.Ability.Share.Common.AttributeSystem;
+using AbilityKit.Core.Common.AttributeSystem;
 using AbilityKit.Modifiers;
 using NUnit.Framework;
 

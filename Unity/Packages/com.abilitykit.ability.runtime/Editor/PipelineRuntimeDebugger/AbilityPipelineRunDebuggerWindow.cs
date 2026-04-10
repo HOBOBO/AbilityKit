@@ -1,8 +1,8 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability;
+using AbilityKit.Core.Generic;
 using AbilityKit.Pipeline;
 using AbilityKit.Pipeline.Editor;
 using UnityEditor;

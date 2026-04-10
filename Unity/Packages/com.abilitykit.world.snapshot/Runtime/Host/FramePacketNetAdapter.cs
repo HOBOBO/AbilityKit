@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.SnapshotRouting;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.SnapshotRouting;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;

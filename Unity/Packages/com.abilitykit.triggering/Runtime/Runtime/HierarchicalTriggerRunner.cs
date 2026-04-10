@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Blackboard;

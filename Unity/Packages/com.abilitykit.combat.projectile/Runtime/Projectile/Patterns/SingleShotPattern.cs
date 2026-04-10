@@ -1,6 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
-namespace AbilityKit.Ability.Share.Common.Projectile
+namespace AbilityKit.Core.Common.Projectile
 {
     public sealed class SingleShotPattern : IProjectileSpawnPattern
     {

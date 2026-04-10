@@ -5,9 +5,9 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using AbilityKit.Ability.Share.Common.Pool;
+using AbilityKit.Core.Common.Pool;
 
-namespace AbilityKit.Ability.Share
+namespace AbilityKit.Core.Generic
 {
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public sealed class BinaryMemberAttribute : Attribute

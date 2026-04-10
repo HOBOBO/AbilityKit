@@ -1,10 +1,11 @@
-using System.Collections.Generic;
-using AbilityKit.Ability.Share.Battle.SearchTarget.Providers;
-using AbilityKit.Ability.Share.Battle.SearchTarget.Scorers;
-using AbilityKit.Ability.Share.Battle.SearchTarget.Selectors;
+﻿using System.Collections.Generic;
+using AbilityKit.Battle.SearchTarget.Providers;
+using AbilityKit.Battle.SearchTarget.Scorers;
+using AbilityKit.Battle.SearchTarget.Selectors;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Entitas
+namespace AbilityKit.Battle.SearchTarget.Entitas
 {
     public static class EntitasSearchExample
     {

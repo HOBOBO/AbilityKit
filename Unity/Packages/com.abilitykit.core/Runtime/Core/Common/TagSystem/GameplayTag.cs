@@ -2,7 +2,7 @@
 // 为了向后兼容，保留此别名
 using GameplayTag = AbilityKit.GameplayTags.GameplayTag;
 
-namespace AbilityKit.Ability.Share.Common.TagSystem
+namespace AbilityKit.Core.Common.TagSystem
 {
     // 使用 AbilityKit.GameplayTags.GameplayTag 的别名
 }

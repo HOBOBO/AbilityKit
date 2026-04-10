@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.World.DI;
 using UnityEngine;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     public sealed partial class MobaWorldBootstrapModule
     {

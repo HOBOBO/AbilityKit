@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 
-namespace AbilityKit.Ability.Share.Common.SnapshotRouting
+namespace AbilityKit.Core.Common.SnapshotRouting
 {
     /// <summary>
     /// A typed, ordered pipeline for handling snapshots.
@@ -30,7 +30,7 @@ namespace AbilityKit.Ability.Share.Common.SnapshotRouting
             }
             catch (Exception ex)
             {
-                AbilityKit.Ability.Share.Common.Log.Log.Exception(ex);
+                AbilityKit.Core.Common.Log.Log.Exception(ex);
             }
         }
 
@@ -145,7 +145,7 @@ namespace AbilityKit.Ability.Share.Common.SnapshotRouting
                     }
                     catch (Exception ex)
                     {
-                        AbilityKit.Ability.Share.Common.Log.Log.Exception(ex);
+                        AbilityKit.Core.Common.Log.Log.Exception(ex);
                     }
                 }
             }

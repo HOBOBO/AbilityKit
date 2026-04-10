@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Triggering.Runtime;
-using AbilityKit.Ability.Impl.Moba.Components;
+using AbilityKit.Ability.Share.Impl.Moba.Components;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {

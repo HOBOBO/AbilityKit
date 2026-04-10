@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.ECS;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {

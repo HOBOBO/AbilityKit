@@ -1,18 +1,18 @@
-namespace AbilityKit.Ability.Impl.Moba.Systems
+﻿namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     /// <summary>
-    /// debug_log Action 的强类型参数
+    /// debug_log Action 鐨勫己绫诲瀷鍙傛暟
     /// </summary>
     public readonly struct DebugLogArgs
     {
         /// <summary>
-        /// 消息ID（从 TriggerPlanJsonDatabase 的 string table 中获取）
-        /// 为0时表示无消息ID，仅输出上下文信息
+        /// 娑堟伅ID锛堜粠 TriggerPlanJsonDatabase 鐨?string table 涓幏鍙栵級
+        /// 涓?鏃惰〃绀烘棤娑堟伅ID锛屼粎杈撳嚭涓婁笅鏂囦俊鎭?
         /// </summary>
         public readonly int MsgId;
 
         /// <summary>
-        /// 是否输出完整上下文信息（dump）
+        /// 鏄惁杈撳嚭瀹屾暣涓婁笅鏂囦俊鎭紙dump锛?
         /// </summary>
         public readonly bool Dump;
 
@@ -25,7 +25,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
         public static DebugLogArgs Default => new DebugLogArgs(0, false);
 
         /// <summary>
-        /// 无参数版本（仅输出上下文信息）
+        /// 鏃犲弬鏁扮増鏈紙浠呰緭鍑轰笂涓嬫枃淇℃伅锛?
         /// </summary>
         public static DebugLogArgs Empty => default;
     }

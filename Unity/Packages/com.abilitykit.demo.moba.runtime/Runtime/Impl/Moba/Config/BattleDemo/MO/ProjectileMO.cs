@@ -1,5 +1,5 @@
-using System;
-using AbilityKit.Ability.Share.Common.Projectile;
+﻿using System;
+using AbilityKit.Core.Common.Projectile;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO
 {

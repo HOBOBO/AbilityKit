@@ -1,6 +1,6 @@
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Share.Common.MotionSystem.Constraints
+namespace AbilityKit.Core.Common.MotionSystem.Constraints
 {
     public enum MotionEndOverlapPolicy
     {

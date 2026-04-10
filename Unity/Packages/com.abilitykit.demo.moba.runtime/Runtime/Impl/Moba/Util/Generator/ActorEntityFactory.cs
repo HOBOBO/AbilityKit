@@ -1,9 +1,9 @@
-using AbilityKit.Ability.Share.Common.MotionSystem.Collision;
-using AbilityKit.Ability.Share.Common.MotionSystem.Core;
-using AbilityKit.Ability.Share.Common.MotionSystem.Events;
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Common.MotionSystem.Collision;
+using AbilityKit.Core.Common.MotionSystem.Core;
+using AbilityKit.Core.Common.MotionSystem.Events;
+using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Impl.Moba.Util.Generator
+namespace AbilityKit.Ability.Share.Impl.Moba.Util.Generator
 {
     /*
      * 通用实体创建工具（用于创建 ActorEntity 并初始化常用组件）。

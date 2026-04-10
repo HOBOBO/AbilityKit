@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using AbilityKit.Ability.Host;
 using Newtonsoft.Json;
 using UnityEngine;
 
-namespace AbilityKit.Ability.Share.Common.Record.Lockstep
+namespace AbilityKit.Core.Common.Record.Lockstep
 {
     public sealed class LockstepJsonInputRecordWriter : ILockstepInputRecordWriter
     {

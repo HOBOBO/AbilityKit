@@ -1,6 +1,6 @@
-using AbilityKit.Modifiers;
+﻿using AbilityKit.Modifiers;
 
-namespace AbilityKit.Ability.Share.Common.AttributeSystem
+namespace AbilityKit.Core.Common.AttributeSystem
 {
     // ============================================================================
     // 属性公式接口

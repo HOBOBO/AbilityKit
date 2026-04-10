@@ -1,6 +1,6 @@
 using System;
 
-namespace AbilityKit.Ability.Share.Math
+namespace AbilityKit.Core.Math
 {
     public readonly struct Vec2 : IEquatable<Vec2>
     {

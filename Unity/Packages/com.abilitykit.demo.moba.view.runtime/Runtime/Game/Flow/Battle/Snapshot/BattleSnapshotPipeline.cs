@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.SnapshotRouting;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.SnapshotRouting;
 using AbilityKit.Game.Flow;
 
 namespace AbilityKit.Game.Flow.Snapshot

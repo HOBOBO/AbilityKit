@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 
-namespace AbilityKit.Ability.Share.Common.Record.Core
+namespace AbilityKit.Core.Common.Record.Core
 {
     [Serializable]
     public sealed class EventTrack : IEventTrackWriter, IEventTrackReader

@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
@@ -27,11 +27,11 @@ namespace AbilityKit.Game.Flow
         private void CreateRemoteDrivenRuntimeAndWorld()
         {
             var typeRegistry = new WorldTypeRegistry()
-                .RegisterEntitasWorld(AbilityKit.Ability.Impl.Moba.Worlds.Blueprints.MobaLobbyWorldBlueprint.Type)
-                .RegisterEntitasWorld(AbilityKit.Ability.Impl.Moba.Worlds.Blueprints.MobaBattleWorldBlueprint.Type);
+                .RegisterEntitasWorld(AbilityKit.Ability.Share.Impl.Moba.Worlds.Blueprints.MobaLobbyWorldBlueprint.Type)
+                .RegisterEntitasWorld(AbilityKit.Ability.Share.Impl.Moba.Worlds.Blueprints.MobaBattleWorldBlueprint.Type);
 
             var blueprints = new AbilityKit.Ability.Host.WorldBlueprints.WorldBlueprintRegistry();
-            AbilityKit.Ability.Impl.Moba.Worlds.Blueprints.MobaWorldBlueprintsRegistration.RegisterAll(blueprints);
+            AbilityKit.Ability.Share.Impl.Moba.Worlds.Blueprints.MobaWorldBlueprintsRegistration.RegisterAll(blueprints);
 
             var baseFactory = new RegistryWorldFactory(typeRegistry);
             var factory = new AbilityKit.Ability.Host.WorldBlueprints.WorldBlueprintWorldFactory(baseFactory, blueprints);
@@ -66,7 +66,7 @@ namespace AbilityKit.Game.Flow
                 {
                     typeof(WorldServiceContainerFactory).Assembly,
                     typeof(BattleLogicSession).Assembly,
-                    typeof(AbilityKit.Ability.Impl.Moba.Systems.MobaWorldBootstrapModule).Assembly,
+                    typeof(AbilityKit.Ability.Share.Impl.Moba.Systems.MobaWorldBootstrapModule).Assembly,
                     typeof(BattleSessionFeature).Assembly
                 },
                 new[] { "AbilityKit" }

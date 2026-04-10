@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability.Share.Common.Numbers
+namespace AbilityKit.Core.Common.Numbers
 {
     public enum NumberModifierOp
     {

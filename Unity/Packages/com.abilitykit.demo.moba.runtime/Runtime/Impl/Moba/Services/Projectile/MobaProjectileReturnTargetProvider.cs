@@ -1,6 +1,6 @@
-using AbilityKit.Ability.Share.Common.Projectile;
+﻿using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile

@@ -1,6 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Visited
+namespace AbilityKit.Battle.SearchTarget.Visited
 {
     public sealed class VersionedVisitedSet : IVisitedSet
     {

@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
-using AbilityKit.Ability;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Generic;
+using AbilityKit.Core.Math;
 
 namespace AbilityKit.Ability.Behavior
 {

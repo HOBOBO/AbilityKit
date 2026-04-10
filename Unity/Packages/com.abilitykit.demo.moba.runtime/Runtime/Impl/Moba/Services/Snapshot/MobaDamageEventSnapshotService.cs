@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
@@ -6,6 +6,7 @@ using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability.Impl.Moba;
     public sealed class MobaDamageEventSnapshotService : IService
     {
         private readonly MobaGamePhaseService _phase;

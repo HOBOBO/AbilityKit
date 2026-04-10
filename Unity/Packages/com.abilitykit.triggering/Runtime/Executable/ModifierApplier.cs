@@ -1,5 +1,5 @@
-using System;
-using AbilityKit.Common.Marker;
+﻿using System;
+using AbilityKit.Core.Common.Marker;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Triggering.Runtime.Executable

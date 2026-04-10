@@ -1,6 +1,6 @@
 using System;
 
-namespace AbilityKit.Ability.Share.Common
+namespace AbilityKit.Core.Common
 {
     public static class DisposeUtils
     {

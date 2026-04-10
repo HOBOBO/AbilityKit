@@ -1,5 +1,5 @@
-using AbilityKit.Ability.World.Entitas;
-using AbilityKit.Ability.Share.Common.Log;
+﻿using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters
 {

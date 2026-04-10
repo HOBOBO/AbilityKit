@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Ability.Share.ECS; using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Effect;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
@@ -13,6 +13,7 @@ using Newtonsoft.Json.Linq;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {
+    using AbilityKit.Ability.Share.Effect;
     public sealed class AddBuffAction : ITriggerAction
     {
         private readonly List<int> _buffIds;

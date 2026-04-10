@@ -1,7 +1,7 @@
-using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     internal static class SkillCastContextPlanValueResolver
     {

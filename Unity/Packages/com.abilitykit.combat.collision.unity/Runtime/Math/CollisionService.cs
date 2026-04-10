@@ -1,6 +1,6 @@
-using AbilityKit.Ability.World.Services;
+﻿using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Ability.Share.Math
+namespace AbilityKit.Core.Math
 {
     public sealed class CollisionService : ICollisionService, IService
     {

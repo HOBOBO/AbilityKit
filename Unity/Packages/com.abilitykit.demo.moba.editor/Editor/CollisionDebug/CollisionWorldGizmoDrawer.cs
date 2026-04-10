@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.DebugDraw;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Common.DebugDraw;
+using AbilityKit.Core.Math;
+using AbilityKit.Core.Editor.DebugDraw;
 using AbilityKit.Game.Battle;
-using AbilityKit.Editor.DebugDraw;
 using UnityEditor;
 using UnityEngine;
 

@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability;
     /// <summary>
     /// 技能处理项执行结果
     /// </summary>

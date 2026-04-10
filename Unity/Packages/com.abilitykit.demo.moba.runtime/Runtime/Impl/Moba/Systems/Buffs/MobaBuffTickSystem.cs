@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;
@@ -10,7 +10,7 @@ using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Impl.Moba.Components;
+using AbilityKit.Ability.Share.Impl.Moba.Components;
 using AbilityKit.Ability.Share.Impl.Moba;
 using AbilityKit.Triggering.Eventing;
 

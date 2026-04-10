@@ -1,10 +1,10 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     public sealed partial class MobaWorldBootstrapModule
     {
@@ -57,13 +57,13 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 var hasNamedArgs = hasNamedArgsById.TryGetValue(kv.Key, out var hna) && hna;
                 if (hasNamedArgs)
                 {
-                    // 具名参数模式的 Action 不注册 stub
-                    // 因为 PlanActionModule 会注册正确类型的 NamedAction<TArgs> 委托
-                    // 注册 stub 会导致类型不匹配
+                    // 鍏峰悕鍙傛暟妯″紡鐨?Action 涓嶆敞鍐?stub
+                    // 鍥犱负 PlanActionModule 浼氭敞鍐屾纭被鍨嬬殑 NamedAction<TArgs> 濮旀墭
+                    // 娉ㄥ唽 stub 浼氬鑷寸被鍨嬩笉鍖归厤
                     continue;
                 }
 
-                // 注册传统 Action stub（向后兼容）
+                // 娉ㄥ唽浼犵粺 Action stub锛堝悜鍚庡吋瀹癸級
                 switch (arity)
                 {
                     case 0:

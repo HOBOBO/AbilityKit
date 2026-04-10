@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
-using AbilityKit.Ability.Share.Common.SnapshotRouting;
+using AbilityKit.Core.Common.SnapshotRouting;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow.Battle.ViewEvents;

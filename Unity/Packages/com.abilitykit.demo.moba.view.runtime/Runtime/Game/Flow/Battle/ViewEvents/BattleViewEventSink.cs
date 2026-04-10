@@ -1,8 +1,9 @@
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Triggering;
+using AbilityKit.Effect;
 using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow.Battle.View;
@@ -70,7 +71,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 if (proj == null) return;
                 if (proj.OnHitVfxId <= 0) return;
 
-                if (!evt.Args.TryGetValue(ProjectileTriggering.Args.HitPoint, out var hitPointObj) || hitPointObj is not AbilityKit.Ability.Share.Math.Vec3 hitPoint)
+                if (!evt.Args.TryGetValue(ProjectileTriggering.Args.HitPoint, out var hitPointObj) || hitPointObj is not AbilityKit.Core.Math.Vec3 hitPoint)
                 {
                     return;
                 }

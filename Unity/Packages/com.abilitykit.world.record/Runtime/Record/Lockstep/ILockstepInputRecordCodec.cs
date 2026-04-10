@@ -1,6 +1,6 @@
-using AbilityKit.Ability.Host;
+﻿using AbilityKit.Ability.Host;
 
-namespace AbilityKit.Ability.Share.Common.Record.Lockstep
+namespace AbilityKit.Core.Common.Record.Lockstep
 {
     public interface ILockstepInputRecordCodec
     {

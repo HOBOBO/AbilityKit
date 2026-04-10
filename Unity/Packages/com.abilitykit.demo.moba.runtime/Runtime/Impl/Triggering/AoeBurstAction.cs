@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
@@ -25,7 +25,7 @@ namespace AbilityKit.Ability.Impl.Triggering
             public object OriginalPayload;
         }
 
-        private static readonly AbilityKit.Ability.Share.Common.Pool.ObjectPool<List<ColliderId>> s_colliderListPool = AbilityKit.Ability.Share.Common.Pool.Pools.GetPool(
+        private static readonly AbilityKit.Core.Common.Pool.ObjectPool<List<ColliderId>> s_colliderListPool = AbilityKit.Core.Common.Pool.Pools.GetPool(
             key: "AoeBurstAction.ColliderList",
             createFunc: () => new List<ColliderId>(32),
             onRelease: list => list.Clear(),

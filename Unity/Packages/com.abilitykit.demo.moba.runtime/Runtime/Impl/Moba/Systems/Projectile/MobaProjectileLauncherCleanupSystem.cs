@@ -1,9 +1,9 @@
-﻿using AbilityKit.Ability.Share.Common.Projectile;
+﻿using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Impl.Moba;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;

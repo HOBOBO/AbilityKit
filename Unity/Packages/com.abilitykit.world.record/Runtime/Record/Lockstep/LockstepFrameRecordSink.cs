@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.Record.Core;
+using AbilityKit.Core.Common.Record.Core;
 
-namespace AbilityKit.Ability.Share.Common.Record.Lockstep
+namespace AbilityKit.Core.Common.Record.Lockstep
 {
     public sealed class LockstepFrameRecordSink : IFrameRecordSink
     {

@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability.Impl.Moba.Components
+﻿namespace AbilityKit.Ability.Share.Impl.Moba.Components
 {
     public sealed class ActiveSkillRuntime
     {

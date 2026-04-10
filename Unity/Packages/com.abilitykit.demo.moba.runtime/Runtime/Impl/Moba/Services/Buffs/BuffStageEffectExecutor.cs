@@ -1,9 +1,9 @@
-using System.Collections.Generic;
-using AbilityKit.Ability;
-using AbilityKit.Ability.Share.Effect;
+﻿using System.Collections.Generic;
+using AbilityKit.Core.Generic;
+using AbilityKit.Effect;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.Impl.Moba.Components;
+using AbilityKit.Ability.Share.Impl.Moba.Components;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {

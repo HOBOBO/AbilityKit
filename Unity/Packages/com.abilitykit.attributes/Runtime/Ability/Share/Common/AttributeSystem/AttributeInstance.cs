@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.Runtime.CompilerServices;
 using AbilityKit.Modifiers;
 
-namespace AbilityKit.Ability.Share.Common.AttributeSystem
+namespace AbilityKit.Core.Common.AttributeSystem
 {
     /// <summary>
     /// 属性实例。

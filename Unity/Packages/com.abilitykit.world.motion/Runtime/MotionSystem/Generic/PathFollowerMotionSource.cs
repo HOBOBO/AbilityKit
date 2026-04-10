@@ -1,8 +1,8 @@
-using System;
-using AbilityKit.Ability.Share.Common.MotionSystem.Core;
-using AbilityKit.Ability.Share.Math;
+﻿using System;
+using AbilityKit.Core.Common.MotionSystem.Core;
+using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Share.Common.MotionSystem.Generic
+namespace AbilityKit.Core.Common.MotionSystem.Generic
 {
     public sealed class PathFollowerMotionSource : IMotionSource, IMotionFinishEventSource
     {

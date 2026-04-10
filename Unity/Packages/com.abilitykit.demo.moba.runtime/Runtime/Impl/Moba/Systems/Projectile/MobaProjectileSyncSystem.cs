@@ -1,17 +1,17 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Impl.Moba.Util.Generator;
+using AbilityKit.Ability.Share.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.Projectile;
-using AbilityKit.Ability.Share.Common.MotionSystem.Core;
-using AbilityKit.Ability.Share.Common.MotionSystem.Trajectory;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Core.Common.MotionSystem.Core;
+using AbilityKit.Core.Common.MotionSystem.Trajectory;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
-using AbilityKit.Ability.Share.Math;
-using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Math;
+using AbilityKit.Core.Common.Event;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 
@@ -31,7 +31,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
         private MobaConfigDatabase _configs;
         private MobaActorDespawnSnapshotService _despawnSnapshots;
         
-        // [REMOVED] private EffectRegistry _effectRegistry; // TODO: Effects包已删除，待重构
+        // [REMOVED] private EffectRegistry _effectRegistry; // TODO: Effects鍖呭凡鍒犻櫎锛屽緟閲嶆瀯
 
         private readonly List<ProjectileSpawnEvent> _spawns = new List<ProjectileSpawnEvent>(64);
         private readonly List<ProjectileHitEvent> _hits = new List<ProjectileHitEvent>(128);

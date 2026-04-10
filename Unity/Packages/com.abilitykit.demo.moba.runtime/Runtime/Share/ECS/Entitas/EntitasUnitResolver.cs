@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Ability.Share.ECS.Entitas;
+using AbilityKit.ECS;
 
 namespace AbilityKit.Ability.Share.ECS.Entitas
 {
     public sealed class EntitasUnitResolver : IUnitResolver
     {
         private readonly EntitasActorIdLookup _lookup;
-        private readonly Dictionary<int, IUnitFacade> _cache = new Dictionary<int, IUnitFacade>();
+        private readonly Dictionary<int, EntitasUnitFacade> _cache = new Dictionary<int, EntitasUnitFacade>();
 
         public EntitasUnitResolver(EntitasActorIdLookup lookup)
         {
@@ -33,8 +36,8 @@ namespace AbilityKit.Ability.Share.ECS.Entitas
                 return true;
             }
 
-            // NOTE: 目前先用 facade cache 的方式承载 Tags/Attributes/Effects。
-            // 后续你把这些容器改成 Entitas Component 挂在 entity 上时，adapter 只需要在此处改为从组件读取即可。
+            // NOTE: 鐩墠鍏堢敤 facade cache 鐨勬柟寮忔壙杞?Tags/Attributes/Effects銆?
+            // 鍚庣画浣犳妸杩欎簺瀹瑰櫒鏀规垚 Entitas Component 鎸傚湪 entity 涓婃椂锛宎dapter 鍙渶瑕佸湪姝ゅ鏀逛负浠庣粍浠惰鍙栧嵆鍙€?
             var created = new EntitasUnitFacade(id.ActorId);
             _cache[id.ActorId] = created;
             unit = created;

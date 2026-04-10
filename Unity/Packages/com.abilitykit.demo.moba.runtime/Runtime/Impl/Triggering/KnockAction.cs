@@ -1,18 +1,19 @@
-using System;
-using AbilityKit.Ability;
+﻿using System;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
-using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Effect;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Ability.Share.Common.MotionSystem.Core;
+using AbilityKit.Core.Common.MotionSystem.Core;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {
+    using AbilityKit.Ability;
     public sealed class KnockAction : ITriggerAction
     {
         private readonly float _horizontalSpeed;

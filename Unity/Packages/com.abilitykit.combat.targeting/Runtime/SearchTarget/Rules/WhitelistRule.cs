@@ -1,6 +1,7 @@
-using AbilityKit.Ability.Share.ECS;
+﻿using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Battle.SearchTarget;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Rules
+namespace AbilityKit.Battle.SearchTarget.Rules
 {
     public sealed class WhitelistRule : ITargetRule
     {

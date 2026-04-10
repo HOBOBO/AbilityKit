@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Impl.Moba.Attributes;
+﻿using AbilityKit.Ability.Share.Impl.Moba.Attributes;
 
 public sealed partial class ActorEntity
 {

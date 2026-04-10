@@ -1,5 +1,5 @@
-using System;
-using AbilityKit.Ability.Share;
+﻿using System;
+using AbilityKit.Core.Generic;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {

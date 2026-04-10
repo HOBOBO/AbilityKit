@@ -1,9 +1,10 @@
-using System;
-using AbilityKit.Ability.Impl.Moba.Attributes;
+﻿using System;
+using AbilityKit.Ability.Share.Impl.Moba.Attributes;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability.Impl.Moba;
     public sealed class MobaDamageService : IService
     {
         private readonly MobaActorLookupService _actors;

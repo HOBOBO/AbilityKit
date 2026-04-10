@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Shapes
+﻿namespace AbilityKit.Battle.SearchTarget.Shapes
 {
     public sealed class DataRectParamsResolver2D : IRectParamResolver2D
     {

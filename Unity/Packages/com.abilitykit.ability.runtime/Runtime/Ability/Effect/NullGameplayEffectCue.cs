@@ -1,5 +1,7 @@
 namespace AbilityKit.Ability.Share.Effect
 {
+    using AbilityKit.Effect;
+    
     public sealed class NullGameplayEffectCue : IGameplayEffectCue
     {
         public static readonly NullGameplayEffectCue Instance = new NullGameplayEffectCue();

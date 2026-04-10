@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.ECS;
 using AbilityKit.Game.Battle;
 using UnityEditor;
 using UnityEngine;

@@ -1,11 +1,12 @@
 using System;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Impl.Moba.Util.Generator
+namespace AbilityKit.Ability.Share.Impl.Moba.Util.Generator
 {
     /*
      * Spawn 管线：根据外部提供的 Loadout 批量生成 ActorEntity（骨架）并注册到 ActorRegistry。

@@ -1,8 +1,8 @@
-using System.IO;
+﻿using System.IO;
 using Newtonsoft.Json;
 using UnityEngine;
 
-namespace AbilityKit.Ability.Share.Common.Record.Lockstep
+namespace AbilityKit.Core.Common.Record.Lockstep
 {
     public static class LockstepJsonInputRecordReader
     {

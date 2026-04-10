@@ -1,6 +1,6 @@
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Share.Common.Projectile
+namespace AbilityKit.Core.Common.Projectile
 {
     public readonly struct AreaSpawnParams
     {

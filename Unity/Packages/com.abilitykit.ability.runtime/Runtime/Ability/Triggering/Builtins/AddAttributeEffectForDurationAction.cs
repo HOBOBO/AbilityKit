@@ -1,8 +1,9 @@
 using System;
-using AbilityKit.Ability.Share.Common.AttributeSystem;
+using AbilityKit.Core.Common.AttributeSystem;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Modifiers;
+using AbilityKit.ECS;
 
 namespace AbilityKit.Ability.Triggering.Runtime.Builtins
 {

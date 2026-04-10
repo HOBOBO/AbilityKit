@@ -1,5 +1,5 @@
-using System;
-using AbilityKit.Ability.Share.ECS;
+﻿using System;
+using AbilityKit.Ability.Share.ECS; using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.ECS.Entitas;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -7,6 +7,7 @@ using AbilityKit.Ability.FrameSync;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability;
     /// <summary>
     /// 冷却检查条件
     /// </summary>

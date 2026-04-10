@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.Record.Adapters.EventCodecs;
-using AbilityKit.Ability.Share.Common.Record.Adapters.Replay;
-using AbilityKit.Ability.Share.Common.Record.Core;
+using AbilityKit.Core.Common.Record.Adapters.EventCodecs;
+using AbilityKit.Core.Common.Record.Adapters.Replay;
+using AbilityKit.Core.Common.Record.Core;
 using UnityEngine;
 
 namespace AbilityKit.World.Record.Samples

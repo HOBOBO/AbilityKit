@@ -1,16 +1,17 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
+using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     /// <summary>
-    /// give_damage Action 的 Schema 定义
-    /// 实现 IActionSchema，提供参数解析和验证逻辑
+    /// give_damage Action 鐨?Schema 瀹氫箟
+    /// 瀹炵幇 IActionSchema锛屾彁渚涘弬鏁拌В鏋愬拰楠岃瘉閫昏緫
     /// </summary>
     public sealed class GiveDamageSchema : IActionSchema<GiveDamageArgs, IWorldResolver>
     {

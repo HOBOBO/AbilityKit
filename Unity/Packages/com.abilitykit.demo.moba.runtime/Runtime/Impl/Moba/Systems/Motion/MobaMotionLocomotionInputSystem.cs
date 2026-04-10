@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Impl.Moba.Attributes;
-using AbilityKit.Ability.Share.Common.MotionSystem.Core;
+using AbilityKit.Ability.Share.Impl.Moba.Attributes;
+using AbilityKit.Core.Common.MotionSystem.Core;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;

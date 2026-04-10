@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host.Transport;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Management;
 

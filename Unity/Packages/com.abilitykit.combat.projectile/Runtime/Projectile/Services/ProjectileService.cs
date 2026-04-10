@@ -1,12 +1,12 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Share.Common.Pool;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Common.Pool;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Ability.Share.Common.Projectile
+namespace AbilityKit.Core.Common.Projectile
 {
     public sealed class ProjectileService : IProjectileService, IWorldInitializable
     {

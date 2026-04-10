@@ -1,7 +1,7 @@
 using System;
 using System.Reflection;
 
-namespace AbilityKit.Common.Marker
+namespace AbilityKit.Core.Common.Marker
 {
     /// <summary>
     /// 框架级类型标记基类。

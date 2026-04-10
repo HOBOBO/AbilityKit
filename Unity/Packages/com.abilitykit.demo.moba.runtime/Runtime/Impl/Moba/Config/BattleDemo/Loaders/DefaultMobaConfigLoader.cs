@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using UnityEngine;
 using ConfigReloadResult = AbilityKit.Ability.HotReload.ConfigReloadResult;
 using ConfigReloadBus = AbilityKit.Ability.HotReload.ConfigReloadBus;

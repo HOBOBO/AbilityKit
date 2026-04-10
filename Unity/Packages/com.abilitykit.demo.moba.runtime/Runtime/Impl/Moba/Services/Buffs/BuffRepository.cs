@@ -1,5 +1,5 @@
-using System.Collections.Generic;
-using AbilityKit.Ability.Impl.Moba.Components;
+﻿using System.Collections.Generic;
+using AbilityKit.Ability.Share.Impl.Moba.Components;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {

@@ -1,6 +1,6 @@
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Share.Common.MotionSystem.Trajectory
+namespace AbilityKit.Core.Common.MotionSystem.Trajectory
 {
     public sealed class LinearTrajectory3D : ITrajectory3D
     {

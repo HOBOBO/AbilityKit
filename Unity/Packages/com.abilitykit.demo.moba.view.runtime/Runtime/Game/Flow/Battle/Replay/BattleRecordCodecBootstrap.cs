@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Reflection;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.Config;
-using AbilityKit.Ability.Share.Common.Record.Lockstep;
-using AbilityKit.Ability.Share.Common.Reflection;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.Config;
+using AbilityKit.Core.Common.Record.Lockstep;
+using AbilityKit.Core.Common.Reflection;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow.Battle.Replay

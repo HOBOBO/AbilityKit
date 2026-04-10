@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using AbilityKit.Ability.Share.Common.SnapshotRouting;
-using AbilityKit.Ability.Share.Common.Record.Lockstep;
+using AbilityKit.Core.Common.SnapshotRouting;
+using AbilityKit.Core.Common.Record.Lockstep;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;

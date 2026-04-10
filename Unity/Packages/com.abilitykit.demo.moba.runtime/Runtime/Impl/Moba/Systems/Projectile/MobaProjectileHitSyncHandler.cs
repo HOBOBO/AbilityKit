@@ -1,13 +1,14 @@
-using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.Projectile;
-using AbilityKit.Ability.Share.Effect;
+﻿using System.Collections.Generic;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
-using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
 {
+    using AbilityKit.Ability.Share.Effect;
     internal sealed class MobaProjectileHitSyncHandler : IProjectileSyncHandler
     {
         private readonly MobaProjectileSyncSystem _sys;
@@ -40,7 +41,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
                 if (eventBus != null)
                 {
                     var eventId = ProjectileTriggering.Events.Hit;
-                    var eid = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
+                    var eid = AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
 
                     eventBus.Publish(new EventKey<ProjectileHitEvent>(eid), in evt);
                     object boxed = evt;

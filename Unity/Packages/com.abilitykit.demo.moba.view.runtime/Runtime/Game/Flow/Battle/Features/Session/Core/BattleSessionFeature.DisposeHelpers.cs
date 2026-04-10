@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Share.Common.Log;
+﻿using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.Abstractions;
 using System;
 

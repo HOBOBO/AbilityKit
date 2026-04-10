@@ -1,10 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Ability.Share.Effect
 {
+    using AbilityKit.Ability.Share.Effect;
     public static class EffectOriginArgsHelper
     {
         public static void FillFromRegistry(IDictionary<string, object> args, long sourceContextId, EffectSourceRegistry registry)

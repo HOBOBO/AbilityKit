@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Share.Common.AttributeSystem;
+using AbilityKit.Core.Common.AttributeSystem;
 
-namespace AbilityKit.Ability.Impl.Moba.Attributes
+namespace AbilityKit.Ability.Share.Impl.Moba.Attributes
 {
     public static class MobaAttributeIds
     {

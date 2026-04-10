@@ -1,6 +1,6 @@
-using AbilityKit.Ability.World.DI;
+﻿using AbilityKit.Ability.World.DI;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     public sealed partial class MobaWorldBootstrapModule
     {

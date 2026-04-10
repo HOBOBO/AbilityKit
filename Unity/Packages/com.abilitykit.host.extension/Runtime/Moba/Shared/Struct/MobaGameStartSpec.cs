@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Host;
+﻿using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 
 namespace AbilityKit.Ability.Host.Extensions.Moba.Struct

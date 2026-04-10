@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace AbilityKit.Common.Marker
+namespace AbilityKit.Core.Common.Marker
 {
     /// <summary>
     /// MarkerScanner 的扩展方法，提供更便捷的扫描功能。

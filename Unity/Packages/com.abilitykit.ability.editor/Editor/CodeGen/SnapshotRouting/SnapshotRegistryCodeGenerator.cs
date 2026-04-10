@@ -1,11 +1,11 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using AbilityKit.Ability.Share.Common.SnapshotRouting;
+using AbilityKit.Core.Common.SnapshotRouting;
 using UnityEditor;
 using UnityEngine;
 
@@ -148,7 +148,7 @@ namespace AbilityKit.Ability.Editor.CodeGen.SnapshotRouting
             sb.AppendLine("#nullable enable");
             sb.AppendLine("using System;");
             sb.AppendLine("using AbilityKit.Ability.Host;");
-            sb.AppendLine("using AbilityKit.Ability.Share.Common.SnapshotRouting;");
+            sb.AppendLine("using AbilityKit.Core.Common.SnapshotRouting;");
             sb.AppendLine();
 
             sb.AppendLine($"namespace {reg.TargetType.Namespace}");

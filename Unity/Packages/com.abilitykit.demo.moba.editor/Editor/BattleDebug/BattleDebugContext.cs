@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.ECS;
 using AbilityKit.Game.Battle;
 
 namespace AbilityKit.Game.Editor

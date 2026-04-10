@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Share.Common.Log;
+﻿using AbilityKit.Core.Common.Log;
 #if UNITY_EDITOR
 using UnityEngine;
 #endif

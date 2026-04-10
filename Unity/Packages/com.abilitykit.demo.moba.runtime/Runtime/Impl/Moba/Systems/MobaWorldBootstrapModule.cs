@@ -1,10 +1,10 @@
 using System;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Share.ECS.Entitas;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     public sealed partial class MobaWorldBootstrapModule : IWorldModule, IEntitasSystemsInstaller
     {
@@ -28,11 +28,11 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                 contexts,
                 systems,
                 services,
-                assemblies: new[] { typeof(MobaWorldBootstrapModule).Assembly, typeof(AbilityKit.Ability.Share.Common.Projectile.ProjectileTickSystem).Assembly },
+                assemblies: new[] { typeof(MobaWorldBootstrapModule).Assembly, typeof(AbilityKit.Core.Common.Projectile.ProjectileTickSystem).Assembly },
                 namespacePrefixes: new[]
                 {
                     "AbilityKit.Ability.Share.Impl.Moba",
-                    "AbilityKit.Ability.Share.Common.Projectile",
+                    "AbilityKit.Core.Common.Projectile",
                 }
             );
 

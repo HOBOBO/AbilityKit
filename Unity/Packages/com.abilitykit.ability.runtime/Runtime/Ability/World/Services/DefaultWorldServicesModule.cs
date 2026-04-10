@@ -1,7 +1,8 @@
 using System;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Effect;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;

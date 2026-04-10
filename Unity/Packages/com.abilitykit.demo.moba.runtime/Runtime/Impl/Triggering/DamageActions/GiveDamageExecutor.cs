@@ -1,11 +1,12 @@
-using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.Pool;
+﻿using System.Collections.Generic;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.Pool;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
 
 namespace AbilityKit.Ability.Impl.Triggering.DamageActions
 {
+    using AbilityKit.Ability.Impl.Moba;
     public static class GiveDamageExecutor
     {
         public static void Execute(TriggerContext context, DamageActionSpec spec)

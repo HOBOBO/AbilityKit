@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability.Share.Common.AttributeSystem
+﻿namespace AbilityKit.Core.Common.AttributeSystem
 {
     public interface IAttributeProvider
     {

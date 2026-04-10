@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Runtime;
 
-namespace AbilityKit.Ability.Share.Common.Log
+namespace AbilityKit.Core.Common.Log
 {
     public sealed class TriggerLoggingObserver<TCtx> : ITriggerObserver<TCtx>
     {

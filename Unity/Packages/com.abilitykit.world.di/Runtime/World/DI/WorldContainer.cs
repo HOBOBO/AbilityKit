@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Ability.World.DI
 {

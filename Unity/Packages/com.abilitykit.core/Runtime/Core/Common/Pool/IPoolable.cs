@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability.Share.Common.Pool
+namespace AbilityKit.Core.Common.Pool
 {
     public interface IPoolable
     {

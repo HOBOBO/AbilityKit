@@ -1,11 +1,12 @@
 using System;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Share.Common.AttributeSystem;
+using AbilityKit.Core.Common.AttributeSystem;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Triggering;
+using AbilityKit.ECS;
 using GameplayTagContainer = AbilityKit.GameplayTags.GameplayTagContainer;
 
-namespace AbilityKit.Ability.Share.Effect
+namespace AbilityKit.Effect
 {
     public readonly struct EffectExecutionContext
     {

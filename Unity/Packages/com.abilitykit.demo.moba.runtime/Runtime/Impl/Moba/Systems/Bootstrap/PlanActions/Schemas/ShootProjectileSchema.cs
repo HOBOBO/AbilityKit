@@ -1,14 +1,14 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     /// <summary>
-    /// shoot_projectile Action 的 Schema 定义
+    /// shoot_projectile Action 鐨?Schema 瀹氫箟
     /// </summary>
     public sealed class ShootProjectileSchema : IActionSchema<ShootProjectileArgs, IWorldResolver>
     {

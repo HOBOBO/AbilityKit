@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.World.Services;
@@ -168,7 +168,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
             }
             catch (Exception ex)
             {
-                AbilityKit.Ability.Share.Common.Log.Log.Exception(ex, "[EffectSourceRegistry] EffectSourceLiveRegistry.Register failed");
+                AbilityKit.Core.Common.Log.Log.Exception(ex, "[EffectSourceRegistry] EffectSourceLiveRegistry.Register failed");
             }
 #endif
         }
@@ -217,7 +217,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
             }
             catch (Exception ex)
             {
-                AbilityKit.Ability.Share.Common.Log.Log.Exception(ex, "[EffectSourceRegistry] EffectSourceLiveRegistry.Unregister failed");
+                AbilityKit.Core.Common.Log.Log.Exception(ex, "[EffectSourceRegistry] EffectSourceLiveRegistry.Unregister failed");
             }
 #endif
             _contexts.Clear();

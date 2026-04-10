@@ -1,4 +1,4 @@
-using AbilityKit.Ability.FrameSync;
+﻿using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.Abstractions;

@@ -1,9 +1,10 @@
-using System.Collections.Generic;
-using AbilityKit.Ability;
+﻿using System.Collections.Generic;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability;
     public interface IMobaSkillPipelineLibrary : IService
     {
         bool TryGet(

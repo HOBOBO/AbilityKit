@@ -1,7 +1,7 @@
-// [REMOVED] Effects 包已删除，相关功能待重构
-// 残留的 Effects Stage 仅作标记，不再注册任何服务
+﻿// [REMOVED] Effects 鍖呭凡鍒犻櫎锛岀浉鍏冲姛鑳藉緟閲嶆瀯
+// 娈嬬暀鐨?Effects Stage 浠呬綔鏍囪锛屼笉鍐嶆敞鍐屼换浣曟湇鍔?
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     public sealed partial class MobaWorldBootstrapModule
     {

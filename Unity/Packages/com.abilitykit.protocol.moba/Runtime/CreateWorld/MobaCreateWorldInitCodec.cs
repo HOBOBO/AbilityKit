@@ -1,11 +1,12 @@
 using System;
 using System.IO;
 using System.Text;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Protocol.Serialization;
 using MemoryPack;
 
-namespace AbilityKit.Ability.Share.Impl.Moba.Services
+namespace AbilityKit.Ability.Share.Impl.Moba.CreateWorld
 {
     [MemoryPackable]
     internal readonly partial struct MobaCreateWorldLegacyReqPayload

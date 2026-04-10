@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Ability.Host.Extensions.FrameSync

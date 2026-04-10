@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Ability
+namespace AbilityKit.Core.Generic
 {
     public sealed class StableStringIdRegistry
     {

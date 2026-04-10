@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Host.WorldBlueprints;
 
-namespace AbilityKit.Ability.Impl.Moba.Worlds.Blueprints
+namespace AbilityKit.Ability.Share.Impl.Moba.Worlds.Blueprints
 {
     public static class MobaWorldBlueprintsRegistration
     {

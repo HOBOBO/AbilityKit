@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability.Share.Common.Config
+namespace AbilityKit.Core.Common.Config
 {
     public sealed class ModuleInstallerConfig
     {

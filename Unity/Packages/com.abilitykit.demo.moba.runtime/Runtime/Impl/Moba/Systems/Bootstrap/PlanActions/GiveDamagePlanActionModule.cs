@@ -1,13 +1,14 @@
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
-using AbilityKit.Ability.Share.Common.Log;
+﻿using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
+    using AbilityKit.Ability.Impl.Moba;
     /// <summary>
     /// 造成伤害的Plan Action模块
     /// 使用新的具名参数 Schema API

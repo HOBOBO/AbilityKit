@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Shapes
+﻿namespace AbilityKit.Battle.SearchTarget.Shapes
 {
     public interface ISectorParamResolver2D
     {

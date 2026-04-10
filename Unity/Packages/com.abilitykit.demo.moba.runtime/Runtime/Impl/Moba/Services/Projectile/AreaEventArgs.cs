@@ -1,5 +1,5 @@
-using AbilityKit.Ability.Share.Math;
-using AbilityKit.Ability.Share.Common.Projectile;
+﻿using AbilityKit.Core.Math;
+using AbilityKit.Core.Common.Projectile;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 {

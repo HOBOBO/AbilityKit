@@ -1,7 +1,7 @@
-using AbilityKit.Ability.Share.Common.MotionSystem.Core;
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Common.MotionSystem.Core;
+using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Share.Common.MotionSystem.Trajectory
+namespace AbilityKit.Core.Common.MotionSystem.Trajectory
 {
     public sealed class TrajectoryMotionSource : IMotionSource, IMotionFinishEventSource
     {

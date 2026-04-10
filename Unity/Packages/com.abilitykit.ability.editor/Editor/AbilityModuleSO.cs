@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Ability.Configs;
 using AbilityKit.Ability.Share.CoreDtos;
+using AbilityKit.Effect;
 using AbilityKit.Ability.Share.Effect;
 using Sirenix.OdinInspector;
 using UnityEngine;
@@ -99,8 +100,8 @@ namespace AbilityKit.Ability.Editor
             var set = new HashSet<string>(StringComparer.Ordinal);
             try
             {
-                CollectConstStrings(set, FindType("AbilityKit.Ability.Share.Impl.Moba.Services.MobaTriggerEventIds"));
-                CollectConstStrings(set, FindType("AbilityKit.Ability.Share.Impl.Moba.Services.Skill.MobaSkillTriggering+Events"));
+                CollectConstStrings(set, FindType("AbilityKit.Impl.Moba.Services.MobaTriggerEventIds"));
+                CollectConstStrings(set, FindType("AbilityKit.Impl.Moba.Services.Skill.MobaSkillTriggering+Events"));
                 CollectConstStrings(set, typeof(EffectTriggering.Events));
                 CollectConstStrings(set, typeof(AreaTriggering.Events));
                 CollectConstStrings(set, typeof(ProjectileTriggering.Events));

@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Ability.Share.ECS.Entitas;
+using AbilityKit.ECS;
 
 namespace AbilityKit.Game.Battle
 {

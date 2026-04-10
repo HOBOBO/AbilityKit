@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.SnapshotRouting;
+using AbilityKit.Core.Common.SnapshotRouting;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot;

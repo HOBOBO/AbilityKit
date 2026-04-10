@@ -1,6 +1,6 @@
 using System;
 
-namespace AbilityKit.Core.Eventing
+namespace AbilityKit.Core.Common.Event
 {
     public readonly struct EventKey<TArgs> : IEquatable<EventKey<TArgs>>
     {

@@ -1,5 +1,5 @@
-using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Core.Math;
 
 namespace AbilityKit.Ability.Impl.Triggering.SummonSpawning
 {

@@ -1,11 +1,11 @@
-using AbilityKit.Ability.Host.Framework;
+﻿using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.Impl.Moba.Triggering;
+using AbilityKit.Ability.Share.Impl.Moba.Triggering;
 using AbilityKit.Ability.Share.Impl.Moba.Rollback;
 using AbilityKit.Triggering.Registry;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     public sealed partial class MobaWorldBootstrapModule
     {

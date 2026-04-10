@@ -1,18 +1,19 @@
 ﻿using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Share.Common.Projectile;
-using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
-using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Area
 {
+    using AbilityKit.Ability.Share.Effect;
     [WorldSystem(order: MobaSystemOrder.ProjectileSync + 1, Phase = WorldSystemPhase.PostExecute)]
     public sealed class MobaAreaSyncSystem : WorldSystemBase
     {

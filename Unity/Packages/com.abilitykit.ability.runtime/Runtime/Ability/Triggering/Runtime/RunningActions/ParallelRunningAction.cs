@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.Pool;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.Pool;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {

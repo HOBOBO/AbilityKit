@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using Entitas;

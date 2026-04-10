@@ -1,9 +1,9 @@
-using System;
-using AbilityKit.Ability.Share.Common.MotionSystem.Constraints;
-using AbilityKit.Ability.Share.Common.MotionSystem.Core;
-using AbilityKit.Ability.Share.Math;
+﻿using System;
+using AbilityKit.Core.Common.MotionSystem.Constraints;
+using AbilityKit.Core.Common.MotionSystem.Core;
+using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Share.Common.MotionSystem.Collision
+namespace AbilityKit.Core.Common.MotionSystem.Collision
 {
     public sealed class ConfigurableMotionSolver : IMotionSolver
     {

@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Reflection;
-using AbilityKit.Ability.Share.Common.Config;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.Reflection;
+using AbilityKit.Core.Common.Config;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.Reflection;
 
-namespace AbilityKit.Ability.Impl.Moba.Serialization
+namespace AbilityKit.Ability.Share.Impl.Moba.Serialization
 {
     public static class DemoWireSerializerBootstrap
     {

@@ -1,12 +1,13 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Common.Event;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability.Impl.Moba;
     public sealed class MobaUnitDeathSubscriber : IService
     {
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
@@ -20,7 +21,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             _eventBus = eventBus;
             _entities = entities;
 
-            var eid = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply);
+            var eid = AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply);
             _sub = _eventBus != null ? _eventBus.Subscribe(new EventKey<DamageResult>(eid), OnAfterApply) : null;
         }
 
@@ -56,7 +57,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 damageValue: r.Value);
 
             if (_eventBus == null) return;
-            var eid = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
+            var eid = AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
             _eventBus.Publish(new EventKey<UnitDieEventPayload>(eid), in payload);
             object boxed = payload;
             _eventBus.Publish(new EventKey<object>(eid), in boxed);

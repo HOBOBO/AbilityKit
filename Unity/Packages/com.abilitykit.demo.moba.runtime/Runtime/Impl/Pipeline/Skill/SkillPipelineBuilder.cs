@@ -5,6 +5,7 @@ using AbilityKit.ActionSchema;
 
 namespace AbilityKit.Ability.Share.Impl.Pipeline.Skill
 {
+    using AbilityKit.Ability;
     public sealed class SkillPipelineBuilder
     {
         private readonly SkillPipelineConfig _config;

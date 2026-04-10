@@ -1,15 +1,16 @@
-using System;
+﻿using System;
 using System.Linq;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Systems;
 using AbilityKit.Ability.Triggering.Json;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.Share.Common.Projectile;
-using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Effect;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
+    using AbilityKit.Ability.Share.Effect;
     public sealed partial class MobaWorldBootstrapModule
     {
         private static void RegisterTargetingAndSkillServices(WorldContainerBuilder builder)

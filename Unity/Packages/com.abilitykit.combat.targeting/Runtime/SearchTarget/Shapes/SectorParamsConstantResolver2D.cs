@@ -1,6 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Shapes
+namespace AbilityKit.Battle.SearchTarget.Shapes
 {
     public sealed class SectorParamsConstantResolver2D : ISectorParamResolver2D
     {

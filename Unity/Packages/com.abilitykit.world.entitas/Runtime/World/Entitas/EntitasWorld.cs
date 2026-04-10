@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Ability.World.Entitas
 {

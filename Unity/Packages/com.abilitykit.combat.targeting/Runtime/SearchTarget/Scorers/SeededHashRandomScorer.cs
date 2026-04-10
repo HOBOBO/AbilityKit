@@ -1,6 +1,7 @@
-using AbilityKit.Ability.Share.ECS;
+﻿using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Battle.SearchTarget;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Scorers
+namespace AbilityKit.Battle.SearchTarget.Scorers
 {
     public sealed class SeededHashRandomScorer : ITargetScorer
     {

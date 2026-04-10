@@ -1,8 +1,9 @@
-using AbilityKit.Ability.Share.ECS;
-using AbilityKit.Ability.Share.Battle.SearchTarget.Shapes;
+﻿using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Battle.SearchTarget;
+using AbilityKit.Battle.SearchTarget.Shapes;
 using UnityEngine;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Rules
+namespace AbilityKit.Battle.SearchTarget.Rules
 {
     public sealed class ResolvedSectorRule2D : ITargetRule
     {

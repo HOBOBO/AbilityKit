@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget
+namespace AbilityKit.Battle.SearchTarget
 {
     public sealed class SearchContext
     {

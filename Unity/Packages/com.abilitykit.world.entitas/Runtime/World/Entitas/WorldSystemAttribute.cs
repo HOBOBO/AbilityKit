@@ -1,5 +1,5 @@
-using System;
-using AbilityKit.Common.Marker;
+﻿using System;
+using AbilityKit.Core.Common.Marker;
 
 namespace AbilityKit.Ability.World.Entitas
 {

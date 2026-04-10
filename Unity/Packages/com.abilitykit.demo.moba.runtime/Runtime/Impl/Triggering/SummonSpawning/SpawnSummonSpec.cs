@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Math;
 
 namespace AbilityKit.Ability.Impl.Triggering.SummonSpawning
 {

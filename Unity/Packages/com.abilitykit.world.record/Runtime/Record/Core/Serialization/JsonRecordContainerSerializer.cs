@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using AbilityKit.Ability.FrameSync;
 using Newtonsoft.Json;
 
-namespace AbilityKit.Ability.Share.Common.Record.Core
+namespace AbilityKit.Core.Common.Record.Core
 {
     public sealed class JsonRecordContainerSerializer : IRecordContainerSerializer
     {

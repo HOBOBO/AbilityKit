@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Network.Abstractions;

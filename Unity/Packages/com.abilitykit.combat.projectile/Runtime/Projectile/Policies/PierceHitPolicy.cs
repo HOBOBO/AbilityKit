@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 
-namespace AbilityKit.Ability.Share.Common.Projectile
+namespace AbilityKit.Core.Common.Projectile
 {
     public sealed class PierceHitPolicy : IProjectileHitPolicy
     {

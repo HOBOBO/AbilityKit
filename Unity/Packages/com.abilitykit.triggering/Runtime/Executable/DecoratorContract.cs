@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Common.Marker;
+using AbilityKit.Core.Common.Marker;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Triggering.Runtime.Executable

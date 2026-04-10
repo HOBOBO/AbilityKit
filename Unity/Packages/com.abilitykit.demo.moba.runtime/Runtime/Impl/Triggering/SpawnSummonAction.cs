@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Triggering.SummonSpawning;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.Pool;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.Pool;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;

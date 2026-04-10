@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 
-namespace AbilityKit.Ability.Share.Common.Projectile
+namespace AbilityKit.Core.Common.Projectile
 {
     public sealed class ProjectileWorldModule : IWorldModule
     {

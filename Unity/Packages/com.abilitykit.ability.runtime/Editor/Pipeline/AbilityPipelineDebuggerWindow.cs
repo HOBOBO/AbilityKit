@@ -1,8 +1,8 @@
-#if UNITY_EDITOR && ABILITYKIT_PIPELINE_THIRDPARTY_GRAPH
+﻿#if UNITY_EDITOR && ABILITYKIT_PIPELINE_THIRDPARTY_GRAPH
 
 using System;
 using System.IO;
-using AbilityKit.Ability;
+using AbilityKit.Core.Generic;
 using Emilia.Kit.Editor;
 using Emilia.Node.Editor;
 using UnityEditor;

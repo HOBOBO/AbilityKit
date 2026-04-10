@@ -1,8 +1,8 @@
-using System;
-using AbilityKit.Ability.Share.Math;
-using AbilityKit.Ability.Share.Common.MotionSystem.Trajectory;
+﻿using System;
+using AbilityKit.Core.Math;
+using AbilityKit.Core.Common.MotionSystem.Trajectory;
 
-namespace AbilityKit.Ability.Share.Common.MotionSystem.Generic
+namespace AbilityKit.Core.Common.MotionSystem.Generic
 {
     public sealed class WaypointTrajectory3D : ITrajectory3D
     {

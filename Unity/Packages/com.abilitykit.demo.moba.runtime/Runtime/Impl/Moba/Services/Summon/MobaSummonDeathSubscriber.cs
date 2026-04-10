@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Common.Event;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
@@ -20,7 +20,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             if (_eventBus != null)
             {
-                var eid = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply);
+                var eid = AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply);
                 _sub = _eventBus.Subscribe(new EventKey<DamageResult>(eid), HandleAfterApply);
             }
         }

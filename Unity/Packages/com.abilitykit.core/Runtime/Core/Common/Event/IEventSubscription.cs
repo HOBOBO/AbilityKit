@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability.Share.Common.Event
+namespace AbilityKit.Core.Common.Event
 {
     public interface IEventSubscription
     {

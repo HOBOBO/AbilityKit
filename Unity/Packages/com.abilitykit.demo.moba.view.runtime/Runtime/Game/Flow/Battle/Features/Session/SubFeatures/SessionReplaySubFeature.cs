@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.Record.Lockstep;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.Record.Lockstep;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Moba.Config;

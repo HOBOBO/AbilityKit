@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.IO;
 
-namespace AbilityKit.Ability.Share.Common.Record.Lockstep
+namespace AbilityKit.Core.Common.Record.Lockstep
 {
     public static class LockstepInputRecordCodecs
     {

@@ -1,5 +1,5 @@
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share;
+﻿using AbilityKit.Ability.Host;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Host.Extensions.Moba.Struct;
 

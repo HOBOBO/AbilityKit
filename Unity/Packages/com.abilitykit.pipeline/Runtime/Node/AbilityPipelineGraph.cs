@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.Pool;
+using System.Collections.Generic;
+using AbilityKit.Core.Common.Pool;
 
 namespace AbilityKit.Ability
 {

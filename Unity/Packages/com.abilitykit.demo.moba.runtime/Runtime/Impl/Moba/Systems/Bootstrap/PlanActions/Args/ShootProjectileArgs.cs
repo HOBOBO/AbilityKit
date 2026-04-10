@@ -1,17 +1,17 @@
-namespace AbilityKit.Ability.Impl.Moba.Systems
+﻿namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     /// <summary>
-    /// shoot_projectile Action 的强类型参数
+    /// shoot_projectile Action 鐨勫己绫诲瀷鍙傛暟
     /// </summary>
     public readonly struct ShootProjectileArgs
     {
         /// <summary>
-        /// 发射器ID
+        /// 鍙戝皠鍣↖D
         /// </summary>
         public readonly int LauncherId;
 
         /// <summary>
-        /// 弹体ID
+        /// 寮逛綋ID
         /// </summary>
         public readonly int ProjectileId;
 

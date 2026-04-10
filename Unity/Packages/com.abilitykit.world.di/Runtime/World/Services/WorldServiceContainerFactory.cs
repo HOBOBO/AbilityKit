@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using System.Reflection;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
 

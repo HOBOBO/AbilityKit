@@ -1,6 +1,6 @@
-using System;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.SnapshotRouting;
+﻿using System;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.SnapshotRouting;
 
 namespace AbilityKit.Game.Flow
 {

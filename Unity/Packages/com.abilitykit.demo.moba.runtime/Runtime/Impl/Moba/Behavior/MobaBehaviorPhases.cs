@@ -1,12 +1,13 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.Behavior;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 
 namespace AbilityKit.Moba.Behavior
 {
+    using AbilityKit.Ability;
     /// <summary>
     /// 引导行为阶段
     /// 用于持续施法、引导类技能

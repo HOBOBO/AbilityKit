@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.Projectile;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
@@ -11,6 +11,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Services;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {
+    using AbilityKit.Ability;
     public sealed class SpawnAreaAction : ITriggerAction
     {
         private readonly float _radius;

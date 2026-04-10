@@ -1,8 +1,9 @@
-using System.Buffers;
+﻿using System.Buffers;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Battle.SearchTarget;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Selectors
+namespace AbilityKit.Battle.SearchTarget.Selectors
 {
     public sealed class StreamingTopKByScoreSelector : ITargetSelector, IStreamingHitSelector
     {

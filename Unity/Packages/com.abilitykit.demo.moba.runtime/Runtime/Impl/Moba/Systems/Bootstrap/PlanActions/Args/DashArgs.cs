@@ -1,33 +1,33 @@
-namespace AbilityKit.Ability.Impl.Moba.Systems
+﻿namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     /// <summary>
-    /// dash Action 的强类型参数
+    /// dash Action 鐨勫己绫诲瀷鍙傛暟
     /// </summary>
     public readonly struct DashArgs
     {
         /// <summary>
-        /// 冲刺速度（单位/秒）
+        /// 鍐插埡閫熷害锛堝崟浣?绉掞級
         /// </summary>
         public readonly float Speed;
 
         /// <summary>
-        /// 冲刺持续时间（毫秒）
+        /// 鍐插埡鎸佺画鏃堕棿锛堟绉掞級
         /// </summary>
         public readonly float DurationMs;
 
         /// <summary>
-        /// 冲刺方向模式
-        /// 0=朝技能瞄准方向, 1=朝目标方向, 2=保持当前朝向
+        /// 鍐插埡鏂瑰悜妯″紡
+        /// 0=鏈濇妧鑳界瀯鍑嗘柟鍚? 1=鏈濈洰鏍囨柟鍚? 2=淇濇寔褰撳墠鏈濆悜
         /// </summary>
         public readonly int DirectionMode;
 
         /// <summary>
-        /// 优先级（高优先级会打断低优先级运动）
+        /// 浼樺厛绾э紙楂樹紭鍏堢骇浼氭墦鏂綆浼樺厛绾ц繍鍔級
         /// </summary>
         public readonly int Priority;
 
         /// <summary>
-        /// 是否应用到释放者（默认 caster）
+        /// 鏄惁搴旂敤鍒伴噴鏀捐€咃紙榛樿 caster锛?
         /// </summary>
         public readonly bool ApplyToCaster;
 

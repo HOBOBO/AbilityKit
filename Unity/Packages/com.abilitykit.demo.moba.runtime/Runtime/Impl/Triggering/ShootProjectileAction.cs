@@ -1,20 +1,22 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {
+    using AbilityKit.Ability;
     public sealed class ShootProjectileAction : ITriggerAction
     {
         private readonly int _launcherId;
@@ -61,7 +63,7 @@ namespace AbilityKit.Ability.Impl.Triggering
                     projectileId: 0,
                     targetMode: ProjectileTargetMode.SkillAim,
                     faceMode: ProjectileFaceMode.SkillAimDir,
-                    spawnMode: global::AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.LegacyAimPos,
+                    spawnMode: AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.LegacyAimPos,
                     targetActorId: 0,
                     targetActorIds: null,
                     searchQueryId: 0,
@@ -83,10 +85,10 @@ namespace AbilityKit.Ability.Impl.Triggering
                 faceMode = global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.ParseEnum(faceModeObj, ProjectileFaceMode.SkillAimDir);
             }
 
-            var spawnMode = global::AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.LegacyAimPos;
+            var spawnMode = AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.LegacyAimPos;
             if (args.TryGetValue("spawnMode", out var spawnModeObj))
             {
-                spawnMode = global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.ParseEnum(spawnModeObj, global::AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.LegacyAimPos);
+                spawnMode = global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.ParseEnum(spawnModeObj, AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.LegacyAimPos);
             }
 
             var targetActorId = global::AbilityKit.Ability.Impl.Triggering.TriggerActionArgUtil.TryGetInt(args, "targetActorId");
@@ -253,11 +255,11 @@ namespace AbilityKit.Ability.Impl.Triggering
             {
                 var targetPos = payloadAimPos;
                 var spawnPos = targetPos;
-                if (_spawnMode == global::AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.FromCaster)
+                if (_spawnMode == AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.FromCaster)
                 {
                     spawnPos = casterPos;
                 }
-                else if (_spawnMode == global::AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.FromTargetPoint)
+                else if (_spawnMode == AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.FromTargetPoint)
                 {
                     spawnPos = targetPos;
                 }
@@ -279,7 +281,7 @@ namespace AbilityKit.Ability.Impl.Triggering
                     if (dir.Equals(Vec3.Zero)) dir = casterForward;
                 }
 
-                if (_spawnMode == global::AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.LegacyAimPos)
+                if (_spawnMode == AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.LegacyAimPos)
                 {
                     aimPos = spawnPos;
                     aimDir = dir;
@@ -319,15 +321,15 @@ namespace AbilityKit.Ability.Impl.Triggering
                 var targetPos = targetEntity.transform.Value.Position;
 
                 var spawnCenter = casterPos;
-                if (_spawnMode == global::AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.FromTargetPoint)
+                if (_spawnMode == AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.FromTargetPoint)
                 {
                     spawnCenter = targetPos;
                 }
-                else if (_spawnMode == global::AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.LegacyAimPos)
+                else if (_spawnMode == AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.LegacyAimPos)
                 {
                     spawnCenter = casterPos;
                 }
-                else if (_spawnMode == global::AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.FromCaster)
+                else if (_spawnMode == AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.FromCaster)
                 {
                     spawnCenter = casterPos;
                 }
@@ -353,7 +355,7 @@ namespace AbilityKit.Ability.Impl.Triggering
                     }
                 }
 
-                if (_spawnMode == global::AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.LegacyAimPos)
+                if (_spawnMode == AbilityKit.Ability.Impl.Moba.ProjectileSpawnMode.LegacyAimPos)
                 {
                     aimPos = spawnPos;
                     aimDir = dir;

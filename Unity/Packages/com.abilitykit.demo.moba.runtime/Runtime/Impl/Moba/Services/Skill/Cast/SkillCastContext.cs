@@ -1,5 +1,5 @@
-using AbilityKit.Ability.Share.ECS;
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Ability.Share.ECS; using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;

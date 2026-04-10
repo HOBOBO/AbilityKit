@@ -1,7 +1,8 @@
-using AbilityKit.Ability.Share.Common.Projectile;
+﻿using AbilityKit.Core.Common.Projectile;
 
 namespace AbilityKit.Ability.Share.Effect
 {
+    using AbilityKit.Ability.Share.Effect;
     public static class AreaEffectEventSinkExtensions
     {
         public static void PublishAreaSpawn(this IEffectEventSink sink, in AreaSpawnEvent evt, object source = null, object target = null)

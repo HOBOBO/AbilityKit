@@ -1,12 +1,14 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Effect;
 
 namespace AbilityKit.Ability.Share.Effect
 {
+    using AbilityKit.Ability.Share.Effect;
     public sealed class EffectService : IEffectEventSink
     {
         private readonly IEventBus _eventBus;

@@ -1,11 +1,13 @@
-using System;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Effect;
+﻿using System;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
 
 namespace AbilityKit.Ability.Impl.Triggering.DamageActions
 {
+    using AbilityKit.Ability.Impl.Moba;
+    using AbilityKit.Ability.Share.Effect;
     public static class TakeDamageExecutor
     {
         public static void Execute(TriggerContext context, DamageActionSpec spec)

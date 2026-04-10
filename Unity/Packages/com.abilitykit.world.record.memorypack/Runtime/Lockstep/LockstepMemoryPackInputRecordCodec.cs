@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Reflection;
-using AbilityKit.Ability.Share.Common.Record.Lockstep;
+using AbilityKit.Core.Common.Record.Lockstep;
 using UnityEngine;
 
 namespace AbilityKit.World.Record.MemoryPack

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Ability.Share.Common.Pool
+namespace AbilityKit.Core.Common.Pool
 {
     public static class Pools
     {

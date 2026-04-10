@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -69,7 +69,7 @@ namespace AbilityKit.Editor.GamplayTag
             sb.AppendLine("using System;");
             sb.AppendLine("using System.Collections.Generic;");
             sb.AppendLine();
-            sb.AppendLine("namespace AbilityKit.Ability.Share.Common.TagSystem");
+            sb.AppendLine("namespace AbilityKit.Core.Common.TagSystem");
             sb.AppendLine("{");
             sb.AppendLine("    public static class GameplayTagLib");
             sb.AppendLine("    {");

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Extensions.Rollback;
@@ -9,7 +9,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Ability.Host.Examples
 {

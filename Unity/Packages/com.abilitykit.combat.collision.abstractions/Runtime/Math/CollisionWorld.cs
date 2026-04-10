@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Ability.Share.Math
+namespace AbilityKit.Core.Math
 {
     public readonly struct ColliderId : IEquatable<ColliderId>
     {

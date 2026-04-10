@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Ability.Share.Common.Record.Core
+namespace AbilityKit.Core.Common.Record.Core
 {
     public sealed class RecordContainerBuilder
     {

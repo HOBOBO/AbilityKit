@@ -1,8 +1,8 @@
-using AbilityKit.Ability.Share.Impl.Moba.Services;
+﻿using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     internal static class EffectContextPlanValueResolver
     {

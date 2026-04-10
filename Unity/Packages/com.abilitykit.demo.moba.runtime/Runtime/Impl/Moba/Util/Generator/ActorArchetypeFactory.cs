@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Impl.Moba.Util.Generator
+namespace AbilityKit.Ability.Share.Impl.Moba.Util.Generator
 {
     /*
      * 这里提供“按 Archetype(原型/类别) 生成 ActorEntity 骨架”的能力。

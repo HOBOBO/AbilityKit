@@ -1,10 +1,11 @@
-using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Share.Effect;
+﻿using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
 
 namespace AbilityKit.Ability.Impl.Triggering.DamageActions
 {
+    using AbilityKit.Ability.Share.Effect;
     public static class DamageActionOriginUtil
     {
         public static void FillOrigin(TriggerContext context, AttackInfo attack, object fallbackOriginSource, object fallbackOriginTarget)

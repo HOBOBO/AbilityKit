@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Share.Common.SnapshotRouting;
+﻿using AbilityKit.Core.Common.SnapshotRouting;
 using AbilityKit.Game.Battle;
 using AbilityKit.Network.Abstractions;
 

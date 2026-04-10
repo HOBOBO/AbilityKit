@@ -1,5 +1,5 @@
-using System;
-using AbilityKit.Ability.Share.Common.Log;
+﻿using System;
+using AbilityKit.Core.Common.Log;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.Common.Log

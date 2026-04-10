@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability.Share.Common.Record.Lockstep
+﻿namespace AbilityKit.Core.Common.Record.Lockstep
 {
     public sealed class LockstepBinaryInputRecordCodec : ILockstepInputRecordCodec
     {

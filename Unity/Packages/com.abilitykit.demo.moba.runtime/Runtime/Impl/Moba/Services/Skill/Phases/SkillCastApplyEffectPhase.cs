@@ -1,12 +1,12 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Ability.Share.ECS; using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.ECS.Entitas;
-using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Ability.Share.Effect.Components;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Effect;
+using AbilityKit.Effect.Components;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Triggering;
@@ -16,6 +16,8 @@ using GameplayTagRequirements = AbilityKit.GameplayTags.GameplayTagRequirements;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability.Share.Effect;
+    using AbilityKit.Ability;
     public sealed class SkillCastApplyEffectPhase : AbilityInstantPhaseBase<SkillPipelineContext>
     {
         private readonly IWorldResolver _services;

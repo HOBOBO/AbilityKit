@@ -1,7 +1,7 @@
-using System;
-using AbilityKit.Ability;
+﻿using System;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
@@ -9,6 +9,7 @@ using AbilityKit.Ability.Triggering.Runtime;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {
+    using AbilityKit.Ability;
     public sealed class ExecuteEffectAction : ITriggerAction
     {
         private readonly int _effectId;

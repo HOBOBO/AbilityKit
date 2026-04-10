@@ -1,5 +1,5 @@
 ﻿using System;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Game.EntityCreation;
 using UnityEngine;
 

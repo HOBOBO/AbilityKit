@@ -1,8 +1,8 @@
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Math;
 using Entitas;
 using Entitas.CodeGeneration.Attributes;
 
-namespace AbilityKit.Ability.Impl.Moba.Components
+namespace AbilityKit.Ability.Share.Impl.Moba.Components
 {
     public enum SkillCastStage
     {

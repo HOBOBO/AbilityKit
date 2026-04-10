@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using AbilityKit.Modifiers;
 
-namespace AbilityKit.Ability.Share.Common.AttributeSystem
+namespace AbilityKit.Core.Common.AttributeSystem
 {
     // ============================================================================
     // 属性效果

@@ -1,18 +1,19 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Configs;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.Pool;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.Pool;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.Impl.Triggering
 {
+    using AbilityKit.Ability;
     public sealed class PlayPresentationAction : ITriggerAction
     {
         public static class Events
@@ -109,7 +110,7 @@ namespace AbilityKit.Ability.Impl.Triggering
                     Color = args.TryGetValue("color", out var colorObj) ? colorObj : null,
                 };
 
-                var eid = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(evtId);
+                var eid = AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(evtId);
                 bus.Publish(new EventKey<PresentationEventArgs>(eid), in payload);
                 object boxed = payload;
                 bus.Publish(new EventKey<object>(eid), in boxed);
@@ -132,7 +133,7 @@ namespace AbilityKit.Ability.Impl.Triggering
             if (context == null) return 0;
             var payload = context.Event.Payload;
 
-            if (payload is global::AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastContext scc)
+            if (payload is AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastContext scc)
             {
                 return scc.SourceContextId;
             }
@@ -180,7 +181,7 @@ namespace AbilityKit.Ability.Impl.Triggering
 
                 // Fallback: use aimPos from pipeline payload if present
                 var payload = context.Event.Payload;
-                if (payload is global::AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastContext scc)
+                if (payload is AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastContext scc)
                 {
                     positions.Add(scc.AimPos);
                     return true;
@@ -222,7 +223,7 @@ namespace AbilityKit.Ability.Impl.Triggering
             if (mode == PresentationTargetMode.PayloadTarget)
             {
                 var payload = context.Event.Payload;
-                if (payload is global::AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastContext scc && scc.TargetActorId > 0)
+                if (payload is AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastContext scc && scc.TargetActorId > 0)
                 {
                     targetActorIds.Add(scc.TargetActorId);
                     return true;
@@ -233,7 +234,7 @@ namespace AbilityKit.Ability.Impl.Triggering
             if (mode == PresentationTargetMode.PayloadAttacker)
             {
                 var payload = context.Event.Payload;
-                if (payload is global::AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastContext scc && scc.CasterActorId > 0)
+                if (payload is AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastContext scc && scc.CasterActorId > 0)
                 {
                     targetActorIds.Add(scc.CasterActorId);
                     return true;
@@ -246,7 +247,7 @@ namespace AbilityKit.Ability.Impl.Triggering
                 var qid = ReadInt(args, "queryTemplateId", 0);
                 if (qid <= 0) return false;
 
-                var search = context.Services != null ? context.Services.GetService(typeof(global::AbilityKit.Ability.Share.Impl.Moba.Services.SearchTargetService)) as global::AbilityKit.Ability.Share.Impl.Moba.Services.SearchTargetService : null;
+                var search = context.Services != null ? context.Services.GetService(typeof(AbilityKit.Ability.Share.Impl.Moba.Services.SearchTargetService)) as AbilityKit.Ability.Share.Impl.Moba.Services.SearchTargetService : null;
                 if (search == null) return false;
 
                 // Caster/AimPos come from pipeline payload if possible
@@ -254,7 +255,7 @@ namespace AbilityKit.Ability.Impl.Triggering
                 var aimPos = Vec3.Zero;
 
                 var payload = context.Event.Payload;
-                if (payload is global::AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastContext scc)
+                if (payload is AbilityKit.Ability.Share.Impl.Moba.Services.SkillCastContext scc)
                 {
                     casterId = scc.CasterActorId;
                     aimPos = scc.AimPos;

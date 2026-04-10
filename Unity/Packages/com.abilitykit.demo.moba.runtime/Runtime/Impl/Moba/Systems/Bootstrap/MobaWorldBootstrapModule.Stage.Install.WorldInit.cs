@@ -1,16 +1,17 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Ability.Impl.Moba.Serialization;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Ability.Share.Impl.Moba.Serialization;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Rollback;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
+    using AbilityKit.Ability.Share.Impl.Moba.CreateWorld;
     public sealed partial class MobaWorldBootstrapModule
     {
         private static void InstallWorldInitEnterGameReq(IWorldResolver services)
@@ -34,7 +35,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
 
             // CreateWorld stage: store game start spec for later StartGame (server adjudication)
             EnterMobaGameReq req;
-            if (global::AbilityKit.Ability.Share.Impl.Moba.Services.MobaCreateWorldInitCodec.TryDeserializeReq(init.Payload, out var initReq))
+            if (MobaCreateWorldInitCodec.TryDeserializeReq(init.Payload, out var initReq))
             {
                 req = initReq;
             }

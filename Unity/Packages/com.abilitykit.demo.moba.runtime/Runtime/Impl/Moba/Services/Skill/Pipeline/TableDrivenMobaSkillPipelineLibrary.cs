@@ -1,11 +1,12 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability;
     public sealed class TableDrivenMobaSkillPipelineLibrary : IMobaSkillPipelineLibrary
     {
         private static readonly AbilityPipelinePhaseId PreCastChecksPhaseId = new AbilityPipelinePhaseId("skill.checks.precast");

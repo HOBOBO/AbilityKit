@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Host;
 
-namespace AbilityKit.Ability.Share.Common.SnapshotRouting
+namespace AbilityKit.Core.Common.SnapshotRouting
 {
     public interface ISnapshotPipelineStageRegistry
     {

@@ -1,5 +1,7 @@
 namespace AbilityKit.Ability.Share.Effect
 {
+    using AbilityKit.Effect;
+    
     public interface IEffectComponent
     {
         void OnApply(in EffectExecutionContext context, EffectInstance instance);

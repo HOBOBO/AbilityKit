@@ -1,8 +1,8 @@
-using Entitas;
+﻿using Entitas;
 using Entitas.CodeGeneration.Attributes;
 using AbilityKit.Ability.Impl.Moba;
 
-namespace AbilityKit.Ability.Impl.Moba.Components
+namespace AbilityKit.Ability.Share.Impl.Moba.Components
 {
     [Actor]
     public sealed class ApplyBuffRequestComponent : IComponent

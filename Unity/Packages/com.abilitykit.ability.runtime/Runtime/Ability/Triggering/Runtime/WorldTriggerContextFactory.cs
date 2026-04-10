@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Effect;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
+    using AbilityKit.Ability.Share.Effect;
     public sealed class WorldTriggerContextFactory : ITriggerContextFactory
     {
         private readonly IServiceProvider _services;

@@ -1,5 +1,5 @@
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share;
+﻿using AbilityKit.Ability.Host;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.World.Abstractions;
 using MemoryPack;
 

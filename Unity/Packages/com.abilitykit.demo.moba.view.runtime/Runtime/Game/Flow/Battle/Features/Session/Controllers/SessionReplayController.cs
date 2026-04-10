@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.IO;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.Record.Lockstep;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.Record.Lockstep;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Flow.Battle.Replay;
 using AbilityKit.World.ECS;
@@ -58,7 +58,7 @@ namespace AbilityKit.Game.Flow
                     {
                         if (string.IsNullOrEmpty(plan.InputReplayPath))
                         {
-                            Log.Error("[BattleReplay] 回放启动失败：InputReplayPath 为空，请�?RunMode 配置中选择回放文件�?");
+                            Log.Error("[BattleReplay] 回放启动失败：InputReplayPath 为空，请�?RunMode 配置中选择回放文件�?");
                         }
                         else
                         {

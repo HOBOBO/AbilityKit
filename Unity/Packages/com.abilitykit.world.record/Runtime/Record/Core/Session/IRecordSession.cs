@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 
-namespace AbilityKit.Ability.Share.Common.Record.Core
+namespace AbilityKit.Core.Common.Record.Core
 {
     public interface IRecordSession : IDisposable
     {

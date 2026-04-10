@@ -1,6 +1,6 @@
 using System;
 
-namespace AbilityKit.Ability.Share.Common.Log
+namespace AbilityKit.Core.Common.Log
 {
     public static class Log
     {

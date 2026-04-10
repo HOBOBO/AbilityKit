@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using AbilityKit.Ability.Share.Common.SnapshotRouting;
+using AbilityKit.Core.Common.SnapshotRouting;
 using AbilityKit.ProtocolEditor.Schema;
 using UnityEditor;
 using UnityEngine;

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Common.Marker
+namespace AbilityKit.Core.Common.Marker
 {
     /// <summary>
     /// 基于 Key-Type 的标记注册表。

@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Battle.EntityManager;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Battle.SearchTarget;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.EntityManager
+namespace AbilityKit.Battle.SearchTarget.EntityManager
 {
     public sealed class KeyedEntityIndexAdapter<TKey> : IEntityIdCollectionIndex
     {

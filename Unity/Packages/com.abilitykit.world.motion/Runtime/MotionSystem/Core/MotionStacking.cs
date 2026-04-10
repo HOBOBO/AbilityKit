@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability.Share.Common.MotionSystem.Core
+﻿namespace AbilityKit.Core.Common.MotionSystem.Core
 {
     public enum MotionStacking
     {

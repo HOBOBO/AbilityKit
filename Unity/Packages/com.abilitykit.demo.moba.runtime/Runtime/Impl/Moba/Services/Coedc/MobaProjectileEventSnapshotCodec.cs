@@ -1,6 +1,6 @@
-using System;
-using AbilityKit.Ability.Share;
-using AbilityKit.Ability.Share.Common.Projectile;
+﻿using System;
+using AbilityKit.Core.Generic;
+using AbilityKit.Core.Common.Projectile;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {

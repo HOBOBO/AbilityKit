@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
@@ -125,47 +125,47 @@ namespace AbilityKit.Triggering.Example
             _lifecycles.Clear();
         }
 
-        public void OnRegistered<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase, int priority, long order)
+        public void OnRegistered<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase, int priority, long order)
         {
             foreach (var l in _lifecycles) l.OnRegistered(key, trigger, phase, priority, order);
         }
 
-        public void OnUnregistered<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger)
+        public void OnUnregistered<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger)
         {
             foreach (var l in _lifecycles) l.OnUnregistered(key, trigger);
         }
 
-        public void OnEventDispatching<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args)
+        public void OnEventDispatching<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args)
         {
             foreach (var l in _lifecycles) l.OnEventDispatching(key, in args);
         }
 
-        public void OnEventDispatched<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int executedCount, int shortCircuitedCount)
+        public void OnEventDispatched<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int executedCount, int shortCircuitedCount)
         {
             foreach (var l in _lifecycles) l.OnEventDispatched(key, in args, executedCount, shortCircuitedCount);
         }
 
-        public void OnBeforeEvaluate<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
+        public void OnBeforeEvaluate<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
             foreach (var l in _lifecycles) l.OnBeforeEvaluate(key, in args, phase, priority, order);
         }
 
-        public void OnAfterEvaluate<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool result)
+        public void OnAfterEvaluate<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool result)
         {
             foreach (var l in _lifecycles) l.OnAfterEvaluate(key, in args, phase, priority, order, result);
         }
 
-        public void OnBeforeExecute<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
+        public void OnBeforeExecute<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
             foreach (var l in _lifecycles) l.OnBeforeExecute(key, in args, phase, priority, order);
         }
 
-        public void OnAfterExecute<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
+        public void OnAfterExecute<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
             foreach (var l in _lifecycles) l.OnAfterExecute(key, in args, phase, priority, order);
         }
 
-        public void OnShortCircuit<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, ShortCircuitReason reason)
+        public void OnShortCircuit<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, ShortCircuitReason reason)
         {
             foreach (var l in _lifecycles) l.OnShortCircuit(key, in args, phase, priority, order, reason);
         }
@@ -175,27 +175,27 @@ namespace AbilityKit.Triggering.Example
             foreach (var l in _lifecycles) l.OnScopeTransition(fromScope, toScope);
         }
 
-        public void OnConditionPassed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
+        public void OnConditionPassed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
         {
             foreach (var l in _lifecycles) l.OnConditionPassed(key, in args, phase, priority, order, conditionId, conditionName);
         }
 
-        public void OnConditionFailed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
+        public void OnConditionFailed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
         {
             foreach (var l in _lifecycles) l.OnConditionFailed(key, in args, phase, priority, order, conditionId, conditionName);
         }
 
-        public void OnActionExecuting<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions)
+        public void OnActionExecuting<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions)
         {
             foreach (var l in _lifecycles) l.OnActionExecuting(key, in args, phase, priority, order, actionId, actionName, actionIndex, totalActions);
         }
 
-        public void OnActionExecuted<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted)
+        public void OnActionExecuted<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted)
         {
             foreach (var l in _lifecycles) l.OnActionExecuted(key, in args, phase, priority, order, actionId, actionName, actionIndex, totalActions, wasInterrupted);
         }
 
-        public void OnActionFailed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage)
+        public void OnActionFailed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage)
         {
             foreach (var l in _lifecycles) l.OnActionFailed(key, in args, phase, priority, order, actionId, actionName, actionIndex, totalActions, errorMessage);
         }

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace AbilityKit.Ability.Share.Common.Config
+namespace AbilityKit.Core.Common.Config
 {
     public static class PersistentJsonConfigLoader
     {

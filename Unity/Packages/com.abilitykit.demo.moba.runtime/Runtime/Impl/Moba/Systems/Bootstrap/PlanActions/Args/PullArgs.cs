@@ -1,33 +1,33 @@
-namespace AbilityKit.Ability.Impl.Moba.Systems
+﻿namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     /// <summary>
-    /// pull Action 的强类型参数
+    /// pull Action 鐨勫己绫诲瀷鍙傛暟
     /// </summary>
     public readonly struct PullArgs
     {
         /// <summary>
-        /// 拉力速度（单位/秒）
+        /// 鎷夊姏閫熷害锛堝崟浣?绉掞級
         /// </summary>
         public readonly float Speed;
 
         /// <summary>
-        /// 拉取持续时间（毫秒）
+        /// 鎷夊彇鎸佺画鏃堕棿锛堟绉掞級
         /// </summary>
         public readonly float DurationMs;
 
         /// <summary>
-        /// 拉取方向模式
-        /// 0=从目标拉到技能释放者, 1=从目标拉到指定距离, 2=垂直向上拉
+        /// 鎷夊彇鏂瑰悜妯″紡
+        /// 0=浠庣洰鏍囨媺鍒版妧鑳介噴鏀捐€? 1=浠庣洰鏍囨媺鍒版寚瀹氳窛绂? 2=鍨傜洿鍚戜笂鎷?
         /// </summary>
         public readonly int DirectionMode;
 
         /// <summary>
-        /// 目标距离（DirectionMode=1时使用）
+        /// 鐩爣璺濈锛圖irectionMode=1鏃朵娇鐢級
         /// </summary>
         public readonly float TargetDistance;
 
         /// <summary>
-        /// 优先级
+        /// 浼樺厛绾?
         /// </summary>
         public readonly int Priority;
 

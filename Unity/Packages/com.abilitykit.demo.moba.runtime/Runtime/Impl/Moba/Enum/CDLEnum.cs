@@ -1,52 +1,53 @@
-namespace AbilityKit.Ability.Impl.Moba
+﻿namespace AbilityKit.Ability.Impl.Moba
 {
-    // 实体主类型（用于逻辑层区分不同大类实体）
+    using AbilityKit.Ability.Impl.Moba;
+    // 瀹炰綋涓荤被鍨嬶紙鐢ㄤ簬閫昏緫灞傚尯鍒嗕笉鍚屽ぇ绫诲疄浣擄級
     public enum EntityMainType
     {
-        // 未定义
+        // 鏈畾涔?
         None = 0,
 
-        // 单位（英雄/小兵/野怪/防御塔等）
+        // 鍗曚綅锛堣嫳闆?灏忓叺/閲庢€?闃插尽濉旂瓑锛?
         Unit = 1,
 
-        // 投射物（子弹/飞行道具/技能抛射体）
+        // 鎶曞皠鐗╋紙瀛愬脊/椋炶閬撳叿/鎶€鑳芥姏灏勪綋锛?
         Projectile = 2,
 
-        // 场景交互物（地形触发器/可拾取物/机关等）
+        // 鍦烘櫙浜や簰鐗╋紙鍦板舰瑙﹀彂鍣?鍙嬀鍙栫墿/鏈哄叧绛夛級
         SceneObject = 3,
 
-        // 召唤物（由英雄/技能创建的临时单位）
+        // 鍙敜鐗╋紙鐢辫嫳闆?鎶€鑳藉垱寤虹殑涓存椂鍗曚綅锛?
         Summon = 4,
 
-        // 技能效果实体（例如持续AOE区域、陷阱区域等）
+        // 鎶€鑳芥晥鏋滃疄浣擄紙渚嬪鎸佺画AOE鍖哄煙銆侀櫡闃卞尯鍩熺瓑锛?
         Effect = 5
     }
 
-    // 单位子类型（当主类型为 Unit 时，用于更细的分类）
+    // 鍗曚綅瀛愮被鍨嬶紙褰撲富绫诲瀷涓?Unit 鏃讹紝鐢ㄤ簬鏇寸粏鐨勫垎绫伙級
     public enum UnitSubType
     {
-        // 未定义
+        // 鏈畾涔?
         None = 0,
 
-        // 英雄
+        // 鑻遍泟
         Hero = 1,
 
-        // 小兵
+        // 灏忓叺
         Minion = 2,
 
-        // 野怪
+        // 閲庢€?
         Neutral = 3,
 
-        // 首领/精英怪
+        // 棣栭/绮捐嫳鎬?
         Boss = 4,
 
-        // 防御塔
+        // 闃插尽濉?
         Tower = 5,
 
-        // 基地/水晶
+        // 鍩哄湴/姘存櫠
         Base = 6,
 
-        // 子弹/飞行道具（当主类型为 Projectile 时，用于更细的分类）
+        // 瀛愬脊/椋炶閬撳叿锛堝綋涓荤被鍨嬩负 Projectile 鏃讹紝鐢ㄤ簬鏇寸粏鐨勫垎绫伙級
         Bullet = 7
     }
 
@@ -84,7 +85,7 @@ namespace AbilityKit.Ability.Impl.Moba
         ExplicitTarget = 2,
     }
 
-    // 队伍/阵营类型
+    // 闃熶紞/闃佃惀绫诲瀷
     public enum Team
     {
         None = 0,
@@ -93,7 +94,7 @@ namespace AbilityKit.Ability.Impl.Moba
         Neutral = 3,
     }
 
-    // 技能槽位类型（普通攻击+多个技能槽）
+    // 鎶€鑳芥Ы浣嶇被鍨嬶紙鏅€氭敾鍑?澶氫釜鎶€鑳芥Ы锛?
     public enum SkillSlot
     {
         None = 0,
@@ -105,97 +106,97 @@ namespace AbilityKit.Ability.Impl.Moba
         Skill5 = 6,
     }
 
-    // 技能类型（用于技能系统/冷却/施法流程区分）
+    // 鎶€鑳界被鍨嬶紙鐢ㄤ簬鎶€鑳界郴缁?鍐峰嵈/鏂芥硶娴佺▼鍖哄垎锛?
     public enum SkillType
     {
-        // 未定义
+        // 鏈畾涔?
         None = 0,
 
-        // 普通攻击
+        // 鏅€氭敾鍑?
         NormalAttack = 1,
 
-        // 主动技能（需要玩家触发）
+        // 涓诲姩鎶€鑳斤紙闇€瑕佺帺瀹惰Е鍙戯級
         Active = 2,
 
-        // 被动技能（常驻/触发型）
+        // 琚姩鎶€鑳斤紙甯搁┗/瑙﹀彂鍨嬶級
         Passive = 3,
 
-        // 终极技能
+        // 缁堟瀬鎶€鑳?
         Ultimate = 4
     }
 
     public enum BattleAttributeType
     {
-        // 未定义
+        // 鏈畾涔?
         None = 0,
 
-        // 当前生命
+        // 褰撳墠鐢熷懡
         HP = 1,
 
-        // 最大生命
+        // 鏈€澶х敓鍛?
         MAX_HP = 2,
 
-        // 额外生命（加成值）
+        // 棰濆鐢熷懡锛堝姞鎴愬€硷級
         EXTRA_HP = 3,
 
-        // 物理攻击
+        // 鐗╃悊鏀诲嚮
         PHYSICS_ATTACK = 4,
 
-        // 法术攻击
+        // 娉曟湳鏀诲嚮
         MAGIC_ATTACK = 5,
 
-        // 额外物理攻击（加成值）
+        // 棰濆鐗╃悊鏀诲嚮锛堝姞鎴愬€硷級
         EXTRA_PHYSICS_ATTACK = 6,
 
-        // 额外法术攻击（加成值）
+        // 棰濆娉曟湳鏀诲嚮锛堝姞鎴愬€硷級
         EXTRA_MAGIC_ATTACK = 7,
 
-        // 物理防御
+        // 鐗╃悊闃插尽
         PHYSICS_DEFENSE = 8,
 
-        // 法术防御
+        // 娉曟湳闃插尽
         MAGIC_DEFENSE = 9,
 
-        // 当前法力
+        // 褰撳墠娉曞姏
         MANA = 10,
 
-        // 最大法力
+        // 鏈€澶ф硶鍔?
         MAX_MANA = 11,
 
-        // 暴击率
+        // 鏆村嚮鐜?
         CRITICAL_R = 12,
 
-        // 攻速加成
+        // 鏀婚€熷姞鎴?
         ATTACK_SPEED_R = 13,
 
-        // 冷却缩减
+        // 鍐峰嵈缂╁噺
         COOLDOWN_REDUCE_R = 14,
 
-        // 物理穿透
+        // 鐗╃悊绌块€?
         PHYSICS_PENETRATION_R = 15,
 
-        // 法术穿透
+        // 娉曟湳绌块€?
         MAGIC_PENETRATION_R = 16,
 
-        // 移动速度
+        // 绉诲姩閫熷害
         MOVE_SPEED = 17,
 
-        // 物理吸血
+        // 鐗╃悊鍚歌
         PHYSICS_BLOODSUCKING_R = 18,
 
-        // 法术吸血
+        // 娉曟湳鍚歌
         MAGIC_BLOODSUCKING_R = 19,
 
-        // 攻击范围
+        // 鏀诲嚮鑼冨洿
         ATTACK_RANGE = 20,
 
-        // 每秒生命回复
+        // 姣忕鐢熷懡鍥炲
         PER_SECOND_BLOOD_R = 21,
 
-        // 每秒法力回复
+        // 姣忕娉曞姏鍥炲
         PER_SECOND_MANA_R = 22,
         /// <summary>
-        /// 韧性
+        /// 闊ф€?
         /// </summary>
         RESILIENCE_R = 23,
     }

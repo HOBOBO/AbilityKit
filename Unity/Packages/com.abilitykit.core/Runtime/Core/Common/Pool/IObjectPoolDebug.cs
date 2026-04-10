@@ -1,6 +1,6 @@
 using System;
 
-namespace AbilityKit.Ability.Share.Common.Pool
+namespace AbilityKit.Core.Common.Pool
 {
     internal interface IObjectPoolDebug
     {

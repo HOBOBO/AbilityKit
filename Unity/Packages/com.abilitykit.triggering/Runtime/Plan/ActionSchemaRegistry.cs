@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;

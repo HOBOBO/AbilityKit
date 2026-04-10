@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 
 namespace AbilityKit.Ability.Behavior
 {
@@ -394,12 +394,12 @@ namespace AbilityKit.Ability.Behavior
     /// </summary>
     public class DefaultWorldQuery : IWorldQuery
     {
-        public AbilityKit.Ability.Share.Math.Vec3 GetPosition(BehaviorEntityId id) => AbilityKit.Ability.Share.Math.Vec3.Zero;
-        public void SetPosition(BehaviorEntityId id, AbilityKit.Ability.Share.Math.Vec3 position) { }
-        public AbilityKit.Ability.Share.Math.Vec3 GetForward(BehaviorEntityId id) => AbilityKit.Ability.Share.Math.Vec3.Forward;
-        public void SetForward(BehaviorEntityId id, AbilityKit.Ability.Share.Math.Vec3 forward) { }
+        public AbilityKit.Core.Math.Vec3 GetPosition(BehaviorEntityId id) => AbilityKit.Core.Math.Vec3.Zero;
+        public void SetPosition(BehaviorEntityId id, AbilityKit.Core.Math.Vec3 position) { }
+        public AbilityKit.Core.Math.Vec3 GetForward(BehaviorEntityId id) => AbilityKit.Core.Math.Vec3.Forward;
+        public void SetForward(BehaviorEntityId id, AbilityKit.Core.Math.Vec3 forward) { }
         public float GetDistance(BehaviorEntityId a, BehaviorEntityId b) => 0f;
-        public float GetDistanceToPosition(BehaviorEntityId entityId, AbilityKit.Ability.Share.Math.Vec3 position) => 0f;
+        public float GetDistanceToPosition(BehaviorEntityId entityId, AbilityKit.Core.Math.Vec3 position) => 0f;
         public bool EntityExists(BehaviorEntityId id) => false;
         public T GetData<T>(BehaviorEntityId id, string key, T defaultValue = default) => defaultValue;
         public void SetData<T>(BehaviorEntityId id, string key, T value) { }

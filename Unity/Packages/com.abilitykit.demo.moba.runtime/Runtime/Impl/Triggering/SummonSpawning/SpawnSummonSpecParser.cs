@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Triggering;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
@@ -50,7 +50,7 @@ namespace AbilityKit.Ability.Impl.Triggering.SummonSpawning
 
                 AimPosKey = dto.AimPosKey,
                 FixedPosKey = dto.FixedPosKey,
-                FixedPosFallback = new AbilityKit.Ability.Share.Math.Vec3(dto.FixedPosFallbackX, dto.FixedPosFallbackY, dto.FixedPosFallbackZ),
+                FixedPosFallback = new AbilityKit.Core.Math.Vec3(dto.FixedPosFallbackX, dto.FixedPosFallbackY, dto.FixedPosFallbackZ),
             };
 
             if (spec.PatternCount <= 0) spec.PatternCount = 1;
@@ -196,7 +196,7 @@ namespace AbilityKit.Ability.Impl.Triggering.SummonSpawning
             if (args.TryGetValue("aimPosKey", out var apObj) && apObj is string aps && !string.IsNullOrEmpty(aps)) spec.AimPosKey = aps;
             if (args.TryGetValue("fixedPosKey", out var fpObj) && fpObj is string fps && !string.IsNullOrEmpty(fps)) spec.FixedPosKey = fps;
 
-            if (args.TryGetValue("fixedPosFallback", out var fpfObj) && fpfObj is AbilityKit.Ability.Share.Math.Vec3 v3)
+            if (args.TryGetValue("fixedPosFallback", out var fpfObj) && fpfObj is AbilityKit.Core.Math.Vec3 v3)
             {
                 spec.FixedPosFallback = v3;
             }

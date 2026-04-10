@@ -1,4 +1,5 @@
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Generic;
+using AbilityKit.Core.Math;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Struct
 {

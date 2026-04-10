@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -13,21 +13,21 @@ namespace AbilityKit.Triggering.Runtime
 
         private NullTriggerLifecycle() { }
 
-        public void OnRegistered<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase, int priority, long order) { }
-        public void OnUnregistered<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger) { }
-        public void OnEventDispatching<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args) { }
-        public void OnEventDispatched<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int executedCount, int shortCircuitedCount) { }
-        public void OnBeforeEvaluate<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order) { }
-        public void OnAfterEvaluate<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool result) { }
-        public void OnBeforeExecute<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order) { }
-        public void OnAfterExecute<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order) { }
-        public void OnShortCircuit<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, ShortCircuitReason reason) { }
+        public void OnRegistered<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase, int priority, long order) { }
+        public void OnUnregistered<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger) { }
+        public void OnEventDispatching<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args) { }
+        public void OnEventDispatched<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int executedCount, int shortCircuitedCount) { }
+        public void OnBeforeEvaluate<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order) { }
+        public void OnAfterEvaluate<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool result) { }
+        public void OnBeforeExecute<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order) { }
+        public void OnAfterExecute<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order) { }
+        public void OnShortCircuit<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, ShortCircuitReason reason) { }
         public void OnScopeTransition(string fromScope, string toScope) { }
-        public void OnConditionPassed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName) { }
-        public void OnConditionFailed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName) { }
-        public void OnActionExecuting<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions) { }
-        public void OnActionExecuted<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted) { }
-        public void OnActionFailed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage) { }
+        public void OnConditionPassed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName) { }
+        public void OnConditionFailed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName) { }
+        public void OnActionExecuting<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions) { }
+        public void OnActionExecuted<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted) { }
+        public void OnActionFailed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage) { }
     }
 
     /// <summary>
@@ -39,14 +39,14 @@ namespace AbilityKit.Triggering.Runtime
 
         private NullTriggerObserver() { }
 
-        public void OnEvaluate<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool passed, in ExecCtx<TCtx> ctx) { }
-        public void OnExecute<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, in ExecCtx<TCtx> ctx) { }
-        public void OnShortCircuit<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, AbilityKit.Triggering.Runtime.ETriggerShortCircuitReason reason, in ExecCtx<TCtx> ctx) { }
-        public void OnConditionPassed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName, in ExecCtx<TCtx> ctx) { }
-        public void OnConditionFailed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName, in ExecCtx<TCtx> ctx) { }
-        public void OnActionExecuting<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, in ExecCtx<TCtx> ctx) { }
-        public void OnActionExecuted<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted, in ExecCtx<TCtx> ctx) { }
-        public void OnActionFailed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage, in ExecCtx<TCtx> ctx) { }
+        public void OnEvaluate<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool passed, in ExecCtx<TCtx> ctx) { }
+        public void OnExecute<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, in ExecCtx<TCtx> ctx) { }
+        public void OnShortCircuit<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, AbilityKit.Triggering.Runtime.ETriggerShortCircuitReason reason, in ExecCtx<TCtx> ctx) { }
+        public void OnConditionPassed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName, in ExecCtx<TCtx> ctx) { }
+        public void OnConditionFailed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName, in ExecCtx<TCtx> ctx) { }
+        public void OnActionExecuting<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, in ExecCtx<TCtx> ctx) { }
+        public void OnActionExecuted<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted, in ExecCtx<TCtx> ctx) { }
+        public void OnActionFailed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage, in ExecCtx<TCtx> ctx) { }
     }
 
     /// <summary>
@@ -58,7 +58,7 @@ namespace AbilityKit.Triggering.Runtime
 
         private NullTriggerTracer() { }
 
-        public TraceScope BeginTrace<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args) => default;
+        public TraceScope BeginTrace<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args) => default;
         public void RecordTrigger<TArgs>(TraceScope scope, TriggerTraceRecord record) { }
         public void EndTrace(TraceScope scope) { }
     }
@@ -82,51 +82,51 @@ namespace AbilityKit.Triggering.Runtime
             _logShortCircuit = logShortCircuit;
         }
 
-        public void OnRegistered<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase, int priority, long order)
+        public void OnRegistered<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase, int priority, long order)
         {
             UnityEngine.Debug.Log($"[{_scopeName}] Registered: {key.StringId ?? key.IntId.ToString()} Phase={phase} Priority={priority}");
         }
 
-        public void OnUnregistered<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger)
+        public void OnUnregistered<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger)
         {
             UnityEngine.Debug.Log($"[{_scopeName}] Unregistered: {key.StringId ?? key.IntId.ToString()}");
         }
 
-        public void OnEventDispatching<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args)
+        public void OnEventDispatching<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args)
         {
             UnityEngine.Debug.Log($"[{_scopeName}] >>> Dispatching: {key.StringId ?? key.IntId.ToString()}");
         }
 
-        public void OnEventDispatched<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int executedCount, int shortCircuitedCount)
+        public void OnEventDispatched<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int executedCount, int shortCircuitedCount)
         {
             UnityEngine.Debug.Log($"[{_scopeName}] <<< Dispatched: {key.StringId ?? key.IntId.ToString()} Executed={executedCount} ShortCircuited={shortCircuitedCount}");
         }
 
-        public void OnBeforeEvaluate<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
+        public void OnBeforeEvaluate<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
             if (_logEvaluate)
                 UnityEngine.Debug.Log($"[{_scopeName}] Evaluate [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()}");
         }
 
-        public void OnAfterEvaluate<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool result)
+        public void OnAfterEvaluate<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool result)
         {
             if (_logEvaluate)
                 UnityEngine.Debug.Log($"[{_scopeName}] Evaluate [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()} = {result}");
         }
 
-        public void OnBeforeExecute<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
+        public void OnBeforeExecute<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
             if (_logExecute)
                 UnityEngine.Debug.Log($"[{_scopeName}] Execute [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()}");
         }
 
-        public void OnAfterExecute<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
+        public void OnAfterExecute<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
             if (_logExecute)
                 UnityEngine.Debug.Log($"[{_scopeName}] Executed [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()}");
         }
 
-        public void OnShortCircuit<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, ShortCircuitReason reason)
+        public void OnShortCircuit<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, ShortCircuitReason reason)
         {
             if (_logShortCircuit)
                 UnityEngine.Debug.LogWarning($"[{_scopeName}] ShortCircuit [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()} Reason={reason}");
@@ -137,25 +137,25 @@ namespace AbilityKit.Triggering.Runtime
             UnityEngine.Debug.Log($"[{_scopeName}] Scope: {fromScope} -> {toScope}");
         }
 
-        public void OnConditionPassed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
+        public void OnConditionPassed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
         {
             if (_logEvaluate)
                 UnityEngine.Debug.Log($"[{_scopeName}] Condition Passed [{phase},{priority},{order}] {conditionName}(Id={conditionId})");
         }
 
-        public void OnConditionFailed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
+        public void OnConditionFailed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
         {
             if (_logEvaluate)
                 UnityEngine.Debug.LogWarning($"[{_scopeName}] Condition Failed [{phase},{priority},{order}] {conditionName}(Id={conditionId})");
         }
 
-        public void OnActionExecuting<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions)
+        public void OnActionExecuting<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions)
         {
             if (_logExecute)
                 UnityEngine.Debug.Log($"[{_scopeName}] Action [{phase},{priority},{order}] [{actionIndex}/{totalActions}] {actionName}(Id={actionId})");
         }
 
-        public void OnActionExecuted<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted)
+        public void OnActionExecuted<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted)
         {
             if (_logExecute)
             {
@@ -166,7 +166,7 @@ namespace AbilityKit.Triggering.Runtime
             }
         }
 
-        public void OnActionFailed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage)
+        public void OnActionFailed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage)
         {
             UnityEngine.Debug.LogError($"[{_scopeName}] Action Error [{actionIndex}/{totalActions}] {actionName}(Id={actionId}): {errorMessage}");
         }
@@ -324,53 +324,53 @@ namespace AbilityKit.Triggering.Runtime
             }
         }
 
-        public void OnRegistered<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase, int priority, long order)
+        public void OnRegistered<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase, int priority, long order)
         {
             // 可以在这里记录触发器注册信息
         }
 
-        public void OnUnregistered<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger)
+        public void OnUnregistered<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger)
         {
             // 可以在这里清理统计信息
         }
 
-        public void OnEventDispatching<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args)
+        public void OnEventDispatching<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args)
         {
             var eventName = key.StringId ?? key.IntId.ToString();
             IncrementTriggered(eventName);
         }
 
-        public void OnEventDispatched<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int executedCount, int shortCircuitedCount)
+        public void OnEventDispatched<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int executedCount, int shortCircuitedCount)
         {
             // 事件派发完成
         }
 
-        public void OnBeforeEvaluate<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
+        public void OnBeforeEvaluate<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
             _currentTriggerId = (int)order;
             _currentEvaluateStart = System.Diagnostics.Stopwatch.GetTimestamp();
         }
 
-        public void OnAfterEvaluate<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool result)
+        public void OnAfterEvaluate<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool result)
         {
             var elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - _currentEvaluateStart;
             var eventName = key.StringId ?? key.IntId.ToString();
             IncrementEvaluated((int)order, eventName, elapsed);
         }
 
-        public void OnBeforeExecute<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
+        public void OnBeforeExecute<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
             _currentExecuteStart = System.Diagnostics.Stopwatch.GetTimestamp();
         }
 
-        public void OnAfterExecute<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
+        public void OnAfterExecute<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
             var elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - _currentExecuteStart;
             var eventName = key.StringId ?? key.IntId.ToString();
             IncrementExecuted((int)order, eventName, elapsed);
         }
 
-        public void OnShortCircuit<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, ShortCircuitReason reason)
+        public void OnShortCircuit<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, ShortCircuitReason reason)
         {
             var eventName = key.StringId ?? key.IntId.ToString();
             IncrementShortCircuited((int)order, eventName);
@@ -381,27 +381,27 @@ namespace AbilityKit.Triggering.Runtime
             // 可以在这里记录层级切换
         }
 
-        public void OnConditionPassed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
+        public void OnConditionPassed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
         {
             // 可扩展：按 conditionId 统计
         }
 
-        public void OnConditionFailed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
+        public void OnConditionFailed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
         {
             // 可扩展：按 conditionId 统计
         }
 
-        public void OnActionExecuting<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions)
+        public void OnActionExecuting<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions)
         {
             // 可扩展：记录每个 Action 执行耗时
         }
 
-        public void OnActionExecuted<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted)
+        public void OnActionExecuted<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted)
         {
             // 可扩展：按 actionId 统计
         }
 
-        public void OnActionFailed<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage)
+        public void OnActionFailed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage)
         {
             // 可扩展：记录错误
         }
@@ -431,7 +431,7 @@ namespace AbilityKit.Triggering.Runtime
 
         public IReadOnlyList<TriggerTraceRecord> Records => _records;
 
-        public TraceScope BeginTrace<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args)
+        public TraceScope BeginTrace<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args)
         {
             var scopeId = _nextScopeId++;
             var timestamp = System.Diagnostics.Stopwatch.GetTimestamp();

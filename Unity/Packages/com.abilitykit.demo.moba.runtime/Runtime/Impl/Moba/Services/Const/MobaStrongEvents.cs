@@ -1,8 +1,9 @@
-using AbilityKit.Ability.Share.Math;
-using AbilityKit.Core.Eventing;
+﻿using AbilityKit.Core.Math;
+using AbilityKit.Core.Common.Event;
 
 namespace AbilityKit.Ability.Impl.Moba
 {
+    using AbilityKit.Ability.Impl.Moba;
     public static class MobaStrongEvents
     {
         public static class Buff

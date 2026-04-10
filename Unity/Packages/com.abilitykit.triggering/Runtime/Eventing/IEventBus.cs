@@ -1,5 +1,5 @@
-using System;
-using AbilityKit.Core.Eventing;
+﻿using System;
+using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Runtime;
 
 namespace AbilityKit.Triggering.Eventing

@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Effect;
 
 namespace AbilityKit.Ability.Triggering
 {
+    using AbilityKit.Ability.Share.Effect;
     public static class TriggerEventPublishExtensions
     {
         public static void PublishInherited(this IEventBus bus, string eventId, object payload, IReadOnlyDictionary<string, object> parentArgs, Action<PooledTriggerArgs> fillArgs = null)

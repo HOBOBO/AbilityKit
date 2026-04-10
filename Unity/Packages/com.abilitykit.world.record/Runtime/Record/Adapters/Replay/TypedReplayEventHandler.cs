@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.Record.Adapters.EventCodecs;
-using AbilityKit.Ability.Share.Common.Record.Core;
+using AbilityKit.Core.Common.Record.Adapters.EventCodecs;
+using AbilityKit.Core.Common.Record.Core;
 
-namespace AbilityKit.Ability.Share.Common.Record.Adapters.Replay
+namespace AbilityKit.Core.Common.Record.Adapters.Replay
 {
     public sealed class TypedReplayEventHandler : IReplayEventHandler
     {

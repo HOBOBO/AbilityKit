@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {

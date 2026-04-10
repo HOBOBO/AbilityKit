@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
-using AbilityKit.Ability.Impl.Moba.Components;
+using AbilityKit.Ability.Share.Impl.Moba.Components;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Triggering
 {

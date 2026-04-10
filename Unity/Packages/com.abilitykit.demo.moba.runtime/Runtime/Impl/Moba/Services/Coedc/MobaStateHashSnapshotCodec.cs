@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Share;
+﻿using AbilityKit.Core.Generic;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {

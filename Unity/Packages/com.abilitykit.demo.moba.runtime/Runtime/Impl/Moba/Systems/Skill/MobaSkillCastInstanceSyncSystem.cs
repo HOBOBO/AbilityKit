@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Impl.Moba.Components;
+using AbilityKit.Ability.Share.Impl.Moba.Components;
 using AbilityKit.Ability.Share.Impl.Moba;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.DI;

@@ -1,6 +1,6 @@
-using AbilityKit.Ability.Share.Common.MotionSystem.Core;
+﻿using AbilityKit.Core.Common.MotionSystem.Core;
 
-namespace AbilityKit.Ability.Share.Common.MotionSystem.Collision
+namespace AbilityKit.Core.Common.MotionSystem.Collision
 {
     public interface IMotionSolver
     {

@@ -1,21 +1,21 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using BattleDemo = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
 using MO = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.AttributeSystem;
-using AbilityKit.Ability.Impl.Moba.Components;
-using AbilityKit.Ability.Impl.Moba.Attributes;
-using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.AttributeSystem;
+using AbilityKit.Ability.Share.Impl.Moba.Components;
+using AbilityKit.Ability.Share.Impl.Moba.Attributes;
+using AbilityKit.Effect;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Ability.Impl.Moba.Util.Generator
+namespace AbilityKit.Ability.Share.Impl.Moba.Util.Generator
 {
     /*
      * 初始化管线：把已 Spawn 出来的 ActorEntity 根据配置/Loadout 填充为可战斗态。

@@ -1,5 +1,5 @@
-using System;
-using AbilityKit.Ability.Share.Common.Record.Lockstep;
+﻿using System;
+using AbilityKit.Core.Common.Record.Lockstep;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Flow.Battle.Modules;
 

@@ -1,5 +1,5 @@
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
-using AbilityKit.Ability.Impl.Moba.Components;
+﻿using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Ability.Share.Impl.Moba.Components;
 using AbilityKit.Ability.Impl.Moba;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services

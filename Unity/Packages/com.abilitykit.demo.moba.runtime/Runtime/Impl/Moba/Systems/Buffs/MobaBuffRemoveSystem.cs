@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
-using AbilityKit.Ability.Impl.Moba.Components;
+using AbilityKit.Ability.Share.Impl.Moba.Components;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Effect;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;

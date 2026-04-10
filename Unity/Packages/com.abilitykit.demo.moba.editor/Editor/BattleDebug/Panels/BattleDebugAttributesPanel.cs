@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Share.Common.AttributeSystem;
+﻿using AbilityKit.Core.Common.AttributeSystem;
 using UnityEditor;
 
 namespace AbilityKit.Game.Editor

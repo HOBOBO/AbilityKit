@@ -1,31 +1,32 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Reflection;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability;
     /// <summary>
-    /// 技能释放条件检查结果
+    /// 鎶€鑳介噴鏀炬潯浠舵鏌ョ粨鏋?
     /// </summary>
     public readonly struct SkillConditionResult
     {
         /// <summary>
-        /// 是否通过
+        /// 鏄惁閫氳繃
         /// </summary>
         public bool Passed { get; }
 
         /// <summary>
-        /// 失败原因（用于显示给玩家）
+        /// 澶辫触鍘熷洜锛堢敤浜庢樉绀虹粰鐜╁锛?
         /// </summary>
         public string FailureReason { get; }
 
         /// <summary>
-        /// 失败原因的关键字（用于UI显示）
+        /// 澶辫触鍘熷洜鐨勫叧閿瓧锛堢敤浜嶶I鏄剧ず锛?
         /// </summary>
         public string FailureKey { get; }
 
         /// <summary>
-        /// 失败原因的参数（用于格式化）
+        /// 澶辫触鍘熷洜鐨勫弬鏁帮紙鐢ㄤ簬鏍煎紡鍖栵級
         /// </summary>
         public object[] FailureParams { get; }
 
@@ -56,44 +57,44 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     }
 
     /// <summary>
-    /// 技能条件接口
-    /// 定义技能释放前置条件的检查逻辑
+    /// 鎶€鑳芥潯浠舵帴鍙?
+    /// 瀹氫箟鎶€鑳介噴鏀惧墠缃潯浠剁殑妫€鏌ラ€昏緫
     /// </summary>
     public interface ISkillCondition
     {
         /// <summary>
-        /// 条件唯一标识
+        /// 鏉′欢鍞竴鏍囪瘑
         /// </summary>
         string Id { get; }
 
         /// <summary>
-        /// 条件显示名称
+        /// 鏉′欢鏄剧ず鍚嶇О
         /// </summary>
         string DisplayName { get; }
 
         /// <summary>
-        /// 条件描述（用于调试/日志）
+        /// 鏉′欢鎻忚堪锛堢敤浜庤皟璇?鏃ュ織锛?
         /// </summary>
         string Description { get; }
 
         /// <summary>
-        /// 检查条件是否满足
+        /// 妫€鏌ユ潯浠舵槸鍚︽弧瓒?
         /// </summary>
-        /// <param name="context">技能管线上下文</param>
-        /// <returns>检查结果</returns>
+        /// <param name="context">鎶€鑳界绾夸笂涓嬫枃</param>
+        /// <returns>妫€鏌ョ粨鏋?/returns>
         SkillConditionResult Check(SkillPipelineContext context);
 
         /// <summary>
-        /// 检查是否可以在持续检测模式下工作
-        /// 某些条件（如冷却）可以持续检查，有些（如资源）只检查一次
+        /// 妫€鏌ユ槸鍚﹀彲浠ュ湪鎸佺画妫€娴嬫ā寮忎笅宸ヤ綔
+        /// 鏌愪簺鏉′欢锛堝鍐峰嵈锛夊彲浠ユ寔缁鏌ワ紝鏈変簺锛堝璧勬簮锛夊彧妫€鏌ヤ竴娆?
         /// </summary>
         bool SupportsContinuousCheck { get; }
     }
 
     /// <summary>
-    /// 技能条件基类
-    /// 提供通用的条件检查能力
-    /// 自动从 SkillConditionAttribute 读取 Id 和 DisplayName
+    /// 鎶€鑳芥潯浠跺熀绫?
+    /// 鎻愪緵閫氱敤鐨勬潯浠舵鏌ヨ兘鍔?
+    /// 鑷姩浠?SkillConditionAttribute 璇诲彇 Id 鍜?DisplayName
     /// </summary>
     public abstract class SkillConditionBase : ISkillCondition
     {
@@ -119,24 +120,24 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     }
 
     /// <summary>
-    /// 技能条件特性
-    /// 用于自动发现和注册技能条件
+    /// 鎶€鑳芥潯浠剁壒鎬?
+    /// 鐢ㄤ簬鑷姩鍙戠幇鍜屾敞鍐屾妧鑳芥潯浠?
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class SkillConditionAttribute : Attribute
     {
         /// <summary>
-        /// 条件唯一标识
+        /// 鏉′欢鍞竴鏍囪瘑
         /// </summary>
         public string Id { get; }
 
         /// <summary>
-        /// 条件显示名称
+        /// 鏉′欢鏄剧ず鍚嶇О
         /// </summary>
         public string DisplayName { get; }
 
         /// <summary>
-        /// 优先级，数值越大优先级越高
+        /// 浼樺厛绾э紝鏁板€艰秺澶т紭鍏堢骇瓒婇珮
         /// </summary>
         public int Priority { get; set; } = 0;
 

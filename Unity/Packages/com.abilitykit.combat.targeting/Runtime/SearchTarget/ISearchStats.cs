@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability.Share.Battle.SearchTarget
+﻿namespace AbilityKit.Battle.SearchTarget
 {
     public interface ISearchStats
     {

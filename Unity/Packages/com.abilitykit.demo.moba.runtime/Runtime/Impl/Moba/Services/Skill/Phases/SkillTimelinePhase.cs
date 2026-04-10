@@ -1,11 +1,12 @@
-using System;
-using AbilityKit.Ability;
+﻿using System;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability;
     public sealed class SkillTimelinePhase : AbilityPipelinePhaseBase<SkillPipelineContext>
     {
         private readonly int _durationMs;

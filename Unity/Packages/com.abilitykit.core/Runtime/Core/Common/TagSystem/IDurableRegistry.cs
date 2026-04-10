@@ -2,7 +2,7 @@
 // 为了向后兼容，保留此别名
 using IDurableRegistry = AbilityKit.GameplayTags.IDurableRegistry;
 
-namespace AbilityKit.Ability.Share.Common.TagSystem
+namespace AbilityKit.Core.Common.TagSystem
 {
     // 使用 AbilityKit.GameplayTags.IDurableRegistry 的别名
 }

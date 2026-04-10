@@ -1,9 +1,9 @@
-using AbilityKit.Ability.FrameSync;
+﻿using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share;
-using AbilityKit.Ability.Share.Common.Record.Core;
+using AbilityKit.Core.Generic;
+using AbilityKit.Core.Common.Record.Core;
 
-namespace AbilityKit.Ability.Share.Common.Record.Adapters.EventCodecs
+namespace AbilityKit.Core.Common.Record.Adapters.EventCodecs
 {
     public static class InputCommandEventCodec
     {

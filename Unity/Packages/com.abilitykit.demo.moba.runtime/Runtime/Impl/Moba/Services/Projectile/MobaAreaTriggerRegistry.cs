@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
@@ -8,10 +8,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
         private readonly Dictionary<int, Entry> _entries = new Dictionary<int, Entry>();
 
         public void Register(
-            AbilityKit.Ability.Share.Common.Projectile.AreaId areaId,
+            AbilityKit.Core.Common.Projectile.AreaId areaId,
             int templateId,
             int ownerId,
-            in AbilityKit.Ability.Share.Math.Vec3 center,
+            in AbilityKit.Core.Math.Vec3 center,
             float radius,
             int collisionLayerMask,
             int maxTargets,
@@ -24,10 +24,10 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
         }
 
         public void Register(
-            AbilityKit.Ability.Share.Common.Projectile.AreaId areaId,
+            AbilityKit.Core.Common.Projectile.AreaId areaId,
             int templateId,
             int ownerId,
-            in AbilityKit.Ability.Share.Math.Vec3 center,
+            in AbilityKit.Core.Math.Vec3 center,
             float radius,
             int collisionLayerMask,
             int maxTargets,
@@ -38,13 +38,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
             Register(areaId, templateId, ownerId, in center, radius, collisionLayerMask, maxTargets, onEnterTriggerId, onExitTriggerId, onExpireTriggerId > 0 ? new[] { onExpireTriggerId } : null);
         }
 
-        public void Unregister(AbilityKit.Ability.Share.Common.Projectile.AreaId areaId)
+        public void Unregister(AbilityKit.Core.Common.Projectile.AreaId areaId)
         {
             if (areaId.Value <= 0) return;
             _entries.Remove(areaId.Value);
         }
 
-        public bool TryGet(AbilityKit.Ability.Share.Common.Projectile.AreaId areaId, out Entry entry)
+        public bool TryGet(AbilityKit.Core.Common.Projectile.AreaId areaId, out Entry entry)
         {
             if (areaId.Value <= 0)
             {
@@ -64,7 +64,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
         {
             public readonly int TemplateId;
             public readonly int OwnerId;
-            public readonly AbilityKit.Ability.Share.Math.Vec3 Center;
+            public readonly AbilityKit.Core.Math.Vec3 Center;
             public readonly float Radius;
             public readonly int CollisionLayerMask;
             public readonly int MaxTargets;
@@ -72,7 +72,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
             public readonly int OnExitTriggerId;
             public readonly int[] OnExpireTriggerIds;
 
-            public Entry(int templateId, int ownerId, in AbilityKit.Ability.Share.Math.Vec3 center, float radius, int collisionLayerMask, int maxTargets, int onEnterTriggerId, int onExitTriggerId, int[] onExpireTriggerIds)
+            public Entry(int templateId, int ownerId, in AbilityKit.Core.Math.Vec3 center, float radius, int collisionLayerMask, int maxTargets, int onEnterTriggerId, int onExitTriggerId, int[] onExpireTriggerIds)
             {
                 TemplateId = templateId;
                 OwnerId = ownerId;

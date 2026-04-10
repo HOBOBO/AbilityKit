@@ -1,9 +1,9 @@
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using MemoryPack;
 
-namespace AbilityKit.Ability.Share.Impl.Moba.Services
+namespace AbilityKit.Ability.Share.Impl.Moba.CreateWorld
 {
     [MemoryPackable]
     public readonly partial struct MobaCreateWorldInitPayload

@@ -1,17 +1,18 @@
-namespace AbilityKit.Ability.Impl.Moba.Systems
+﻿namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
+    using AbilityKit.Ability.Impl.Moba;
     /// <summary>
-    /// take_damage Action 的强类型参数
+    /// take_damage Action 鐨勫己绫诲瀷鍙傛暟
     /// </summary>
     public readonly struct TakeDamageArgs
     {
         /// <summary>
-        /// 伤害倍率
+        /// 浼ゅ鍊嶇巼
         /// </summary>
         public readonly float Rate;
 
         /// <summary>
-        /// 伤害原因参数（关联 DamageReasonKind）
+        /// 浼ゅ鍘熷洜鍙傛暟锛堝叧鑱?DamageReasonKind锛?
         /// </summary>
         public readonly int ReasonParam;
 

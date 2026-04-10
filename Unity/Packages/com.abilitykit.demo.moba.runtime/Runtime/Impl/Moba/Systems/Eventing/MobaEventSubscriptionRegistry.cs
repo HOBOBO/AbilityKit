@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Ability.World.Services;
 
@@ -77,7 +77,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                 return false;
             }
 
-            var eid = global::AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
+            var eid = AbilityKit.Ability.Share.Impl.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
             var key = new EventKey<TArgs>(eid);
             sub = eventBus.Subscribe(key, handler);
             return true;

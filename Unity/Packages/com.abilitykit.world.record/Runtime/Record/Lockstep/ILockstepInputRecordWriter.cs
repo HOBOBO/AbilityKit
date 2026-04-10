@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Host;
 
-namespace AbilityKit.Ability.Share.Common.Record.Lockstep
+namespace AbilityKit.Core.Common.Record.Lockstep
 {
     public interface ILockstepInputRecordWriter : IDisposable
     {

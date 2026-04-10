@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Ability.Share.Common.Projectile
+namespace AbilityKit.Core.Common.Projectile
 {
     [WorldSystem(WorldSystemOrder.AbilityBase + WorldSystemOrder.Normal, Phase = WorldSystemPhase.Execute)]
     public sealed class ProjectileTickSystem : WorldSystemBase

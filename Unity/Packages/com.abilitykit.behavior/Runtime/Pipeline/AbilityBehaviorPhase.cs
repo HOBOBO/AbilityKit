@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Generic;
+using AbilityKit.Core.Math;
 
 namespace AbilityKit.Ability.Behavior
 {

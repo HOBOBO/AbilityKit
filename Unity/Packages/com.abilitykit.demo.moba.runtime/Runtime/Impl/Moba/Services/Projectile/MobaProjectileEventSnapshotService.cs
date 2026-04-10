@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.Projectile;
+using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services.Projectile;
 using AbilityKit.Ability.World.Services;
 
@@ -10,7 +10,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
 {
     public sealed class MobaProjectileEventSnapshotService_Obsolete : IService
     {
-        private readonly global::AbilityKit.Ability.Share.Impl.Moba.Services.MobaGamePhaseService _phase;
+        private readonly AbilityKit.Ability.Share.Impl.Moba.Services.MobaGamePhaseService _phase;
         private readonly IProjectileService _projectiles;
         private readonly MobaProjectileLinkService _links;
 
@@ -20,7 +20,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
         private readonly List<ProjectileHitEvent> _hits = new List<ProjectileHitEvent>(32);
         private readonly List<ProjectileExitEvent> _exits = new List<ProjectileExitEvent>(32);
 
-        public MobaProjectileEventSnapshotService_Obsolete(global::AbilityKit.Ability.Share.Impl.Moba.Services.MobaGamePhaseService phase, IProjectileService projectiles, MobaProjectileLinkService links)
+        public MobaProjectileEventSnapshotService_Obsolete(AbilityKit.Ability.Share.Impl.Moba.Services.MobaGamePhaseService phase, IProjectileService projectiles, MobaProjectileLinkService links)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _projectiles = projectiles ?? throw new ArgumentNullException(nameof(projectiles));

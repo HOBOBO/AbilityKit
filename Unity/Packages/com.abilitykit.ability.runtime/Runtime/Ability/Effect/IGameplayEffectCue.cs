@@ -1,5 +1,7 @@
 namespace AbilityKit.Ability.Share.Effect
 {
+    using AbilityKit.Effect;
+    
     public interface IGameplayEffectCue
     {
         void OnActive(in EffectExecutionContext context, EffectInstance instance);

@@ -1,4 +1,5 @@
 using System.Text;
+using AbilityKit.ECS;
 using UnityEditor;
 using UnityEngine;
 
@@ -48,7 +49,7 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.EndHorizontal();
         }
 
-        private static string BuildTagList(AbilityKit.Ability.Share.ECS.IUnitFacade unit)
+        private static string BuildTagList(AbilityKit.ECS.IUnitFacade unit)
         {
             if (unit == null || unit.Tags == null || unit.Tags.Count == 0) return string.Empty;
 

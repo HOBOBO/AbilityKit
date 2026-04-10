@@ -1,7 +1,7 @@
-using System.IO;
+﻿using System.IO;
 using UnityEngine;
 
-namespace AbilityKit.Ability.Share.Common.Record.Core
+namespace AbilityKit.Core.Common.Record.Core
 {
     public static class RecordFileStore
     {

@@ -1,7 +1,7 @@
-using System;
-using AbilityKit.Ability.Share.ECS;
+﻿using System;
+using AbilityKit.Ability.Share.ECS; using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.ECS.Entitas;
-using AbilityKit.Ability.Impl.Moba.Components;
+using AbilityKit.Ability.Share.Impl.Moba.Components;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.FrameSync;
 

@@ -1,7 +1,8 @@
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
+    using AbilityKit.Ability;
     public static class PlanContextValueResolver
     {
         public static bool TryGetCasterActorId(object args, out int casterActorId)

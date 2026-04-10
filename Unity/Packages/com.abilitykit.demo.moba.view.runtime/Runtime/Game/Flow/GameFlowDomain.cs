@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Flow;
 using AbilityKit.World.ECS;
-using AbilityKit.Ability.Share.Common.Config;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Config;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Game;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;

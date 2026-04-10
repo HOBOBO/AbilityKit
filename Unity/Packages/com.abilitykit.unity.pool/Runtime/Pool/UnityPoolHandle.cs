@@ -1,7 +1,7 @@
 #if UNITY_5_3_OR_NEWER
 using UnityEngine;
 
-namespace AbilityKit.Ability.Share.Common.Pool
+namespace AbilityKit.Core.Common.Pool
 {
     internal sealed class UnityPoolHandle : MonoBehaviour
     {

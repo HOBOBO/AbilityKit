@@ -1,5 +1,5 @@
-using AbilityKit.Ability;
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Generic;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Triggering.Eventing;

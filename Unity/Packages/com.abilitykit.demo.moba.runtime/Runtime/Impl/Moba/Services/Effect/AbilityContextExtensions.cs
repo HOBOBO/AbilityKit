@@ -1,8 +1,9 @@
-using AbilityKit.Ability;
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Generic;
+using AbilityKit.Core.Math;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability;
     /// <summary>
     /// 上下文强类型访问扩展方法
     /// 提供基于 AbilityContextKeys 枚举的强类型数据访问

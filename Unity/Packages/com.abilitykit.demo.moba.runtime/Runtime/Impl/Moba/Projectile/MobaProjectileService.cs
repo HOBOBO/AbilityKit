@@ -1,14 +1,14 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Impl.Moba.Util.Generator;
+using AbilityKit.Ability.Share.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.Projectile;
+using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
-using AbilityKit.Ability.Share.Math;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Math;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.Share.Impl.Moba;
@@ -79,7 +79,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
             var actorContext = (contexts as global::Contexts)?.actor;
             if (actorContext == null) return false;
 
-            var bullet = AbilityKit.Ability.Impl.Moba.Util.Generator.ActorArchetypeFactory.Create(actorContext, in info);
+            var bullet = AbilityKit.Ability.Share.Impl.Moba.Util.Generator.ActorArchetypeFactory.Create(actorContext, in info);
             if (bullet == null) return false;
 
             bullet.isFlyingProjectileTag = true;
@@ -320,12 +320,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services.Projectile
                 ownerPlayer: ownerPlayer,
                 templateId: launcher.Id);
 
-            var launcherEntity = AbilityKit.Ability.Impl.Moba.Util.Generator.ActorArchetypeFactory.Create(actorContext, in launcherInfo);
+            var launcherEntity = AbilityKit.Ability.Share.Impl.Moba.Util.Generator.ActorArchetypeFactory.Create(actorContext, in launcherInfo);
             if (launcherEntity == null) return false;
 
             _registry.Register(launcherActorId, launcherEntity);
             try { _entities.TryRegisterFromEntity(launcherEntity); }
-            catch (Exception ex) { AbilityKit.Ability.Share.Common.Log.Log.Exception(ex, "[MobaProjectileService] TryRegisterFromEntity failed (launcher)"); }
+            catch (Exception ex) { AbilityKit.Core.Common.Log.Log.Exception(ex, "[MobaProjectileService] TryRegisterFromEntity failed (launcher)"); }
 
             var hitCooldownFrames = 0;
             if (projectile.HitCooldownMs > 0)

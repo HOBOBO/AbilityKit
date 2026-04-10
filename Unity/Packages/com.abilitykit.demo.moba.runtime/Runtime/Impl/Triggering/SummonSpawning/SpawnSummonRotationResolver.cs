@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Math;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering;
 

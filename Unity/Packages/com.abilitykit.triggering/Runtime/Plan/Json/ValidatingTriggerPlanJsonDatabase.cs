@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Validation;
 
@@ -205,7 +205,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             for (int i = 0; i < _inner.Records.Count; i++)
             {
                 var record = _inner.Records[i];
-                var eventKey = new AbilityKit.Core.Eventing.EventKey<object>(record.EventId);
+                var eventKey = new AbilityKit.Core.Common.Event.EventKey<object>(record.EventId);
                 var entry = new TriggerPlanEntry<object>(
                     eventKey,
                     record.Plan,

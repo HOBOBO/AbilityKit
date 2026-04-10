@@ -1,8 +1,9 @@
-using AbilityKit.Ability.Share.Common.Projectile;
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Core.Math;
 
 namespace AbilityKit.Ability.Share.Effect
 {
+    using AbilityKit.Ability.Share.Effect;
     public static class ProjectileEffectEventSinkExtensions
     {
         public static void PublishProjectileSpawn(this IEffectEventSink sink, in ProjectileSpawnEvent evt, object source = null, object target = null)

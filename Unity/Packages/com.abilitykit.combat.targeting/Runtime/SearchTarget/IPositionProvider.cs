@@ -1,7 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Battle.SearchTarget;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget
+namespace AbilityKit.Battle.SearchTarget
 {
     public interface IPositionProvider
     {

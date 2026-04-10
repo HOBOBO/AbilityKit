@@ -1,7 +1,7 @@
-using System;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.MotionSystem.Core;
-using AbilityKit.Ability.Share.Math;
+﻿using System;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.MotionSystem.Core;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.World.DI;
@@ -9,7 +9,7 @@ using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     /// <summary>
     /// 闪烁位移的Plan Action模块

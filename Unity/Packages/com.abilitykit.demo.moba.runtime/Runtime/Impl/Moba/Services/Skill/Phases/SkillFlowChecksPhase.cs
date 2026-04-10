@@ -1,11 +1,12 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using AbilityKit.Ability;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability;
     /// <summary>
     /// 基于技能条件系统的检查阶段
     /// 支持配置多个条件，全部通过才能继续

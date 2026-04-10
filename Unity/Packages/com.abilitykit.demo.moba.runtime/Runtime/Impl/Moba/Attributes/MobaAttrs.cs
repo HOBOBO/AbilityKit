@@ -1,9 +1,10 @@
 using System;
-using AbilityKit.Ability.Impl.Moba.Components;
-using AbilityKit.Ability.Share.Common.AttributeSystem;
+using AbilityKit.Ability.Share.Impl.Moba.Components;
+using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Core.Common.AttributeSystem;
 using AbilityKit.Modifiers;
 
-namespace AbilityKit.Ability.Impl.Moba.Attributes
+namespace AbilityKit.Ability.Share.Impl.Moba.Attributes
 {
     public readonly struct MobaAttrs
     {

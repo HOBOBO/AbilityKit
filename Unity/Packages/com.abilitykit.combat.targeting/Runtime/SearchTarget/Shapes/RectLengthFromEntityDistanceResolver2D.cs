@@ -1,7 +1,9 @@
-using AbilityKit.Ability.Share.ECS;
+﻿using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Battle.SearchTarget;
+using AbilityKit.Battle.SearchTarget.Shapes;
 using UnityEngine;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Shapes
+namespace AbilityKit.Battle.SearchTarget.Shapes
 {
     public sealed class RectLengthFromEntityDistanceResolver2D : IRectParamResolver2D
     {

@@ -1,6 +1,6 @@
-using AbilityKit.Ability.Share.ECS;
+﻿using AbilityKit.Ability.Share.ECS; using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Entitas
+namespace AbilityKit.Battle.SearchTarget.Entitas
 {
     public sealed class EntitasActorIdKeyProvider : IEntityKeyProvider
     {

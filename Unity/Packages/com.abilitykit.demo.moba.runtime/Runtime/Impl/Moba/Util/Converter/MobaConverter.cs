@@ -1,6 +1,6 @@
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Impl.Moba.Util.Converter
+namespace AbilityKit.Ability.Share.Impl.Moba.Util.Converter
 {
     // 逻辑层通用数据转换工具（用于将外部输入转换为逻辑层使用的数据结构）
     public static class MobaConverter

@@ -1,8 +1,8 @@
-using AbilityKit.Ability.Share.Common.MotionSystem.Core;
-using AbilityKit.Ability.Share.Common.MotionSystem.Trajectory;
-using AbilityKit.Ability.Share.Math;
+﻿using AbilityKit.Core.Common.MotionSystem.Core;
+using AbilityKit.Core.Common.MotionSystem.Trajectory;
+using AbilityKit.Core.Math;
 
-namespace AbilityKit.Ability.Share.Common.MotionSystem.Examples
+namespace AbilityKit.Core.Common.MotionSystem.Examples
 {
     public static class MotionPipelineExample
     {

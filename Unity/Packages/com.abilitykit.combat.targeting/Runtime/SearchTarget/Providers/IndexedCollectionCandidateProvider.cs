@@ -1,7 +1,8 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Battle.SearchTarget;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Providers
+namespace AbilityKit.Battle.SearchTarget.Providers
 {
     public sealed class IndexedCollectionCandidateProvider : ICandidateProvider
     {

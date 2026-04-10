@@ -1,7 +1,8 @@
-using AbilityKit.Ability.Share.ECS;
-using AbilityKit.Ability.Share.Battle.SearchTarget.Shapes;
+﻿using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Battle.SearchTarget;
+using AbilityKit.Battle.SearchTarget.Shapes;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Scorers
+namespace AbilityKit.Battle.SearchTarget.Scorers
 {
     public sealed class DistanceToFrameOriginScorer2D : ITargetScorer
     {

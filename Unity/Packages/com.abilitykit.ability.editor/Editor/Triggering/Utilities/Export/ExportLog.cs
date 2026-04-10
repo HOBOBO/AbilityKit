@@ -1,6 +1,6 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Ability.Editor.Utilities
 {

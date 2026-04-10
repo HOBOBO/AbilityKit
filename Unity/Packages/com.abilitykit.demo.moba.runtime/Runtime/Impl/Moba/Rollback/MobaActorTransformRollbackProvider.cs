@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
-using AbilityKit.Ability.Share;
-using AbilityKit.Ability.Share.Math;
+using AbilityKit.Core.Generic;
+using AbilityKit.Core.Math;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Rollback

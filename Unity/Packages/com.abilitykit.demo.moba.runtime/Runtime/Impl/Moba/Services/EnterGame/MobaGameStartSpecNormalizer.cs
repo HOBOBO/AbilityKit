@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;

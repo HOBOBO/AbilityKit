@@ -1,24 +1,25 @@
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
+using AbilityKit.Ability.Impl.Moba;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     /// <summary>
-    /// give_damage Action 的强类型参数
+    /// give_damage Action 鐨勫己绫诲瀷鍙傛暟
     /// </summary>
     public readonly struct GiveDamageArgs
     {
         /// <summary>
-        /// 伤害值
+        /// 浼ゅ鍊?
         /// </summary>
         public readonly float DamageValue;
 
         /// <summary>
-        /// 伤害原因参数（关联 DamageReasonKind）
+        /// 浼ゅ鍘熷洜鍙傛暟锛堝叧鑱?DamageReasonKind锛?
         /// </summary>
         public readonly int ReasonParam;
 
         /// <summary>
-        /// 伤害类型（物理/魔法/真实）
+        /// 浼ゅ绫诲瀷锛堢墿鐞?榄旀硶/鐪熷疄锛?
         /// </summary>
         public readonly DamageType DamageType;
 

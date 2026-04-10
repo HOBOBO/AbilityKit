@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.ECS.Entitas;
+using AbilityKit.ECS;
 using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Game.Battle

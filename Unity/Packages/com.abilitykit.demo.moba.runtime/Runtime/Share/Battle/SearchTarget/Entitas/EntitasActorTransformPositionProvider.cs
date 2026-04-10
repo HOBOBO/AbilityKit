@@ -2,7 +2,7 @@ using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.ECS.Entitas;
 using UnityEngine;
 
-namespace AbilityKit.Ability.Share.Battle.SearchTarget.Entitas
+namespace AbilityKit.Battle.SearchTarget.Entitas
 {
     public sealed class EntitasActorTransformPositionProvider : IPositionProvider
     {

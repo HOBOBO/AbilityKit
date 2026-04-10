@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Ability.Share.Effect;
+using AbilityKit.ECS;
 
-namespace AbilityKit.Ability.Share.Effect
+namespace AbilityKit.Effect
 {
     public sealed class EffectContainer
     {

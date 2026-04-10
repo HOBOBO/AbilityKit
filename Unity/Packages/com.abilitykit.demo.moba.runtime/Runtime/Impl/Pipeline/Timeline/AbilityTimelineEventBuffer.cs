@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AbilityKit.Ability.Share.Impl.Moba.ActionTimeline;
 
 namespace AbilityKit.Ability.Share.Impl.Pipeline.Timeline

@@ -1,5 +1,5 @@
-using System;
-using AbilityKit.Ability.Share.Common.AttributeSystem;
+﻿using System;
+using AbilityKit.Core.Common.AttributeSystem;
 using AbilityKit.GameplayTags;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Game.Battle;

@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Share.Common.Record.Lockstep;
+﻿using AbilityKit.Core.Common.Record.Lockstep;
 
 namespace AbilityKit.World.Record.MemoryPack
 {

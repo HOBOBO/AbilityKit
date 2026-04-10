@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Battle.EntityManager;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Common.Event;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services.EntityManager

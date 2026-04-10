@@ -1,8 +1,9 @@
-using AbilityKit.Ability.Share.Common.AttributeSystem;
-using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Core.Common.AttributeSystem;
+using AbilityKit.Effect;
+using AbilityKit.Ability.Share.ECS;
 using GameplayTagContainer = AbilityKit.GameplayTags.GameplayTagContainer;
 
-namespace AbilityKit.Ability.Share.ECS
+namespace AbilityKit.ECS
 {
     public interface IUnitFacade
     {

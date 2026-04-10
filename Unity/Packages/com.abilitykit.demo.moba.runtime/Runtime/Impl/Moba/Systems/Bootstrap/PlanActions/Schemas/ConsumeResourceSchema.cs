@@ -1,16 +1,16 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Impl.Moba.Components;
+using AbilityKit.Ability.Share.Impl.Moba.Components;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 
-namespace AbilityKit.Ability.Impl.Moba.Systems
+namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
     /// <summary>
-    /// consume_resource Action 的 Schema 定义
-    /// 实现 IActionSchema，提供参数解析和验证逻辑
+    /// consume_resource Action 鐨?Schema 瀹氫箟
+    /// 瀹炵幇 IActionSchema锛屾彁渚涘弬鏁拌В鏋愬拰楠岃瘉閫昏緫
     /// </summary>
     public sealed class ConsumeResourceSchema : IActionSchema<ConsumeResourceArgs, IWorldResolver>
     {
@@ -52,7 +52,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                     case "fail_message_key":
                     case "failmessagekey":
                     case "fail_key":
-                        // 字符串类型参数（暂不支持，忽略）
+                        // 瀛楃涓茬被鍨嬪弬鏁帮紙鏆備笉鏀寔锛屽拷鐣ワ級
                         break;
                 }
             }
@@ -73,7 +73,7 @@ namespace AbilityKit.Ability.Impl.Moba.Systems
                         return true;
                 }
             }
-            // amount 是可选的，默认为 0（表示不消耗）
+            // amount 鏄彲閫夌殑锛岄粯璁や负 0锛堣〃绀轰笉娑堣€楋級
             return true;
         }
     }

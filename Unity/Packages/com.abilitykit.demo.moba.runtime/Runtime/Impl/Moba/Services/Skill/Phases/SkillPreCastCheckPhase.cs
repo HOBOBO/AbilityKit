@@ -1,8 +1,9 @@
-using System;
-using AbilityKit.Ability;
+﻿using System;
+using AbilityKit.Core.Generic;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability;
     public sealed class SkillPreCastCheckPhase : AbilityInstantPhaseBase<SkillPipelineContext>
     {
         private readonly Func<SkillPipelineContext, bool> _checker;

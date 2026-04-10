@@ -1,11 +1,13 @@
 using System;
-using AbilityKit.Ability;
-using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Core.Generic;
+using AbilityKit.Effect;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
+    using AbilityKit.Ability.Impl.Moba;
+    using AbilityKit.Ability;
     public sealed class MobaEffectInvokerService : IService
     {
         private readonly MobaEffectExecutionService _effects;
@@ -33,7 +35,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                 eventBus: null);
 
             configure?.Invoke(ctx);
-            _effects.Execute(effectId, ctx, AbilityKit.Ability.Impl.Moba.EffectExecuteMode.InternalOnly);
+            _effects.Execute(effectId, ctx, EffectExecuteMode.InternalOnly);
         }
 
         public void Execute(int effectId, IAbilityPipelineContext context)
@@ -42,7 +44,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (context == null) return;
             if (_effects == null) return;
 
-            _effects.Execute(effectId, context, AbilityKit.Ability.Impl.Moba.EffectExecuteMode.InternalOnly);
+            _effects.Execute(effectId, context, EffectExecuteMode.InternalOnly);
         }
 
         public void Dispose()

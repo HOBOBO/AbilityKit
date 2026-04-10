@@ -1,9 +1,9 @@
-using AbilityKit.Ability.Share.Impl.Moba.Services;
+﻿using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using UnityEngine;
-using AbilityKit.Ability.Share.Math;
-using AbilityKit.Ability.Share.Common.Log;
+using AbilityKit.Core.Math;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.World.ECS;
 using EC = AbilityKit.World.ECS;
 

@@ -1,6 +1,6 @@
 using System;
 
-namespace AbilityKit.Common.Marker
+namespace AbilityKit.Core.Common.Marker
 {
     /// <summary>
     /// 标记系统的注册表接口。

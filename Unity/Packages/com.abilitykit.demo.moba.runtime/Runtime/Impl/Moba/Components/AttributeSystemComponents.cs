@@ -1,9 +1,9 @@
-using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.AttributeSystem;
+﻿using System.Collections.Generic;
+using AbilityKit.Core.Common.AttributeSystem;
 using Entitas;
 using Entitas.CodeGeneration.Attributes;
 
-namespace AbilityKit.Ability.Impl.Moba.Components
+namespace AbilityKit.Ability.Share.Impl.Moba.Components
 {
     [Actor]
     public sealed class AttributeGroupComponent : IComponent

@@ -1,14 +1,14 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Ability.Impl.Moba.Util.Generator;
+using AbilityKit.Ability.Share.Impl.Moba.Util.Generator;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Common.Log;
-using AbilityKit.Ability.Share.Common.MotionSystem.Core;
-using AbilityKit.Ability.Share.Common.MotionSystem.Trajectory;
-using AbilityKit.Ability.Share.Common.Projectile;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Common.MotionSystem.Core;
+using AbilityKit.Core.Common.MotionSystem.Trajectory;
+using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Ability.Share.Math;
-// [REMOVED] using AbilityKit.Ability.Impl.Moba.Effects.Runtime;
+using AbilityKit.Core.Math;
+// [REMOVED] using AbilityKit.Ability.Share.Impl.Moba.Effects.Runtime;
 // [REMOVED] using AbilityKit.Effects.Core;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Projectile
