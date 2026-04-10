@@ -1,4 +1,4 @@
-﻿# AbilityKit.Modifiers 设计文档
+# AbilityKit.Modifiers 设计文档
 
 ## 文档版本历史
 
@@ -489,7 +489,7 @@ public class SkillModifierSystem
         var mod = ModifierData.Custom(
             ModifierKey.Create(ModifierKey.Categories.Skill),
             ModifierOp.Override,
-            CustomModifierData.SkillId(skillId),
+            CustomModifierData.Int(skillId),
             sourceId
         );
         _modifiers.Add(mod);

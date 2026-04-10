@@ -7,10 +7,12 @@ using System.Reflection;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
-using AbilityKit.Ability.Share.Common.TagSystem;
+using AbilityKit.GameplayTags;
 using Newtonsoft.Json;
 using UnityEditor;
 using UnityEngine;
+using GameplayTagsUtil = AbilityKit.GameplayTags.GameplayTags;
+using GameplayTagsLib = AbilityKit.GameplayTags.GameplayTagsLib;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 {
@@ -123,7 +125,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         private static void ConvertTagNamesToIds(TagTemplateDTO dto)
         {
             if (dto == null) return;
-            GameplayTagLib.RegisterAll();
+            GameplayTagsLib.RegisterAll();
 
             dto.RequiredTags = ConvertNames(dto.RequiredTagNames);
             dto.BlockedTags = ConvertNames(dto.BlockedTagNames);
@@ -140,7 +142,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             {
                 var n = names[i];
                 if (string.IsNullOrWhiteSpace(n)) continue;
-                var tag = GameplayTags.Tag(n);
+                var tag = GameplayTagsUtil.Tag(n);
                 if (!tag.IsValid) continue;
                 list.Add(tag.Value);
             }

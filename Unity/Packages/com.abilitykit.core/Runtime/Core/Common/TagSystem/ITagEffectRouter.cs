@@ -1,8 +1,8 @@
+// 此文件已迁移到 AbilityKit.GameplayTags
+// 为了向后兼容，保留此别名
+using ITagEffectRouter = AbilityKit.GameplayTags.ITagEffectRouter;
+
 namespace AbilityKit.Ability.Share.Common.TagSystem
 {
-    public interface ITagEffectRouter
-    {
-        void Register(ITagChangeSubscriber subscriber);
-        bool Unregister(ITagChangeSubscriber subscriber);
-    }
+    // 使用 AbilityKit.GameplayTags.ITagEffectRouter 的别名
 }

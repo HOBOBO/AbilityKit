@@ -2,18 +2,19 @@ using System;
 using AbilityKit.Ability.Share.Common.AttributeSystem;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Triggering.Definitions;
+using AbilityKit.Modifiers;
 
 namespace AbilityKit.Ability.Triggering.Runtime.Builtins
 {
     public sealed class AddAttributeEffectForDurationAction : ITriggerActionV2
     {
         private readonly string _attrName;
-        private readonly AttributeModifierOp _op;
+        private readonly ModifierOp _op;
         private readonly float _value;
         private readonly int _sourceId;
         private readonly float _duration;
 
-        public AddAttributeEffectForDurationAction(string attrName, AttributeModifierOp op, float value, int sourceId, float duration)
+        public AddAttributeEffectForDurationAction(string attrName, ModifierOp op, float value, int sourceId, float duration)
         {
             _attrName = attrName ?? throw new ArgumentNullException(nameof(attrName));
             _op = op;
@@ -33,13 +34,13 @@ namespace AbilityKit.Ability.Triggering.Runtime.Builtins
                 throw new InvalidOperationException("AddAttributeEffectForDurationAction requires args['attr'] as non-empty string");
             }
 
-            var op = AttributeModifierOp.Add;
+            var op = ModifierOp.Add;
             if (args.TryGetValue("op", out var opObj) && opObj is string opStr && !string.IsNullOrEmpty(opStr))
             {
-                if (string.Equals(opStr, "add", StringComparison.OrdinalIgnoreCase)) op = AttributeModifierOp.Add;
-                else if (string.Equals(opStr, "mul", StringComparison.OrdinalIgnoreCase)) op = AttributeModifierOp.Mul;
-                else if (string.Equals(opStr, "final_add", StringComparison.OrdinalIgnoreCase)) op = AttributeModifierOp.FinalAdd;
-                else if (string.Equals(opStr, "override", StringComparison.OrdinalIgnoreCase)) op = AttributeModifierOp.Override;
+                if (string.Equals(opStr, "add", StringComparison.OrdinalIgnoreCase)) op = ModifierOp.Add;
+                else if (string.Equals(opStr, "mul", StringComparison.OrdinalIgnoreCase)) op = ModifierOp.Mul;
+                else if (string.Equals(opStr, "percent_add", StringComparison.OrdinalIgnoreCase)) op = ModifierOp.PercentAdd;
+                else if (string.Equals(opStr, "override", StringComparison.OrdinalIgnoreCase)) op = ModifierOp.Override;
             }
 
             if (!args.TryGetValue("value", out var vObj)) throw new InvalidOperationException("AddAttributeEffectForDurationAction requires args['value']");
@@ -77,17 +78,20 @@ namespace AbilityKit.Ability.Triggering.Runtime.Builtins
                 return null;
             }
 
-            var effect = new AttributeEffect(
-                new AttributeEffect.Entry(
-                    attrId,
-                    new AttributeModifier(_op, _value, _sourceId)
-                )
-            );
+            // 使用新的 API 创建效果
+            var effect = _op switch
+            {
+                ModifierOp.Add => AttributeEffect.Add(attrId, _value, _sourceId),
+                ModifierOp.Mul => AttributeEffect.Mul(attrId, _value, _sourceId),
+                ModifierOp.PercentAdd => AttributeEffect.PercentAdd(attrId, _value, _sourceId),
+                ModifierOp.Override => AttributeEffect.Override(attrId, _value, _sourceId),
+                _ => AttributeEffect.Add(attrId, _value, _sourceId)
+            };
 
-            var handle = unit.Attributes.ApplyEffect(effect);
-            if (handle == null) return null;
+            var sourceId = unit.Attributes.ApplyEffect(effect);
+            if (sourceId == 0) return null;
 
-            return new AttributeEffectDurationRunningAction(handle, _duration);
+            return new AttributeEffectDurationRunningAction(sourceId, _duration);
         }
     }
 }

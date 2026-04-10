@@ -1,14 +1,21 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
-using AbilityKit.Ability.Share.Common.TagSystem;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
+using AbilityKit.GameplayTags;
+using ITagTemplateRegistry = AbilityKit.GameplayTags.ITagTemplateRegistry;
+using TagTemplateRuntime = AbilityKit.GameplayTags.TagTemplateRuntime;
+using GameplayTagRequirements = AbilityKit.GameplayTags.GameplayTagRequirements;
+using GameplayTagContainer = AbilityKit.GameplayTags.GameplayTagContainer;
+using GameplayTag = AbilityKit.GameplayTags.GameplayTag;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
     public sealed class MobaTagTemplateRegistry : ITagTemplateRegistry
     {
         private readonly MobaConfigDatabase _db;
-        private readonly Dictionary<int, TagTemplateRuntime> _cache = new Dictionary<int, TagTemplateRuntime>();
+        private readonly Dictionary<int, TagTemplateRuntime> _cacheById = new Dictionary<int, TagTemplateRuntime>();
+        private readonly Dictionary<string, TagTemplateRuntime> _cacheByName = new Dictionary<string, TagTemplateRuntime>();
 
         public MobaTagTemplateRegistry(MobaConfigDatabase db)
         {
@@ -20,23 +27,47 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             template = null;
             if (templateId <= 0) return false;
 
-            if (_cache.TryGetValue(templateId, out template) && template != null)
+            if (_cacheById.TryGetValue(templateId, out template) && template != null)
             {
                 return true;
             }
 
             if (_db == null) return false;
-            if (!_db.TryGetTagTemplate(templateId, out var mo) || mo == null) return false;
+            if (!_db.TryGetTagTemplate(templateId, out var mo)) return false;
 
+            template = CreateTemplate(mo);
+            _cacheById[templateId] = template;
+            return true;
+        }
+
+        public bool TryGet(string name, out TagTemplateRuntime template)
+        {
+            template = null;
+            if (string.IsNullOrEmpty(name)) return false;
+
+            if (_cacheByName.TryGetValue(name, out template) && template != null)
+            {
+                return true;
+            }
+
+            if (_db == null) return false;
+            if (!_db.TryGetTagTemplateByName(name, out var mo)) return false;
+
+            template = CreateTemplate(mo);
+            _cacheByName[name] = template;
+            _cacheById[mo.Id] = template;
+            return true;
+        }
+
+        private TagTemplateRuntime CreateTemplate(TagTemplateMO mo)
+        {
             var required = ToContainer(mo.RequiredTags);
             var blocked = ToContainer(mo.BlockedTags);
             var grant = ToContainer(mo.GrantTags);
             var remove = ToContainer(mo.RemoveTags);
 
             var req = new GameplayTagRequirements(required, blocked, exact: false);
-            template = new TagTemplateRuntime(mo.Id, mo.Name, req, grant, remove);
-            _cache[templateId] = template;
-            return true;
+            return new TagTemplateRuntime(mo.Id, mo.Name, req, grant, remove);
         }
 
         private static GameplayTagContainer ToContainer(IReadOnlyList<int> ids)

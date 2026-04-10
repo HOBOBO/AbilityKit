@@ -1,7 +1,8 @@
+// 此文件已迁移到 AbilityKit.GameplayTags
+// 为了向后兼容，保留此别名
+using ITagChangeSubscriber = AbilityKit.GameplayTags.ITagChangeSubscriber;
+
 namespace AbilityKit.Ability.Share.Common.TagSystem
 {
-    public interface ITagChangeSubscriber
-    {
-        void OnTagsChanged(int ownerId, GameplayTagContainer currentTags, GameplayTagDelta delta, TagSource source);
-    }
+    // 使用 AbilityKit.GameplayTags.ITagChangeSubscriber 的别名
 }

@@ -51,10 +51,6 @@ namespace AbilityKit.Modifiers
         public static CustomModifierData Bytes(byte[] data)
             => new() { CustomTypeId = 3, RawData = data };
 
-        /// <summary>创建技能 ID 修改器</summary>
-        public static CustomModifierData SkillId(int skillId)
-            => new() { CustomTypeId = 100, IntValue = skillId };
-
         #endregion
 
         #region 静态属性

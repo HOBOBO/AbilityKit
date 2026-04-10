@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Ability.Share.Common.AttributeSystem
@@ -6,8 +7,11 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
     /// <summary>
     /// 属性实例。
     /// 管理单个属性的基础值和修改器。
-    ///
-    /// 内部使用 AbilityKit.Modifiers.ModifierCalculator 进行计算。
+    /// 
+    /// 重构说明：
+    /// - 统一使用 AbilityKit.Modifiers.ModifierCalculator 进行计算
+    /// - 修改器数据直接使用 ModifierData
+    /// - 移除双分支计算逻辑
     /// </summary>
     public sealed class AttributeInstance
     {
@@ -15,20 +19,15 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         private readonly AttributeId _id;
         private readonly int _rawId;
         private readonly AttributeContext _ctx;
-
-        /// <summary>
-        /// 修改器计算器（可选使用）
-        /// 如果不为 null，则使用 ModifierCalculator 进行计算
-        /// </summary>
-        private ModifierCalculator _calculator;
+        private readonly ModifierCalculator _calculator;
+        private readonly ModifierKey _modifierKey;
 
         private int _nextHandle;
 
         private struct ModifierSlot
         {
             public int Handle;
-            public AttributeModifier Modifier;
-            public ModifierData ModifierData;  // 转换为 ModifierData
+            public ModifierData ModifierData;
             public int NextFree;
             public bool Active;
         }
@@ -37,11 +36,6 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         private int _modifierSlotCount;
         private int _modifierFreeHead;
         private int[] _handleToSlotIndex = new int[0];
-
-        /// <summary>
-        /// 是否使用新的 ModifierCalculator 计算模式
-        /// </summary>
-        public bool UseModifierCalculator => _calculator != null;
 
         public AttributeInstance(AttributeGroup group, AttributeId id, AttributeContext ctx)
         {
@@ -53,6 +47,8 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             _id = id;
             _rawId = id.Id;
             _ctx = ctx;
+            _calculator = new ModifierCalculator();
+            _modifierKey = ModifierKey.FromPacked((uint)id.Id);
             _nextHandle = 1;
 
             _modifierFreeHead = -1;
@@ -90,11 +86,16 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
 
         #region 修改器管理
 
-        public AttributeModifierHandle AddModifier(AttributeModifier modifier)
+        /// <summary>
+        /// 添加修改器
+        /// </summary>
+        /// <param name="modifierData">修改器数据</param>
+        /// <returns>修改器句柄</returns>
+        public int AddModifier(ModifierData modifierData)
         {
             var handle = _nextHandle++;
 
-            var slotIndex = AllocateModifierSlot(handle, modifier);
+            var slotIndex = AllocateModifierSlot(handle, modifierData);
             if (slotIndex < 0)
             {
                 throw new InvalidOperationException("AllocateModifierSlot failed");
@@ -103,22 +104,45 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             EnsureHandleMapCapacity(handle + 1);
             _handleToSlotIndex[handle] = slotIndex;
 
-            ApplyModifier(modifier);
             MarkDirty();
-            return new AttributeModifierHandle(handle);
+            return handle;
         }
 
-        public bool RemoveModifier(AttributeModifierHandle handle)
+        /// <summary>
+        /// 添加修改器（便捷方法，自动设置目标键）
+        /// </summary>
+        public int AddModifier(ModifierOp op, float value, int sourceId = 0)
         {
-            if (!handle.IsValid) return false;
+            var modifierData = op switch
+            {
+                ModifierOp.Add => ModifierData.Add(_modifierKey, value, sourceId),
+                ModifierOp.Mul => ModifierData.Mul(_modifierKey, value, sourceId),
+                ModifierOp.PercentAdd => ModifierData.PercentAdd(_modifierKey, value, sourceId),
+                ModifierOp.Override => ModifierData.Override(_modifierKey, value, sourceId),
+                _ => ModifierData.Add(_modifierKey, value, sourceId)
+            };
+            return AddModifier(modifierData);
+        }
 
-            if (!TryDeactivateModifierSlot(handle.Value)) return false;
+        /// <summary>
+        /// 移除修改器
+        /// </summary>
+        /// <param name="handle">修改器句柄</param>
+        /// <returns>是否成功移除</returns>
+        public bool RemoveModifier(int handle)
+        {
+            if (handle <= 0) return false;
 
-            RebuildAggregates();
+            if (!TryDeactivateModifierSlot(handle)) return false;
+
             MarkDirty();
             return true;
         }
 
+        /// <summary>
+        /// 清除所有修改器或指定来源的修改器
+        /// </summary>
+        /// <param name="sourceId">来源 ID，0 表示清除所有</param>
         public void ClearModifiers(int sourceId = 0)
         {
             if (!HasAnyActiveModifiers()) return;
@@ -132,55 +156,43 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                 ClearModifierSlotsBySource(sourceId);
             }
 
-            RebuildAggregates();
             MarkDirty();
         }
 
-        public AttributeModifierSet GetModifierSet()
+        /// <summary>
+        /// 获取活跃修改器数量
+        /// </summary>
+        public int ActiveModifierCount
         {
-            ref var slot = ref _group.GetSlotRef(_rawId);
-            return new AttributeModifierSet(slot.Add, slot.Mul, slot.FinalAdd, slot.Override, slot.HasOverride);
+            get
+            {
+                int count = 0;
+                for (int i = 0; i < _modifierSlotCount; i++)
+                {
+                    if (_modifierSlots[i].Active) count++;
+                }
+                return count;
+            }
         }
 
         /// <summary>
-        /// 获取当前生效的修改器数组（用于调试/UI）
+        /// 获取活跃修改器数据数组
         /// </summary>
-        public ReadOnlySpan<AttributeModifier> GetActiveModifiers()
+        public ReadOnlySpan<ModifierData> GetActiveModifierData()
         {
-            var active = new System.Collections.Generic.List<AttributeModifier>(_modifierSlotCount);
+            int count = ActiveModifierCount;
+            if (count == 0) return ReadOnlySpan<ModifierData>.Empty;
+
+            var buffer = new ModifierData[count];
+            int idx = 0;
             for (int i = 0; i < _modifierSlotCount; i++)
             {
                 if (_modifierSlots[i].Active)
                 {
-                    active.Add(_modifierSlots[i].Modifier);
+                    buffer[idx++] = _modifierSlots[i].ModifierData;
                 }
             }
-            return active.ToArray();
-        }
-
-        #endregion
-
-        #region 启用 ModifierCalculator
-
-        /// <summary>
-        /// 启用 ModifierCalculator 计算模式
-        /// 这将使用 AbilityKit.Modifiers 进行更通用的计算
-        /// </summary>
-        public void EnableModifierCalculator()
-        {
-            if (_calculator == null)
-            {
-                _calculator = new ModifierCalculator();
-            }
-        }
-
-        /// <summary>
-        /// 禁用 ModifierCalculator 计算模式
-        /// 这将使用旧的聚合计算方式
-        /// </summary>
-        public void DisableModifierCalculator()
-        {
-            _calculator = null;
+            return buffer;
         }
 
         #endregion
@@ -204,24 +216,15 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             ref var slot = ref _group.GetSlotRef(_rawId);
             var old = slot.Cached;
 
-            // 获取修改器聚合结果
-            var modifiers = GetModifierSet();
+            // 获取活跃修改器数据
+            var modifierData = GetActiveModifierData();
+
+            // 使用 ModifierCalculator 计算
+            var modifierResult = _calculator.Calculate(modifierData, slot.BaseValue);
 
             // 调用公式计算
             var formula = AttributeRegistry.Instance.GetFormula(_id);
-
-            float v;
-            if (_calculator != null)
-            {
-                // 使用 ModifierCalculator 模式
-                var modifierResult = ToModifierResult(modifiers);
-                v = formula.Evaluate(_ctx, _id, slot.BaseValue, modifierResult);
-            }
-            else
-            {
-                // 使用旧版聚合计算模式
-                v = formula.Evaluate(_ctx, _id, slot.BaseValue, in modifiers);
-            }
+            var v = formula.Evaluate(_ctx, _id, slot.BaseValue, modifierResult);
 
             // 应用约束
             var constraint = AttributeRegistry.Instance.GetConstraint(_id);
@@ -239,89 +242,16 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             }
         }
 
-        /// <summary>
-        /// 将 AttributeModifierSet 转换为 ModifierResult
-        /// </summary>
-        private ModifierResult ToModifierResult(AttributeModifierSet set)
-        {
-            if (set.HasOverride)
-            {
-                return new ModifierResult
-                {
-                    BaseValue = 0f,  // 会被公式覆盖
-                    AddSum = set.Add,
-                    MulProduct = 1f + set.Mul,
-                    OverrideValue = set.Override,
-                    Count = 0
-                };
-            }
-
-            return new ModifierResult
-            {
-                BaseValue = 0f,
-                AddSum = set.Add,
-                MulProduct = 1f + set.Mul,
-                OverrideValue = 0f,
-                OverrideFlag = 0,
-                Count = 0
-            };
-        }
-
-        private void ApplyModifier(AttributeModifier modifier)
-        {
-            ref var slot = ref _group.GetSlotRef(_rawId);
-            switch (modifier.Op)
-            {
-                case AttributeModifierOp.Add:
-                    slot.Add += modifier.Value;
-                    break;
-
-                case AttributeModifierOp.Mul:
-                    slot.Mul += modifier.Value;
-                    break;
-
-                case AttributeModifierOp.FinalAdd:
-                    slot.FinalAdd += modifier.Value;
-                    break;
-
-                case AttributeModifierOp.Override:
-                    slot.Override = modifier.Value;
-                    slot.HasOverride = true;
-                    break;
-
-                case AttributeModifierOp.Custom:
-                default:
-                    break;
-            }
-        }
-
-        private void RebuildAggregates()
-        {
-            ref var slot = ref _group.GetSlotRef(_rawId);
-            slot.Add = 0f;
-            slot.Mul = 0f;
-            slot.FinalAdd = 0f;
-            slot.Override = 0f;
-            slot.HasOverride = false;
-
-            for (int i = 0; i < _modifierSlotCount; i++)
-            {
-                if (!_modifierSlots[i].Active) continue;
-                ApplyModifier(_modifierSlots[i].Modifier);
-            }
-        }
-
         private bool HasAnyActiveModifiers()
         {
             for (int i = 0; i < _modifierSlotCount; i++)
             {
                 if (_modifierSlots[i].Active) return true;
             }
-
             return false;
         }
 
-        private int AllocateModifierSlot(int handle, AttributeModifier modifier)
+        private int AllocateModifierSlot(int handle, ModifierData modifierData)
         {
             if (_modifierFreeHead >= 0)
             {
@@ -329,8 +259,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                 _modifierFreeHead = _modifierSlots[idx].NextFree;
 
                 _modifierSlots[idx].Handle = handle;
-                _modifierSlots[idx].Modifier = modifier;
-                _modifierSlots[idx].ModifierData = modifier.ToModifierData(ModifierKey.FromPacked((uint)_id.Id));
+                _modifierSlots[idx].ModifierData = modifierData;
                 _modifierSlots[idx].NextFree = -1;
                 _modifierSlots[idx].Active = true;
                 return idx;
@@ -339,8 +268,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             EnsureModifierSlotCapacity(_modifierSlotCount + 1);
             var newIdx = _modifierSlotCount++;
             _modifierSlots[newIdx].Handle = handle;
-            _modifierSlots[newIdx].Modifier = modifier;
-            _modifierSlots[newIdx].ModifierData = modifier.ToModifierData(ModifierKey.FromPacked((uint)_id.Id));
+            _modifierSlots[newIdx].ModifierData = modifierData;
             _modifierSlots[newIdx].NextFree = -1;
             _modifierSlots[newIdx].Active = true;
             return newIdx;
@@ -380,6 +308,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             Array.Resize(ref _modifierSlots, newSize);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool TryDeactivateModifierSlot(int handle)
         {
             if (handle <= 0) return false;
@@ -419,7 +348,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             for (int i = 0; i < _modifierSlotCount; i++)
             {
                 if (!_modifierSlots[i].Active) continue;
-                if (_modifierSlots[i].Modifier.SourceId != sourceId) continue;
+                if (_modifierSlots[i].ModifierData.SourceId != sourceId) continue;
 
                 _modifierSlots[i].Active = false;
                 _modifierSlots[i].NextFree = _modifierFreeHead;

@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using AbilityKit.Ability.Share.Common.AttributeSystem;
+using AbilityKit.Modifiers;
 using NUnit.Framework;
 
 namespace AbilityKit.Game.Test.UnitTest
@@ -18,19 +19,12 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var id = CreateTempAttrId();
             var ctx = new AttributeContext();
-            var g = ctx.GetGroupFor(id);
+            var g = ctx.GetOrCreateGroup("Test");
             g.SetBase(id, 10f);
 
-            var hAdd = g.AddModifier(id, new AttributeModifier(AttributeModifierOp.Add, 5f));
-            var hMul = g.AddModifier(id, new AttributeModifier(AttributeModifierOp.Mul, 0.1f));
-            var hFinal = g.AddModifier(id, new AttributeModifier(AttributeModifierOp.FinalAdd, 2f));
-
-            var inst = g.GetOrCreate(id);
-            var set = inst.GetModifierSet();
-            Assert.AreEqual(5f, set.Add, 0.0001f);
-            Assert.AreEqual(0.1f, set.Mul, 0.0001f);
-            Assert.AreEqual(2f, set.FinalAdd, 0.0001f);
-            Assert.IsFalse(set.HasOverride);
+            var hAdd = g.AddModifier(id, ModifierOp.Add, 5f);
+            var hMul = g.AddModifier(id, ModifierOp.Mul, 0.1f);
+            var hFinal = g.AddModifier(id, ModifierOp.Add, 2f); // FinalAdd 已合并到 Add
 
             Assert.AreEqual(18.5f, g.GetValue(id), 0.0001f);
 
@@ -49,18 +43,18 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var id = CreateTempAttrId();
             var ctx = new AttributeContext();
-            var g = ctx.GetGroupFor(id);
+            var g = ctx.GetOrCreateGroup("Test");
             g.SetBase(id, 10f);
 
-            g.AddModifier(id, new AttributeModifier(AttributeModifierOp.Add, 5f, sourceId: 1));
-            g.AddModifier(id, new AttributeModifier(AttributeModifierOp.Add, 7f, sourceId: 2));
+            g.AddModifier(id, ModifierOp.Add, 5f, 1);
+            g.AddModifier(id, ModifierOp.Add, 7f, 2);
 
             Assert.AreEqual(22f, g.GetValue(id), 0.0001f);
 
-            g.ClearModifiers(id, sourceId: 1);
+            g.ClearModifiers(1);
             Assert.AreEqual(17f, g.GetValue(id), 0.0001f);
 
-            g.ClearModifiers(id, sourceId: 2);
+            g.ClearModifiers(2);
             Assert.AreEqual(10f, g.GetValue(id), 0.0001f);
         }
 
@@ -69,9 +63,9 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var id = CreateTempAttrId();
             var ctx = new AttributeContext();
-            var g = ctx.GetGroupFor(id);
+            var g = ctx.GetOrCreateGroup("Test");
 
-            var ok = g.RemoveModifier(id, default(AttributeModifierHandle));
+            var ok = g.RemoveModifier(id, 0);
             Assert.IsFalse(ok);
         }
 
@@ -80,7 +74,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var id = CreateTempAttrId();
             var ctx = new AttributeContext();
-            var g = ctx.GetGroupFor(id);
+            var g = ctx.GetOrCreateGroup("Test");
             g.SetBase(id, 1f);
 
             var sw = Stopwatch.StartNew();
@@ -88,8 +82,8 @@ namespace AbilityKit.Game.Test.UnitTest
             const int n = 20000;
             for (int i = 0; i < n; i++)
             {
-                var h = g.AddModifier(id, new AttributeModifier(AttributeModifierOp.Add, 1f));
-                Assert.IsTrue(h.IsValid);
+                var h = g.AddModifier(id, ModifierOp.Add, 1f);
+                Assert.IsTrue(h > 0);
                 Assert.IsTrue(g.RemoveModifier(id, h));
             }
 

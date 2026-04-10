@@ -1,9 +1,11 @@
-﻿{
+{
   "name": "AbilityKit.Ability.RuntimePkg",
   "rootNamespace": "AbilityKit",
   "references": [
     "AbilityKit.Core",
+    "AbilityKit.GameplayTags",
     "AbilityKit.Attributes",
+    "AbilityKit.Modifiers",
     "AbilityKit.Ability.Pipeline.RuntimePkg",
     "AbilityKit.World.DI",
     "AbilityKit.World.FrameSync",

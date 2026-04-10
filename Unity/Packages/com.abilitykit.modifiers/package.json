@@ -16,7 +16,8 @@
         "name": "AbilityKit Team"
     },
     "dependencies": {
-        "com.abilitykit.core": "0.0.1"
+        "com.abilitykit.core": "0.0.1",
+        "com.abilitykit.gameplaytags": "0.0.1"
     },
     "samples": []
 }

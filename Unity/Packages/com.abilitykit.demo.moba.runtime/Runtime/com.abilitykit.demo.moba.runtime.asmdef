@@ -3,10 +3,12 @@
     "rootNamespace": "AbilityKit",
     "references": [
         "AbilityKit.ThirdParty.Luban.Runtime",
+        "AbilityKit.GameplayTags",
         "AbilityKit.Core",
         "AbilityKit.Protocol.Moba",
         "AbilityKit.Effects",
         "AbilityKit.Attributes",
+        "AbilityKit.Modifiers",
         "AbilityKit.Host",
         "AbilityKit.Demo.Moba.Entitas.Generated",
         "AbilityKit.World.Motion",

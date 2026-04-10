@@ -2,7 +2,8 @@
     "name": "AbilityKit.Modifiers",
     "rootNamespace": "AbilityKit.Modifiers",
     "references": [
-        "AbilityKit.Core"
+        "AbilityKit.Core",
+        "AbilityKit.GameplayTags"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

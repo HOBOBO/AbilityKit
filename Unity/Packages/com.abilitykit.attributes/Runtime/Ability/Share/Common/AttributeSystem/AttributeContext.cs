@@ -7,10 +7,15 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
     /// <summary>
     /// 属性上下文。
     /// 实现 IModifierContext 接口，可以与 AbilityKit.Modifiers 配合使用。
+    /// 
+    /// 重构说明：
+    /// - 简化 ApplyEffect 方法，使用 SourceId 追踪效果
+    /// - 移除对 AttributeModifierHandle 和 AttributeEffectHandle 的依赖
     /// </summary>
     public sealed class AttributeContext : IModifierContext
     {
         private readonly Dictionary<string, AttributeGroup> _groups = new Dictionary<string, AttributeGroup>(StringComparer.Ordinal);
+        private int _nextSourceId = 1;
 
         public IReadOnlyDictionary<string, AttributeGroup> Groups => _groups;
 
@@ -148,6 +153,8 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
 
         #endregion
 
+        #region 组管理
+
         public AttributeGroup GetOrCreateGroup(string group)
         {
             group ??= string.Empty;
@@ -186,6 +193,10 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             return GetOrCreateGroup(group);
         }
 
+        #endregion
+
+        #region 属性值操作
+
         public float GetValue(AttributeId id)
         {
             return GetGroupFor(id).GetValue(id);
@@ -196,34 +207,87 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             GetGroupFor(id).SetBase(id, baseValue);
         }
 
-        public AttributeModifierHandle AddModifier(AttributeId id, AttributeModifier modifier)
+        #endregion
+
+        #region 修改器操作
+
+        /// <summary>
+        /// 添加修改器
+        /// </summary>
+        /// <param name="id">属性 ID</param>
+        /// <param name="modifierData">修改器数据</param>
+        /// <returns>修改器句柄</returns>
+        public int AddModifier(AttributeId id, ModifierData modifierData)
         {
-            return GetGroupFor(id).AddModifier(id, modifier);
+            return GetGroupFor(id).AddModifier(id, modifierData);
         }
 
-        public bool RemoveModifier(AttributeId id, AttributeModifierHandle handle)
+        /// <summary>
+        /// 添加修改器（便捷方法）
+        /// </summary>
+        public int AddModifier(AttributeId id, ModifierOp op, float value, int sourceId = 0)
+        {
+            return GetGroupFor(id).AddModifier(id, op, value, sourceId);
+        }
+
+        /// <summary>
+        /// 移除修改器
+        /// </summary>
+        public bool RemoveModifier(AttributeId id, int handle)
         {
             return GetGroupFor(id).RemoveModifier(id, handle);
         }
 
-        public AttributeEffectHandle ApplyEffect(AttributeEffect effect)
+        /// <summary>
+        /// 清除指定来源的所有修改器
+        /// </summary>
+        /// <param name="sourceId">来源 ID</param>
+        public void ClearModifiers(int sourceId)
         {
-            if (effect == null || effect.Entries == null || effect.Entries.Length == 0) return null;
+            foreach (var group in _groups.Values)
+            {
+                group.ClearModifiers(sourceId);
+            }
+        }
 
-            var list = new List<AttributeEffectHandle.Entry>(effect.Entries.Length);
+        #endregion
+
+        #region 效果操作
+
+        /// <summary>
+        /// 应用属性效果
+        /// </summary>
+        /// <param name="effect">属性效果</param>
+        /// <returns>效果对应的 SourceId，用于后续移除</returns>
+        public int ApplyEffect(AttributeEffect effect)
+        {
+            if (effect == null || effect.Entries == null || effect.Entries.Length == 0) return 0;
+
+            var sourceId = _nextSourceId++;
+
             for (int i = 0; i < effect.Entries.Length; i++)
             {
                 var e = effect.Entries[i];
                 if (!e.Attribute.IsValid) continue;
-                var h = AddModifier(e.Attribute, e.Modifier);
-                if (h.IsValid)
-                {
-                    list.Add(new AttributeEffectHandle.Entry(e.Attribute, h));
-                }
+
+                var modifierData = e.ModifierData;
+                modifierData.SourceId = sourceId;
+                AddModifier(e.Attribute, modifierData);
             }
 
-            return list.Count == 0 ? null : new AttributeEffectHandle(this, list);
+            return sourceId;
         }
+
+        /// <summary>
+        /// 移除指定效果
+        /// </summary>
+        /// <param name="sourceId">效果对应的 SourceId</param>
+        public void RemoveEffect(int sourceId)
+        {
+            ClearModifiers(sourceId);
+        }
+
+        #endregion
 
         #region 内部方法
 
@@ -234,8 +298,6 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         /// </summary>
         internal AttributeId FindAttributeIdByKey(ModifierKey key)
         {
-            // 默认映射：ModifierKey.Packed 的低 8 位作为 AttributeId
-            // 业务层可以在子类中实现更复杂的映射逻辑
             if (key.IsEmpty) return default;
             return new AttributeId((int)key.Packed);
         }

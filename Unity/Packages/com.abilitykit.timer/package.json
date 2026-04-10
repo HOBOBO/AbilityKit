@@ -1,0 +1,13 @@
+{
+  "name": "com.abilitykit.timer",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Timer",
+  "unity": "2022.3",
+  "description": "通用定时器和调度框架。提供统一的时间管理、延时执行、周期调度能力。使用方自行注入计时器实现。",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1"
+  }
+}

@@ -205,7 +205,7 @@ namespace AbilityKit.Modifiers.Examples
     /// var mod = ModifierData.Override(
     ///     key: ModifierKey.Create(...),
     ///     value: 0,
-    ///     customData: CustomModifierData.SkillId(999)  // 强制使用技能 999
+    ///     customData: CustomModifierData.Int(999)  // 强制使用技能 999
     /// );
     /// int skillId = handler.Apply(default, mod, context);
     /// ```

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.TagSystem;
+using AbilityKit.GameplayTags;
+using GameplayTagRequirements = AbilityKit.GameplayTags.GameplayTagRequirements;
+using GameplayTagContainer = AbilityKit.GameplayTags.GameplayTagContainer;
 
 namespace AbilityKit.Ability.Share.Effect
 {

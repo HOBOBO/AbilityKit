@@ -5,6 +5,10 @@ using AbilityKit.Modifiers;
 
 namespace AbilityKit.Ability.Share.Common.AttributeSystem
 {
+    // ============================================================================
+    // 表达式属性公式
+    // ============================================================================
+
     /// <summary>
     /// 表达式属性公式。
     /// 支持自定义计算表达式，如 "base * 2 + strength * 0.5"
@@ -12,8 +16,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
     /// 支持的内置变量：
     /// - base: 基础值
     /// - add: 加法值之和
-    /// - mul: 乘法值之和
-    /// - finalAdd: 最终加法值
+    /// - mul: 乘法值之和（MulProduct - 1）
     /// - override: 覆盖值
     /// - hasOverride: 是否有覆盖（0 或 1）
     ///
@@ -42,10 +45,8 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             return _deps;
         }
 
-        #region IAttributeFormula 实现
-
         /// <summary>
-        /// 评估属性值（新版 API，直接使用 ModifierResult）
+        /// 评估属性值。
         /// </summary>
         public float Evaluate(AttributeContext ctx, AttributeId self, float baseValue, ModifierResult modifierResult)
         {
@@ -172,27 +173,6 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             return v;
         }
 
-        /// <summary>
-        /// 评估属性值（旧版 API，保留兼容）
-        /// </summary>
-        public float Evaluate(AttributeContext ctx, AttributeId self, float baseValue, in AttributeModifierSet modifiers)
-        {
-            // 转换为 ModifierResult
-            var result = new ModifierResult
-            {
-                BaseValue = baseValue,
-                AddSum = modifiers.Add,
-                MulProduct = 1f + modifiers.Mul,
-                OverrideValue = modifiers.HasOverride ? modifiers.Override : 0f,
-                OverrideFlag = modifiers.HasOverride ? (byte)1 : (byte)0,
-                Count = 0
-            };
-
-            return Evaluate(ctx, self, baseValue, result);
-        }
-
-        #endregion
-
         private void EnsureParsed(AttributeId self)
         {
             if (_parsed) return;
@@ -217,7 +197,6 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                 case BuiltinVar.Base: return baseValue;
                 case BuiltinVar.Add: return modifierResult.AddSum;
                 case BuiltinVar.Mul: return modifierResult.MulProduct - 1f;
-                case BuiltinVar.FinalAdd: return 0f;  // FinalAdd 单独处理
                 case BuiltinVar.Override: return modifierResult.OverrideValue;
                 case BuiltinVar.HasOverride: return modifierResult.HasOverride ? 1f : 0f;
                 default: return 0f;
@@ -229,7 +208,6 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             Base = 0,
             Add = 1,
             Mul = 2,
-            FinalAdd = 3,
             Override = 4,
             HasOverride = 5,
         }
@@ -593,7 +571,6 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                 if (string.Equals(ident, "base", StringComparison.OrdinalIgnoreCase)) { v = BuiltinVar.Base; return true; }
                 if (string.Equals(ident, "add", StringComparison.OrdinalIgnoreCase)) { v = BuiltinVar.Add; return true; }
                 if (string.Equals(ident, "mul", StringComparison.OrdinalIgnoreCase)) { v = BuiltinVar.Mul; return true; }
-                if (string.Equals(ident, "finalAdd", StringComparison.OrdinalIgnoreCase)) { v = BuiltinVar.FinalAdd; return true; }
                 if (string.Equals(ident, "override", StringComparison.OrdinalIgnoreCase)) { v = BuiltinVar.Override; return true; }
                 if (string.Equals(ident, "hasOverride", StringComparison.OrdinalIgnoreCase)) { v = BuiltinVar.HasOverride; return true; }
 

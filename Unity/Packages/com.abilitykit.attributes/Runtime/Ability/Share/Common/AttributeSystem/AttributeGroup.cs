@@ -1,8 +1,17 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Modifiers;
 
 namespace AbilityKit.Ability.Share.Common.AttributeSystem
 {
+    /// <summary>
+    /// 属性组。
+    /// 管理和组织一组相关的属性实例。
+    /// 
+    /// 重构说明：
+    /// - 简化修改器管理方法，使用 ModifierData 和 SourceId
+    /// - 移除对 AttributeModifierHandle 的依赖
+    /// </summary>
     public sealed class AttributeGroup
     {
         internal struct AttributeSlot
@@ -10,12 +19,6 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             public float BaseValue;
             public float Cached;
             public bool Dirty;
-
-            public float Add;
-            public float Mul;
-            public float FinalAdd;
-            public float Override;
-            public bool HasOverride;
         }
 
         private readonly string _name;
@@ -35,6 +38,8 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         public IReadOnlyDictionary<int, AttributeInstance> Attributes => _attrs;
 
         public event Action<AttributeId, float, float> AttributeChanged;
+
+        #region 属性获取
 
         public AttributeInstance GetOrCreate(AttributeId id)
         {
@@ -58,11 +63,6 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             slot.BaseValue = baseValue;
             slot.Cached = 0f;
             slot.Dirty = true;
-            slot.Add = 0f;
-            slot.Mul = 0f;
-            slot.FinalAdd = 0f;
-            slot.Override = 0f;
-            slot.HasOverride = false;
 
             inst = new AttributeInstance(this, id, _ctx);
             inst.Changed += (a, oldV, newV) => AttributeChanged?.Invoke(a, oldV, newV);
@@ -95,22 +95,59 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             GetOrCreate(id).BaseValue = baseValue;
         }
 
-        public AttributeModifierHandle AddModifier(AttributeId id, AttributeModifier modifier)
+        #endregion
+
+        #region 修改器操作
+
+        /// <summary>
+        /// 添加修改器
+        /// </summary>
+        /// <returns>修改器句柄</returns>
+        public int AddModifier(AttributeId id, ModifierData modifierData)
         {
-            return GetOrCreate(id).AddModifier(modifier);
+            return GetOrCreate(id).AddModifier(modifierData);
         }
 
-        public bool RemoveModifier(AttributeId id, AttributeModifierHandle handle)
+        /// <summary>
+        /// 添加修改器（便捷方法）
+        /// </summary>
+        public int AddModifier(AttributeId id, ModifierOp op, float value, int sourceId = 0)
+        {
+            return GetOrCreate(id).AddModifier(op, value, sourceId);
+        }
+
+        /// <summary>
+        /// 移除修改器
+        /// </summary>
+        public bool RemoveModifier(AttributeId id, int handle)
         {
             if (!TryGet(id, out var inst) || inst == null) return false;
             return inst.RemoveModifier(handle);
         }
 
-        public void ClearModifiers(AttributeId id, int sourceId = 0)
+        /// <summary>
+        /// 清除指定来源的所有修改器
+        /// </summary>
+        /// <param name="sourceId">来源 ID，0 表示清除所有</param>
+        public void ClearModifiers(int sourceId)
         {
-            if (!TryGet(id, out var inst) || inst == null) return;
-            inst.ClearModifiers(sourceId);
+            foreach (var inst in _attrs.Values)
+            {
+                inst.ClearModifiers(sourceId);
+            }
         }
+
+        /// <summary>
+        /// 清除所有修改器
+        /// </summary>
+        public void ClearAllModifiers()
+        {
+            ClearModifiers(sourceId: 0);
+        }
+
+        #endregion
+
+        #region 内部方法
 
         internal void MarkDirty(AttributeId id)
         {
@@ -131,10 +168,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
                 }
             }
 
-            if (inst != null)
-            {
-                inst.MarkDirtyByDependency();
-            }
+            inst?.MarkDirtyByDependency();
         }
 
         internal ref AttributeSlot GetSlotRef(int rawId)
@@ -156,5 +190,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
             Array.Resize(ref _byId, newSize);
             Array.Resize(ref _slots, newSize);
         }
+
+        #endregion
     }
 }

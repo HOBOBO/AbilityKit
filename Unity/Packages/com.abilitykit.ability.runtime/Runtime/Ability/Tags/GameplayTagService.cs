@@ -1,8 +1,13 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.TagSystem;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.GameplayTags;
+using GameplayTagContainer = AbilityKit.GameplayTags.GameplayTagContainer;
+using GameplayTagDelta = AbilityKit.GameplayTags.GameplayTagDelta;
+using GameplayTagSource = AbilityKit.GameplayTags.GameplayTagSource;
+using GameplayTag = AbilityKit.GameplayTags.GameplayTag;
+using ITagTemplateRegistry = AbilityKit.GameplayTags.ITagTemplateRegistry;
 
 namespace AbilityKit.Ability.Tags
 {
@@ -17,7 +22,7 @@ namespace AbilityKit.Ability.Tags
         private readonly Dictionary<int, OwnerState> _owners = new Dictionary<int, OwnerState>();
         private ITagTemplateRegistry _templates;
 
-        public event Action<int, GameplayTagDelta, TagSource> TagsChanged;
+        public event Action<int, GameplayTagDelta, GameplayTagSource> TagsChanged;
 
         public void OnInit(IWorldResolver services)
         {
@@ -42,7 +47,116 @@ namespace AbilityKit.Ability.Tags
             _owners.Remove(ownerId);
         }
 
-        public bool AddTag(int ownerId, GameplayTag tag, TagSource source)
+        public bool HasTag(int ownerId, GameplayTag tag, bool exact = false)
+        {
+            if (ownerId <= 0) return false;
+            if (!tag.IsValid) return false;
+
+            if (!_owners.TryGetValue(ownerId, out var state) || state == null)
+            {
+                return false;
+            }
+
+            return exact
+                ? state.Tags.HasTagExact(tag)
+                : state.Tags.HasTag(tag);
+        }
+
+        public bool RemoveTemplate(int ownerId, GameplayTagTemplate template, GameplayTagSource source)
+        {
+            if (ownerId <= 0) return false;
+            if (template == null) return false;
+            if (!source.IsValid) return false;
+
+            if (!_owners.TryGetValue(ownerId, out var state) || state == null)
+            {
+                return false;
+            }
+
+            if (template.RemoveTags == null || template.RemoveTags.Count == 0)
+            {
+                return true;
+            }
+
+            GameplayTagContainer removed = null;
+            foreach (var t in template.RemoveTags)
+            {
+                if (!t.IsValid) continue;
+
+                if (TryRemoveAllRefs(state, t.Value, out var becameAbsent) && becameAbsent)
+                {
+                    state.Tags.Remove(t);
+                    removed ??= new GameplayTagContainer();
+                    removed.Add(t);
+                }
+            }
+
+            if (removed != null)
+            {
+                Raise(ownerId, new GameplayTagDelta(null, removed), source);
+            }
+
+            return true;
+        }
+
+        public bool ApplyTemplate(int ownerId, GameplayTagTemplate template, GameplayTagSource source, bool checkRequirements = false)
+        {
+            if (ownerId <= 0) return false;
+            if (template == null) return false;
+            if (!source.IsValid) return false;
+
+            var state = GetOrCreate(ownerId);
+
+            if (checkRequirements)
+            {
+                if (!template.Requirements.IsSatisfiedBy(state.Tags))
+                {
+                    return false;
+                }
+            }
+
+            GameplayTagContainer added = null;
+            GameplayTagContainer removed = null;
+
+            if (template.RemoveTags != null && template.RemoveTags.Count > 0)
+            {
+                foreach (var t in template.RemoveTags)
+                {
+                    if (!t.IsValid) continue;
+
+                    if (TryRemoveAllRefs(state, t.Value, out var becameAbsent) && becameAbsent)
+                    {
+                        state.Tags.Remove(t);
+                        removed ??= new GameplayTagContainer();
+                        removed.Add(t);
+                    }
+                }
+            }
+
+            if (template.GrantTags != null && template.GrantTags.Count > 0)
+            {
+                foreach (var t in template.GrantTags)
+                {
+                    if (!t.IsValid) continue;
+
+                    if (TryAddRef(state, t.Value, source.Value, out var becamePresent) && becamePresent)
+                    {
+                        state.Tags.Add(t);
+                        added ??= new GameplayTagContainer();
+                        added.Add(t);
+                    }
+                }
+            }
+
+            if (added != null || removed != null)
+            {
+                Raise(ownerId, new GameplayTagDelta(added, removed), source);
+            }
+
+            return true;
+        }
+
+        public bool AddTag(int ownerId, GameplayTag tag, GameplayTagSource source)
         {
             if (ownerId <= 0) return false;
             if (!tag.IsValid) return false;
@@ -67,7 +181,7 @@ namespace AbilityKit.Ability.Tags
             return true;
         }
 
-        public bool RemoveTag(int ownerId, GameplayTag tag, TagSource source)
+        public bool RemoveTag(int ownerId, GameplayTag tag, GameplayTagSource source)
         {
             if (ownerId <= 0) return false;
             if (!tag.IsValid) return false;
@@ -96,7 +210,7 @@ namespace AbilityKit.Ability.Tags
             return true;
         }
 
-        public bool ApplyTemplate(int ownerId, int templateId, TagSource source, bool checkRequirements = false)
+        public bool ApplyTemplate(int ownerId, int templateId, GameplayTagSource source, bool checkRequirements = false)
         {
             if (ownerId <= 0) return false;
             if (templateId <= 0) return false;
@@ -258,7 +372,7 @@ namespace AbilityKit.Ability.Tags
             return true;
         }
 
-        private void Raise(int ownerId, GameplayTagDelta delta, TagSource source)
+        private void Raise(int ownerId, GameplayTagDelta delta, GameplayTagSource source)
         {
             if (delta.IsEmpty) return;
             TagsChanged?.Invoke(ownerId, delta, source);

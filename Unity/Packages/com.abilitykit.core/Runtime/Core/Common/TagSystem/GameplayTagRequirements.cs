@@ -1,33 +1,8 @@
+// 此文件已迁移到 AbilityKit.GameplayTags
+// 为了向后兼容，保留此别名
+using GameplayTagRequirements = AbilityKit.GameplayTags.GameplayTagRequirements;
+
 namespace AbilityKit.Ability.Share.Common.TagSystem
 {
-    public readonly struct GameplayTagRequirements
-    {
-        public readonly GameplayTagContainer Required;
-        public readonly GameplayTagContainer Blocked;
-        public readonly bool Exact;
-
-        public GameplayTagRequirements(GameplayTagContainer required, GameplayTagContainer blocked, bool exact = false)
-        {
-            Required = required;
-            Blocked = blocked;
-            Exact = exact;
-        }
-
-        public bool IsSatisfiedBy(GameplayTagContainer tags)
-        {
-            if (tags == null) return false;
-
-            if (Blocked != null && Blocked.Count > 0)
-            {
-                if (tags.HasAny(Blocked, Exact)) return false;
-            }
-
-            if (Required != null && Required.Count > 0)
-            {
-                if (!tags.HasAll(Required, Exact)) return false;
-            }
-
-            return true;
-        }
-    }
+    // 使用 AbilityKit.GameplayTags.GameplayTagRequirements 的别名
 }

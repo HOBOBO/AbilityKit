@@ -3,55 +3,27 @@ using AbilityKit.Modifiers;
 
 namespace AbilityKit.Ability.Share.Common.AttributeSystem
 {
+    // ============================================================================
+    // 属性效果
+    // ============================================================================
+
     /// <summary>
     /// 属性效果。
-    /// 表示一组对属性的修改。
-    ///
-    /// 支持两种格式：
-    /// - AttributeModifier（旧版）
-    /// - ModifierData（新版，通过 AbilityKit.Modifiers）
+    /// 表示一组对属性的修改，使用 AbilityKit.Modifiers.ModifierData。
     /// </summary>
     public sealed class AttributeEffect
     {
-        /// <summary>
-        /// 效果条目（旧版，使用 AttributeModifier）
-        /// </summary>
+        /// <summary>效果条目</summary>
         public readonly Entry[] Entries;
-
-        /// <summary>
-        /// 效果条目（新版，使用 ModifierData）
-        /// </summary>
-        public readonly ModifierEntry[] ModifierEntries;
 
         #region 构造方法
 
         /// <summary>
-        /// 使用 AttributeModifier 创建效果（旧版）
+        /// 使用效果条目创建效果
         /// </summary>
         public AttributeEffect(params Entry[] entries)
         {
             Entries = entries ?? Array.Empty<Entry>();
-            ModifierEntries = Array.Empty<ModifierEntry>();
-        }
-
-        /// <summary>
-        /// 使用 ModifierData 创建效果（新版）
-        /// </summary>
-        public static AttributeEffect FromModifiers(params ModifierEntry[] entries)
-        {
-            return new AttributeEffect(Array.Empty<Entry>(), entries ?? Array.Empty<ModifierEntry>());
-        }
-
-        private AttributeEffect()
-        {
-            Entries = Array.Empty<Entry>();
-            ModifierEntries = Array.Empty<ModifierEntry>();
-        }
-
-        private AttributeEffect(Entry[] entries, ModifierEntry[] modifierEntries)
-        {
-            Entries = entries;
-            ModifierEntries = modifierEntries;
         }
 
         #endregion
@@ -59,54 +31,74 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         #region 类型
 
         /// <summary>
-        /// 效果条目（旧版，使用 AttributeModifier）
+        /// 效果条目
         /// </summary>
         [Serializable]
         public readonly struct Entry
         {
-            public readonly AttributeId Attribute;
-            public readonly AttributeModifier Modifier;
-
-            public Entry(AttributeId attribute, AttributeModifier modifier)
-            {
-                Attribute = attribute;
-                Modifier = modifier;
-            }
-
-            /// <summary>
-            /// 转换为新版 ModifierEntry
-            /// </summary>
-            public ModifierEntry ToModifierEntry()
-            {
-                return new ModifierEntry(Attribute, Modifier.ToModifierData(ModifierKey.FromPacked((uint)Attribute.Id)));
-            }
-        }
-
-        /// <summary>
-        /// 效果条目（新版，使用 ModifierData）
-        /// </summary>
-        [Serializable]
-        public readonly struct ModifierEntry
-        {
             /// <summary>属性 ID</summary>
-            public readonly AttributeId AttributeId;
+            public readonly AttributeId Attribute;
 
             /// <summary>修改器数据</summary>
             public readonly ModifierData ModifierData;
 
-            public ModifierEntry(AttributeId attributeId, ModifierData modifierData)
+            public Entry(AttributeId attribute, ModifierData modifierData)
             {
-                AttributeId = attributeId;
+                Attribute = attribute;
                 ModifierData = modifierData;
             }
 
+            #region 工厂方法
+
             /// <summary>
-            /// 转换为旧版 Entry
+            /// 创建加法修改器
             /// </summary>
-            public Entry ToEntry()
+            public static Entry Add(AttributeId attribute, float value, int sourceId = 0)
             {
-                return new Entry(AttributeId, AttributeModifier.FromModifierData(ModifierData));
+                return new Entry(attribute, ModifierData.Add(
+                    ModifierKey.FromPacked((uint)attribute.Id),
+                    value,
+                    sourceId
+                ));
             }
+
+            /// <summary>
+            /// 创建乘法修改器
+            /// </summary>
+            public static Entry Mul(AttributeId attribute, float value, int sourceId = 0)
+            {
+                return new Entry(attribute, ModifierData.Mul(
+                    ModifierKey.FromPacked((uint)attribute.Id),
+                    value,
+                    sourceId
+                ));
+            }
+
+            /// <summary>
+            /// 创建百分比加成修改器
+            /// </summary>
+            public static Entry PercentAdd(AttributeId attribute, float percentValue, int sourceId = 0)
+            {
+                return new Entry(attribute, ModifierData.PercentAdd(
+                    ModifierKey.FromPacked((uint)attribute.Id),
+                    percentValue,
+                    sourceId
+                ));
+            }
+
+            /// <summary>
+            /// 创建覆盖修改器
+            /// </summary>
+            public static Entry Override(AttributeId attribute, float value, int sourceId = 0)
+            {
+                return new Entry(attribute, ModifierData.Override(
+                    ModifierKey.FromPacked((uint)attribute.Id),
+                    value,
+                    sourceId
+                ));
+            }
+
+            #endregion
         }
 
         #endregion
@@ -118,7 +110,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         /// </summary>
         public static AttributeEffect Add(AttributeId attr, float value, int sourceId = 0)
         {
-            return new AttributeEffect(new Entry(attr, AttributeModifier.Add(value, sourceId)));
+            return new AttributeEffect(Entry.Add(attr, value, sourceId));
         }
 
         /// <summary>
@@ -126,7 +118,15 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         /// </summary>
         public static AttributeEffect Mul(AttributeId attr, float value, int sourceId = 0)
         {
-            return new AttributeEffect(new Entry(attr, AttributeModifier.Mul(value, sourceId)));
+            return new AttributeEffect(Entry.Mul(attr, value, sourceId));
+        }
+
+        /// <summary>
+        /// 创建百分比加成效果
+        /// </summary>
+        public static AttributeEffect PercentAdd(AttributeId attr, float percentValue, int sourceId = 0)
+        {
+            return new AttributeEffect(Entry.PercentAdd(attr, percentValue, sourceId));
         }
 
         /// <summary>
@@ -134,15 +134,7 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         /// </summary>
         public static AttributeEffect Override(AttributeId attr, float value, int sourceId = 0)
         {
-            return new AttributeEffect(new Entry(attr, AttributeModifier.Override(value, sourceId)));
-        }
-
-        /// <summary>
-        /// 创建最终加法效果
-        /// </summary>
-        public static AttributeEffect FinalAdd(AttributeId attr, float value, int sourceId = 0)
-        {
-            return new AttributeEffect(new Entry(attr, AttributeModifier.FinalAdd(value, sourceId)));
+            return new AttributeEffect(Entry.Override(attr, value, sourceId));
         }
 
         #endregion
@@ -150,35 +142,14 @@ namespace AbilityKit.Ability.Share.Common.AttributeSystem
         #region 扩展方法
 
         /// <summary>
-        /// 获取所有条目数量
+        /// 获取条目数量
         /// </summary>
-        public int Count => Entries.Length + ModifierEntries.Length;
+        public int Count => Entries.Length;
 
         /// <summary>
-        /// 是否有任何条目
+        /// 是否有条目
         /// </summary>
         public bool HasEntries => Count > 0;
-
-        /// <summary>
-        /// 转换为 ModifierData 数组
-        /// </summary>
-        public ModifierData[] ToModifierDataArray()
-        {
-            var result = new ModifierData[Count];
-            int index = 0;
-
-            for (int i = 0; i < Entries.Length; i++)
-            {
-                result[index++] = Entries[i].ToModifierEntry().ModifierData;
-            }
-
-            for (int i = 0; i < ModifierEntries.Length; i++)
-            {
-                result[index++] = ModifierEntries[i].ModifierData;
-            }
-
-            return result;
-        }
 
         #endregion
     }

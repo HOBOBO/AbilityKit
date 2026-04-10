@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Share.Common.TagSystem;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.ECS.Entitas;
 using AbilityKit.Ability.Share.Effect;
@@ -12,6 +11,8 @@ using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.GameplayTags;
+using GameplayTagRequirements = AbilityKit.GameplayTags.GameplayTagRequirements;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {

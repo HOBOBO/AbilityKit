@@ -1,8 +1,9 @@
-﻿{
+{
   "name": "AbilityKit.Base.Editor",
   "rootNamespace": "AbilityKit",
   "references": [
     "AbilityKit.Core",
+    "AbilityKit.GameplayTags.Editor",
     "NBC.ActionEditor",
     "NBC.ActionEditor.Editor",
     "ActionEditorImpl",

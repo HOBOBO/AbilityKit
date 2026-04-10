@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.TagSystem;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.GameplayTags;
+using IDurableRegistry = AbilityKit.GameplayTags.IDurableRegistry;
+using IDurable = AbilityKit.GameplayTags.IDurable;
 
 namespace AbilityKit.Ability.Tags
 {

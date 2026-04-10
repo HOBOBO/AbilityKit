@@ -1,12 +1,8 @@
-using System.Collections.Generic;
+// 此文件已迁移到 AbilityKit.GameplayTags
+// 为了向后兼容，保留此别名
+using IDurableRegistry = AbilityKit.GameplayTags.IDurableRegistry;
 
 namespace AbilityKit.Ability.Share.Common.TagSystem
 {
-    public interface IDurableRegistry
-    {
-        void Register(IDurable durable);
-        bool Unregister(IDurable durable);
-
-        IReadOnlyList<IDurable> GetByOwner(int ownerId);
-    }
+    // 使用 AbilityKit.GameplayTags.IDurableRegistry 的别名
 }

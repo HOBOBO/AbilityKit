@@ -81,7 +81,7 @@ var attrBased = new AttributeBasedMagnitude { AttributeKey = ModifierKey.Create(
 data = ModifierData.AddAttributeBased(key, attrBased, sourceId: 4);
 
 // 自定义修改器
-data = ModifierData.Custom(key, ModifierOp.Custom, CustomModifierData.SkillId(999), sourceId: 5);
+data = ModifierData.Custom(key, ModifierOp.Custom, CustomModifierData.Int(999), sourceId: 5);
 
 // 获取生效数值
 float value = data.GetMagnitude(level: 5, context);
@@ -249,6 +249,6 @@ var handler = new SkillIdModifierHandler();
 var mod = ModifierData.Custom(
     ModifierKey.Create(ModifierKey.Categories.Skill),
     ModifierOp.Override,
-    CustomModifierData.SkillId(999)
+    CustomModifierData.Int(999)
 );
 ```

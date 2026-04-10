@@ -1,18 +1,9 @@
-using System;
+// 此文件已迁移到 AbilityKit.GameplayTags
+// 为了向后兼容，保留此别名
+using IGameplayTagService = AbilityKit.GameplayTags.IGameplayTagService;
+using ITaggedEntityService = AbilityKit.GameplayTags.ITaggedEntityService;
 
 namespace AbilityKit.Ability.Share.Common.TagSystem
 {
-    public interface IGameplayTagService
-    {
-        event Action<int, GameplayTagDelta, TagSource> TagsChanged;
-
-        GameplayTagContainer GetTags(int ownerId);
-
-        bool AddTag(int ownerId, GameplayTag tag, TagSource source);
-        bool RemoveTag(int ownerId, GameplayTag tag, TagSource source);
-
-        bool ApplyTemplate(int ownerId, int templateId, TagSource source, bool checkRequirements = false);
-
-        void ClearOwner(int ownerId);
-    }
+    // 使用 AbilityKit.GameplayTags.IGameplayTagService 和 ITaggedEntityService 的别名
 }

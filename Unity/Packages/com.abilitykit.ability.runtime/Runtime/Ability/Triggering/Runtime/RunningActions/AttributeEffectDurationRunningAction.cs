@@ -1,18 +1,42 @@
 using System;
-using AbilityKit.Ability.Share.Common.AttributeSystem;
 using AbilityKit.Ability.Share.Common.Log;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
+    /// <summary>
+    /// 持续时间运行的属性效果动作。
+    /// 使用 SourceId 追踪效果，结束时自动移除。
+    /// </summary>
     public sealed class AttributeEffectDurationRunningAction : IRunningAction
     {
-        private AttributeEffectHandle _handle;
+        private readonly int _sourceId;
+        private readonly Action<int> _removeEffect;
         private float _remaining;
         private bool _done;
 
-        public AttributeEffectDurationRunningAction(AttributeEffectHandle handle, float durationSeconds)
+        /// <summary>
+        /// 构造函数（需要外部传入移除效果的回调）
+        /// </summary>
+        public AttributeEffectDurationRunningAction(int sourceId, float durationSeconds, Action<int> removeEffect = null)
         {
-            _handle = handle;
+            _sourceId = sourceId;
+            _removeEffect = removeEffect;
+            _remaining = durationSeconds;
+            if (durationSeconds <= 0f)
+            {
+                _done = true;
+                Remove();
+            }
+        }
+
+        /// <summary>
+        /// 构造函数（兼容旧 API，但已弃用）
+        /// </summary>
+        [System.Obsolete("请使用带 removeEffect 参数的构造函数")]
+        public AttributeEffectDurationRunningAction(int sourceId, float durationSeconds)
+        {
+            _sourceId = sourceId;
+            _removeEffect = null;
             _remaining = durationSeconds;
             if (durationSeconds <= 0f)
             {
@@ -49,18 +73,14 @@ namespace AbilityKit.Ability.Triggering.Runtime
 
         private void Remove()
         {
-            if (_handle == null) return;
-
             try
             {
-                _handle.Dispose();
+                _removeEffect?.Invoke(_sourceId);
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, "[AttributeEffectDurationRunningAction] handle dispose failed");
+                Log.Exception(ex, "[AttributeEffectDurationRunningAction] remove effect failed");
             }
-
-            _handle = null;
         }
     }
 }

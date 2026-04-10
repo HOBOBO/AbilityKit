@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability.Impl.Moba.Components;
 using AbilityKit.Ability.Share.Common.AttributeSystem;
+using AbilityKit.Modifiers;
 
 namespace AbilityKit.Ability.Impl.Moba.Attributes
 {
@@ -92,12 +93,27 @@ namespace AbilityKit.Ability.Impl.Moba.Attributes
             RequireGroup().SetBase(MobaAttributeIds.Get(type), baseValue);
         }
 
-        public AttributeModifierHandle AddModifier(BattleAttributeType type, AttributeModifier modifier)
+        /// <summary>
+        /// 添加修改器
+        /// </summary>
+        /// <returns>修改器句柄</returns>
+        public int AddModifier(BattleAttributeType type, ModifierData modifierData)
         {
-            return RequireGroup().AddModifier(MobaAttributeIds.Get(type), modifier);
+            return RequireGroup().AddModifier(MobaAttributeIds.Get(type), modifierData);
         }
 
-        public bool RemoveModifier(BattleAttributeType type, AttributeModifierHandle handle)
+        /// <summary>
+        /// 添加修改器（便捷方法）
+        /// </summary>
+        public int AddModifier(BattleAttributeType type, ModifierOp op, float value, int sourceId = 0)
+        {
+            return RequireGroup().AddModifier(MobaAttributeIds.Get(type), op, value, sourceId);
+        }
+
+        /// <summary>
+        /// 移除修改器
+        /// </summary>
+        public bool RemoveModifier(BattleAttributeType type, int handle)
         {
             return RequireGroup().RemoveModifier(MobaAttributeIds.Get(type), handle);
         }

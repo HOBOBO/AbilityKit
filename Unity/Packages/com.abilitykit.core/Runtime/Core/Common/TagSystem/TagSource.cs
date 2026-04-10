@@ -1,16 +1,8 @@
+// 此文件已迁移到 AbilityKit.GameplayTags
+// 为了向后兼容，保留此别名
+using TagSource = AbilityKit.GameplayTags.GameplayTagSource;
+
 namespace AbilityKit.Ability.Share.Common.TagSystem
 {
-    public readonly struct TagSource
-    {
-        public readonly long Value;
-
-        public TagSource(long value)
-        {
-            Value = value;
-        }
-
-        public bool IsValid => Value != 0;
-
-        public override string ToString() => Value.ToString();
-    }
+    // 使用 AbilityKit.GameplayTags.GameplayTagSource 的别名
 }

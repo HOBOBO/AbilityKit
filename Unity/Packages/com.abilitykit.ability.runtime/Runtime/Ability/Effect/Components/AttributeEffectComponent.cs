@@ -3,10 +3,12 @@ using AbilityKit.Ability.Share.Common.AttributeSystem;
 
 namespace AbilityKit.Ability.Share.Effect.Components
 {
+    /// <summary>
+    /// 属性效果组件。
+    /// 应用属性效果并在移除时自动清理。
+    /// </summary>
     public sealed class AttributeEffectComponent : IEffectComponent
     {
-        private static readonly object HandleKey = new object();
-
         private readonly AttributeEffect _effect;
 
         public AttributeEffectComponent(AttributeEffect effect)
@@ -22,10 +24,10 @@ namespace AbilityKit.Ability.Share.Effect.Components
             var attrs = context.TargetAttributes;
             if (attrs == null) return;
 
-            var handle = attrs.ApplyEffect(_effect);
-            if (handle != null)
+            var sourceId = attrs.ApplyEffect(_effect);
+            if (sourceId != 0)
             {
-                instance.SetState(HandleKey, handle);
+                instance.SetState("AttributeEffectSourceId", sourceId);
             }
         }
 
@@ -37,10 +39,11 @@ namespace AbilityKit.Ability.Share.Effect.Components
         {
             if (instance == null) throw new ArgumentNullException(nameof(instance));
 
-            if (instance.TryGetState<AttributeEffectHandle>(HandleKey, out var handle) && handle != null)
+            if (instance.TryGetState<int>("AttributeEffectSourceId", out var sourceId) && sourceId != 0)
             {
-                handle.Dispose();
-                instance.RemoveState(HandleKey);
+                var attrs = context.TargetAttributes;
+                attrs?.ClearModifiers(sourceId);
+                instance.RemoveState("AttributeEffectSourceId");
             }
         }
     }

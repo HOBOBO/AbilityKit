@@ -1,8 +1,9 @@
 using System;
 using AbilityKit.Ability.Share.Common.AttributeSystem;
-using AbilityKit.Ability.Share.Common.TagSystem;
+using AbilityKit.GameplayTags;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Game.Battle;
+using GameplayTagsUtil = AbilityKit.GameplayTags.GameplayTags;
 
 namespace AbilityKit.Game.Editor
 {
@@ -45,7 +46,7 @@ namespace AbilityKit.Game.Editor
             if (key.Equals("tag", StringComparison.OrdinalIgnoreCase))
             {
                 if (unit.Tags == null) return false;
-                if (!GameplayTags.TryGet(expr, out var tag)) return false;
+                if (!GameplayTagsUtil.TryGet(expr, out var tag)) return false;
                 return unit.Tags.HasTag(tag);
             }
 

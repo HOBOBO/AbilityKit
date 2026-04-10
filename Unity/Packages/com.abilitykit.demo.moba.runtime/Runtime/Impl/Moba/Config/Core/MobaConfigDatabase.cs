@@ -423,6 +423,20 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core
         public bool TryGetComponentTemplate(int id, out ComponentTemplateMO mo) => GetTable<ComponentTemplateMO>().TryGet(id, out mo);
         public bool TryGetSkillButtonTemplate(int id, out SkillButtonTemplateMO mo) => GetTable<SkillButtonTemplateMO>().TryGet(id, out mo);
         public bool TryGetTagTemplate(int id, out TagTemplateMO mo) => GetTable<TagTemplateMO>().TryGet(id, out mo);
+        public bool TryGetTagTemplateByName(string name, out TagTemplateMO mo)
+        {
+            mo = null;
+            if (string.IsNullOrEmpty(name)) return false;
+            foreach (var entry in GetTable<TagTemplateMO>().All())
+            {
+                if (entry != null && name == entry.Name)
+                {
+                    mo = entry;
+                    return true;
+                }
+            }
+            return false;
+        }
         public bool TryGetOngoingEffect(int id, out OngoingEffectMO mo) => GetTable<OngoingEffectMO>().TryGet(id, out mo);
         public bool TryGetProjectileLauncher(int id, out ProjectileLauncherMO mo) => GetTable<ProjectileLauncherMO>().TryGet(id, out mo);
         public bool TryGetProjectile(int id, out ProjectileMO mo) => GetTable<ProjectileMO>().TryGet(id, out mo);

@@ -4,6 +4,7 @@
     "references": [
         "AbilityKit.Demo.Moba.View.Runtime",
         "AbilityKit.Attributes",
+        "AbilityKit.Modifiers",
         "AbilityKit.Ability.Runtime",
         "AbilityKit.Ability.RuntimePkg",
         "AbilityKit.Ability.Unity",

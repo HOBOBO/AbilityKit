@@ -1,8 +1,14 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Common.TagSystem;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.GameplayTags;
+using IGameplayTagService = AbilityKit.GameplayTags.IGameplayTagService;
+using ITagEffectRouter = AbilityKit.GameplayTags.ITagEffectRouter;
+using ITagChangeSubscriber = AbilityKit.GameplayTags.ITagChangeSubscriber;
+using GameplayTagContainer = AbilityKit.GameplayTags.GameplayTagContainer;
+using GameplayTagDelta = AbilityKit.GameplayTags.GameplayTagDelta;
+using GameplayTagSource = AbilityKit.GameplayTags.GameplayTagSource;
 
 namespace AbilityKit.Ability.Tags
 {
@@ -60,7 +66,12 @@ namespace AbilityKit.Ability.Tags
             return _subs.Remove(subscriber);
         }
 
-        private void OnTagsChanged(int ownerId, GameplayTagDelta delta, TagSource source)
+        public System.Collections.Generic.IReadOnlyList<ITagChangeSubscriber> GetSubscribers()
+        {
+            return _subs;
+        }
+
+        private void OnTagsChanged(int ownerId, GameplayTagDelta delta, GameplayTagSource source)
         {
             if (_tags == null) return;
             var current = _tags.GetTags(ownerId);
@@ -86,7 +97,7 @@ namespace AbilityKit.Ability.Tags
                 _durables = durables;
             }
 
-            public void OnTagsChanged(int ownerId, GameplayTagContainer currentTags, GameplayTagDelta delta, TagSource source)
+            public void OnTagsChanged(int ownerId, GameplayTagContainer currentTags, GameplayTagDelta delta, GameplayTagSource source)
             {
                 if (_durables == null) return;
                 if (currentTags == null) return;

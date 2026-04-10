@@ -1,24 +1,8 @@
+// 此文件已迁移到 AbilityKit.GameplayTags
+// 为了向后兼容，保留此别名
+using GameplayTagDelta = AbilityKit.GameplayTags.GameplayTagDelta;
+
 namespace AbilityKit.Ability.Share.Common.TagSystem
 {
-    public readonly struct GameplayTagDelta
-    {
-        public readonly GameplayTagContainer Added;
-        public readonly GameplayTagContainer Removed;
-
-        public GameplayTagDelta(GameplayTagContainer added, GameplayTagContainer removed)
-        {
-            Added = added;
-            Removed = removed;
-        }
-
-        public bool IsEmpty
-        {
-            get
-            {
-                var addedEmpty = Added == null || Added.Count == 0;
-                var removedEmpty = Removed == null || Removed.Count == 0;
-                return addedEmpty && removedEmpty;
-            }
-        }
-    }
+    // 使用 AbilityKit.GameplayTags.GameplayTagDelta 的别名
 }

@@ -33,7 +33,7 @@
 
 ### 想了解修饰器叠加规则？
 
-👉 阅读 [属性系统模块开发设计文档](./属性系统模块开发设计文档.md) 第四章「核心组件详解 - AttributeModifier」
+👉 阅读 [属性系统模块开发设计文档](./属性系统模块开发设计文档.md) 第四章「核心组件详解」
 
 ---
 
@@ -47,29 +47,35 @@
 ┌─────────────────────────────────────────────────────┐
 │              AbilityKit.Attributes                    │
 │  ┌─────────────────────────────────────────────┐  │
-│  │ AttributeContext      ← 属性存储、生命周期    │  │
-│  │ AttributeInstance    ← 修改器槽、脏值追踪    │  │
-│  │ AttributeEffect      ← 修改器效果应用        │  │
-│  │ 依赖追踪、约束、公式  ← 属性特有逻辑         │  │
+│  │ 业务层友好的抽象：                               │  │
+│  │ - AttributeContext  ← 属性存储、生命周期        │  │
+│  │ - AttributeRegistry  ← 属性注册管理            │  │
+│  │ - AttributeDef  ← 属性定义                    │  │
+│  │ - IAttributeFormula  ← 公式接口                │  │
+│  │ - IAttributeConstraint  ← 约束接口            │  │
+│  │ - AttributeEffect  ← 便捷工厂（使用 ModifierData）│  │
 │  └─────────────────────────────────────────────┘  │
 │                       ↓ 使用                        │
 │  ┌─────────────────────────────────────────────┐  │
 │  │           AbilityKit.Modifiers               │  │
 │  │  ModifierData    ← 通用数据结构              │  │
+│  │  ModifierResult  ← 计算结果                  │  │
 │  │  ModifierCalculator ← 通用计算引擎            │  │
-│  │  IModifierHandler<T> ← 扩展接口              │  │
+│  │  ModifierKey    ← 修改器键                  │  │
 │  └─────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 兼容性
+### 重构说明
 
-| 功能 | 说明 |
-|------|------|
-| AttributeModifier → ModifierData | 支持双向转换 |
-| AttributeModifierSet → ModifierResult | 支持转换 |
-| AttributeContext 实现 IModifierContext | 可与 ModifierCalculator 配合 |
-| IAttributeFormula 支持新版 API | 可直接使用 ModifierResult |
+> **v0.0.2 重构说明**：attributes 模块已降级为 modifiers 模块的使用者，不再包含独立的修改器计算逻辑。
+
+| 旧版（已废弃） | 新版 |
+|---------------|------|
+| `AttributeModifier` | 直接使用 `ModifierData` |
+| `AttributeModifierSet` | 直接使用 `ModifierResult` |
+| `AttributeEffectHandle` | 使用 `int` (SourceId) |
+| 双分支计算逻辑 | 统一使用 `ModifierCalculator` |
 
 ---
 
@@ -84,17 +90,16 @@
 | `AttributeContext` | 属性上下文，管理实体的所有属性 |
 | `AttributeGroup` | 属性组，管理一组相关属性 |
 | `AttributeInstance` | 属性实例，具体的属性值 |
-| `AttributeModifier` | 修饰器，修改属性值（可转换为 ModifierData） |
-| `AttributeEffect` | 效果，多个修饰器的组合 |
+| `AttributeEffect` | 效果，使用 ModifierData 的便捷工厂 |
 
-### 修饰器操作
+### 修改器操作
 
 | 操作 | 说明 |
 |------|------|
-| `Add` | 直接加到基础值 |
-| `Mul` | 乘法叠加 |
-| `FinalAdd` | 最终加法 |
-| `Override` | 强制覆盖 |
+| `ModifierOp.Add` | 直接加到基础值 |
+| `ModifierOp.Mul` | 乘法叠加 |
+| `ModifierOp.PercentAdd` | 百分比加成 |
+| `ModifierOp.Override` | 强制覆盖 |
 
 ### 扩展接口
 
@@ -106,8 +111,8 @@
 ### 计算公式
 
 ```
-value = (Base + Add) * (1 + Mul) + FinalAdd
-value = Override (如果有 Override)
+value = (Base + AddSum) * MulProduct
+value = OverrideValue (如果有 Override)
 ```
 
 ---
@@ -142,18 +147,19 @@ com.abilitykit.attributes/Runtime/Ability/Share/Common/AttributeSystem/
 ├── AttributeDef.cs                      # 属性定义
 ├── AttributeContext.cs                  # 属性上下文（实现 IModifierContext）
 ├── AttributeGroup.cs                    # 属性组
-├── AttributeInstance.cs                 # 属性实例（可使用 ModifierCalculator）
-├── AttributeModifier.cs                 # 修饰器（可转换为 ModifierData）
-├── AttributeEffect.cs                   # 效果
+├── AttributeInstance.cs                  # 属性实例（使用 ModifierCalculator）
+├── AttributeEffect.cs                   # 效果（使用 ModifierData）
 ├── AttributeRegistry.cs                  # 注册表
-├── IAttributeFormula.cs                # 公式接口（支持 ModifierResult）
+├── IAttributeFormula.cs                 # 公式接口（使用 ModifierResult）
 ├── DefaultAttributeFormula.cs           # 默认公式
-├── AttributeExpressionFormula.cs       # 表达式公式
+├── AttributeExpressionFormula.cs        # 表达式公式
 ├── IAttributeConstraint.cs              # 约束接口
 ├── RangeAttributeConstraint.cs          # 范围约束
-└── IAttributeDependencyProvider.cs     # 依赖提供者
+├── IAttributeDependencyProvider.cs      # 依赖提供者
+├── IAttributeProvider.cs               # 属性提供者接口
+└── IAttributeConstraint.cs              # 约束接口
 ```
 
 ---
 
-*最后更新：2026-03-31*
+*最后更新：2026-04-09*
