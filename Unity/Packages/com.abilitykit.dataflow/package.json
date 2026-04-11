@@ -1,0 +1,13 @@
+{
+    "name": "com.abilitykit.dataflow",
+    "version": "0.0.1",
+    "displayName": "AbilityKit Dataflow",
+    "unity": "2022.3",
+    "description": "Generic dataflow processing pipeline for combat calculations (damage, healing, shielding).",
+    "author": {
+        "name": "AbilityKit"
+    },
+    "dependencies": {
+        "com.abilitykit.core": "0.0.1"
+    }
+}

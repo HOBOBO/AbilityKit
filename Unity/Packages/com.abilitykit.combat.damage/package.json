@@ -1,15 +1,16 @@
-﻿{
-  "name": "com.abilitykit.combat.damage",
-  "version": "0.0.1",
-  "displayName": "AbilityKit Combat Damage",
-  "unity": "2022.3",
-  "description": "Damage pipeline and combat damage services.",
-  "author": { "name": "AbilityKit" },
-  "dependencies": {
-    "com.abilitykit.core": "0.0.1",
-    "com.abilitykit.world.di": "0.0.1",
-    "com.abilitykit.world.ecs": "0.0.1",
-    "com.abilitykit.world.snapshot": "0.0.1",
-    "com.abilitykit.world.framesync": "0.0.1"
-  }
+{
+    "name": "com.abilitykit.combat.damage",
+    "version": "0.0.1",
+    "displayName": "AbilityKit Combat Damage",
+    "unity": "2022.3",
+    "description": "Combat damage calculation system using dataflow pipeline.",
+    "author": {
+        "name": "AbilityKit"
+    },
+    "dependencies": {
+        "com.abilitykit.core": "0.0.1",
+        "com.abilitykit.dataflow": "0.0.1",
+        "com.abilitykit.modifiers": "0.0.1",
+        "com.abilitykit.attributes": "0.0.1"
+    }
 }

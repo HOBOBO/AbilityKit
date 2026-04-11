@@ -1,11 +1,8 @@
 {
-    "name": "AbilityKit.Combat.Damage",
-    "rootNamespace": "AbilityKit.Combat",
+    "name": "AbilityKit.Dataflow",
+    "rootNamespace": "AbilityKit.Dataflow",
     "references": [
-        "AbilityKit.Core",
-        "AbilityKit.Dataflow",
-        "AbilityKit.Modifiers",
-        "AbilityKit.Attributes"
+        "AbilityKit.Core"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
