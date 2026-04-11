@@ -19,7 +19,7 @@ namespace AbilityKit.Ability.Configs
 
         public VarScope ValueFromScope = VarScope.Local;
         public string ValueFromKey;
-        public ArgRuntimeEntry ThresholdValue = new ArgRuntimeEntry();
+        public ArgRuntimeEntryCore ThresholdValue = new ArgRuntimeEntryCore();
 
         public override ConditionDef ToConditionDef()
         {

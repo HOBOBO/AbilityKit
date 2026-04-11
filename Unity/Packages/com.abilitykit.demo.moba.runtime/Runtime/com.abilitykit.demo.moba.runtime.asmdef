@@ -18,6 +18,7 @@
         "AbilityKit.World.ECS",
         "AbilityKit.World.Snapshot",
         "AbilityKit.Ability.RuntimePkg",
+        "AbilityKit.Ability.Engine",
         "AbilityKit.Ability.Unity",
         "AbilityKit.Ability.Behavior",
         "AbilityKit.ActionSchema",
@@ -29,7 +30,8 @@
         "AbilityKit.Combat.Collision.Unity",
         "AbilityKit.Triggering",
         "AbilityKit.Pipeline",
-        "AbilityKit.Trace"
+        "AbilityKit.Trace",
+        "AbilityKit.Examples"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

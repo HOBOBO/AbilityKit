@@ -1,0 +1,26 @@
+{
+  "name": "AbilityKit.Examples",
+  "rootNamespace": "AbilityKit.Examples",
+  "references": [
+    "AbilityKit.Ability.Engine",
+    "AbilityKit.Ability.RuntimePkg",
+    "AbilityKit.Core",
+    "AbilityKit.HFSM",
+    "AbilityKit.HFSM.Core",
+    "AbilityKit.HFSM.Unity",
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.World.DI",
+    "AbilityKit.Server",
+    "AbilityKit.World.Snapshot",
+    "AbilityKit.World.ECS"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

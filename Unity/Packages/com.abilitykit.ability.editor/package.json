@@ -1,4 +1,4 @@
-﻿{
+{
     "name":  "com.abilitykit.ability.editor",
     "version":  "0.0.1",
     "displayName":  "AbilityKit Ability Editor",
@@ -7,7 +7,8 @@
     "author":  {
                    "name":  "AbilityKit"
                },
-    "dependencies":  {
+    "dependencies": {
+                         "com.abilitykit.ability.engine":  "0.0.1",
                          "com.abilitykit.ability.runtime":  "0.0.1",
                          "com.abilitykit.core":  "0.0.1"
                      }

@@ -21,7 +21,7 @@ namespace AbilityKit.Ability.Configs
         public VarScope ValueFromScope = VarScope.Local;
         public string ValueFromKey;
 
-        public ArgRuntimeEntry Value = new ArgRuntimeEntry();
+        public ArgRuntimeEntryCore Value = new ArgRuntimeEntryCore();
 
         public override ConditionDef ToConditionDef()
         {

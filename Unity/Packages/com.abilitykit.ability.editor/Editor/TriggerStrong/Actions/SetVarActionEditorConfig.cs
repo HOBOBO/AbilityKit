@@ -131,7 +131,7 @@ namespace AbilityKit.Ability.Editor
                 ValueFromScope = ValueFromScope,
                 ValueFromKey = ValueFromKey,
                 Key = Key,
-                Value = Value != null ? Value.Clone() : null
+                Value = Value != null ? Value.ToCore() : null
             };
         }
     }

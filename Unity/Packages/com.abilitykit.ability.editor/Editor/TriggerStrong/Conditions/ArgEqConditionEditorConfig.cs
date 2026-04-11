@@ -36,7 +36,7 @@ namespace AbilityKit.Ability.Editor
                 ValueSource = Expected != null ? Expected.Source : ValueSourceKind.Const,
                 ValueFromScope = Expected != null ? Expected.FromScope : VarScope.Local,
                 ValueFromKey = Expected != null ? Expected.FromKey : null,
-                Value = Expected != null && Expected.ConstValue != null ? Expected.ConstValue.Clone() : null
+                Value = Expected != null && Expected.ConstValue != null ? Expected.ConstValue.ToCore() : null
             };
         }
     }

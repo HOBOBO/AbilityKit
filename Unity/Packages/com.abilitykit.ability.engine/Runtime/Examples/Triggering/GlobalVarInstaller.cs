@@ -1,0 +1,19 @@
+using AbilityKit.Ability.Configs;
+using AbilityKit.Ability.Triggering;
+using UnityEngine;
+
+namespace AbilityKit.Examples.Triggering
+{
+    public sealed class GlobalVarInstaller : MonoBehaviour
+    {
+        public GlobalVarsSO Asset;
+        public bool ApplyOnAwake = true;
+
+        private void Awake()
+        {
+            if (!ApplyOnAwake) return;
+            if (Asset == null) return;
+            Asset.ApplyToGlobalStore();
+        }
+    }
+}

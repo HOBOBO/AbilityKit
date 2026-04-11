@@ -1,15 +1,9 @@
 {
-  "name": "AbilityKit.Ability.Editor",
-  "rootNamespace": "",
+  "name": "AbilityKit.Ability.Engine.Editor",
+  "rootNamespace": "AbilityKit",
   "references": [
-    "AbilityKit.Core",
     "AbilityKit.Ability.RuntimePkg",
-    "AbilityKit.Ability.Unity",
-    "AbilityKit.Ability.Engine",
-    "AbilityKit.World.Snapshot",
-    "AbilityKit.Triggering",
-    "AbilityKit.Pipeline",
-    "AbilityKit.Pipeline.Editor"
+    "AbilityKit.Ability.Engine"
   ],
   "includePlatforms": [
     "Editor"

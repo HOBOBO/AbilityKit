@@ -1,0 +1,16 @@
+{
+  "name": "AbilityKit.Ability.Engine",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Ability.RuntimePkg"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

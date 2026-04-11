@@ -5,8 +5,18 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
+        "com.abilitykit.ability.engine": "0.0.1",
         "com.abilitykit.ability.runtime": "0.0.1",
         "com.abilitykit.core": "0.0.1"
+      }
+    },
+    "com.abilitykit.ability.engine": {
+      "version": "file:com.abilitykit.ability.engine",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.ability.runtime": "0.0.1",
+        "com.unity.nuget.newtonsoft-json": "3.2.1"
       }
     },
     "com.abilitykit.ability.explain": {
@@ -130,20 +140,21 @@
         "com.abilitykit.attributes": "0.0.1"
       }
     },
-    "com.abilitykit.dataflow": {
-      "version": "file:com.abilitykit.dataflow",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.abilitykit.core": "0.0.1"
-      }
-    },
     "com.abilitykit.combat.entitymanager": {
       "version": "file:com.abilitykit.combat.entitymanager",
       "depth": 0,
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.core": "0.0.1"
+      }
+    },
+    "com.abilitykit.combat.motion": {
+      "version": "file:com.abilitykit.combat.motion",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "0.0.1",
+        "com.abilitykit.combat.collision.abstractions": "0.0.1"
       }
     },
     "com.abilitykit.combat.projectile": {
@@ -182,6 +193,14 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {}
+    },
+    "com.abilitykit.dataflow": {
+      "version": "file:com.abilitykit.dataflow",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "0.0.1"
+      }
     },
     "com.abilitykit.demo.moba.editor": {
       "version": "file:com.abilitykit.demo.moba.editor",
@@ -510,15 +529,6 @@
       "dependencies": {
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.world.di": "0.0.1"
-      }
-    },
-    "com.abilitykit.combat.motion": {
-      "version": "file:com.abilitykit.combat.motion",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.abilitykit.core": "0.0.1",
-        "com.abilitykit.combat.collision.abstractions": "0.0.1"
       }
     },
     "com.abilitykit.world.record": {

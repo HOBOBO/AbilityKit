@@ -55,7 +55,7 @@ namespace AbilityKit.Ability.Editor
                 ValueSource = ThresholdRef != null ? ThresholdRef.Source : ValueSourceKind.Const,
                 ValueFromScope = ThresholdRef != null ? ThresholdRef.FromScope : VarScope.Local,
                 ValueFromKey = ThresholdRef != null ? ThresholdRef.FromKey : null,
-                ThresholdValue = ThresholdRef != null && ThresholdRef.ConstValue != null ? ThresholdRef.ConstValue.Clone() : null
+                ThresholdValue = ThresholdRef != null && ThresholdRef.ConstValue != null ? ThresholdRef.ConstValue.ToCore() : null
             };
         }
     }

@@ -18,7 +18,7 @@ namespace AbilityKit.Ability.Configs
         public string ValueFromKey;
 
         public string Key;
-        public ArgRuntimeEntry Value = new ArgRuntimeEntry();
+        public ArgRuntimeEntryCore Value = new ArgRuntimeEntryCore();
 
         public override ActionDef ToActionDef()
         {
