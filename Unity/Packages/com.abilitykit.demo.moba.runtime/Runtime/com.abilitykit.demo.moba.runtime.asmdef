@@ -11,7 +11,7 @@
         "AbilityKit.Modifiers",
         "AbilityKit.Host",
         "AbilityKit.Demo.Moba.Entitas.Generated",
-        "AbilityKit.World.Motion",
+        "AbilityKit.Combat.Motion",
         "AbilityKit.World.DI",
         "AbilityKit.World.Entitas",
         "AbilityKit.World.FrameSync",

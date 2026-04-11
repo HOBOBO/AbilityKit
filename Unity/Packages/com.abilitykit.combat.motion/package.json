@@ -1,0 +1,14 @@
+{
+    "name": "com.abilitykit.combat.motion",
+    "version": "0.0.1",
+    "displayName": "AbilityKit Combat Motion",
+    "unity": "2022.3",
+    "description": "Combat motion system (trajectory/collision/motion pipeline) for ability framework.",
+    "author": {
+        "name": "AbilityKit"
+    },
+    "dependencies": {
+        "com.abilitykit.core": "0.0.1",
+        "com.abilitykit.combat.collision.abstractions": "0.0.1"
+    }
+}

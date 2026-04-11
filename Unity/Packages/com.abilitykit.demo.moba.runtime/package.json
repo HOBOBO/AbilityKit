@@ -18,7 +18,7 @@
     "com.abilitykit.world.entitas": "0.0.1",
     "com.abilitykit.world.framesync": "0.0.1",
     "com.abilitykit.world.ecs": "0.0.1",
-    "com.abilitykit.world.motion": "0.0.1",
+    "com.abilitykit.combat.motion": "0.0.1",
     "com.abilitykit.world.snapshot": "0.0.1",
     "com.abilitykit.ability.runtime": "0.0.1",
     "com.abilitykit.behavior": "0.0.1",
