@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
@@ -8,6 +8,7 @@ using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering.Runtime;
+using EffectSourceRegistry = AbilityKit.Ability.Impl.Moba.EffectSource.MobaTraceRegistry;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {

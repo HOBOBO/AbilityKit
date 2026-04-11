@@ -1,8 +1,9 @@
 using System;
 using AbilityKit.Core.Common.AttributeSystem;
-using AbilityKit.Effect;
-using AbilityKit.Ability.Share.ECS; using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Ability.Share.ECS;
+using AbilityKit.ECS;
 using GameplayTagContainer = AbilityKit.GameplayTags.GameplayTagContainer;
+using EffectContainer = AbilityKit.Ability.Share.Effect.EffectContainer;
 
 namespace AbilityKit.Ability.Share.ECS.Entitas
 {

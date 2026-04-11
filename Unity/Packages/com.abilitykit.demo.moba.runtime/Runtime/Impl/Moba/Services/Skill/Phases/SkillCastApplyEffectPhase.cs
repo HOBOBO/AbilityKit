@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Generic;
 using AbilityKit.Ability.FrameSync;
@@ -74,7 +74,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
 
             if (sourceContextId != 0)
             {
-                args[EffectSourceKeys.SourceContextId] = sourceContextId;
+                args["effect.sourceContextId"] = sourceContextId;
                 args[EffectTriggering.Args.OriginSource] = casterActorId;
                 args[EffectTriggering.Args.OriginTarget] = targetActorId;
                 args[EffectTriggering.Args.OriginKind] = EffectSourceKind.SkillCast;

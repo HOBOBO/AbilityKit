@@ -1,7 +1,12 @@
 using System;
-using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
+using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Share.Impl.Moba;
+using DamageType = AbilityKit.Ability.Share.Impl.Moba.DamageType;
+using CritType = AbilityKit.Ability.Share.Impl.Moba.CritType;
+using DamageReasonKind = AbilityKit.Ability.Share.Impl.Moba.DamageReasonKind;
+using DamageFormulaKind = AbilityKit.Ability.Share.Impl.Moba.DamageFormulaKind;
 
 namespace AbilityKit.Ability.Impl.Triggering.DamageActions
 {
@@ -20,7 +25,7 @@ namespace AbilityKit.Ability.Impl.Triggering.DamageActions
                 CritType = CritType.None,
                 ReasonKind = DamageReasonKind.Skill,
                 ReasonParam = 0,
-                FormulaKind = DamageFormulaKind.Standard,
+                FormulaKind = (int)DamageFormulaKind.Standard,
                 UseProjectileHitDecay = false,
                 TargetMode = DamageActionSpec.DamageTargetMode.Explicit,
             };
@@ -56,7 +61,7 @@ namespace AbilityKit.Ability.Impl.Triggering.DamageActions
 
             if (args.TryGetValue("formulaKind", out var fkObj) && fkObj != null)
             {
-                spec.FormulaKind = TriggerActionArgUtil.ParseEnum(fkObj, DamageFormulaKind.Standard);
+                spec.FormulaKind = (int)TriggerActionArgUtil.ParseEnum(fkObj, DamageFormulaKind.Standard);
             }
 
             spec.TargetKey = args.TryGetValue("targetKey", out var tkObj) && tkObj is string tks && !string.IsNullOrEmpty(tks) ? tks : null;
@@ -97,7 +102,7 @@ namespace AbilityKit.Ability.Impl.Triggering.DamageActions
                 CritType = CritType.None,
                 ReasonKind = DamageReasonKind.Buff,
                 ReasonParam = 0,
-                FormulaKind = DamageFormulaKind.Standard,
+                FormulaKind = (int)DamageFormulaKind.Standard,
                 UseProjectileHitDecay = true,
                 TargetMode = DamageActionSpec.DamageTargetMode.Explicit,
             };
@@ -134,7 +139,7 @@ namespace AbilityKit.Ability.Impl.Triggering.DamageActions
 
             if (args.TryGetValue("formulaKind", out var fkObj) && fkObj != null)
             {
-                spec.FormulaKind = TriggerActionArgUtil.ParseEnum(fkObj, DamageFormulaKind.Standard);
+                spec.FormulaKind = (int)TriggerActionArgUtil.ParseEnum(fkObj, DamageFormulaKind.Standard);
             }
 
             spec.AttackerKey = args.TryGetValue("attackerKey", out var akObj) && akObj is string aks && !string.IsNullOrEmpty(aks) ? aks : null;

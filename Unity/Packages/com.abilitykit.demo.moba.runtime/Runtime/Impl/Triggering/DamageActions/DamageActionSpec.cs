@@ -1,4 +1,4 @@
-using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Share.Impl.Moba;
 
 namespace AbilityKit.Ability.Impl.Triggering.DamageActions
 {
@@ -23,7 +23,7 @@ namespace AbilityKit.Ability.Impl.Triggering.DamageActions
         public DamageReasonKind ReasonKind;
         public int ReasonParam;
 
-        public DamageFormulaKind FormulaKind;
+        public int FormulaKind;
 
         public string AttackerKey;
         public string TargetKey;

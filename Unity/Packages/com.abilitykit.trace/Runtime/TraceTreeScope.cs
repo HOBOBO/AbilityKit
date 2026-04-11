@@ -199,7 +199,7 @@ namespace AbilityKit.Trace
             where T : TraceMetadata
         {
             var rootId = registry.BeginRoot(kind, sourceActorId, targetActorId, originSource, originTarget, configId);
-            return new TraceRootScope(registry, rootId, registry.Frame);
+            return new TraceRootScope(registry, rootId, registry.GetCurrentFrame());
         }
 
         /// <summary>
@@ -217,7 +217,7 @@ namespace AbilityKit.Trace
             where T : TraceMetadata
         {
             var childId = registry.BeginChild(parentContextId, kind, sourceActorId, targetActorId, originSource, originTarget, configId);
-            return new TraceTreeScope(registry, childId, registry.Frame, 0);
+            return new TraceTreeScope(registry, childId, registry.GetCurrentFrame(), 0);
         }
 
         /// <summary>
@@ -236,7 +236,7 @@ namespace AbilityKit.Trace
             where T : TraceMetadata
         {
             var childId = registry.BeginChild(parentContextId, kind, sourceActorId, targetActorId, originSource, originTarget, configId);
-            return new TraceTreeScope(registry, childId, registry.Frame, endReason);
+            return new TraceTreeScope(registry, childId, registry.GetCurrentFrame(), endReason);
         }
     }
 }

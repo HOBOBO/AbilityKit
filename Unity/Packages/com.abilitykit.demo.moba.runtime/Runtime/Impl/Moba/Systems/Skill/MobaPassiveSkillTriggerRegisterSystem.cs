@@ -1,17 +1,18 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
-using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Share.Impl.Moba.Components;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using Entitas;
+using EffectSourceRegistry = AbilityKit.Ability.Impl.Moba.EffectSource.MobaTraceRegistry;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {

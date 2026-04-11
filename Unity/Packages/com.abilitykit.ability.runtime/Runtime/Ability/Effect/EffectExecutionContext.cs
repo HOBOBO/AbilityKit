@@ -13,10 +13,9 @@ namespace AbilityKit.Effect
         public readonly IServiceProvider Services;
         public readonly IFrameTime Time;
 
-        public readonly long SourceContextId;
-
         public readonly object Source;
         public readonly object Target;
+        public readonly long SourceContextId;
 
         public readonly IUnitFacade TargetUnit;
 
@@ -29,17 +28,23 @@ namespace AbilityKit.Effect
             IFrameTime time,
             object source,
             object target,
+            long sourceContextId,
             IUnitFacade targetUnit,
-            IEventBus eventBus,
-            long sourceContextId = 0)
+            IEventBus eventBus)
         {
             Services = services;
             Time = time;
-            SourceContextId = sourceContextId;
             Source = source;
             Target = target;
+            SourceContextId = sourceContextId;
             TargetUnit = targetUnit ?? throw new ArgumentNullException(nameof(targetUnit));
             EventBus = eventBus;
+        }
+
+        public EffectExecutionContext WithSourceContextId(long sourceContextId)
+        {
+            return new EffectExecutionContext(
+                Services, Time, Source, Target, sourceContextId, TargetUnit, EventBus);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.Configs;
 using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering.Runtime;
@@ -31,7 +31,7 @@ namespace AbilityKit.Ability.Editor
         public SpawnSummonRotationMode RotationMode = SpawnSummonRotationMode.Caster;
 
         [LabelText("OwnerKey模式")]
-        public SpawnSummonOwnerKeyMode OwnerKeyMode = SpawnSummonOwnerKeyMode.SourceContextId;
+        public SpawnSummonOwnerKeyMode OwnerKeyMode = SpawnSummonOwnerKeyMode.CasterActorId;
 
         [LabelText("阵列模式")]
         public SpawnSummonPatternMode PatternMode = SpawnSummonPatternMode.Single;

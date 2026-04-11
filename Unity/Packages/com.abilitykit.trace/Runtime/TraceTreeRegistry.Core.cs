@@ -91,6 +91,11 @@ namespace AbilityKit.Trace
         protected virtual int Frame => 0;
 
         /// <summary>
+        /// 内部获取当前帧号（供扩展方法使用）
+        /// </summary>
+        internal int GetCurrentFrame() => Frame;
+
+        /// <summary>
         /// 生成新的唯一 ID
         /// </summary>
         protected long NewId() => _nextId++;
@@ -141,6 +146,65 @@ namespace AbilityKit.Trace
         /// 清理时触发（子类可覆盖）
         /// </summary>
         protected virtual void OnClear() { }
+
+        /// <summary>
+        /// 保留根节点（增加外部引用计数）
+        /// </summary>
+        public void RetainRoot(long rootId)
+        {
+            if (_roots.TryGetValue(rootId, out var record))
+                _roots[rootId] = record.WithExternalRefCount(record.ExternalRefCount + 1);
+        }
+
+        /// <summary>
+        /// 释放根节点（减少外部引用计数）
+        /// </summary>
+        public void ReleaseRoot(long rootId)
+        {
+            if (_roots.TryGetValue(rootId, out var record))
+                _roots[rootId] = record.WithExternalRefCount(Math.Max(0, record.ExternalRefCount - 1));
+        }
+
+        /// <summary>
+        /// 结束指定节点
+        /// </summary>
+        public bool End(long contextId, int reason = 0)
+        {
+            if (!_contexts.TryGetValue(contextId, out var record) || record.IsEnded)
+                return false;
+
+            _contexts[contextId] = new TraceContextRecord(
+                contextId: record.ContextId,
+                rootId: record.RootId,
+                parentId: record.ParentId,
+                kind: record.Kind,
+                endedFrame: GetCurrentFrame(),
+                endReason: reason);
+
+            if (_roots.TryGetValue(record.RootId, out var rootRec))
+                _roots[record.RootId] = rootRec.WithActiveCount(rootRec.ActiveCount - 1)
+                    .WithLastTouchedFrame(GetCurrentFrame());
+            return true;
+        }
+
+        /// <summary>
+        /// 结束根节点及其所有子节点
+        /// </summary>
+        public int EndRoot(long rootId, int reason = 0)
+        {
+            if (!_contexts.ContainsKey(rootId))
+                return 0;
+            return EndSubtree(rootId, reason);
+        }
+
+        private int EndSubtree(long contextId, int reason)
+        {
+            var count = End(contextId, reason) ? 1 : 0;
+            if (_childrenByParent.TryGetValue(contextId, out var children))
+                foreach (var childId in children)
+                    count += EndSubtree(childId, reason);
+            return count;
+        }
     }
 
     /// <summary>
@@ -329,7 +393,7 @@ namespace AbilityKit.Trace
         {
             if (!_contexts.TryGetValue(contextId, out var record))
                 return default;
-            return CreateSnapshot(in record);
+            return CreateSnapshot(record);
         }
 
         /// <summary>
@@ -412,7 +476,7 @@ namespace AbilityKit.Trace
             {
                 if (!_contexts.TryGetValue(current, out var record))
                     break;
-                chain.Add(CreateSnapshot(in record));
+                chain.Add(CreateSnapshot(record));
                 if (current == record.RootId)
                     break;
                 current = record.ParentId;
@@ -458,7 +522,7 @@ namespace AbilityKit.Trace
         {
             foreach (var kvp in _contexts)
                 if (kvp.Value.Kind == kind)
-                    yield return CreateSnapshot(in kvp.Value);
+                    yield return CreateSnapshot(kvp.Value);
         }
 
         /// <summary>
@@ -468,66 +532,7 @@ namespace AbilityKit.Trace
         {
             foreach (var kvp in _contexts)
                 if (kvp.Value.RootId == rootId)
-                    yield return CreateSnapshot(in kvp.Value);
-        }
-
-        /// <summary>
-        /// 结束指定节点
-        /// </summary>
-        public bool End(long contextId, int reason = 0)
-        {
-            if (!_contexts.TryGetValue(contextId, out var record) || record.IsEnded)
-                return false;
-
-            _contexts[contextId] = new TraceContextRecord(
-                contextId: record.ContextId,
-                rootId: record.RootId,
-                parentId: record.ParentId,
-                kind: record.Kind,
-                endedFrame: Frame,
-                endReason: reason);
-
-            if (_roots.TryGetValue(record.RootId, out var rootRec))
-                _roots[record.RootId] = rootRec.WithActiveCount(rootRec.ActiveCount - 1)
-                    .WithLastTouchedFrame(Frame);
-            return true;
-        }
-
-        /// <summary>
-        /// 结束根节点及其所有子节点
-        /// </summary>
-        public int EndRoot(long rootId, int reason = 0)
-        {
-            if (!_contexts.ContainsKey(rootId))
-                return 0;
-            return EndSubtree(rootId, reason);
-        }
-
-        private int EndSubtree(long contextId, int reason)
-        {
-            var count = End(contextId, reason) ? 1 : 0;
-            if (_childrenByParent.TryGetValue(contextId, out var children))
-                foreach (var childId in children)
-                    count += EndSubtree(childId, reason);
-            return count;
-        }
-
-        /// <summary>
-        /// 保留根节点（增加外部引用计数）
-        /// </summary>
-        public void RetainRoot(long rootId)
-        {
-            if (_roots.TryGetValue(rootId, out var record))
-                _roots[rootId] = record.WithExternalRefCount(record.ExternalRefCount + 1);
-        }
-
-        /// <summary>
-        /// 释放根节点（减少外部引用计数）
-        /// </summary>
-        public void ReleaseRoot(long rootId)
-        {
-            if (_roots.TryGetValue(rootId, out var record))
-                _roots[rootId] = record.WithExternalRefCount(Math.Max(0, record.ExternalRefCount - 1));
+                    yield return CreateSnapshot(kvp.Value);
         }
 
         /// <summary>

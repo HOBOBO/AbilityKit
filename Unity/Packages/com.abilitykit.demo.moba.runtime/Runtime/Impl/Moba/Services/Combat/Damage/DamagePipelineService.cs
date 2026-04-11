@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Share.Impl.Moba;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Common.Event;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
@@ -78,7 +79,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
             if (calc == null || calc.Attack == null) return;
 
             var attack = calc.Attack;
-            var kind = attack.FormulaKind;
+            var kind = (DamageFormulaKind)attack.FormulaKind;
             if (kind == DamageFormulaKind.None) kind = DamageFormulaKind.Standard;
 
             switch (kind)

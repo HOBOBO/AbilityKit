@@ -1,5 +1,5 @@
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
-using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Ability.Share.Impl.Moba;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
@@ -9,17 +9,17 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
     public readonly struct GiveDamageArgs
     {
         /// <summary>
-        /// 浼ゅ鍊?
+        /// 浼ゅ奖鍊?
         /// </summary>
         public readonly float DamageValue;
 
         /// <summary>
-        /// 浼ゅ鍘熷洜鍙傛暟锛堝叧鑱?DamageReasonKind锛?
+        /// 浼ゅ奖鍘熷洜鍙傛暟锛堝叧鑱?DamageReasonKind锛?
         /// </summary>
         public readonly int ReasonParam;
 
         /// <summary>
-        /// 浼ゅ绫诲瀷锛堢墿鐞?榄旀硶/鐪熷疄锛?
+        /// 浼ゅ奖绫诲瀷锛堢墿鐞?榄旀硶/鐪熷疄锛?
         /// </summary>
         public readonly DamageType DamageType;
 

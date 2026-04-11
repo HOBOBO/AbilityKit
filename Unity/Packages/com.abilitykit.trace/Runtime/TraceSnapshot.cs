@@ -26,6 +26,7 @@ namespace AbilityKit.Trace
         public bool IsRoot => ContextId == RootId;
         public bool IsLeaf => ChildCount == 0;
         public bool HasChildren => ChildCount > 0;
+        public bool IsValid => ContextId != 0;
 
         public TraceSnapshot(
             long contextId,

@@ -1,14 +1,18 @@
-﻿using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
+using AbilityKit.Ability.Share.Impl.Moba;
 using AbilityKit.Ability.Share.Impl.Moba.Services;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
+using CritType = AbilityKit.Ability.Share.Impl.Moba.CritType;
+using DamageReasonKind = AbilityKit.Ability.Share.Impl.Moba.DamageReasonKind;
+using DamageFormulaKind = AbilityKit.Ability.Share.Impl.Moba.DamageFormulaKind;
+using EffectSourceKind = AbilityKit.Ability.Impl.Moba.EffectSourceKind;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
-    using AbilityKit.Ability.Impl.Moba;
     /// <summary>
     /// 造成伤害的Plan Action模块
     /// 使用新的具名参数 Schema API
@@ -39,7 +43,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
                 CritType = CritType.None,
                 ReasonKind = DamageReasonKind.Skill,
                 ReasonParam = args.ReasonParam,
-                FormulaKind = DamageFormulaKind.Standard,
+                FormulaKind = (int)DamageFormulaKind.Standard,
                 OriginSource = attackerActorId,
                 OriginTarget = targetActorId,
                 OriginKind = EffectSourceKind.Effect,

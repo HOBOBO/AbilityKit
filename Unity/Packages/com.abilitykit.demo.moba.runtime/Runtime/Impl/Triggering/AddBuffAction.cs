@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using AbilityKit.Core.Common.Log;
@@ -171,7 +171,7 @@ namespace AbilityKit.Ability.Impl.Triggering
                 context.Event.Args.TryGetValue(EffectTriggering.Args.OriginSource, out originSource);
                 context.Event.Args.TryGetValue(EffectTriggering.Args.OriginTarget, out originTarget);
 
-                if (context.Event.Args.TryGetValue(EffectSourceKeys.SourceContextId, out var ctxIdObj) && ctxIdObj != null)
+                if (context.Event.Args.TryGetValue("effect.sourceContextId", out var ctxIdObj) && ctxIdObj != null)
                 {
                     if (ctxIdObj is long l) parentContextId = l;
                     else if (ctxIdObj is int i) parentContextId = i;

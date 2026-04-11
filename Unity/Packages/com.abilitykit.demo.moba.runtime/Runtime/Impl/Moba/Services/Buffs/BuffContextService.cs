@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Share.Impl.Moba.Components;
 using AbilityKit.Core.Common.Log;
@@ -6,6 +6,7 @@ using AbilityKit.Effect;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.Impl.Moba;
+using EffectSourceRegistry = AbilityKit.Ability.Impl.Moba.EffectSource.MobaTraceRegistry;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {

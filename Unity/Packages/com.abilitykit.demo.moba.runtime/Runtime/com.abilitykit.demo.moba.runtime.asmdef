@@ -28,7 +28,8 @@
         "AbilityKit.Combat.Collision.Abstractions",
         "AbilityKit.Combat.Collision.Unity",
         "AbilityKit.Triggering",
-        "AbilityKit.Pipeline"
+        "AbilityKit.Pipeline",
+        "AbilityKit.Trace"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,6 +1,5 @@
 using System;
 using AbilityKit.Ability.Configs;
-using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Triggering.Runtime;
 using Sirenix.OdinInspector;
 

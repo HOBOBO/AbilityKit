@@ -1,14 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
-using AbilityKit.Effect;
+using EffectExecutionContext = AbilityKit.Effect.EffectExecutionContext;
+using EffectInstance = AbilityKit.Ability.Share.Effect.EffectInstance;
 
 namespace AbilityKit.Ability.Share.Effect
 {
-    using AbilityKit.Ability.Share.Effect;
     public sealed class EffectService : IEffectEventSink
     {
         private readonly IEventBus _eventBus;
@@ -104,8 +103,6 @@ namespace AbilityKit.Ability.Share.Effect
 
             var source = context.Source;
             var target = context.Target;
-            var sourceContextId = context.SourceContextId;
-            var services = context.Services;
             var spec = instance?.Spec;
             var instanceId = instance != null ? instance.Id : 0;
             var stackCount = instance != null ? instance.StackCount : 0;
@@ -116,21 +113,12 @@ namespace AbilityKit.Ability.Share.Effect
             {
                 args[EffectTriggering.Args.Source] = source;
                 args[EffectTriggering.Args.Target] = target;
-                args[EffectTriggering.Args.OriginSource] = source;
-                args[EffectTriggering.Args.OriginTarget] = target;
                 args[EffectTriggering.Args.Spec] = spec;
                 args[EffectTriggering.Args.Instance] = instance;
                 args[EffectTriggering.Args.InstanceId] = instanceId;
                 args[EffectTriggering.Args.StackCount] = stackCount;
                 args[EffectTriggering.Args.ElapsedSeconds] = elapsedSeconds;
                 args[EffectTriggering.Args.RemainingSeconds] = remainingSeconds;
-
-                if (sourceContextId != 0)
-                {
-                    args[EffectSourceKeys.SourceContextId] = sourceContextId;
-
-                    EffectOriginArgsHelper.FillFromServices(args, sourceContextId, services);
-                }
             });
         }
     }

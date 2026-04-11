@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;
@@ -13,6 +13,7 @@ using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Ability.Share.Impl.Moba.Components;
 using AbilityKit.Ability.Share.Impl.Moba;
 using AbilityKit.Triggering.Eventing;
+using EffectSourceRegistry = AbilityKit.Ability.Impl.Moba.EffectSource.MobaTraceRegistry;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems.Buffs
 {

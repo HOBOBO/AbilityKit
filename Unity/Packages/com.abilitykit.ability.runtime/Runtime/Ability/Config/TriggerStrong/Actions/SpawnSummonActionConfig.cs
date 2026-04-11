@@ -1,10 +1,81 @@
-﻿using System;
+using System;
 using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
 
 namespace AbilityKit.Ability.Configs
 {
+    /// <summary>
+    /// 召唤物的所有者键来源模式
+    /// </summary>
+    [Serializable]
+    public enum SpawnSummonOwnerKeyMode
+    {
+        None = 0,
+        CasterActorId = 1,
+    }
+
+    /// <summary>
+    /// 召唤物目标模式
+    /// </summary>
+    [Serializable]
+    public enum SpawnSummonTargetMode
+    {
+        ExplicitTarget = 0,
+        QueryTargets = 1,
+    }
+
+    /// <summary>
+    /// 召唤物旋转模式
+    /// </summary>
+    [Serializable]
+    public enum SpawnSummonRotationMode
+    {
+        Caster = 0,
+        AimDir = 1,
+        FaceTarget = 2,
+    }
+
+    /// <summary>
+    /// 召唤物生成模式
+    /// </summary>
+    [Serializable]
+    public enum SpawnSummonPatternMode
+    {
+        Single = 0,
+        Line = 1,
+        Ring = 2,
+        Arc = 3,
+        RandomCircle = 4,
+        Grid = 5,
+    }
+
+    /// <summary>
+    /// 每个生成点的旋转模式
+    /// </summary>
+    [Serializable]
+    public enum SpawnSummonPerPointRotationMode
+    {
+        Inherit = 0,
+        FaceCenter = 1,
+        FaceOutward = 2,
+        TangentCw = 3,
+        TangentCcw = 4,
+        FaceTargetActor = 5,
+    }
+
+    /// <summary>
+    /// 召唤物位置模式
+    /// </summary>
+    [Serializable]
+    public enum SpawnSummonPositionMode
+    {
+        Caster = 0,
+        Target = 1,
+        AimPos = 2,
+        Fixed = 3,
+    }
+
     [Serializable]
     public sealed class SpawnSummonActionConfig : ActionRuntimeConfigBase
     {
@@ -18,7 +89,7 @@ namespace AbilityKit.Ability.Configs
         public SpawnSummonTargetMode TargetMode = SpawnSummonTargetMode.ExplicitTarget;
         public SpawnSummonPositionMode PositionMode = SpawnSummonPositionMode.Caster;
         public SpawnSummonRotationMode RotationMode = SpawnSummonRotationMode.Caster;
-        public SpawnSummonOwnerKeyMode OwnerKeyMode = SpawnSummonOwnerKeyMode.SourceContextId;
+        public SpawnSummonOwnerKeyMode OwnerKeyMode = SpawnSummonOwnerKeyMode.CasterActorId;
 
         public SpawnSummonPatternMode PatternMode = SpawnSummonPatternMode.Single;
         public int PatternCount = 1;

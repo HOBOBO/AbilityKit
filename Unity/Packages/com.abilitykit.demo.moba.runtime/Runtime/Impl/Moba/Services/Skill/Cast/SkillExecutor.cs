@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.ECS; using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
@@ -11,6 +11,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.Impl.Moba;
 using AbilityKit.Triggering.Eventing;
+using EffectSourceRegistry = AbilityKit.Ability.Impl.Moba.EffectSource.MobaTraceRegistry;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Services
 {
@@ -213,17 +214,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
                         frame: frame,
                         originSource: actorId,
                         originTarget: actorId);
-
-                    if (ctx.SourceContextId != 0)
-                    {
-                        effectSource.SetRootInt(ctx.SourceContextId, EffectSourceRegistry.RootIntKeys.EffectSourceKind, (int)EffectSourceKind.SkillCast);
-                        effectSource.SetRootInt(ctx.SourceContextId, EffectSourceRegistry.RootIntKeys.SkillId, skillId);
-                        effectSource.SetRootInt(ctx.SourceContextId, EffectSourceRegistry.RootIntKeys.SkillSlot, slot);
-                        effectSource.SetRootInt(ctx.SourceContextId, EffectSourceRegistry.RootIntKeys.SkillLevel, skillLevel);
-                        effectSource.SetRootInt(ctx.SourceContextId, EffectSourceRegistry.RootIntKeys.SkillSequence, ctx.Sequence);
-                        effectSource.SetRootInt(ctx.SourceContextId, EffectSourceRegistry.RootIntKeys.SkillCasterActorId, actorId);
-                        effectSource.SetRootInt(ctx.SourceContextId, EffectSourceRegistry.RootIntKeys.SkillTargetActorId, actorId);
-                    }
                 }
             }
             catch

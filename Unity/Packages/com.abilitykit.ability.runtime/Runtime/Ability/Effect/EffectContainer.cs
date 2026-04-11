@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.ECS;
+using GameplayEffectSpec = AbilityKit.Ability.Share.Effect.GameplayEffectSpec;
+using EffectInstance = AbilityKit.Ability.Share.Effect.EffectInstance;
+using EffectExecutionContext = AbilityKit.Effect.EffectExecutionContext;
 
-namespace AbilityKit.Effect
+namespace AbilityKit.Ability.Share.Effect
 {
     public sealed class EffectContainer
     {
@@ -29,66 +31,6 @@ namespace AbilityKit.Effect
             }
 
             var inst = new EffectInstance(_nextId++, spec);
-
-            if (context.SourceContextId != 0)
-            {
-                try
-                {
-                    var sourceContextId = context.SourceContextId;
-                    try
-                    {
-                        if (context.Services != null)
-                        {
-                            var svc = context.Services.GetService(typeof(EffectSourceRegistry));
-                            if (svc is EffectSourceRegistry r)
-                            {
-                                var frame = 0;
-                                try { frame = context.Time != null ? context.Time.Frame.Value : 0; }
-                                catch (Exception ex) { Log.Exception(ex, "[EffectContainer] read frame failed"); frame = 0; }
-
-                                var sourceActorId = 0;
-                                var targetActorId = 0;
-                                try
-                                {
-                                    if (context.Source is IUnitFacade s && s.Id.IsValid) sourceActorId = s.Id.ActorId;
-                                }
-                                catch (Exception ex)
-                                {
-                                    Log.Exception(ex, "[EffectContainer] resolve source actorId failed");
-                                }
-                                try
-                                {
-                                    if (context.Target is IUnitFacade t && t.Id.IsValid) targetActorId = t.Id.ActorId;
-                                }
-                                catch (Exception ex)
-                                {
-                                    Log.Exception(ex, "[EffectContainer] resolve target actorId failed");
-                                }
-
-                                var childId = r.CreateChild(
-                                    parentContextId: sourceContextId,
-                                    kind: AbilityKit.Ability.Impl.Moba.EffectSourceKind.Effect,
-                                    configId: inst.Id,
-                                    sourceActorId: sourceActorId,
-                                    targetActorId: targetActorId,
-                                    frame: frame);
-
-                                if (childId != 0) sourceContextId = childId;
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex, "[EffectContainer] attach source context failed");
-                    }
-
-                    inst.SetState(EffectSourceKeys.SourceContextId, sourceContextId);
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, "[EffectContainer] set source context state failed");
-                }
-            }
 
             PublishDefaultEvent(context.EventBus, EffectTriggering.Events.Apply, in context, inst);
 
@@ -204,18 +146,6 @@ namespace AbilityKit.Effect
             _active.RemoveAt(index);
             if (inst == null) return;
 
-            var endContextId = 0L;
-            try
-            {
-                if (inst.TryGetState<long>(EffectSourceKeys.SourceContextId, out var scidL)) endContextId = scidL;
-                else if (inst.TryGetState<int>(EffectSourceKeys.SourceContextId, out var scidI)) endContextId = scidI;
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[EffectContainer] read SourceContextId from state failed");
-                endContextId = 0L;
-            }
-
             PublishDefaultEvent(context.EventBus, EffectTriggering.Events.Remove, in context, inst);
 
             (inst.Spec.Cue ?? NullGameplayEffectCue.Instance).OnRemove(in context, inst);
@@ -232,35 +162,6 @@ namespace AbilityKit.Effect
                 foreach (var tag in inst.Spec.GrantedTags)
                 {
                     targetTags.Remove(tag);
-                }
-            }
-
-            if (endContextId != 0)
-            {
-                try
-                {
-                    if (context.Services != null)
-                    {
-                        var svc = context.Services.GetService(typeof(EffectSourceRegistry));
-                        if (svc is EffectSourceRegistry r)
-                        {
-                            var frame = 0;
-                            try { frame = context.Time != null ? context.Time.Frame.Value : 0; }
-                            catch (Exception ex) { Log.Exception(ex, "[EffectContainer] read frame failed (end)"); frame = 0; }
-
-                            var reason = AbilityKit.Ability.Impl.Moba.EffectSourceEndReason.Completed;
-                            if (inst.Spec != null && inst.Spec.DurationPolicy == EffectDurationPolicy.Duration && inst.RemainingSeconds <= 0f)
-                            {
-                                reason = AbilityKit.Ability.Impl.Moba.EffectSourceEndReason.Expired;
-                            }
-
-                            r.End(endContextId, frame, reason);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, "[EffectContainer] end source context failed");
                 }
             }
         }
@@ -295,27 +196,6 @@ namespace AbilityKit.Effect
             args[EffectTriggering.Args.StackCount] = instance != null ? instance.StackCount : 0;
             args[EffectTriggering.Args.ElapsedSeconds] = instance != null ? instance.ElapsedSeconds : 0f;
             args[EffectTriggering.Args.RemainingSeconds] = instance != null ? instance.RemainingSeconds : 0f;
-
-            long sourceContextId = context.SourceContextId;
-            if (sourceContextId == 0 && instance != null)
-            {
-                try
-                {
-                    if (instance.TryGetState<long>(EffectSourceKeys.SourceContextId, out var scidL)) sourceContextId = scidL;
-                    else if (instance.TryGetState<int>(EffectSourceKeys.SourceContextId, out var scidI)) sourceContextId = scidI;
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, "[EffectContainer] read SourceContextId from instance state failed");
-                }
-            }
-
-            if (sourceContextId != 0)
-            {
-                args[EffectSourceKeys.SourceContextId] = sourceContextId;
-
-                EffectOriginArgsHelper.FillFromServices(args, sourceContextId, context.Services);
-            }
 
             bus.Publish(new TriggerEvent(eventId, instance, args));
         }

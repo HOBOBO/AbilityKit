@@ -1,7 +1,7 @@
-﻿using AbilityKit.Core.Common.Numbers;
+using AbilityKit.Core.Common.Numbers;
 using AbilityKit.Ability.Impl.Moba;
 
-namespace AbilityKit.Ability.Share.Impl.Moba.Services
+namespace AbilityKit.Ability.Share.Impl.Moba
 {
     public sealed class AttackInfo
     {
@@ -21,7 +21,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         public DamageReasonKind ReasonKind;
         public int ReasonParam;
 
-        public DamageFormulaKind FormulaKind;
+        public int FormulaKind;
         public string FormulaId;
 
         public readonly NumberValue BaseDamage;

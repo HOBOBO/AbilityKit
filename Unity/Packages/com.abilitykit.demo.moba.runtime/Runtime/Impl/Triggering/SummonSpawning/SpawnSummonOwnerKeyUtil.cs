@@ -1,11 +1,12 @@
-﻿using System.Collections.Generic;
-using AbilityKit.Ability.Impl.Moba.EffectSource;
+using System.Collections.Generic;
 using AbilityKit.Ability.Triggering;
 
 namespace AbilityKit.Ability.Impl.Triggering.SummonSpawning
 {
     public static class SpawnSummonOwnerKeyUtil
     {
+        private const string SourceContextIdKey = "effect.sourceContextId";
+
         public static long ResolveOwnerKey(SpawnSummonSpec.OwnerKeyMode mode, TriggerContext context, int casterActorId)
         {
             if (mode == SpawnSummonSpec.OwnerKeyMode.CasterActorId)
@@ -16,7 +17,7 @@ namespace AbilityKit.Ability.Impl.Triggering.SummonSpawning
             if (mode == SpawnSummonSpec.OwnerKeyMode.SourceContextId)
             {
                 var args = context?.Event.Args;
-                if (args != null && args.TryGetValue(EffectSourceKeys.SourceContextId, out var v) && v != null)
+                if (args != null && args.TryGetValue(SourceContextIdKey, out var v) && v != null)
                 {
                     if (v is long l) return l;
                     if (v is int i) return i;
@@ -39,19 +40,18 @@ namespace AbilityKit.Ability.Impl.Triggering.SummonSpawning
                 return;
             }
 
-            var key = EffectSourceKeys.SourceContextId;
-            var hadOld = args.TryGetValue(key, out var old);
+            var hadOld = args.TryGetValue(SourceContextIdKey, out var old);
             try
             {
-                if (ownerKey != 0) args[key] = ownerKey;
-                else args.Remove(key);
+                if (ownerKey != 0) args[SourceContextIdKey] = ownerKey;
+                else args.Remove(SourceContextIdKey);
 
                 action();
             }
             finally
             {
-                if (hadOld) args[key] = old;
-                else args.Remove(key);
+                if (hadOld) args[SourceContextIdKey] = old;
+                else args.Remove(SourceContextIdKey);
             }
         }
     }

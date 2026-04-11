@@ -1,5 +1,6 @@
-﻿using AbilityKit.Ability.Impl.Moba.EffectSource;
+using AbilityKit.Ability.Impl.Moba.EffectSource;
 using AbilityKit.Ability.World.DI;
+using EffectSourceRegistry = AbilityKit.Ability.Impl.Moba.EffectSource.MobaTraceRegistry;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Systems
 {
