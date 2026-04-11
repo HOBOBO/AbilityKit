@@ -45,6 +45,12 @@ namespace AbilityKit.Core.Common.Event
             return new Subscription(this, key, listener);
         }
 
+        public IEventSubscription SubscribeOnce<TArgs>(string eventId, Action<TArgs> handler, int priority = 0)
+        {
+            if (eventId == null) throw new ArgumentNullException(nameof(eventId));
+            return Subscribe(eventId, handler, priority, once: true);
+        }
+
         public void Publish<TArgs>(string eventId, in TArgs args, bool autoReleaseArgs = true)
         {
             if (eventId == null) return;

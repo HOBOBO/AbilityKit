@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using UnityEngine;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Triggering.Runtime
 {
@@ -84,91 +84,91 @@ namespace AbilityKit.Triggering.Runtime
 
         public void OnRegistered<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase, int priority, long order)
         {
-            UnityEngine.Debug.Log($"[{_scopeName}] Registered: {key.StringId ?? key.IntId.ToString()} Phase={phase} Priority={priority}");
+            Log.Info($"[{_scopeName}] Registered: {key.StringId ?? key.IntId.ToString()} Phase={phase} Priority={priority}");
         }
 
         public void OnUnregistered<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger)
         {
-            UnityEngine.Debug.Log($"[{_scopeName}] Unregistered: {key.StringId ?? key.IntId.ToString()}");
+            Log.Info($"[{_scopeName}] Unregistered: {key.StringId ?? key.IntId.ToString()}");
         }
 
         public void OnEventDispatching<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args)
         {
-            UnityEngine.Debug.Log($"[{_scopeName}] >>> Dispatching: {key.StringId ?? key.IntId.ToString()}");
+            Log.Info($"[{_scopeName}] >>> Dispatching: {key.StringId ?? key.IntId.ToString()}");
         }
 
         public void OnEventDispatched<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int executedCount, int shortCircuitedCount)
         {
-            UnityEngine.Debug.Log($"[{_scopeName}] <<< Dispatched: {key.StringId ?? key.IntId.ToString()} Executed={executedCount} ShortCircuited={shortCircuitedCount}");
+            Log.Info($"[{_scopeName}] <<< Dispatched: {key.StringId ?? key.IntId.ToString()} Executed={executedCount} ShortCircuited={shortCircuitedCount}");
         }
 
         public void OnBeforeEvaluate<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
             if (_logEvaluate)
-                UnityEngine.Debug.Log($"[{_scopeName}] Evaluate [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()}");
+                Log.Info($"[{_scopeName}] Evaluate [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()}");
         }
 
         public void OnAfterEvaluate<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool result)
         {
             if (_logEvaluate)
-                UnityEngine.Debug.Log($"[{_scopeName}] Evaluate [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()} = {result}");
+                Log.Info($"[{_scopeName}] Evaluate [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()} = {result}");
         }
 
         public void OnBeforeExecute<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
             if (_logExecute)
-                UnityEngine.Debug.Log($"[{_scopeName}] Execute [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()}");
+                Log.Info($"[{_scopeName}] Execute [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()}");
         }
 
         public void OnAfterExecute<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
             if (_logExecute)
-                UnityEngine.Debug.Log($"[{_scopeName}] Executed [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()}");
+                Log.Info($"[{_scopeName}] Executed [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()}");
         }
 
         public void OnShortCircuit<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, ShortCircuitReason reason)
         {
             if (_logShortCircuit)
-                UnityEngine.Debug.LogWarning($"[{_scopeName}] ShortCircuit [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()} Reason={reason}");
+                Log.Warning($"[{_scopeName}] ShortCircuit [{phase},{priority},{order}]: {key.StringId ?? key.IntId.ToString()} Reason={reason}");
         }
 
         public void OnScopeTransition(string fromScope, string toScope)
         {
-            UnityEngine.Debug.Log($"[{_scopeName}] Scope: {fromScope} -> {toScope}");
+            Log.Info($"[{_scopeName}] Scope: {fromScope} -> {toScope}");
         }
 
         public void OnConditionPassed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
         {
             if (_logEvaluate)
-                UnityEngine.Debug.Log($"[{_scopeName}] Condition Passed [{phase},{priority},{order}] {conditionName}(Id={conditionId})");
+                Log.Info($"[{_scopeName}] Condition Passed [{phase},{priority},{order}] {conditionName}(Id={conditionId})");
         }
 
         public void OnConditionFailed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int conditionId, string conditionName)
         {
             if (_logEvaluate)
-                UnityEngine.Debug.LogWarning($"[{_scopeName}] Condition Failed [{phase},{priority},{order}] {conditionName}(Id={conditionId})");
+                Log.Warning($"[{_scopeName}] Condition Failed [{phase},{priority},{order}] {conditionName}(Id={conditionId})");
         }
 
         public void OnActionExecuting<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions)
         {
             if (_logExecute)
-                UnityEngine.Debug.Log($"[{_scopeName}] Action [{phase},{priority},{order}] [{actionIndex}/{totalActions}] {actionName}(Id={actionId})");
+                Log.Info($"[{_scopeName}] Action [{phase},{priority},{order}] [{actionIndex}/{totalActions}] {actionName}(Id={actionId})");
         }
 
         public void OnActionExecuted<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted)
         {
             if (_logExecute)
-            {
-                if (wasInterrupted)
-                    UnityEngine.Debug.LogWarning($"[{_scopeName}] Action Interrupted [{actionIndex}/{totalActions}] {actionName}(Id={actionId})");
-                else
-                    UnityEngine.Debug.Log($"[{_scopeName}] Action Done [{actionIndex}/{totalActions}] {actionName}(Id={actionId})");
-            }
+                {
+                    if (wasInterrupted)
+                        Log.Warning($"[{_scopeName}] Action Interrupted [{actionIndex}/{totalActions}] {actionName}(Id={actionId})");
+                    else
+                        Log.Info($"[{_scopeName}] Action Done [{actionIndex}/{totalActions}] {actionName}(Id={actionId})");
+                }
         }
 
         public void OnActionFailed<TArgs>(AbilityKit.Core.Common.Event.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage)
         {
-            UnityEngine.Debug.LogError($"[{_scopeName}] Action Error [{actionIndex}/{totalActions}] {actionName}(Id={actionId}): {errorMessage}");
+            Log.Error($"[{_scopeName}] Action Error [{actionIndex}/{totalActions}] {actionName}(Id={actionId}): {errorMessage}");
         }
     }
 
@@ -411,12 +411,12 @@ namespace AbilityKit.Triggering.Runtime
         /// </summary>
         public void PrintReport()
         {
-            UnityEngine.Debug.Log("=== Trigger Performance Report ===");
+            Log.Info("=== Trigger Performance Report ===");
             foreach (var kvp in _statsByEventName)
             {
                 var s = kvp.Value;
-                UnityEngine.Debug.Log($"[{kvp.Key}] Triggered={s.TotalTriggered} Evaluated={s.TotalEvaluated} Executed={s.TotalExecuted} ShortCircuited={s.TotalShortCircuited}");
-                UnityEngine.Debug.Log($"  AvgEvaluate={s.AverageEvaluateTicks:F2}ticks AvgExecute={s.AverageExecuteTicks:F2}ticks");
+                Log.Info($"[{kvp.Key}] Triggered={s.TotalTriggered} Evaluated={s.TotalEvaluated} Executed={s.TotalExecuted} ShortCircuited={s.TotalShortCircuited}");
+                Log.Info($"  AvgEvaluate={s.AverageEvaluateTicks:F2}ticks AvgExecute={s.AverageExecuteTicks:F2}ticks");
             }
         }
     }

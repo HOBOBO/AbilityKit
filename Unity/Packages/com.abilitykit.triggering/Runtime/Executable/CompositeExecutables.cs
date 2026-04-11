@@ -4,6 +4,43 @@ using System.Collections.Generic;
 namespace AbilityKit.Triggering.Runtime.Executable
 {
     // ========================================================================
+    // 跨平台随机数提供器
+    // ========================================================================
+
+    /// <summary>
+    /// 跨平台随机数提供器
+    /// 使用 System.Random 实现，可在服务器和 Unity 环境中通用
+    /// </summary>
+    public static class CrossPlatformRandom
+    {
+        private static readonly Random _random = new Random();
+
+        /// <summary>
+        /// 返回 [0, maxValue) 范围内的整数
+        /// </summary>
+        public static int Range(int maxValue)
+        {
+            return _random.Next(maxValue);
+        }
+
+        /// <summary>
+        /// 返回 [0, maxValue) 范围内的浮点数
+        /// </summary>
+        public static float Range(float maxValue)
+        {
+            return (float)(_random.NextDouble() * maxValue);
+        }
+
+        /// <summary>
+        /// 返回 [minValue, maxValue) 范围内的浮点数
+        /// </summary>
+        public static float Range(float minValue, float maxValue)
+        {
+            return minValue + (float)(_random.NextDouble() * (maxValue - minValue));
+        }
+    }
+
+    // ========================================================================
     // 复合行为实现
     // ========================================================================
 
@@ -477,7 +514,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
             }
             else
             {
-                selectedIndex = UnityEngine.Random.Range(0, Children.Count);
+                selectedIndex = CrossPlatformRandom.Range(Children.Count);
             }
 
             var child = Children[selectedIndex];
@@ -499,7 +536,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
             float totalWeight = 0f;
             foreach (var w in Weights) totalWeight += w;
 
-            float randomValue = UnityEngine.Random.Range(0f, totalWeight);
+            float randomValue = CrossPlatformRandom.Range(totalWeight);
             float cumulative = 0f;
 
             for (int i = 0; i < Weights.Length; i++)

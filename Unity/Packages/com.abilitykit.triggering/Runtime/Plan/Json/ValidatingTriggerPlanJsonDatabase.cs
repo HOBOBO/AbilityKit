@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Triggering.Validation;
 
 namespace AbilityKit.Triggering.Runtime.Plan.Json
@@ -228,7 +229,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             {
                 foreach (var error in result.Errors)
                 {
-                    UnityEngine.Debug.LogError($"[TriggerValidation] [{error.Code}] {error.Path}: {string.Format(error.Message, error.Args)}");
+                Log.Error($"[TriggerValidation] [{error.Code}] {error.Path}: {string.Format(error.Message, error.Args)}");
                 }
             }
 
@@ -236,7 +237,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             {
                 foreach (var warning in result.Warnings)
                 {
-                    UnityEngine.Debug.LogWarning($"[TriggerValidation] [{warning.Code}] {warning.Path}: {string.Format(warning.Message, warning.Args)}");
+                Log.Warning($"[TriggerValidation] [{warning.Code}] {warning.Path}: {string.Format(warning.Message, warning.Args)}");
                 }
             }
 

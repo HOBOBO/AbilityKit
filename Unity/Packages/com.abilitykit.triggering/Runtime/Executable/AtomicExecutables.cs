@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Variables.Numeric;
@@ -183,7 +184,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         {
             if (LogToConsole)
             {
-                UnityEngine.Debug.Log($"[Triggering] {Message}");
+                Log.Info($"[Triggering] {Message}");
             }
             return ExecutionResult.Success();
         }

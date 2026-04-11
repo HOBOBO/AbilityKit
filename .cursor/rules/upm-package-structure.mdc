@@ -1,0 +1,90 @@
+# AbilityKit Unity UPM 包结构规范
+
+## 目录结构约定
+
+每个 AbilityKit 包必须遵循以下目录结构：
+
+```
+com.abilitykit.{module}/
+├── package.json                    # 包配置文件
+├── Runtime/                        # 运行时代码（服务器可用）
+│   ├── {Feature}/                  # 功能模块目录
+│   │   ├── *.cs                   # 核心运行时实现
+│   │   └── ...
+│   └── com.abilitykit.{module}.asmdef
+├── Editor/                         # 编辑器代码（仅编辑器）
+│   ├── {Feature}/                  # 编辑器功能目录
+│   │   └── *.cs
+│   └── com.abilitykit.{module}.editor.asmdef
+├── Samples~/                      # 示例代码（可选）
+│   └── {SampleName}/
+│       └── *.cs
+├── Tests/                         # 测试代码（可选）
+│   └── Editor/
+│       └── *.cs
+└── Documentation~/                # 文档（可选）
+    └── *.md
+```
+
+## 目录职责定义
+
+| 目录 | 用途 | 服务器可用 | 特殊约束 |
+|------|------|-----------|----------|
+| `Runtime/` | 核心运行时逻辑 | ✅ 是 | **禁止 Unity 依赖** |
+| `Editor/` | 编辑器扩展 | ❌ 否 | 可使用 Unity API |
+| `Samples~/` | 示例代码 | ⚠️ 视情况 | 可使用 Unity API |
+| `Tests/` | 单元测试 | ❌ 否 | 可使用 Unity.Test |
+
+## 命名规范
+
+### asmdef 文件命名
+
+```
+Runtime/          → com.abilitykit.{module}.asmdef
+Editor/           → com.abilitykit.{module}.editor.asmdef
+Tests/Editor/     → com.abilitykit.{module}.tests.asmdef
+```
+
+### 命名空间约定
+
+```
+Runtime/   → AbilityKit.{Module}
+Editor/    → AbilityKit.{Module}.Editor
+```
+
+## asmdef 配置要求
+
+### Runtime asmdef 必须设置
+
+```json
+{
+    "name": "AbilityKit.{Module}",
+    "rootNamespace": "AbilityKit.{Module}",
+    "noEngineReferences": true,
+    "includePlatforms": []
+}
+```
+
+### Editor asmdef 必须设置
+
+```json
+{
+    "name": "AbilityKit.{Module}.Editor",
+    "rootNamespace": "AbilityKit.{Module}.Editor",
+    "includePlatforms": ["Editor"]
+}
+```
+
+## 禁止事项
+
+1. **Runtime 目录禁止**:
+   - `using UnityEngine;`
+   - `using UnityEditor;`
+   - `using Unity.*;`
+   - `UnityEngine.Random.Range`
+   - `#if UNITY_EDITOR`
+
+2. **Runtime 允许使用的跨平台替代**:
+   - `System.Random` 或自定义 `CrossPlatformRandom`
+   - `AbilityKit.Core.Common.Log.Log`
+   - `AbilityKit.Core.Common.Pool.ObjectPool`
