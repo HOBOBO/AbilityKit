@@ -1,5 +1,6 @@
 using System;
-using AbilityKit.Core.Common.AttributeSystem;
+using AbilityKit.Attributes;
+using AbilityKit.Attributes.Core;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Modifiers;
@@ -74,7 +75,7 @@ namespace AbilityKit.Ability.Triggering.Runtime.Builtins
             var unit = context.Target as IUnitFacade;
             if (unit == null) return null;
 
-            if (!Attributes.TryAttr(_attrName, out var attrId) || !attrId.IsValid)
+            if (!AttrRegistry.TryAttr(_attrName, out var attrId) || !attrId.IsValid)
             {
                 return null;
             }

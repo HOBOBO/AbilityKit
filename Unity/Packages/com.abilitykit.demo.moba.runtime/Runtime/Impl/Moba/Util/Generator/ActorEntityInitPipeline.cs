@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
 using BattleDemo = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
 using MO = AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.AttributeSystem;
+using AbilityKit.Attributes.Core;
 using AbilityKit.Ability.Share.Impl.Moba.Components;
 using AbilityKit.Ability.Share.Impl.Moba.Attributes;
 using AbilityKit.Effect;

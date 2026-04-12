@@ -16,8 +16,8 @@ namespace AbilityKit.Ability.World.Services
             builder.TryRegisterType<IWorldLogger, NullWorldLogger>(WorldLifetime.Singleton);
             builder.TryRegister<ILogSink>(WorldLifetime.Singleton, _ =>
             {
-                // 尝试从 Unity 集成包获取日志处理器（反射调用，保持通用层无直接依赖）
-                var type = Type.GetType("AbilityKit.Ability.Unity.UnityLogSink, AbilityKit.Ability.Unity");
+                // 尝试从 Examples 程序集获取日志处理器（反射调用，保持通用层无直接依赖）
+                var type = Type.GetType("AbilityKit.Examples.Common.Log.UnityLogSink, AbilityKit.Examples");
                 if (type != null && typeof(ILogSink).IsAssignableFrom(type))
                 {
                     try

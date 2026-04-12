@@ -1,4 +1,4 @@
-﻿using AbilityKit.Core.Common.AttributeSystem;
+using AbilityKit.Attributes.Core;
 using UnityEditor;
 
 namespace AbilityKit.Game.Editor
@@ -48,7 +48,7 @@ namespace AbilityKit.Game.Editor
                     var inst = attrKv.Value;
                     if (inst == null) continue;
 
-                    var name = AttributeRegistry.Instance.GetName(attrId);
+                    var name = AttributeRegistry.DefaultRegistry.GetName(attrId);
                     var v = inst.Value;
                     EditorGUILayout.LabelField($"{name} ({attrKv.Key})", v.ToString("0.#####"), EditorStyles.miniLabel);
                 }

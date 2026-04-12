@@ -1,5 +1,5 @@
-﻿using System;
-using AbilityKit.Core.Common.AttributeSystem;
+using System;
+using AbilityKit.Attributes.Core;
 using AbilityKit.GameplayTags;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Game.Battle;
@@ -59,7 +59,7 @@ namespace AbilityKit.Game.Editor
                     return false;
                 }
 
-                if (!AttributeRegistry.Instance.TryGet(name, out var attrId))
+                if (!AttributeRegistry.DefaultRegistry.TryGet(name, out var attrId))
                 {
                     return false;
                 }

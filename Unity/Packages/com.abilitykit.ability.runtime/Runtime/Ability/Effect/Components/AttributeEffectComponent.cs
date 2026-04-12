@@ -1,5 +1,6 @@
 using System;
-using AbilityKit.Core.Common.AttributeSystem;
+using AbilityKit.Attributes;
+using AbilityKit.Attributes.Core;
 using AbilityKit.Effect;
 
 namespace AbilityKit.Ability.Share.Effect.Components

@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using AbilityKit.Core.Common.AttributeSystem;
+using System.Collections.Generic;
+using AbilityKit.Attributes.Core;
 using Entitas;
 using Entitas.CodeGeneration.Attributes;
 

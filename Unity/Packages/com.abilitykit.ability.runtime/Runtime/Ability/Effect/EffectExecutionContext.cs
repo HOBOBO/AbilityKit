@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Core.Common.AttributeSystem;
+using AbilityKit.Attributes.Core;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.ECS;

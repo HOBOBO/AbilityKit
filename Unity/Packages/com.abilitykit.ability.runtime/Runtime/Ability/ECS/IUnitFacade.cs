@@ -1,4 +1,4 @@
-using AbilityKit.Core.Common.AttributeSystem;
+using AbilityKit.Attributes.Core;
 using AbilityKit.Ability.Share.ECS;
 using GameplayTagContainer = AbilityKit.GameplayTags.GameplayTagContainer;
 

@@ -1,7 +1,7 @@
 using System;
 using AbilityKit.Ability.Share.Impl.Moba.Components;
 using AbilityKit.Ability.Impl.Moba;
-using AbilityKit.Core.Common.AttributeSystem;
+using AbilityKit.Attributes.Core;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Ability.Share.Impl.Moba.Attributes

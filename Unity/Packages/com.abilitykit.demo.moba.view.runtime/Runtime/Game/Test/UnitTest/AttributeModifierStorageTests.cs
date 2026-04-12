@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Diagnostics;
-using AbilityKit.Core.Common.AttributeSystem;
+using AbilityKit.Attributes.Core;
 using AbilityKit.Modifiers;
 using NUnit.Framework;
 
@@ -11,7 +11,7 @@ namespace AbilityKit.Game.Test.UnitTest
         private static AttributeId CreateTempAttrId(string prefix = "test_attr")
         {
             var name = prefix + "_" + Guid.NewGuid().ToString("N");
-            return AttributeRegistry.Instance.Request(name);
+            return AttributeRegistry.DefaultRegistry.Request(name);
         }
 
         [Test]

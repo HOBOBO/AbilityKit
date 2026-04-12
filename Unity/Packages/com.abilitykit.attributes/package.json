@@ -1,9 +1,9 @@
-﻿{
+{
     "name":  "com.abilitykit.attributes",
     "version":  "0.0.1",
     "displayName":  "AbilityKit Attributes",
     "unity":  "2022.3",
-    "description":  "Attribute system migrated from Common/AttributeSystem.",
+    "description":  "Attribute system for AbilityKit. Provides attribute registration, modification, formula evaluation and constraint management.",
     "author":  {
                    "name":  "AbilityKit"
                },

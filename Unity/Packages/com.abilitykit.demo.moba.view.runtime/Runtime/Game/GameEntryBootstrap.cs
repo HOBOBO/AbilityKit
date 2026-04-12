@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Game.EntityCreation;
 using UnityEngine;
@@ -33,7 +33,7 @@ namespace AbilityKit.Game
         {
             try
             {
-                var type = Type.GetType("AbilityKit.Ability.Impl.Common.Log.UnityLogSink, AbilityKit.Ability.Unity");
+                var type = Type.GetType("AbilityKit.Examples.Common.Log.UnityLogSink, AbilityKit.Examples");
                 if (type == null) return;
                 if (!typeof(ILogSink).IsAssignableFrom(type)) return;
 
