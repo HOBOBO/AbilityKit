@@ -29,7 +29,7 @@ namespace AbilityKit.Game.Flow
 
             try
             {
-                var type = Type.GetType("AbilityKit.Examples.Common.Log.UnityLogSink, AbilityKit.Examples");
+                var type = Type.GetType("AbilityKit.Examples.Common.Log.UnityLogSink, AbilityKit.Demo.Moba.View.Runtime");
                 if (type == null) return;
                 if (!typeof(ILogSink).IsAssignableFrom(type)) return;
 

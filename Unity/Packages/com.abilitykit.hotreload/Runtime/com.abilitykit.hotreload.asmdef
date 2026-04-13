@@ -1,9 +1,9 @@
-﻿{
+{
   "name": "AbilityKit.HotReload",
   "rootNamespace": "AbilityKit",
   "references": [
     "AbilityKit.Core",
-    "AbilityKit.Ability.RuntimePkg",
+    "AbilityKit.Ability",
     "AbilityKit.World.DI",
     "AbilityKit.World.Entitas"
   ],

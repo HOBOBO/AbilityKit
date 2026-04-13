@@ -3,7 +3,7 @@
     "rootNamespace": "AbilityKit.Ability.Behavior",
     "references": [
         "AbilityKit.Core",
-        "AbilityKit.Ability.Unity",
+        "AbilityKit.Ability",
         "AbilityKit.Pipeline"
     ],
     "includePlatforms": [],

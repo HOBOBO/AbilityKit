@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "com.abilitykit.demo.moba.view.runtime",
   "version": "0.0.1",
   "displayName": "AbilityKit Demo MOBA View",
@@ -6,6 +6,8 @@
   "description": "MOBA demo view/runtime (Game layer).",
   "author": { "name": "AbilityKit" },
   "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1",
+    "com.unity.mathematics": "1.2.6",
     "com.abilitykit.demo.moba.entitas.generated": "0.0.1",
     "com.abilitykit.core": "0.0.1",
     "com.abilitykit.host": "0.0.1",
@@ -13,6 +15,9 @@
     "com.abilitykit.world.ecs": "0.0.1",
     "com.abilitykit.world.record": "0.0.1",
     "com.abilitykit.world.snapshot": "0.0.1",
-    "com.abilitykit.demo.moba.runtime": "0.0.1"
+    "com.abilitykit.world.framesync": "0.0.1",
+    "com.abilitykit.demo.moba.runtime": "0.0.1",
+    "com.abilitykit.flow": "0.0.1",
+    "com.abilitykit.hfsm": "0.0.1"
   }
 }

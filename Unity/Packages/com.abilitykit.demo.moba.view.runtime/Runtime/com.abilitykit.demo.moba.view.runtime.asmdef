@@ -2,9 +2,8 @@
     "name": "AbilityKit.Demo.Moba.View.Runtime",
     "rootNamespace": "AbilityKit",
     "references": [
-        "AbilityKit.Ability.Runtime",
-        "AbilityKit.Ability.RuntimePkg",
-        "AbilityKit.Ability.Unity",
+        "AbilityKit.Ability",
+        "AbilityKit.Ability.Editor",
         "AbilityKit.ActionSchema",
         "AbilityKit.Attributes",
         "AbilityKit.Core",

@@ -3,7 +3,7 @@
   "rootNamespace": "AbilityKit",
   "references": [
     "AbilityKit.Host",
-    "AbilityKit.Ability.RuntimePkg",
+    "AbilityKit.Ability",
     "AbilityKit.World.DI",
     "AbilityKit.World.FrameSync",
     "AbilityKit.World.Snapshot"

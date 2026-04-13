@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Reflection;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.DI;
@@ -11,7 +11,7 @@ namespace AbilityKit.Ability.World.Services
         public static WorldContainerBuilder CreateDefaultOnly()
         {
             var builder = new WorldContainerBuilder();
-            var type = Type.GetType("AbilityKit.Ability.World.Services.DefaultWorldServicesModule, AbilityKit.Ability.RuntimePkg");
+            var type = Type.GetType("AbilityKit.Ability.World.Services.DefaultWorldServicesModule, AbilityKit.Ability");
             if (type != null && typeof(IWorldModule).IsAssignableFrom(type))
             {
                 try

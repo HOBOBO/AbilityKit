@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "com.abilitykit.base.editor",
   "version": "0.0.1",
   "displayName": "AbilityKit Base Editor",
@@ -9,6 +9,7 @@
     "com.abilitykit.core": "0.0.1",
     "com.abilitykit.actioneditor.impl": "0.0.1",
     "com.abilitykit.thirdparty.actioneditor": "0.0.1",
-    "com.abilitykit.world.ecs": "0.0.1"
+    "com.abilitykit.world.ecs": "0.0.1",
+    "com.abilitykit.gameplaytags": "0.0.1"
   }
 }

@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Configs;
+using AbilityKit.Ability.Config;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Common.Pool;
 using AbilityKit.Core.Math;

@@ -1,4 +1,4 @@
-﻿{
+{
     "name":  "com.abilitykit.ability.testkit",
     "version":  "0.0.1",
     "displayName":  "AbilityKit Ability TestKit",
@@ -7,8 +7,8 @@
     "author":  {
                    "name":  "AbilityKit"
                },
-    "dependencies":  {
-                         "com.abilitykit.ability.runtime":  "0.0.1",
-                         "com.abilitykit.world.entitas":  "0.0.1"
-                     }
+    "dependencies": {
+                        "com.abilitykit.ability":  "0.0.1",
+                        "com.abilitykit.world.entitas":  "0.0.1"
+                    }
 }

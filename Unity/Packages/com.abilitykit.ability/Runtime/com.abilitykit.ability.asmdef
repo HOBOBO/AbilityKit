@@ -1,0 +1,27 @@
+{
+  "name": "AbilityKit.Ability",
+  "rootNamespace": "AbilityKit.Ability",
+  "references": [
+    "AbilityKit.Core",
+    "AbilityKit.GameplayTags",
+    "AbilityKit.Attributes",
+    "AbilityKit.Modifiers",
+    "AbilityKit.World.DI",
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.World.ECS",
+    "AbilityKit.World.Snapshot",
+    "AbilityKit.Combat.Projectile",
+    "AbilityKit.Combat.Collision.Abstractions",
+    "AbilityKit.Triggering",
+    "AbilityKit.Pipeline"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

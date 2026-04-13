@@ -1,0 +1,24 @@
+{
+    "name": "AbilityKit.Ability.Editor",
+    "rootNamespace": "AbilityKit.Ability.Editor",
+    "references": [
+        "AbilityKit.Ability",
+        "AbilityKit.Core",
+        "AbilityKit.Attributes",
+        "AbilityKit.Pipeline",
+        "AbilityKit.Pipeline.Editor",
+        "AbilityKit.Triggering",
+        "AbilityKit.World.Snapshot"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

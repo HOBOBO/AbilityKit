@@ -6,7 +6,6 @@
         "AbilityKit.GameplayTags",
         "AbilityKit.Core",
         "AbilityKit.Protocol.Moba",
-        "AbilityKit.Effects",
         "AbilityKit.Attributes",
         "AbilityKit.Modifiers",
         "AbilityKit.Host",
@@ -17,9 +16,7 @@
         "AbilityKit.World.FrameSync",
         "AbilityKit.World.ECS",
         "AbilityKit.World.Snapshot",
-        "AbilityKit.Ability.RuntimePkg",
-        "AbilityKit.Ability.Engine",
-        "AbilityKit.Ability.Unity",
+        "AbilityKit.Ability",
         "AbilityKit.Ability.Behavior",
         "AbilityKit.ActionSchema",
         "AbilityKit.Combat.Projectile",
@@ -31,7 +28,7 @@
         "AbilityKit.Triggering",
         "AbilityKit.Pipeline",
         "AbilityKit.Trace",
-        "AbilityKit.Examples"
+        "AbilityKit.HFSM.Examples"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

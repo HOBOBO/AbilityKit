@@ -20,7 +20,7 @@
     "com.abilitykit.world.ecs": "0.0.1",
     "com.abilitykit.combat.motion": "0.0.1",
     "com.abilitykit.world.snapshot": "0.0.1",
-    "com.abilitykit.ability.runtime": "0.0.1",
+    "com.abilitykit.ability": "0.0.1",
     "com.abilitykit.behavior": "0.0.1",
     "com.abilitykit.combat.entitymanager": "0.0.1",
     "com.abilitykit.combat.projectile": "0.0.1",
