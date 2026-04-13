@@ -1,6 +1,6 @@
 using System;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Config.BattleDemo;
 
 namespace AbilityKit.Game.Battle.Moba.Config
 {

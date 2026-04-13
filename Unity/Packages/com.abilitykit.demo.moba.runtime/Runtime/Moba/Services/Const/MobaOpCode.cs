@@ -1,0 +1,25 @@
+﻿namespace AbilityKit.Demo.Moba.Services
+{
+    public enum MobaOpCode
+    {
+        Ready = 3001,
+        Unready = 3002,
+        Move = 3003,
+
+        Skill1 = 3011,
+        Skill2 = 3012,
+        Skill3 = 3013,
+
+        SkillInput = 3020,
+
+        LobbySnapshot = 4001,
+        EnterGameSnapshot = 4002,
+        ActorTransformSnapshot = 4003,
+        StateHashSnapshot = 4004,
+        ActorSpawnSnapshot = 4005,
+        ProjectileEventSnapshot = 4006,
+        DamageEventSnapshot = 4007,
+        ActorDespawnSnapshot = 4008,
+        AreaEventSnapshot = 4009,
+    }
+}

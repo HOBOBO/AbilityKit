@@ -1,8 +1,8 @@
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba;
-using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Effect;
 using AbilityKit.Game.Battle.Vfx;

@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using AbilityKit.Trace;
 
-namespace AbilityKit.Ability.Impl.Moba
+namespace AbilityKit.Demo.Moba
 {
     /// <summary>
-    /// 效果溯源种类枚举
+    /// 鏁堟灉婧簮绉嶇被鏋氫妇
     /// </summary>
     public enum EffectSourceKind
     {
@@ -19,7 +19,7 @@ namespace AbilityKit.Ability.Impl.Moba
     }
 
     /// <summary>
-    /// 效果溯源结束原因枚举
+    /// 鏁堟灉婧簮缁撴潫鍘熷洜鏋氫妇
     /// </summary>
     public enum EffectSourceEndReason
     {
@@ -35,14 +35,13 @@ namespace AbilityKit.Ability.Impl.Moba
     }
 }
 
-namespace AbilityKit.Ability.Impl.Moba.EffectSource
+namespace AbilityKit.Demo.Moba.EffectSource
 {
-    using AbilityKit.Ability.Impl.Moba;
+    using AbilityKit.Demo.Moba;
     using AbilityKit.Ability.World.Services;
 
     /// <summary>
-    /// Moba 溯源元数据
-    /// </summary>
+    /// Moba 婧簮鍏冩暟鎹?    /// </summary>
     public sealed class MobaTraceMetadata : TraceMetadata
     {
         public int BuffId;
@@ -55,8 +54,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
     }
 
     /// <summary>
-    /// Moba 溯源注册表
-    /// 基于 AbilityKit.Trace.TraceTreeRegistry，提供与旧 EffectSourceRegistry 兼容的 API
+    /// Moba 婧簮娉ㄥ唽琛?    /// 鍩轰簬 AbilityKit.Trace.TraceTreeRegistry锛屾彁渚涗笌鏃?EffectSourceRegistry 鍏煎鐨?API
     /// </summary>
     public sealed class MobaTraceRegistry : TraceTreeRegistry<MobaTraceMetadata>, IService
     {
@@ -69,8 +67,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
         }
 
         /// <summary>
-        /// 创建根节点（兼容旧 API）
-        /// </summary>
+        /// 鍒涘缓鏍硅妭鐐癸紙鍏煎鏃?API锛?        /// </summary>
         public long CreateRoot(EffectSourceKind kind, int configId, int sourceActorId, int targetActorId, int frame, object originSource, object originTarget)
         {
             return CreateRoot(
@@ -81,8 +78,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
         }
 
         /// <summary>
-        /// 创建根节点（简化版）
-        /// </summary>
+        /// 鍒涘缓鏍硅妭鐐癸紙绠€鍖栫増锛?        /// </summary>
         public long CreateRoot(EffectSourceKind kind, int configId, int sourceActorId, int targetActorId, int frame)
         {
             return CreateRoot(
@@ -93,8 +89,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
         }
 
         /// <summary>
-        /// 确保根节点存在（兼容旧 API）
-        /// </summary>
+        /// 纭繚鏍硅妭鐐瑰瓨鍦紙鍏煎鏃?API锛?        /// </summary>
         public bool EnsureRoot(long contextId, EffectSourceKind kind, int configId, int sourceActorId, int targetActorId, int frame, object originSource, object originTarget)
         {
             var snapshot = TryGetSnapshot(contextId);
@@ -106,8 +101,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
         }
 
         /// <summary>
-        /// 创建子节点（兼容旧 API）
-        /// </summary>
+        /// 鍒涘缓瀛愯妭鐐癸紙鍏煎鏃?API锛?        /// </summary>
         public long CreateChild(long parentContextId, EffectSourceKind kind, int configId, int sourceActorId, int targetActorId, int frame, object originSource, object originTarget)
         {
             return CreateChild(
@@ -119,7 +113,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
         }
 
         /// <summary>
-        /// 创建技能施法根节点
+        /// 鍒涘缓鎶€鑳芥柦娉曟牴鑺傜偣
         /// </summary>
         public long CreateSkillCastRoot(
             int skillId,
@@ -136,8 +130,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
         }
 
         /// <summary>
-        /// 创建效果子节点
-        /// </summary>
+        /// 鍒涘缓鏁堟灉瀛愯妭鐐?        /// </summary>
         public long CreateEffectChild(
             long parentContextId,
             int effectId,
@@ -153,8 +146,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
         }
 
         /// <summary>
-        /// 创建 Buff 子节点
-        /// </summary>
+        /// 鍒涘缓 Buff 瀛愯妭鐐?        /// </summary>
         public long CreateBuffChild(
             long parentContextId,
             int buffId,
@@ -170,7 +162,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
         }
 
         /// <summary>
-        /// 结束节点
+        /// 缁撴潫鑺傜偣
         /// </summary>
         public bool EndNode(long contextId, EffectSourceEndReason reason)
         {
@@ -178,8 +170,7 @@ namespace AbilityKit.Ability.Impl.Moba.EffectSource
         }
 
         /// <summary>
-        /// 结束节点（带帧号）
-        /// </summary>
+        /// 缁撴潫鑺傜偣锛堝甫甯у彿锛?        /// </summary>
         public bool End(long contextId, int frame, EffectSourceEndReason reason)
         {
             return End(contextId, (int)reason);

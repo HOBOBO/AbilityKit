@@ -8,7 +8,6 @@
   "dependencies": {
     "com.unity.nuget.newtonsoft-json": "3.2.1",
     "com.unity.mathematics": "1.2.6",
-    "com.abilitykit.demo.moba.entitas.generated": "0.0.1",
     "com.abilitykit.core": "0.0.1",
     "com.abilitykit.host": "0.0.1",
     "com.abilitykit.world.entitas": "0.0.1",

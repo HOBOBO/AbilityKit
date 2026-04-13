@@ -1,7 +1,7 @@
-namespace AbilityKit.Ability.Share.Impl.Moba
+﻿namespace AbilityKit.Demo.Moba
 {
     /// <summary>
-    /// 伤害类型枚举
+    /// 浼ゅ绫诲瀷鏋氫妇
     /// </summary>
     public enum DamageType : byte
     {
@@ -12,7 +12,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba
     }
 
     /// <summary>
-    /// 暴击类型枚举
+    /// 鏆村嚮绫诲瀷鏋氫妇
     /// </summary>
     public enum CritType : byte
     {
@@ -21,7 +21,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba
     }
 
     /// <summary>
-    /// 伤害原因类型枚举
+    /// 浼ゅ鍘熷洜绫诲瀷鏋氫妇
     /// </summary>
     public enum DamageReasonKind : byte
     {
@@ -34,7 +34,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba
     }
 
     /// <summary>
-    /// 伤害公式类型枚举
+    /// 浼ゅ鍏紡绫诲瀷鏋氫妇
     /// </summary>
     public enum DamageFormulaKind : byte
     {

@@ -1,14 +1,14 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Common.Log;
-using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
+using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Extensions.WorldStart;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.Share.Impl.Moba.Rollback;
-using AbilityKit.Ability.Share.Impl.Moba.Services;
+using AbilityKit.Demo.Moba.Rollback;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Management;
@@ -27,11 +27,11 @@ namespace AbilityKit.Game.Flow
         private void CreateRemoteDrivenRuntimeAndWorld()
         {
             var typeRegistry = new WorldTypeRegistry()
-                .RegisterEntitasWorld(AbilityKit.Ability.Share.Impl.Moba.Worlds.Blueprints.MobaLobbyWorldBlueprint.Type)
-                .RegisterEntitasWorld(AbilityKit.Ability.Share.Impl.Moba.Worlds.Blueprints.MobaBattleWorldBlueprint.Type);
+                .RegisterEntitasWorld(AbilityKit.Demo.Moba.Worlds.Blueprints.MobaLobbyWorldBlueprint.Type)
+                .RegisterEntitasWorld(AbilityKit.Demo.Moba.Worlds.Blueprints.MobaBattleWorldBlueprint.Type);
 
             var blueprints = new AbilityKit.Ability.Host.WorldBlueprints.WorldBlueprintRegistry();
-            AbilityKit.Ability.Share.Impl.Moba.Worlds.Blueprints.MobaWorldBlueprintsRegistration.RegisterAll(blueprints);
+            AbilityKit.Demo.Moba.Worlds.Blueprints.MobaWorldBlueprintsRegistration.RegisterAll(blueprints);
 
             var baseFactory = new RegistryWorldFactory(typeRegistry);
             var factory = new AbilityKit.Ability.Host.WorldBlueprints.WorldBlueprintWorldFactory(baseFactory, blueprints);
@@ -66,7 +66,7 @@ namespace AbilityKit.Game.Flow
                 {
                     typeof(WorldServiceContainerFactory).Assembly,
                     typeof(BattleLogicSession).Assembly,
-                    typeof(AbilityKit.Ability.Share.Impl.Moba.Systems.MobaWorldBootstrapModule).Assembly,
+                    typeof(AbilityKit.Demo.Moba.Systems.MobaWorldBootstrapModule).Assembly,
                     typeof(BattleSessionFeature).Assembly
                 },
                 new[] { "AbilityKit" }
@@ -77,7 +77,7 @@ namespace AbilityKit.Game.Flow
 
             if (stats != null)
             {
-                builder.RegisterInstance<AbilityKit.Ability.Share.Impl.Moba.Services.IWorldAuthorityFramesSource>(new ClientPredictionDriverStatsFramesSource(stats));
+                builder.RegisterInstance<AbilityKit.Demo.Moba.Services.IWorldAuthorityFramesSource>(new ClientPredictionDriverStatsFramesSource(stats));
             }
 
             var options = new WorldCreateOptions(new WorldId(_plan.WorldId), _plan.WorldType)
@@ -139,7 +139,7 @@ namespace AbilityKit.Game.Flow
 
                         if (world.Services.TryResolve<MobaActorRegistry>(out var actorReg) && actorReg != null)
                         {
-                            reg.Register(new AbilityKit.Ability.Share.Impl.Moba.Rollback.MobaActorTransformRollbackProvider(actorReg));
+                            reg.Register(new MobaActorTransformRollbackProvider(actorReg));
                         }
 
                         if (world.Services.TryResolve<PassiveSkillTriggerEventRollbackLog>(out var passiveLog) && passiveLog != null)
@@ -173,8 +173,6 @@ namespace AbilityKit.Game.Flow
             }
             else
             {
-                // Prediction disabled: still install the driver so remote inputs are consumed and the world advances.
-                // Configure it to be authoritative-only (no prediction window, no rollback/reconcile, no local inputs).
                 modules.Add(new AbilityKit.Ability.Host.Extensions.FrameSync.ClientPredictionDriverModule(
                     resolveRemoteInputs: _ => _remoteDrivenConsumable,
                     resolveLocalInputs: _ => null,

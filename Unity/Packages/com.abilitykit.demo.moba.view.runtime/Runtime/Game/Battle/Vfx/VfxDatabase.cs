@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using Newtonsoft.Json;
 using UnityEngine;
 

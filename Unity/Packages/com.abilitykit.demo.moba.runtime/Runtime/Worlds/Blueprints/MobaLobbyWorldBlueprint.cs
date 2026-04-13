@@ -1,12 +1,12 @@
 ﻿using System;
 using AbilityKit.Ability.Host.WorldBlueprints;
-using AbilityKit.Ability.Share.Impl.Moba.Systems;
-using AbilityKit.Ability.Share.Impl.Moba.EntitasAdapters;
+using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Entitas;
 using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Ability.Share.Impl.Moba.Worlds.Blueprints
+namespace AbilityKit.Demo.Moba.Worlds.Blueprints
 {
     public sealed class MobaLobbyWorldBlueprint : IWorldBlueprint
     {

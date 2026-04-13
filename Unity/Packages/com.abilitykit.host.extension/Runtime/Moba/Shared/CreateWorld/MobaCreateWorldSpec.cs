@@ -3,7 +3,7 @@ using AbilityKit.Core.Generic;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Host.Extensions.Moba.Struct;
 
-namespace AbilityKit.Ability.Host.Extensions.Moba.CreateWorld
+namespace AbilityKit.Demo.Moba.CreateWorld
 {
     public readonly struct MobaCreateWorldSpec
     {

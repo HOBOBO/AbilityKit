@@ -1,6 +1,6 @@
-﻿using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Ability.Impl.Moba;
+using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.Host.Extensions.Moba.Struct;
 using System.Collections.Generic;
 using Sirenix.OdinInspector;
@@ -206,7 +206,7 @@ namespace AbilityKit.Game.Flow
             byte[] payload = null;
             TryBuildCreateWorldPayload(out _, out payload);
 
-            var spec = AbilityKit.Ability.Host.Extensions.Moba.CreateWorld.MobaCreateWorldSpec.FromRoomSpec(in roomSpec);
+            var spec = AbilityKit.Demo.Moba.CreateWorld.MobaCreateWorldSpec.FromRoomSpec(in roomSpec);
             return spec.ToLegacyEnterReq(new PlayerId(playerId), enterGameSo.OpCode, payload);
         }
 

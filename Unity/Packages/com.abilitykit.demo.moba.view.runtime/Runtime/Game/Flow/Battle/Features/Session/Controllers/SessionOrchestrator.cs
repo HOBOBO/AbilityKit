@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Common.Log;
@@ -56,7 +56,7 @@ namespace AbilityKit.Game.Flow
                     {
                         typeof(AbilityKit.Ability.World.Services.WorldServiceContainerFactory).Assembly,
                         typeof(BattleLogicSession).Assembly,
-                        typeof(AbilityKit.Ability.Share.Impl.Moba.Systems.MobaWorldBootstrapModule).Assembly,
+                        typeof(AbilityKit.Demo.Moba.Systems.MobaWorldBootstrapModule).Assembly,
                         typeof(BattleSessionFeature).Assembly,
                     },
                     NamespacePrefixes = new[] { "AbilityKit" },

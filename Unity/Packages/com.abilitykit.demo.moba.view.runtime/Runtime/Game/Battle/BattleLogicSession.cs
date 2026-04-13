@@ -1,12 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Ability.Share.Impl.Moba.Rollback;
-using AbilityKit.Ability.Share.Impl.Moba.Services;
-using AbilityKit.Ability.Share.Impl.Moba.Worlds.Blueprints;
+using AbilityKit.Demo.Moba.Rollback;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Worlds.Blueprints;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Core.Common.SnapshotRouting;
 using AbilityKit.Ability.World.Abstractions;
@@ -161,7 +161,7 @@ namespace AbilityKit.Game.Battle
                 reg.Register(new MobaActorTransformRollbackProvider(actorReg));
             }
 
-            if (world.Services.TryResolve<AbilityKit.Ability.Share.Impl.Moba.Rollback.RollbackWorldRandom>(out var rng) && rng != null)
+            if (world.Services.TryResolve<AbilityKit.Demo.Moba.Rollback.RollbackWorldRandom>(out var rng) && rng != null)
             {
                 reg.Register(rng);
             }

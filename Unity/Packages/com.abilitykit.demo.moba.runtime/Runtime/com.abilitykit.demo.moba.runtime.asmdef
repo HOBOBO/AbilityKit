@@ -1,6 +1,6 @@
 {
     "name": "AbilityKit.Demo.Moba.Runtime",
-    "rootNamespace": "AbilityKit",
+    "rootNamespace": "AbilityKit.Demo.Moba",
     "references": [
         "AbilityKit.ThirdParty.Luban.Runtime",
         "AbilityKit.GameplayTags",
@@ -9,6 +9,7 @@
         "AbilityKit.Attributes",
         "AbilityKit.Modifiers",
         "AbilityKit.Host",
+        "AbilityKit.Host.Extension",
         "AbilityKit.Demo.Moba.Entitas.Generated",
         "AbilityKit.Combat.Motion",
         "AbilityKit.World.DI",

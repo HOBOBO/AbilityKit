@@ -198,21 +198,11 @@
         "com.abilitykit.hotreload": "0.0.1"
       }
     },
-    "com.abilitykit.demo.moba.entitas.generated": {
-      "version": "file:com.abilitykit.demo.moba.entitas.generated",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.abilitykit.thirdparty.entitas.runtime": "0.0.1",
-        "com.abilitykit.thirdparty.desperatedevs.runtime": "0.0.1"
-      }
-    },
     "com.abilitykit.demo.moba.runtime": {
       "version": "file:com.abilitykit.demo.moba.runtime",
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.demo.moba.entitas.generated": "0.0.1",
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.attributes": "0.0.1",
         "com.abilitykit.actionschema": "0.0.1",
@@ -242,7 +232,6 @@
       "dependencies": {
         "com.unity.nuget.newtonsoft-json": "3.2.1",
         "com.unity.mathematics": "1.2.6",
-        "com.abilitykit.demo.moba.entitas.generated": "0.0.1",
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.host": "0.0.1",
         "com.abilitykit.world.entitas": "0.0.1",

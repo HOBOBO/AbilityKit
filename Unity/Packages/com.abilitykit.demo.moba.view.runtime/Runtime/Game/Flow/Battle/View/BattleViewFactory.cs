@@ -1,6 +1,6 @@
-﻿using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.Core;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo;
-using AbilityKit.Ability.Impl.BattleDemo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Config.BattleDemo;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;

@@ -1,0 +1,45 @@
+﻿using System;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Ability.Share.ECS.Entitas;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Entitas;
+
+namespace AbilityKit.Demo.Moba.Systems
+{
+    public sealed partial class MobaWorldBootstrapModule : IWorldModule, IEntitasSystemsInstaller
+    {
+        public const int InitOpCode = 2000;
+
+        public void Configure(WorldContainerBuilder builder)
+        {
+            if (builder == null) throw new ArgumentNullException(nameof(builder));
+
+            ExecuteConfigurePipeline(builder);
+        }
+
+        public void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldResolver services)
+        {
+            Log.Info("[MobaWorldBootstrapModule] Install: begin");
+            if (contexts == null) throw new ArgumentNullException(nameof(contexts));
+            if (systems == null) throw new ArgumentNullException(nameof(systems));
+            if (services == null) throw new ArgumentNullException(nameof(services));
+
+            AutoSystemInstaller.Install(
+                contexts,
+                systems,
+                services,
+                assemblies: new[] { typeof(MobaWorldBootstrapModule).Assembly, typeof(AbilityKit.Core.Common.Projectile.ProjectileTickSystem).Assembly },
+                namespacePrefixes: new[]
+                {
+                    "AbilityKit.Demo.Moba",
+                    "AbilityKit.Core.Common.Projectile",
+                }
+            );
+
+            Log.Info("[MobaWorldBootstrapModule] Install: AutoSystemInstaller.Install done");
+
+            ExecuteInstallPipeline(contexts, systems, services);
+        }
+    }
+}
+
