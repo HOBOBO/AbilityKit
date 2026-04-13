@@ -1,4 +1,4 @@
-﻿using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Demo.Moba.EntitasAdapters

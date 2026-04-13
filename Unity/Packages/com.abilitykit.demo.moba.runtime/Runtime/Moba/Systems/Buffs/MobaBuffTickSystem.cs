@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.Triggering;

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Util.Generator;
 using AbilityKit.Demo.Moba.Config.Core;
@@ -13,7 +13,7 @@ using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Core.Math;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 
 namespace AbilityKit.Demo.Moba.Systems.Projectile
 {

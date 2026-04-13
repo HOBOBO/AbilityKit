@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 
 namespace AbilityKit.Demo.Moba.Systems
 {

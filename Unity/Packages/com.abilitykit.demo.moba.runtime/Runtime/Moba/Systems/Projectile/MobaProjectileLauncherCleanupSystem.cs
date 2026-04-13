@@ -1,11 +1,11 @@
-﻿using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Demo.Moba.Systems.Projectile

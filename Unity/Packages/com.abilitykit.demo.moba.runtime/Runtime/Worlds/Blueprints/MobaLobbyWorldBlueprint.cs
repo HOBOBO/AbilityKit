@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.Host.WorldBlueprints;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Demo.Moba.Worlds.Blueprints

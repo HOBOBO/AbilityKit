@@ -6,7 +6,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Requests;
 using UnityEngine;

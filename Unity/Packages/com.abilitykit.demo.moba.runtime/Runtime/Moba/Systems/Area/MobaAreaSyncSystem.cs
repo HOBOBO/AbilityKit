@@ -8,7 +8,7 @@ using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Core.Math;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
 

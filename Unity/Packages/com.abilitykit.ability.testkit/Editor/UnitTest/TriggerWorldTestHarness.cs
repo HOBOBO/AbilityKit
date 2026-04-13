@@ -1,7 +1,7 @@
 using System;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.UnitTest

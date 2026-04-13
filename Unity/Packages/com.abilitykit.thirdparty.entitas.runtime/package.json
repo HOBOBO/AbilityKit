@@ -1,7 +1,0 @@
-﻿{
-    "name":  "com.abilitykit.thirdparty.entitas.runtime",
-    "version":  "0.0.1",
-    "displayName":  "ThirdParty Entitas Runtime",
-    "unity":  "2022.3",
-    "description":  "Third party dependency packaged for AbilityKit."
-}

@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 
 namespace AbilityKit.Core.Common.Projectile
 {

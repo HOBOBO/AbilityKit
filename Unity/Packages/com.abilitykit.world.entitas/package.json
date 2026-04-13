@@ -8,6 +8,6 @@
   "dependencies": {
     "com.abilitykit.core": "0.0.1",
     "com.abilitykit.world.di": "0.0.1",
-    "com.abilitykit.thirdparty.entitas.runtime": "0.0.1"
+    "com.abilitykit.thirdparty.entitas": "0.0.1"
   }
 }

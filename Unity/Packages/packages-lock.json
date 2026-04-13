@@ -403,26 +403,14 @@
       "source": "embedded",
       "dependencies": {}
     },
-    "com.abilitykit.thirdparty.desperatedevs.editor": {
-      "version": "file:com.abilitykit.thirdparty.desperatedevs.editor",
+    "com.abilitykit.thirdparty.desperatedevs": {
+      "version": "file:com.abilitykit.thirdparty.desperatedevs",
       "depth": 0,
       "source": "embedded",
       "dependencies": {}
     },
-    "com.abilitykit.thirdparty.desperatedevs.runtime": {
-      "version": "file:com.abilitykit.thirdparty.desperatedevs.runtime",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {}
-    },
-    "com.abilitykit.thirdparty.entitas.editor": {
-      "version": "file:com.abilitykit.thirdparty.entitas.editor",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {}
-    },
-    "com.abilitykit.thirdparty.entitas.runtime": {
-      "version": "file:com.abilitykit.thirdparty.entitas.runtime",
+    "com.abilitykit.thirdparty.entitas": {
+      "version": "file:com.abilitykit.thirdparty.entitas",
       "depth": 0,
       "source": "embedded",
       "dependencies": {}
@@ -490,7 +478,7 @@
       "dependencies": {
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.world.di": "0.0.1",
-        "com.abilitykit.thirdparty.entitas.runtime": "0.0.1"
+        "com.abilitykit.thirdparty.entitas": "0.0.1"
       }
     },
     "com.abilitykit.world.framesync": {

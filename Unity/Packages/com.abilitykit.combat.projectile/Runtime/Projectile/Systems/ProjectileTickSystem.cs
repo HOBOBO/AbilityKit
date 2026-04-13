@@ -1,12 +1,12 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Core.Common.Projectile
 {
-    [WorldSystem(WorldSystemOrder.AbilityBase + WorldSystemOrder.Normal, Phase = WorldSystemPhase.Execute)]
+    [WorldSystem(WorldSystemOrder.CoreBase + 2000 + WorldSystemOrder.Normal, Phase = WorldSystemPhase.Execute)]
     public sealed class ProjectileTickSystem : WorldSystemBase
     {
         private readonly IProjectileService _projectiles;

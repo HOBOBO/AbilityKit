@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Core.Common.MotionSystem.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba;
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.Core;
@@ -10,7 +10,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 using Entitas;
 using EffectSourceRegistry = AbilityKit.Demo.Moba.EffectSource.MobaTraceRegistry;
 

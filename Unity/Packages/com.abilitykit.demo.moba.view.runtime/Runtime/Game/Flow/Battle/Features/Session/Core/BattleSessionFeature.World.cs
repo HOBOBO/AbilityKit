@@ -4,7 +4,7 @@ using AbilityKit.Demo.Moba.Serialization;
 using AbilityKit.Core.Common.Config;
 using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Moba.Config;

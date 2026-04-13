@@ -1,13 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Math;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 using Entitas;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
-    [WorldSystem(WorldSystemOrder.MobaBase + WorldSystemOrder.Early, Phase = WorldSystemPhase.PreExecute)]
+    [WorldSystem(MobaSystemOrder.Base + WorldSystemOrder.Early, Phase = WorldSystemPhase.PreExecute)]
     public sealed class CollisionWorldSyncSystem : WorldSystemBase
     {
         private readonly ICollisionWorld _world;

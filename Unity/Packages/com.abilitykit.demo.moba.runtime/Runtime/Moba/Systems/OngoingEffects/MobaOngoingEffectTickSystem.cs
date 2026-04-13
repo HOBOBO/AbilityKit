@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Components;
@@ -6,7 +6,7 @@ using AbilityKit.Core.Common.Log;
 using AbilityKit.Effect;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Entitas;
+using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba;
 
