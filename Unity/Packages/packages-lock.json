@@ -247,7 +247,7 @@
         "com.abilitykit.host": "0.0.1",
         "com.abilitykit.world.entitas": "0.0.1",
         "com.abilitykit.world.ecs": "0.0.1",
-        "com.abilitykit.world.record": "0.0.1",
+        "com.abilitykit.record": "0.0.1",
         "com.abilitykit.world.snapshot": "0.0.1",
         "com.abilitykit.world.framesync": "0.0.1",
         "com.abilitykit.demo.moba.runtime": "0.0.1",
@@ -299,14 +299,6 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.core": "0.0.1"
-      }
-    },
-    "com.abilitykit.hfsm.examples": {
-      "version": "file:com.abilitykit.hfsm.examples",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.abilitykit.hfsm": "1.0.0"
       }
     },
     "com.abilitykit.host": {
@@ -389,6 +381,23 @@
     },
     "com.abilitykit.protocol.moba": {
       "version": "file:com.abilitykit.protocol.moba",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
+    "com.abilitykit.record": {
+      "version": "file:com.abilitykit.record",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "0.0.1",
+        "com.abilitykit.world.framesync": "0.0.1",
+        "com.abilitykit.world.snapshot": "0.0.1",
+        "com.abilitykit.host": "0.0.1"
+      }
+    },
+    "com.abilitykit.record.memorypack": {
+      "version": "file:com.abilitykit.record.memorypack",
       "depth": 0,
       "source": "embedded",
       "dependencies": {}
@@ -503,23 +512,6 @@
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.world.di": "0.0.1"
       }
-    },
-    "com.abilitykit.world.record": {
-      "version": "file:com.abilitykit.world.record",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.abilitykit.core": "0.0.1",
-        "com.abilitykit.world.framesync": "0.0.1",
-        "com.abilitykit.world.snapshot": "0.0.1",
-        "com.abilitykit.host": "0.0.1"
-      }
-    },
-    "com.abilitykit.world.record.memorypack": {
-      "version": "file:com.abilitykit.world.record.memorypack",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {}
     },
     "com.abilitykit.world.snapshot": {
       "version": "file:com.abilitykit.world.snapshot",

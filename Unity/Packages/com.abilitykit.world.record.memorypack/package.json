@@ -1,8 +1,0 @@
-{
-  "name": "com.abilitykit.world.record.memorypack",
-  "version": "0.0.1",
-  "displayName": "AbilityKit World Record (MemoryPack)",
-  "unity": "2022.3",
-  "description": "Optional MemoryPack-based lockstep record codec implementation for AbilityKit.World.Record.",
-  "author": { "name": "AbilityKit" }
-}

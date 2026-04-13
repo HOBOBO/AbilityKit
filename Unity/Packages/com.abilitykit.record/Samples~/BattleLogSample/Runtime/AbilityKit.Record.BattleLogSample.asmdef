@@ -1,8 +1,8 @@
 {
-  "name": "AbilityKit.World.Record.BattleLogSample",
+  "name": "AbilityKit.Record.BattleLogSample",
   "rootNamespace": "AbilityKit",
   "references": [
-    "AbilityKit.World.Record"
+    "AbilityKit.Record"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Common.Record.Adapters.EventCodecs;
@@ -6,7 +6,7 @@ using AbilityKit.Core.Common.Record.Adapters.Replay;
 using AbilityKit.Core.Common.Record.Core;
 using UnityEngine;
 
-namespace AbilityKit.World.Record.Samples
+namespace AbilityKit.Record.Samples
 {
     public sealed class DeltaRecordSample : MonoBehaviour
     {

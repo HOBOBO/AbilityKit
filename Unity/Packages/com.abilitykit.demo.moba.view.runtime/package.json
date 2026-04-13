@@ -13,7 +13,7 @@
     "com.abilitykit.host": "0.0.1",
     "com.abilitykit.world.entitas": "0.0.1",
     "com.abilitykit.world.ecs": "0.0.1",
-    "com.abilitykit.world.record": "0.0.1",
+    "com.abilitykit.record": "0.0.1",
     "com.abilitykit.world.snapshot": "0.0.1",
     "com.abilitykit.world.framesync": "0.0.1",
     "com.abilitykit.demo.moba.runtime": "0.0.1",

@@ -1,6 +1,6 @@
-﻿using AbilityKit.Core.Common.Record.Lockstep;
+using AbilityKit.Core.Common.Record.Lockstep;
 
-namespace AbilityKit.World.Record.MemoryPack
+namespace AbilityKit.Record.MemoryPack
 {
     public static class LockstepMemoryPackInputRecordCodecInstaller
     {

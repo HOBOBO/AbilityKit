@@ -36,11 +36,11 @@
 
 ---
 
-### 3. [通用录像模块](./com.abilitykit.world.record/Document/)
+### 3. [通用录像模块](./com.abilitykit.record/Document/)
 
 | 文档 | 定位 |
 |------|------|
-| [开发设计文档](./com.abilitykit.world.record/Document/通用录像模块开发设计文档.md) | 设计理念、录制/回放机制 |
+| [开发设计文档](./com.abilitykit.record/Document/通用录像模块开发设计文档.md) | 设计理念、录制/回放机制 |
 
 **核心内容**：帧同步游戏的输入录制和回放，支持确定性验证
 
@@ -187,7 +187,7 @@
 | 为什么用节点树 | [Flow 模块开发设计文档 - 设计理念](./com.abilitykit.flow/Document/Flow模块开发设计文档.md#一设计理念为什么要做-flow-模块) |
 | 为什么用 Scope | [World DI 开发设计文档 - 生命周期](./com.abilitykit.world.di/Document/World依赖注入与组合系统开发设计文档.md#23-什么是生命周期lifetime) |
 | 为什么用 Module | [World DI 开发设计文档 - 模块系统](./com.abilitykit.world.di/Document/World依赖注入与组合系统开发设计文档.md#四五-iworldmodule---模块接口) |
-| 为什么分 Track | [通用录像模块开发设计文档 - 设计理念](./com.abilitykit.world.record/Document/通用录像模块开发设计文档.md#一设计理念为什么要做录像模块) |
+| 为什么分 Track | [通用录像模块开发设计文档 - 设计理念](./com.abilitykit.record/Document/通用录像模块开发设计文档.md#一设计理念为什么要做录像模块) |
 | 为什么用 Phase | [能力管线模块开发设计文档 - 设计理念](./com.abilitykit.pipeline/Document/能力管线模块开发设计文档.md#一设计理念为什么要做-pipeline-模块) |
 | 为什么用索引 | [技能库模块开发设计文档 - 设计理念](./com.abilitykit.combat.skilllibrary/Document/技能库模块开发设计文档.md#一设计理念为什么要做技能库模块) |
 | 为什么用 Trigger | [触发器模块开发设计文档 - 设计理念](./com.abilitykit.triggering/Document/触发器模块开发设计文档.md#一设计理念为什么要做触发器模块) |

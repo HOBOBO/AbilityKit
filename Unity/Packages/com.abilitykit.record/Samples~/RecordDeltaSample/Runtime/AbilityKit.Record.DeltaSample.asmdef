@@ -1,8 +1,8 @@
 {
-  "name": "AbilityKit.World.Record.DeltaSample",
+  "name": "AbilityKit.Record.DeltaSample",
   "rootNamespace": "AbilityKit",
   "references": [
-    "AbilityKit.World.Record"
+    "AbilityKit.Record"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

@@ -9,7 +9,7 @@
 
 > 约定：本文只覆盖 **Battle Flow（View Runtime 包）** 的装配与运行流程；底层网络同步/录像回放的通用原理请参考：
 > - `com.abilitykit.world.framesync/Document/NetworkSyncModels.md`
-> - `com.abilitykit.world.record/Runtime/DESIGN.md`
+> - `com.abilitykit.record/Runtime/DESIGN.md`
 
 ---
 

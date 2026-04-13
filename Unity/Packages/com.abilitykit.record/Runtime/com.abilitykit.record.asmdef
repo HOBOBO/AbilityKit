@@ -1,11 +1,11 @@
 {
-    "name": "AbilityKit.HFSM.Examples",
-    "rootNamespace": "UnityHFSM.Examples",
+    "name": "AbilityKit.Record",
+    "rootNamespace": "AbilityKit",
     "references": [
-        "AbilityKit.HFSM",
-        "AbilityKit.HFSM.Unity",
-        "AbilityKit.HFSM.Core",
-        "AbilityKit.Core"
+        "AbilityKit.Core",
+        "AbilityKit.World.FrameSync",
+        "AbilityKit.World.Snapshot",
+        "AbilityKit.Host"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

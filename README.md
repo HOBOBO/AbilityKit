@@ -91,7 +91,7 @@
 | `com.abilitykit.world.ecs` | 轻量级 ECS 框架：Entity、EntityWorld、ComponentTypeId |
 | `com.abilitykit.world.framesync` | 帧同步：FrameSync、Rollback、ClientPrediction、输入历史 |
 | `com.abilitykit.world.snapshot` | 快照路由：WorldStateSnapshot 编解码 |
-| `com.abilitykit.world.record` | 录像回放：Session、Container、Track，支持输入录制、状态哈希采样 |
+| `com.abilitykit.record` | 录像回放：Session、Container、Track，支持输入录制、状态哈希采样 |
 
 ### 技能与战斗层
 

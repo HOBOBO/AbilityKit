@@ -93,7 +93,7 @@
 
 - [Host模块开发设计文档](../com.abilitykit.host.extension/Document/Host模块开发设计文档.md) - 运行时框架
 - [Flow模块开发设计文档](../com.abilitykit.flow/Document/Flow模块开发设计文档.md) - 流程管理
-- [通用录像模块开发设计文档](../com.abilitykit.world.record/Document/通用录像模块开发设计文档.md) - 录制回放
+- [通用录像模块开发设计文档](../com.abilitykit.record/Document/通用录像模块开发设计文档.md) - 录制回放
 
 ---
 

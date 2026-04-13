@@ -1,8 +1,8 @@
 {
-  "name": "AbilityKit.World.Record.MemoryPack",
+  "name": "AbilityKit.Record.MemoryPack",
   "rootNamespace": "AbilityKit",
   "references": [
-    "AbilityKit.World.Record",
+    "AbilityKit.Record",
     "AbilityKit.World.FrameSync",
     "AbilityKit.Host",
     "AbilityKit.Protocol.MemoryPack"

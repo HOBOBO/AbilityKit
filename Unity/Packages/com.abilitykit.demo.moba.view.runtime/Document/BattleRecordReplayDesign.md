@@ -1,6 +1,6 @@
 # 战斗录像与回放设计说明（输入录制 / 输入回放）
 
-本文档描述 Demo MOBA（`com.abilitykit.demo.moba.view.runtime`）当前“输入录像 / 输入回放（Option A）”的设计与使用方式，并与通用录像模块 `com.abilitykit.world.record` 的设计做对比。
+本文档描述 Demo MOBA（`com.abilitykit.demo.moba.view.runtime`）当前“输入录像 / 输入回放（Option A）”的设计与使用方式，并与通用录像模块 `com.abilitykit.record` 的设计做对比。
 
 > 范围：本文覆盖 **Battle Flow** 内“输入录制/输入回放”的装配、数据流、关键挂点与调试方式。
 >
@@ -230,9 +230,9 @@ sequenceDiagram
 
 ---
 
-## 7. 与 `com.abilitykit.world.record` 设计对比
+## 7. 与 `com.abilitykit.record` 设计对比
 
-`com.abilitykit.world.record/Runtime/DESIGN.md` 的核心定位是：
+`com.abilitykit.record/Runtime/DESIGN.md` 的核心定位是：
 
 - 通用的“按帧索引事件容器”模型：`RecordSession` / `RecordContainer` / `RecordTrack` / `RecordEvent`。
 - 通过 track + event type + codec 组合扩展不同领域的数据记录。

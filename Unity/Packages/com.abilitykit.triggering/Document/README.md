@@ -99,7 +99,7 @@
 
 ## 🔗 相关文档
 
-- [录像模块](../com.abilitykit.world.record/Document/) - 确定性回放
+- [录像模块](../com.abilitykit.record/Document/) - 确定性回放
 - [能力管线模块](../com.abilitykit.pipeline/Document/能力管线模块开发设计文档.md) - 技能执行
 - [实体管理模块](../com.abilitykit.combat.entitymanager/Document/) - 实体查询
 
