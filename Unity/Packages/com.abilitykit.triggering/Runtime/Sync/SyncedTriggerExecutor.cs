@@ -12,8 +12,9 @@ namespace AbilityKit.Triggering.Runtime.Sync
     public class SyncedTriggerExecutor : ISyncedTriggerExecutor
     {
         private readonly IBehaviorFactory _behaviorFactory;
+        // 直接存储触发器实例（包含所有状态）
+        private readonly Dictionary<(int, int), TriggerInstance> _activeInstances = new Dictionary<(int, int), TriggerInstance>();
         private readonly Dictionary<(int, int), ISchedulableBehavior> _activeBehaviors = new Dictionary<(int, int), ISchedulableBehavior>();
-        private readonly Dictionary<(int, int), TriggerState> _activeStates = new Dictionary<(int, int), TriggerState>();
 
         public int ExecutorId { get; }
 
@@ -35,24 +36,29 @@ namespace AbilityKit.Triggering.Runtime.Sync
 
             var behavior = _behaviorFactory.Create(config);
             var key = (triggerId, ExecutorId);
-            var state = TriggerState.Create(triggerId, ExecutorId, serverTime);
+
+            // 创建触发器实例（包含所有状态）
+            var instance = new TriggerInstance(config, ExecutorId, serverTime)
+            {
+                Behavior = behavior
+            };
 
             syncService.OnTriggerStarted(triggerId, ExecutorId);
 
             if (behavior is ISchedulableBehavior schedulable)
             {
+                _activeInstances[key] = instance;
                 _activeBehaviors[key] = schedulable;
-                _activeStates[key] = state;
                 schedulable.Begin(context);
-                state.CurrentState = ETriggerState.Running;
+                instance.CurrentState = ETriggerState.Running;
 
                 if (schedulable.State == EBehaviorState.Completed)
                 {
                     syncService.OnTriggerCompleted(triggerId, ExecutorId);
-                    state.CurrentState = ETriggerState.Completed;
+                    instance.CurrentState = ETriggerState.Completed;
+                    _activeInstances.Remove(key);
                     _activeBehaviors.Remove(key);
-                    _activeStates.Remove(key);
-                    return CreateInstance(config, state, behavior);
+                    return instance;
                 }
 
                 syncService.OnTriggerProgress(triggerId, ExecutorId, schedulable.ElapsedMs);
@@ -62,33 +68,25 @@ namespace AbilityKit.Triggering.Runtime.Sync
                 if (!simple.Evaluate(context))
                 {
                     syncService.OnTriggerInterrupted(triggerId, ExecutorId, "Condition failed");
-                    state.CurrentState = ETriggerState.Interrupted;
-                    return CreateInstance(config, state, behavior);
+                    instance.CurrentState = ETriggerState.Interrupted;
+                    return instance;
                 }
 
                 var result = simple.Execute(context);
                 if (result.IsInterrupted)
                 {
                     syncService.OnTriggerInterrupted(triggerId, ExecutorId, result.FailureReason);
-                    state.CurrentState = ETriggerState.Interrupted;
+                    instance.CurrentState = ETriggerState.Interrupted;
                 }
                 else
                 {
                     syncService.OnTriggerCompleted(triggerId, ExecutorId);
-                    state.CurrentState = ETriggerState.Completed;
+                    instance.CurrentState = ETriggerState.Completed;
                 }
-                return CreateInstance(config, state, behavior);
+                return instance;
             }
 
-            return CreateInstance(config, state, behavior);
-        }
-
-        private ITriggerInstance CreateInstance(ITriggerPlanConfig config, TriggerState state, ITriggerBehavior behavior)
-        {
-            return new TriggerInstance(config, state.ExecutorId, state.StartServerTime)
-            {
-                Behavior = behavior
-            };
+            return instance;
         }
 
         public bool TryGetBehavior(int triggerId, int executorId, out ISchedulableBehavior behavior)
@@ -96,9 +94,9 @@ namespace AbilityKit.Triggering.Runtime.Sync
             return _activeBehaviors.TryGetValue((triggerId, executorId), out behavior);
         }
 
-        public bool TryGetState(int triggerId, int executorId, out TriggerState state)
+        public bool TryGetInstance(int triggerId, int executorId, out TriggerInstance instance)
         {
-            return _activeStates.TryGetValue((triggerId, executorId), out state);
+            return _activeInstances.TryGetValue((triggerId, executorId), out instance);
         }
 
         public void Update(float deltaTimeMs, IBehaviorContext context, ITriggerSyncService syncService)
@@ -110,9 +108,9 @@ namespace AbilityKit.Triggering.Runtime.Sync
                 var behavior = kvp.Value;
                 behavior.Update(deltaTimeMs, context);
 
-                if (_activeStates.TryGetValue(kvp.Key, out var state))
+                if (_activeInstances.TryGetValue(kvp.Key, out var instance))
                 {
-                    state.ElapsedMs = behavior.ElapsedMs;
+                    instance.ElapsedMs = behavior.ElapsedMs;
                 }
 
                 syncService.OnTriggerProgress(kvp.Key.Item1, kvp.Key.Item2, behavior.ElapsedMs);
@@ -120,8 +118,8 @@ namespace AbilityKit.Triggering.Runtime.Sync
                 if (behavior.State == EBehaviorState.Completed)
                 {
                     syncService.OnTriggerCompleted(kvp.Key.Item1, kvp.Key.Item2);
-                    if (_activeStates.TryGetValue(kvp.Key, out var st))
-                        st.CurrentState = ETriggerState.Completed;
+                    if (_activeInstances.TryGetValue(kvp.Key, out var inst))
+                        inst.CurrentState = ETriggerState.Completed;
                     keysToRemove.Add(kvp.Key);
                 }
             }
@@ -129,7 +127,7 @@ namespace AbilityKit.Triggering.Runtime.Sync
             foreach (var key in keysToRemove)
             {
                 _activeBehaviors.Remove(key);
-                _activeStates.Remove(key);
+                _activeInstances.Remove(key);
             }
         }
 
@@ -140,12 +138,12 @@ namespace AbilityKit.Triggering.Runtime.Sync
             {
                 behavior.Interrupt(reason);
                 syncService.OnTriggerInterrupted(triggerId, ExecutorId, reason);
-                
-                if (_activeStates.TryGetValue(key, out var state))
-                    state.CurrentState = ETriggerState.Interrupted;
-                
+
+                if (_activeInstances.TryGetValue(key, out var instance))
+                    instance.CurrentState = ETriggerState.Interrupted;
+
                 _activeBehaviors.Remove(key);
-                _activeStates.Remove(key);
+                _activeInstances.Remove(key);
             }
         }
 
@@ -153,10 +151,10 @@ namespace AbilityKit.Triggering.Runtime.Sync
         {
             foreach (var key in activeTriggerIds)
             {
-                if (_activeBehaviors.TryGetValue(key, out var behavior) && 
-                    _activeStates.TryGetValue(key, out var state))
+                if (_activeBehaviors.TryGetValue(key, out var behavior) &&
+                    _activeInstances.TryGetValue(key, out var instance))
                 {
-                    var snapshot = TriggerSnapshot.FromState(state, behavior.GetType().GetHashCode());
+                    var snapshot = TriggerSnapshot.FromInstance(instance);
                     syncService.CaptureSnapshot(key.Item1, key.Item2, snapshot);
                 }
             }
