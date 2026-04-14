@@ -1,12 +1,12 @@
-ï»¿namespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     /// <summary>
-    /// æ¡ä»¶é˜¶æ®µæ¥å£
+    /// Ìõ¼ş½×¶Î½Ó¿Ú
     /// </summary>
     public interface IAbilityConditionNode
     {
         bool Evaluate(IAbilityPipelineContext context);
-        // æ¡ä»¶æ£€æµ‹ç­–ç•¥
+        // Ìõ¼ş¼ì²â²ßÂÔ
         EConditionCheckStrategy CheckStrategy { get; }
     }
 }

@@ -1,18 +1,19 @@
 {
-  "name": "AbilityKit.Pipeline.Editor",
-  "rootNamespace": "AbilityKit.Pipeline.Editor",
-  "references": [
-    "AbilityKit.Pipeline"
-  ],
-  "includePlatforms": [
-    "Editor"
-  ],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": true,
-  "defineConstraints": [],
-  "versionDefines": [],
-  "noEngineReferences": false
+    "name": "AbilityKit.Pipeline.Editor",
+    "rootNamespace": "AbilityKit.Pipeline.Editor",
+    "references": [
+        "AbilityKit.Pipeline",
+        "AbilityKit.Ability"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

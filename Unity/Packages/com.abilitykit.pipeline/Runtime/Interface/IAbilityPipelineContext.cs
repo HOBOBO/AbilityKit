@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     /// <summary>
     /// 管线上下文接口

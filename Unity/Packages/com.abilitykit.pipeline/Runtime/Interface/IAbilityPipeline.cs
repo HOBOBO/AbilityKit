@@ -1,34 +1,34 @@
-锘縩amespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     /// <summary>
-    /// 鑳藉姏绠＄嚎鎺ュ彛
+    /// 能力管线接口
     /// </summary>
     public interface IAbilityPipeline<TCtx>
     {
         /// <summary>
-        /// 绠＄嚎浜嬩欢
+        /// 管线事件
         /// </summary>
         AbilityPipelineEvents<TCtx> Events { get; }
 
         IAbilityPipelineRun<TCtx> Start(IAbilityPipelineConfig config, TCtx context);
 
         /// <summary>
-        /// 娣诲姞闃舵
+        /// 添加阶段
         /// </summary>
         void AddPhase(IAbilityPipelinePhase<TCtx> phase);
 
         /// <summary>
-        /// 鎻掑叆闃舵
+        /// 插入阶段
         /// </summary>
         void InsertPhase(int index, IAbilityPipelinePhase<TCtx> phase);
 
         /// <summary>
-        /// 绉婚櫎闃舵
+        /// 移除阶段
         /// </summary>
         void RemovePhase(AbilityPipelinePhaseId phaseId);
 
         /// <summary>
-        /// 閲嶇疆绠＄嚎
+        /// 重置管线
         /// </summary>
         void Reset();
     }

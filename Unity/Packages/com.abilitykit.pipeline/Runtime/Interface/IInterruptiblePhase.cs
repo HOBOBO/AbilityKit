@@ -1,4 +1,4 @@
-﻿namespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     /// <summary>
     /// 可中断阶段接口

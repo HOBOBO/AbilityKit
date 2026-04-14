@@ -1,7 +1,7 @@
-锘縩amespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     /// <summary>
-    /// 鏉′欢鍒嗘敮瀹氫箟
+    /// 条件分支定义
     /// </summary>
     public class AbilityConditionalBranch<TCtx>
         where TCtx : IAbilityPipelineContext

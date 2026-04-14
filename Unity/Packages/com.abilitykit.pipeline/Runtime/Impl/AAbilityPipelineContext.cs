@@ -1,6 +1,7 @@
+using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     /// <summary>
     /// 管线上下文抽象基类
@@ -40,12 +41,12 @@ namespace AbilityKit.Ability
         /// <summary>
         /// 已运行时间
         /// </summary>
-        public float ElapsedTime => Pipeline.TimeProvider.RealtimeSinceStartup - StartTime;
+        public float ElapsedTime => TimeProvider.Instance.RealtimeSinceStartup - StartTime;
         
         /// <summary>
         /// 共享数据
         /// </summary>
-        public Dictionary<string, object> SharedData { get; } = new();
+        public Dictionary<string, object> SharedData { get; } = new Dictionary<string, object>();
         
         /// <summary>
         /// 获取共享数据
@@ -88,7 +89,7 @@ namespace AbilityKit.Ability
         }
         
         /// <summary>
-        /// 清空共享数据
+        /// 清除共享数据
         /// </summary>
         public void ClearData()
         {
@@ -118,7 +119,7 @@ namespace AbilityKit.Ability
             PipelineState = EAbilityPipelineState.Ready;
             IsAborted = false;
             IsPaused = false;
-            StartTime = Pipeline.TimeProvider.RealtimeSinceStartup;
+            StartTime = TimeProvider.Instance.RealtimeSinceStartup;
         }
     }
 }

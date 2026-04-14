@@ -1,16 +1,16 @@
-ï»¿using System.Collections.Generic;
+using System.Collections.Generic;
 
-namespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     /// <summary>
-    /// å¤åˆæ¡ä»¶èŠ‚ç‚¹ - ä¸ã€‚
+    /// ¸´ºÏÌõ¼ş½Úµã - Óë¡£
     /// </summary>
     public class AbilityAndCondition : AbilityConditionNodeBase
     {
         private readonly IReadOnlyList<IAbilityConditionNode> _conditions;
         
         /// <summary>
-        /// é»˜è®¤æŒç»­æ‰§è¡Œ
+        /// Ä¬ÈÏ³ÖĞøÖ´ĞĞ
         /// </summary>
         public override EConditionCheckStrategy CheckStrategy => EConditionCheckStrategy.Continuous;
 

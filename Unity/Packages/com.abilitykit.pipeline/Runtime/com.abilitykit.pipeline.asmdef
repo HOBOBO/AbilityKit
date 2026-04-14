@@ -1,16 +1,16 @@
 {
-  "name": "AbilityKit.Pipeline",
-  "rootNamespace": "AbilityKit.Pipeline",
-  "references": [
-    "AbilityKit.Core"
-  ],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": true,
-  "defineConstraints": [],
-  "versionDefines": [],
-  "noEngineReferences": false
+    "name": "AbilityKit.Pipeline",
+    "rootNamespace": "AbilityKit.Pipeline",
+    "references": [
+        "AbilityKit.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

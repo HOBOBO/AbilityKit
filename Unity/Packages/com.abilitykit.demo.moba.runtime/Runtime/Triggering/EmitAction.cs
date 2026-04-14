@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Core.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba.Config.Core;
@@ -12,6 +12,7 @@ using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Pipeline;
 
 namespace AbilityKit.Demo.Moba.Triggering
 {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Core.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Core.Common.Log;
@@ -10,6 +10,7 @@ using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
+using AbilityKit.Pipeline;
 
 namespace AbilityKit.Demo.Moba.Services
 {

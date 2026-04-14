@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.Share.ECS; using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.ECS.Entitas;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Pipeline;
 
 namespace AbilityKit.Demo.Moba.Services
 {

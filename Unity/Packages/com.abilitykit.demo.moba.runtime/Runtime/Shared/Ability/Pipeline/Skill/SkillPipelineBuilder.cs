@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.Impl.Pipeline.Timeline;
 using AbilityKit.ActionSchema;
+using AbilityKit.Pipeline;
 
 namespace AbilityKit.Ability.Share.Impl.Pipeline.Skill
 {

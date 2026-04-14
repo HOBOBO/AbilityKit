@@ -1,8 +1,9 @@
-﻿using AbilityKit.Core.Generic;
+using AbilityKit.Core.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.Share.ECS; using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Pipeline;
 using System.Collections.Generic;
 
 namespace AbilityKit.Demo.Moba.Services

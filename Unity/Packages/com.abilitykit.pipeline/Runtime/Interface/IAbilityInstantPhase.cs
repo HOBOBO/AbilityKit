@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     public interface IAbilityInstantPhase<TCtx> : IAbilityPipelinePhase<TCtx>
     {

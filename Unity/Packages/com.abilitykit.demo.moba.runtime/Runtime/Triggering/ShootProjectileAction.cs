@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Generic;
 using AbilityKit.Demo.Moba;
@@ -13,6 +13,7 @@ using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Pipeline;
 
 namespace AbilityKit.Demo.Moba.Triggering
 {

@@ -1,4 +1,4 @@
-namespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     public interface IAbilityPipelineRun<TCtx>
     {

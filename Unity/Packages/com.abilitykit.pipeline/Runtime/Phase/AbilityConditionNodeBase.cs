@@ -1,7 +1,7 @@
-锘縩amespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     /// <summary>
-    /// 鍩虹鏉′欢鑺傜偣瀹炵幇
+    /// 基础条件节点实现
     /// </summary>
     public abstract class AbilityConditionNodeBase : IAbilityConditionNode
     {

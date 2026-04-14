@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     /// <summary>
     /// 抽象核心管线流程
@@ -21,7 +21,6 @@ namespace AbilityKit.Ability
             if (config == null) throw new ArgumentNullException(nameof(config));
             if (context == null) throw new ArgumentNullException(nameof(context));
 
-            // Reset all phases before starting a new run.
             for (int i = 0; i < _phases.Count; i++)
             {
                 _phases[i].Reset();
@@ -67,7 +66,7 @@ namespace AbilityKit.Ability
 
         protected abstract void ReleaseContext(TCtx context);
 
-        private sealed class Run : IAbilityPipelineRun<TCtx>
+        private sealed class Run : IAbilityPipelineRun<TCtx>, IPipelineLifeOwner
         {
             private readonly AbilityPipeline<TCtx> _owner;
             private readonly IAbilityPipelineConfig _config;
@@ -84,6 +83,22 @@ namespace AbilityKit.Ability
 
             public bool IsPaused { get; private set; }
 
+            IReadOnlyList<AbilityPipelinePhaseId> IPipelineLifeOwner.ActivePhases
+            {
+                get
+                {
+                    if (_currentPhase != null)
+                    {
+                        return new List<AbilityPipelinePhaseId> { _currentPhase.PhaseId }.AsReadOnly();
+                    }
+                    return new List<AbilityPipelinePhaseId>().AsReadOnly();
+                }
+            }
+
+            // IPipelineLifeOwner 实现
+            int IPipelineLifeOwner.OwnerId => GetHashCode();
+            string IPipelineLifeOwner.OwnerName => _owner.GetType().Name + "#" + GetHashCode();
+
             public Run(AbilityPipeline<TCtx> owner, IAbilityPipelineConfig config, TCtx context)
             {
                 _owner = owner;
@@ -98,20 +113,11 @@ namespace AbilityKit.Ability
 
                 Context.PipelineState = EAbilityPipelineState.Executing;
 
-#if UNITY_EDITOR
-                AbilityPipelineLiveRegistry.RegisterRun(owner, _config, this);
-#endif
-
                 _owner.Events?.OnPipelineStart?.Invoke(Context);
 
-#if UNITY_EDITOR
-                Trace(PipelineTraceEventType.RunStart, phaseId: default, message: string.Empty);
-#endif
-
-#if UNITY_EDITOR
-                try { AbilityPipelineLiveRegistry.TouchRun(this); }
-                catch { }
-#endif
+                // 注册到生命周期注册表
+                Pipeline.Registry.Register(this);
+                _owner.Events?.RecordTrace(this, EPipelineTraceEventType.RunStart, default, State, string.Empty);
             }
 
             public void Tick(float deltaTime)
@@ -131,7 +137,6 @@ namespace AbilityKit.Ability
 
                 try
                 {
-                    // If we have a running phase, tick it.
                     if (_currentPhase != null)
                     {
                         _currentPhase.OnUpdate(Context, deltaTime);
@@ -156,7 +161,6 @@ namespace AbilityKit.Ability
                         _currentPhaseIndex++;
                     }
 
-                    // Execute as many instant phases as possible in this tick.
                     ExecutePipeline();
 
                     if (Context != null && Context.IsAborted)
@@ -169,10 +173,7 @@ namespace AbilityKit.Ability
                     HandlePhaseError(_currentPhase, e);
                 }
 
-#if UNITY_EDITOR
-                try { AbilityPipelineLiveRegistry.TouchRun(this); }
-                catch { }
-#endif
+                _owner.Events?.OnTick?.Invoke(Context, deltaTime, State);
             }
 
             public void Pause()
@@ -182,11 +183,7 @@ namespace AbilityKit.Ability
                 IsPaused = true;
                 if (Context != null) Context.IsPaused = true;
                 _owner.Events?.OnPipelinePause?.Invoke(Context);
-
-#if UNITY_EDITOR
-                try { AbilityPipelineLiveRegistry.TouchRun(this); }
-                catch { }
-#endif
+                _owner.Events?.RecordTrace(this, EPipelineTraceEventType.Pause, CurrentPhaseId, State, string.Empty);
             }
 
             public void Resume()
@@ -196,11 +193,7 @@ namespace AbilityKit.Ability
                 IsPaused = false;
                 if (Context != null) Context.IsPaused = false;
                 _owner.Events?.OnPipelineResume?.Invoke(Context);
-
-#if UNITY_EDITOR
-                try { AbilityPipelineLiveRegistry.TouchRun(this); }
-                catch { }
-#endif
+                _owner.Events?.RecordTrace(this, EPipelineTraceEventType.Resume, CurrentPhaseId, State, string.Empty);
             }
 
             public void Interrupt()
@@ -226,6 +219,7 @@ namespace AbilityKit.Ability
 
                 if (Context != null) Context.IsAborted = true;
                 _owner.Events?.OnPipelineInterrupt?.Invoke(Context, true);
+                _owner.Events?.RecordTrace(this, EPipelineTraceEventType.Interrupt, CurrentPhaseId, State, string.Empty);
                 Fail();
             }
 
@@ -233,22 +227,6 @@ namespace AbilityKit.Ability
             {
                 _isCancelled = true;
             }
-
-#if UNITY_EDITOR
-            private void Trace(PipelineTraceEventType type, AbilityPipelinePhaseId phaseId, string message)
-            {
-                try
-                {
-                    if (AbilityPipelineLiveRegistry.TryGetTrace(this, out var trace) && trace != null)
-                    {
-                        trace.Add(type, phaseId, State, message);
-                    }
-                }
-                catch
-                {
-                }
-            }
-#endif
 
             private void ExecutePipeline()
             {
@@ -319,20 +297,14 @@ namespace AbilityKit.Ability
                 if (Context != null) Context.CurrentPhaseId = phase.PhaseId;
                 _owner.ExecuteExtensionPhaseStart(phase.PhaseId, Context, phase);
                 _owner.Events?.OnPhaseStart?.Invoke(phase, Context);
-
-#if UNITY_EDITOR
-                Trace(PipelineTraceEventType.PhaseStart, phase != null ? phase.PhaseId : default, phase != null ? phase.GetType().Name : string.Empty);
-#endif
+                _owner.Events?.RecordTracePhase(this, EPipelineTraceEventType.PhaseStart, phase.PhaseId, phase.GetType().Name, State);
             }
 
             private void OnPhaseComplete(IAbilityPipelinePhase<TCtx> phase)
             {
                 _owner.ExecuteExtensionPhaseComplete(phase.PhaseId, Context, phase);
                 _owner.Events?.OnPhaseComplete?.Invoke(phase, Context);
-
-#if UNITY_EDITOR
-                Trace(PipelineTraceEventType.PhaseComplete, phase != null ? phase.PhaseId : default, phase != null ? phase.GetType().Name : string.Empty);
-#endif
+                _owner.Events?.RecordTracePhase(this, EPipelineTraceEventType.PhaseComplete, phase.PhaseId, phase.GetType().Name, State);
             }
 
             private void HandlePhaseError(IAbilityPipelinePhase<TCtx> phase, Exception e)
@@ -347,10 +319,8 @@ namespace AbilityKit.Ability
                     catch { }
                 }
                 _owner.Events?.OnPhaseError?.Invoke(phase, Context, e);
+                _owner.Events?.RecordTracePhase(this, EPipelineTraceEventType.PhaseError, phase?.PhaseId ?? default, phase?.GetType().Name ?? string.Empty, State);
 
-#if UNITY_EDITOR
-                Trace(PipelineTraceEventType.PhaseError, phase != null ? phase.PhaseId : default, e != null ? e.Message : string.Empty);
-#endif
                 Cleanup();
             }
 
@@ -360,10 +330,8 @@ namespace AbilityKit.Ability
                 State = EAbilityPipelineState.Completed;
                 if (Context != null) Context.PipelineState = EAbilityPipelineState.Completed;
                 _owner.Events?.OnPipelineComplete?.Invoke(Context);
+                _owner.Events?.RecordTrace(this, EPipelineTraceEventType.RunEnd, CurrentPhaseId, State, "Completed");
 
-#if UNITY_EDITOR
-                Trace(PipelineTraceEventType.RunEnd, CurrentPhaseId, "Completed");
-#endif
                 Cleanup();
             }
 
@@ -372,10 +340,8 @@ namespace AbilityKit.Ability
                 if (State != EAbilityPipelineState.Executing) return;
                 State = EAbilityPipelineState.Failed;
                 if (Context != null) Context.PipelineState = EAbilityPipelineState.Failed;
+                _owner.Events?.RecordTrace(this, EPipelineTraceEventType.RunEnd, CurrentPhaseId, State, "Failed");
 
-#if UNITY_EDITOR
-                Trace(PipelineTraceEventType.RunEnd, CurrentPhaseId, "Failed");
-#endif
                 Cleanup();
             }
 
@@ -388,11 +354,10 @@ namespace AbilityKit.Ability
                 catch
                 {
                 }
-
-#if UNITY_EDITOR
-                try { AbilityPipelineLiveRegistry.UnregisterRun(this); }
-                catch { }
-#endif
+                finally
+                {
+                    Pipeline.Registry.Unregister(this);
+                }
             }
         }
     }

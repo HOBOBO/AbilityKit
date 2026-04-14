@@ -1,13 +1,14 @@
-﻿namespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     /// <summary>
-    /// 技能管道状态
+    /// 能力管线状态
     /// </summary>
     public enum EAbilityPipelineState
     {
-        Ready,          // 准备执行
-        Executing,      // 正在执行
-        Completed,      // 执行完成
-        Failed          // 执行失败
+        Ready = 0,
+        Executing = 1,
+        Completed = 2,
+        Failed = 3,
+        Paused = 4
     }
 }

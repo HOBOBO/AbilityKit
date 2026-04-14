@@ -1,10 +1,10 @@
-ï»¿using System;
+using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     /// <summary>
-    /// å¤åˆé˜¶æ®µåŸºç±»
+    /// ¸´ºÏ½×¶Î»ùÀà
     /// </summary>
     public abstract class AbilityCompositePhase<TCtx> : IAbilityPipelinePhase<TCtx>
         where TCtx : IAbilityPipelineContext
@@ -30,7 +30,7 @@ namespace AbilityKit.Ability
         }
 
         /// <summary>
-        /// æ¯å¸§æ›´æ–°
+        /// Ã¿Ö¡¸üĞÂ
         /// </summary>
         public virtual void OnUpdate(TCtx context, float deltaTime)
         {
@@ -39,10 +39,10 @@ namespace AbilityKit.Ability
 
             var currentPhase = _subPhases[_currentSubPhaseIndex];
             
-            // æ›´æ–°å½“å‰å­é˜¶æ®µ
+            // ¸üĞÂµ±Ç°×Ó½×¶Î
             currentPhase.OnUpdate(context, deltaTime);
             
-            // æ£€æŸ¥å½“å‰å­é˜¶æ®µæ˜¯å¦å®Œæˆ
+            // ¼ì²éµ±Ç°×Ó½×¶ÎÊÇ·ñÍê³É
             if (currentPhase.IsComplete)
             {
                 _currentSubPhaseIndex++;
@@ -62,10 +62,10 @@ namespace AbilityKit.Ability
                     continue;
                 }
             
-                // æ‰§è¡Œå­é˜¶æ®µ
+                // Ö´ĞĞ×Ó½×¶Î
                 subPhase.Execute(context);
             
-                // å¦‚æœå­é˜¶æ®µæœªå®Œæˆï¼Œç­‰å¾… OnUpdate é©±åŠ¨
+                // Èç¹û×Ó½×¶ÎÎ´Íê³É£¬µÈ´ı OnUpdate Çı¶¯
                 if (!subPhase.IsComplete)
                 {
                     return;
@@ -74,7 +74,7 @@ namespace AbilityKit.Ability
                 _currentSubPhaseIndex++;
             }
         
-            // æ‰€æœ‰å­é˜¶æ®µæ‰§è¡Œå®Œæˆ
+            // ËùÓĞ×Ó½×¶ÎÖ´ĞĞÍê³É
             OnAllSubPhasesComplete(context);
         }
     

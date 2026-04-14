@@ -1,13 +1,13 @@
-ï»¿namespace AbilityKit.Ability
+namespace AbilityKit.Pipeline
 {
     /// <summary>
-    /// å¤åˆæ¡ä»¶èŠ‚ç‚¹ - é
+    /// ¸´ºÏÌõ¼ş½Úµã - ·Ç
     /// </summary>
     public class AbilityNotCondition : AbilityConditionNodeBase
     {
         private readonly IAbilityConditionNode _condition;
         /// <summary>
-        /// é»˜è®¤æŒç»­æ‰§è¡Œ
+        /// Ä¬ÈÏ³ÖĞøÖ´ĞĞ
         /// </summary>
         public override EConditionCheckStrategy CheckStrategy => EConditionCheckStrategy.Continuous;
     

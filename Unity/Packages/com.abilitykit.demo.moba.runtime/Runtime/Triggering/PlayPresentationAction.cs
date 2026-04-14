@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Core.Common.Log;
@@ -10,6 +10,7 @@ using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
+using AbilityKit.Pipeline;
 
 namespace AbilityKit.Demo.Moba.Triggering
 {
@@ -138,7 +139,7 @@ namespace AbilityKit.Demo.Moba.Triggering
                 return scc.SourceContextId;
             }
 
-            if (payload is AbilityKit.Ability.IAbilityPipelineContext pipelineCtx)
+            if (payload is IAbilityPipelineContext pipelineCtx)
             {
                 if (pipelineCtx.SharedData != null && pipelineCtx.SharedData.TryGetValue("effect.sourceContextId", out var v) && v != null)
                 {

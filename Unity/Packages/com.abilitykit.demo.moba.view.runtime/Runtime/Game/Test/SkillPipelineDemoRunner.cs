@@ -4,6 +4,7 @@ using AbilityKit.Ability.Share.Impl.Pipeline;
 using AbilityKit.Ability.Share.Impl.Pipeline.Skill;
 using AbilityKit.Ability.Share.Impl.Pipeline.Timeline;
 using AbilityKit.ActionSchema;
+using AbilityKit.Pipeline;
 using UnityEngine;
 
 namespace AbilityKit.Game.Test
