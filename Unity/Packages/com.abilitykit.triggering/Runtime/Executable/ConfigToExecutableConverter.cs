@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Modifiers;
 using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Variables.Numeric;
 
@@ -315,8 +316,10 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         private static void SetInnerIfPossible(IScheduledExecutable exec, ISimpleExecutable body)
         {
-            var innerProp = exec.GetType().GetProperty("Inner");
-            innerProp?.SetValue(exec, body);
+            if (exec is IHasInner hasInner)
+            {
+                hasInner.Inner = body;
+            }
         }
 
         /// <summary>
@@ -415,7 +418,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         private ICondition ConvertConditionByTypeName(ConditionConfig config)
         {
-            return config.TypeName.ToLowerInvariant() switch
+            return config.TypeName?.ToLowerInvariant() switch
             {
                 "const" => new ConstCondition { Value = true },
                 "and" => ConvertAndCondition(config),
@@ -554,5 +557,8 @@ namespace AbilityKit.Triggering.Runtime.Executable
         {
             return 0;
         }
+
+        // ========================================================================
+        // 新增行为类型转换方法
     }
 }

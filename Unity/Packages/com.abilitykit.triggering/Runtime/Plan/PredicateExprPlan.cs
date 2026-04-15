@@ -1,7 +1,10 @@
 using System;
+using AbilityKit.Triggering.Runtime.Config;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
+    using ECompareOp = AbilityKit.Triggering.Runtime.Config.ECompareOp;
+
     public enum EPredicateKind : byte
     {
         None = 0,
@@ -16,16 +19,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
         And = 2,
         Or = 3,
         CompareNumeric = 4,
-    }
-
-    public enum ECompareOp : byte
-    {
-        Eq = 0,
-        Ne = 1,
-        Gt = 2,
-        Ge = 3,
-        Lt = 4,
-        Le = 5,
     }
 
     public readonly struct BoolExprNode

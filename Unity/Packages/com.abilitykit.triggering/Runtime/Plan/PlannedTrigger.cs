@@ -1,9 +1,10 @@
 using System;
 using System.Buffers;
-using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Payload;
+using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Variables.Numeric;
 using AbilityKit.Triggering.Variables.Numeric.Expression;
 
@@ -395,12 +396,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
         {
             switch (op)
             {
-                case ECompareOp.Eq: return left == right;
-                case ECompareOp.Ne: return left != right;
-                case ECompareOp.Gt: return left > right;
-                case ECompareOp.Ge: return left >= right;
-                case ECompareOp.Lt: return left < right;
-                case ECompareOp.Le: return left <= right;
+                case ECompareOp.Equal: return left == right;
+                case ECompareOp.NotEqual: return left != right;
+                case ECompareOp.GreaterThan: return left > right;
+                case ECompareOp.GreaterThanOrEqual: return left >= right;
+                case ECompareOp.LessThan: return left < right;
+                case ECompareOp.LessThanOrEqual: return left <= right;
                 default:
                     throw new InvalidOperationException($"Unsupported compare op: {op}");
             }

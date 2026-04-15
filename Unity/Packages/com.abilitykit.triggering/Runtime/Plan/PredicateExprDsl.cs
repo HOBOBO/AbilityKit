@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Triggering.Runtime.Config;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
@@ -38,7 +39,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public static PredicateExprBuilder Eq(NumericValueRef left, NumericValueRef right)
         {
-            return Compare(ECompareOp.Eq, left, right);
+            return Compare(ECompareOp.Equal, left, right);
         }
 
         /// <summary>
@@ -46,7 +47,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public static PredicateExprBuilder Ne(NumericValueRef left, NumericValueRef right)
         {
-            return Compare(ECompareOp.Ne, left, right);
+            return Compare(ECompareOp.NotEqual, left, right);
         }
 
         /// <summary>
@@ -54,7 +55,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public static PredicateExprBuilder Gt(NumericValueRef left, NumericValueRef right)
         {
-            return Compare(ECompareOp.Gt, left, right);
+            return Compare(ECompareOp.GreaterThan, left, right);
         }
 
         /// <summary>
@@ -62,7 +63,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public static PredicateExprBuilder Ge(NumericValueRef left, NumericValueRef right)
         {
-            return Compare(ECompareOp.Ge, left, right);
+            return Compare(ECompareOp.GreaterThanOrEqual, left, right);
         }
 
         /// <summary>
@@ -70,7 +71,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public static PredicateExprBuilder Lt(NumericValueRef left, NumericValueRef right)
         {
-            return Compare(ECompareOp.Lt, left, right);
+            return Compare(ECompareOp.LessThan, left, right);
         }
 
         /// <summary>
@@ -78,7 +79,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public static PredicateExprBuilder Le(NumericValueRef left, NumericValueRef right)
         {
-            return Compare(ECompareOp.Le, left, right);
+            return Compare(ECompareOp.LessThanOrEqual, left, right);
         }
 
         /// <summary>
@@ -150,7 +151,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public PredicateExprBuilder Eq(NumericValueRef left, NumericValueRef right)
         {
-            return Compare(ECompareOp.Eq, left, right);
+            return Compare(ECompareOp.Equal, left, right);
         }
 
         /// <summary>
@@ -158,7 +159,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public PredicateExprBuilder Ne(NumericValueRef left, NumericValueRef right)
         {
-            return Compare(ECompareOp.Ne, left, right);
+            return Compare(ECompareOp.NotEqual, left, right);
         }
 
         /// <summary>
@@ -166,7 +167,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public PredicateExprBuilder Gt(NumericValueRef left, NumericValueRef right)
         {
-            return Compare(ECompareOp.Gt, left, right);
+            return Compare(ECompareOp.GreaterThan, left, right);
         }
 
         /// <summary>
@@ -174,7 +175,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public PredicateExprBuilder Ge(NumericValueRef left, NumericValueRef right)
         {
-            return Compare(ECompareOp.Ge, left, right);
+            return Compare(ECompareOp.GreaterThanOrEqual, left, right);
         }
 
         /// <summary>
@@ -182,7 +183,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public PredicateExprBuilder Lt(NumericValueRef left, NumericValueRef right)
         {
-            return Compare(ECompareOp.Lt, left, right);
+            return Compare(ECompareOp.LessThan, left, right);
         }
 
         /// <summary>
@@ -190,7 +191,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public PredicateExprBuilder Le(NumericValueRef left, NumericValueRef right)
         {
-            return Compare(ECompareOp.Le, left, right);
+            return Compare(ECompareOp.LessThanOrEqual, left, right);
         }
 
         /// <summary>
@@ -207,7 +208,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public PredicateExprBuilder Value(NumericValueRef valueRef)
         {
-            _nodes.Add(BoolExprNode.Compare(ECompareOp.Ne, valueRef, NumericValueRef.Const(0)));
+            _nodes.Add(BoolExprNode.Compare(ECompareOp.NotEqual, valueRef, NumericValueRef.Const(0)));
             return this;
         }
 

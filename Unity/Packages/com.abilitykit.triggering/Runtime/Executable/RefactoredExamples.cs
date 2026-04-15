@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Variables.Numeric;
 
@@ -299,11 +300,11 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// 条件满足时执行的行为
     /// </summary>
-    public sealed class ConditionalScheduledExecutable : IScheduledExecutable
+    public sealed class ConditionalScheduledExecutable : IScheduledExecutable, IHasInner
     {
         public string Name => "Conditional";
         public ExecutableMetadata Metadata => new(2000, "Conditional", isScheduled: true);
-        public EScheduleMode ScheduleMode => EScheduleMode.Conditional;
+        public Config.EScheduleMode ScheduleMode => Config.EScheduleMode.Conditional;
         public bool IsPeriodic => false;
         public float PeriodMs => 0;
         public float DurationMs { get; set; } = -1;

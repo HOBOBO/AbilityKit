@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Variables.Numeric;
 
@@ -67,27 +68,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         ConditionResult Evaluate(object ctx);
     }
 
-    /// <summary>
-    /// 比较操作符
-    /// </summary>
-    public enum ECompareOp : byte
-    {
-        Equal = 0,
-        NotEqual = 1,
-        GreaterThan = 2,
-        GreaterThanOrEqual = 3,
-        LessThan = 4,
-        LessThanOrEqual = 5,
-    }
-
-    /// <summary>
-    /// 条件组合类型
-    /// </summary>
-    public enum EConditionCombinator : byte
-    {
-        And,
-        Or,
-    }
+    // ECompareOp 和 EConditionCombinator 已移至 AbilityKit.Triggering.Runtime.Config 命名空间
 
     // ========================================================================
     // 条件实现

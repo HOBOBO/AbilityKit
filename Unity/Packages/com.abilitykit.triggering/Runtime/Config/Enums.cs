@@ -14,19 +14,22 @@ namespace AbilityKit.Triggering.Runtime.Config
 
     /// <summary>
     /// 调度模式枚举
+    /// 定义触发器的执行时机和方式
     /// </summary>
     public enum EScheduleMode : byte
     {
-        /// <summary>瞬时执行（无延迟）</summary>
+        /// <summary>瞬时执行（事件触发，无延迟）</summary>
         Transient = 0,
-        /// <summary>延迟执行（一次性）</summary>
+        /// <summary>延迟执行（定时一次性）</summary>
         Timed = 1,
-        /// <summary>周期执行</summary>
+        /// <summary>周期执行（按间隔重复）</summary>
         Periodic = 2,
-        /// <summary>外部控制（由外部调度器管理）</summary>
+        /// <summary>外部控制（如Buff系统手动触发）</summary>
         External = 3,
-        /// <summary>条件触发（满足条件时执行）</summary>
+        /// <summary>条件触发（满足条件时执行，Phase驱动）</summary>
         Conditional = 4,
+        /// <summary>持续行为（每帧驱动直到外部终止）</summary>
+        Continuous = 5,
     }
 
     /// <summary>
@@ -38,6 +41,10 @@ namespace AbilityKit.Triggering.Runtime.Config
         Function = 1,
         Expression = 2,
         Blackboard = 3,
+        /// <summary>距离检查条件</summary>
+        DistanceCheck = 10,
+        /// <summary>生命值检查条件</summary>
+        HealthCheck = 11,
     }
 
     /// <summary>
@@ -63,5 +70,14 @@ namespace AbilityKit.Triggering.Runtime.Config
         GreaterThanOrEqual = 3,
         LessThan = 4,
         LessThanOrEqual = 5,
+    }
+
+    /// <summary>
+    /// 条件组合类型
+    /// </summary>
+    public enum EConditionCombinator : byte
+    {
+        And,
+        Or,
     }
 }

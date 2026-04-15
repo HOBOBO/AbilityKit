@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Triggering.Runtime.Plan
@@ -33,6 +34,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         private int _triggerId;
         private int _interruptPriority;
         private ITriggerCue _cue;
+        private ScheduleModePlan _schedule;
 
         internal TriggerPlanBuilder(int phase, int priority)
         {
@@ -94,6 +96,39 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public TriggerPlanBuilder<TArgs> When(PredicateExprPlan predicate)
         {
             _predicate = predicate;
+            return this;
+        }
+
+        /// <summary>
+        /// 设置持续行为调度
+        /// 每帧驱动 Action 执行直到外部终止
+        /// </summary>
+        /// <param name="intervalMs">执行间隔（毫秒），0=每帧</param>
+        /// <param name="maxExecutions">最大执行次数，-1=无限</param>
+        /// <param name="canBeInterrupted">是否可中断</param>
+        public TriggerPlanBuilder<TArgs> WithContinuous(float intervalMs = 0, int maxExecutions = -1, bool canBeInterrupted = true)
+        {
+            _schedule = ScheduleModePlan.Continuous(intervalMs, maxExecutions, canBeInterrupted);
+            return this;
+        }
+
+        /// <summary>
+        /// 设置周期调度
+        /// </summary>
+        /// <param name="intervalMs">执行间隔（毫秒）</param>
+        /// <param name="maxExecutions">最大执行次数，-1=无限</param>
+        public TriggerPlanBuilder<TArgs> WithPeriodic(float intervalMs, int maxExecutions = -1)
+        {
+            _schedule = ScheduleModePlan.Periodic(intervalMs, maxExecutions);
+            return this;
+        }
+
+        /// <summary>
+        /// 设置自定义调度模式
+        /// </summary>
+        public TriggerPlanBuilder<TArgs> WithSchedule(in ScheduleModePlan schedule)
+        {
+            _schedule = schedule;
             return this;
         }
 
@@ -179,11 +214,11 @@ namespace AbilityKit.Triggering.Runtime.Plan
             if (_predicate.Nodes != null && _predicate.Nodes.Length > 0)
             {
                 return new TriggerPlan<TArgs>(
-                    _phase, _priority, _triggerId, _predicate, _interruptPriority, actions, _cue);
+                    _phase, _priority, _triggerId, _predicate, _interruptPriority, actions, _cue, _schedule);
             }
 
             return new TriggerPlan<TArgs>(
-                _phase, _priority, _triggerId, _interruptPriority, actions, _cue);
+                _phase, _priority, _triggerId, _interruptPriority, actions, _cue, _schedule);
         }
     }
 

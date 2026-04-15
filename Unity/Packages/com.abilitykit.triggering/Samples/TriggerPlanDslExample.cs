@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Eventing;
@@ -95,10 +95,10 @@ namespace AbilityKit.Triggering.Runtime.Example
             Console.WriteLine("=== 传统方式 ===");
             var traditionalPredicateExpr = new PredicateExprPlan(new[]
             {
-                BoolExprNode.Compare(ECompareOp.Gt,
+                BoolExprNode.Compare(ECompareOp.GreaterThan,
                     NumericValueRef.PayloadField(StableStringId.Get("payload:amount")),
                     NumericValueRef.Const(3d)),
-                BoolExprNode.Compare(ECompareOp.Ge,
+                BoolExprNode.Compare(ECompareOp.GreaterThanOrEqual,
                     NumericValueRef.Blackboard(combatBoardId, atkKeyId),
                     NumericValueRef.Const(7d)),
                 BoolExprNode.And(),

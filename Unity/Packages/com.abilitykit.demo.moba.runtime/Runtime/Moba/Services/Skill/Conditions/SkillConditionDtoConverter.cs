@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Common.Log;
+using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Executable;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Variables.Numeric;
@@ -219,7 +220,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             return new NumericCompareCondition
             {
-                Op = (AbilityKit.Triggering.Runtime.Executable.ECompareOp)typed.Op,
+                Op = (AbilityKit.Triggering.Runtime.Config.ECompareOp)typed.Op,
                 Left = ConvertNumericRef(typed.Left),
                 Right = ConvertNumericRef(typed.Right)
             };
@@ -233,7 +234,7 @@ namespace AbilityKit.Demo.Moba.Services
             return new PayloadCompareCondition
             {
                 FieldId = typed.FieldId,
-                Op = (AbilityKit.Triggering.Runtime.Executable.ECompareOp)typed.Op,
+                Op = (AbilityKit.Triggering.Runtime.Config.ECompareOp)typed.Op,
                 CompareValue = ConvertNumericRef(typed.CompareValue),
                 Negate = typed.Negate
             };

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Eventing;
@@ -86,12 +86,12 @@ namespace AbilityKit.Triggering.Runtime.Example
             var predicateExpr = new PredicateExprPlan(new[]
             {
                 // A
-                BoolExprNode.Compare(ECompareOp.Gt,
+                BoolExprNode.Compare(ECompareOp.GreaterThan,
                     NumericValueRef.PayloadField(Eventing.StableStringId.Get("payload:amount")),
                     NumericValueRef.Const(3d)),
 
                 // B
-                BoolExprNode.Compare(ECompareOp.Ge,
+                BoolExprNode.Compare(ECompareOp.GreaterThanOrEqual,
                     NumericValueRef.Blackboard(combatBoardId, atkKeyId),
                     NumericValueRef.Const(7d)),
 
@@ -99,7 +99,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 BoolExprNode.And(),
 
                 // C
-                BoolExprNode.Compare(ECompareOp.Eq,
+                BoolExprNode.Compare(ECompareOp.Equal,
                     NumericValueRef.PayloadField(Eventing.StableStringId.Get("payload:amount")),
                     NumericValueRef.Const(4d)),
 

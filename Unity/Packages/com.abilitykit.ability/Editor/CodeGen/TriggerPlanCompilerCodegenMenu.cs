@@ -208,7 +208,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var ps = c.Params?.OrderBy(p => p.Index).ToArray() ?? Array.Empty<TriggerParamAttribute>();
                 var leftName = ps.Length > 0 ? ps[0].Name : "key";
                 var rightName = ps.Length > 1 ? ps[1].Name : "value";
-                var op = string.Equals(c.Type, TriggerConditionTypes.ArgEq, StringComparison.Ordinal) ? "ECompareOp.Eq" : "ECompareOp.Gt";
+                var op = string.Equals(c.Type, TriggerConditionTypes.ArgEq, StringComparison.Ordinal) ? "ECompareOp.Equal" : "ECompareOp.GreaterThan";
 
                 code += $"            if (string.Equals(type, \"{c.Type}\", StringComparison.Ordinal))" + nl;
                 code += "            {" + nl;

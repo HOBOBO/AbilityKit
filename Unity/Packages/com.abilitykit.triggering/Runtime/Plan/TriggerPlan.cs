@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.Config;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
@@ -112,6 +113,11 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public readonly ITriggerCue Cue;
 
+        /// <summary>
+        /// 调度配置（持续行为相关）
+        /// </summary>
+        public readonly ScheduleModePlan Schedule;
+
         public TriggerPlan(
             int phase,
             int priority,
@@ -119,7 +125,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             FunctionId predicateId,
             int interruptPriority,
             ActionCallPlan[] actions,
-            ITriggerCue cue)
+            ITriggerCue cue,
+            in ScheduleModePlan schedule)
         {
             Phase = phase;
             Priority = priority;
@@ -134,6 +141,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateExpr = default;
             Actions = actions;
             Cue = cue ?? NullTriggerCue.Instance;
+            Schedule = schedule;
         }
 
         public TriggerPlan(
@@ -144,7 +152,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             NumericValueRef predicateArg0,
             int interruptPriority,
             ActionCallPlan[] actions,
-            ITriggerCue cue)
+            ITriggerCue cue,
+            in ScheduleModePlan schedule)
         {
             Phase = phase;
             Priority = priority;
@@ -159,6 +168,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateExpr = default;
             Actions = actions;
             Cue = cue ?? NullTriggerCue.Instance;
+            Schedule = schedule;
         }
 
         public TriggerPlan(
@@ -169,8 +179,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
             double predicateArg0,
             int interruptPriority,
             ActionCallPlan[] actions,
-            ITriggerCue cue)
-            : this(phase, priority, triggerId, predicateId, NumericValueRef.Const(predicateArg0), interruptPriority, actions, cue)
+            ITriggerCue cue,
+            in ScheduleModePlan schedule)
+            : this(phase, priority, triggerId, predicateId, NumericValueRef.Const(predicateArg0), interruptPriority, actions, cue, schedule)
         {
         }
 
@@ -183,7 +194,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             NumericValueRef predicateArg1,
             int interruptPriority,
             ActionCallPlan[] actions,
-            ITriggerCue cue)
+            ITriggerCue cue,
+            in ScheduleModePlan schedule)
         {
             Phase = phase;
             Priority = priority;
@@ -198,6 +210,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateExpr = default;
             Actions = actions;
             Cue = cue ?? NullTriggerCue.Instance;
+            Schedule = schedule;
         }
 
         public TriggerPlan(
@@ -209,8 +222,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
             double predicateArg1,
             int interruptPriority,
             ActionCallPlan[] actions,
-            ITriggerCue cue)
-            : this(phase, priority, triggerId, predicateId, NumericValueRef.Const(predicateArg0), NumericValueRef.Const(predicateArg1), interruptPriority, actions, cue)
+            ITriggerCue cue,
+            in ScheduleModePlan schedule)
+            : this(phase, priority, triggerId, predicateId, NumericValueRef.Const(predicateArg0), NumericValueRef.Const(predicateArg1), interruptPriority, actions, cue, schedule)
         {
         }
 
@@ -221,7 +235,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateExprPlan predicateExpr,
             int interruptPriority,
             ActionCallPlan[] actions,
-            ITriggerCue cue)
+            ITriggerCue cue,
+            in ScheduleModePlan schedule)
         {
             Phase = phase;
             Priority = priority;
@@ -236,6 +251,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateExpr = predicateExpr;
             Actions = actions;
             Cue = cue ?? NullTriggerCue.Instance;
+            Schedule = schedule;
         }
 
         public TriggerPlan(
@@ -244,7 +260,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             int triggerId,
             int interruptPriority,
             ActionCallPlan[] actions,
-            ITriggerCue cue)
+            ITriggerCue cue,
+            in ScheduleModePlan schedule)
         {
             Phase = phase;
             Priority = priority;
@@ -259,44 +276,90 @@ namespace AbilityKit.Triggering.Runtime.Plan
             PredicateExpr = default;
             Actions = actions;
             Cue = cue ?? NullTriggerCue.Instance;
+            Schedule = schedule;
         }
 
-        // ========== 便捷构造器（向后兼容，不传 Cue）==========
+        // ========== 便捷构造器（向后兼容，不传 Schedule）==========
 
         public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, int interruptPriority, ActionCallPlan[] actions)
-            : this(phase, priority, triggerId, predicateId, interruptPriority, actions, null)
+            : this(phase, priority, triggerId, predicateId, interruptPriority, actions, null, default)
         {
         }
 
         public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, NumericValueRef predicateArg0, int interruptPriority, ActionCallPlan[] actions)
-            : this(phase, priority, triggerId, predicateId, predicateArg0, interruptPriority, actions, null)
+            : this(phase, priority, triggerId, predicateId, predicateArg0, interruptPriority, actions, null, default)
         {
         }
 
         public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, double predicateArg0, int interruptPriority, ActionCallPlan[] actions)
-            : this(phase, priority, triggerId, predicateId, predicateArg0, interruptPriority, actions, null)
+            : this(phase, priority, triggerId, predicateId, predicateArg0, interruptPriority, actions, null, default)
         {
         }
 
         public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, NumericValueRef predicateArg0, NumericValueRef predicateArg1, int interruptPriority, ActionCallPlan[] actions)
-            : this(phase, priority, triggerId, predicateId, predicateArg0, predicateArg1, interruptPriority, actions, null)
+            : this(phase, priority, triggerId, predicateId, predicateArg0, predicateArg1, interruptPriority, actions, null, default)
         {
         }
 
         public TriggerPlan(int phase, int priority, int triggerId, FunctionId predicateId, double predicateArg0, double predicateArg1, int interruptPriority, ActionCallPlan[] actions)
-            : this(phase, priority, triggerId, predicateId, predicateArg0, predicateArg1, interruptPriority, actions, null)
+            : this(phase, priority, triggerId, predicateId, predicateArg0, predicateArg1, interruptPriority, actions, null, default)
         {
         }
 
         public TriggerPlan(int phase, int priority, int triggerId, PredicateExprPlan predicateExpr, int interruptPriority, ActionCallPlan[] actions)
-            : this(phase, priority, triggerId, predicateExpr, interruptPriority, actions, null)
+            : this(phase, priority, triggerId, predicateExpr, interruptPriority, actions, null, default)
         {
         }
 
         public TriggerPlan(int phase, int priority, int triggerId, int interruptPriority, ActionCallPlan[] actions)
-            : this(phase, priority, triggerId, interruptPriority, actions, null)
+            : this(phase, priority, triggerId, interruptPriority, actions, null, default)
         {
         }
+    }
+
+    /// <summary>
+    /// 调度模式运行时数据
+    /// </summary>
+    public readonly struct ScheduleModePlan
+    {
+        public static ScheduleModePlan None => default;
+
+        /// <summary>
+        /// 调度模式
+        /// </summary>
+        public readonly EScheduleMode Mode;
+
+        /// <summary>
+        /// 执行间隔（毫秒），0=每帧
+        /// </summary>
+        public readonly float IntervalMs;
+
+        /// <summary>
+        /// 最大执行次数，-1=无限
+        /// </summary>
+        public readonly int MaxExecutions;
+
+        /// <summary>
+        /// 是否可中断
+        /// </summary>
+        public readonly bool CanBeInterrupted;
+
+        public ScheduleModePlan(EScheduleMode mode, float intervalMs = 0, int maxExecutions = -1, bool canBeInterrupted = true)
+        {
+            Mode = mode;
+            IntervalMs = intervalMs;
+            MaxExecutions = maxExecutions;
+            CanBeInterrupted = canBeInterrupted;
+        }
+
+        public static ScheduleModePlan Continuous(float intervalMs = 0, int maxExecutions = -1, bool canBeInterrupted = true)
+            => new ScheduleModePlan(EScheduleMode.Continuous, intervalMs, maxExecutions, canBeInterrupted);
+
+        public static ScheduleModePlan Periodic(float intervalMs, int maxExecutions = -1)
+            => new ScheduleModePlan(EScheduleMode.Periodic, intervalMs, maxExecutions, canBeInterrupted: true);
+
+        public static ScheduleModePlan Timed(float delayMs)
+            => new ScheduleModePlan(EScheduleMode.Timed, delayMs, 1, canBeInterrupted: true);
     }
 
     /// <summary>

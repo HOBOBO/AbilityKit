@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Triggering.Runtime.Config;
 
 namespace AbilityKit.Triggering.Runtime.Executable
 {
@@ -186,33 +187,25 @@ namespace AbilityKit.Triggering.Runtime.Executable
         Func<object, int> ValueSelector { get; set; }
     }
 
+    /// <summary>
+    /// 带有内部行为的接口（用于装饰器）
+    /// 替代反射方式，提供类型安全的访问
+    /// </summary>
+    public interface IHasInner
+    {
+        ISimpleExecutable Inner { get; set; }
+    }
+
     // ========================================================================
     // 调度模式
     // ========================================================================
-
-    /// <summary>
-    /// 调度模式
-    /// </summary>
-    public enum EScheduleMode
-    {
-        /// <summary>一次性执行</summary>
-        Transient,
-        /// <summary>定时执行</summary>
-        Timed,
-        /// <summary>周期执行</summary>
-        Periodic,
-        /// <summary>条件满足时执行</summary>
-        Conditional,
-        /// <summary>外部控制</summary>
-        External,
-    }
 
     /// <summary>
     /// 调度行为接口
     /// </summary>
     public interface IScheduledExecutable : IExecutable, ISimpleExecutable
     {
-        EScheduleMode ScheduleMode { get; }
+        Config.EScheduleMode ScheduleMode { get; }
         bool IsPeriodic { get; }
         float PeriodMs { get; }
         float DurationMs { get; }

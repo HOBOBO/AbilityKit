@@ -37,6 +37,18 @@ namespace AbilityKit.Triggering.Runtime.Config.Schedule
             MaxExecutions = maxExecutions
         };
 
+        /// <summary>
+        /// 持续行为（每帧驱动直到外部终止）
+        /// </summary>
+        /// <param name="canBeInterrupted">是否可被中断</param>
+        /// <param name="maxExecutions">最大执行次数，-1=无限</param>
+        public static ScheduleConfig Continuous(bool canBeInterrupted = true, int maxExecutions = -1) => new ScheduleConfig
+        {
+            Mode = EScheduleMode.Continuous,
+            CanBeInterrupted = canBeInterrupted,
+            MaxExecutions = maxExecutions
+        };
+
         public bool IsEmpty => Mode == EScheduleMode.Transient && DurationMs == 0 && PeriodMs == 0;
     }
 }

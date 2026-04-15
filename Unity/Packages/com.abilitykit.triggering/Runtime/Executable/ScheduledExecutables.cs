@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Triggering.Runtime.Config;
 
 namespace AbilityKit.Triggering.Runtime.Executable
 {
@@ -9,11 +10,11 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// 定时行为包装器
     /// </summary>
-    public sealed class TimedExecutable : ISimpleExecutable, IScheduledExecutable
+    public sealed class TimedExecutable : ISimpleExecutable, IScheduledExecutable, IHasInner
     {
         public string Name => $"Timed({Inner?.Name ?? "null"})";
         public ExecutableMetadata Metadata => new(1000, "Timed", isScheduled: true);
-        public EScheduleMode ScheduleMode => EScheduleMode.Timed;
+        public Config.EScheduleMode ScheduleMode => Config.EScheduleMode.Timed;
         public bool IsPeriodic => false;
         public float PeriodMs => 0;
         public float DurationMs { get; set; }
@@ -31,11 +32,11 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// 周期行为包装器
     /// </summary>
-    public class PeriodicExecutable : ISimpleExecutable, IScheduledExecutable
+    public class PeriodicExecutable : ISimpleExecutable, IScheduledExecutable, IHasInner
     {
         public string Name => $"Periodic({Inner?.Name ?? "null"})";
         public ExecutableMetadata Metadata => new(1001, "Periodic", isScheduled: true);
-        public EScheduleMode ScheduleMode => EScheduleMode.Periodic;
+        public Config.EScheduleMode ScheduleMode => Config.EScheduleMode.Periodic;
         public bool IsPeriodic => true;
         public float PeriodMs { get; set; } = 1000f;
         public float DurationMs { get; set; } = -1;
@@ -61,11 +62,11 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// 外部控制行为包装器
     /// </summary>
-    public sealed class ExternalControlledExecutable : ISimpleExecutable, IScheduledExecutable
+    public sealed class ExternalControlledExecutable : ISimpleExecutable, IScheduledExecutable, IHasInner
     {
         public string Name => $"External({Inner?.Name ?? "null"})";
         public ExecutableMetadata Metadata => new(1002, "ExternalControlled", isScheduled: true);
-        public EScheduleMode ScheduleMode => EScheduleMode.External;
+        public Config.EScheduleMode ScheduleMode => Config.EScheduleMode.External;
         public bool IsPeriodic => false;
         public float PeriodMs => 0;
         public float DurationMs => -1;
@@ -375,26 +376,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         public void RequestInterrupt(string reason)
         {
-        }
-    }
-
-    // ========================================================================
-    // 延迟装饰器 (用于 Sequence 中表示延迟点)
-    // ========================================================================
-
-    /// <summary>
-    /// 延迟点行为 (在 Sequence 中插入延迟)
-    /// </summary>
-    public sealed class DelayPointExecutable : IAtomicExecutable, ISimpleExecutable
-    {
-        public string Name => "DelayPoint";
-        public ExecutableMetadata Metadata => new(2000, "DelayPoint");
-
-        public float DurationMs { get; set; }
-
-        public ExecutionResult Execute(object ctx)
-        {
-            return ExecutionResult.Success();
         }
     }
 }
