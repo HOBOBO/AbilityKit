@@ -1,0 +1,14 @@
+{
+    "name": "com.abilitykit.triggering.abstractions",
+    "rootNamespace": "AbilityKit.Triggering.Runtime.Abstractions",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

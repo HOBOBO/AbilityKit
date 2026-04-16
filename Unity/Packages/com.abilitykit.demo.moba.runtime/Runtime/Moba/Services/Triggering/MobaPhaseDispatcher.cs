@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Triggering.Runtime.Dispatcher;
 using AbilityKit.Triggering.Runtime.Plan;
 
-namespace AbilityKit.Triggering.Runtime.Dispatcher
+namespace AbilityKit.Demo.Moba.Services.Triggering
 {
     /// <summary>
     /// 管线阶段触发器上下文
     /// </summary>
-    public class PhaseDispatcherContext : ITriggerDispatcherContext
+    public class MobaPhaseDispatcherContext : ITriggerDispatcherContext
     {
         public object Context { get; }
         public float CurrentTimeMs { get; }
@@ -27,7 +28,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         /// </summary>
         public string PipelineInstanceId { get; }
 
-        public PhaseDispatcherContext(object context, float currentTimeMs, int currentPhaseId, int phaseExecutionIndex = 0, string pipelineInstanceId = null)
+        public MobaPhaseDispatcherContext(object context, float currentTimeMs, int currentPhaseId, int phaseExecutionIndex = 0, string pipelineInstanceId = null)
         {
             Context = context;
             CurrentTimeMs = currentTimeMs;
@@ -45,7 +46,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
     /// <summary>
     /// 管线阶段触发器注册信息
     /// </summary>
-    internal class PhaseTriggerRegistration
+    internal class MobaPhaseTriggerRegistration
     {
         public int TriggerId { get; set; }
         public int PhaseId { get; set; }
@@ -57,27 +58,26 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
 
     /// <summary>
     /// 管线调度器
-    /// 整合 PipelineDispatcher + PipelineDriver
     /// 通过 Pipeline Phase 驱动触发器
     /// </summary>
-    public class PhaseDispatcher : TriggerDispatcherBase
+    public class MobaPhaseDispatcher : TriggerDispatcherBase
     {
         /// <summary>
         /// 按 Phase 分组的触发器注册
         /// </summary>
-        private readonly Dictionary<int, List<PhaseTriggerRegistration>> _phaseRegistrations = new Dictionary<int, List<PhaseTriggerRegistration>>();
+        private readonly Dictionary<int, List<MobaPhaseTriggerRegistration>> _phaseRegistrations = new Dictionary<int, List<MobaPhaseTriggerRegistration>>();
 
         /// <summary>
         /// 活跃的持续触发器实例
         /// </summary>
-        private readonly List<PhaseTriggerRegistration> _activeTriggers = new List<PhaseTriggerRegistration>();
+        private readonly List<MobaPhaseTriggerRegistration> _activeTriggers = new List<MobaPhaseTriggerRegistration>();
 
         public override EDispatcherType DispatcherType => EDispatcherType.Phase;
         public override int RegisteredCount => _registrations.Count;
 
-        public PhaseDispatcher()
+        public MobaPhaseDispatcher()
         {
-            Name = "PhaseDispatcher";
+            Name = "MobaPhaseDispatcher";
             Priority = 50;
         }
 
@@ -98,20 +98,20 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         public override void Register<TArgs>(in TriggerPlan<TArgs> plan, TriggerPredicate<TArgs> predicate, TriggerExecutor<TArgs> executor)
             where TArgs : class
         {
-            var registration = new PhaseTriggerRegistration
+            var registration = new MobaPhaseTriggerRegistration
             {
                 TriggerId = plan.TriggerId,
                 PhaseId = plan.Phase,
                 Priority = plan.Priority,
                 Predicate = predicate != null ? (pred, ctx) => predicate((TArgs)pred, ctx) : null,
                 Executor = (obj, ctx) => executor((TArgs)obj, ctx),
-                Plan = new TriggerPlan<object>(plan.Phase, plan.Priority, plan.TriggerId, plan.InterruptPriority, null)
+                Plan = new TriggerPlan<object>(phase: plan.Phase, priority: plan.Priority, triggerId: plan.TriggerId, actions: null, interruptPriority: plan.InterruptPriority, cue: null, schedule: default)
             };
 
             // 按 Phase 分组
             if (!_phaseRegistrations.TryGetValue(plan.Phase, out var list))
             {
-                list = new List<PhaseTriggerRegistration>();
+                list = new List<MobaPhaseTriggerRegistration>();
                 _phaseRegistrations[plan.Phase] = list;
             }
 
@@ -124,7 +124,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
 
         public override bool Unregister(int triggerId)
         {
-            if (_registrations.TryGetValue(triggerId, out var obj) && obj is PhaseTriggerRegistration reg)
+            if (_registrations.TryGetValue(triggerId, out var obj) && obj is MobaPhaseTriggerRegistration reg)
             {
                 if (_phaseRegistrations.TryGetValue(reg.PhaseId, out var list))
                 {
@@ -146,7 +146,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
 
             if (!_phaseRegistrations.TryGetValue(phaseId, out var list)) return;
 
-            var phaseCtx = context as PhaseDispatcherContext;
+            var phaseCtx = context as MobaPhaseDispatcherContext;
             int executionIndex = 0;
 
             foreach (var reg in list)
@@ -159,7 +159,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
 
                 // 执行
                 var wrappedCtx = phaseCtx != null
-                    ? new PhaseDispatcherContext(
+                    ? new MobaPhaseDispatcherContext(
                         context.Context,
                         phaseCtx.CurrentTimeMs,
                         phaseId,
@@ -190,7 +190,6 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         public override void Update(float deltaTimeMs, ITriggerDispatcherContext context)
         {
             // PhaseDispatcher 由 Pipeline 系统通过 ExecutePhase 调用
-            // 这里可以处理一些需要每帧更新的持续触发器
         }
 
         /// <summary>
@@ -215,7 +214,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         public void RegisterToPhase<TArgs>(int phaseId, in TriggerPlan<TArgs> plan, TriggerPredicate<TArgs> predicate, TriggerExecutor<TArgs> executor)
             where TArgs : class
         {
-            var registration = new PhaseTriggerRegistration
+            var registration = new MobaPhaseTriggerRegistration
             {
                 TriggerId = plan.TriggerId,
                 PhaseId = phaseId,
@@ -226,7 +225,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
 
             if (!_phaseRegistrations.TryGetValue(phaseId, out var list))
             {
-                list = new List<PhaseTriggerRegistration>();
+                list = new List<MobaPhaseTriggerRegistration>();
                 _phaseRegistrations[phaseId] = list;
             }
 

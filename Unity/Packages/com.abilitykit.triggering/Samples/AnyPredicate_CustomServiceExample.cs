@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
@@ -101,8 +101,11 @@ namespace AbilityKit.Triggering.Runtime.Example
                 priority: 0,
                 triggerId: 0,
                 predicateId: predicateId,
+                predicateArgs: null,
+                actions: new[] { new ActionCallPlan(actionId) },
                 interruptPriority: 0,
-                actions: new[] { new ActionCallPlan(actionId) });
+                cue: null,
+                schedule: default);
 
             runner.RegisterPlan<Hit, DemoCtx>(key, plan);
 

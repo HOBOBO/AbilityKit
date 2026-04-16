@@ -1,8 +1,7 @@
 using System;
-using System.Collections.Generic;
-using AbilityKit.Triggering.Registry;
-using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.ActionScheduler;
 using AbilityKit.Triggering.Runtime.Continuous;
+using AbilityKit.Triggering.Runtime.Dispatcher;
 using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Triggering.Runtime.Dispatcher
@@ -16,12 +15,16 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         private readonly TriggerDispatcherRegistry _registry;
         private ITriggerDispatcherContext _currentContext;
 
+        // ✅ 新增：ActionScheduler 全局管理器
+        private readonly ActionSchedulerManager _actionSchedulerManager;
+
         /// <summary>
         /// 创建调度中心
         /// </summary>
         public TriggerDispatcherHub()
         {
             _registry = new TriggerDispatcherRegistry();
+            _actionSchedulerManager = new ActionSchedulerManager();
         }
 
         /// <summary>
@@ -51,14 +54,9 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         public TimedDispatcher Timed => _registry.Timed;
 
         /// <summary>
-        /// 获取管线调度器
+        /// 获取 Action 调度器管理器
         /// </summary>
-        public PhaseDispatcher Phase => _registry.Phase;
-
-        /// <summary>
-        /// 获取 Buff 调度器
-        /// </summary>
-        public BuffDispatcher Buff => _registry.Buff;
+        public ActionSchedulerManager ActionSchedulerManager => _actionSchedulerManager;
 
         /// <summary>
         /// 注册持续行为触发器
@@ -102,32 +100,6 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         }
 
         /// <summary>
-        /// 注册管线触发器
-        /// </summary>
-        public void RegisterPipeline<TArgs>(
-            int triggerId,
-            in TriggerPlan<TArgs> plan,
-            TriggerPredicate<TArgs> predicate,
-            TriggerExecutor<TArgs> executor)
-            where TArgs : class
-        {
-            _registry.Phase.Register(in plan, predicate, executor);
-        }
-
-        /// <summary>
-        /// 注册 Buff 触发器
-        /// </summary>
-        public void RegisterBuff<TArgs>(
-            int triggerId,
-            in TriggerPlan<TArgs> plan,
-            TriggerPredicate<TArgs> predicate,
-            TriggerExecutor<TArgs> executor)
-            where TArgs : class
-        {
-            _registry.Buff.Register(in plan, predicate, executor);
-        }
-
-        /// <summary>
         /// 注册到自动选择的调度器
         /// </summary>
         public void RegisterAuto<TArgs>(
@@ -159,15 +131,8 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         public void Update(float deltaTimeMs)
         {
             _registry.Update(deltaTimeMs, _currentContext);
-        }
-
-        /// <summary>
-        /// 执行指定的 Phase
-        /// </summary>
-        public void ExecutePhase(int phaseId, object args = null)
-        {
-            var ctx = _currentContext ?? new EventBusDispatcherContext(null, 0);
-            _registry.Phase.ExecutePhase(phaseId, args, ctx);
+            // ✅ 更新 ActionScheduler（Trigger 级别之后）
+            _actionSchedulerManager.Update(deltaTimeMs, _currentContext);
         }
 
         /// <summary>

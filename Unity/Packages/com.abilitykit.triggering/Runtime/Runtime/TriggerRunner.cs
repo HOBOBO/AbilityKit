@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
@@ -7,6 +7,8 @@ using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Variables.Numeric;
 using AbilityKit.Triggering.Variables.Numeric.Expression;
+using AbilityKit.Triggering.Runtime.ActionScheduler;
+using AbilityKit.Triggering.Runtime.ActionScheduler;
 
 namespace AbilityKit.Triggering.Runtime
 {
@@ -26,6 +28,7 @@ namespace AbilityKit.Triggering.Runtime
         private readonly INumericRpnFunctionRegistry _numericFunctions;
         private readonly ExecPolicy _policy;
         private readonly EInterruptPolicy _interruptPolicy;
+        private readonly ActionSchedulerManager _actionSchedulerManager;
 
         private readonly Dictionary<Type, object> _triggerListsByArgsType = new Dictionary<Type, object>();
         private readonly Dictionary<Type, object> _subscriptionsByArgsType = new Dictionary<Type, object>();
@@ -44,7 +47,8 @@ namespace AbilityKit.Triggering.Runtime
             INumericVarDomainRegistry numericDomains = null,
             INumericRpnFunctionRegistry numericFunctions = null,
             ExecPolicy policy = default,
-            EInterruptPolicy interruptPolicy = EInterruptPolicy.None)
+            EInterruptPolicy interruptPolicy = EInterruptPolicy.None,
+            ActionSchedulerManager actionSchedulerManager = null)
         {
             _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
             _functions = functions ?? throw new ArgumentNullException(nameof(functions));
@@ -59,6 +63,7 @@ namespace AbilityKit.Triggering.Runtime
             _numericFunctions = numericFunctions;
             _policy = policy;
             _interruptPolicy = interruptPolicy;
+            _actionSchedulerManager = actionSchedulerManager ?? new ActionSchedulerManager();
         }
 
         public IDisposable Register<TArgs>(EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase = 0, int priority = 0)
@@ -142,7 +147,19 @@ namespace AbilityKit.Triggering.Runtime
             var ctx = _contextSource != null ? _contextSource.GetContext() : default;
             if (control == null) control = new ExecutionControl();
             control.Reset();
-            var execCtx = new ExecCtx<TCtx>(ctx, _eventBus, _functions, _actions, _blackboards, _payloads, _idNames, _numericDomains, _numericFunctions, _policy, control);
+            var execCtx = new ExecCtx<TCtx>(
+                ctx,
+                _eventBus,
+                _functions,
+                _actions,
+                _blackboards,
+                _payloads,
+                _idNames,
+                _numericDomains,
+                _numericFunctions,
+                _policy,
+                control,
+                _actionSchedulerManager);  // ✅ 注入 ActionSchedulerManager
 
             int executedCount = 0;
             int shortCircuitedCount = 0;

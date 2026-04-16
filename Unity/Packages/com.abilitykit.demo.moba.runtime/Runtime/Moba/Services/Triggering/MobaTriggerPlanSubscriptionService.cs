@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Core.Common.Log;
@@ -133,7 +133,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private static IDisposable RegisterTyped<TArgs>(TriggerRunner<IWorldResolver> runner, int eid, TriggerPlan<object> planObj)
+        private static IDisposable RegisterTyped<TArgs>(TriggerRunner<IWorldResolver> runner, int eid, TriggerPlan<object> planObj) where TArgs : class
         {
             if (runner == null) return null;
             if (eid == 0) return null;
@@ -149,24 +149,24 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (!src.HasPredicate || src.PredicateKind == EPredicateKind.None)
             {
-                return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, src.InterruptPriority, actions);
+                return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, actions, src.InterruptPriority);
             }
 
             if (src.PredicateKind == EPredicateKind.Expr)
             {
-                return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, src.PredicateExpr, src.InterruptPriority, actions);
+                return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, src.PredicateExpr, actions, src.InterruptPriority);
             }
 
             switch (src.PredicateArity)
             {
                 case 0:
-                    return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, src.PredicateId, src.InterruptPriority, actions);
+                    return new TriggerPlan<TArgs>(phase: src.Phase, priority: src.Priority, triggerId: src.TriggerId, predicateId: src.PredicateId, predicateArgs: null, actions: actions, interruptPriority: src.InterruptPriority);
                 case 1:
-                    return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, src.PredicateId, src.PredicateArg0, src.InterruptPriority, actions);
+                    return new TriggerPlan<TArgs>(phase: src.Phase, priority: src.Priority, triggerId: src.TriggerId, predicateId: src.PredicateId, predicateArgs: new[] { src.PredicateArg0 }, actions: actions, interruptPriority: src.InterruptPriority);
                 case 2:
-                    return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, src.PredicateId, src.PredicateArg0, src.PredicateArg1, src.InterruptPriority, actions);
+                    return new TriggerPlan<TArgs>(phase: src.Phase, priority: src.Priority, triggerId: src.TriggerId, predicateId: src.PredicateId, predicateArgs: new[] { src.PredicateArg0, src.PredicateArg1 }, actions: actions, interruptPriority: src.InterruptPriority);
                 default:
-                    return new TriggerPlan<TArgs>(src.Phase, src.Priority, src.TriggerId, src.InterruptPriority, actions);
+                    return new TriggerPlan<TArgs>(phase: src.Phase, priority: src.Priority, triggerId: src.TriggerId, actions: actions, interruptPriority: src.InterruptPriority, cue: null, schedule: default);
             }
         }
 

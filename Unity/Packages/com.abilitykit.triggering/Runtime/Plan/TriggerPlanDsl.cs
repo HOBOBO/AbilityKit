@@ -213,12 +213,27 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
             if (_predicate.Nodes != null && _predicate.Nodes.Length > 0)
             {
+                // 使用表达式条件触发器构造函数
                 return new TriggerPlan<TArgs>(
-                    _phase, _priority, _triggerId, _predicate, _interruptPriority, actions, _cue, _schedule);
+                    phase: _phase,
+                    priority: _priority,
+                    triggerId: _triggerId,
+                    predicateExpr: _predicate,
+                    actions: actions,
+                    interruptPriority: _interruptPriority,
+                    cue: _cue,
+                    schedule: _schedule);
             }
 
+            // 使用无条件触发器构造函数
             return new TriggerPlan<TArgs>(
-                _phase, _priority, _triggerId, _interruptPriority, actions, _cue, _schedule);
+                phase: _phase,
+                priority: _priority,
+                triggerId: _triggerId,
+                actions: actions,
+                interruptPriority: _interruptPriority,
+                cue: _cue,
+                schedule: _schedule);
         }
     }
 

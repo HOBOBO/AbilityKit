@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Triggering.Registry;
@@ -39,7 +39,7 @@ namespace AbilityKit.Demo.Moba.Systems
 
             if (HasAction0)
             {
-                actions.Register<PlannedTrigger<object, IWorldResolver>.Action0>(
+                actions.Register<Action0<object, IWorldResolver>>(
                     id,
                     CreateHandler0(actionName),
                     isDeterministic: true);
@@ -47,7 +47,7 @@ namespace AbilityKit.Demo.Moba.Systems
 
             if (HasAction1)
             {
-                actions.Register<PlannedTrigger<object, IWorldResolver>.Action1>(
+                actions.Register<Action1<object, IWorldResolver>>(
                     id,
                     CreateHandler1(actionName),
                     isDeterministic: true);
@@ -55,14 +55,14 @@ namespace AbilityKit.Demo.Moba.Systems
 
             if (HasAction2)
             {
-                actions.Register<PlannedTrigger<object, IWorldResolver>.Action2>(
+                actions.Register<Action2<object, IWorldResolver>>(
                     id,
                     CreateHandler2(actionName),
                     isDeterministic: true);
             }
         }
 
-        private PlannedTrigger<object, IWorldResolver>.Action0 CreateHandler0(string actionName)
+        private Action0<object, IWorldResolver> CreateHandler0(string actionName)
         {
             return (args, ctx) =>
             {
@@ -78,7 +78,7 @@ namespace AbilityKit.Demo.Moba.Systems
             };
         }
 
-        private PlannedTrigger<object, IWorldResolver>.Action1 CreateHandler1(string actionName)
+        private Action1<object, IWorldResolver> CreateHandler1(string actionName)
         {
             return (args, a0, ctx) =>
             {
@@ -94,7 +94,7 @@ namespace AbilityKit.Demo.Moba.Systems
             };
         }
 
-        private PlannedTrigger<object, IWorldResolver>.Action2 CreateHandler2(string actionName)
+        private Action2<object, IWorldResolver> CreateHandler2(string actionName)
         {
             return (args, a0, a1, ctx) =>
             {
@@ -150,19 +150,19 @@ namespace AbilityKit.Demo.Moba.Systems
             switch (Arity)
             {
                 case 0:
-                    actions.Register<PlannedTrigger<object, IWorldResolver>.Action0>(
+                    actions.Register<Action0<object, IWorldResolver>>(
                         ActionId,
                         CreateHandler0(),
                         isDeterministic: true);
                     break;
                 case 1:
-                    actions.Register<PlannedTrigger<object, IWorldResolver>.Action1>(
+                    actions.Register<Action1<object, IWorldResolver>>(
                         ActionId,
                         CreateHandler1(),
                         isDeterministic: true);
                     break;
                 case 2:
-                    actions.Register<PlannedTrigger<object, IWorldResolver>.Action2>(
+                    actions.Register<Action2<object, IWorldResolver>>(
                         ActionId,
                         CreateHandler2(),
                         isDeterministic: true);
@@ -170,7 +170,7 @@ namespace AbilityKit.Demo.Moba.Systems
             }
         }
 
-        protected virtual PlannedTrigger<object, IWorldResolver>.Action0 CreateHandler0()
+        protected virtual Action0<object, IWorldResolver> CreateHandler0()
         {
             return (args, ctx) =>
             {
@@ -186,7 +186,7 @@ namespace AbilityKit.Demo.Moba.Systems
             };
         }
 
-        protected virtual PlannedTrigger<object, IWorldResolver>.Action1 CreateHandler1()
+        protected virtual Action1<object, IWorldResolver> CreateHandler1()
         {
             return (args, a0, ctx) =>
             {
@@ -202,7 +202,7 @@ namespace AbilityKit.Demo.Moba.Systems
             };
         }
 
-        protected virtual PlannedTrigger<object, IWorldResolver>.Action2 CreateHandler2()
+        protected virtual Action2<object, IWorldResolver> CreateHandler2()
         {
             return (args, a0, a1, ctx) =>
             {

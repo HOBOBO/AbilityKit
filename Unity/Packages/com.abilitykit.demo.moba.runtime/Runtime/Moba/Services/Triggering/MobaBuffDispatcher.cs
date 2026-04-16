@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Triggering.Runtime.Dispatcher;
 using AbilityKit.Triggering.Runtime.Plan;
 
-namespace AbilityKit.Triggering.Runtime.Dispatcher
+namespace AbilityKit.Demo.Moba.Services.Triggering
 {
     /// <summary>
     /// Buff 触发事件类型
     /// </summary>
-    public enum EBuffTriggerEvent
+    public enum MobaBuffTriggerEvent
     {
         /// <summary>Buff 开始</summary>
         OnStart = 0,
@@ -26,7 +27,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
     /// <summary>
     /// Buff 触发器注册信息
     /// </summary>
-    internal class BuffTriggerRegistration
+    internal class MobaBuffTriggerRegistration
     {
         public int TriggerId { get; set; }
         public TriggerPredicate<object> Predicate { get; set; }
@@ -35,38 +36,38 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
 
     /// <summary>
     /// Buff 调度器
-    /// 整合 BuffDriver 功能
     /// 由 Buff 系统驱动触发器
     /// </summary>
-    public class BuffDispatcher : ITriggerDispatcher
+    public class MobaBuffDispatcher : TriggerDispatcherBase
     {
-        private readonly Dictionary<int, Dictionary<EBuffTriggerEvent, List<BuffTriggerRegistration>>> _buffRegistrations =
-            new Dictionary<int, Dictionary<EBuffTriggerEvent, List<BuffTriggerRegistration>>>();
+        private readonly Dictionary<int, Dictionary<MobaBuffTriggerEvent, List<MobaBuffTriggerRegistration>>> _buffRegistrations =
+            new Dictionary<int, Dictionary<MobaBuffTriggerEvent, List<MobaBuffTriggerRegistration>>>();
 
-        private readonly Dictionary<int, object> _registrations = new Dictionary<int, object>();
+        public override EDispatcherType DispatcherType => EDispatcherType.Buff;
+        public override int RegisteredCount => _registrations.Count;
 
-        public EDispatcherType DispatcherType => EDispatcherType.Buff;
-        public string Name { get; set; } = "BuffDispatcher";
-        public bool IsEnabled { get; set; } = true;
-        public int Priority { get; set; } = 60;
-        public int RegisteredCount => _registrations.Count;
+        public MobaBuffDispatcher()
+        {
+            Name = "MobaBuffDispatcher";
+            Priority = 60;
+        }
 
-        public void Initialize()
+        public override void Initialize()
         {
             _buffRegistrations.Clear();
             _registrations.Clear();
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             _buffRegistrations.Clear();
             _registrations.Clear();
         }
 
-        public void Register<TArgs>(in TriggerPlan<TArgs> plan, TriggerPredicate<TArgs> predicate, TriggerExecutor<TArgs> executor)
+        public override void Register<TArgs>(in TriggerPlan<TArgs> plan, TriggerPredicate<TArgs> predicate, TriggerExecutor<TArgs> executor)
             where TArgs : class
         {
-            var registration = new BuffTriggerRegistration
+            var registration = new MobaBuffTriggerRegistration
             {
                 TriggerId = plan.TriggerId,
                 Predicate = predicate != null ? (pred, ctx) => predicate((TArgs)pred, ctx) : null,
@@ -76,12 +77,12 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
             _registrations[plan.TriggerId] = registration;
         }
 
-        public bool Unregister(int triggerId)
+        public override bool Unregister(int triggerId)
         {
             return _registrations.Remove(triggerId);
         }
 
-        public void Update(float deltaTimeMs, ITriggerDispatcherContext context)
+        public override void Update(float deltaTimeMs, ITriggerDispatcherContext context)
         {
             // BuffDispatcher 由 Buff 系统通过 OnBuffEvent 调用
         }
@@ -89,21 +90,21 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         /// <summary>
         /// 注册 Buff 触发器
         /// </summary>
-        public void RegisterBuffTrigger(int buffId, EBuffTriggerEvent triggerEvent, int triggerId)
+        public void RegisterBuffTrigger(int buffId, MobaBuffTriggerEvent triggerEvent, int triggerId)
         {
             if (!_buffRegistrations.TryGetValue(buffId, out var events))
             {
-                events = new Dictionary<EBuffTriggerEvent, List<BuffTriggerRegistration>>();
+                events = new Dictionary<MobaBuffTriggerEvent, List<MobaBuffTriggerRegistration>>();
                 _buffRegistrations[buffId] = events;
             }
 
             if (!events.TryGetValue(triggerEvent, out var list))
             {
-                list = new List<BuffTriggerRegistration>();
+                list = new List<MobaBuffTriggerRegistration>();
                 events[triggerEvent] = list;
             }
 
-            if (_registrations.TryGetValue(triggerId, out var obj) && obj is BuffTriggerRegistration reg)
+            if (_registrations.TryGetValue(triggerId, out var obj) && obj is MobaBuffTriggerRegistration reg)
             {
                 if (!list.Contains(reg))
                 {
@@ -116,7 +117,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         /// 触发 Buff 事件
         /// 由 Buff 系统调用
         /// </summary>
-        public void OnBuffEvent(int buffId, EBuffTriggerEvent triggerEvent, object args, ITriggerDispatcherContext context)
+        public void OnBuffEvent(int buffId, MobaBuffTriggerEvent triggerEvent, object args, ITriggerDispatcherContext context)
         {
             if (!IsEnabled) return;
 

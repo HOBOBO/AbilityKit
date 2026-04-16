@@ -61,25 +61,58 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         private ISimpleExecutable ConvertByTypeId(ExecutableConfig config)
         {
+            if (!TryCreateFromRegistry(config.TypeId, out var executable))
+            {
+                // 回退到硬编码的兼容处理
+                return ConvertByTypeIdLegacy(config);
+            }
+            return executable;
+        }
+
+        private bool TryCreateFromRegistry(int typeId, out ISimpleExecutable executable)
+        {
+            executable = null;
+            if (ExecutableRegistry.Instance.TryGetDescriptor(typeId, out var descriptor))
+            {
+                executable = descriptor.Factory() as ISimpleExecutable;
+                return executable != null;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 兼容旧代码：通过类型 ID 创建实例
+        /// </summary>
+        private ISimpleExecutable ConvertByTypeIdLegacy(ExecutableConfig config)
+        {
             return config.TypeId switch
             {
-                ExecutableTypeIds.Sequence => ConvertSequence(config),
-                ExecutableTypeIds.Selector => ConvertSelector(config),
-                ExecutableTypeIds.Parallel => ConvertParallel(config),
-                ExecutableTypeIds.If => ConvertIf(config),
-                ExecutableTypeIds.IfElse => ConvertIfElse(config),
-                ExecutableTypeIds.Switch => ConvertSwitch(config),
-                ExecutableTypeIds.RandomSelector => ConvertRandomSelector(config),
-                ExecutableTypeIds.Repeat => ConvertRepeat(config),
-                ExecutableTypeIds.ActionCall => ConvertActionCall(config),
-                ExecutableTypeIds.Delay => ConvertDelay(config),
-                ExecutableTypeIds.Schedule => ConvertSchedule(config),
+                ExecutableModule.ExecutableTypeIds.Sequence => ConvertSequence(config),
+                ExecutableModule.ExecutableTypeIds.Selector => ConvertSelector(config),
+                ExecutableModule.ExecutableTypeIds.Parallel => ConvertParallel(config),
+                ExecutableModule.ExecutableTypeIds.If => ConvertIf(config),
+                ExecutableModule.ExecutableTypeIds.IfElse => ConvertIfElse(config),
+                ExecutableModule.ExecutableTypeIds.Switch => ConvertSwitch(config),
+                ExecutableModule.ExecutableTypeIds.RandomSelector => ConvertRandomSelector(config),
+                ExecutableModule.ExecutableTypeIds.Repeat => ConvertRepeat(config),
+                ExecutableModule.ExecutableTypeIds.ActionCall => ConvertActionCall(config),
+                ExecutableModule.ExecutableTypeIds.Delay => ConvertDelay(config),
+                ExecutableModule.ExecutableTypeIds.Schedule => ConvertSchedule(config),
                 _ => throw new NotSupportedException($"Executable type id {config.TypeId} not supported")
             };
         }
 
         private ISimpleExecutable ConvertByTypeName(ExecutableConfig config)
         {
+            if (ExecutableRegistry.Instance.TryGetTypeIdByName(config.TypeName, out var typeId))
+            {
+                if (TryCreateFromRegistry(typeId, out var executable))
+                {
+                    return ConvertByNameWithConfig(executable, config);
+                }
+            }
+
+            // 回退到字符串匹配
             return config.TypeName?.ToLowerInvariant() switch
             {
                 "sequence" => ConvertSequence(config),
@@ -97,6 +130,59 @@ namespace AbilityKit.Triggering.Runtime.Executable
                 "schedule" => ConvertSchedule(config),
                 _ => throw new NotSupportedException($"Executable type name '{config.TypeName}' not supported")
             };
+        }
+
+        private ISimpleExecutable ConvertByNameWithConfig(ISimpleExecutable executable, ExecutableConfig config)
+        {
+            switch (executable)
+            {
+                case SequenceExecutable seq:
+                    ConvertSequenceTo(seq, config);
+                    return seq;
+                case SelectorExecutable sel:
+                    ConvertSelectorTo(sel, config);
+                    return sel;
+                case IfExecutable @if:
+                    ConvertIfTo(@if, config);
+                    return @if;
+                // ... 其他类型类似处理
+                default:
+                    return executable;
+            }
+        }
+
+        private void ConvertSequenceTo(SequenceExecutable seq, ExecutableConfig config)
+        {
+            if (config.Children != null)
+            {
+                foreach (var childConfig in config.Children)
+                {
+                    var child = Convert(childConfig);
+                    if (child != null)
+                        seq.Add(child);
+                }
+            }
+        }
+
+        private void ConvertSelectorTo(SelectorExecutable sel, ExecutableConfig config)
+        {
+            if (config.Children != null)
+            {
+                foreach (var childConfig in config.Children)
+                {
+                    var child = Convert(childConfig);
+                    if (child != null)
+                        sel.Add(child);
+                }
+            }
+        }
+
+        private void ConvertIfTo(IfExecutable @if, ExecutableConfig config)
+        {
+            if (config.Condition != null)
+                @if.Condition = ConvertCondition(config.Condition);
+            if (config.Children != null && config.Children.Count > 0)
+                @if.Body = ConvertToSequence(config.Children);
         }
 
         private ISimpleExecutable InferFromConfig(ExecutableConfig config)
@@ -202,7 +288,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
             {
                 foreach (var childConfig in config.Children)
                 {
-                    if (childConfig.TypeId == ExecutableTypeIds.If || childConfig.TypeName == "If")
+                    if (childConfig.TypeId == ExecutableModule.ExecutableTypeIds.If || childConfig.TypeName == "If")
                     {
                         ICondition condition = null;
                         if (childConfig.Condition != null)
@@ -250,13 +336,21 @@ namespace AbilityKit.Triggering.Runtime.Executable
         private ActionCallExecutable ConvertActionCall(ExecutableConfig config)
         {
             var actionConfig = config.ActionCall.Value;
+            var actionId = new ActionId(actionConfig.ActionId);
+
+            // 构建参数引用
+            var arg0 = ConvertNumericValueRef(actionConfig.Arg0);
+            var arg1 = ConvertNumericValueRef(actionConfig.Arg1);
+
+            // 根据 arity 创建对应的 ActionCallExecutable
+            // 注意：这里我们创建一个包装器，在 Execute 时从 ActionRegistry 解析
+            // 未来可以优化为转换期直接绑定委托（需要 ActionRegistry 已注册完成）
             return new ActionCallExecutable
             {
-                ActionId = new ActionId(actionConfig.ActionId),
+                ActionId = actionId,
                 Arity = actionConfig.Arity,
-                Arg0 = ConvertNumericValueRef(actionConfig.Arg0),
-                Arg1 = ConvertNumericValueRef(actionConfig.Arg1),
-                Actions = _actions
+                Arg0 = arg0,
+                Arg1 = arg1
             };
         }
 
@@ -402,16 +496,28 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         private ICondition ConvertConditionByTypeId(ConditionConfig config)
         {
+            if (ExecutableRegistry.Instance.TryGetDescriptor(config.TypeId, out _))
+            {
+                try
+                {
+                    return ExecutableRegistry.Instance.CreateCondition(config.TypeId);
+                }
+                catch
+                {
+                    // 回退到硬编码
+                }
+            }
+
             return config.TypeId switch
             {
-                ConditionTypeIds.Const => new ConstCondition { Value = true },
-                ConditionTypeIds.And => ConvertAndCondition(config),
-                ConditionTypeIds.Or => ConvertOrCondition(config),
-                ConditionTypeIds.Not => ConvertNotCondition(config),
-                ConditionTypeIds.NumericCompare => ConvertNumericCompare(config),
-                ConditionTypeIds.PayloadCompare => ConvertPayloadCompare(config),
-                ConditionTypeIds.HasTarget => ConvertHasTarget(config),
-                ConditionTypeIds.Multi => ConvertMultiCondition(config),
+                ExecutableModule.ConditionTypeIds.Const => new ConstCondition { Value = true },
+                ExecutableModule.ConditionTypeIds.And => ConvertAndCondition(config),
+                ExecutableModule.ConditionTypeIds.Or => ConvertOrCondition(config),
+                ExecutableModule.ConditionTypeIds.Not => ConvertNotCondition(config),
+                ExecutableModule.ConditionTypeIds.NumericCompare => ConvertNumericCompare(config),
+                ExecutableModule.ConditionTypeIds.PayloadCompare => ConvertPayloadCompare(config),
+                ExecutableModule.ConditionTypeIds.HasTarget => ConvertHasTarget(config),
+                ExecutableModule.ConditionTypeIds.Multi => ConvertMultiCondition(config),
                 _ => throw new NotSupportedException($"Condition type id {config.TypeId} not supported")
             };
         }

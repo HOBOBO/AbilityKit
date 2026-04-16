@@ -49,11 +49,8 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
             var timedDispatcher = new TimedDispatcher();
             Register(timedDispatcher);
 
-            var phaseDispatcher = new PhaseDispatcher();
-            Register(phaseDispatcher);
-
-            var buffDispatcher = new BuffDispatcher();
-            Register(buffDispatcher);
+            // 注意：PhaseDispatcher 和 BuffDispatcher 已移至业务层
+            // 如需使用，请从业务包引用 MobaPhaseDispatcher / MobaBuffDispatcher
         }
 
         /// <summary>
@@ -117,17 +114,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         public TimedDispatcher Timed => GetDispatcher<TimedDispatcher>();
 
         /// <summary>
-        /// 获取管线调度器
-        /// </summary>
-        public PhaseDispatcher Phase => GetDispatcher<PhaseDispatcher>();
-
-        /// <summary>
-        /// 获取 Buff 调度器
-        /// </summary>
-        public BuffDispatcher Buff => GetDispatcher<BuffDispatcher>();
-
-        /// <summary>
-        /// 更新所有需要每帧更新的调度���
+        /// 更新所有需要每帧更新的调度器
         /// </summary>
         public void Update(float deltaTimeMs, ITriggerDispatcherContext context)
         {
@@ -162,33 +149,31 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
             switch (plan.Schedule.Mode)
             {
                 case Config.EScheduleMode.Timed:
-                    // 延迟/周期执行使用 TimedDispatcher
                     Timed.Register(in plan, predicate, executor);
                     break;
 
                 case Config.EScheduleMode.Periodic:
-                    // 周期执行使用 TimedDispatcher
                     Timed.Register(in plan, predicate, executor);
                     break;
 
                 case Config.EScheduleMode.Continuous:
-                    // 持续行为使用 TimedDispatcher
                     Timed.Register(in plan, predicate, executor);
                     break;
 
                 case Config.EScheduleMode.Conditional:
-                    // 条件触发使用 PhaseDispatcher
-                    Phase.Register(in plan, predicate, executor);
+                    // 条件触发：原 PhaseDispatcher 已移至业务层
+                    // 如需使用，请从业务包手动注册到 MobaPhaseDispatcher
+                    Timed.Register(in plan, predicate, executor);
                     break;
 
                 case Config.EScheduleMode.External:
-                    // 外部控制使用 BuffDispatcher
-                    Buff.Register(in plan, predicate, executor);
+                    // 外部控制：原 BuffDispatcher 已移至业务层
+                    // 如需使用，请从业务包手动注册到 MobaBuffDispatcher
+                    Timed.Register(in plan, predicate, executor);
                     break;
 
                 case Config.EScheduleMode.Transient:
                 default:
-                    // 瞬时执行使用 EventDispatcher
                     Event.Register(in plan, predicate, executor);
                     break;
             }

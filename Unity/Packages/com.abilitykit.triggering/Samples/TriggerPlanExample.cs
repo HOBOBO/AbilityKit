@@ -116,7 +116,6 @@ namespace AbilityKit.Triggering.Runtime.Example
                 priority: 0,
                 triggerId: 0,
                 predicateExpr: predicateExpr,
-                interruptPriority: 0,
                 actions: new[]
                 {
                     // action1(arg0=bb.combat.atk)
@@ -126,7 +125,8 @@ namespace AbilityKit.Triggering.Runtime.Example
                     new ActionCallPlan(actionPrint2,
                         NumericValueRef.PayloadField(Eventing.StableStringId.Get("payload:amount")),
                         NumericValueRef.Blackboard(combatBoardId, atkKeyId))
-                });
+                },
+                interruptPriority: 0);
 
             runner.RegisterPlan<DamageEvent, TriggerContext>(eventKey, plan);
 

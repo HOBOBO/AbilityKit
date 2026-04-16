@@ -5,7 +5,8 @@
         "AbilityKit.Core",
         "AbilityKit.Modifiers",
         "AbilityKit.World.DI",
-        "AbilityKit.Analyzer"
+        "AbilityKit.Analyzer",
+        "com.abilitykit.triggering.abstractions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

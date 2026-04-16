@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
@@ -121,7 +121,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 isDeterministic: true);
 
             var key = new EventKey<DamageEvent>(StableStringId.Get("event:simple_damage"));
-            var plan = new TriggerPlan<DamageEvent>(0, 0, 0, 0, new ActionCallPlan[] { new ActionCallPlan(actionId) });
+            var plan = new TriggerPlan<DamageEvent>(phase: 0, priority: 0, triggerId: 0, actions: new ActionCallPlan[] { new ActionCallPlan(actionId) }, interruptPriority: 0);
             runner.RegisterPlan<DamageEvent, DefaultTCtx>(key, plan);
 
             bus.Publish(key, new DamageEvent(50, 1));
@@ -169,7 +169,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 isDeterministic: true);
 
             var key = new EventKey<DamageEvent>(StableStringId.Get("event:battle_damage"));
-            var plan = new TriggerPlan<DamageEvent>(0, 0, 0, predicateId, 0, new ActionCallPlan[] { new ActionCallPlan(actionId) });
+            var plan = new TriggerPlan<DamageEvent>(phase: 0, priority: 0, triggerId: 0, predicateId: predicateId, predicateArgs: null, actions: new ActionCallPlan[] { new ActionCallPlan(actionId) }, interruptPriority: 0);
             runner.RegisterPlan<DamageEvent, BattleCtx>(key, plan);
 
             // targetId=1 存活 -> 触发
@@ -235,7 +235,7 @@ namespace AbilityKit.Triggering.Runtime.Example
                 isDeterministic: true);
 
             var key = new EventKey<DamageEvent>(StableStringId.Get("event:accessor_damage"));
-            var plan = new TriggerPlan<DamageEvent>(0, 0, 0, predicateId, 0, new ActionCallPlan[] { new ActionCallPlan(actionId) });
+            var plan = new TriggerPlan<DamageEvent>(phase: 0, priority: 0, triggerId: 0, predicateId: predicateId, predicateArgs: null, actions: new ActionCallPlan[] { new ActionCallPlan(actionId) }, interruptPriority: 0);
             runner.RegisterPlan<DamageEvent, BattleCtx>(key, plan);
 
             bus.Publish(key, new DamageEvent(100, 5));

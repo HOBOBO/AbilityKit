@@ -80,4 +80,44 @@ namespace AbilityKit.Triggering.Runtime.Config
         And,
         Or,
     }
+
+    /// <summary>
+    /// Action 调度模式
+    /// 定义单个 Action 被 Trigger 激活后的执行方式
+    /// </summary>
+    public enum EActionScheduleMode : byte
+    {
+        /// <summary>立即执行一次（默认）</summary>
+        Immediate = 0,
+        /// <summary>延迟执行（启动后等待指定时间）</summary>
+        Delayed = 1,
+        /// <summary>周期执行（按间隔重复，可设置最大次数）</summary>
+        Periodic = 2,
+        /// <summary>持续帧执行（每帧执行直到外部终止）</summary>
+        Continuous = 3,
+        /// <summary>时间线执行（按时间线序列执行多个子Action）</summary>
+        Timeline = 4,
+    }
+
+    /// <summary>
+    /// Action 执行策略
+    /// 定义单次执行时的环境和约束
+    /// </summary>
+    public enum EActionExecutionPolicy : byte
+    {
+        /// <summary>立即执行（默认）</summary>
+        Immediate = 0,
+        /// <summary>加入队列，按顺序执行</summary>
+        Queued = 1,
+        /// <summary>并行执行（不等待队列）</summary>
+        Parallel = 2,
+        /// <summary>延迟到下一帧执行</summary>
+        Deferred = 3,
+        /// <summary>支持回滚（执行失败时自动回滚）</summary>
+        WithRollback = 4,
+        /// <summary>失败重试（可配置重试次数）</summary>
+        WithRetry = 5,
+        /// <summary>条件执行（满足条件才执行）</summary>
+        Conditional = 6,
+    }
 }

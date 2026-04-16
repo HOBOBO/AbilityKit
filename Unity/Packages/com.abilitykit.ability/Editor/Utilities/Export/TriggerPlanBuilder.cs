@@ -92,11 +92,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                     return false;
                 }
 
-                plan = new TriggerPlan<object>(phase, priority, 0, predExpr, 0, actions);
+                plan = new TriggerPlan<object>(phase: phase, priority: priority, triggerId: 0, predicateExpr: predExpr, actions: actions, interruptPriority: 0);
                 return true;
             }
 
-            plan = new TriggerPlan<object>(phase, priority, 0, 0, actions);
+            plan = new TriggerPlan<object>(phase: phase, priority: priority, triggerId: 0, actions: actions, interruptPriority: 0, cue: null, schedule: default);
             return true;
         }
 

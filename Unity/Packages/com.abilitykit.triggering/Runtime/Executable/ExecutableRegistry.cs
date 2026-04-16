@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Variables.Numeric;
+using AbilityKit.Core.Common.Marker;
 
 namespace AbilityKit.Triggering.Runtime.Executable
 {
@@ -30,8 +32,10 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
     /// <summary>
     /// 行为类型注册表
+    /// 基于 Attribute 自动发现和注册类型，包外扩展只需在类型上标记 Attribute
+    /// 继承 MarkerRegistry 模式，支持 MarkerScanner 自动扫描
     /// </summary>
-    public sealed class ExecutableRegistry
+    public sealed class ExecutableRegistry : IMarkerRegistry
     {
         private static readonly Lazy<ExecutableRegistry> _instance = new(() => new ExecutableRegistry());
         public static ExecutableRegistry Instance => _instance.Value;
@@ -44,8 +48,14 @@ namespace AbilityKit.Triggering.Runtime.Executable
         private ExecutableRegistry()
         {
             RegisterBuiltin();
+            var assembly = typeof(SequenceExecutable).Assembly;
+            MarkerScanner<ExecutableTypeIdAttribute>.Scan(new[] { assembly }, this);
+            MarkerScanner<ConditionTypeIdAttribute>.Scan(new[] { assembly }, this);
         }
 
+        /// <summary>
+        /// 注册行为类型（通过显式 TypeId）
+        /// </summary>
         public void Register<TExecutable>(int typeId, string typeName, ExecutableMetadata metadata = default)
             where TExecutable : IExecutable, new()
         {
@@ -104,23 +114,112 @@ namespace AbilityKit.Triggering.Runtime.Executable
         public IEnumerable<ExecutableDescriptor> GetAllExecutables()
             => _executables.Values;
 
+        /// <summary>
+        /// 通过 Attribute 注册 Executable 类型（供 MarkerAttribute.OnScanned 调用）
+        /// </summary>
+        internal void RegisterByAttribute(ExecutableTypeIdAttribute attr, Type implType)
+        {
+            if (attr == null || implType == null) return;
+            var factory = CreateExecutableFactory(implType);
+            if (factory != null)
+            {
+                _executables[attr.TypeId] = new ExecutableDescriptor
+                {
+                    TypeId = attr.TypeId,
+                    TypeName = attr.TypeName,
+                    Metadata = new ExecutableMetadata(attr.TypeId, attr.TypeName, isComposite: attr.IsComposite),
+                    Factory = factory
+                };
+                _nameToId[attr.TypeName] = attr.TypeId;
+            }
+        }
+
+        /// <summary>
+        /// 通过 Attribute 注册 Condition 类型（供 MarkerAttribute.OnScanned 调用）
+        /// </summary>
+        internal void RegisterConditionByAttribute(ConditionTypeIdAttribute attr, Type implType)
+        {
+            if (attr == null || implType == null) return;
+            var factory = CreateConditionFactory(implType);
+            if (factory != null)
+            {
+                _conditions[attr.TypeId] = new ConditionDescriptor
+                {
+                    TypeId = attr.TypeId,
+                    TypeName = attr.TypeName,
+                    Factory = factory
+                };
+                _conditionNameToId[attr.TypeName] = attr.TypeId;
+            }
+        }
+
+        private Func<IExecutable> CreateExecutableFactory(Type type)
+        {
+            var ctor = type.GetConstructor(Type.EmptyTypes);
+            if (ctor != null)
+            {
+                return () => (IExecutable)ctor.Invoke(null);
+            }
+            return null;
+        }
+
+        private Func<ICondition> CreateConditionFactory(Type type)
+        {
+            var ctor = type.GetConstructor(Type.EmptyTypes);
+            if (ctor != null)
+            {
+                return () => (ICondition)ctor.Invoke(null);
+            }
+            return null;
+        }
+
         private void RegisterBuiltin()
         {
-            Register<SequenceExecutable>(1, "Sequence", new ExecutableMetadata(1, "Sequence"));
-            Register<IfExecutable>(10, "If", new ExecutableMetadata(10, "If"));
-            Register<IfElseExecutable>(11, "IfElse", new ExecutableMetadata(11, "IfElse"));
-            Register<SwitchExecutable>(12, "Switch", new ExecutableMetadata(12, "Switch"));
-            Register<ActionCallExecutable>(100, "ActionCall", new ExecutableMetadata(100, "ActionCall"));
-            Register<DelayExecutable>(200, "Delay", new ExecutableMetadata(200, "Delay"));
-
-            RegisterCondition<ConstCondition>(0, "Const");
-            RegisterCondition<AndCondition>(1, "And");
-            RegisterCondition<OrCondition>(2, "Or");
-            RegisterCondition<NotCondition>(3, "Not");
-            RegisterCondition<NumericCompareCondition>(10, "NumericCompare");
-            RegisterCondition<PayloadCompareCondition>(11, "PayloadCompare");
-            RegisterCondition<HasTargetCondition>(20, "HasTarget");
-            RegisterCondition<MultiCondition>(100, "Multi");
+            // 仅用于兼容旧代码，不推荐新代码使用
+            // 新代码应使用 Attribute 标记类型
         }
+
+        #region IMarkerRegistry 实现
+
+        private readonly List<Type> _types = new();
+        public int Count => _types.Count;
+        public IReadOnlyList<Type> Types => _types;
+
+        public void Register(Type implType)
+        {
+            if (implType == null) return;
+            if (implType.IsAbstract) return;
+            if (implType.IsInterface) return;
+            _types.Add(implType);
+        }
+
+        public void ForEach(Action<Type> action)
+        {
+            for (int i = 0; i < _types.Count; i++)
+            {
+                action(_types[i]);
+            }
+        }
+
+        public IEnumerable<Type> Where(Func<Type, bool> predicate)
+        {
+            for (int i = 0; i < _types.Count; i++)
+            {
+                if (predicate(_types[i]))
+                    yield return _types[i];
+            }
+        }
+
+        public Type? Find(Func<Type, bool> predicate)
+        {
+            for (int i = 0; i < _types.Count; i++)
+            {
+                if (predicate(_types[i]))
+                    return _types[i];
+            }
+            return null;
+        }
+
+        #endregion
     }
 }

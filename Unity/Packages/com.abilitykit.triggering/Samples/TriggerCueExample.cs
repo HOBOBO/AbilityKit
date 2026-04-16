@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
@@ -195,11 +195,11 @@ namespace AbilityKit.Triggering.Example
                 phase: 0,
                 priority: 5,
                 triggerId: 1002,
-                predicateId: default(FunctionId),
-                interruptPriority: 0,
+                predicateId: default,
+                predicateArgs: null,
                 actions: Array.Empty<ActionCallPlan>(),
-                cue: damageCue
-            );
+                interruptPriority: 0,
+                cue: damageCue);
 
             runner.RegisterPlan(eventKey, plan);
 

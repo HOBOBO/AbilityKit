@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.DI;
@@ -26,7 +26,7 @@ namespace AbilityKit.Demo.Moba.Systems
         /// <summary>
         /// 注册一个触发器计划
         /// </summary>
-        public IDisposable RegisterPlan<TArgs>(EventKey<TArgs> key, in TriggerPlan<TArgs> plan) where TArgs : struct
+        public IDisposable RegisterPlan<TArgs>(EventKey<TArgs> key, in TriggerPlan<TArgs> plan) where TArgs : class
         {
             ThrowIfDisposed();
             var token = _runner.RegisterPlan(key, plan);
@@ -37,7 +37,7 @@ namespace AbilityKit.Demo.Moba.Systems
         /// <summary>
         /// 注册一个自定义触发器
         /// </summary>
-        public IDisposable Register<TArgs>(EventKey<TArgs> key, ITrigger<TArgs, IWorldResolver> trigger, int phase = 0, int priority = 0) where TArgs : struct
+        public IDisposable Register<TArgs>(EventKey<TArgs> key, ITrigger<TArgs, IWorldResolver> trigger, int phase = 0, int priority = 0) where TArgs : class
         {
             ThrowIfDisposed();
             var token = _runner.Register(key, trigger, phase, priority);
@@ -48,7 +48,7 @@ namespace AbilityKit.Demo.Moba.Systems
         /// <summary>
         /// 批量注册多个触发器
         /// </summary>
-        public void RegisterPlans<TArgs>(IEnumerable<(EventKey<TArgs> Key, TriggerPlan<TArgs> Plan)> plans) where TArgs : struct
+        public void RegisterPlans<TArgs>(IEnumerable<(EventKey<TArgs> Key, TriggerPlan<TArgs> Plan)> plans) where TArgs : class
         {
             ThrowIfDisposed();
             foreach (var (key, plan) in plans)

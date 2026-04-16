@@ -68,8 +68,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
         ConditionResult Evaluate(object ctx);
     }
 
-    // ECompareOp 和 EConditionCombinator 已移至 AbilityKit.Triggering.Runtime.Config 命名空间
-
     // ========================================================================
     // 条件实现
     // ========================================================================
@@ -77,10 +75,11 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// 常量条件
     /// </summary>
+    [ConditionTypeId(TypeIdRegistry.Condition.Const, "Const")]
     public sealed class ConstCondition : ICondition
     {
         public string Name => "Const";
-        public ConditionMetadata Metadata => new(0, "Const");
+        public ConditionMetadata Metadata => new(TypeIdRegistry.Condition.Const, "Const");
 
         public bool Value { get; set; }
 
@@ -91,10 +90,11 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// And 组合条件
     /// </summary>
+    [ConditionTypeId(TypeIdRegistry.Condition.And, "And")]
     public sealed class AndCondition : ICondition
     {
         public string Name => "And";
-        public ConditionMetadata Metadata => new(1, "And");
+        public ConditionMetadata Metadata => new(TypeIdRegistry.Condition.And, "And");
 
         public ICondition Left { get; set; }
         public ICondition Right { get; set; }
@@ -111,10 +111,11 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// Or 组合条件
     /// </summary>
+    [ConditionTypeId(TypeIdRegistry.Condition.Or, "Or")]
     public sealed class OrCondition : ICondition
     {
         public string Name => "Or";
-        public ConditionMetadata Metadata => new(2, "Or");
+        public ConditionMetadata Metadata => new(TypeIdRegistry.Condition.Or, "Or");
 
         public ICondition Left { get; set; }
         public ICondition Right { get; set; }
@@ -131,10 +132,11 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// Not 条件
     /// </summary>
+    [ConditionTypeId(TypeIdRegistry.Condition.Not, "Not")]
     public sealed class NotCondition : ICondition
     {
         public string Name => "Not";
-        public ConditionMetadata Metadata => new(3, "Not");
+        public ConditionMetadata Metadata => new(TypeIdRegistry.Condition.Not, "Not");
 
         public ICondition Inner { get; set; }
 
@@ -148,10 +150,11 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// 数值比较条件
     /// </summary>
+    [ConditionTypeId(TypeIdRegistry.Condition.NumericCompare, "NumericCompare")]
     public sealed class NumericCompareCondition : ICondition
     {
         public string Name => "NumericCompare";
-        public ConditionMetadata Metadata => new(10, "NumericCompare");
+        public ConditionMetadata Metadata => new(TypeIdRegistry.Condition.NumericCompare, "NumericCompare");
 
         public ECompareOp Op { get; set; }
         public NumericValueRef Left { get; set; }
@@ -182,10 +185,11 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// Payload 字段数值比较条件
     /// </summary>
+    [ConditionTypeId(TypeIdRegistry.Condition.PayloadCompare, "PayloadCompare")]
     public sealed class PayloadCompareCondition : ICondition
     {
         public string Name => "PayloadCompare";
-        public ConditionMetadata Metadata => new(11, "PayloadCompare");
+        public ConditionMetadata Metadata => new(TypeIdRegistry.Condition.PayloadCompare, "PayloadCompare");
 
         public int FieldId { get; set; }
         public ECompareOp Op { get; set; }
@@ -194,7 +198,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         public ConditionResult Evaluate(object ctx)
         {
-            // 简化实现：实际应该通过 Payload 访问器获取值
             double value = 0;
             bool found = false;
 
@@ -230,10 +233,11 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// 目标存在条件
     /// </summary>
+    [ConditionTypeId(TypeIdRegistry.Condition.HasTarget, "HasTarget")]
     public sealed class HasTargetCondition : ICondition
     {
         public string Name => "HasTarget";
-        public ConditionMetadata Metadata => new(20, "HasTarget");
+        public ConditionMetadata Metadata => new(TypeIdRegistry.Condition.HasTarget, "HasTarget");
 
         public bool Negate { get; set; }
 
@@ -257,10 +261,11 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// 多条件组合器
     /// </summary>
+    [ConditionTypeId(TypeIdRegistry.Condition.Multi, "Multi")]
     public sealed class MultiCondition : ICondition
     {
         public string Name => "Multi";
-        public ConditionMetadata Metadata => new(100, "Multi");
+        public ConditionMetadata Metadata => new(TypeIdRegistry.Condition.Multi, "Multi");
 
         public EConditionCombinator Combinator { get; set; } = EConditionCombinator.And;
         public List<ICondition> Conditions { get; set; } = new();

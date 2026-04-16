@@ -10,6 +10,10 @@ using Newtonsoft.Json;
 
 namespace AbilityKit.Triggering.Runtime.Plan.Json
 {
+    /// <summary>
+    /// 触发器计划数据库（从 JSON 加载 TriggerPlan）
+    /// 已迁移到 TriggerPlanConverter 进行转换
+    /// </summary>
     public sealed class TriggerPlanJsonDatabase
     {
         /// <summary>
@@ -51,7 +55,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         }
 
         [Serializable]
-        private sealed class TriggerPlanDto
+        internal sealed class TriggerPlanDto
         {
             public int TriggerId;
             public string EventName;
@@ -79,14 +83,14 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         }
 
         [Serializable]
-        private sealed class PredicatePlanDto
+        internal sealed class PredicatePlanDto
         {
             public string Kind;
             public List<BoolExprNodeDto> Nodes;
         }
 
         [Serializable]
-        private sealed class BoolExprNodeDto
+        internal sealed class BoolExprNodeDto
         {
             public string Kind;
             public bool ConstValue;
@@ -96,7 +100,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         }
 
         [Serializable]
-        private sealed class ActionCallPlanDto
+        internal sealed class ActionCallPlanDto
         {
             public int ActionId;
             public int Arity;
@@ -111,7 +115,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         }
 
         [Serializable]
-        private sealed class NumericValueRefDto
+        internal sealed class NumericValueRefDto
         {
             public string Kind;
             public double ConstValue;
@@ -231,148 +235,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             }
         }
 
+        private static readonly TriggerPlanConverter _converter = new TriggerPlanConverter();
+
         private static TriggerPlan<object> BuildPlan(TriggerPlanDto dto)
         {
-            var actions = BuildActions(dto.Actions);
-
-            var pred = dto.Predicate;
-            if (pred == null || string.Equals(pred.Kind, "none", StringComparison.OrdinalIgnoreCase))
-            {
-                return new TriggerPlan<object>(dto.Phase, dto.Priority, 0, 0, actions);
-            }
-
-            if (string.Equals(pred.Kind, "expr", StringComparison.OrdinalIgnoreCase))
-            {
-                var expr = new PredicateExprPlan(BuildExprNodes(pred.Nodes));
-                return new TriggerPlan<object>(dto.Phase, dto.Priority, 0, expr, 0, actions);
-            }
-
-            throw new NotSupportedException($"Predicate kind not supported by loader: {pred.Kind}");
-        }
-
-        private static ActionCallPlan[] BuildActions(List<ActionCallPlanDto> dtos)
-        {
-            if (dtos == null || dtos.Count == 0) return Array.Empty<ActionCallPlan>();
-
-            var arr = new ActionCallPlan[dtos.Count];
-            for (int i = 0; i < dtos.Count; i++)
-            {
-                var d = dtos[i];
-                if (d == null)
-                {
-                    arr[i] = default;
-                    continue;
-                }
-
-                var id = new ActionId(d.ActionId);
-
-                // 优先使用具名参数（新版 JSON）
-                if (d.Args != null && d.Args.Count > 0)
-                {
-                    var namedArgs = new Dictionary<string, ActionArgValue>(d.Args.Count, StringComparer.OrdinalIgnoreCase);
-                    foreach (var kv in d.Args)
-                    {
-                        namedArgs[kv.Key] = new ActionArgValue(BuildNumericValueRef(kv.Value), kv.Key);
-                    }
-                    arr[i] = ActionCallPlan.WithArgs(id, namedArgs);
-                    continue;
-                }
-
-                // Fallback: 向后兼容位置参数
-                switch (d.Arity)
-                {
-                    case 0:
-                        arr[i] = new ActionCallPlan(id);
-                        break;
-                    case 1:
-                        arr[i] = new ActionCallPlan(id, BuildNumericValueRef(d.Arg0));
-                        break;
-                    case 2:
-                        arr[i] = new ActionCallPlan(id, BuildNumericValueRef(d.Arg0), BuildNumericValueRef(d.Arg1));
-                        break;
-                    default:
-                        throw new InvalidOperationException($"Unsupported action arity: {d.Arity} actionId={d.ActionId}");
-                }
-            }
-
-            return arr;
-        }
-
-        private static BoolExprNode[] BuildExprNodes(List<BoolExprNodeDto> dtos)
-        {
-            if (dtos == null || dtos.Count == 0) return Array.Empty<BoolExprNode>();
-
-            var arr = new BoolExprNode[dtos.Count];
-            for (int i = 0; i < dtos.Count; i++)
-            {
-                var d = dtos[i];
-                if (d == null)
-                {
-                    arr[i] = BoolExprNode.Const(true);
-                    continue;
-                }
-
-                if (!Enum.TryParse<EBoolExprNodeKind>(d.Kind, out var kind))
-                {
-                    throw new InvalidOperationException($"Unknown expr node kind: {d.Kind}");
-                }
-
-                switch (kind)
-                {
-                    case EBoolExprNodeKind.Const:
-                        arr[i] = BoolExprNode.Const(d.ConstValue);
-                        break;
-                    case EBoolExprNodeKind.Not:
-                        arr[i] = BoolExprNode.Not();
-                        break;
-                    case EBoolExprNodeKind.And:
-                        arr[i] = BoolExprNode.And();
-                        break;
-                    case EBoolExprNodeKind.Or:
-                        arr[i] = BoolExprNode.Or();
-                        break;
-                    case EBoolExprNodeKind.CompareNumeric:
-                    {
-                        if (!Enum.TryParse<ECompareOp>(d.CompareOp, out var op))
-                        {
-                            throw new InvalidOperationException($"Unknown compare op: {d.CompareOp}");
-                        }
-
-                        arr[i] = BoolExprNode.Compare(op, BuildNumericValueRef(d.Left), BuildNumericValueRef(d.Right));
-                        break;
-                    }
-                    default:
-                        throw new InvalidOperationException($"Unsupported expr node kind: {kind}");
-                }
-            }
-
-            return arr;
-        }
-
-        private static NumericValueRef BuildNumericValueRef(NumericValueRefDto dto)
-        {
-            if (dto == null) return default;
-
-            if (!Enum.TryParse<ENumericValueRefKind>(dto.Kind, out var kind))
-            {
-                throw new InvalidOperationException($"Unknown NumericValueRef kind: {dto.Kind}");
-            }
-
-            switch (kind)
-            {
-                case ENumericValueRefKind.Const:
-                    return NumericValueRef.Const(dto.ConstValue);
-                case ENumericValueRefKind.Blackboard:
-                    return NumericValueRef.Blackboard(dto.BoardId, dto.KeyId);
-                case ENumericValueRefKind.PayloadField:
-                    return NumericValueRef.PayloadField(dto.FieldId);
-                case ENumericValueRefKind.Var:
-                    return NumericValueRef.Var(dto.DomainId, dto.Key);
-                case ENumericValueRefKind.Expr:
-                    throw new NotSupportedException("UGC numeric value source kind 'Expr' is not allowed in JSON");
-                default:
-                    throw new InvalidOperationException($"Unsupported NumericValueRef kind: {kind}");
-            }
+            return _converter.Convert(dto);
         }
     }
 }

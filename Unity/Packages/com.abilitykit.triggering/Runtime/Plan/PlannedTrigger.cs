@@ -4,35 +4,25 @@ using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.ActionScheduler;
 using AbilityKit.Triggering.Runtime.Config;
+using AbilityKit.Triggering.Runtime.Dispatcher;
 using AbilityKit.Triggering.Variables.Numeric;
 using AbilityKit.Triggering.Variables.Numeric.Expression;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
     public sealed class PlannedTrigger<TArgs, TCtx> : ITrigger<TArgs, TCtx>, ITriggerWithId
+        where TArgs : class
     {
-        public delegate bool Predicate0(TArgs args, ExecCtx<TCtx> ctx);
-        public delegate bool Predicate1(TArgs args, double arg0, ExecCtx<TCtx> ctx);
-        public delegate bool Predicate2(TArgs args, double arg0, double arg1, ExecCtx<TCtx> ctx);
+        // 使用公共委托类型（在 TriggerDelegates.cs 中定义）
+        private Predicate0<TArgs, TCtx> _predicate0;
+        private Predicate1<TArgs, TCtx> _predicate1;
+        private Predicate2<TArgs, TCtx> _predicate2;
 
-        public delegate void Action0(TArgs args, ExecCtx<TCtx> ctx);
-        public delegate void Action1(TArgs args, double arg0, ExecCtx<TCtx> ctx);
-        public delegate void Action2(TArgs args, double arg0, double arg1, ExecCtx<TCtx> ctx);
-
-        // NamedAction0/1/2 delegates are defined in NamedArgsPlanActionModuleBase.cs
-        // to avoid circular dependency
-
-        private readonly TriggerPlan<TArgs> _plan;
-        private bool _resolved;
-
-        private Predicate0 _predicate0;
-        private Predicate1 _predicate1;
-        private Predicate2 _predicate2;
-
-        private Action0[] _actions0;
-        private Action1[] _actions1;
-        private Action2[] _actions2;
+        private Action0<TArgs, TCtx>[] _actions0;
+        private Action1<TArgs, TCtx>[] _actions1;
+        private Action2<TArgs, TCtx>[] _actions2;
 
         /// <summary>
         /// 具名参数模式的 Action 委托数组
@@ -57,7 +47,25 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public PlannedTrigger(in TriggerPlan<TArgs> plan)
         {
             _plan = plan;
+            _resolved = false;
+            _predicate0 = null;
+            _predicate1 = null;
+            _predicate2 = null;
+            _actions0 = null;
+            _actions1 = null;
+            _actions2 = null;
+            _namedActions0 = null;
+            _namedActions1 = null;
+            _namedActions2 = null;
+            _useNamedArgs = null;
+            _execCtx = default;
         }
+
+        private readonly TriggerPlan<TArgs> _plan;
+        private bool _resolved;
+        private ExecCtx<TCtx> _execCtx;
+
+        private ExecCtx<TCtx> ExecCtx => _execCtx;
 
         public bool Evaluate(in TArgs args, in ExecCtx<TCtx> ctx)
         {
@@ -93,64 +101,206 @@ namespace AbilityKit.Triggering.Runtime.Plan
             var actions = _plan.Actions;
             var hasActions = actions != null && actions.Length > 0;
 
-            if (hasActions)
+            if (!hasActions) return;
+
+            // 检查是否启用新 Action 调度模式
+            bool useActionScheduler = ctx.ActionSchedulerManager != null && 
+                                       (_plan.Actions != null && _plan.Actions.Length > 0) &&
+                                       (_plan.Actions[0].ScheduleMode != Config.EActionScheduleMode.Immediate);
+
+            if (!useActionScheduler)
             {
-                for (int i = 0; i < actions.Length; i++)
-                {
-                    var call = actions[i];
+                // 旧模式：直接执行（Immediate 模式）
+                ExecuteImmediate(in args, in ctx);
+                return;
+            }
 
-                    if (call.HasNamedArgs && _useNamedArgs[i])
-                    {
-                        // 具名参数模式：通过 Schema 解析后传给 NamedAction 委托
-                        var rawArgs = ResolveNamedArgs(in args, in call, in ctx);
-                        switch (call.Arity)
-                        {
-                            case 0:
-                                _namedActions0[i](args, default, ctx);
-                                break;
-                            case 1:
-                                _namedActions1[i](args, rawArgs, ctx);
-                                break;
-                            case 2:
-                                _namedActions2[i](args, rawArgs, ctx);
-                                break;
-                            default:
-                                throw new InvalidOperationException($"Unsupported action arity (named): {call.Arity}");
-                        }
-                    }
-                    else
-                    {
-                        // 向后兼容位置参数模式
-                        switch (call.Arity)
-                        {
-                            case 0:
-                                _actions0[i](args, ctx);
-                                break;
-                            case 1:
-                                _actions1[i](args, ResolveNumeric(in args, in call.Arg0, in ctx), ctx);
-                                break;
-                            case 2:
-                                _actions2[i](args, ResolveNumeric(in args, in call.Arg0, in ctx), ResolveNumeric(in args, in call.Arg1, in ctx), ctx);
-                                break;
-                            default:
-                                throw new InvalidOperationException($"Unsupported action arity: {call.Arity}");
-                        }
-                    }
+            // 新模式：创建 ActionScheduler 并注册 Actions
+            var actionScheduler = ctx.ActionSchedulerManager.GetOrCreateScheduler(_plan.TriggerId);
+            var control = ctx.Control ?? new ExecutionControl();
 
-                    if (ctx.Control != null && (ctx.Control.StopPropagation || ctx.Control.Cancel)) return;
-                }
+            for (int i = 0; i < actions.Length; i++)
+            {
+                var call = actions[i];
+
+                // 创建 Action 委托适配器
+                var actionDelegate = CreateActionDelegate(i);
+                var conditionDelegate = CreateConditionDelegate();
+
+                // 创建执行器（根据 ExecutionPolicy）
+                IActionExecutor executor = CreateExecutor(call, actionDelegate, control);
+
+                // 注册到 ActionScheduler
+                actionScheduler.Register(
+                    plan: call,
+                    actionDelegate: actionDelegate,
+                    conditionDelegate: conditionDelegate,
+                    boundArgs: args,
+                    executor: executor
+                );
             }
 
             // 执行成功后：如果声明了 InterruptPriority，自动设置优先级打断
-            if (ctx.Control != null && _plan.InterruptPriority > 0)
+            if (control != null && _plan.InterruptPriority > 0)
             {
-                ctx.Control.StopBelowPriority(
+                control.StopBelowPriority(
                     _plan.InterruptPriority,
                     conditionPassed: true,
                     _plan.TriggerId,
                     $"Trigger[{_plan.TriggerId}]"
                 );
             }
+        }
+
+        /// <summary>
+        /// 立即执行模式（向后兼容）
+        /// </summary>
+        private void ExecuteImmediate(in TArgs args, in ExecCtx<TCtx> ctx)
+        {
+            var actions = _plan.Actions;
+            for (int i = 0; i < actions.Length; i++)
+            {
+                var call = actions[i];
+
+                if (call.HasNamedArgs && _useNamedArgs[i])
+                {
+                    var rawArgs = ResolveNamedArgs(in args, in call, in ctx);
+                    switch (call.Arity)
+                    {
+                        case 0:
+                            _namedActions0[i](args, default, ctx);
+                            break;
+                        case 1:
+                            _namedActions1[i](args, rawArgs, ctx);
+                            break;
+                        case 2:
+                            _namedActions2[i](args, rawArgs, ctx);
+                            break;
+                        default:
+                            throw new InvalidOperationException($"Unsupported action arity (named): {call.Arity}");
+                    }
+                }
+                else
+                {
+                    switch (call.Arity)
+                    {
+                        case 0:
+                            _actions0[i](args, ctx);
+                            break;
+                        case 1:
+                            _actions1[i](args, ResolveNumeric(in args, in call.Arg0, in ctx), ctx);
+                            break;
+                        case 2:
+                            _actions2[i](args, ResolveNumeric(in args, in call.Arg0, in ctx), ResolveNumeric(in args, in call.Arg1, in ctx), ctx);
+                            break;
+                        default:
+                            throw new InvalidOperationException($"Unsupported action arity: {call.Arity}");
+                    }
+                }
+
+                if (ctx.Control != null && (ctx.Control.StopPropagation || ctx.Control.Cancel)) return;
+            }
+        }
+
+        /// <summary>
+        /// 创建 Action 委托适配器
+        /// </summary>
+        private Action<object, ITriggerDispatcherContext> CreateActionDelegate(int index)
+        {
+            var call = _plan.Actions[index];
+            var actions0 = _actions0;
+            var actions1 = _actions1;
+            var actions2 = _actions2;
+            var namedActions0 = _namedActions0;
+            var namedActions1 = _namedActions1;
+            var namedActions2 = _namedActions2;
+            var useNamedArgs = _useNamedArgs;
+
+            if (call.HasNamedArgs && useNamedArgs[index])
+            {
+                return (argsObj, _) =>
+                {
+                    var args = (TArgs)argsObj;
+                    var rawArgs = ResolveNamedArgs(in args, in call, ExecCtx);
+                    switch (call.Arity)
+                    {
+                        case 0:
+                            namedActions0[index]?.Invoke(args, default, ExecCtx);
+                            break;
+                        case 1:
+                            namedActions1[index]?.Invoke(args, rawArgs, ExecCtx);
+                            break;
+                        case 2:
+                            namedActions2[index]?.Invoke(args, rawArgs, ExecCtx);
+                            break;
+                    }
+                };
+            }
+            else
+            {
+                return (argsObj, _) =>
+                {
+                    var args = (TArgs)argsObj;
+                    switch (call.Arity)
+                    {
+                        case 0:
+                            actions0[index]?.Invoke(args, ExecCtx);
+                            break;
+                        case 1:
+                            var v0 = call.Arg0.Resolve(args);
+                            actions1[index]?.Invoke(args, v0, ExecCtx);
+                            break;
+                        case 2:
+                            var v1 = call.Arg0.Resolve(args);
+                            var v2 = call.Arg1.Resolve(args);
+                            actions2[index]?.Invoke(args, v1, v2, ExecCtx);
+                            break;
+                    }
+                };
+            }
+        }
+
+        /// <summary>
+        /// 创建条件委托（如果 TriggerPlan 有 Predicate）
+        /// </summary>
+        private TriggerPredicate<object> CreateConditionDelegate()
+        {
+            if (!_plan.HasPredicate || _plan.PredicateKind != EPredicateKind.Function)
+                return null;
+
+            var predicate0 = _predicate0;
+            var predicate1 = _predicate1;
+            var predicate2 = _predicate2;
+            var plan = _plan;
+
+            return (argsObj, _) =>
+            {
+                var args = (TArgs)argsObj;
+                return plan.PredicateArity switch
+                {
+                    0 => predicate0?.Invoke(args, ExecCtx) ?? true,
+                    1 => predicate1?.Invoke(args, plan.PredicateArg0.Resolve(args), ExecCtx) ?? true,
+                    2 => predicate2?.Invoke(args, plan.PredicateArg0.Resolve(args), plan.PredicateArg1.Resolve(args), ExecCtx) ?? true,
+                    _ => true
+                };
+            };
+        }
+
+        /// <summary>
+        /// 根据 ExecutionPolicy 创建执行器
+        /// </summary>
+        private IActionExecutor CreateExecutor(ActionCallPlan plan, Action<object, ITriggerDispatcherContext> action, ExecutionControl control)
+        {
+            var baseExecutor = new ActionScheduler.DefaultActionExecutor(action);
+
+            return plan.ExecutionPolicy switch
+            {
+                Config.EActionExecutionPolicy.Queued => new ActionScheduler.QueuedActionExecutor(baseExecutor),
+                Config.EActionExecutionPolicy.Parallel => baseExecutor, // 并行不排队
+                Config.EActionExecutionPolicy.WithRetry => new ActionScheduler.RetryActionExecutor(baseExecutor),
+                Config.EActionExecutionPolicy.Conditional => baseExecutor, // 条件已在 ActionInstance 中检查
+                _ => baseExecutor
+            };
         }
 
         private void Resolve(in ExecCtx<TCtx> ctx)
@@ -162,21 +312,21 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 switch (_plan.PredicateArity)
                 {
                     case 0:
-                        if (!ctx.Functions.TryGet<Predicate0>(_plan.PredicateId, out var p0, out var p0Det))
+                        if (!ctx.Functions.TryGet<Predicate0<TArgs, TCtx>>(_plan.PredicateId, out var p0, out var p0Det))
                             throw new InvalidOperationException($"Predicate function not found or signature mismatch. id={FormatFunctionId(in ctx, _plan.PredicateId)} arity=0");
                         if (ctx.Policy.RequireDeterministic && !p0Det)
                             throw new InvalidOperationException($"Non-deterministic predicate is not allowed by policy. id={FormatFunctionId(in ctx, _plan.PredicateId)}");
                         _predicate0 = p0;
                         break;
                     case 1:
-                        if (!ctx.Functions.TryGet<Predicate1>(_plan.PredicateId, out var p1, out var p1Det))
+                        if (!ctx.Functions.TryGet<Predicate1<TArgs, TCtx>>(_plan.PredicateId, out var p1, out var p1Det))
                             throw new InvalidOperationException($"Predicate function not found or signature mismatch. id={FormatFunctionId(in ctx, _plan.PredicateId)} arity=1");
                         if (ctx.Policy.RequireDeterministic && !p1Det)
                             throw new InvalidOperationException($"Non-deterministic predicate is not allowed by policy. id={FormatFunctionId(in ctx, _plan.PredicateId)}");
                         _predicate1 = p1;
                         break;
                     case 2:
-                        if (!ctx.Functions.TryGet<Predicate2>(_plan.PredicateId, out var p2, out var p2Det))
+                        if (!ctx.Functions.TryGet<Predicate2<TArgs, TCtx>>(_plan.PredicateId, out var p2, out var p2Det))
                             throw new InvalidOperationException($"Predicate function not found or signature mismatch. id={FormatFunctionId(in ctx, _plan.PredicateId)} arity=2");
                         if (ctx.Policy.RequireDeterministic && !p2Det)
                             throw new InvalidOperationException($"Non-deterministic predicate is not allowed by policy. id={FormatFunctionId(in ctx, _plan.PredicateId)}");
@@ -190,9 +340,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
             if (_plan.Actions != null && _plan.Actions.Length > 0)
             {
                 var len = _plan.Actions.Length;
-                _actions0 = new Action0[len];
-                _actions1 = new Action1[len];
-                _actions2 = new Action2[len];
+                _actions0 = new Action0<TArgs, TCtx>[len];
+                _actions1 = new Action1<TArgs, TCtx>[len];
+                _actions2 = new Action2<TArgs, TCtx>[len];
                 _namedActions0 = new NamedAction0<TArgs, object, TCtx>[len];
                 _namedActions1 = new NamedAction1<TArgs, object, TCtx>[len];
                 _namedActions2 = new NamedAction2<TArgs, object, TCtx>[len];
@@ -220,6 +370,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 }
             }
 
+            _execCtx = ctx;
             _resolved = true;
         }
 
@@ -276,21 +427,21 @@ namespace AbilityKit.Triggering.Runtime.Plan
             switch (call.Arity)
             {
                 case 0:
-                    if (!ctx.Actions.TryGet<Action0>(call.Id, out var a0, out var a0Det))
+                    if (!ctx.Actions.TryGet<Action0<TArgs, TCtx>>(call.Id, out var a0, out var a0Det))
                         throw new InvalidOperationException($"Action not found or signature mismatch. id={FormatActionId(in ctx, call.Id)} arity=0");
                     if (ctx.Policy.RequireDeterministic && !a0Det)
                         throw new InvalidOperationException($"Non-deterministic action is not allowed by policy. id={FormatActionId(in ctx, call.Id)}");
                     _actions0[i] = a0;
                     break;
                 case 1:
-                    if (!ctx.Actions.TryGet<Action1>(call.Id, out var a1, out var a1Det))
+                    if (!ctx.Actions.TryGet<Action1<TArgs, TCtx>>(call.Id, out var a1, out var a1Det))
                         throw new InvalidOperationException($"Action not found or signature mismatch. id={FormatActionId(in ctx, call.Id)} arity=1");
                     if (ctx.Policy.RequireDeterministic && !a1Det)
                         throw new InvalidOperationException($"Non-deterministic action is not allowed by policy. id={FormatActionId(in ctx, call.Id)}");
                     _actions1[i] = a1;
                     break;
                 case 2:
-                    if (!ctx.Actions.TryGet<Action2>(call.Id, out var a2, out var a2Det))
+                    if (!ctx.Actions.TryGet<Action2<TArgs, TCtx>>(call.Id, out var a2, out var a2Det))
                         throw new InvalidOperationException($"Action not found or signature mismatch. id={FormatActionId(in ctx, call.Id)} arity=2");
                     if (ctx.Policy.RequireDeterministic && !a2Det)
                         throw new InvalidOperationException($"Non-deterministic action is not allowed by policy. id={FormatActionId(in ctx, call.Id)}");

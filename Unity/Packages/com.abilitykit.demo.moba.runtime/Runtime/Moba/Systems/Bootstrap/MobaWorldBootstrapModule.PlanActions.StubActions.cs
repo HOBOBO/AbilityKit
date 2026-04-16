@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Plan;
@@ -67,19 +67,19 @@ namespace AbilityKit.Demo.Moba.Systems
                 switch (arity)
                 {
                     case 0:
-                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action0>(
+                        actions.Register<Action0<object, IWorldResolver>>(
                             actionId,
                             static (args, ctx) => { },
                             isDeterministic: true);
                         break;
                     case 1:
-                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action1>(
+                        actions.Register<Action1<object, IWorldResolver>>(
                             actionId,
                             static (args, a0, ctx) => { },
                             isDeterministic: true);
                         break;
                     case 2:
-                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action2>(
+                        actions.Register<Action2<object, IWorldResolver>>(
                             actionId,
                             static (args, a0, a1, ctx) => { },
                             isDeterministic: true);

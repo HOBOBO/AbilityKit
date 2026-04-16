@@ -91,3 +91,91 @@ AbilityKit.Ability.Samples     - 示例代码
 ❌ **禁止**：Editor 包依赖 Editor 包外的代码（循环依赖）
 ❌ **禁止**：将业务逻辑放在 Editor 包中
 ❌ **禁止**：空目录（留下空 asmdef）
+
+---
+
+# MarkerAttribute 通用类型注册模式
+
+## 概述
+
+项目在 `com.abilitykit.core` 包中提供了通用的 `MarkerAttribute` + `MarkerScanner<T>` + `IMarkerRegistry` 机制，用于实现基于 Attribute 的类型自动发现和注册。
+
+## 核心组件
+
+| 组件 | 位置 | 说明 |
+|------|------|------|
+| `MarkerAttribute` | `AbilityKit.Core.Common.Marker` | 框架级类型标记基类 |
+| `MarkerScanner<TAttr>` | `AbilityKit.Core.Common.Marker` | 扫描器，自动扫描程序集 |
+| `IMarkerRegistry` | `AbilityKit.Core.Common.Marker` | 注册表接口 |
+| `MarkerRegistry<TAttr>` | `AbilityKit.Core.Common.Marker` | 默认注册表实现 |
+
+## 使用模式
+
+### 1. 定义自定义 Attribute（继承 MarkerAttribute）
+
+```csharp
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+public sealed class MyTypeIdAttribute : MarkerAttribute
+{
+    public int TypeId { get; }
+    public string TypeName { get; }
+
+    public MyTypeIdAttribute(int typeId, string typeName)
+    {
+        TypeId = typeId;
+        TypeName = typeName;
+    }
+
+    public override void OnScanned(Type implType, IMarkerRegistry registry)
+    {
+        // 自定义注册逻辑
+        var myRegistry = registry as MyRegistry;
+        myRegistry?.RegisterByAttribute(this, implType);
+    }
+}
+```
+
+### 2. 实现 Registry（实现 IMarkerRegistry）
+
+```csharp
+public sealed class MyRegistry : IMarkerRegistry
+{
+    public static MyRegistry Instance { get; } = new();
+
+    private MyRegistry()
+    {
+        // 初始化时扫描
+        MarkerScanner<MyTypeIdAttribute>.Scan(assemblies, this);
+    }
+
+    internal void RegisterByAttribute(MyTypeIdAttribute attr, Type implType)
+    {
+        // 注册类型...
+    }
+
+    // 实现 IMarkerRegistry 接口...
+}
+```
+
+### 3. 使用 Attribute 标记类型
+
+```csharp
+[MyTypeId(TypeIdRegistry.MyType.BusinessStart, "MyCustomType")]
+public sealed class MyCustomType : IMyInterface
+{
+    // 实现...
+}
+```
+
+## 已在 triggering 包中的应用
+
+以下类型已使用 MarkerAttribute 模式：
+
+- `ExecutableTypeIdAttribute` - 标记 IExecutable 实现类
+- `ConditionTypeIdAttribute` - 标记 ICondition 实现类
+
+## 优势
+
+- **零侵入**：扩展类型只需添加 Attribute，无需修改框架代码
+- **解耦**：扫描逻辑与注册逻辑分离
+- **统一**：全项目统一的注册模式

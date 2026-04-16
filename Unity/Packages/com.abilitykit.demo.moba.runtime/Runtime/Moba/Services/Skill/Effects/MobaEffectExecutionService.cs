@@ -58,7 +58,7 @@ namespace AbilityKit.Demo.Moba.Services
             try
             {
                 var debugLogId = new ActionId(StableStringId.Get("action:debug_log"));
-                _planActions.Register<PlannedTrigger<object, IWorldResolver>.Action0>(
+                _planActions.Register<Action0<object, IWorldResolver>>(
                     debugLogId,
                     static (args, ctx) =>
                     {
@@ -68,7 +68,7 @@ namespace AbilityKit.Demo.Moba.Services
                     },
                     isDeterministic: true);
 
-                _planActions.Register<PlannedTrigger<object, IWorldResolver>.Action2>(
+                _planActions.Register<Action2<object, IWorldResolver>>(
                     debugLogId,
                     static (args, a0, a1, ctx) =>
                     {
@@ -230,13 +230,13 @@ namespace AbilityKit.Demo.Moba.Services
                 switch (arity)
                 {
                     case 0:
-                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action0>(actionId, static (args, ctx) => { }, true);
+                        actions.Register<Action0<object, IWorldResolver>>(actionId, static (args, ctx) => { }, true);
                         break;
                     case 1:
-                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action1>(actionId, static (args, a0, ctx) => { }, true);
+                        actions.Register<Action1<object, IWorldResolver>>(actionId, static (args, a0, ctx) => { }, true);
                         break;
                     case 2:
-                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action2>(actionId, static (args, a0, a1, ctx) => { }, true);
+                        actions.Register<Action2<object, IWorldResolver>>(actionId, static (args, a0, a1, ctx) => { }, true);
                         break;
                 }
             }
@@ -349,13 +349,13 @@ namespace AbilityKit.Demo.Moba.Services
                 switch (arity)
                 {
                     case 0:
-                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action0>(actionId, static (args, ctx) => { }, true);
+                        actions.Register<Action0<object, IWorldResolver>>(actionId, static (args, ctx) => { }, true);
                         break;
                     case 1:
-                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action1>(actionId, static (args, a0, ctx) => { }, true);
+                        actions.Register<Action1<object, IWorldResolver>>(actionId, static (args, a0, ctx) => { }, true);
                         break;
                     case 2:
-                        actions.Register<PlannedTrigger<object, IWorldResolver>.Action2>(actionId, static (args, a0, a1, ctx) => { }, true);
+                        actions.Register<Action2<object, IWorldResolver>>(actionId, static (args, a0, a1, ctx) => { }, true);
                         break;
                 }
             }
