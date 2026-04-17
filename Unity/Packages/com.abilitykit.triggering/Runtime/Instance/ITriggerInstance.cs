@@ -9,7 +9,7 @@ namespace AbilityKit.Triggering.Runtime.Instance
     /// 触发器运行时实例接口
     /// 封装配置数据（只读）和运行时状态（可变）
     /// </summary>
-    public interface ITriggerInstance
+    public interface ITriggerInstance : IDisposable
     {
         /// <summary>
         /// 配置数据引用（只读）- 改为 Spec 以符合命名规范
@@ -318,6 +318,11 @@ namespace AbilityKit.Triggering.Runtime.Instance
             ExecutionCount = snapshot.ExecutionCount;
             CurrentState = snapshot.State;
             // 注意：不恢复 InstanceData（实例独享数据不参与同步）
+        }
+
+        public void Dispose()
+        {
+            _instanceData.Clear();
         }
     }
 

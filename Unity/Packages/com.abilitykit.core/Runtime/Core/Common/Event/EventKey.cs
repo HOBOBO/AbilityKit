@@ -2,7 +2,7 @@ using System;
 
 namespace AbilityKit.Core.Common.Event
 {
-    internal readonly struct EventKey : IEquatable<EventKey>
+    public readonly struct EventKey : IEquatable<EventKey>
     {
         private readonly byte _kind;
         public readonly string StringId;

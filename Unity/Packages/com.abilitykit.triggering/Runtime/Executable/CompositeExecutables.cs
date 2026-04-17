@@ -110,7 +110,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// </summary>
     public static class CrossPlatformRandom
     {
-        private static readonly Random _random = new Random();
+        private static readonly System.Random _random = new System.Random();
 
         public static int Range(int maxValue) => _random.Next(maxValue);
         public static float Range(float maxValue) => (float)(_random.NextDouble() * maxValue);

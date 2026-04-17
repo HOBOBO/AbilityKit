@@ -363,7 +363,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         /// <summary>
         /// 转换调度行为（通过工厂注册表创建具体实现）
         /// </summary>
-        private IScheduledExecutable ConvertSchedule(ExecutableConfig config)
+        internal IScheduledExecutable ConvertSchedule(ExecutableConfig config)
         {
             var mode = config.Schedule.ScheduleMode ?? "external";
 
@@ -548,7 +548,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
                     Combinator = combinator == "or" ? EConditionCombinator.Or : EConditionCombinator.And
                 };
                 foreach (var childConfig in config.Children)
-                    multi.Add(ConvertCondition(childConfig));
+                    multi.Conditions.Add(ConvertCondition(childConfig));
                 return multi;
             }
             if (config.FieldId > 0)
@@ -624,12 +624,12 @@ namespace AbilityKit.Triggering.Runtime.Executable
             if (config.Children != null)
             {
                 foreach (var childConfig in config.Children)
-                    multi.Add(ConvertCondition(childConfig));
+                    multi.Conditions.Add(ConvertCondition(childConfig));
             }
             return multi;
         }
 
-        private NumericValueRef ConvertNumericValueRef(NumericValueRefDto dto)
+        internal NumericValueRef ConvertNumericValueRef(NumericValueRefDto dto)
         {
             if (!dto.HasValue)
                 return default;
@@ -659,7 +659,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
             };
         }
 
-        private int EvaluateValueSelector(string expression, object ctx)
+        internal int EvaluateValueSelector(string expression, object ctx)
         {
             return 0;
         }

@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Triggering.Runtime.Config;
+using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Variables.Numeric;
 
 namespace AbilityKit.Triggering.Runtime.Executable
 {
@@ -169,6 +172,205 @@ namespace AbilityKit.Triggering.Runtime.Executable
     {
         ECompositeMode ParallelMode { get; }
         float TimeoutMs { get; set; }
+    }
+
+    // ========================================================================
+    // 条件接口
+    // ========================================================================
+
+    /// <summary>
+    /// 条件评估结果
+    /// </summary>
+    public readonly struct ConditionResult
+    {
+        public bool Passed { get; }
+        public string FailureReason { get; }
+
+        public static ConditionResult Pass => new(true, null);
+        public static ConditionResult Fail(string reason = null) => new(false, reason);
+
+        private ConditionResult(bool passed, string failureReason)
+        {
+            Passed = passed;
+            FailureReason = failureReason;
+        }
+    }
+
+    /// <summary>
+    /// 条件接口
+    /// </summary>
+    public interface ICondition
+    {
+        string Name { get; }
+        ConditionResult Evaluate(object ctx);
+    }
+
+    /// <summary>
+    /// 组合条件
+    /// </summary>
+    public sealed class MultiCondition : ICondition
+    {
+        public string Name => "MultiCondition";
+        public Config.EConditionCombinator Combinator { get; set; } = Config.EConditionCombinator.And;
+        public List<ICondition> Conditions { get; set; } = new List<ICondition>();
+
+        public ConditionResult Evaluate(object ctx)
+        {
+            if (Conditions.Count == 0) return ConditionResult.Pass;
+
+            bool allPassed = true;
+            foreach (var condition in Conditions)
+            {
+                var result = condition?.Evaluate(ctx) ?? ConditionResult.Pass;
+                if (Combinator == EConditionCombinator.And)
+                {
+                    if (!result.Passed) return result;
+                }
+                else if (Combinator == EConditionCombinator.Or)
+                {
+                    if (result.Passed) return result;
+                    allPassed = false;
+                }
+                else
+                {
+                    if (result.Passed)
+                    {
+                        if (allPassed) return ConditionResult.Fail("Multiple conditions passed in XOR");
+                        allPassed = true;
+                    }
+                }
+            }
+
+            return Combinator switch
+            {
+                Config.EConditionCombinator.And => ConditionResult.Pass,
+                Config.EConditionCombinator.Or => allPassed ? ConditionResult.Fail("No condition passed") : ConditionResult.Pass,
+                _ => ConditionResult.Pass
+            };
+        }
+    }
+
+    /// <summary>
+    /// 取反条件
+    /// </summary>
+    public sealed class NotCondition : ICondition
+    {
+        public string Name => "Not";
+        public ICondition Inner { get; set; }
+
+        public ConditionResult Evaluate(object ctx)
+        {
+            var inner = Inner?.Evaluate(ctx) ?? ConditionResult.Pass;
+            return inner.Passed ? ConditionResult.Fail("Inner condition passed") : ConditionResult.Pass;
+        }
+    }
+
+    /// <summary>
+    /// And 条件
+    /// </summary>
+    public sealed class AndCondition : ICondition
+    {
+        public string Name => "And";
+        public ICondition Left { get; set; }
+        public ICondition Right { get; set; }
+
+        public ConditionResult Evaluate(object ctx)
+        {
+            var leftResult = Left?.Evaluate(ctx) ?? ConditionResult.Pass;
+            if (!leftResult.Passed) return leftResult;
+            return Right?.Evaluate(ctx) ?? ConditionResult.Pass;
+        }
+    }
+
+    /// <summary>
+    /// Or 条件
+    /// </summary>
+    public sealed class OrCondition : ICondition
+    {
+        public string Name => "Or";
+        public ICondition Left { get; set; }
+        public ICondition Right { get; set; }
+
+        public ConditionResult Evaluate(object ctx)
+        {
+            var leftResult = Left?.Evaluate(ctx) ?? ConditionResult.Pass;
+            if (leftResult.Passed) return leftResult;
+            return Right?.Evaluate(ctx) ?? ConditionResult.Fail("No condition passed");
+        }
+    }
+
+    /// <summary>
+    /// 数值比较条件
+    /// </summary>
+    public sealed class NumericCompareCondition : ICondition
+    {
+        public string Name => "NumericCompare";
+        public ECompareOp Op { get; set; }
+        public NumericValueRef Left { get; set; }
+        public NumericValueRef Right { get; set; }
+
+        public ConditionResult Evaluate(object ctx)
+        {
+            var left = Left.Resolve(ctx);
+            var right = Right.Resolve(ctx);
+            return Op switch
+            {
+                ECompareOp.GreaterThan => left > right ? ConditionResult.Pass : ConditionResult.Fail($"left {left} not > right {right}"),
+                ECompareOp.GreaterThanOrEqual => left >= right ? ConditionResult.Pass : ConditionResult.Fail($"left {left} not >= right {right}"),
+                ECompareOp.LessThan => left < right ? ConditionResult.Pass : ConditionResult.Fail($"left {left} not < right {right}"),
+                ECompareOp.LessThanOrEqual => left <= right ? ConditionResult.Pass : ConditionResult.Fail($"left {left} not <= right {right}"),
+                ECompareOp.Equal => Math.Abs(left - right) < 0.0001 ? ConditionResult.Pass : ConditionResult.Fail($"left {left} not == right {right}"),
+                ECompareOp.NotEqual => Math.Abs(left - right) >= 0.0001 ? ConditionResult.Pass : ConditionResult.Fail($"left {left} == right {right}"),
+                _ => ConditionResult.Fail($"Unknown op {Op}")
+            };
+        }
+    }
+
+    /// <summary>
+    /// 载荷字段比较条件
+    /// </summary>
+    public sealed class PayloadCompareCondition : ICondition
+    {
+        public string Name => "PayloadCompare";
+        public int FieldId { get; set; }
+        public ECompareOp Op { get; set; }
+        public NumericValueRef CompareValue { get; set; }
+        public bool Negate { get; set; }
+
+        public ConditionResult Evaluate(object ctx)
+        {
+            var compareVal = CompareValue.Resolve(ctx);
+            return Negate ? ConditionResult.Fail("Payload compare not implemented") : ConditionResult.Pass;
+        }
+    }
+
+    /// <summary>
+    /// 是否有目标条件
+    /// </summary>
+    public sealed class HasTargetCondition : ICondition
+    {
+        public string Name => "HasTarget";
+        public bool Negate { get; set; }
+
+        public ConditionResult Evaluate(object ctx)
+        {
+            // TODO: 实现目标检测逻辑
+            return Negate ? ConditionResult.Fail("HasTarget not implemented") : ConditionResult.Pass;
+        }
+    }
+
+    /// <summary>
+    /// 常量条件
+    /// </summary>
+    public sealed class ConstCondition : ICondition
+    {
+        public string Name => "Const";
+        public bool Value { get; set; } = true;
+
+        public ConditionResult Evaluate(object ctx)
+        {
+            return Value ? ConditionResult.Pass : ConditionResult.Fail("Const is false");
+        }
     }
 
     /// <summary>

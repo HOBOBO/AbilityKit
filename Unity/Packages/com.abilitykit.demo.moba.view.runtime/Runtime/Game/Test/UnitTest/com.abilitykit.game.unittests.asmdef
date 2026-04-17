@@ -6,7 +6,6 @@
         "AbilityKit.Attributes",
         "AbilityKit.Modifiers",
         "AbilityKit.Ability",
-        "AbilityKit.Ability.Editor",
         "AbilityKit.Ability.TestKit",
         "AbilityKit.World.DI",
         "UnityEngine.TestRunner",

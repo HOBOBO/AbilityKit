@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Triggering.Registry;
 
 namespace AbilityKit.Triggering.Runtime.Executable
 {
@@ -47,8 +48,8 @@ namespace AbilityKit.Triggering.Runtime.Executable
         /// 初始化模块（预留）
         /// </summary>
         public static void Initialize(
-            Registry.FunctionRegistry functions,
-            Registry.ActionRegistry actions)
+            FunctionRegistry functions,
+            ActionRegistry actions)
         {
         }
 

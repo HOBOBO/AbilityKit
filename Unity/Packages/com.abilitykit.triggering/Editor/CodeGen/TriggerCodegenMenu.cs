@@ -5,8 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using AbilityKit.Triggering.CodeGen;
-using AbilityKit.Triggering.Editor.IdMapping;
-using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Eventing;
+using AbilityKit.Triggering.Runtime.Registry;
 using UnityEditor;
 using UnityEngine;
 

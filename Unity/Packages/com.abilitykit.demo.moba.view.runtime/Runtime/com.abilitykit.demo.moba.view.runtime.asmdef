@@ -3,7 +3,6 @@
     "rootNamespace": "AbilityKit",
     "references": [
         "AbilityKit.Ability",
-        "AbilityKit.Ability.Editor",
         "AbilityKit.ActionSchema",
         "AbilityKit.Attributes",
         "AbilityKit.Core",
