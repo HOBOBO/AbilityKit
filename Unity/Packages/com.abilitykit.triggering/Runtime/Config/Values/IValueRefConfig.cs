@@ -28,5 +28,7 @@ namespace AbilityKit.Triggering.Runtime.Config.Values
         Var,
         /// <summary>表达式</summary>
         Expr,
+        /// <summary>上下文字段引用（通过索引）</summary>
+        ContextField,
     }
 }

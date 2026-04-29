@@ -48,6 +48,12 @@ namespace AbilityKit.Triggering.Runtime.Config.Values
             ExprText = expr
         };
 
+        public static ValueRefConfig ContextField(int fieldIndex) => new ValueRefConfig
+        {
+            Kind = EValueRefKind.ContextField,
+            PayloadFieldId = fieldIndex
+        };
+
         public bool IsEmpty => Kind == EValueRefKind.Const && ConstValue == 0 && string.IsNullOrEmpty(ExprText);
     }
 }

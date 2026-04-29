@@ -1,0 +1,11 @@
+{
+  "name": "com.abilitykit.context",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Context",
+  "unity": "2022.3",
+  "description": "AbilityKit context registry and lifecycle management.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1"
+  }
+}
