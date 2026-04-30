@@ -1,15 +1,17 @@
-﻿using System.Collections.Generic;
-using AbilityKit.Ability.Share.ECS;
-using AbilityKit.Battle.SearchTarget;
+using System;
+using System.Collections.Generic;
 
 namespace AbilityKit.Battle.SearchTarget
 {
+    /// <summary>
+    /// 目标搜索引擎
+    /// </summary>
     public sealed class TargetSearchEngine
     {
         private readonly List<SearchHit> _hits = new List<SearchHit>(128);
-        private readonly List<EcsEntityId> _selectedIds = new List<EcsEntityId>(64);
+        private readonly List<IEntityId> _selectedIds = new List<IEntityId>(64);
 
-        public void SearchIds(in SearchQuery query, SearchContext context, List<EcsEntityId> results)
+        public void SearchIds(in SearchQuery query, SearchContext context, List<IEntityId> results)
         {
             results.Clear();
             _hits.Clear();
@@ -18,9 +20,9 @@ namespace AbilityKit.Battle.SearchTarget
             if (query.Provider == null) return;
 
             var requiresPosition = query.Provider.RequiresPosition ||
-                                   (query.Scorer != null && query.Scorer.RequiresPosition) ||
-                                   (query.Selector != null && query.Selector.RequiresPosition) ||
-                                   RequiresPosition(query.Rules);
+                                 (query.Scorer != null && query.Scorer.RequiresPosition) ||
+                                 (query.Selector != null && query.Selector.RequiresPosition) ||
+                                 RequiresPosition(query.Rules);
 
             if (requiresPosition && !context.TryGetService<IPositionProvider>(out _))
             {
@@ -28,7 +30,6 @@ namespace AbilityKit.Battle.SearchTarget
             }
 
             context.TryGetService<IEntityKeyProvider>(out var keyProvider);
-
             context.TryGetService<ISearchStats>(out var stats);
             stats?.Reset();
 
@@ -41,24 +42,22 @@ namespace AbilityKit.Battle.SearchTarget
                 stats?.OnResult(results.Count);
                 return;
             }
-            else
+
+            var consumer2 = new CandidateConsumer(in query, context, _hits, keyProvider, stats);
+            query.Provider.ForEachCandidate(in query, context, ref consumer2);
+
+            if (_hits.Count == 0) return;
+
+            if (query.Selector != null)
             {
-                var consumer = new CandidateConsumer(in query, context, _hits, keyProvider, stats);
-                query.Provider.ForEachCandidate(in query, context, ref consumer);
-
-                if (_hits.Count == 0) return;
-
-                if (query.Selector != null)
-                {
-                    query.Selector.Select(in query, context, _hits, results);
-                    stats?.OnResult(results.Count);
-                    return;
-                }
-
-                _hits.Sort(DefaultHitComparer.Instance);
-                WriteAll(in query, _hits, results);
+                query.Selector.Select(in query, context, _hits, results);
                 stats?.OnResult(results.Count);
+                return;
             }
+
+            _hits.Sort(DefaultHitComparer.Instance);
+            WriteAll(in query, _hits, results);
+            stats?.OnResult(results.Count);
         }
 
         public void Search<T>(in SearchQuery query, SearchContext context, List<T> results, ITargetMapper<T> mapper)
@@ -78,6 +77,31 @@ namespace AbilityKit.Battle.SearchTarget
             }
         }
 
+        private static bool RequiresPosition(IReadOnlyList<ITargetRule> rules)
+        {
+            if (rules == null || rules.Count == 0) return false;
+            for (int i = 0; i < rules.Count; i++)
+            {
+                var r = rules[i];
+                if (r != null && r.RequiresPosition) return true;
+            }
+            return false;
+        }
+
+        private static bool PassRules(in SearchQuery query, SearchContext context, IEntityId id)
+        {
+            var rules = query.Rules;
+            if (rules == null || rules.Count == 0) return true;
+
+            for (int i = 0; i < rules.Count; i++)
+            {
+                var r = rules[i];
+                if (r == null) continue;
+                if (!r.Test(in query, context, id)) return false;
+            }
+            return true;
+        }
+
         private readonly struct StreamingCandidateConsumer : ICandidateConsumer
         {
             private readonly SearchQuery _query;
@@ -95,7 +119,7 @@ namespace AbilityKit.Battle.SearchTarget
                 _stats = stats;
             }
 
-            public void Consume(EcsEntityId id)
+            public void Consume(IEntityId id)
             {
                 _stats?.OnCandidate();
                 if (!id.IsValid) return;
@@ -108,32 +132,6 @@ namespace AbilityKit.Battle.SearchTarget
                 var hit = new SearchHit(id, score, key);
                 _selector.Offer(in hit);
             }
-        }
-
-        private static bool RequiresPosition(IReadOnlyList<ITargetRule> rules)
-        {
-            if (rules == null || rules.Count == 0) return false;
-            for (int i = 0; i < rules.Count; i++)
-            {
-                var r = rules[i];
-                if (r != null && r.RequiresPosition) return true;
-            }
-            return false;
-        }
-
-        private static bool PassRules(in SearchQuery query, SearchContext context, EcsEntityId id)
-        {
-            var rules = query.Rules;
-            if (rules == null || rules.Count == 0) return true;
-
-            for (int i = 0; i < rules.Count; i++)
-            {
-                var r = rules[i];
-                if (r == null) continue;
-                if (!r.Test(in query, context, id)) return false;
-            }
-
-            return true;
         }
 
         private readonly struct CandidateConsumer : ICandidateConsumer
@@ -153,7 +151,7 @@ namespace AbilityKit.Battle.SearchTarget
                 _stats = stats;
             }
 
-            public void Consume(EcsEntityId id)
+            public void Consume(IEntityId id)
             {
                 _stats?.OnCandidate();
                 if (!id.IsValid) return;
@@ -167,7 +165,7 @@ namespace AbilityKit.Battle.SearchTarget
             }
         }
 
-        private static void WriteAll(in SearchQuery query, List<SearchHit> hits, List<EcsEntityId> results)
+        private static void WriteAll(in SearchQuery query, List<SearchHit> hits, List<IEntityId> results)
         {
             if (query.HasMaxCount)
             {

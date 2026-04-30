@@ -1,15 +1,15 @@
-﻿using AbilityKit.Ability.Share.ECS;
-using AbilityKit.Battle.SearchTarget;
-
 namespace AbilityKit.Battle.SearchTarget
 {
+    /// <summary>
+    /// 搜索命中结果
+    /// </summary>
     public readonly struct SearchHit
     {
-        public readonly EcsEntityId Id;
+        public readonly IEntityId Id;
         public readonly float Score;
         public readonly ulong Key;
 
-        public SearchHit(EcsEntityId id, float score, ulong key)
+        public SearchHit(IEntityId id, float score, ulong key)
         {
             Id = id;
             Score = score;

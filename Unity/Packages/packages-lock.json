@@ -518,6 +518,16 @@
         "com.abilitykit.core": "0.0.1"
       }
     },
+    "com.abilitykit.world.statesync": {
+      "version": "file:com.abilitykit.world.statesync",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "0.0.1",
+        "com.abilitykit.world.framesync": "0.0.1",
+        "com.abilitykit.world.snapshot": "0.0.1"
+      }
+    },
     "com.cysharp.memorypack": {
       "version": "1.10.0",
       "depth": 0,

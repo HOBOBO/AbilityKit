@@ -1,11 +1,10 @@
-﻿using UnityEngine;
-using AbilityKit.Ability.Share.ECS;
-using AbilityKit.Battle.SearchTarget;
-
 namespace AbilityKit.Battle.SearchTarget
 {
+    /// <summary>
+    /// 位置提供者接口
+    /// </summary>
     public interface IPositionProvider
     {
-        bool TryGetPositionXZ(EcsEntityId id, out Vector2 positionXZ);
+        bool TryGetPosition(IEntityId entity, out IVec2 position);
     }
 }

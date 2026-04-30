@@ -1,0 +1,13 @@
+{
+  "name": "com.abilitykit.world.statesync",
+  "version": "0.0.1",
+  "displayName": "AbilityKit World StateSync",
+  "unity": "2022.3",
+  "description": "State synchronization, delta compression, and rollback for multiplayer games.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.world.framesync": "0.0.1",
+    "com.abilitykit.world.snapshot": "0.0.1"
+  }
+}

@@ -1,6 +1,5 @@
-﻿using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.ECS.Entitas;
-using UnityEngine;
 
 namespace AbilityKit.Battle.SearchTarget.Entitas
 {
@@ -13,18 +12,18 @@ namespace AbilityKit.Battle.SearchTarget.Entitas
             _lookup = lookup;
         }
 
-        public bool TryGetPositionXZ(EcsEntityId id, out Vector2 positionXZ)
+        public bool TryGetPosition(Battle.SearchTarget.IEntityId entity, out IVec2 position)
         {
-            positionXZ = default;
+            position = default;
 
-            if (!id.IsValid) return false;
+            if (!entity.IsValid) return false;
             if (_lookup == null) return false;
 
-            if (!_lookup.TryGet(id.ActorId, out var entity) || entity == null) return false;
-            if (!entity.hasTransform) return false;
+            if (!_lookup.TryGet(entity.ActorId, out var ent) || ent == null) return false;
+            if (!ent.hasTransform) return false;
 
-            var p = entity.transform.Value.Position;
-            positionXZ = new Vector2(p.X, p.Z);
+            var p = ent.transform.Value.Position;
+            position = new Vec2(p.X, p.Z);
             return true;
         }
     }

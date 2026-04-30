@@ -1,9 +1,10 @@
-﻿using System.Collections.Generic;
-using AbilityKit.Battle.SearchTarget.Providers;
+using System.Collections.Generic;
+using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Battle.SearchTarget;
 using AbilityKit.Battle.SearchTarget.Scorers;
 using AbilityKit.Battle.SearchTarget.Selectors;
-using AbilityKit.Ability.Share.ECS;
-using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
+using AbilityKit.ECS;
+using ST = AbilityKit.Battle.SearchTarget;
 
 namespace AbilityKit.Battle.SearchTarget.Entitas
 {
@@ -11,7 +12,7 @@ namespace AbilityKit.Battle.SearchTarget.Entitas
     {
         public static void SearchUnitsFromExplicitIds(
             IUnitResolver unitResolver,
-            IReadOnlyList<EcsEntityId> ids,
+            IReadOnlyList<ST.EntityId> ids,
             List<IUnitFacade> results)
         {
             var ctx = new SearchContext();
@@ -27,6 +28,28 @@ namespace AbilityKit.Battle.SearchTarget.Entitas
 
             var engine = new TargetSearchEngine();
             engine.Search(query, ctx, results, new EntitasUnitFacadeMapper());
+        }
+    }
+
+    public sealed class ExplicitListCandidateProvider : ICandidateProvider
+    {
+        private readonly IReadOnlyList<ST.EntityId> _ids;
+
+        public ExplicitListCandidateProvider(IReadOnlyList<ST.EntityId> ids)
+        {
+            _ids = ids;
+        }
+
+        public bool RequiresPosition => false;
+
+        public void ForEachCandidate<TConsumer>(in SearchQuery query, SearchContext context, ref TConsumer consumer)
+            where TConsumer : struct, ICandidateConsumer
+        {
+            if (_ids == null) return;
+            for (int i = 0; i < _ids.Count; i++)
+            {
+                consumer.Consume(_ids[i]);
+            }
         }
     }
 }

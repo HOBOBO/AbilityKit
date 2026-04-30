@@ -1,8 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AbilityKit.Battle.SearchTarget
 {
+    /// <summary>
+    /// 搜索上下文
+    /// </summary>
     public sealed class SearchContext
     {
         private readonly Dictionary<Type, object> _services = new Dictionary<Type, object>();
@@ -15,7 +18,6 @@ namespace AbilityKit.Battle.SearchTarget
                 _services.Remove(typeof(T));
                 return;
             }
-
             _services[typeof(T)] = service;
         }
 
@@ -26,7 +28,6 @@ namespace AbilityKit.Battle.SearchTarget
                 service = t;
                 return true;
             }
-
             service = null;
             return false;
         }
@@ -38,13 +39,7 @@ namespace AbilityKit.Battle.SearchTarget
                 _data.Remove(key);
                 return;
             }
-
             _data[key] = value;
-        }
-
-        public bool TryGetData(int key, out object value)
-        {
-            return _data.TryGetValue(key, out value);
         }
 
         public bool TryGetData<T>(int key, out T value)
@@ -54,7 +49,6 @@ namespace AbilityKit.Battle.SearchTarget
                 value = t;
                 return true;
             }
-
             value = default;
             return false;
         }
@@ -62,11 +56,6 @@ namespace AbilityKit.Battle.SearchTarget
         public void ClearData()
         {
             _data.Clear();
-        }
-
-        public void ClearServices()
-        {
-            _services.Clear();
         }
     }
 }

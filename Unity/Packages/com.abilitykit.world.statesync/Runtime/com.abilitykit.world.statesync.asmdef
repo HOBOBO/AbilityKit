@@ -1,0 +1,19 @@
+{
+  "name": "AbilityKit.World.StateSync",
+  "rootNamespace": "AbilityKit.Ability.StateSync",
+  "references": [
+    "AbilityKit.Core",
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.World.Snapshot",
+    "MemoryPack"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

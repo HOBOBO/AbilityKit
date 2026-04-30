@@ -25,6 +25,13 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
             r.Register(new Clamp());
             r.Register(new Clamp01());
             r.Register(new Lerp());
+            r.Register(new Atan2());
+            r.Register(new Cbrt());
+            r.Register(new Log2());
+            r.Register(new Trunc());
+            r.Register(new Fract());
+            r.Register(new Mod());
+            r.Register(new Percent());
             return r;
         }
 
@@ -305,5 +312,110 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
                 return true;
             }
         }
+
+        #region 补充函数
+
+        private sealed class Atan2 : INumericRpnFunction
+        {
+            public string Name => "atan2";
+            public int ArgCount => 2;
+
+            public bool TryInvoke(double[] args, out double result)
+            {
+                result = 0d;
+                if (args == null || args.Length != 2) return false;
+                result = Math.Atan2(args[0], args[1]);
+                return true;
+            }
+        }
+
+        private sealed class Cbrt : INumericRpnFunction
+        {
+            public string Name => "cbrt";
+            public int ArgCount => 1;
+
+            public bool TryInvoke(double[] args, out double result)
+            {
+                result = 0d;
+                if (args == null || args.Length != 1) return false;
+                result = Math.Cbrt(args[0]);
+                return true;
+            }
+        }
+
+        private sealed class Log2 : INumericRpnFunction
+        {
+            public string Name => "log2";
+            public int ArgCount => 1;
+
+            public bool TryInvoke(double[] args, out double result)
+            {
+                result = 0d;
+                if (args == null || args.Length != 1) return false;
+                if (args[0] <= 0d) return false;
+                result = Math.Log(args[0], 2d);
+                return true;
+            }
+        }
+
+        private sealed class Trunc : INumericRpnFunction
+        {
+            public string Name => "trunc";
+            public int ArgCount => 1;
+
+            public bool TryInvoke(double[] args, out double result)
+            {
+                result = 0d;
+                if (args == null || args.Length != 1) return false;
+                result = Math.Truncate(args[0]);
+                return true;
+            }
+        }
+
+        private sealed class Fract : INumericRpnFunction
+        {
+            public string Name => "fract";
+            public int ArgCount => 1;
+
+            public bool TryInvoke(double[] args, out double result)
+            {
+                result = 0d;
+                if (args == null || args.Length != 1) return false;
+                result = args[0] - Math.Truncate(args[0]);
+                return true;
+            }
+        }
+
+        private sealed class Mod : INumericRpnFunction
+        {
+            public string Name => "mod";
+            public int ArgCount => 2;
+
+            public bool TryInvoke(double[] args, out double result)
+            {
+                result = 0d;
+                if (args == null || args.Length != 2) return false;
+                if (args[1] == 0d) return false;
+                result = args[0] % args[1];
+                return true;
+            }
+        }
+
+        private sealed class Percent : INumericRpnFunction
+        {
+            public string Name => "percent";
+            public int ArgCount => 2;
+
+            public bool TryInvoke(double[] args, out double result)
+            {
+                result = 0d;
+                if (args == null || args.Length != 2) return false;
+                if (args[1] == 0d) return false;
+                result = args[0] / args[1];
+                return true;
+            }
+        }
+
+        #endregion
     }
 }
