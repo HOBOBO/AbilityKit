@@ -30,14 +30,36 @@ namespace AbilityKit.Triggering.Example
             }
         }
 
-        // ========== 表现层 Cue 实现 ==========
+        // ========== 业务层定义自己的 Cue 参数结构 ==========
 
         /// <summary>
-        /// 伤害触发器的视觉音效 Cue
+        /// 伤害 Cue 参数（实现 ICueParams 标记接口）
+        /// 业务层定义自己需要的参数，框架层不耦合业务概念
+        /// </summary>
+        public readonly struct DamageCueParams : ICueParams
+        {
+            public readonly int TargetId;
+            public readonly double Damage;
+            public readonly bool IsCritical;
+            public readonly int StackCount;
+
+            public DamageCueParams(int targetId, double damage, bool isCritical, int stackCount = 1)
+            {
+                TargetId = targetId;
+                Damage = damage;
+                IsCritical = isCritical;
+                StackCount = stackCount;
+            }
+        }
+
+        // ========== 表现层 Cue 实现（使用泛型接口）==========
+
+        /// <summary>
+        /// 伤害触发器的视觉音效 Cue（泛型版本）
         /// 职责：在触发器的各个生命周期节点播放对应的 VFX / SFX / UI 反馈
         /// 特点：不参与任何逻辑判断，仅处理表现
         /// </summary>
-        public sealed class DamageTriggerCue : ITriggerCue
+        public sealed class DamageTriggerCue : ITriggerCue<DamageCueParams>
         {
             private readonly DamageVfxConfig _vfxConfig;
             private readonly DamageSfxConfig _sfxConfig;
@@ -48,15 +70,15 @@ namespace AbilityKit.Triggering.Example
                 _sfxConfig = sfxConfig;
             }
 
-            public void OnConditionPassed(in TriggerCueContext context)
+            public void OnConditionPassed(in TriggerCueContext<DamageCueParams> context)
             {
-                Debug.Log($"[Cue] 伤害条件通过，准备播放预警特效 (Target={context.EventId}, Priority={context.Priority})");
+                Debug.Log($"[Cue] 伤害条件通过，准备播放预警特效 (Target={context.Args.TargetId}, Priority={context.Priority})");
                 // 示例：播放预警光圈 / 震动 / 预警音效
                 // VfxSystem.Play(_vfxConfig.WarningVfx, targetActor);
                 // AudioSystem.Play(_sfxConfig.WarningSfx, targetActor);
             }
 
-            public void OnConditionFailed(in TriggerCueContext context)
+            public void OnConditionFailed(in TriggerCueContext<DamageCueParams> context)
             {
                 Debug.Log($"[Cue] 伤害条件失败，播放落空表情 (TriggerId={context.TriggerId})");
                 // 示例：目标闪避表情 / 落空音效
@@ -64,27 +86,32 @@ namespace AbilityKit.Triggering.Example
                 // AudioSystem.Play(_sfxConfig.MissSfx, targetActor);
             }
 
-            public void OnBeforeAction(in TriggerCueContext context, int actionIndex)
+            public void OnBeforeAction(in TriggerCueContext<DamageCueParams> context, int actionIndex)
             {
                 Debug.Log($"[Cue] 即将执行第 {actionIndex} 个动作 (TriggerId={context.TriggerId}, Phase={context.Phase})");
                 // 示例：播放前摇动画 / 施法特效
                 // AnimatorSystem.SetTrigger(targetActor, "casting");
             }
 
-            public void OnExecuted(in TriggerCueContext context)
+            public void OnExecuted(in TriggerCueContext<DamageCueParams> context)
             {
                 Debug.Log($"[Cue] 伤害触发器执行完成 (TriggerId={context.TriggerId}, ConditionPassed={context.InterruptConditionPassed})");
-                // 示例：播放命中特效 / 打击音效 / 飘字
-                // context.Args 是 object，强制转换回具体 Payload 类型
-                var dmg = (DamageEvent)context.Args;
-                var effect = dmg.IsCritical ? _vfxConfig.CriticalHitVfx : _vfxConfig.NormalHitVfx;
-                Debug.Log($"[Cue] 播放命中特效: {effect} (Damage={dmg.Damage}, IsCritical={dmg.IsCritical})");
-                // VfxSystem.Play(effect, targetActor);
+
+                // ✅ 编译期类型安全，context.Args 就是 DamageCueParams
+                var dmg = context.Args;
+
+                // 根据层数选择不同特效
+                var vfx = dmg.StackCount >= 3 ? _vfxConfig.CriticalHitVfx : _vfxConfig.NormalHitVfx;
+                var scale = 1.0f + (dmg.Damage / 1000f);
+
+                Debug.Log($"[Cue] 播放命中特效: {vfx} (Damage={dmg.Damage}, IsCritical={dmg.IsCritical}, Scale={scale})");
+
+                // VfxSystem.Play(vfx, targetActor, scale);
                 // AudioSystem.Play(_sfxConfig.HitSfx, targetActor);
                 // UISystem.ShowDamageNumber(targetActor, dmg.Damage, dmg.IsCritical);
             }
 
-            public void OnInterrupted(in TriggerCueContext context)
+            public void OnInterrupted(in TriggerCueContext<DamageCueParams> context)
             {
                 Debug.Log($"[Cue] 伤害触发器被打断 (TriggerId={context.TriggerId}, Reason={context.InterruptReason}, Source={context.InterruptSourceName})");
                 // 示例：播放打断特效 / 取消前摇
@@ -92,11 +119,54 @@ namespace AbilityKit.Triggering.Example
                 // AudioSystem.Play(_sfxConfig.InterruptSfx, targetActor);
             }
 
-            public void OnSkipped(in TriggerCueContext context)
+            public void OnSkipped(in TriggerCueContext<DamageCueParams> context)
             {
                 Debug.Log($"[Cue] 伤害触发器被优先级打断跳过 (TriggerId={context.TriggerId}, InterruptTriggerId={context.InterruptTriggerId}, Reason={context.InterruptReason})");
                 // 示例：显示"被高优先级打断"提示
                 // UISystem.ShowHint(targetActor, "Blocked by higher priority!");
+            }
+        }
+
+        // ========== 向后兼容：非泛型 Cue 实现 ==========
+
+        /// <summary>
+        /// 非泛型 Cue 实现（向后兼容）
+        /// 通过 context.Args 强制转换获取参数
+        /// </summary>
+        public sealed class LegacyDamageTriggerCue : ITriggerCue
+        {
+            public void OnConditionPassed(in TriggerCueContext context)
+            {
+                Debug.Log($"[LegacyCue] 条件通过 (Target={context.EventId})");
+            }
+
+            public void OnConditionFailed(in TriggerCueContext context)
+            {
+                Debug.Log($"[LegacyCue] 条件失败 (TriggerId={context.TriggerId})");
+            }
+
+            public void OnBeforeAction(in TriggerCueContext context, int actionIndex)
+            {
+                Debug.Log($"[LegacyCue] 执行 Action {actionIndex}");
+            }
+
+            public void OnExecuted(in TriggerCueContext context)
+            {
+                // ❌ 需要强制转换，无编译期类型安全
+                if (context.Args is DamageEvent dmg)
+                {
+                    Debug.Log($"[LegacyCue] 播放伤害特效 Damage={dmg.Damage}");
+                }
+            }
+
+            public void OnInterrupted(in TriggerCueContext context)
+            {
+                Debug.Log($"[LegacyCue] 被打断");
+            }
+
+            public void OnSkipped(in TriggerCueContext context)
+            {
+                Debug.Log($"[LegacyCue] 被跳过");
             }
         }
 
@@ -134,11 +204,11 @@ namespace AbilityKit.Triggering.Example
             }
         }
 
-        // ========== 使用示例 ==========
+        // ========== 使用示例（泛型版本）==========
 
         public static void Run()
         {
-            // 1. 创建 EventBus 和 TriggerRunner（使用命名参数跳过不需要的可选依赖）
+            // 1. 创建 EventBus 和 TriggerRunner
             var bus = new EventBus();
             var runner = new TriggerRunner<DefaultTCtx>(
                 bus,
@@ -155,16 +225,16 @@ namespace AbilityKit.Triggering.Example
 
             var dslPlan = TriggerPlanDsl.Create<DamageEvent>(phase: 0, priority: 10)
                 .WithTriggerId(1001)
-                .WithNoCondition()                          // 无条件触发（实际项目中通常用 When()）
-                .DoConst(new ActionId(1), 0)              // ActionId=1: ApplyDamage
-                .WithCue(damageCue)                        // 绑定表现层 Cue
+                .WithNoCondition()
+                .DoConst(new ActionId(1), 0)
+                .WithCue(damageCue)
                 .Build();
 
-            runner.RegisterPlan(eventKey, dslPlan);
+            runner.Register(eventKey, dslPlan);
 
             Debug.Log("=== 示例：触发伤害事件 ===");
 
-            // 3. 通过 EventBus 派发事件，TriggerRunner 自动调度（触发 Cue 回调）
+            // 3. 派发事件，TriggerRunner 自动调度 Cue 回调
             var damageEvent = new DamageEvent(targetId: 42, damage: 150.0, isCritical: true);
             bus.Publish(eventKey, damageEvent);
             bus.Flush();
@@ -172,7 +242,7 @@ namespace AbilityKit.Triggering.Example
             Debug.Log("=== 示例结束 ===");
         }
 
-        // ========== 使用便捷构造器 ==========
+        // ========== 使用便捷构造器（向后兼容）==========
 
         public static void RunWithConstructor()
         {
@@ -185,12 +255,10 @@ namespace AbilityKit.Triggering.Example
             var damageEventId = Eventing.StableStringId.Get("event:damage2");
             var eventKey = new EventKey<DamageEvent>(damageEventId);
 
-            var damageCue = new DamageTriggerCue(
-                new DamageVfxConfig("vfx/warn", "vfx/hit", "vfx/crit"),
-                new DamageSfxConfig("audio/warn", "audio/hit", "audio/crit", "audio/miss", "audio/interrupt")
-            );
+            // 使用向后兼容的非泛型 Cue
+            var damageCue = new LegacyDamageTriggerCue();
 
-            // 使用便捷构造器（不带 TriggerId/InterruptPriority）
+            // 使用便捷构造器
             var plan = new TriggerPlan<DamageEvent>(
                 phase: 0,
                 priority: 5,
@@ -201,9 +269,9 @@ namespace AbilityKit.Triggering.Example
                 interruptPriority: 0,
                 cue: damageCue);
 
-            runner.RegisterPlan(eventKey, plan);
+            runner.Register(eventKey, plan);
 
-            Debug.Log("=== 示例：使用构造器 ===");
+            Debug.Log("=== 示例：使用向后兼容构造器 ===");
             bus.Publish(eventKey, new DamageEvent(99, 200, false));
             bus.Flush();
             Debug.Log("=== 示例结束 ===");

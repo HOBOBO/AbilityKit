@@ -8,6 +8,10 @@ namespace AbilityKit.Triggering.Runtime
     /// - 逻辑层（Predicate / Action）和表现层（Cue）完全分离
     /// - Cue 运行在帧同步客户端的渲染层，不参与逻辑判断
     /// - 与 Effect Cue 体系（IGameplayEffectCue）保持对称
+    ///
+    /// 使用方式：
+    /// - 推荐使用泛型版本 ITriggerCue&lt;TCueParams&gt; 以获得类型安全的参数
+    /// - 如需向后兼容，可使用非泛型版本，通过 context.Args 强制转换
     /// </summary>
     public interface ITriggerCue
     {
@@ -46,5 +50,61 @@ namespace AbilityKit.Triggering.Runtime
         /// 典型用法：播放"被高优先级打断"的反馈
         /// </summary>
         void OnSkipped(in TriggerCueContext context);
+    }
+
+    /// <summary>
+    /// 泛型触发器表现层接口
+    /// TCueParams 必须实现 ICueParams 接口，提供类型安全的参数传递
+    ///
+    /// 示例：
+    /// <code>
+    /// public readonly struct DamageCueParams : ICueParams
+    /// {
+    ///     public double DamageValue;
+    ///     public bool IsCritical;
+    /// }
+    ///
+    /// public sealed class DamageCue : ITriggerCue&lt;DamageCueParams&gt;
+    /// {
+    ///     public void OnExecuted(in TriggerCueContext&lt;DamageCueParams&gt; context)
+    ///     {
+    ///         // 编译期类型安全，context.Args 就是 DamageCueParams
+    ///         var scale = 1.0f + (context.Args.DamageValue / 1000f);
+    ///     }
+    /// }
+    /// </code>
+    /// </summary>
+    public interface ITriggerCue<TCueParams> : ITriggerCue
+        where TCueParams : ICueParams
+    {
+        /// <summary>
+        /// 条件评估成功，进入 Execute 阶段前调用
+        /// </summary>
+        void OnConditionPassed(in TriggerCueContext<TCueParams> context);
+
+        /// <summary>
+        /// 条件评估失败，触发器跳过前调用
+        /// </summary>
+        void OnConditionFailed(in TriggerCueContext<TCueParams> context);
+
+        /// <summary>
+        /// 行为执行前调用
+        /// </summary>
+        void OnBeforeAction(in TriggerCueContext<TCueParams> context, int actionIndex);
+
+        /// <summary>
+        /// 所有行为执行完成后调用
+        /// </summary>
+        void OnExecuted(in TriggerCueContext<TCueParams> context);
+
+        /// <summary>
+        /// 触发器被显式打断时调用
+        /// </summary>
+        void OnInterrupted(in TriggerCueContext<TCueParams> context);
+
+        /// <summary>
+        /// 触发器因优先级机制被跳过时调用
+        /// </summary>
+        void OnSkipped(in TriggerCueContext<TCueParams> context);
     }
 }
