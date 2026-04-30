@@ -1,0 +1,8 @@
+{
+  "name": "com.abilitykit.diagnostics",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Diagnostics",
+  "unity": "2022.3",
+  "description": "AbilityKit diagnostics utilities for development-time profiling and debugging.",
+  "author": { "name": "AbilityKit" }
+}

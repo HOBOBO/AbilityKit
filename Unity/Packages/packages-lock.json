@@ -171,6 +171,14 @@
         "com.abilitykit.combat.entitymanager": "0.0.1"
       }
     },
+    "com.abilitykit.context": {
+      "version": "file:com.abilitykit.context",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "0.0.1"
+      }
+    },
     "com.abilitykit.core": {
       "version": "file:com.abilitykit.core",
       "depth": 0,
@@ -243,6 +251,12 @@
         "com.abilitykit.flow": "0.0.1",
         "com.abilitykit.hfsm": "0.0.1"
       }
+    },
+    "com.abilitykit.diagnostics": {
+      "version": "file:com.abilitykit.diagnostics",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
     },
     "com.abilitykit.excel-sync": {
       "version": "file:com.abilitykit.excel-sync",
@@ -417,6 +431,12 @@
     },
     "com.abilitykit.thirdparty.luban.runtime": {
       "version": "file:com.abilitykit.thirdparty.luban.runtime",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
+    "com.abilitykit.threading": {
+      "version": "file:com.abilitykit.threading",
       "depth": 0,
       "source": "embedded",
       "dependencies": {}

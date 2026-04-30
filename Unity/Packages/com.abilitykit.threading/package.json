@@ -1,0 +1,8 @@
+{
+  "name": "com.abilitykit.threading",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Threading",
+  "unity": "2022.3",
+  "description": "AbilityKit threading utilities for server-side logic.",
+  "author": { "name": "AbilityKit" }
+}
