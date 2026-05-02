@@ -365,7 +365,9 @@
       "version": "file:com.abilitykit.protocol",
       "depth": 0,
       "source": "embedded",
-      "dependencies": {}
+      "dependencies": {
+        "com.unity.nuget.newtonsoft-json": "3.2.1"
+      }
     },
     "com.abilitykit.protocol.editor": {
       "version": "file:com.abilitykit.protocol.editor",

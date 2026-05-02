@@ -4,5 +4,8 @@
   "displayName": "AbilityKit Protocol",
   "unity": "2022.3",
   "description": "Shared protocol definitions for client/server.",
-  "author": { "name": "AbilityKit" }
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  }
 }

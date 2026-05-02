@@ -72,6 +72,12 @@ namespace AbilityKit.Ability.Editor.Utilities
         /// 优先级高于 Arg0/Arg1，JSON 导出时优先序列化
         /// </summary>
         public Dictionary<string, NumericValueRefDto> Args;
+
+        /// <summary>
+        /// 子动作列表 - 用于复合 Action（如 sequence, parallel, random 等）
+        /// 当存在子动作时，这个 Action 是一个复合节点
+        /// </summary>
+        public List<ActionCallPlanDto> Children;
     }
 
     [Serializable]
