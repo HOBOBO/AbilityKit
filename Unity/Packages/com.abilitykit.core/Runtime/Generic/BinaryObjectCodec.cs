@@ -237,12 +237,16 @@ namespace AbilityKit.Core.Serialization
 
             if (fields.Length + props.Length != 1) return null;
 
-            if (fields.Length == 1)
-            {
-                return MemberModel.FromField(fields[0]);
-            }
+            var member = fields.Length == 1
+                ? MemberModel.FromField(fields[0])
+                : MemberModel.FromProperty(props[0]);
 
-            return MemberModel.FromProperty(props[0]);
+            // Wrapper encoding is valid only when decoding can reconstruct the
+            // object from that same single value. Otherwise use the regular
+            // member model symmetrically for both writing and reading.
+            return type.GetConstructor(new[] { member.MemberType }) != null
+                ? member
+                : null;
         }
 
         private static TypeModel GetModel(Type type)

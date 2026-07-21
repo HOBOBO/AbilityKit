@@ -5,10 +5,12 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
-    internal sealed class BattleDebugEffectsPanel : IBattleDebugPanel
+    internal sealed class BattleDebugEffectsPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         public string Name => "效果";
         public int Order => 200;
+        public BattleDebugWorkspace Workspace => BattleDebugWorkspace.Actor;
+        public bool OwnsScrollView => true;
 
         private readonly BattleDebugDiagnosticEffectsViewModel _viewModel =
             new BattleDebugDiagnosticEffectsViewModel();

@@ -24,6 +24,7 @@ namespace AbilityKit.Game.Flow
             if (runtime == null) return;
 
             runtime.FloatingTexts?.Clear();
+            _factory.SetHierarchyManager(runtime.Hierarchy);
             runtime.FloatingTexts = new BattleFloatingTextSystem(_factory);
         }
 

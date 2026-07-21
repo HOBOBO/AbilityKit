@@ -14,8 +14,7 @@ namespace AbilityKit.Ability.Host.Extensions.Time
         private readonly Dictionary<WorldId, FrameTime> _times = new Dictionary<WorldId, FrameTime>();
 
         private readonly float _fixedDeltaSeconds;
-
-        private FrameIndex _frame;
+        private readonly bool _advanceOnHostTickFallback;
 
         private readonly Action<WorldCreateOptions> _onBeforeCreateWorld;
         private readonly Action<WorldId> _onWorldDestroyed;
@@ -30,10 +29,12 @@ namespace AbilityKit.Ability.Host.Extensions.Time
         {
         }
 
-        public ServerFrameTimeModule(float fixedDeltaSeconds)
+        public ServerFrameTimeModule(
+            float fixedDeltaSeconds,
+            bool advanceOnHostTickFallback = true)
         {
             _fixedDeltaSeconds = fixedDeltaSeconds;
-            _frame = new FrameIndex(0);
+            _advanceOnHostTickFallback = advanceOnHostTickFallback;
             _onBeforeCreateWorld = OnBeforeCreateWorld;
             _onWorldDestroyed = OnWorldDestroyed;
             _onPostStep = OnPostStep;
@@ -58,7 +59,6 @@ namespace AbilityKit.Ability.Host.Extensions.Time
             if (runtime == null) throw new ArgumentNullException(nameof(runtime));
             if (options == null) throw new ArgumentNullException(nameof(options));
 
-            _frame = new FrameIndex(0);
             if (!runtime.Features.TryGetFeature<IFrameSyncDriverEvents>(out _frameEvents) || _frameEvents == null)
             {
                 _frameEvents = null;
@@ -71,7 +71,7 @@ namespace AbilityKit.Ability.Host.Extensions.Time
             {
                 _frameEvents.AddPostStep(_onPostStep);
             }
-            else
+            else if (_advanceOnHostTickFallback)
             {
                 options.PostTick.Add(_onPostTick);
             }
@@ -131,8 +131,13 @@ namespace AbilityKit.Ability.Host.Extensions.Time
         {
             try
             {
-                _frame = new FrameIndex(_frame.Value + 1);
-                OnPostStep(_frame, deltaTime);
+                foreach (var kv in _times)
+                {
+                    var time = kv.Value;
+                    if (time == null) continue;
+
+                    time.StepTo(new FrameIndex(time.Frame.Value + 1), deltaTime);
+                }
             }
             catch (Exception ex)
             {

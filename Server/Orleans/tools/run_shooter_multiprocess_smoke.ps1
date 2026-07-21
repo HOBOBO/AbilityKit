@@ -19,12 +19,19 @@ param(
     [int]$ReconnectDelayMs = 500,
     [int]$RecoverableFailureCount = 0,
     [int]$RetryBackoffMaxMs = 2000,
-    [ValidateSet('minimal', 'full', 'custom')]
+    [ValidateSet('minimal', 'full', 'compatibility', 'soak', 'custom')]
     [string]$Profile = 'minimal',
-    [ValidateSet('', 'slow-consumer', 'gateway-offline', 'recoverable-retry', 'reconnect-cycles')]
+    [ValidateSet('', 'slow-consumer', 'gateway-offline', 'recoverable-retry', 'reconnect-cycles', 'observer-reactivation', 'soak-16', 'soak-64')]
     [string]$Scenario = '',
     [int]$ScenarioTimeoutSeconds = 45,
     [int]$GlobalTimeoutSeconds = 0,
+    [int]$SoakDurationSeconds = 1800,
+    [int]$SoakMetricsSampleIntervalMs = 1000,
+    [int]$SoakResourceSampleIntervalSeconds = 5,
+    [double]$SoakRecoveryP95LimitMs = 15000,
+    [double]$SoakRecoveryP99LimitMs = 30000,
+    [double]$SoakObserverSentBytesFairnessMin = 0.70,
+    [double]$SoakMemoryGrowthLimitMb = 512,
     [switch]$PlanOnly,
     [int]$ConditionLatencyMs = 0,
     [int]$ConditionJitterMs = 0,
@@ -32,6 +39,7 @@ param(
     [int]$ConditionSeed = 20260610,
     [switch]$NoReplay,
     [switch]$NoCleanup,
+    [switch]$OwnershipCleanupProbe,
     [ValidateSet('packed', 'pure-state')]
     [string]$PayloadMode = 'packed'
 )
@@ -53,52 +61,131 @@ if ($ScenarioTimeoutSeconds -le 5) {
 if ($GlobalTimeoutSeconds -lt 0) {
     throw 'GlobalTimeoutSeconds must be >= 0; use 0 for an automatically derived matrix budget.'
 }
+if ($SoakDurationSeconds -lt 30) {
+    throw 'SoakDurationSeconds must be >= 30.'
+}
+if ($SoakMetricsSampleIntervalMs -lt 100) {
+    throw 'SoakMetricsSampleIntervalMs must be >= 100.'
+}
+if ($SoakResourceSampleIntervalSeconds -lt 1) {
+    throw 'SoakResourceSampleIntervalSeconds must be >= 1.'
+}
+if ($SoakRecoveryP95LimitMs -le 0 -or $SoakRecoveryP99LimitMs -lt $SoakRecoveryP95LimitMs) {
+    throw 'Soak recovery percentile limits must be positive and P99 must be >= P95.'
+}
+if ($SoakObserverSentBytesFairnessMin -le 0 -or $SoakObserverSentBytesFairnessMin -gt 1) {
+    throw 'SoakObserverSentBytesFairnessMin must be in (0, 1].'
+}
+if ($SoakMemoryGrowthLimitMb -le 0) {
+    throw 'SoakMemoryGrowthLimitMb must be > 0.'
+}
 
 . (Join-Path $PSScriptRoot 'abilitykit_process_utils.ps1')
 
 function Get-ShooterFaultMatrixPlan {
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet('minimal', 'full', 'custom')]
+        [ValidateSet('minimal', 'full', 'compatibility', 'soak', 'custom')]
         [string]$SelectedProfile,
         [string]$SelectedScenario,
+        [string]$SelectedPayloadMode,
+        [int]$SelectedJoinClients,
+        [int]$SelectedConditionLatencyMs,
+        [int]$SelectedConditionJitterMs,
+        [double]$SelectedConditionPacketLossRate,
         [int]$BaseTcpPort,
         [int]$BaseSiloPort,
         [int]$BaseOrleansGatewayPort,
         [int]$StartupTimeoutSeconds,
         [int]$SetupTimeoutSeconds,
-        [int]$PerScenarioTimeoutSeconds
+        [int]$PerScenarioTimeoutSeconds,
+        [int]$SelectedSoakDurationSeconds
     )
 
-    [string[]]$names = if (-not [string]::IsNullOrWhiteSpace($SelectedScenario)) {
-        @([string]$SelectedScenario)
+    $cases = if (-not [string]::IsNullOrWhiteSpace($SelectedScenario)) {
+        @([pscustomobject]@{
+            caseId = [string]$SelectedScenario
+            name = [string]$SelectedScenario
+            payloadMode = $SelectedPayloadMode
+            joinClients = $SelectedJoinClients
+            conditionLatencyMs = $SelectedConditionLatencyMs
+            conditionJitterMs = $SelectedConditionJitterMs
+            conditionPacketLossRate = $SelectedConditionPacketLossRate
+        })
     }
-    elseif ($SelectedProfile -eq 'full') {
-        @('slow-consumer', 'gateway-offline', 'recoverable-retry', 'reconnect-cycles')
+    elseif ($SelectedProfile -eq 'compatibility') {
+        @(
+            [pscustomobject]@{ caseId = 'packed-recoverable-single'; name = 'recoverable-retry'; payloadMode = 'packed'; joinClients = 1; conditionLatencyMs = 0; conditionJitterMs = 0; conditionPacketLossRate = 0 },
+            [pscustomobject]@{ caseId = 'pure-state-slow-consumer-fanout'; name = 'slow-consumer'; payloadMode = 'pure-state'; joinClients = 2; conditionLatencyMs = 0; conditionJitterMs = 0; conditionPacketLossRate = 0 },
+            [pscustomobject]@{ caseId = 'packed-gateway-offline-fanout'; name = 'gateway-offline'; payloadMode = 'packed'; joinClients = 2; conditionLatencyMs = 0; conditionJitterMs = 0; conditionPacketLossRate = 0 },
+            [pscustomobject]@{ caseId = 'pure-state-reconnect-cycles-fanout'; name = 'reconnect-cycles'; payloadMode = 'pure-state'; joinClients = 2; conditionLatencyMs = 20; conditionJitterMs = 5; conditionPacketLossRate = 0 },
+            [pscustomobject]@{ caseId = 'pure-state-observer-reactivation'; name = 'observer-reactivation'; payloadMode = 'pure-state'; joinClients = 1; conditionLatencyMs = 0; conditionJitterMs = 0; conditionPacketLossRate = 0 }
+        )
+    }
+    elseif ($SelectedProfile -eq 'soak') {
+        @(
+            [pscustomobject]@{ caseId = 'soak-16'; name = 'soak-16'; payloadMode = 'pure-state'; joinClients = 15; conditionLatencyMs = 0; conditionJitterMs = 0; conditionPacketLossRate = 0 },
+            [pscustomobject]@{ caseId = 'soak-64'; name = 'soak-64'; payloadMode = 'pure-state'; joinClients = 63; conditionLatencyMs = 0; conditionJitterMs = 0; conditionPacketLossRate = 0 }
+        )
     }
     else {
-        @('recoverable-retry')
+        [string[]]$names = if ($SelectedProfile -eq 'full') {
+            @('slow-consumer', 'gateway-offline', 'recoverable-retry', 'reconnect-cycles', 'observer-reactivation')
+        }
+        else {
+            @('recoverable-retry')
+        }
+        @($names | ForEach-Object {
+            [pscustomobject]@{
+                caseId = $_
+                name = $_
+                payloadMode = if ($_ -eq 'slow-consumer') { 'pure-state' } else { $SelectedPayloadMode }
+                joinClients = $SelectedJoinClients
+                conditionLatencyMs = $SelectedConditionLatencyMs
+                conditionJitterMs = $SelectedConditionJitterMs
+                conditionPacketLossRate = $SelectedConditionPacketLossRate
+            }
+        })
     }
 
+    $cases = @($cases)
     $plans = @()
-    for ($i = 0; $i -lt $names.Count; $i++) {
-        $name = $names[$i]
-        $executionTimeoutSeconds = $StartupTimeoutSeconds + $SetupTimeoutSeconds + $PerScenarioTimeoutSeconds + 15
+    for ($i = 0; $i -lt $cases.Count; $i++) {
+        $case = $cases[$i]
+        $name = [string]$case.name
+        $isSoak = $name -eq 'soak-16' -or $name -eq 'soak-64'
+        $activeTimeoutSeconds = if ($isSoak) { $SelectedSoakDurationSeconds } else { $PerScenarioTimeoutSeconds }
+        $convergenceTimeoutSeconds = [Math]::Max(5, [Math]::Min(30, $activeTimeoutSeconds - 5))
+        $resultTimeoutSeconds = if ($isSoak) { 30 } else { 0 }
+        $executionTimeoutSeconds = $StartupTimeoutSeconds + $SetupTimeoutSeconds + $activeTimeoutSeconds + 15
+        if ($isSoak) {
+            $executionTimeoutSeconds += $resultTimeoutSeconds + $convergenceTimeoutSeconds
+        }
         $plans += [pscustomobject][ordered]@{
+            caseId = [string]$case.caseId
             name = $name
+            payloadMode = [string]$case.payloadMode
+            joinClients = [int]$case.joinClients
+            conditionLatencyMs = [int]$case.conditionLatencyMs
+            conditionJitterMs = [int]$case.conditionJitterMs
+            conditionPacketLossRate = [double]$case.conditionPacketLossRate
             offsetSeconds = $i * $executionTimeoutSeconds
             startupTimeoutSeconds = $StartupTimeoutSeconds
             setupTimeoutSeconds = $SetupTimeoutSeconds
-            timeoutSeconds = $PerScenarioTimeoutSeconds
+            timeoutSeconds = $activeTimeoutSeconds
+            resultTimeoutSeconds = $resultTimeoutSeconds
             executionTimeoutSeconds = $executionTimeoutSeconds
             tcpPort = $BaseTcpPort + ($i * 10)
             siloPort = $BaseSiloPort + ($i * 10)
             orleansGatewayPort = $BaseOrleansGatewayPort + ($i * 10)
-            reconnectCount = if ($name -eq 'reconnect-cycles') { 3 } elseif ($name -eq 'slow-consumer') { 0 } else { 1 }
+            reconnectCount = if ($name -eq 'reconnect-cycles') { 3 } elseif ($name -eq 'slow-consumer' -or $isSoak) { 0 } else { 1 }
             recoverableFailureCount = if ($name -eq 'recoverable-retry') { 3 } else { 0 }
             gatewayOffline = $name -eq 'gateway-offline'
+            observerReactivation = $name -eq 'observer-reactivation'
             slowConsumer = $name -eq 'slow-consumer'
-            convergenceTimeoutSeconds = [Math]::Max(5, [Math]::Min(20, $PerScenarioTimeoutSeconds - 5))
+            soak = $isSoak
+            observerCount = [int]$case.joinClients + 1
+            convergenceTimeoutSeconds = $convergenceTimeoutSeconds
         }
     }
 
@@ -108,12 +195,18 @@ function Get-ShooterFaultMatrixPlan {
 $matrixPlan = @(Get-ShooterFaultMatrixPlan `
     -SelectedProfile $Profile `
     -SelectedScenario $Scenario `
+    -SelectedPayloadMode $PayloadMode `
+    -SelectedJoinClients $JoinClients `
+    -SelectedConditionLatencyMs $ConditionLatencyMs `
+    -SelectedConditionJitterMs $ConditionJitterMs `
+    -SelectedConditionPacketLossRate $ConditionPacketLossRate `
     -BaseTcpPort $TcpPort `
     -BaseSiloPort $SiloPort `
     -BaseOrleansGatewayPort $OrleansGatewayPort `
     -StartupTimeoutSeconds $StartupTimeoutSeconds `
     -SetupTimeoutSeconds $SetupTimeoutSeconds `
-    -PerScenarioTimeoutSeconds $ScenarioTimeoutSeconds)
+    -PerScenarioTimeoutSeconds $ScenarioTimeoutSeconds `
+    -SelectedSoakDurationSeconds $SoakDurationSeconds)
 $effectiveGlobalTimeoutSeconds = if ($GlobalTimeoutSeconds -gt 0) {
     $GlobalTimeoutSeconds
 }
@@ -123,13 +216,76 @@ else {
 
 if ($PlanOnly) {
     [ordered]@{
-        schemaVersion = 2
+        schemaVersion = 3
         profile = $Profile
         globalTimeoutSeconds = $effectiveGlobalTimeoutSeconds
         globalTimeoutIsAutomatic = $GlobalTimeoutSeconds -le 0
         scenarios = $matrixPlan
     } | ConvertTo-Json -Depth 6
     return
+}
+
+function Read-JsonFileIfPresent {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $null
+    }
+
+    try {
+        return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    }
+    catch {
+        Write-Warning "Could not read JSON file '$Path': $($_.Exception.Message)"
+        return $null
+    }
+}
+
+function Invoke-MatrixTimeoutOwnedCleanup {
+    param(
+        [Parameter(Mandatory = $true)][string]$ChildManifestPath,
+        [Parameter(Mandatory = $true)][object]$ChildProcessIdentity,
+        [Parameter(Mandatory = $true)][int[]]$Ports
+    )
+
+    $manifestSnapshot = Read-JsonFileIfPresent -Path $ChildManifestPath
+    $candidates = @()
+    if ($null -ne $manifestSnapshot -and $manifestSnapshot.PSObject.Properties['processes']) {
+        $candidates = @($manifestSnapshot.processes)
+    }
+
+    $orchestratorCandidate = @($candidates | Where-Object { [string]$_.role -eq 'orchestrator' } | Select-Object -First 1)
+    $orchestratorIdentity = if ($orchestratorCandidate.Count -gt 0) { $orchestratorCandidate[0] } else { $ChildProcessIdentity }
+    $processResults = @(
+        Stop-AbilityKitOwnedProcess -ExpectedIdentity $orchestratorIdentity -Role 'orchestrator'
+    )
+
+    foreach ($candidate in @($candidates | Where-Object { [string]$_.role -ne 'orchestrator' })) {
+        $processResults += Stop-AbilityKitOwnedProcess -ExpectedIdentity $candidate -Role ([string]$candidate.role)
+    }
+
+    $unsafeIdentityResults = @($processResults | Where-Object { $_.status -in @('identity-mismatch', 'termination-failed') })
+    if ($unsafeIdentityResults.Count -eq 0) {
+        Stop-AbilityKitServices -Ports $Ports -GraceSeconds 1
+    }
+    else {
+        Write-Warning 'Skipping port-owner termination because at least one manifest-owned process could not be safely identified or terminated.'
+    }
+    $portResults = @($Ports | ForEach-Object {
+        [ordered]@{
+            port = $_
+            released = -not (Test-AbilityKitTcpPort -HostName '127.0.0.1' -Port $_ -TimeoutMilliseconds 250)
+        }
+    })
+
+    return [pscustomobject][ordered]@{
+        startedAtUtc = [DateTime]::UtcNow.ToString('O')
+        source = 'running-manifest'
+        candidatesObserved = $candidates.Count
+        processes = @($processResults)
+        ports = @($portResults)
+        completedAtUtc = [DateTime]::UtcNow.ToString('O')
+    }
 }
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -151,6 +307,7 @@ if ([string]::IsNullOrWhiteSpace($Scenario)) {
     New-Item -ItemType Directory -Force -Path $matrixRoot | Out-Null
     $matrixResults = @()
     $matrixFailure = $null
+    $matrixCleanupEvidence = @()
     if (-not $NoBuild) {
         Write-Host 'Building Shooter smoke project once for the fault matrix...' -ForegroundColor Cyan
         dotnet build $project -c $Configuration '-p:UseSharedCompilation=false' '-p:nodeReuse=false'
@@ -164,11 +321,11 @@ if ([string]::IsNullOrWhiteSpace($Scenario)) {
     foreach ($plan in $matrixPlan) {
         $remainingGlobalSeconds = [int][Math]::Floor(($matrixDeadlineUtc - [DateTime]::UtcNow).TotalSeconds)
         if ($remainingGlobalSeconds -le 0) {
-            $matrixFailure = "Shooter fault matrix exceeded global timeout of $effectiveGlobalTimeoutSeconds seconds before scenario '$($plan.name)' started."
+            $matrixFailure = "Shooter fault matrix exceeded global timeout of $effectiveGlobalTimeoutSeconds seconds before case '$($plan.caseId)' started."
             break
         }
 
-        $childRunId = "$RunId-$($plan.name)"
+        $childRunId = "$RunId-$($plan.caseId)"
         $childManifestPath = Join-Path (Join-Path $matrixRoot $childRunId) 'manifest.json'
         $childArguments = @(
             '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $MyInvocation.MyCommand.Path,
@@ -176,41 +333,54 @@ if ([string]::IsNullOrWhiteSpace($Scenario)) {
             '-TcpPort', $plan.tcpPort, '-SiloPort', $plan.siloPort,
             '-OrleansGatewayPort', $plan.orleansGatewayPort,
             '-ArtifactRoot', $ArtifactRoot, '-RunId', $childRunId,
-            '-ReplayExtension', $ReplayExtension, '-JoinClients', $JoinClients,
+            '-ReplayExtension', $ReplayExtension, '-JoinClients', $plan.joinClients,
             '-Inputs', $Inputs, '-Seed', $Seed,
             '-TimeoutSeconds', $TimeoutSeconds,
             '-StartupTimeoutSeconds', $StartupTimeoutSeconds,
             '-SetupTimeoutSeconds', $SetupTimeoutSeconds,
             '-ScenarioTimeoutSeconds', $ScenarioTimeoutSeconds,
             '-GlobalTimeoutSeconds', $effectiveGlobalTimeoutSeconds,
+            '-SoakDurationSeconds', $SoakDurationSeconds,
+            '-SoakMetricsSampleIntervalMs', $SoakMetricsSampleIntervalMs,
+            '-SoakResourceSampleIntervalSeconds', $SoakResourceSampleIntervalSeconds,
+            '-SoakRecoveryP95LimitMs', $SoakRecoveryP95LimitMs,
+            '-SoakRecoveryP99LimitMs', $SoakRecoveryP99LimitMs,
+            '-SoakObserverSentBytesFairnessMin', $SoakObserverSentBytesFairnessMin,
+            '-SoakMemoryGrowthLimitMb', $SoakMemoryGrowthLimitMb,
             '-Profile', 'custom', '-Scenario', $plan.name,
             '-ReconnectDelayMs', $ReconnectDelayMs,
             '-RetryBackoffMaxMs', $RetryBackoffMaxMs,
-            '-PayloadMode', $PayloadMode)
+            '-ConditionLatencyMs', $plan.conditionLatencyMs,
+            '-ConditionJitterMs', $plan.conditionJitterMs,
+            '-ConditionPacketLossRate', $plan.conditionPacketLossRate,
+            '-ConditionSeed', $ConditionSeed,
+            '-PayloadMode', $plan.payloadMode)
         if ($NoReplay) { $childArguments += '-NoReplay' }
         if ($NoCleanup) { $childArguments += '-NoCleanup' }
         if ($WaitForMatchEnd) { $childArguments += '-WaitForMatchEnd' }
+        if ($OwnershipCleanupProbe) { $childArguments += '-OwnershipCleanupProbe' }
 
         $childStartedAtUtc = [DateTime]::UtcNow
         $child = Start-Process -FilePath 'powershell.exe' -ArgumentList $childArguments -PassThru -NoNewWindow
+        $childProcessIdentity = Get-AbilityKitProcessIdentity -ProcessId $child.Id
+        if ($null -eq $childProcessIdentity) {
+            throw "Could not capture the child orchestrator identity for PID $($child.Id)."
+        }
         $childTimeoutSeconds = [Math]::Min($remainingGlobalSeconds, $plan.executionTimeoutSeconds)
         $childTimedOut = -not $child.WaitForExit($childTimeoutSeconds * 1000)
+        $cleanupEvidence = $null
         if ($childTimedOut) {
-            $matrixFailure = "Shooter fault matrix scenario '$($plan.name)' exceeded its bounded execution timeout of $childTimeoutSeconds seconds."
-            Stop-Process -Id $child.Id -Force -ErrorAction SilentlyContinue
+            $matrixFailure = "Shooter fault matrix case '$($plan.caseId)' exceeded its bounded execution timeout of $childTimeoutSeconds seconds."
+            $cleanupEvidence = Invoke-MatrixTimeoutOwnedCleanup `
+                -ChildManifestPath $childManifestPath `
+                -ChildProcessIdentity $childProcessIdentity `
+                -Ports @($plan.tcpPort, $plan.siloPort, $plan.orleansGatewayPort)
+            $matrixCleanupEvidence += $cleanupEvidence
             $null = $child.WaitForExit(5000)
-            Stop-AbilityKitServices `
-                -Ports @($plan.tcpPort, $plan.siloPort, $plan.orleansGatewayPort) `
-                -GraceSeconds 1
         }
         $child.Refresh()
         $childExitCode = if ($childTimedOut) { -1 } else { [int]$child.ExitCode }
-        $childManifest = if (Test-Path -LiteralPath $childManifestPath) {
-            Get-Content -LiteralPath $childManifestPath -Raw | ConvertFrom-Json
-        }
-        else {
-            $null
-        }
+        $childManifest = Read-JsonFileIfPresent -Path $childManifestPath
         if ($childTimedOut -and $null -ne $childManifest) {
             $childManifest.status = 'failed'
             $childManifest.completedAtUtc = [DateTime]::UtcNow.ToString('O')
@@ -220,6 +390,7 @@ if ([string]::IsNullOrWhiteSpace($Scenario)) {
                 stage = 'matrix-timeout'
                 message = $matrixFailure
             }
+            $childManifest | Add-Member -NotePropertyName cleanupEvidence -NotePropertyValue $cleanupEvidence -Force
             $childManifest.assertions = @($childManifest.assertions) + [pscustomobject][ordered]@{
                 name = 'scenario-completed'
                 passed = $false
@@ -231,7 +402,10 @@ if ([string]::IsNullOrWhiteSpace($Scenario)) {
         }
         $childManifestStatus = if ($null -eq $childManifest) { 'missing' } else { [string]$childManifest.status }
         $matrixResults += [ordered]@{
+            caseId = $plan.caseId
             scenario = $plan.name
+            payloadMode = $plan.payloadMode
+            joinClients = $plan.joinClients
             runId = $childRunId
             processId = $child.Id
             startedAtUtc = $childStartedAtUtc.ToString('O')
@@ -239,10 +413,11 @@ if ([string]::IsNullOrWhiteSpace($Scenario)) {
             exitCode = $childExitCode
             manifestPath = "$childRunId/manifest.json"
             manifestStatus = $childManifestStatus
+            cleanupEvidence = $cleanupEvidence
         }
         if ($childExitCode -ne 0 -or $childManifestStatus -ne 'passed') {
             if ($null -eq $matrixFailure) {
-                $matrixFailure = "Shooter fault matrix scenario '$($plan.name)' failed. ExitCode=$childExitCode, ManifestStatus=$childManifestStatus."
+                $matrixFailure = "Shooter fault matrix case '$($plan.caseId)' failed. ExitCode=$childExitCode, ManifestStatus=$childManifestStatus."
             }
             break
         }
@@ -250,7 +425,7 @@ if ([string]::IsNullOrWhiteSpace($Scenario)) {
 
     $matrixManifestPath = Join-Path $matrixRoot "$RunId-matrix.json"
     [ordered]@{
-        schemaVersion = 2
+        schemaVersion = 3
         runId = $RunId
         profile = $Profile
         status = if ($null -eq $matrixFailure) { 'passed' } else { 'failed' }
@@ -258,7 +433,8 @@ if ([string]::IsNullOrWhiteSpace($Scenario)) {
         startedAtUtc = $matrixStartedAtUtc.ToString('O')
         completedAtUtc = [DateTime]::UtcNow.ToString('O')
         scenarios = $matrixResults
-    } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $matrixManifestPath -Encoding utf8
+        cleanupEvidence = @($matrixCleanupEvidence)
+    } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $matrixManifestPath -Encoding utf8
     if ($null -ne $matrixFailure) {
         [Console]::Error.WriteLine("$matrixFailure Manifest=$matrixManifestPath")
         exit 1
@@ -268,6 +444,7 @@ if ([string]::IsNullOrWhiteSpace($Scenario)) {
 }
 
 $activePlan = $matrixPlan[0]
+$isSoakRun = [bool]$activePlan.soak
 if (-not [string]::IsNullOrWhiteSpace($Scenario)) {
     $ReconnectCount = if ($ReconnectJoinClient -and $Profile -eq 'custom') { [Math]::Max(1, $ReconnectCount) } else { $activePlan.reconnectCount }
     $RecoverableFailureCount = $activePlan.recoverableFailureCount
@@ -292,6 +469,10 @@ if (Test-Path $logDir) {
 $serverLog = Join-Path $logDir 'server.log'
 $replayDir = Join-Path $logDir 'records'
 $diagnosticDir = Join-Path $logDir 'diagnostics'
+$soakControlDir = Join-Path $logDir 'control'
+$soakTelemetryDir = Join-Path $logDir 'telemetry'
+$soakResourcePath = Join-Path $soakTelemetryDir 'process-resources.jsonl'
+$soakSummaryPath = Join-Path $soakTelemetryDir 'soak-summary.json'
 $manifestPath = Join-Path $logDir 'manifest.json'
 $manifestStartedAtUtc = [DateTime]::UtcNow
 $manifestStatus = 'running'
@@ -307,6 +488,8 @@ $processTimeline = @()
 $faultControlPath = Join-Path $logDir 'gateway-fault-command.json'
 $reconnectReleasePath = Join-Path $logDir 'gateway-reconnect.release'
 $completionReleasePath = Join-Path $logDir 'scenario-completion.release'
+$soakSummary = $null
+$soakResourcePrevious = @{}
 $scenarioDeadlineUtc = $null
 $timeoutPhase = 'startup'
 $timeoutBudgetSeconds = $StartupTimeoutSeconds
@@ -315,7 +498,34 @@ $server = $null
 $serverCorrelationId = "$RunId/shooter-mp-server"
 $clientLogs = @()
 $manifestClients = @()
+$manifestProcesses = @()
 $startedProcesses = New-Object System.Collections.Generic.List[System.Diagnostics.Process]
+
+function Register-RunProcess {
+    param(
+        [Parameter(Mandatory = $true)][string]$Role,
+        [Parameter(Mandatory = $true)][int]$ProcessId,
+        [Parameter(Mandatory = $true)][string]$CorrelationId,
+        [string]$StdOutPath = '',
+        [string]$StdErrPath = ''
+    )
+
+    $identity = Get-AbilityKitProcessIdentity -ProcessId $ProcessId
+    if ($null -eq $identity) {
+        throw "Could not capture process identity for role '$Role', PID $ProcessId."
+    }
+
+    $script:manifestProcesses += [ordered]@{
+        role = $Role
+        processId = $identity.processId
+        creationTimeUtc = $identity.creationTimeUtc
+        executablePath = $identity.executablePath
+        commandLine = $identity.commandLine
+        correlationId = $CorrelationId
+        stdoutPath = if ([string]::IsNullOrWhiteSpace($StdOutPath)) { $null } else { ConvertTo-RunRelativePath -Path $StdOutPath }
+        stderrPath = if ([string]::IsNullOrWhiteSpace($StdErrPath)) { $null } else { ConvertTo-RunRelativePath -Path $StdErrPath }
+    }
+}
 
 function Write-RunManifest {
     param(
@@ -354,9 +564,11 @@ function Write-RunManifest {
         scenario = [ordered]@{
             name = if ([string]::IsNullOrWhiteSpace($Scenario)) { 'custom' } else { $Scenario }
             profile = $Profile
-            mode = if ($WaitForMatchEnd) { 'end-to-end' } elseif ($ReconnectCount -gt 0 -or $ConditionLatencyMs -gt 0 -or $ConditionJitterMs -gt 0 -or $ConditionPacketLossRate -gt 0) { 'resilience' } else { 'sync' }
+            mode = if ($isSoakRun) { 'soak' } elseif ($WaitForMatchEnd) { 'end-to-end' } elseif ($ReconnectCount -gt 0 -or $ConditionLatencyMs -gt 0 -or $ConditionJitterMs -gt 0 -or $ConditionPacketLossRate -gt 0) { 'resilience' } else { 'sync' }
             payloadMode = $PayloadMode
             joinClients = $JoinClients
+            observerCount = $JoinClients + 1
+            soak = $isSoakRun
             inputs = $Inputs
             seed = $Seed
             waitForMatchEnd = [bool]$WaitForMatchEnd
@@ -368,9 +580,11 @@ function Write-RunManifest {
             operationTimeoutSeconds = $TimeoutSeconds
             startupTimeoutSeconds = $StartupTimeoutSeconds
             setupTimeoutSeconds = $SetupTimeoutSeconds
-            timeoutSeconds = $ScenarioTimeoutSeconds
+            timeoutSeconds = $activePlan.timeoutSeconds
             executionTimeoutSeconds = $activePlan.executionTimeoutSeconds
             convergenceTimeoutSeconds = $activePlan.convergenceTimeoutSeconds
+            metricsSampleIntervalMs = if ($isSoakRun) { $SoakMetricsSampleIntervalMs } else { $null }
+            resourceSampleIntervalSeconds = if ($isSoakRun) { $SoakResourceSampleIntervalSeconds } else { $null }
             networkCondition = [ordered]@{
                 latencyMs = $ConditionLatencyMs
                 jitterMs = $ConditionJitterMs
@@ -386,24 +600,7 @@ function Write-RunManifest {
         roomId = $roomId
         replayEnabled = -not [bool]$NoReplay
         error = if ([string]::IsNullOrWhiteSpace($ErrorMessage)) { $null } else { $ErrorMessage }
-        processes = @(
-            [ordered]@{
-                role = 'orchestrator'
-                processId = $PID
-                correlationId = "$RunId/shooter-mp-orchestrator"
-                stdoutPath = $null
-                stderrPath = $null
-            }
-            if ($null -ne $server) {
-                [ordered]@{
-                    role = 'server'
-                    processId = $server.Id
-                    correlationId = $serverCorrelationId
-                    stdoutPath = 'server.log'
-                    stderrPath = 'server.err.log'
-                }
-            }
-        )
+        processes = @($manifestProcesses)
         clients = @($manifestClients)
         processTimeline = @($processTimeline)
         faultTimeline = @($faultTimeline)
@@ -419,6 +616,7 @@ function Write-RunManifest {
             drainIntervalMs = if ($activePlan.slowConsumer) { 250 } else { $null }
             clients = @($convergenceSummaries)
         }
+        soakSummary = $soakSummary
         artifacts = $artifacts
     }
 
@@ -710,9 +908,336 @@ function Add-AssertionResult {
     }
 }
 
+function Get-PercentileValue {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][double[]]$Values,
+        [Parameter(Mandatory = $true)][double]$Percentile
+    )
+
+    if ($Values.Count -eq 0) {
+        return $null
+    }
+
+    $sorted = @($Values | Sort-Object)
+    if ($sorted.Count -eq 1) {
+        return [double]$sorted[0]
+    }
+
+    $position = ($sorted.Count - 1) * $Percentile
+    $lower = [int][Math]::Floor($position)
+    $upper = [int][Math]::Ceiling($position)
+    if ($lower -eq $upper) {
+        return [double]$sorted[$lower]
+    }
+
+    $weight = $position - $lower
+    return ([double]$sorted[$lower] * (1 - $weight)) + ([double]$sorted[$upper] * $weight)
+}
+
+function Write-SoakResourceSample {
+    param([Parameter(Mandatory = $true)][object[]]$RunProcesses)
+
+    $sampledAtUtc = [DateTime]::UtcNow
+    foreach ($runProcess in $RunProcesses) {
+        $processId = [int]$runProcess.processId
+        $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+        if ($null -eq $process) {
+            continue
+        }
+
+        $process.Refresh()
+        $cpuTotalMs = [double]$process.TotalProcessorTime.TotalMilliseconds
+        $previous = $script:soakResourcePrevious[$processId]
+        $cpuUtilizationPercent = $null
+        if ($null -ne $previous) {
+            $elapsedMs = ($sampledAtUtc - $previous.sampledAtUtc).TotalMilliseconds
+            if ($elapsedMs -gt 0) {
+                $cpuUtilizationPercent = (($cpuTotalMs - $previous.cpuTotalMs) / $elapsedMs) * 100.0 / [Environment]::ProcessorCount
+            }
+        }
+        $script:soakResourcePrevious[$processId] = [pscustomobject]@{
+            sampledAtUtc = $sampledAtUtc
+            cpuTotalMs = $cpuTotalMs
+        }
+
+        [ordered]@{
+            type = 'process-resource-sample'
+            timestampUtc = $sampledAtUtc.ToString('O')
+            role = [string]$runProcess.role
+            processId = $processId
+            cpuTotalMs = $cpuTotalMs
+            cpuUtilizationPercent = $cpuUtilizationPercent
+            workingSetBytes = [long]$process.WorkingSet64
+            privateBytes = [long]$process.PrivateMemorySize64
+            gc = [ordered]@{
+                available = $false
+                reason = 'CLR GC counters are not exposed by System.Diagnostics.Process; recorded as unavailable.'
+            }
+        } | ConvertTo-Json -Depth 5 -Compress | Add-Content -LiteralPath $soakResourcePath -Encoding utf8
+    }
+}
+
+function Write-SoakNetworkConditionCommand {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][object]$Command
+    )
+
+    $temporaryPath = "$Path.$([Guid]::NewGuid().ToString('N')).tmp"
+    $backupPath = "$Path.$([Guid]::NewGuid().ToString('N')).bak"
+    try {
+        $Command | ConvertTo-Json -Depth 5 -Compress | Set-Content -LiteralPath $temporaryPath -Encoding utf8
+        $replaceDeadline = [DateTime]::UtcNow.AddSeconds(2)
+        while ($true) {
+            try {
+                if ([System.IO.File]::Exists($Path)) {
+                    [System.IO.File]::Replace($temporaryPath, $Path, $backupPath)
+                }
+                else {
+                    [System.IO.File]::Move($temporaryPath, $Path)
+                }
+                break
+            }
+            catch [System.IO.IOException] {
+                if ([DateTime]::UtcNow -ge $replaceDeadline) {
+                    throw
+                }
+                Start-Sleep -Milliseconds 10
+            }
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $temporaryPath) {
+            Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path -LiteralPath $backupPath) {
+            Remove-Item -LiteralPath $backupPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Send-SoakNetworkCondition {
+    param(
+        [Parameter(Mandatory = $true)][object[]]$Clients,
+        [Parameter(Mandatory = $true)][string]$Phase,
+        [int]$LatencyMs = 0,
+        [int]$JitterMs = 0,
+        [double]$PacketLossRate = 0,
+        [int]$BandwidthBytesPerSecond = 0,
+        [bool]$ExpectRecovery = $false
+    )
+
+    $commandId = '{0}-{1:D2}' -f $Phase, ($script:faultTimeline.Count + 1)
+    $requestedAtUtc = [DateTime]::UtcNow
+    foreach ($client in $Clients) {
+        Remove-Item -LiteralPath $client.NetworkControlAckPath -Force -ErrorAction SilentlyContinue
+        $command = [ordered]@{
+            id = $commandId
+            phase = $Phase
+            inboundLatencyMs = $LatencyMs
+            inboundJitterMs = $JitterMs
+            inboundPacketLossRate = $PacketLossRate
+            inboundBandwidthBytesPerSecond = $BandwidthBytesPerSecond
+            seed = $ConditionSeed + $client.PlayerId
+            expectRecovery = $ExpectRecovery
+        }
+        Write-SoakNetworkConditionCommand -Path $client.NetworkControlPath -Command $command
+    }
+
+    $pending = @($Clients)
+    $deadline = [DateTime]::UtcNow.AddSeconds([Math]::Min(15, (Get-BoundedTimeoutSeconds -RequestedSeconds 15)))
+    while ($pending.Count -gt 0 -and [DateTime]::UtcNow -lt $deadline) {
+        $remaining = @()
+        foreach ($client in $pending) {
+            $ack = Read-JsonFileIfPresent -Path $client.NetworkControlAckPath
+            if ($null -eq $ack -or [string]$ack.id -ne $commandId) {
+                $remaining += $client
+            }
+        }
+        $pending = @($remaining)
+        if ($pending.Count -gt 0) {
+            Start-Sleep -Milliseconds 50
+        }
+    }
+
+    if ($pending.Count -gt 0) {
+        throw "Timed out waiting for soak network-condition acknowledgements. Phase=$Phase, Pending=$(@($pending | ForEach-Object { $_.ClientId }) -join ',')"
+    }
+
+    $script:faultTimeline += [ordered]@{
+        action = 'network-condition'
+        commandId = $commandId
+        phase = $Phase
+        requestedAtUtc = $requestedAtUtc.ToString('O')
+        completedAtUtc = [DateTime]::UtcNow.ToString('O')
+        clientCount = $Clients.Count
+        latencyMs = $LatencyMs
+        jitterMs = $JitterMs
+        packetLossRate = $PacketLossRate
+        bandwidthBytesPerSecond = $BandwidthBytesPerSecond
+        expectRecovery = $ExpectRecovery
+    }
+    Write-RunManifest -Status 'running'
+}
+
+function Invoke-ShooterSoakPhases {
+    param([Parameter(Mandatory = $true)][object[]]$Clients)
+
+    $phaseDefinitions = @(
+        [pscustomobject]@{ name = 'ideal'; latencyMs = 0; jitterMs = 0; loss = 0.0; bandwidth = 0; recovery = $false },
+        [pscustomobject]@{ name = 'latency-jitter'; latencyMs = 120; jitterMs = 40; loss = 0.0; bandwidth = 0; recovery = $false },
+        [pscustomobject]@{ name = 'packet-loss'; latencyMs = 40; jitterMs = 10; loss = 0.08; bandwidth = 0; recovery = $false },
+        [pscustomobject]@{ name = 'limited-bandwidth'; latencyMs = 40; jitterMs = 10; loss = 0.01; bandwidth = 32768; recovery = $false },
+        [pscustomobject]@{ name = 'disruptive-pressure'; latencyMs = 250; jitterMs = 100; loss = 0.20; bandwidth = 8192; recovery = $false },
+        [pscustomobject]@{ name = 'recovery-ideal'; latencyMs = 0; jitterMs = 0; loss = 0.0; bandwidth = 0; recovery = $true }
+    )
+    $runStartedAtUtc = [DateTime]::UtcNow
+    $phaseSeconds = [double]$activePlan.timeoutSeconds / $phaseDefinitions.Count
+    $nextResourceSampleUtc = [DateTime]::MinValue
+
+    for ($phaseIndex = 0; $phaseIndex -lt $phaseDefinitions.Count; $phaseIndex++) {
+        $phase = $phaseDefinitions[$phaseIndex]
+        Send-SoakNetworkCondition -Clients $Clients -Phase $phase.name -LatencyMs $phase.latencyMs -JitterMs $phase.jitterMs -PacketLossRate $phase.loss -BandwidthBytesPerSecond $phase.bandwidth -ExpectRecovery $phase.recovery
+        $phaseDeadlineUtc = if ($phaseIndex -eq $phaseDefinitions.Count - 1) {
+            $runStartedAtUtc.AddSeconds($activePlan.timeoutSeconds)
+        }
+        else {
+            $runStartedAtUtc.AddSeconds($phaseSeconds * ($phaseIndex + 1))
+        }
+        while ([DateTime]::UtcNow -lt $phaseDeadlineUtc) {
+            if ([DateTime]::UtcNow -ge $nextResourceSampleUtc) {
+                Write-SoakResourceSample -RunProcesses @($manifestProcesses)
+                $nextResourceSampleUtc = [DateTime]::UtcNow.AddSeconds($SoakResourceSampleIntervalSeconds)
+            }
+            $sleepMs = [Math]::Min(250, [Math]::Max(1, [int](($phaseDeadlineUtc - [DateTime]::UtcNow).TotalMilliseconds)))
+            Start-Sleep -Milliseconds $sleepMs
+        }
+    }
+
+    New-Item -ItemType File -Path $completionReleasePath -Force | Out-Null
+    Add-AssertionResult -Name 'soak-phases-completed' -Passed $true -Details "Phases=$($phaseDefinitions.Count); DurationSeconds=$($activePlan.timeoutSeconds)"
+}
+
+function Get-ShooterSoakSummary {
+    param([Parameter(Mandatory = $true)][object[]]$Clients)
+
+    $clientSummaries = @()
+    $recoveryDurations = @()
+    foreach ($client in $Clients) {
+        if (-not (Test-Path -LiteralPath $client.MetricsOutputPath -PathType Leaf)) {
+            throw "Soak metrics artifact was not created. Client=$($client.ClientId), Path=$($client.MetricsOutputPath)"
+        }
+        $events = @(Get-Content -LiteralPath $client.MetricsOutputPath | ForEach-Object {
+            if (-not [string]::IsNullOrWhiteSpace($_)) { $_ | ConvertFrom-Json }
+        })
+        $delivery = @($events | Where-Object { $_.type -eq 'delivery-sample' })
+        $recoveries = @($events | Where-Object { $_.type -eq 'recovery-completed' })
+        if ($delivery.Count -lt 2) {
+            throw "Soak telemetry has fewer than two delivery samples. Client=$($client.ClientId), Samples=$($delivery.Count)"
+        }
+        $sentDelta = [long]$delivery[-1].delivery.sentBytes - [long]$delivery[0].delivery.sentBytes
+        $maxQueueLength = [int](($delivery | ForEach-Object { [int]$_.delivery.queueLength } | Measure-Object -Maximum).Maximum)
+        $recoveryDurations += @($recoveries | ForEach-Object { [double]$_.recovery.durationMs })
+        $clientSummaries += [pscustomobject][ordered]@{
+            clientId = $client.ClientId
+            deliverySamples = $delivery.Count
+            sentBytesDelta = $sentDelta
+            producedBytesDelta = [long]$delivery[-1].delivery.producedBytes - [long]$delivery[0].delivery.producedBytes
+            droppedBytesDelta = [long]$delivery[-1].delivery.droppedBytes - [long]$delivery[0].delivery.droppedBytes
+            mergedBytesDelta = [long]$delivery[-1].delivery.mergedBytes - [long]$delivery[0].delivery.mergedBytes
+            maxQueueLength = $maxQueueLength
+            recoveryCount = $recoveries.Count
+        }
+    }
+
+    $sentValues = @($clientSummaries | ForEach-Object { [double]$_.sentBytesDelta })
+    $sentMedian = Get-PercentileValue -Values $sentValues -Percentile 0.5
+    $fairness = if ($sentMedian -le 0) { 0.0 } else { [double](($sentValues | Measure-Object -Minimum).Minimum) / $sentMedian }
+    $resourceEvents = if (Test-Path -LiteralPath $soakResourcePath) {
+        @(Get-Content -LiteralPath $soakResourcePath | ForEach-Object { if (-not [string]::IsNullOrWhiteSpace($_)) { $_ | ConvertFrom-Json } })
+    }
+    else { @() }
+    $processResourceSummaries = @($resourceEvents | Group-Object processId | ForEach-Object {
+        $samples = @($_.Group | Sort-Object timestampUtc)
+        $memoryValues = @($samples | ForEach-Object { [double]$_.privateBytes / 1MB })
+        $windowSize = [Math]::Max(1, [int][Math]::Ceiling($memoryValues.Count * 0.1))
+        $memoryStartMedian = Get-PercentileValue -Values @($memoryValues | Select-Object -First $windowSize) -Percentile 0.5
+        $memoryEndMedian = Get-PercentileValue -Values @($memoryValues | Select-Object -Last $windowSize) -Percentile 0.5
+        [pscustomobject][ordered]@{
+            role = [string]$samples[0].role
+            processId = [int]$samples[0].processId
+            sampleCount = $samples.Count
+            peakWorkingSetMb = [double](($samples | Measure-Object -Property workingSetBytes -Maximum).Maximum) / 1MB
+            peakPrivateMb = [double](($samples | Measure-Object -Property privateBytes -Maximum).Maximum) / 1MB
+            peakCpuUtilizationPercent = [double](($samples | Where-Object { $null -ne $_.cpuUtilizationPercent } | Measure-Object -Property cpuUtilizationPercent -Maximum).Maximum)
+            privateMemoryStartMedianMb = $memoryStartMedian
+            privateMemoryEndMedianMb = $memoryEndMedian
+            privateMemoryGrowthMb = $memoryEndMedian - $memoryStartMedian
+        }
+    })
+    $maxMemoryGrowthMb = if ($processResourceSummaries.Count -gt 0) {
+        [double](($processResourceSummaries | Measure-Object -Property privateMemoryGrowthMb -Maximum).Maximum)
+    }
+    else { 0.0 }
+
+    return [pscustomobject][ordered]@{
+        schemaVersion = 1
+        observerCount = $Clients.Count
+        durationSeconds = $activePlan.timeoutSeconds
+        phaseCount = 6
+        recovery = [ordered]@{
+            count = $recoveryDurations.Count
+            p50Ms = Get-PercentileValue -Values @($recoveryDurations) -Percentile 0.50
+            p95Ms = Get-PercentileValue -Values @($recoveryDurations) -Percentile 0.95
+            p99Ms = Get-PercentileValue -Values @($recoveryDurations) -Percentile 0.99
+        }
+        fairness = [ordered]@{
+            definition = 'minimum observer sent-byte delta divided by median observer sent-byte delta'
+            minimumToMedian = $fairness
+            threshold = $SoakObserverSentBytesFairnessMin
+        }
+        resources = [ordered]@{
+            sampleCount = $resourceEvents.Count
+            peakWorkingSetMb = if ($resourceEvents.Count -gt 0) { [double](($resourceEvents | Measure-Object -Property workingSetBytes -Maximum).Maximum) / 1MB } else { 0.0 }
+            peakPrivateMb = if ($resourceEvents.Count -gt 0) { [double](($resourceEvents | Measure-Object -Property privateBytes -Maximum).Maximum) / 1MB } else { 0.0 }
+            maximumProcessPrivateMemoryGrowthMb = $maxMemoryGrowthMb
+            gcCountersAvailable = $false
+            processes = $processResourceSummaries
+        }
+        clients = $clientSummaries
+    }
+}
+
+function Assert-ShooterSoakSummary {
+    param([Parameter(Mandatory = $true)][object]$Summary)
+
+    $expectedObservers = [int]$activePlan.observerCount
+    if ($Summary.observerCount -ne $expectedObservers) {
+        throw "Soak observer count mismatch. Expected=$expectedObservers, Actual=$($Summary.observerCount)"
+    }
+    if ($Summary.recovery.count -lt $expectedObservers) {
+        throw "Soak recovery evidence is incomplete. ExpectedAtLeast=$expectedObservers, Actual=$($Summary.recovery.count)"
+    }
+    if ([double]$Summary.recovery.p95Ms -gt $SoakRecoveryP95LimitMs -or [double]$Summary.recovery.p99Ms -gt $SoakRecoveryP99LimitMs) {
+        throw "Soak recovery percentile exceeded limits. P95=$($Summary.recovery.p95Ms)/$SoakRecoveryP95LimitMs, P99=$($Summary.recovery.p99Ms)/$SoakRecoveryP99LimitMs"
+    }
+    if ([double]$Summary.fairness.minimumToMedian -lt $SoakObserverSentBytesFairnessMin) {
+        throw "Soak observer sent-byte fairness is below threshold. Actual=$($Summary.fairness.minimumToMedian), Minimum=$SoakObserverSentBytesFairnessMin"
+    }
+    if ([double]$Summary.resources.maximumProcessPrivateMemoryGrowthMb -gt $SoakMemoryGrowthLimitMb) {
+        throw "Soak private-memory growth exceeded limit. ActualMb=$($Summary.resources.maximumProcessPrivateMemoryGrowthMb), LimitMb=$SoakMemoryGrowthLimitMb"
+    }
+
+    Add-AssertionResult -Name 'soak-observer-count' -Passed $true -Details "Observers=$expectedObservers"
+    Add-AssertionResult -Name 'soak-recovery-percentiles' -Passed $true -Details ($Summary.recovery | ConvertTo-Json -Compress)
+    Add-AssertionResult -Name 'soak-observer-fairness' -Passed $true -Details ($Summary.fairness | ConvertTo-Json -Compress)
+    Add-AssertionResult -Name 'soak-resource-trend' -Passed $true -Details ($Summary.resources | ConvertTo-Json -Compress)
+}
+
 function Invoke-GatewayFaultCommand {
     param(
         [Parameter(Mandatory = $true)][string]$Action,
+        [string]$ObserverKey = '',
         [int]$TimeoutSeconds = 10
     )
 
@@ -724,6 +1249,7 @@ function Invoke-GatewayFaultCommand {
         Id = $commandId
         Action = $Action
         RequestedAtUtc = $requestedAtUtc.ToString('O')
+        ObserverKey = $ObserverKey
     } | ConvertTo-Json | Set-Content -LiteralPath $faultControlPath -Encoding utf8
 
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
@@ -740,6 +1266,7 @@ function Invoke-GatewayFaultCommand {
                         completedAtUtc = $ack.CompletedAtUtc
                         status = $ack.Status
                         error = $ack.Error
+                        observerReactivation = $ack.ObserverReactivation
                     }
                     if ($ack.Status -ne 'completed') {
                         throw "Gateway fault command '$Action' failed: $($ack.Error)"
@@ -851,15 +1378,22 @@ function New-ClientArguments {
         [Parameter(Mandatory = $true)]
         [int]$PlayerId,
         [string]$RoomId,
+        [int]$RoomMaxPlayers = 0,
+        [int]$BattleDurationFrames = 0,
         [int]$ClientReconnectCount = 0,
         [int]$ClientRecoverableFailureCount = 0,
         [int]$LatencyMs = 0,
         [int]$JitterMs = 0,
         [double]$PacketLossRate = 0,
+        [int]$BandwidthBytesPerSecond = 0,
         [int]$NetworkSeed = 0,
         [string]$ReplayOutputPath = '',
         [string]$ReconnectReleasePath = '',
         [string]$CompletionReleasePath = '',
+        [string]$NetworkControlPath = '',
+        [string]$MetricsOutputPath = '',
+        [int]$MetricsSampleIntervalMs = 1000,
+        [int]$ClientTimeoutSeconds = $TimeoutSeconds,
         [Parameter(Mandatory = $true)]
         [string]$CorrelationId,
         [Parameter(Mandatory = $true)]
@@ -876,11 +1410,19 @@ function New-ClientArguments {
         '--player-id', $PlayerId,
         '--inputs', $Inputs,
         '--seed', $Seed,
-        '--timeout-seconds', $TimeoutSeconds,
+        '--timeout-seconds', $ClientTimeoutSeconds,
         '--run-id', $RunId,
         '--correlation-id', $CorrelationId,
         '--run-root', $logDir,
         '--diagnostic-output', $DiagnosticOutputPath)
+
+    if ($ClientMode -eq 'create' -and $RoomMaxPlayers -gt 0) {
+        $arguments += @('--room-max-players', $RoomMaxPlayers)
+    }
+
+    if ($ClientMode -eq 'create' -and $BattleDurationFrames -gt 0) {
+        $arguments += @('--battle-duration-frames', $BattleDurationFrames)
+    }
 
     if ($WaitForMatchEnd) {
         $arguments += @('--wait-for-match-end')
@@ -895,11 +1437,12 @@ function New-ClientArguments {
             '--retry-backoff-max-ms', $RetryBackoffMaxMs)
     }
 
-    if ($LatencyMs -gt 0 -or $JitterMs -gt 0 -or $PacketLossRate -gt 0) {
+    if ($LatencyMs -gt 0 -or $JitterMs -gt 0 -or $PacketLossRate -gt 0 -or $BandwidthBytesPerSecond -gt 0) {
         $arguments += @(
             '--condition-latency-ms', $LatencyMs,
             '--condition-jitter-ms', $JitterMs,
             '--condition-packet-loss-rate', ([string]::Format([System.Globalization.CultureInfo]::InvariantCulture, '{0}', $PacketLossRate)),
+            '--condition-bandwidth-bytes-per-second', $BandwidthBytesPerSecond,
             '--condition-seed', $NetworkSeed)
     }
 
@@ -913,6 +1456,16 @@ function New-ClientArguments {
 
     if (-not [string]::IsNullOrWhiteSpace($CompletionReleasePath)) {
         $arguments += @('--completion-release-path', $CompletionReleasePath)
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($NetworkControlPath)) {
+        $arguments += @('--network-control-path', $NetworkControlPath)
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($MetricsOutputPath)) {
+        $arguments += @(
+            '--metrics-output', $MetricsOutputPath,
+            '--metrics-sample-interval-ms', $MetricsSampleIntervalMs)
     }
 
     if ($ClientMode -eq 'join') {
@@ -936,6 +1489,8 @@ function Start-SmokeClient {
         [Parameter(Mandatory = $true)]
         [int]$PlayerId,
         [string]$RoomId,
+        [int]$RoomMaxPlayers = 0,
+        [int]$BattleDurationFrames = 0,
         [Parameter(Mandatory = $true)]
         [string]$LogPath,
         [Parameter(Mandatory = $true)]
@@ -945,20 +1500,27 @@ function Start-SmokeClient {
         [int]$LatencyMs = 0,
         [int]$JitterMs = 0,
         [double]$PacketLossRate = 0,
+        [int]$BandwidthBytesPerSecond = 0,
         [int]$NetworkSeed = 0,
         [string]$ReplayOutputPath = '',
         [string]$ReconnectReleasePath = '',
         [string]$CompletionReleasePath = '',
+        [string]$NetworkControlPath = '',
+        [string]$MetricsOutputPath = '',
+        [int]$MetricsSampleIntervalMs = 1000,
+        [int]$ClientTimeoutSeconds = $TimeoutSeconds,
         [Parameter(Mandatory = $true)]
         [string]$CorrelationId,
         [Parameter(Mandatory = $true)]
         [string]$DiagnosticOutputPath
     )
 
-    $arguments = New-ClientArguments -ClientMode $ClientMode -ClientId $ClientId -PlayerId $PlayerId -RoomId $RoomId -ClientReconnectCount $ClientReconnectCount -ClientRecoverableFailureCount $ClientRecoverableFailureCount -LatencyMs $LatencyMs -JitterMs $JitterMs -PacketLossRate $PacketLossRate -NetworkSeed $NetworkSeed -ReplayOutputPath $ReplayOutputPath -ReconnectReleasePath $ReconnectReleasePath -CompletionReleasePath $CompletionReleasePath -CorrelationId $CorrelationId -DiagnosticOutputPath $DiagnosticOutputPath
+    $arguments = New-ClientArguments -ClientMode $ClientMode -ClientId $ClientId -PlayerId $PlayerId -RoomId $RoomId -RoomMaxPlayers $RoomMaxPlayers -BattleDurationFrames $BattleDurationFrames -ClientReconnectCount $ClientReconnectCount -ClientRecoverableFailureCount $ClientRecoverableFailureCount -LatencyMs $LatencyMs -JitterMs $JitterMs -PacketLossRate $PacketLossRate -BandwidthBytesPerSecond $BandwidthBytesPerSecond -NetworkSeed $NetworkSeed -ReplayOutputPath $ReplayOutputPath -ReconnectReleasePath $ReconnectReleasePath -CompletionReleasePath $CompletionReleasePath -NetworkControlPath $NetworkControlPath -MetricsOutputPath $MetricsOutputPath -MetricsSampleIntervalMs $MetricsSampleIntervalMs -ClientTimeoutSeconds $ClientTimeoutSeconds -CorrelationId $CorrelationId -DiagnosticOutputPath $DiagnosticOutputPath
     $startedAtUtc = [DateTime]::UtcNow
     $process = Start-DotnetProcess -Arguments $arguments -StdOut $LogPath -StdErr $ErrLogPath
     $startedProcesses.Add($process)
+    Register-RunProcess -Role "client-$ClientMode-$ClientId" -ProcessId $process.Id -CorrelationId $CorrelationId -StdOutPath $LogPath -StdErrPath $ErrLogPath
+    Write-RunManifest -Status 'running'
 
     return [pscustomobject]@{
         Mode = $ClientMode
@@ -973,8 +1535,12 @@ function Start-SmokeClient {
         LatencyMs = $LatencyMs
         JitterMs = $JitterMs
         PacketLossRate = $PacketLossRate
+        BandwidthBytesPerSecond = $BandwidthBytesPerSecond
         ReplayOutputPath = $ReplayOutputPath
         DiagnosticOutputPath = $DiagnosticOutputPath
+        NetworkControlPath = $NetworkControlPath
+        NetworkControlAckPath = if ([string]::IsNullOrWhiteSpace($NetworkControlPath)) { '' } else { "$NetworkControlPath.ack.json" }
+        MetricsOutputPath = $MetricsOutputPath
     }
 }
 
@@ -1004,6 +1570,15 @@ function Wait-ForClientReady {
         Line = $line
         Fields = ConvertFrom-ClientResultLine -Line $line
     }
+}
+
+function Wait-ForClientCompletionReady {
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$Client
+    )
+
+    return Wait-ForResultLine -Path $Client.LogPath -Prefix 'SHOOTER_MP_CLIENT_COMPLETION_READY' -TimeoutSeconds $SetupTimeoutSeconds
 }
 
 function Wait-ForClientResult {
@@ -1043,8 +1618,14 @@ function Assert-ClientResult {
         throw "Client id mismatch. Expected=$($client.ClientId), Line=$line"
     }
 
-    if ((Read-ResultInt -Fields $fields -Name 'playerId') -ne $client.PlayerId) {
-        throw "Player id mismatch. Expected=$($client.PlayerId), Line=$line"
+    $actualPlayerId = Read-ResultInt -Fields $fields -Name 'playerId'
+    if ($isSoakRun) {
+        if ($actualPlayerId -lt 1 -or $actualPlayerId -gt ($JoinClients + 1)) {
+            throw "Soak client player id is outside the room range. ExpectedRange=1..$($JoinClients + 1), Actual=$actualPlayerId, Line=$line"
+        }
+    }
+    elseif ($actualPlayerId -ne $client.PlayerId) {
+        throw "Player id mismatch. Expected=$($client.PlayerId), Actual=$actualPlayerId, Line=$line"
     }
 
     if ((Read-ResultValue -Fields $fields -Name 'entryKind') -ne $expectedEntryKind) {
@@ -1097,8 +1678,8 @@ function Assert-ClientResult {
         throw "Client input response did not include positive server ticks: $line"
     }
 
-    if ((Read-ResultInt -Fields $fields -Name 'entities') -lt $client.PlayerId) {
-        throw "Client snapshot entity count is lower than expected player visibility. ExpectedAtLeast=$($client.PlayerId), Line=$line"
+    if ((Read-ResultInt -Fields $fields -Name 'entities') -lt $actualPlayerId) {
+        throw "Client snapshot entity count is lower than expected player visibility. ExpectedAtLeast=$actualPlayerId, Line=$line"
     }
 
     if ($client.ReconnectCount -gt 0) {
@@ -1223,12 +1804,16 @@ function Assert-ClientPayloadResult {
     $payloadKind = Read-ResultInt -Fields $fields -Name 'payloadKind'
     $sourceFrame = Read-ResultInt -Fields $fields -Name 'sourceFrame'
     $baselineFrame = Read-ResultInt -Fields $fields -Name 'baselineFrame'
+    $lastPushFrame = Read-ResultInt -Fields $fields -Name 'lastPushFrame'
+    $pushes = Read-ResultInt -Fields $fields -Name 'pushes'
     $visibilityHints = Read-ResultInt -Fields $fields -Name 'visibilityHints'
     $entities = Read-ResultInt -Fields $fields -Name 'entities'
     $fullBaselinesApplied = Read-ResultInt -Fields $fields -Name 'pureStateFullBaselinesApplied'
     $deltasApplied = Read-ResultInt -Fields $fields -Name 'pureStateDeltasApplied'
     $resyncRequests = Read-ResultInt -Fields $fields -Name 'pureStateResyncRequests'
     $lastResyncNeeded = Read-ResultBool -Fields $fields -Name 'pureStateLastResyncNeeded'
+    $snapshotHashMatched = Read-ResultBool -Fields $fields -Name 'snapshotHashMatched'
+    $diffStatus = Read-ResultValue -Fields $fields -Name 'diffStatus'
 
     if ($PayloadMode -eq 'pure-state') {
         if ($payloadOpCode -ne 5207 -and $payloadOpCode -ne 5208) {
@@ -1271,8 +1856,20 @@ function Assert-ClientPayloadResult {
             throw "PureState full baseline was not applied: $line"
         }
 
-        if (($deltasApplied + $resyncRequests + $fullBaselinesApplied) -lt 2) {
-            throw "PureState did not apply a later delta, report a baseline resync request, or apply a repeated full baseline: $line"
+        $hasStrictPureStateActivity =
+            ($deltasApplied + $resyncRequests + $fullBaselinesApplied) -ge 2
+        $hasConvergedSoakFinalFrame =
+            $isSoakRun `
+            -and $pushes -ge 2 `
+            -and -not $lastResyncNeeded `
+            -and $snapshotHashMatched `
+            -and $diffStatus -eq 'Identical' `
+            -and $sourceFrame -eq $baselineFrame `
+            -and $sourceFrame -eq $lastPushFrame
+
+        if (-not $hasStrictPureStateActivity -and
+            -not $hasConvergedSoakFinalFrame) {
+            throw "PureState did not apply later state or prove repeated delivery and convergence at the soak final frame: $line"
         }
 
         if ($lastResyncNeeded -and $resyncRequests -le 0) {
@@ -1417,6 +2014,18 @@ function Assert-ClientResultSet {
         throw "Client result count mismatch. Expected=$($JoinClients + 1), Actual=$($ClientResults.Count)."
     }
 
+    if ($isSoakRun) {
+        $actualPlayerIds = @(
+            $ClientResults |
+                ForEach-Object { Read-ResultInt -Fields $_.Fields -Name 'playerId' } |
+                Sort-Object
+        )
+        $expectedPlayerIds = @(1..($JoinClients + 1))
+        if (($actualPlayerIds -join ',') -ne ($expectedPlayerIds -join ',')) {
+            throw "Soak client player ids did not uniquely cover the room player range. Expected=$($expectedPlayerIds -join ','), Actual=$($actualPlayerIds -join ',')."
+        }
+    }
+
     $roomId = Read-ResultValue -Fields $ClientResults[0].Fields -Name 'roomId'
     $battleId = Read-ResultValue -Fields $ClientResults[0].Fields -Name 'battleId'
     $worldId = Read-ResultValue -Fields $ClientResults[0].Fields -Name 'worldId'
@@ -1505,6 +2114,11 @@ if (($ports | Sort-Object -Unique).Count -ne $ports.Count) {
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 New-Item -ItemType Directory -Force -Path $replayDir | Out-Null
 New-Item -ItemType Directory -Force -Path $diagnosticDir | Out-Null
+if ($isSoakRun) {
+    New-Item -ItemType Directory -Force -Path $soakControlDir | Out-Null
+    New-Item -ItemType Directory -Force -Path $soakTelemetryDir | Out-Null
+}
+Register-RunProcess -Role 'orchestrator' -ProcessId $PID -CorrelationId "$RunId/shooter-mp-orchestrator"
 Write-RunManifest -Status 'running'
 
 $commonArgs = @(
@@ -1551,8 +2165,11 @@ try {
 
     Write-Host "Starting Shooter state-sync server on 127.0.0.1:$TcpPort..." -ForegroundColor Cyan
     $serverStartedAtUtc = [DateTime]::UtcNow
-    $server = Start-DotnetProcess -Arguments $serverArgs -StdOut $serverLog -StdErr (Join-Path $logDir 'server.err.log')
+    $serverErrorLog = Join-Path $logDir 'server.err.log'
+    $server = Start-DotnetProcess -Arguments $serverArgs -StdOut $serverLog -StdErr $serverErrorLog
     $startedProcesses.Add($server)
+    Register-RunProcess -Role 'server' -ProcessId $server.Id -CorrelationId $serverCorrelationId -StdOutPath $serverLog -StdErrPath $serverErrorLog
+    Write-RunManifest -Status 'running'
     $processTimeline += [ordered]@{ role = 'server'; processId = $server.Id; startedAtUtc = $serverStartedAtUtc.ToString('O'); exitedAtUtc = $null; exitCode = $null }
     Wait-ForPort -Port $TcpPort -TimeoutSeconds $StartupTimeoutSeconds
     Add-AssertionResult -Name 'server-listening' -Passed $true -Details "127.0.0.1:$TcpPort"
@@ -1561,17 +2178,32 @@ try {
     $scenarioDeadlineUtc = [DateTime]::UtcNow.AddSeconds($SetupTimeoutSeconds)
     Write-RunManifest -Status 'running'
 
+    $clientTimeoutSeconds = if ($isSoakRun) {
+        [Math]::Max($TimeoutSeconds, [int]$activePlan.executionTimeoutSeconds)
+    }
+    else {
+        $TimeoutSeconds
+    }
+
     Write-Host 'Starting primary create client...' -ForegroundColor Cyan
     $createReplayPath = if ($NoReplay) { '' } else { Join-Path $replayDir "input-state-create$ReplayExtension" }
     $createCorrelationId = "$RunId/shooter-mp-create"
+    $createControlPath = if ($isSoakRun) { Join-Path $soakControlDir 'client-create.json' } else { '' }
+    $createMetricsPath = if ($isSoakRun) { Join-Path $soakTelemetryDir 'client-create.jsonl' } else { '' }
     $createClient = Start-SmokeClient `
         -ClientMode 'create' `
         -ClientId 'shooter-mp-create' `
         -PlayerId 1 `
+        -RoomMaxPlayers ($JoinClients + 1) `
+        -BattleDurationFrames $(if ($isSoakRun) { [int][Math]::Min([int]::MaxValue, [long]$activePlan.executionTimeoutSeconds * 60) } else { 0 }) `
         -LogPath (Join-Path $logDir 'client-create.log') `
         -ErrLogPath (Join-Path $logDir 'client-create.err.log') `
         -ReplayOutputPath $createReplayPath `
-        -CompletionReleasePath $(if ($Scenario -eq 'slow-consumer') { $completionReleasePath } else { '' }) `
+        -CompletionReleasePath $(if ($Scenario -eq 'slow-consumer' -or $isSoakRun) { $completionReleasePath } else { '' }) `
+        -NetworkControlPath $createControlPath `
+        -MetricsOutputPath $createMetricsPath `
+        -MetricsSampleIntervalMs $SoakMetricsSampleIntervalMs `
+        -ClientTimeoutSeconds $clientTimeoutSeconds `
         -CorrelationId $createCorrelationId `
         -DiagnosticOutputPath (Join-Path $diagnosticDir 'client-create.diagnostic.json')
     $clientLogs += $createClient.LogPath
@@ -1591,6 +2223,8 @@ try {
         Write-Host "Starting join client $i as player $playerId..." -ForegroundColor Cyan
         $joinReplayPath = if ($NoReplay) { '' } else { Join-Path $replayDir "input-state-join-$i$ReplayExtension" }
         $joinCorrelationId = "$RunId/shooter-mp-join-$i"
+        $joinControlPath = if ($isSoakRun) { Join-Path $soakControlDir "client-join-$i.json" } else { '' }
+        $joinMetricsPath = if ($isSoakRun) { Join-Path $soakTelemetryDir "client-join-$i.jsonl" } else { '' }
         $joinClient = Start-SmokeClient `
             -ClientMode 'join' `
             -ClientId "shooter-mp-join-$i" `
@@ -1605,25 +2239,53 @@ try {
             -PacketLossRate $ConditionPacketLossRate `
             -NetworkSeed ($ConditionSeed + $i) `
             -ReplayOutputPath $joinReplayPath `
-            -ReconnectReleasePath $(if ($Scenario -eq 'gateway-offline' -and $i -eq 1) { $reconnectReleasePath } else { '' }) `
-            -CompletionReleasePath $(if ($Scenario -eq 'slow-consumer') { $completionReleasePath } else { '' }) `
+            -ReconnectReleasePath $(if (($Scenario -eq 'gateway-offline' -or $Scenario -eq 'observer-reactivation') -and $i -eq 1) { $reconnectReleasePath } else { '' }) `
+            -CompletionReleasePath $(if ($Scenario -eq 'slow-consumer' -or $isSoakRun) { $completionReleasePath } else { '' }) `
+            -NetworkControlPath $joinControlPath `
+            -MetricsOutputPath $joinMetricsPath `
+            -MetricsSampleIntervalMs $SoakMetricsSampleIntervalMs `
+            -ClientTimeoutSeconds $clientTimeoutSeconds `
             -CorrelationId $joinCorrelationId `
             -DiagnosticOutputPath (Join-Path $diagnosticDir "client-join-$i.diagnostic.json")
         $clientLogs += $joinClient.LogPath
         $clients.Add($joinClient)
     }
 
+    if ($OwnershipCleanupProbe) {
+        Add-AssertionResult -Name 'ownership-cleanup-probe-armed' -Passed $true -Details "Processes=$($manifestProcesses.Count)"
+        Write-RunManifest -Status 'running'
+        while ($true) {
+            Start-Sleep -Seconds 1
+        }
+    }
+
+    $joinReadyResults = @{}
     for ($i = 1; $i -lt $clients.Count; $i++) {
         $joinReady = Wait-ForClientReady -Client $clients[$i]
+        $joinReadyResults[$i] = $joinReady
         Add-AssertionResult -Name "join-$i-ready" -Passed $true -Details $joinReady.Line
     }
+    if ($isSoakRun) {
+        foreach ($client in $clients) {
+            $completionReady = Wait-ForClientCompletionReady -Client $client
+            Add-AssertionResult -Name "soak-$($client.ClientId)-completion-ready" -Passed $true -Details $completionReady
+        }
+    }
     $timeoutPhase = 'active scenario'
-    $timeoutBudgetSeconds = $ScenarioTimeoutSeconds
-    $scenarioDeadlineUtc = [DateTime]::UtcNow.AddSeconds($ScenarioTimeoutSeconds)
-    Add-AssertionResult -Name 'scenario-active-budget-started' -Passed $true -Details "TimeoutSeconds=$ScenarioTimeoutSeconds"
+    $timeoutBudgetSeconds = $activePlan.timeoutSeconds
+    $scenarioDeadlineUtc = [DateTime]::UtcNow.AddSeconds($activePlan.timeoutSeconds)
+    Add-AssertionResult -Name 'scenario-active-budget-started' -Passed $true -Details "TimeoutSeconds=$($activePlan.timeoutSeconds)"
     Write-RunManifest -Status 'running'
 
-    if ($Scenario -eq 'slow-consumer') {
+    if ($isSoakRun) {
+        Invoke-ShooterSoakPhases -Clients $clients.ToArray()
+        $timeoutPhase = 'soak result collection'
+        $timeoutBudgetSeconds = $activePlan.resultTimeoutSeconds
+        $scenarioDeadlineUtc = [DateTime]::UtcNow.AddSeconds($activePlan.resultTimeoutSeconds)
+        Add-AssertionResult -Name 'soak-result-budget-started' -Passed $true -Details "TimeoutSeconds=$($activePlan.resultTimeoutSeconds)"
+        Write-RunManifest -Status 'running'
+    }
+    elseif ($Scenario -eq 'slow-consumer') {
         Start-Sleep -Seconds 2
         New-Item -ItemType File -Path $completionReleasePath -Force | Out-Null
         Add-AssertionResult -Name 'slow-consumer-pressure-window-completed' -Passed $true -Details 'DurationSeconds=2'
@@ -1646,6 +2308,29 @@ try {
         Add-AssertionResult -Name 'gateway-online-acknowledged' -Passed $true -Details "127.0.0.1:$TcpPort"
         New-Item -ItemType File -Path $reconnectReleasePath -Force | Out-Null
         Add-AssertionResult -Name 'join-reconnect-released-after-recovery' -Passed $true -Details $reconnectReleasePath
+        Write-RunManifest -Status 'running'
+    }
+
+    if ($Scenario -eq 'observer-reactivation') {
+        if ($JoinClients -lt 1) {
+            throw 'Observer reactivation scenario requires at least one join client.'
+        }
+        $reconnectReady = Wait-ForClientReconnectReady -Client $clients[1]
+        Add-AssertionResult -Name 'join-inputs-completed-before-observer-deactivation' -Passed $true -Details $reconnectReady.Line
+        $joinAccountId = Read-ResultValue -Fields $joinReadyResults[1].Fields -Name 'accountId'
+        $joinRoomId = Read-ResultValue -Fields $joinReadyResults[1].Fields -Name 'roomId'
+        $observerKey = "${joinAccountId}:${joinRoomId}"
+        $reactivationAck = Invoke-GatewayFaultCommand -Action 'observer-reactivate' -ObserverKey $observerKey
+        $reactivation = $reactivationAck.ObserverReactivation
+        if ($null -eq $reactivation -or
+            [string]::IsNullOrWhiteSpace([string]$reactivation.BeforeActivationToken) -or
+            [string]::IsNullOrWhiteSpace([string]$reactivation.AfterActivationToken) -or
+            $reactivation.BeforeActivationToken -eq $reactivation.AfterActivationToken) {
+            throw "Observer reactivation acknowledgement did not prove an activation-token change. ObserverKey=$observerKey"
+        }
+        Add-AssertionResult -Name 'observer-reactivation-token-changed' -Passed $true -Details ($reactivation | ConvertTo-Json -Compress)
+        New-Item -ItemType File -Path $reconnectReleasePath -Force | Out-Null
+        Add-AssertionResult -Name 'join-reconnect-released-after-observer-reactivation' -Passed $true -Details $reconnectReleasePath
         Write-RunManifest -Status 'running'
     }
 
@@ -1675,6 +2360,12 @@ try {
 
     Assert-ClientResultSet -ClientResults $clientResults.ToArray()
     Assert-BoundedConvergence -ClientResults $clientResults.ToArray()
+    if ($isSoakRun) {
+        $soakSummary = Get-ShooterSoakSummary -Clients $clients.ToArray()
+        $soakSummary | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $soakSummaryPath -Encoding utf8
+        Assert-ShooterSoakSummary -Summary $soakSummary
+        Write-RunManifest -Status 'running'
+    }
 
     foreach ($client in $clients) {
         Assert-ClientExitCode -Client $client

@@ -150,7 +150,7 @@ Actor 详情 ViewModel 至少应包含：
 - ActorId
 - Frame
 
-事件 ViewModel 还应包含所有过滤条件和选择状态。Overview 必须同时包含 State、Tag、Effect 三类 revision。显式刷新应使缓存失效并请求 Repaint，不应修改 Store。
+事件 ViewModel 还应包含所有过滤条件和选择状态。Overview 必须同时包含 State、Tag、Effect 三类 revision。Trace ViewModel 使用 Session Scope、`TraceStoreRevision` 和 Root Context ID。显式刷新应使缓存失效并请求 Repaint，不应修改 Store。
 
 ### 窗口刷新边界
 
@@ -177,7 +177,7 @@ Actor 详情 ViewModel 至少应包含：
 - `Evicted`：Registry 已有历史，但目标 RootContextId 已不存在。
 - 树结构错误：检查 ParentContextId、RootContextId、CreatedFrame 和显式 `IsEnded`，不要用 `EndedFrame == 0` 推断活动状态。
 
-当前没有正式 Trace Tree/Path Editor 面板，可通过聚焦测试或直接调用只读 Session 验证查询。
+在战斗调试窗口切换到 `Trace` 面板，输入事件或日志中的 Root Context ID 后点击“加载”。面板会显示树层级、节点状态、孤儿标记和选中节点父链；若状态提示持续不变，检查 `TraceStoreRevision` 是否推进以及输入的根是否仍在 Store 保留范围内。
 
 ## Unity 编译与测试问题
 

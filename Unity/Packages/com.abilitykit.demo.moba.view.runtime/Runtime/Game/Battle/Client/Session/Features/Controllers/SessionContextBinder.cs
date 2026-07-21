@@ -12,6 +12,14 @@ namespace AbilityKit.Game.Flow
             if (ctx == null) return;
 
             ctx.Session = handles.Session;
+            ctx.RuntimeWorld = handles.RemoteDriven.World;
+            if (ctx.RuntimeWorld == null &&
+                handles.Session != null &&
+                handles.Session.TryGetWorld(out var sessionWorld))
+            {
+                ctx.RuntimeWorld = sessionWorld;
+            }
+
             BindLastFrame(ctx, state);
         }
 
@@ -41,6 +49,7 @@ namespace AbilityKit.Game.Flow
             if (ctx == null) return;
 
             ctx.Session = null;
+            ctx.RuntimeWorld = null;
             ctx.Hooks = null;
         }
     }

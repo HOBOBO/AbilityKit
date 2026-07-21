@@ -1,3 +1,4 @@
+using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
 
@@ -17,7 +18,8 @@ namespace AbilityKit.Game.Flow
             BattleAreaAttachResolver attachResolver = null,
             BattleAreaViewPositionResolver positions = null,
             BattleAreaViewHandleBuilder handles = null,
-            BattleAreaVfxPool areaVfxPool = null)
+            BattleAreaVfxPool areaVfxPool = null,
+            BattleViewHierarchyManager hierarchy = null)
         {
             _resources = BattleViewResourceProvider.OrDefault(resources);
             var pooledObjects = objects as PooledBattleAreaViewObjectFactory;
@@ -27,11 +29,11 @@ namespace AbilityKit.Game.Flow
             }
             else if (areaVfxPool != null)
             {
-                _objects = new PooledBattleAreaViewObjectFactory(_resources, areaVfxPool);
+                _objects = new PooledBattleAreaViewObjectFactory(_resources, areaVfxPool, hierarchy);
             }
             else
             {
-                _objects = objects ?? new BattleAreaViewObjectFactory(_resources);
+                _objects = objects ?? new BattleAreaViewObjectFactory(_resources, hierarchy: hierarchy);
             }
             _attachResolver = attachResolver ?? new BattleAreaAttachResolver();
             _positions = positions ?? new BattleAreaViewPositionResolver();

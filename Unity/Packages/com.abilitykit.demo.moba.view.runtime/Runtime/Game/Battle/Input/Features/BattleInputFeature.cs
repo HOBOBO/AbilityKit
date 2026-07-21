@@ -29,7 +29,7 @@ namespace AbilityKit.Game.Flow
             var plan = _ctx.Plan;
             var playerId = BattleInputSessionIdentity.ResolvePlayerId(_ctx);
             var worldId = BattleInputSessionIdentity.ResolveWorldId(in plan);
-            var nextFrame = _ctx.LastFrame + 1;
+            var nextFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(_ctx.LastFrame, in plan);
 
             _ctx.LocalInputQueue ??= new BattleLocalInputQueue();
             var submitter = new BattleInputSubmitter(_ctx, playerId, worldId);

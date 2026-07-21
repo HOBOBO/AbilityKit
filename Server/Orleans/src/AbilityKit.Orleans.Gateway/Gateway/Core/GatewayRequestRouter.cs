@@ -9,13 +9,16 @@ namespace AbilityKit.Orleans.Gateway.Core;
 public sealed class GatewayRequestRouter : IGatewayRequestRouter
 {
     private readonly IGatewayHandlerRegistry _registry;
+    private readonly ILogger<GatewayRequestRouter> _logger;
     private readonly int _requestTimeoutMs;
 
     public GatewayRequestRouter(
         IGatewayHandlerRegistry registry,
-        IOptions<GatewayOptions> options)
+        IOptions<GatewayOptions> options,
+        ILogger<GatewayRequestRouter> logger)
     {
         _registry = registry;
+        _logger = logger;
         _requestTimeoutMs = options.Value.RequestTimeoutMs;
     }
 
@@ -41,12 +44,26 @@ public sealed class GatewayRequestRouter : IGatewayRequestRouter
         {
             return await handler.HandleAsync(request, context, cts.Token);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
+            _logger.LogWarning(
+                exception,
+                "Gateway request timed out. OpCode={OpCode}, Seq={Seq}, ConnectionId={ConnectionId}, PayloadLength={PayloadLength}",
+                opCode,
+                seq,
+                context.ConnectionId,
+                payload.Length);
             return GatewayResponse.Error(seq, GatewayStatusCode.Timeout);
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            _logger.LogError(
+                exception,
+                "Gateway request failed. OpCode={OpCode}, Seq={Seq}, ConnectionId={ConnectionId}, PayloadLength={PayloadLength}",
+                opCode,
+                seq,
+                context.ConnectionId,
+                payload.Length);
             return GatewayResponse.Error(seq, GatewayStatusCode.Exception);
         }
     }

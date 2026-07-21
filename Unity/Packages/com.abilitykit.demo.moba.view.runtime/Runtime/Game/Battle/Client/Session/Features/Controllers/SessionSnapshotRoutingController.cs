@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using AbilityKit.Ability.Host;
+using AbilityKit.Core.Logging;
 using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Game.Battle;
 
@@ -32,6 +34,8 @@ namespace AbilityKit.Game.Flow
             handles.Snapshot.Routing = enabledRegistryIds == null
                 ? SnapshotRoutingBuilder.Build(ctx, handles.Snapshot.Snapshots, catalog.Registries)
                 : SnapshotRoutingBuilder.Build(ctx, handles.Snapshot.Snapshots, catalog.Registries, enabledRegistryIds);
+            Log.Info(
+                $"[SessionSnapshotRoutingController] Built. dispatcher={RuntimeHelpers.GetHashCode(handles.Snapshot.Snapshots)}, routing={RuntimeHelpers.GetHashCode(handles.Snapshot.Routing)}, enabled={(enabledRegistryIds == null ? "all" : string.Join(",", enabledRegistryIds))}");
 
             handles.Snapshot.Pipeline = handles.Snapshot.Routing.Pipeline;
             handles.Snapshot.CmdHandler = handles.Snapshot.Routing.CmdHandler;
@@ -56,6 +60,12 @@ namespace AbilityKit.Game.Flow
             if (session != null && frameReceivedHandler != null)
             {
                 session.FrameReceived -= frameReceivedHandler;
+            }
+
+            if (handles.Snapshot.Routing != null || handles.Snapshot.Snapshots != null)
+            {
+                Log.Info(
+                    $"[SessionSnapshotRoutingController] Disposing. dispatcher={(handles.Snapshot.Snapshots == null ? "null" : RuntimeHelpers.GetHashCode(handles.Snapshot.Snapshots).ToString())}, routing={(handles.Snapshot.Routing == null ? "null" : RuntimeHelpers.GetHashCode(handles.Snapshot.Routing).ToString())}");
             }
 
             handles.Snapshot.Routing?.Dispose();

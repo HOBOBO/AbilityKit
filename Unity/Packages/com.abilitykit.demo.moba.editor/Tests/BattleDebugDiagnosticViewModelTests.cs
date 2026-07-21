@@ -260,23 +260,290 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(viewModel.StatusMessage, Is.Empty);
         }
 
+        [Test]
+        public void TraceCacheKey_IncludesScopeRevisionAndRootButIgnoresOtherRevisions()
+        {
+            var session = new RecordingSession { TraceNodes = new[] { TraceNode(100, 100, 0, "Root") } };
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+
+            viewModel.RefreshIfNeeded(session, 100);
+            viewModel.RefreshIfNeeded(session, 100);
+            Assert.That(session.TraceQueryCount, Is.EqualTo(1));
+
+            session.EventStoreRevision++;
+            session.StateStoreRevision++;
+            viewModel.RefreshIfNeeded(session, 100);
+            Assert.That(session.TraceQueryCount, Is.EqualTo(1));
+
+            session.TraceStoreRevision++;
+            viewModel.RefreshIfNeeded(session, 100);
+            viewModel.RefreshIfNeeded(session, 200);
+
+            Assert.That(session.TraceQueryCount, Is.EqualTo(3));
+            Assert.That(session.LastTraceRootContextId, Is.EqualTo(200));
+
+            var otherSession = new RecordingSession(2) { TraceNodes = session.TraceNodes };
+            viewModel.RefreshIfNeeded(otherSession, 200);
+            Assert.That(otherSession.TraceQueryCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Trace_ProjectsDepthOrphansAndSelectedParentPath()
+        {
+            var session = new RecordingSession
+            {
+                TraceNodes = new[]
+                {
+                    TraceNode(100, 100, 0, "Root"),
+                    TraceNode(100, 110, 100, "Skill"),
+                    TraceNode(100, 111, 110, "Effect"),
+                    TraceNode(100, 120, 999, "Orphan")
+                }
+            };
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+
+            viewModel.RefreshIfNeeded(session, 100);
+
+            Assert.That(viewModel.Rows.Count, Is.EqualTo(4));
+            Assert.That(viewModel.Rows[0].Depth, Is.EqualTo(0));
+            Assert.That(viewModel.Rows[1].Depth, Is.EqualTo(1));
+            Assert.That(viewModel.Rows[2].Depth, Is.EqualTo(2));
+            Assert.That(viewModel.Rows[3].Depth, Is.EqualTo(0));
+            Assert.That(viewModel.Rows[3].IsOrphan, Is.True);
+            Assert.That(viewModel.SelectedContextId, Is.EqualTo(100));
+
+            Assert.That(viewModel.SelectContext(111), Is.True);
+            Assert.That(viewModel.SelectedPath.Count, Is.EqualTo(3));
+            Assert.That(viewModel.SelectedPath[0].ContextId, Is.EqualTo(100));
+            Assert.That(viewModel.SelectedPath[1].ContextId, Is.EqualTo(110));
+            Assert.That(viewModel.SelectedPath[2].ContextId, Is.EqualTo(111));
+            Assert.That(viewModel.SelectContext(999), Is.False);
+        }
+
+        [Test]
+        public void TraceRevision_WhenSelectedNodeDisappears_FallsBackToRoot()
+        {
+            var session = new RecordingSession
+            {
+                TraceNodes = new[]
+                {
+                    TraceNode(100, 100, 0, "Root"),
+                    TraceNode(100, 110, 100, "Child")
+                }
+            };
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+            viewModel.RefreshIfNeeded(session, 100);
+            viewModel.SelectContext(110);
+
+            session.TraceStoreRevision++;
+            session.TraceNodes = new[] { TraceNode(100, 100, 0, "Root") };
+            viewModel.RefreshIfNeeded(session, 100);
+
+            Assert.That(viewModel.SelectedContextId, Is.EqualTo(100));
+            Assert.That(viewModel.SelectedPath.Count, Is.EqualTo(1));
+            Assert.That(viewModel.SelectedPath[0].ContextId, Is.EqualTo(100));
+        }
+
+        [Test]
+        public void TraceUnavailable_ClearsPreviousRowsSelectionAndPath()
+        {
+            var session = new RecordingSession { TraceNodes = new[] { TraceNode(100, 100, 0, "Root") } };
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+            viewModel.RefreshIfNeeded(session, 100);
+            Assert.That(viewModel.Rows.Count, Is.EqualTo(1));
+
+            session.TraceStoreRevision++;
+            session.TraceNodes = null;
+            session.TraceAvailability = BattleDiagnosticDataAvailability.Evicted;
+            viewModel.RefreshIfNeeded(session, 100);
+
+            Assert.That(viewModel.Rows, Is.Empty);
+            Assert.That(viewModel.SelectedPath, Is.Empty);
+            Assert.That(viewModel.SelectedContextId, Is.Zero);
+            Assert.That(viewModel.StatusMessage, Does.Contain("Evicted"));
+        }
+
+        [Test]
+        public void Trace_CyclicParents_DoNotRecurseForever()
+        {
+            var session = new RecordingSession
+            {
+                TraceNodes = new[]
+                {
+                    TraceNode(100, 100, 110, "A"),
+                    TraceNode(100, 110, 100, "B")
+                }
+            };
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+
+            Assert.DoesNotThrow(() => viewModel.RefreshIfNeeded(session, 100));
+            Assert.That(viewModel.Rows.Count, Is.EqualTo(2));
+            Assert.That(viewModel.SelectContext(110), Is.True);
+            Assert.That(viewModel.SelectedPath.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void TraceSearch_IncludesMatchesAndAncestors_AndIgnoresCollapse()
+        {
+            var session = new RecordingSession
+            {
+                TraceNodes = new[]
+                {
+                    TraceNode(100, 100, 0, "Root"),
+                    TraceNode(100, 110, 100, "Skill"),
+                    TraceNode(100, 111, 110, "DamageEffect"),
+                    TraceNode(100, 120, 100, "Unrelated")
+                }
+            };
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+            viewModel.RefreshIfNeeded(session, 100);
+            viewModel.ToggleCollapsed(100);
+
+            Assert.That(viewModel.VisibleRows.Count, Is.EqualTo(1));
+
+            viewModel.SetSearchText("damage");
+
+            Assert.That(viewModel.SearchMatchCount, Is.EqualTo(1));
+            Assert.That(viewModel.VisibleRows.Count, Is.EqualTo(3));
+            Assert.That(viewModel.VisibleRows[0].Node.ContextId, Is.EqualTo(100));
+            Assert.That(viewModel.VisibleRows[1].Node.ContextId, Is.EqualTo(110));
+            Assert.That(viewModel.VisibleRows[2].Node.ContextId, Is.EqualTo(111));
+            Assert.That(viewModel.IsSearchMatch(111), Is.True);
+            Assert.That(viewModel.IsSearchMatch(110), Is.False);
+
+            viewModel.SetSearchText(string.Empty);
+            Assert.That(viewModel.VisibleRows.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TraceSearchNavigation_SelectsDirectMatchesAndWraps()
+        {
+            var session = new RecordingSession
+            {
+                TraceNodes = new[]
+                {
+                    TraceNode(100, 100, 0, "Root"),
+                    TraceNode(100, 110, 100, "DamageSkill"),
+                    TraceNode(100, 111, 110, "DamageEffect"),
+                    TraceNode(100, 120, 100, "Unrelated")
+                }
+            };
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+            viewModel.RefreshIfNeeded(session, 100);
+            viewModel.SetSearchText("damage");
+
+            Assert.That(viewModel.SelectSearchMatch(1), Is.True);
+            Assert.That(viewModel.SelectedContextId, Is.EqualTo(110));
+            Assert.That(viewModel.SelectSearchMatch(1), Is.True);
+            Assert.That(viewModel.SelectedContextId, Is.EqualTo(111));
+            Assert.That(viewModel.SelectSearchMatch(1), Is.True);
+            Assert.That(viewModel.SelectedContextId, Is.EqualTo(110));
+            Assert.That(viewModel.SelectSearchMatch(-1), Is.True);
+            Assert.That(viewModel.SelectedContextId, Is.EqualTo(111));
+            Assert.That(viewModel.GetVisibleRowIndex(111), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void TraceCollapseAll_PreservesSelectedPath_AndExpandAllRestoresRows()
+        {
+            var session = new RecordingSession
+            {
+                TraceNodes = new[]
+                {
+                    TraceNode(100, 100, 0, "Root"),
+                    TraceNode(100, 110, 100, "Skill"),
+                    TraceNode(100, 111, 110, "SelectedEffect"),
+                    TraceNode(100, 120, 100, "OtherBranch"),
+                    TraceNode(100, 121, 120, "OtherChild")
+                }
+            };
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+            viewModel.RefreshIfNeeded(session, 100);
+            viewModel.SelectContext(111);
+
+            viewModel.CollapseAllPreservingSelection();
+
+            Assert.That(viewModel.VisibleRows.Count, Is.EqualTo(4));
+            Assert.That(viewModel.GetVisibleRowIndex(111), Is.EqualTo(2));
+            Assert.That(viewModel.IsCollapsed(100), Is.False);
+            Assert.That(viewModel.IsCollapsed(110), Is.False);
+            Assert.That(viewModel.IsCollapsed(120), Is.True);
+            Assert.That(viewModel.CollapsedBranchCount, Is.EqualTo(1));
+
+            viewModel.ExpandAll();
+            Assert.That(viewModel.VisibleRows.Count, Is.EqualTo(5));
+            Assert.That(viewModel.CollapsedBranchCount, Is.Zero);
+        }
+
+        [Test]
+        public void TracePin_ReturnsToPinnedNode_AndReportsEvictedNodeUnavailable()
+        {
+            var session = new RecordingSession
+            {
+                TraceNodes = new[]
+                {
+                    TraceNode(100, 100, 0, "Root"),
+                    TraceNode(100, 110, 100, "Skill")
+                }
+            };
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+            viewModel.RefreshIfNeeded(session, 100);
+            viewModel.SelectContext(110);
+            viewModel.PinSelection();
+            viewModel.SelectContext(100);
+
+            Assert.That(viewModel.PinnedContextId, Is.EqualTo(110));
+            Assert.That(viewModel.SelectPinned(), Is.True);
+            Assert.That(viewModel.SelectedContextId, Is.EqualTo(110));
+
+            session.TraceStoreRevision++;
+            session.TraceNodes = new[] { TraceNode(100, 100, 0, "Root") };
+            viewModel.RefreshIfNeeded(session, 100);
+
+            Assert.That(viewModel.PinnedContextId, Is.EqualTo(110));
+            Assert.That(viewModel.IsPinnedContextAvailable, Is.False);
+            Assert.That(viewModel.SelectPinned(), Is.False);
+        }
+
+        private static BattleDiagnosticTraceNodeSummary TraceNode(
+            long rootContextId,
+            long contextId,
+            long parentContextId,
+            string kind)
+        {
+            return new BattleDiagnosticTraceNodeSummary(
+                RecordingSession.Scope,
+                rootContextId,
+                contextId,
+                parentContextId,
+                1,
+                -1,
+                BattleDiagnosticTraceNodeState.Active,
+                kind: kind);
+        }
+
         private sealed class RecordingSession : IBattleDiagnosticReadOnlySession
         {
             internal static readonly BattleDiagnosticSessionScope Scope =
                 new BattleDiagnosticSessionScope("test", "world", 1);
 
-            public BattleDiagnosticSessionInfo SessionInfo { get; } =
-                new BattleDiagnosticSessionInfo(
-                    Scope,
+            public RecordingSession(int worldInstanceId = 1)
+            {
+                SessionInfo = new BattleDiagnosticSessionInfo(
+                    new BattleDiagnosticSessionScope("test", "world", worldInstanceId),
                     "test",
                     string.Empty,
                     1,
                     1,
                     BattleDiagnosticCapabilities.WorldState |
                     BattleDiagnosticCapabilities.ActorState |
-                    BattleDiagnosticCapabilities.Events,
+                    BattleDiagnosticCapabilities.Events |
+                    BattleDiagnosticCapabilities.Trace,
                     BattleDiagnosticConnectionState.Connected,
                     BattleDiagnosticCaptureState.Capturing);
+            }
+
+            public BattleDiagnosticSessionInfo SessionInfo { get; }
 
             public long EventStoreRevision { get; set; }
             public long StateStoreRevision { get; set; }
@@ -288,6 +555,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public IReadOnlyList<BattleDiagnosticActorSummary> Actors { get; set; }
             public IReadOnlyList<BattleDiagnosticActorTag> Tags { get; set; }
             public IReadOnlyList<BattleDiagnosticActorEffect> Effects { get; set; }
+            public IReadOnlyList<BattleDiagnosticTraceNodeSummary> TraceNodes { get; set; }
+            public BattleDiagnosticDataAvailability TraceAvailability { get; set; } =
+                BattleDiagnosticDataAvailability.NotProduced;
+            public bool TraceTruncated { get; set; }
             public long StoreRevision => EventStoreRevision;
             public int EventQueryCount { get; private set; }
             public int WorldQueryCount { get; private set; }
@@ -297,6 +568,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public int BuffQueryCount { get; private set; }
             public int TagQueryCount { get; private set; }
             public int EffectQueryCount { get; private set; }
+            public int TraceQueryCount { get; private set; }
+            public long LastTraceRootContextId { get; private set; }
             public int LastWorldFrame { get; private set; }
             public int LastActorFrame { get; private set; }
             public int LastAttributeFrame { get; private set; }
@@ -353,10 +626,21 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 long requestId,
                 long rootContextId)
             {
+                TraceQueryCount++;
+                LastTraceRootContextId = rootContextId;
+                if (TraceNodes != null)
+                {
+                    return BattleDiagnosticQueryResult<BattleDiagnosticTraceNodeSummary>.FromItems(
+                        requestId,
+                        TraceStoreRevision,
+                        new List<BattleDiagnosticTraceNodeSummary>(TraceNodes),
+                        TraceTruncated);
+                }
+
                 return BattleDiagnosticQueryResult<BattleDiagnosticTraceNodeSummary>.Unavailable(
                     requestId,
                     TraceStoreRevision,
-                    BattleDiagnosticDataAvailability.NotProduced);
+                    TraceAvailability);
             }
 
             public BattleDiagnosticQueryResult<BattleDiagnosticActorAttribute> QueryActorAttributes(

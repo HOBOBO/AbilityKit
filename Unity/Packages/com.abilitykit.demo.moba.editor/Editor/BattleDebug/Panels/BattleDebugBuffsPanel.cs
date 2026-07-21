@@ -5,10 +5,12 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
-    internal sealed class BattleDebugBuffsPanel : IBattleDebugPanel
+    internal sealed class BattleDebugBuffsPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         public string Name => "Buff";
         public int Order => 250;
+        public BattleDebugWorkspace Workspace => BattleDebugWorkspace.Actor;
+        public bool OwnsScrollView => true;
 
         private readonly BattleDebugDiagnosticBuffsViewModel _viewModel =
             new BattleDebugDiagnosticBuffsViewModel();

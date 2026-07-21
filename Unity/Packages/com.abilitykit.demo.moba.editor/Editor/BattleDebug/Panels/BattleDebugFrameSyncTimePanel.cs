@@ -6,10 +6,12 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
-    internal sealed class BattleDebugFrameSyncTimePanel : IBattleDebugPanel
+    internal sealed class BattleDebugFrameSyncTimePanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         public string Name => "帧同步/时间";
         public int Order => 54;
+        public BattleDebugWorkspace Workspace => BattleDebugWorkspace.Diagnostics;
+        public bool OwnsScrollView => false;
 
         public bool IsVisible(in BattleDebugContext ctx)
         {

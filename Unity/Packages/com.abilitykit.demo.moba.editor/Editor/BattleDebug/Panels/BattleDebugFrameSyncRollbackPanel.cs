@@ -4,10 +4,12 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
-    internal sealed class BattleDebugFrameSyncRollbackPanel : IBattleDebugPanel
+    internal sealed class BattleDebugFrameSyncRollbackPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         public string Name => "帧同步/回滚";
         public int Order => 52;
+        public BattleDebugWorkspace Workspace => BattleDebugWorkspace.Diagnostics;
+        public bool OwnsScrollView => false;
 
         public bool IsVisible(in BattleDebugContext ctx)
         {

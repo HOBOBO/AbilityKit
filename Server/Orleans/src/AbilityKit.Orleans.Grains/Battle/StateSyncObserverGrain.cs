@@ -11,7 +11,7 @@ namespace AbilityKit.Orleans.Grains.Battle;
 /// 状态同步 Observer Grain
 /// 桥接 BattleLogicHostGrain 和 Gateway，负责向客户端推送状态快照
 /// </summary>
-public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
+public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, IStateSyncObserverLifecycleGrain
 {
     internal const int ReliableEventQueueCapacity = 512;
 
@@ -23,6 +23,8 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
     private SnapshotSendQueue<OutboundSnapshot>? _sendQueue;
     private IDisposable? _drainTimer;
     private string _observerKey = string.Empty;
+    private string _activationToken = string.Empty;
+    private long _activatedAtUtcTicks;
     private string _accountId = string.Empty;
     private string _roomId = string.Empty;
 
@@ -38,13 +40,18 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
     {
         var key = this.GetPrimaryKeyString();
         _observerKey = key;
-        _sendQueue = CreateSendQueue(DateTime.UtcNow.Ticks);
+        _activationToken = Guid.NewGuid().ToString("N");
+        _activatedAtUtcTicks = DateTime.UtcNow.Ticks;
+        _sendQueue = CreateSendQueue(_activatedAtUtcTicks);
         _drainTimer = RegisterTimer(
             _ => DrainQueueAsync(),
             state: null,
             dueTime: _runtimeSettings.DrainInterval,
             period: _runtimeSettings.DrainInterval);
-        _logger.LogInformation("[StateSyncObserver] Activated with key: {Key}", key);
+        _logger.LogInformation(
+            "[StateSyncObserver] Activated with key: {Key}, ActivationToken: {ActivationToken}",
+            key,
+            _activationToken);
 
         // key 格式: "accountId:roomId"
         var parts = key.Split(':');
@@ -200,6 +207,32 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
             BaselineAgeTicks = metrics.BaselineAgeTicks,
             ResyncCount = metrics.ResyncCount
         });
+    }
+
+    public Task<StateSyncObserverActivationInfo> GetActivationInfoAsync()
+    {
+        return Task.FromResult(CreateActivationInfo());
+    }
+
+    public Task<StateSyncObserverActivationInfo> RequestDeactivationAsync()
+    {
+        var activation = CreateActivationInfo();
+        _logger.LogInformation(
+            "[StateSyncObserver] Controlled deactivation requested. ObserverKey: {ObserverKey}, ActivationToken: {ActivationToken}",
+            _observerKey,
+            _activationToken);
+        DeactivateOnIdle();
+        return Task.FromResult(activation);
+    }
+
+    private StateSyncObserverActivationInfo CreateActivationInfo()
+    {
+        return new StateSyncObserverActivationInfo
+        {
+            ObserverKey = _observerKey,
+            ActivationToken = _activationToken,
+            ActivatedAtUtcTicks = _activatedAtUtcTicks
+        };
     }
 
     private StateSyncObserverInfo CreateObserverInfo()

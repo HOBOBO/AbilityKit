@@ -22,7 +22,8 @@ namespace AbilityKit.Game.Flow
         {
             _ctx.InputRecordWriter?.Append(in cmd);
             _ctx.Session.SubmitInput(new SubmitInputRequest(_worldId, cmd));
-            _ctx.LocalInputQueue.Enqueue(new LocalPlayerInputEvent(_playerId, cmd.OpCode, cmd.Payload));
+            (_ctx.LocalInputQueue ??= new BattleLocalInputQueue())
+                .Enqueue(new LocalPlayerInputEvent(_playerId, cmd.OpCode, cmd.Payload));
         }
     }
 }

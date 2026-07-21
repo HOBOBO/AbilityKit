@@ -21,6 +21,30 @@ namespace AbilityKit.Game.Flow
             return Create(frame, playerId, MobaOpCodes.Input.SkillInput, SkillInputCodec.Serialize(in evt));
         }
 
+        public static PlayerInputCommand CreateDebugSpawnUnit(
+            int frame,
+            PlayerId playerId,
+            MobaDebugSpawnUnitRelation relation)
+        {
+            return Create(
+                frame,
+                playerId,
+                MobaOpCodes.Input.DebugSpawnUnit,
+                MobaDebugSpawnUnitCodec.Serialize(relation));
+        }
+
+        public static PlayerInputCommand CreateDebugReplaceHero(
+            int frame,
+            PlayerId playerId,
+            int heroId)
+        {
+            return Create(
+                frame,
+                playerId,
+                MobaOpCodes.Input.DebugReplaceHero,
+                MobaDebugReplaceHeroCodec.Serialize(heroId));
+        }
+
         public static PlayerInputCommand CreateSkillAimRelease(
             int frame,
             PlayerId playerId,

@@ -140,9 +140,8 @@ namespace AbilityKit.Game.Flow
         private bool TryResolveMappedLocalActorId(out int actorId)
         {
             actorId = 0;
-            if (Session == null ||
-                !Session.TryGetWorld(out var world) ||
-                world?.Services == null ||
+            if (!TryGetRuntimeWorld(out var world) ||
+                world.Services == null ||
                 !world.Services.TryResolve<MobaPlayerActorMapService>(out var playerActors) ||
                 playerActors == null)
             {

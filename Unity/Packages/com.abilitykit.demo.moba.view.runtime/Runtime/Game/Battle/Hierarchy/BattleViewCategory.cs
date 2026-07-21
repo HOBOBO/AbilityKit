@@ -12,7 +12,8 @@ namespace AbilityKit.Game.Battle.Hierarchy
     ///   │   ├── _Vfx           // BattleVfxGameObjectPool buckets
     ///   │   ├── _Area          // BattleAreaVfxPool buckets (Model / Range / Vfx kinds)
     ///   │   ├── _Projectile    // BattleProjectileShellPool buckets
-    ///   │   └── _Hud           // HUD-related pooled UI elements
+    ///   │   ├── _FloatingText  // pooled world-space combat text
+    ///   │   └── _Hud           // other HUD-related pooled UI elements
     ///   ├── _Active/        // currently rented, live GameObjects
     ///   │   ├── _Character     // hero / player shells
     ///   │   ├── _Projectile    // active projectiles
@@ -21,7 +22,8 @@ namespace AbilityKit.Game.Battle.Hierarchy
     ///   │   ├── _Monster       // jungle creeps
     ///   │   ├── _Building      // buildings
     ///   │   ├── _Area          // live area effects
-    ///   │   └── _Vfx           // live VFX entities
+    ///   │   ├── _Vfx           // live VFX entities
+    ///   │   └── _FloatingText  // live world-space combat text
     ///   └── _Debug/         // editor-only visualization helpers
     /// </code>
     /// </summary>
@@ -44,8 +46,11 @@ namespace AbilityKit.Game.Battle.Hierarchy
         /// <summary>Pooled projectile shells (BattleProjectileShellPool buckets).</summary>
         PoolProjectile = 103,
 
-        /// <summary>Pooled HUD UI elements (floating text, buffs, etc.).</summary>
+        /// <summary>Pooled HUD UI elements (buffs, indicators, etc.).</summary>
         PoolHud = 104,
+
+        /// <summary>Pooled world-space combat floating text.</summary>
+        PoolFloatingText = 105,
 
         // ---- Active (live) categories ----
 
@@ -75,6 +80,9 @@ namespace AbilityKit.Game.Battle.Hierarchy
 
         /// <summary>Live VFX entities (skill VFX, hit flashes, attached VFX).</summary>
         ActiveVfx = 208,
+
+        /// <summary>Live world-space combat floating text.</summary>
+        ActiveFloatingText = 209,
 
         // ---- Misc ----
 
@@ -106,11 +114,12 @@ namespace AbilityKit.Game.Battle.Hierarchy
             switch (category)
             {
                 // Pool
-                case BattleViewCategory.PoolShell:     return new[] { PoolRoot, "_Shell" };
-                case BattleViewCategory.PoolVfx:       return new[] { PoolRoot, "_Vfx" };
-                case BattleViewCategory.PoolArea:      return new[] { PoolRoot, "_Area" };
-                case BattleViewCategory.PoolProjectile: return new[] { PoolRoot, "_Projectile" };
-                case BattleViewCategory.PoolHud:       return new[] { PoolRoot, "_Hud" };
+                case BattleViewCategory.PoolShell:        return new[] { PoolRoot, "_Shell" };
+                case BattleViewCategory.PoolVfx:          return new[] { PoolRoot, "_Vfx" };
+                case BattleViewCategory.PoolArea:         return new[] { PoolRoot, "_Area" };
+                case BattleViewCategory.PoolProjectile:   return new[] { PoolRoot, "_Projectile" };
+                case BattleViewCategory.PoolHud:          return new[] { PoolRoot, "_Hud" };
+                case BattleViewCategory.PoolFloatingText: return new[] { PoolRoot, "_FloatingText" };
 
                 // Active
                 case BattleViewCategory.ActiveCharacter:  return new[] { ActiveRoot, "_Character" };
@@ -120,8 +129,9 @@ namespace AbilityKit.Game.Battle.Hierarchy
                 case BattleViewCategory.ActiveTurret:     return new[] { ActiveRoot, "_Turret" };
                 case BattleViewCategory.ActiveMonster:    return new[] { ActiveRoot, "_Monster" };
                 case BattleViewCategory.ActiveBuilding:   return new[] { ActiveRoot, "_Building" };
-                case BattleViewCategory.ActiveArea:       return new[] { ActiveRoot, "_Area" };
-                case BattleViewCategory.ActiveVfx:        return new[] { ActiveRoot, "_Vfx" };
+                case BattleViewCategory.ActiveArea:         return new[] { ActiveRoot, "_Area" };
+                case BattleViewCategory.ActiveVfx:          return new[] { ActiveRoot, "_Vfx" };
+                case BattleViewCategory.ActiveFloatingText: return new[] { ActiveRoot, "_FloatingText" };
 
                 // Debug
                 case BattleViewCategory.Debug: return new[] { DebugRoot, "_Inspector" };

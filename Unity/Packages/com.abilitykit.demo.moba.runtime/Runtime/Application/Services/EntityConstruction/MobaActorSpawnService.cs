@@ -125,6 +125,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 spec = WithActorId(in spec, _actorIds.Next());
             }
 
+            global::ActorEntity entity = null;
             try
             {
                 var built = ActorSpawnPipeline.BuildActor(
@@ -133,7 +134,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                     request.Initializer,
                     request.OnActorBuilt);
 
-                var entity = built.Entity;
+                entity = built.Entity;
                 if (entity == null)
                 {
                     result = MobaActorSpawnResult.Failed("spawn returned null entity");
@@ -148,6 +149,9 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             }
             catch (Exception ex)
             {
+                _entities?.Unregister(spec.Info.ActorId);
+                _registry?.Unregister(spec.Info.ActorId);
+                ActorSpawnPipeline.DestroyBuiltEntity(entity);
                 Log.Exception(ex, $"[MobaActorSpawnService] spawn failed. kind={spec.Info.Kind} actorId={spec.Info.ActorId} sourceKind={spec.SourceKind} sourceId={spec.SourceId}");
                 result = MobaActorSpawnResult.Failed(ex.Message);
                 return false;

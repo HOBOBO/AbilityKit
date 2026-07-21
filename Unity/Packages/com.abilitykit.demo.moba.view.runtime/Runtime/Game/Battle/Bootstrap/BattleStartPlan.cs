@@ -63,7 +63,8 @@ namespace AbilityKit.Game.Flow
                 idealFrameSafetyMinMarginFrames: options.TimeSync.IdealFrameSafetyMinMarginFrames,
                 idealFrameSafetyMaxMarginFrames: options.TimeSync.IdealFrameSafetyMaxMarginFrames,
                 enabledSnapshotRegistryIds: options.EnabledSnapshotRegistryIds,
-                launchSpec: options.LaunchSpec)
+                launchSpec: options.LaunchSpec,
+                gatewayBattleId: options.Gateway.BattleId)
         {
         }
 
@@ -135,7 +136,8 @@ namespace AbilityKit.Game.Flow
                 idealFrameSafetyMinMarginFrames: TimeSync.IdealFrameSafetyMinMarginFrames,
                 idealFrameSafetyMaxMarginFrames: TimeSync.IdealFrameSafetyMaxMarginFrames,
                 enabledSnapshotRegistryIds: Sync.EnabledSnapshotRegistryIds,
-                launchSpec: LaunchSpec);
+                launchSpec: LaunchSpec,
+                gatewayBattleId: Gateway.BattleId);
         }
 
         public BattleStartPlan WithGatewayRoom(string worldId, ulong numericRoomId)
@@ -184,7 +186,8 @@ namespace AbilityKit.Game.Flow
                 idealFrameSafetyMinMarginFrames: TimeSync.IdealFrameSafetyMinMarginFrames,
                 idealFrameSafetyMaxMarginFrames: TimeSync.IdealFrameSafetyMaxMarginFrames,
                 enabledSnapshotRegistryIds: Sync.EnabledSnapshotRegistryIds,
-                launchSpec: LaunchSpec);
+                launchSpec: LaunchSpec,
+                gatewayBattleId: Gateway.BattleId);
         }
 
         public BattleStartPlan(
@@ -231,7 +234,8 @@ namespace AbilityKit.Game.Flow
             int idealFrameSafetyMinMarginFrames = 0,
             int idealFrameSafetyMaxMarginFrames = 30,
             string[] enabledSnapshotRegistryIds = null,
-            MobaBattleLaunchSpec launchSpec = default)
+            MobaBattleLaunchSpec launchSpec = default,
+            string gatewayBattleId = "")
         {
             World = new BattleStartPlanWorldOptions(
                 worldId,
@@ -254,7 +258,8 @@ namespace AbilityKit.Game.Flow
                 gatewayAutoJoinRoom,
                 gatewayJoinRoomId,
                 gatewayCreateRoomOpCode,
-                gatewayJoinRoomOpCode);
+                gatewayJoinRoomOpCode,
+                gatewayBattleId);
             Auto = new BattleStartPlanAutoOptions(autoConnect, autoCreateWorld, autoJoin, autoReady);
             RunModeOptions = new BattleStartPlanRunModeOptions(
                 runMode,

@@ -1,4 +1,5 @@
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Battle.Hierarchy;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -11,10 +12,14 @@ namespace AbilityKit.Game.Flow
     public sealed class PooledBattleViewShellLoader : IBattleViewShellLoader
     {
         private readonly BattleViewShellPool _pool;
+        private readonly BattleViewHierarchyManager _hierarchy;
 
-        public PooledBattleViewShellLoader(BattleViewShellPool pool)
+        public PooledBattleViewShellLoader(
+            BattleViewShellPool pool,
+            BattleViewHierarchyManager hierarchy = null)
         {
             _pool = pool;
+            _hierarchy = hierarchy;
         }
 
         public GameObject CreateShellGameObject(int actorId, int modelId)
@@ -35,11 +40,17 @@ namespace AbilityKit.Game.Flow
             if (modelId <= 0) return null;
             if (_pool == null) return null;
 
-            // All entity kinds share the same shell pool keyed by modelId.
+            // All entity kinds share the same shell pool keyed by modelId. Renting
+            // moves the shell out of its inactive model bucket into its semantic type.
             var instance = _pool.Get(modelId);
             if (instance != null)
             {
                 instance.name = $"Shell_{kind}_{modelId}_{actorId}";
+                var category = BattleViewCategoryPaths.FromEntityKind(kind);
+                if (category != BattleViewCategory.Unknown)
+                {
+                    _hierarchy?.ParentActive(category, instance);
+                }
             }
             return instance;
         }

@@ -57,12 +57,27 @@ namespace AbilityKit.Game.Battle.Hierarchy
             _providers.Remove(provider);
         }
 
+        /// <summary>
+        /// Clears all registered providers. Called by feature <c>OnDetach</c>
+        /// before the hierarchy root is released, ensuring no dangling references
+        /// remain when the overlay's parent GameObject is destroyed.
+        /// </summary>
+        public void ClearAllProviders()
+        {
+            _providers.Clear();
+        }
+
         private void OnEnable()
         {
             _root = GetComponentInParent<BattleViewHierarchyRoot>();
             if (_root != null)
             {
                 _originalName = _root.gameObject.name;
+            }
+            // Guard against negative interval values: treat any negative as "refresh once".
+            if (_refreshInterval < 0f)
+            {
+                _refreshInterval = 0f;
             }
         }
 

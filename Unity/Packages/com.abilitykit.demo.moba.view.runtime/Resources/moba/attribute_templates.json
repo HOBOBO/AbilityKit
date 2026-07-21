@@ -1,6 +1,7 @@
 [
   {
     "Id": 1001,
+    "BasicAttackSkillId": 10010001,
     "ActiveSkills": [10010101, 10010201, 10010301],
     "PassiveSkills": [10010000],
     "Hp": 50000,
@@ -29,6 +30,7 @@
   },
   {
     "Id": 1002,
+    "BasicAttackSkillId": 10020001,
     "ActiveSkills": [10020101, 10020201, 10020301],
     "PassiveSkills": [10020000],
     "Hp": 50000,
@@ -57,6 +59,7 @@
   },
   {
     "Id": 1003,
+    "BasicAttackSkillId": 10030001,
     "ActiveSkills": [10030101, 10030201, 10030301],
     "PassiveSkills": [10030000],
     "Hp": 50000,
@@ -85,6 +88,7 @@
   },
   {
     "Id": 1004,
+    "BasicAttackSkillId": 10040011,
     "ActiveSkills": [10040101, 10040201, 10040301],
     "PassiveSkills": [10040000],
     "Hp": 50000,
@@ -113,6 +117,7 @@
   },
   {
     "Id": 1005,
+    "BasicAttackSkillId": 10050001,
     "ActiveSkills": [10050101, 10050201, 10050301],
     "PassiveSkills": [10050000],
     "Hp": 50000,
@@ -141,6 +146,7 @@
   },
   {
     "Id": 1006,
+    "BasicAttackSkillId": 10060001,
     "ActiveSkills": [10060101, 10060201, 10060301],
     "PassiveSkills": [10060000],
     "Hp": 50000,

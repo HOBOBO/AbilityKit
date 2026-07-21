@@ -15,7 +15,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using GatewayNetworking = Gateway::AbilityKit.Orleans.Gateway.Networking;
 
-var tcpPort = ParseTcpPort(args, 41101);
+var tcpPort = ParseIntArgument(args, "--tcp-port", 41101, 1, 65535);
+var hostOnly = HasArgument(args, "--host-only");
+var hostTimeoutSeconds = ParseIntArgument(args, "--host-timeout-seconds", 180, 1, 3600);
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddAbilityKitServerOptions(builder.Configuration);
 builder.Services.AddStateSyncObserverOptions(builder.Configuration);
@@ -43,11 +45,22 @@ try
     transportTask = transport.StartAsync(transportCancellation.Token);
     await WaitForTcpAsync(MobaSmokeConstants.HostAddress, tcpPort, TimeSpan.FromSeconds(10));
 
-    var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, tcpPort, TimeSpan.FromSeconds(20));
-    Console.WriteLine(
-        $"MOBA_SMOKE_PASSED RoomId={result.RoomId} NumericRoomId={result.NumericRoomId} " +
-        $"BattleId={result.BattleId} WorldId={result.WorldId} Phase={result.Phase} " +
-        $"Players={result.PlayerCount} Revision={result.RoomRevision}");
+    if (hostOnly)
+    {
+        Console.WriteLine(
+            $"MOBA_SMOKE_HOST_READY Host={MobaSmokeConstants.HostAddress} Port={tcpPort} " +
+            $"MaxPlayers=1 MinPlayers=1 TimeoutSeconds={hostTimeoutSeconds}");
+        await Task.Delay(TimeSpan.FromSeconds(hostTimeoutSeconds));
+        Console.WriteLine("MOBA_SMOKE_HOST_TIMEOUT");
+    }
+    else
+    {
+        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, tcpPort, TimeSpan.FromSeconds(20));
+        Console.WriteLine(
+            $"MOBA_SMOKE_PASSED RoomId={result.RoomId} NumericRoomId={result.NumericRoomId} " +
+            $"BattleId={result.BattleId} WorldId={result.WorldId} Phase={result.Phase} " +
+            $"Players={result.PlayerCount} Revision={result.RoomRevision}");
+    }
 }
 catch (Exception exception)
 {
@@ -247,15 +260,27 @@ static async Task WaitForTcpAsync(string host, int port, TimeSpan timeout)
     throw new TimeoutException($"TCP Gateway did not listen on {host}:{port} in time.");
 }
 
-static int ParseTcpPort(string[] arguments, int fallback)
+static bool HasArgument(string[] arguments, string name)
+{
+    return arguments.Any(argument =>
+        string.Equals(argument, name, StringComparison.OrdinalIgnoreCase));
+}
+
+static int ParseIntArgument(
+    string[] arguments,
+    string name,
+    int fallback,
+    int minimum,
+    int maximum)
 {
     for (var i = 0; i + 1 < arguments.Length; i++)
     {
-        if (string.Equals(arguments[i], "--tcp-port", StringComparison.OrdinalIgnoreCase) &&
-            int.TryParse(arguments[i + 1], out var port) &&
-            port is > 0 and <= 65535)
+        if (string.Equals(arguments[i], name, StringComparison.OrdinalIgnoreCase) &&
+            int.TryParse(arguments[i + 1], out var value) &&
+            value >= minimum &&
+            value <= maximum)
         {
-            return port;
+            return value;
         }
     }
 

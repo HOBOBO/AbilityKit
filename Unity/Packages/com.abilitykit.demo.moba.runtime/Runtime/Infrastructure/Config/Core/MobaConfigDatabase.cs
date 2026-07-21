@@ -471,6 +471,7 @@ using MotionGroupMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.MotionGroupMO;
         }
 
         public bool TryGetCharacter(int id, out CharacterMO mo) => GetTable<CharacterMO>().TryGet(id, out mo);
+        public IEnumerable<CharacterMO> GetAllCharacters() => GetTable<CharacterMO>().All();
         public bool TryGetSkill(int id, out SkillMO mo) => GetTable<SkillMO>().TryGet(id, out mo);
         public IEnumerable<SkillMO> GetAllSkills() => GetTable<SkillMO>().All();
         public bool TryGetPassiveSkill(int id, out PassiveSkillMO mo) => GetTable<PassiveSkillMO>().TryGet(id, out mo);

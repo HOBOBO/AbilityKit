@@ -215,18 +215,21 @@ namespace AbilityKit.Game.Test.UnitTest
             try
             {
                 controller.Ensure();
-                Assert.IsTrue(binding.RequiresBinding("p1"));
+                Assert.IsTrue(binding.RequiresBinding("p1", loadoutRevision: 0));
                 Assert.IsTrue(controller.ApplySkillButtonTemplates(response, "p1"));
-                binding.MarkBound("p1");
-                Assert.IsFalse(binding.RequiresBinding("p1"));
+                binding.MarkBound("p1", loadoutRevision: 0);
+                Assert.IsFalse(binding.RequiresBinding("p1", loadoutRevision: 0));
+                Assert.IsTrue(
+                    binding.RequiresBinding("p1", loadoutRevision: 1),
+                    "same player must rebind after an authoritative hero loadout change");
                 Assert.AreEqual(SkillAimIndicatorShape.TargetCircle, controller.InputUi.SkillViews[2].Config.IndicatorShape);
 
                 context.LocalControlPlayerId = "p2";
                 context.LocalActorId = 1002;
 
-                Assert.IsTrue(binding.RequiresBinding(context.ResolveLocalControlPlayerId()));
+                Assert.IsTrue(binding.RequiresBinding(context.ResolveLocalControlPlayerId(), loadoutRevision: 1));
                 Assert.IsTrue(controller.ApplySkillButtonTemplates(response, context.ResolveLocalControlPlayerId()));
-                binding.MarkBound(context.ResolveLocalControlPlayerId());
+                binding.MarkBound(context.ResolveLocalControlPlayerId(), loadoutRevision: 1);
 
                 var skill2 = controller.InputUi.SkillViews[1].Config;
                 Assert.IsTrue(skill2.EnableAim);
@@ -239,7 +242,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsFalse(skill3.EnableAim);
                 Assert.AreEqual(SkillAimIndicatorShape.Hidden, skill3.IndicatorShape);
                 Assert.AreEqual(10020301, controller.SkillSpecs[3].SkillId);
-                Assert.IsFalse(binding.RequiresBinding("P2"));
+                Assert.IsFalse(binding.RequiresBinding("P2", loadoutRevision: 1));
             }
             finally
             {

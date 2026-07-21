@@ -11,10 +11,12 @@ namespace AbilityKit.Game.Editor
     /// 持有查询/状态逻辑，本类只负责将 ViewModel 暴露的 DTO 渲染为 IMGUI。
     /// 只消费已定义的诊断查询契约，不建立旁路数据源。
     /// </summary>
-    internal sealed class BattleDebugDiagnosticStatePanel : IBattleDebugPanel
+    internal sealed class BattleDebugDiagnosticStatePanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         public string Name => "诊断状态";
         public int Order => 410;
+        public BattleDebugWorkspace Workspace => BattleDebugWorkspace.Diagnostics;
+        public bool OwnsScrollView => true;
 
         private readonly BattleDebugDiagnosticStateViewModel _viewModel = new BattleDebugDiagnosticStateViewModel();
         private Vector2 _worldScroll;
@@ -39,7 +41,7 @@ namespace AbilityKit.Game.Editor
 
             DrawWorldSummary();
             EditorGUILayout.Space(6);
-            DrawActorList();
+            DrawActorList(in ctx);
         }
 
         private void DrawFrameBar(in BattleDebugContext ctx, IBattleDiagnosticReadOnlySession session)
@@ -100,7 +102,7 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.EndScrollView();
         }
 
-        private void DrawActorList()
+        private void DrawActorList(in BattleDebugContext ctx)
         {
             EditorGUILayout.LabelField("Actor 摘要", EditorStyles.boldLabel);
 
@@ -120,14 +122,16 @@ namespace AbilityKit.Game.Editor
             {
                 for (int i = 0; i < actors.Count; i++)
                 {
-                    DrawActorRow(actors[i]);
+                    DrawActorRow(in ctx, actors[i]);
                 }
             }
 
             EditorGUILayout.EndScrollView();
         }
 
-        private static void DrawActorRow(in BattleDiagnosticActorSummary actor)
+        private void DrawActorRow(
+            in BattleDebugContext ctx,
+            in BattleDiagnosticActorSummary actor)
         {
             var aliveColor = actor.IsAlive ? Color.white : new Color(0.7f, 0.7f, 0.7f);
             var oldColor = GUI.color;
@@ -135,7 +139,12 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.BeginHorizontal(GUI.skin.box);
 
             GUI.color = aliveColor;
-            GUILayout.Label($"#{actor.ActorId}", GUILayout.Width(70));
+            EditorGUI.BeginDisabledGroup(ctx.SelectActor == null);
+            if (GUILayout.Button($"#{actor.ActorId}", EditorStyles.miniButton, GUILayout.Width(70)))
+            {
+                ctx.SelectActor?.Invoke(actor.ActorId);
+            }
+            EditorGUI.EndDisabledGroup();
             GUILayout.Label(actor.Kind.ToString(), GUILayout.Width(70));
             GUI.color = oldColor;
 

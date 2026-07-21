@@ -4,10 +4,12 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
-    internal sealed class BattleDebugFrameSyncNetworkPanel : IBattleDebugPanel
+    internal sealed class BattleDebugFrameSyncNetworkPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         public string Name => "帧同步/网络";
         public int Order => 55;
+        public BattleDebugWorkspace Workspace => BattleDebugWorkspace.Diagnostics;
+        public bool OwnsScrollView => false;
 
         public bool IsVisible(in BattleDebugContext ctx)
         {

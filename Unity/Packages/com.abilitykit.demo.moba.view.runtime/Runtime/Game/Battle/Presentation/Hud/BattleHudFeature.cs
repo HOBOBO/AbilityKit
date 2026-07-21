@@ -112,7 +112,8 @@ namespace AbilityKit.Game.Flow
 
         private void EnsureLocalControlSkillTemplates()
         {
-            if (_skillTemplateBinding.RequiresBinding(ResolveLocalPlayerId()))
+            var revision = _ctx != null ? _ctx.RuntimePlayerLoadoutRevision : 0;
+            if (_skillTemplateBinding.RequiresBinding(ResolveLocalPlayerId(), revision))
             {
                 ApplyLaunchSpecSkillTemplates();
             }
@@ -136,7 +137,7 @@ namespace AbilityKit.Game.Flow
                 launchSpec.RandomSeed,
                 launchSpec.TickRate,
                 launchSpec.InputDelayFrames,
-                playersLoadout: launchSpec.Players);
+                playersLoadout: _ctx.BuildEffectivePlayerLoadouts());
 
             ApplySkillButtonTemplates(res, playerId);
         }
@@ -187,7 +188,9 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            _skillTemplateBinding.MarkBound(playerId);
+            _skillTemplateBinding.MarkBound(
+                playerId,
+                _ctx != null ? _ctx.RuntimePlayerLoadoutRevision : 0);
             _aimPreview?.SetSkillSpecs(_inputController.SkillSpecs);
         }
 
@@ -238,21 +241,28 @@ namespace AbilityKit.Game.Flow
     internal sealed class BattleHudSkillTemplateBindingState
     {
         private string _playerId;
+        private int _loadoutRevision = -1;
 
-        public bool RequiresBinding(string playerId)
+        public bool RequiresBinding(string playerId, int loadoutRevision)
         {
             return !string.IsNullOrEmpty(playerId) &&
-                   !string.Equals(playerId, _playerId, System.StringComparison.OrdinalIgnoreCase);
+                   (!string.Equals(
+                        playerId,
+                        _playerId,
+                        System.StringComparison.OrdinalIgnoreCase) ||
+                    loadoutRevision != _loadoutRevision);
         }
 
-        public void MarkBound(string playerId)
+        public void MarkBound(string playerId, int loadoutRevision)
         {
             _playerId = playerId;
+            _loadoutRevision = loadoutRevision;
         }
 
         public void Reset()
         {
             _playerId = null;
+            _loadoutRevision = -1;
         }
     }
 

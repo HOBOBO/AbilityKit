@@ -6,6 +6,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
     public sealed class BattleAttributeTemplateDTO
     {
         public int Id;
+        public int BasicAttackSkillId;
         public int[] ActiveSkills;
         public int[] PassiveSkills;
         public int Hp;

@@ -41,6 +41,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
 
         private BattleViewHierarchyManager _manager;
         private readonly Dictionary<string, Transform> _pathCache = new Dictionary<string, Transform>(32);
+        private int _leaseCount;
 
         /// <summary>
         /// The manager instance associated with this root. Lazily created on first access.
@@ -52,14 +53,28 @@ namespace AbilityKit.Game.Battle.Hierarchy
                 if (_manager == null)
                 {
                     _manager = new BattleViewHierarchyManager(this);
+                    _manager.EnsureStandardLayout();
                 }
                 return _manager;
             }
         }
 
         /// <summary>
+        /// Acquires the shared battle hierarchy root for a view feature. The final
+        /// matching <see cref="Release"/> destroys the hierarchy and all managed objects.
+        /// </summary>
+        public static BattleViewHierarchyRoot Acquire(string displayName = null)
+        {
+            var root = CreateOrFind(displayName);
+            root._leaseCount++;
+            _ = root.Manager;
+            return root;
+        }
+
+        /// <summary>
         /// Creates a new <see cref="BattleViewHierarchyRoot"/> GameObject at scene root.
         /// Always returns a usable instance (the underlying GameObject may already exist).
+        /// This method does not acquire a lifecycle lease.
         /// </summary>
         public static BattleViewHierarchyRoot CreateOrFind(string displayName = null)
         {
@@ -150,8 +165,33 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Destroy this root and all children. Use this from <c>OnDetach</c>
-        /// to ensure the hierarchy is fully cleaned up.
+        /// Releases one feature lease. The hierarchy is destroyed only after every
+        /// feature that acquired it has released its lease.
+        /// </summary>
+        public void Release()
+        {
+#if UNITY_EDITOR
+            if (_leaseCount <= 0)
+            {
+                Debug.Assert(_leaseCount > 0,
+                    "[BattleViewHierarchyRoot] Release() called with _leaseCount == 0. " +
+                    "Ensure every Acquire() has exactly one matching Release() call.");
+                return;
+            }
+#else
+            if (_leaseCount <= 0) return;
+#endif
+
+            _leaseCount--;
+            if (_leaseCount == 0)
+            {
+                DestroyHierarchy();
+            }
+        }
+
+        /// <summary>
+        /// Unconditionally destroys this root and all children. Prefer
+        /// <see cref="Release"/> for feature lifecycle teardown.
         /// </summary>
         public void DestroyHierarchy()
         {
@@ -159,6 +199,9 @@ namespace AbilityKit.Game.Battle.Hierarchy
             {
                 _manager.DestroyAll();
             }
+            // Clear the path cache so stale transform references do not linger after
+            // a new root is acquired on a subsequent run.
+            _pathCache.Clear();
             if (this != null && gameObject != null)
             {
                 if (Application.isPlaying) Object.Destroy(gameObject);
@@ -189,6 +232,9 @@ namespace AbilityKit.Game.Battle.Hierarchy
         /// editor windows; the value is not used at runtime.
         /// </summary>
         public bool HideInPlayerBuild => _hideInPlayerBuild;
+
+        /// <summary>Number of active feature lifecycle leases.</summary>
+        public int LeaseCount => _leaseCount;
 
         /// <summary>
         /// Returns a snapshot of the current path cache for diagnostic purposes.

@@ -67,7 +67,8 @@ namespace AbilityKit.Game.Flow
                 runtime.VfxNode,
                 resources: runtime.Resources,
                 pool: runtime.ShellPool,
-                controllers: null);
+                controllers: null,
+                hierarchy: runtime.Hierarchy);
         }
     }
 

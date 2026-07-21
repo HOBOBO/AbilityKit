@@ -14,8 +14,9 @@ namespace AbilityKit.Game.Flow
         {
             BindPresentationSession(ctx);
 
-            // Create or reuse the battle-scene hierarchy root and a manager instance.
-            _hierarchyRoot = BattleViewHierarchyRoot.CreateOrFind();
+            // Acquire the shared battle-scene hierarchy root. Predicted and confirmed
+            // view features release independent leases during teardown.
+            _hierarchyRoot = BattleViewHierarchyRoot.Acquire();
             var hierarchy = _hierarchyRoot.Manager;
 
             var resources = PresentationResources;
@@ -96,8 +97,16 @@ namespace AbilityKit.Game.Flow
             CameraController?.Reset();
             CameraController = null;
 
-            // Tear down the hierarchy root along with all its children.
-            _hierarchyRoot?.DestroyHierarchy();
+            // Clear the stats overlay's provider list before releasing the hierarchy root.
+            if (_hierarchyRoot != null)
+            {
+                var overlay = _hierarchyRoot.GetComponent<BattleViewPoolStatsOverlay>();
+                overlay?.ClearAllProviders();
+            }
+
+            // Release this feature's lease. The shared root survives until the last
+            // predicted/confirmed view feature has detached.
+            _hierarchyRoot?.Release();
             _hierarchyRoot = null;
 
             ClearPresentationSession(ctx);

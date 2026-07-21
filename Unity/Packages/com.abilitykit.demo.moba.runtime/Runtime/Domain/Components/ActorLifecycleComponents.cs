@@ -9,6 +9,7 @@ namespace AbilityKit.Demo.Moba.Components
         ProjectileExpired = 1,
         ProjectileHitOrExit = 2,
         ProjectileLauncherCompleted = 3,
+        HeroReplaced = 5,
         SummonTimeout = 10,
         SummonOwnerDead = 11,
         SummonReplacedByLimit = 12,

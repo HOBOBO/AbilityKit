@@ -353,6 +353,16 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         public int TargetFrame => _buf.TargetFrame;
 
+        public int LastConsumedFrame => _buf.LastConsumedFrame;
+
+        public long AddedCount => _buf.AddedCount;
+
+        public long DuplicateCount => _buf.DuplicateCount;
+
+        public long LateCount => _buf.LateCount;
+
+        public int Count => _buf.Count;
+
         public bool TryGet(int frame, out TFrame frameData) => _buf.TryGet(frame, out frameData);
 
         public bool TryConsume(int frame, out TFrame frameData) => _buf.TryConsume(frame, out frameData);

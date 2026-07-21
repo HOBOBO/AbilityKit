@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.Abstractions;
@@ -116,6 +117,11 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                     inputs = new List<PlayerInputCommand>(packet.Inputs).ToArray();
                 }
 
+                if (inputs.Length > 0)
+                {
+                    Log.Info($"[FramePacketNetAdapter] Buffering authoritative inputs. worldId={worldId.Value}, frame={frame}, count={inputs.Length}, firstOpCode={inputs[0].OpCode}");
+                }
+
                 if (_ctx.RemoteDrivenInputSource == null)
                 {
                     var delay = _ctx.InputDelayFrames < 0 ? 0 : _ctx.InputDelayFrames;
@@ -125,7 +131,19 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                     _ctx.RemoteDrivenSink = buf;
                 }
 
-                _ctx.RemoteDrivenSink?.Add(frame, inputs);
+                if (inputs.Length > 0 && _ctx.RemoteDrivenSink is FrameJitterBuffer<PlayerInputCommand[]> remoteBuffer)
+                {
+                    var beforeLastConsumed = remoteBuffer.LastConsumedFrame;
+                    var beforeTarget = remoteBuffer.TargetFrame;
+                    var beforeLate = remoteBuffer.LateCount;
+                    var beforeDuplicate = remoteBuffer.DuplicateCount;
+                    remoteBuffer.Add(frame, inputs);
+                    Log.Info($"[FramePacketNetAdapter] Remote buffer write. frame={frame}, beforeLastConsumed={beforeLastConsumed}, beforeTarget={beforeTarget}, afterTarget={remoteBuffer.TargetFrame}, lateDelta={remoteBuffer.LateCount - beforeLate}, duplicateDelta={remoteBuffer.DuplicateCount - beforeDuplicate}, buffered={remoteBuffer.Count}, containsFrame={remoteBuffer.TryGet(frame, out var stored) && stored != null && stored.Length > 0}");
+                }
+                else
+                {
+                    _ctx.RemoteDrivenSink?.Add(frame, inputs);
+                }
 
                 if (_ctx.ConfirmedInputSource == null)
                 {
@@ -139,7 +157,19 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                     _ctx.ConfirmedSink = buf;
                 }
 
-                _ctx.ConfirmedSink?.Add(frame, inputs);
+                if (inputs.Length > 0 && _ctx.ConfirmedSink is FrameJitterBufferHub<PlayerInputCommand[]> confirmedHub)
+                {
+                    var beforeLastConsumed = confirmedHub.LastConsumedFrame;
+                    var beforeTarget = confirmedHub.TargetFrame;
+                    var beforeLate = confirmedHub.LateCount;
+                    var beforeDuplicate = confirmedHub.DuplicateCount;
+                    confirmedHub.Add(frame, inputs);
+                    Log.Info($"[FramePacketNetAdapter] Confirmed buffer write. frame={frame}, beforeLastConsumed={beforeLastConsumed}, beforeTarget={beforeTarget}, afterTarget={confirmedHub.TargetFrame}, lateDelta={confirmedHub.LateCount - beforeLate}, duplicateDelta={confirmedHub.DuplicateCount - beforeDuplicate}, buffered={confirmedHub.Count}, containsFrame={confirmedHub.TryGet(frame, out var stored) && stored != null && stored.Length > 0}");
+                }
+                else
+                {
+                    _ctx.ConfirmedSink?.Add(frame, inputs);
+                }
 
                 return new FramePacket(worldId, new FrameIndex(frame), packet.Inputs, default);
             }

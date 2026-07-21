@@ -9,6 +9,7 @@
         "AbilityKit.Core",
         "AbilityKit.Modifiers",
         "AbilityKit.Host",
+        "AbilityKit.Host.Extensions",
         "AbilityKit.Ability",
         "AbilityKit.Ability.TestKit",
         "AbilityKit.Host.Extensions.Moba",

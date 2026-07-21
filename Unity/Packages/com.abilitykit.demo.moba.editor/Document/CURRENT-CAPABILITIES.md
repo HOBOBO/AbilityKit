@@ -1,6 +1,6 @@
 # MOBA 战斗诊断当前能力与限制
 
-> 状态日期：2026-07-19
+> 状态日期：2026-07-20
 >
 > 本文是当前实现状态的唯一事实入口。设计目标请查阅架构设计，历史批次请查阅实施历史。
 
@@ -22,7 +22,7 @@
 | `WorldState` | `QueryWorld` | `StateStoreRevision` | 可用 | 诊断状态 |
 | `ActorState` | `QueryActors` | `StateStoreRevision` | 可用 | 总览、诊断状态 |
 | `Events` | `QueryEvents` | `EventStoreRevision` | 可用 | 诊断事件 |
-| `Trace` | `QueryTrace` | `TraceStoreRevision` | 条件可用 | 当前无独立 Trace 图面板 |
+| `Trace` | `QueryTrace` | `TraceStoreRevision` | 条件可用 | Trace |
 | `ActorAttributes` | `QueryActorAttributes`、`QueryActorAttributeModifiers` | `ActorAttributeStoreRevision` | 可用 | 属性 |
 | `ActorBuffs` | `QueryActorBuffs` | `ActorBuffStoreRevision` | 可用 | Buff |
 | `ActorTags` | `QueryActorTags` | `ActorTagStoreRevision` | 可用 | 标签、总览 |
@@ -61,7 +61,23 @@ Overview 同时依赖 `ActorState | ActorTags | ActorEffects`，并以 Session S
 - Freeze、Clear 和采集通道开关的内部控制端口。
 - 不可变查询结果和版本化强类型 Payload。
 
-事件面板当前显示最多 200 条结果。完整 Timeline、事件详情工作区、Bookmark 和导出尚未落地。
+事件面板当前显示最多 200 条结果，支持选择事件后查看信封字段、Summary 和已知结构化 Payload，并可从事件一键打开对应 Trace。完整 Timeline、Bookmark 和导出尚未落地。
+
+## Trace Store
+
+Trace 面板按 Root Context ID 查询真实 Trace Registry 导出的树预序快照；既可手工输入根，也可由事件详情自动打开根并定位事件 Context。面板提供：
+
+- 节点层级、状态、Actor、Config、起止帧和结束原因。
+- 选中节点从根到当前节点的父链路径。
+- 按 Kind、状态、结束原因、Context、Actor 和 Config 的不区分大小写搜索；结果保留命中节点的祖先路径。
+- 在直接搜索命中之间循环前后导航，不把上下文祖先当作命中；程序化选择会将目标滚动回树视口。
+- 分支折叠、保留当前选中父链的批量折叠和全部展开；搜索期间临时展开命中路径，清除搜索后恢复既有折叠状态。
+- 当前树内的临时节点 Pin、返回 Pin 和 Pin 节点淘汰提示。
+- 缺失 Parent 的孤儿节点标记，以及异常父链的环路防护。
+- `Unsupported`、`NotProduced`、`Evicted` 和截断结果的显式状态提示。
+- 以 Session Scope、`TraceStoreRevision` 和 Root Context ID 组成的查询缓存键。
+
+Trace 数据仍受 Runtime Store 保留范围约束。Editor 临时 Pin 只是当前面板内的导航状态，不是 Session `PinTrace` 控制能力；面板仍不提供持久化 Pin、导出或修改 Trace 的能力。
 
 ## Producer 覆盖
 
@@ -82,9 +98,11 @@ Overview 同时依赖 `ActorState | ActorTags | ActorEffects`，并以 Session S
 | Rollback/Replay 完成 | 未实现 | 不从空对账报告推断事件 |
 | Full Snapshot 请求/应用 | 未实现 | 等待同步控制器正式事件 |
 
-## Editor 面板边界
+## Editor 工作区与面板边界
 
-以下 Actor 详情面板已经通过只读 Diagnostics Session 消费不可变 DTO：
+主窗口使用稳定 Actor ID 保存选择，实体列表重建、排序或过滤不会把选择静默切换到其他 Actor。实体工具栏显示可见/总实体数，支持清除过滤；左栏支持按 ID 跳转、在当前可见实体间循环前后选择和清除选择。面板分为 `Actor` 和 `Diagnostics` 两个工作区，二级面板通过下拉框选择；拥有大型列表或树的面板自行管理滚动，避免窗口外层滚动嵌套。实体栏支持拖拽调整宽度，栏宽、工作区和各工作区面板索引通过 EditorPrefs 持久化；Actor 选择属于会话状态，不跨窗口持久化。周期刷新仅在过滤后的 Actor ID 序列变化时替换实体列表快照，并可通过窗口“自动刷新”开关暂停轮询；该开关不等同于 Diagnostics Freeze，不停止采集，也不修改 Store。
+
+以下详情面板已经通过只读 Diagnostics Session 消费不可变 DTO：
 
 - 总览
 - 属性
@@ -92,6 +110,7 @@ Overview 同时依赖 `ActorState | ActorTags | ActorEffects`，并以 Session S
 - 效果
 - Buff
 - 诊断事件
+- Trace
 - 诊断状态
 
 当前主窗口仍有活动对象依赖：
@@ -117,10 +136,9 @@ Overview 同时依赖 `ActorState | ActorTags | ActorEffects`，并以 Session S
 
 - Local Session 的 Scope 默认仍可能使用临时本地身份，稳定外部 Session/World/Epoch 配置入口尚未完整产品化。
 - Actor 状态类 Store 不保留历史帧，无法查询任意过去帧。
-- Trace 只读查询已存在，但没有正式 Trace Tree/Path Editor 面板。
 - 强类型 Event Payload 当前只正式覆盖同步状态哈希；其他事件主要依赖稳定信封字段和 Summary。
 - Freeze、Clear 和通道控制存在内部端口，但没有完整面板操作与权限模型。
-- Pin Trace、诊断导出、自监控指标、远端和离线能力尚不可用。
+- Session/Runtime 层的持久化 Pin Trace、诊断导出、自监控指标、远端和离线能力尚不可用；Editor 当前树内的临时导航 Pin 不改变此限制。
 - 当前工具不会修改战斗状态，也不应通过 Editor 建立可变 Runtime 旁路。
 
 ## 更新规则

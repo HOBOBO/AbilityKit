@@ -39,12 +39,14 @@ namespace AbilityKit.Game.Flow
         private void Reset(bool disposeOwnedResources, bool destroyCollections)
         {
             Session = null;
+            RuntimeWorld = null;
             Plan = default;
             LastFrame = 0;
             LogicTimeSeconds = 0d;
 
             LocalActorId = 0;
             LocalControlPlayerId = null;
+            ClearRuntimePlayerLoadouts();
 
             Hooks = null;
 

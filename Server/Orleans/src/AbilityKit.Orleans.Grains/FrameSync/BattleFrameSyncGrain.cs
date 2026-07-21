@@ -132,6 +132,15 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         }
 
         list.Add(input);
+        _logger.LogInformation(
+            "[BattleFrameSyncGrain] Input accepted. RoomId={RoomId} WorldId={WorldId} RequestedFrame={RequestedFrame} ServerFrame={ServerFrame} PlayerId={PlayerId} OpCode={OpCode} PayloadBytes={PayloadBytes}",
+            _roomId,
+            worldId,
+            frame,
+            _frame,
+            input.PlayerId,
+            input.OpCode,
+            input.Payload?.Length ?? 0);
         return Task.FromResult(new FrameInputSubmitResult(true, _frame, FrameInputSubmitReason.None));
     }
 
@@ -199,6 +208,17 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
             }
 
             _inputsByFrame.Remove(cur);
+
+            if (inputs.Count > 0)
+            {
+                _logger.LogInformation(
+                    "[BattleFrameSyncGrain] Emitting input frame. RoomId={RoomId} WorldId={WorldId} Frame={Frame} InputCount={InputCount} ObserverCount={ObserverCount}",
+                    _roomId,
+                    _worldId,
+                    cur,
+                    inputs.Count,
+                    _observers.Count);
+            }
 
             var evt = new FramePushedEvent(
                 RoomId: _roomId,

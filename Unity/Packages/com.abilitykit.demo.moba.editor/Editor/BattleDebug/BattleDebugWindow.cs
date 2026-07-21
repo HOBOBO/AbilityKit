@@ -10,16 +10,30 @@ namespace AbilityKit.Game.Editor
 {
     public sealed class BattleDebugWindow : EditorWindow
     {
+        private const string PreferencesPrefix = "AbilityKit.BattleDebug.";
+        private const float MinEntityPaneWidth = 160f;
+        private const float MaxEntityPaneWidth = 420f;
+        private const float SplitterWidth = 5f;
+
         private string _filter;
         private string _jumpId;
+        private string _selectionStatus;
         private Vector2 _entityScroll;
         private Vector2 _detailScroll;
 
         private readonly List<EcsEntityId> _visibleEntities = new List<EcsEntityId>(256);
-        private int _selectedIndex = -1;
+        private readonly List<EcsEntityId> _entityRefreshBuffer = new List<EcsEntityId>(256);
+        private readonly List<IBattleDebugPanel> _visiblePanels = new List<IBattleDebugPanel>(16);
+        private int _selectedActorId;
+        private int _totalEntityCount;
         private double _nextRefreshAt;
+        private float _entityPaneWidth = 220f;
+        private bool _resizingEntityPane;
+        private bool _autoRefresh = true;
 
-        private int _selectedPanelIndex;
+        private BattleDebugWorkspace _workspace;
+        private int _selectedActorPanelIndex;
+        private int _selectedDiagnosticsPanelIndex;
 
         [MenuItem("Tools/AbilityKit/Battle/战斗调试")]
         private static void Open()
@@ -29,7 +43,29 @@ namespace AbilityKit.Game.Editor
 
         private void OnEnable()
         {
+            _entityPaneWidth = Mathf.Clamp(
+                EditorPrefs.GetFloat(PreferencesPrefix + "EntityPaneWidth", 220f),
+                MinEntityPaneWidth,
+                MaxEntityPaneWidth);
+            _workspace = (BattleDebugWorkspace)Mathf.Clamp(
+                EditorPrefs.GetInt(PreferencesPrefix + "Workspace", 0),
+                0,
+                1);
+            _selectedActorPanelIndex = Mathf.Max(
+                0,
+                EditorPrefs.GetInt(PreferencesPrefix + "ActorPanelIndex", 0));
+            _selectedDiagnosticsPanelIndex = Mathf.Max(
+                0,
+                EditorPrefs.GetInt(PreferencesPrefix + "DiagnosticsPanelIndex", 0));
             _nextRefreshAt = EditorApplication.timeSinceStartup;
+        }
+
+        private void OnDisable()
+        {
+            EditorPrefs.SetFloat(PreferencesPrefix + "EntityPaneWidth", _entityPaneWidth);
+            EditorPrefs.SetInt(PreferencesPrefix + "Workspace", (int)_workspace);
+            EditorPrefs.SetInt(PreferencesPrefix + "ActorPanelIndex", _selectedActorPanelIndex);
+            EditorPrefs.SetInt(PreferencesPrefix + "DiagnosticsPanelIndex", _selectedDiagnosticsPanelIndex);
         }
 
         private void OnGUI()
@@ -56,11 +92,11 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
-            var hasSelection = _selectedIndex >= 0 && _selectedIndex < _visibleEntities.Count;
-            var selectedId = hasSelection ? _visibleEntities[_selectedIndex] : default;
-
+            var selectedId = _selectedActorId != 0
+                ? new EcsEntityId(_selectedActorId)
+                : default;
             IUnitFacade selectedUnit = null;
-            if (hasSelection)
+            if (selectedId.IsValid)
             {
                 facade.TryResolveUnit(selectedId, out selectedUnit);
             }
@@ -69,14 +105,16 @@ namespace AbilityKit.Game.Editor
                 facade,
                 selectedId,
                 selectedUnit,
-                requestRepaint: Repaint
-            );
+                requestRepaint: Repaint,
+                selectActor: SelectActor,
+                openTrace: OpenTrace);
 
             DrawToolbar(in ctx);
 
             EditorGUILayout.BeginHorizontal();
             DrawEntityList(facade);
-            DrawEntityDetails(facade);
+            DrawEntityPaneSplitter();
+            DrawEntityDetails(in ctx);
             EditorGUILayout.EndHorizontal();
 
             AutoRefresh();
@@ -93,6 +131,18 @@ namespace AbilityKit.Game.Editor
                 _filter = newFilter;
                 RefreshEntities();
             }
+            EditorGUI.BeginDisabledGroup(string.IsNullOrEmpty(_filter));
+            if (GUILayout.Button(new GUIContent("×", "清除实体过滤"), EditorStyles.toolbarButton, GUILayout.Width(24)))
+            {
+                _filter = string.Empty;
+                RefreshEntities();
+                GUI.FocusControl(null);
+            }
+            EditorGUI.EndDisabledGroup();
+            GUILayout.Label(
+                $"{_visibleEntities.Count}/{_totalEntityCount}",
+                EditorStyles.miniLabel,
+                GUILayout.Width(58));
 
             GUILayout.FlexibleSpace();
 
@@ -111,9 +161,15 @@ namespace AbilityKit.Game.Editor
                 EditorGUI.EndDisabledGroup();
             }
 
-            if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(70)))
+            _autoRefresh = GUILayout.Toggle(
+                _autoRefresh,
+                new GUIContent("自动刷新", "仅控制此窗口的周期轮询，不影响底层诊断采集"),
+                EditorStyles.toolbarButton,
+                GUILayout.Width(70));
+            if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(50)))
             {
                 RefreshEntities();
+                Repaint();
             }
 
             EditorGUILayout.EndHorizontal();
@@ -121,28 +177,45 @@ namespace AbilityKit.Game.Editor
 
         private void DrawEntityList(IBattleDebugFacade facade)
         {
-            EditorGUILayout.BeginVertical(GUILayout.Width(220));
+            EditorGUILayout.BeginVertical(GUILayout.Width(_entityPaneWidth));
 
             EditorGUILayout.BeginHorizontal();
             GUILayout.Label("ID", GUILayout.Width(22));
-            _jumpId = GUILayout.TextField(_jumpId ?? string.Empty, GUILayout.MinWidth(60));
+            _jumpId = GUILayout.TextField(_jumpId ?? string.Empty, GUILayout.MinWidth(45));
             if (GUILayout.Button("跳转", GUILayout.Width(40)))
             {
-                if (int.TryParse(_jumpId, out var actorId) && actorId > 0)
+                if (long.TryParse(_jumpId, out var actorId))
                 {
-                    for (int i = 0; i < _visibleEntities.Count; i++)
-                    {
-                        if (_visibleEntities[i].ActorId == actorId)
-                        {
-                            _selectedIndex = i;
-                            _entityScroll.y = Mathf.Max(0f, i * 18f);
-                            GUI.FocusControl(null);
-                            break;
-                        }
-                    }
+                    SelectActor(actorId);
+                    GUI.FocusControl(null);
+                }
+                else
+                {
+                    _selectionStatus = "请输入有效的 Actor ID。";
                 }
             }
+            EditorGUI.BeginDisabledGroup(_visibleEntities.Count == 0);
+            if (GUILayout.Button(new GUIContent("<", "选择上一个可见 Actor"), GUILayout.Width(24)))
+            {
+                SelectRelativeEntity(-1);
+            }
+            if (GUILayout.Button(new GUIContent(">", "选择下一个可见 Actor"), GUILayout.Width(24)))
+            {
+                SelectRelativeEntity(1);
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUI.BeginDisabledGroup(_selectedActorId == 0);
+            if (GUILayout.Button(new GUIContent("×", "清除 Actor 选择"), GUILayout.Width(24)))
+            {
+                ClearActorSelection();
+            }
+            EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndHorizontal();
+
+            if (!string.IsNullOrEmpty(_selectionStatus))
+            {
+                EditorGUILayout.HelpBox(_selectionStatus, MessageType.Info);
+            }
 
             _entityScroll = EditorGUILayout.BeginScrollView(_entityScroll);
 
@@ -155,7 +228,7 @@ namespace AbilityKit.Game.Editor
                 for (int i = 0; i < _visibleEntities.Count; i++)
                 {
                     var id = _visibleEntities[i];
-                    var selected = i == _selectedIndex;
+                    var selected = id.ActorId == _selectedActorId;
                     var label = id.ToString();
 
                     if (facade != null && facade.TryResolveUnit(id, out var unit) && unit != null)
@@ -168,7 +241,7 @@ namespace AbilityKit.Game.Editor
                     var style = selected ? EditorStyles.toolbarButton : EditorStyles.miniButton;
                     if (GUILayout.Button(label, style))
                     {
-                        _selectedIndex = i;
+                        SelectActor(id.ActorId);
                         GUI.FocusControl(null);
                     }
                 }
@@ -179,101 +252,146 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.EndVertical();
         }
 
-        private void DrawEntityDetails(IBattleDebugFacade facade)
+        private void DrawEntityPaneSplitter()
+        {
+            var splitterRect = GUILayoutUtility.GetRect(
+                SplitterWidth,
+                SplitterWidth,
+                GUILayout.ExpandHeight(true));
+            EditorGUIUtility.AddCursorRect(splitterRect, MouseCursor.ResizeHorizontal);
+            EditorGUI.DrawRect(splitterRect, new Color(0f, 0f, 0f, 0.18f));
+
+            var currentEvent = Event.current;
+            if (currentEvent.type == EventType.MouseDown &&
+                currentEvent.button == 0 &&
+                splitterRect.Contains(currentEvent.mousePosition))
+            {
+                _resizingEntityPane = true;
+                currentEvent.Use();
+            }
+            else if (_resizingEntityPane && currentEvent.type == EventType.MouseDrag)
+            {
+                _entityPaneWidth = Mathf.Clamp(
+                    _entityPaneWidth + currentEvent.delta.x,
+                    MinEntityPaneWidth,
+                    Mathf.Min(MaxEntityPaneWidth, Mathf.Max(MinEntityPaneWidth, position.width - 260f)));
+                Repaint();
+                currentEvent.Use();
+            }
+            else if (_resizingEntityPane &&
+                     (currentEvent.type == EventType.MouseUp || currentEvent.rawType == EventType.MouseUp))
+            {
+                _resizingEntityPane = false;
+                EditorPrefs.SetFloat(PreferencesPrefix + "EntityPaneWidth", _entityPaneWidth);
+                currentEvent.Use();
+            }
+        }
+
+        private void DrawEntityDetails(in BattleDebugContext ctx)
         {
             EditorGUILayout.BeginVertical();
 
-            var hasSelection = _selectedIndex >= 0 && _selectedIndex < _visibleEntities.Count;
-            var selectedId = hasSelection ? _visibleEntities[_selectedIndex] : default;
-
-            IUnitFacade selectedUnit = null;
-            if (hasSelection)
+            var workspaceNames = new[] { "Actor", "Diagnostics" };
+            var nextWorkspace = (BattleDebugWorkspace)GUILayout.Toolbar(
+                (int)_workspace,
+                workspaceNames,
+                GUILayout.Height(22));
+            if (nextWorkspace != _workspace)
             {
-                facade.TryResolveUnit(selectedId, out selectedUnit);
+                _workspace = nextWorkspace;
+                _detailScroll = Vector2.zero;
             }
 
-            var ctx = new BattleDebugContext(
-                facade,
-                selectedId,
-                selectedUnit,
-                requestRepaint: Repaint
-            );
+            CollectVisiblePanels(in ctx);
+            if (_visiblePanels.Count == 0)
+            {
+                EditorGUILayout.HelpBox("当前工作区没有可显示的面板。", MessageType.Info);
+                EditorGUILayout.EndVertical();
+                return;
+            }
 
-            DrawPanelTabs(in ctx);
+            var selectedIndex = GetSelectedPanelIndex();
+            selectedIndex = Mathf.Clamp(selectedIndex, 0, _visiblePanels.Count - 1);
+            var names = new string[_visiblePanels.Count];
+            for (var i = 0; i < _visiblePanels.Count; i++)
+            {
+                names[i] = _visiblePanels[i].Name;
+            }
 
-            _detailScroll = EditorGUILayout.BeginScrollView(_detailScroll);
-            DrawSelectedPanel(in ctx);
-            EditorGUILayout.EndScrollView();
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            GUILayout.Label("面板", GUILayout.Width(30));
+            var nextIndex = EditorGUILayout.Popup(
+                selectedIndex,
+                names,
+                EditorStyles.toolbarPopup,
+                GUILayout.MinWidth(140));
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            if (nextIndex != selectedIndex)
+            {
+                _detailScroll = Vector2.zero;
+            }
+            SetSelectedPanelIndex(nextIndex);
+
+            var selected = _visiblePanels[nextIndex];
+            var ownsScroll = selected is IBattleDebugPanelLayout layout && layout.OwnsScrollView;
+            if (ownsScroll)
+            {
+                selected.Draw(in ctx);
+            }
+            else
+            {
+                _detailScroll = EditorGUILayout.BeginScrollView(_detailScroll);
+                selected.Draw(in ctx);
+                EditorGUILayout.EndScrollView();
+            }
 
             EditorGUILayout.EndVertical();
         }
 
-        private void DrawPanelTabs(in BattleDebugContext ctx)
+        private void CollectVisiblePanels(in BattleDebugContext ctx)
         {
+            _visiblePanels.Clear();
             var panels = BattleDebugPanelRegistry.GetAll();
-            if (panels == null || panels.Count == 0)
+            if (panels == null) return;
+
+            for (var i = 0; i < panels.Count; i++)
             {
-                EditorGUILayout.HelpBox("当前没有可用面板。", MessageType.Warning);
-                return;
+                var panel = panels[i];
+                if (panel == null || !panel.IsVisible(in ctx)) continue;
+                var workspace = panel is IBattleDebugPanelLayout layout
+                    ? layout.Workspace
+                    : BattleDebugWorkspace.Actor;
+                if (workspace == _workspace)
+                {
+                    _visiblePanels.Add(panel);
+                }
             }
-
-            var visible = new List<IBattleDebugPanel>(panels.Count);
-            for (int i = 0; i < panels.Count; i++)
-            {
-                var p = panels[i];
-                if (p == null) continue;
-                if (!p.IsVisible(in ctx)) continue;
-                visible.Add(p);
-            }
-
-            if (visible.Count == 0)
-            {
-                EditorGUILayout.HelpBox("当前没有可显示的面板。", MessageType.Info);
-                return;
-            }
-
-            if (_selectedPanelIndex >= visible.Count) _selectedPanelIndex = visible.Count - 1;
-            if (_selectedPanelIndex < 0) _selectedPanelIndex = 0;
-
-            var names = new string[visible.Count];
-            for (int i = 0; i < visible.Count; i++) names[i] = visible[i].Name;
-
-            _selectedPanelIndex = GUILayout.Toolbar(_selectedPanelIndex, names);
         }
 
-        private void DrawSelectedPanel(in BattleDebugContext ctx)
+        private int GetSelectedPanelIndex()
         {
-            var panels = BattleDebugPanelRegistry.GetAll();
-            if (panels == null || panels.Count == 0)
+            return _workspace == BattleDebugWorkspace.Actor
+                ? _selectedActorPanelIndex
+                : _selectedDiagnosticsPanelIndex;
+        }
+
+        private void SetSelectedPanelIndex(int index)
+        {
+            if (_workspace == BattleDebugWorkspace.Actor)
             {
-                EditorGUILayout.HelpBox("当前没有可用面板。", MessageType.Warning);
-                return;
+                _selectedActorPanelIndex = index;
             }
-
-            var visible = new List<IBattleDebugPanel>(panels.Count);
-            for (int i = 0; i < panels.Count; i++)
+            else
             {
-                var p = panels[i];
-                if (p == null) continue;
-                if (!p.IsVisible(in ctx)) continue;
-                visible.Add(p);
+                _selectedDiagnosticsPanelIndex = index;
             }
-
-            if (visible.Count == 0)
-            {
-                EditorGUILayout.HelpBox("当前没有可显示的面板。", MessageType.Info);
-                return;
-            }
-
-            if (_selectedPanelIndex >= visible.Count) _selectedPanelIndex = visible.Count - 1;
-            if (_selectedPanelIndex < 0) _selectedPanelIndex = 0;
-
-            var selected = visible[_selectedPanelIndex];
-            selected.Draw(in ctx);
         }
 
         private void AutoRefresh()
         {
+            if (!_autoRefresh) return;
+
             var now = EditorApplication.timeSinceStartup;
             if (now < _nextRefreshAt) return;
 
@@ -284,27 +402,169 @@ namespace AbilityKit.Game.Editor
 
         private void RefreshEntities()
         {
-            _visibleEntities.Clear();
+            _entityRefreshBuffer.Clear();
 
             var facade = BattleDebugFacadeProvider.Current;
-            if (facade == null) return;
-            if (!facade.TryListEntities(out var ids) || ids == null) return;
+            if (facade == null)
+            {
+                _totalEntityCount = 0;
+                _visibleEntities.Clear();
+                return;
+            }
+            if (!facade.TryListEntities(out var ids) || ids == null)
+            {
+                _totalEntityCount = 0;
+                _visibleEntities.Clear();
+                return;
+            }
 
+            _totalEntityCount = ids.Count;
             var filter = string.IsNullOrWhiteSpace(_filter) ? string.Empty : _filter.Trim();
+            var selectedExists = false;
+            var selectedVisibleIndex = -1;
 
             for (int i = 0; i < ids.Count; i++)
             {
                 var id = ids[i];
+                if (id.ActorId == _selectedActorId) selectedExists = true;
                 if (!global::AbilityKit.Game.Editor.BattleDebugEntityFilter.Matches(facade, id, filter)) continue;
 
-                _visibleEntities.Add(id);
+                _entityRefreshBuffer.Add(id);
             }
 
-            _visibleEntities.Sort((a, b) => a.ActorId.CompareTo(b.ActorId));
-
-            if (_selectedIndex >= _visibleEntities.Count)
+            _entityRefreshBuffer.Sort((a, b) => a.ActorId.CompareTo(b.ActorId));
+            if (!HasSameEntitySequence(_visibleEntities, _entityRefreshBuffer))
             {
-                _selectedIndex = _visibleEntities.Count - 1;
+                _visibleEntities.Clear();
+                _visibleEntities.AddRange(_entityRefreshBuffer);
+            }
+
+            for (var i = 0; i < _visibleEntities.Count; i++)
+            {
+                if (_visibleEntities[i].ActorId != _selectedActorId) continue;
+                selectedVisibleIndex = i;
+                break;
+            }
+
+            if (_selectedActorId == 0)
+            {
+                _selectionStatus = null;
+            }
+            else if (!selectedExists)
+            {
+                _selectionStatus = $"Actor #{_selectedActorId} 已离开当前世界。";
+            }
+            else if (selectedVisibleIndex < 0)
+            {
+                _selectionStatus = $"Actor #{_selectedActorId} 已被当前过滤条件隐藏，详情选择保持不变。";
+            }
+            else
+            {
+                _selectionStatus = null;
+            }
+        }
+
+        private static bool HasSameEntitySequence(
+            IReadOnlyList<EcsEntityId> current,
+            IReadOnlyList<EcsEntityId> next)
+        {
+            if (current.Count != next.Count) return false;
+            for (var i = 0; i < current.Count; i++)
+            {
+                if (current[i].ActorId != next[i].ActorId) return false;
+            }
+
+            return true;
+        }
+
+        private void SelectRelativeEntity(int direction)
+        {
+            if (_visibleEntities.Count == 0 || direction == 0) return;
+
+            var currentIndex = -1;
+            for (var i = 0; i < _visibleEntities.Count; i++)
+            {
+                if (_visibleEntities[i].ActorId == _selectedActorId)
+                {
+                    currentIndex = i;
+                    break;
+                }
+            }
+
+            var nextIndex = currentIndex < 0
+                ? (direction > 0 ? 0 : _visibleEntities.Count - 1)
+                : (currentIndex + (direction > 0 ? 1 : -1) + _visibleEntities.Count) % _visibleEntities.Count;
+            SelectActor(_visibleEntities[nextIndex].ActorId);
+        }
+
+        private void ClearActorSelection()
+        {
+            _selectedActorId = 0;
+            _jumpId = string.Empty;
+            _selectionStatus = null;
+            Repaint();
+        }
+
+        private void SelectActor(long actorId)
+        {
+            if (actorId <= 0 || actorId > int.MaxValue)
+            {
+                _selectionStatus = $"Actor ID {actorId} 超出有效范围。";
+                Repaint();
+                return;
+            }
+
+            _selectedActorId = (int)actorId;
+            RefreshEntities();
+            for (var i = 0; i < _visibleEntities.Count; i++)
+            {
+                if (_visibleEntities[i].ActorId != _selectedActorId) continue;
+                _entityScroll.y = Mathf.Max(0f, i * 18f);
+                break;
+            }
+            Repaint();
+        }
+
+        private void OpenTrace(long rootContextId, long contextId)
+        {
+            if (rootContextId <= 0) return;
+
+            var panels = BattleDebugPanelRegistry.GetAll();
+            if (panels == null) return;
+
+            var selectedId = _selectedActorId != 0
+                ? new EcsEntityId(_selectedActorId)
+                : default;
+            IUnitFacade selectedUnit = null;
+            var facade = BattleDebugFacadeProvider.Current;
+            if (facade != null && selectedId.IsValid)
+            {
+                facade.TryResolveUnit(selectedId, out selectedUnit);
+            }
+
+            var ctx = new BattleDebugContext(facade, selectedId, selectedUnit, Repaint);
+            var diagnosticsIndex = 0;
+            for (var i = 0; i < panels.Count; i++)
+            {
+                var panel = panels[i];
+                if (!(panel is IBattleDebugPanelLayout layout) ||
+                    layout.Workspace != BattleDebugWorkspace.Diagnostics ||
+                    !panel.IsVisible(in ctx))
+                {
+                    continue;
+                }
+
+                if (panel is IBattleDebugTraceTarget target)
+                {
+                    target.OpenTrace(rootContextId, contextId);
+                    _workspace = BattleDebugWorkspace.Diagnostics;
+                    _selectedDiagnosticsPanelIndex = diagnosticsIndex;
+                    _detailScroll = Vector2.zero;
+                    Repaint();
+                    return;
+                }
+
+                diagnosticsIndex++;
             }
         }
     }

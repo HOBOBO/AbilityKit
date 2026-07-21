@@ -96,6 +96,82 @@ public sealed class ShooterClientBattleHandleTests
         Assert.Equal(2UL, secondWire.CommandSequence);
     }
     [Fact]
+    public async Task ClientBattleHandleRetriesTooFarFutureInputAtAuthoritativeCurrentFrame()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var presentation = new ShooterPresentationFacade();
+        var transport = new RecordingShooterRoomGatewayTransport(
+            new WireSubmitBattleInputRes
+            {
+                Success = false,
+                AcceptedFrame = 481,
+                Message = "Input frame is too far ahead.",
+                CurrentFrame = 40,
+                Status = "RejectedTooFarFuture",
+                ShouldResync = true,
+                ServerTicks = 987654321L
+            },
+            new WireSubmitBattleInputRes
+            {
+                Success = true,
+                AcceptedFrame = 42,
+                Message = "accepted",
+                CurrentFrame = 40,
+                Status = "Accepted",
+                ShouldResync = false,
+                ServerTicks = 987654322L
+            });
+        var gateway = new ShooterRoomGatewayClient(transport);
+        var session = new ShooterClientSession(runtime, presentation, tickRate: 30, decoder: null, gateway);
+        var start = new ShooterStartGamePayload(
+            "battle-handle-future-frame-retry",
+            30,
+            4903,
+            new[]
+            {
+                new ShooterStartPlayer(11, "P11", 0f, 0f)
+            });
+        Assert.True(session.StartGame(in start));
+        session.CatchUpToFrame(481);
+        var anchor = new ShooterGatewayWorldStartAnchor(123456L, 10000000L, 0, 1d / 30d);
+        var flow = new ShooterRoomGatewayFlowResult(
+            "session-token",
+            "room-9",
+            1009ul,
+            "battle-9",
+            9009ul,
+            11u,
+            in anchor,
+            223456L,
+            ShooterRoomGatewayEntryKind.LateJoin,
+            canStart: false,
+            started: true,
+            subscribed: true,
+            "ready");
+        var handle = new ShooterClientBattleHandle(session, flow);
+
+        var result = await handle.SubmitLocalInputToGatewayAsync(
+            moveX: 1f,
+            moveY: 0f,
+            aimX: 1f,
+            aimY: 0f,
+            fire: false);
+
+        Assert.True(result.Remote.Success);
+        Assert.Equal(40, result.Local.RequestedFrame);
+        Assert.Equal(42, result.Remote.AcceptedFrame);
+        Assert.Equal(2, transport.RequestCount);
+        var firstRequest = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputReq>(transport.Payloads[0]);
+        var retryRequest = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputReq>(transport.Payloads[1]);
+        Assert.Equal(481, firstRequest.Frame);
+        Assert.Equal(40, retryRequest.Frame);
+        Assert.Equal(1UL, firstRequest.CommandSequence);
+        Assert.Equal(2UL, retryRequest.CommandSequence);
+        Assert.Equal(firstRequest.Payload, retryRequest.Payload);
+        Assert.False(session.NeedsFullSnapshotResync);
+    }
+
+    [Fact]
     public void ClientBattleHandleUsesAppliedPureStateFrameForGatewayInputWithoutRewindingRuntime()
     {
         var start = new ShooterStartGamePayload(

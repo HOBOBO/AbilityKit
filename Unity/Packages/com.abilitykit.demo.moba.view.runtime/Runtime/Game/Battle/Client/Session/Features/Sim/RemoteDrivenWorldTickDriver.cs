@@ -58,7 +58,9 @@ namespace AbilityKit.Game.Flow
                 stepsBudget: options.StepsBudget,
                 feed: packet => options.Snapshots?.Feed(packet));
 
-            inputSource.TrimBefore(nextTickedFrame - SessionSimRuntimeTuning.RetainedInputFrames);
+            inputSource.TrimBefore(SessionSimRuntimeTuning.ResolveInputTrimBeforeFrame(
+                nextTickedFrame,
+                handles.Consumable.LastConsumedFrame));
             return nextTickedFrame;
         }
     }

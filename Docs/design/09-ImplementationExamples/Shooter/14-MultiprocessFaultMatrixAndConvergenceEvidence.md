@@ -49,7 +49,7 @@ flowchart LR
 
 Orchestrator 持有场景计划、端口、进程、超时、fault command、assertion 和 manifest。客户端只负责执行正式 create/join/input/reconnect 路径并输出结构化结果，不自行宣布整个矩阵通过。最终判定由 orchestrator 聚合完成。
 
-每个场景使用独立的 TCP Gateway、Silo 和 Orleans Gateway 端口。full profile 中相邻场景的三个端口均按固定偏移隔离，避免前一场景残留污染后一场景。
+每个场景使用独立的 TCP Gateway、Silo 和 Orleans Gateway 端口。`full` 与 `compatibility` profile 中相邻 case 的三个端口均按固定偏移隔离，避免前一场景残留污染后一场景。
 
 ## 3. 场景计划
 
@@ -57,11 +57,12 @@ Orchestrator 持有场景计划、端口、进程、超时、fault command、ass
 
 | Profile | 场景集合 | 用途 |
 |---|---|---|
-| `minimal` | `recoverable-retry` | 快速验证重试和基本恢复链路 |
-| `full` | `slow-consumer`、`gateway-offline`、`recoverable-retry`、`reconnect-cycles` | 完整 P1 故障矩阵 |
+| `minimal` | `recoverable-retry` | 快速验证重试和基本恢复链路；保持主分支反馈时延 |
+| `full` | 五种故障均使用同一组顶层 payload、join 数量和网络参数 | 在固定配置下遍历完整故障集合，保持既有调用语义 |
+| `compatibility` | 五个带独立 payload、join 数量和网络条件的正交 case | 定时或手动验证协议、客户端扇出、故障和弱网组合 |
 | `custom` | 由 `-Scenario` 指定单场景 | 聚焦复现与开发调试 |
 
-四类故障的设计边界如下：
+五类故障的设计边界如下：
 
 | 场景 | 故障注入 | 必须观察到的恢复证据 |
 |---|---|---|
@@ -69,8 +70,19 @@ Orchestrator 持有场景计划、端口、进程、超时、fault command、ass
 | `gateway-offline` | join 客户端完成输入后，通过 fault control command 停止 TCP transport，再恢复监听 | offline/online command 都有 ack；离线阶段端口不可达；释放 gate 后正式 reconnect |
 | `slow-consumer` | PureState observer 使用 256 B/s、32768 burst、queue length 1、queue age 100 ms、drain 250 ms | 服务端出现 drop 或 coalesce；每个客户端恢复 full baseline；最终队列、baseline 与 diff 收敛 |
 | `reconnect-cycles` | join 客户端连续 3 次真实关闭 connection | 每轮都重新走 join/ready/start/subscribe，入口为 `Reconnect`，每轮都有新的成功应用 snapshot push |
+| `observer-reactivation` | 对正式订阅 key 请求 `DeactivateOnIdle`，等待 activation token 变化后释放 reconnect gate | token before/after 证明新 activation；客户端正式重连和重订阅后重新建立 baseline、可靠游标并收敛 |
 
-`slow-consumer` 强制使用 `pure-state`。其他场景可显式选择 packed 或 pure-state，但 P1 验证优先组合 PureState 与 replay，以覆盖 baseline 生命周期。
+`compatibility` 不生成 payload、客户端数量、故障和网络条件的完整笛卡尔积。它按风险正交选择以下 case，控制运行成本同时覆盖不同协议和运行压力：
+
+| Case ID | 场景 | Payload | Join clients | 网络条件 |
+|---|---|---|---:|---|
+| `packed-recoverable-single` | `recoverable-retry` | Packed | 1 | 无注入 |
+| `pure-state-slow-consumer-fanout` | `slow-consumer` | PureState | 2 | 无注入；服务端发送预算制造慢消费者压力 |
+| `packed-gateway-offline-fanout` | `gateway-offline` | Packed | 2 | TCP Gateway 受控离线/恢复 |
+| `pure-state-reconnect-cycles-fanout` | `reconnect-cycles` | PureState | 2 | 20 ms latency、5 ms jitter、0 packet loss |
+| `pure-state-observer-reactivation` | `observer-reactivation` | PureState | 1 | 无注入 |
+
+`slow-consumer` 强制使用 `pure-state`。`full` 和 `custom` 继续接受顶层 `-PayloadMode`、`-JoinClients` 与网络参数，避免改变既有脚本调用；`compatibility` 则由每个 case 独立携带这些参数。
 
 ## 4. 故障时序不能依赖猜测
 
@@ -186,7 +198,7 @@ manifest 在终态扫描 run 根目录下的 artifact，记录相对路径、字
 
 ## 9. Manifest 契约
 
-每个子场景写入 schema version 2 的 `manifest.json`，状态为 `running`、`passed` 或 `failed`。终态至少包含：
+每个子场景写入 schema version 2 的 `manifest.json`，状态为 `running`、`passed` 或 `failed`。plan-only 与 matrix manifest 使用 schema version 3，为每个计划项和结果增加稳定 `caseId`、payload mode、join clients 与网络条件；单场景 manifest 的既有 schema 2 契约保持不变。子场景终态至少包含：
 
 - run id、配置、机器、起止时间。
 - profile、scenario、payload mode、随机种子和全部 timeout。
@@ -200,6 +212,30 @@ manifest 在终态扫描 run 根目录下的 artifact，记录相对路径、字
 - artifact 相对路径、bytes 和 SHA-256。
 
 manifest 使用临时文件写入后原子替换。场景运行中也持续更新 `running` manifest，使父级 global timeout 或外部强杀后仍能定位已启动进程和当前阶段。
+
+### 9.1 TEST-01C 进程所有权与动态强杀契约（已完成）
+
+父级 matrix timeout 不能只依赖子 PowerShell 的 `finally`。子进程被强制终止时，非监听 TCP 端口的 create/join 客户端可能仍然存活，因此实现已从 running manifest 恢复进程所有权并执行二次清理。
+
+TEST-01C 的 running manifest 为每个已启动角色记录：
+
+- `role`、PID、run id/correlation id。
+- 进程启动时间或等价的稳定身份指纹。
+- 可复核的 executable/command identity；不能只保存进程名 `dotnet.exe` 或 `powershell.exe`。
+- 启动阶段和日志路径。
+
+父级清理状态机固定为：
+
+1. 读取目标子 run 的 running manifest，并冻结其中的 PID 候选集。
+2. 先终止子 orchestrator，等待一个很短的有界窗口。
+3. 对每个 manifest PID 重新读取进程身份；只有 PID、启动时间和命令身份均匹配时才允许强制终止。
+4. 在所有 manifest candidate 都未出现 `identity-mismatch` 或 `termination-failed` 时，对 server/Silo/Gateway 执行专用端口探测和端口 owner 清理；身份不安全时跳过该步骤，避免第二道防护绕过所有权检查。
+5. 等待所有候选 PID 退出，并记录 `terminated`、`already-exited`、`identity-mismatch`、`termination-failed` 或 `not-observed`。
+6. 独立确认三个专用端口不可达且没有监听 owner，再原子收口子 manifest 和 matrix manifest。
+
+清理证据不能覆盖原始场景失败。场景业务失败、timeout、清理失败必须分别记录；其中任一 cleanup candidate 仍存活或端口仍被占用，父级结果必须为非零。PID 复用或身份不匹配时宁可留下 `identity-mismatch` 证据并失败，也不能按宽泛命令行或进程名误杀无关任务。
+
+真实动态强杀使用专用挂起探针：探针在 running manifest 已写入 server/create/join 后保持存活，父级用短 global timeout 触发 matrix-timeout。该测试预期 matrix 非零退出，但要求 orphan-free、port-free、manifest failed 收口和无关保护进程存活；外层 harness 将预期 matrix failure 转换为自己的验收结果。它不是业务收敛成功场景，也不纳入正常 compatibility case 数量。
 
 ## 10. 失败分类
 
@@ -226,7 +262,25 @@ manifest 使用临时文件写入后原子替换。场景运行中也持续更�
 
 ## 12. 最近真实验证快照
 
-2026-07-19 的 `reconnect-cycles + pure-state + replay` 验证使用三轮真实关闭与恢复：
+2026-07-19 的 TEST-01C 运行 `test-01c-20260719-172207-902-41692` 已通过专用动态强杀验收：
+
+- running manifest 在挂起前记录 orchestrator、server、create、join 四个角色及其 PID、创建时间、可执行路径、完整命令行和 correlation id。
+- 34 秒 matrix timeout 后，orchestrator 与 server 记录为 `terminated`，create 与 join 记录为 `already-exited`；独立复核没有存活的 owned PID。
+- 子 manifest 使用 schema 2 并收口为 `failed/matrix-timeout`；matrix manifest 使用 schema 3、exit code `-1`，两者记录相同 cleanup evidence，原始 timeout 原因未被覆盖。
+- TCP 44301、Silo 15311、Orleans Gateway 34301 均释放；独立监听检查为空。
+- 无关保护 PowerShell PID 44448 在验收断言时仍存活，证明没有按进程名或宽泛命令行误杀。
+- acceptance artifact 状态为 `passed`；该通过表示预期 timeout 后的所有权清理正确，不表示故障场景业务收敛成功。
+
+同日的代表性兼容组合 `compatibility-pure-state-reconnect-fanout-20260719` 已通过。该运行使用 Debug、PureState、create 加两个 join 客户端、三轮正式 reconnect，以及 20 ms latency 与 5 ms jitter：
+
+- join-1 每轮关闭真实连接，并重新执行 join/ready/start/subscribe；最终入口为 `Reconnect`。
+- join-2 在同一战斗中并发订阅，证明多 observer/client fanout 下的状态发布与收敛。
+- create、join-1、join-2 三份 authoritative diff 均为 `Identical`。
+- 三个客户端均已应用 PureState full baseline，可靠事件 `needsResync=false`。
+- 完整和 minimized replay 均生成、被消费并在 manifest 中记录 SHA-256。
+- server 与三个客户端进程 exit code 均为 0，TCP/Silo/Orleans Gateway 端口全部释放。
+
+同日较早的 `reconnect-cycles + pure-state + replay` 单 join 验证使用三轮真实关闭与恢复：
 
 - join 每轮都返回 `Reconnect`。
 - 每轮都有 launch returned 和 first push applied 证据。
@@ -241,29 +295,38 @@ manifest 使用临时文件写入后原子替换。场景运行中也持续更�
 
 具体 run id、端口和逐次指标属于验证快照，记录在路线图和 artifact manifest，不作为长期固定值。
 
-## 13. 验证入口
+## 13. CI 分层与验证入口
+
+CI 按运行成本分层：`shooter-multiprocess` 保留 `minimal` 并用于主分支快速门禁；`shooter-multiprocess-compatibility` 使用 Release 和 `compatibility`，仅在 schedule 或 workflow dispatch 运行。两个 Windows job 共用 non-cancelling concurrency group，防止固定端口范围竞争，且都要求 always-upload artifact。
 
 ```powershell
-# 查看 full profile 计划，不启动进程
-.\Server\Orleans\tools\run_shooter_multiprocess_smoke.ps1 -Profile full -PlanOnly
+# 查看 compatibility 正交计划，不启动进程
+.\Server\Orleans\tools\run_shooter_multiprocess_smoke.ps1 -Profile compatibility -PlanOnly
 
-# 执行完整故障矩阵
+# 执行正交兼容矩阵
+.\Server\Orleans\tools\run_shooter_multiprocess_smoke.ps1 -Configuration Release -Profile compatibility
+
+# 使用同一组参数执行五故障 full profile
 .\Server\Orleans\tools\run_shooter_multiprocess_smoke.ps1 -Configuration Debug -Profile full -PayloadMode pure-state
 
 # 聚焦三轮周期断线
 .\Server\Orleans\tools\run_shooter_multiprocess_smoke.ps1 -Configuration Debug -Profile custom -Scenario reconnect-cycles -PayloadMode pure-state
 ```
 
-聚焦源码契约测试位于 `AbilityKit.Orleans.ShooterSmoke.Tests`，用于锁定 profile 计划、DLL 直启、timeout 分层、fault gate、PureState 推进、reliable/diff/replay 和 manifest 字段。源码契约不能代替真实多进程运行，两者应同时保留。
+聚焦源码契约测试位于 `AbilityKit.Orleans.ShooterSmoke.Tests`，用于锁定 profile 计划、逐 case 参数、DLL 直启、timeout 分层、fault gate、PureState 推进、reliable/diff/replay 和 manifest 字段。源码契约不能代替真实多进程运行，两者应同时保留。
 
-## 14. 后续边界
+## 14. 环境与后续边界
 
-当前仍需继续扩展：
+当前多进程 CI 支持边界是 `windows-latest`。orchestrator 与 gate runner 仍以 `powershell.exe` 启动子脚本，并依赖当前 Windows 进程、路径和端口清理行为；因此正交矩阵证明的是 Windows 下 Debug/Release、Packed/PureState、单/双 join 和所列网络条件兼容性，不等价于 Linux 多进程支持。增加 Linux job 前必须先完成 `pwsh` runner 选择、路径处理、进程启动、信号与端口清理的跨平台改造和真实验证。
 
-- Grain deactivate/reactivate 后 observer、baseline、AOI 和 reliable cursor 恢复。
-- running manifest 已写入后的父级动态强杀真实路径。
-- 多 observer 长稳、容量与公平性矩阵。
-- 长时间网络 profile 动态切换和恢复时延分布。
-- 将 FrameRecord diff 报告接入 Unity Editor 双记录时间线。
+下一批实施顺序固定为：
+
+1. [x] 实现 TEST-01C 进程身份 helper、running manifest 字段和 cleanup evidence，不改变正常通过场景的业务断言。
+2. [x] 接入父级 matrix timeout 的 manifest 驱动清理，并补充契约测试和保护进程测试。
+3. [x] 运行 Windows 动态强杀探针，确认所有权清理真实生效，并接入 scheduled/manual 门禁。
+4. 下一批推进多 observer 长稳、容量矩阵、长时间网络 profile 动态切换和恢复时延分布。
+5. 非 Windows runner 和 Unity Editor 双记录时间线继续作为独立工作包，不与强杀清理混合验收。
+
+TEST-01C 不修改单场景 manifest schema 2 的既有字段语义；新增身份和 cleanup evidence 应保持向后兼容，matrix timeout 仍使用 schema 3。所有工作复用当前 artifact、timeout、replay、diff 和 convergence 契约，不新建平行 runner。
 
 这些工作应复用当前 manifest、artifact、timeout 和 convergence 契约，不新建平行 runner 或以更多同步模式枚举表达故障组合。

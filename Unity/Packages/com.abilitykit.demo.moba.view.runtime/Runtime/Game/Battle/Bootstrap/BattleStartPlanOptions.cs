@@ -71,6 +71,7 @@ namespace AbilityKit.Game.Flow
         public readonly string JoinRoomId;
         public readonly uint CreateRoomOpCode;
         public readonly uint JoinRoomOpCode;
+        public readonly string BattleId;
 
         public BattleStartPlanGatewayOptions(
             bool useGatewayTransport,
@@ -84,7 +85,8 @@ namespace AbilityKit.Game.Flow
             bool autoJoinRoom,
             string joinRoomId,
             uint createRoomOpCode,
-            uint joinRoomOpCode)
+            uint joinRoomOpCode,
+            string battleId = "")
         {
             UseGatewayTransport = useGatewayTransport;
             Host = host;
@@ -98,6 +100,7 @@ namespace AbilityKit.Game.Flow
             JoinRoomId = joinRoomId;
             CreateRoomOpCode = createRoomOpCode;
             JoinRoomOpCode = joinRoomOpCode;
+            BattleId = battleId ?? string.Empty;
         }
     }
 

@@ -12,13 +12,16 @@ namespace AbilityKit.Game.Editor
     /// 支持按选中实体 ActorId 过滤、仅看失败、文本搜索。
     /// 只消费已定义的诊断查询契约，不建立旁路数据源。
     /// </summary>
-    internal sealed class BattleDebugDiagnosticEventsPanel : IBattleDebugPanel
+    internal sealed class BattleDebugDiagnosticEventsPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         public string Name => "诊断事件";
         public int Order => 400;
+        public BattleDebugWorkspace Workspace => BattleDebugWorkspace.Diagnostics;
+        public bool OwnsScrollView => true;
 
         private readonly BattleDebugDiagnosticEventsViewModel _viewModel = new BattleDebugDiagnosticEventsViewModel();
         private Vector2 _scroll;
+        private long _selectedSequence;
 
         public bool IsVisible(in BattleDebugContext ctx) => true;
 
@@ -37,7 +40,9 @@ namespace AbilityKit.Game.Editor
 
             var selectedActorId = ctx.HasSelection ? ctx.SelectedId.ActorId : 0;
             var items = _viewModel.RefreshIfNeeded(session, selectedActorId, ctx.HasSelection);
-            DrawEventList(items);
+            var selectedEvent = FindSelectedEvent(items);
+            DrawEventList(in ctx, items);
+            DrawSelectionDetails(in ctx, selectedEvent);
         }
 
         private void DrawFilterBar(in BattleDebugContext ctx, IBattleDiagnosticReadOnlySession session)
@@ -86,9 +91,14 @@ namespace AbilityKit.Game.Editor
                 EditorStyles.miniLabel);
         }
 
-        private void DrawEventList(IReadOnlyList<BattleDiagnosticEvent> items)
+        private void DrawEventList(
+            in BattleDebugContext ctx,
+            IReadOnlyList<BattleDiagnosticEvent> items)
         {
-            _scroll = EditorGUILayout.BeginScrollView(_scroll);
+            _scroll = EditorGUILayout.BeginScrollView(
+                _scroll,
+                GUILayout.MinHeight(160),
+                GUILayout.MaxHeight(420));
 
             if (!string.IsNullOrEmpty(_viewModel.StatusMessage))
             {
@@ -103,22 +113,30 @@ namespace AbilityKit.Game.Editor
             {
                 for (int i = 0; i < items.Count; i++)
                 {
-                    DrawEventRow(items[i]);
+                    DrawEventRow(in ctx, items[i]);
                 }
             }
 
             EditorGUILayout.EndScrollView();
         }
 
-        private static void DrawEventRow(in BattleDiagnosticEvent evt)
+        private void DrawEventRow(
+            in BattleDebugContext ctx,
+            in BattleDiagnosticEvent evt)
         {
             var outcomeColor = GetOutcomeColor(evt.Outcome);
             var oldColor = GUI.color;
+            var selected = evt.Sequence == _selectedSequence;
 
             EditorGUILayout.BeginHorizontal(GUI.skin.box);
 
             GUI.color = outcomeColor;
-            GUILayout.Label($"#{evt.Sequence}", GUILayout.Width(70));
+            var style = selected ? EditorStyles.toolbarButton : EditorStyles.miniButton;
+            if (GUILayout.Button($"#{evt.Sequence}", style, GUILayout.Width(70)))
+            {
+                _selectedSequence = evt.Sequence;
+                ctx.RequestRepaint?.Invoke();
+            }
             GUI.color = oldColor;
 
             GUILayout.Label($"F{evt.Frame}", GUILayout.Width(50));
@@ -138,6 +156,75 @@ namespace AbilityKit.Game.Editor
             GUILayout.FlexibleSpace();
             GUILayout.Label(evt.Summary, EditorStyles.miniLabel);
 
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private BattleDiagnosticEvent? FindSelectedEvent(IReadOnlyList<BattleDiagnosticEvent> items)
+        {
+            if (_selectedSequence == 0 || items == null) return null;
+            for (var i = 0; i < items.Count; i++)
+            {
+                if (items[i].Sequence == _selectedSequence) return items[i];
+            }
+
+            _selectedSequence = 0;
+            return null;
+        }
+
+        private static void DrawSelectionDetails(
+            in BattleDebugContext ctx,
+            BattleDiagnosticEvent? selectedEvent)
+        {
+            if (!selectedEvent.HasValue) return;
+
+            var evt = selectedEvent.Value;
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("事件详情", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("序列 / 帧", $"{evt.Sequence} / {evt.Frame}");
+            EditorGUILayout.LabelField("类型 / 通道 / 结果", $"{evt.Kind} / {evt.Channel} / {evt.Outcome}");
+            EditorGUILayout.LabelField("Root / Context", $"{evt.RootContextId} / {evt.ContextId}");
+            EditorGUILayout.LabelField("Config / Attack", $"{evt.ConfigId} / {evt.AttackId}");
+            EditorGUILayout.LabelField("Skill Runtime", evt.SkillRuntime.ToString());
+            EditorGUILayout.LabelField("摘要", evt.Summary);
+
+            if (evt.Payload.TryGetSyncSnapshotReceived(out var syncPayload))
+            {
+                EditorGUILayout.LabelField(
+                    "Payload",
+                    $"SyncSnapshotReceived v{evt.Payload.SchemaVersion}: " +
+                    $"frame={syncPayload.AuthoritativeFrame}, hash={syncPayload.StateHash}");
+            }
+            else
+            {
+                EditorGUILayout.LabelField(
+                    "Payload",
+                    evt.Payload.HasValue
+                        ? $"{evt.Payload.Kind} v{evt.Payload.SchemaVersion}"
+                        : "（无）");
+            }
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginDisabledGroup(evt.SourceActorId == 0 || ctx.SelectActor == null);
+            if (GUILayout.Button("选择来源 Actor", GUILayout.Width(110)))
+            {
+                ctx.SelectActor?.Invoke(evt.SourceActorId);
+            }
+            EditorGUI.EndDisabledGroup();
+
+            EditorGUI.BeginDisabledGroup(evt.TargetActorId == 0 || ctx.SelectActor == null);
+            if (GUILayout.Button("选择目标 Actor", GUILayout.Width(110)))
+            {
+                ctx.SelectActor?.Invoke(evt.TargetActorId);
+            }
+            EditorGUI.EndDisabledGroup();
+
+            GUILayout.FlexibleSpace();
+            EditorGUI.BeginDisabledGroup(evt.RootContextId <= 0 || ctx.OpenTrace == null);
+            if (GUILayout.Button("打开 Trace", GUILayout.Width(90)))
+            {
+                ctx.OpenTrace?.Invoke(evt.RootContextId, evt.ContextId);
+            }
+            EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndHorizontal();
         }
 

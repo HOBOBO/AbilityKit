@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AbilityKit.Game.Battle.Hierarchy;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow.Battle.View
@@ -6,10 +7,22 @@ namespace AbilityKit.Game.Flow.Battle.View
     internal sealed class BattleWorldFloatingTextFactory
     {
         private readonly Stack<BattleWorldFloatingText> _pool = new Stack<BattleWorldFloatingText>(64);
+        private BattleViewHierarchyManager _hierarchy;
+
+        public BattleWorldFloatingTextFactory(BattleViewHierarchyManager hierarchy = null)
+        {
+            _hierarchy = hierarchy;
+        }
+
+        public void SetHierarchyManager(BattleViewHierarchyManager hierarchy)
+        {
+            _hierarchy = hierarchy;
+        }
 
         public BattleWorldFloatingText Create(string text, in Vector3 worldPos, Color color)
         {
             var floatingText = _pool.Count > 0 ? _pool.Pop() : CreateNew();
+            _hierarchy?.ParentToCategory(BattleViewCategory.ActiveFloatingText, floatingText.GameObject);
             floatingText.Reset(text, in worldPos, color);
             return floatingText;
         }
@@ -24,6 +37,7 @@ namespace AbilityKit.Game.Flow.Battle.View
             }
 
             floatingText.Deactivate();
+            _hierarchy?.ParentToCategory(BattleViewCategory.PoolFloatingText, floatingText.GameObject);
             _pool.Push(floatingText);
         }
 

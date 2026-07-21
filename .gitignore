@@ -4,9 +4,15 @@
 **/.idea
 **/Temp
 **/.nuget
-**/.log
+**/*.log
 **/node_modules
-**/artifacts
+
+# Test artifact roots (gate runner output, headless snapshots, dotnet TRX,
+# Unity Library, per-project build artifacts). The historical archive under
+# artifacts/headless-archive/ is also ignored — its documentation lives in
+# .claude/skills/test-artifacts/ instead, so the archive itself needs no README.
+**/artifacts/
+**/TestResults/
 
 tools/feishu-design-sync.local.json
 

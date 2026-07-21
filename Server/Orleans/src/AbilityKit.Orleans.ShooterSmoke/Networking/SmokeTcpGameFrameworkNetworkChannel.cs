@@ -10,8 +10,9 @@ internal sealed class SmokeTcpGameFrameworkNetworkChannel : INetworkChannel, IDi
     private readonly object _syncRoot = new();
     private readonly object _conditionSyncRoot = new();
     private readonly Dictionary<int, IPacketHandler> _handlers = new();
-    private readonly SmokeNetworkConditionOptions _networkCondition;
-    private readonly Random _conditionRandom;
+    private SmokeNetworkConditionOptions _networkCondition;
+    private Random _conditionRandom;
+    private DateTime _bandwidthAvailableAtUtc;
     private TcpClient? _client;
     private NetworkStream? _stream;
     private EventHandler<Packet>? _defaultHandler;
@@ -31,8 +32,9 @@ internal sealed class SmokeTcpGameFrameworkNetworkChannel : INetworkChannel, IDi
     public SmokeTcpGameFrameworkNetworkChannel(string name, SmokeNetworkConditionOptions networkCondition)
     {
         Name = string.IsNullOrWhiteSpace(name) ? "ShooterSmokeGateway" : name;
-        _networkCondition = networkCondition;
-        _conditionRandom = new Random(networkCondition.Seed);
+        _networkCondition = networkCondition.Normalize();
+        _conditionRandom = new Random(_networkCondition.Seed);
+        _bandwidthAvailableAtUtc = DateTime.UtcNow;
     }
 
     public string Name { get; }
@@ -59,7 +61,34 @@ internal sealed class SmokeTcpGameFrameworkNetworkChannel : INetworkChannel, IDi
 
     public int ConditionInboundDropped => Volatile.Read(ref _conditionInboundDropped);
 
-    public SmokeNetworkConditionOptions NetworkCondition => _networkCondition;
+    public SmokeNetworkConditionOptions NetworkCondition
+    {
+        get
+        {
+            lock (_conditionSyncRoot)
+            {
+                return _networkCondition;
+            }
+        }
+    }
+
+    public void UpdateNetworkCondition(SmokeNetworkConditionOptions networkCondition)
+    {
+        var normalized = networkCondition.Normalize();
+        lock (_conditionSyncRoot)
+        {
+            if (normalized.Seed != _networkCondition.Seed)
+            {
+                _conditionRandom = new Random(normalized.Seed);
+            }
+
+            _networkCondition = normalized;
+            if (normalized.InboundBandwidthBytesPerSecond <= 0)
+            {
+                _bandwidthAvailableAtUtc = DateTime.UtcNow;
+            }
+        }
+    }
 
     public bool ResetHeartBeatElapseSecondsWhenReceivePacket { get; set; }
 
@@ -170,7 +199,7 @@ internal sealed class SmokeTcpGameFrameworkNetworkChannel : INetworkChannel, IDi
                 }
 
                 var payload = payloadSpan.ToArray();
-                if (!await ApplyInboundConditionAsync(header, cancellationToken))
+                if (!await ApplyInboundConditionAsync(header, frame.Length, cancellationToken))
                 {
                     continue;
                 }
@@ -211,30 +240,53 @@ internal sealed class SmokeTcpGameFrameworkNetworkChannel : INetworkChannel, IDi
         }
     }
 
-    private async Task<bool> ApplyInboundConditionAsync(NetworkPacketHeader header, CancellationToken cancellationToken)
+    private async Task<bool> ApplyInboundConditionAsync(
+        NetworkPacketHeader header,
+        int frameBytes,
+        CancellationToken cancellationToken)
     {
-        if ((header.Flags & NetworkPacketFlags.ServerPush) == 0 || !_networkCondition.Enabled)
+        if ((header.Flags & NetworkPacketFlags.ServerPush) == 0)
         {
             return true;
         }
 
-        Interlocked.Increment(ref _conditionInboundReceived);
         var drop = false;
-        var delayMs = _networkCondition.InboundLatencyMs;
+        var delay = TimeSpan.Zero;
         lock (_conditionSyncRoot)
         {
-            if (_networkCondition.InboundPacketLossRate > 0d && _conditionRandom.NextDouble() < _networkCondition.InboundPacketLossRate)
+            var condition = _networkCondition;
+            if (!condition.Enabled)
             {
-                drop = true;
+                return true;
             }
 
-            if (!drop && _networkCondition.InboundJitterMs > 0)
+            Interlocked.Increment(ref _conditionInboundReceived);
+            drop = condition.InboundPacketLossRate > 0d
+                && _conditionRandom.NextDouble() < condition.InboundPacketLossRate;
+            if (!drop)
             {
-                delayMs += _conditionRandom.Next(-_networkCondition.InboundJitterMs, _networkCondition.InboundJitterMs + 1);
-                if (delayMs < 0)
+                var delayMs = condition.InboundLatencyMs;
+                if (condition.InboundJitterMs > 0)
                 {
-                    delayMs = 0;
+                    delayMs += _conditionRandom.Next(
+                        -condition.InboundJitterMs,
+                        condition.InboundJitterMs + 1);
+                    delayMs = Math.Max(0, delayMs);
                 }
+
+                var now = DateTime.UtcNow;
+                if (condition.InboundBandwidthBytesPerSecond > 0)
+                {
+                    var transferSeconds = (double)Math.Max(0, frameBytes)
+                        / condition.InboundBandwidthBytesPerSecond;
+                    var transferStart = _bandwidthAvailableAtUtc > now
+                        ? _bandwidthAvailableAtUtc
+                        : now;
+                    _bandwidthAvailableAtUtc = transferStart.AddSeconds(transferSeconds);
+                    delay = _bandwidthAvailableAtUtc - now;
+                }
+
+                delay += TimeSpan.FromMilliseconds(delayMs);
             }
         }
 
@@ -244,10 +296,10 @@ internal sealed class SmokeTcpGameFrameworkNetworkChannel : INetworkChannel, IDi
             return false;
         }
 
-        if (delayMs > 0)
+        if (delay > TimeSpan.Zero)
         {
             Interlocked.Increment(ref _conditionInboundDelayed);
-            await Task.Delay(delayMs, cancellationToken);
+            await Task.Delay(delay, cancellationToken);
         }
 
         return true;
@@ -277,18 +329,23 @@ internal readonly record struct SmokeNetworkConditionOptions(
     int InboundLatencyMs,
     int InboundJitterMs,
     double InboundPacketLossRate,
-    int Seed)
+    int Seed,
+    int InboundBandwidthBytesPerSecond = 0)
 {
     public static SmokeNetworkConditionOptions Ideal => new(0, 0, 0d, 0);
 
-    public bool Enabled => InboundLatencyMs > 0 || InboundJitterMs > 0 || InboundPacketLossRate > 0d;
+    public bool Enabled => InboundLatencyMs > 0
+        || InboundJitterMs > 0
+        || InboundPacketLossRate > 0d
+        || InboundBandwidthBytesPerSecond > 0;
 
     public SmokeNetworkConditionOptions Normalize()
     {
         return new SmokeNetworkConditionOptions(
             Math.Max(0, InboundLatencyMs),
             Math.Max(0, InboundJitterMs),
-            Math.Max(0d, Math.Min(1d, InboundPacketLossRate)),
-            Seed);
+            Math.Clamp(InboundPacketLossRate, 0d, 1d),
+            Seed,
+            Math.Max(0, InboundBandwidthBytesPerSecond));
     }
 }

@@ -5,10 +5,12 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
-    internal sealed class BattleDebugTagsPanel : IBattleDebugPanel
+    internal sealed class BattleDebugTagsPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         public string Name => "标签";
         public int Order => 100;
+        public BattleDebugWorkspace Workspace => BattleDebugWorkspace.Actor;
+        public bool OwnsScrollView => true;
 
         private readonly BattleDebugDiagnosticTagsViewModel _viewModel =
             new BattleDebugDiagnosticTagsViewModel();

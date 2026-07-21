@@ -37,6 +37,31 @@ public interface IStateSyncObserverGrain : IGrainWithStringKey
     Task<StateSyncDeliveryMetrics> GetDeliveryMetricsAsync();
 }
 
+/// <summary>
+/// StateSyncObserver 的受控生命周期诊断接口。
+/// 该接口只用于运维与故障验证，不承诺 activation 内存态透明恢复。
+/// </summary>
+public interface IStateSyncObserverLifecycleGrain : IGrainWithStringKey
+{
+    /// <summary>
+    /// 获取当前 activation 的稳定标识。
+    /// </summary>
+    Task<StateSyncObserverActivationInfo> GetActivationInfoAsync();
+
+    /// <summary>
+    /// 请求在当前调用完成后停用 activation。
+    /// </summary>
+    Task<StateSyncObserverActivationInfo> RequestDeactivationAsync();
+}
+
+[GenerateSerializer]
+public sealed class StateSyncObserverActivationInfo
+{
+    [Id(0)] public string ObserverKey { get; set; } = string.Empty;
+    [Id(1)] public string ActivationToken { get; set; } = string.Empty;
+    [Id(2)] public long ActivatedAtUtcTicks { get; set; }
+}
+
 public enum StateSyncDeliveryStatus
 {
     Accepted = 0,

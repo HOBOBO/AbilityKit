@@ -116,7 +116,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
             // 没有 Name 字段。
             var dto = new BattleAttributeTemplateDTO
             {
-                Id = obj["Code"]?.Value<int>() ?? 0,
+                Id = obj["Code"]?.Value<int>() ?? obj["Id"]?.Value<int>() ?? 0,
+                BasicAttackSkillId = obj["BasicAttackSkillId"]?.Value<int>() ?? 0,
                 ActiveSkills = obj["ActiveSkills"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 PassiveSkills = obj["PassiveSkills"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 Hp = obj["Hp"]?.Value<int>() ?? 0,

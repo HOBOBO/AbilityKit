@@ -61,7 +61,9 @@ namespace AbilityKit.Game.Flow
                     handles.ViewSnapshotRuntime?.Snapshots?.Feed(packet);
                 });
 
-            inputSource.TrimBefore(nextTickedFrame - SessionSimRuntimeTuning.RetainedInputFrames);
+            inputSource.TrimBefore(SessionSimRuntimeTuning.ResolveInputTrimBeforeFrame(
+                nextTickedFrame,
+                handles.Consumable.LastConsumedFrame));
 
             ConfirmedAuthorityDebugStatsPublisher.Update(
                 frameState.ConfirmedFrame,

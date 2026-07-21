@@ -78,8 +78,55 @@ namespace AbilityKit.Game.Battle.Transport
         public void SendInput(SubmitInputRequest request)
         {
             if (_options.SerializeSubmitInput == null) throw new InvalidOperationException("SerializeSubmitInput is not configured.");
-            var payload = _options.SerializeSubmitInput.Invoke(request);
-            _connection.Send(_options.OpSubmitInput, payload, flags: (ushort)NetworkPacketFlags.Request);
+            if (_options.DeserializeSubmitInputResponse == null)
+            {
+                var payload = _options.SerializeSubmitInput.Invoke(request);
+                _connection.Send(_options.OpSubmitInput, payload, flags: (ushort)NetworkPacketFlags.Request);
+                return;
+            }
+
+            _ = SendInputWithResponseAsync(request);
+        }
+
+        private async System.Threading.Tasks.Task SendInputWithResponseAsync(SubmitInputRequest request)
+        {
+            object current = request;
+            try
+            {
+                for (var attempt = 0; attempt < 2; attempt++)
+                {
+                    var payload = _options.SerializeSubmitInput.Invoke(current);
+                    var responsePayload = await _request.SendRequestAsync(
+                        _options.OpSubmitInput,
+                        payload,
+                        TimeSpan.FromSeconds(5));
+                    var response = _options.DeserializeSubmitInputResponse.Invoke(responsePayload);
+                    if (response.Accepted)
+                    {
+                        return;
+                    }
+
+                    if (!response.RetryAtAuthoritativeFrame ||
+                        attempt > 0 ||
+                        _options.RewriteSubmitInputFrame == null)
+                    {
+                        Log.Warning(
+                            $"[NetworkTransport] Input rejected. serverFrame={response.ServerFrame} " +
+                            $"reasonCode={response.ReasonCode}");
+                        return;
+                    }
+
+                    var retryFrame = response.ServerFrame + Math.Max(1, _options.SubmitInputRetryFrameLead);
+                    current = _options.RewriteSubmitInputFrame.Invoke(current, retryFrame);
+                    Log.Warning(
+                        $"[NetworkTransport] Retrying stale input. retryFrame={retryFrame} " +
+                        $"serverFrame={response.ServerFrame}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[NetworkTransport] Input submission failed.");
+            }
         }
 
         public void Dispose()
@@ -98,27 +145,36 @@ namespace AbilityKit.Game.Battle.Transport
         private void OnConnected()
         {
             Log.Info($"[NetworkTransport] Connected: {_options.Host}:{_options.Port}");
-
-            if (_options.OpRenewSession != 0 && !string.IsNullOrWhiteSpace(_options.SessionToken))
-            {
-                _ = TryRenewSessionAsync();
-            }
+            _ = AuthenticateConnectionAsync();
         }
 
-        private async System.Threading.Tasks.Task TryRenewSessionAsync()
+        private async System.Threading.Tasks.Task AuthenticateConnectionAsync()
         {
             try
             {
-                if (_options.SerializeRenewSession == null)
-                    throw new InvalidOperationException("SerializeRenewSession is not configured.");
+                if (_options.OpRenewSession != 0 && !string.IsNullOrWhiteSpace(_options.SessionToken))
+                {
+                    if (_options.SerializeRenewSession == null)
+                        throw new InvalidOperationException("SerializeRenewSession is not configured.");
 
-                var payload = _options.SerializeRenewSession.Invoke(_options.SessionToken);
-                await _request.SendRequestAsync(_options.OpRenewSession, payload);
-                Log.Info("[NetworkTransport] RenewSession ok (bound token/account to this connection).");
+                    var renewPayload = _options.SerializeRenewSession.Invoke(_options.SessionToken);
+                    await _request.SendRequestAsync(_options.OpRenewSession, renewPayload);
+                    Log.Info("[NetworkTransport] RenewSession ok (bound token/account to this connection).");
+                }
+
+                if (_options.OpPostAuthentication != 0)
+                {
+                    if (_options.SerializePostAuthentication == null)
+                        throw new InvalidOperationException("SerializePostAuthentication is not configured.");
+
+                    var subscribePayload = _options.SerializePostAuthentication.Invoke();
+                    await _request.SendRequestAsync(_options.OpPostAuthentication, subscribePayload);
+                    Log.Info("[NetworkTransport] Post-authentication request ok (authoritative frame subscription active).");
+                }
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, "[NetworkTransport] RenewSession failed");
+                Log.Exception(ex, "[NetworkTransport] Connection authentication failed");
             }
         }
 

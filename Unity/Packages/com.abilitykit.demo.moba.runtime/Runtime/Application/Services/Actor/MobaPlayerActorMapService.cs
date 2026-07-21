@@ -18,6 +18,13 @@ namespace AbilityKit.Demo.Moba.Services
             _map[playerId.Value] = actorId;
         }
 
+        public bool Unbind(PlayerId playerId, int expectedActorId)
+        {
+            if (string.IsNullOrEmpty(playerId.Value) || expectedActorId <= 0) return false;
+            if (!_map.TryGetValue(playerId.Value, out var actorId) || actorId != expectedActorId) return false;
+            return _map.Remove(playerId.Value);
+        }
+
         public bool TryGetActorId(PlayerId playerId, out int actorId)
         {
             if (string.IsNullOrEmpty(playerId.Value))

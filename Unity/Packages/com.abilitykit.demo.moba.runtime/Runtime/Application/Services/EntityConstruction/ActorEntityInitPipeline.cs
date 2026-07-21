@@ -41,22 +41,44 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 
         public void InitializeFromLoadout(global::ActorEntity entity, in MobaPlayerLoadout loadout)
         {
-            if (entity == null) return;
-
-            var templateId = ResolveAttributeTemplateId(in loadout);
-            if (templateId <= 0)
+            if (!TryInitializeFromLoadout(entity, in loadout, out var error) && !string.IsNullOrEmpty(error))
             {
                 _diagnostics.LogMissingAttributeTemplate(
-                    templateId,
-                    $"[ActorEntityInitPipeline] AttributeTemplateId is invalid. heroId={loadout.HeroId} loadoutTemplateId={loadout.AttributeTemplateId}");
+                    loadout.AttributeTemplateId,
+                    $"[ActorEntityInitPipeline] Loadout initialization failed. heroId={loadout.HeroId} error={error}");
             }
+        }
 
-            InitializeFromAttributeTemplate(entity, templateId);
-
-            if (EnsureConfig())
+        public bool TryInitializeFromLoadout(
+            global::ActorEntity entity,
+            in MobaPlayerLoadout loadout,
+            out string error)
+        {
+            error = null;
+            if (entity == null)
             {
-                _skills.Initialize(entity, in loadout, _config);
+                error = "actor entity is required";
+                return false;
             }
+
+            _attributes.EnsureContainers(entity);
+            if (!EnsureConfig())
+            {
+                error = "config database is unavailable";
+                return false;
+            }
+
+            if (!MobaResolvedHeroLoadoutResolver.TryResolve(
+                    _config,
+                    loadout.HeroId,
+                    out var resolved,
+                    out error))
+            {
+                return false;
+            }
+
+            _attributes.ApplyTemplate(entity, resolved.AttributeTemplate);
+            return _skills.TryInitialize(entity, in resolved, out error);
         }
 
         private bool EnsureConfig()
@@ -88,23 +110,6 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             {
                 _diagnostics.LogConfigResolveException(ex);
                 return false;
-            }
-        }
-
-        private int ResolveAttributeTemplateId(in MobaPlayerLoadout loadout)
-        {
-            if (loadout.AttributeTemplateId > 0) return loadout.AttributeTemplateId;
-            if (!EnsureConfig()) return 0;
-
-            try
-            {
-                var character = _config.GetCharacter(loadout.HeroId);
-                return character != null ? character.AttributeTemplateId : 0;
-            }
-            catch (Exception ex)
-            {
-                _diagnostics.LogMissingCharacter(loadout.HeroId, ex);
-                return 0;
             }
         }
 

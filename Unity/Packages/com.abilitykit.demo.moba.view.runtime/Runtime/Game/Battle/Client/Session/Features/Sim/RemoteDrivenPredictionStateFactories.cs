@@ -16,6 +16,11 @@ namespace AbilityKit.Game.Flow
             var registry = new RollbackRegistry();
             if (world?.Services == null) return registry;
 
+            if (world.Services.TryResolve<IFrameTime>(out var frameTime) && frameTime is FrameTime mutableFrameTime)
+            {
+                registry.Register(new FrameTimeRollbackStateProvider(mutableFrameTime));
+            }
+
             if (world.Services.TryResolve<MobaActorRegistry>(out var actorRegistry) && actorRegistry != null)
             {
                 registry.Register(new MobaActorTransformRollbackProvider(actorRegistry));

@@ -17,6 +17,9 @@ namespace AbilityKit.Protocol.Moba
             public const int Skill2 = 3012;
             public const int Skill3 = 3013;
             public const int SkillInput = 3020;
+
+            public const int DebugSpawnUnit = 3030;
+            public const int DebugReplaceHero = 3031;
         }
 
         public static class Snapshot
@@ -32,6 +35,7 @@ namespace AbilityKit.Protocol.Moba
             public const int AreaEvent = 4009;
             public const int PresentationCue = 4010;
             public const int SkillState = 4011;
+            public const int PlayerHeroChanged = 4012;
         }
     }
 }

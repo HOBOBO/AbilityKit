@@ -116,9 +116,9 @@ namespace AbilityKit.Game.Flow
         {
             try
             {
-                if (_ctx?.Session == null ||
-                    !_ctx.Session.TryGetWorld(out var world) ||
-                    world?.Services == null ||
+                if (_ctx == null ||
+                    !_ctx.TryGetRuntimeWorld(out var world) ||
+                    world.Services == null ||
                     !world.Services.TryResolve<IMobaBattleDiagnosticEventSink>(out var collector) ||
                     collector == null)
                 {

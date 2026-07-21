@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
-    internal sealed class BattleDebugFrameSyncPredictionPanel : IBattleDebugPanel
+    internal sealed class BattleDebugFrameSyncPredictionPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         private bool _tuningUiInitialized;
         private int _editMaxAhead;
@@ -44,6 +44,8 @@ namespace AbilityKit.Game.Editor
 
         public string Name => "帧同步/预测";
         public int Order => 51;
+        public BattleDebugWorkspace Workspace => BattleDebugWorkspace.Diagnostics;
+        public bool OwnsScrollView => false;
 
         public bool IsVisible(in BattleDebugContext ctx)
         {

@@ -584,6 +584,63 @@
       ]
     },
     {
+      "name": "shooter-multiprocess-compatibility",
+      "level": "P2",
+      "owner": "Shooter Multiplayer",
+      "description": "Scheduled orthogonal multiplayer matrix across Packed/PureState payloads, one/two join clients, fault recovery, reconnect cycles, observer reactivation, and deterministic latency/jitter.",
+      "scope": ["shooter", "multiprocess", "compatibility", "payload-modes", "client-fanout", "fault-recovery"],
+      "requiredBefore": ["release-shooter-multiplayer-sync"],
+      "failurePolicy": "Preserve all matrix manifests and block release promotion until the failing compatibility case is triaged.",
+      "ciPolicy": { "runOnPullRequest": false, "runOnPush": false, "runOnSchedule": true, "artifactRequired": true },
+      "steps": [
+        {
+          "name": "Shooter compatibility matrix",
+          "kind": "powershell-script",
+          "script": "Server/Orleans/tools/run_shooter_multiprocess_smoke.ps1",
+          "arguments": ["-Configuration", "Release", "-Profile", "compatibility", "-TcpPort", "44201", "-SiloPort", "15211", "-OrleansGatewayPort", "34201", "-ArtifactRoot", "{GateOutputDirectory}\\compatibility", "-GlobalTimeoutSeconds", "1200"],
+          "timeoutSeconds": 1320
+        }
+      ]
+    },
+    {
+      "name": "shooter-multiprocess-soak",
+      "level": "P0",
+      "owner": "Shooter Multiplayer",
+      "description": "Scheduled/manual 16 and 64 observer PureState soak with dynamic network phases, delivery telemetry, recovery percentiles, observer fairness, and process resource trends.",
+      "scope": ["shooter", "multiprocess", "soak", "pure-state", "network-recovery", "resource-trend"],
+      "requiredBefore": ["release-shooter-multiplayer-sync"],
+      "failurePolicy": "Preserve all per-client telemetry, resource samples, summaries, and manifests; block release promotion on recovery, fairness, convergence, or memory-growth violations.",
+      "ciPolicy": { "runOnPullRequest": false, "runOnPush": false, "runOnSchedule": true, "artifactRequired": true },
+      "steps": [
+        {
+          "name": "Shooter 16/64 observer soak matrix",
+          "kind": "powershell-script",
+          "script": "Server/Orleans/tools/run_shooter_multiprocess_smoke.ps1",
+          "arguments": ["-Configuration", "Release", "-Profile", "soak", "-SoakDurationSeconds", "1800", "-TcpPort", "44401", "-SiloPort", "15411", "-OrleansGatewayPort", "34401", "-ArtifactRoot", "{GateOutputDirectory}\\soak", "-GlobalTimeoutSeconds", "3900"],
+          "timeoutSeconds": 4200
+        }
+      ]
+    },
+    {
+      "name": "shooter-multiprocess-ownership-cleanup",
+      "level": "P1",
+      "owner": "Shooter Multiplayer",
+      "description": "TEST-01C dynamic matrix-timeout probe proving manifest-owned process cleanup, released ports, preserved timeout failure, and unrelated-process protection.",
+      "scope": ["shooter", "multiprocess", "test-01c", "process-ownership", "timeout-cleanup"],
+      "requiredBefore": ["release-shooter-multiplayer-sync"],
+      "failurePolicy": "Preserve the acceptance report and timeout manifests; block promotion when any owned process or port remains, identity evidence is incomplete, or an unrelated process is terminated.",
+      "ciPolicy": { "runOnPullRequest": false, "runOnPush": false, "runOnSchedule": true, "artifactRequired": true },
+      "steps": [
+        {
+          "name": "TEST-01C ownership cleanup probe",
+          "kind": "powershell-script",
+          "script": "Server/Orleans/tools/test_shooter_multiprocess_ownership_cleanup.ps1",
+          "arguments": ["-Configuration", "Release", "-TcpPort", "44301", "-SiloPort", "15311", "-OrleansGatewayPort", "34301", "-ArtifactRoot", "{GateOutputDirectory}\\test-01c", "-GlobalTimeoutSeconds", "35"],
+          "timeoutSeconds": 600
+        }
+      ]
+    },
+    {
       "name": "shooter-performance",
       "level": "P1",
       "owner": "Shooter Multiplayer",

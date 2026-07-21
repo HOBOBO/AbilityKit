@@ -2,10 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.Time;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Configuration;
 using AbilityKit.Core.Logging;
+using AbilityKit.Demo.Moba.Services.Snapshot;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Share.Config;
 using MobaProjectileEventSnapshotEntry = AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotEntry;
@@ -446,6 +450,14 @@ namespace AbilityKit.Game.Test.UnitTest
             CollectionAssert.AreEqual(new[] { "session" }, provider.CreatedFeatureIds);
         }
 
+        [TestCase(BattleStartConfig.BattleHostMode.Local)]
+        [TestCase(BattleStartConfig.BattleHostMode.GatewayRemote)]
+        public void BattleSessionFeature_CompletesPreFrameAssetBarrierOnFirstFrame(
+            BattleStartConfig.BattleHostMode hostMode)
+        {
+            Assert.IsTrue(BattleSessionFeature.CompletesAssetBarrierOnFirstFrame(hostMode));
+        }
+
         [Test]
         public void BattleSessionFeature_StartsWorldsThroughInjectedInstaller()
         {
@@ -850,6 +862,275 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void SessionSimRuntimeTuning_ProtectsUnconsumedInputsFromTickBasedTrimming()
+        {
+            Assert.AreEqual(37, SessionSimRuntimeTuning.ResolveInputTrimBeforeFrame(
+                lastTickedFrame: 281,
+                lastConsumedFrame: 36));
+            Assert.AreEqual(161, SessionSimRuntimeTuning.ResolveInputTrimBeforeFrame(
+                lastTickedFrame: 281,
+                lastConsumedFrame: 200));
+            Assert.AreEqual(0, SessionSimRuntimeTuning.ResolveInputTrimBeforeFrame(
+                lastTickedFrame: 281,
+                lastConsumedFrame: -1));
+        }
+
+        [Test]
+        public void FrameTimeRollbackStateProvider_RestoresCapturedClockWhenSnapshotLabelIsAhead()
+        {
+            var frameTime = new FrameTime();
+            frameTime.Reset(new FrameIndex(178), time: 5.933333f, fixedDelta: 1f / 30f);
+            var provider = new FrameTimeRollbackStateProvider(frameTime);
+            var snapshot = provider.Export(new FrameIndex(179));
+
+            frameTime.StepTo(new FrameIndex(209), 1f / 30f);
+            provider.Import(new FrameIndex(179), snapshot);
+
+            Assert.AreEqual(178, frameTime.Frame.Value);
+            Assert.AreEqual(5.933333f, frameTime.Time, 0.00001f);
+            Assert.AreEqual(0f, frameTime.DeltaTime, 0.000001f);
+            Assert.AreEqual(1f / 30f, frameTime.FrameToTime(new FrameIndex(1)), 0.000001f);
+        }
+
+        [Test]
+        public void ServerFrameTimeModule_FallbackTickContinuesFromRestoredWorldFrame()
+        {
+            const float fixedDelta = 1f / 30f;
+            var worldId = new WorldId("rollback-clock");
+            var frameTime = new FrameTime();
+            frameTime.Reset(new FrameIndex(178), time: 5.933333f, fixedDelta);
+            var provider = new FrameTimeRollbackStateProvider(frameTime);
+            var snapshot = provider.Export(new FrameIndex(179));
+            var module = new ServerFrameTimeModule(fixedDelta);
+            var timesField = typeof(ServerFrameTimeModule).GetField(
+                "_times",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(timesField);
+            var times = (Dictionary<WorldId, FrameTime>)timesField.GetValue(module);
+            times.Add(worldId, frameTime);
+
+            InvokePrivate(module, "OnPostTick", fixedDelta);
+            frameTime.StepTo(new FrameIndex(209), fixedDelta);
+            provider.Import(new FrameIndex(179), snapshot);
+            InvokePrivate(module, "OnPostTick", fixedDelta);
+
+            Assert.AreEqual(179, frameTime.Frame.Value);
+            Assert.AreEqual(5.966666f, frameTime.Time, 0.00001f);
+        }
+
+        [Test]
+        public void SnapshotBufferEmitter_AllowsSameFrameEmissionAfterEmptyProbe()
+        {
+            var emitter = new TestSnapshotBufferEmitter();
+            var frame = new FrameIndex(248);
+
+            Assert.IsFalse(emitter.TryGetSnapshot(frame, out _));
+
+            emitter.Enqueue(4012);
+
+            Assert.IsTrue(emitter.TryGetSnapshot(frame, out var snapshot));
+            Assert.AreEqual(4012, snapshot.OpCode);
+            Assert.IsFalse(emitter.TryGetSnapshot(frame, out _));
+        }
+
+        [Test]
+        public void SnapshotBufferEmitter_AllowsNewEventAfterSameFrameWasAlreadyDrained()
+        {
+            var emitter = new TestSnapshotBufferEmitter();
+            var frame = new FrameIndex(198);
+
+            emitter.Enqueue(4005);
+            Assert.IsTrue(emitter.TryGetSnapshot(frame, out var predictedSnapshot));
+            Assert.AreEqual(4005, predictedSnapshot.OpCode);
+            Assert.IsFalse(emitter.TryGetSnapshot(frame, out _));
+
+            emitter.Enqueue(4012);
+            Assert.IsTrue(emitter.TryGetSnapshot(frame, out var authoritativeSnapshot));
+            Assert.AreEqual(4012, authoritativeSnapshot.OpCode);
+            Assert.IsFalse(emitter.TryGetSnapshot(frame, out _));
+        }
+
+        [Test]
+        public void ClientPredictionRollbackCapture_ProcessesOnlyPredictionFrameChanges()
+        {
+            var method = typeof(AbilityKit.Ability.Host.Extensions.FrameSync.ClientPredictionDriverModule)
+                .GetMethod(
+                    "ShouldProcessRollbackFrame",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(method);
+
+            Assert.IsFalse((bool)method.Invoke(null, new object[]
+            {
+                new FrameIndex(182),
+                new FrameIndex(182),
+            }));
+            Assert.IsTrue((bool)method.Invoke(null, new object[]
+            {
+                new FrameIndex(183),
+                new FrameIndex(182),
+            }));
+            Assert.IsTrue((bool)method.Invoke(null, new object[]
+            {
+                new FrameIndex(182),
+                new FrameIndex(209),
+            }));
+        }
+
+        [Test]
+        public void ClientPredictionReconcileRollback_RejectsPreviouslyRestoredFrame()
+        {
+            var method = typeof(AbilityKit.Ability.Host.Extensions.FrameSync.ClientPredictionDriverModule)
+                .GetMethod(
+                    "ShouldRequestReconcileRollback",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(method);
+
+            Assert.IsFalse((bool)method.Invoke(null, new object[]
+            {
+                new FrameIndex(179),
+                new FrameIndex(180),
+            }));
+            Assert.IsTrue((bool)method.Invoke(null, new object[]
+            {
+                new FrameIndex(178),
+                new FrameIndex(180),
+            }));
+        }
+
+        [Test]
+        public void ClientPredictionReconcileRollback_AllowsInitialRestoreToFrameZero()
+        {
+            var method = typeof(AbilityKit.Ability.Host.Extensions.FrameSync.ClientPredictionDriverModule)
+                .GetMethod(
+                    "ShouldRequestReconcileRollback",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(method);
+
+            Assert.IsTrue((bool)method.Invoke(null, new object[]
+            {
+                new FrameIndex(-1),
+                new FrameIndex(1),
+            }));
+            Assert.IsFalse((bool)method.Invoke(null, new object[]
+            {
+                new FrameIndex(0),
+                new FrameIndex(1),
+            }));
+        }
+
+        [Test]
+        public void ClientPredictionFrameTime_AlignsDriftedHostClockToSimulationFrame()
+        {
+            const float fixedDelta = 1f / 30f;
+            var frameTime = new FrameTime();
+            frameTime.Reset(new FrameIndex(219), 219 * fixedDelta, fixedDelta);
+            var method = typeof(AbilityKit.Ability.Host.Extensions.FrameSync.ClientPredictionDriverModule)
+                .GetMethod(
+                    "AlignFrameTime",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(method);
+
+            method.Invoke(null, new object[]
+            {
+                frameTime,
+                new FrameIndex(185),
+                fixedDelta,
+            });
+
+            Assert.AreEqual(185, frameTime.Frame.Value);
+            Assert.AreEqual(185 * fixedDelta, frameTime.Time, 0.00001f);
+            Assert.AreEqual(fixedDelta, frameTime.DeltaTime, 0.000001f);
+        }
+
+        [Test]
+        public void ServerFrameTimeModule_CanDisableHostTickFallback()
+        {
+            var module = new ServerFrameTimeModule(
+                1f / 30f,
+                advanceOnHostTickFallback: false);
+            var field = typeof(ServerFrameTimeModule).GetField(
+                "_advanceOnHostTickFallback",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(field);
+            Assert.IsFalse((bool)field.GetValue(module));
+        }
+
+        [Test]
+        public void InputHistoryRingBuffer_EvictsFrameAtCapacityBoundary()
+        {
+            var history = new InputHistoryRingBuffer(240);
+            var oldFrame = new FrameIndex(139);
+            var replacementFrame = new FrameIndex(379);
+            var oldInputs = new[]
+            {
+                new PlayerInputCommand(oldFrame, new PlayerId("1"), 3031, new byte[] { 1 })
+            };
+
+            history.Store(oldFrame, oldInputs);
+            Assert.IsTrue(history.TryGet(oldFrame, out var stored));
+            Assert.AreSame(oldInputs, stored);
+
+            history.Store(replacementFrame, Array.Empty<PlayerInputCommand>());
+
+            Assert.IsFalse(history.TryGet(oldFrame, out _));
+            Assert.IsTrue(history.TryGet(replacementFrame, out var replacement));
+            Assert.IsEmpty(replacement);
+        }
+
+        [Test]
+        public void RemoteDrivenRuntimeModuleFactory_RetainsSixHundredPredictionFrames()
+        {
+            Assert.AreEqual(600, RemoteDrivenRuntimeModuleFactory.PredictionRollbackHistoryFrames);
+        }
+
+        [Test]
+        public void SessionSimRuntimeTuning_ResolvesModeAwareInputSubmitFrame()
+        {
+            var localPlan = BattleStartPlanBuilder
+                .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 9)
+                .WithHostMode(BattleStartConfig.BattleHostMode.Local)
+                .Build();
+            var minimumLeadGatewayPlan = BattleStartPlanBuilder
+                .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
+                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithGateway(
+                    useGatewayTransport: true,
+                    host: "127.0.0.1",
+                    port: 41101,
+                    numericRoomId: 1001,
+                    sessionToken: "token",
+                    region: "dev",
+                    serverId: "local",
+                    autoCreateRoom: false,
+                    autoJoinRoom: false,
+                    joinRoomId: "room",
+                    createRoomOpCode: 110,
+                    joinRoomOpCode: 111)
+                .Build();
+            var configuredLeadGatewayPlan = BattleStartPlanBuilder
+                .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 5)
+                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithGateway(
+                    useGatewayTransport: true,
+                    host: "127.0.0.1",
+                    port: 41101,
+                    numericRoomId: 1001,
+                    sessionToken: "token",
+                    region: "dev",
+                    serverId: "local",
+                    autoCreateRoom: false,
+                    autoJoinRoom: false,
+                    joinRoomId: "room",
+                    createRoomOpCode: 110,
+                    joinRoomOpCode: 111)
+                .Build();
+
+            Assert.AreEqual(121, SessionSimRuntimeTuning.ResolveInputSubmitFrame(120, in localPlan));
+            Assert.AreEqual(123, SessionSimRuntimeTuning.ResolveInputSubmitFrame(120, in minimumLeadGatewayPlan));
+            Assert.AreEqual(126, SessionSimRuntimeTuning.ResolveInputSubmitFrame(120, in configuredLeadGatewayPlan));
+        }
+
+        [Test]
         public void GatewaySessionFailurePolicy_ControlsPreparationAndTimeSyncFailures()
         {
             var source = new InvalidOperationException("boom");
@@ -982,6 +1263,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 new FixedBattleBootstrapper(sourcePlan),
                 "authenticated-token",
                 "room-public-id",
+                "battle-authoritative-id",
                 9001UL,
                 7001UL);
 
@@ -991,6 +1273,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual("7001", plan.World.WorldId);
             Assert.AreEqual(9001UL, plan.Gateway.NumericRoomId);
             Assert.AreEqual("room-public-id", plan.Gateway.JoinRoomId);
+            Assert.AreEqual("battle-authoritative-id", plan.Gateway.BattleId);
             Assert.AreEqual("authenticated-token", plan.Gateway.SessionToken);
             Assert.IsTrue(plan.Gateway.UseGatewayTransport);
             Assert.IsFalse(plan.Gateway.AutoCreateRoom);
@@ -1272,6 +1555,24 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
     
+        private sealed class TestSnapshotBufferEmitter :
+            LogicWorldSnapshotBufferEmitterBase<TestSnapshotBufferEmitter, int>
+        {
+            public TestSnapshotBufferEmitter() : base(1, 4)
+            {
+            }
+
+            public void Enqueue(int opCode)
+            {
+                Add(opCode);
+            }
+
+            protected override WorldStateSnapshot CreateSnapshot(int[] entries)
+            {
+                return new WorldStateSnapshot(entries[0], Array.Empty<byte>());
+            }
+        }
+
         private sealed class FixedBattleBootstrapper : IBattleBootstrapper
         {
             private readonly BattleStartPlan _plan;

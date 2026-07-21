@@ -69,6 +69,7 @@ namespace AbilityKit.Demo.Moba.Services
             var bindResult = BindPlayerActors(built.PlayerActors);
             if (!bindResult.Succeeded)
             {
+                RollbackBuiltActors(built.PlayerActors);
                 return bindResult;
             }
 
@@ -141,7 +142,11 @@ namespace AbilityKit.Demo.Moba.Services
                     effectiveReq,
                     initializer: (entity, loadout) =>
                     {
-                        _generator.InitializeFromLoadout(entity, loadout);
+                        if (!_generator.TryInitializeFromLoadout(entity, in loadout, out var error))
+                        {
+                            throw new InvalidOperationException(
+                                error ?? $"actor loadout initialization failed. playerId={loadout.PlayerId.Value} heroId={loadout.HeroId}");
+                        }
                     },
                     onActorBuilt: (entity, loadout) =>
                     {
@@ -172,6 +177,7 @@ namespace AbilityKit.Demo.Moba.Services
             var buildValidation = ValidateBuildResult(in built, effectiveReq.Players.Length);
             if (!buildValidation.Succeeded)
             {
+                RollbackBuiltActors(built.PlayerActors);
                 return buildValidation;
             }
 
@@ -326,6 +332,34 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             return MobaGameStartResult.Success;
+        }
+
+        private void RollbackBuiltActors(MobaPlayerActorEntry[] playerActors)
+        {
+            if (playerActors == null) return;
+
+            for (var i = playerActors.Length - 1; i >= 0; i--)
+            {
+                var entry = playerActors[i];
+                if (entry.ActorId <= 0) continue;
+
+                _playerActorMap?.Unbind(entry.PlayerId, entry.ActorId);
+
+                global::ActorEntity entity = null;
+                if (_entities != null)
+                {
+                    _entities.TryGetActorEntity(entry.ActorId, out entity);
+                    _entities.Unregister(entry.ActorId);
+                }
+
+                if (entity == null && _registry != null)
+                {
+                    _registry.TryGet(entry.ActorId, out entity);
+                }
+
+                _registry?.Unregister(entry.ActorId);
+                ActorSpawnPipeline.DestroyBuiltEntity(entity);
+            }
         }
 
         public void Dispose()

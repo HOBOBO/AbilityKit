@@ -65,6 +65,7 @@ namespace AbilityKit.Game.Flow
                 configured,
                 _session.SessionToken,
                 snapshot.RoomId,
+                snapshot.BattleId,
                 snapshot.NumericRoomId,
                 snapshot.WorldId));
         }

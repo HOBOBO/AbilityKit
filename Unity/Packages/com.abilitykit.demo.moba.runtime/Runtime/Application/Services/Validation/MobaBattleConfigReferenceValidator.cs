@@ -69,6 +69,15 @@ namespace AbilityKit.Demo.Moba.Services
                     report.Warning(Source, path + ".hp", "battle attribute template hp exceeds max hp.", template.Id.ToString());
                 }
 
+                RequiredRef(Ref<SkillMO>(config.TryGetSkill), template.BasicAttackSkillId, report, path + ".basicAttackSkillId", "basic attack skill", template.Id);
+                if (template.BasicAttackSkillId > 0 &&
+                    config.TryGetSkill(template.BasicAttackSkillId, out var basicAttack) &&
+                    basicAttack != null &&
+                    basicAttack.SkillType != SkillType.NormalAttack)
+                {
+                    report.Error(Source, path + ".basicAttackSkillId", "configured basic attack skill is not a normal attack.", template.BasicAttackSkillId.ToString());
+                }
+
                 ValidateRefs(Ref<SkillMO>(config.TryGetSkill), template.ActiveSkills, report, path + ".activeSkills", "skill", template.Id);
                 ValidateRefs(Ref<PassiveSkillMO>(config.TryGetPassiveSkill), template.PassiveSkills, report, path + ".passiveSkills", "passive skill", template.Id);
             }

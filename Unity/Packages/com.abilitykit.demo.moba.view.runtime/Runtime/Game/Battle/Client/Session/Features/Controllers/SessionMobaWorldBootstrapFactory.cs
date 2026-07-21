@@ -1,3 +1,4 @@
+using AbilityKit.Ability.Config;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Combat.Collision;
@@ -9,6 +10,7 @@ using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.View.Config;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Game.Flow.Battle.FrameSync;
@@ -61,6 +63,9 @@ namespace AbilityKit.Game.Flow
                 },
                 new[] { "AbilityKit" }
             );
+            var textAssetLoader = new ResourcesTextAssetLoader();
+            builder.RegisterInstance<ITextAssetLoader>(textAssetLoader);
+            builder.RegisterInstance<ITextAssetDirectoryLoader>(textAssetLoader);
             builder.AddModule(new MobaConfigWorldModule());
             if (registerWorldInitData)
             {

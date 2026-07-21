@@ -4,7 +4,7 @@
 >
 > 当前能力以 [CURRENT-CAPABILITIES.md](CURRENT-CAPABILITIES.md) 为准。历史记录中的“当前”“尚未”等措辞只描述对应批次结束时的状态。
 >
-> 最后整理：2026-07-19
+> 最后整理：2026-07-20
 
 ## 阅读规则
 
@@ -125,6 +125,74 @@
 Overview 组合 Actor、Tag 和 Effect 查询，移除面板对活动 Unit、Tag Container 和 Effect Container 的直接读取。联合缓存键包含 Session Scope、三类 revision、ActorId 和 Frame。
 
 验证边界：Diagnostics Tests 和 Editor 生成项目完成范围化构建且为 0 errors；Unity Editor 当时正在运行，因此未启动第二实例、未结束用户进程、未运行 EditMode Test Runner，也未宣称 NUnit 通过。
+
+## 第二十六批：Trace Tree/Path Editor 面板
+
+目标：为第二十批已经完成的 Trace 只读数据链建立正式 Editor 消费入口。
+
+关键结果：新增 Trace 面板与无 UnityEditor 依赖的 ViewModel；支持按 Root Context ID 查询、树层级、节点状态、孤儿标记、节点选择、根到选中节点的父链，以及不可用和截断状态提示。缓存键使用 Session Scope、独立 Trace revision 和 Root Context ID。
+
+未改变的边界：Runtime Trace DTO、Store、Producer、Session Query 和 capability 契约保持不变；面板不读取活动 Trace Registry，不提供 Pin、导出或可变操作。
+
+测试：已补 ViewModel 聚焦测试，覆盖缓存键、深度、孤儿、选择父链、revision 刷新回退、不可用清理和循环 Parent 防护。测试程序集源码编译通过；未运行 Unity Test Runner，不宣称 NUnit 通过。
+
+构建：通过临时 MSBuild 导入将尚未被 Unity 生成项目刷新的两个新脚本纳入编译；Editor 生成项目 0 errors、8 个既有弃用 warning，Diagnostics Tests 生成项目 0 errors、2 个既有弃用 warning。临时导入文件已删除，生成项目未保留改动。
+
+Unity 手工验收：未执行；未启动第二 Unity 实例，也未结束用户现有 Unity 进程。
+
+已知限制：需要从事件或日志取得 Root Context ID 后手工输入；Trace Store 保留策略可能使旧根返回 Evicted；当前不支持搜索、折叠、Pin、导出、远端或离线 Trace。
+
+当前能力文档更新：Trace 已登记正式 Editor 面板入口，并移除“无独立 Trace 图面板”限制。
+
+## 第二十七批：Battle Debug Workspace UX 第一批
+
+目标：优先修复日常诊断中的选择正确性、跨面板链路和面板扩展性，不进行无关视觉重做。
+
+关键结果：主窗口改为保存稳定 Actor ID，实体刷新、排序和过滤不再导致选择静默漂移；新增 Actor/Diagnostics 两级工作区和面板下拉选择；Context 提供窄选择与 Trace 导航命令；事件支持选择详情、已知结构化 Payload 展示、来源/目标 Actor 选择和一键打开 Trace；诊断状态 Actor 行支持反向选择。
+
+滚动边界：面板通过可选布局接口声明工作区与滚动所有权。Events、Trace、State 及大型 Actor 集合面板自行管理滚动，短内容面板继续使用窗口外层滚动，消除外层与内部列表的嵌套滚动。
+
+未改变的边界：Runtime DTO、Store、Producer、Session 查询和 capability 契约均未修改；实体枚举与活动 Unit 解析仍由既有 Facade 提供；第三方面板不实现布局接口时保持默认 Actor 工作区和窗口滚动行为。
+
+测试与构建：交互变更集中在 IMGUI EditorWindow，没有向纯 ViewModel fixture 添加私有窗口反射测试。Editor 生成项目范围化编译通过，0 errors；`git diff --check` 通过。Unity Test Runner 与手工 Play Mode UI 验收尚未执行。
+
+已知限制：Trace 树搜索、折叠、Pin 和导出仍未实现；左右栏宽度和窗口状态尚未持久化；实体列表仍按 0.25 秒周期重建。
+
+## 第二十八批：Battle Debug Workspace UX 第二批
+
+目标：降低长期诊断时的导航与布局成本，补齐大型 Trace 树的高频定位能力，并减少稳定战场中的列表刷新扰动。
+
+关键结果：主窗口增加可拖拽实体栏分隔条，通过 EditorPrefs 保存栏宽、工作区和两个工作区的面板索引；Actor 选择仍保持会话级，不跨窗口持久化。实体刷新使用复用缓冲区构建候选快照，仅在过滤后的 Actor ID 序列变化时替换可见列表。
+
+Trace UX：ViewModel 增加搜索投影、命中计数、折叠状态和临时 Pin。搜索覆盖 Kind、状态、结束原因、Context、Actor 与 Config，显示命中节点及其祖先；搜索期间穿透折叠，清除搜索后恢复折叠状态。Pin 支持固定当前节点、浏览后返回，以及节点淘汰后的明确不可用状态。
+
+未改变的边界：Runtime Trace DTO、Store、Session Query 和 capability 未修改；Editor Pin 只是当前面板内的导航状态，不等同于 Session/Runtime PinTrace，不持久化、不导出，也不修改 Trace。
+
+测试与构建：新增两个 Trace ViewModel 聚焦测试，覆盖搜索祖先投影、折叠穿透与恢复、Pin 返回和节点淘汰。Editor 与 Diagnostics Tests 生成项目源码编译均为 0 errors；`git diff --check` 通过。未运行 Unity Test Runner，不宣称 NUnit 已执行。
+
+Unity 手工验收：未执行；栏宽拖拽、偏好恢复、Trace 行交互和稳定刷新行为已加入 TESTING 手工验收清单。
+
+已知限制：Trace 导出、跨根或跨会话持久化 Pin、远端和离线 Trace 仍未实现；自动刷新仍以 0.25 秒轮询检查实体集合，周期重绘仍用于实时诊断面板。
+
+当前能力文档更新：Trace 搜索、折叠和临时导航 Pin 已登记；窗口布局持久化和实体快照替换策略已登记，并继续区分 Editor 临时 Pin 与未实现的 Session PinTrace。
+
+## 第二十九批：Battle Debug Workspace UX 第三批
+
+目标：缩短大 Trace 树中的重复定位路径，并改善实体列表在持续调试期间的浏览和刷新控制。
+
+关键结果：Trace 搜索支持在直接命中节点间首尾循环导航，不把仅为上下文保留的祖先当作命中；新增全部展开和保留当前选中父链的全部折叠。Event → Trace、搜索命中导航、返回 Pin 和批量折叠后的程序化选择都会将目标节点滚动回树视口。
+
+实体导航：顶部显示过滤后的可见实体数与总数，并支持一键清除过滤；左栏支持在当前可见实体间循环前后选择和清除选择。窗口增加本地自动刷新开关，关闭后暂停 0.25 秒窗口轮询，但手工刷新仍可用。
+
+未改变的边界：Runtime DTO、Store、Session Query 和 capability 未修改；窗口自动刷新开关不等同于 Diagnostics Freeze，不停止底层采集，不冻结 Store，也不修改战斗状态。Actor 选择和自动刷新开关均不跨窗口持久化。
+
+测试与构建：新增两个 Trace ViewModel 聚焦测试，覆盖直接命中循环导航、可见行索引、保留选中父链的批量折叠和全部展开。首次使用 `BuildProjectReferences=false` 的隔离构建因 Unity `Temp/bin` 缺少既有依赖 DLL 而失败，不属于源码编译错误；随后完整 Editor 生成项目构建为 0 errors、106 个既有 warning，完整 Diagnostics Tests 生成项目构建为 0 errors、108 个既有 warning，范围化 `git diff --check` 通过。未运行 Unity Test Runner，不宣称 NUnit 已执行。
+
+Unity 手工验收：未执行；命中导航、自动滚动、批量折叠、实体循环导航和自动刷新暂停语义已加入 TESTING 手工验收清单。
+
+已知限制：当前没有快捷键绑定、虚拟化树或跨 Trace 根的搜索；自动刷新暂停仅作用于当前窗口轮询，不是可复用的采集控制工作流。
+
+当前能力文档更新：登记 Trace 命中导航、批量展开/折叠、程序化滚动，以及实体计数、循环导航和窗口自动刷新边界。
 
 ## 后续记录格式
 

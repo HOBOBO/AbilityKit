@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Battle.Vfx;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;
@@ -32,12 +33,13 @@ namespace AbilityKit.Game.Flow
             in EC.IEntity vfxNode,
             BattleViewResourceProvider resources,
             BattleViewShellPool pool,
-            BattleViewBinderControllerFactory controllers)
+            BattleViewBinderControllerFactory controllers,
+            BattleViewHierarchyManager hierarchy = null)
         {
             resources = BattleViewResourceProvider.OrDefault(resources);
             controllers ??= new BattleViewBinderControllerFactory();
 
-            _shells = controllers.CreateShells(resources, this, pool);
+            _shells = controllers.CreateShells(resources, this, pool, hierarchy);
             _attachedVfx = controllers.CreateAttachedVfx(vfx, in vfxNode, resources);
             _transforms = controllers.CreateTransforms(_handles, _attachedVfx);
             _sync = controllers.CreateSync(_handles, _shells, _attachedVfx, _transforms, resources);
@@ -141,14 +143,15 @@ namespace AbilityKit.Game.Flow
             public BattleViewShellController CreateShells(
                 BattleViewResourceProvider resources,
                 IMonoViewHandleRegistry registry,
-                BattleViewShellPool pool)
+                BattleViewShellPool pool,
+                BattleViewHierarchyManager hierarchy = null)
             {
                 resources = BattleViewResourceProvider.OrDefault(resources);
 
                 IBattleViewShellLoader loader;
                 if (pool != null)
                 {
-                    loader = new PooledBattleViewShellLoader(pool);
+                    loader = new PooledBattleViewShellLoader(pool, hierarchy);
                 }
                 else
                 {

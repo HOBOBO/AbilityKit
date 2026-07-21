@@ -94,7 +94,12 @@ namespace AbilityKit.Core.Editor.Debugging
 
                 try
                 {
-                    c.Draw(in ctx, s_draw);
+                    // Scene GUI callbacks share Handles state. Give every contributor an
+                    // isolated world-space scope so another editor extension cannot offset it.
+                    using (new Handles.DrawingScope(Color.white, Matrix4x4.identity))
+                    {
+                        c.Draw(in ctx, s_draw);
+                    }
                 }
                 catch
                 {

@@ -1,4 +1,5 @@
 ﻿using AbilityKit.Orleans.Contracts.Battle;
+using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Protocol.Room;
 using Microsoft.Extensions.Logging;
@@ -14,15 +15,18 @@ public sealed partial class SubscribeStateSyncHandler : GatewayRequestHandlerBas
 {
     private readonly IClusterClient _clusterClient;
     private readonly IGatewaySessionRegistry _sessionRegistry;
+    private readonly Core.GatewayFrameSyncSubscriptionManager _frameSyncSubscriptions;
     private readonly ILogger<SubscribeStateSyncHandler> _logger;
 
     public SubscribeStateSyncHandler(
         IClusterClient clusterClient,
         IGatewaySessionRegistry sessionRegistry,
+        Core.GatewayFrameSyncSubscriptionManager frameSyncSubscriptions,
         ILogger<SubscribeStateSyncHandler> logger)
     {
         _clusterClient = clusterClient;
         _sessionRegistry = sessionRegistry;
+        _frameSyncSubscriptions = frameSyncSubscriptions;
         _logger = logger;
     }
 
@@ -35,7 +39,10 @@ public sealed partial class SubscribeStateSyncHandler : GatewayRequestHandlerBas
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
 
         var req = WireRoomGatewayBinary.Deserialize<WireSubscribeStateSyncReq>(request.Payload);
-        if (string.IsNullOrWhiteSpace(req.SessionToken) || string.IsNullOrWhiteSpace(req.BattleId))
+        if (string.IsNullOrWhiteSpace(req.SessionToken)
+            || string.IsNullOrWhiteSpace(req.BattleId)
+            || string.IsNullOrWhiteSpace(req.RoomId)
+            || context.ConnectionId <= 0)
         {
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
         }
@@ -63,6 +70,9 @@ public sealed partial class SubscribeStateSyncHandler : GatewayRequestHandlerBas
                 Epoch = req.EventEpoch ?? string.Empty,
                 LastAcknowledgedSequence = Math.Max(0, req.LastEventAck)
             });
+
+            var numericRoomId = RoomGatewayIds.CreateNumericRoomId(req.RoomId);
+            await _frameSyncSubscriptions.EnsureSubscribedAsync(context.ConnectionId, numericRoomId);
 
             var wire = new WireSubscribeStateSyncRes
             {

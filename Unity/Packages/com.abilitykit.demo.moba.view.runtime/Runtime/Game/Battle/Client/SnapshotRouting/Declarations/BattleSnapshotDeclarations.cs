@@ -1,4 +1,5 @@
 using AbilityKit.Ability.Host;
+using AbilityKit.Core.Logging;
 using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Protocol.Moba.CreateWorld;
 using AbilityKit.Protocol.Moba;
@@ -36,6 +37,21 @@ namespace AbilityKit.Game.Flow.Snapshot
             return true;
         }
 
+        [SnapshotDecoder("battle", MobaOpCodes.Snapshot.PlayerHeroChanged, typeof(MobaPlayerHeroChangedSnapshotEntry[]))]
+        internal static bool DecodePlayerHeroChanged(
+            in WorldStateSnapshot snap,
+            out MobaPlayerHeroChangedSnapshotEntry[] entries)
+        {
+            if (snap.Payload == null || snap.Payload.Length == 0)
+            {
+                entries = null;
+                return false;
+            }
+
+            entries = MobaPlayerHeroChangedSnapshotCodec.Deserialize(snap.Payload);
+            return true;
+        }
+
         [SnapshotDecoder("battle", MobaOpCodes.Snapshot.ActorDespawn, typeof(MobaActorDespawnSnapshotEntry[]))]
         internal static bool DecodeActorDespawn(in WorldStateSnapshot snap, out MobaActorDespawnSnapshotEntry[] entries)
         {
@@ -61,6 +77,30 @@ namespace AbilityKit.Game.Flow.Snapshot
         {
             if (ctx is not BattleContext battleCtx) return;
             BattleActorSpawnApplier.Apply(battleCtx, entries);
+        }
+
+        [SnapshotCmdHandler("battle", MobaOpCodes.Snapshot.PlayerHeroChanged, typeof(MobaPlayerHeroChangedSnapshotEntry[]))]
+        internal static void HandlePlayerHeroChanged(
+            object ctx,
+            ISnapshotEnvelope packet,
+            MobaPlayerHeroChangedSnapshotEntry[] entries)
+        {
+            if (ctx is not BattleContext battleCtx)
+            {
+                Log.Warning($"[BattleSnapshotDeclarations] PlayerHeroChanged context mismatch. contextType={ctx?.GetType().FullName ?? "null"}");
+                return;
+            }
+
+            if (entries == null || entries.Length == 0)
+            {
+                Log.Warning("[BattleSnapshotDeclarations] PlayerHeroChanged handler received no entries.");
+                return;
+            }
+
+            for (var i = 0; i < entries.Length; i++)
+            {
+                battleCtx.ApplyPlayerHeroChanged(in entries[i]);
+            }
         }
 
         [SnapshotCmdHandler("battle", MobaOpCodes.Snapshot.ActorDespawn, typeof(MobaActorDespawnSnapshotEntry[]))]

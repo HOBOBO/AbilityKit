@@ -159,14 +159,16 @@ flowchart TB
 | [02-Host 模块系统](03-LogicalWorldHostDesign/02-HostModules.md) | 模块装配 | IHostRuntimeModule、Install/Uninstall、Hook 订阅、Feature 协作、FrameSync/Time/AutoStart 模块流程 |
 | [03-World 管理器](03-LogicalWorldHostDesign/03-WorldManager.md) | 世界管理 | IWorldManager、WorldManager、IWorldFactory、创建/Tick/销毁/DisposeAll、多世界容器与 Blueprint 工厂 |
 
-### 04 表现层设计
+### 04 表现层设计与客户端流程入口
+
+> 第 01-03 篇属于表现层设计；第 04 篇因历史编号保留在本目录，但主题是并列的客户端游戏流程运行时，不属于表现层内部。
 
 | 文档 | 定位 | 说明 |
 |------|------|------|
 | [01-视图事件抽象](04-PresentationLayerDesign/01-ViewEventAbstraction.md) | 表现事件 | IBattleViewEventSink、BattleViewEventSink、Snapshot/Trigger Adapter、ViewEventAdapterLifecycle 与 View Binder 边界 |
 | [02-快照分发](04-PresentationLayerDesign/02-SnapshotDispatch.md) | 快照路由 | FrameSnapshotDispatcher、SnapshotPipeline、SnapshotRoutingBuilder、OpCode 路由、类型保护与 MOBA 快照订阅 |
 | [03-跨平台实现](04-PresentationLayerDesign/03-CrossPlatform.md) | 跨端适配 | Unity View Feature、ConsoleBattleView、ETBattleViewEventSink、Server/Headless 观察边界与跨平台适配原则 |
-| [04-客户端游戏流程与表现层阶段架构](04-PresentationLayerDesign/04-ClientGameFlowAndPhaseArchitecture.md) | 客户端流程 | 顶层 phase/HFSM、状态 feature binding、module/feature/subfeature/handler 分层、Flow 分工与 ET/GameFramework 对比 |
+| [04-客户端游戏流程运行时架构](04-PresentationLayerDesign/04-ClientGameFlowAndPhaseArchitecture.md) | 顶层生命周期 | Root/Battle HFSM、状态 Feature Binding、异步 Flow/Task、Battle Scope、Feature Host 与内部 Module 边界 |
 
 ### 05 通用模块
 
@@ -308,7 +310,7 @@ flowchart TB
 | Motion | `Unity/Packages/com.abilitykit.combat.motion/Runtime` | `src/AbilityKit.Combat.Motion` | MOBA motion component, init system and PlanActions |
 | Flow | `Unity/Packages/com.abilitykit.flow/Runtime` | `src/AbilityKit.Flow` | Samples.Logic、Unity package samples 与 Starter host |
 | Svelto ECS | `Unity/Packages/com.abilitykit.world.svelto/Runtime`、`Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Worlds/Svelto` | `src/AbilityKit.World.Svelto`、`src/AbilityKit.Demo.Shooter.Runtime.Tests` | Shooter entity layout、structural batch、snapshot/hash 与恢复测试 |
-| Game View Flow | `Unity/Packages/com.abilitykit.game.view.runtime/Runtime/Flow` | `src/AbilityKit.Game.View.Runtime.Tests` | Client phase feature binding and battle scope tests |
+| Client Game Flow Runtime | `Unity/Packages/com.abilitykit.game.view.runtime/Runtime/Flow` 与 MOBA App Flow | `src/AbilityKit.Game.View.Runtime.Tests` | Client phase feature binding、HFSM adapter、异步协调与 battle scope tests |
 | HFSM | `Unity/Packages/com.abilitykit.hfsm/Runtime` | `src/AbilityKit.HFSM.Core`、`Unity/AbilityKit.HFSM.Tests.csproj` | Shooter Bot AI、MOBA View Flow 与 Unity Action/Graph tests |
 | CodeGen / Luban | `Unity/Packages/com.abilitykit.codegen`、MOBA package Resources/LubanGen | `Unity/Packages/com.abilitykit.codegen/DotNet~/AbilityKit.SourceGenerator`、`LubanConfig/Moba`、`tools/sync_moba_json_configs.ps1` | ET config validation and Console publication replica |
 | ActionTimeline | `Unity/Packages/com.abilitykit.actionschema/Runtime`、ActionEditor exporter、MOBA timeline runtime | `src/AbilityKit.ActionSchema` | MOBA Ability Timeline phase and View runners |
@@ -362,7 +364,7 @@ flowchart TB
 | 2026-07-06 | 2.29 | MOBA 领域连续运行时与临时实体生命周期：Motion source、motion.hit、Summon owner/root-owner、容量策略、trace、despawn 与 gameplay trigger 绑定 |
 | 2026-07-06 | 2.30 | Shooter 战斗玩法内核：一帧管线、敌人波次、projectile 命中、空间索引、Bot AI 与胜负状态 |
 | 2026-07-06 | 2.31 | MOBA/Shooter 示例工业化流程：单元测试、Console/Orleans smoke、DSL/配置环境测试、trace/replay artifact 与 CI 分层门禁 |
-| 2026-07-06 | 2.32 | 客户端游戏流程与表现层阶段架构：顶层 phase/HFSM、状态 feature binding、module/feature/subfeature/handler 分层、Flow 分工与 ET/GameFramework 对比 |
+| 2026-07-06 | 2.32 | 客户端游戏流程运行时架构：顶层 Root/Battle HFSM、状态 Feature Binding、异步 Flow/Task、Battle Scope、Feature Host 与内部 Module 分层 |
 | 2026-07-06 | 2.33 | MOBA 主动、被动、Buff、Projectile 与 AOE 触发效果设计：触发源分类、direct/owner-bound 执行、StageTrigger、PlanAction 副作用和 source context 继承 |
 | 2026-07-06 | 2.34 | MOBA 技能 Flow 与 Pipeline 配置设计：skills.json、skill_flows.json、Phase Type、Timeline、RulePlan、Sequence、WaitUntil、Pipeline 持续标签模板与废弃 Checks 治理 |
 | 2026-07-14 | 2.35 | 全量薄文档审计与首批源码化补全：Buff 生命周期、Projectile/Damage、纯状态预算/AOI、Shooter Smoke；修正兴趣范围、命中转译、伤害职责、投影恢复与清理语义，并补录 AI 训练数据契约索引 |

@@ -5,10 +5,12 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
-    internal sealed class BattleDebugFrameSyncReconcilePanel : IBattleDebugPanel
+    internal sealed class BattleDebugFrameSyncReconcilePanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         public string Name => "帧同步/对账";
         public int Order => 53;
+        public BattleDebugWorkspace Workspace => BattleDebugWorkspace.Diagnostics;
+        public bool OwnsScrollView => false;
 
         public bool IsVisible(in BattleDebugContext ctx)
         {

@@ -22,6 +22,11 @@ internal static class ShooterSmokeClientProcessRunner
 
         using var replay = ShooterSmokeReplayRecordScope.CreateInputStateReplay(options.InputStateReplayOutputPath, in options);
         using var channel = new SmokeTcpGameFrameworkNetworkChannel($"ShooterSmokeGateway-{options.ClientId}", options.NetworkCondition.Normalize());
+        using var soakTelemetry = new ShooterSmokeSoakTelemetry(
+            options.ClientId,
+            options.RunRootPath,
+            options.NetworkControlPath,
+            options.MetricsOutputPath);
         using var connection = GameFrameworkGatewayConnectionFactory.Wrap(channel);
         using var launcher = new ShooterClientNetworkLauncher(connection);
 
@@ -134,7 +139,10 @@ internal static class ShooterSmokeClientProcessRunner
             }
         };
 
-        var launchSpec = ShooterRoomLaunchSpec.CreateDefault(options.ClientId);
+        var launchSpec = CreateRoomLaunchSpec(
+            options.ClientId,
+            options.RoomMaxPlayers,
+            options.BattleDurationFrames);
         var launched = options.Mode == ShooterSmokeClientProcessMode.Create
             ? await launcher.CreateReadyStartAndSubscribeAsync(
                 options.Host,
@@ -196,7 +204,23 @@ internal static class ShooterSmokeClientProcessRunner
         }
 
         replay?.RecordReconnect(in reconnectResult);
-        await WaitForCompletionReleaseWhileTickingAsync(options, launcher, resultTimeout).ConfigureAwait(false);
+        await WaitForCompletionReleaseWhileTickingAsync(
+            options,
+            launched,
+            launcher,
+            channel,
+            connection,
+            login.SessionToken,
+            launched.Flow.RoomId,
+            launched.Flow.BattleId,
+            soakTelemetry,
+            () => pushCount,
+            () => pureStateFullBaselinesApplied,
+            () => pureStateResyncRequests,
+            () => latestComparableSnapshotFrame,
+            () => latestComparableAuthoritativeHash != 0u
+                && latestComparableClientHash == latestComparableAuthoritativeHash,
+            resultTimeout).ConfigureAwait(false);
 
         var deliveryMetrics = await GetStateSyncDeliveryMetricsAsync(
             connection,
@@ -602,6 +626,45 @@ internal static class ShooterSmokeClientProcessRunner
         }
     }
 
+    private static ShooterRoomLaunchSpec CreateRoomLaunchSpec(
+        string clientId,
+        int roomMaxPlayers,
+        int battleDurationFrames)
+    {
+        var defaults = ShooterRoomLaunchSpec.CreateDefault(clientId);
+        if (roomMaxPlayers <= 0
+            && battleDurationFrames <= 0)
+        {
+            return defaults;
+        }
+
+        var tags = new Dictionary<string, string>(defaults.Tags);
+        if (battleDurationFrames > 0)
+        {
+            tags[ShooterRoomLaunchTagKeys.DurationFrames] = battleDurationFrames.ToString(CultureInfo.InvariantCulture);
+        }
+
+        return new ShooterRoomLaunchSpec(
+            defaults.Region,
+            defaults.ServerId,
+            defaults.RoomTitle,
+            roomMaxPlayers > 0 ? roomMaxPlayers : defaults.MaxPlayers,
+            defaults.GameplayId,
+            defaults.RuleSetId,
+            defaults.ConfigVersion,
+            defaults.ProtocolVersion,
+            defaults.WorldType,
+            defaults.ClientId,
+            tags,
+            defaults.SyncTemplateId,
+            defaults.SyncModel,
+            defaults.NetworkEnvironmentId,
+            defaults.CarrierName,
+            defaults.EnableAuthoritativeWorld,
+            defaults.InterpolationEnabled,
+            defaults.InputDelayFrames);
+    }
+
     private static ShooterStartGamePayload CreateStartGame(int seed)
     {
         return new ShooterStartGamePayload(
@@ -708,18 +771,46 @@ internal static class ShooterSmokeClientProcessRunner
         return response;
     }
 
-    private static async Task RequestInitialFullStateSyncWhileTickingAsync(
+    private static Task RequestInitialFullStateSyncWhileTickingAsync(
         ShooterClientNetworkLaunchResult launched,
         ShooterClientNetworkLauncher launcher,
         TimeSpan timeout)
     {
-        var request = launched.Battle.RequestFullSnapshotBaselineAsync(timeout);
+        return RequestFullStateSyncWhileTickingAsync(
+            launched,
+            launcher,
+            timeout,
+            ShooterClientResyncReason.None.ToString(),
+            "initial");
+    }
+
+    private static Task RequestRecoveryFullStateSyncWhileTickingAsync(
+        ShooterClientNetworkLaunchResult launched,
+        ShooterClientNetworkLauncher launcher,
+        TimeSpan timeout)
+    {
+        return RequestFullStateSyncWhileTickingAsync(
+            launched,
+            launcher,
+            timeout,
+            "SoakRecovery",
+            "recovery");
+    }
+
+    private static async Task RequestFullStateSyncWhileTickingAsync(
+        ShooterClientNetworkLaunchResult launched,
+        ShooterClientNetworkLauncher launcher,
+        TimeSpan timeout,
+        string reason,
+        string requestKind)
+    {
+        var request = launched.Battle.RequestFullSnapshotBaselineAsync(reason, timeout);
         var deadline = DateTime.UtcNow + timeout;
         while (!request.IsCompleted)
         {
             if (DateTime.UtcNow >= deadline)
             {
-                throw new TimeoutException("Timed out requesting initial Shooter full-state sync.");
+                throw new TimeoutException($"Timed out requesting {requestKind} Shooter full-state sync.");
             }
 
             launcher.Tick(1f / ShooterGameplay.DefaultTickRate);
@@ -729,7 +820,7 @@ internal static class ShooterSmokeClientProcessRunner
         var result = await request.ConfigureAwait(false);
         if (!result.Success || !result.Accepted)
         {
-            throw new InvalidOperationException($"Initial Shooter full-state sync request was rejected. Success={result.Success}, Accepted={result.Accepted}, Message={result.Message}");
+            throw new InvalidOperationException($"{requestKind} Shooter full-state sync request was rejected. Success={result.Success}, Accepted={result.Accepted}, Message={result.Message}");
         }
     }
 
@@ -847,7 +938,19 @@ internal static class ShooterSmokeClientProcessRunner
 
     private static async Task WaitForCompletionReleaseWhileTickingAsync(
         ShooterSmokeClientProcessOptions options,
+        ShooterClientNetworkLaunchResult launched,
         ShooterClientNetworkLauncher launcher,
+        SmokeTcpGameFrameworkNetworkChannel channel,
+        AbilityKit.Network.Abstractions.IConnection connection,
+        string sessionToken,
+        string roomId,
+        string battleId,
+        ShooterSmokeSoakTelemetry soakTelemetry,
+        Func<int> getPushCount,
+        Func<int> getFullBaselinesApplied,
+        Func<int> getResyncRequests,
+        Func<int> getComparableFrame,
+        Func<bool> getComparableHashMatched,
         TimeSpan timeout)
     {
         if (string.IsNullOrWhiteSpace(options.CompletionReleasePath))
@@ -856,16 +959,69 @@ internal static class ShooterSmokeClientProcessRunner
         }
 
         Console.WriteLine($"SHOOTER_MP_CLIENT_COMPLETION_READY clientId=\"{Escape(options.ClientId)}\"");
+        soakTelemetry.StartCommandPolling(
+            channel,
+            getFullBaselinesApplied,
+            getResyncRequests);
         var deadline = DateTime.UtcNow + timeout;
+        var sampleInterval = TimeSpan.FromMilliseconds(Math.Max(100, options.MetricsSampleIntervalMs));
+        var nextSampleAtUtc = DateTime.MinValue;
+        Task<WireGetStateSyncDeliveryMetricsRes>? metricsTask = null;
         while (!File.Exists(options.CompletionReleasePath))
         {
-            if (DateTime.UtcNow >= deadline)
+            var now = DateTime.UtcNow;
+            if (now >= deadline)
             {
                 throw new TimeoutException(
                     $"Timed out waiting for completion release file: {options.CompletionReleasePath}");
             }
 
             launcher.Tick(1f / ShooterGameplay.DefaultTickRate);
+
+            if (metricsTask == null && soakTelemetry.ConsumeRecoveryBaselineRequest())
+            {
+                await RequestRecoveryFullStateSyncWhileTickingAsync(
+                    launched,
+                    launcher,
+                    TimeSpan.FromSeconds(Math.Min(10d, Math.Max(1d, timeout.TotalSeconds))))
+                    .ConfigureAwait(false);
+            }
+
+            if (metricsTask != null && metricsTask.IsCompleted)
+            {
+                try
+                {
+                    var metrics = await metricsTask.ConfigureAwait(false);
+                    soakTelemetry.WriteDeliverySample(
+                        metrics,
+                        channel,
+                        getPushCount(),
+                        getFullBaselinesApplied(),
+                        getResyncRequests(),
+                        getComparableFrame(),
+                        getComparableHashMatched());
+                }
+                catch (Exception) when (metricsTask.IsFaulted || metricsTask.IsCanceled)
+                {
+                    // Metrics are observational; a slow or unavailable request must not block control ACKs.
+                }
+
+                metricsTask = null;
+                nextSampleAtUtc = DateTime.UtcNow + sampleInterval;
+            }
+
+            if (soakTelemetry.Enabled
+                && metricsTask == null
+                && now >= nextSampleAtUtc)
+            {
+                metricsTask = GetStateSyncDeliveryMetricsAsync(
+                    connection,
+                    sessionToken,
+                    roomId,
+                    battleId,
+                    TimeSpan.FromSeconds(Math.Min(10d, Math.Max(1d, timeout.TotalSeconds))));
+            }
+
             await Task.Delay(10).ConfigureAwait(false);
         }
 
@@ -1322,6 +1478,8 @@ internal readonly record struct ShooterSmokeClientProcessOptions(
     string RoomId,
     uint PlayerId,
     string ClientId,
+    int RoomMaxPlayers,
+    int BattleDurationFrames,
     int InputCount,
     int Seed,
     TimeSpan Timeout,
@@ -1338,7 +1496,10 @@ internal readonly record struct ShooterSmokeClientProcessOptions(
     string RunRootPath,
     string DiagnosticOutputPath,
     string ReconnectReleasePath,
-    string CompletionReleasePath);
+    string CompletionReleasePath,
+    string NetworkControlPath,
+    string MetricsOutputPath,
+    int MetricsSampleIntervalMs);
 
 internal readonly record struct ShooterSmokeReconnectProcessResult(
     ShooterClientNetworkLaunchResult Launched,

@@ -1,33 +1,37 @@
-# 4.4 客户端游戏流程与表现层阶段架构
+# 4.4 客户端游戏流程运行时架构
 
-> 现有表现层文档已经覆盖 ViewEvent、Snapshot Dispatch 和 Unity/Console/ET 跨平台适配，但还缺少一篇说明“客户端如何规划游戏流程”的总览。本文把顶层游戏状态、状态内 feature 装配、subfeature/handler 拆分、Flow/HFSM 分工，以及 ET/GameFramework 风格流程管理的取舍放在同一张设计图里，作为 AbilityKit 客户端表现层后续治理规则。
+> 本文讨论从应用启动、大厅、进入战斗、战斗内阶段推进到退出战斗的客户端顶层运行骨架。它统一治理状态、能力装配、异步过程和作用域生命周期，但不接管项目内部的 MVC、MVVM、ECS、网络协议或视图实现。本文暂时保留在当前目录以维持文档编号和链接稳定；概念上，客户端游戏流程运行时与表现契约是并列能力，不属于表现层内部。
 
 ---
 
-## 1. 现有覆盖与缺口
+## 1. 定位与缺口
 
-| 已有文档 | 已覆盖 | 仍缺少 |
+| 已有能力 | 已覆盖 | 不负责 |
 | --- | --- | --- |
-| [01-视图事件抽象](01-ViewEventAbstraction.md) | Trigger/Snapshot 如何进入表现副作用边界 | 不负责游戏处于 Lobby、Connect、Battle、Settlement 等宏观状态 |
-| [02-快照分发](02-SnapshotDispatch.md) | OpCode 解码、订阅、有序 SnapshotPipeline | 不决定某个状态应该启用哪些表现/会话功能 |
-| [03-跨平台实现](03-CrossPlatform.md) | Unity View Feature、Console、ET、Headless 的适配边界 | 没有把客户端状态机、状态 feature 和跨平台流程放成统一规范 |
-| [05-Flow 流程引擎](../05-CommonModules/05-FlowEngine.md) | 可组合流程树、Stage contributor、等待/超时/finally | Flow 是流程节点引擎，不直接表达长期驻留的游戏状态 |
-| [06-HFSM 分层状态机](../05-CommonModules/06-HFSMStateMachine.md) | 分层状态、转移、exit time、图编辑 | HFSM 是通用状态机能力，不规定客户端表现层模块怎么挂载 |
+| [01-视图事件抽象](01-ViewEventAbstraction.md) | Trigger/Snapshot 如何进入表现副作用边界 | Lobby、Connect、Battle、Settlement 等宏观状态 |
+| [02-快照分发](02-SnapshotDispatch.md) | OpCode 解码、订阅、有序 SnapshotPipeline | 状态期间应启用哪些会话、同步、输入或视图能力 |
+| [03-跨平台实现](03-CrossPlatform.md) | Unity View Feature、Console、ET、Headless 的适配边界 | 整个客户端游戏段的生命周期 |
+| [05-Flow 流程引擎](../05-CommonModules/05-FlowEngine.md) | 可组合流程树、等待、超时和 finally | 长期驻留状态与合法转移 |
+| [06-HFSM 分层状态机](../05-CommonModules/06-HFSMStateMachine.md) | 分层状态、转移、exit time、图编辑 | 状态进入后如何装配和卸载项目能力 |
 
-结论：需要一层“客户端游戏流程架构”把通用能力组合起来。它不替代 ViewEvent/Snapshot，也不替代 Flow/HFSM，而是规定什么时候使用状态机，什么时候使用 Flow，状态进入后如何挂 feature，feature 内部如何继续拆 subfeature 和 handler。
+客户端游戏流程运行时把这些通用能力组合为一段完整生命周期。它回答四个顶层问题：客户端现在处于什么状态，状态期间启用哪些能力，连接与加载等异步过程如何结束或取消，以及一局战斗的对象与资源何时创建和释放。
+
+它是整个客户端的顶层生命周期治理层，不是整个客户端项目框架。Session、Sync、Input、View、HUD 和 Diagnostics 都可以被它装配，但各能力内部仍由项目自行选择 ECS、MVC、MVVM、MonoBehaviour 或其他实现。
 
 ---
 
-## 2. 分层职责
+## 2. 运行时职责
 
-客户端流程建议分成四层：
+客户端游戏流程运行时由六类职责协作，不应收缩成一个万能 Manager：
 
-| 层级 | 职责 | 典型对象 | 生命周期 |
+| 职责 | 回答的问题 | 典型对象 | 生命周期 |
 | --- | --- | --- | --- |
-| Game Flow / Phase State Machine | 管理宏观游戏状态和合法转移 | `PhaseStateMachineSpec<TKey,TEvent>`、HFSM `StateMachine`、MOBA `MobaBattleState` | 应用或玩法会话级 |
-| State Feature Binding | 定义某个状态进入时安装哪些 feature、执行哪些 enter/exit action、是否清空旧 feature | `PhaseStateFeatureSpec`、`PhaseStateFeatureBinding`、`PhaseStateFeatureBindingFactory` | 状态级 |
-| Feature / Module Host | 承载状态内可 Tick、可 Attach/Detach 的功能集合 | `IPhaseFeature<TContext>`、`IPhaseGuiFeature<TContext>`、`PhaseFeatureHost`、MOBA `BattleViewFeature` | 状态驻留期 |
-| SubFeature / Handler | 处理某个功能内的资源、事件、表现副作用或平台对象 | View subfeature、`BattleDamageViewEventHandler`、`BattleProjectileViewEventHandler`、`BattleViewBinder` | feature 内部 |
+| Root / Battle HFSM | 当前处于什么状态，哪些转移合法 | `PhaseStateMachineSpec<TKey,TEvent>`、`MobaRootState`、`MobaBattleState` | 应用或玩法会话级 |
+| State Feature Binding | 进入或退出状态时装卸哪些能力、执行哪些动作 | `PhaseStateFeatureSpec`、`PhaseStateFeatureBinding` | 状态级 |
+| Feature Host | 状态驻留期间哪些能力参与 Attach、Detach、Tick | `IPhaseFeature<TContext>`、`PhaseFeatureHost` | 状态驻留期 |
+| Flow / Task Coordinator | 连接、加载、等待、重试如何完成、失败或取消 | AbilityKit.Flow、项目侧异步协调器 | 单次异步运行 |
+| Battle Scope | 一局战斗的服务和资源何时创建、隔离与释放 | `BattleWorldScopeHost`、`WorldScope` | 单局战斗级 |
+| Feature Internal Modules | Feature 内部如何排序依赖、分解局部职责 | `ModuleHost`、SubFeature、Handler、Binder | Feature 内部 |
 
 ```mermaid
 flowchart TB
@@ -39,18 +43,21 @@ flowchart TB
 
     Battle --> Binding[PhaseStateFeatureBinding]
     Binding --> FeatureHost[PhaseFeatureHost]
+    Binding --> AsyncFlow[Flow or Task Coordinator]
+    Binding --> BattleScope[Battle Scope]
     FeatureHost --> SessionFeature[Session Feature]
+    FeatureHost --> SyncFeature[Sync Feature]
     FeatureHost --> ViewFeature[View Feature]
     FeatureHost --> InputFeature[Input Feature]
     FeatureHost --> HudFeature[HUD Feature]
 
-    ViewFeature --> SubFeatures[View SubFeatures]
-    SubFeatures --> EventAdapters[Snapshot and Trigger Adapters]
-    SubFeatures --> Binder[View Binder]
+    ViewFeature --> Modules[Internal Modules]
+    Modules --> EventAdapters[Snapshot and Trigger Adapters]
+    Modules --> Binder[View Binder]
     EventAdapters --> Handlers[View Event Handlers]
 ```
 
-这张图的关键边界是：顶层状态机只回答“现在在哪个状态、能否转移”；状态 feature binding 回答“进入这个状态要装哪些功能”；feature 和 subfeature 回答“这个状态内每帧和事件该做什么”。
+这张图的关键边界是：HFSM 只回答“现在在哪个状态、能否转移”；State Feature Binding 把状态生命周期转换为能力装配；Flow/Task 处理有终点的异步过程；Battle Scope 隔离每局对象；Feature 及其内部 Module 处理状态驻留期间的业务。表现投影与视图只是 InMatch 等状态可能启用的一类 Feature。
 
 ---
 
@@ -122,9 +129,9 @@ flowchart LR
 
 ---
 
-## 5. Feature、SubFeature、Handler 的拆分规则
+## 5. Feature 与内部模块的拆分规则
 
-状态内不建议只有一个巨型 feature。建议按以下边界拆分：
+Feature 是顶层流程可装配的能力边界；SubFeature、Module、Handler 和 Binder 都是 Feature 内部组织方式，不与顶层状态机处于同一层。状态内不建议只有一个巨型 Feature，建议按以下边界拆分：
 
 | 单元 | 应该包含 | 不应该包含 |
 | --- | --- | --- |
@@ -159,17 +166,18 @@ flowchart TB
 
 ---
 
-## 6. Flow、HFSM、Phase Binding 的分工
+## 6. HFSM、Binding、Flow 与 Scope 的分工
 
 这三类能力容易混用，需要明确边界：
 
 | 能力 | 最适合 | 不适合 |
 | --- | --- | --- |
 | HFSM / Phase State Machine | 长期驻留状态、合法转移、全局打断、状态层级 | 顺序等待很多异步步骤的细节 |
-| Flow | 有开始和结束的过程，如连接、加载、重试、超时、finally 清理 | 表达整个客户端长期状态 |
-| Phase Feature Binding | 状态进入/退出时安装功能、执行动作、切换附属 flow | 复杂条件转移和每帧行为逻辑 |
-| Feature Host | 调用 attach/detach/tick/gui，保持功能集合顺序 | 判断是否从 Battle 切到 Settlement |
-| ViewEvent/Snapshot | 把逻辑输出转成表现输入 | 管理游戏状态和资源生命周期 |
+| Phase Feature Binding | 状态进入/退出时安装功能、执行动作、切换附属 Flow | 复杂条件转移和每帧行为逻辑 |
+| Feature Host | 调用 Attach、Detach、Tick，保持能力集合顺序 | 判断是否从 Battle 切到 End |
+| Flow / Task Coordinator | 有开始和结束的连接、加载、等待、重试、超时和清理 | 表达整个客户端长期状态 |
+| Battle Scope | 隔离一局战斗的服务、资源和释放顺序 | 决定状态转移或承载跨局服务 |
+| ViewEvent / Snapshot | 把逻辑输出转成表现输入 | 管理游戏状态和 Battle Scope |
 
 推荐组合方式是：
 
@@ -195,7 +203,7 @@ sequenceDiagram
     SM->>Binding: exit Battle.InMatch
 ```
 
-这个组合让状态机保持干净：它接收事件并转移；Flow 处理短生命周期异步过程；FeatureHost 管状态内功能；Snapshot/ViewEvent 管表现数据输入。
+这个组合让状态机保持干净：它接收事件并转移；Binding 负责状态边界装配；Flow/Task 处理短生命周期异步过程；Feature Host 管状态内功能；Battle Scope 管一局对象；Snapshot/ViewEvent 只管表现数据输入。
 
 ---
 
@@ -216,18 +224,23 @@ ET 的价值在于“业务对象和事件系统统一”，GameFramework 的价
 
 ---
 
-## 8. 推荐落地规范
+## 8. 工程契约与当前完善项
 
-1. 客户端必须有一个显式顶层状态机。禁止把 Lobby/Connect/Battle/Settlement 状态只保存在多个 bool 或 UI 页面显隐里。
-2. 状态枚举和状态事件要稳定命名。状态事件来自网络、资源、用户操作、错误恢复时，应先进入 decider 或 condition catalog，再触发状态机。
-3. 状态进入只做装配，不直接写大量业务逻辑。业务逻辑进入 feature、subfeature、handler 或 Flow node。
-4. 每个长期状态都有 `PhaseStateFeatureSpec`。状态要声明 feature ids、enter before/after actions、exit actions 和 switch flows。
-5. Battle 类状态必须有独立 scope。进入 battle 前 begin scope，退出 battle 后 end scope，避免一局资源泄漏到下一局。
-6. 状态内 feature 按职责拆分：session、sync、input、view、hud、diagnostics 不要混在同一个类。
-7. View feature 内继续拆 subfeature 和 handler。Snapshot/Trigger 事件处理不能反向驱动顶层状态转移，状态推进应走事件/decider。
-8. 异步连接、加载、重试、超时、资源预热使用 Flow；不要把这些过程写成状态机内部的大量临时字段。
-9. 状态机 spec、feature spec、action/switch flow catalog 必须可验证。新增状态或 feature 时补纯 C# 单元测试。
-10. ET/Console/Headless 接入只能替换 View Boundary 或 Feature 实现，不应改变逻辑世界、快照协议和顶层状态语义。
+1. 客户端必须有显式顶层状态机。禁止把 Lobby、Connect、Battle、Settlement 只保存在多个 bool 或 UI 页面显隐里。
+2. 状态事件来自网络、资源、用户操作或错误恢复时，应先进入 decider 或 condition catalog，再触发状态机。
+3. 状态进入只做装配和动作调度。长期业务进入 Feature，局部职责进入 Module/Handler，有终点的异步过程进入 Flow/Task。
+4. 每个长期状态应有可验证的 `PhaseStateFeatureSpec`；Feature ID、Action ID、Flow ID、重复注册和未知引用应在启动前失败。
+5. Feature Host 的 Attach 必须具备异常回滚：中途失败时只逆序 Detach 已成功项，且不得发布半初始化 Feature。
+6. Feature Host 和 Module Host 的 Detach 必须尽力清理：单项失败不能阻断剩余项，最终应复位宿主状态并聚合或记录异常。
+7. Battle 必须拥有独立 Scope。正常结算、失败、取消、手动返回和应用销毁都必须走同一个幂等释放闭环，而不只依赖重入时覆盖旧 Scope。
+8. Session 回调和异步协调器必须绑定运行代次。CancellationToken 只发出取消请求；迟到完成还要用 ScopeGeneration、RunId 或 current-run identity 拒绝写回新一局状态。
+9. 异步连接、加载、等待和房间操作应由拥有 CTS 与 RunId 的协调器管理，避免共享回调、Lease 或 CTS 被旧任务覆盖。
+10. Feature 按 session、sync、input、view、hud、diagnostics 拆分；ModuleHost 只管理 Feature 内部依赖，不参与顶层状态转移。
+11. Snapshot/Trigger 事件处理不能直接接管顶层状态推进；表现结果需要推进流程时，应转换为明确事件并经过 decider。
+12. 新增状态、Feature 或异步协调器时，应补生命周期故障注入测试，覆盖 Attach 失败、Detach 失败、取消后迟到完成、Battle End 和快速重入。
+13. ET、Console、Headless 接入可以替换 Feature 或 View Boundary 实现，但不应改变顶层状态语义与作用域契约。
+
+当前源码优先修正项是 Host 生命周期异常安全、正常 Battle End 的 Scope 释放、Session 回调的 ScopeGeneration 校验，以及资源加载与房间流程的 RunId/CTS 隔离。这些是现有架构闭环问题，不需要新增状态层或万能 FeatureManager。
 
 ---
 
@@ -251,8 +264,8 @@ ET 的价值在于“业务对象和事件系统统一”，GameFramework 的价
 
 ## 10. 与其他文档的关系
 
-- 本文定义客户端游戏流程规划方法；[01-视图事件抽象](01-ViewEventAbstraction.md) 解释事件进入表现层后的副作用边界。
-- 本文把 Snapshot 当作状态内 feature 的输入；[02-快照分发](02-SnapshotDispatch.md) 解释快照 opCode、decoder 和 pipeline。
-- 本文给出跨平台流程治理规则；[03-跨平台实现](03-CrossPlatform.md) 解释 Unity、Console、ET、Headless 的具体适配。
-- 本文使用 Flow/HFSM 的能力边界；[05-Flow 流程引擎](../05-CommonModules/05-FlowEngine.md) 和 [06-HFSM 分层状态机](../05-CommonModules/06-HFSMStateMachine.md) 是底层机制说明。
-- MOBA/Shooter 示例文档应引用本文作为客户端流程治理原则，再在各自专题里说明具体 feature、session 和 view pipeline。
+- 本文是客户端顶层游戏流程运行时总览；[客户端表现层框架契约设计](../../客户端表现层框架契约设计.md) 是并列的表现数据与视图消费契约。
+- [01-视图事件抽象](01-ViewEventAbstraction.md)、[02-快照分发](02-SnapshotDispatch.md) 和 [03-跨平台实现](03-CrossPlatform.md) 只解释 View Feature 内部或下游边界，不负责顶层流程。
+- 本文组合 Flow/HFSM；[05-Flow 流程引擎](../05-CommonModules/05-FlowEngine.md) 和 [06-HFSM 分层状态机](../05-CommonModules/06-HFSMStateMachine.md) 说明底层通用机制。
+- [客户端流程编排框架演进设计](../../客户端流程编排框架演进设计.md) 记录目标边界与包演进；[客户端流程编排阶段性复盘](../../客户端流程编排阶段性复盘.md) 记录实现审计和修正优先级。
+- MOBA/Shooter 示例文档应引用本文作为客户端流程治理原则，再说明各自的 Feature、Session、Sync 和 View Pipeline。

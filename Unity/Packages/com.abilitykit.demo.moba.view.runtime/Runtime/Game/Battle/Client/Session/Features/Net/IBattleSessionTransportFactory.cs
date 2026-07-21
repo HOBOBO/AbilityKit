@@ -37,7 +37,9 @@ namespace AbilityKit.Game.Flow
                 worldIdToUlong: wid => ulong.TryParse(wid.Value, out var n) ? n : roomId,
                 worldIdFromUlong: n => new WorldId(n.ToString()),
                 roomId: roomId,
-                sessionToken: gateway.SessionToken);
+                sessionToken: gateway.SessionToken,
+                battleId: gateway.BattleId,
+                publicRoomId: gateway.JoinRoomId);
 
             return new NetworkTransport(gatewayOptions, callbackDispatcher, ioDispatcher);
         }

@@ -45,7 +45,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             // 同时退出回放模式，避免调试强制不一致开关后卡住。
             ctx.Mode = ReplayMode.Normal;
             ctx.ReplayTo = ctx.PredictedFrame;
-            ctx.LastRollbackFrame = new FrameIndex(0);
+            ctx.LastRollbackFrame = new FrameIndex(-1);
             ctx.ReplayWaitTicks = 0;
 
             _isReplaying = false;
@@ -62,6 +62,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             public IWorld World;
             public IWorldInputSink InputSink;
+            public FrameTime FrameTime;
 
             public FrameIndex ConfirmedFrame;
             public FrameIndex PredictedFrame;
@@ -70,6 +71,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
             public RollbackCoordinator Rollback;
             public int CaptureCounter;
+            public FrameIndex LastProcessedRollbackFrame;
 
             public InputHistoryRingBuffer AppliedInputs;
             public InputHistoryRingBuffer AuthoritativeInputs;
@@ -99,6 +101,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             public ReplayMode Mode;
             public FrameIndex ReplayTo;
             public FrameIndex LastRollbackFrame;
+            public FrameIndex LastMissingAppliedHistoryFrame;
         }
 
         private readonly Dictionary<WorldId, WorldContext> _contexts = new Dictionary<WorldId, WorldContext>();
@@ -471,9 +474,14 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             if (world == null) return;
 
             IWorldInputSink sink = null;
+            FrameTime frameTime = null;
             if (world.Services != null)
             {
                 world.Services.TryResolve<IWorldInputSink>(out sink);
+                if (world.Services.TryResolve<IFrameTime>(out var resolvedFrameTime))
+                {
+                    frameTime = resolvedFrameTime as FrameTime;
+                }
             }
 
             RollbackCoordinator rollback = null;
@@ -504,11 +512,13 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             {
                 World = world,
                 InputSink = sink,
+                FrameTime = frameTime,
                 ConfirmedFrame = new FrameIndex(0),
                 PredictedFrame = new FrameIndex(0),
                 LocalDelayQueue = new Queue<LocalPlayerInputEvent[]>(_inputDelayFrames + 2),
                 Rollback = rollback,
                 CaptureCounter = 0,
+                LastProcessedRollbackFrame = new FrameIndex(0),
                 AppliedInputs = new InputHistoryRingBuffer(_rollbackHistoryFrames),
                 AuthoritativeInputs = new InputHistoryRingBuffer(_rollbackHistoryFrames),
 
@@ -519,7 +529,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 ReconcileEnabled = reconciler != null && computeHash != null,
                 Mode = ReplayMode.Normal,
                 ReplayTo = new FrameIndex(0),
-                LastRollbackFrame = new FrameIndex(0),
+                LastRollbackFrame = new FrameIndex(-1),
+                LastMissingAppliedHistoryFrame = new FrameIndex(-1),
             };
         }
 
@@ -597,7 +608,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
             // 避免回滚风暴（例如调试强制不一致），并避免在回放期间重入。
             if (ctx.Mode == ReplayMode.Replaying) return;
-            if (ctx.LastRollbackFrame.Value >= mismatchFrame.Value) return;
+            if (!ShouldRequestReconcileRollback(ctx.LastRollbackFrame, mismatchFrame)) return;
 
             var rollbackFrame = new FrameIndex(mismatchFrame.Value - 1);
             var ok = TryRestoreState(ctx, rollbackFrame);
@@ -613,10 +624,19 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             ctx.ConfirmedFrame = rollbackFrame;
             ctx.PredictedFrame = rollbackFrame;
             ctx.LastRollbackFrame = rollbackFrame;
+            ctx.LastProcessedRollbackFrame = rollbackFrame;
 
             _isReplaying = true;
             _replayToFrame = ctx.ReplayTo;
             _lastRollbackFrame = rollbackFrame;
+        }
+
+        private static bool ShouldRequestReconcileRollback(
+            FrameIndex lastRollbackFrame,
+            FrameIndex mismatchFrame)
+        {
+            var rollbackFrame = new FrameIndex(mismatchFrame.Value - 1);
+            return lastRollbackFrame.Value < rollbackFrame.Value;
         }
 
         private static bool TryRestoreState(WorldContext ctx, FrameIndex frame)
@@ -764,29 +784,42 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
                         if (_enableRollback && ctx.Rollback != null && ctx.PredictedFrame.Value >= frame.Value)
                         {
-                            if (ctx.AppliedInputs.TryGet(frame, out var appliedAtFrame) && appliedAtFrame != null)
+                            if (!ctx.AppliedInputs.TryGet(frame, out var appliedAtFrame) || appliedAtFrame == null)
                             {
-                                if (!InputsEqual(appliedAtFrame, authInputs))
+                                if (ctx.LastMissingAppliedHistoryFrame.Value != frame.Value)
                                 {
-                                    var rollbackFrame = new FrameIndex(frame.Value - 1);
-                                    var ok = TryRestoreState(ctx, rollbackFrame);
-                                    if (ok)
-                                    {
-                                        _totalRollbackCount++;
-                                        ctx.Mode = ReplayMode.Replaying;
-                                        ctx.ReplayTo = ctx.PredictedFrame;
-                                        ctx.ConfirmedFrame = rollbackFrame;
-                                        ctx.PredictedFrame = rollbackFrame;
-                                        ctx.LastRollbackFrame = rollbackFrame;
+                                    ctx.LastMissingAppliedHistoryFrame = frame;
+                                    _totalRollbackRestoreFailed++;
+                                    Log.Warning(
+                                        $"[ClientPredictionDriverModule] Authoritative frame is outside applied input history; " +
+                                        $"stopping before stale submission. worldId={worldId.Value}, frame={frame.Value}, " +
+                                        $"predicted={ctx.PredictedFrame.Value}, historyCapacity={ctx.AppliedInputs.Capacity}");
+                                }
 
-                                        _isReplaying = true;
-                                        _replayToFrame = ctx.ReplayTo;
-                                        _lastRollbackFrame = rollbackFrame;
-                                    }
-                                    else
-                                    {
-                                        _totalRollbackRestoreFailed++;
-                                    }
+                                continue;
+                            }
+
+                            if (!InputsEqual(appliedAtFrame, authInputs))
+                            {
+                                var rollbackFrame = new FrameIndex(frame.Value - 1);
+                                var ok = TryRestoreState(ctx, rollbackFrame);
+                                if (ok)
+                                {
+                                    _totalRollbackCount++;
+                                    ctx.Mode = ReplayMode.Replaying;
+                                    ctx.ReplayTo = ctx.PredictedFrame;
+                                    ctx.ConfirmedFrame = rollbackFrame;
+                                    ctx.PredictedFrame = rollbackFrame;
+                                    ctx.LastRollbackFrame = rollbackFrame;
+                                    ctx.LastProcessedRollbackFrame = rollbackFrame;
+
+                                    _isReplaying = true;
+                                    _replayToFrame = ctx.ReplayTo;
+                                    _lastRollbackFrame = rollbackFrame;
+                                }
+                                else
+                                {
+                                    _totalRollbackRestoreFailed++;
                                 }
                             }
                         }
@@ -802,7 +835,12 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                             {
                                 consumed = Array.Empty<PlayerInputCommand>();
                             }
+                            if (consumed.Length > 0)
+                            {
+                                Log.Info($"[ClientPredictionDriverModule] Consuming authoritative inputs. worldId={worldId.Value}, frame={nextConfirmed}, count={consumed.Length}, firstOpCode={consumed[0].OpCode}");
+                            }
 
+                            AlignFrameTime(ctx.FrameTime, frame, deltaTime);
                             ctx.InputSink.Submit(frame, consumed);
                             ctx.AuthoritativeInputs.Store(frame, consumed);
                             ctx.AppliedInputs.Store(frame, consumed);
@@ -850,6 +888,10 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                         {
                             consumed = Array.Empty<PlayerInputCommand>();
                         }
+                        if (consumed.Length > 0)
+                        {
+                            Log.Info($"[ClientPredictionDriverModule] Consuming replay authoritative inputs. worldId={worldId.Value}, frame={next.Value}, count={consumed.Length}, firstOpCode={consumed[0].OpCode}");
+                        }
                         inputs = consumed;
                         ctx.AuthoritativeInputs.Store(next, consumed);
                         if (ctx.ConfirmedFrame.Value < next.Value)
@@ -877,6 +919,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
                     ctx.ReplayWaitTicks = 0;
 
+                    AlignFrameTime(ctx.FrameTime, next, deltaTime);
                     ctx.InputSink.Submit(next, inputs);
                     ctx.AppliedInputs.Store(next, inputs);
                     ctx.PredictedFrame = next;
@@ -933,6 +976,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                         }
                     }
 
+                    AlignFrameTime(ctx.FrameTime, next, deltaTime);
                     ctx.InputSink.Submit(next, predictedInputs);
                     ctx.PredictedFrame = next;
                     ctx.AppliedInputs.Store(next, predictedInputs);
@@ -940,6 +984,28 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     _totalPredictedFrames++;
                 }
             }
+        }
+
+        private static void AlignFrameTime(
+            FrameTime frameTime,
+            FrameIndex targetFrame,
+            float fallbackDeltaTime)
+        {
+            if (frameTime == null || frameTime.Frame.Value == targetFrame.Value) return;
+
+            var fixedDelta = frameTime.FrameToTime(new FrameIndex(1));
+            if (fixedDelta <= 0f)
+            {
+                fixedDelta = fallbackDeltaTime;
+            }
+            if (fixedDelta <= 0f) return;
+
+            var previousFrame = new FrameIndex(targetFrame.Value - 1);
+            frameTime.Reset(
+                previousFrame,
+                previousFrame.Value * fixedDelta,
+                fixedDelta);
+            frameTime.StepTo(targetFrame, fixedDelta);
         }
 
         private static bool InputsEqual(PlayerInputCommand[] a, PlayerInputCommand[] b)
@@ -977,7 +1043,9 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 var ctx = kv.Value;
                 if (ctx == null) continue;
                 if (!_enableRollback || ctx.Rollback == null) continue;
+                if (!ShouldProcessRollbackFrame(ctx.PredictedFrame, ctx.LastProcessedRollbackFrame)) continue;
 
+                ctx.LastProcessedRollbackFrame = ctx.PredictedFrame;
                 ctx.CaptureCounter++;
                 if (ctx.CaptureCounter % _rollbackCaptureEveryNFrames != 0) continue;
 
@@ -1011,6 +1079,13 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     Log.Exception(ex);
                 }
             }
+        }
+
+        private static bool ShouldProcessRollbackFrame(
+            FrameIndex predictedFrame,
+            FrameIndex lastProcessedFrame)
+        {
+            return predictedFrame.Value != lastProcessedFrame.Value;
         }
     }
 }

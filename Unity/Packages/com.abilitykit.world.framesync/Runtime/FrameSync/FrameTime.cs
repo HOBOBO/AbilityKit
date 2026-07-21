@@ -39,10 +39,15 @@ namespace AbilityKit.Ability.FrameSync
 
         public void Reset(FrameIndex frame, float time, float fixedDelta)
         {
+            Restore(frame, time, deltaTime: 0f, fixedDelta);
+        }
+
+        internal void Restore(FrameIndex frame, float time, float deltaTime, float fixedDelta)
+        {
             Frame = frame;
             Time = time;
+            DeltaTime = deltaTime;
             _fixedDelta = fixedDelta;
-            DeltaTime = 0f;
         }
     }
 }

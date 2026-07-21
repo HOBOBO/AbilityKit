@@ -72,6 +72,18 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             var remote = await _gateway.SubmitBattleInputAsync(context, local.Packet, timeout, cancellationToken).ConfigureAwait(false);
+            if (ShouldRetryTooFarFutureInput(in context, in remote))
+            {
+                context = new ShooterGatewayBattleInputContext(
+                    context.SessionToken,
+                    context.BattleId,
+                    context.WorldId,
+                    remote.CurrentFrame,
+                    context.PlayerId);
+                local = local.WithRequestedFrame(remote.CurrentFrame);
+                remote = await _gateway.SubmitBattleInputAsync(context, local.Packet, timeout, cancellationToken).ConfigureAwait(false);
+            }
+
             CaptureRemoteInputHealthEvents(context, local, remote);
             if (remote.ShouldResync)
             {
@@ -79,6 +91,21 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             return new ShooterClientGatewayInputSubmitResult(in local, in remote);
+        }
+
+        private static bool ShouldRetryTooFarFutureInput(
+            in ShooterGatewayBattleInputContext context,
+            in ShooterGatewayBattleInputResult remote)
+        {
+            const int MaxFutureLeadFrames = 120;
+            return !remote.Success
+                && remote.ShouldResync
+                && remote.CurrentFrame >= 0
+                && context.Frame > remote.CurrentFrame + MaxFutureLeadFrames
+                && string.Equals(
+                    remote.Status,
+                    "RejectedTooFarFuture",
+                    StringComparison.Ordinal);
         }
 
         private void CaptureRemoteInputHealthEvents(

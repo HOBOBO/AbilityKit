@@ -1,3 +1,4 @@
+using AbilityKit.Game.Battle.Hierarchy;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -9,17 +10,18 @@ namespace AbilityKit.Game.Flow
 
         public BattleAreaViewObjectFactory(
             BattleViewResourceProvider resources = null,
-            BattleAreaViewObjectPlacer placer = null)
+            BattleAreaViewObjectPlacer placer = null,
+            BattleViewHierarchyManager hierarchy = null)
         {
             _resources = BattleViewResourceProvider.OrDefault(resources);
-            _placer = placer ?? new BattleAreaViewObjectPlacer();
+            _placer = placer ?? new BattleAreaViewObjectPlacer(hierarchy);
         }
 
         protected virtual GameObject CreateModelCore(int templateId, int modelId, Transform attach, in Vector3 position)
         {
             var go = _resources.CreateModelGo(modelId);
             if (go == null) return null;
-            _placer.Place(go, attach, in position);
+            _placer.Place(go, templateId, attach, in position);
             return go;
         }
 
@@ -27,7 +29,7 @@ namespace AbilityKit.Game.Flow
         {
             var go = _resources.CreateAoeRangeGo(templateId, radius, delayMs);
             if (go == null) return null;
-            _placer.Place(go, attach, in position);
+            _placer.Place(go, templateId, attach, in position);
             return go;
         }
 
@@ -35,7 +37,7 @@ namespace AbilityKit.Game.Flow
         {
             var go = _resources.CreateVfxGo(vfxId);
             if (go == null) return null;
-            _placer.Place(go, attach, in position);
+            _placer.Place(go, templateId, attach, in position);
             return go;
         }
 
@@ -64,8 +66,11 @@ namespace AbilityKit.Game.Flow
     {
         public BattleAreaVfxPool Pool { get; }
 
-        public PooledBattleAreaViewObjectFactory(BattleViewResourceProvider resources, BattleAreaVfxPool pool)
-            : base(resources, null)
+        public PooledBattleAreaViewObjectFactory(
+            BattleViewResourceProvider resources,
+            BattleAreaVfxPool pool,
+            BattleViewHierarchyManager hierarchy = null)
+            : base(resources, null, hierarchy)
         {
             Pool = pool;
         }
@@ -75,7 +80,7 @@ namespace AbilityKit.Game.Flow
             if (Pool != null && Pool.TryRent(templateId, BattleAreaVfxPool.PoolKind.Model, out var reused) && reused != null)
             {
                 reused.name = $"AreaModel_{templateId}";
-                _placer.Place(reused, attach, in position);
+                _placer.Place(reused, templateId, attach, in position);
                 return reused;
             }
             return base.CreateModelCore(templateId, modelId, attach, in position);
@@ -87,7 +92,7 @@ namespace AbilityKit.Game.Flow
             {
                 reused.name = $"AreaRange_{templateId}";
                 _resources.ConfigureAoeRangeGo(reused, templateId, radius, delayMs);
-                _placer.Place(reused, attach, in position);
+                _placer.Place(reused, templateId, attach, in position);
                 return reused;
             }
             return base.CreateRangeCore(templateId, radius, delayMs, attach, in position);
@@ -98,7 +103,7 @@ namespace AbilityKit.Game.Flow
             if (Pool != null && Pool.TryRent(templateId, BattleAreaVfxPool.PoolKind.Vfx, out var reused) && reused != null)
             {
                 reused.name = $"AreaVfx_{templateId}";
-                _placer.Place(reused, attach, in position);
+                _placer.Place(reused, templateId, attach, in position);
                 return reused;
             }
             return base.CreateVfxCore(templateId, vfxId, attach, in position);
@@ -107,7 +112,14 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class BattleAreaViewObjectPlacer
     {
-        public void Place(GameObject go, Transform attach, in Vector3 position)
+        private readonly BattleViewHierarchyManager _hierarchy;
+
+        public BattleAreaViewObjectPlacer(BattleViewHierarchyManager hierarchy = null)
+        {
+            _hierarchy = hierarchy;
+        }
+
+        public void Place(GameObject go, int templateId, Transform attach, in Vector3 position)
         {
             if (go == null) return;
 
@@ -118,6 +130,7 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
+            _hierarchy?.ParentActive(BattleViewCategory.ActiveArea, templateId, go);
             go.transform.position = position;
         }
     }

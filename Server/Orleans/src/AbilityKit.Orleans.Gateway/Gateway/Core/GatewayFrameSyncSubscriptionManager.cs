@@ -52,7 +52,11 @@ public sealed class GatewayFrameSyncSubscriptionManager
             try
             {
                 await grain.SubscribeAsync(observerReference).ConfigureAwait(false);
-                _subscriptions[connectionId] = new Subscription(roomId, grain, observerReference);
+                _subscriptions[connectionId] = new Subscription(
+                    roomId,
+                    grain,
+                    observer,
+                    observerReference);
             }
             catch
             {
@@ -97,6 +101,18 @@ public sealed class GatewayFrameSyncSubscriptionManager
                 return;
             }
 
+            if (evt.Inputs is { Count: > 0 })
+            {
+                _logger.LogInformation(
+                    "Sending authoritative input frame. ConnectionId={ConnectionId} RoomId={RoomId} WorldId={WorldId} Frame={Frame} InputCount={InputCount} PayloadBytes={PayloadBytes}",
+                    connectionId,
+                    evt.RoomId,
+                    evt.WorldId,
+                    evt.Frame,
+                    evt.Inputs.Count,
+                    payload.Length);
+            }
+
             await session.SendServerPushAsync(OpCodes.FramePushed, payload, cancellationToken).ConfigureAwait(false);
         });
     }
@@ -139,6 +155,7 @@ public sealed class GatewayFrameSyncSubscriptionManager
     private sealed record Subscription(
         ulong RoomId,
         IBattleFrameSyncGrain Grain,
+        ConnectionFrameSyncObserver Observer,
         IFrameSyncObserver ObserverReference);
 
     private sealed class ConnectionFrameSyncObserver : IFrameSyncObserver

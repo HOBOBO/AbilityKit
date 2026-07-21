@@ -21,6 +21,27 @@ namespace AbilityKit.Game.Battle.Hierarchy
         private readonly Dictionary<(BattleViewCategory, string), Transform> _namedRoots =
             new Dictionary<(BattleViewCategory, string), Transform>(16);
 
+        private static readonly BattleViewCategory[] StandardCategories =
+        {
+            BattleViewCategory.PoolShell,
+            BattleViewCategory.PoolVfx,
+            BattleViewCategory.PoolArea,
+            BattleViewCategory.PoolProjectile,
+            BattleViewCategory.PoolHud,
+            BattleViewCategory.PoolFloatingText,
+            BattleViewCategory.ActiveCharacter,
+            BattleViewCategory.ActiveProjectile,
+            BattleViewCategory.ActiveSummon,
+            BattleViewCategory.ActiveClone,
+            BattleViewCategory.ActiveTurret,
+            BattleViewCategory.ActiveMonster,
+            BattleViewCategory.ActiveBuilding,
+            BattleViewCategory.ActiveArea,
+            BattleViewCategory.ActiveVfx,
+            BattleViewCategory.ActiveFloatingText,
+            BattleViewCategory.Debug,
+        };
+
         /// <summary>
         /// Create a manager that owns children of <paramref name="root"/>.
         /// </summary>
@@ -31,6 +52,18 @@ namespace AbilityKit.Game.Battle.Hierarchy
 
         /// <summary>The hierarchy root that all category transforms are parented under.</summary>
         public BattleViewHierarchyRoot Root => _root;
+
+        /// <summary>
+        /// Creates the stable category directory layout up front so every supported
+        /// presentation type remains visible even before its first object is spawned.
+        /// </summary>
+        public void EnsureStandardLayout()
+        {
+            for (var i = 0; i < StandardCategories.Length; i++)
+            {
+                GetCategoryRoot(StandardCategories[i]);
+            }
+        }
 
         /// <summary>
         /// Get-or-lazily-create the top-level category transform
@@ -93,10 +126,10 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Parent an active GameObject under the appropriate active-view category root.
-        /// Convenience overload that parents directly under the category root (not a bucket).
+        /// Parents a GameObject directly under a category root without implying an
+        /// active or pooled lifecycle state.
         /// </summary>
-        public void ParentActive(BattleViewCategory category, GameObject instance)
+        public void ParentToCategory(BattleViewCategory category, GameObject instance)
         {
             if (instance == null) return;
             var parent = GetCategoryRoot(category);
@@ -104,6 +137,15 @@ namespace AbilityKit.Game.Battle.Hierarchy
             {
                 instance.transform.SetParent(parent, worldPositionStays: false);
             }
+        }
+
+        /// <summary>
+        /// Parent an active GameObject under the appropriate active-view category root.
+        /// Convenience overload that parents directly under the category root (not a bucket).
+        /// </summary>
+        public void ParentActive(BattleViewCategory category, GameObject instance)
+        {
+            ParentToCategory(category, instance);
         }
 
         /// <summary>

@@ -235,6 +235,8 @@ namespace AbilityKit.Game
         private GameEntry _entry;
         private BattleLocalDebugController _localDebug;
         private string _localDebugMessage;
+        private string _replaceHeroIdText = "1001";
+        private Vector2 _heroOptionsScroll;
 
         public void Bind(GameEntry entry)
         {
@@ -242,6 +244,7 @@ namespace AbilityKit.Game
             {
                 _localDebug = null;
                 _localDebugMessage = null;
+                _replaceHeroIdText = "1001";
             }
 
             _entry = entry;
@@ -277,46 +280,89 @@ namespace AbilityKit.Game
             var inBattle = sink != null && sink.CurrentRootPhase == MobaRootState.Battle;
             EnsureLocalDebugController();
 
-            const float width = 280f;
-            GUILayout.BeginArea(new Rect(Screen.width - width - 10f, 10f, width, 262f), "Local Shortcuts", GUI.skin.window);
-            GUILayout.Label("Revision: local-debug-enabled-v4");
-            GUILayout.Label($"Root: {(sink != null ? sink.CurrentRootPhase.ToString() : "missing")}");
+            const float width = 300f;
+            var height = Mathf.Min(520f, Screen.height - 20f);
+            GUILayout.BeginArea(new Rect(Screen.width - width - 10f, 10f, width, height), "英雄技能验收", GUI.skin.window);
+            GUILayout.Label("版本：hero-replacement-v8");
+            GUILayout.Label($"根阶段：{(sink != null ? sink.CurrentRootPhase.ToString() : "缺失")}");
 
             if (!inBattle)
             {
-                GUILayout.Label("Status: waiting for battle");
+                GUILayout.Label("状态：等待进入战斗");
             }
             else if (_localDebug == null)
             {
-                GUILayout.Label("Status: controller missing");
+                GUILayout.Label("状态：调试控制器缺失");
             }
             else
             {
-                GUILayout.Label($"Status: {(_localDebug.IsAvailable ? "ready" : _localDebug.UnavailableReason)}");
-                GUILayout.Label($"Mode: {_localDebug.HostModeName}");
-                GUILayout.Label($"Player: {_localDebug.CurrentPlayerId}");
-                GUILayout.Label($"Actor: {_localDebug.CurrentActorId}");
+                GUILayout.Label($"状态：{(_localDebug.IsAvailable ? "就绪" : _localDebug.UnavailableReason)}");
+                GUILayout.Label($"模式：{_localDebug.HostModeName}");
+                GUILayout.Label($"玩家：{_localDebug.CurrentPlayerId}");
+                GUILayout.Label($"角色：{_localDebug.CurrentActorId}");
+                GUILayout.Label($"当前英雄：{_localDebug.CurrentHeroId}");
             }
 
             var previousEnabled = GUI.enabled;
-            GUI.enabled = true;
-            if (GUILayout.Button("Switch Control", GUILayout.Height(30f)))
+            GUI.enabled = _localDebug != null && _localDebug.IsAvailable;
+            GUILayout.Label("完整替换当前英雄");
+            var heroOptions = _localDebug != null
+                ? _localDebug.HeroOptions
+                : Array.Empty<BattleDebugHeroOption>();
+            if (heroOptions.Length == 0)
             {
-                RunLocalDebugAction(_localDebug.TrySwitchControl);
+                GUILayout.Label("没有完整可用的战斗英雄配置");
+            }
+            else
+            {
+                _heroOptionsScroll = GUILayout.BeginScrollView(
+                    _heroOptionsScroll,
+                    GUILayout.Height(Mathf.Min(150f, ((heroOptions.Length + 1) / 2) * 34f + 6f)));
+                for (var i = 0; i < heroOptions.Length; i += 2)
+                {
+                    GUILayout.BeginHorizontal();
+                    DrawHeroOption(heroOptions[i]);
+                    if (i + 1 < heroOptions.Length)
+                    {
+                        DrawHeroOption(heroOptions[i + 1]);
+                    }
+                    else
+                    {
+                        GUILayout.Space(136f);
+                    }
+                    GUILayout.EndHorizontal();
+                }
+                GUILayout.EndScrollView();
             }
 
-            if (GUILayout.Button("Reset Cooldowns", GUILayout.Height(30f)))
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("目标英雄 ID", GUILayout.Width(88f));
+            _replaceHeroIdText = GUILayout.TextField(_replaceHeroIdText, GUILayout.Height(24f));
+            GUILayout.EndHorizontal();
+            if (GUILayout.Button("按 ID 完整替换", GUILayout.Height(30f)))
+            {
+                if (!int.TryParse(_replaceHeroIdText, out var heroId) || heroId <= 0)
+                {
+                    _localDebugMessage = "请输入有效的英雄 ID";
+                }
+                else
+                {
+                    ReplaceHero(heroId);
+                }
+            }
+
+            if (GUILayout.Button("重置技能冷却", GUILayout.Height(30f)))
             {
                 RunLocalDebugAction(_localDebug.TryResetCooldowns);
             }
 
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Spawn Ally", GUILayout.Height(30f)))
+            if (GUILayout.Button("创建己方单位", GUILayout.Height(30f)))
             {
                 RunLocalDebugAction(_localDebug.TrySpawnAlly);
             }
 
-            if (GUILayout.Button("Spawn Enemy", GUILayout.Height(30f)))
+            if (GUILayout.Button("创建敌方单位", GUILayout.Height(30f)))
             {
                 RunLocalDebugAction(_localDebug.TrySpawnEnemy);
             }
@@ -332,27 +378,24 @@ namespace AbilityKit.Game
 #endif
         }
 
+        private void DrawHeroOption(BattleDebugHeroOption option)
+        {
+            if (GUILayout.Button(option.DisplayName, GUILayout.Height(30f), GUILayout.Width(136f)))
+            {
+                ReplaceHero(option.HeroId);
+            }
+        }
+
+        private void ReplaceHero(int heroId)
+        {
+            _replaceHeroIdText = heroId.ToString();
+            _localDebug.TryReplaceHero(heroId, out _localDebugMessage);
+        }
+
         private void EnsureLocalDebugController()
         {
             if (_localDebug != null) return;
-            _localDebug = new BattleLocalDebugController(ResolveBattleContext, ResolveBattleHudFeature, RefreshBattleViews);
-        }
-
-        private void RefreshBattleViews()
-        {
-            var view = BattleFlowDebugProvider.CurrentView;
-            if (view == null && _entry != null)
-            {
-                _entry.TryGet(out view);
-            }
-            view?.RebindAll();
-
-            var confirmed = BattleFlowDebugProvider.CurrentConfirmedView;
-            if (confirmed == null && _entry != null)
-            {
-                _entry.TryGet(out confirmed);
-            }
-            confirmed?.RebindAll();
+            _localDebug = new BattleLocalDebugController(ResolveBattleContext, ResolveBattleHudFeature);
         }
 
         private BattleContext ResolveBattleContext()

@@ -22,10 +22,9 @@ namespace AbilityKit.Game.Flow
                 _firstFrameReceived = true;
                 _eventsCtrl.NotifyFirstFrameReceived(this);
 
-                // Local sessions complete WorldInit before publishing their first frame and have no
-                // authoritative room manifest to report. Preserve the explicit asset barrier while
-                // leaving GatewayRemote sessions to complete it from the room loading workflow.
-                if (_plan.HostMode == BattleStartConfig.BattleHostMode.Local)
+                // Local WorldInit and GatewayRemote room loading both complete their asset barriers
+                // before the first frame is published. Bridge that completed barrier into the client HFSM.
+                if (CompletesAssetBarrierOnFirstFrame(_plan.HostMode))
                 {
                     NotifyAssetsLoadCompleted();
                 }
@@ -38,6 +37,12 @@ namespace AbilityKit.Game.Flow
                 var fctx = new FeatureModuleContext<BattleSessionFeature>(_phaseCtx, this);
                 _subFeatureHost.ForEach<ISessionFrameReceivedSubFeature<BattleSessionFeature>>(m => m.OnFrameReceived(fctx, packet));
             }
+        }
+
+        internal static bool CompletesAssetBarrierOnFirstFrame(BattleStartConfig.BattleHostMode hostMode)
+        {
+            return hostMode == BattleStartConfig.BattleHostMode.Local ||
+                   hostMode == BattleStartConfig.BattleHostMode.GatewayRemote;
         }
     }
 }

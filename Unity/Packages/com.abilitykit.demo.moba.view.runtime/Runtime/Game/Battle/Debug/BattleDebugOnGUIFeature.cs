@@ -1,10 +1,10 @@
 using System;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -109,20 +109,32 @@ namespace AbilityKit.Game.Flow
 
     }
 
+    internal readonly struct BattleDebugHeroOption
+    {
+        public readonly int HeroId;
+        public readonly string DisplayName;
+
+        public BattleDebugHeroOption(int heroId, string displayName)
+        {
+            HeroId = heroId;
+            DisplayName = displayName ?? string.Empty;
+        }
+    }
+
     internal sealed class BattleLocalDebugController
     {
-        private const float SpawnForwardOffset = 2f;
-        private const float SpawnSideOffset = 1.25f;
+        private static readonly BattleDebugHeroOption[] EmptyHeroOptions = Array.Empty<BattleDebugHeroOption>();
 
         private readonly Func<BattleContext> _ctxResolver;
         private readonly Func<BattleHudFeature> _hudResolver;
-        private readonly Action _presentationRefresh;
+        private BattleDebugHeroOption[] _heroOptions = EmptyHeroOptions;
+        private MobaConfigDatabase _heroOptionsDatabase;
+        private long _heroOptionsVersion = -1;
 
-        public BattleLocalDebugController(Func<BattleContext> ctxResolver, Func<BattleHudFeature> hudResolver, Action presentationRefresh = null)
+        public BattleLocalDebugController(Func<BattleContext> ctxResolver, Func<BattleHudFeature> hudResolver)
         {
             _ctxResolver = ctxResolver;
             _hudResolver = hudResolver;
-            _presentationRefresh = presentationRefresh;
         }
 
         private BattleContext Context => _ctxResolver?.Invoke();
@@ -150,7 +162,7 @@ namespace AbilityKit.Game.Flow
             get
             {
                 var ctx = Context;
-                return ctx != null ? ctx.Plan.HostMode.ToString() : "missing context";
+                return ctx != null ? ctx.Plan.HostMode.ToString() : "战斗上下文缺失";
             }
         }
 
@@ -159,10 +171,10 @@ namespace AbilityKit.Game.Flow
             get
             {
                 var ctx = Context;
-                if (ctx == null) return "battle context missing";
-                if (ctx.Session == null) return "session missing";
-                if (ctx.Plan.HostMode != BattleStartConfig.BattleHostMode.Local) return $"not local ({ctx.Plan.HostMode})";
-                return "ready";
+                if (ctx == null) return "战斗上下文缺失";
+                if (ctx.Session == null) return "战斗会话缺失";
+                if (ctx.Plan.HostMode != BattleStartConfig.BattleHostMode.Local) return $"非本地模式（{ctx.Plan.HostMode}）";
+                return "就绪";
             }
         }
 
@@ -184,20 +196,92 @@ namespace AbilityKit.Game.Flow
             }
         }
 
+        public BattleDebugHeroOption[] HeroOptions
+        {
+            get
+            {
+                RefreshHeroOptions();
+                return _heroOptions;
+            }
+        }
+
+        public int CurrentHeroId
+        {
+            get
+            {
+                var ctx = Context;
+                if (ctx == null) return 0;
+
+                var playerId = CurrentPlayerId;
+                var loadouts = ctx.BuildEffectivePlayerLoadouts();
+                if (loadouts == null) return 0;
+
+                foreach (var loadout in loadouts)
+                {
+                    if (string.Equals(loadout.PlayerId.Value, playerId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return loadout.HeroId;
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        private void RefreshHeroOptions()
+        {
+            var ctx = Context;
+            if (!TryResolveWorldService(ctx, out MobaConfigDatabase config) || config == null)
+            {
+                _heroOptions = EmptyHeroOptions;
+                _heroOptionsDatabase = null;
+                _heroOptionsVersion = -1;
+                return;
+            }
+
+            if (ReferenceEquals(config, _heroOptionsDatabase) && config.Version == _heroOptionsVersion) return;
+
+            var options = new System.Collections.Generic.List<BattleDebugHeroOption>();
+            foreach (var character in config.GetAllCharacters())
+            {
+                if (character == null ||
+                    !MobaHeroLoadoutResolver.TryResolveHeroConfig(
+                        config,
+                        character.Id,
+                        out _,
+                        out _,
+                        out _,
+                        out _))
+                {
+                    continue;
+                }
+
+                var displayName = string.IsNullOrEmpty(character.Name)
+                    ? character.Id.ToString()
+                    : $"{character.Id} {character.Name}";
+                options.Add(new BattleDebugHeroOption(character.Id, displayName));
+            }
+
+            options.Sort((left, right) => left.HeroId.CompareTo(right.HeroId));
+            _heroOptions = options.ToArray();
+            _heroOptionsDatabase = config;
+            _heroOptionsVersion = config.Version;
+        }
+
         public bool TrySwitchControl(out string message)
         {
             message = string.Empty;
             var ctx = Context;
             if (!IsAvailable)
             {
-                message = "local battle unavailable";
+                message = "本地战斗不可用";
                 return false;
             }
 
             var players = ctx.Plan.LaunchSpec.Players;
             if (players == null || players.Length <= 1)
             {
-                message = "need at least 2 players";
+                message = "至少需要两名玩家";
                 return false;
             }
 
@@ -221,7 +305,7 @@ namespace AbilityKit.Game.Flow
                 }
             }
 
-            if (string.IsNullOrEmpty(message)) message = "no controllable player found";
+            if (string.IsNullOrEmpty(message)) message = "未找到可控制的玩家";
             return false;
         }
 
@@ -231,32 +315,32 @@ namespace AbilityKit.Game.Flow
             var ctx = Context;
             if (!IsAvailable)
             {
-                message = "local battle unavailable";
+                message = "本地战斗不可用";
                 return false;
             }
 
             if (string.IsNullOrEmpty(playerId.Value))
             {
-                message = "player id is empty";
+                message = "玩家 ID 为空";
                 return false;
             }
 
             if (!TryResolveWorldService(ctx, out MobaPlayerActorMapService playerActors) || playerActors == null)
             {
-                message = "player actor map missing";
+                message = "玩家与角色映射服务缺失";
                 return false;
             }
 
             if (!playerActors.TryGetActorId(playerId, out var actorId) || actorId <= 0)
             {
-                message = $"actor not found for {playerId.Value}";
+                message = $"未找到玩家 {playerId.Value} 的角色";
                 return false;
             }
 
             ctx.LocalControlPlayerId = playerId.Value;
             ctx.LocalActorId = actorId;
             _hudResolver?.Invoke()?.RefreshLocalControlSkillTemplates();
-            message = $"control {playerId.Value} actor={actorId}";
+            message = $"已切换至玩家 {playerId.Value}，角色 ID={actorId}";
             return true;
         }
 
@@ -267,13 +351,13 @@ namespace AbilityKit.Game.Flow
             if (!TryResolveCurrentActor(out var actor, out message)) return false;
             if (!TryResolveWorldService(ctx, out MobaActorLookupService actors) || actors == null)
             {
-                message = "actor lookup missing";
+                message = "角色查询服务缺失";
                 return false;
             }
 
             if (!actor.hasSkillLoadout || actor.skillLoadout.ActiveSkills == null)
             {
-                message = "active skills missing";
+                message = "角色主动技能缺失";
                 return false;
             }
 
@@ -289,127 +373,80 @@ namespace AbilityKit.Game.Flow
                 }
             }
 
-            message = $"reset cd count={count}";
+            message = $"已重置 {count} 个技能的冷却时间";
             return count > 0;
+        }
+
+        public bool TryReplaceHero(int heroId, out string message)
+        {
+            var ctx = Context;
+            if (!IsAvailable)
+            {
+                message = "本地战斗不可用";
+                return false;
+            }
+
+            if (heroId <= 0)
+            {
+                message = "英雄 ID 必须大于 0";
+                return false;
+            }
+
+            var playerId = new PlayerId(CurrentPlayerId);
+            if (string.IsNullOrEmpty(playerId.Value))
+            {
+                message = "当前控制玩家 ID 为空";
+                return false;
+            }
+
+            var worldId = BattleInputSessionIdentity.ResolveWorldId(in ctx.Plan);
+            var nextFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(ctx.LastFrame, in ctx.Plan);
+            var command = BattleInputCommandFactory.CreateDebugReplaceHero(
+                nextFrame,
+                playerId,
+                heroId);
+            var submitter = new BattleInputSubmitter(ctx, playerId, worldId);
+            submitter.Submit(in command);
+
+            message = $"英雄替换命令已提交，目标英雄 ID={heroId}";
+            return true;
         }
 
         public bool TrySpawnAlly(out string message)
         {
-            return TrySpawnUnit(enemy: false, out message);
+            return TrySubmitSpawnUnit(MobaDebugSpawnUnitRelation.Ally, out message);
         }
 
         public bool TrySpawnEnemy(out string message)
         {
-            return TrySpawnUnit(enemy: true, out message);
+            return TrySubmitSpawnUnit(MobaDebugSpawnUnitRelation.Enemy, out message);
         }
 
-        private bool TrySpawnUnit(bool enemy, out string message)
+        private bool TrySubmitSpawnUnit(MobaDebugSpawnUnitRelation relation, out string message)
         {
-            message = string.Empty;
             var ctx = Context;
-            if (!TryResolveCurrentActor(out var controlledActor, out message)) return false;
-            if (!TryFindSpawnTemplate(ctx, enemy, controlledActor, out var template, out message)) return false;
-            if (!TryResolveWorldService(ctx, out IMobaActorSpawnService spawn) || spawn == null)
+            if (!IsAvailable)
             {
-                message = "spawn service missing";
+                message = "本地战斗不可用";
                 return false;
             }
 
-            var basePos = controlledActor.hasTransform ? controlledActor.transform.Value.Position : Vec3.Zero;
-            var offset = enemy ? new Vec3(SpawnSideOffset, 0f, SpawnForwardOffset) : new Vec3(-SpawnSideOffset, 0f, SpawnForwardOffset);
-            var spawnPos = basePos + offset;
-            var playerId = new PlayerId($"debug_{(enemy ? "enemy" : "ally")}_{DateTime.UtcNow.Ticks}");
-            var loadout = new MobaPlayerLoadout(
-                playerId,
-                template.TeamId,
-                template.HeroId,
-                template.AttributeTemplateId,
-                template.Level,
-                template.BasicAttackSkillId,
-                template.SkillIds,
-                template.SpawnIndex,
-                (int)UnitSubType.Minion,
-                (int)EntityMainType.Unit,
-                hasSpawnPosition: 1,
-                spawnX: spawnPos.X,
-                spawnY: spawnPos.Y,
-                spawnZ: spawnPos.Z);
-
-            var info = new MobaEntityInfo(
-                actorId: 0,
-                kind: MobaEntityKind.Minion,
-                transform: new Transform3(spawnPos, Quat.Identity, Vec3.One),
-                team: (Team)loadout.TeamId,
-                mainType: EntityMainType.Unit,
-                unitSubType: UnitSubType.Minion,
-                ownerPlayer: playerId,
-                templateId: loadout.AttributeTemplateId);
-            var spec = new MobaActorBuildSpec(in info, MobaActorBuildSourceKind.PlayerLoadout, loadout.HeroId, ownerActorId: 0);
-            var request = MobaActorSpawnRequest.FromSpec(in spec);
-            request.AllocateActorIdIfMissing = true;
-            request.Initializer = (entity, _) =>
+            var playerId = BattleInputSessionIdentity.ResolvePlayerId(ctx);
+            if (string.IsNullOrEmpty(playerId.Value))
             {
-                if (TryResolveWorldService(ctx, out ActorEntityInitPipeline init) && init != null)
-                {
-                    init.InitializeFromLoadout(entity, in loadout);
-                }
-            };
-
-            if (!spawn.TrySpawn(in request, out var result) || !result.Success)
-            {
-                message = string.IsNullOrEmpty(result.Error) ? "spawn failed" : result.Error;
+                message = "当前控制玩家 ID 为空";
                 return false;
             }
 
-            _presentationRefresh?.Invoke();
-            message = $"spawn {(enemy ? "enemy" : "ally")} actor={result.ActorId}";
-            return true;
-        }
+            var worldId = BattleInputSessionIdentity.ResolveWorldId(in ctx.Plan);
+            var nextFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(ctx.LastFrame, in ctx.Plan);
+            var command = BattleInputCommandFactory.CreateDebugSpawnUnit(nextFrame, playerId, relation);
+            var submitter = new BattleInputSubmitter(ctx, playerId, worldId);
+            submitter.Submit(in command);
 
-        private bool TryFindSpawnTemplate(BattleContext ctx, bool enemy, global::ActorEntity controlledActor, out MobaPlayerLoadout template, out string message)
-        {
-            template = default;
-            message = string.Empty;
-            var players = ctx.Plan.LaunchSpec.Players;
-            if (players == null || players.Length == 0)
-            {
-                message = "launch players missing";
-                return false;
-            }
-
-            var controlledTeam = controlledActor != null && controlledActor.hasTeam ? (int)controlledActor.team.Value : 0;
-            for (var i = 0; i < players.Length; i++)
-            {
-                var candidate = players[i];
-                var isEnemy = controlledTeam > 0 && candidate.TeamId > 0 && candidate.TeamId != controlledTeam;
-                if (enemy == isEnemy)
-                {
-                    template = candidate;
-                    return true;
-                }
-            }
-
-            template = players[0];
-            if (enemy && controlledTeam > 0)
-            {
-                var fallbackTeam = controlledTeam == (int)Team.Team1 ? (int)Team.Team2 : (int)Team.Team1;
-                template = new MobaPlayerLoadout(
-                    template.PlayerId,
-                    fallbackTeam,
-                    template.HeroId,
-                    template.AttributeTemplateId,
-                    template.Level,
-                    template.BasicAttackSkillId,
-                    template.SkillIds,
-                    template.SpawnIndex,
-                    template.UnitSubType,
-                    template.MainType,
-                    template.HasSpawnPosition,
-                    template.SpawnX,
-                    template.SpawnY,
-                    template.SpawnZ);
-            }
-
+            message = relation == MobaDebugSpawnUnitRelation.Enemy
+                ? "敌方单位生成命令已提交"
+                : "己方单位生成命令已提交";
             return true;
         }
 
@@ -420,7 +457,7 @@ namespace AbilityKit.Game.Flow
             var ctx = Context;
             if (!IsAvailable)
             {
-                message = "local battle unavailable";
+                message = "本地战斗不可用";
                 return false;
             }
 
@@ -431,13 +468,13 @@ namespace AbilityKit.Game.Flow
 
             if (!TryResolveWorldService(ctx, out MobaActorLookupService actors) || actors == null)
             {
-                message = "actor lookup missing";
+                message = "角色查询服务缺失";
                 return false;
             }
 
             if (!actors.TryGetActorEntity(ctx.LocalActorId, out actor) || actor == null)
             {
-                message = $"actor missing id={ctx.LocalActorId}";
+                message = $"角色缺失，ID={ctx.LocalActorId}";
                 return false;
             }
 
@@ -453,8 +490,13 @@ namespace AbilityKit.Game.Flow
         private static bool TryResolveWorldService<T>(BattleContext ctx, out T service) where T : class
         {
             service = null;
-            if (ctx?.Session == null) return false;
-            if (!ctx.Session.TryGetWorld(out var world) || world?.Services == null) return false;
+            if (ctx == null ||
+                !ctx.TryGetRuntimeWorld(out var world) ||
+                world.Services == null)
+            {
+                return false;
+            }
+
             return world.Services.TryResolve(out service) && service != null;
         }
     }
