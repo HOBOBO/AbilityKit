@@ -20,3 +20,6 @@ tools/feishu-design-sync.local.json
 
 sample-web/
 sample-output/
+
+# Local-only workspace for iterative drafts and generated material.
+/local/
