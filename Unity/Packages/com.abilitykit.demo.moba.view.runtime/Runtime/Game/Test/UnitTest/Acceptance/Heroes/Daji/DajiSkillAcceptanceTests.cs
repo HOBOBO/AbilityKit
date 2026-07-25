@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Ability.Host;
 using AbilityKit.Combat.Collision;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Protocol.Moba;
@@ -60,7 +62,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     maxTicks: harness.CalculateWaitTicksForSkillEffect(Skill1.SkillId, Skill1.EffectId, safetyFrames: 5) + 30,
                     message: "Daji skill 1 should execute its configured effect.");
                 harness.AssertProjectileLaunchedUnderEffect(effectTrace.RootId, 31050101, 30050101);
-                TickUntilProjectileSpawn(harness, 30050101, maxTicks: 30);
+                var spawn = TickUntilProjectileSpawnSnapshot(harness, 30050101, maxTicks: 30);
+                AssertDajiProjectileMovesAndResolvesVfx(harness, in spawn, expectedVfxId: 90005001, skillLabel: "skill 1 soul wave");
                 TickUntilActorHpLessThan(
                     harness,
                     targetActorId,
@@ -71,7 +74,60 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
-        public void Skill10050201_ShouldLaunchHomingCharmAndApplyControlOnHit()
+        public void Passive10050000_ShouldStackThreeLayersAndReduceMagicDefense()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(Daji, "daji_passive_stack_contract_world"))
+            {
+                harness.EnterGameAndWarmup(reason: "daji passive stack contract");
+                var actorId = harness.AssertPlayerActorBound();
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f);
+                var magicDefenseBefore = harness.GetActorAttribute(targetActorId, BattleAttributeType.MAGIC_DEFENSE);
+
+                for (var i = 0; i < 3; i++)
+                {
+                    harness.AddScenarioBuff(targetActorId, 10050000, actorId, durationOverrideMs: 3000);
+                }
+
+                Assert.IsTrue(
+                    harness.TryGetActorBuffStackCount(targetActorId, 10050000, out var stackCount),
+                    "Daji passive should create its target debuff runtime.");
+                Assert.AreEqual(3, stackCount, "Daji passive should cap at three magic-defense-reduction stacks.");
+                Assert.AreEqual(
+                    magicDefenseBefore - 90f,
+                    harness.GetActorAttribute(targetActorId, BattleAttributeType.MAGIC_DEFENSE),
+                    0.01f,
+                    "Three Daji passive stacks should reduce magic defense by 30 each.");
+                HeroSkillHeadlessContract.AssertFreshBuff(
+                    harness,
+                    targetActorId,
+                    10050000,
+                    minRemainingSeconds: 2.8f,
+                    message: "Reapplying Daji passive should refresh the three-second stack duration.");
+            }
+        }
+
+        [Test]
+        public void Skill10050201_ShouldRequireEnemyWithinConfiguredCastRangeWithoutStartingCooldown()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(Daji, "daji_skill_2_required_target_contract_world"))
+            {
+                harness.EnterGameAndWarmup(reason: "daji skill 2 required target contract");
+                var actorId = harness.AssertPlayerActorBound();
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+
+                var noTargetCast = skills.TryCastBySlot(actorId, Skill2.Slot, aimPos: default, aimDir: Vec3.Right, targetActorId: 0);
+                Assert.IsFalse(noTargetCast.Success, "Daji skill 2 should be rejected when no enemy is in its cast range.");
+                AssertSkillCooldownClear(harness, actorId, Skill2.SkillId, "A rejected Daji skill 2 cast without a target must not start cooldown.");
+
+                var outOfRangeTargetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 10.5f);
+                var outOfRangeCast = skills.TryCastBySlot(actorId, Skill2.Slot, aimPos: default, aimDir: Vec3.Right, targetActorId: outOfRangeTargetActorId);
+                Assert.IsFalse(outOfRangeCast.Success, "Daji skill 2 should reject an explicit enemy outside its ten-meter cast range.");
+                AssertSkillCooldownClear(harness, actorId, Skill2.SkillId, "An out-of-range Daji skill 2 cast must not start cooldown.");
+            }
+        }
+
+        [Test]
+        public void Skill10050201_ShouldAutoLockEnemyLaunchHomingCharmAndApplyControlOnHit()
         {
             using (var harness = HeroSkillHeadlessContract.CreateHarness(Daji, "daji_skill_2_homing_charm_contract_world"))
             {
@@ -89,10 +145,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 harness.EnterGameAndWarmup(reason: "daji skill 2 homing charm contract");
                 var actorId = harness.AssertPlayerActorBound();
-                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f);
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 6f);
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
-                var cast = skills.TryCastBySlot(actorId, Skill2.Slot, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: targetActorId);
-                Assert.IsTrue(cast.Success, "Daji skill 2 should cast toward the selected enemy. failReason=" + cast.FailReason);
+                var cast = skills.TryCastBySlot(actorId, Skill2.Slot, aimPos: default, aimDir: Vec3.Right, targetActorId: 0);
+                Assert.IsTrue(cast.Success, "Daji skill 2 should automatically lock an enemy inside its cast range. failReason=" + cast.FailReason);
 
                 var effectTrace = harness.TickUntilTraceNode(
                     MobaTraceKind.EffectExecution,
@@ -100,24 +156,31 @@ namespace AbilityKit.Game.Test.UnitTest
                     maxTicks: harness.CalculateWaitTicksForSkillEffect(Skill2.SkillId, Skill2.EffectId, safetyFrames: 5) + 30,
                     message: "Daji skill 2 should execute its configured effect.");
                 harness.AssertProjectileLaunchedUnderEffect(effectTrace.RootId, 31050201, 30050201);
-                TickUntilProjectileSpawn(harness, 30050201, maxTicks: 30);
+                var spawn = TickUntilProjectileSpawnSnapshot(harness, 30050201, maxTicks: 30);
+                AssertDajiProjectileMovesAndResolvesVfx(harness, in spawn, expectedVfxId: 90005002, skillLabel: "skill 2 homing charm");
+
+                harness.MoveScenarioActor(targetActorId, new MobaAcceptanceVector3Expectation { x = 6f, y = 0f, z = 3f });
+                var projectileActor = harness.AssertActorEntity(spawn.ProjectileActorId);
+                var zBeforeTracking = projectileActor.transform.Value.Position.Z;
+                TickUntilActorPositionZGreaterThan(harness, spawn.ProjectileActorId, zBeforeTracking + 0.05f, maxTicks: 10);
+
                 TickUntilActorBuff(
                     harness,
                     targetActorId,
                     10050201,
                     maxTicks: 60,
-                    message: "Daji charm projectile should hit the selected target within the configured projectile lifetime.");
+                    message: "Daji charm projectile should track the moved locked target and apply control within its configured lifetime.");
                 HeroSkillHeadlessContract.AssertFreshBuff(
                     harness,
                     targetActorId,
                     10050201,
                     minRemainingSeconds: 1.0f,
-                    message: "Daji charm projectile should apply the configured control buff after hitting its selected target.");
+                    message: "Daji charm projectile should apply the configured control buff after hitting its locked target.");
             }
         }
 
         [Test]
-        public void Skill10050301_ShouldApplyFoxfireStateAndCompileRepeatHitDecay()
+        public void Skill10050301_ShouldLaunchExactlyFiveFoxfiresFromOneCast()
         {
             using (var harness = HeroSkillHeadlessContract.CreateHarness(Daji, "daji_skill_3_foxfire_decay_contract_world"))
             {
@@ -125,10 +188,6 @@ namespace AbilityKit.Game.Test.UnitTest
                     harness,
                     10050301,
                     (int)TriggeringConstants.AddBuffId.Value,
-                    (int)TriggeringConstants.DebugLogId.Value);
-                HeroSkillHeadlessContract.AssertTriggerActions(
-                    harness,
-                    10050311,
                     (int)TriggeringConstants.ShootProjectileId.Value,
                     (int)TriggeringConstants.DebugLogId.Value);
                 HeroSkillHeadlessContract.AssertTriggerActions(
@@ -137,17 +196,38 @@ namespace AbilityKit.Game.Test.UnitTest
                     (int)TriggeringConstants.GetActionId(TriggeringConstants.Actions.AdjustDamageNumber).Value);
                 harness.AssertProjectileConfigExists(31050301, 30050301);
 
-                var effectTrace = HeroSkillHeadlessContract.CastSlotAndAssertEffect(harness, Skill3, "daji skill 3 foxfire state contract");
+                harness.EnterGameAndWarmup(reason: "daji skill 3 five foxfires contract");
                 var actorId = harness.AssertPlayerActorBound();
-                HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f);
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f);
+                var targetHpBefore = harness.GetActorHp(targetActorId);
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                var cast = skills.TryCastBySlot(actorId, Skill3.Slot, aimPos: default, aimDir: Vec3.Right, targetActorId: targetActorId);
+                Assert.IsTrue(cast.Success, "Daji ultimate should cast at the selected enemy. failReason=" + cast.FailReason);
+
+                var effectTrace = harness.TickUntilTraceNode(
+                    MobaTraceKind.EffectExecution,
+                    Skill3.EffectId,
+                    maxTicks: harness.CalculateWaitTicksForSkillEffect(Skill3.SkillId, Skill3.EffectId, safetyFrames: 5) + 30,
+                    message: "Daji ultimate should execute its configured effect.");
                 harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.AddBuffId.Value, TriggeringConstants.Actions.AddBuff);
+                harness.AssertProjectileLaunchedUnderEffect(effectTrace.RootId, 31050301, 30050301);
                 HeroSkillHeadlessContract.AssertFreshBuff(
                     harness,
                     actorId,
                     10050301,
                     minRemainingSeconds: 1.2f,
                     message: "Daji ultimate should enter the configured 1.6 second foxfire state.");
-                TickUntilProjectileSpawn(harness, 30050301, maxTicks: 60);
+
+                var firstFoxfireSpawn = TickUntilProjectileSpawnSnapshot(harness, 30050301, maxTicks: 30);
+                AssertDajiProjectileMovesAndResolvesVfx(harness, in firstFoxfireSpawn, expectedVfxId: 90005004, skillLabel: "skill 3 first foxfire");
+                var laterFoxfireSpawnCount = CountProjectileSpawnsWithinTicks(harness, 30050301, maxTicks: 80);
+                Assert.AreEqual(4, laterFoxfireSpawnCount, "One Daji ultimate cast should launch exactly five foxfires, including the already-verified first foxfire, without a second periodic scheduling path.");
+                TickUntilActorHpLessThan(
+                    harness,
+                    targetActorId,
+                    targetHpBefore,
+                    maxTicks: 30,
+                    message: "Daji foxfires should damage their selected target.");
             }
         }
 
@@ -173,10 +253,11 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.Fail(message);
         }
 
-        private static void TickUntilProjectileSpawn(MobaSkillConfigTestHarness harness, int templateId, int maxTicks)
+        private static int CountProjectileSpawnsWithinTicks(MobaSkillConfigTestHarness harness, int templateId, int maxTicks)
         {
             var provider = harness.World.Services.Resolve<IWorldStateSnapshotBatchProvider>();
             var snapshots = new List<WorldStateSnapshot>(16);
+            var count = 0;
             for (var i = 0; i <= maxTicks; i++)
             {
                 snapshots.Clear();
@@ -190,7 +271,7 @@ namespace AbilityKit.Game.Test.UnitTest
                         if (entries[entryIndex].Kind == (int)ProjectileEventKind.Spawn
                             && entries[entryIndex].TemplateId == templateId)
                         {
-                            return;
+                            count++;
                         }
                     }
                 }
@@ -198,7 +279,120 @@ namespace AbilityKit.Game.Test.UnitTest
                 if (i < maxTicks) harness.Tick(1);
             }
 
+            return count;
+        }
+
+        private static MobaProjectileEventSnapshotEntry TickUntilProjectileSpawnSnapshot(MobaSkillConfigTestHarness harness, int templateId, int maxTicks)
+        {
+            for (var i = 0; i <= maxTicks; i++)
+            {
+                if (TryCollectProjectileSpawnSnapshot(harness, templateId, out var entry)) return entry;
+                if (i < maxTicks) harness.Tick(1);
+            }
+
             Assert.Fail("Projectile spawn snapshot missing for template " + templateId + " within " + maxTicks + " ticks.");
+            return default;
+        }
+
+        private static bool TryCollectProjectileSpawnSnapshot(MobaSkillConfigTestHarness harness, int templateId, out MobaProjectileEventSnapshotEntry entry)
+        {
+            entry = default;
+            var provider = harness.World.Services.Resolve<IWorldStateSnapshotBatchProvider>();
+            var snapshots = new List<WorldStateSnapshot>(16);
+            provider.CollectSnapshots(harness.FrameTime.Frame, snapshots, 32);
+            for (var snapshotIndex = 0; snapshotIndex < snapshots.Count; snapshotIndex++)
+            {
+                if (snapshots[snapshotIndex].OpCode != MobaOpCodes.Snapshot.ProjectileEvent) continue;
+                var entries = MobaProjectileEventSnapshotCodec.Deserialize(snapshots[snapshotIndex].Payload);
+                for (var entryIndex = 0; entryIndex < entries.Length; entryIndex++)
+                {
+                    if (entries[entryIndex].Kind != (int)ProjectileEventKind.Spawn || entries[entryIndex].TemplateId != templateId) continue;
+                    entry = entries[entryIndex];
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void AssertDajiProjectileMovesAndResolvesVfx(MobaSkillConfigTestHarness harness, in MobaProjectileEventSnapshotEntry spawn, int expectedVfxId, string skillLabel)
+        {
+            Assert.Greater(spawn.ProjectileActorId, 0, "Daji " + skillLabel + " spawn snapshot should expose a projectile actor for VFX follow binding.");
+            Assert.Greater(spawn.ForwardX, 0.9f, "Daji " + skillLabel + " spawn snapshot should face its selected aim direction.");
+            Assert.AreEqual(0f, spawn.ForwardY, 0.0001f, "Daji " + skillLabel + " should stay on the XZ plane.");
+
+            var projectileActor = harness.AssertActorEntity(spawn.ProjectileActorId);
+            Assert.IsTrue(projectileActor.hasTransform, "Daji " + skillLabel + " projectile actor should have a transform for client-followed movement.");
+            var initialPosition = projectileActor.transform.Value.Position;
+            var moved = TickUntilActorPositionXGreaterThan(harness, spawn.ProjectileActorId, initialPosition.X + 0.05f, maxTicks: 10);
+            Assert.Greater(moved.X, initialPosition.X + 0.05f, "Daji " + skillLabel + " projectile actor should leave the caster and move toward its target.");
+            Assert.IsTrue(TryCollectActorTransformSnapshot(harness, spawn.ProjectileActorId, out var transformEntry), "Daji " + skillLabel + " moving projectile should be included in actor transform snapshots.");
+            Assert.Greater(transformEntry.X, initialPosition.X + 0.05f, "Daji " + skillLabel + " transform snapshot should carry its moved position for the view layer.");
+
+            var resolver = new BattleProjectileVfxResolver();
+            Assert.AreEqual(expectedVfxId, resolver.ResolveSnapshotVfxId(spawn.TemplateId, spawn.Kind), "Daji " + skillLabel + " should resolve its configured moving projectile VFX.");
+        }
+
+        private static Vec3 TickUntilActorPositionXGreaterThan(MobaSkillConfigTestHarness harness, int actorId, float minX, int maxTicks)
+        {
+            for (var i = 0; i <= maxTicks; i++)
+            {
+                var actor = harness.AssertActorEntity(actorId);
+                if (actor.hasTransform && actor.transform.Value.Position.X > minX) return actor.transform.Value.Position;
+                if (i < maxTicks) harness.Tick(1);
+            }
+
+            Assert.Fail("Projectile actor " + actorId + " did not advance beyond X=" + minX.ToString("F3") + " within " + maxTicks + " ticks.");
+            return default;
+        }
+
+        private static void TickUntilActorPositionZGreaterThan(MobaSkillConfigTestHarness harness, int actorId, float minZ, int maxTicks)
+        {
+            for (var i = 0; i <= maxTicks; i++)
+            {
+                var actor = harness.AssertActorEntity(actorId);
+                if (actor.hasTransform && actor.transform.Value.Position.Z > minZ) return;
+                if (i < maxTicks) harness.Tick(1);
+            }
+
+            Assert.Fail("Projectile actor " + actorId + " did not turn toward the moved target within " + maxTicks + " ticks.");
+        }
+
+        private static void AssertSkillCooldownClear(MobaSkillConfigTestHarness harness, int actorId, int skillId, string message)
+        {
+            var actor = harness.AssertActorEntity(actorId);
+            Assert.IsTrue(actor.hasSkillLoadout && actor.skillLoadout.ActiveSkills != null, message);
+            for (var i = 0; i < actor.skillLoadout.ActiveSkills.Length; i++)
+            {
+                var runtime = actor.skillLoadout.ActiveSkills[i];
+                if (runtime == null || runtime.SkillId != skillId) continue;
+                Assert.LessOrEqual(runtime.CooldownEndTimeMs, 0L, message);
+                Assert.LessOrEqual(runtime.CooldownDurationMs, 0, message);
+                return;
+            }
+
+            Assert.Fail("Active skill runtime missing for skill " + skillId + ". " + message);
+        }
+
+        private static bool TryCollectActorTransformSnapshot(MobaSkillConfigTestHarness harness, int actorId, out MobaActorTransformSnapshotEntry entry)
+        {
+            entry = default;
+            var provider = harness.World.Services.Resolve<IWorldStateSnapshotBatchProvider>();
+            var snapshots = new List<WorldStateSnapshot>(16);
+            provider.CollectSnapshots(harness.FrameTime.Frame, snapshots, 32);
+            for (var snapshotIndex = 0; snapshotIndex < snapshots.Count; snapshotIndex++)
+            {
+                if (snapshots[snapshotIndex].OpCode != MobaOpCodes.Snapshot.ActorTransform) continue;
+                var entries = MobaActorTransformSnapshotCodec.Deserialize(snapshots[snapshotIndex].Payload);
+                for (var entryIndex = 0; entryIndex < entries.Length; entryIndex++)
+                {
+                    if (entries[entryIndex].ActorId != actorId) continue;
+                    entry = entries[entryIndex];
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 

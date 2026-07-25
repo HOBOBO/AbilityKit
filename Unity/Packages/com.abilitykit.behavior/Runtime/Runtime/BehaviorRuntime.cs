@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using AbilityKit.Core.Continuous;
-using AbilityKit.Core.Serialization;
 using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Ability.Behavior

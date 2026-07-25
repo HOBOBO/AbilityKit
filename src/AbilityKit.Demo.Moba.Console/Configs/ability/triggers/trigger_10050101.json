@@ -21,7 +21,8 @@
           "message": "妲己一技能灵魂冲击：发射直线冲击波",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

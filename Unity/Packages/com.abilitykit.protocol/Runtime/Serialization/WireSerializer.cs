@@ -12,8 +12,12 @@ namespace AbilityKit.Protocol.Serialization
             get
             {
                 if (s_current != null) return s_current;
-                s_current = new BinaryObjectWireSerializer();
-                return s_current;
+                throw new InvalidOperationException(
+                    "WireSerializer.Current is not installed. " +
+                    "Call MemoryPackWireSerializerInstaller.InstallAsCurrent() at startup " +
+                    "(package com.abilitykit.protocol.memorypack). " +
+                    "The legacy BinaryObjectWireSerializer default has been removed — " +
+                    "all sync serialization is MemoryPack-only.");
             }
             set
             {

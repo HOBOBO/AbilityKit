@@ -10,6 +10,8 @@ namespace AbilityKit.Demo.Shooter.View
 {
     public sealed class ShooterRoomGatewayConnection : IShooterRoomGatewayRequestTransport, IDisposable
     {
+        private static readonly TimeSpan AutomaticFullStateSyncTimeout = TimeSpan.FromSeconds(10);
+
         private readonly IConnection _connection;
         private readonly RequestClient _requestClient;
         private ShooterClientSession? _session;
@@ -130,7 +132,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
             try
             {
-                await battle.RequestFullSnapshotResyncIfNeededAsync().ConfigureAwait(false);
+                await battle.RequestFullSnapshotResyncIfNeededAsync(AutomaticFullStateSyncTimeout).ConfigureAwait(false);
             }
             catch (ObjectDisposedException)
             {

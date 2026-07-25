@@ -12,6 +12,7 @@
       "actions": [
         {
           "type": "remove_buff",
+          "target_mode": 1,
           "target_self": true,
           "remove_slow": true,
           "remove_all": true
@@ -20,6 +21,13 @@
           "type": "add_buff",
           "buffIds": [10060201],
           "target_self": true
+        },
+        {
+          "type": "spawn_area",
+          "area_id": 40060201,
+          "position_mode": 0,
+          "radius": 4.0,
+          "duration_ms": 300
         },
         {
           "type": "add_shield",
@@ -34,7 +42,7 @@
         },
         {
           "type": "debug_log",
-          "message": "嬴政二技能王者守御：清除减速并获得护盾和移速",
+          "message": "嬴政二技能王者守御：清除减速，击退近身敌人并获得护盾和移速",
           "dump_args": false
         }
       ]

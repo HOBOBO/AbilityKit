@@ -1,12 +1,13 @@
-using AbilityKit.Core.Serialization;
+using MemoryPack;
 
 namespace AbilityKit.Ability.FrameSync.Rollback
 {
-    public readonly struct WorldRollbackSnapshotEntry
+    public readonly partial struct WorldRollbackSnapshotEntry
     {
-        [BinaryMember(0)] public readonly int Key;
-        [BinaryMember(1)] public readonly byte[] Payload;
+        [MemoryPackOrder(0)] public readonly int Key;
+        [MemoryPackOrder(1)] public readonly byte[] Payload;
 
+        [MemoryPackConstructor]
         public WorldRollbackSnapshotEntry(int key, byte[] payload)
         {
             Key = key;
@@ -14,12 +15,14 @@ namespace AbilityKit.Ability.FrameSync.Rollback
         }
     }
 
-    public readonly struct WorldRollbackSnapshot
+    [MemoryPackable]
+    public readonly partial struct WorldRollbackSnapshot
     {
-        [BinaryMember(0)] public readonly int Version;
-        [BinaryMember(1)] public readonly FrameIndex Frame;
-        [BinaryMember(2)] public readonly WorldRollbackSnapshotEntry[] Entries;
+        [MemoryPackOrder(0)] public readonly int Version;
+        [MemoryPackOrder(1)] public readonly FrameIndex Frame;
+        [MemoryPackOrder(2)] public readonly WorldRollbackSnapshotEntry[] Entries;
 
+        [MemoryPackConstructor]
         public WorldRollbackSnapshot(int version, FrameIndex frame, WorldRollbackSnapshotEntry[] entries)
         {
             Version = version;
@@ -34,12 +37,12 @@ namespace AbilityKit.Ability.FrameSync.Rollback
 
         public static byte[] Serialize(in WorldRollbackSnapshot snapshot)
         {
-            return BinaryObjectCodec.Encode(snapshot);
+            return MemoryPackSerializer.Serialize(snapshot);
         }
 
         public static WorldRollbackSnapshot Deserialize(byte[] payload)
         {
-            return BinaryObjectCodec.Decode<WorldRollbackSnapshot>(payload);
+            return MemoryPackSerializer.Deserialize<WorldRollbackSnapshot>(payload);
         }
     }
 }

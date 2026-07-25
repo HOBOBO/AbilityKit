@@ -38,8 +38,16 @@ namespace AbilityKit.Demo.Shooter.Runtime
             Rebuild(players, count);
         }
 
-        public void Rebuild(NB<ShooterSveltoPlayerComponent> players, int count)
+        public void Rebuild(NB<ShooterSveltoPlayerComponent> players, int count, int frame = -1)
         {
+            // 帧去重：同一帧内多个系统（敌人移动/敌人攻击/BotAI）共享一份索引，
+            // 首个调用方重建，后续调用直接复用（高单位量优化：省 O(n) 字典重建）。
+            if (frame >= 0 && _lastRebuildFrame == frame)
+            {
+                return;
+            }
+
+            _lastRebuildFrame = frame;
             _grid.Clear();
             _recordIndicesByPlayerId.Clear();
             _records.Clear();

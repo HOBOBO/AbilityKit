@@ -1,9 +1,9 @@
+using MemoryPack;
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Core.Pooling;
-using AbilityKit.Core.Serialization;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateSync;
@@ -14,8 +14,8 @@ namespace AbilityKit.Demo.Moba.Rollback
     {
         public const int DefaultKey = 10001;
 
-        private static readonly ObjectPool<List<Entry>> s_entryListPool = Pools.GetPool(
-            createFunc: () => new List<Entry>(16),
+        private static readonly ObjectPool<List<MobaActorTransformRollbackEntry>> s_entryListPool = Pools.GetPool(
+            createFunc: () => new List<MobaActorTransformRollbackEntry>(16),
             onRelease: list => list.Clear(),
             defaultCapacity: 8,
             maxSize: 64,
@@ -53,7 +53,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                     var e = kv.Value;
                     if (e == null) continue;
                     if (!e.hasTransform) continue;
-                    entries.Add(new Entry(actorId, e.transform.Value));
+                    entries.Add(new MobaActorTransformRollbackEntry(actorId, e.transform.Value));
                 }
 
                 entries.Sort((a, b) => a.ActorId.CompareTo(b.ActorId));
@@ -83,12 +83,12 @@ namespace AbilityKit.Demo.Moba.Rollback
                     var e = kv.Value;
                     if (e == null) continue;
                     if (!e.hasTransform) continue;
-                    entries.Add(new Entry(actorId, e.transform.Value));
+                    entries.Add(new MobaActorTransformRollbackEntry(actorId, e.transform.Value));
                 }
 
                 entries.Sort((a, b) => a.ActorId.CompareTo(b.ActorId));
-                var payloadEntries = entries.Count == 0 ? Array.Empty<Entry>() : entries.ToArray();
-                return BinaryObjectCodec.Encode(new Payload(1, payloadEntries));
+                var payloadEntries = entries.Count == 0 ? Array.Empty<MobaActorTransformRollbackEntry>() : entries.ToArray();
+                return MemoryPackSerializer.Serialize(new MobaActorTransformRollbackPayload(1, payloadEntries));
             }
             finally
             {
@@ -100,7 +100,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         {
             if (payload == null || payload.Length == 0) return;
 
-            var p = BinaryObjectCodec.Decode<Payload>(payload);
+            var p = MemoryPackSerializer.Deserialize<MobaActorTransformRollbackPayload>(payload);
             if (p.Entries == null || p.Entries.Length == 0) return;
 
             for (int i = 0; i < p.Entries.Length; i++)
@@ -129,7 +129,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             e.ReplaceMotion(m.Pipeline, state, output, m.Solver, m.Policy, m.Events, m.Initialized, m.HitTriggerRuntime);
         }
 
-        private static void AddEntryHash(in Entry entry, MobaStateHashBuilder hash)
+        private static void AddEntryHash(in MobaActorTransformRollbackEntry entry, MobaStateHashBuilder hash)
         {
             var t = entry.Transform;
             hash.AddInt(entry.ActorId);
@@ -144,29 +144,32 @@ namespace AbilityKit.Demo.Moba.Rollback
             hash.AddFloat(t.Scale.Y);
             hash.AddFloat(t.Scale.Z);
         }
+    }
 
-        public readonly struct Payload
+    [MemoryPackable]
+    public readonly partial struct MobaActorTransformRollbackPayload
+    {
+        [MemoryPackOrder(0)] public readonly int Version;
+        [MemoryPackOrder(1)] public readonly MobaActorTransformRollbackEntry[] Entries;
+
+        [MemoryPackConstructor]
+        public MobaActorTransformRollbackPayload(int version, MobaActorTransformRollbackEntry[] entries)
         {
-            [BinaryMember(0)] public readonly int Version;
-            [BinaryMember(1)] public readonly Entry[] Entries;
-
-            public Payload(int version, Entry[] entries)
-            {
-                Version = version;
-                Entries = entries;
-            }
+            Version = version;
+            Entries = entries;
         }
+    }
 
-        public readonly struct Entry
+    [MemoryPackable]
+    public readonly partial struct MobaActorTransformRollbackEntry
+    {
+        [MemoryPackOrder(0)] public readonly int ActorId;
+        [MemoryPackOrder(1)] public readonly Transform3 Transform;
+
+        public MobaActorTransformRollbackEntry(int actorId, Transform3 transform)
         {
-            [BinaryMember(0)] public readonly int ActorId;
-            [BinaryMember(1)] public readonly Transform3 Transform;
-
-            public Entry(int actorId, Transform3 transform)
-            {
-                ActorId = actorId;
-                Transform = transform;
-            }
+            ActorId = actorId;
+            Transform = transform;
         }
     }
 }

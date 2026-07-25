@@ -189,7 +189,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.AreEqual(expectedSkillId, snapshot.SkillId, "The running skill should match the configured Lian Po slot.");
                 Assert.IsTrue(HasEffectiveTag(harness, actorId, superArmorTag), "Lian Po should carry super armor while the cast pipeline is active.");
 
-                TickUntilSkillStops(harness, actorId, slot, maxTicks: 180);
+                harness.TickUntilSkillStops(actorId, slot, maxTicks: 180);
 
                 Assert.IsFalse(HasEffectiveTag(harness, actorId, superArmorTag), "Pipeline super armor should be removed when the cast pipeline ends.");
             }
@@ -295,17 +295,6 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var tags = harness.World.Services.Resolve<IMobaEffectiveTagQueryService>().GetEffectiveTags(actorId);
             return tags != null && tags.HasTagExact(tag);
-        }
-
-        private static void TickUntilSkillStops(MobaSkillConfigTestHarness harness, int actorId, int slot, int maxTicks)
-        {
-            for (var i = 0; i < maxTicks; i++)
-            {
-                if (!harness.TryGetRunningSkillSnapshot(actorId, slot, out _)) return;
-                harness.Tick(1);
-            }
-
-            Assert.Fail("Skill pipeline did not stop within the expected test window. " + harness.DescribeSkillRuntimeState(actorId, slot));
         }
 
         private static bool HasMotionPipeline(ActorEntity entity)

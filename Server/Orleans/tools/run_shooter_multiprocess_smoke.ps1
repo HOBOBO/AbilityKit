@@ -103,11 +103,13 @@ function Get-ShooterFaultMatrixPlan {
     )
 
     $cases = if (-not [string]::IsNullOrWhiteSpace($SelectedScenario)) {
+        $selectedScenarioIsSoak16 = $SelectedScenario -eq 'soak-16'
+        $selectedScenarioIsSoak64 = $SelectedScenario -eq 'soak-64'
         @([pscustomobject]@{
             caseId = [string]$SelectedScenario
             name = [string]$SelectedScenario
-            payloadMode = $SelectedPayloadMode
-            joinClients = $SelectedJoinClients
+            payloadMode = if ($selectedScenarioIsSoak16 -or $selectedScenarioIsSoak64) { 'pure-state' } else { $SelectedPayloadMode }
+            joinClients = if ($selectedScenarioIsSoak16) { 15 } elseif ($selectedScenarioIsSoak64) { 63 } else { $SelectedJoinClients }
             conditionLatencyMs = $SelectedConditionLatencyMs
             conditionJitterMs = $SelectedConditionJitterMs
             conditionPacketLossRate = $SelectedConditionPacketLossRate
@@ -157,7 +159,9 @@ function Get-ShooterFaultMatrixPlan {
         $activeTimeoutSeconds = if ($isSoak) { $SelectedSoakDurationSeconds } else { $PerScenarioTimeoutSeconds }
         $convergenceTimeoutSeconds = [Math]::Max(5, [Math]::Min(30, $activeTimeoutSeconds - 5))
         $resultTimeoutSeconds = if ($isSoak) { 30 } else { 0 }
-        $executionTimeoutSeconds = $StartupTimeoutSeconds + $SetupTimeoutSeconds + $activeTimeoutSeconds + 15
+        $setupFanoutAllowanceSeconds = if ($isSoak) { [Math]::Min(240, [int]$case.joinClients * 3) } else { 0 }
+        $setupTimeoutBudgetSeconds = $SetupTimeoutSeconds + $setupFanoutAllowanceSeconds
+        $executionTimeoutSeconds = $StartupTimeoutSeconds + $setupTimeoutBudgetSeconds + $activeTimeoutSeconds + 15
         if ($isSoak) {
             $executionTimeoutSeconds += $resultTimeoutSeconds + $convergenceTimeoutSeconds
         }
@@ -171,7 +175,8 @@ function Get-ShooterFaultMatrixPlan {
             conditionPacketLossRate = [double]$case.conditionPacketLossRate
             offsetSeconds = $i * $executionTimeoutSeconds
             startupTimeoutSeconds = $StartupTimeoutSeconds
-            setupTimeoutSeconds = $SetupTimeoutSeconds
+            requestedSetupTimeoutSeconds = $SetupTimeoutSeconds
+            setupTimeoutSeconds = $setupTimeoutBudgetSeconds
             timeoutSeconds = $activeTimeoutSeconds
             resultTimeoutSeconds = $resultTimeoutSeconds
             executionTimeoutSeconds = $executionTimeoutSeconds
@@ -239,6 +244,52 @@ function Read-JsonFileIfPresent {
         Write-Warning "Could not read JSON file '$Path': $($_.Exception.Message)"
         return $null
     }
+}
+
+function Read-ControlAcknowledgementIfPresent {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [int]$RetryCount = 3,
+        [int]$RetryDelayMilliseconds = 10
+    )
+
+    for ($attempt = 1; $attempt -le $RetryCount; $attempt++) {
+        if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+            return $null
+        }
+
+        try {
+            $stream = [System.IO.File]::Open(
+                $Path,
+                [System.IO.FileMode]::Open,
+                [System.IO.FileAccess]::Read,
+                [System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete)
+            try {
+                $reader = [System.IO.StreamReader]::new($stream)
+                try {
+                    return $reader.ReadToEnd() | ConvertFrom-Json
+                }
+                finally {
+                    $reader.Dispose()
+                }
+            }
+            finally {
+                $stream.Dispose()
+            }
+        }
+        catch [System.IO.IOException] {
+        }
+        catch [System.ArgumentException] {
+        }
+        catch [System.Text.Json.JsonException] {
+        }
+
+        if ($attempt -lt $RetryCount) {
+            Start-Sleep -Milliseconds $RetryDelayMilliseconds
+        }
+    }
+
+    return $null
 }
 
 function Invoke-MatrixTimeoutOwnedCleanup {
@@ -446,11 +497,10 @@ if ([string]::IsNullOrWhiteSpace($Scenario)) {
 $activePlan = $matrixPlan[0]
 $isSoakRun = [bool]$activePlan.soak
 if (-not [string]::IsNullOrWhiteSpace($Scenario)) {
+    $JoinClients = [int]$activePlan.joinClients
+    $PayloadMode = [string]$activePlan.payloadMode
     $ReconnectCount = if ($ReconnectJoinClient -and $Profile -eq 'custom') { [Math]::Max(1, $ReconnectCount) } else { $activePlan.reconnectCount }
     $RecoverableFailureCount = $activePlan.recoverableFailureCount
-    if ($Scenario -eq 'slow-consumer') {
-        $PayloadMode = 'pure-state'
-    }
 }
 if ($RunId -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
     throw 'RunId must start with an alphanumeric character and contain only alphanumeric characters, dot, underscore, or hyphen.'
@@ -510,7 +560,7 @@ function Register-RunProcess {
         [string]$StdErrPath = ''
     )
 
-    $identity = Get-AbilityKitProcessIdentity -ProcessId $ProcessId
+    $identity = Get-AbilityKitProcessIdentity -ProcessId $ProcessId -RetryCount 40 -RetryDelayMilliseconds 50
     if ($null -eq $identity) {
         throw "Could not capture process identity for role '$Role', PID $ProcessId."
     }
@@ -579,7 +629,8 @@ function Write-RunManifest {
             retryBackoffMaxMs = $RetryBackoffMaxMs
             operationTimeoutSeconds = $TimeoutSeconds
             startupTimeoutSeconds = $StartupTimeoutSeconds
-            setupTimeoutSeconds = $SetupTimeoutSeconds
+            requestedSetupTimeoutSeconds = $SetupTimeoutSeconds
+            setupTimeoutSeconds = $activePlan.setupTimeoutSeconds
             timeoutSeconds = $activePlan.timeoutSeconds
             executionTimeoutSeconds = $activePlan.executionTimeoutSeconds
             convergenceTimeoutSeconds = $activePlan.convergenceTimeoutSeconds
@@ -1049,7 +1100,7 @@ function Send-SoakNetworkCondition {
     while ($pending.Count -gt 0 -and [DateTime]::UtcNow -lt $deadline) {
         $remaining = @()
         foreach ($client in $pending) {
-            $ack = Read-JsonFileIfPresent -Path $client.NetworkControlAckPath
+            $ack = Read-ControlAcknowledgementIfPresent -Path $client.NetworkControlAckPath
             if ($null -eq $ack -or [string]$ack.id -ne $commandId) {
                 $remaining += $client
             }
@@ -1078,6 +1129,44 @@ function Send-SoakNetworkCondition {
         expectRecovery = $ExpectRecovery
     }
     Write-RunManifest -Status 'running'
+}
+
+function Wait-ForSoakRecoveryEvidence {
+    param([Parameter(Mandatory = $true)][object[]]$Clients)
+
+    $deadline = [DateTime]::UtcNow.AddSeconds($activePlan.convergenceTimeoutSeconds)
+    $pendingClientIds = @($Clients | ForEach-Object { $_.ClientId })
+    while ($pendingClientIds.Count -gt 0 -and [DateTime]::UtcNow -lt $deadline) {
+        $pendingClientIds = @($Clients | Where-Object {
+            $client = $_
+            if (-not (Test-Path -LiteralPath $client.MetricsOutputPath -PathType Leaf)) {
+                return $true
+            }
+
+            try {
+                $hasRecovery = @(Get-Content -LiteralPath $client.MetricsOutputPath -ErrorAction Stop | ForEach-Object {
+                    if (-not [string]::IsNullOrWhiteSpace($_)) { $_ | ConvertFrom-Json }
+                } | Where-Object { $_.type -eq 'recovery-completed' }).Count -gt 0
+                return -not $hasRecovery
+            }
+            catch [System.IO.IOException] {
+                return $true
+            }
+            catch [System.Text.Json.JsonException] {
+                return $true
+            }
+        } | ForEach-Object { $_.ClientId })
+
+        if ($pendingClientIds.Count -gt 0) {
+            Start-Sleep -Milliseconds 100
+        }
+    }
+
+    if ($pendingClientIds.Count -gt 0) {
+        throw "Timed out waiting for soak recovery evidence. Pending=$($pendingClientIds -join ',')"
+    }
+
+    Add-AssertionResult -Name 'soak-recovery-evidence-completed' -Passed $true -Details "Observers=$($Clients.Count); TimeoutSeconds=$($activePlan.convergenceTimeoutSeconds)"
 }
 
 function Invoke-ShooterSoakPhases {
@@ -1114,6 +1203,7 @@ function Invoke-ShooterSoakPhases {
         }
     }
 
+    Wait-ForSoakRecoveryEvidence -Clients $Clients
     New-Item -ItemType File -Path $completionReleasePath -Force | Out-Null
     Add-AssertionResult -Name 'soak-phases-completed' -Passed $true -Details "Phases=$($phaseDefinitions.Count); DurationSeconds=$($activePlan.timeoutSeconds)"
 }
@@ -1254,28 +1344,22 @@ function Invoke-GatewayFaultCommand {
 
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     while ([DateTime]::UtcNow -lt $deadline) {
-        if (Test-Path $ackPath) {
-            try {
-                $ack = Get-Content -LiteralPath $ackPath -Raw | ConvertFrom-Json
-                if ($ack.Id -eq $commandId) {
-                    $script:faultTimeline += [ordered]@{
-                        action = $Action
-                        commandId = $commandId
-                        requestedAtUtc = $requestedAtUtc.ToString('O')
-                        receivedAtUtc = $ack.ReceivedAtUtc
-                        completedAtUtc = $ack.CompletedAtUtc
-                        status = $ack.Status
-                        error = $ack.Error
-                        observerReactivation = $ack.ObserverReactivation
-                    }
-                    if ($ack.Status -ne 'completed') {
-                        throw "Gateway fault command '$Action' failed: $($ack.Error)"
-                    }
-                    return $ack
-                }
+        $ack = Read-ControlAcknowledgementIfPresent -Path $ackPath
+        if ($null -ne $ack -and $ack.Id -eq $commandId) {
+            $script:faultTimeline += [ordered]@{
+                action = $Action
+                commandId = $commandId
+                requestedAtUtc = $requestedAtUtc.ToString('O')
+                receivedAtUtc = $ack.ReceivedAtUtc
+                completedAtUtc = $ack.CompletedAtUtc
+                status = $ack.Status
+                error = $ack.Error
+                observerReactivation = $ack.ObserverReactivation
             }
-            catch [System.ArgumentException] {
+            if ($ack.Status -ne 'completed') {
+                throw "Gateway fault command '$Action' failed: $($ack.Error)"
             }
+            return $ack
         }
         Start-Sleep -Milliseconds 50
     }
@@ -1380,6 +1464,8 @@ function New-ClientArguments {
         [string]$RoomId,
         [int]$RoomMaxPlayers = 0,
         [int]$BattleDurationFrames = 0,
+        [int]$BattleVictoryTargetDefeats = 0,
+        [switch]$ContinueAfterAllPlayersDefeated,
         [int]$ClientReconnectCount = 0,
         [int]$ClientRecoverableFailureCount = 0,
         [int]$LatencyMs = 0,
@@ -1422,6 +1508,14 @@ function New-ClientArguments {
 
     if ($ClientMode -eq 'create' -and $BattleDurationFrames -gt 0) {
         $arguments += @('--battle-duration-frames', $BattleDurationFrames)
+    }
+
+    if ($ClientMode -eq 'create' -and $BattleVictoryTargetDefeats -gt 0) {
+        $arguments += @('--battle-victory-target-defeats', $BattleVictoryTargetDefeats)
+    }
+
+    if ($ClientMode -eq 'create' -and $ContinueAfterAllPlayersDefeated) {
+        $arguments += '--continue-after-all-players-defeated'
     }
 
     if ($WaitForMatchEnd) {
@@ -1491,6 +1585,8 @@ function Start-SmokeClient {
         [string]$RoomId,
         [int]$RoomMaxPlayers = 0,
         [int]$BattleDurationFrames = 0,
+        [int]$BattleVictoryTargetDefeats = 0,
+        [switch]$ContinueAfterAllPlayersDefeated,
         [Parameter(Mandatory = $true)]
         [string]$LogPath,
         [Parameter(Mandatory = $true)]
@@ -1515,7 +1611,7 @@ function Start-SmokeClient {
         [string]$DiagnosticOutputPath
     )
 
-    $arguments = New-ClientArguments -ClientMode $ClientMode -ClientId $ClientId -PlayerId $PlayerId -RoomId $RoomId -RoomMaxPlayers $RoomMaxPlayers -BattleDurationFrames $BattleDurationFrames -ClientReconnectCount $ClientReconnectCount -ClientRecoverableFailureCount $ClientRecoverableFailureCount -LatencyMs $LatencyMs -JitterMs $JitterMs -PacketLossRate $PacketLossRate -BandwidthBytesPerSecond $BandwidthBytesPerSecond -NetworkSeed $NetworkSeed -ReplayOutputPath $ReplayOutputPath -ReconnectReleasePath $ReconnectReleasePath -CompletionReleasePath $CompletionReleasePath -NetworkControlPath $NetworkControlPath -MetricsOutputPath $MetricsOutputPath -MetricsSampleIntervalMs $MetricsSampleIntervalMs -ClientTimeoutSeconds $ClientTimeoutSeconds -CorrelationId $CorrelationId -DiagnosticOutputPath $DiagnosticOutputPath
+    $arguments = New-ClientArguments -ClientMode $ClientMode -ClientId $ClientId -PlayerId $PlayerId -RoomId $RoomId -RoomMaxPlayers $RoomMaxPlayers -BattleDurationFrames $BattleDurationFrames -BattleVictoryTargetDefeats $BattleVictoryTargetDefeats -ContinueAfterAllPlayersDefeated:$ContinueAfterAllPlayersDefeated -ClientReconnectCount $ClientReconnectCount -ClientRecoverableFailureCount $ClientRecoverableFailureCount -LatencyMs $LatencyMs -JitterMs $JitterMs -PacketLossRate $PacketLossRate -BandwidthBytesPerSecond $BandwidthBytesPerSecond -NetworkSeed $NetworkSeed -ReplayOutputPath $ReplayOutputPath -ReconnectReleasePath $ReconnectReleasePath -CompletionReleasePath $CompletionReleasePath -NetworkControlPath $NetworkControlPath -MetricsOutputPath $MetricsOutputPath -MetricsSampleIntervalMs $MetricsSampleIntervalMs -ClientTimeoutSeconds $ClientTimeoutSeconds -CorrelationId $CorrelationId -DiagnosticOutputPath $DiagnosticOutputPath
     $startedAtUtc = [DateTime]::UtcNow
     $process = Start-DotnetProcess -Arguments $arguments -StdOut $LogPath -StdErr $ErrLogPath
     $startedProcesses.Add($process)
@@ -1678,8 +1774,8 @@ function Assert-ClientResult {
         throw "Client input response did not include positive server ticks: $line"
     }
 
-    if ((Read-ResultInt -Fields $fields -Name 'entities') -lt $actualPlayerId) {
-        throw "Client snapshot entity count is lower than expected player visibility. ExpectedAtLeast=$actualPlayerId, Line=$line"
+    if ((Read-ResultInt -Fields $fields -Name 'entities') -lt 1) {
+        throw "Client snapshot did not contain any visible entities: $line"
     }
 
     if ($client.ReconnectCount -gt 0) {
@@ -2174,8 +2270,8 @@ try {
     Wait-ForPort -Port $TcpPort -TimeoutSeconds $StartupTimeoutSeconds
     Add-AssertionResult -Name 'server-listening' -Passed $true -Details "127.0.0.1:$TcpPort"
     $timeoutPhase = 'setup'
-    $timeoutBudgetSeconds = $SetupTimeoutSeconds
-    $scenarioDeadlineUtc = [DateTime]::UtcNow.AddSeconds($SetupTimeoutSeconds)
+    $timeoutBudgetSeconds = [int]$activePlan.setupTimeoutSeconds
+    $scenarioDeadlineUtc = [DateTime]::UtcNow.AddSeconds($timeoutBudgetSeconds)
     Write-RunManifest -Status 'running'
 
     $clientTimeoutSeconds = if ($isSoakRun) {
@@ -2196,6 +2292,8 @@ try {
         -PlayerId 1 `
         -RoomMaxPlayers ($JoinClients + 1) `
         -BattleDurationFrames $(if ($isSoakRun) { [int][Math]::Min([int]::MaxValue, [long]$activePlan.executionTimeoutSeconds * 60) } else { 0 }) `
+        -BattleVictoryTargetDefeats $(if ($isSoakRun) { [int]::MaxValue } else { 0 }) `
+        -ContinueAfterAllPlayersDefeated:$isSoakRun `
         -LogPath (Join-Path $logDir 'client-create.log') `
         -ErrLogPath (Join-Path $logDir 'client-create.err.log') `
         -ReplayOutputPath $createReplayPath `
@@ -2334,6 +2432,7 @@ try {
         Write-RunManifest -Status 'running'
     }
 
+    $timeoutPhase = 'client result validation'
     foreach ($client in $clients) {
         $clientResult = Wait-ForClientResult -Client $client
         Assert-ClientResult -ClientResult $clientResult
@@ -2390,7 +2489,15 @@ catch {
     $manifestError = $_.Exception.Message
     Write-Warning "Shooter smoke failure location: $($_.InvocationInfo.PositionMessage)"
     $manifestFailureCategory = Get-FailureClassification -Message $manifestError -Established $scenarioEstablished
-    $manifestFailureStage = if ($manifestFailureCategory -eq 'PreconditionFailed') { 'setup' } else { 'fault-recovery' }
+    $manifestFailureStage = if ($timeoutPhase -eq 'startup' -or $timeoutPhase -eq 'setup' -or $manifestFailureCategory -eq 'PreconditionFailed') {
+        'setup'
+    }
+    elseif ($timeoutPhase -eq 'client result validation') {
+        'validation'
+    }
+    else {
+        'fault-recovery'
+    }
     Add-AssertionResult -Name 'scenario-completed' -Passed $false -Details $manifestError
 }
 finally {

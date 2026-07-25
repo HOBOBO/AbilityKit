@@ -37,6 +37,7 @@
         "id":  10030002,
         "name":  "赵云-龙鸣-配置标记",
         "event":  "",
+        "scope":  "owner",
         "enabled":  true,
         "allowExternal":  true,
         "phase":  "immediate",

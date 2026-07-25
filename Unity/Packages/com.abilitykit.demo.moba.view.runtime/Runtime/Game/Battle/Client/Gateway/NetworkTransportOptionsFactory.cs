@@ -10,6 +10,8 @@ using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 using AbilityKit.Protocol.Room;
+using AbilityKit.Game.Battle.Agent;
+using StateSyncOpCodes = AbilityKit.Protocol.Moba.StateSync.OpCodes;
 
 namespace AbilityKit.Game.Battle
 {
@@ -75,6 +77,8 @@ namespace AbilityKit.Game.Battle
                 OpSubmitInput = OpCodes.SubmitFrameInput,
                 SubmitInputRetryFrameLead = 60,
                 OpFramePushed = OpCodes.FramePushed,
+                OpSnapshotPushed = StateSyncOpCodes.SnapshotPushed,
+                OpDeltaSnapshotPushed = StateSyncOpCodes.DeltaSnapshotPushed,
                 RewriteSubmitInputFrame = (requestObj, frame) =>
                 {
                     if (requestObj is not SubmitInputRequest request)
@@ -142,6 +146,12 @@ namespace AbilityKit.Game.Battle
                     }
 
                     return new FramePacket(worldId, frame, inputs, snapshot: null);
+                },
+
+                DeserializeSnapshotPushed = payload =>
+                {
+                    var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
+                    return GatewayRoomClient.ToGatewaySnapshot(in wire);
                 }
             };
         }

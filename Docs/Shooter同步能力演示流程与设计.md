@@ -259,9 +259,43 @@ flowchart TD
 - `Supports`：非 PredictRollback 回放、或缺少 Full/AuthorityOverride 快照能力时返回 Unsupported。
 - `Step`：通过 `_strategy is IShooterClientSyncController` 下行转换，调用 `CollectFastReconnectHealthEvents()`，把 `SyncHealthEvent[]` 注入该步 telemetry —— 这正是「能力可观测」原则的落地点。
 
+### 6.4 Observer Grain 生命周期故障演示
+
+Shooter 多进程 smoke 的 `observer-reactivation` 场景用于验证 Orleans Observer activation 被回收后，客户端仍能通过正式协议恢复同步。这里的状态所有权边界必须明确：`StateSyncObserverGrain` 持有订阅、发送队列、PureState baseline、可靠事件游标等 activation 内存态；这些状态在 deactivate 时清理，新 activation 不透明继承旧状态。
+
+受控故障链路如下：
+
+1. join 客户端完成 initial sync 和输入，停在有界 reconnect gate。
+2. runner 从正式 ready 行读取 `accountId` 与 `roomId`，构造同客户端订阅一致的 Observer key。
+3. ShooterSmoke 通过独立生命周期诊断接口读取 activation token，并请求 `DeactivateOnIdle`。
+4. 服务端在 5 秒窗口内轮询同一 key；只有新 token 非空且不同于旧 token，故障命令才返回 completed。
+5. runner 验证 before/after 证据后释放 gate，客户端执行真实连接关闭，并重新走 join/ready/start/subscribe。
+6. 最终门禁继续要求 full baseline、无 pending resync、可靠状态无需 resync、权威 diff 一致、replay 可消费，以及进程和端口清理。
+
+该场景只证明 Observer activation 重建与业务重订阅恢复，不证明 `BattleLogicHostGrain` 可被无损停用。Battle Grain 当前权威 battle runtime 属于 activation 内存态；在没有正式持久化和恢复协议前，停用它会丢失战斗，不能套用 Observer 的结论。
+
+2026-07-19 的真实运行 `20260719-144054-994-21480` 已通过：同一 Observer key 的 activation token 发生变化，join 客户端随后进入 `Reconnect`；create/join authoritative diff 均为 `Identical`，PureState 与可靠状态均无 resync，完整和最小化 FrameRecord 均可消费。
+
+### 6.5 多进程兼容冒烟矩阵
+
+多进程 smoke 不是 DemoHarness 的 A×B×C 全组合枚举，而是验证真实 server/create/join 进程、协议 payload、客户端扇出、故障恢复与网络条件能否共同收敛。为兼顾反馈速度和覆盖面，runner 提供四种 profile：
+
+| Profile | 运行策略 | CI 定位 |
+|---------|----------|---------|
+| `minimal` | Packed 单 join 的 recoverable retry | 主分支快速门禁 |
+| `full` | 使用同一组顶层参数遍历五种故障 | 固定环境下完整故障回归 |
+| `compatibility` | 五个 case 分别选择 Packed/PureState、1/2 join、故障与网络条件 | Windows Release 定时或手动门禁 |
+| `custom` | 指定一个场景和参数 | 聚焦复现 |
+
+`compatibility` 的五个正交 case 覆盖 recoverable retry、PureState slow-consumer 双 join、Packed Gateway offline 双 join、PureState 三轮 reconnect 双 join加 20 ms latency/5 ms jitter，以及 PureState Observer reactivation。它刻意不生成完整笛卡尔积，避免低风险重复组合拖慢门禁。
+
+真实运行 `compatibility-pure-state-reconnect-fanout-20260719` 已证明 create、join-1、join-2 在 PureState、三轮正式 reconnect 和延迟抖动下收敛：三份 authoritative diff 均为 `Identical`，可靠事件无需 resync，完整和 minimized replay 可消费，所有进程正常退出且端口释放。详细 case、manifest 和收敛契约见[多进程故障矩阵设计](design/09-ImplementationExamples/Shooter/14-MultiprocessFaultMatrixAndConvergenceEvidence.md)。
+
+当前 CI 边界仍是 `windows-latest`。多进程脚本依赖 `powershell.exe` 及 Windows 进程和端口治理；在完成 `pwsh`、路径、信号与清理改造前，不将该结果表述为 Linux 多进程兼容。
+
 ---
 
-### 6.4 ECS/Svelto 基准入口
+### 6.6 ECS/Svelto 基准入口
 
 同步验收矩阵之外，Shooter runtime 现在提供 [`ShooterSveltoGameplayBenchmark`](../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Gameplay/ShooterSveltoGameplayBenchmark.cs:1) 作为高性能 ECS 范式入口。它复用 [`ShooterSveltoGameplayScenarioRunner`](../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Gameplay/ShooterSveltoGameplayScenarioRunner.cs:1) 的 `EntitiesDB.QueryEntities<...>()` 批量处理路径，按 profile 多次运行并断言 deterministic outcome：
 
@@ -303,24 +337,25 @@ flowchart LR
 | AuthoritativeInterpolation | ✅ 已演示 | 权威帧+远端插值回放 |
 | HybridHeroPrediction | ✅ 已演示 | 本地英雄预测与远端插值拆分，具备全量快照恢复验收边界 |
 | FastReconnect | ✅ 已演示 | 续帧/全量快照恢复，健康事件可采集（基线 §10.4 已闭环） |
+| Observer Grain reactivation | ✅ 已演示 | activation token before/after 证明真实重建，客户端通过正式 reconnect/subscribe 恢复，不承诺 activation 内存态透明恢复 |
 | 正式同步验收矩阵 | ✅ 已演示 | `SyncModeMatrix` 固化模板、profile、承载类型与 per-mode acceptance criteria |
 | ECS/Svelto 基准入口 | ✅ 已演示 | `ShooterSveltoGameplayBenchmark` 覆盖 projectile storm / wave survival 基线并断言确定性 |
 | 中立服务端 World 管理 | ✅ 已演示 | Orleans 使用 `ServerBattleWorldManager` 同时管理 MOBA 与 Shooter battle world 生命周期 |
 | 连接底座 (ConnectionManager/Tcp/Heartbeat/RequestClient) | ✅ 已演示 | 生产连接链路在用 |
 | 统一健康事件 (`SyncHealthEvent`) | ✅ 已演示 | 经 DemoHarness 聚合为四态 |
-| **NetworkConditioningMiddleware**（抖动/丢包注入） | 🟡 仅测试/Harness | 未挂到生产连接链；B 轴条件目前主要在 Harness 内模拟 |
+| **NetworkConditioningMiddleware**（抖动/丢包注入） | 🟡 Harness/多进程测试已覆盖 | compatibility 多进程 case 已验证确定性 latency/jitter，但 middleware 仍未挂到生产连接链 |
 | **时间锚族**（`SyncTimeAnchor`/`SyncClock`/`ServerClockEstimator`/`TimeSyncBridge`） | 🟡 未驱动客户端 | 客户端步进用 `tickRate` 推算的 `fixedDeltaTime`，未接时间锚；与基线 §10.2 声明存在差距 |
 | **ServerRewindLagCompensationService**（服务端回溯命中判定） | 🔴 完全未用 | 全工程 0 引用（含 Orleans）；`SyncHealthEventKind.LagCompensatedHitValidation` 已预留 |
 | FrameJitterBuffer | ⚪ 合理不用 | Shooter 走预测/插值路径，无需独立抖动缓冲 |
 | keyframe / aoi-slice Recovery | 🔴 无运行时 | 基线 §10.4 已知缺口，仅声明 |
 | ServerValidationPolicy（客户端侧） | 🟡 仅声明 | 客户端侧 declared-only |
 
-**建议的下一个「真实消费者」接入目标**：`ServerRewindLagCompensationService` —— 它当前完全空转，与 FastReconnect 在 §10.4 闭环前的处境一致，且健康事件枚举已预留 `LagCompensatedHitValidation`，是把「服务端回溯命中判定」纳入展柜的最高优先级候选。其次是把 `NetworkConditioningMiddleware` 挂入生产连接链，让 B 轴条件不再只存在于 Harness 内部。
+**建议的下一个「真实消费者」接入目标**：`ServerRewindLagCompensationService` —— 它当前完全空转，与 FastReconnect 在 §10.4 闭环前的处境一致，且健康事件枚举已预留 `LagCompensatedHitValidation`，是把「服务端回溯命中判定」纳入展柜的最高优先级候选。其次是把 `NetworkConditioningMiddleware` 挂入生产连接链；当前 B 轴和多进程 smoke 已能注入测试网络条件，但生产客户端连接尚未消费该 middleware。
 
 ---
 
 ## 9. 小结
 
-Shooter 示例以「包裹而非替换 + 适配中性类型 + 能力可观测」三原则，把框架已落地 Profile（PredictRollback / AuthoritativeInterpolation / HybridHeroPrediction / FastReconnect）接入并经 DemoHarness 的 A×B×C 矩阵、四态结果完成可验收演示。主循环 `Tick` 以恢复状态机分流推帧/追帧/全量重同步，并在 Normal 态发出 FastReconnect 心跳；诊断经 `SyncReconciliationReport`/`SyncHealthEvent`/`ShooterHostDiagnosticsSnapshot` 聚合为 `DemoHarnessMetrics` 与 Unity 面板快照。
+Shooter 示例以「包裹而非替换 + 适配中性类型 + 能力可观测」三原则，把框架已落地 Profile（PredictRollback / AuthoritativeInterpolation / HybridHeroPrediction / FastReconnect）接入并经 DemoHarness 的 A×B×C 矩阵、四态结果完成可验收演示。主循环 `Tick` 以恢复状态机分流推帧/追帧/全量重同步，并在 Normal 态发出 FastReconnect 心跳；诊断经 `SyncReconciliationReport`/`SyncHealthEvent`/`ShooterHostDiagnosticsSnapshot` 聚合为 `DemoHarnessMetrics` 与 Unity 面板快照。真实进程链路另由 minimal/full/compatibility/custom 冒烟 profile 验证协议、扇出、故障和网络条件组合。
 
-P0–P2 的正式化入口已经落地到三处：`SyncModeMatrix` 固化同步验收边界，`ShooterSveltoGameplayBenchmark` 固化 ECS/Svelto 批量范式基准，`ServerBattleWorldManager` 消除 Orleans server world 管理的 MOBA 命名偏置。剩余缺口集中在三处：lag compensation 完全空转、conditioning 未入生产链、时间锚未驱动客户端步进。
+P0–P2 的正式化入口已经落地到四处：`SyncModeMatrix` 固化同步验收边界，`ShooterSveltoGameplayBenchmark` 固化 ECS/Svelto 批量范式基准，`ServerBattleWorldManager` 消除 Orleans server world 管理的 MOBA 命名偏置，多进程 compatibility 矩阵固化真实环境下的正交组合与收敛证据。剩余缺口集中在四处：lag compensation 完全空转、conditioning 未入生产链、时间锚未驱动客户端步进、非 Windows 多进程 runner 尚未改造。

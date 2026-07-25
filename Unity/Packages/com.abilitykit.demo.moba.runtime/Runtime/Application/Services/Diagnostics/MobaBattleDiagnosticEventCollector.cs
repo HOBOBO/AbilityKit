@@ -78,6 +78,8 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly Func<int> _frameProvider;
         private readonly Func<long> _timestampProvider;
         private long _lastSequence;
+        private long _collectFailureCount;
+        private string _lastCollectError = string.Empty;
 
         [WorldInject(required: false)] private IFrameTime _frameTime = null;
 
@@ -109,6 +111,8 @@ namespace AbilityKit.Demo.Moba.Services
         public IBattleDiagnosticStateStore StateStore { get; }
         public BattleDiagnosticEventChannel EnabledChannels { get; set; }
         public long LastSequence => _lastSequence;
+        public long CollectFailureCount => _collectFailureCount;
+        public string LastCollectError => _lastCollectError;
         public bool IsFrozen => Store.IsFrozen || StateStore.IsFrozen;
 
         public void SetFrozen(bool frozen)
@@ -155,20 +159,29 @@ namespace AbilityKit.Demo.Moba.Services
 
                 if (!Store.TryAppend(diagnosticEvent))
                 {
+                    RecordCollectFailure("Event store rejected the event.");
                     return false;
                 }
 
                 _lastSequence = sequence;
+                _lastCollectError = string.Empty;
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                RecordCollectFailure(ex.GetType().Name + ": " + ex.Message);
                 return false;
             }
         }
 
         public void Dispose()
         {
+        }
+
+        private void RecordCollectFailure(string error)
+        {
+            _collectFailureCount++;
+            _lastCollectError = error ?? string.Empty;
         }
 
         private int ResolveFrame()
@@ -185,13 +198,17 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(IMobaBattleDiagnosticEventSink), WorldLifetime.Scoped)]
     [WorldService(typeof(IMobaBattleDiagnosticCaptureControl), WorldLifetime.Scoped)]
     [WorldService(typeof(IBattleDiagnosticEventReadStore), WorldLifetime.Scoped)]
+    [WorldService(typeof(IBattleDiagnosticEventSnapshotSource), WorldLifetime.Scoped)]
     [WorldService(typeof(IBattleDiagnosticStateStore), WorldLifetime.Scoped)]
     [WorldService(typeof(IBattleDiagnosticStateReadStore), WorldLifetime.Scoped)]
+    [WorldService(typeof(IBattleDiagnosticStateSnapshotSource), WorldLifetime.Scoped)]
     public sealed class MobaBattleDiagnosticCollectorPorts :
         IMobaBattleDiagnosticEventSink,
         IMobaBattleDiagnosticCaptureControl,
         IBattleDiagnosticEventReadStore,
+        IBattleDiagnosticEventSnapshotSource,
         IBattleDiagnosticStateStore,
+        IBattleDiagnosticStateSnapshotSource,
         IService
     {
         private readonly MobaBattleDiagnosticEventCollector _collector;
@@ -236,6 +253,16 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public long LastSequence => _collector.LastSequence;
+
+        public BattleDiagnosticEventTrackSnapshot CaptureEventSnapshot()
+        {
+            return _collector.Store.CaptureEventSnapshot();
+        }
+
+        public BattleDiagnosticStateTrackSnapshot CaptureStateSnapshot()
+        {
+            return ((IBattleDiagnosticStateSnapshotSource)_collector.StateStore).CaptureStateSnapshot();
+        }
 
         public bool TryCollect(in MobaBattleDiagnosticEventDraft draft)
         {

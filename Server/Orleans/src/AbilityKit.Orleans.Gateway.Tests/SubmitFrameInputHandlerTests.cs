@@ -10,6 +10,26 @@ namespace AbilityKit.Orleans.Gateway.Tests;
 
 public sealed class SubmitFrameInputHandlerTests
 {
+    [Fact]
+    public void StateSyncSubscription_does_not_enable_frame_sync_subscription()
+    {
+        var parameterTypes = Assert.Single(typeof(SubscribeStateSyncHandler).GetConstructors())
+            .GetParameters()
+            .Select(parameter => parameter.ParameterType);
+
+        Assert.DoesNotContain(typeof(GatewayFrameSyncSubscriptionManager), parameterTypes);
+    }
+
+    [Fact]
+    public void FrameInput_submission_retains_frame_sync_subscription()
+    {
+        var parameterTypes = Assert.Single(typeof(SubmitFrameInputHandler).GetConstructors())
+            .GetParameters()
+            .Select(parameter => parameter.ParameterType);
+
+        Assert.Contains(typeof(GatewayFrameSyncSubscriptionManager), parameterTypes);
+    }
+
     private static readonly BattleInputSecurityOptions SecurityOptions = new()
     {
         MaxPayloadBytes = 4,

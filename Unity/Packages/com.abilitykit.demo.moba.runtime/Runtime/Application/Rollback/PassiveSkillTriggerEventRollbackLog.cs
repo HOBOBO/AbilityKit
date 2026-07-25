@@ -1,9 +1,9 @@
+using MemoryPack;
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Core.Pooling;
-using AbilityKit.Core.Serialization;
 using AbilityKit.Demo.Moba.Systems;
 
 namespace AbilityKit.Demo.Moba.Rollback
@@ -40,12 +40,12 @@ namespace AbilityKit.Demo.Moba.Rollback
             }
 
             fe.Sequence++;
-            fe.Events.Add(new Entry(fe.Sequence, in args));
+            fe.Events.Add(new MobaPassiveTriggerEventRollbackEntry(fe.Sequence, in args));
         }
 
-        public IReadOnlyList<Entry> GetFrameEvents(FrameIndex frame)
+        public IReadOnlyList<MobaPassiveTriggerEventRollbackEntry> GetFrameEvents(FrameIndex frame)
         {
-            return _eventsByFrame.TryGetValue(frame.Value, out var fe) ? fe.Events : Array.Empty<Entry>();
+            return _eventsByFrame.TryGetValue(frame.Value, out var fe) ? fe.Events : Array.Empty<MobaPassiveTriggerEventRollbackEntry>();
         }
 
         public void TruncateAfter(FrameIndex frame)
@@ -80,7 +80,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             }
 
             var arr = fe.Events.ToArray();
-            return BinaryObjectCodec.Encode(new Payload(1, fe.Sequence, arr));
+            return MemoryPackSerializer.Serialize(new MobaPassiveTriggerEventRollbackPayload(1, fe.Sequence, arr));
         }
 
         public void Import(FrameIndex frame, byte[] payload)
@@ -93,7 +93,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 return;
             }
 
-            var p = BinaryObjectCodec.Decode<Payload>(payload);
+            var p = MemoryPackSerializer.Deserialize<MobaPassiveTriggerEventRollbackPayload>(payload);
             if (p.Events == null || p.Events.Length == 0)
             {
                 RemoveFrameEvents(frame.Value);
@@ -119,7 +119,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         private sealed class FrameEvents
         {
             public int Sequence;
-            public readonly List<Entry> Events = new List<Entry>(8);
+            public readonly List<MobaPassiveTriggerEventRollbackEntry> Events = new List<MobaPassiveTriggerEventRollbackEntry>(8);
 
             public void Clear()
             {
@@ -128,30 +128,38 @@ namespace AbilityKit.Demo.Moba.Rollback
             }
         }
 
-        public readonly struct Payload
+
+    }
+
+
+
+    [MemoryPackable]
+    public readonly partial struct MobaPassiveTriggerEventRollbackPayload
+    {
+        [MemoryPackOrder(0)] public readonly int Version;
+        [MemoryPackOrder(1)] public readonly int LastSequence;
+        [MemoryPackOrder(2)] public readonly MobaPassiveTriggerEventRollbackEntry[] Events;
+
+        public MobaPassiveTriggerEventRollbackPayload(int version, int lastSequence, MobaPassiveTriggerEventRollbackEntry[] events)
         {
-            [BinaryMember(0)] public readonly int Version;
-            [BinaryMember(1)] public readonly int LastSequence;
-            [BinaryMember(2)] public readonly Entry[] Events;
-
-            public Payload(int version, int lastSequence, Entry[] events)
-            {
-                Version = version;
-                LastSequence = lastSequence;
-                Events = events;
-            }
-        }
-
-        public readonly struct Entry
-        {
-            [BinaryMember(0)] public readonly int Sequence;
-            [BinaryMember(1)] public readonly PassiveSkillTriggerEventArgs Args;
-
-            public Entry(int sequence, in PassiveSkillTriggerEventArgs args)
-            {
-                Sequence = sequence;
-                Args = args;
-            }
+            Version = version;
+            LastSequence = lastSequence;
+            Events = events;
         }
     }
+
+
+    [MemoryPackable]
+    public readonly partial struct MobaPassiveTriggerEventRollbackEntry
+    {
+        [MemoryPackOrder(0)] public readonly int Sequence;
+        [MemoryPackOrder(1)] public readonly PassiveSkillTriggerEventArgs Args;
+
+        public MobaPassiveTriggerEventRollbackEntry(int sequence, in PassiveSkillTriggerEventArgs args)
+        {
+            Sequence = sequence;
+            Args = args;
+        }
+    }
+
 }

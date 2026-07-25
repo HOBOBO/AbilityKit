@@ -10,7 +10,7 @@
         "Tags":  [
                  ],
         "SkillButtonTemplateId":  1,
-        "LevelTableId":  1,
+        "LevelTableId":  0,
         "PreCastFlowId":  0,
         "CastFlowId":  1
     },
@@ -24,7 +24,7 @@
         "SkillType": 1,
         "Tags": [],
         "SkillButtonTemplateId": 1,
-        "LevelTableId": 1,
+        "LevelTableId": 0,
         "PreCastFlowId": 0,
         "CastFlowId": 10010001
     },
@@ -86,7 +86,7 @@
         "SkillType": 1,
         "Tags": [],
         "SkillButtonTemplateId": 1,
-        "LevelTableId": 1,
+        "LevelTableId": 0,
         "PreCastFlowId": 0,
         "CastFlowId": 10020001
     },
@@ -148,7 +148,7 @@
         "SkillType": 1,
         "Tags": [],
         "SkillButtonTemplateId": 1,
-        "LevelTableId": 1,
+        "LevelTableId": 0,
         "PreCastFlowId": 0,
         "CastFlowId": 10030001
     },
@@ -163,7 +163,7 @@
         "Tags":  [
                      301
                  ],
-        "SkillButtonTemplateId":  2,
+        "SkillButtonTemplateId":  8,
         "LevelTableId":  10030101,
         "PreCastFlowId":  0,
         "CastFlowId":  10030101
@@ -179,7 +179,7 @@
         "Tags":  [
                      302
                  ],
-        "SkillButtonTemplateId":  2,
+        "SkillButtonTemplateId":  9,
         "LevelTableId":  10030201,
         "PreCastFlowId":  0,
         "CastFlowId":  10030201
@@ -195,7 +195,7 @@
         "Tags":  [
                      303
                  ],
-        "SkillButtonTemplateId":  3,
+        "SkillButtonTemplateId":  10,
         "LevelTableId":  10030301,
         "PreCastFlowId":  0,
         "CastFlowId":  10030301
@@ -210,7 +210,7 @@
         "SkillType": 1,
         "Tags": [],
         "SkillButtonTemplateId": 1,
-        "LevelTableId": 1,
+        "LevelTableId": 0,
         "PreCastFlowId": 0,
         "CastFlowId": 10040011
     },
@@ -242,7 +242,7 @@
                       401
                   ],
         "SkillButtonTemplateId":  1,
-        "LevelTableId":  1,
+        "LevelTableId":  0,
         "PreCastFlowId":  0,
         "CastFlowId":  10040112
     },
@@ -288,7 +288,7 @@
         "SkillType": 1,
         "Tags": [],
         "SkillButtonTemplateId": 1,
-        "LevelTableId": 1,
+        "LevelTableId": 0,
         "PreCastFlowId": 0,
         "CastFlowId": 10050001
     },
@@ -320,6 +320,7 @@
                      502
                  ],
         "SkillButtonTemplateId":  3,
+        "RequiredTargetQueryId": 50050201,
         "LevelTableId":  10050201,
         "PreCastFlowId":  0,
         "CastFlowId":  10050201
@@ -350,7 +351,7 @@
         "SkillType": 1,
         "Tags": [],
         "SkillButtonTemplateId": 1,
-        "LevelTableId": 1,
+        "LevelTableId": 0,
         "PreCastFlowId": 0,
         "CastFlowId": 10060001
     },
@@ -365,7 +366,7 @@
         "Tags":  [
                      601
                  ],
-        "SkillButtonTemplateId":  2,
+        "SkillButtonTemplateId":  5,
         "LevelTableId":  10060101,
         "PreCastFlowId":  0,
         "CastFlowId":  10060101
@@ -381,7 +382,7 @@
         "Tags":  [
                      602
                  ],
-        "SkillButtonTemplateId":  3,
+        "SkillButtonTemplateId":  6,
         "LevelTableId":  10060201,
         "PreCastFlowId":  0,
         "CastFlowId":  10060201
@@ -397,7 +398,7 @@
         "Tags":  [
                      603
                  ],
-        "SkillButtonTemplateId":  1,
+        "SkillButtonTemplateId":  7,
         "LevelTableId":  10060301,
         "PreCastFlowId":  0,
         "CastFlowId":  10060301

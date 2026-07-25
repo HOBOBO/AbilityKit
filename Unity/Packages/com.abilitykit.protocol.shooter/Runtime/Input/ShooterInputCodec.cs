@@ -67,7 +67,7 @@ namespace AbilityKit.Protocol.Shooter
         {
             commands ??= Array.Empty<ShooterPlayerCommand>();
             var payload = new ShooterInputPayload(commands);
-            return WireSerializer.Serialize(in payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static ShooterPlayerCommand[] Deserialize(byte[] payload)
@@ -77,7 +77,7 @@ namespace AbilityKit.Protocol.Shooter
                 return Array.Empty<ShooterPlayerCommand>();
             }
 
-            var value = WireSerializer.Deserialize<ShooterInputPayload>(payload);
+            var value = MemoryPackSerializer.Deserialize<ShooterInputPayload>(payload);
             return value.Commands ?? Array.Empty<ShooterPlayerCommand>();
         }
     }

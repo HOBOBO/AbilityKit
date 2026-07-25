@@ -18,7 +18,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ISveltoWorldContext _context;
         private readonly int _attackIntervalFrames;
         private readonly int _attackDamage;
-        private readonly ShooterSpatialTargetIndex _targetIndex = new();
+        private ShooterSpatialTargetIndex _targetIndex => _state.PlayerTargetIndex;
 
         public ShooterEnemyWaveCombatModule(ShooterBattleState state, IShooterEntityManager entities)
             : this(state, entities, ShooterEnemyWaveOptions.DefaultEnabled)
@@ -52,7 +52,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             var emittedEvents = 0;
             var (transforms, healths, ids, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
-            _targetIndex.Rebuild(players, playerCount);
+            _targetIndex.Rebuild(players, playerCount, _state.CurrentFrame);
             if (_targetIndex.TryGetOnlyLivePlayer(out var onlyPlayerIndex, out _))
             {
                 AttackSinglePlayer(players, onlyPlayerIndex, transforms, healths, ids, count, ref emittedEvents);

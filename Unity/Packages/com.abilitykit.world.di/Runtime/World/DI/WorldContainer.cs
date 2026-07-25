@@ -195,23 +195,21 @@ namespace AbilityKit.Ability.World.DI
 
             _resolveStack ??= new Stack<Type>(8);
 
-            // 循环依赖检测：在进入前检查
-            // 如果 serviceType 或 implType 已经在栈中，说明存在循环依赖
-            // 需要同时检查 implType，因为循环可能是：
-            //   IScopedA -> ScopedA -> IScopedB -> ScopedB -> IScopedA (栈中没有 implType 会漏检)
             if (!_map.TryGetValue(serviceType, out var descriptor))
             {
                 throw new InvalidOperationException($"Service not registered: {serviceType.FullName}. Resolve chain: {FormatResolveChain()}");
             }
 
-            var implType = descriptor.ImplType;
-            if (_resolveStack.Contains(serviceType) || _resolveStack.Contains(implType))
+            // Attribute registration exposes contracts as aliases whose factories resolve the
+            // shared implementation type. Tracking that implementation here would make every
+            // alias resolve look like a self-cycle before its factory can create the instance.
+            // Service contracts are sufficient to identify real dependency cycles.
+            if (_resolveStack.Contains(serviceType))
             {
                 throw new InvalidOperationException($"Circular dependency detected. Resolve chain: {FormatResolveChain()} -> {serviceType.FullName}");
             }
 
             _resolveStack.Push(serviceType);
-            _resolveStack.Push(implType);
             try
             {
                 switch (descriptor.Lifetime)
@@ -235,7 +233,6 @@ namespace AbilityKit.Ability.World.DI
             }
             finally
             {
-                _resolveStack.Pop();
                 _resolveStack.Pop();
             }
         }

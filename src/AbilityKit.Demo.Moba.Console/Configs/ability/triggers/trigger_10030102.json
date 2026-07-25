@@ -23,7 +23,7 @@
       "actions": [
         {
           "type": "dash",
-          "speed": 16.0,
+          "speed": 16,
           "duration_ms": 350,
           "direction_mode": 0,
           "apply_to_caster": true,
@@ -36,7 +36,8 @@
           "message": "赵云一技能二档增强：龙鸣二档触发额外一段冲锋突进",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     },
     {
       "id": 10030103,
@@ -61,7 +62,7 @@
       "actions": [
         {
           "type": "dash",
-          "speed": 18.0,
+          "speed": 18,
           "duration_ms": 400,
           "direction_mode": 0,
           "apply_to_caster": true,
@@ -74,7 +75,8 @@
           "message": "赵云一技能三档增强：龙鸣三档触发更长距离额外冲锋突进",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

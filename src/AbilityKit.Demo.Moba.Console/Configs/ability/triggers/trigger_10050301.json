@@ -12,7 +12,9 @@
       "actions": [
         {
           "type": "add_buff",
-          "buffIds": [10050301],
+          "buffIds": [
+            10050301
+          ],
           "target_self": true
         },
         {
@@ -20,7 +22,8 @@
           "message": "妲己三技能女王崇拜：进入持续狐火状态",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

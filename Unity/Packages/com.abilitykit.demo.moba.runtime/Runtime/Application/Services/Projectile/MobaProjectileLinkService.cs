@@ -77,6 +77,25 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             return _sourceByProjectile.TryGetValue(projectileId, out source) && source.IsValid;
         }
 
+        /// <summary>
+        /// Copies active projectile links as value snapshots for diagnostics consumers.
+        /// The returned entries do not expose the service's mutable indexes.
+        /// </summary>
+        public int CopyDiagnosticsTo(List<MobaProjectileLinkDiagnostics> results)
+        {
+            if (results == null) return 0;
+
+            var start = results.Count;
+            foreach (var pair in _actorIdByProjectile)
+            {
+                var projectileId = pair.Key;
+                _sourceByProjectile.TryGetValue(projectileId, out var source);
+                results.Add(new MobaProjectileLinkDiagnostics(projectileId, pair.Value, in source));
+            }
+
+            return results.Count - start;
+        }
+
         public bool TryGetRetain(ProjectileId projectileId, out MobaSkillRuntimeRetainHandle retainHandle)
         {
             return _retainByProjectile.TryGetValue(projectileId, out retainHandle) && retainHandle.IsValid;
@@ -230,5 +249,26 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         {
             Clear();
         }
+    }
+
+    /// <summary>
+    /// Immutable active-projectile link snapshot for debug tooling.
+    /// </summary>
+    public readonly struct MobaProjectileLinkDiagnostics
+    {
+        public MobaProjectileLinkDiagnostics(
+            ProjectileId projectileId,
+            int actorId,
+            in ProjectileSourceContext source)
+        {
+            ProjectileId = projectileId;
+            ActorId = actorId;
+            Source = source;
+        }
+
+        public ProjectileId ProjectileId { get; }
+        public int ActorId { get; }
+        public ProjectileSourceContext Source { get; }
+        public bool HasSource => Source.IsValid;
     }
 }

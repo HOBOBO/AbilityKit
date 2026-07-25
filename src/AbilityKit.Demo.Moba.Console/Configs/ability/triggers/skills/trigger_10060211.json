@@ -10,10 +10,31 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "give_damage", "damage_value": 250, "damage_type": 2, "source_attack_ratio": 0.45, "reason_param": 10060201, "target_query_id": 50060201, "target_max_count": 10 },
-        { "type": "add_buff", "buffIds": [10060202], "target_query_id": 50060201, "target_max_count": 10, "duration_ms": 1500 },
-        { "type": "debug_log", "message": "嬴政二技能：范围爆炸造成法术伤害并减速目标", "dump_args": false }
-      ]
+        {
+          "type": "give_damage",
+          "damage_value": 250,
+          "damage_type": 2,
+          "source_attack_ratio": 0.45,
+          "reason_param": 10060201,
+          "target_query_id": 50060201,
+          "target_max_count": 10
+        },
+        {
+          "type": "add_buff",
+          "buffIds": [
+            10060202
+          ],
+          "target_query_id": 50060201,
+          "target_max_count": 10,
+          "duration_ms": 1500
+        },
+        {
+          "type": "debug_log",
+          "message": "嬴政二技能：范围爆炸造成法术伤害并减速目标",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

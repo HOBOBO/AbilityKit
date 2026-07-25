@@ -18,6 +18,7 @@ namespace AbilityKit.Game.Flow
             _flow = ctx.Entry != null ? ctx.Entry.Get<GameFlowDomain>() : null;
 
             _eventsCtrl.OnAttach(this);
+            Battle.Replay.BattleReplayControlProvider.Current = this;
 
             EnsureSubFeaturesCreated();
             _subFeatureHost?.Attach(new FeatureModuleContext<BattleSessionFeature>(ctx, this));
@@ -45,9 +46,16 @@ namespace AbilityKit.Game.Flow
 
         public void OnDetach(in GamePhaseContext ctx)
         {
+            if (ReferenceEquals(Battle.Replay.BattleReplayControlProvider.Current, this))
+            {
+                Battle.Replay.BattleReplayControlProvider.Current = null;
+            }
+
             _subFeatureHost?.Detach(new FeatureModuleContext<BattleSessionFeature>(ctx, this));
 
             StopSession();
+
+            DisposeRemoteInterpolation();
 
             ResetHandles();
 
@@ -56,8 +64,10 @@ namespace AbilityKit.Game.Flow
             _eventsCtrl.OnDetach(this);
 
             SessionContextBinder.ClearSession(_ctx);
+            ResetReplayPresentationState();
 
             _ctx = null;
+            _flow = null;
             _phaseCtx = default;
         }
 

@@ -21,7 +21,8 @@
           "message": "嬴政三技能至尊王权：周期发射前方飞剑",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

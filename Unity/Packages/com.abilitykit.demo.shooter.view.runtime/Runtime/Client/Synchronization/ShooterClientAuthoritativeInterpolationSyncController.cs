@@ -658,7 +658,22 @@ namespace AbilityKit.Demo.Shooter.View
                 return actors;
             }
 
-            var remote = new List<ShooterGatewayActorSnapshot>(actors.Count);
+            // 先统计需要剔除的数量：本地玩家不在快照中时零分配直接返回原列表。
+            var remoteCount = 0;
+            for (var i = 0; i < actors.Count; i++)
+            {
+                if (actors[i].ActorId != controlledPlayerId)
+                {
+                    remoteCount++;
+                }
+            }
+
+            if (remoteCount == actors.Count)
+            {
+                return actors;
+            }
+
+            var remote = new List<ShooterGatewayActorSnapshot>(remoteCount);
             for (var i = 0; i < actors.Count; i++)
             {
                 if (actors[i].ActorId != controlledPlayerId)

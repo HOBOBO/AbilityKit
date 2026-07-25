@@ -31,15 +31,18 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _snapshotVfxIds = snapshotVfxIds ?? new BattleProjectileSnapshotVfxIdResolver(_resolver);
         }
 
-        public bool TryResolveTriggerHit(in TriggerEvent evt, out int vfxId, out Vector3 position)
+        public bool TryResolveTriggerHit(in TriggerEvent evt, out int vfxId, out Vector3 position, out int projectileId)
         {
             vfxId = 0;
             position = default;
+            projectileId = 0;
 
             if (!_triggerInputs.TryResolve(in evt, out var input)) return false;
 
             var projectile = _resources.TryGetProjectile(input.TemplateId);
             if (projectile == null) return false;
+
+            projectileId = input.ProjectileId;
 
             var abstractInput = new AbstractBattleProjectileTriggerHitInput(input.TemplateId, ToMobaFloat3(input.HitPoint));
             var vfxIds = ToVfxIds(projectile);
@@ -91,15 +94,19 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
     internal readonly struct BattleProjectileTriggerHitInput
     {
-        public BattleProjectileTriggerHitInput(int templateId, in Vector3 hitPoint)
+        public BattleProjectileTriggerHitInput(int templateId, in Vector3 hitPoint, int projectileId = 0)
         {
             TemplateId = templateId;
             HitPoint = hitPoint;
+            ProjectileId = projectileId;
         }
 
         public int TemplateId { get; }
-
         public Vector3 HitPoint { get; }
+        /// <summary>
+        /// Used for cross-source deduplication between Trigger and Snapshot paths.
+        /// </summary>
+        public int ProjectileId { get; }
     }
 
     internal sealed class BattleProjectileTriggerHitInputResolver
@@ -123,7 +130,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             }
 
             var position = new Vector3(hitPoint.X, hitPoint.Y, hitPoint.Z);
-            input = new BattleProjectileTriggerHitInput(templateId, in position);
+
+            evt.Args.TryGetValue(ProjectileTriggering.Args.ProjectileId, out var projectileIdObj);
+            var projectileId = projectileIdObj is int pid ? pid : 0;
+
+            input = new BattleProjectileTriggerHitInput(templateId, in position, projectileId);
             return true;
         }
     }

@@ -1,5 +1,5 @@
+using MemoryPack;
 using System;
-using AbilityKit.Core.Serialization;
 using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -8,12 +8,12 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public static byte[] Serialize(in SkillInputEvent evt)
         {
-            return BinaryObjectCodec.Encode(evt);
+            return MemoryPackSerializer.Serialize(evt);
         }
 
         public static SkillInputEvent Deserialize(byte[] payload)
         {
-            return BinaryObjectCodec.Decode<SkillInputEvent>(payload);
+            return MemoryPackSerializer.Deserialize<SkillInputEvent>(payload);
         }
 
         public static bool TryDeserialize(byte[] payload, out SkillInputEvent evt, out string error)

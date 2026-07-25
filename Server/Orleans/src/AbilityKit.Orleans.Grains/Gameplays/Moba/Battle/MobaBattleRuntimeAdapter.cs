@@ -2,6 +2,7 @@
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Game.Battle.Transport.Projection;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Battle;
@@ -39,6 +40,8 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
         private IWorldStateSnapshotProvider? _snapshotProvider;
         private IMobaBattleRuntimePort? _runtimePort;
         private ulong _worldId;
+        private List<ActorProjectionData>? _projectionBuffer;
+        private Dictionary<int, ActorProjectionData>? _lastProjectionData;
 
         public MobaBattleRuntimeSession(string battleId, ServerBattleWorldManager worldManager, IOrleansBattleProtocolMapper protocolMapper)
         {
@@ -153,6 +156,22 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
 
         public StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot)
         {
+            ulong wId = worldId == 0 ? _worldId : worldId;
+
+            // 优先走标准投影路径：与预测通道共享 MobaActorProjectionProducer 的字段提取逻辑，
+            // 快照携带完整的 Position/Rotation/Velocity/Hp/TeamId，而非仅 X/Y/Z。
+            // Delta 帧时携带上帧数据做实体级增量（跳过不变的 actor）。
+            if (_battleWorld?.Services != null
+                && _battleWorld.Services.TryResolve<IActorProjectionProducer>(out var producer)
+                && producer != null)
+            {
+                _projectionBuffer ??= new List<ActorProjectionData>(64);
+                _lastProjectionData ??= new Dictionary<int, ActorProjectionData>(64);
+                return _protocolMapper.CreateStateSyncPushFromProjection(
+                    wId, frame, producer, isFullSnapshot, _projectionBuffer, _lastProjectionData);
+            }
+
+            // 回退到旧路径（WorldStateSnapshot）
             var frameIndex = new FrameIndex(frame);
             WorldStateSnapshot snapshot = default;
             var hasSnapshot = _runtimePort?.TryGetSnapshot(frameIndex, out snapshot) == true;
@@ -162,7 +181,7 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             return _protocolMapper.CreateStateSyncPush(
-                worldId == 0 ? _worldId : worldId,
+                wId,
                 frame,
                 hasSnapshot ? snapshot : null,
                 _runtimePort?.GetDiagnosticEntityStates(),

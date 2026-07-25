@@ -10,9 +10,20 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "spawn_area", "area_id": 40010301, "position_mode": 0, "radius": 4.5, "duration_ms": 650 },
-        { "type": "debug_log", "message": "廉颇三技能：第一段落地触发区域", "dump_args": false }
-      ]
+        {
+          "type": "spawn_area",
+          "area_id": 40010301,
+          "position_mode": 0,
+          "radius": 4.5,
+          "duration_ms": 650
+        },
+        {
+          "type": "debug_log",
+          "message": "廉颇三技能：第一段落地触发区域",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

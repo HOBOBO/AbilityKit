@@ -6,7 +6,18 @@ namespace AbilityKit.Game.Editor
 {
     internal static class BattleDebugPanelRegistry
     {
+        private const int MaxLoadErrors = 8;
         private static List<IBattleDebugPanel> _cache;
+        private static List<string> _loadErrors;
+
+        public static IReadOnlyList<string> LoadErrors
+        {
+            get
+            {
+                if (_cache == null) Refresh();
+                return _loadErrors;
+            }
+        }
 
         public static IReadOnlyList<IBattleDebugPanel> GetAll()
         {
@@ -17,6 +28,7 @@ namespace AbilityKit.Game.Editor
         public static void Refresh()
         {
             _cache = new List<IBattleDebugPanel>();
+            _loadErrors = new List<string>();
 
             var assemblies = AppDomain.CurrentDomain.GetAssemblies();
             for (int i = 0; i < assemblies.Length; i++)
@@ -44,8 +56,13 @@ namespace AbilityKit.Game.Editor
                         var inst = (IBattleDebugPanel)Activator.CreateInstance(t);
                         if (inst != null) _cache.Add(inst);
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        if (_loadErrors.Count >= MaxLoadErrors) continue;
+                        var root = ex is TargetInvocationException invocation && invocation.InnerException != null
+                            ? invocation.InnerException
+                            : ex;
+                        _loadErrors.Add(t.FullName + ": " + root.GetType().Name + ": " + root.Message);
                     }
                 }
             }

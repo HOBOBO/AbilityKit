@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Serialization;
+using MemoryPack;
 
 namespace AbilityKit.Ability.FrameSync.Rollback
 {
@@ -20,7 +20,7 @@ namespace AbilityKit.Ability.FrameSync.Rollback
 
         public byte[] Export(FrameIndex frame)
         {
-            return BinaryObjectCodec.Encode(new Payload(
+            return MemoryPackSerializer.Serialize(new FrameTimeRollbackStatePayload(
                 PayloadVersion,
                 _frameTime.Frame.Value,
                 _frameTime.Time,
@@ -36,7 +36,7 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                     $"Frame-time rollback payload is empty. frame={frame.Value}");
             }
 
-            var state = BinaryObjectCodec.Decode<Payload>(payload);
+            var state = MemoryPackSerializer.Deserialize<FrameTimeRollbackStatePayload>(payload);
             if (state.Version != PayloadVersion)
             {
                 throw new InvalidOperationException(
@@ -49,23 +49,24 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                 state.DeltaTime,
                 state.FixedDelta);
         }
+    }
 
-        public readonly struct Payload
+    [MemoryPackable]
+    public readonly partial struct FrameTimeRollbackStatePayload
+    {
+        [MemoryPackOrder(0)] public readonly int Version;
+        [MemoryPackOrder(1)] public readonly int Frame;
+        [MemoryPackOrder(2)] public readonly float Time;
+        [MemoryPackOrder(3)] public readonly float DeltaTime;
+        [MemoryPackOrder(4)] public readonly float FixedDelta;
+
+        public FrameTimeRollbackStatePayload(int version, int frame, float time, float deltaTime, float fixedDelta)
         {
-            [BinaryMember(0)] public readonly int Version;
-            [BinaryMember(1)] public readonly int Frame;
-            [BinaryMember(2)] public readonly float Time;
-            [BinaryMember(3)] public readonly float DeltaTime;
-            [BinaryMember(4)] public readonly float FixedDelta;
-
-            public Payload(int version, int frame, float time, float deltaTime, float fixedDelta)
-            {
-                Version = version;
-                Frame = frame;
-                Time = time;
-                DeltaTime = deltaTime;
-                FixedDelta = fixedDelta;
-            }
+            Version = version;
+            Frame = frame;
+            Time = time;
+            DeltaTime = deltaTime;
+            FixedDelta = fixedDelta;
         }
     }
 }

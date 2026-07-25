@@ -105,6 +105,8 @@ public class BattleInitParams
     [Id(13)] public WorldStartAnchor? WorldStartAnchor { get; set; }
     [Id(14)] public BattleSyncStartOptions? SyncOptions { get; set; }
     [Id(15)] public int DurationFrames { get; set; }
+    [Id(16)] public int VictoryTargetDefeats { get; set; }
+    [Id(17)] public bool ContinueAfterAllPlayersDefeated { get; set; }
 }
 
 /// <summary>
@@ -296,6 +298,10 @@ public class ActorSnapshot
     [Id(7)] public float Hp { get; set; }
     [Id(8)] public float HpMax { get; set; }
     [Id(9)] public int TeamId { get; set; }
+    // Spawn 层字段（生成缺失 actor 所需）：实体类型（1=Character, 2=Projectile）、配置/模板 id、拥有者 actorId（角色为 0）
+    [Id(10)] public int Kind { get; set; }
+    [Id(11)] public int Code { get; set; }
+    [Id(12)] public int OwnerNetId { get; set; }
 }
 
 /// <summary>

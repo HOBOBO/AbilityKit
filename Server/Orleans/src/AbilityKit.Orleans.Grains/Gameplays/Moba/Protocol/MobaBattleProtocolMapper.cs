@@ -9,6 +9,7 @@ using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Game.Battle.Transport.Projection;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 using PlayerId = AbilityKit.Ability.Host.PlayerId;
@@ -26,6 +27,22 @@ public interface IOrleansBattleProtocolMapper
     IReadOnlyList<PlayerInputCommand> CreatePlayerInputCommands(int frame, IReadOnlyList<BattleInputItem>? inputs);
 
     StateSyncPush CreateStateSyncPush(ulong worldId, int frame, WorldStateSnapshot? snapshot, IReadOnlyList<MobaDiagnosticEntityState>? diagnosticStates, bool isFullSnapshot);
+
+    /// <summary>
+    /// 通过标准投影生产方提取 actor 状态，构建 StateSyncPush。
+    ///
+    /// 与 <see cref="CreateStateSyncPush"/> 的区别：不通过 WorldStateSnapshot payload
+    /// 反序列化提取 actor，而是通过 IActorProjectionProducer 从逻辑 world 直接提取。
+    /// 这消除了"快照 payload → actorSnapshotMappers → ActorSnapshot"的独立映射路径，
+    /// 使网关提取与预测通道提取共享同一份逻辑（MobaActorProjectionProducer）。
+    /// </summary>
+    /// <param name="worldId">world ID。</param>
+    /// <param name="frame">当前帧。</param>
+    /// <param name="producer">标准投影生产方（MobaActorProjectionProducer）。</param>
+    /// <param name="isFullSnapshot">是否为全量快照。</param>
+    /// <param name="buffer">可复用的投影缓冲区（避免每帧分配）。</param>
+    /// <param name="lastFrameData">上一帧的投影数据（可选）。Delta 帧时用于实体级差量比较，只输出变更的 actor。</param>
+    StateSyncPush CreateStateSyncPushFromProjection(ulong worldId, int frame, IActorProjectionProducer producer, bool isFullSnapshot, List<ActorProjectionData> buffer = null, Dictionary<int, ActorProjectionData>? lastFrameData = null);
 
     BattleSnapshot CreateBattleSnapshot(int frame, WorldStateSnapshot snapshot, IReadOnlyList<MobaDiagnosticEntityState>? diagnosticStates);
 }
@@ -173,6 +190,82 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
         };
     }
 
+    public StateSyncPush CreateStateSyncPushFromProjection(
+        ulong worldId,
+        int frame,
+        IActorProjectionProducer producer,
+        bool isFullSnapshot,
+        List<ActorProjectionData> buffer = null,
+        Dictionary<int, ActorProjectionData>? lastFrameData = null)
+    {
+        if (producer == null) throw new ArgumentNullException(nameof(producer));
+
+        buffer ??= new List<ActorProjectionData>(64);
+        buffer.Clear();
+        producer.ExtractAll(buffer);
+
+        var actors = new List<ActorSnapshot>(isFullSnapshot ? buffer.Count : buffer.Count / 4);
+        for (int i = 0; i < buffer.Count; i++)
+        {
+            var p = buffer[i];
+
+            // Delta 帧: 实体级增量——跳过与上帧相同的 actor。
+            if (!isFullSnapshot && lastFrameData != null
+                && lastFrameData.TryGetValue(p.ActorId, out var prev)
+                && ProjectionDataEquals(in p, in prev))
+            {
+                continue;
+            }
+
+            actors.Add(new ActorSnapshot
+            {
+                ActorId = p.ActorId,
+                X = p.PosX,
+                Y = p.PosY,
+                Z = p.PosZ,
+                Rotation = QuatToYaw(p.RotX, p.RotY, p.RotZ, p.RotW),
+                VelocityX = p.VelX,
+                VelocityZ = p.VelZ,
+                Hp = p.Hp,
+                HpMax = p.HpMax,
+                TeamId = p.TeamId,
+                Kind = p.Kind,
+                Code = p.Code,
+                OwnerNetId = p.OwnerNetId
+            });
+        }
+
+        // FullSnapshot 帧更新基线。
+        if (isFullSnapshot && lastFrameData != null)
+        {
+            lastFrameData.Clear();
+            for (int i = 0; i < buffer.Count; i++)
+            {
+                lastFrameData[buffer[i].ActorId] = buffer[i];
+            }
+        }
+
+        return new StateSyncPush
+        {
+            WorldId = worldId,
+            Frame = frame,
+            Timestamp = DateTime.UtcNow.Ticks,
+            Actors = actors,
+            IsFullSnapshot = isFullSnapshot
+        };
+    }
+
+    // 比较两个投影数据是否相等（用于 Delta 帧跳过不变的 actor）。
+    private static bool ProjectionDataEquals(in ActorProjectionData a, in ActorProjectionData b)
+    {
+        return a.ActorId == b.ActorId
+            && a.PosX == b.PosX && a.PosY == b.PosY && a.PosZ == b.PosZ
+            && a.RotX == b.RotX && a.RotY == b.RotY && a.RotZ == b.RotZ && a.RotW == b.RotW
+            && a.Hp == b.Hp && a.HpMax == b.HpMax
+            && a.TeamId == b.TeamId
+            && a.VelX == b.VelX && a.VelZ == b.VelZ;
+    }
+
     public BattleSnapshot CreateBattleSnapshot(int frame, WorldStateSnapshot snapshot, IReadOnlyList<MobaDiagnosticEntityState>? diagnosticStates)
     {
         return new BattleSnapshot
@@ -224,6 +317,13 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
         }
 
         return actors;
+    }
+
+    // yaw = atan2(forward.x, forward.z), where forward = q × (0,0,1)
+    // forward.x = 2(xz + wy), forward.z = 1 − 2(x² + y²)
+    private static float QuatToYaw(float x, float y, float z, float w)
+    {
+        return MathF.Atan2(2f * (x * z + w * y), 1f - 2f * (x * x + y * y));
     }
 
     private sealed class ActorTransformSnapshotMapper : IMobaRuntimeSnapshotMapper<List<ActorSnapshot>>

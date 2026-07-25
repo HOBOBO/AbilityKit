@@ -58,6 +58,18 @@ public sealed class ShooterReliableBattleEventConsumerTests
     }
 
     [Fact]
+    public void OlderFullSnapshotWatermarkDoesNotClearGapOrMoveAcknowledgementBackward()
+    {
+        var consumer = new ShooterReliableBattleEventConsumer();
+        consumer.RestoreCursor(BattleId, Epoch, 8L);
+        consumer.Invalidate();
+
+        Assert.False(consumer.TryApplyFullSnapshotBaseline(5L));
+        Assert.True(consumer.RequiresResync);
+        Assert.Equal(8L, consumer.LastAcknowledgedSequence);
+    }
+
+    [Fact]
     public void EpochChangeRequiresBaselineAndAdoptsNewEpochOnlyAfterBaseline()
     {
         var consumer = new ShooterReliableBattleEventConsumer();

@@ -10,9 +10,18 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "shoot_projectile", "launcher_id": 31020101, "projectile_id": 30020101 },
-        { "type": "debug_log", "message": "小乔一技能：发射扇子投射物", "dump_args": false }
-      ]
+        {
+          "type": "shoot_projectile",
+          "launcher_id": 31020101,
+          "projectile_id": 30020101
+        },
+        {
+          "type": "debug_log",
+          "message": "小乔一技能：发射扇子投射物",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

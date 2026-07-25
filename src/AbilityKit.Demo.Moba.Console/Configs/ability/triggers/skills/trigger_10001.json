@@ -1,26 +1,29 @@
 {
-    "triggers": [
+  "triggers": [
+    {
+      "id": 10001,
+      "name": "技能1-添加持续掉血buff",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
         {
-            "id": 10001,
-            "name": "技能1-添加持续掉血buff",
-            "event": "",
-            "enabled": true,
-            "allowExternal": false,
-            "phase": "immediate",
-            "priority": 50,
-            "conditions": [],
-            "actions": [
-                {
-                    "type": "add_buff",
-                    "buffIds": [101],
-                    "targetActorId": 0
-                },
-                {
-                    "message": "释放技能1，给自己添加持续掉血buff！",
-                    "dump_args": false,
-                    "type": "debug_log"
-                }
-            ]
+          "type": "add_buff",
+          "buffIds": [
+            101
+          ],
+          "targetActorId": 0
+        },
+        {
+          "message": "释放技能1，给自己添加持续掉血buff！",
+          "dump_args": false,
+          "type": "debug_log"
         }
-    ]
+      ],
+      "scope": "owner"
+    }
+  ]
 }

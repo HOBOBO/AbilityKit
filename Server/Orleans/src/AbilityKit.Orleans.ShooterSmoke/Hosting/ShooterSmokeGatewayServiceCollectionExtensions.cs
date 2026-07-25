@@ -26,7 +26,7 @@ internal static class ShooterSmokeGatewayServiceCollectionExtensions
             options.Enabled = true;
             options.Host = "127.0.0.1";
             options.Port = tcpGatewayPort;
-            options.RequestTimeoutMs = 30000;
+            options.RequestTimeoutMs = 5000;
             options.MaxFrameLength = 1024 * 1024;
         });
 

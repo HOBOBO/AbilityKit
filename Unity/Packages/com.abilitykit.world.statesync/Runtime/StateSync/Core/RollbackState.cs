@@ -1,5 +1,5 @@
 using System;
-using System.IO;
+using MemoryPack;
 
 namespace AbilityKit.Ability.StateSync
 {
@@ -53,45 +53,61 @@ namespace AbilityKit.Ability.StateSync
 
         public byte[] Serialize()
         {
-            using var stream = new MemoryStream();
-            using var writer = new BinaryWriter(stream);
-
-            writer.Write(EntityId);
-            writer.Write(position.X);
-            writer.Write(position.Y);
-            writer.Write(position.Z);
-            writer.Write(rotation.X);
-            writer.Write(rotation.Y);
-            writer.Write(rotation.Z);
-            writer.Write(rotation.W);
-            writer.Write(velocity.X);
-            writer.Write(velocity.Y);
-            writer.Write(velocity.Z);
-            writer.Write(healthPercent);
-            writer.Write(StateFlags);
-            writer.Write(ActiveAbilityMask);
-            writer.Write(TeamId);
-            writer.Write(ControlFlags);
-
-            return stream.ToArray();
+            return MemoryPackSerializer.Serialize(new EntityRollbackStatePayload(
+                EntityId, position, rotation, velocity,
+                healthPercent, StateFlags, ActiveAbilityMask, TeamId, ControlFlags));
         }
 
         public void Deserialize(byte[] data)
         {
             if (data == null || data.Length == 0) return;
 
-            using var stream = new MemoryStream(data);
-            using var reader = new BinaryReader(stream);
+            var p = MemoryPackSerializer.Deserialize<EntityRollbackStatePayload>(data);
+            EntityId = p.EntityId;
+            position = p.Position;
+            rotation = p.Rotation;
+            velocity = p.Velocity;
+            healthPercent = p.HealthPercent;
+            StateFlags = p.StateFlags;
+            ActiveAbilityMask = p.ActiveAbilityMask;
+            TeamId = p.TeamId;
+            ControlFlags = p.ControlFlags;
+        }
+    }
 
-            EntityId = reader.ReadInt64();
-            position = new Snapshot.Vec3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
-            rotation = new Snapshot.Quat(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
-            velocity = new Snapshot.Vec3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
-            healthPercent = reader.ReadByte();
-            StateFlags = reader.ReadUInt32();
-            ActiveAbilityMask = reader.ReadInt64();
-            TeamId = reader.ReadInt32();
-            ControlFlags = reader.ReadByte();
+    [MemoryPackable]
+    public readonly partial struct EntityRollbackStatePayload
+    {
+        [MemoryPackOrder(0)] public readonly long EntityId;
+        [MemoryPackOrder(1)] public readonly Snapshot.Vec3 Position;
+        [MemoryPackOrder(2)] public readonly Snapshot.Quat Rotation;
+        [MemoryPackOrder(3)] public readonly Snapshot.Vec3 Velocity;
+        [MemoryPackOrder(4)] public readonly byte HealthPercent;
+        [MemoryPackOrder(5)] public readonly uint StateFlags;
+        [MemoryPackOrder(6)] public readonly long ActiveAbilityMask;
+        [MemoryPackOrder(7)] public readonly int TeamId;
+        [MemoryPackOrder(8)] public readonly byte ControlFlags;
+
+                public EntityRollbackStatePayload(
+            long entityId,
+            Snapshot.Vec3 position,
+            Snapshot.Quat rotation,
+            Snapshot.Vec3 velocity,
+            byte healthPercent,
+            uint stateFlags,
+            long activeAbilityMask,
+            int teamId,
+            byte controlFlags)
+        {
+            EntityId = entityId;
+            Position = position;
+            Rotation = rotation;
+            Velocity = velocity;
+            HealthPercent = healthPercent;
+            StateFlags = stateFlags;
+            ActiveAbilityMask = activeAbilityMask;
+            TeamId = teamId;
+            ControlFlags = controlFlags;
         }
     }
 }

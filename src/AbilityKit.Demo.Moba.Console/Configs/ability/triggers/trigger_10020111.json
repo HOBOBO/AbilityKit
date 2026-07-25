@@ -13,7 +13,7 @@
         {
           "type": "give_damage",
           "damage_value": 500,
-          "source_attack_ratio": 0.80,
+          "source_attack_ratio": 0.8,
           "damage_type": 2,
           "reason_param": 10020101
         },
@@ -22,7 +22,8 @@
           "message": "小乔一技能：扇子往返命中造成法术伤害",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     },
     {
       "id": 10020112,

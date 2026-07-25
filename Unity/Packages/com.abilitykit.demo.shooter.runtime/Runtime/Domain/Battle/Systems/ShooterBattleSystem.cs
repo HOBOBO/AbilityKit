@@ -176,10 +176,26 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
     }
 
+    public sealed class ShooterMatchStateOptions
+    {
+        public static ShooterMatchStateOptions Default { get; } = new ShooterMatchStateOptions(false);
+
+        public static ShooterMatchStateOptions NonTerminatingDefeat { get; } =
+            new ShooterMatchStateOptions(true);
+
+        public ShooterMatchStateOptions(bool continueAfterAllPlayersDefeated)
+        {
+            ContinueAfterAllPlayersDefeated = continueAfterAllPlayersDefeated;
+        }
+
+        public bool ContinueAfterAllPlayersDefeated { get; }
+    }
+
     internal sealed class ShooterMatchStateBattleSystem : IShooterBattleSystem
     {
         private readonly ShooterBattleState _state;
         private readonly ISveltoWorldContext _context;
+        private readonly ShooterMatchStateOptions _options;
 
         public ShooterMatchStateBattleSystem(IShooterBattleServiceResolver services)
         {
@@ -187,6 +203,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             _state = services.Resolve<ShooterBattleState>();
             _context = services.Resolve<ISveltoWorldContext>();
+            _options = services.TryResolve<ShooterMatchStateOptions>(out var options) && options != null
+                ? options
+                : ShooterMatchStateOptions.Default;
         }
 
         public int Order => ShooterBattleSystemOrder.MatchState;
@@ -206,7 +225,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
-            if (AreAllPlayersDefeated())
+            if (!_options.ContinueAfterAllPlayersDefeated && AreAllPlayersDefeated())
             {
                 _state.TryCompleteMatch(ShooterBattleMatchState.Defeat);
                 return;

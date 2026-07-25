@@ -23,7 +23,8 @@
           "message": "妲己二技能偶像魅力：锁定目标并发射追踪魅惑弹",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

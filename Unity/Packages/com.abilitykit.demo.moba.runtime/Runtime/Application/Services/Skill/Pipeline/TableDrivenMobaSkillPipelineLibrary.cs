@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Logging;
-using AbilityKit.Core.Serialization;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Share.Config;
@@ -324,17 +323,18 @@ namespace AbilityKit.Demo.Moba.Services
                 throw new InvalidOperationException($"WaitUntil skill phase timeout cannot be negative. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}, timeoutMs={wait.TimeoutMs}");
             }
 
-            if (string.IsNullOrEmpty(wait.Condition))
+            if (!SkillWaitConditionCatalog.TryValidate(wait, out var validationError))
             {
-                throw new InvalidOperationException($"WaitUntil skill phase requires condition. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
+                throw new InvalidOperationException($"Invalid WaitUntil skill phase condition. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}, {validationError}");
             }
 
+            SkillWaitConditionCatalog.TryGet(wait.Condition, out var condition);
             return new WaitUntilPhaseDefinition(
                 MakePhaseId(phase, fallbackPhaseId),
-                wait.Condition,
+                condition,
+                wait,
                 wait.TimeoutMs > 0 ? wait.TimeoutMs / 1000f : -1f,
-                wait.CompleteOnTimeout,
-                CopySlots(wait.ObservedSlots));
+                wait.CompleteOnTimeout);
         }
 
         private MobaTriggerPlanExecutor GetOrCreateRulePlanExecutor()
@@ -543,24 +543,23 @@ namespace AbilityKit.Demo.Moba.Services
 
         private sealed class WaitUntilPhaseDefinition : PhaseDefinition
         {
-            private const string ObservedSlotsIdleCondition = "ObservedSlotsIdle";
-            private readonly string _condition;
+            private readonly ISkillWaitCondition _condition;
+            private readonly SkillWaitUntilPhaseDTO _specification;
             private readonly float _timeoutSeconds;
             private readonly bool _completeOnTimeout;
-            private readonly int[] _observedSlots;
 
             public WaitUntilPhaseDefinition(
                 AbilityPipelinePhaseId phaseId,
-                string condition,
+                ISkillWaitCondition condition,
+                SkillWaitUntilPhaseDTO specification,
                 float timeoutSeconds,
-                bool completeOnTimeout,
-                int[] observedSlots)
+                bool completeOnTimeout)
                 : base(phaseId)
             {
-                _condition = condition;
+                _condition = condition ?? throw new ArgumentNullException(nameof(condition));
+                _specification = specification ?? throw new ArgumentNullException(nameof(specification));
                 _timeoutSeconds = timeoutSeconds;
                 _completeOnTimeout = completeOnTimeout;
-                _observedSlots = observedSlots ?? Array.Empty<int>();
             }
 
             public override IAbilityPipelinePhase<SkillPipelineContext> CreatePhase()
@@ -570,28 +569,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             private bool IsConditionMet(SkillPipelineContext context)
             {
-                if (string.Equals(_condition, ObservedSlotsIdleCondition, StringComparison.OrdinalIgnoreCase))
-                {
-                    return AreObservedSlotsIdle(context);
-                }
-
-                throw new InvalidOperationException($"Unsupported WaitUntil skill phase condition. phase={PhaseId.Value}, condition={_condition}, skillId={context?.SkillId ?? 0}");
-            }
-
-            private bool AreObservedSlotsIdle(SkillPipelineContext context)
-            {
-                if (context == null || _observedSlots.Length == 0) return true;
-                if (context.WorldServices == null) return true;
-                if (!context.WorldServices.TryResolve<SkillCastCoordinator>(out var skills) || skills == null) return true;
-
-                for (int i = 0; i < _observedSlots.Length; i++)
-                {
-                    var slot = _observedSlots[i];
-                    if (slot <= 0 || slot == context.SkillSlot) continue;
-                    if (skills.TryGetRunningBySlot(context.CasterActorId, slot, out _)) return false;
-                }
-
-                return true;
+                return _condition.IsMet(context, _specification);
             }
         }
     }

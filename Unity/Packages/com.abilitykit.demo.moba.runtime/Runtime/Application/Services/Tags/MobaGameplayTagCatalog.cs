@@ -25,6 +25,11 @@ namespace AbilityKit.Demo.Moba.Services
             public const string Charmed = "State.Charmed";
         }
 
+        public static class Debuff
+        {
+            public const string Slow = "Debuff.Slow";
+        }
+
         public static readonly string[] UntargetableAliases = { State.Untargetable, "Untargetable" };
         public static readonly string[] InvulnerableAliases = { State.Invulnerable, "Invulnerable" };
         public static readonly string[] SilencedAliases = { State.Silenced, "Silenced", "silenced" };
@@ -52,7 +57,8 @@ namespace AbilityKit.Demo.Moba.Services
             ControlImmuneAliases,
             FearedAliases,
             AsleepAliases,
-            CharmedAliases);
+            CharmedAliases,
+            new[] { Debuff.Slow });
 
         public static readonly GameplayTagContainer UntargetableTags = ToContainer(UntargetableAliases);
         public static readonly GameplayTagContainer InvulnerableTags = ToContainer(InvulnerableAliases);

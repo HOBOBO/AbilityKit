@@ -575,10 +575,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (services == null ||
                 !services.TryResolve(out MobaConfigDatabase config) || config == null ||
                 !services.TryResolve(out MobaGameStartSpecService startSpecs) || startSpecs == null ||
-                !services.TryResolve(out IMobaActorSpawnService actorSpawn) || actorSpawn == null ||
-                !services.TryResolve(out ActorEntityInitPipeline initializer) || initializer == null ||
-                !services.TryResolve(out MobaActorSpawnSnapshotService spawnSnapshots) || spawnSnapshots == null ||
-                !services.TryResolve(out MobaPlayerHeroChangedSnapshotService changedSnapshots) || changedSnapshots == null)
+                !services.TryResolve(out IMobaHeroReplacementTransactionService replacement) || replacement == null)
             {
                 result = MobaInputCommandResult.Rejected(
                     command,
@@ -609,65 +606,30 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            var spec = MobaConverter.ToActorBuildSpec(actorId: 0, in loadout);
-            var request = MobaActorSpawnRequest.FromSpec(in spec);
-            request.AllocateActorIdIfMissing = true;
-            request.Initializer = (entity, _) => InitializeLoadoutOrThrow(initializer, entity, in loadout);
-            if (!actorSpawn.TrySpawn(in request, out var spawnResult) || !spawnResult.Success)
+            var replacementRequest = new MobaHeroReplacementRequest(
+                command.Player,
+                frame,
+                previousActorId,
+                previousActor,
+                in loadout);
+            if (!replacement.TryReplace(in replacementRequest, out var replacementResult) ||
+                !replacementResult.Success)
             {
                 result = MobaInputCommandResult.Rejected(
                     command,
                     MobaInputCommandFailureCode.HandlerRejected,
-                    string.IsNullOrEmpty(spawnResult.Error) ? "replacement hero spawn failed" : spawnResult.Error,
+                    string.IsNullOrEmpty(replacementResult.Error)
+                        ? $"hero replacement failed at {replacementResult.FailureStage}"
+                        : replacementResult.Error,
                     previousActorId);
                 return false;
             }
 
-            context.PlayerActorMap.Bind(command.Player, spawnResult.ActorId);
-            spawnSnapshots.Enqueue(new MobaActorSpawnSnapshotEntry
-            {
-                NetId = spawnResult.ActorId,
-                Kind = (int)SpawnEntityKind.Character,
-                Code = heroId,
-                OwnerNetId = spawnResult.ActorId,
-                X = position.X,
-                Y = position.Y,
-                Z = position.Z,
-            });
-
-            changedSnapshots.Enqueue(new MobaPlayerHeroChangedSnapshotEntry(
-                command.Player.Value,
-                previousActorId,
-                spawnResult.ActorId,
-                loadout.TeamId,
-                loadout.HeroId,
-                loadout.AttributeTemplateId,
-                loadout.Level,
-                loadout.BasicAttackSkillId,
-                loadout.SkillIds));
-
-            ActorLifecycleRequests.RequestDespawn(
-                previousActor,
-                frame.Value,
-                ActorDespawnReason.HeroReplaced,
-                spawnResult.ActorId);
-
             result = MobaInputCommandResult.Accepted(
                 command,
-                $"HeroReplaced(Hero={heroId},PreviousActor={previousActorId},Actor={spawnResult.ActorId})",
-                spawnResult.ActorId);
+                $"HeroReplaced(Hero={heroId},PreviousActor={previousActorId},Actor={replacementResult.ActorId})",
+                replacementResult.ActorId);
             return true;
-        }
-
-        private static void InitializeLoadoutOrThrow(
-            ActorEntityInitPipeline initializer,
-            global::ActorEntity entity,
-            in MobaPlayerLoadout loadout)
-        {
-            if (!initializer.TryInitializeFromLoadout(entity, in loadout, out var error))
-            {
-                throw new InvalidOperationException(error ?? "replacement hero loadout initialization failed");
-            }
         }
 
         private static int ResolvePlayerLevel(MobaGameStartSpecService startSpecs, PlayerId playerId)

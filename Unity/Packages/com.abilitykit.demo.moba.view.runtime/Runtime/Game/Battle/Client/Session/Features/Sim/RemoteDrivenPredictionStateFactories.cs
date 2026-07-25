@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
@@ -24,6 +25,9 @@ namespace AbilityKit.Game.Flow
             if (world.Services.TryResolve<MobaActorRegistry>(out var actorRegistry) && actorRegistry != null)
             {
                 registry.Register(new MobaActorTransformRollbackProvider(actorRegistry));
+                registry.Register(new MobaActorHpRollbackProvider(actorRegistry));
+                registry.Register(new MobaBuffTimerRollbackProvider(actorRegistry));
+                registry.Register(new MobaSkillCooldownRollbackProvider(actorRegistry));
             }
 
             if (world.Services.TryResolve<PassiveSkillTriggerEventRollbackLog>(out var passiveLog) && passiveLog != null)
@@ -64,7 +68,12 @@ namespace AbilityKit.Game.Flow
             MobaActorRegistry registry,
             Func<bool> shouldForceMismatch)
         {
-            var entries = new List<(int actorId, float x, float y, float z)>(16);
+            // P0-1 FIX (2026-07-24): Aligned with server-side MobaStateHashSnapshotService.ComputeStateHash.
+            // Both sides now compute: InGame + TransformKey(10001) + count + per-actor:
+            // actorId + Pos(3) + Rot(4) + Scale(3) + HP.
+            // Random and Buff hashing removed from server side to match (their rollback providers
+            // still do recovery; drift surfaces through Transform/HP divergence).
+            var entries = new List<(int actorId, float x, float y, float z, float rotX, float rotY, float rotZ, float rotW, float sx, float sy, float sz, float hp)>(16);
             foreach (var pair in registry.Entries)
             {
                 var actorId = pair.Key;
@@ -72,14 +81,25 @@ namespace AbilityKit.Game.Flow
                 if (entity == null) continue;
                 if (!entity.hasTransform) continue;
 
-                var position = entity.transform.Value.Position;
-                entries.Add((actorId, position.X, position.Y, position.Z));
+                var t = entity.transform.Value;
+
+                float hp = 0f;
+                if (entity.hasAttributeGroup && entity.attributeGroup.Group != null)
+                {
+                    hp = entity.attributeGroup.Group.GetValue(MobaAttributeIds.HP);
+                }
+
+                entries.Add((actorId, t.Position.X, t.Position.Y, t.Position.Z,
+                             t.Rotation.X, t.Rotation.Y, t.Rotation.Z, t.Rotation.W,
+                             t.Scale.X, t.Scale.Y, t.Scale.Z,
+                             hp));
             }
 
             entries.Sort((a, b) => a.actorId.CompareTo(b.actorId));
 
             uint hash = 2166136261u;
             AddByte(ref hash, phase != null && phase.InGame ? (byte)1 : (byte)0);
+            AddInt(ref hash, MobaActorTransformRollbackProvider.DefaultKey);
             AddInt(ref hash, entries.Count);
 
             for (int i = 0; i < entries.Count; i++)
@@ -89,6 +109,14 @@ namespace AbilityKit.Game.Flow
                 AddFloat(ref hash, item.x);
                 AddFloat(ref hash, item.y);
                 AddFloat(ref hash, item.z);
+                AddFloat(ref hash, item.rotX);
+                AddFloat(ref hash, item.rotY);
+                AddFloat(ref hash, item.rotZ);
+                AddFloat(ref hash, item.rotW);
+                AddFloat(ref hash, item.sx);
+                AddFloat(ref hash, item.sy);
+                AddFloat(ref hash, item.sz);
+                AddFloat(ref hash, item.hp);
             }
 
             if (ShouldForceMismatch(shouldForceMismatch))

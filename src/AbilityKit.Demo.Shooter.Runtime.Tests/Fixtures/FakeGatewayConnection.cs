@@ -153,6 +153,76 @@ internal sealed class FakeGatewayConnection : IConnection
                     Message = "subscribed"
                 });
                 break;
+            case RoomGatewayOpCodes.BeginLoading:
+                CompleteResponse(opCode, seq, new WireRoomOperationRes
+                {
+                    Success = true,
+                    Applied = true,
+                    RoomRevision = 2,
+                    Snapshot = new WireRoomSnapshot
+                    {
+                        CanStart = true,
+                        BattleId = "battle-launch",
+                        WorldId = 9041ul,
+                        Phase = 1, // Loading
+                        LaunchGeneration = 1,
+                        LaunchManifestVersion = 1,
+                        LaunchManifestHash = "test-manifest",
+                        WorldStartAnchor = new WireWorldStartAnchor
+                        {
+                            StartServerTicks = 123456L,
+                            ServerTickFrequency = 10000000L,
+                            StartFrame = 0,
+                            FixedDeltaSeconds = 1d / 30d
+                        }
+                    },
+                    Message = "loading"
+                });
+                break;
+            case RoomGatewayOpCodes.ReportAssetsLoaded:
+                CompleteResponse(opCode, seq, new WireRoomOperationRes
+                {
+                    Success = true,
+                    Applied = true,
+                    RoomRevision = 3,
+                    Snapshot = new WireRoomSnapshot
+                    {
+                        CanStart = true,
+                        BattleId = "battle-launch",
+                        WorldId = 9041ul,
+                        Phase = 2, // Starting
+                        LaunchGeneration = 1,
+                        LaunchManifestVersion = 1,
+                        LaunchManifestHash = "test-manifest"
+                    },
+                    Message = "assets-loaded"
+                });
+                break;
+            case RoomGatewayOpCodes.GetSnapshot:
+                CompleteResponse(opCode, seq, new WireRoomSnapshotRes
+                {
+                    Success = true,
+                    RoomId = "room-launch",
+                    NumericRoomId = 1041ul,
+                    Snapshot = new WireRoomSnapshot
+                    {
+                        CanStart = true,
+                        BattleId = "battle-launch",
+                        WorldId = 9041ul,
+                        Phase = 3, // InBattle —— WaitForBattleStart 立即返回
+                        LaunchGeneration = 1,
+                        WorldStartAnchor = new WireWorldStartAnchor
+                        {
+                            StartServerTicks = 123456L,
+                            ServerTickFrequency = 10000000L,
+                            StartFrame = 0,
+                            FixedDeltaSeconds = 1d / 30d
+                        }
+                    },
+                    ServerNowTicks = 123456L,
+                    Message = "in-battle"
+                });
+                break;
             case RoomGatewayOpCodes.SubmitBattleInput:
                 CompleteResponse(opCode, seq, new WireSubmitBattleInputRes
                 {

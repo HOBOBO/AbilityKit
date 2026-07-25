@@ -8,8 +8,10 @@ namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(IBattleDiagnosticActorBuffStore), WorldLifetime.Scoped)]
     [WorldService(typeof(IBattleDiagnosticActorBuffReadStore), WorldLifetime.Scoped)]
+    [WorldService(typeof(IBattleDiagnosticBuffSnapshotSource), WorldLifetime.Scoped)]
     public sealed class MobaBattleDiagnosticActorBuffStore :
         IBattleDiagnosticActorBuffStore,
+        IBattleDiagnosticBuffSnapshotSource,
         IService
     {
         private readonly BattleDiagnosticActorBuffStore _store;
@@ -31,6 +33,11 @@ namespace AbilityKit.Demo.Moba.Services
             System.Collections.Generic.IReadOnlyList<BattleDiagnosticActorBuff> buffs)
         {
             return _store.TryReplaceSnapshot(frame, actorIds, buffs);
+        }
+
+        public BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorBuff> CaptureBuffSnapshot()
+        {
+            return _store.CaptureBuffSnapshot();
         }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticActorBuff> QueryActorBuffs(

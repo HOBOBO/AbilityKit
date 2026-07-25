@@ -142,6 +142,39 @@ namespace AbilityKit.Demo.Moba.Services
             return true;
         }
 
+        /// <summary>
+        /// Returns an immutable inspection snapshot for one active runtime.
+        /// The snapshot intentionally excludes mutable runtime and Blackboard references.
+        /// </summary>
+        public bool TryGetDetailDiagnostics(
+            in MobaSkillCastRuntimeHandle handle,
+            out MobaSkillRuntimeDetailDiagnostics diagnostics)
+        {
+            diagnostics = default;
+            if (!TryGet(in handle, out var runtime)) return false;
+            diagnostics = runtime.CreateDetailDiagnosticsSnapshot();
+            return true;
+        }
+
+        /// <summary>
+        /// 将当前活动技能运行时复制为独立诊断快照。
+        /// 调用方只会拿到值类型快照，不会持有内部运行时实例。
+        /// </summary>
+        public int CopyDiagnosticsTo(List<MobaSkillRuntimeDiagnostics> results)
+        {
+            if (results == null) return 0;
+
+            var start = results.Count;
+            foreach (var pair in _runtimes)
+            {
+                var runtime = pair.Value;
+                if (runtime == null || runtime.IsEnded) continue;
+                results.Add(runtime.CreateDiagnosticsSnapshot());
+            }
+
+            return results.Count - start;
+        }
+
         public bool TryGetDiagnostics(long runtimeId, out MobaSkillRuntimeDiagnostics diagnostics)
         {
             diagnostics = default;

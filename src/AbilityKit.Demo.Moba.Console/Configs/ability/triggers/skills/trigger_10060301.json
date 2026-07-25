@@ -10,14 +10,55 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "add_buff", "buffIds": [10060301], "target_self": true },
-        { "type": "spawn_area", "area_id": 40060301, "position_mode": 1, "radius": 5, "duration_ms": 5500 },
-        { "type": "spawn_area", "area_id": 40060302, "position_mode": 1, "radius": 5, "duration_ms": 5500 },
-        { "type": "spawn_area", "area_id": 40060303, "position_mode": 1, "radius": 5, "duration_ms": 5500 },
-        { "type": "spawn_area", "area_id": 40060304, "position_mode": 1, "radius": 5, "duration_ms": 5500 },
-        { "type": "spawn_area", "area_id": 40060305, "position_mode": 1, "radius": 5, "duration_ms": 5500 },
-        { "type": "debug_log", "message": "嬴政三技能：引导期间在目标区域生成多波剑阵，每波造成法术伤害并击退目标", "dump_args": false }
-      ]
+        {
+          "type": "add_buff",
+          "buffIds": [
+            10060301
+          ],
+          "target_self": true
+        },
+        {
+          "type": "spawn_area",
+          "area_id": 40060301,
+          "position_mode": 1,
+          "radius": 5,
+          "duration_ms": 5500
+        },
+        {
+          "type": "spawn_area",
+          "area_id": 40060302,
+          "position_mode": 1,
+          "radius": 5,
+          "duration_ms": 5500
+        },
+        {
+          "type": "spawn_area",
+          "area_id": 40060303,
+          "position_mode": 1,
+          "radius": 5,
+          "duration_ms": 5500
+        },
+        {
+          "type": "spawn_area",
+          "area_id": 40060304,
+          "position_mode": 1,
+          "radius": 5,
+          "duration_ms": 5500
+        },
+        {
+          "type": "spawn_area",
+          "area_id": 40060305,
+          "position_mode": 1,
+          "radius": 5,
+          "duration_ms": 5500
+        },
+        {
+          "type": "debug_log",
+          "message": "嬴政三技能：引导期间在目标区域生成多波剑阵，每波造成法术伤害并击退目标",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

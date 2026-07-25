@@ -58,5 +58,72 @@ namespace AbilityKit.Demo.Moba.Services
                 effectContextId,
                 summary: summary);
         }
+
+        public static MobaBattleDiagnosticEventDraft CreateTriggerAnalysisDraft(
+            int triggerId,
+            int contextKind,
+            int originKind,
+            BattleDiagnosticTriggerAnalysisStage stage,
+            BattleDiagnosticTriggerAnalysisResult result,
+            int sourceActorId,
+            int targetActorId,
+            long contextId,
+            long rootContextId,
+            int detailCode = 0,
+            int currentDepth = 0,
+            int currentFrameCount = 0,
+            int currentRootCount = 0,
+            int currentSameTriggerCount = 0,
+            string failureKey = "",
+            string reason = "")
+        {
+            var resolvedRoot = rootContextId != 0L ? rootContextId : contextId;
+            var payloadData = new BattleDiagnosticTriggerAnalysisPayload(
+                triggerId,
+                contextKind,
+                originKind,
+                stage,
+                result,
+                detailCode,
+                currentDepth,
+                currentFrameCount,
+                currentRootCount,
+                currentSameTriggerCount,
+                failureKey,
+                reason);
+            var payload = BattleDiagnosticEventPayload.FromTriggerAnalysis(in payloadData);
+            var outcome = ResolveOutcome(result);
+            var summary = $"triggerId={triggerId}, stage={stage}, result={result}, contextKind={contextKind}, originKind={originKind}";
+            if (!string.IsNullOrEmpty(failureKey)) summary += $", failureKey={failureKey}";
+            if (!string.IsNullOrEmpty(reason)) summary += $", reason={reason}";
+
+            return new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.TriggerAnalysis,
+                BattleDiagnosticEventChannel.Effect,
+                outcome,
+                sourceActorId,
+                targetActorId,
+                triggerId,
+                resolvedRoot,
+                contextId,
+                payloadVersion: BattleDiagnosticTriggerAnalysisPayload.CurrentSchemaVersion,
+                summary: summary,
+                payload: payload);
+        }
+
+        private static BattleDiagnosticEventOutcome ResolveOutcome(
+            BattleDiagnosticTriggerAnalysisResult result)
+        {
+            switch (result)
+            {
+                case BattleDiagnosticTriggerAnalysisResult.Passed:
+                    return BattleDiagnosticEventOutcome.Succeeded;
+                case BattleDiagnosticTriggerAnalysisResult.Blocked:
+                case BattleDiagnosticTriggerAnalysisResult.Failed:
+                    return BattleDiagnosticEventOutcome.Failed;
+                default:
+                    return BattleDiagnosticEventOutcome.None;
+            }
+        }
     }
 }

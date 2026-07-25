@@ -1,21 +1,22 @@
 {
-    "triggers": [
+  "triggers": [
+    {
+      "id": 20002,
+      "name": "Trigger_20002",
+      "event": "skill.cast.complete",
+      "enabled": true,
+      "allowExternal": true,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
         {
-            "id": 20002,
-            "name": "Trigger_20002",
-            "event": "skill.cast.complete",
-            "enabled": true,
-            "allowExternal": true,
-            "phase": "immediate",
-            "priority": 50,
-            "conditions": [],
-            "actions": [
-                {
-                    "message": "监听别人释放技能完成日志输出22222",
-                    "dump_args": false,
-                    "type": "debug_log"
-                }
-            ]
+          "message": "监听别人释放技能完成日志输出22222",
+          "dump_args": false,
+          "type": "debug_log"
         }
-    ]
+      ],
+      "scope": "owner"
+    }
+  ]
 }

@@ -1,4 +1,4 @@
-using AbilityKit.Core.Serialization;
+using MemoryPack;
 using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Console.Services
@@ -10,12 +10,12 @@ namespace AbilityKit.Demo.Moba.Console.Services
     {
         public static byte[] Serialize(in SkillInputEvent evt)
         {
-            return BinaryObjectCodec.Encode(evt);
+            return MemoryPackSerializer.Serialize(evt);
         }
 
         public static SkillInputEvent Deserialize(byte[] payload)
         {
-            return BinaryObjectCodec.Decode<SkillInputEvent>(payload);
+            return MemoryPackSerializer.Deserialize<SkillInputEvent>(payload);
         }
     }
 }

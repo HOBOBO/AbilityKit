@@ -29,7 +29,7 @@ namespace AbilityKit.Game.Editor
             if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
             {
                 EditorGUILayout.HelpBox(
-                    "诊断会话不可用。请确认战斗已启动且诊断 Local Session 已注册。",
+                    "诊断会话不可用。请启动战斗或打开包含 Battle Diagnostics 的 Artifact。",
                     MessageType.Info);
                 return;
             }

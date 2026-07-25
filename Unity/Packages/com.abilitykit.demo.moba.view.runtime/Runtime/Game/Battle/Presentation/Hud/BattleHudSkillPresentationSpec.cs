@@ -145,7 +145,7 @@ namespace AbilityKit.Game.Flow
                 return BattleHudSkillPresentationSpec.Hidden(0, string.Empty);
             }
 
-            if (template == null || !template.EnableAim)
+            if (template == null)
             {
                 return BattleHudSkillPresentationSpec.Hidden(skill.Id, skill.Name);
             }
@@ -156,24 +156,32 @@ namespace AbilityKit.Game.Flow
 
             var indicatorShape = ResolveIndicatorShape(template.IndicatorShape);
             var previewShape = ResolvePreviewShape(template.IndicatorShape);
+            if (!template.EnableAim && indicatorShape != SkillAimIndicatorShape.SelfCircle)
+            {
+                return BattleHudSkillPresentationSpec.Hidden(skill.Id, skill.Name);
+            }
 
-            // 先尝试按 Point 模式早退
+            // Point-mode target circles use their configured world radius.
             if (template.AimMode == (int)SkillAimMode.Point && indicatorShape == SkillAimIndicatorShape.TargetCircle)
             {
+                var targetRadius = template.IndicatorWorldWidth > 0f
+                    ? template.IndicatorWorldWidth
+                    : 2.8f;
                 return new BattleHudSkillPresentationSpec(
                     skill.Id,
                     skill.Name,
                     BattleHudSkillPreviewShape.TargetCircle,
                     SkillAimIndicatorShape.TargetCircle,
                     range,
-                    5.6f,
-                    2.8f,
+                    targetRadius * 2f,
+                    targetRadius,
                     s_targetColor,
                     enableAim: true,
                     aimMode: SkillAimMode.Point,
                     usePointMode: usePointMode,
                     faceToAim: template.FaceToAim,
-                    uiAimRadiusPixels: uiAimRadius);
+                    uiAimRadiusPixels: uiAimRadius,
+                    lockProjectileRadius: targetRadius);
             }
 
             switch (indicatorShape)
@@ -226,7 +234,7 @@ namespace AbilityKit.Game.Flow
                         0f,
                         selfRadius,
                         s_selfColor,
-                        enableAim: true,
+                        enableAim: template.EnableAim,
                         aimMode: SkillAimMode.Direction,
                         usePointMode: usePointMode,
                         faceToAim: template.FaceToAim,

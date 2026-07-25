@@ -15,6 +15,14 @@ namespace AbilityKit.Game.Flow
     {
         private BattleContext _ctx;
 
+        /// <summary>
+        /// 当远端插值路径（BattleRemoteInterpolationApplier）激活时设为 true。
+        /// 此时 ActorTransform 快照由插值路径负责写入，本 Feature 不再订阅该 opcode，
+        /// 避免同一帧内双重写入 + 双重反序列化。
+        /// 设置在 <see cref="BattleSessionFeature.StartBattleLogicSession"/> 中完成。
+        /// </summary>
+        public static bool EnableRemoteInterpolation { get; set; }
+
         private readonly BattleSubscriptionGroup _subscriptions = new BattleSubscriptionGroup(3);
 
         public void OnAttach(in GamePhaseContext ctx)
@@ -80,10 +88,14 @@ namespace AbilityKit.Game.Flow
                 Log.Exception(ex, "[BattleSyncFeature] Failed to subscribe ActorSpawnSnapshot");
             }
 
-            _subscriptions.Add(
-                snapshots.Subscribe<MobaActorTransformSnapshotEntry[]>(
-                    MobaOpCodes.Snapshot.ActorTransform,
-                    OnActorTransformSnapshot));
+            if (!EnableRemoteInterpolation)
+            {
+                _subscriptions.Add(
+                    snapshots.Subscribe<MobaActorTransformSnapshotEntry[]>(
+                        MobaOpCodes.Snapshot.ActorTransform,
+                        OnActorTransformSnapshot));
+            }
+
             _subscriptions.Add(
                 snapshots.Subscribe<MobaStateHashSnapshotPayload>(
                     MobaOpCodes.Snapshot.StateHash,

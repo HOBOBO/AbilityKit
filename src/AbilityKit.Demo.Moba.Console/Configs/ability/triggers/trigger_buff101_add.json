@@ -1,21 +1,22 @@
 {
-    "triggers": [
+  "triggers": [
+    {
+      "id": 101,
+      "name": "Buff101-添加时日志",
+      "event": "on_buff_added",
+      "enabled": false,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
         {
-            "id": 101,
-            "name": "Buff101-添加时日志",
-            "event": "on_buff_added",
-            "enabled": false,
-            "allowExternal": false,
-            "phase": "immediate",
-            "priority": 50,
-            "conditions": [],
-            "actions": [
-                {
-                    "message": "Buff101 已添加！开始每秒扣血！",
-                    "dump_args": false,
-                    "type": "debug_log"
-                }
-            ]
+          "message": "Buff101 已添加！开始每秒扣血！",
+          "dump_args": false,
+          "type": "debug_log"
         }
-    ]
+      ],
+      "scope": "owner"
+    }
+  ]
 }

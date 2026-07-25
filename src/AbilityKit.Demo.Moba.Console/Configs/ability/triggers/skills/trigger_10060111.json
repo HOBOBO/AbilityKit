@@ -10,10 +10,30 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "give_damage", "damage_value": 320, "source_attack_ratio": 0.55, "damage_type": 2, "reason_param": 10060101 },
-        { "type": "add_buff", "buffIds": [10060000], "target_self": false, "duration_ms": 3000, "stacking_policy": 1, "max_stacks": 10 },
-        { "type": "debug_log", "message": "嬴政一技能：剑雨命中造成法术伤害并叠加剑意标记", "dump_args": false }
-      ]
+        {
+          "type": "give_damage",
+          "damage_value": 320,
+          "source_attack_ratio": 0.55,
+          "damage_type": 2,
+          "reason_param": 10060101
+        },
+        {
+          "type": "add_buff",
+          "buffIds": [
+            10060000
+          ],
+          "target_self": false,
+          "duration_ms": 3000,
+          "stacking_policy": 1,
+          "max_stacks": 10
+        },
+        {
+          "type": "debug_log",
+          "message": "嬴政一技能：剑雨命中造成法术伤害并叠加剑意标记",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

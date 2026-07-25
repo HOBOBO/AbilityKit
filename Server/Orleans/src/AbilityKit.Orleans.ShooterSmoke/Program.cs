@@ -124,6 +124,8 @@ readonly record struct ShooterSmokeProgramOptions(
     string ClientId,
     int RoomMaxPlayers,
     int BattleDurationFrames,
+    int BattleVictoryTargetDefeats,
+    bool ContinueAfterAllPlayersDefeated,
     int InputCount,
     int Seed,
     TimeSpan Timeout,
@@ -158,6 +160,8 @@ readonly record struct ShooterSmokeProgramOptions(
             ClientId,
             RoomMaxPlayers,
             BattleDurationFrames,
+            BattleVictoryTargetDefeats,
+            ContinueAfterAllPlayersDefeated,
             InputCount,
             Seed,
             Timeout,
@@ -192,6 +196,8 @@ readonly record struct ShooterSmokeProgramOptions(
         var clientId = $"shooter-mp-{Environment.ProcessId}";
         var roomMaxPlayers = 0;
         var battleDurationFrames = 0;
+        var battleVictoryTargetDefeats = 0;
+        var continueAfterAllPlayersDefeated = false;
         var inputCount = 3;
         var seed = 20260610;
         var timeout = TimeSpan.FromSeconds(15);
@@ -289,6 +295,17 @@ readonly record struct ShooterSmokeProgramOptions(
                 {
                     battleDurationFrames = parsedBattleDurationFrames;
                 }
+            }
+            else if (string.Equals(arg, "--battle-victory-target-defeats", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                if (int.TryParse(args[++i], out var parsedBattleVictoryTargetDefeats) && parsedBattleVictoryTargetDefeats > 0)
+                {
+                    battleVictoryTargetDefeats = parsedBattleVictoryTargetDefeats;
+                }
+            }
+            else if (string.Equals(arg, "--continue-after-all-players-defeated", StringComparison.OrdinalIgnoreCase))
+            {
+                continueAfterAllPlayersDefeated = true;
             }
             else if (string.Equals(arg, "--inputs", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
@@ -466,6 +483,8 @@ readonly record struct ShooterSmokeProgramOptions(
             clientId,
             roomMaxPlayers,
             battleDurationFrames,
+            battleVictoryTargetDefeats,
+            continueAfterAllPlayersDefeated,
             inputCount,
             seed,
             timeout,

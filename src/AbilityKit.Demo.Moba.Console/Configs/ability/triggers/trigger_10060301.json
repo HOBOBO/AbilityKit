@@ -12,7 +12,9 @@
       "actions": [
         {
           "type": "add_buff",
-          "buffIds": [10060301],
+          "buffIds": [
+            10060301
+          ],
           "target_self": true
         },
         {
@@ -26,7 +28,8 @@
           "message": "嬴政三技能至尊王权：启动单个持续飞剑发射器，共11波55支飞剑",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

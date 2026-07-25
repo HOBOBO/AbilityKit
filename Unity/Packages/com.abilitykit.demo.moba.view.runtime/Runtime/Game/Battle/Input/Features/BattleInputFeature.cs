@@ -1,14 +1,19 @@
+using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.Abstractions;
+
 namespace AbilityKit.Game.Flow
 {
     public sealed class BattleInputFeature : IGamePhaseFeature
     {
         private readonly BattleMoveInputState _moveInputState;
+        private readonly BattleMoveInputState _secondaryMoveInputState;
         private BattleContext _ctx;
         private float _inputDiagCooldown;
 
         public BattleInputFeature()
         {
             _moveInputState = new BattleMoveInputState();
+            _secondaryMoveInputState = new BattleMoveInputState();
         }
 
         public void OnAttach(in GamePhaseContext ctx)
@@ -49,6 +54,8 @@ namespace AbilityKit.Game.Flow
                 TickInputDiagnostics(deltaTime);
             }
 
+            SubmitLocalTrainingOpponentMove(nextFrame, playerId, worldId);
+
             if (BattleKeyboardInputSource.TryReadSkillSlotDown(out var keyboardSlot))
             {
                 var skillCmd = BattleInputCommandFactory.CreateSkillSlot(nextFrame, playerId, keyboardSlot);
@@ -77,6 +84,27 @@ namespace AbilityKit.Game.Flow
             }
 
             _ctx.LocalInputQueue.Flush();
+        }
+
+        private void SubmitLocalTrainingOpponentMove(int nextFrame, PlayerId primaryPlayerId, WorldId worldId)
+        {
+            if (!BattleInputSessionIdentity.TryResolveLocalTrainingOpponent(
+                    _ctx,
+                    primaryPlayerId,
+                    out var opponentPlayerId))
+            {
+                return;
+            }
+
+            BattleKeyboardInputSource.ReadSecondaryMove(out var dx, out var dz);
+            if (!_secondaryMoveInputState.TryGetMoveToSubmit(dx, dz, out var submitDx, out var submitDz))
+            {
+                return;
+            }
+
+            var submitter = new BattleInputSubmitter(_ctx, opponentPlayerId, worldId);
+            var moveCmd = BattleInputCommandFactory.CreateMove(nextFrame, opponentPlayerId, submitDx, submitDz);
+            submitter.Submit(in moveCmd);
         }
 
         private void TickInputDiagnostics(float deltaTime)

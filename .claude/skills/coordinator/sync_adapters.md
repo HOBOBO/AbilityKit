@@ -37,11 +37,17 @@ public interface ISyncAdapter {
 - 收远端快照 → 经 `SessionCoordinator.NotifyEnterGameSnapshot / NotifyActorTransformSnapshot / NotifyDamageSnapshot` 推给 `IViewEventSink`
 - 客户端提交本地输入 → 经 transport 上行
 
-### HybridSyncAdapter（Hybrid 客户端预测）
+### HybridSyncAdapter（Hybrid 客户端预测，**当前未完成且不在 demo 主路径**）
 
 `SyncMode.Hybrid`。客户端预测 + 服务端权威对账。
 
-**警告**：`HybridSyncAdapter` 当前**多处 TODO 未实现**（预测推进、校正逻辑部分为空）。skill 用户若选 Hybrid，必须打开源码看哪部分已完成、哪部分待补，**不要假设它开箱即用**。
+**当前状态（2026-07-20 核校）**：4 处 TODO 全部未实现（`SubmitInput` / `Tick` / `Reconcile` / `GetAllEntityStates`），预测循环、对账比对、状态读取均为空壳。
+
+**重要**：MOBA demo 与 Shooter demo 的生产战斗路径**都不经过本类**：
+- MOBA 走 `com.abilitykit.host.extension/Runtime/FrameSync/ClientPredictionDriverModule`（框架级 IHostRuntimeModule）+ view.runtime 的 `RemoteDrivenRollbackRegistryFactory` / `RemoteDrivenStateHashFactory` / `RemoteDrivenPredictionContextBinder`
+- Shooter 走 `ShooterClientPredictionRuntimeAdapter`
+
+也就是说 coordinator 的整套 `ISyncAdapter` 体系（Local/Remote/Hybrid）目前是**自闭环通用框架**，没有 demo 实际接入。补全 HybridSyncAdapter 是通用框架未来工作，**不阻塞演示级联机**。补全前应先确认 coordinator 通用会话框架有实际接入方。
 
 ## SyncAdapterFactory
 

@@ -12,6 +12,7 @@ namespace AbilityKit.Game.Flow
 
         void TickRemoteDrivenLocalSim(float deltaTime);
         void TickConfirmedAuthorityWorldSim(float deltaTime);
+        void TickRemoteInterpolation(float deltaTime);
     }
 
     internal interface ISessionOrchestratorHost

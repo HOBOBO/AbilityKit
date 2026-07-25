@@ -1,0 +1,22 @@
+{
+  "triggers": [
+    {
+      "id": 3001,
+      "name": "被动-狂暴-低生命加攻",
+      "event": "",
+      "scope": "owner",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "debug_log",
+          "message": "狂暴触发",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

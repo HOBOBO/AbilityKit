@@ -160,6 +160,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 SkillType = obj["SkillType"]?.Value<int>() ?? 0,
                 Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 SkillButtonTemplateId = obj["SkillButtonTemplateId"]?.Value<int>() ?? 0,
+                RequiredTargetQueryId = obj["RequiredTargetQueryId"]?.Value<int>() ?? 0,
                 LevelTableId = obj["LevelTableId"]?.Value<int>() ?? 0,
                 PreCastFlowId = obj["PreCastFlowId"]?.Value<int>() ?? 0,
                 CastFlowId = obj["CastFlowId"]?.Value<int>() ?? 0
@@ -644,8 +645,28 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 Condition = obj["Condition"]?.Value<string>() ?? string.Empty,
                 TimeoutMs = obj["TimeoutMs"]?.Value<int>() ?? 0,
                 CompleteOnTimeout = obj["CompleteOnTimeout"]?.Value<bool>() ?? true,
-                ObservedSlots = obj["ObservedSlots"]?.ToObject<int[]>() ?? Array.Empty<int>()
+                ObservedSlots = obj["ObservedSlots"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                Arguments = DeserializeSkillWaitConditionArguments(obj["Arguments"])
             };
+        }
+
+        private static SkillWaitConditionArgumentDTO[] DeserializeSkillWaitConditionArguments(JToken token)
+        {
+            if (token == null || token.Type != JTokenType.Array) return Array.Empty<SkillWaitConditionArgumentDTO>();
+
+            var result = new List<SkillWaitConditionArgumentDTO>();
+            foreach (var item in (JArray)token)
+            {
+                if (!(item is JObject obj)) continue;
+
+                result.Add(new SkillWaitConditionArgumentDTO
+                {
+                    Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                    Value = obj["Value"]?.Value<string>() ?? string.Empty
+                });
+            }
+
+            return result.ToArray();
         }
 
         private static SkillPhaseDTO DeserializeSkillPhase(JToken token)

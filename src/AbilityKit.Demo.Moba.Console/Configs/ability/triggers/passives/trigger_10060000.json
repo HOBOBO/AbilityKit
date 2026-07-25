@@ -10,9 +10,23 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "add_buff", "buffIds": [10060000], "target_self": true, "duration_ms": 3000, "stacking_policy": 1, "max_stacks": 10 },
-        { "type": "debug_log", "message": "嬴政被动：普攻或技能命中添加剑意标记，最多10层，每层持续期间内周期性造成法术伤害", "dump_args": false }
-      ]
+        {
+          "type": "add_buff",
+          "buffIds": [
+            10060000
+          ],
+          "target_self": true,
+          "duration_ms": 3000,
+          "stacking_policy": 1,
+          "max_stacks": 10
+        },
+        {
+          "type": "debug_log",
+          "message": "嬴政被动：普攻或技能命中添加剑意标记，最多10层，每层持续期间内周期性造成法术伤害",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

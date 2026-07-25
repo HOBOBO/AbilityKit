@@ -151,6 +151,8 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
             RandomSeed = ReadIntTag(summary, ShooterRoomTagKeys.RandomSeed, Environment.TickCount),
             InputDelayFrames = syncOptions.InputDelayFrames,
             DurationFrames = ReadIntTag(summary, ShooterRoomTagKeys.DurationFrames, 0),
+            VictoryTargetDefeats = ReadIntTag(summary, ShooterRoomTagKeys.VictoryTargetDefeats, 0),
+            ContinueAfterAllPlayersDefeated = ReadBoolTag(summary, ShooterRoomTagKeys.ContinueAfterAllPlayersDefeated, false),
             Players = players,
             GameplayId = request.GameplayId > 0 ? request.GameplayId : ShooterGameplay.GameplayId,
             RuleSetId = request.RuleSetId,
@@ -187,6 +189,16 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
         var slots = new List<KeyValuePair<string, ShooterRoomPlayer>>(roomState.Players);
         slots.Sort(static (left, right) => left.Value.PlayerId.CompareTo(right.Value.PlayerId));
         return slots;
+    }
+
+    private static bool ReadBoolTag(RoomSummary summary, string key, bool fallback)
+    {
+        if (summary.Tags is null || !summary.Tags.TryGetValue(key, out var value))
+        {
+            return fallback;
+        }
+
+        return bool.TryParse(value, out var parsed) ? parsed : fallback;
     }
 
     private static ShooterRoomState RequireState(object state)

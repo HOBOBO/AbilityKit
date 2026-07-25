@@ -24,6 +24,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly IShooterBattleRules _rules;
         private readonly ShooterEnemyWaveOptions _enemyWaveOptions;
         private readonly ShooterArenaGameplayOptions _arenaOptions;
+        private readonly ShooterMatchStateOptions _matchStateOptions;
         private readonly ShooterStateSnapshotExporter _snapshotExporter;
         private readonly ShooterStateHasher _stateHasher;
         private readonly ShooterPackedSnapshotExporter _packedSnapshotExporter;
@@ -86,6 +87,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         public ShooterBattleRuntimePort(ShooterBattleState state, IShooterBattleSimulation simulation, IShooterEntityManager entities, IShooterBattleRules rules, ShooterEnemyWaveOptions enemyWaveOptions, ShooterArenaGameplayOptions arenaOptions)
+            : this(state, simulation, entities, rules, enemyWaveOptions, arenaOptions, ShooterMatchStateOptions.Default)
+        {
+        }
+
+        public ShooterBattleRuntimePort(
+            ShooterBattleState state,
+            IShooterBattleSimulation simulation,
+            IShooterEntityManager entities,
+            IShooterBattleRules rules,
+            ShooterEnemyWaveOptions enemyWaveOptions,
+            ShooterArenaGameplayOptions arenaOptions,
+            ShooterMatchStateOptions matchStateOptions)
         {
             _state = state ?? throw new ArgumentNullException(nameof(state));
             _simulation = simulation ?? throw new ArgumentNullException(nameof(simulation));
@@ -93,6 +106,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _rules = rules ?? throw new ArgumentNullException(nameof(rules));
             _enemyWaveOptions = enemyWaveOptions ?? ShooterEnemyWaveOptions.Disabled;
             _arenaOptions = arenaOptions ?? ShooterArenaGameplayOptions.Disabled;
+            _matchStateOptions = matchStateOptions ?? ShooterMatchStateOptions.Default;
             _snapshotExporter = new ShooterStateSnapshotExporter(_state, _entities);
             _stateHasher = new ShooterStateHasher(_state, _entities);
             _packedSnapshotExporter = new ShooterPackedSnapshotExporter(_state, _entities, _rules, this);
@@ -284,7 +298,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 .Add<IShooterBattleRules>(_rules)
                 .Add<IShooterBotAiRuntime>(_botAiRuntime)
                 .Add(enemyWaveOptions)
-                .Add(_arenaOptions);
+                .Add(_arenaOptions)
+                .Add(_matchStateOptions);
         }
     }
 }

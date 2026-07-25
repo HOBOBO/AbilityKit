@@ -82,19 +82,5 @@
         "PassiveSkillIds":  [
                                  10060000
                              ]
-    },
-    {
-        "Id":  1007,
-        "Name":  "孙尚香",
-        "ModelId":  1007,
-        "AttributeTemplateId":  1007,
-        "SkillIds":  [
-                         10070101,
-                         10070201,
-                         10070301
-                     ],
-        "PassiveSkillIds":  [
-
-                            ]
     }
 ]

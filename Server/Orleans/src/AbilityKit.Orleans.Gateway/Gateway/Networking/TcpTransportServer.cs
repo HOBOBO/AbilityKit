@@ -21,8 +21,8 @@ public sealed class TcpTransportOptions : GatewayTransportOptions
 /// </summary>
 public sealed class TcpTransportSession : IGatewayTransportSession
 {
-    private readonly TcpTransportServer _server;
     private readonly Stream _stream;
+    private readonly TimeSpan _writeTimeout;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
 
     public long ConnectionId { get; }
@@ -32,39 +32,45 @@ public sealed class TcpTransportSession : IGatewayTransportSession
 
     public GatewaySessionContext Context { get; }
 
-    internal TcpTransportSession(long connectionId, TcpTransportServer server, Stream stream)
+    internal TcpTransportSession(
+        long connectionId,
+        Stream stream,
+        TimeSpan writeTimeout)
     {
+        if (writeTimeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(writeTimeout));
+
         ConnectionId = connectionId;
-        _server = server;
         _stream = stream;
+        _writeTimeout = writeTimeout;
         Context = new GatewaySessionContext(connectionId);
     }
 
-    public async Task SendResponseAsync(uint opCode, uint seq, byte[] payload, CancellationToken cancellationToken = default)
+    public Task SendResponseAsync(uint opCode, uint seq, byte[] payload, CancellationToken cancellationToken = default)
     {
-        if (!_stream.CanWrite) return;
-
-        await _writeLock.WaitAsync(cancellationToken);
-        try
-        {
-            var header = new NetworkPacketHeader(NetworkPacketFlags.Response, opCode, seq, (uint)payload.Length);
-            await WriteFrameAsync(header, payload, cancellationToken);
-        }
-        finally
-        {
-            _writeLock.Release();
-        }
+        var header = new NetworkPacketHeader(NetworkPacketFlags.Response, opCode, seq, (uint)payload.Length);
+        return WriteFrameWithTimeoutAsync(header, payload, cancellationToken);
     }
 
-    public async Task SendServerPushAsync(uint opCode, byte[] payload, CancellationToken cancellationToken = default)
+    public Task SendServerPushAsync(uint opCode, byte[] payload, CancellationToken cancellationToken = default)
+    {
+        var header = new NetworkPacketHeader(NetworkPacketFlags.ServerPush, opCode, 0, (uint)payload.Length);
+        return WriteFrameWithTimeoutAsync(header, payload, cancellationToken);
+    }
+
+    private async Task WriteFrameWithTimeoutAsync(
+        NetworkPacketHeader header,
+        byte[] payload,
+        CancellationToken cancellationToken)
     {
         if (!_stream.CanWrite) return;
 
-        await _writeLock.WaitAsync(cancellationToken);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(_writeTimeout);
+        await _writeLock.WaitAsync(timeout.Token);
         try
         {
-            var header = new NetworkPacketHeader(NetworkPacketFlags.ServerPush, opCode, 0, (uint)payload.Length);
-            await WriteFrameAsync(header, payload, cancellationToken);
+            await WriteFrameAsync(header, payload, timeout.Token);
         }
         finally
         {
@@ -200,7 +206,10 @@ public sealed class TcpTransportServer : IGatewayTransportServer
         System.Net.Sockets.TcpClient client,
         CancellationToken cancellationToken)
     {
-        var session = new TcpTransportSession(connectionId, this, client.GetStream());
+        var session = new TcpTransportSession(
+            connectionId,
+            client.GetStream(),
+            TimeSpan.FromMilliseconds(_options.RequestTimeoutMs));
         _events.OnConnected(session);
 
         _logger.LogInformation("TCP client connected: ConnectionId={ConnectionId}", connectionId);

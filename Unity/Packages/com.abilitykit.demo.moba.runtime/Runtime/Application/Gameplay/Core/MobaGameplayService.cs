@@ -27,6 +27,8 @@ namespace AbilityKit.Demo.Moba.Gameplay
         private MobaGameplayResult _lastResult;
         private int _currentGameplayId;
         private GameplayMO _currentGameplay;
+        private GameplayMO _preparedGameplay;
+        private int _preparedStartFrame;
         private string _lastStartFailureReason;
  
         public MobaGameplayPhase Phase => _phase;
@@ -62,32 +64,111 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
         public void Start(int gameplayId)
         {
+            if (!TryPrepareStart(gameplayId, out _))
+            {
+                return;
+            }
+
+            CommitPreparedStart();
+        }
+
+        public bool TryPrepareStart(int gameplayId, out string error)
+        {
+            error = null;
             if (_phase == MobaGameplayPhase.Running)
             {
-                return;
+                if (_currentGameplayId == gameplayId)
+                {
+                    return true;
+                }
+
+                error = $"gameplay is already running. currentGameplayId={_currentGameplayId}";
+                _lastStartFailureReason = error;
+                return false;
             }
 
+            CancelPreparedStart();
             _lastStartFailureReason = null;
-            var gameplay = ResolveGameplay(gameplayId);
+            try
+            {
+                var gameplay = ResolveGameplay(gameplayId);
+                if (gameplay == null)
+                {
+                    error = BuildMissingGameplayConfigMessage(gameplayId);
+                    _lastStartFailureReason = error;
+                    Log.Error(error);
+                    return false;
+                }
+
+                var frame = GetCurrentFrame();
+                if (_triggerBindings != null && !_triggerBindings.Bind(gameplay))
+                {
+                    _triggerBindings.Unbind();
+                    error = $"gameplay trigger binding failed. gameplayId={gameplayId}";
+                    _lastStartFailureReason = error;
+                    return false;
+                }
+
+                _preparedGameplay = gameplay;
+                _preparedStartFrame = frame;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _triggerBindings?.Unbind();
+                error = ex.Message;
+                _lastStartFailureReason = error;
+                Log.Exception(ex, $"[MobaGameplayService] gameplay preparation failed. gameplayId={gameplayId}");
+                return false;
+            }
+        }
+
+        public bool CommitPreparedStart()
+        {
+            if (_phase == MobaGameplayPhase.Running)
+            {
+                return true;
+            }
+
+            var gameplay = _preparedGameplay;
             if (gameplay == null)
             {
-                _lastStartFailureReason = BuildMissingGameplayConfigMessage(gameplayId);
-                Log.Error(_lastStartFailureReason);
-                return;
+                _lastStartFailureReason = "gameplay start was not prepared";
+                return false;
             }
 
-            _triggerBindings?.Bind(gameplay);
- 
+            var frame = _preparedStartFrame;
+            _preparedGameplay = null;
+            _preparedStartFrame = 0;
             _elapsedSeconds = 0f;
             _lastResult = default;
             _currentGameplayId = gameplay.Id;
             _currentGameplay = gameplay;
             _phase = MobaGameplayPhase.Running;
- 
-            var frame = GetCurrentFrame();
-            Publish(GameplayTriggerEvents.Started, new GameplayLifecycleEventArgs(frame, 0f, 0f, null));
-            _eventSink?.OnGameplayStarted(frame);
+
+            try
+            {
+                Publish(GameplayTriggerEvents.Started, new GameplayLifecycleEventArgs(frame, 0f, 0f, null));
+                _eventSink?.OnGameplayStarted(frame);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, $"[MobaGameplayService] gameplay started notification failed. gameplayId={gameplay.Id}, frame={frame}");
+            }
+
             Log.Info($"[MobaGameplayService] gameplay started. gameplayId={gameplay.Id}, frame={frame}");
+            return true;
+        }
+
+        public void CancelPreparedStart()
+        {
+            if (_preparedGameplay != null)
+            {
+                _triggerBindings?.Unbind();
+            }
+
+            _preparedGameplay = null;
+            _preparedStartFrame = 0;
         }
 
         public void Tick(float deltaTime)
@@ -133,6 +214,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
         public void Reset()
         {
+            CancelPreparedStart();
             _triggerBindings?.Unbind();
             _elapsedSeconds = 0f;
             _lastResult = default;

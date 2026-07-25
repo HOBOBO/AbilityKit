@@ -158,6 +158,20 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         }
     }
 
+    public readonly struct MobaPreparedActorSkillLoadout
+    {
+        public readonly ActiveSkillRuntime[] ActiveSkills;
+        public readonly PassiveSkillRuntime[] PassiveSkills;
+
+        public MobaPreparedActorSkillLoadout(
+            ActiveSkillRuntime[] activeSkills,
+            PassiveSkillRuntime[] passiveSkills)
+        {
+            ActiveSkills = activeSkills;
+            PassiveSkills = passiveSkills;
+        }
+    }
+
     public sealed class MobaActorSkillLoadoutInitializer
     {
         public bool TryInitialize(
@@ -179,35 +193,57 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             in MobaResolvedHeroLoadout resolved,
             out string error)
         {
-            error = null;
             if (entity == null)
             {
                 error = "actor entity is required";
                 return false;
             }
 
+            if (!TryPrepare(in resolved, out var prepared, out error))
+            {
+                return false;
+            }
+
+            Apply(entity, in prepared);
+            return true;
+        }
+
+        public bool TryPrepare(
+            in MobaResolvedHeroLoadout resolved,
+            out MobaPreparedActorSkillLoadout prepared,
+            out string error)
+        {
+            prepared = default;
+            error = null;
             try
             {
                 var activeSkills = CreateActiveSkillRuntimes(
                     CombineBasicAttackAndActiveSkills(resolved.BasicAttackSkillId, resolved.ActiveSkillIds));
                 var passiveSkills = CreatePassiveSkillRuntimes(resolved.PassiveSkillIds);
-
-                if (entity.hasSkillLoadout)
-                {
-                    entity.ReplaceSkillLoadout(activeSkills, passiveSkills);
-                }
-                else
-                {
-                    entity.AddSkillLoadout(activeSkills, passiveSkills);
-                }
-
+                prepared = new MobaPreparedActorSkillLoadout(activeSkills, passiveSkills);
                 return true;
             }
             catch (Exception ex)
             {
                 error = ex.Message;
-                Log.Exception(ex, "[ActorEntityInitPipeline] InitializeSkillLoadout failed");
+                Log.Exception(ex, "[ActorEntityInitPipeline] PrepareSkillLoadout failed");
                 return false;
+            }
+        }
+
+        public void Apply(
+            global::ActorEntity entity,
+            in MobaPreparedActorSkillLoadout prepared)
+        {
+            if (entity == null) return;
+
+            if (entity.hasSkillLoadout)
+            {
+                entity.ReplaceSkillLoadout(prepared.ActiveSkills, prepared.PassiveSkills);
+            }
+            else
+            {
+                entity.AddSkillLoadout(prepared.ActiveSkills, prepared.PassiveSkills);
             }
         }
 

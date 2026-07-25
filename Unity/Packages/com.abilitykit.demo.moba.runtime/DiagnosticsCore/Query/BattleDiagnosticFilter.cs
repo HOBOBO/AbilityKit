@@ -83,7 +83,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             long attackId = 0,
             bool failuresOnly = false,
             bool unfinishedOnly = false,
-            string searchText = "")
+            string searchText = "",
+            BattleDiagnosticTriggerAnalysisStage triggerStage = BattleDiagnosticTriggerAnalysisStage.Unknown,
+            BattleDiagnosticTriggerAnalysisResult triggerResult = BattleDiagnosticTriggerAnalysisResult.Unknown,
+            int triggerContextKind = 0,
+            int triggerOriginKind = 0)
         {
             Frames = frames;
             Channels = channels;
@@ -97,6 +101,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             FailuresOnly = failuresOnly;
             UnfinishedOnly = unfinishedOnly;
             SearchText = NormalizeSearchText(searchText);
+            TriggerStage = triggerStage;
+            TriggerResult = triggerResult;
+            TriggerContextKind = triggerContextKind;
+            TriggerOriginKind = triggerOriginKind;
         }
 
         public BattleDiagnosticFrameFilter Frames { get; }
@@ -111,6 +119,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public bool FailuresOnly { get; }
         public bool UnfinishedOnly { get; }
         public string SearchText { get; }
+        public BattleDiagnosticTriggerAnalysisStage TriggerStage { get; }
+        public BattleDiagnosticTriggerAnalysisResult TriggerResult { get; }
+        public int TriggerContextKind { get; }
+        public int TriggerOriginKind { get; }
 
         public bool HasActorFilter => ActorId != 0;
         public bool HasCorrelationFilter =>
@@ -120,6 +132,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             AttackId != 0;
 
         public bool HasTextSearch => !string.IsNullOrEmpty(SearchText);
+        public bool HasTriggerAnalysisFilter =>
+            TriggerStage != BattleDiagnosticTriggerAnalysisStage.Unknown ||
+            TriggerResult != BattleDiagnosticTriggerAnalysisResult.Unknown ||
+            TriggerContextKind != 0 ||
+            TriggerOriginKind != 0;
 
         public int ActiveFilterCount
         {
@@ -137,6 +154,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 if (FailuresOnly) count++;
                 if (UnfinishedOnly) count++;
                 if (HasTextSearch) count++;
+                if (TriggerStage != BattleDiagnosticTriggerAnalysisStage.Unknown) count++;
+                if (TriggerResult != BattleDiagnosticTriggerAnalysisResult.Unknown) count++;
+                if (TriggerContextKind != 0) count++;
+                if (TriggerOriginKind != 0) count++;
                 return count;
             }
         }
@@ -161,7 +182,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 AttackId,
                 FailuresOnly,
                 UnfinishedOnly,
-                SearchText);
+                SearchText,
+                TriggerStage,
+                TriggerResult,
+                TriggerContextKind,
+                TriggerOriginKind);
         }
 
         public BattleDiagnosticFilter WithFrames(BattleDiagnosticFrameFilter frames)
@@ -178,7 +203,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 AttackId,
                 FailuresOnly,
                 UnfinishedOnly,
-                SearchText);
+                SearchText,
+                TriggerStage,
+                TriggerResult,
+                TriggerContextKind,
+                TriggerOriginKind);
         }
 
         public BattleDiagnosticFilter WithSearchText(string searchText)
@@ -195,7 +224,36 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 AttackId,
                 FailuresOnly,
                 UnfinishedOnly,
-                searchText);
+                searchText,
+                TriggerStage,
+                TriggerResult,
+                TriggerContextKind,
+                TriggerOriginKind);
+        }
+
+        public BattleDiagnosticFilter WithTriggerAnalysis(
+            BattleDiagnosticTriggerAnalysisStage stage,
+            BattleDiagnosticTriggerAnalysisResult result,
+            int contextKind = 0,
+            int originKind = 0)
+        {
+            return new BattleDiagnosticFilter(
+                Frames,
+                Channels,
+                ActorId,
+                ActorRelation,
+                ConfigId,
+                RootContextId,
+                ContextId,
+                SkillRuntimeId,
+                AttackId,
+                FailuresOnly,
+                UnfinishedOnly,
+                SearchText,
+                stage,
+                result,
+                contextKind,
+                originKind);
         }
 
         public bool Equals(BattleDiagnosticFilter other)
@@ -211,6 +269,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    AttackId == other.AttackId &&
                    FailuresOnly == other.FailuresOnly &&
                    UnfinishedOnly == other.UnfinishedOnly &&
+                   TriggerStage == other.TriggerStage &&
+                   TriggerResult == other.TriggerResult &&
+                   TriggerContextKind == other.TriggerContextKind &&
+                   TriggerOriginKind == other.TriggerOriginKind &&
                    string.Equals(SearchText, other.SearchText, StringComparison.Ordinal);
         }
 
@@ -235,6 +297,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ FailuresOnly.GetHashCode();
                 hashCode = (hashCode * 397) ^ UnfinishedOnly.GetHashCode();
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(SearchText ?? string.Empty);
+                hashCode = (hashCode * 397) ^ (int)TriggerStage;
+                hashCode = (hashCode * 397) ^ (int)TriggerResult;
+                hashCode = (hashCode * 397) ^ TriggerContextKind;
+                hashCode = (hashCode * 397) ^ TriggerOriginKind;
                 return hashCode;
             }
         }

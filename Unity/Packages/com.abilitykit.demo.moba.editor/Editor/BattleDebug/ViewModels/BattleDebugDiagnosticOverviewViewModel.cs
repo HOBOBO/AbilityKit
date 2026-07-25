@@ -12,14 +12,17 @@ namespace AbilityKit.Game.Editor
         private long _lastStateRevision = -1;
         private long _lastTagRevision = -1;
         private long _lastEffectRevision = -1;
+        private long _lastEventRevision = -1;
         private long _lastActorId;
         private int _lastFrame;
         private bool _hasCachedResult;
         private BattleDiagnosticActorSummary? _actor;
         private IReadOnlyList<BattleDiagnosticActorTag> _tags = Array.Empty<BattleDiagnosticActorTag>();
         private IReadOnlyList<BattleDiagnosticActorEffect> _effects = Array.Empty<BattleDiagnosticActorEffect>();
+        private BattleDiagnosticEvent? _recentEvent;
 
         public BattleDiagnosticActorSummary? Actor => _actor;
+        public BattleDiagnosticEvent? RecentEvent => _recentEvent;
         public int TagCount => _tags.Count;
         public int EffectCount => _effects.Count;
         public string StatusMessage { get; private set; } = string.Empty;
@@ -32,9 +35,11 @@ namespace AbilityKit.Game.Editor
             _actor = null;
             _tags = Array.Empty<BattleDiagnosticActorTag>();
             _effects = Array.Empty<BattleDiagnosticActorEffect>();
+            _recentEvent = null;
             _lastStateRevision = -1;
             _lastTagRevision = -1;
             _lastEffectRevision = -1;
+            _lastEventRevision = -1;
             _hasCachedResult = false;
         }
 
@@ -50,12 +55,15 @@ namespace AbilityKit.Game.Editor
             var stateRevision = session.StateStoreRevision;
             var tagRevision = session.ActorTagStoreRevision;
             var effectRevision = session.ActorEffectStoreRevision;
+            var supportsEvents = (session.SessionInfo.Capabilities & BattleDiagnosticCapabilities.Events) != 0;
+            var eventRevision = supportsEvents ? session.EventStoreRevision : -1;
             var queryFrame = frame < 0 ? 0 : frame;
             if (_hasCachedResult &&
                 _lastScope == scope &&
                 _lastStateRevision == stateRevision &&
                 _lastTagRevision == tagRevision &&
                 _lastEffectRevision == effectRevision &&
+                _lastEventRevision == eventRevision &&
                 _lastActorId == actorId &&
                 _lastFrame == queryFrame)
             {
@@ -68,17 +76,34 @@ namespace AbilityKit.Game.Editor
             var actorsResult = session.QueryActors(_lastRequestId, queryFrame);
             var tagsResult = session.QueryActorTags(_lastRequestId, queryFrame, actorId);
             var effectsResult = session.QueryActorEffects(_lastRequestId, queryFrame, actorId);
+            var recentEvent = supportsEvents
+                ? session.QueryEvents(new BattleDiagnosticEventQuery(
+                    _lastRequestId,
+                    new BattleDiagnosticFilter(
+                        frames: new BattleDiagnosticFrameFilter(BattleDiagnosticFrames.Invalid, BattleDiagnosticFrames.Invalid),
+                        channels: BattleDiagnosticEventChannel.All,
+                        actorId: actorId,
+                        actorRelation: BattleDiagnosticActorRelation.Either,
+                        failuresOnly: false,
+                        unfinishedOnly: false,
+                        searchText: string.Empty),
+                    new BattleDiagnosticPageRequest(eventRevision, 0, 32)))
+                : default;
 
             _lastScope = scope;
             _lastStateRevision = stateRevision;
             _lastTagRevision = tagRevision;
             _lastEffectRevision = effectRevision;
+            _lastEventRevision = eventRevision;
             _lastActorId = actorId;
             _lastFrame = queryFrame;
             _hasCachedResult = true;
             _actor = FindActor(actorsResult.Items, actorId);
             _tags = tagsResult.Items ?? Array.Empty<BattleDiagnosticActorTag>();
             _effects = effectsResult.Items ?? Array.Empty<BattleDiagnosticActorEffect>();
+            _recentEvent = recentEvent.Status.CanDisplayResults
+                ? FindMostRecentEvent(recentEvent.Items)
+                : null;
             StatusMessage = BuildStatusMessage(
                 actorsResult.Status,
                 tagsResult.Status,
@@ -98,6 +123,23 @@ namespace AbilityKit.Game.Editor
             }
 
             return builder.ToString();
+        }
+
+        private static BattleDiagnosticEvent? FindMostRecentEvent(
+            IReadOnlyList<BattleDiagnosticEvent> events)
+        {
+            if (events == null || events.Count == 0) return null;
+
+            var mostRecent = events[0];
+            for (var i = 1; i < events.Count; i++)
+            {
+                if (events[i].Sequence > mostRecent.Sequence)
+                {
+                    mostRecent = events[i];
+                }
+            }
+
+            return mostRecent;
         }
 
         private static BattleDiagnosticActorSummary? FindActor(

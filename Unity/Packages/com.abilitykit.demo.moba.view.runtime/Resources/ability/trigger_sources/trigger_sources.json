@@ -67,60 +67,6 @@
                                      "type":  "add_buff",
                                      "category":  "Buff"
                                  },
-                    "aoe_burst":  {
-                                      "params":  [
-                                                     {
-                                                         "name":  "per_target_trigger_id",
-                                                         "type":  "int",
-                                                         "required":  true
-                                                     }
-                                                 ],
-                                      "description":  "AOE burst effect",
-                                      "displayName":  "AOE Burst",
-                                      "type":  "aoe_burst",
-                                      "category":  "Combat"
-                                  },
-                    "knock":  {
-                                  "params":  [
-                                                 {
-                                                     "name":  "horizontal_speed",
-                                                     "type":  "float",
-                                                     "required":  true
-                                                 },
-                                                 {
-                                                     "name":  "vertical_speed",
-                                                     "type":  "float",
-                                                     "required":  true
-                                                 },
-                                                 {
-                                                     "name":  "duration_ms",
-                                                     "type":  "int",
-                                                     "required":  true
-                                                 },
-                                                 {
-                                                     "defaultValue":  9.8,
-                                                     "name":  "gravity",
-                                                     "type":  "float",
-                                                     "required":  false
-                                                 },
-                                                 {
-                                                     "defaultValue":  0,
-                                                     "name":  "knock_priority",
-                                                     "type":  "int",
-                                                     "required":  false
-                                                 },
-                                                 {
-                                                     "defaultValue":  "FromAreaCenterToTarget",
-                                                     "name":  "direction_mode",
-                                                     "type":  "string",
-                                                     "required":  false
-                                                 }
-                                             ],
-                                  "description":  "Knock back target",
-                                  "displayName":  "Knock Back",
-                                  "type":  "knock",
-                                  "category":  "Combat"
-                              },
                     "give_damage":  {
                                         "params":  [
                                                        {
@@ -349,59 +295,6 @@
                                              "crit":  0,
                                              "query_template_id":  101,
                                              "amount":  "=50.0"
-                                         }
-                                     ],
-                         "priority":  50
-                     },
-                     {
-                         "comment":  "AOE burst",
-                         "id":  21001,
-                         "enabled":  true,
-                         "phase":  "immediate",
-                         "conditions":  [
-
-                                        ],
-                         "event":  "",
-                         "name":  "Trigger_21001",
-                         "allowExternal":  false,
-                         "actions":  [
-                                         {
-                                             "type":  "aoe_burst",
-                                             "per_target_trigger_id":  21002
-                                         }
-                                     ],
-                         "priority":  50
-                     },
-                     {
-                         "comment":  "Deal damage",
-                         "id":  21002,
-                         "enabled":  true,
-                         "phase":  "immediate",
-                         "conditions":  [
-
-                                        ],
-                         "event":  "",
-                         "name":  "Trigger_21002",
-                         "allowExternal":  false,
-                         "actions":  [
-                                         {
-                                             "damage_type":  1,
-                                             "type":  "give_damage",
-                                             "reason_kind":  1,
-                                             "reason_param":  0,
-                                             "log":  true,
-                                             "crit":  0,
-                                             "target_source":  2,
-                                             "amount":  "=50.0"
-                                         },
-                                         {
-                                             "type":  "knock",
-                                             "vertical_speed":  6.0,
-                                             "gravity":  9.8,
-                                             "direction_mode":  "FromAreaCenterToTarget",
-                                             "horizontal_speed":  6.0,
-                                             "duration_ms":  350,
-                                             "knock_priority":  100
                                          }
                                      ],
                          "priority":  50

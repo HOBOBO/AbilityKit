@@ -33,6 +33,16 @@ public sealed class RoomBattleInitSpecHasherTests
     }
 
     [Fact]
+    public void Compute_ReturnsDifferentHash_WhenContinueAfterAllPlayersDefeatedChanges()
+    {
+        var a = CreateParams();
+        var b = CreateParams();
+        b.ContinueAfterAllPlayersDefeated = true;
+
+        Assert.NotEqual(RoomBattleInitSpecHasher.Compute(a), RoomBattleInitSpecHasher.Compute(b));
+    }
+
+    [Fact]
     public void Compute_ReturnsSameHash_RegardlessOfPlayerOrder()
     {
         var player1 = CreatePlayer(1, "acc-1");

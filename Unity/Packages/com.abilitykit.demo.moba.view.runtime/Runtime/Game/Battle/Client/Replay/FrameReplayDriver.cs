@@ -9,14 +9,39 @@ using AbilityKit.Game.Battle.Requests;
 
 namespace AbilityKit.Game.Flow.Battle.Replay
 {
+    public interface IBattleReplayControl
+    {
+        bool IsReplaySession { get; }
+        bool IsPlaying { get; }
+        bool RenderPresentation { get; }
+        int CurrentFrame { get; }
+        int LastFrame { get; }
+        float PlaybackSpeed { get; set; }
+        string ReplayPath { get; }
+
+        bool TryLoad(string path, bool renderPresentation, out string error);
+        void Play();
+        void Pause();
+        bool StepForward();
+        bool StepBackward();
+        bool SeekToFrame(int frame);
+    }
+
+    public static class BattleReplayControlProvider
+    {
+        public static IBattleReplayControl Current { get; internal set; }
+    }
+
     public sealed class FrameReplayDriver
     {
         private readonly WorldId _worldId;
         private readonly List<FrameRecordInputFrame> _inputs;
         private readonly Dictionary<int, FrameRecordStateHashFrame> _expectedStateHashes;
+        private readonly int _lastFrame;
         private int _cursor;
         private bool _isPlaying;
         private bool _reportedHashMismatch;
+        private float _playbackSpeed = 1f;
 
         public FrameReplayDriver(WorldId worldId, FrameRecordFile file)
         {
@@ -32,15 +57,56 @@ namespace AbilityKit.Game.Flow.Battle.Replay
                     _expectedStateHashes[e.Frame] = e;
                 }
             }
+            _lastFrame = ResolveLastFrame(file);
             _cursor = 0;
             _isPlaying = true;
             _reportedHashMismatch = false;
         }
 
         public bool IsPlaying => _isPlaying;
+        public int LastFrame => _lastFrame;
+
+        public float PlaybackSpeed
+        {
+            get => _playbackSpeed;
+            set => _playbackSpeed = Math.Max(0.1f, Math.Min(8f, value));
+        }
 
         public void Play() => _isPlaying = true;
         public void Pause() => _isPlaying = false;
+
+        private static int ResolveLastFrame(FrameRecordFile file)
+        {
+            var lastFrame = 0;
+            if (file?.Inputs != null)
+            {
+                for (var i = 0; i < file.Inputs.Count; i++)
+                {
+                    var item = file.Inputs[i];
+                    if (item != null) lastFrame = Math.Max(lastFrame, item.Frame);
+                }
+            }
+
+            if (file?.StateHashes != null)
+            {
+                for (var i = 0; i < file.StateHashes.Count; i++)
+                {
+                    var item = file.StateHashes[i];
+                    if (item != null) lastFrame = Math.Max(lastFrame, item.Frame);
+                }
+            }
+
+            if (file?.Snapshots != null)
+            {
+                for (var i = 0; i < file.Snapshots.Count; i++)
+                {
+                    var item = file.Snapshots[i];
+                    if (item != null) lastFrame = Math.Max(lastFrame, item.Frame);
+                }
+            }
+
+            return lastFrame;
+        }
 
         public void SeekToStart()
         {
@@ -103,6 +169,11 @@ namespace AbilityKit.Game.Flow.Battle.Replay
         public void Pump(BattleLogicSession session, int targetFrame)
         {
             if (!_isPlaying) return;
+            PumpFrame(session, targetFrame);
+        }
+
+        internal void PumpFrame(BattleLogicSession session, int targetFrame)
+        {
             if (session == null) return;
 
             while (_cursor < _inputs.Count)

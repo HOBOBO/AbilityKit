@@ -7,6 +7,23 @@ using MO = AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 
 namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 {
+    public readonly struct MobaPreparedActorAttributes
+    {
+        public readonly AttributeGroup Group;
+        public readonly AttributeContext Context;
+        public readonly ResourceContainer Resources;
+
+        public MobaPreparedActorAttributes(
+            AttributeGroup group,
+            AttributeContext context,
+            ResourceContainer resources)
+        {
+            Group = group;
+            Context = context;
+            Resources = resources;
+        }
+    }
+
     public sealed class MobaActorAttributeInitializer
     {
         public void EnsureContainers(global::ActorEntity entity)
@@ -19,8 +36,18 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         public void ApplyTemplate(global::ActorEntity entity, MO.BattleAttributeTemplateMO template)
         {
             if (entity == null || template == null) return;
+            Apply(entity, Prepare(template));
+        }
 
-            var group = EnsureAttributeGroup(entity);
+        public MobaPreparedActorAttributes Prepare(MO.BattleAttributeTemplateMO template)
+        {
+            if (template == null)
+            {
+                throw new System.ArgumentNullException(nameof(template));
+            }
+
+            var context = new AttributeContext();
+            var group = context.GetOrCreateGroup("moba");
 
             group.SetBase(MobaAttributeIds.HP, template.Hp);
             group.SetBase(MobaAttributeIds.MAX_HP, template.MaxHp);
@@ -46,12 +73,37 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             group.SetBase(MobaAttributeIds.PER_SECOND_MANA_R, template.PerSecondManaR);
             group.SetBase(MobaAttributeIds.RESILIENCE_R, template.ResilienceR);
 
-            MarkAttributeGroupInitialized(entity, group);
-
-            var resources = EnsureResourceContainer(entity);
+            var resources = new ResourceContainer
+            {
+                Map = new Dictionary<ResourceType, ResourceState>()
+            };
             EnsureResource(resources, ResourceType.Hp, MobaAttributeIds.MAX_HP, template.Hp, template.MaxHp);
             EnsureResource(resources, ResourceType.Mana, MobaAttributeIds.MAX_MANA, template.Mana, template.MaxMana);
             EnsureResource(resources, ResourceType.Rage, default, 0f, 100f);
+            return new MobaPreparedActorAttributes(group, context, resources);
+        }
+
+        public void Apply(global::ActorEntity entity, in MobaPreparedActorAttributes prepared)
+        {
+            if (entity == null) return;
+
+            if (entity.hasAttributeGroup)
+            {
+                entity.ReplaceAttributeGroup(prepared.Group, prepared.Context);
+            }
+            else
+            {
+                entity.AddAttributeGroup(prepared.Group, prepared.Context);
+            }
+
+            if (entity.hasResourceContainer)
+            {
+                entity.ReplaceResourceContainer(prepared.Resources, true);
+            }
+            else
+            {
+                entity.AddResourceContainer(prepared.Resources, true);
+            }
         }
 
         private static AttributeGroup EnsureAttributeGroup(global::ActorEntity entity)

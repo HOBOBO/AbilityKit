@@ -73,18 +73,21 @@ namespace AbilityKit.Demo.Moba.Services
                 return bindResult;
             }
 
+            var gameplayPreparation = PrepareGameplay(effectiveReq.GameplayId);
+            if (!gameplayPreparation.Succeeded)
+            {
+                RollbackBuiltActors(built.PlayerActors);
+                return gameplayPreparation;
+            }
+
             var publishResult = PublishEnterGameSnapshots(in effectiveReq, in built, spawnEntries);
             if (!publishResult.Succeeded)
             {
+                _gameplay.CancelPreparedStart();
                 return publishResult;
             }
 
-            var gameplayStart = StartGameplay(effectiveReq.GameplayId);
-            if (!gameplayStart.Succeeded)
-            {
-                return gameplayStart;
-            }
-
+            CommitGameplay();
             MarkGameStarted();
             return MobaGameStartResult.Success;
         }
@@ -289,7 +292,7 @@ namespace AbilityKit.Demo.Moba.Services
             Log.Exception(exception, $"[MobaEnterGameFlowService] {operation} failed. {detail}");
         }
 
-        private MobaGameStartResult StartGameplay(int gameplayId)
+        private MobaGameStartResult PrepareGameplay(int gameplayId)
         {
             if (_gameplay == null)
             {
@@ -301,16 +304,24 @@ namespace AbilityKit.Demo.Moba.Services
                 return Fail(MobaGameStartFailureCode.InvalidGameplayId, $"gameplay id must be positive for formal battle start. gameplayId={gameplayId}");
             }
 
-            _gameplay.Start(gameplayId);
-            if (!_gameplay.IsRunning || _gameplay.CurrentGameplayId != gameplayId)
+            if (!_gameplay.TryPrepareStart(gameplayId, out var error))
             {
-                var detail = string.IsNullOrEmpty(_gameplay.LastStartFailureReason)
+                var detail = string.IsNullOrEmpty(error)
                     ? string.Empty
-                    : $", detail={_gameplay.LastStartFailureReason}";
-                return Fail(MobaGameStartFailureCode.GameplayStartFailed, $"gameplay start failed. gameplayId={gameplayId}, phase={_gameplay.Phase}, currentGameplayId={_gameplay.CurrentGameplayId}{detail}");
+                    : $", detail={error}";
+                return Fail(MobaGameStartFailureCode.GameplayStartFailed, $"gameplay preparation failed. gameplayId={gameplayId}, phase={_gameplay.Phase}, currentGameplayId={_gameplay.CurrentGameplayId}{detail}");
             }
 
             return MobaGameStartResult.Success;
+        }
+
+        private void CommitGameplay()
+        {
+            if (!_gameplay.CommitPreparedStart())
+            {
+                throw new InvalidOperationException(
+                    "prepared gameplay commit failed after snapshots were published");
+            }
         }
 
         private MobaGameStartResult BindPlayerActors(MobaPlayerActorEntry[] playerActors)

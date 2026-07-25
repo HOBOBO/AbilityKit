@@ -26,9 +26,18 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly IBattleDiagnosticStateStore _stateStore;
         private readonly Func<int> _frameProvider;
         private readonly Func<long> _timestampProvider;
+        private long _sampleFailureCount;
+        private int _lastSuccessfulSampleFrame = BattleDiagnosticFrames.Invalid;
+        private string _lastSampleError = string.Empty;
 
         [WorldInject(required: false)]
         private IFrameTime _frameTime = null;
+
+        [WorldInject(required: false)]
+        private MobaSkillCastRuntimeService _skillRuntimes = null;
+
+        [WorldInject(required: false)]
+        private MobaTraceRegistry _traceRegistry = null;
 
         [WorldInject(required: false)]
         private IBattleDiagnosticActorAttributeStore _attributeStore = null;
@@ -64,6 +73,21 @@ namespace AbilityKit.Demo.Moba.Services
             _frameProvider = frameProvider;
             _timestampProvider = timestampProvider ?? System.Diagnostics.Stopwatch.GetTimestamp;
         }
+
+        /// <summary>
+        /// 成功写入 State Store 的最后一帧；尚未成功采样时为 Invalid。
+        /// </summary>
+        public int LastSuccessfulSampleFrame => _lastSuccessfulSampleFrame;
+
+        /// <summary>
+        /// 进程内累计的采样失败次数，用于区分数据未产出与采样执行失败。
+        /// </summary>
+        public long SampleFailureCount => _sampleFailureCount;
+
+        /// <summary>
+        /// 最近一次采样异常的简短消息；成功采样后清空。
+        /// </summary>
+        public string LastSampleError => _lastSampleError;
 
         /// <summary>
         /// 执行一次完整的世界 + 角色状态采样。
@@ -155,8 +179,8 @@ namespace AbilityKit.Demo.Moba.Services
                     frame,
                     timestamp,
                     actors.Count,
-                    0,
-                    0);
+                    _skillRuntimes?.Count ?? 0,
+                    CountActiveTraceRoots());
 
                 if (!_stateStore.TryReplaceSnapshot(world, actors))
                 {
@@ -191,10 +215,14 @@ namespace AbilityKit.Demo.Moba.Services
                     return false;
                 }
 
+                _lastSuccessfulSampleFrame = frame;
+                _lastSampleError = string.Empty;
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                _sampleFailureCount++;
+                _lastSampleError = ex.GetType().Name + ": " + ex.Message;
                 return false;
             }
         }
@@ -645,6 +673,22 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f) return 0f;
             return value;
+        }
+
+        private int CountActiveTraceRoots()
+        {
+            if (_traceRegistry == null) return 0;
+
+            var activeRootCount = 0;
+            foreach (var root in _traceRegistry.GetActiveRoots())
+            {
+                if (root.ActiveCount > 0)
+                {
+                    activeRootCount++;
+                }
+            }
+
+            return activeRootCount;
         }
 
         private int ResolveFrame()

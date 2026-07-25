@@ -5,6 +5,8 @@ using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.ECS;
 using AbilityKit.Trace;
 
@@ -59,6 +61,36 @@ namespace AbilityKit.Demo.Moba.Services
                 if (!_units.TryResolve(new EcsEntityId(finalTargetActorId), out targetUnit) || targetUnit == null)
                 {
                     return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, $"Target not found. targetActorId={finalTargetActorId}.");
+                }
+            }
+
+            if (_services.TryResolve<MobaConfigDatabase>(out var configs)
+                && configs != null
+                && configs.TryGetSkill(skillId, out var skill)
+                && skill != null
+                && skill.RequiredTargetQueryId > 0)
+            {
+                if (!_services.TryResolve<SearchTargetService>(out var search) || search == null)
+                {
+                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "Required target search service is unavailable.");
+                }
+
+                var targets = new List<int>(1);
+                if (!search.TrySearchActorIds(
+                        skill.RequiredTargetQueryId,
+                        actorId,
+                        in casterPos,
+                        finalTargetActorId,
+                        targets)
+                    || targets.Count == 0)
+                {
+                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "No valid target is within cast range.");
+                }
+
+                finalTargetActorId = targets[0];
+                if (!_units.TryResolve(new EcsEntityId(finalTargetActorId), out targetUnit) || targetUnit == null)
+                {
+                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, $"Resolved target not found. targetActorId={finalTargetActorId}.");
                 }
             }
 

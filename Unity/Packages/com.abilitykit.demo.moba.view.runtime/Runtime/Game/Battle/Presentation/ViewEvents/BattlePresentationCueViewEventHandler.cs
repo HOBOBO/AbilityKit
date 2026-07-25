@@ -71,11 +71,17 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         private void Play(in BattlePresentationCueDecision decision, in PresentationCueData data)
         {
-            if (_activeByRequestKey.ContainsKey(decision.RequestKey)) return;
-
             var spawnRequest = decision.SpawnRequest;
             var position = ResolvePosition(in spawnRequest);
             var followTarget = ResolveFollowTarget(in spawnRequest);
+
+            if (_activeByRequestKey.TryGetValue(decision.RequestKey, out var existingId))
+            {
+                // Refresh: update existing VFX parameters instead of ignoring.
+                _spawner.Update(existingId, spawnRequest.Scale, spawnRequest.Radius, spawnRequest.DurationMsOverride);
+                return;
+            }
+
             if (_spawner.TrySpawn(spawnRequest.VfxId, in position, followTarget, spawnRequest.DurationMsOverride, spawnRequest.Scale, spawnRequest.Radius, out var entity))
             {
                 _activeByRequestKey[decision.RequestKey] = entity.Id;
@@ -212,6 +218,44 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             if (id == default) return;
 
             _vfx.DestroyVfxEntity(_ctx.EntityWorld, id);
+        }
+
+        /// <summary>
+        /// Updates an active VFX instance for a Cue refresh. A positive duration override
+        /// restarts the remaining visual lifetime; zero or negative values preserve it.
+        /// </summary>
+        public void Update(EC.IEntityId id, float scale, float radius, int durationMsOverride)
+        {
+            if (!id.IsValid) return;
+
+            ApplyPresentationScale(id, scale, radius);
+            RefreshLifetime(id, durationMsOverride);
+        }
+
+        private void RefreshLifetime(EC.IEntityId id, int durationMsOverride)
+        {
+            if (durationMsOverride <= 0) return;
+
+            var world = _ctx?.EntityWorld;
+            if (world == null || !world.IsAlive(id)) return;
+
+            var entity = world.Wrap(id);
+            if (!entity.TryGetRef(out BattleVfxLifetimeComponent lifetime) || lifetime == null) return;
+
+            lifetime.ExpireAtTime = Time.time + (durationMsOverride / 1000f);
+        }
+
+        private void ApplyPresentationScale(EC.IEntityId id, float scale, float radius)
+        {
+            if (!id.IsValid) return;
+            var world = _ctx.EntityWorld;
+            if (world == null || !world.IsAlive(id)) return;
+            var entity = world.Wrap(id);
+            if (!entity.TryGetRef(out BattleViewGameObjectComponent goComp) || goComp == null || goComp.GameObject == null) return;
+
+            var resolvedScale = scale > 0f ? scale : 1f;
+            var radiusScale = radius > 0f ? radius : 1f;
+            goComp.GameObject.transform.localScale = Vector3.one * resolvedScale * radiusScale;
         }
     }
 }

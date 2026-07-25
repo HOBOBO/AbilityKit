@@ -337,7 +337,7 @@
     },
     {
         "Id":  50050201,
-        "Name":  "妲己-偶像魅力-目标点锁定敌方查询",
+        "Name":  "妲己-偶像魅力-施法范围锁定敌方查询",
         "MaxCount":  1,
         "ExplicitTargetPolicy":  2,
         "Provider":  {
@@ -346,8 +346,8 @@
         "Rules":  [
                       {
                           "Kind":  257,
-                          "Center":  1,
-                          "Radius":  3.0
+                          "Center":  0,
+                          "Radius":  10.0
                       }
                   ],
         "Scorer":  {

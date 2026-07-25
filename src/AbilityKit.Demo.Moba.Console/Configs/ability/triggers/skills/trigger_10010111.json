@@ -19,7 +19,7 @@
         },
         {
           "type": "pull",
-          "speed": 7.0,
+          "speed": 7,
           "duration_ms": 300,
           "direction_mode": 2,
           "target_distance": 0,
@@ -30,7 +30,8 @@
           "message": "廉颇一技能：冲撞命中造成物理伤害并击飞目标",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

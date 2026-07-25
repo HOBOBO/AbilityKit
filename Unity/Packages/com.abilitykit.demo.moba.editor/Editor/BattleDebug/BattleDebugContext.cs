@@ -1,7 +1,10 @@
 using System;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.ECS;
 using AbilityKit.Game.Battle;
+using AbilityKit.Game.Editor.Diagnostics;
 
 namespace AbilityKit.Game.Editor
 {
@@ -13,7 +16,13 @@ namespace AbilityKit.Game.Editor
             IUnitFacade selectedUnit,
             Action requestRepaint,
             Action<long> selectActor = null,
-            Action<long, long> openTrace = null)
+            Action<long, long> openTrace = null,
+            Action<long> openEvents = null,
+            Func<int, bool> seekReplayFrame = null,
+            IBattleDiagnosticReadOnlySession diagnosticSession = null,
+            MobaSkillCastRuntimeService skillRuntimeService = null,
+            BattleDebugDiagnosticSessionResolution diagnosticResolution = default,
+            bool isOffline = false)
         {
             Facade = facade;
             SelectedId = selectedId;
@@ -21,6 +30,12 @@ namespace AbilityKit.Game.Editor
             RequestRepaint = requestRepaint;
             SelectActor = selectActor;
             OpenTrace = openTrace;
+            OpenEvents = openEvents;
+            SeekReplayFrame = seekReplayFrame;
+            DiagnosticSession = diagnosticSession;
+            SkillRuntimeService = skillRuntimeService;
+            DiagnosticResolution = diagnosticResolution;
+            IsOffline = isOffline;
         }
 
         public IBattleDebugFacade Facade { get; }
@@ -29,7 +44,14 @@ namespace AbilityKit.Game.Editor
         public Action RequestRepaint { get; }
         public Action<long> SelectActor { get; }
         public Action<long, long> OpenTrace { get; }
+        public Action<long> OpenEvents { get; }
+        public Func<int, bool> SeekReplayFrame { get; }
+        public IBattleDiagnosticReadOnlySession DiagnosticSession { get; }
+        public MobaSkillCastRuntimeService SkillRuntimeService { get; }
+        public BattleDebugDiagnosticSessionResolution DiagnosticResolution { get; }
+        public bool IsOffline { get; }
 
-        public bool HasSelection => SelectedId.IsValid && SelectedUnit != null;
+        public bool HasSelection => SelectedId.IsValid;
+        public bool HasRuntimeSelection => SelectedId.IsValid && SelectedUnit != null;
     }
 }

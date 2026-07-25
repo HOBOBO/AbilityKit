@@ -330,6 +330,25 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaSkillCastResult StartPreparedCast(int actorId, int skillId, in SkillCastPreparationResult prepared)
         {
             var ctx = prepared.Context;
+
+            // Combat rules gate: reject cast if caster is dead/stunned/silenced.
+            // Previously CanCastSkill was defined in MobaCombatRulesService but never called
+            // — dead/stunned/silenced actors could still start skill pipelines.
+            // This check closes that gap. See ability-kit skill invariants for background.
+            if (_services != null && _services.TryResolve<MobaCombatRulesService>(out var combatRules) && combatRules != null)
+            {
+                var ruleResult = combatRules.CanCastSkill(actorId);
+                if (!ruleResult.Passed)
+                {
+                    var combatFailure = new MobaSkillCastFailure(
+                        "CombatRules",
+                        "StartPreparedCast",
+                        $"combat.{ruleResult.Failure}",
+                        ruleResult.Message);
+                    return new MobaSkillCastResult(false, ruleResult.Message, in ctx.RuntimeHandle, in combatFailure);
+                }
+            }
+
             var req = prepared.Request;
             var runner = _runnerRegistry.GetOrCreate(actorId);
             var policy = _policyResolver.Resolve(skillId, _castPolicy);
@@ -367,6 +386,26 @@ namespace AbilityKit.Demo.Moba.Services
             return MobaSkillCastResult.From(success, failReason, in ctx.RuntimeHandle, in failure);
         }
 
+        // CD Refund 策略（2026-07-20 确定）：
+        //
+        // 当前行为已经是竞技级 MOBA 的合理默认——CD 只在 pipeline 成功启动后扣（success==true），
+        // 失败/被拦截时不扣。具体场景：
+        //
+        // 1. 起手被状态拦截（CanCastSkill 返回 Dead/Stunned/Silenced）：
+        //    → 不进入 runner.Start → 不扣 CD。玩家无成本重试。✅ 已由 CanCastSkill 检查保证。
+        //
+        // 2. pipeline 启动失败（runner.Start 返回 false）：
+        //    → ApplyConfiguredCooldown 不被调用 → 不扣 CD。✅ 已由 success 分支保证。
+        //
+        // 3. 运行中被硬控打断（stun/silence 中断正在飞的施法）：
+        //    → CD 已扣，**不退**。竞技级惯例：惩罚被打断的位置差，避免"无成本试探"。
+        //
+        // 4. 主动切换技能打断（玩家施放另一个技能取消当前施法）：
+        //    → CD 已扣，**不退**。避免频繁切换无成本。
+        //
+        // 如果未来游戏设计需要不同的 refund 策略（如"被硬控打断退 50% CD"），
+        // 在 ForceTerminate 的 RollbackCleanup 分支或 SkillPipelineRunner.Interrupt
+        // 路径加 MobaSkillRuntimeAccess.TryResetSkillCooldown 调用即可。
         private void ApplyConfiguredCooldown(int actorId, int skillId, in SkillCastPreparationResult prepared)
         {
             var slot = prepared.Request.SkillSlot;

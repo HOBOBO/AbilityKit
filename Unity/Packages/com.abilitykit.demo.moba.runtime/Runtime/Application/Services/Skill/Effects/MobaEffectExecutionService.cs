@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Core.Serialization;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Core.Logging;
 using AbilityKit.Effect;
@@ -363,19 +362,21 @@ namespace AbilityKit.Demo.Moba.Services
             var request = conditionContext.ToExecutionRequest(triggerId);
             if (_executionBudget.TryEnter(in request, out token, out var block)) return true;
 
+            CollectTriggerAnalysisBudgetBlocked(triggerId, in conditionContext, in block);
             Log.Warning($"[MobaEffectExecutionService] Trigger execution blocked. reason={block.Reason}, triggerId={triggerId}, frame={request.Frame}, depth={block.CurrentDepth}, frameCount={block.CurrentFrameCount}, rootCount={block.CurrentRootCount}, sameTriggerCount={block.CurrentSameTriggerCount}, rootContextId={request.RootContextId}, parentContextId={request.ParentContextId}, sourceActorId={request.SourceActorId}, targetActorId={request.TargetActorId}");
             return false;
         }
 
-        private bool EvaluateTriggerConditions(int triggerId, in MobaTriggerConditionContext conditionContext)
+        private MobaTriggerConditionCheckResult EvaluateTriggerConditions(int triggerId, in MobaTriggerConditionContext conditionContext)
         {
-            if (_triggerConditions == null || !_triggerConditions.HasConditions(triggerId)) return true;
-
-            var result = _triggerConditions.Evaluate(triggerId, in conditionContext);
-            if (result.Passed) return true;
+            var result = _triggerConditions == null || !_triggerConditions.HasConditions(triggerId)
+                ? MobaTriggerConditionCheckResult.Pass
+                : _triggerConditions.Evaluate(triggerId, in conditionContext);
+            CollectTriggerAnalysisCondition(triggerId, in conditionContext, in result);
+            if (result.Passed) return result;
 
             Log.Warning($"[MobaEffectExecutionService] Trigger condition failed. triggerId={triggerId}, reason={result.Reason}, failureKey={result.FailureKey}, rootContextId={conditionContext.RootContextId}, sourceActorId={conditionContext.SourceActorId}, targetActorId={conditionContext.TargetActorId}");
-            return false;
+            return result;
         }
 
         private static int ToTraceEndReason(bool executed)
@@ -537,8 +538,10 @@ namespace AbilityKit.Demo.Moba.Services
 
             using (var session = BeginExecutionSession(effectId, effectId, in executionContext, in lineageInput, in plan, in budgetToken))
             {
-                var conditionsPassed = EvaluateTriggerConditions(effectId, in conditionContext);
+                var conditionResult = EvaluateTriggerConditions(effectId, in conditionContext);
+                var conditionsPassed = conditionResult.Passed;
                 var planExecuted = conditionsPassed && TryExecutePlanByTriggerId(effectId, wrappedContext);
+                if (conditionsPassed) CollectTriggerAnalysisPlan(effectId, in conditionContext, planExecuted, detailCode: 1);
                 if (!planExecuted)
                 {
                     var hasFrameTime = _services != null && _services.TryResolve<IFrameTime>(out var frameTime) && frameTime != null;
@@ -612,7 +615,8 @@ namespace AbilityKit.Demo.Moba.Services
 
             using (var session = BeginExecutionSession(triggerId, triggerId, in executionContext, in lineageInput, in plan, in budgetToken))
             {
-                var conditionsPassed = EvaluateTriggerConditions(triggerId, in conditionContext);
+                var conditionResult = EvaluateTriggerConditions(triggerId, in conditionContext);
+                var conditionsPassed = conditionResult.Passed;
                 if (conditionsPassed)
                 {
                     var actionCtx = new ExecCtx<IWorldResolver>(
@@ -630,6 +634,7 @@ namespace AbilityKit.Demo.Moba.Services
                         ctx.Control,
                         ctx.ActionSchedulerManager);
                     trigger.Execute(in args, in actionCtx);
+                    CollectTriggerAnalysisExecution(triggerId, in conditionContext, true, detailCode: 3);
                 }
 
                 session.Complete(conditionsPassed);
@@ -651,10 +656,12 @@ namespace AbilityKit.Demo.Moba.Services
 
             using (var session = BeginExecutionSession(triggerId, triggerId, in executionContext, in lineageInput, in plan, in budgetToken))
             {
-                var conditionsPassed = EvaluateTriggerConditions(triggerId, in conditionContext);
+                var conditionResult = EvaluateTriggerConditions(triggerId, in conditionContext);
+                var conditionsPassed = conditionResult.Passed;
                 var planExecuted = conditionsPassed && (predicateMissIsSuccess
                     ? TryExecutePlanByTriggerId(triggerId, payload)
                     : PlanExecutor.ExecuteRulePlan(triggerId, payload));
+                if (conditionsPassed) CollectTriggerAnalysisPlan(triggerId, in conditionContext, planExecuted, predicateMissIsSuccess ? 1 : 2);
                 if (!planExecuted)
                 {
                     var hasFrameTime = _services != null && _services.TryResolve<IFrameTime>(out var frameTime) && frameTime != null;
@@ -666,6 +673,120 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         // ===== 诊断 Producer：Effect 执行生命周期草稿提交 =====
+
+        private void CollectTriggerAnalysisBudgetBlocked(
+            int triggerId,
+            in MobaTriggerConditionContext conditionContext,
+            in MobaTriggerExecutionBlock block)
+        {
+            CollectTriggerAnalysis(
+                triggerId,
+                in conditionContext,
+                BattleDiagnosticTriggerAnalysisStage.Budget,
+                BattleDiagnosticTriggerAnalysisResult.Blocked,
+                (int)block.Reason,
+                block.CurrentDepth,
+                block.CurrentFrameCount,
+                block.CurrentRootCount,
+                block.CurrentSameTriggerCount,
+                block.Reason.ToString(),
+                "Trigger execution budget rejected the request.");
+        }
+
+        private void CollectTriggerAnalysisCondition(
+            int triggerId,
+            in MobaTriggerConditionContext conditionContext,
+            in MobaTriggerConditionCheckResult result)
+        {
+            CollectTriggerAnalysis(
+                triggerId,
+                in conditionContext,
+                BattleDiagnosticTriggerAnalysisStage.Conditions,
+                result.Passed
+                    ? BattleDiagnosticTriggerAnalysisResult.Passed
+                    : BattleDiagnosticTriggerAnalysisResult.Failed,
+                0,
+                failureKey: result.FailureKey,
+                reason: result.Reason);
+        }
+
+        private void CollectTriggerAnalysisPlan(
+            int triggerId,
+            in MobaTriggerConditionContext conditionContext,
+            bool executed,
+            int detailCode)
+        {
+            CollectTriggerAnalysis(
+                triggerId,
+                in conditionContext,
+                BattleDiagnosticTriggerAnalysisStage.Plan,
+                executed
+                    ? BattleDiagnosticTriggerAnalysisResult.Passed
+                    : BattleDiagnosticTriggerAnalysisResult.Failed,
+                detailCode,
+                failureKey: executed ? string.Empty : "planReturnedFalse",
+                reason: executed ? string.Empty : "Trigger plan executor returned false.");
+        }
+
+        private void CollectTriggerAnalysisExecution(
+            int triggerId,
+            in MobaTriggerConditionContext conditionContext,
+            bool executed,
+            int detailCode)
+        {
+            CollectTriggerAnalysis(
+                triggerId,
+                in conditionContext,
+                BattleDiagnosticTriggerAnalysisStage.Execution,
+                executed
+                    ? BattleDiagnosticTriggerAnalysisResult.Passed
+                    : BattleDiagnosticTriggerAnalysisResult.Failed,
+                detailCode,
+                failureKey: executed ? string.Empty : "executionFailed",
+                reason: executed ? string.Empty : "Trigger execution failed.");
+        }
+
+        private void CollectTriggerAnalysis(
+            int triggerId,
+            in MobaTriggerConditionContext conditionContext,
+            BattleDiagnosticTriggerAnalysisStage stage,
+            BattleDiagnosticTriggerAnalysisResult result,
+            int detailCode,
+            int currentDepth = 0,
+            int currentFrameCount = 0,
+            int currentRootCount = 0,
+            int currentSameTriggerCount = 0,
+            string failureKey = "",
+            string reason = "")
+        {
+            if (_eventCollector == null) return;
+
+            try
+            {
+                var draft = MobaEffectDiagnosticProducer.CreateTriggerAnalysisDraft(
+                    triggerId,
+                    (int)conditionContext.ContextKind,
+                    (int)conditionContext.OriginKind,
+                    stage,
+                    result,
+                    conditionContext.SourceActorId,
+                    conditionContext.TargetActorId,
+                    conditionContext.ParentContextId,
+                    conditionContext.RootContextId,
+                    detailCode,
+                    currentDepth,
+                    currentFrameCount,
+                    currentRootCount,
+                    currentSameTriggerCount,
+                    failureKey,
+                    reason);
+                _eventCollector.TryCollect(in draft);
+            }
+            catch (Exception)
+            {
+                // 诊断提交失败不应影响效果执行流程，静默吞掉异常。
+            }
+        }
 
         private void CollectEffectStarted(EffectExecutionTraceScope traceScope, in MobaEffectLineageInput lineageInput)
         {

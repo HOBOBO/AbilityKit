@@ -26,6 +26,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(accepted, Is.False);
             Assert.That(collector.LastSequence, Is.Zero);
             Assert.That(collector.Store.Count, Is.Zero);
+            Assert.That(collector.CollectFailureCount, Is.Zero);
+            Assert.That(collector.LastCollectError, Is.Empty);
         }
 
         [Test]
@@ -66,10 +68,14 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             Assert.That(collector.TryCollect(in draft), Is.False);
             Assert.That(collector.LastSequence, Is.Zero);
+            Assert.That(collector.CollectFailureCount, Is.EqualTo(1));
+            StringAssert.Contains("rejected", collector.LastCollectError);
 
             collector.Store.SetFrozen(false);
             Assert.That(collector.TryCollect(in draft), Is.True);
             Assert.That(QueryAll(collector)[0].Sequence, Is.EqualTo(1));
+            Assert.That(collector.CollectFailureCount, Is.EqualTo(1));
+            Assert.That(collector.LastCollectError, Is.Empty);
         }
 
         [Test]
@@ -86,6 +92,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(collector.TryCollect(in draft), Is.False);
             Assert.That(collector.LastSequence, Is.Zero);
             Assert.That(collector.Store.Count, Is.Zero);
+            Assert.That(collector.CollectFailureCount, Is.EqualTo(2));
+            StringAssert.Contains("frame failed", collector.LastCollectError);
         }
 
         [TestCase(MobaSkillTriggering.Events.CastStart, BattleDiagnosticEventKind.SkillRuntimeStarted, BattleDiagnosticEventOutcome.None)]

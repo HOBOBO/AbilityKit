@@ -24,7 +24,8 @@
           "message": "小乔三技能：周期搜敌并在目标位置生成延迟落星区域",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

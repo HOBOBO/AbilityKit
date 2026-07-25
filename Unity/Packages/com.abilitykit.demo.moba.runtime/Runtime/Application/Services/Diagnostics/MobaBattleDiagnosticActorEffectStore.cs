@@ -8,8 +8,10 @@ namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(IBattleDiagnosticActorEffectStore), WorldLifetime.Scoped)]
     [WorldService(typeof(IBattleDiagnosticActorEffectReadStore), WorldLifetime.Scoped)]
+    [WorldService(typeof(IBattleDiagnosticEffectSnapshotSource), WorldLifetime.Scoped)]
     public sealed class MobaBattleDiagnosticActorEffectStore :
         IBattleDiagnosticActorEffectStore,
+        IBattleDiagnosticEffectSnapshotSource,
         IService
     {
         private readonly BattleDiagnosticActorEffectStore _store;
@@ -31,6 +33,11 @@ namespace AbilityKit.Demo.Moba.Services
             System.Collections.Generic.IReadOnlyList<BattleDiagnosticActorEffect> effects)
         {
             return _store.TryReplaceSnapshot(frame, actorIds, effects);
+        }
+
+        public BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorEffect> CaptureEffectSnapshot()
+        {
+            return _store.CaptureEffectSnapshot();
         }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticActorEffect> QueryActorEffects(

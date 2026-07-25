@@ -32,7 +32,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         void Clear();
     }
 
-    public sealed class BattleDiagnosticStateStore : IBattleDiagnosticStateStore
+    public sealed class BattleDiagnosticStateStore :
+        IBattleDiagnosticStateStore,
+        IBattleDiagnosticStateSnapshotSource
     {
         private BattleDiagnosticWorldSummary _world;
         private List<BattleDiagnosticActorSummary> _actors;
@@ -134,6 +136,16 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             _world = default;
             _actors.Clear();
             _revision++;
+        }
+
+        public BattleDiagnosticStateTrackSnapshot CaptureStateSnapshot()
+        {
+            var world = HasWorld ? _world : (BattleDiagnosticWorldSummary?)null;
+            return new BattleDiagnosticStateTrackSnapshot(
+                _revision,
+                SnapshotFrame,
+                world,
+                new List<BattleDiagnosticActorSummary>(_actors));
         }
 
         public BattleDiagnosticWorldSummary? QueryWorld(int frame)

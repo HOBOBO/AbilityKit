@@ -25,6 +25,8 @@ namespace AbilityKit.Game.Battle.Transport
         public int SubmitInputRetryFrameLead = 2;
 
         public uint OpFramePushed;
+		public uint OpSnapshotPushed;
+		public uint OpDeltaSnapshotPushed;
 
         public Func<object, ArraySegment<byte>> SerializeCreateWorld;
         public Func<object, ArraySegment<byte>> SerializeJoin;
@@ -34,6 +36,8 @@ namespace AbilityKit.Game.Battle.Transport
         public Func<ArraySegment<byte>, NetworkSubmitInputResponse> DeserializeSubmitInputResponse;
 
         public Func<ArraySegment<byte>, AbilityKit.Ability.Host.FramePacket> DeserializeFramePushed;
+		public Func<ArraySegment<byte>, object> DeserializeSnapshotPushed;
+		public Action<int> OnSubmitInputAck;
     }
 
     public readonly struct NetworkSubmitInputResponse

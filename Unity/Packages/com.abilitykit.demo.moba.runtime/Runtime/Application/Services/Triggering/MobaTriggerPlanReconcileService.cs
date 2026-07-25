@@ -55,12 +55,15 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                 }
             }
 
-            _triggers.CopyActiveOwnerKeys(_tmpKeys);
+            _tmpKeys.Clear();
+            foreach (var ownerKey in _hashByOwnerKey.Keys)
+            {
+                if (!_desiredKeys.Contains(ownerKey)) _tmpKeys.Add(ownerKey);
+            }
+
             for (int i = 0; i < _tmpKeys.Count; i++)
             {
                 var ownerKey = _tmpKeys[i];
-                if (_desiredKeys.Contains(ownerKey)) continue;
-
                 _triggers.StopOwnerBoundTriggers(ownerKey, "ongoing.reconcile.stale");
                 _hashByOwnerKey.Remove(ownerKey);
             }

@@ -15,6 +15,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int[] Tags;
 
         public int SkillButtonTemplateId;
+        public int RequiredTargetQueryId;
 
         public int LevelTableId;
         public int PreCastFlowId;
@@ -141,6 +142,14 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int TimeoutMs;
         public bool CompleteOnTimeout = true;
         public int[] ObservedSlots;
+        public SkillWaitConditionArgumentDTO[] Arguments;
+    }
+
+    [Serializable]
+    public sealed class SkillWaitConditionArgumentDTO
+    {
+        public string Name;
+        public string Value;
     }
 
     [Serializable]

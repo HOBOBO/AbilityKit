@@ -1,8 +1,8 @@
+using MemoryPack;
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Serialization;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Battle.Features;
@@ -309,7 +309,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
         public static byte[] Serialize(int slot, SkillInputPhase phase, Vec3 aimPos = default)
         {
             var evt = new SkillInputEvent(slot, phase, aimPos: in aimPos);
-            return BinaryObjectCodec.Encode(evt);
+            return MemoryPackSerializer.Serialize(evt);
         }
     }
 }

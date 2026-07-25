@@ -12,7 +12,9 @@
       "actions": [
         {
           "type": "add_buff",
-          "buffIds": [10010000],
+          "buffIds": [
+            10010000
+          ],
           "target_self": true,
           "duration_ms": 1500
         },
@@ -31,7 +33,8 @@
           "message": "廉颇一技能：霸体并向指向方向冲锋，移动过程命中触发判定",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

@@ -83,6 +83,37 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void ZhaoYunSkills_ResolveDedicatedMechanicMatchedIndicators()
+        {
+            var resolver = new BattleHudSkillButtonTemplateResolver();
+            var zhaoYun = CreateLoadout("zhaoyun", 1003, 10030001, 10030101, 10030201, 10030301);
+
+            Assert.IsTrue(resolver.TryResolveSkill(zhaoYun, 1, out _, out var skill1Template, out var skill1Spec));
+            Assert.AreEqual(8, skill1Template.Id);
+            Assert.AreEqual(BattleHudSkillPreviewShape.None, skill1Spec.PreviewShape);
+            Assert.AreEqual(SkillAimIndicatorShape.Hidden, skill1Spec.IndicatorShape);
+            Assert.IsFalse(skill1Spec.EnableAim);
+
+            Assert.IsTrue(resolver.TryResolveSkill(zhaoYun, 2, out _, out var skill2Template, out var skill2Spec));
+            Assert.AreEqual(9, skill2Template.Id);
+            Assert.AreEqual(BattleHudSkillPreviewShape.DirectionArea, skill2Spec.PreviewShape);
+            Assert.AreEqual(SkillAimIndicatorShape.DirectionArea, skill2Spec.IndicatorShape);
+            Assert.AreEqual(6f, skill2Spec.Range, 0.0001f);
+            Assert.AreEqual(3.5f, skill2Spec.Width, 0.0001f);
+            Assert.IsTrue(skill2Spec.EnableAim);
+            Assert.AreEqual(SkillAimMode.Direction, skill2Spec.AimMode);
+
+            Assert.IsTrue(resolver.TryResolveSkill(zhaoYun, 3, out _, out var skill3Template, out var skill3Spec));
+            Assert.AreEqual(10, skill3Template.Id);
+            Assert.AreEqual(4.5f, skill3Template.IndicatorWorldWidth, 0.0001f);
+            Assert.AreEqual(BattleHudSkillPreviewShape.TargetCircle, skill3Spec.PreviewShape);
+            Assert.AreEqual(SkillAimIndicatorShape.TargetCircle, skill3Spec.IndicatorShape);
+            Assert.AreEqual(12f, skill3Spec.Range, 0.0001f);
+            Assert.AreEqual(4.5f, skill3Spec.Radius, 0.0001f);
+            Assert.IsTrue(skill3Spec.UsesTargetPoint);
+        }
+
+        [Test]
         public void TargetPointHeroes_ResolveSharedAimSemanticsFromTemplate()
         {
             var resolver = new BattleHudSkillButtonTemplateResolver();

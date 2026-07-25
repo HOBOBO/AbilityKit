@@ -12,7 +12,9 @@
       "actions": [
         {
           "type": "add_buff",
-          "buffIds": [10010000],
+          "buffIds": [
+            10010000
+          ],
           "target_self": true,
           "duration_ms": 1500
         },
@@ -21,7 +23,8 @@
           "message": "廉颇被动触发：添加霸体战意与防御韧性状态",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

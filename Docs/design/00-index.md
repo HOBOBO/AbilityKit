@@ -220,6 +220,7 @@ flowchart TB
 | [08-Pipeline 与 Ability Runtime](08-GameplayModules/08-PipelineAndAbilityRuntime.md) | 通用执行运行时 | Pipeline run/phase 生命周期、实例隔离、暂停/取消/中断、Instant 差异、Ability 服务与 MOBA 特化边界 |
 | [09-EntityManager 与 SkillLibrary 索引基础设施](08-GameplayModules/09-EntityAndSkillIndexing.md) | 战斗索引 | 实体显式键、技能派生键、主存储通知顺序、非事务一致性、比较器边界与成熟度证据 |
 | [10-Motion Pipeline 与约束求解](08-GameplayModules/10-MotionPipeline.md) | 移动组合内核 | source 组内选择、跨组抑制、solver/leash/collision、事件时序、source 快照、池化所有权与确定性边界 |
+| [11-Continuous 框架接口设计](08-GameplayModules/11-ContinuousFrameworkDesign.md) | Continuous 接口设计 | IContinuous、IContinuousManager、最小配置+可选扩展、Stack/Periodic/Cue/Tag/Modifier 五种运行时模型、与 Triggering/Behavior/Buff 的协作边界 |
 
 ### 09 示例与验收
 
@@ -247,6 +248,9 @@ flowchart TB
 | [03.17-MOBA 领域连续运行时与临时实体生命周期](09-ImplementationExamples/MOBA/16-DomainContinuousRuntimeAndTemporaryEntityLifecycle.md) | 领域运行时 | Motion source、motion.hit、Summon owner/root-owner、容量策略、trace、despawn 与 gameplay trigger 绑定 |
 | [03.18-MOBA 主动、被动、Buff、Projectile 与 AOE 触发效果设计](09-ImplementationExamples/MOBA/17-ActivePassiveBuffProjectileAoeTriggerEffects.md) | 触发效果链路 | 主动技能、被动 owner-bound、Buff 生命周期、Projectile stage、AOE stage 到 TriggerPlan 与领域服务的完整链路 |
 | [03.19-MOBA 技能 Flow 与 Pipeline 配置设计](09-ImplementationExamples/MOBA/18-SkillFlowPipelineConfigDesign.md) | 技能 Flow 配置 | skills.json、skill_flows.json、Phase Type、Timeline、RulePlan、Sequence、WaitUntil 与 Pipeline 持续标签模板 |
+| [03.20-MOBA Runtime 战斗逻辑层深潜](09-ImplementationExamples/MOBA/19-MobaRuntimeLogicLayerDeepDive.md) | 战斗逻辑层设计 | 职责边界、输入→ECS Component 链路、快照路由、System/Service 分工、DI 注册体系与单元测试 |
+| [03.21-MOBA Runtime 战斗逻辑层实战指南](../../../AbilityKit战斗逻辑层设计草稿.md) | 实战指南（与 19 号互补） | 框架能力组合全景图、6 种扩展模式（0 代码到 50 行代码）、11 个实战反模式 + 修复路径、7 步上手流程 + 接入里程碑 |
+| [03.22-Console Demo Bootstrap 与 FeatureHost 装配链路深潜](09-ImplementationExamples/MOBA/20-ConsoleDemoBootstrapAndFeatureDeepDive.md) | Console Demo 装配 | ConsoleBattleBootstrapper 完整初始化顺序、FeatureHost attach/tick/detach 生命周期、三种 SyncAdapter 边界、AutoTestInputFeature 替换链路、.akrec 录制回放格式 |
 | [04-Shooter Demo 与 Orleans Smoke](09-ImplementationExamples/04-Shooter%20Demo%20与%20Orleans%20Smoke.md) | Shooter 总览 | Shooter Runtime/Svelto、packed/pure-state snapshot、客户端同步控制器、Unity PlayMode 远程宿主、连接恢复、Gateway/Orleans 与 Smoke/replay 验收 |
 | [04.1-Shooter 专题总览](09-ImplementationExamples/Shooter/00-Overview.md) | Shooter 导航 | Shooter 示例拆分阅读入口 |
 | [04.2-Shooter Runtime、Svelto 装配与恢复边界](09-ImplementationExamples/Shooter/01-RuntimeSveltoSimulation.md) | Shooter 运行时 | Blueprint/WorldModule 装配、RuntimePort 生命周期、完整 Tick 边界、Svelto 结构提交、实体容量与 packed full/delta 恢复语义 |
@@ -380,6 +384,8 @@ flowchart TB
 | 2026-07-15 | 2.45 | 第十批既有 canonical 周期复核：更新 Entitas contexts/Systems/DI 生命周期、组合失败与释放缺口、自动安装和 Reactive 所有权、MOBA 生产接入；修正跨 ECS 查询的候选索引、低分配、实时状态、结构修改与确定性边界 |
 | 2026-07-15 | 2.46 | 第十一批既有 canonical 周期复核：修正 Timer 参数、异常、分配、非正 period、周期 duration 与完成回调边界；补齐 HFSM 转移优先级、pending 覆盖、初始化失败、生产接入、Graph builder 缺口和测试成熟度 |
 | 2026-07-15 | 2.47 | 第十二批既有 canonical 周期复核：纠正 Event 退订/Global API、snapshot/once 重入、异常与字符串释放缺陷；补齐 ObjectPool 锁内回调、失败非事务、manager 线程边界、旧 release handle、PooledObject 重复归还、配置固化及成熟度证据 |
+| 2026-07-22 | 2.48 | 第十三批新增 canonical：MOBA Runtime 战斗逻辑层（职责边界、输入输出、System/Service 分工、DI、单元测试）、Console Demo Bootstrap 与 FeatureHost 链路深潜、Continuous 框架接口设计（IContinuous 五种运行时模型）；新增 03.20/03.21 专题 |
+| 2026-07-22 | 2.49 | 第十四批新增 canonical：Continuous 框架接口设计（11-ContinuousFrameworkDesign.md）移入 08-GameplayModules 目录，完善 IContinuous/Manager/Policy/Binder 体系；新增 08.11 专题 |
 
 ---
 

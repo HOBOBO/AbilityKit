@@ -13,7 +13,9 @@
       "actions": [
         {
           "type": "add_buff",
-          "buffIds": [10010000],
+          "buffIds": [
+            10010000
+          ],
           "target_self": true,
           "duration_ms": 1500
         },
@@ -52,7 +54,8 @@
           "max": 100,
           "target_payload_field": "attacker_actor_id"
         }
-      ]
+      ],
+      "scope": "owner"
     },
     {
       "id": 10010002,
@@ -82,7 +85,8 @@
           "max": 100,
           "target_payload_field": "target_actor_id"
         }
-      ]
+      ],
+      "scope": "owner"
     },
     {
       "id": 10010003,
@@ -105,7 +109,8 @@
           "reason_param": 10010000,
           "target_self": true
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

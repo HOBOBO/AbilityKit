@@ -30,7 +30,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
                 Frame = frame,
                 Hash = hash
             };
-            return WireSerializer.Serialize(in payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static MobaStateHashSnapshotPayload Deserialize(byte[] payload)
@@ -38,7 +38,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
             if (payload == null || payload.Length == 0)
                 return default;
 
-            return WireSerializer.Deserialize<MobaStateHashSnapshotPayload>(payload);
+            return MemoryPackSerializer.Deserialize<MobaStateHashSnapshotPayload>(payload);
         }
     }
 }

@@ -34,7 +34,7 @@ namespace AbilityKit.Game.Flow
                 hierarchy: hierarchy);
 
             AreaVfxPool = BattleAreaVfxPool.UsingFactory(
-                (templateId, kind) => CreateAreaPoolObject(resources, templateId, kind),
+                (templateId, kind) => BattleAreaPoolObjectFactory.Create(resources, templateId, kind),
                 hierarchy: hierarchy,
                 capacityPerKindPerTemplate: 8);
             CameraController = new BattleViewCameraController(BattleCameraConfig.Default);
@@ -58,30 +58,6 @@ namespace AbilityKit.Game.Flow
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = $"ShellFallback_{modelId}";
             return go;
-        }
-
-        private static GameObject CreateAreaPoolObject(
-            BattleViewResourceProvider resources,
-            int templateId,
-            BattleAreaVfxPool.PoolKind kind)
-        {
-            if (resources == null) return null;
-
-            var aoe = resources.TryGetAoe(templateId);
-            switch (kind)
-            {
-                case BattleAreaVfxPool.PoolKind.Model:
-                    return resources.CreateModelGo(templateId);
-                case BattleAreaVfxPool.PoolKind.Range:
-                    return resources.CreateAoeRangeGo(
-                        templateId,
-                        aoe != null ? aoe.Radius : 1f,
-                        aoe != null ? aoe.DelayMs : 0);
-                case BattleAreaVfxPool.PoolKind.Vfx:
-                    return resources.CreateVfxGo(aoe != null ? aoe.VfxId : templateId);
-                default:
-                    return null;
-            }
         }
 
         public void OnDetach(in GamePhaseContext ctx)

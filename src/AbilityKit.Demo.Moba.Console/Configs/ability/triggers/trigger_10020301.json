@@ -12,7 +12,9 @@
       "actions": [
         {
           "type": "add_buff",
-          "buffIds": [10020301],
+          "buffIds": [
+            10020301
+          ],
           "target_self": true
         },
         {
@@ -20,7 +22,8 @@
           "message": "小乔三技能：添加持续落星状态",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

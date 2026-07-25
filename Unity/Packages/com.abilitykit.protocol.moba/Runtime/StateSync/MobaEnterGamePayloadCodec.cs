@@ -28,7 +28,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
         public static byte[] Serialize(in Vec3 pos)
         {
             var p = new MobaEnterGamePayload { X = pos.X, Y = pos.Y, Z = pos.Z };
-            return WireSerializer.Serialize(in p);
+            return MemoryPackSerializer.Serialize(p);
         }
 
         public static bool TryDeserializePosition(int opCode, byte[] payload, out Vec3 pos)
@@ -47,7 +47,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
 
             try
             {
-                var p = WireSerializer.Deserialize<MobaEnterGamePayload>(payload);
+                var p = MemoryPackSerializer.Deserialize<MobaEnterGamePayload>(payload);
                 pos = p.ToVec3();
                 return true;
             }

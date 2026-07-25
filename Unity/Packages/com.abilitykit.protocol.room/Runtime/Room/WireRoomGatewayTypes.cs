@@ -355,6 +355,9 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(7)] public float Hp { get; set; }
         [MemoryPackOrder(8)] public float HpMax { get; set; }
         [MemoryPackOrder(9)] public int TeamId { get; set; }
+        [MemoryPackOrder(10)] public int Kind { get; set; }
+        [MemoryPackOrder(11)] public int Code { get; set; }
+        [MemoryPackOrder(12)] public int OwnerNetId { get; set; }
     }
 
     [MemoryPackable]

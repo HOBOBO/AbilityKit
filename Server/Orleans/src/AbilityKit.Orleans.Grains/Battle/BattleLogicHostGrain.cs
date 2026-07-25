@@ -30,7 +30,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private readonly Dictionary<IStateSyncObserverGrain, BattleStateSyncObserverContext> _observerContexts = new();
     private readonly BattleSnapshotSyncPolicy _snapshotSyncPolicy = new();
     private readonly BattleSnapshotPublisher<IStateSyncObserverGrain, StateSyncPush> _snapshotPublisher;
-    private readonly List<Task> _pendingSnapshotDeliveries = new();
+    private readonly Dictionary<IStateSyncObserverGrain, SnapshotDeliveryInFlight> _snapshotDeliveries = new();
     private readonly Dictionary<uint, ulong> _consumedCommandSequences = new();
 
     private IDisposable? _timer;
@@ -164,14 +164,16 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _reliableEvents = new ReliableBattleEventRetention(_battleId, Guid.NewGuid().ToString("N"));
 
         _logger.LogInformation(
-            "[BattleLogicHost] Initializing battle - BattleId: {BattleId}, RoomType: {RoomType}, WorldId: {WorldId}, TickRate: {TickRate}, Players: {PlayerCount}, SyncMode: {SyncMode}, SyncTemplate: {SyncTemplate}",
+            "[BattleLogicHost] Initializing battle - BattleId: {BattleId}, RoomType: {RoomType}, WorldId: {WorldId}, TickRate: {TickRate}, Players: {PlayerCount}, SyncMode: {SyncMode}, SyncTemplate: {SyncTemplate}, DurationFrames: {DurationFrames}, VictoryTargetDefeats: {VictoryTargetDefeats}",
             _battleId,
             module.RoomType,
             _worldId,
             _tickRate,
             initParams.Players?.Count ?? 0,
             syncTemplate.Mode,
-            _syncTemplateId);
+            _syncTemplateId,
+            initParams.DurationFrames,
+            initParams.VictoryTargetDefeats);
 
         var adapter = _runtimeRegistry.Resolve(module.RoomType);
         _runtimeSession = adapter.CreateSession(_battleId);
@@ -341,9 +343,13 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         }
 
         var result = _runtimeSession.JoinPlayer(request, _battleHostState.Frame);
-        if (result.Accepted)
+        if (ShouldBroadcastFullSnapshotAfterPlayerJoin(result))
         {
             PushSnapshot(isFullSnapshot: true);
+        }
+
+        if (result.Accepted)
+        {
             _logger.LogInformation(
                 "[BattleLogicHost] Player joined running battle. BattleId: {BattleId}, WorldId: {WorldId}, PlayerId: {PlayerId}, IsBot: {IsBot}",
                 _battleId,
@@ -473,7 +479,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             _ = ObserveReliableEventDeliveryAsync(observer, replay);
         }
 
-        PushSnapshot(isFullSnapshot: true);
+        PushSnapshotTo(observer, isFullSnapshot: true);
         return Task.CompletedTask;
     }
 
@@ -516,7 +522,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         }
 
         _observerContexts[observer] = CreateObserverContext(observerInfo);
-        _snapshotPublisher.PublishTo(observer, _battleHostState.Frame, isFullSnapshot: true);
+        PushSnapshotTo(observer, isFullSnapshot: true);
         return Task.CompletedTask;
     }
 
@@ -616,7 +622,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         };
         foreach (var observer in _observerRegistry.Snapshot())
         {
-            await observer.OnReliableEventsPushedAsync(batch);
+            _ = ObserveReliableEventDeliveryAsync(observer, batch);
         }
     }
 
@@ -672,6 +678,15 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private void PushSnapshot(bool isFullSnapshot)
     {
         PushSnapshot(_battleHostState.Frame, isFullSnapshot);
+    }
+
+    private void PushSnapshotTo(IStateSyncObserverGrain observer, bool isFullSnapshot)
+    {
+        _snapshotPublisher.PublishTo(
+            observer,
+            _battleHostState.Frame,
+            isFullSnapshot,
+            BuildStateSyncPush);
     }
 
     private void PushSnapshot(int frame, bool isFullSnapshot)
@@ -781,7 +796,13 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
     private void SendStateSyncPush(IStateSyncObserverGrain observer, StateSyncPush push)
     {
-        _pendingSnapshotDeliveries.Add(ObserveSnapshotDeliveryAsync(observer, push));
+        if (_snapshotDeliveries.TryGetValue(observer, out var inFlight))
+        {
+            inFlight.Pending = CoalescePendingSnapshot(inFlight.Pending, push);
+            return;
+        }
+
+        _snapshotDeliveries.Add(observer, new SnapshotDeliveryInFlight(ObserveSnapshotDeliveryAsync(observer, push)));
     }
 
     private async Task ObserveReliableEventDeliveryAsync(
@@ -811,14 +832,47 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         }
     }
 
-    private async Task FlushSnapshotDeliveriesAsync()
+    private Task FlushSnapshotDeliveriesAsync()
     {
-        if (_pendingSnapshotDeliveries.Count == 0)
-            return;
+        if (_snapshotDeliveries.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
 
-        var deliveries = _pendingSnapshotDeliveries.ToArray();
-        _pendingSnapshotDeliveries.Clear();
-        await Task.WhenAll(deliveries);
+        foreach (var pair in _snapshotDeliveries.ToArray())
+        {
+            if (!pair.Value.Delivery.IsCompleted)
+            {
+                continue;
+            }
+
+            if (pair.Value.Pending is { } pending)
+            {
+                pair.Value.Delivery = ObserveSnapshotDeliveryAsync(pair.Key, pending);
+                pair.Value.Pending = null;
+                continue;
+            }
+
+            _snapshotDeliveries.Remove(pair.Key);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    internal static bool ShouldBroadcastFullSnapshotAfterPlayerJoin(BattlePlayerJoinResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        return false;
+    }
+
+    internal static StateSyncPush CoalescePendingSnapshot(StateSyncPush? current, StateSyncPush candidate)
+    {
+        if (current == null || candidate.IsFullSnapshot || !current.IsFullSnapshot)
+        {
+            return candidate;
+        }
+
+        return current;
     }
 
     private void HandleSnapshotDeliveryResult(
@@ -860,7 +914,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _runtimeSession?.Dispose();
         _runtimeSession = null;
         _observerContexts.Clear();
-        _pendingSnapshotDeliveries.Clear();
+        _snapshotDeliveries.Clear();
         _battleId = string.Empty;
         _worldId = 0;
         _initialized = false;
@@ -872,6 +926,18 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _inputAdmissionGuard.Clear();
         _consumedCommandSequences.Clear();
         _battleHostState.Reset();
+    }
+
+    private sealed class SnapshotDeliveryInFlight
+    {
+        public SnapshotDeliveryInFlight(Task delivery)
+        {
+            Delivery = delivery;
+        }
+
+        public Task Delivery { get; set; }
+
+        public StateSyncPush? Pending { get; set; }
     }
 }
 

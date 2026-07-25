@@ -19,7 +19,9 @@
         },
         {
           "type": "add_buff",
-          "buffIds": [10050000],
+          "buffIds": [
+            10050000
+          ],
           "duration_ms": 3000
         },
         {
@@ -27,7 +29,8 @@
           "message": "妲己三技能女王崇拜：狐火命中造成法术伤害并叠加失心",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     },
     {
       "id": 10050314,

@@ -194,7 +194,7 @@ namespace AbilityKit.Protocol.Shooter
 
         public static byte[] Serialize(in ShooterPackedSnapshotPayload snapshot)
         {
-            return WireSerializer.Serialize(in snapshot);
+            return MemoryPackSerializer.Serialize(snapshot);
         }
 
         public static ShooterPackedSnapshotPayload Deserialize(byte[] payload)
@@ -206,7 +206,7 @@ namespace AbilityKit.Protocol.Shooter
 
             try
             {
-                var value = WireSerializer.Deserialize<ShooterPackedSnapshotPayload>(payload);
+                var value = MemoryPackSerializer.Deserialize<ShooterPackedSnapshotPayload>(payload);
                 return new ShooterPackedSnapshotPayload(
                     value.Version,
                     value.WorldId,
@@ -221,7 +221,7 @@ namespace AbilityKit.Protocol.Shooter
             }
             catch (EndOfStreamException)
             {
-                var legacy = WireSerializer.Deserialize<ShooterLegacyPackedSnapshotPayload>(payload);
+                var legacy = MemoryPackSerializer.Deserialize<ShooterLegacyPackedSnapshotPayload>(payload);
                 return new ShooterPackedSnapshotPayload(
                     legacy.Version,
                     legacy.WorldId,

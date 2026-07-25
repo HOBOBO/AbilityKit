@@ -35,7 +35,9 @@
         "AbilityKit.Trace",
         "AbilityKit.Context",
         "AbilityKit.Diagnostics",
-        "AbilityKit.Demo.Moba.Diagnostics.Core"
+        "AbilityKit.Demo.Moba.Diagnostics.Core",
+        "AbilityKit.Game.Battle.Transport.Runtime",
+        "MemoryPack"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

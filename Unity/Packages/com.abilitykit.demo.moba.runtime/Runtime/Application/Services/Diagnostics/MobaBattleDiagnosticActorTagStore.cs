@@ -8,8 +8,10 @@ namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(IBattleDiagnosticActorTagStore), WorldLifetime.Scoped)]
     [WorldService(typeof(IBattleDiagnosticActorTagReadStore), WorldLifetime.Scoped)]
+    [WorldService(typeof(IBattleDiagnosticTagSnapshotSource), WorldLifetime.Scoped)]
     public sealed class MobaBattleDiagnosticActorTagStore :
         IBattleDiagnosticActorTagStore,
+        IBattleDiagnosticTagSnapshotSource,
         IService
     {
         private readonly BattleDiagnosticActorTagStore _store;
@@ -31,6 +33,11 @@ namespace AbilityKit.Demo.Moba.Services
             System.Collections.Generic.IReadOnlyList<BattleDiagnosticActorTag> tags)
         {
             return _store.TryReplaceSnapshot(frame, actorIds, tags);
+        }
+
+        public BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorTag> CaptureTagSnapshot()
+        {
+            return _store.CaptureTagSnapshot();
         }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticActorTag> QueryActorTags(

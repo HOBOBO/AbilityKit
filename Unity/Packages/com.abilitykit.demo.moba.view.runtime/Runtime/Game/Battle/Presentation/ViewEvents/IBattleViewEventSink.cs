@@ -24,6 +24,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries);
 
         void OnPresentationCueSnapshot(ISnapshotEnvelope packet, PresentationCueData[] entries);
+
+        void Tick();
     }
 }
 

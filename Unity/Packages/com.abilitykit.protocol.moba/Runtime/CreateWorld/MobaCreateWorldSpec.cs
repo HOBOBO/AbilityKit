@@ -1,5 +1,4 @@
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Serialization;
 using MemoryPack;
 
 namespace AbilityKit.Protocol.Moba
@@ -7,15 +6,15 @@ namespace AbilityKit.Protocol.Moba
     [MemoryPackable]
     public readonly partial struct MobaCreateWorldSpec
     {
-        [MemoryPackOrder(0), BinaryMember(0)] public readonly string MatchId;
-        [MemoryPackOrder(1), BinaryMember(1)] public readonly int MapId;
+        [MemoryPackOrder(0)] public readonly string MatchId;
+        [MemoryPackOrder(1)] public readonly int MapId;
 
-        [MemoryPackOrder(2), BinaryMember(2)] public readonly int RandomSeed;
-        [MemoryPackOrder(3), BinaryMember(3)] public readonly int TickRate;
-        [MemoryPackOrder(4), BinaryMember(4)] public readonly int InputDelayFrames;
+        [MemoryPackOrder(2)] public readonly int RandomSeed;
+        [MemoryPackOrder(3)] public readonly int TickRate;
+        [MemoryPackOrder(4)] public readonly int InputDelayFrames;
 
-        [MemoryPackOrder(5), BinaryMember(5)] public readonly MobaPlayerLoadout[] Players;
-        [MemoryPackOrder(6), BinaryMember(6)] public readonly int GameplayId;
+        [MemoryPackOrder(5)] public readonly MobaPlayerLoadout[] Players;
+        [MemoryPackOrder(6)] public readonly int GameplayId;
 
         [MemoryPackConstructor]
         public MobaCreateWorldSpec(string matchId, int mapId, int randomSeed, int tickRate, int inputDelayFrames, MobaPlayerLoadout[] players, int gameplayId = 0)

@@ -10,11 +10,38 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "add_shield", "shield_id": 10060201, "shield_value": 400, "absorb_ratio": 1.0, "duration_ms": 3000, "priority": 20, "target_self": true, "stacking_policy": 1, "consume_policy": 0 },
-        { "type": "add_buff", "buffIds": [10060201], "target_self": true },
-        { "type": "spawn_area", "area_id": 40060201, "position_mode": 1, "radius": 3.5, "duration_ms": 700 },
-        { "type": "debug_log", "message": "嬴政二技能：获得护盾与移速加成，并以目标点为中心生成范围爆炸", "dump_args": false }
-      ]
+        {
+          "type": "add_shield",
+          "shield_id": 10060201,
+          "shield_value": 400,
+          "absorb_ratio": 1,
+          "duration_ms": 3000,
+          "priority": 20,
+          "target_self": true,
+          "stacking_policy": 1,
+          "consume_policy": 0
+        },
+        {
+          "type": "add_buff",
+          "buffIds": [
+            10060201
+          ],
+          "target_self": true
+        },
+        {
+          "type": "spawn_area",
+          "area_id": 40060201,
+          "position_mode": 1,
+          "radius": 3.5,
+          "duration_ms": 700
+        },
+        {
+          "type": "debug_log",
+          "message": "嬴政二技能：获得护盾与移速加成，并以目标点为中心生成范围爆炸",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

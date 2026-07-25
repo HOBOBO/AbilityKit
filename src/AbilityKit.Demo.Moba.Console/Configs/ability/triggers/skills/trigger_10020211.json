@@ -10,10 +10,29 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "give_damage", "damage_value": 100, "damage_type": 2, "reason_param": 10020201, "target_query_id": 50020201, "target_max_count": 10 },
-        { "type": "pull", "speed": 8.0, "duration_ms": 500, "direction_mode": 2, "target_distance": 0, "priority": 110 },
-        { "type": "debug_log", "message": "小乔二技能：区域命中造成法术伤害并击飞目标", "dump_args": false }
-      ]
+        {
+          "type": "give_damage",
+          "damage_value": 100,
+          "damage_type": 2,
+          "reason_param": 10020201,
+          "target_query_id": 50020201,
+          "target_max_count": 10
+        },
+        {
+          "type": "pull",
+          "speed": 8,
+          "duration_ms": 500,
+          "direction_mode": 2,
+          "target_distance": 0,
+          "priority": 110
+        },
+        {
+          "type": "debug_log",
+          "message": "小乔二技能：区域命中造成法术伤害并击飞目标",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

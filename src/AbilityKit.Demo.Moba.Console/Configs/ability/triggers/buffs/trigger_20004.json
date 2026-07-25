@@ -1,21 +1,22 @@
 {
-    "triggers": [
+  "triggers": [
+    {
+      "id": 20004,
+      "name": "Trigger_20004",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
         {
-            "id": 20004,
-            "name": "Trigger_20004",
-            "event": "",
-            "enabled": true,
-            "allowExternal": false,
-            "phase": "immediate",
-            "priority": 50,
-            "conditions": [],
-            "actions": [
-                {
-                    "message": "被动日志输出11111",
-                    "dump_args": false,
-                    "type": "debug_log"
-                }
-            ]
+          "message": "被动日志输出11111",
+          "dump_args": false,
+          "type": "debug_log"
         }
-    ]
+      ],
+      "scope": "owner"
+    }
+  ]
 }

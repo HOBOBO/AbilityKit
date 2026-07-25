@@ -46,6 +46,7 @@ namespace AbilityKit.Game.Battle.Agent
         private readonly List<GatewayStateSyncActorSnapshot> _actors = new List<GatewayStateSyncActorSnapshot>();
         private readonly Dictionary<int, GatewayStateSyncActorSnapshot> _fromById = new Dictionary<int, GatewayStateSyncActorSnapshot>();
         private readonly HashSet<int> _emitted = new HashSet<int>();
+        private GatewayStateSyncActorSnapshot[] _cachedArray;
 
         /// <summary>
         /// Produces a snapshot whose actors are linearly interpolated between the two bracketing
@@ -101,16 +102,17 @@ namespace AbilityKit.Game.Battle.Agent
             return BuildSnapshot(to, _actors);
         }
 
-        private static GatewayStateSyncSnapshot BuildSnapshot(MobaRemoteSnapshotSample meta, IReadOnlyList<GatewayStateSyncActorSnapshot> actors)
+        private GatewayStateSyncSnapshot BuildSnapshot(MobaRemoteSnapshotSample meta, IReadOnlyList<GatewayStateSyncActorSnapshot> actors)
         {
             var array = actors as GatewayStateSyncActorSnapshot[];
             if (array == null)
             {
-                array = new GatewayStateSyncActorSnapshot[actors.Count];
-                for (int i = 0; i < actors.Count; i++)
-                {
-                    array[i] = actors[i];
-                }
+                var count = actors.Count;
+                if (_cachedArray == null || _cachedArray.Length < count)
+                    _cachedArray = new GatewayStateSyncActorSnapshot[count];
+                for (int i = 0; i < count; i++)
+                    _cachedArray[i] = actors[i];
+                array = _cachedArray;
             }
 
             return new GatewayStateSyncSnapshot(
@@ -144,7 +146,10 @@ namespace AbilityKit.Game.Battle.Agent
                 InterpolationMath.Lerp(from.VelocityZ, to.VelocityZ, alpha),
                 InterpolationMath.Lerp(from.Hp, to.Hp, alpha),
                 to.HpMax,
-                to.TeamId);
+                to.TeamId,
+                to.Kind,
+                to.Code,
+                to.OwnerNetId);
         }
     }
 }

@@ -55,22 +55,33 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public BattleDiagnosticEventQuery(
             long requestId,
             BattleDiagnosticFilter filter,
-            BattleDiagnosticPageRequest page)
+            BattleDiagnosticPageRequest page,
+            bool newestFirst = false,
+            int recentFrameCount = 0)
         {
             if (requestId <= 0) throw new ArgumentOutOfRangeException(nameof(requestId));
+            if (recentFrameCount < 0) throw new ArgumentOutOfRangeException(nameof(recentFrameCount));
 
             RequestId = requestId;
             Filter = filter;
             Page = page;
+            NewestFirst = newestFirst;
+            RecentFrameCount = recentFrameCount;
         }
 
         public long RequestId { get; }
         public BattleDiagnosticFilter Filter { get; }
         public BattleDiagnosticPageRequest Page { get; }
+        public bool NewestFirst { get; }
+        public int RecentFrameCount { get; }
 
         public bool Equals(BattleDiagnosticEventQuery other)
         {
-            return RequestId == other.RequestId && Filter.Equals(other.Filter) && Page.Equals(other.Page);
+            return RequestId == other.RequestId &&
+                   Filter.Equals(other.Filter) &&
+                   Page.Equals(other.Page) &&
+                   NewestFirst == other.NewestFirst &&
+                   RecentFrameCount == other.RecentFrameCount;
         }
 
         public override bool Equals(object obj)
@@ -85,6 +96,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 var hashCode = RequestId.GetHashCode();
                 hashCode = (hashCode * 397) ^ Filter.GetHashCode();
                 hashCode = (hashCode * 397) ^ Page.GetHashCode();
+                hashCode = (hashCode * 397) ^ NewestFirst.GetHashCode();
+                hashCode = (hashCode * 397) ^ RecentFrameCount;
                 return hashCode;
             }
         }

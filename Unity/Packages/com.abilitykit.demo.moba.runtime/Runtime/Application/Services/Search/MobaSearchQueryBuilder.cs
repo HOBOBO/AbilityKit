@@ -62,18 +62,8 @@ namespace AbilityKit.Demo.Moba.Services.Search
             }
 
             var explicitPolicy = (SearchQueryExplicitTargetPolicy)template.ExplicitTargetPolicy;
-            if (explicitTargetActorId > 0 && explicitPolicy == SearchQueryExplicitTargetPolicy.PreferExplicitTarget)
-            {
-                var explicitRules = BuildDefaultRules(casterActorId);
-                query = new SearchQuery(
-                    provider: new SingleActorCandidateProvider(explicitTargetActorId),
-                    rules: explicitRules,
-                    scorer: _zeroScorer,
-                    selector: _topKSelector,
-                    maxCount: 1);
-                return true;
-            }
-
+            var preferExplicitTarget = explicitTargetActorId > 0
+                && explicitPolicy == SearchQueryExplicitTargetPolicy.PreferExplicitTarget;
             var buildContext = new MobaTargetQueryBuildContext(
                 _actors,
                 _allActorsProvider,
@@ -85,7 +75,9 @@ namespace AbilityKit.Demo.Moba.Services.Search
                 _topKSelector,
                 _streamingTopKSelector);
 
-            var provider = _factories.CreateSource(template.Provider, in buildContext);
+            var provider = preferExplicitTarget
+                ? new SingleActorCandidateProvider(explicitTargetActorId)
+                : _factories.CreateSource(template.Provider, in buildContext);
 
             _rules.Clear();
             AddDefaultRules(casterActorId);
@@ -101,23 +93,16 @@ namespace AbilityKit.Demo.Moba.Services.Search
                 _rules.Add(_factories.CreateFilter(ruleConfig, in buildContext));
             }
 
-            var scorer = _factories.CreateOrder(template.Scorer, in buildContext);
-            var selector = _factories.CreateSelect(template.Selector, in buildContext);
+            var scorer = preferExplicitTarget ? _zeroScorer : _factories.CreateOrder(template.Scorer, in buildContext);
+            var selector = preferExplicitTarget ? _topKSelector : _factories.CreateSelect(template.Selector, in buildContext);
 
             query = new SearchQuery(
                 provider: provider,
                 rules: _rules,
                 scorer: scorer,
                 selector: selector,
-                maxCount: maxCount);
+                maxCount: preferExplicitTarget ? 1 : maxCount);
             return true;
-        }
-
-        private IReadOnlyList<ITargetRule> BuildDefaultRules(int casterActorId)
-        {
-            _rules.Clear();
-            AddDefaultRules(casterActorId);
-            return _rules.Count > 0 ? _rules : ExplicitTargetRules;
         }
 
         private void AddDefaultRules(int casterActorId)

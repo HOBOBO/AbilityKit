@@ -22,7 +22,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
         public static byte[] Serialize(float x, float z)
         {
             var payload = new MobaMovePayload { X = x, Z = z };
-            return WireSerializer.Serialize(in payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static void Deserialize(byte[] payload, out float x, out float z)
@@ -34,7 +34,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
                 return;
             }
 
-            var p = WireSerializer.Deserialize<MobaMovePayload>(payload);
+            var p = MemoryPackSerializer.Deserialize<MobaMovePayload>(payload);
             x = p.X;
             z = p.Z;
         }
@@ -53,7 +53,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
 
             try
             {
-                var p = WireSerializer.Deserialize<MobaMovePayload>(payload);
+                var p = MemoryPackSerializer.Deserialize<MobaMovePayload>(payload);
                 x = p.X;
                 z = p.Z;
                 return true;

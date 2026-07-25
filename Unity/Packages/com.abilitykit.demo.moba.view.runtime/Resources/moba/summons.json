@@ -3,7 +3,7 @@
     "Id": 1,
     "Name": "小兵",
     "UnitSubType": 1,
-    "ModelId": 1,
+    "ModelId": 1001,
     "AttributeTemplateId": 1001,
     "LifetimeMs": 60000,
     "DespawnOnOwnerDie": true,

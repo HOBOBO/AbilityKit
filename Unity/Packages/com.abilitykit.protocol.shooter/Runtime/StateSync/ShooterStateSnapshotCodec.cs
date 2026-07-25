@@ -175,12 +175,12 @@ namespace AbilityKit.Protocol.Shooter
     {
         public static byte[] Serialize(in ShooterStateSnapshotPayload snapshot)
         {
-            return WireSerializer.Serialize(in snapshot);
+            return MemoryPackSerializer.Serialize(snapshot);
         }
 
         public static byte[] SerializeEvent(in ShooterEventSnapshot battleEvent)
         {
-            return WireSerializer.Serialize(in battleEvent);
+            return MemoryPackSerializer.Serialize(battleEvent);
         }
 
         public static ShooterEventSnapshot DeserializeEvent(byte[] payload)
@@ -190,7 +190,7 @@ namespace AbilityKit.Protocol.Shooter
                 throw new ArgumentException("Reliable battle event payload is required.", nameof(payload));
             }
 
-            return WireSerializer.Deserialize<ShooterEventSnapshot>(payload);
+            return MemoryPackSerializer.Deserialize<ShooterEventSnapshot>(payload);
         }
 
         public static ShooterStateSnapshotPayload Deserialize(byte[] payload)
@@ -200,7 +200,7 @@ namespace AbilityKit.Protocol.Shooter
                 return new ShooterStateSnapshotPayload(0, Array.Empty<ShooterPlayerSnapshot>(), Array.Empty<ShooterBulletSnapshot>(), Array.Empty<ShooterEventSnapshot>());
             }
 
-            var value = WireSerializer.Deserialize<ShooterStateSnapshotPayload>(payload);
+            var value = MemoryPackSerializer.Deserialize<ShooterStateSnapshotPayload>(payload);
             return new ShooterStateSnapshotPayload(
                 value.Frame,
                 value.Players ?? Array.Empty<ShooterPlayerSnapshot>(),

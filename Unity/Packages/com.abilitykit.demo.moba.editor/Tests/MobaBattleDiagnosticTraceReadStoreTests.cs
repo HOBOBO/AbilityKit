@@ -60,6 +60,32 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void CaptureTraceSnapshot_ExportsAllRootsInTreePreOrderWithStableRevision()
+        {
+            var collector = MakeCollector();
+            var registry = new MobaTraceRegistry();
+            var firstRootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501);
+            var firstChildId = registry.CreateChildContext(
+                firstRootId,
+                MobaTraceKind.SkillPhase,
+                502);
+            var secondRootId = registry.CreateRootContext(MobaTraceKind.EffectExecution, 503);
+            var store = new MobaBattleDiagnosticTraceReadStore(registry, collector.Store);
+
+            var snapshot = store.CaptureTraceSnapshot();
+            registry.CreateChildContext(secondRootId, MobaTraceKind.EffectAction, 504);
+
+            Assert.That(snapshot.Revision, Is.EqualTo(3));
+            Assert.That(snapshot.IsStable, Is.True);
+            Assert.That(snapshot.Truncated, Is.False);
+            Assert.That(snapshot.Nodes.Count, Is.EqualTo(3));
+            Assert.That(snapshot.Nodes[0].ContextId, Is.EqualTo(firstRootId));
+            Assert.That(snapshot.Nodes[1].ContextId, Is.EqualTo(firstChildId));
+            Assert.That(snapshot.Nodes[2].ContextId, Is.EqualTo(secondRootId));
+            Assert.That(snapshot.Nodes[1].ParentContextId, Is.EqualTo(firstRootId));
+        }
+
+        [Test]
         public void Registry_FrameZeroEnd_RemainsExplicitlyEndedAcrossSnapshotsAndExport()
         {
             var registry = new MobaTraceRegistry();

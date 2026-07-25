@@ -6,13 +6,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Reference Include="AbilityKit.Ability.Runtime">
-      <HintPath>..\..\Library\ScriptAssemblies\AbilityKit.Ability.Runtime.dll</HintPath>
+    <Reference Include="AbilityKit.HotReload">
+      <HintPath>..\..\Library\ScriptAssemblies\AbilityKit.HotReload.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <Reference Include="AbilityKit.World.DI">
+      <HintPath>..\..\Library\ScriptAssemblies\AbilityKit.World.DI.dll</HintPath>
       <Private>false</Private>
     </Reference>
 
     <Reference Include="Entitas">
-      <HintPath>..\..\Packages\com.abilitykit.thirdparty.entitas.runtime\Entitas\Entitas.dll</HintPath>
+      <HintPath>..\..\Packages\com.abilitykit.thirdparty.entitas\Entitas\Entitas.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>

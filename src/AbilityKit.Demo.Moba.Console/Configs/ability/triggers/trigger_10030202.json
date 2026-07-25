@@ -33,7 +33,8 @@
           "message": "赵云二技能二档增强：龙鸣二档触发更大范围突刺区域",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     },
     {
       "id": 10030203,
@@ -68,7 +69,8 @@
           "message": "赵云二技能三档增强：龙鸣三档触发最大范围突刺区域",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

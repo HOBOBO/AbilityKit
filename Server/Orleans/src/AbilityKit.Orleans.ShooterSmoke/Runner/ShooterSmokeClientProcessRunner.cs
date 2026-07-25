@@ -142,7 +142,21 @@ internal static class ShooterSmokeClientProcessRunner
         var launchSpec = CreateRoomLaunchSpec(
             options.ClientId,
             options.RoomMaxPlayers,
-            options.BattleDurationFrames);
+            options.BattleDurationFrames,
+            options.BattleVictoryTargetDefeats,
+            options.ContinueAfterAllPlayersDefeated);
+        if (options.Mode == ShooterSmokeClientProcessMode.Create)
+        {
+            launchSpec.Tags.TryGetValue(ShooterRoomLaunchTagKeys.DurationFrames, out var durationFramesTag);
+            launchSpec.Tags.TryGetValue(ShooterRoomLaunchTagKeys.VictoryTargetDefeats, out var victoryTargetDefeatsTag);
+            Console.WriteLine(
+                $"SHOOTER_MP_LAUNCH_SPEC clientId=\"{Escape(options.ClientId)}\" " +
+                $"battleDurationFrames={options.BattleDurationFrames} " +
+                $"battleVictoryTargetDefeats={options.BattleVictoryTargetDefeats} " +
+                $"durationFramesTag=\"{Escape(durationFramesTag ?? string.Empty)}\" " +
+                $"victoryTargetDefeatsTag=\"{Escape(victoryTargetDefeatsTag ?? string.Empty)}\"");
+        }
+
         var launched = options.Mode == ShooterSmokeClientProcessMode.Create
             ? await launcher.CreateReadyStartAndSubscribeAsync(
                 options.Host,
@@ -223,7 +237,7 @@ internal static class ShooterSmokeClientProcessRunner
             resultTimeout).ConfigureAwait(false);
 
         var deliveryMetrics = await GetStateSyncDeliveryMetricsAsync(
-            connection,
+            launched.GatewayConnection,
             login.SessionToken,
             launched.Flow.RoomId,
             launched.Flow.BattleId,
@@ -629,11 +643,15 @@ internal static class ShooterSmokeClientProcessRunner
     private static ShooterRoomLaunchSpec CreateRoomLaunchSpec(
         string clientId,
         int roomMaxPlayers,
-        int battleDurationFrames)
+        int battleDurationFrames,
+        int battleVictoryTargetDefeats,
+        bool continueAfterAllPlayersDefeated)
     {
         var defaults = ShooterRoomLaunchSpec.CreateDefault(clientId);
         if (roomMaxPlayers <= 0
-            && battleDurationFrames <= 0)
+            && battleDurationFrames <= 0
+            && battleVictoryTargetDefeats <= 0
+            && !continueAfterAllPlayersDefeated)
         {
             return defaults;
         }
@@ -642,6 +660,14 @@ internal static class ShooterSmokeClientProcessRunner
         if (battleDurationFrames > 0)
         {
             tags[ShooterRoomLaunchTagKeys.DurationFrames] = battleDurationFrames.ToString(CultureInfo.InvariantCulture);
+        }
+        if (battleVictoryTargetDefeats > 0)
+        {
+            tags[ShooterRoomLaunchTagKeys.VictoryTargetDefeats] = battleVictoryTargetDefeats.ToString(CultureInfo.InvariantCulture);
+        }
+        if (continueAfterAllPlayersDefeated)
+        {
+            tags[ShooterRoomLaunchTagKeys.ContinueAfterAllPlayersDefeated] = bool.TrueString;
         }
 
         return new ShooterRoomLaunchSpec(
@@ -743,13 +769,12 @@ internal static class ShooterSmokeClientProcessRunner
     }
 
     private static async Task<WireGetStateSyncDeliveryMetricsRes> GetStateSyncDeliveryMetricsAsync(
-        AbilityKit.Network.Abstractions.IConnection connection,
+        IShooterRoomGatewayRequestTransport transport,
         string sessionToken,
         string roomId,
         string battleId,
         TimeSpan timeout)
     {
-        using var requestClient = new RequestClient(connection);
         var request = new WireGetStateSyncDeliveryMetricsReq
         {
             SessionToken = sessionToken,
@@ -757,7 +782,7 @@ internal static class ShooterSmokeClientProcessRunner
             BattleId = battleId
         };
         var payload = WireRoomGatewayBinary.Serialize(in request);
-        var responsePayload = await requestClient.SendRequestAsync(
+        var responsePayload = await transport.SendRequestAsync(
             RoomGatewayOpCodes.GetStateSyncDeliveryMetrics,
             payload,
             timeout).ConfigureAwait(false);
@@ -987,6 +1012,12 @@ internal static class ShooterSmokeClientProcessRunner
                     .ConfigureAwait(false);
             }
 
+            soakTelemetry.TryCompleteRecovery(
+                getFullBaselinesApplied(),
+                getResyncRequests(),
+                getComparableFrame(),
+                getComparableHashMatched());
+
             if (metricsTask != null && metricsTask.IsCompleted)
             {
                 try
@@ -1015,7 +1046,7 @@ internal static class ShooterSmokeClientProcessRunner
                 && now >= nextSampleAtUtc)
             {
                 metricsTask = GetStateSyncDeliveryMetricsAsync(
-                    connection,
+                    launched.GatewayConnection,
                     sessionToken,
                     roomId,
                     battleId,
@@ -1480,6 +1511,8 @@ internal readonly record struct ShooterSmokeClientProcessOptions(
     string ClientId,
     int RoomMaxPlayers,
     int BattleDurationFrames,
+    int BattleVictoryTargetDefeats,
+    bool ContinueAfterAllPlayersDefeated,
     int InputCount,
     int Seed,
     TimeSpan Timeout,

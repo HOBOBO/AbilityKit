@@ -81,6 +81,22 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void DisabledSelfCircle_RetainsClickCastPreviewWithoutEnablingAim()
+        {
+            var (resolver, skill, template) = BuildResolver(indicatorShape: 3, enableAim: false);
+            SetField(template, "SelfRadius", 4f);
+            SetField(template, "UsePointMode", 0);
+
+            var spec = resolver.Resolve(skill, template);
+
+            Assert.AreEqual(BattleHudSkillPreviewShape.SelfCircle, spec.PreviewShape);
+            Assert.AreEqual(SkillAimIndicatorShape.SelfCircle, spec.IndicatorShape);
+            Assert.IsFalse(spec.EnableAim);
+            Assert.AreEqual(SkillUsePointMode.None, spec.UsePointMode);
+            Assert.AreEqual(4f, spec.SelfRadius, 0.0001f);
+        }
+
+        [Test]
         public void Sector_UsesTemplateSectorAngleDegrees()
         {
             var (resolver, skill, template) = BuildResolver(indicatorShape: 4);

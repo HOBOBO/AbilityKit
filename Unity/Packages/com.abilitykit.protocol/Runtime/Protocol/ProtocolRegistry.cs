@@ -49,14 +49,7 @@ namespace AbilityKit.Protocol
 
         private static IWireSerializer CreateDefaultSerializer()
         {
-            try
-            {
-                return new MemoryPackWireSerializer();
-            }
-            catch
-            {
-                return new BinaryObjectWireSerializer();
-            }
+            return new MemoryPackWireSerializer();
         }
 
         /// <summary>

@@ -1,4 +1,5 @@
 ﻿using AbilityKit.Demo.Shooter;
+using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Grains.Battle;
@@ -116,13 +117,14 @@ public sealed class ShooterBattleRuntimeAdapterTests
     }
 
     [Fact]
-    public void SessionStart_WhenDurationFramesProvided_UsesDurationForShooterWorld()
+    public void SessionStart_WhenBattleFlowOverridesProvided_UsesOverridesForShooterWorld()
     {
         using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
         var adapter = new ShooterBattleRuntimeAdapter(worldManager);
-        using var session = adapter.CreateSession("shooter-duration-override-test");
+        using var session = adapter.CreateSession("shooter-battle-flow-override-test");
         var initParams = CreateInitParams();
         initParams.DurationFrames = 3600;
+        initParams.VictoryTargetDefeats = 100000;
 
         var start = session.Start(initParams);
 
@@ -131,6 +133,38 @@ public sealed class ShooterBattleRuntimeAdapterTests
         Assert.NotNull(snapshot);
         Assert.Equal(3600, snapshot!.TimeLimitFrames);
         Assert.Equal(3600, snapshot.RemainingTimeFrames);
+        Assert.Equal(100000, snapshot.VictoryTargetDefeats);
+    }
+
+    [Fact]
+    public void SessionTick_WhenSoakLongevityOverridesProvided_AdvancesBeyondFrame5401()
+    {
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new ShooterBattleRuntimeAdapter(worldManager);
+        using var session = adapter.CreateSession("shooter-battle-soak-longevity-test");
+        var initParams = CreateInitParams();
+        initParams.DurationFrames = 37200;
+        initParams.VictoryTargetDefeats = int.MaxValue;
+        initParams.ContinueAfterAllPlayersDefeated = true;
+
+        var start = session.Start(initParams);
+
+        Assert.True(start.Succeeded, start.Error);
+        for (var frame = 1; frame <= 5402; frame++)
+        {
+            var ticked = session.Tick(frame, initParams.TickRate, 1f / initParams.TickRate);
+            var current = session.GetSnapshot(frame);
+            Assert.True(
+                ticked,
+                $"Runtime stopped at requested frame {frame}; actual frame {current?.Frame}, match state {current?.MatchState}, time limit {current?.TimeLimitFrames}.");
+        }
+
+        var snapshot = session.GetSnapshot(5402);
+        Assert.NotNull(snapshot);
+        Assert.Equal(5402, snapshot!.Frame);
+        Assert.Equal((int)ShooterBattleMatchState.Running, snapshot.MatchState);
+        Assert.False(snapshot.MatchFinal);
+        Assert.Equal(37200, snapshot.TimeLimitFrames);
     }
 
     [Fact]

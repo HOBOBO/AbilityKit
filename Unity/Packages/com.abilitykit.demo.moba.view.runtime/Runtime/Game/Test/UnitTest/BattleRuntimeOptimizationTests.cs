@@ -27,6 +27,7 @@ using AbilityKit.Game.Flow.Battle.View;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.World.ECS;
+using EC = AbilityKit.World.ECS;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -171,6 +172,93 @@ namespace AbilityKit.Game.Test.UnitTest
             finally
             {
                 world.DestroyRecursive(root.Id);
+            }
+        }
+
+        [Test]
+        public void BattlePresentationCueVfxSpawner_RefreshesPositiveDurationOverrideAndPreservesZeroOverride()
+        {
+            var context = BattleContext.Rent();
+            var world = new EntityWorld();
+            var entity = world.Create("cueVfx");
+            var lifetime = new BattleVfxLifetimeComponent { ExpireAtTime = Time.time + 1f };
+            entity.WithRef(lifetime);
+            context.EntityWorld = world;
+
+            try
+            {
+                var spawner = new BattlePresentationCueVfxSpawner(context, null, default);
+
+                spawner.Update(entity.Id, scale: 1f, radius: 1f, durationMsOverride: 2500);
+                Assert.AreEqual(2.5f, lifetime.ExpireAtTime - Time.time, 0.05f);
+
+                var refreshedExpireAtTime = lifetime.ExpireAtTime;
+                spawner.Update(entity.Id, scale: 1f, radius: 1f, durationMsOverride: 0);
+                Assert.AreEqual(refreshedExpireAtTime, lifetime.ExpireAtTime, 0.0001f);
+            }
+            finally
+            {
+                world.DestroyRecursive(entity.Id);
+                BattleContext.Return(context);
+            }
+        }
+
+        [Test]
+        public void BattlePresentationCueViewEventHandler_StartRefreshStop_ReusesAndDestroysVfxEntity()
+        {
+            const int vfxId = 90002004;
+            var context = BattleContext.Rent();
+            var world = new EntityWorld();
+            var vfxRoot = world.Create("cueVfxRoot");
+            context.EntityWorld = world;
+            var manager = new BattleVfxManager(new VfxDatabase(new Dictionary<int, VfxDTO>
+            {
+                [vfxId] = new VfxDTO { Id = vfxId, Resource = "missing/cue_vfx", DurationMs = 500 }
+            }));
+            var handler = new BattlePresentationCueViewEventHandler(context, null, manager, in vfxRoot);
+            var start = CreatePresentationCue(
+                PresentationCueStage.Started,
+                requestKey: "cue-lifecycle",
+                vfxId: vfxId,
+                templateId: 0,
+                durationMsOverride: 1000);
+            var requestKey = BattlePresentationCueRequestKey.From(in start);
+
+            try
+            {
+                handler.HandleSnapshot(new[] { start });
+                var vfxEntityId = GetActiveCueEntityId(handler, requestKey);
+                Assert.IsTrue(world.IsAlive(vfxEntityId));
+                Assert.IsTrue(world.Wrap(vfxEntityId).TryGetRef(out BattleVfxLifetimeComponent initialLifetime));
+                Assert.AreEqual(1f, initialLifetime.ExpireAtTime - Time.time, 0.05f);
+
+                var refresh = CreatePresentationCue(
+                    PresentationCueStage.Refreshed,
+                    requestKey: "cue-lifecycle",
+                    vfxId: vfxId,
+                    templateId: 0,
+                    durationMsOverride: 2500);
+                handler.HandleSnapshot(new[] { refresh });
+
+                var refreshedEntityId = GetActiveCueEntityId(handler, requestKey);
+                Assert.AreEqual(vfxEntityId, refreshedEntityId);
+                Assert.IsTrue(world.Wrap(refreshedEntityId).TryGetRef(out BattleVfxLifetimeComponent refreshedLifetime));
+                Assert.AreEqual(2.5f, refreshedLifetime.ExpireAtTime - Time.time, 0.05f);
+
+                var stop = CreatePresentationCue(
+                    PresentationCueStage.Removed,
+                    requestKey: "cue-lifecycle",
+                    vfxId: vfxId,
+                    templateId: 0);
+                handler.HandleSnapshot(new[] { stop });
+
+                Assert.IsFalse(world.IsAlive(vfxEntityId));
+                Assert.Throws<System.InvalidOperationException>(() => GetActiveCueEntityId(handler, requestKey));
+            }
+            finally
+            {
+                world.DestroyRecursive(vfxRoot.Id);
+                BattleContext.Return(context);
             }
         }
 
@@ -1403,6 +1491,22 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(decision.ShouldSeek);
             Assert.AreEqual(13, decision.Frame);
             Assert.AreEqual(0.04f, decision.SecondsPerFrame, 0.0001f);
+        }
+
+        private static EC.IEntityId GetActiveCueEntityId(
+            BattlePresentationCueViewEventHandler handler,
+            BattlePresentationCueRequestKey requestKey)
+        {
+            var field = typeof(BattlePresentationCueViewEventHandler).GetField(
+                "_activeByRequestKey",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(field, "Cue handler active-request map was not found.");
+
+            var active = field.GetValue(handler) as Dictionary<BattlePresentationCueRequestKey, EC.IEntityId>;
+            Assert.IsNotNull(active, "Cue handler active-request map has an unexpected type.");
+            if (active.TryGetValue(requestKey, out var entityId)) return entityId;
+
+            throw new System.InvalidOperationException("Cue handler has no active entity for request key.");
         }
 
         private static void InvokePrivate(object target, string methodName)

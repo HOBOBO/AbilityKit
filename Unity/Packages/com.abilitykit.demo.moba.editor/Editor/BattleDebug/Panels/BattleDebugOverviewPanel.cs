@@ -26,7 +26,7 @@ namespace AbilityKit.Game.Editor
             if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
             {
                 EditorGUILayout.HelpBox(
-                    "诊断会话不可用。请确认战斗已启动且诊断 Local Session 已注册。",
+                    "诊断会话不可用。请启动战斗或打开包含 Battle Diagnostics 的 Artifact。",
                     MessageType.Info);
                 return;
             }
@@ -69,6 +69,8 @@ namespace AbilityKit.Game.Editor
                 $"Effect={_viewModel.EffectStoreRevision}",
                 EditorStyles.miniLabel);
 
+            DrawRecentActivity(in ctx);
+
             EditorGUILayout.Space(8);
             EditorGUILayout.LabelField("操作", EditorStyles.boldLabel);
 
@@ -89,6 +91,40 @@ namespace AbilityKit.Game.Editor
                 ctx.RequestRepaint?.Invoke();
             }
             EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawRecentActivity(in BattleDebugContext ctx)
+        {
+            EditorGUILayout.Space(8);
+            EditorGUILayout.LabelField("最近活动", EditorStyles.boldLabel);
+            if (!_viewModel.RecentEvent.HasValue)
+            {
+                EditorGUILayout.LabelField("当前 Actor 暂无可查询的诊断事件。", EditorStyles.miniLabel);
+            }
+            else
+            {
+                var evt = _viewModel.RecentEvent.Value;
+                EditorGUILayout.LabelField(
+                    $"#{evt.Sequence}  F{evt.Frame}  {evt.Kind}  {evt.Outcome}",
+                    EditorStyles.miniLabel);
+                EditorGUILayout.LabelField(evt.Summary, EditorStyles.wordWrappedMiniLabel);
+
+                EditorGUILayout.BeginHorizontal();
+                EditorGUI.BeginDisabledGroup(evt.RootContextId <= 0 || ctx.OpenTrace == null);
+                if (GUILayout.Button("打开最近 Trace", GUILayout.Width(110)))
+                {
+                    ctx.OpenTrace?.Invoke(evt.RootContextId, evt.ContextId);
+                }
+                EditorGUI.EndDisabledGroup();
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUI.BeginDisabledGroup(ctx.OpenEvents == null);
+            if (GUILayout.Button("查看该 Actor 的全部事件", GUILayout.Width(180)))
+            {
+                ctx.OpenEvents?.Invoke(ctx.SelectedId.ActorId);
+            }
+            EditorGUI.EndDisabledGroup();
         }
     }
 }

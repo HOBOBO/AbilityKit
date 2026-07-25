@@ -19,7 +19,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
     }
 
     public sealed class BattleDiagnosticActorAttributeStore :
-        IBattleDiagnosticActorAttributeStore
+        IBattleDiagnosticActorAttributeStore,
+        IBattleDiagnosticAttributeSnapshotSource
     {
         private readonly HashSet<long> _actorIds = new HashSet<long>();
         private BattleDiagnosticActorAttribute[] _attributes =
@@ -97,6 +98,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             SnapshotFrame = frame;
             Revision++;
             return true;
+        }
+
+        public BattleDiagnosticAttributeTrackSnapshot CaptureAttributeSnapshot()
+        {
+            return new BattleDiagnosticAttributeTrackSnapshot(
+                Revision,
+                SnapshotFrame,
+                (BattleDiagnosticActorAttribute[])_attributes.Clone(),
+                (BattleDiagnosticActorAttributeModifier[])_modifiers.Clone());
         }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticActorAttribute> QueryActorAttributes(

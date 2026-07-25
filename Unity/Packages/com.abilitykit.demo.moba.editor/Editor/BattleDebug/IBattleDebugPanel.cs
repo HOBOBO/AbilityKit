@@ -29,4 +29,9 @@ namespace AbilityKit.Game.Editor
     {
         void OpenTrace(long rootContextId, long contextId);
     }
+
+    internal interface IBattleDebugEventsTarget
+    {
+        void OpenForActor(long actorId);
+    }
 }

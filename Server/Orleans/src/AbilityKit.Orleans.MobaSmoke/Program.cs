@@ -17,7 +17,30 @@ using GatewayNetworking = Gateway::AbilityKit.Orleans.Gateway.Networking;
 
 var tcpPort = ParseIntArgument(args, "--tcp-port", 41101, 1, 65535);
 var hostOnly = HasArgument(args, "--host-only");
+var clientOnly = HasArgument(args, "--client-only");
+var connectPort = ParseIntArgument(args, "--connect-port", tcpPort, 1, 65535);
 var hostTimeoutSeconds = ParseIntArgument(args, "--host-timeout-seconds", 180, 1, 3600);
+
+// Client-only mode: skip local silo, connect directly to an external silo.
+// Used by run_moba_multiprocess_smoke.ps1 to run independent client processes.
+if (clientOnly)
+{
+    try
+    {
+        Console.WriteLine($"MOBA_SMOKE_CLIENT_ONLY connecting to {MobaSmokeConstants.HostAddress}:{connectPort}");
+        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, connectPort, TimeSpan.FromSeconds(30));
+        Console.WriteLine(
+            $"MOBA_SMOKE_PASSED RoomId={result.RoomId} NumericRoomId={result.NumericRoomId} " +
+            $"BattleId={result.BattleId} WorldId={result.WorldId} Phase={result.Phase} " +
+            $"Players={result.PlayerCount} Revision={result.RoomRevision}");
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"MOBA_SMOKE_FAILED {exception}");
+        Environment.ExitCode = 1;
+    }
+    return;
+}
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddAbilityKitServerOptions(builder.Configuration);
 builder.Services.AddStateSyncObserverOptions(builder.Configuration);
@@ -150,6 +173,12 @@ static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeS
     await ownerBattle.BindSessionAsync(owner.SessionToken, timeoutCts.Token);
     await memberBattle.BindSessionAsync(member.SessionToken, timeoutCts.Token);
 
+    // Subscribe both battle clients to StateSync so they receive actor snapshots.
+    // Must be called on the battle connection (not lobby) — the gateway binds the
+    // subscription to context.ConnectionId, and pushes are keyed by accountId.
+    await ownerBattle.SubscribeStateSyncAsync(final.Snapshot.BattleId, created.RoomId, timeoutCts.Token);
+    await memberBattle.SubscribeStateSyncAsync(final.Snapshot.BattleId, created.RoomId, timeoutCts.Token);
+
     var ownerProbe = await ownerBattle.SubmitFrameInputAsync(
         final.NumericRoomId,
         final.Snapshot.WorldId,
@@ -205,6 +234,36 @@ static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeS
         frame => frame.Frame == ownerEmpty.Frame && frame.Inputs.Length == 0,
         timeoutCts.Token);
     Require(memberEmpty.Frame == ownerEmpty.Frame, "Battle clients did not receive the same continuous empty authoritative frame.");
+
+    // === Entity-level multiplayer validation ===
+    // Both clients subscribed to StateSync above. Wait up to 3 seconds for at least
+    // one StateSyncPush containing 2+ actors (both player heroes), then hard-assert.
+    // This closes the loop from "input aggregation" to "entity visibility": it proves
+    // the server broadcasts actor snapshots containing both players' heroes and both
+    // clients receive and decode them.
+    var stateSyncDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(3);
+    while (DateTime.UtcNow < stateSyncDeadline)
+    {
+        if (ownerBattle.StateSyncPushCount > 0 && memberBattle.StateSyncPushCount > 0 &&
+            ownerBattle.MaxActorCount >= 2 && memberBattle.MaxActorCount >= 2)
+        {
+            break;
+        }
+        await Task.Delay(100, timeoutCts.Token);
+    }
+
+    Require(ownerBattle.StateSyncPushCount > 0,
+        $"Owner did not receive any StateSyncPush (opcode 9002) after SubscribeStateSync.");
+    Require(memberBattle.StateSyncPushCount > 0,
+        $"Member did not receive any StateSyncPush (opcode 9002) after SubscribeStateSync.");
+    Require(ownerBattle.MaxActorCount >= 2,
+        $"Owner StateSyncPush did not contain both player heroes. MaxActorCount={ownerBattle.MaxActorCount}, expected >= 2.");
+    Require(memberBattle.MaxActorCount >= 2,
+        $"Member StateSyncPush did not contain both player heroes. MaxActorCount={memberBattle.MaxActorCount}, expected >= 2.");
+
+    Console.WriteLine(
+        $"MOBA_SMOKE_ENTITY_SYNC_VERIFIED OwnerPushes={ownerBattle.StateSyncPushCount} OwnerActors={ownerBattle.MaxActorCount} " +
+        $"MemberPushes={memberBattle.StateSyncPushCount} MemberActors={memberBattle.MaxActorCount}");
 
     return new MobaSmokeResult(
         created.RoomId,
@@ -303,6 +362,15 @@ internal sealed class MobaSmokeClient : IDisposable
     private readonly Channel<WireFramePushedPush> _frames = Channel.CreateUnbounded<WireFramePushedPush>();
     private string _sessionToken = string.Empty;
 
+    // StateSync push tracking (opcode 9002). Non-zero after battle start proves the
+    // server is broadcasting actor snapshots through the gateway.
+    internal int StateSyncPushCount => Volatile.Read(ref _stateSyncPushCount);
+    internal int LastStateSyncPushSize => Volatile.Read(ref _lastStateSyncPushSize);
+    internal int MaxActorCount => Volatile.Read(ref _maxActorCount);
+    private int _stateSyncPushCount;
+    private int _lastStateSyncPushSize;
+    private int _maxActorCount;
+
     public string SessionToken => _sessionToken;
 
     public MobaSmokeClient(string name, string host, int port)
@@ -344,6 +412,26 @@ internal sealed class MobaSmokeClient : IDisposable
         }
 
         _sessionToken = response.SessionToken;
+    }
+
+    public async Task SubscribeStateSyncAsync(string battleId, string roomId, CancellationToken cancellationToken)
+    {
+        var request = new WireSubscribeStateSyncReq
+        {
+            SessionToken = _sessionToken,
+            BattleId = battleId,
+            RoomId = roomId ?? string.Empty,
+            EventEpoch = string.Empty,
+            LastEventAck = 0
+        };
+        var response = await SendAsync<WireSubscribeStateSyncReq, WireSubscribeStateSyncRes>(
+            RoomGatewayOpCodes.SubscribeStateSync,
+            request,
+            cancellationToken);
+        if (!response.Success)
+        {
+            throw new InvalidOperationException($"SubscribeStateSync failed: {response.Message}");
+        }
     }
 
     public async Task<WireSubmitFrameInputRes> SubmitFrameInputAsync(
@@ -501,6 +589,35 @@ internal sealed class MobaSmokeClient : IDisposable
         if (opCode == OpCodes.FramePushed)
         {
             _frames.Writer.TryWrite(WireCustomBinary.DeserializeFramePushedPush(payload));
+        }
+
+        // Track StateSync pushes (opcode 9002) and decode actor count to verify the
+        // server broadcasts actor snapshots containing both player heroes.
+        // IMPORTANT: use WireRoomGatewayBinary + WireStateSyncSnapshotPush (MemoryPack),
+        // NOT MobaWorldSnapshotCodec (BinaryObjectCodec) — the latter is incompatible
+        // with the server's wire encoding.
+        if (opCode == AbilityKit.Protocol.Moba.StateSync.OpCodes.SnapshotPushed)
+        {
+            Interlocked.Increment(ref _stateSyncPushCount);
+            _lastStateSyncPushSize = payload.Count;
+
+            try
+            {
+                var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
+                var actorCount = wire.Actors?.Count ?? 0;
+                // Track max actor count seen (atomsafe CAS loop)
+                var currentMax = Volatile.Read(ref _maxActorCount);
+                while (actorCount > currentMax)
+                {
+                    if (Interlocked.CompareExchange(ref _maxActorCount, actorCount, currentMax) == currentMax)
+                        break;
+                    currentMax = Volatile.Read(ref _maxActorCount);
+                }
+            }
+            catch
+            {
+                // Decoding failure is non-fatal; the push count still proves the channel is wired.
+            }
         }
     }
 

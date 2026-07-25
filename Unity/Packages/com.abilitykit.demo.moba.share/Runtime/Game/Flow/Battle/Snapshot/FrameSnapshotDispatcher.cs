@@ -5,9 +5,25 @@ using AbilityKit.Protocol.Moba;
 namespace AbilityKit.Demo.Moba.Share
 {
     /// <summary>
-    /// 帧快照分发器
-    /// 负责将帧快照数据分发给订阅者
-    /// 参考 view.runtime 的 FrameSnapshotDispatcher 实现
+    /// 帧快照分发器（share 包独立实现）。
+    ///
+    /// 负责将帧快照数据分发给订阅者。
+    ///
+    /// **设计定位（2026-07-20 核校）**：这是与
+    /// <c>com.abilitykit.world.snapshot</c> / <c>com.abilitykit.demo.moba.view.runtime</c>
+    /// 中同名 <c>FrameSnapshotDispatcher</c> **完全独立**的实现，服务于 share 包的
+    /// 轻量共享场景：
+    /// - 抽象层是 <c>(int frameIndex, T data)</c>，不是
+    ///   <c>ISnapshotEnvelope</c>+<c>WorldStateSnapshot</c>。
+    /// - 不依赖 <c>BattleLogicSession</c>，可在 .NET 共享端使用（无 Unity 依赖）。
+    /// - 提供 <c>DispatchEnterGame / DispatchActorTransform / ...</c> 强类型快捷方法，
+    ///   耦合 <c>MobaOpCodes</c>。
+    /// - 用 <c>lock</c> 做线程安全（前两份是非线程安全的单线程订阅模型）。
+    ///
+    /// **不要把本类与 view.runtime 版混淆**：本类被 share 包的纯 .NET 调用方使用，
+    /// view.runtime 版被真实 Unity 战斗订阅使用，两者通过不同接口（<c>IFrameSnapshotDispatcher</c>
+    /// vs <c>ISnapshotDispatcher</c>）隔离。如果未来要统一，建议保留本类的 .NET 友好
+    /// 抽象，把 world.snapshot 框架版的接口延伸到不依赖 <c>ISnapshotEnvelope</c> 的场景。
     /// </summary>
     public sealed class FrameSnapshotDispatcher : IFrameSnapshotDispatcher
     {
@@ -142,28 +158,23 @@ namespace AbilityKit.Demo.Moba.Share
         {
             if (_isDisposed) return;
 
-            List<SnapshotSubscription> subscriptions;
+            List<SnapshotSubscription> list;
             lock (_lock)
             {
-                if (!_subscriptions.TryGetValue(opCode, out var list))
-                {
+                if (!_subscriptions.TryGetValue(opCode, out list) || list.Count == 0)
                     return;
-                }
-
-                // 复制列表以避免在分发过程中修改
-                subscriptions = new List<SnapshotSubscription>(list);
             }
 
-            // 分发给所有订阅者
-            for (int i = 0; i < subscriptions.Count; i++)
+            // 在 lock 外迭代——约定 handler 不在回调中调用 Unsubscribe（会 deadlock）。
+            for (int i = 0; i < list.Count; i++)
             {
                 try
                 {
-                    subscriptions[i].Invoke(frameIndex, data);
+                    list[i].Invoke(frameIndex, data);
                 }
                 catch (Exception ex)
                 {
-                    LogException(ex, subscriptions[i].OpCode);
+                    LogException(ex, list[i].OpCode);
                 }
             }
         }

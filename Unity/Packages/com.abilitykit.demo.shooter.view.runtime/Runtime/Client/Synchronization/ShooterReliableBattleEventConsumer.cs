@@ -115,12 +115,16 @@ namespace AbilityKit.Demo.Shooter.View
         {
             if (!RequiresResync
                 || string.IsNullOrWhiteSpace(_baselineBattleId)
-                || string.IsNullOrWhiteSpace(_baselineEpoch))
+                || string.IsNullOrWhiteSpace(_baselineEpoch)
+                || eventWatermark < LastObservedWatermark)
             {
                 return false;
             }
 
-            RestoreCursor(_baselineBattleId, _baselineEpoch, Math.Max(0, eventWatermark));
+            RestoreCursor(
+                _baselineBattleId,
+                _baselineEpoch,
+                Math.Max(LastAcknowledgedSequence, eventWatermark));
             return true;
         }
 

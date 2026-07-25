@@ -11,6 +11,9 @@ namespace AbilityKit.Game.Battle.Transport
     public sealed class NetworkTransport : IBattleLogicTransport, IDisposable
     {
         private readonly NetworkTransportOptions _options;
+
+        public NetworkTransportOptions Options => _options;
+
         private readonly ConnectionManager _connection;
         private readonly RequestClient _request;
 
@@ -42,6 +45,11 @@ namespace AbilityKit.Game.Battle.Transport
         }
 
         public event Action<FramePacket> FramePushed;
+        public event Action<object> StateSyncSnapshotPushed;
+        /// <summary>TCP 连接建立（含重连）时触发，早于鉴权/重订阅。</summary>
+        public event Action ConnectionEstablished;
+        /// <summary>TCP 连接断开（含异常断线）时触发。</summary>
+        public event Action ConnectionClosed;
 
         public void Connect()
         {
@@ -103,6 +111,7 @@ namespace AbilityKit.Game.Battle.Transport
                     var response = _options.DeserializeSubmitInputResponse.Invoke(responsePayload);
                     if (response.Accepted)
                     {
+                        _options.OnSubmitInputAck?.Invoke(response.ServerFrame);
                         return;
                     }
 
@@ -145,6 +154,7 @@ namespace AbilityKit.Game.Battle.Transport
         private void OnConnected()
         {
             Log.Info($"[NetworkTransport] Connected: {_options.Host}:{_options.Port}");
+            ConnectionEstablished?.Invoke();
             _ = AuthenticateConnectionAsync();
         }
 
@@ -181,6 +191,7 @@ namespace AbilityKit.Game.Battle.Transport
         private void OnDisconnected()
         {
             Log.Warning($"[NetworkTransport] Disconnected: {_options.Host}:{_options.Port}");
+            ConnectionClosed?.Invoke();
         }
 
         private void OnError(Exception ex)
@@ -190,20 +201,30 @@ namespace AbilityKit.Game.Battle.Transport
 
         private void OnPacketReceived(uint opCode, uint seq, ArraySegment<byte> payload)
         {
-            if (opCode != _options.OpFramePushed) return;
-            if (_options.DeserializeFramePushed == null) return;
-
-            var packet = _options.DeserializeFramePushed.Invoke(payload);
-            FramePushed?.Invoke(packet);
+            if (TryHandleFramePushed(opCode, payload)) return;
+            TryHandleSnapshotPushed(opCode, payload);
         }
 
         private void OnServerPushReceived(uint opCode, ArraySegment<byte> payload)
         {
-            if (opCode != _options.OpFramePushed) return;
-            if (_options.DeserializeFramePushed == null) return;
+            if (TryHandleFramePushed(opCode, payload)) return;
+            TryHandleSnapshotPushed(opCode, payload);
+        }
 
+        private bool TryHandleFramePushed(uint opCode, ArraySegment<byte> payload)
+        {
+            if (opCode != _options.OpFramePushed || _options.DeserializeFramePushed == null) return false;
             var packet = _options.DeserializeFramePushed.Invoke(payload);
             FramePushed?.Invoke(packet);
+            return true;
+        }
+
+        private bool TryHandleSnapshotPushed(uint opCode, ArraySegment<byte> payload)
+        {
+            if ((opCode != _options.OpSnapshotPushed && opCode != _options.OpDeltaSnapshotPushed) || opCode == 0 || _options.DeserializeSnapshotPushed == null) return false;
+            var snapshot = _options.DeserializeSnapshotPushed.Invoke(payload);
+            StateSyncSnapshotPushed?.Invoke(snapshot);
+            return true;
         }
 
     }

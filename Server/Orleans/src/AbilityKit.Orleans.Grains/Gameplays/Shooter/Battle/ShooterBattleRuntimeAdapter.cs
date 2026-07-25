@@ -115,9 +115,14 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             AbilityKit.Ability.World.Abstractions.WorldCreateOptions options,
             BattleInitParams initParams)
         {
-            if (initParams.DurationFrames > 0)
+            if (initParams.DurationFrames > 0 ||
+                initParams.VictoryTargetDefeats > 0 ||
+                initParams.ContinueAfterAllPlayersDefeated)
             {
-                options.Extensions[typeof(ShooterGameplay)] = initParams.DurationFrames;
+                options.Extensions[typeof(ShooterBattleFlowOverrides)] = new ShooterBattleFlowOverrides(
+                    initParams.DurationFrames,
+                    initParams.VictoryTargetDefeats,
+                    initParams.ContinueAfterAllPlayersDefeated);
             }
         }
 
@@ -508,19 +513,22 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
         public StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot)
         {
             var resolvedWorldId = worldId == 0 ? _worldId : worldId;
-            var snapshot = WithoutLegacyEvents(_runtime?.GetSnapshot() ?? default);
             if (_stateSyncPushOptions.PayloadMode == ShooterStateSyncPushPayloadMode.PureState)
             {
+                var snapshot = WithoutLegacyEvents(_runtime?.GetSnapshot() ?? default);
                 return CreatePureStateSyncPush(resolvedWorldId, isFullSnapshot, in snapshot);
             }
 
+            // Packed 路径：Actors 列表直接从 Packed 玩家 chunk 构建，
+            // 不再调用 GetSnapshot() 做全量 StateSnapshot 导出
+            // （高单位量优化：消除每 push 3 个大数组 + 事件数组的重复分配）。
             var packed = _runtime?.ExportPackedSnapshot(resolvedWorldId, isFullSnapshot, authorityOverride: isFullSnapshot) ?? default;
             return new StateSyncPush
             {
                 WorldId = resolvedWorldId,
                 Frame = packed.Frame,
                 Timestamp = DateTime.UtcNow.Ticks,
-                Actors = CreateActorSnapshots(in snapshot),
+                Actors = CreateActorSnapshotsFromPacked(in packed),
                 IsFullSnapshot = isFullSnapshot,
                 PayloadOpCode = isFullSnapshot ? ShooterOpCodes.Snapshot.PackedState : ShooterOpCodes.Snapshot.PackedStateDelta,
                 Payload = ShooterPackedSnapshotCodec.Serialize(in packed)
@@ -738,6 +746,73 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                     VelocityX = 0f,
                     VelocityZ = 0f,
                     Hp = player.Hp,
+                    HpMax = ShooterGameplay.DefaultPlayerHp,
+                    TeamId = 1
+                });
+            }
+
+            return actors;
+        }
+
+        /// <summary>
+        /// 从 Packed 快照的玩家 Transform/Health chunk 直接构建 Actors 列表。
+        /// Exporter 对玩家 chunk 共享同一排序索引，Transform 与 Health chunk 同序对齐，
+        /// 因此按下标配对；下标越界或 id 不匹配时回退默认 HP。
+        /// </summary>
+        private static List<ActorSnapshot> CreateActorSnapshotsFromPacked(in ShooterPackedSnapshotPayload packed)
+        {
+            var chunks = packed.ComponentChunks;
+            if (chunks == null || chunks.Length == 0)
+            {
+                return new List<ActorSnapshot>(0);
+            }
+
+            var hasTransform = false;
+            var hasHealth = false;
+            ShooterPackedComponentChunk transform = default;
+            ShooterPackedComponentChunk health = default;
+            for (int i = 0; i < chunks.Length; i++)
+            {
+                if (chunks[i].EntityKind != ShooterPackedEntityKinds.Player) continue;
+                if (chunks[i].ComponentKind == ShooterPackedComponentKinds.Transform)
+                {
+                    transform = chunks[i];
+                    hasTransform = true;
+                }
+                else if (chunks[i].ComponentKind == ShooterPackedComponentKinds.Health)
+                {
+                    health = chunks[i];
+                    hasHealth = true;
+                }
+            }
+
+            if (!hasTransform || transform.EntityIds == null)
+            {
+                return new List<ActorSnapshot>(0);
+            }
+
+            var count = Math.Max(0, transform.Count);
+            var actors = new List<ActorSnapshot>(count);
+            for (int i = 0; i < count; i++)
+            {
+                var playerId = transform.EntityIds[i];
+                var hp = ShooterGameplay.DefaultPlayerHp;
+                if (hasHealth && health.EntityIds != null && health.IntValues != null
+                    && i < health.Count && health.EntityIds[i] == playerId)
+                {
+                    hp = health.IntValues[i];
+                }
+
+                actors.Add(new ActorSnapshot
+                {
+                    ActorId = playerId,
+                    X = GetFloat(transform.ValueX, i),
+                    Y = 0f,
+                    Z = GetFloat(transform.ValueY, i),
+                    Rotation = 0f,
+                    VelocityX = 0f,
+                    VelocityZ = 0f,
+                    Hp = hp,
                     HpMax = ShooterGameplay.DefaultPlayerHp,
                     TeamId = 1
                 });

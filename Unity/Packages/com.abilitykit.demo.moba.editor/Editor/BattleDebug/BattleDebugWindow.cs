@@ -1,8 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.ECS;
 using AbilityKit.Game.Battle;
+using AbilityKit.Game.Editor.Diagnostics;
+using AbilityKit.Game.Flow.Battle.Replay;
 using UnityEditor;
 using UnityEngine;
 
@@ -30,6 +36,12 @@ namespace AbilityKit.Game.Editor
         private float _entityPaneWidth = 220f;
         private bool _resizingEntityPane;
         private bool _autoRefresh = true;
+        private bool _renderReplayPresentation = true;
+        private bool _showEntityPane = true;
+        private bool _showStatusArea = true;
+        private readonly BattleDebugDiagnosticSource _diagnosticSource = new BattleDebugDiagnosticSource();
+        private string _fileStatus;
+        private MessageType _fileStatusType = MessageType.None;
 
         private BattleDebugWorkspace _workspace;
         private int _selectedActorPanelIndex;
@@ -57,6 +69,9 @@ namespace AbilityKit.Game.Editor
             _selectedDiagnosticsPanelIndex = Mathf.Max(
                 0,
                 EditorPrefs.GetInt(PreferencesPrefix + "DiagnosticsPanelIndex", 0));
+            _renderReplayPresentation = EditorPrefs.GetBool(PreferencesPrefix + "RenderReplayPresentation", true);
+            _showEntityPane = EditorPrefs.GetBool(PreferencesPrefix + "ShowEntityPane", true);
+            _showStatusArea = EditorPrefs.GetBool(PreferencesPrefix + "ShowStatusArea", true);
             _nextRefreshAt = EditorApplication.timeSinceStartup;
         }
 
@@ -66,37 +81,36 @@ namespace AbilityKit.Game.Editor
             EditorPrefs.SetInt(PreferencesPrefix + "Workspace", (int)_workspace);
             EditorPrefs.SetInt(PreferencesPrefix + "ActorPanelIndex", _selectedActorPanelIndex);
             EditorPrefs.SetInt(PreferencesPrefix + "DiagnosticsPanelIndex", _selectedDiagnosticsPanelIndex);
+            EditorPrefs.SetBool(PreferencesPrefix + "RenderReplayPresentation", _renderReplayPresentation);
+            EditorPrefs.SetBool(PreferencesPrefix + "ShowEntityPane", _showEntityPane);
+            EditorPrefs.SetBool(PreferencesPrefix + "ShowStatusArea", _showStatusArea);
+        }
+
+        private void OnDestroy()
+        {
+            _diagnosticSource.Dispose();
         }
 
         private void OnGUI()
         {
-            if (!EditorApplication.isPlaying)
-            {
-                DrawToolbar(default);
-                EditorGUILayout.HelpBox("进入播放模式后才能使用战斗调试窗口。", MessageType.Info);
-                return;
-            }
-
-            var facade = BattleDebugFacadeProvider.Current;
-            if (facade == null)
-            {
-                DrawToolbar(default);
-                EditorGUILayout.HelpBox("BattleDebugFacadeProvider.Current 为空。请通过 BattleLogicSessionHost.Start() 启动 BattleLogicSession。", MessageType.Warning);
-                return;
-            }
-
-            if (!facade.TryGetSession(out _))
-            {
-                DrawToolbar(default);
-                EditorGUILayout.HelpBox("当前没有活动中的 BattleLogicSession，请先启动会话。", MessageType.Info);
-                return;
-            }
+            var isOffline = _diagnosticSource.IsOffline;
+            var facade = isOffline ? null : BattleDebugFacadeProvider.Current;
+            var diagnosticResolution = isOffline
+                ? new BattleDebugDiagnosticSessionResolution(
+                    BattleDebugDiagnosticSessionResolutionPhase.Ready,
+                    _diagnosticSource.Session,
+                    null)
+                : BattleDebugDiagnosticSessionResolver.Resolve(facade, EditorApplication.isPlaying);
+            var hasLiveSession = !isOffline &&
+                                 diagnosticResolution.Phase != BattleDebugDiagnosticSessionResolutionPhase.NotPlaying &&
+                                 diagnosticResolution.Phase != BattleDebugDiagnosticSessionResolutionPhase.FacadeUnavailable &&
+                                 diagnosticResolution.Phase != BattleDebugDiagnosticSessionResolutionPhase.LogicSessionUnavailable;
 
             var selectedId = _selectedActorId != 0
                 ? new EcsEntityId(_selectedActorId)
                 : default;
             IUnitFacade selectedUnit = null;
-            if (selectedId.IsValid)
+            if (hasLiveSession && selectedId.IsValid)
             {
                 facade.TryResolveUnit(selectedId, out selectedUnit);
             }
@@ -107,13 +121,41 @@ namespace AbilityKit.Game.Editor
                 selectedUnit,
                 requestRepaint: Repaint,
                 selectActor: SelectActor,
-                openTrace: OpenTrace);
+                openTrace: OpenTrace,
+                openEvents: OpenEvents,
+                seekReplayFrame: CanSeekReplayFrame() ? SeekReplayFrame : null,
+                diagnosticSession: diagnosticResolution.Session,
+                skillRuntimeService: diagnosticResolution.SkillRuntimeService,
+                diagnosticResolution: diagnosticResolution,
+                isOffline: isOffline);
 
             DrawToolbar(in ctx);
+            if (_showStatusArea)
+            {
+                DrawSourceStatus(hasLiveSession, in diagnosticResolution);
+                DrawLiveControls(hasLiveSession);
+                DrawReplayControls();
+            }
+            else
+            {
+                DrawCriticalStatusMessages(in diagnosticResolution);
+            }
+
+            if (!isOffline && !hasLiveSession)
+            {
+                var message = EditorApplication.isPlaying
+                    ? "当前没有活动中的 BattleLogicSession。可以启动战斗，或打开诊断 Artifact 进行离线浏览。"
+                    : "当前处于编辑模式。打开诊断 Artifact 可离线浏览，或进入播放模式连接实时会话。";
+                EditorGUILayout.HelpBox(message, MessageType.Info);
+                return;
+            }
 
             EditorGUILayout.BeginHorizontal();
-            DrawEntityList(facade);
-            DrawEntityPaneSplitter();
+            if (_showEntityPane)
+            {
+                DrawEntityList(facade);
+                DrawEntityPaneSplitter();
+            }
             DrawEntityDetails(in ctx);
             EditorGUILayout.EndHorizontal();
 
@@ -144,7 +186,49 @@ namespace AbilityKit.Game.Editor
                 EditorStyles.miniLabel,
                 GUILayout.Width(58));
 
+            _showEntityPane = GUILayout.Toggle(
+                _showEntityPane,
+                new GUIContent("实体", "显示或收起 Actor 实体侧栏"),
+                EditorStyles.toolbarButton,
+                GUILayout.Width(42));
+            _showStatusArea = GUILayout.Toggle(
+                _showStatusArea,
+                new GUIContent("状态", "显示或收起数据源、现场和回放控制区"),
+                EditorStyles.toolbarButton,
+                GUILayout.Width(42));
+
             GUILayout.FlexibleSpace();
+
+            _renderReplayPresentation = GUILayout.Toggle(
+                _renderReplayPresentation,
+                new GUIContent("渲染表现", "关闭后 Replay 仅运行逻辑世界，不创建或驱动 View、HUD、VFX 和相机"),
+                EditorStyles.toolbarButton,
+                GUILayout.Width(68));
+
+            EditorGUI.BeginDisabledGroup(!EditorApplication.isPlaying || _diagnosticSource.IsOffline && BattleReplayControlProvider.Current == null);
+            if (GUILayout.Button(new GUIContent("录像", "加载标准 FrameRecord 并驱动当前逻辑世界"), EditorStyles.toolbarButton, GUILayout.Width(44)))
+            {
+                OpenReplay();
+            }
+            EditorGUI.EndDisabledGroup();
+
+            if (GUILayout.Button(new GUIContent("打开", "打开 abilitykit-analysis.v1 诊断 Artifact"), EditorStyles.toolbarButton, GUILayout.Width(44)))
+            {
+                OpenArtifact();
+            }
+
+            EditorGUI.BeginDisabledGroup(!CanExportLiveSnapshot());
+            if (GUILayout.Button(new GUIContent("导出", "捕获并导出当前实时 Battle Diagnostics"), EditorStyles.toolbarButton, GUILayout.Width(44)))
+            {
+                ExportLiveArtifact();
+            }
+            EditorGUI.EndDisabledGroup();
+
+            if (_diagnosticSource.IsOffline &&
+                GUILayout.Button(new GUIContent("返回实时", "关闭离线 Artifact 并返回实时会话"), EditorStyles.toolbarButton, GUILayout.Width(64)))
+            {
+                ReturnToLive();
+            }
 
             var cmds = BattleDebugToolbarCommandRegistry.GetAll();
             for (int i = 0; i < cmds.Count; i++)
@@ -173,6 +257,261 @@ namespace AbilityKit.Game.Editor
             }
 
             EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawSourceStatus(
+            bool hasLiveSession,
+            in BattleDebugDiagnosticSessionResolution diagnosticResolution)
+        {
+            EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+            GUILayout.Label("数据源", EditorStyles.miniBoldLabel, GUILayout.Width(42));
+            if (_diagnosticSource.IsOffline)
+            {
+                GUILayout.Label("离线", GUILayout.Width(30));
+                GUILayout.Label(_diagnosticSource.DisplayName, EditorStyles.miniLabel);
+                var info = _diagnosticSource.Session.SessionInfo;
+                GUILayout.FlexibleSpace();
+                GUILayout.Label($"Session={info.Scope.SessionId}  World={info.Scope.WorldId}  {info.ConnectionState}/{info.CaptureState}", EditorStyles.miniLabel);
+                DrawDiagnosticRevisions(_diagnosticSource.Session, null, null, null);
+            }
+            else
+            {
+                var replay = BattleReplayControlProvider.Current;
+                if (hasLiveSession && replay != null && replay.IsReplaySession)
+                {
+                    GUILayout.Label("录像回放", GUILayout.Width(52));
+                    GUILayout.Label(replay.RenderPresentation ? "表现渲染" : "纯逻辑", GUILayout.Width(52));
+                    GUILayout.Label(Path.GetFileName(replay.ReplayPath), EditorStyles.miniLabel);
+                }
+                else
+                {
+                    GUILayout.Label(hasLiveSession ? "实时会话" : "未连接", EditorStyles.miniLabel);
+                }
+
+                if (diagnosticResolution.IsReady)
+                {
+                    DrawDiagnosticRevisions(
+                        diagnosticResolution.Session,
+                        diagnosticResolution.SkillRuntimeService,
+                        diagnosticResolution.StateSampler,
+                        diagnosticResolution.EventCollector);
+                }
+                else
+                {
+                    GUILayout.FlexibleSpace();
+                    GUILayout.Label(diagnosticResolution.StatusMessage, EditorStyles.miniLabel);
+                }
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (!_diagnosticSource.IsOffline && diagnosticResolution.IsReady)
+            {
+                DrawProducerHealthWarning(in diagnosticResolution);
+            }
+
+            var panelLoadErrors = BattleDebugPanelRegistry.LoadErrors;
+            if (panelLoadErrors != null && panelLoadErrors.Count > 0)
+            {
+                var suffix = panelLoadErrors.Count > 1
+                    ? $"\n另有 {panelLoadErrors.Count - 1} 个面板加载失败。"
+                    : string.Empty;
+                EditorGUILayout.HelpBox(
+                    "Battle Debug 面板加载失败: " + panelLoadErrors[0] + suffix,
+                    MessageType.Warning);
+            }
+
+            if (!string.IsNullOrEmpty(_fileStatus))
+            {
+                EditorGUILayout.HelpBox(_fileStatus, _fileStatusType);
+            }
+        }
+
+        private void DrawCriticalStatusMessages(
+            in BattleDebugDiagnosticSessionResolution diagnosticResolution)
+        {
+            if (!_diagnosticSource.IsOffline && diagnosticResolution.IsReady)
+            {
+                DrawProducerHealthWarning(in diagnosticResolution);
+            }
+
+            var panelLoadErrors = BattleDebugPanelRegistry.LoadErrors;
+            if (panelLoadErrors != null && panelLoadErrors.Count > 0)
+            {
+                EditorGUILayout.HelpBox(
+                    "Battle Debug 面板加载失败: " + panelLoadErrors[0],
+                    MessageType.Warning);
+            }
+
+            if (!string.IsNullOrEmpty(_fileStatus))
+            {
+                EditorGUILayout.HelpBox(_fileStatus, _fileStatusType);
+            }
+        }
+
+        private static void DrawDiagnosticRevisions(
+            IBattleDiagnosticReadOnlySession session,
+            MobaSkillCastRuntimeService skillRuntimeService,
+            MobaBattleDiagnosticStateSampler stateSampler,
+            MobaBattleDiagnosticEventCollector eventCollector)
+        {
+            if (session == null) return;
+
+            GUILayout.FlexibleSpace();
+            GUILayout.Label(
+                $"Cap={session.SessionInfo.Capabilities}  E{session.EventStoreRevision} S{session.StateStoreRevision} T{session.TraceStoreRevision}",
+                EditorStyles.miniLabel);
+            if (stateSampler != null || eventCollector != null)
+            {
+                GUILayout.Label(
+                    $"Frame={stateSampler?.LastSuccessfulSampleFrame ?? BattleDiagnosticFrames.Invalid} Seq={eventCollector?.LastSequence ?? 0L} Fail={stateSampler?.SampleFailureCount ?? 0L}/{eventCollector?.CollectFailureCount ?? 0L}",
+                    EditorStyles.miniLabel);
+            }
+            if (skillRuntimeService != null)
+            {
+                var scan = skillRuntimeService.ScanDiagnostics();
+                GUILayout.Label(
+                    $"Skill={scan.ActiveRuntimes} Waiting={scan.WaitingChildrenRuntimes} Child={scan.PendingChildren}",
+                    EditorStyles.miniLabel);
+            }
+        }
+
+        private static void DrawProducerHealthWarning(
+            in BattleDebugDiagnosticSessionResolution resolution)
+        {
+            var stateError = resolution.StateSampler?.LastSampleError;
+            var eventError = resolution.EventCollector?.LastCollectError;
+            if (string.IsNullOrEmpty(stateError) && string.IsNullOrEmpty(eventError)) return;
+
+            var message = string.Empty;
+            if (!string.IsNullOrEmpty(stateError))
+            {
+                message = "状态采样失败: " + stateError;
+            }
+            if (!string.IsNullOrEmpty(eventError))
+            {
+                if (message.Length > 0) message += "\n";
+                message += "事件采集失败: " + eventError;
+            }
+            EditorGUILayout.HelpBox(message, MessageType.Warning);
+        }
+
+        private void DrawLiveControls(bool hasLiveSession)
+        {
+            if (_diagnosticSource.IsOffline || !hasLiveSession) return;
+
+            var replay = BattleReplayControlProvider.Current;
+            if (replay != null && replay.IsReplaySession) return;
+
+            EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+            GUILayout.Label("现场", EditorStyles.miniBoldLabel, GUILayout.Width(32));
+            var isPaused = EditorApplication.isPaused;
+            if (GUILayout.Button(
+                    new GUIContent(isPaused ? "恢复现场" : "冻结现场", "暂停或恢复 Unity 播放循环；冻结后可稳定检查实时对象与溯源信息。"),
+                    GUILayout.Width(72)))
+            {
+                EditorApplication.isPaused = !isPaused;
+                Repaint();
+            }
+
+            EditorGUI.BeginDisabledGroup(!EditorApplication.isPaused);
+            if (GUILayout.Button(new GUIContent("单帧", "在保持暂停的前提下推进 Unity 播放循环一帧。"), GUILayout.Width(46)))
+            {
+                EditorApplication.Step();
+                RefreshEntities();
+                Repaint();
+            }
+            EditorGUI.EndDisabledGroup();
+            GUILayout.Label(
+                EditorApplication.isPaused ? "已冻结：可检查当前对象" : "运行中",
+                EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawReplayControls()
+        {
+            if (_diagnosticSource.IsOffline) return;
+
+            var replay = BattleReplayControlProvider.Current;
+            if (replay == null || !replay.IsReplaySession) return;
+
+            EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+            GUILayout.Label("回放", EditorStyles.miniBoldLabel, GUILayout.Width(32));
+
+            if (GUILayout.Button(replay.IsPlaying ? "暂停" : "播放", GUILayout.Width(46)))
+            {
+                if (replay.IsPlaying) replay.Pause();
+                else replay.Play();
+            }
+
+            EditorGUI.BeginDisabledGroup(replay.CurrentFrame <= 0);
+            if (GUILayout.Button(new GUIContent("<", "后退一帧；必要时回滚或重建逻辑世界"), GUILayout.Width(26)))
+            {
+                ReplayAction(replay.StepBackward, "后退");
+            }
+            EditorGUI.EndDisabledGroup();
+
+            EditorGUI.BeginDisabledGroup(replay.CurrentFrame >= replay.LastFrame);
+            if (GUILayout.Button(new GUIContent(">", "前进一帧"), GUILayout.Width(26)))
+            {
+                ReplayAction(replay.StepForward, "前进");
+            }
+            EditorGUI.EndDisabledGroup();
+
+            EditorGUI.BeginChangeCheck();
+            var targetFrame = EditorGUILayout.IntSlider(
+                replay.CurrentFrame,
+                0,
+                Mathf.Max(0, replay.LastFrame),
+                GUILayout.MinWidth(180));
+            if (EditorGUI.EndChangeCheck())
+            {
+                if (!replay.SeekToFrame(targetFrame))
+                {
+                    _fileStatus = $"跳转失败：无法将 Replay 世界定位到第 {targetFrame} 帧。";
+                    _fileStatusType = MessageType.Error;
+                }
+                RefreshEntities();
+            }
+
+            GUILayout.Label($"{replay.CurrentFrame}/{replay.LastFrame}", EditorStyles.miniLabel, GUILayout.Width(78));
+            GUILayout.Label("速度", EditorStyles.miniLabel, GUILayout.Width(28));
+            replay.PlaybackSpeed = EditorGUILayout.FloatField(replay.PlaybackSpeed, GUILayout.Width(42));
+            GUILayout.Label("x", EditorStyles.miniLabel, GUILayout.Width(10));
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private bool CanSeekReplayFrame()
+        {
+            var replay = BattleReplayControlProvider.Current;
+            return !_diagnosticSource.IsOffline && replay != null && replay.IsReplaySession;
+        }
+
+        private bool SeekReplayFrame(int frame)
+        {
+            var replay = BattleReplayControlProvider.Current;
+            if (_diagnosticSource.IsOffline || replay == null || !replay.IsReplaySession ||
+                frame < 0 || frame > replay.LastFrame)
+            {
+                return false;
+            }
+
+            replay.Pause();
+            if (!replay.SeekToFrame(frame)) return false;
+
+            RefreshEntities();
+            Repaint();
+            return true;
+        }
+
+        private void ReplayAction(Func<bool> action, string label)
+        {
+            if (action == null || !action())
+            {
+                _fileStatus = $"{label}失败：Replay Session 未能推进到目标帧。";
+                _fileStatusType = MessageType.Error;
+            }
+            RefreshEntities();
+            Repaint();
         }
 
         private void DrawEntityList(IBattleDebugFacade facade)
@@ -404,32 +743,41 @@ namespace AbilityKit.Game.Editor
         {
             _entityRefreshBuffer.Clear();
 
-            var facade = BattleDebugFacadeProvider.Current;
-            if (facade == null)
-            {
-                _totalEntityCount = 0;
-                _visibleEntities.Clear();
-                return;
-            }
-            if (!facade.TryListEntities(out var ids) || ids == null)
-            {
-                _totalEntityCount = 0;
-                _visibleEntities.Clear();
-                return;
-            }
-
-            _totalEntityCount = ids.Count;
             var filter = string.IsNullOrWhiteSpace(_filter) ? string.Empty : _filter.Trim();
             var selectedExists = false;
             var selectedVisibleIndex = -1;
 
-            for (int i = 0; i < ids.Count; i++)
+            if (_diagnosticSource.IsOffline)
             {
-                var id = ids[i];
-                if (id.ActorId == _selectedActorId) selectedExists = true;
-                if (!global::AbilityKit.Game.Editor.BattleDebugEntityFilter.Matches(facade, id, filter)) continue;
+                var actors = _diagnosticSource.Actors;
+                _totalEntityCount = actors.Count;
+                for (var i = 0; i < actors.Count; i++)
+                {
+                    var actor = actors[i];
+                    if (actor.ActorId == _selectedActorId) selectedExists = true;
+                    if (actor.ActorId <= 0 || actor.ActorId > int.MaxValue) continue;
+                    if (!MatchesOfflineActor(in actor, filter)) continue;
+                    _entityRefreshBuffer.Add(new EcsEntityId((int)actor.ActorId));
+                }
+            }
+            else
+            {
+                var facade = BattleDebugFacadeProvider.Current;
+                if (facade == null || !facade.TryListEntities(out var ids) || ids == null)
+                {
+                    _totalEntityCount = 0;
+                    _visibleEntities.Clear();
+                    return;
+                }
 
-                _entityRefreshBuffer.Add(id);
+                _totalEntityCount = ids.Count;
+                for (var i = 0; i < ids.Count; i++)
+                {
+                    var id = ids[i];
+                    if (id.ActorId == _selectedActorId) selectedExists = true;
+                    if (!global::AbilityKit.Game.Editor.BattleDebugEntityFilter.Matches(facade, id, filter)) continue;
+                    _entityRefreshBuffer.Add(id);
+                }
             }
 
             _entityRefreshBuffer.Sort((a, b) => a.ActorId.CompareTo(b.ActorId));
@@ -452,7 +800,9 @@ namespace AbilityKit.Game.Editor
             }
             else if (!selectedExists)
             {
-                _selectionStatus = $"Actor #{_selectedActorId} 已离开当前世界。";
+                _selectionStatus = _diagnosticSource.IsOffline
+                    ? $"Actor #{_selectedActorId} 不在当前离线 Artifact 中。"
+                    : $"Actor #{_selectedActorId} 已离开当前世界。";
             }
             else if (selectedVisibleIndex < 0)
             {
@@ -462,6 +812,16 @@ namespace AbilityKit.Game.Editor
             {
                 _selectionStatus = null;
             }
+        }
+
+        private static bool MatchesOfflineActor(in BattleDiagnosticActorSummary actor, string filter)
+        {
+            if (string.IsNullOrEmpty(filter)) return true;
+            return actor.ActorId.ToString().IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   actor.ConfigId.ToString().IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   actor.Kind.ToString().IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   (!string.IsNullOrEmpty(actor.DisplayName) &&
+                    actor.DisplayName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         private static bool HasSameEntitySequence(
@@ -525,6 +885,170 @@ namespace AbilityKit.Game.Editor
             Repaint();
         }
 
+        private void OpenReplay()
+        {
+            var replay = BattleReplayControlProvider.Current;
+            if (!EditorApplication.isPlaying || replay == null)
+            {
+                _fileStatus = "加载录像需要处于播放模式且已有活动 Battle Session，以复用完整世界启动配置。";
+                _fileStatusType = MessageType.Warning;
+                return;
+            }
+
+            var initialDirectory = string.IsNullOrEmpty(replay.ReplayPath)
+                ? Application.dataPath
+                : Path.GetDirectoryName(replay.ReplayPath);
+            var path = EditorUtility.OpenFilePanel("加载 Battle FrameRecord", initialDirectory, string.Empty);
+            if (string.IsNullOrEmpty(path)) return;
+
+            if (!replay.TryLoad(path, _renderReplayPresentation, out var error))
+            {
+                _fileStatus = $"录像加载失败：{error}";
+                _fileStatusType = MessageType.Error;
+                return;
+            }
+
+            _diagnosticSource.ReturnToLive();
+            ClearActorSelection();
+            var replayMode = replay.RenderPresentation ? "表现渲染" : "纯逻辑";
+            _fileStatus = $"已加载录像：{Path.GetFileName(path)}（{replayMode}）。回放已暂停在第 0 帧。";
+            _fileStatusType = MessageType.Info;
+            RefreshEntities();
+            Repaint();
+        }
+
+        private void OpenArtifact()
+        {
+            var initialDirectory = string.IsNullOrEmpty(_diagnosticSource.FilePath)
+                ? Application.dataPath
+                : Path.GetDirectoryName(_diagnosticSource.FilePath);
+            var path = EditorUtility.OpenFilePanel("打开 Battle Diagnostics Artifact", initialDirectory, "json");
+            if (string.IsNullOrEmpty(path)) return;
+
+            try
+            {
+                var json = File.ReadAllText(path, Encoding.UTF8);
+                _diagnosticSource.Open(json, path);
+                _fileStatus = $"已打开离线 Artifact：{_diagnosticSource.DisplayName}";
+                _fileStatusType = MessageType.Info;
+                RefreshEntities();
+                if (_selectedActorId == 0 && _visibleEntities.Count > 0)
+                {
+                    _selectedActorId = _visibleEntities[0].ActorId;
+                }
+                Repaint();
+            }
+            catch (MobaBattleDiagnosticArtifactException ex)
+            {
+                _fileStatus = $"打开失败 [{ex.ErrorCode}]：{ex.Message}";
+                _fileStatusType = MessageType.Error;
+            }
+            catch (Exception ex)
+            {
+                _fileStatus = $"打开失败 [File.Read]：{ex.Message}";
+                _fileStatusType = MessageType.Error;
+            }
+        }
+
+        private bool CanExportLiveSnapshot()
+        {
+            return !_diagnosticSource.IsOffline && TryResolveSnapshotCapture(out _);
+        }
+
+        private void ExportLiveArtifact()
+        {
+            if (!TryResolveSnapshotCapture(out var capture))
+            {
+                _fileStatus = "导出失败 [BattleDiagnostics.LiveSession]：当前实时会话没有可用的快照捕获服务。";
+                _fileStatusType = MessageType.Warning;
+                return;
+            }
+
+            var defaultName = $"battle-diagnostics-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+            var path = EditorUtility.SaveFilePanel("导出 Battle Diagnostics Artifact", string.Empty, defaultName, "json");
+            if (string.IsNullOrEmpty(path)) return;
+
+            try
+            {
+                var snapshot = capture.CaptureSnapshot();
+                var json = MobaBattleDiagnosticArtifactCodec.ExportSnapshotToString(snapshot);
+                File.WriteAllText(path, json, new UTF8Encoding(false));
+                _fileStatus = $"已导出实时诊断 Artifact：{Path.GetFileName(path)}";
+                _fileStatusType = MessageType.Info;
+            }
+            catch (Exception ex)
+            {
+                _fileStatus = $"导出失败 [File.Write]：{ex.Message}";
+                _fileStatusType = MessageType.Error;
+            }
+        }
+
+        private static bool TryResolveSnapshotCapture(out IMobaBattleDiagnosticSnapshotCapture capture)
+        {
+            capture = null;
+            if (!EditorApplication.isPlaying) return false;
+            var facade = BattleDebugFacadeProvider.Current;
+            if (facade == null || !facade.TryGetSession(out var logicSession)) return false;
+            if (!logicSession.TryGetWorld(out var world) || world?.Services == null) return false;
+            return world.Services.TryResolve(out capture) && capture != null;
+        }
+
+        private void ReturnToLive()
+        {
+            _diagnosticSource.ReturnToLive();
+            _fileStatus = EditorApplication.isPlaying
+                ? "已关闭离线 Artifact，返回实时会话。"
+                : "已关闭离线 Artifact；进入播放模式后可连接实时会话。";
+            _fileStatusType = MessageType.Info;
+            RefreshEntities();
+            Repaint();
+        }
+
+        private void OpenEvents(long actorId)
+        {
+            if (actorId <= 0) return;
+
+            var panels = BattleDebugPanelRegistry.GetAll();
+            if (panels == null) return;
+
+            _workspace = BattleDebugWorkspace.Diagnostics;
+            for (var i = 0; i < panels.Count; i++)
+            {
+                var panel = panels[i];
+                if (!(panel is IBattleDebugPanelLayout layout) ||
+                    layout.Workspace != BattleDebugWorkspace.Diagnostics)
+                {
+                    continue;
+                }
+
+                if (panel is IBattleDebugEventsTarget target)
+                {
+                    target.OpenForActor(actorId);
+                    _selectedDiagnosticsPanelIndex = CountDiagnosticsPanelsBefore(panels, i);
+                    _detailScroll = Vector2.zero;
+                    Repaint();
+                    return;
+                }
+            }
+        }
+
+        private static int CountDiagnosticsPanelsBefore(
+            System.Collections.Generic.IReadOnlyList<IBattleDebugPanel> panels,
+            int exclusiveIndex)
+        {
+            var count = 0;
+            for (var i = 0; i < exclusiveIndex; i++)
+            {
+                if (panels[i] is IBattleDebugPanelLayout layout &&
+                    layout.Workspace == BattleDebugWorkspace.Diagnostics)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
         private void OpenTrace(long rootContextId, long contextId)
         {
             if (rootContextId <= 0) return;
@@ -536,13 +1060,31 @@ namespace AbilityKit.Game.Editor
                 ? new EcsEntityId(_selectedActorId)
                 : default;
             IUnitFacade selectedUnit = null;
-            var facade = BattleDebugFacadeProvider.Current;
+            var facade = _diagnosticSource.IsOffline ? null : BattleDebugFacadeProvider.Current;
             if (facade != null && selectedId.IsValid)
             {
                 facade.TryResolveUnit(selectedId, out selectedUnit);
             }
 
-            var ctx = new BattleDebugContext(facade, selectedId, selectedUnit, Repaint);
+            var diagnosticResolution = _diagnosticSource.IsOffline
+                ? new BattleDebugDiagnosticSessionResolution(
+                    BattleDebugDiagnosticSessionResolutionPhase.Ready,
+                    _diagnosticSource.Session,
+                    null)
+                : BattleDebugDiagnosticSessionResolver.Resolve(facade, EditorApplication.isPlaying);
+            var ctx = new BattleDebugContext(
+                facade,
+                selectedId,
+                selectedUnit,
+                Repaint,
+                selectActor: SelectActor,
+                openTrace: OpenTrace,
+                openEvents: OpenEvents,
+                seekReplayFrame: CanSeekReplayFrame() ? SeekReplayFrame : null,
+                diagnosticSession: diagnosticResolution.Session,
+                skillRuntimeService: diagnosticResolution.SkillRuntimeService,
+                diagnosticResolution: diagnosticResolution,
+                isOffline: _diagnosticSource.IsOffline);
             var diagnosticsIndex = 0;
             for (var i = 0; i < panels.Count; i++)
             {

@@ -51,7 +51,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
         {
             entries ??= Array.Empty<MobaActorSpawnSnapshotEntry>();
             var payload = new MobaActorSpawnSnapshotPayload { Entries = entries };
-            return WireSerializer.Serialize(in payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static MobaActorSpawnSnapshotEntry[] Deserialize(byte[] payload)
@@ -59,7 +59,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
             if (payload == null || payload.Length == 0)
                 return Array.Empty<MobaActorSpawnSnapshotEntry>();
 
-            var p = WireSerializer.Deserialize<MobaActorSpawnSnapshotPayload>(payload);
+            var p = MemoryPackSerializer.Deserialize<MobaActorSpawnSnapshotPayload>(payload);
             return p.Entries ?? Array.Empty<MobaActorSpawnSnapshotEntry>();
         }
     }
@@ -97,7 +97,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
             var payload = new MobaDebugSpawnUnitPayload(
                 MobaDebugSpawnUnitPayload.CurrentVersion,
                 relation);
-            return WireSerializer.Serialize(in payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static bool TryDeserialize(
@@ -116,7 +116,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
 
             try
             {
-                var decoded = WireSerializer.Deserialize<MobaDebugSpawnUnitPayload>(payload);
+                var decoded = MemoryPackSerializer.Deserialize<MobaDebugSpawnUnitPayload>(payload);
                 if (decoded.Version != MobaDebugSpawnUnitPayload.CurrentVersion)
                 {
                     error = $"unsupported payload version: {decoded.Version}";
@@ -173,7 +173,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
             var payload = new MobaDebugReplaceHeroPayload(
                 MobaDebugReplaceHeroPayload.CurrentVersion,
                 heroId);
-            return WireSerializer.Serialize(in payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static bool TryDeserialize(byte[] payload, out int heroId, out string error)
@@ -188,7 +188,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
 
             try
             {
-                var decoded = WireSerializer.Deserialize<MobaDebugReplaceHeroPayload>(payload);
+                var decoded = MemoryPackSerializer.Deserialize<MobaDebugReplaceHeroPayload>(payload);
                 if (decoded.Version != MobaDebugReplaceHeroPayload.CurrentVersion)
                 {
                     error = $"unsupported payload version: {decoded.Version}";
@@ -262,7 +262,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
             {
                 Entries = entries ?? Array.Empty<MobaPlayerHeroChangedSnapshotEntry>(),
             };
-            return WireSerializer.Serialize(in payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static MobaPlayerHeroChangedSnapshotEntry[] Deserialize(byte[] payload)
@@ -272,7 +272,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
                 return Array.Empty<MobaPlayerHeroChangedSnapshotEntry>();
             }
 
-            var decoded = WireSerializer.Deserialize<MobaPlayerHeroChangedSnapshotPayload>(payload);
+            var decoded = MemoryPackSerializer.Deserialize<MobaPlayerHeroChangedSnapshotPayload>(payload);
             return decoded.Entries ?? Array.Empty<MobaPlayerHeroChangedSnapshotEntry>();
         }
     }

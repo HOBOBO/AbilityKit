@@ -7,17 +7,17 @@ namespace Hotfix.Ability.Moba
     {
         public string Name => "moba";
 
-        public void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldServices services)
+        public void Install(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldResolver services)
         {
-            var logger = services.TryGet<IHotfixLogger>(out var l) ? l : null;
+            var logger = services.TryResolve<IHotfixLogger>(out var l) ? l : null;
             logger?.Log("[Hotfix] Install called");
 
             systems.Add(new HotfixLogTickSystem(logger));
         }
 
-        public void Uninstall(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldServices services)
+        public void Uninstall(global::Entitas.IContexts contexts, global::Entitas.Systems systems, IWorldResolver services)
         {
-            var logger = services.TryGet<IHotfixLogger>(out var l) ? l : null;
+            var logger = services.TryResolve<IHotfixLogger>(out var l) ? l : null;
             logger?.Log("[Hotfix] Uninstall called");
         }
 

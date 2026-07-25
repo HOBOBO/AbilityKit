@@ -68,6 +68,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             _lines.Push(_formatter.FormatPresentationCues(entries));
         }
+
+        public void Tick()
+        {
+        }
     }
 
     internal sealed class DebugBattleViewEventSinkFactory

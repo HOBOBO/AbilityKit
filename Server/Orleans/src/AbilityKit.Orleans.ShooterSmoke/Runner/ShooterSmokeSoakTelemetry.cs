@@ -9,6 +9,7 @@ internal sealed class ShooterSmokeSoakTelemetry : IDisposable
     private readonly string _metricsOutputPath;
     private readonly StreamWriter? _metricsWriter;
     private readonly object _writeSyncRoot = new();
+    private readonly object _recoverySyncRoot = new();
     private readonly CancellationTokenSource _commandPollingCts = new();
     private Task? _commandPollingTask;
     private string _lastCommandId = string.Empty;
@@ -119,12 +120,15 @@ internal sealed class ShooterSmokeSoakTelemetry : IDisposable
         var appliedAtUtc = DateTime.UtcNow;
         if (command.ExpectRecovery)
         {
-            _pendingRecovery = new PendingRecovery(
-                command.Id,
-                command.Phase,
-                appliedAtUtc,
-                fullBaselinesApplied,
-                resyncRequests);
+            lock (_recoverySyncRoot)
+            {
+                _pendingRecovery = new PendingRecovery(
+                    command.Id,
+                    command.Phase,
+                    appliedAtUtc,
+                    fullBaselinesApplied,
+                    resyncRequests);
+            }
             Volatile.Write(ref _recoveryBaselineRequestPending, 1);
         }
         WriteEvent(new ShooterSmokeSoakEvent
@@ -154,11 +158,10 @@ internal sealed class ShooterSmokeSoakTelemetry : IDisposable
         int comparableFrame,
         bool comparableHashMatched)
     {
-        var timestampUtc = DateTime.UtcNow;
         WriteEvent(new ShooterSmokeSoakEvent
         {
             Type = "delivery-sample",
-            TimestampUtc = timestampUtc,
+            TimestampUtc = DateTime.UtcNow,
             ClientId = _clientId,
             CommandId = _lastCommandId,
             NetworkCondition = channel.NetworkCondition,
@@ -179,34 +182,49 @@ internal sealed class ShooterSmokeSoakTelemetry : IDisposable
                 ComparableHashMatched = comparableHashMatched
             }
         });
+    }
 
-        var pending = _pendingRecovery;
-        if (pending == null
-            || fullBaselinesApplied <= pending.FullBaselinesAppliedAtStart
-            || comparableFrame <= 0
-            || !comparableHashMatched)
+    public bool TryCompleteRecovery(
+        int fullBaselinesApplied,
+        int resyncRequests,
+        int comparableFrame,
+        bool comparableHashMatched)
+    {
+        ShooterSmokeSoakEvent? completedEvent;
+        lock (_recoverySyncRoot)
         {
-            return;
+            var pending = _pendingRecovery;
+            if (pending == null
+                || fullBaselinesApplied <= pending.FullBaselinesAppliedAtStart
+                || comparableFrame <= 0
+                || !comparableHashMatched)
+            {
+                return false;
+            }
+
+            var completedAtUtc = DateTime.UtcNow;
+            completedEvent = new ShooterSmokeSoakEvent
+            {
+                Type = "recovery-completed",
+                TimestampUtc = completedAtUtc,
+                ClientId = _clientId,
+                CommandId = pending.CommandId,
+                Phase = pending.Phase,
+                Recovery = new ShooterSmokeRecoverySample
+                {
+                    StartedAtUtc = pending.StartedAtUtc,
+                    CompletedAtUtc = completedAtUtc,
+                    DurationMs = (completedAtUtc - pending.StartedAtUtc).TotalMilliseconds,
+                    FullBaselinesAppliedDelta = fullBaselinesApplied - pending.FullBaselinesAppliedAtStart,
+                    ResyncRequestsDelta = resyncRequests - pending.ResyncRequestsAtStart,
+                    ComparableFrame = comparableFrame
+                }
+            };
+            _pendingRecovery = null;
         }
 
-        WriteEvent(new ShooterSmokeSoakEvent
-        {
-            Type = "recovery-completed",
-            TimestampUtc = timestampUtc,
-            ClientId = _clientId,
-            CommandId = pending.CommandId,
-            Phase = pending.Phase,
-            Recovery = new ShooterSmokeRecoverySample
-            {
-                StartedAtUtc = pending.StartedAtUtc,
-                CompletedAtUtc = timestampUtc,
-                DurationMs = (timestampUtc - pending.StartedAtUtc).TotalMilliseconds,
-                FullBaselinesAppliedDelta = fullBaselinesApplied - pending.FullBaselinesAppliedAtStart,
-                ResyncRequestsDelta = resyncRequests - pending.ResyncRequestsAtStart,
-                ComparableFrame = comparableFrame
-            }
-        });
-        _pendingRecovery = null;
+        WriteEvent(completedEvent);
+        return true;
     }
 
     public void Dispose()

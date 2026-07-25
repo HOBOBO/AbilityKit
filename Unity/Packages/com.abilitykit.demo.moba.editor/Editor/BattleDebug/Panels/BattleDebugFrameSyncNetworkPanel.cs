@@ -13,7 +13,7 @@ namespace AbilityKit.Game.Editor
 
         public bool IsVisible(in BattleDebugContext ctx)
         {
-            return EditorApplication.isPlaying && BattleFlowDebugProvider.Current != null;
+            return !ctx.IsOffline && EditorApplication.isPlaying && BattleFlowDebugProvider.Current != null;
         }
 
         public void Draw(in BattleDebugContext ctx)

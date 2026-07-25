@@ -18,8 +18,13 @@
           "target_query_id": 50010301,
           "target_max_count": 10
         },
-        { "type": "debug_log", "message": "廉颇三技能：段落范围造成物理伤害", "dump_args": false }
-      ]
+        {
+          "type": "debug_log",
+          "message": "廉颇三技能：段落范围造成物理伤害",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

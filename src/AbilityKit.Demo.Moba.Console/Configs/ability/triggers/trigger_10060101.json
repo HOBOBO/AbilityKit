@@ -14,7 +14,7 @@
           "type": "spawn_area",
           "area_id": 40060101,
           "position_mode": 1,
-          "radius": 4.0,
+          "radius": 4,
           "duration_ms": 1400
         },
         {
@@ -22,7 +22,8 @@
           "message": "嬴政一技能王者惩戒：在目标点生成延迟剑阵区域",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

@@ -1,20 +1,23 @@
 {
-    "triggers": [
+  "triggers": [
+    {
+      "id": 20003,
+      "name": "Trigger_20003",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
         {
-            "id": 20003,
-            "name": "Trigger_20003",
-            "event": "",
-            "enabled": true,
-            "allowExternal": false,
-            "phase": "immediate",
-            "priority": 50,
-            "conditions": [],
-            "actions": [
-                {
-                    "type": "add_buff",
-                    "buffIds": [100001]
-                }
-            ]
+          "type": "add_buff",
+          "buffIds": [
+            100001
+          ]
         }
-    ]
+      ],
+      "scope": "owner"
+    }
+  ]
 }

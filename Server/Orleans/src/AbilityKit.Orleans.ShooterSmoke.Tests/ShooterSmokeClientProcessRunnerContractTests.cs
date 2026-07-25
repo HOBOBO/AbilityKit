@@ -8,6 +8,8 @@ public sealed class ShooterSmokeClientProcessRunnerContractTests
         "Runtime", "Client", "Synchronization", "ShooterClientFrameSyncController.cs"));
     private static readonly string GatewayConnectionSource = File.ReadAllText(GetUnitySourcePath(
         "Runtime", "Client", "Gateway", "ShooterRoomGatewayConnection.cs"));
+    private static readonly string BattleHandleSource = File.ReadAllText(GetUnitySourcePath(
+        "Runtime", "Client", "ShooterClientBattleHandle.cs"));
 
     [Fact]
     public void FinalResultReusesSingleRuntimeStateSample()
@@ -53,6 +55,20 @@ public sealed class ShooterSmokeClientProcessRunnerContractTests
         Assert.Contains(": hasComparableAppliedSnapshot ? latestComparableAuthoritativeHash : 0u;", Source, StringComparison.Ordinal);
         Assert.Contains(": hasComparableAppliedSnapshot ? latestComparableClientHash : 0u;", Source, StringComparison.Ordinal);
         Assert.DoesNotContain("hasComparablePureStateSnapshot", Source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FullStateRecoveryUsesSingleFlightAndBoundedAutomaticTimeout()
+    {
+        Assert.Contains("private readonly object _fullStateSyncGate = new object();", BattleHandleSource, StringComparison.Ordinal);
+        Assert.Contains("private Task<ShooterGatewayFullStateSyncRequestResult>? _fullStateSyncInFlight;", BattleHandleSource, StringComparison.Ordinal);
+        Assert.Contains("if (_fullStateSyncInFlight != null)", BattleHandleSource, StringComparison.Ordinal);
+        Assert.Contains("return _fullStateSyncInFlight;", BattleHandleSource, StringComparison.Ordinal);
+        Assert.Contains("_fullStateSyncInFlight = completion.Task;", BattleHandleSource, StringComparison.Ordinal);
+        Assert.Contains("if (ReferenceEquals(_fullStateSyncInFlight, completion.Task))", BattleHandleSource, StringComparison.Ordinal);
+        Assert.Contains("_fullStateSyncInFlight = null;", BattleHandleSource, StringComparison.Ordinal);
+        Assert.Contains("AutomaticFullStateSyncTimeout = TimeSpan.FromSeconds(10);", GatewayConnectionSource, StringComparison.Ordinal);
+        Assert.Contains("RequestFullSnapshotResyncIfNeededAsync(AutomaticFullStateSyncTimeout)", GatewayConnectionSource, StringComparison.Ordinal);
     }
 
     [Fact]

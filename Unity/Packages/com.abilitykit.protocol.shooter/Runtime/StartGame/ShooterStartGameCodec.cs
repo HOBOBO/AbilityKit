@@ -88,7 +88,7 @@ namespace AbilityKit.Protocol.Shooter
     {
         public static byte[] Serialize(in ShooterStartGamePayload payload)
         {
-            return WireSerializer.Serialize(in payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static ShooterStartGamePayload Deserialize(byte[] payload)
@@ -98,7 +98,7 @@ namespace AbilityKit.Protocol.Shooter
                 return new ShooterStartGamePayload(string.Empty, 30, 0, Array.Empty<ShooterStartPlayer>());
             }
 
-            var value = WireSerializer.Deserialize<ShooterStartGamePayload>(payload);
+            var value = MemoryPackSerializer.Deserialize<ShooterStartGamePayload>(payload);
             return new ShooterStartGamePayload(
                 value.MatchId,
                 value.TickRate,

@@ -17,6 +17,8 @@ namespace AbilityKit.Demo.Shooter.View
         public const string InputDelayFrames = "inputDelayFrames";
         public const string RandomSeed = "randomSeed";
         public const string DurationFrames = "durationFrames";
+        public const string VictoryTargetDefeats = "victoryTargetDefeats";
+        public const string ContinueAfterAllPlayersDefeated = "continueAfterAllPlayersDefeated";
     }
 
     public readonly struct ShooterRoomLaunchSpec

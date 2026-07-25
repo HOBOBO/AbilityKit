@@ -416,12 +416,21 @@
     "Name": "嬴政-王者惩戒",
     "Phases": [
       {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
+        "Type": 4,
+        "PhaseId": "yz_skill_1_release",
+        "RulePlan": {
+          "TriggerIds": [900101011],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "yz_skill_1_commit",
+        "RulePlan": {
+          "TriggerIds": [900101012],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
         }
       },
       {
@@ -440,12 +449,21 @@
     "Name": "嬴政-王者守御",
     "Phases": [
       {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
+        "Type": 4,
+        "PhaseId": "yz_skill_2_release",
+        "RulePlan": {
+          "TriggerIds": [900101011],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "yz_skill_2_commit",
+        "RulePlan": {
+          "TriggerIds": [900101012],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
         }
       },
       {
@@ -464,12 +482,21 @@
     "Name": "嬴政-至尊王权",
     "Phases": [
       {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
+        "Type": 4,
+        "PhaseId": "yz_skill_3_release",
+        "RulePlan": {
+          "TriggerIds": [900101011],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "yz_skill_3_commit",
+        "RulePlan": {
+          "TriggerIds": [900101012],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
         }
       },
       {

@@ -138,9 +138,26 @@ public interface IContinuousManager
 
 ---
 
-## 3. 状态机设计
+## 3. 标签与修改器如何挂到持续行为
 
-### 3.1 ContinuousState
+`IContinuous` 不应直接拥有一套固定的标签容器或属性计算器。它只提供可预测的生命周期节点；标签服务、Modifier 投影器和项目规则通过管理器或 lifecycle binder 接到这些节点上。这样 Buff、引导、运动过程和周期触发器都可以复用同一种接法，又不会被迫依赖某个战斗状态模型。
+
+| 协作能力 | 更合适的职责归属 | 与持续行为的连接时机 | 不应由持续体自己决定的事 |
+|------|------|------|------|
+| 有效标签聚合 | Owner 的标签查询服务 | 激活前校验；标签变化后重算活动过程 | 标签来自基础状态、装备还是其他过程，以及标签匹配规则 |
+| 暂停、恢复或中断 | 项目标签策略 | 满足或失去持续条件时 | 某个控制标签是暂停引导还是直接打断 |
+| 属性/参数 Modifier | 来源感知的 Modifier projector | Activate/Resume 投影；Pause/End 撤销 | 多来源数值如何取最大、相加、覆盖或按优先级计算 |
+| 标签/Modifier 清理 | 生命周期 binder 或 Owner 资源索引 | End/Unregister | 移除某个来源后其他来源是否仍继续生效 |
+
+这层分工有两个约束。第一，标签变化不应只靠每个持续体在 Tick 中自行轮询；标签服务应能重算指定 Owner 下受影响的活动过程，再决定暂停、恢复或结束。第二，Modifier 必须带来源标识。一个过程结束时只能撤销自己投影的那部分值，不能误删装备、光环或其他状态的结果。
+
+因此，持续行为提供的是“什么时候可以接入或撤销”的稳定时机，而不是替项目规定“接入什么规则”。项目可以为实时 MOBA 接上标签门禁、控制中断和属性投影；回合制项目也可以只在回合切换时检查状态，完全不需要每帧标签重算或复杂 Modifier 聚合。
+
+---
+
+## 4. 状态机设计
+
+### 4.1 ContinuousState
 
 ```
 Runtime/Core/Continuous/ContinuousState.cs
@@ -172,7 +189,7 @@ Runtime/Core/Continuous/ContinuousState.cs
 └────────┘              └────────┘
 ```
 
-### 3.2 ContinuousEndReason
+### 4.2 ContinuousEndReason
 
 ```
 Runtime/Core/Continuous/ContinuousEndReason.cs
@@ -188,9 +205,9 @@ Runtime/Core/Continuous/ContinuousEndReason.cs
 
 ---
 
-## 4. 包定位差异
+## 5. 包定位差异
 
-### 4.1 Behavior 包 vs Triggering 包
+### 5.1 Behavior 包 vs Triggering 包
 
 虽然两个包都实现了 `IContinuous`，但定位不同：
 
@@ -203,14 +220,14 @@ Runtime/Core/Continuous/ContinuousEndReason.cs
 | **决策频率** | 每帧/每 N 帧决策 | 事件触发 |
 | **执行模型** | Decision → Executor（主动轮询） | TriggerPlan 解析（事件驱动） |
 
-### 4.2 为什么保持独立？
+### 5.2 为什么保持独立？
 
 1. **问题域不同**：AI 决策 vs 技能执行
 2. **开发团队可能不同**：AI 开发者 vs 技能策划
 3. **可独立演进**：各自优化不影响对方
 4. **灵活性**：不同项目可能只需要其中一个
 
-### 4.3 统一外壳 IContinuous
+### 5.3 统一外壳 IContinuous
 
 `IContinuous` 作为**统一外壳**，让两种不同领域的系统可以被同一个 `IContinuousManager` 管理：
 
@@ -225,9 +242,9 @@ IContinuousManager（业务层实现）
 
 ---
 
-## 5. 业务层接入指南
+## 6. 业务层接入指南
 
-### 5.1 步骤一：实现 IContinuousManager
+### 6.1 步骤一：实现 IContinuousManager
 
 业务层根据游戏需求实现管理器：
 
@@ -251,7 +268,7 @@ public class MobaContinuousManager : IContinuousManager
 }
 ```
 
-### 5.2 步骤二：定义业务配置
+### 6.2 步骤二：定义业务配置
 
 ```csharp
 public class BuffConfig : IContinuousConfig,
@@ -275,7 +292,7 @@ public class BuffConfig : IContinuousConfig,
 }
 ```
 
-### 5.3 步骤三：使用
+### 6.3 步骤三：使用
 
 ```csharp
 var manager = new MobaContinuousManager();
@@ -298,7 +315,7 @@ if (manager.TryActivate(behavior))
 
 ---
 
-## 6. 文件结构
+## 7. 文件结构
 
 ```
 Unity/Packages/com.abilitykit.core/
@@ -321,7 +338,7 @@ Unity/Packages/com.abilitykit.triggering/
 
 ---
 
-## 7. 设计决策记录
+## 8. 设计决策记录
 
 | 日期 | 决策 | 原因 |
 |------|------|------|

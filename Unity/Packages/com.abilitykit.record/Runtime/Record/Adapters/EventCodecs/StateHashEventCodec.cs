@@ -1,6 +1,6 @@
+using MemoryPack;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
-using AbilityKit.Core.Serialization;
 using AbilityKit.Core.Recording.Core;
 
 namespace AbilityKit.Core.Recording.Adapters.EventCodecs
@@ -9,13 +9,13 @@ namespace AbilityKit.Core.Recording.Adapters.EventCodecs
     {
         public static byte[] Encode(int version, WorldStateHash hash)
         {
-            var payload = new Payload(version, hash.Value);
-            return BinaryObjectCodec.Encode(payload);
+            var payload = new StateHashEventPayload(version, hash.Value);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static void Decode(byte[] payload, out int version, out WorldStateHash hash)
         {
-            var p = BinaryObjectCodec.Decode<Payload>(payload);
+            var p = MemoryPackSerializer.Deserialize<StateHashEventPayload>(payload);
             version = p.Version;
             hash = new WorldStateHash(p.Hash);
         }
@@ -38,17 +38,18 @@ namespace AbilityKit.Core.Recording.Adapters.EventCodecs
             Decode(e.Payload, out version, out hash);
             return true;
         }
+    }
 
-        public readonly struct Payload
+    [MemoryPackable]
+    public readonly partial struct StateHashEventPayload
+    {
+        [MemoryPackOrder(0)] public readonly int Version;
+        [MemoryPackOrder(1)] public readonly uint Hash;
+
+                public StateHashEventPayload(int version, uint hash)
         {
-            [BinaryMember(0)] public readonly int Version;
-            [BinaryMember(1)] public readonly uint Hash;
-
-            public Payload(int version, uint hash)
-            {
-                Version = version;
-                Hash = hash;
-            }
+            Version = version;
+            Hash = hash;
         }
     }
 }

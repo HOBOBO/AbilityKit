@@ -48,6 +48,40 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void Sample_EmptyRegistry_RecordsSuccessfulFrame()
+        {
+            var store = new BattleDiagnosticStateStore(_scope);
+            var sampler = new MobaBattleDiagnosticStateSampler(
+                new MobaActorRegistry(),
+                store,
+                () => 27,
+                () => 100L);
+
+            Assert.That(sampler.Sample(), Is.True);
+            Assert.That(sampler.LastSuccessfulSampleFrame, Is.EqualTo(27));
+            Assert.That(sampler.SampleFailureCount, Is.Zero);
+            Assert.That(sampler.LastSampleError, Is.Empty);
+            Assert.That(store.SnapshotFrame, Is.EqualTo(27));
+        }
+
+        [Test]
+        public void Sample_ProviderException_RecordsBoundedFailureEvidence()
+        {
+            var store = new BattleDiagnosticStateStore(_scope);
+            var sampler = new MobaBattleDiagnosticStateSampler(
+                new MobaActorRegistry(),
+                store,
+                () => throw new InvalidOperationException("sample frame failed"),
+                () => 100L);
+
+            Assert.DoesNotThrow(() => sampler.Sample());
+            Assert.That(sampler.Sample(), Is.False);
+            Assert.That(sampler.LastSuccessfulSampleFrame, Is.EqualTo(BattleDiagnosticFrames.Invalid));
+            Assert.That(sampler.SampleFailureCount, Is.EqualTo(2));
+            StringAssert.Contains("sample frame failed", sampler.LastSampleError);
+        }
+
+        [Test]
         public void TrySampleActor_NullEntity_ReturnsFalse()
         {
             var ok = MobaBattleDiagnosticStateSampler.TrySampleActor(
@@ -255,8 +289,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             using var container = builder.Build();
             using var scope = container.CreateScope();
             var collector = scope.Resolve<MobaBattleDiagnosticEventCollector>();
+            var ports = scope.Resolve<MobaBattleDiagnosticCollectorPorts>();
             var sink = scope.Resolve<IMobaBattleDiagnosticEventSink>();
             var control = scope.Resolve<IMobaBattleDiagnosticCaptureControl>();
+            var snapshotCapture = scope.Resolve<IMobaBattleDiagnosticSnapshotCapture>();
             var eventStore = scope.Resolve<IBattleDiagnosticEventReadStore>();
             var stateStore = scope.Resolve<IBattleDiagnosticStateStore>();
             var stateReadStore = scope.Resolve<IBattleDiagnosticStateReadStore>();
@@ -270,6 +306,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var draft = new MobaBattleDiagnosticEventDraft(
                 BattleDiagnosticEventKind.Damage,
                 BattleDiagnosticEventChannel.DamageAndHeal);
+
+            Assert.That(sink, Is.SameAs(ports));
+            Assert.That(control, Is.SameAs(ports));
+            Assert.That(eventStore, Is.SameAs(ports));
+            Assert.That(stateStore, Is.SameAs(ports));
+            Assert.That(stateReadStore, Is.SameAs(ports));
+            Assert.That(attributeReadStore, Is.SameAs(attributeStore));
+            Assert.That(buffReadStore, Is.SameAs(buffStore));
+            Assert.That(tagReadStore, Is.SameAs(tagStore));
 
             Assert.That(sink.TryCollect(in draft), Is.True);
             Assert.That(eventStore.Revision, Is.EqualTo(collector.Store.Revision));
@@ -313,6 +358,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             var effectStore = scope.Resolve<IBattleDiagnosticActorEffectStore>();
             var effectReadStore = scope.Resolve<IBattleDiagnosticActorEffectReadStore>();
+            Assert.That(effectReadStore, Is.SameAs(effectStore));
             Assert.That(effectStore.TryReplaceSnapshot(
                 1,
                 new long[] { 10 },
@@ -322,6 +368,19 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(session.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorEffects), Is.True);
             Assert.That(session.QueryActorEffects(1, 1, 10).Status.Phase,
                 Is.EqualTo(BattleDiagnosticQueryPhase.Empty));
+
+            var snapshot = snapshotCapture.CaptureSnapshot();
+            Assert.That(snapshot.SessionInfo.Scope, Is.EqualTo(collector.Scope));
+            Assert.That(snapshot.Events.Revision, Is.EqualTo(eventStore.Revision));
+            Assert.That(snapshot.Events.Events.Count, Is.EqualTo(1));
+            Assert.That(snapshot.State.Revision, Is.EqualTo(stateReadStore.Revision));
+            Assert.That(snapshot.State.Frame, Is.EqualTo(1));
+            Assert.That(snapshot.Attributes.Revision, Is.EqualTo(attributeReadStore.Revision));
+            Assert.That(snapshot.Buffs.Revision, Is.EqualTo(buffReadStore.Revision));
+            Assert.That(snapshot.Tags.Revision, Is.EqualTo(tagReadStore.Revision));
+            Assert.That(snapshot.Effects.Revision, Is.EqualTo(effectReadStore.Revision));
+            Assert.That(snapshot.LatestStateFramesAligned, Is.True);
+            Assert.That(snapshot.Trace.IsStable, Is.True);
 
             control.SetFrozen(true);
             Assert.That(collector.Store.IsFrozen, Is.True);
@@ -333,6 +392,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             control.SetFrozen(false);
             control.Clear();
+            Assert.That(snapshot.Events.Events.Count, Is.EqualTo(1));
+            Assert.That(snapshot.State.Frame, Is.EqualTo(1));
+            Assert.That(snapshot.Attributes.Frame, Is.EqualTo(1));
+            Assert.That(snapshot.Buffs.Frame, Is.EqualTo(1));
+            Assert.That(snapshot.Tags.Frame, Is.EqualTo(1));
+            Assert.That(snapshot.Effects.Frame, Is.EqualTo(1));
             Assert.That(attributeReadStore.SnapshotFrame,
                 Is.EqualTo(BattleDiagnosticFrames.Invalid));
             Assert.That(buffReadStore.SnapshotFrame,

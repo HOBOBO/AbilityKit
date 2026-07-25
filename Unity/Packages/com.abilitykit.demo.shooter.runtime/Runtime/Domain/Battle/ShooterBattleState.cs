@@ -11,6 +11,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
     {
         private readonly IShooterEntityManager _entities;
         private int _nextBulletId = 1;
+        private ShooterSpatialTargetIndex _playerTargetIndex;
 
         public ShooterBattleState(IShooterEntityManager entities)
         {
@@ -18,6 +19,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         public IShooterEntityManager Entities => _entities;
+
+        /// <summary>
+        /// 全战斗共享的玩家目标索引（敌人移动/敌人攻击/BotAI 共用）。
+        /// 利用帧去重（Rebuild 带 frame 参数），同一帧内只重建一次——
+        /// 高单位量下省掉每系统各一份的 O(n) 空间索引重建。
+        /// </summary>
+        internal ShooterSpatialTargetIndex PlayerTargetIndex => _playerTargetIndex ??= new ShooterSpatialTargetIndex();
 
         public ShooterInputFrameBuffer InputBuffer { get; } = new ShooterInputFrameBuffer();
 

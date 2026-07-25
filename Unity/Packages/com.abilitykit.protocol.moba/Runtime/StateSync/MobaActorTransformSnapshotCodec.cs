@@ -50,7 +50,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
         {
             entries ??= Array.Empty<MobaActorTransformSnapshotEntry>();
             var payload = new MobaActorTransformSnapshotPayload { Entries = entries };
-            return WireSerializer.Serialize(in payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static MobaActorTransformSnapshotEntry[] Deserialize(byte[] payload)
@@ -58,7 +58,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
             if (payload == null || payload.Length == 0)
                 return Array.Empty<MobaActorTransformSnapshotEntry>();
 
-            var p = WireSerializer.Deserialize<MobaActorTransformSnapshotPayload>(payload);
+            var p = MemoryPackSerializer.Deserialize<MobaActorTransformSnapshotPayload>(payload);
             return p.Entries ?? Array.Empty<MobaActorTransformSnapshotEntry>();
         }
     }

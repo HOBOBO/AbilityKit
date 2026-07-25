@@ -9,13 +9,32 @@
       "phase": "immediate",
       "priority": 50,
       "conditions": [
-        { "type": "arg_gt", "arg_name": "damage_value", "value": 0 },
-        { "type": "arg_neq", "left": "payload:attacker_actor_id", "right": "payload:target_actor_id" }
+        {
+          "type": "arg_gt",
+          "arg_name": "damage_value",
+          "value": 0
+        },
+        {
+          "type": "arg_neq",
+          "left": "payload:attacker_actor_id",
+          "right": "payload:target_actor_id"
+        }
       ],
       "actions": [
-        { "type": "add_buff", "buffIds": [10020001], "target_payload_field_id": 1993035528 },
-        { "type": "debug_log", "message": "小乔被动触发：技能命中后添加短暂移速状态（配置先行）", "dump_args": false }
-      ]
+        {
+          "type": "add_buff",
+          "buffIds": [
+            10020001
+          ],
+          "target_payload_field_id": 1993035528
+        },
+        {
+          "type": "debug_log",
+          "message": "小乔被动触发：技能命中后添加短暂移速状态（配置先行）",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

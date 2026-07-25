@@ -1,9 +1,9 @@
+using MemoryPack;
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Combat.Collision;
 using AbilityKit.Core.Pooling;
-using AbilityKit.Core.Serialization;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.World.Services;
 
@@ -102,12 +102,12 @@ namespace AbilityKit.Combat.Projectile
 
         public byte[] ExportRollback(FrameIndex frame)
         {
-            var items = new SnapshotItem[_active.Count];
+            var items = new ProjectileWorldSnapshotItem[_active.Count];
             for (int i = 0; i < _active.Count; i++)
             {
                 var p = _active[i];
                 if (p == null) continue;
-                items[i] = new SnapshotItem(
+                items[i] = new ProjectileWorldSnapshotItem(
                     id: p.Id.Value,
                     ownerId: p.OwnerId,
                     templateId: p.TemplateId,
@@ -149,7 +149,7 @@ namespace AbilityKit.Combat.Projectile
                 );
             }
 
-            return BinaryObjectCodec.Encode(new SnapshotPayload(
+            return MemoryPackSerializer.Serialize(new ProjectileWorldSnapshotPayload(
                 version: 5,
                 frame: frame,
                 nextId: _nextId,
@@ -162,7 +162,7 @@ namespace AbilityKit.Combat.Projectile
             Clear();
             if (payload == null || payload.Length == 0) return;
 
-            var snap = BinaryObjectCodec.Decode<SnapshotPayload>(payload);
+            var snap = MemoryPackSerializer.Deserialize<ProjectileWorldSnapshotPayload>(payload);
             _nextId = snap.NextId <= 0 ? 1 : snap.NextId;
 
             if (snap.Items == null || snap.Items.Length == 0) return;
@@ -763,143 +763,151 @@ namespace AbilityKit.Combat.Projectile
                 : ProjectileCollisionResponse.Ignore;
         }
 
-        public readonly struct SnapshotPayload
+
+    }
+
+
+
+    [MemoryPackable]
+    public readonly partial struct ProjectileWorldSnapshotPayload
+    {
+        [MemoryPackOrder(0)] public readonly int Version;
+        [MemoryPackOrder(1)] public readonly FrameIndex Frame;
+        [MemoryPackOrder(2)] public readonly int NextId;
+        [MemoryPackOrder(3)] public readonly ProjectileWorldSnapshotItem[] Items;
+
+        public ProjectileWorldSnapshotPayload(int version, FrameIndex frame, int nextId, ProjectileWorldSnapshotItem[] items)
         {
-            [BinaryMember(0)] public readonly int Version;
-            [BinaryMember(1)] public readonly FrameIndex Frame;
-            [BinaryMember(2)] public readonly int NextId;
-            [BinaryMember(3)] public readonly SnapshotItem[] Items;
-
-            public SnapshotPayload(int version, FrameIndex frame, int nextId, SnapshotItem[] items)
-            {
-                Version = version;
-                Frame = frame;
-                NextId = nextId;
-                Items = items;
-            }
-        }
-
-        public readonly struct SnapshotItem
-        {
-            [BinaryMember(0)] public readonly int Id;
-            [BinaryMember(1)] public readonly int OwnerId;
-            [BinaryMember(2)] public readonly Vec3 Position;
-            [BinaryMember(3)] public readonly Vec3 Direction;
-            [BinaryMember(4)] public readonly float Speed;
-            [BinaryMember(5)] public readonly int LifetimeFramesLeft;
-            [BinaryMember(6)] public readonly float DistanceLeft;
-            [BinaryMember(7)] public readonly int CollisionLayerMask;
-            [BinaryMember(8)] public readonly int IgnoreCollider;
-            [BinaryMember(9)] public readonly int HitsRemaining;
-            [BinaryMember(10)] public readonly ProjectileHitPolicyKind HitPolicyKind;
-            [BinaryMember(11)] public readonly int HitPolicyParam;
-            [BinaryMember(12)] public readonly int TickIntervalFrames;
-            [BinaryMember(13)] public readonly int NextTickFrame;
-
-            [BinaryMember(14)] public readonly int TemplateId;
-            [BinaryMember(15)] public readonly int LauncherActorId;
-            [BinaryMember(16)] public readonly int RootActorId;
-            [BinaryMember(17)] public readonly int SpawnFrame;
-            [BinaryMember(18)] public readonly int ReturnAfterFrames;
-            [BinaryMember(19)] public readonly float ReturnSpeed;
-            [BinaryMember(20)] public readonly float ReturnStopDistance;
-            [BinaryMember(21)] public readonly int IsReturning;
-            [BinaryMember(22)] public readonly ProjectileLifecycleState LifecycleState;
-            [BinaryMember(23)] public readonly int IsArmed;
-            [BinaryMember(24)] public readonly int LifecyclePhaseStartFrame;
-            [BinaryMember(25)] public readonly Vec3 PrepareStartPosition;
-            [BinaryMember(26)] public readonly Vec3 PrepareTargetPosition;
-            [BinaryMember(27)] public readonly int PatternSlotIndex;
-            [BinaryMember(28)] public readonly int PatternSlotCount;
-            [BinaryMember(29)] public readonly ProjectilePrepareMotionMode PrepareMotionMode;
-            [BinaryMember(30)] public readonly int PrepareFrames;
-            [BinaryMember(31)] public readonly int HoldFrames;
-            [BinaryMember(32)] public readonly Vec3 PrepareOffset;
-            [BinaryMember(33)] public readonly float PrepareSlotSpacing;
-            [BinaryMember(34)] public readonly int ConsumeLifetimeBeforeFlying;
-            [BinaryMember(35)] public readonly int ArmedBeforeFlying;
-            [BinaryMember(36)] public readonly int TrackingTargetActorId;
-            [BinaryMember(37)] public readonly Vec3 CollisionHalfExtents;
-
-            public SnapshotItem(
-                int id,
-                int ownerId,
-                int templateId,
-                int launcherActorId,
-                int rootActorId,
-                int spawnFrame,
-                in Vec3 position,
-                in Vec3 direction,
-                float speed,
-                int trackingTargetActorId,
-                int returnAfterFrames,
-                float returnSpeed,
-                float returnStopDistance,
-                int isReturning,
-                int lifetimeFramesLeft,
-                float distanceLeft,
-                int collisionLayerMask,
-                int ignoreCollider,
-                in Vec3 collisionHalfExtents,
-                int hitsRemaining,
-                ProjectileHitPolicyKind hitPolicyKind,
-                int hitPolicyParam,
-                int tickIntervalFrames,
-                int nextTickFrame,
-                ProjectileLifecycleState lifecycleState,
-                int isArmed,
-                int lifecyclePhaseStartFrame,
-                in Vec3 prepareStartPosition,
-                in Vec3 prepareTargetPosition,
-                int patternSlotIndex,
-                int patternSlotCount,
-                ProjectilePrepareMotionMode prepareMotionMode,
-                int prepareFrames,
-                int holdFrames,
-                in Vec3 prepareOffset,
-                float prepareSlotSpacing,
-                int consumeLifetimeBeforeFlying,
-                int armedBeforeFlying)
-            {
-                Id = id;
-                OwnerId = ownerId;
-                TemplateId = templateId;
-                LauncherActorId = launcherActorId;
-                RootActorId = rootActorId;
-                SpawnFrame = spawnFrame;
-                Position = position;
-                Direction = direction;
-                Speed = speed;
-                TrackingTargetActorId = trackingTargetActorId;
-                ReturnAfterFrames = returnAfterFrames;
-                ReturnSpeed = returnSpeed;
-                ReturnStopDistance = returnStopDistance;
-                IsReturning = isReturning;
-                LifetimeFramesLeft = lifetimeFramesLeft;
-                DistanceLeft = distanceLeft;
-                CollisionLayerMask = collisionLayerMask;
-                IgnoreCollider = ignoreCollider;
-                CollisionHalfExtents = collisionHalfExtents;
-                HitsRemaining = hitsRemaining;
-                HitPolicyKind = hitPolicyKind;
-                HitPolicyParam = hitPolicyParam;
-                TickIntervalFrames = tickIntervalFrames;
-                NextTickFrame = nextTickFrame;
-                LifecycleState = lifecycleState;
-                IsArmed = isArmed;
-                LifecyclePhaseStartFrame = lifecyclePhaseStartFrame;
-                PrepareStartPosition = prepareStartPosition;
-                PrepareTargetPosition = prepareTargetPosition;
-                PatternSlotIndex = patternSlotIndex;
-                PatternSlotCount = patternSlotCount;
-                PrepareMotionMode = prepareMotionMode;
-                PrepareFrames = prepareFrames;
-                HoldFrames = holdFrames;
-                PrepareOffset = prepareOffset;
-                PrepareSlotSpacing = prepareSlotSpacing;
-                ConsumeLifetimeBeforeFlying = consumeLifetimeBeforeFlying;
-                ArmedBeforeFlying = armedBeforeFlying;
-            }
+            Version = version;
+            Frame = frame;
+            NextId = nextId;
+            Items = items;
         }
     }
+
+
+    [MemoryPackable]
+    public readonly partial struct ProjectileWorldSnapshotItem
+    {
+        [MemoryPackOrder(0)] public readonly int Id;
+        [MemoryPackOrder(1)] public readonly int OwnerId;
+        [MemoryPackOrder(2)] public readonly Vec3 Position;
+        [MemoryPackOrder(3)] public readonly Vec3 Direction;
+        [MemoryPackOrder(4)] public readonly float Speed;
+        [MemoryPackOrder(5)] public readonly int LifetimeFramesLeft;
+        [MemoryPackOrder(6)] public readonly float DistanceLeft;
+        [MemoryPackOrder(7)] public readonly int CollisionLayerMask;
+        [MemoryPackOrder(8)] public readonly int IgnoreCollider;
+        [MemoryPackOrder(9)] public readonly int HitsRemaining;
+        [MemoryPackOrder(10)] public readonly ProjectileHitPolicyKind HitPolicyKind;
+        [MemoryPackOrder(11)] public readonly int HitPolicyParam;
+        [MemoryPackOrder(12)] public readonly int TickIntervalFrames;
+        [MemoryPackOrder(13)] public readonly int NextTickFrame;
+
+        [MemoryPackOrder(14)] public readonly int TemplateId;
+        [MemoryPackOrder(15)] public readonly int LauncherActorId;
+        [MemoryPackOrder(16)] public readonly int RootActorId;
+        [MemoryPackOrder(17)] public readonly int SpawnFrame;
+        [MemoryPackOrder(18)] public readonly int ReturnAfterFrames;
+        [MemoryPackOrder(19)] public readonly float ReturnSpeed;
+        [MemoryPackOrder(20)] public readonly float ReturnStopDistance;
+        [MemoryPackOrder(21)] public readonly int IsReturning;
+        [MemoryPackOrder(22)] public readonly ProjectileLifecycleState LifecycleState;
+        [MemoryPackOrder(23)] public readonly int IsArmed;
+        [MemoryPackOrder(24)] public readonly int LifecyclePhaseStartFrame;
+        [MemoryPackOrder(25)] public readonly Vec3 PrepareStartPosition;
+        [MemoryPackOrder(26)] public readonly Vec3 PrepareTargetPosition;
+        [MemoryPackOrder(27)] public readonly int PatternSlotIndex;
+        [MemoryPackOrder(28)] public readonly int PatternSlotCount;
+        [MemoryPackOrder(29)] public readonly ProjectilePrepareMotionMode PrepareMotionMode;
+        [MemoryPackOrder(30)] public readonly int PrepareFrames;
+        [MemoryPackOrder(31)] public readonly int HoldFrames;
+        [MemoryPackOrder(32)] public readonly Vec3 PrepareOffset;
+        [MemoryPackOrder(33)] public readonly float PrepareSlotSpacing;
+        [MemoryPackOrder(34)] public readonly int ConsumeLifetimeBeforeFlying;
+        [MemoryPackOrder(35)] public readonly int ArmedBeforeFlying;
+        [MemoryPackOrder(36)] public readonly int TrackingTargetActorId;
+        [MemoryPackOrder(37)] public readonly Vec3 CollisionHalfExtents;
+
+        public ProjectileWorldSnapshotItem(
+            int id,
+            int ownerId,
+            int templateId,
+            int launcherActorId,
+            int rootActorId,
+            int spawnFrame,
+            in Vec3 position,
+            in Vec3 direction,
+            float speed,
+            int trackingTargetActorId,
+            int returnAfterFrames,
+            float returnSpeed,
+            float returnStopDistance,
+            int isReturning,
+            int lifetimeFramesLeft,
+            float distanceLeft,
+            int collisionLayerMask,
+            int ignoreCollider,
+            in Vec3 collisionHalfExtents,
+            int hitsRemaining,
+            ProjectileHitPolicyKind hitPolicyKind,
+            int hitPolicyParam,
+            int tickIntervalFrames,
+            int nextTickFrame,
+            ProjectileLifecycleState lifecycleState,
+            int isArmed,
+            int lifecyclePhaseStartFrame,
+            in Vec3 prepareStartPosition,
+            in Vec3 prepareTargetPosition,
+            int patternSlotIndex,
+            int patternSlotCount,
+            ProjectilePrepareMotionMode prepareMotionMode,
+            int prepareFrames,
+            int holdFrames,
+            in Vec3 prepareOffset,
+            float prepareSlotSpacing,
+            int consumeLifetimeBeforeFlying,
+            int armedBeforeFlying)
+        {
+            Id = id;
+            OwnerId = ownerId;
+            TemplateId = templateId;
+            LauncherActorId = launcherActorId;
+            RootActorId = rootActorId;
+            SpawnFrame = spawnFrame;
+            Position = position;
+            Direction = direction;
+            Speed = speed;
+            TrackingTargetActorId = trackingTargetActorId;
+            ReturnAfterFrames = returnAfterFrames;
+            ReturnSpeed = returnSpeed;
+            ReturnStopDistance = returnStopDistance;
+            IsReturning = isReturning;
+            LifetimeFramesLeft = lifetimeFramesLeft;
+            DistanceLeft = distanceLeft;
+            CollisionLayerMask = collisionLayerMask;
+            IgnoreCollider = ignoreCollider;
+            CollisionHalfExtents = collisionHalfExtents;
+            HitsRemaining = hitsRemaining;
+            HitPolicyKind = hitPolicyKind;
+            HitPolicyParam = hitPolicyParam;
+            TickIntervalFrames = tickIntervalFrames;
+            NextTickFrame = nextTickFrame;
+            LifecycleState = lifecycleState;
+            IsArmed = isArmed;
+            LifecyclePhaseStartFrame = lifecyclePhaseStartFrame;
+            PrepareStartPosition = prepareStartPosition;
+            PrepareTargetPosition = prepareTargetPosition;
+            PatternSlotIndex = patternSlotIndex;
+            PatternSlotCount = patternSlotCount;
+            PrepareMotionMode = prepareMotionMode;
+            PrepareFrames = prepareFrames;
+            HoldFrames = holdFrames;
+            PrepareOffset = prepareOffset;
+            PrepareSlotSpacing = prepareSlotSpacing;
+            ConsumeLifetimeBeforeFlying = consumeLifetimeBeforeFlying;
+            ArmedBeforeFlying = armedBeforeFlying;
+        }
+    }
+
 }

@@ -22,7 +22,8 @@
           "message": "小乔二技能：生成击飞区域",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

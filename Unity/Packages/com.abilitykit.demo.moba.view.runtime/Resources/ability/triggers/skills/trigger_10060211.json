@@ -11,6 +11,17 @@
       "conditions": [],
       "actions": [
         {
+          "type": "pull",
+          "speed": 12.0,
+          "duration_ms": 300,
+          "direction_mode": 3,
+          "target_distance": 3.0,
+          "priority": 110,
+          "motion_group_id": 3,
+          "target_query_id": 50060201,
+          "target_max_count": 10
+        },
+        {
           "type": "give_damage",
           "damage_value": 200,
           "source_attack_ratio": 0.35,
@@ -28,7 +39,7 @@
         },
         {
           "type": "debug_log",
-          "message": "嬴政二技能王者守御：对自身周围敌人造成法术伤害并减速",
+          "message": "嬴政二技能王者守御：击退近身敌人并造成法术伤害和减速",
           "dump_args": false
         }
       ]

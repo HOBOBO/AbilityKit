@@ -227,7 +227,7 @@ namespace AbilityKit.Demo.Shooter.View
                 var applyResult = _syncController.ApplyGatewayPush(opCode, payload);
                 if (isSnapshotPush
                     && snapshot.IsFullSnapshot
-                    && IsAppliedSnapshot(applyResult))
+                    && IsReliableEventBaseline(applyResult))
                 {
                     _reliableEvents.TryApplyFullSnapshotBaseline(snapshot.EventWatermark);
                 }
@@ -254,10 +254,11 @@ namespace AbilityKit.Demo.Shooter.View
             return ShooterSnapshotApplyResult.Ignored;
         }
 
-        private static bool IsAppliedSnapshot(ShooterSnapshotApplyResult result)
+        private static bool IsReliableEventBaseline(ShooterSnapshotApplyResult result)
         {
             return result == ShooterSnapshotApplyResult.AppliedActorSnapshot
-                || result == ShooterSnapshotApplyResult.AppliedPackedSnapshot;
+                || result == ShooterSnapshotApplyResult.AppliedPackedSnapshot
+                || result == ShooterSnapshotApplyResult.IgnoredStaleSnapshot;
         }
     }
 

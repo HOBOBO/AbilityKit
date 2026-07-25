@@ -2,7 +2,9 @@ using System;
 using System.IO;
 using System.Reflection;
 using AbilityKit.Core.Recording.FrameRecord;
+#if UNITY_2020_3_OR_NEWER
 using UnityEngine;
+#endif
 
 namespace AbilityKit.Record.MemoryPack
 {
@@ -164,8 +166,12 @@ namespace AbilityKit.Record.MemoryPack
             if (string.IsNullOrEmpty(path)) path = "battle_record.pmlr";
             if (Path.IsPathRooted(path)) return path;
 
-            var baseDir = Application.persistentDataPath;
-            if (string.IsNullOrEmpty(baseDir)) baseDir = Application.dataPath;
+#if UNITY_2020_3_OR_NEWER
+            var baseDir = UnityEngine.Application.persistentDataPath;
+            if (string.IsNullOrEmpty(baseDir)) baseDir = UnityEngine.Application.dataPath;
+#else
+            var baseDir = Environment.CurrentDirectory;
+#endif
             return Path.Combine(baseDir, path);
         }
     }

@@ -1,19 +1,20 @@
 {
-    "name": "AbilityKit.Record",
-    "rootNamespace": "AbilityKit",
-    "references": [
-        "AbilityKit.Core",
-        "AbilityKit.World.FrameSync",
-        "AbilityKit.World.Snapshot",
-        "AbilityKit.Host"
-    ],
-    "includePlatforms": [],
-    "excludePlatforms": [],
-    "allowUnsafeCode": false,
-    "overrideReferences": false,
-    "precompiledReferences": [],
-    "autoReferenced": true,
-    "defineConstraints": [],
-    "versionDefines": [],
-    "noEngineReferences": false
+  "name": "AbilityKit.Record",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Core",
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.World.Snapshot",
+    "AbilityKit.Host",
+    "MemoryPack"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
 }

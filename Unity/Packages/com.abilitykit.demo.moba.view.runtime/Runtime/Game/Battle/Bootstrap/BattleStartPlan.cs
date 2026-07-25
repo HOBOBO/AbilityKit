@@ -190,6 +190,56 @@ namespace AbilityKit.Game.Flow
                 gatewayBattleId: Gateway.BattleId);
         }
 
+        public BattleStartPlan WithInputReplay(string inputReplayPath)
+        {
+            return new BattleStartPlan(
+                worldId: World.WorldId,
+                worldType: World.WorldType,
+                clientId: World.ClientId,
+                playerId: World.PlayerId,
+                tickRate: World.TickRate,
+                inputDelayFrames: World.InputDelayFrames,
+                hostMode: HostMode,
+                useGatewayTransport: false,
+                gatewayHost: Gateway.Host,
+                gatewayPort: Gateway.Port,
+                numericRoomId: Gateway.NumericRoomId,
+                gatewaySessionToken: Gateway.SessionToken,
+                gatewayRegion: Gateway.Region,
+                gatewayServerId: Gateway.ServerId,
+                gatewayAutoCreateRoom: false,
+                gatewayAutoJoinRoom: false,
+                gatewayJoinRoomId: Gateway.JoinRoomId,
+                gatewayCreateRoomOpCode: Gateway.CreateRoomOpCode,
+                gatewayJoinRoomOpCode: Gateway.JoinRoomOpCode,
+                autoConnect: Auto.AutoConnect,
+                autoCreateWorld: Auto.AutoCreateWorld,
+                autoJoin: Auto.AutoJoin,
+                autoReady: Auto.AutoReady,
+                syncMode: BattleSyncMode.Lockstep,
+                viewEventSourceMode: Sync.ViewEventSourceMode,
+                enableClientPrediction: false,
+                enableConfirmedAuthorityWorld: false,
+                enableInputRecording: false,
+                inputRecordOutputPath: string.Empty,
+                enableInputReplay: true,
+                inputReplayPath: inputReplayPath,
+                runMode: BattleStartConfig.BattleRunMode.Replay,
+                createWorldOpCode: CreateWorld.OpCode,
+                createWorldPayload: CreateWorld.Payload,
+                timeSyncOpCode: TimeSync.OpCode,
+                timeSyncIntervalMs: TimeSync.IntervalMs,
+                timeSyncAlpha: TimeSync.Alpha,
+                timeSyncTimeoutMs: TimeSync.TimeoutMs,
+                idealFrameSafetyConstMarginFrames: TimeSync.IdealFrameSafetyConstMarginFrames,
+                idealFrameSafetyRttFactor: TimeSync.IdealFrameSafetyRttFactor,
+                idealFrameSafetyMinMarginFrames: TimeSync.IdealFrameSafetyMinMarginFrames,
+                idealFrameSafetyMaxMarginFrames: TimeSync.IdealFrameSafetyMaxMarginFrames,
+                enabledSnapshotRegistryIds: Sync.EnabledSnapshotRegistryIds,
+                launchSpec: LaunchSpec,
+                gatewayBattleId: Gateway.BattleId);
+        }
+
         public BattleStartPlan(
             string worldId,
             string worldType,

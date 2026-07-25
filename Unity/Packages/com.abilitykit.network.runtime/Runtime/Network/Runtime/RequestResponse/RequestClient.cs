@@ -45,7 +45,7 @@ namespace AbilityKit.Network.Runtime
                 if (timeout.HasValue && timeout.Value > TimeSpan.Zero)
                 {
                     timeoutCts = new CancellationTokenSource(timeout.Value);
-                    ttr = timeoutCts.Token.Register(() => TryTimeout(seq), useSynchronizationContext: false);
+                    ttr = timeoutCts.Token.Register(() => TryTimeout(opCode, seq), useSynchronizationContext: false);
                 }
 
                 if (cancellationToken.CanBeCanceled)
@@ -103,11 +103,11 @@ namespace AbilityKit.Network.Runtime
             FailAll(ex ?? new InvalidOperationException("Connection error."));
         }
 
-        private void TryTimeout(uint seq)
+        private void TryTimeout(uint opCode, uint seq)
         {
             if (_pending.TryRemove(seq, out var tcs) && tcs != null)
             {
-                tcs.TrySetException(new TimeoutException($"Request timeout. seq={seq}"));
+                tcs.TrySetException(new TimeoutException($"Request timeout. opCode={opCode} seq={seq}"));
             }
         }
 

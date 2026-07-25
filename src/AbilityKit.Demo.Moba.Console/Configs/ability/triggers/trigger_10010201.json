@@ -12,7 +12,9 @@
       "actions": [
         {
           "type": "add_buff",
-          "buffIds": [10010000],
+          "buffIds": [
+            10010000
+          ],
           "target_self": true,
           "duration_ms": 1500
         },
@@ -20,7 +22,7 @@
           "type": "add_shield",
           "shield_id": 10010201,
           "shield_value": 350,
-          "absorb_ratio": 1.0,
+          "absorb_ratio": 1,
           "duration_ms": 2500,
           "priority": 20,
           "target_self": true,
@@ -46,7 +48,8 @@
           "message": "廉颇二技能：获得护盾并生成延迟范围伤害区域，范围内有敌人时刷新一技能",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

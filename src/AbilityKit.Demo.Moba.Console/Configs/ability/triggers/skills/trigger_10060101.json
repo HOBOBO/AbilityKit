@@ -10,10 +10,27 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "add_buff", "buffIds": [10060101], "target_self": true, "duration_ms": 800 },
-        { "type": "shoot_projectile", "launcher_id": 31060101, "projectile_id": 30060101, "directionSource": "cast_context" },
-        { "type": "debug_log", "message": "嬴政一技能：向目标方向发射穿透剑雨，命中的目标叠加剑意标记", "dump_args": false }
-      ]
+        {
+          "type": "add_buff",
+          "buffIds": [
+            10060101
+          ],
+          "target_self": true,
+          "duration_ms": 800
+        },
+        {
+          "type": "shoot_projectile",
+          "launcher_id": 31060101,
+          "projectile_id": 30060101,
+          "directionSource": "cast_context"
+        },
+        {
+          "type": "debug_log",
+          "message": "嬴政一技能：向目标方向发射穿透剑雨，命中的目标叠加剑意标记",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

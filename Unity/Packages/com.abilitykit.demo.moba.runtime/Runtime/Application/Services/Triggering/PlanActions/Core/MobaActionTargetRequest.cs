@@ -146,6 +146,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var explicitTargetActorId = ResolveContextTargetActorId(in request, in effectInput);
+
+            // ContextTarget 源在 effectInput 无目标时无法解析——优雅拒绝而非让
+            // ExplicitTargetSourceFactory 返回 null 后抛异常（与上方 missing caster 防御一致）。
+            if (request.SourceCode == MobaActionTargetSourceCode.ContextTarget && explicitTargetActorId <= 0)
+            {
+                MobaPlanActionDiagnostics.Rejected(ctx.Context, actionName, "target query missing context target.");
+                return false;
+            }
+
             var aimPosition = coreInput.AimPosition;
             if (request.UsesTemplate)
             {

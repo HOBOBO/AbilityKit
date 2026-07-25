@@ -1,3 +1,4 @@
+using MemoryPack;
 using System;
 using System.Collections.Concurrent;
 using System.Reflection;
@@ -22,7 +23,7 @@ namespace AbilityKit.Coordinator
 
         public static byte[] Encode<T>(in T payload)
         {
-            return WireSerializer.Serialize(in payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static T Decode<T>(byte[] payload)
@@ -32,7 +33,7 @@ namespace AbilityKit.Coordinator
                 return default;
             }
 
-            return WireSerializer.Deserialize<T>(payload);
+            return MemoryPackSerializer.Deserialize<T>(payload);
         }
 
         public static bool TryDecode<T>(byte[] payload, out T value)
@@ -43,7 +44,7 @@ namespace AbilityKit.Coordinator
                 return false;
             }
 
-            value = WireSerializer.Deserialize<T>(payload);
+            value = MemoryPackSerializer.Deserialize<T>(payload);
             return true;
         }
 

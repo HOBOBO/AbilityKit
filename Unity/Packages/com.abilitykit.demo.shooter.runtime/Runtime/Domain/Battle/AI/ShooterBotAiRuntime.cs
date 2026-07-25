@@ -28,7 +28,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
     {
         private readonly ShooterBattleState _state;
         private readonly IShooterEntityManager _entities;
-        private readonly ShooterSpatialTargetIndex _targetIndex = new();
+        private ShooterSpatialTargetIndex _targetIndex => _state.PlayerTargetIndex;
         private readonly Dictionary<int, ShooterBotAiAttachment> _attachments = new Dictionary<int, ShooterBotAiAttachment>();
 
         public ShooterBotAiRuntime(ShooterBattleState state, IShooterEntityManager entities)

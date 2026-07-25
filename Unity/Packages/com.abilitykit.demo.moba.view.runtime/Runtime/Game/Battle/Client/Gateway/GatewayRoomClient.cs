@@ -237,7 +237,14 @@ namespace AbilityKit.Game.Battle.Agent
 
         public GatewayStateSyncSnapshot DeserializeStateSyncSnapshotPush(ArraySegment<byte> payload)
         {
-            var wire = MobaWorldSnapshotCodec.Deserialize(CopySegment(payload));
+            // FIXED (2026-07-20): Use WireRoomGatewayBinary + WireStateSyncSnapshotPush (MemoryPack)
+            // instead of MobaWorldSnapshotCodec (BinaryObjectCodec). The server encodes via
+            // WireRoomGatewayBinary.Serialize(WireStateSyncSnapshotPush) in StateSyncObserverGrain,
+            // so the matching deserializer is WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>.
+            // The old MobaWorldSnapshotCodec path used an incompatible BinaryObjectCodec and a
+            // different struct shape (5 fields, long Timestamp) — it would silently produce
+            // default/empty snapshots instead of throwing, masking the real data.
+            var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
             return ToGatewaySnapshot(in wire);
         }
 
@@ -477,33 +484,36 @@ namespace AbilityKit.Game.Battle.Agent
             return result;
         }
 
-        private static GatewayStateSyncSnapshot ToGatewaySnapshot(in MobaWorldSnapshotPayload push)
+        public static GatewayStateSyncSnapshot ToGatewaySnapshot(in WireStateSyncSnapshotPush push)
         {
             var source = push.Actors;
-            var actors = source == null || source.Length == 0
+            var actors = source == null || source.Count == 0
                 ? Array.Empty<GatewayStateSyncActorSnapshot>()
-                : new GatewayStateSyncActorSnapshot[source.Length];
+                : new GatewayStateSyncActorSnapshot[source.Count];
 
             for (int i = 0; i < actors.Length; i++)
             {
                 var actor = source[i];
                 actors[i] = new GatewayStateSyncActorSnapshot(
                     actor.ActorId,
-                    actor.PositionX,
-                    actor.PositionY,
-                    actor.PositionZ,
+                    actor.X,       // WireStateSyncActorSnapshot uses X/Y/Z (not PositionX/Y/Z)
+                    actor.Y,
+                    actor.Z,
                     actor.Rotation,
                     actor.VelocityX,
                     actor.VelocityZ,
                     actor.Hp,
                     actor.HpMax,
-                    actor.TeamId);
+                    actor.TeamId,
+                    actor.Kind,
+                    actor.Code,
+                    actor.OwnerNetId);
             }
 
             return new GatewayStateSyncSnapshot(
                 push.WorldId,
                 push.Frame,
-                push.Timestamp,
+                (long)push.Timestamp,   // WireStateSyncSnapshotPush.Timestamp is double; cast to long for GatewayStateSyncSnapshot
                 push.IsFullSnapshot,
                 actors);
         }

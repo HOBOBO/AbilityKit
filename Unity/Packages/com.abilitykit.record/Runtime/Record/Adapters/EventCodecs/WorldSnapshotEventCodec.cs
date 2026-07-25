@@ -1,6 +1,6 @@
+using MemoryPack;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Serialization;
 using AbilityKit.Core.Recording.Core;
 
 namespace AbilityKit.Core.Recording.Adapters.EventCodecs
@@ -9,13 +9,13 @@ namespace AbilityKit.Core.Recording.Adapters.EventCodecs
     {
         public static byte[] Encode(in WorldStateSnapshot snapshot)
         {
-            var payload = new Payload(snapshot.OpCode, snapshot.Payload);
-            return BinaryObjectCodec.Encode(payload);
+            var payload = new WorldSnapshotEventPayload(snapshot.OpCode, snapshot.Payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static WorldStateSnapshot Decode(byte[] payload)
         {
-            var p = BinaryObjectCodec.Decode<Payload>(payload);
+            var p = MemoryPackSerializer.Deserialize<WorldSnapshotEventPayload>(payload);
             return new WorldStateSnapshot(p.OpCode, p.PayloadBytes);
         }
 
@@ -36,31 +36,19 @@ namespace AbilityKit.Core.Recording.Adapters.EventCodecs
             snapshot = Decode(e.Payload);
             return true;
         }
-
-        public readonly struct Payload
-        {
-            [BinaryMember(0)] public readonly int OpCode;
-            [BinaryMember(1)] public readonly byte[] PayloadBytes;
-
-            public Payload(int opCode, byte[] payload)
-            {
-                OpCode = opCode;
-                PayloadBytes = payload;
-            }
-        }
     }
 
     public static class WorldDeltaEventCodec
     {
         public static byte[] Encode(in WorldStateSnapshot delta)
         {
-            var payload = new Payload(delta.OpCode, delta.Payload);
-            return BinaryObjectCodec.Encode(payload);
+            var payload = new WorldDeltaEventPayload(delta.OpCode, delta.Payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static WorldStateSnapshot Decode(byte[] payload)
         {
-            var p = BinaryObjectCodec.Decode<Payload>(payload);
+            var p = MemoryPackSerializer.Deserialize<WorldDeltaEventPayload>(payload);
             return new WorldStateSnapshot(p.OpCode, p.PayloadBytes);
         }
 
@@ -81,17 +69,33 @@ namespace AbilityKit.Core.Recording.Adapters.EventCodecs
             delta = Decode(e.Payload);
             return true;
         }
+    }
 
-        public readonly struct Payload
+    [MemoryPackable]
+    public readonly partial struct WorldSnapshotEventPayload
+    {
+        [MemoryPackOrder(0)] public readonly int OpCode;
+        [MemoryPackOrder(1)] public readonly byte[] PayloadBytes;
+
+        [MemoryPackConstructor]
+        public WorldSnapshotEventPayload(int opCode, byte[] payloadBytes)
         {
-            [BinaryMember(0)] public readonly int OpCode;
-            [BinaryMember(1)] public readonly byte[] PayloadBytes;
+            OpCode = opCode;
+            PayloadBytes = payloadBytes;
+        }
+    }
 
-            public Payload(int opCode, byte[] payload)
-            {
-                OpCode = opCode;
-                PayloadBytes = payload;
-            }
+    [MemoryPackable]
+    public readonly partial struct WorldDeltaEventPayload
+    {
+        [MemoryPackOrder(0)] public readonly int OpCode;
+        [MemoryPackOrder(1)] public readonly byte[] PayloadBytes;
+
+        [MemoryPackConstructor]
+        public WorldDeltaEventPayload(int opCode, byte[] payloadBytes)
+        {
+            OpCode = opCode;
+            PayloadBytes = payloadBytes;
         }
     }
 }

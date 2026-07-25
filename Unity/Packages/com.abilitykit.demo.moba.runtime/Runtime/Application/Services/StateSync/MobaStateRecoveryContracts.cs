@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Core.Serialization;
+using MemoryPack;
 
 namespace AbilityKit.Demo.Moba.Services.StateSync
 {
@@ -13,12 +13,14 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
         void AddStateHash(FrameIndex frame, MobaStateHashBuilder hash);
     }
 
-    public readonly struct MobaStateRecoverySnapshot
+    [MemoryPackable]
+    public readonly partial struct MobaStateRecoverySnapshot
     {
-        [BinaryMember(0)] public readonly int Version;
-        [BinaryMember(1)] public readonly int Frame;
-        [BinaryMember(2)] public readonly MobaStateRecoveryEntry[] Entries;
+        [MemoryPackOrder(0)] public readonly int Version;
+        [MemoryPackOrder(1)] public readonly int Frame;
+        [MemoryPackOrder(2)] public readonly MobaStateRecoveryEntry[] Entries;
 
+        [MemoryPackConstructor]
         public MobaStateRecoverySnapshot(int version, int frame, MobaStateRecoveryEntry[] entries)
         {
             Version = version;
@@ -27,11 +29,13 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
         }
     }
 
-    public readonly struct MobaStateRecoveryEntry
+    [MemoryPackable]
+    public readonly partial struct MobaStateRecoveryEntry
     {
-        [BinaryMember(0)] public readonly int Key;
-        [BinaryMember(1)] public readonly byte[] Payload;
+        [MemoryPackOrder(0)] public readonly int Key;
+        [MemoryPackOrder(1)] public readonly byte[] Payload;
 
+        [MemoryPackConstructor]
         public MobaStateRecoveryEntry(int key, byte[] payload)
         {
             Key = key;

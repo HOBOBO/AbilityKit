@@ -4,6 +4,7 @@
   "references": [
     "AbilityKit.Demo.Moba.Diagnostics.Core",
     "AbilityKit.Demo.Moba.Runtime",
+    "AbilityKit.Diagnostics",
     "AbilityKit.Demo.Moba.Editor",
     "AbilityKit.Demo.Moba.Share",
     "AbilityKit.World.DI",

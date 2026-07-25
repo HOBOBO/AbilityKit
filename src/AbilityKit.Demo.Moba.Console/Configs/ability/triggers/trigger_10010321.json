@@ -10,9 +10,24 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "jump", "height": 1.8, "duration_ms": 380, "priority": 100, "apply_to_caster": true, "landing_trigger_ids": [10010322], "continuous_tag_template_id": 10000001 },
-        { "type": "debug_log", "message": "廉颇三技能：第三段在当前位置跳起，落地后触发区域和击飞", "dump_args": false }
-      ]
+        {
+          "type": "jump",
+          "height": 1.8,
+          "duration_ms": 380,
+          "priority": 100,
+          "apply_to_caster": true,
+          "landing_trigger_ids": [
+            10010322
+          ],
+          "continuous_tag_template_id": 10000001
+        },
+        {
+          "type": "debug_log",
+          "message": "廉颇三技能：第三段在当前位置跳起，落地后触发区域和击飞",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

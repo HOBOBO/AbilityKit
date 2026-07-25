@@ -9,7 +9,11 @@ using AbilityKit.Trace;
 namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(IBattleDiagnosticTraceReadStore), WorldLifetime.Scoped)]
-    public sealed class MobaBattleDiagnosticTraceReadStore : IBattleDiagnosticTraceReadStore, IService
+    [WorldService(typeof(IBattleDiagnosticTraceSnapshotSource), WorldLifetime.Scoped)]
+    public sealed class MobaBattleDiagnosticTraceReadStore :
+        IBattleDiagnosticTraceReadStore,
+        IBattleDiagnosticTraceSnapshotSource,
+        IService
     {
         private static readonly TraceExportOptions QueryOptions = new TraceExportOptions(
             0,
@@ -31,6 +35,45 @@ namespace AbilityKit.Demo.Moba.Services
 
         public BattleDiagnosticSessionScope Scope { get; }
         public long Revision => _registry.Revision;
+
+        public BattleDiagnosticTraceTrackSnapshot CaptureTraceSnapshot()
+        {
+            const int maximumAttempts = 3;
+            var nodes = new List<BattleDiagnosticTraceNodeSummary>();
+            var truncated = false;
+            var revision = Revision;
+
+            for (var attempt = 0; attempt < maximumAttempts; attempt++)
+            {
+                revision = Revision;
+                nodes.Clear();
+                truncated = false;
+                var roots = _registry.ExportRoots(QueryOptions);
+                foreach (var root in roots)
+                {
+                    truncated |= root.Truncated;
+                    foreach (var node in root.Nodes)
+                    {
+                        nodes.Add(ToSummary(in node));
+                    }
+                }
+
+                if (revision == Revision)
+                {
+                    return new BattleDiagnosticTraceTrackSnapshot(
+                        revision,
+                        nodes,
+                        truncated,
+                        true);
+                }
+            }
+
+            return new BattleDiagnosticTraceTrackSnapshot(
+                revision,
+                nodes,
+                truncated,
+                false);
+        }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticTraceNodeSummary> QueryTrace(
             long requestId,

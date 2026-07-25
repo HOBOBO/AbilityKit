@@ -3,10 +3,10 @@ using Orleans;
 namespace AbilityKit.Orleans.Contracts.Battle;
 
 /// <summary>
-/// Gateway 推送目标 Grain 接口
-/// 由 Gateway 实现，用于接收来自其他 Grains 的推送请求
+/// Gateway 推送目标 Grain 接口。
+/// 每个账号使用独立的字符串 Grain Key，避免慢连接阻塞其他账号的推送。
 /// </summary>
-public interface IGatewayPushTargetGrain : IGrainWithIntegerKey
+public interface IGatewayPushTargetGrain : IGrainWithStringKey
 {
     /// <summary>
     /// 向指定账号推送消息

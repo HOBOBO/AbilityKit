@@ -1,6 +1,6 @@
+using MemoryPack;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Serialization;
 using AbilityKit.Core.Recording.Core;
 
 namespace AbilityKit.Core.Recording.Adapters.EventCodecs
@@ -9,13 +9,13 @@ namespace AbilityKit.Core.Recording.Adapters.EventCodecs
     {
         public static byte[] Encode(in PlayerInputCommand cmd)
         {
-            var payload = new Payload(cmd.Player.Value, cmd.OpCode, cmd.Payload);
-            return BinaryObjectCodec.Encode(payload);
+            var payload = new InputCommandEventPayload(cmd.Player.Value, cmd.OpCode, cmd.Payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static PlayerInputCommand Decode(FrameIndex frame, byte[] payload)
         {
-            var p = BinaryObjectCodec.Decode<Payload>(payload);
+            var p = MemoryPackSerializer.Deserialize<InputCommandEventPayload>(payload);
             return new PlayerInputCommand(frame, new PlayerId(p.PlayerId), p.OpCode, p.PayloadBytes);
         }
 
@@ -36,19 +36,21 @@ namespace AbilityKit.Core.Recording.Adapters.EventCodecs
             cmd = Decode(e.Frame, e.Payload);
             return true;
         }
+    }
 
-        public readonly struct Payload
+    [MemoryPackable]
+    public readonly partial struct InputCommandEventPayload
+    {
+        [MemoryPackOrder(0)] public readonly string PlayerId;
+        [MemoryPackOrder(1)] public readonly int OpCode;
+        [MemoryPackOrder(2)] public readonly byte[] PayloadBytes;
+
+        [MemoryPackConstructor]
+        public InputCommandEventPayload(string playerId, int opCode, byte[] payloadBytes)
         {
-            [BinaryMember(0)] public readonly string PlayerId;
-            [BinaryMember(1)] public readonly int OpCode;
-            [BinaryMember(2)] public readonly byte[] PayloadBytes;
-
-            public Payload(string playerId, int opCode, byte[] payload)
-            {
-                PlayerId = playerId;
-                OpCode = opCode;
-                PayloadBytes = payload;
-            }
+            PlayerId = playerId;
+            OpCode = opCode;
+            PayloadBytes = payloadBytes;
         }
     }
 }

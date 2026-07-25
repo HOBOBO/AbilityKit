@@ -988,7 +988,7 @@
                            "CooldownMs":  0,
                            "Cost":  0,
                            "Params":  [
-                                          20,
+                                          30,
                                           3000,
                                           3
                                       ]

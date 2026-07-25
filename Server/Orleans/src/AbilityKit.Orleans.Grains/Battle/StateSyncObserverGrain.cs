@@ -247,11 +247,11 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
 
     private async Task DrainQueueAsync()
     {
+        var gatewayPush = GrainFactory.GetGrain<IGatewayPushTargetGrain>(_accountId);
         if (TryPeekReliableEvent(_reliableEventQueue, out var reliable))
         {
             try
             {
-                var gatewayPush = GrainFactory.GetGrain<IGatewayPushTargetGrain>(0);
                 var success = await gatewayPush.PushToAccountAsync(
                     _accountId,
                     ReliableBattleEventGatewayOpCodes.EventsPushed,
@@ -314,7 +314,6 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
 
         try
         {
-            var gatewayPush = GrainFactory.GetGrain<IGatewayPushTargetGrain>(0);
             var success = await gatewayPush.PushToAccountAsync(
                 _accountId,
                 item.Value.OpCode,
@@ -418,7 +417,10 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
                     VelocityZ = actor.VelocityZ,
                     Hp = actor.Hp,
                     HpMax = actor.HpMax,
-                    TeamId = actor.TeamId
+                    TeamId = actor.TeamId,
+                    Kind = actor.Kind,
+                    Code = actor.Code,
+                    OwnerNetId = actor.OwnerNetId
                 });
             }
         }

@@ -1,110 +1,109 @@
 [
-    {
-        "id":  10040000,
-        "name":  "墨子-机关术-释放技能获得护盾",
-        "event":  "skill.cast.complete",
-        "enabled":  true,
-        "allowExternal":  false,
-        "phase":  "immediate",
-        "priority":  50,
-        "conditions":  [
-
-                       ],
-        "actions":  [
-                        {
-                            "type":  "add_buff",
-                            "buffIds":  [
-                                            10040000
-                                        ],
-                            "target_self":  true,
-                            "duration_ms":  3000
-                        },
-                        {
-                            "type":  "add_shield",
-                            "shield_id":  10040000,
-                            "shield_value":  300,
-                            "absorb_ratio":  1,
-                            "duration_ms":  3000,
-                            "priority":  20,
-                            "target_self":  true,
-                            "stacking_policy":  1,
-                            "consume_policy":  0
-                        },
-                        {
-                            "type":  "debug_log",
-                            "message":  "墨子被动机关术：释放技能获得机关护盾",
-                            "dump_args":  false
-                        }
-                    ]
-    },
-    {
-        "id":  10040001,
-        "name":  "墨子-机关术-普攻计数",
-        "event":  "damage.apply.after",
-        "enabled":  true,
-        "allowExternal":  false,
-        "phase":  "immediate",
-        "priority":  45,
-        "conditions":  [
-                           {
-                               "type":  "arg_gt",
-                               "arg_name":  "damage_value",
-                               "value":  0
-                           },
-                           {
-                               "type":  "arg_eq",
-                               "left":  "payload:reason_kind",
-                               "right":  "2"
-                           },
-                           {
-                               "type":  "arg_neq",
-                               "left":  "payload:attacker_actor_id",
-                               "right":  "payload:target_actor_id"
-                           }
-                       ],
-        "actions":  [
-                        {
-                            "type":  "advance_gameplay_counter",
-                            "key_id":  10040001,
-                            "scope_payload_field_id":  1993035528,
-                            "threshold":  4,
-                            "delta":  1,
-                            "reset_value":  0,
-                            "trigger_id":  10040002
-                        }
-                    ]
-    },
-    {
-        "id":  10040002,
-        "name":  "墨子-机关术-第四次普攻炮击",
-        "event":  "",
-        "enabled":  true,
-        "allowExternal":  true,
-        "phase":  "immediate",
-        "priority":  50,
-        "conditions":  [
-
-                       ],
-        "actions":  [
-                        {
-                            "type":  "shoot_projectile",
-                            "launcher_id":  31040201,
-                            "projectile_id":  30040201,
-                            "directionSource":  "cast_context"
-                        },
-                        {
-                            "type":  "add_buff",
-                            "buffIds":  [
-                                            10040000
-                                        ],
-                            "target_self":  true,
-                            "duration_ms":  3000
-                        },
-                        {
-                            "type":  "debug_log",
-                            "message":  "墨子被动机关术：第四次普攻转换为机关炮击并刷新护盾",
-                            "dump_args":  false
-                        }
-                    ]
-    }
+  {
+    "id": 10040000,
+    "name": "墨子-机关术-释放技能获得护盾",
+    "event": "skill.cast.complete",
+    "enabled": true,
+    "allowExternal": false,
+    "phase": "immediate",
+    "priority": 50,
+    "conditions": [],
+    "actions": [
+      {
+        "type": "add_buff",
+        "buffIds": [
+          10040000
+        ],
+        "target_self": true,
+        "duration_ms": 3000
+      },
+      {
+        "type": "add_shield",
+        "shield_id": 10040000,
+        "shield_value": 300,
+        "absorb_ratio": 1,
+        "duration_ms": 3000,
+        "priority": 20,
+        "target_self": true,
+        "stacking_policy": 1,
+        "consume_policy": 0
+      },
+      {
+        "type": "debug_log",
+        "message": "墨子被动机关术：释放技能获得机关护盾",
+        "dump_args": false
+      }
+    ],
+    "scope": "owner"
+  },
+  {
+    "id": 10040001,
+    "name": "墨子-机关术-普攻计数",
+    "event": "damage.apply.after",
+    "enabled": true,
+    "allowExternal": false,
+    "phase": "immediate",
+    "priority": 45,
+    "conditions": [
+      {
+        "type": "arg_gt",
+        "arg_name": "damage_value",
+        "value": 0
+      },
+      {
+        "type": "arg_eq",
+        "left": "payload:reason_kind",
+        "right": "2"
+      },
+      {
+        "type": "arg_neq",
+        "left": "payload:attacker_actor_id",
+        "right": "payload:target_actor_id"
+      }
+    ],
+    "actions": [
+      {
+        "type": "advance_gameplay_counter",
+        "key_id": 10040001,
+        "scope_payload_field_id": 1993035528,
+        "threshold": 4,
+        "delta": 1,
+        "reset_value": 0,
+        "trigger_id": 10040002
+      }
+    ],
+    "scope": "owner"
+  },
+  {
+    "id": 10040002,
+    "name": "墨子-机关术-第四次普攻炮击",
+    "event": "",
+    "enabled": true,
+    "allowExternal": true,
+    "phase": "immediate",
+    "priority": 50,
+    "conditions": [],
+    "actions": [
+      {
+        "type": "shoot_projectile",
+        "launcher_id": 31040201,
+        "projectile_id": 30040201,
+        "directionSource": "cast_context"
+      },
+      {
+        "type": "add_buff",
+        "buffIds": [
+          10040000
+        ],
+        "target_self": true,
+        "duration_ms": 3000
+      },
+      {
+        "type": "debug_log",
+        "message": "墨子被动机关术：第四次普攻转换为机关炮击并刷新护盾",
+        "dump_args": false
+      }
+    ],
+    "scope": "owner"
+  }
 ]

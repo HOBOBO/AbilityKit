@@ -1,7 +1,7 @@
+using MemoryPack;
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
-using AbilityKit.Core.Serialization;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Services.StateSync;
 
@@ -94,7 +94,7 @@ namespace AbilityKit.Demo.Moba.Rollback
 
         public byte[] Export(FrameIndex frame)
         {
-            return BinaryObjectCodec.Encode(new Payload(1, _seed, _state));
+            return MemoryPackSerializer.Serialize(new MobaRollbackWorldRandomPayload(1, _seed, _state));
         }
 
         public void Import(FrameIndex frame, byte[] payload)
@@ -105,23 +105,28 @@ namespace AbilityKit.Demo.Moba.Rollback
                 return;
             }
 
-            var p = BinaryObjectCodec.Decode<Payload>(payload);
+            var p = MemoryPackSerializer.Deserialize<MobaRollbackWorldRandomPayload>(payload);
             _seed = p.Seed;
             _state = p.State != 0 ? p.State : 0x6D2B79F5u;
         }
 
-        public readonly struct Payload
-        {
-            [BinaryMember(0)] public readonly int Version;
-            [BinaryMember(1)] public readonly int Seed;
-            [BinaryMember(2)] public readonly uint State;
+    }
 
-            public Payload(int version, int seed, uint state)
-            {
-                Version = version;
-                Seed = seed;
-                State = state;
-            }
+
+
+    [MemoryPackable]
+    public readonly partial struct MobaRollbackWorldRandomPayload
+    {
+        [MemoryPackOrder(0)] public readonly int Version;
+        [MemoryPackOrder(1)] public readonly int Seed;
+        [MemoryPackOrder(2)] public readonly uint State;
+
+        public MobaRollbackWorldRandomPayload(int version, int seed, uint state)
+        {
+            Version = version;
+            Seed = seed;
+            State = state;
         }
     }
+
 }

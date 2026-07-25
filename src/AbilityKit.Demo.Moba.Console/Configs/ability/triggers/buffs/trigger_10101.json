@@ -1,29 +1,30 @@
 {
-    "triggers": [
+  "triggers": [
+    {
+      "id": 10101,
+      "name": "持续掉血触发器",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
         {
-            "id": 10101,
-            "name": "持续掉血触发器",
-            "event": "",
-            "enabled": true,
-            "allowExternal": false,
-            "phase": "immediate",
-            "priority": 50,
-            "conditions": [],
-            "actions": [
-                {
-                    "message": "触发器执行：持续扣血10点！",
-                    "dump_args": false,
-                    "type": "debug_log"
-                },
-                {
-                    "damageType": 1,
-                    "value": 10,
-                    "scale": 0,
-                    "formulaType": "fixed",
-                    "attrTypeId": 0,
-                    "type": "give_damage"
-                }
-            ]
+          "message": "触发器执行：持续扣血10点！",
+          "dump_args": false,
+          "type": "debug_log"
+        },
+        {
+          "damageType": 1,
+          "value": 10,
+          "scale": 0,
+          "formulaType": "fixed",
+          "attrTypeId": 0,
+          "type": "give_damage"
         }
-    ]
+      ],
+      "scope": "owner"
+    }
+  ]
 }

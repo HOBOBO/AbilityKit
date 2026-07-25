@@ -25,14 +25,6 @@
                         "category":  "buffs"
                     },
                     {
-                        "trigger_id":  21001,
-                        "category":  "buffs"
-                    },
-                    {
-                        "trigger_id":  21002,
-                        "category":  "buffs"
-                    },
-                    {
                         "trigger_id":  22001,
                         "category":  "passives"
                     },
@@ -308,6 +300,16 @@
                     },
                     {
                         "trigger_id":  10060000,
+                        "path":  "passives\\trigger_10060000.json",
+                        "category":  "passives"
+                    },
+                    {
+                        "trigger_id":  10060002,
+                        "path":  "passives\\trigger_10060000.json",
+                        "category":  "passives"
+                    },
+                    {
+                        "trigger_id":  10060003,
                         "path":  "passives\\trigger_10060000.json",
                         "category":  "passives"
                     },

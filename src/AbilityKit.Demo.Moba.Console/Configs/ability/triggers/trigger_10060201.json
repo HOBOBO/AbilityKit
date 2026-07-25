@@ -18,7 +18,9 @@
         },
         {
           "type": "add_buff",
-          "buffIds": [10060201],
+          "buffIds": [
+            10060201
+          ],
           "target_self": true
         },
         {
@@ -37,7 +39,8 @@
           "message": "嬴政二技能王者守御：清除减速并获得护盾和移速",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

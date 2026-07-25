@@ -28,19 +28,343 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             viewModel.RefreshIfNeeded(session, 10, true);
             Assert.That(session.EventQueryCount, Is.EqualTo(3));
 
-            viewModel.FailuresOnly = true;
+            viewModel.ActorRelation = BattleDiagnosticActorRelation.Source;
             viewModel.RefreshIfNeeded(session, 10, true);
             Assert.That(session.EventQueryCount, Is.EqualTo(4));
 
-            viewModel.SearchText = "damage";
+            viewModel.FailuresOnly = true;
             viewModel.RefreshIfNeeded(session, 10, true);
             Assert.That(session.EventQueryCount, Is.EqualTo(5));
 
-            viewModel.RefreshIfNeeded(session, 11, true);
+            viewModel.EventScope = BattleDebugDiagnosticEventScope.All;
+            viewModel.RefreshIfNeeded(session, 10, true);
             Assert.That(session.EventQueryCount, Is.EqualTo(6));
 
-            viewModel.RefreshIfNeeded(session, 11, false);
+            viewModel.RecentFrameCount = 120;
+            viewModel.RefreshIfNeeded(session, 10, true);
             Assert.That(session.EventQueryCount, Is.EqualTo(7));
+
+            viewModel.SearchText = "damage";
+            viewModel.RefreshIfNeeded(session, 10, true);
+            Assert.That(session.EventQueryCount, Is.EqualTo(8));
+
+            viewModel.TriggerStage = BattleDiagnosticTriggerAnalysisStage.Conditions;
+            viewModel.RefreshIfNeeded(session, 10, true);
+            Assert.That(session.EventQueryCount, Is.EqualTo(9));
+            Assert.That(session.LastEventQuery.Filter.TriggerStage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Conditions));
+
+            viewModel.TriggerResult = BattleDiagnosticTriggerAnalysisResult.Failed;
+            viewModel.TriggerContextKind = 2;
+            viewModel.TriggerOriginKind = 3;
+            viewModel.RefreshIfNeeded(session, 10, true);
+            Assert.That(session.EventQueryCount, Is.EqualTo(10));
+            Assert.That(session.LastEventQuery.Filter.TriggerResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Failed));
+            Assert.That(session.LastEventQuery.Filter.TriggerContextKind, Is.EqualTo(2));
+            Assert.That(session.LastEventQuery.Filter.TriggerOriginKind, Is.EqualTo(3));
+
+            viewModel.RefreshIfNeeded(session, 11, true);
+            Assert.That(session.EventQueryCount, Is.EqualTo(11));
+
+            viewModel.RefreshIfNeeded(session, 11, false);
+            Assert.That(session.EventQueryCount, Is.EqualTo(12));
+        }
+
+        [Test]
+        public void EventsIssueGroups_AggregateStructuredTriggerFailuresAndFocusTheSelectedGroup()
+        {
+            var first = new BattleDiagnosticTriggerAnalysisPayload(
+                7001,
+                contextKind: 2,
+                originKind: 3,
+                BattleDiagnosticTriggerAnalysisStage.Conditions,
+                BattleDiagnosticTriggerAnalysisResult.Failed,
+                failureKey: "missingMana",
+                reason: "Mana is insufficient.");
+            var second = new BattleDiagnosticTriggerAnalysisPayload(
+                7001,
+                contextKind: 2,
+                originKind: 3,
+                BattleDiagnosticTriggerAnalysisStage.Conditions,
+                BattleDiagnosticTriggerAnalysisResult.Failed,
+                failureKey: "missingMana",
+                reason: "Mana is insufficient.");
+            var blocked = new BattleDiagnosticTriggerAnalysisPayload(
+                7002,
+                contextKind: 2,
+                originKind: 3,
+                BattleDiagnosticTriggerAnalysisStage.Budget,
+                BattleDiagnosticTriggerAnalysisResult.Blocked,
+                failureKey: "DepthLimit",
+                reason: "Trigger depth limit reached.");
+            var session = new RecordingSession
+            {
+                EventStoreRevision = 3,
+                Events = new[]
+                {
+                    TriggerEvent(frame: 14, sequence: 3, configId: 7002, in blocked),
+                    TriggerEvent(frame: 13, sequence: 2, configId: 7001, in second),
+                    TriggerEvent(frame: 11, sequence: 1, configId: 7001, in first)
+                }
+            };
+            var viewModel = new BattleDebugDiagnosticEventsViewModel
+            {
+                FilterBySelectedActor = false,
+                EventScope = BattleDebugDiagnosticEventScope.All,
+                RecentFrameCount = 0
+            };
+
+            viewModel.RefreshIfNeeded(session, 0, false);
+
+            Assert.That(viewModel.IssueGroups, Has.Count.EqualTo(2));
+            var missingMana = viewModel.IssueGroups[0];
+            Assert.That(missingMana.Count, Is.EqualTo(2));
+            Assert.That(missingMana.LatestFrame, Is.EqualTo(13));
+            Assert.That(missingMana.ConfigId, Is.EqualTo(7001));
+            Assert.That(missingMana.SearchText, Is.EqualTo("missingMana"));
+            Assert.That(missingMana.TriggerStage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Conditions));
+            Assert.That(missingMana.TriggerResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Failed));
+
+            viewModel.FocusIssueGroup(in missingMana);
+            viewModel.RefreshIfNeeded(session, 0, false);
+
+            Assert.That(viewModel.FilterBySelectedActor, Is.False);
+            Assert.That(viewModel.FailuresOnly, Is.True);
+            Assert.That(viewModel.EventScope, Is.EqualTo(BattleDebugDiagnosticEventScope.All));
+            Assert.That(viewModel.RecentFrameCount, Is.Zero);
+            Assert.That(session.LastEventQuery.Filter.ConfigId, Is.EqualTo(7001));
+            Assert.That(session.LastEventQuery.Filter.SearchText, Is.EqualTo("missingMana"));
+            Assert.That(session.LastEventQuery.Filter.TriggerStage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Conditions));
+            Assert.That(session.LastEventQuery.Filter.TriggerResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Failed));
+        }
+
+        [Test]
+        public void EventsFailurePresets_BuildExpectedQueries()
+        {
+            var session = new RecordingSession();
+            var viewModel = new BattleDebugDiagnosticEventsViewModel();
+
+            viewModel.FocusRecentFailures();
+            viewModel.RefreshIfNeeded(session, 10, true);
+            Assert.That(session.LastEventQuery.Filter.FailuresOnly, Is.True);
+            Assert.That(session.LastEventQuery.Filter.Channels, Is.EqualTo(BattleDiagnosticEventChannel.All));
+            Assert.That(session.LastEventQuery.RecentFrameCount, Is.EqualTo(600));
+
+            viewModel.FocusConditionFailures();
+            viewModel.RefreshIfNeeded(session, 10, true);
+            Assert.That(session.LastEventQuery.Filter.Channels, Is.EqualTo(BattleDiagnosticEventChannel.Effect));
+            Assert.That(session.LastEventQuery.Filter.TriggerStage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Conditions));
+            Assert.That(session.LastEventQuery.Filter.TriggerResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Failed));
+
+            viewModel.FocusTriggerBlocks();
+            viewModel.RefreshIfNeeded(session, 10, true);
+            Assert.That(session.LastEventQuery.Filter.Channels, Is.EqualTo(BattleDiagnosticEventChannel.Effect));
+            Assert.That(session.LastEventQuery.Filter.TriggerStage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Budget));
+            Assert.That(session.LastEventQuery.Filter.TriggerResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Blocked));
+        }
+
+        [Test]
+        public void Events_DefaultQuery_FocusesRecentDamageAndEffectsNewestFirst()
+        {
+            var session = new RecordingSession();
+            var viewModel = new BattleDebugDiagnosticEventsViewModel();
+
+            viewModel.RefreshIfNeeded(session, 12, true);
+
+            Assert.That(session.LastEventQuery.NewestFirst, Is.True);
+            Assert.That(session.LastEventQuery.RecentFrameCount, Is.EqualTo(600));
+            Assert.That(
+                session.LastEventQuery.Filter.Channels,
+                Is.EqualTo(BattleDiagnosticEventChannel.DamageAndHeal | BattleDiagnosticEventChannel.Effect));
+            Assert.That(session.LastEventQuery.Filter.ActorId, Is.EqualTo(12));
+            Assert.That(session.LastEventQuery.Filter.ActorRelation, Is.EqualTo(BattleDiagnosticActorRelation.Either));
+        }
+
+        [Test]
+        public void EventsClipboardText_IncludesNavigationAndCorrelationFields()
+        {
+            var diagnosticEvent = new BattleDiagnosticEvent(
+                RecordingSession.Scope,
+                42,
+                7,
+                8,
+                BattleDiagnosticEventKind.Damage,
+                BattleDiagnosticEventChannel.DamageAndHeal,
+                BattleDiagnosticEventOutcome.Succeeded,
+                sourceActorId: 11,
+                targetActorId: 12,
+                configId: 13,
+                rootContextId: 14,
+                contextId: 15,
+                skillRuntime: new BattleDiagnosticRuntimeHandle(16, 2),
+                attackId: 17,
+                summary: "damage result");
+
+            var text = BattleDebugDiagnosticEventsPanel.BuildClipboardText(in diagnosticEvent);
+
+            Assert.That(text, Does.Contain("Sequence=7"));
+            Assert.That(text, Does.Contain("Frame=42"));
+            Assert.That(text, Does.Contain("SourceActorId=11"));
+            Assert.That(text, Does.Contain("TargetActorId=12"));
+            Assert.That(text, Does.Contain("RootContextId=14"));
+            Assert.That(text, Does.Contain("ContextId=15"));
+            Assert.That(text, Does.Contain("SkillRuntime=16:2"));
+            Assert.That(text, Does.Contain("AttackId=17"));
+            Assert.That(text, Does.EndWith("Summary=damage result"));
+        }
+
+        [Test]
+        public void EventsClipboardText_IncludesTriggerAnalysisPayload()
+        {
+            var trigger = new BattleDiagnosticTriggerAnalysisPayload(
+                701,
+                contextKind: 2,
+                originKind: 3,
+                BattleDiagnosticTriggerAnalysisStage.Conditions,
+                BattleDiagnosticTriggerAnalysisResult.Failed,
+                detailCode: 11,
+                currentDepth: 1,
+                currentFrameCount: 2,
+                currentRootCount: 3,
+                currentSameTriggerCount: 4,
+                failureKey: "missingMana",
+                reason: "Missing mana for trigger.");
+            var payload = BattleDiagnosticEventPayload.FromTriggerAnalysis(in trigger);
+            var diagnosticEvent = new BattleDiagnosticEvent(
+                RecordingSession.Scope,
+                42,
+                7,
+                8,
+                BattleDiagnosticEventKind.TriggerAnalysis,
+                BattleDiagnosticEventChannel.Effect,
+                BattleDiagnosticEventOutcome.Failed,
+                configId: 701,
+                payloadVersion: BattleDiagnosticTriggerAnalysisPayload.CurrentSchemaVersion,
+                payload: payload);
+
+            var text = BattleDebugDiagnosticEventsPanel.BuildClipboardText(in diagnosticEvent);
+
+            Assert.That(text, Does.Contain("PayloadKind=TriggerAnalysis"));
+            Assert.That(text, Does.Contain("TriggerId=701"));
+            Assert.That(text, Does.Contain("TriggerStage=Conditions"));
+            Assert.That(text, Does.Contain("TriggerResult=Failed"));
+            Assert.That(text, Does.Contain("TriggerFailureKey=missingMana"));
+            Assert.That(text, Does.Contain("TriggerReason=Missing mana for trigger."));
+        }
+
+        [Test]
+        public void EventsFocusRelated_PrefersRootTraceAndResetsCompetingFilters()
+        {
+            var session = new RecordingSession();
+            var viewModel = new BattleDebugDiagnosticEventsViewModel
+            {
+                FilterBySelectedActor = true,
+                FailuresOnly = true,
+                EventScope = BattleDebugDiagnosticEventScope.Warnings,
+                RecentFrameCount = 120,
+                SearchText = "failed"
+            };
+            var diagnosticEvent = new BattleDiagnosticEvent(
+                RecordingSession.Scope,
+                10,
+                1,
+                1,
+                BattleDiagnosticEventKind.SkillRuntimeStarted,
+                BattleDiagnosticEventChannel.Skill,
+                BattleDiagnosticEventOutcome.Succeeded,
+                rootContextId: 100,
+                contextId: 110,
+                skillRuntime: new BattleDiagnosticRuntimeHandle(120, 0),
+                attackId: 130);
+
+            Assert.That(viewModel.FocusRelated(in diagnosticEvent), Is.True);
+            viewModel.RefreshIfNeeded(session, 99, true);
+
+            Assert.That(viewModel.CorrelationFocusLabel, Is.EqualTo("Root Trace=100"));
+            Assert.That(viewModel.FilterBySelectedActor, Is.False);
+            Assert.That(viewModel.FailuresOnly, Is.False);
+            Assert.That(viewModel.EventScope, Is.EqualTo(BattleDebugDiagnosticEventScope.All));
+            Assert.That(viewModel.RecentFrameCount, Is.Zero);
+            Assert.That(viewModel.SearchText, Is.Empty);
+            Assert.That(session.LastEventQuery.Filter.RootContextId, Is.EqualTo(100));
+            Assert.That(session.LastEventQuery.Filter.ContextId, Is.Zero);
+            Assert.That(session.LastEventQuery.Filter.SkillRuntimeId, Is.Zero);
+            Assert.That(session.LastEventQuery.Filter.AttackId, Is.Zero);
+            Assert.That(session.LastEventQuery.Filter.ActorId, Is.Zero);
+        }
+
+        [Test]
+        public void EventsFocusRelated_FallsBackThroughRuntimeAttackAndContext()
+        {
+            var viewModel = new BattleDebugDiagnosticEventsViewModel();
+            var runtimeEvent = new BattleDiagnosticEvent(
+                RecordingSession.Scope, 10, 1, 1,
+                BattleDiagnosticEventKind.SkillRuntimeStarted,
+                BattleDiagnosticEventChannel.Skill,
+                BattleDiagnosticEventOutcome.Succeeded,
+                contextId: 110,
+                skillRuntime: new BattleDiagnosticRuntimeHandle(120, 0),
+                attackId: 130);
+            var attackEvent = new BattleDiagnosticEvent(
+                RecordingSession.Scope, 10, 2, 2,
+                BattleDiagnosticEventKind.Damage,
+                BattleDiagnosticEventChannel.DamageAndHeal,
+                BattleDiagnosticEventOutcome.Succeeded,
+                contextId: 110,
+                attackId: 130);
+            var contextEvent = new BattleDiagnosticEvent(
+                RecordingSession.Scope, 10, 3, 3,
+                BattleDiagnosticEventKind.EffectStarted,
+                BattleDiagnosticEventChannel.Effect,
+                BattleDiagnosticEventOutcome.Succeeded,
+                contextId: 110);
+
+            Assert.That(viewModel.FocusRelated(in runtimeEvent), Is.True);
+            Assert.That(viewModel.SkillRuntimeId, Is.EqualTo(120));
+            Assert.That(viewModel.AttackId, Is.Zero);
+            Assert.That(viewModel.ContextId, Is.Zero);
+
+            Assert.That(viewModel.FocusRelated(in attackEvent), Is.True);
+            Assert.That(viewModel.SkillRuntimeId, Is.Zero);
+            Assert.That(viewModel.AttackId, Is.EqualTo(130));
+            Assert.That(viewModel.ContextId, Is.Zero);
+
+            Assert.That(viewModel.FocusRelated(in contextEvent), Is.True);
+            Assert.That(viewModel.AttackId, Is.Zero);
+            Assert.That(viewModel.ContextId, Is.EqualTo(110));
+        }
+
+        [Test]
+        public void EventsCorrelationFocus_NoIdentifierReturnsFalse_AndClearInvalidatesCache()
+        {
+            var session = new RecordingSession();
+            var viewModel = new BattleDebugDiagnosticEventsViewModel();
+            var noCorrelationEvent = new BattleDiagnosticEvent(
+                RecordingSession.Scope, 10, 1, 1,
+                BattleDiagnosticEventKind.Damage,
+                BattleDiagnosticEventChannel.DamageAndHeal,
+                BattleDiagnosticEventOutcome.Succeeded);
+            var contextEvent = new BattleDiagnosticEvent(
+                RecordingSession.Scope, 10, 2, 2,
+                BattleDiagnosticEventKind.EffectStarted,
+                BattleDiagnosticEventChannel.Effect,
+                BattleDiagnosticEventOutcome.Succeeded,
+                contextId: 110);
+
+            Assert.That(viewModel.FocusRelated(in noCorrelationEvent), Is.False);
+            Assert.That(viewModel.HasCorrelationFocus, Is.False);
+
+            Assert.That(viewModel.FocusRelated(in contextEvent), Is.True);
+            viewModel.RefreshIfNeeded(session, 0, false);
+            Assert.That(session.EventQueryCount, Is.EqualTo(1));
+            Assert.That(session.LastEventQuery.Filter.ContextId, Is.EqualTo(110));
+
+            viewModel.ClearCorrelationFocus();
+            Assert.That(viewModel.HasCorrelationFocus, Is.False);
+            Assert.That(viewModel.CorrelationFocusLabel, Is.Empty);
+            viewModel.RefreshIfNeeded(session, 0, false);
+
+            Assert.That(session.EventQueryCount, Is.EqualTo(2));
+            Assert.That(session.LastEventQuery.Filter.HasCorrelationFilter, Is.False);
         }
 
         [Test]
@@ -258,6 +582,49 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(viewModel.EffectCount, Is.EqualTo(1));
             Assert.That(viewModel.BuildTagList(), Is.EqualTo("State.Stunned\n1002"));
             Assert.That(viewModel.StatusMessage, Is.Empty);
+        }
+
+        [Test]
+        public void Overview_ProjectsMostRecentActorEvent_AndRefreshesOnEventRevision()
+        {
+            var session = new RecordingSession
+            {
+                EventStoreRevision = 3,
+                Events = new[]
+                {
+                    new BattleDiagnosticEvent(
+                        RecordingSession.Scope, 4, 7, 7,
+                        BattleDiagnosticEventKind.SkillRuntimeStarted,
+                        BattleDiagnosticEventChannel.Skill,
+                        BattleDiagnosticEventOutcome.Succeeded,
+                        sourceActorId: 11,
+                        rootContextId: 70,
+                        contextId: 71,
+                        summary: "Earlier"),
+                    new BattleDiagnosticEvent(
+                        RecordingSession.Scope, 5, 9, 9,
+                        BattleDiagnosticEventKind.SkillRuntimeEnded,
+                        BattleDiagnosticEventChannel.Skill,
+                        BattleDiagnosticEventOutcome.Failed,
+                        targetActorId: 11,
+                        rootContextId: 90,
+                        contextId: 91,
+                        summary: "Latest")
+                }
+            };
+            var viewModel = new BattleDebugDiagnosticOverviewViewModel();
+
+            viewModel.RefreshIfNeeded(session, 11);
+
+            Assert.That(viewModel.RecentEvent.HasValue, Is.True);
+            Assert.That(viewModel.RecentEvent.Value.Sequence, Is.EqualTo(9));
+            Assert.That(viewModel.RecentEvent.Value.Summary, Is.EqualTo("Latest"));
+            Assert.That(session.EventQueryCount, Is.EqualTo(1));
+
+            session.EventStoreRevision++;
+            viewModel.RefreshIfNeeded(session, 11);
+
+            Assert.That(session.EventQueryCount, Is.EqualTo(2));
         }
 
         [Test]
@@ -505,6 +872,26 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(viewModel.SelectPinned(), Is.False);
         }
 
+        private static BattleDiagnosticEvent TriggerEvent(
+            int frame,
+            long sequence,
+            int configId,
+            in BattleDiagnosticTriggerAnalysisPayload payload)
+        {
+            return new BattleDiagnosticEvent(
+                RecordingSession.Scope,
+                frame,
+                sequence,
+                sequence,
+                BattleDiagnosticEventKind.TriggerAnalysis,
+                BattleDiagnosticEventChannel.Effect,
+                BattleDiagnosticEventOutcome.Failed,
+                configId: configId,
+                payloadVersion: BattleDiagnosticTriggerAnalysisPayload.CurrentSchemaVersion,
+                summary: payload.Reason,
+                payload: BattleDiagnosticEventPayload.FromTriggerAnalysis(in payload));
+        }
+
         private static BattleDiagnosticTraceNodeSummary TraceNode(
             long rootContextId,
             long contextId,
@@ -553,6 +940,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public long ActorTagStoreRevision { get; set; }
             public long ActorEffectStoreRevision { get; set; }
             public IReadOnlyList<BattleDiagnosticActorSummary> Actors { get; set; }
+            public IReadOnlyList<BattleDiagnosticEvent> Events { get; set; }
             public IReadOnlyList<BattleDiagnosticActorTag> Tags { get; set; }
             public IReadOnlyList<BattleDiagnosticActorEffect> Effects { get; set; }
             public IReadOnlyList<BattleDiagnosticTraceNodeSummary> TraceNodes { get; set; }
@@ -561,6 +949,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public bool TraceTruncated { get; set; }
             public long StoreRevision => EventStoreRevision;
             public int EventQueryCount { get; private set; }
+            public BattleDiagnosticEventQuery LastEventQuery { get; private set; }
             public int WorldQueryCount { get; private set; }
             public int ActorQueryCount { get; private set; }
             public int AttributeQueryCount { get; private set; }
@@ -615,10 +1004,13 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 BattleDiagnosticEventQuery query)
             {
                 EventQueryCount++;
+                LastEventQuery = query;
                 return BattleDiagnosticQueryResult<BattleDiagnosticEvent>.FromItems(
                     query.RequestId,
                     EventStoreRevision,
-                    new List<BattleDiagnosticEvent>(),
+                    Events != null
+                        ? new List<BattleDiagnosticEvent>(Events)
+                        : new List<BattleDiagnosticEvent>(),
                     false);
             }
 

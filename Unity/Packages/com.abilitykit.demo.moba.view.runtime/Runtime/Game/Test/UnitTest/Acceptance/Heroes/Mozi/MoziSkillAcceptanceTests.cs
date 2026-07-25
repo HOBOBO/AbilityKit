@@ -58,7 +58,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.DashId.Value, TriggeringConstants.Actions.Dash);
                 harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.AddBuffId.Value, TriggeringConstants.Actions.AddBuff);
                 HeroSkillHeadlessContract.AssertFreshBuff(harness, actorId, 10040101, 4.0f, "Mozi skill 1 should apply the enhanced basic attack modifier buff using BuffDTO duration.");
-                TickUntilSkillStops(harness, actorId, Skill1.Slot, maxTicks: 120);
+                harness.TickUntilSkillStops(actorId, Skill1.Slot, maxTicks: 120);
 
                 const int basicAttackSlot = 4;
                 const int normalBasicAttackSkillId = 10040011;
@@ -126,6 +126,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var exit = TickUntilProjectileExitSnapshot(harness, spawn.ProjectileId, maxTicks: 30);
                 Assert.AreEqual(projectileActorId, exit.ProjectileActorId, $"Mozi skill 2 hit exit should reference the same scene projectile actor as spawn. spawnActorId={projectileActorId}, exitActorId={exit.ProjectileActorId}, projectileId={spawn.ProjectileId}");
                 Assert.AreEqual((int)ProjectileExitReason.Hit, exit.ExitReason, $"Mozi skill 2 hit crater contract should end by hit. actualReason={exit.ExitReason}");
+                AssertMoziSkill2ProjectileExitedBeforeMaxDistance(harness, spawn, exit);
                 AssertMoziSkill2ProjectileActorDespawned(harness, projectileActorId);
                 TickUntilCraterAreaSpawn(harness, effectTrace.RootId, maxTicks: 10, message: "Mozi skill 2 projectile hit should spawn the crater area at the hit position.");
                 AssertMoziSkill2HitCraterPosition(harness, effectTrace.RootId, targetActorId, exit);
@@ -155,7 +156,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     afterRootId: 0L,
                     castOrdinal: "first");
 
-                TickUntilSkillStops(harness, actorId, Skill2.Slot, maxTicks: 120);
+                harness.TickUntilSkillStops(actorId, Skill2.Slot, maxTicks: 120);
                 Assert.IsTrue(harness.HasActorBuff(targetActorId, 10040001), "Mozi skill 2 first crater stun should still be active while repeated-hit state is evaluated.");
                 ResetSkillCooldown(harness, actorId, Skill2.SkillId);
 
@@ -170,7 +171,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     afterRootId: first.RootId,
                     castOrdinal: "second");
 
-                TickUntilSkillStops(harness, actorId, Skill2.Slot, maxTicks: 120);
+                harness.TickUntilSkillStops(actorId, Skill2.Slot, maxTicks: 120);
                 ResetSkillCooldown(harness, actorId, Skill2.SkillId);
                 var third = CastMoziSkill2AndAssertEarlyHit(
                     harness,
@@ -358,6 +359,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var exit = TickUntilProjectileExitSnapshot(harness, spawn.ProjectileId, maxTicks: 30);
             Assert.AreEqual(spawn.ProjectileActorId, exit.ProjectileActorId, $"Mozi skill 2 {castOrdinal} hit exit should reference its own scene projectile actor.");
             Assert.AreEqual((int)ProjectileExitReason.Hit, exit.ExitReason, $"Mozi skill 2 {castOrdinal} projectile should hit the same target early instead of passing through. actualReason={exit.ExitReason}");
+            AssertMoziSkill2ProjectileExitedBeforeMaxDistance(harness, spawn, exit);
             AssertMoziSkill2ProjectileActorDespawned(harness, spawn.ProjectileActorId);
             TickUntilCraterAreaSpawn(harness, effectTrace.RootId, maxTicks: 10, message: $"Mozi skill 2 {castOrdinal} hit should spawn a crater under its own effect root.");
             AssertMoziSkill2HitCraterPosition(harness, effectTrace.RootId, targetActorId, exit);
@@ -439,11 +441,29 @@ namespace AbilityKit.Game.Test.UnitTest
                 (int)TriggeringConstants.DebugLogId.Value);
             harness.AssertProjectileConfigExists(31040201, 30040201);
             Assert.IsTrue(harness.Config.TryGetProjectile(30040201, out var projectile), "Mozi skill 2 projectile config should exist.");
+            Assert.AreEqual(1f, projectile.CollisionWidth, 0.001f, "Mozi skill 2 cannon should retain its configured collision width so enemy hits do not fall through to max range.");
+            Assert.AreEqual(1.5f, projectile.CollisionHeight, 0.001f, "Mozi skill 2 cannon should retain its configured collision height.");
+            Assert.AreEqual(0.8f, projectile.CollisionLength, 0.001f, "Mozi skill 2 cannon should retain its configured collision length.");
             CollectionAssert.Contains(projectile.OnExitTriggerIds, 10040211, "Mozi skill 2 projectile should create the crater from its exit trigger so both hit and endpoint exits are covered.");
             Assert.IsTrue(harness.Config.TryGetAoe(40040201, out var crater), "Mozi skill 2 crater area config should exist.");
             Assert.AreEqual(90004004, crater.VfxId, "Mozi skill 2 crater should use the configured crater VFX prefab.");
             Assert.AreEqual(500, crater.IntervalMs, "Mozi skill 2 crater should tick every 0.5 seconds.");
             CollectionAssert.Contains(crater.OnIntervalTriggerIds, 10040212, "Mozi skill 2 crater should apply interval damage through trigger 10040212.");
+        }
+
+        private static void AssertMoziSkill2ProjectileExitedBeforeMaxDistance(
+            MobaSkillConfigTestHarness harness,
+            MobaProjectileEventSnapshotEntry spawn,
+            MobaProjectileEventSnapshotEntry exit)
+        {
+            Assert.IsTrue(harness.Config.TryGetProjectile(30040201, out var projectile), "Mozi skill 2 projectile config should exist while validating early hit distance.");
+            var dx = exit.X - spawn.X;
+            var dz = exit.Z - spawn.Z;
+            var travelledDistance = Mathf.Sqrt(dx * dx + dz * dz);
+            Assert.Less(
+                travelledDistance,
+                projectile.MaxDistance - 0.01f,
+                $"Mozi skill 2 must exit at the enemy hit before its maximum range. travelled={travelledDistance:F3}, maxDistance={projectile.MaxDistance:F3}, spawn=({spawn.X:F3},{spawn.Z:F3}), exit=({exit.X:F3},{exit.Z:F3})");
         }
 
         private static void AssertMoziSkill2ProjectileActorDespawned(MobaSkillConfigTestHarness harness, int projectileActorId)
@@ -703,15 +723,5 @@ namespace AbilityKit.Game.Test.UnitTest
             if (count == 0) sb.Append("<none>");
         }
 
-        private static void TickUntilSkillStops(MobaSkillConfigTestHarness harness, int actorId, int slot, int maxTicks)
-        {
-            for (var i = 0; i < maxTicks; i++)
-            {
-                if (!harness.TryGetRunningSkillSnapshot(actorId, slot, out _)) return;
-                harness.Tick(1);
-            }
-
-            Assert.Fail($"Skill slot {slot} should stop within {maxTicks} ticks. {harness.DescribeSkillRuntimeState(actorId, slot)}");
-        }
     }
 }

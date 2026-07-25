@@ -88,7 +88,8 @@ namespace AbilityKit.Game.Test.UnitTest
             int basicAttackSkillId = 0,
             int tickRate = 30,
             int inputDelayFrames = 0,
-            float fixedDelta = DefaultFixedDelta)
+            float fixedDelta = DefaultFixedDelta,
+            MobaRuntimeValidationMode validationMode = MobaRuntimeValidationMode.ManualOnly)
         {
             if (skillIds == null) throw new ArgumentNullException(nameof(skillIds));
 
@@ -119,7 +120,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 },
                 tickRate: tickRate,
                 inputDelayFrames: inputDelayFrames);
-            var world = CreateHeadlessMobaWorld(new WorldId(worldId), worldType, in launchSpec);
+            var world = CreateHeadlessMobaWorld(new WorldId(worldId), worldType, in launchSpec, validationMode);
 
             return new MobaSkillConfigTestHarness(world, typedPlayerId, fixedDelta, tickRate, launchSpec.ToGameStartSpec());
         }
@@ -311,6 +312,25 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var actorId = AssertActorId(alias, message ?? $"Actor alias missing: {alias}");
             return HasActorBuff(actorId, buffId, message ?? $"Actor entity missing for alias {alias}({actorId}).");
+        }
+
+        public bool TryGetActorBuffStackCount(int actorId, int buffId, out int stackCount, string message = null)
+        {
+            stackCount = 0;
+            Assert.Greater(buffId, 0, message ?? "buffId must be positive.");
+            var entity = AssertActorEntity(actorId, message ?? $"Actor entity missing: {actorId}");
+            if (!entity.hasBuffs || entity.buffs.Active == null) return false;
+
+            for (var i = 0; i < entity.buffs.Active.Count; i++)
+            {
+                var runtime = entity.buffs.Active[i];
+                if (runtime == null || runtime.BuffId != buffId) continue;
+
+                stackCount = runtime.StackCount;
+                return true;
+            }
+
+            return false;
         }
 
         public bool TryGetActorBuffRemainingSeconds(int actorId, int buffId, out float remainingSeconds, string message = null)
@@ -941,7 +961,8 @@ namespace AbilityKit.Game.Test.UnitTest
         private static IWorld CreateHeadlessMobaWorld(
             WorldId worldId,
             string worldType,
-            in MobaBattleLaunchSpec launchSpec)
+            in MobaBattleLaunchSpec launchSpec,
+            MobaRuntimeValidationMode validationMode = MobaRuntimeValidationMode.ManualOnly)
         {
             var registry = new WorldTypeRegistry().RegisterEntitasWorld(worldType);
             var manager = new WorldManager(new RegistryWorldFactory(registry));
@@ -958,6 +979,10 @@ namespace AbilityKit.Game.Test.UnitTest
                 new[] { "AbilityKit" });
 
             builder.RegisterInstance(launchSpec.ToWorldInitData(MobaWorldBootstrapModule.InitOpCode));
+            builder.RegisterInstance(new MobaRuntimeValidationOptions
+            {
+                Mode = validationMode,
+            });
             builder.RegisterInstance<AbilityKit.Ability.Config.ITextAssetLoader>((AbilityKit.Ability.Config.ITextAssetLoader)Activator.CreateInstance(typeof(ResourcesTextAssetLoader), new object[] { null }));
             builder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new FrameTime());
             builder.TryRegister<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService());

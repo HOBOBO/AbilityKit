@@ -4,6 +4,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Rollback;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.StateSync;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -78,8 +79,12 @@ namespace AbilityKit.Demo.Moba.Services
             var hash = new MobaStateHashBuilder(2166136261u);
             hash.AddBool(_phase.InGame);
             AddActorTransformHash(hash);
-            _randomRecovery.AddStateHash(frame, hash);
-            _buffRecovery.AddStateHash(frame, hash);
+            // Random 和 Buff 哈希暂时不加入——客户端 RemoteDrivenStateHashFactory 无法访问
+            // MobaBuffStateRecoveryProvider，两端不对齐会导致 reconcile 永远误判 mismatch。
+            // 它们的回滚 provider 仍在做恢复（RollbackWorldRandom / BuffTimer），
+            // 如果不一致最终会通过 Transform/HP 漂移间接发现。
+            // _randomRecovery.AddStateHash(frame, hash);
+            // _buffRecovery.AddStateHash(frame, hash);
             return hash.Value;
         }
 
@@ -92,7 +97,13 @@ namespace AbilityKit.Demo.Moba.Services
                 var e = kv.Value;
                 if (e == null) continue;
                 if (!e.hasTransform) continue;
-                _entries.Add(new StateHashEntry(actorId, e.transform.Value));
+
+                float hp = 0f;
+                if (e.hasAttributeGroup && e.attributeGroup.Group != null)
+                {
+                    hp = e.attributeGroup.Group.GetValue(MobaAttributeIds.HP);
+                }
+                _entries.Add(new StateHashEntry(actorId, e.transform.Value, hp));
             }
 
             _entries.Sort(CompareEntriesByActorId);
@@ -115,6 +126,7 @@ namespace AbilityKit.Demo.Moba.Services
                 hash.AddFloat(it.Sx);
                 hash.AddFloat(it.Sy);
                 hash.AddFloat(it.Sz);
+                hash.AddFloat(it.Hp);
             }
 
             _entries.ClearAndTrim();
@@ -139,8 +151,9 @@ namespace AbilityKit.Demo.Moba.Services
             public readonly float Sx;
             public readonly float Sy;
             public readonly float Sz;
+            public readonly float Hp;
 
-            public StateHashEntry(int actorId, in AbilityKit.Core.Mathematics.Transform3 transform)
+            public StateHashEntry(int actorId, in AbilityKit.Core.Mathematics.Transform3 transform, float hp)
             {
                 ActorId = actorId;
                 X = transform.Position.X;
@@ -153,6 +166,7 @@ namespace AbilityKit.Demo.Moba.Services
                 Sx = transform.Scale.X;
                 Sy = transform.Scale.Y;
                 Sz = transform.Scale.Z;
+                Hp = hp;
             }
         }
     }

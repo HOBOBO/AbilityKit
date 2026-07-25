@@ -4,16 +4,71 @@
       "id": 10060000,
       "name": "嬴政-王者审判-被动入口",
       "event": "",
+      "scope": "owner",
       "enabled": true,
       "allowExternal": false,
       "phase": "immediate",
       "priority": 50,
       "conditions": [],
+      "actions": []
+    },
+    {
+      "id": 10060002,
+      "name": "嬴政-王者审判-普攻命中计数",
+      "event": "damage.apply.after",
+      "scope": "owner",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 45,
+      "conditions": [
+        {
+          "type": "arg_gt",
+          "arg_name": "damage_value",
+          "value": 0
+        },
+        {
+          "type": "arg_eq",
+          "left": "payload:reason_kind",
+          "right": "2"
+        },
+        {
+          "type": "arg_neq",
+          "left": "payload:attacker_actor_id",
+          "right": "payload:target_actor_id"
+        }
+      ],
       "actions": [
         {
-          "type": "debug_log",
-          "message": "嬴政被动王者审判：普攻穿透与法术伤害语义由通用普攻/投射物链承接，本预配置不新增英雄专用逻辑",
-          "dump_args": false
+          "type": "advance_gameplay_counter",
+          "key_id": 10060002,
+          "scope_payload_field_id": 1993035528,
+          "threshold": 5,
+          "delta": 1,
+          "reset_value": 0,
+          "trigger_id": 10060003
+        }
+      ]
+    },
+    {
+      "id": 10060003,
+      "name": "嬴政-王者审判-第五次普攻强化",
+      "event": "",
+      "scope": "owner",
+      "enabled": true,
+      "allowExternal": true,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "give_damage",
+          "damage_value": 180,
+          "source_attack_ratio": 0.35,
+          "damage_type": 2,
+          "reason_param": 10060003,
+          "target_mode": 2,
+          "target_max_count": 1
         }
       ]
     }

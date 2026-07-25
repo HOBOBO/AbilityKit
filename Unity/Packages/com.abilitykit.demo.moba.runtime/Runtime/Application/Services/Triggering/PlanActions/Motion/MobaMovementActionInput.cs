@@ -164,6 +164,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return Vec3.Up;
             }
 
+            if (directionMode == 3)
+            {
+                return TryGetDirectionToCaster(targetActorId, out var casterDirection)
+                    ? -casterDirection
+                    : Vec3.Zero;
+            }
+
             return Vec3.Zero;
         }
 

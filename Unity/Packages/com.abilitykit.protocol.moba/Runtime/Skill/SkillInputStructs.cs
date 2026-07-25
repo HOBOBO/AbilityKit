@@ -1,4 +1,3 @@
-using AbilityKit.Core.Serialization;
 using AbilityKit.Core.Mathematics;
 using MemoryPack;
 
@@ -15,14 +14,14 @@ namespace AbilityKit.Protocol.Moba
     [MemoryPackable]
     public readonly partial struct SkillInputEvent
     {
-        [MemoryPackOrder(0), BinaryMember(0)] public readonly int Slot;
-        [MemoryPackOrder(1), BinaryMember(1)] public readonly SkillInputPhase Phase;
-        [MemoryPackOrder(2), BinaryMember(2)] public readonly int PointerId;
-        [MemoryPackOrder(3), BinaryMember(3)] public readonly int TargetActorId;
-        [MemoryPackOrder(4), BinaryMember(4)] public readonly Vec3 AimPos;
-        [MemoryPackOrder(5), BinaryMember(5)] public readonly Vec3 AimDir;
-        [MemoryPackOrder(6), BinaryMember(6)] public readonly int OpCode;
-        [MemoryPackOrder(7), BinaryMember(7)] public readonly byte[] Payload;
+        [MemoryPackOrder(0)] public readonly int Slot;
+        [MemoryPackOrder(1)] public readonly SkillInputPhase Phase;
+        [MemoryPackOrder(2)] public readonly int PointerId;
+        [MemoryPackOrder(3)] public readonly int TargetActorId;
+        [MemoryPackOrder(4)] public readonly Vec3 AimPos;
+        [MemoryPackOrder(5)] public readonly Vec3 AimDir;
+        [MemoryPackOrder(6)] public readonly int OpCode;
+        [MemoryPackOrder(7)] public readonly byte[] Payload;
 
         [MemoryPackConstructor]
         public SkillInputEvent(

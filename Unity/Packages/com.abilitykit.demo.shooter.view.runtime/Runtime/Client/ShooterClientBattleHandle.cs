@@ -12,7 +12,9 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly ShooterClientSession _session;
         private readonly IShooterRoomGatewayRoomClient? _roomClient;
         private readonly ShooterRoomGatewayFlowResult _flow;
+        private readonly object _fullStateSyncGate = new object();
         private ShooterClientFullStateSyncRequestKey _lastFullStateSyncRequestKey;
+        private Task<ShooterGatewayFullStateSyncRequestResult>? _fullStateSyncInFlight;
 
         public ShooterClientBattleHandle(ShooterClientSession session, ShooterRoomGatewayFlowResult flow)
             : this(session, flow, null)
@@ -223,29 +225,86 @@ namespace AbilityKit.Demo.Shooter.View
                 string.IsNullOrWhiteSpace(reason) ? ShooterClientResyncReason.None.ToString() : reason);
         }
 
-        private async Task<ShooterGatewayFullStateSyncRequestResult> RequestFullSnapshotAsync(
+        private Task<ShooterGatewayFullStateSyncRequestResult> RequestFullSnapshotAsync(
             ShooterGatewayFullStateSyncRequest request,
             TimeSpan? timeout,
             CancellationToken cancellationToken)
         {
             if (_roomClient == null)
             {
-                return ShooterGatewayFullStateSyncRequestResult.NotRequested;
+                return Task.FromResult(ShooterGatewayFullStateSyncRequestResult.NotRequested);
             }
 
             var requestKey = ShooterClientFullStateSyncRequestKey.FromRequest(in request);
-            if (requestKey.Equals(_lastFullStateSyncRequestKey))
+            lock (_fullStateSyncGate)
             {
-                return ShooterGatewayFullStateSyncRequestResult.NotRequested;
-            }
+                if (requestKey.Equals(_lastFullStateSyncRequestKey))
+                {
+                    return Task.FromResult(ShooterGatewayFullStateSyncRequestResult.NotRequested);
+                }
 
-            var result = await _session.RequestFullSnapshotResyncAsync(_roomClient, request, timeout, cancellationToken).ConfigureAwait(false);
-            if (result.Accepted)
+                if (_fullStateSyncInFlight != null)
+                {
+                    return _fullStateSyncInFlight;
+                }
+
+                var completion = new TaskCompletionSource<ShooterGatewayFullStateSyncRequestResult>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                _fullStateSyncInFlight = completion.Task;
+                _ = ExecuteFullSnapshotRequestAsync(
+                    _roomClient,
+                    request,
+                    requestKey,
+                    timeout,
+                    cancellationToken,
+                    completion);
+                return completion.Task;
+            }
+        }
+
+        private async Task ExecuteFullSnapshotRequestAsync(
+            IShooterRoomGatewayRoomClient roomClient,
+            ShooterGatewayFullStateSyncRequest request,
+            ShooterClientFullStateSyncRequestKey requestKey,
+            TimeSpan? timeout,
+            CancellationToken cancellationToken,
+            TaskCompletionSource<ShooterGatewayFullStateSyncRequestResult> completion)
+        {
+            try
             {
-                _lastFullStateSyncRequestKey = requestKey;
-            }
+                var result = await _session.RequestFullSnapshotResyncAsync(
+                    roomClient,
+                    request,
+                    timeout,
+                    cancellationToken).ConfigureAwait(false);
+                if (result.Accepted)
+                {
+                    lock (_fullStateSyncGate)
+                    {
+                        _lastFullStateSyncRequestKey = requestKey;
+                    }
+                }
 
-            return result;
+                completion.TrySetResult(result);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                completion.TrySetCanceled(cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
+            }
+            finally
+            {
+                lock (_fullStateSyncGate)
+                {
+                    if (ReferenceEquals(_fullStateSyncInFlight, completion.Task))
+                    {
+                        _fullStateSyncInFlight = null;
+                    }
+                }
+            }
         }
 
         private bool ShouldRequestFullStateSync()

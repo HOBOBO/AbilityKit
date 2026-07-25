@@ -61,7 +61,6 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 return false;
             }
 
-            _attributes.EnsureContainers(entity);
             if (!EnsureConfig())
             {
                 error = "config database is unavailable";
@@ -77,8 +76,25 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 return false;
             }
 
-            _attributes.ApplyTemplate(entity, resolved.AttributeTemplate);
-            return _skills.TryInitialize(entity, in resolved, out error);
+            MobaPreparedActorAttributes preparedAttributes;
+            try
+            {
+                preparedAttributes = _attributes.Prepare(resolved.AttributeTemplate);
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+
+            if (!_skills.TryPrepare(in resolved, out var preparedSkills, out error))
+            {
+                return false;
+            }
+
+            _attributes.Apply(entity, in preparedAttributes);
+            _skills.Apply(entity, in preparedSkills);
+            return true;
         }
 
         private bool EnsureConfig()

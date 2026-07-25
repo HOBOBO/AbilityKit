@@ -1,0 +1,22 @@
+{
+  "triggers": [
+    {
+      "id": 1000001,
+      "name": "buff1-添加时效果",
+      "event": "buff.added",
+      "scope": "owner",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "debug_log",
+          "message": "buff1 added effect",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

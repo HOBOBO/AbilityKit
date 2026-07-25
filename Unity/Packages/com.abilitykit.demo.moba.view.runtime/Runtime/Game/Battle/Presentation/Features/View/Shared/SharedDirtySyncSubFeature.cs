@@ -11,9 +11,14 @@ namespace AbilityKit.Game.Flow
         public void Tick(in FeatureModuleContext<TFeature> ctx, float deltaTime)
         {
             var f = ctx.Feature;
-            if (f?.Context?.DirtyEntities == null) return;
-            if (f.Context.DirtyEntities.Count == 0) return;
+            var dirty = f?.Context?.DirtyEntities;
+            if (dirty == null) return;
 
+            // Clear at the start of the frame so multiple producers (Spawn + Transform)
+            // can all append without overwriting each other's entries.
+            dirty.Clear();
+
+            if (dirty.Count == 0) return;
             f.RefreshDirtyViews();
         }
 

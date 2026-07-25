@@ -10,6 +10,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterBattleState _state;
         private readonly IShooterEntityManager _entities;
 
+        // 导入聚合容器（成员复用，避免每次 Import 新建 —— 高单位量下每次 ~30-80KB 临时分配）。
+        // 单线程战斗世界内使用；预测回滚的连续多次 Import 也共享。
+        private readonly Dictionary<int, ShooterSveltoPlayerComponent> _players = new();
+        private readonly Dictionary<int, ShooterSveltoProjectileComponent> _projectiles = new();
+        private readonly Dictionary<int, ImportedEnemy> _enemies = new();
+        private readonly HashSet<int> _removedProjectiles = new();
+        private readonly HashSet<int> _removedEnemies = new();
+
         public ShooterPackedSnapshotImporter(ShooterBattleState state, IShooterEntityManager entities)
         {
             _state = state ?? throw new ArgumentNullException(nameof(state));
@@ -45,11 +53,16 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private void ImportComponentChunks(ShooterPackedComponentChunk[] componentChunks, bool isDelta = false)
         {
-            var players = new Dictionary<int, ShooterSveltoPlayerComponent>();
-            var projectiles = new Dictionary<int, ShooterSveltoProjectileComponent>();
-            var enemies = new Dictionary<int, ImportedEnemy>();
-            var removedProjectiles = new HashSet<int>();
-            var removedEnemies = new HashSet<int>();
+            var players = _players;
+            var projectiles = _projectiles;
+            var enemies = _enemies;
+            var removedProjectiles = _removedProjectiles;
+            var removedEnemies = _removedEnemies;
+            players.Clear();
+            projectiles.Clear();
+            enemies.Clear();
+            removedProjectiles.Clear();
+            removedEnemies.Clear();
 
             for (int i = 0; i < componentChunks.Length; i++)
             {

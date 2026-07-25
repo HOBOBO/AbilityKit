@@ -54,13 +54,13 @@ namespace AbilityKit.Demo.Moba.Predicates
 
         private static bool HasBuffCore(object triggerArgs, NamedArgsDict args, ExecCtx<IWorldResolver> ctx, bool checkOwner)
         {
-            var buffId = ReadInt(args, "_0");
+            var buffId = ReadInt(args, "0");
             if (buffId <= 0 || ctx.Context == null)
             {
                 return false;
             }
 
-            var checkStack = ReadInt(args, "_1") != 0;
+            var checkStack = ReadInt(args, "1") != 0;
             var actors = default(MobaActorLookupService);
 
             int actorId;

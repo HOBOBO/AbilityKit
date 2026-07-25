@@ -80,6 +80,7 @@
         "id":  10040002,
         "name":  "墨子-机关术-第四次强化近战普攻",
         "event":  "",
+        "scope":  "owner",
         "enabled":  true,
         "allowExternal":  true,
         "phase":  "immediate",

@@ -30,7 +30,9 @@ public sealed class ShooterRoomGameplayAdapterTests
             [ShooterRoomTagKeys.TickRate] = "20",
             [ShooterRoomTagKeys.MapId] = "3",
             [ShooterRoomTagKeys.RandomSeed] = "1234",
-            [ShooterRoomTagKeys.DurationFrames] = "3600"
+            [ShooterRoomTagKeys.DurationFrames] = "3600",
+            [ShooterRoomTagKeys.VictoryTargetDefeats] = "100000",
+            [ShooterRoomTagKeys.ContinueAfterAllPlayersDefeated] = "true"
         });
         var state = adapter.CreateState(summary);
         adapter.Join(state, summary, new HashSet<string>(), "player-a");
@@ -66,6 +68,8 @@ public sealed class ShooterRoomGameplayAdapterTests
         Assert.Equal(3, initParams.MapId);
         Assert.Equal(1234, initParams.RandomSeed);
         Assert.Equal(3600, initParams.DurationFrames);
+        Assert.Equal(100000, initParams.VictoryTargetDefeats);
+        Assert.True(initParams.ContinueAfterAllPlayersDefeated);
         Assert.Equal(7, initParams.RuleSetId);
         Assert.Equal(8, initParams.ConfigVersion);
         Assert.Equal(9, initParams.ProtocolVersion);

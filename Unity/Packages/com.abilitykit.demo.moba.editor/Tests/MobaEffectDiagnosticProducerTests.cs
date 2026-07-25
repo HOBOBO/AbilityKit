@@ -114,6 +114,67 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(draft.RootContextId, Is.EqualTo(7001));
         }
 
+        // ===== TriggerAnalysis 草稿映射 =====
+
+        [Test]
+        public void CreateTriggerAnalysisDraft_MapsPayloadAndFailedOutcome()
+        {
+            var draft = MobaEffectDiagnosticProducer.CreateTriggerAnalysisDraft(
+                triggerId: 701,
+                contextKind: 2,
+                originKind: 3,
+                stage: BattleDiagnosticTriggerAnalysisStage.Conditions,
+                result: BattleDiagnosticTriggerAnalysisResult.Failed,
+                sourceActorId: 7,
+                targetActorId: 9,
+                contextId: 8001L,
+                rootContextId: 500L,
+                detailCode: 11,
+                currentDepth: 1,
+                currentFrameCount: 2,
+                currentRootCount: 3,
+                currentSameTriggerCount: 4,
+                failureKey: "missingMana",
+                reason: "Missing mana for trigger.");
+
+            Assert.That(draft.Kind, Is.EqualTo(BattleDiagnosticEventKind.TriggerAnalysis));
+            Assert.That(draft.Channel, Is.EqualTo(BattleDiagnosticEventChannel.Effect));
+            Assert.That(draft.Outcome, Is.EqualTo(BattleDiagnosticEventOutcome.Failed));
+            Assert.That(draft.ConfigId, Is.EqualTo(701));
+            Assert.That(draft.RootContextId, Is.EqualTo(500));
+            Assert.That(draft.ContextId, Is.EqualTo(8001));
+            Assert.That(draft.PayloadVersion, Is.EqualTo(BattleDiagnosticTriggerAnalysisPayload.CurrentSchemaVersion));
+            Assert.That(draft.Payload.TryGetTriggerAnalysis(out var payload), Is.True);
+            Assert.That(payload.TriggerId, Is.EqualTo(701));
+            Assert.That(payload.Stage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Conditions));
+            Assert.That(payload.Result, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Failed));
+            Assert.That(payload.FailureKey, Is.EqualTo("missingMana"));
+        }
+
+        [Test]
+        public void TriggerAnalysisDraft_FlowsThroughCollector()
+        {
+            var collector = new MobaBattleDiagnosticEventCollector(_scope, 8);
+            var draft = MobaEffectDiagnosticProducer.CreateTriggerAnalysisDraft(
+                triggerId: 701,
+                contextKind: 2,
+                originKind: 3,
+                stage: BattleDiagnosticTriggerAnalysisStage.Budget,
+                result: BattleDiagnosticTriggerAnalysisResult.Blocked,
+                sourceActorId: 7,
+                targetActorId: 9,
+                contextId: 8001L,
+                rootContextId: 500L,
+                failureKey: "DepthLimit");
+
+            Assert.That(collector.TryCollect(in draft), Is.True);
+            Assert.That(collector.LastSequence, Is.EqualTo(1));
+            var snapshot = collector.Store.CaptureEventSnapshot();
+            Assert.That(snapshot.Events[0].Payload.TryGetTriggerAnalysis(out var payload), Is.True);
+            Assert.That(payload.Result, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Blocked));
+            Assert.That(payload.FailureKey, Is.EqualTo("DepthLimit"));
+        }
+
         // ===== Collector 流转 =====
 
         [Test]

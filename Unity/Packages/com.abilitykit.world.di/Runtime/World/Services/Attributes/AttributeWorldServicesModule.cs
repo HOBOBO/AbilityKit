@@ -141,9 +141,97 @@ namespace AbilityKit.Ability.World.Services.Attributes
 
             for (int i = 0; i < registrations.Length; i++)
             {
-                var r = registrations[i];
-                // 始终使用 TryRegisterType，以尊重已有注册。
-                builder.TryRegisterType(r.ServiceType, r.ImplType, r.Lifetime);
+                var registration = registrations[i];
+                if (!IsFirstRegistrationForImplementation(registrations, i)) continue;
+
+                if (!HasConsistentImplementationLifetime(registrations, registration.ImplType))
+                {
+                    RegisterIndependently(builder, registrations, registration.ImplType);
+                    continue;
+                }
+
+                // Keep one implementation instance per lifetime and expose every declared
+                // service contract as an alias. This prevents read/write ports from resolving
+                // separate stateful instances within the same World scope.
+                builder.TryRegisterType(
+                    registration.ImplType,
+                    registration.ImplType,
+                    registration.Lifetime);
+
+                RegisterAliases(builder, registrations, registration.ImplType);
+            }
+        }
+
+        private static bool IsFirstRegistrationForImplementation(
+            Registration[] registrations,
+            int index)
+        {
+            var implementationType = registrations[index].ImplType;
+            for (int i = 0; i < index; i++)
+            {
+                if (registrations[i].ImplType == implementationType) return false;
+            }
+
+            return true;
+        }
+
+        private static bool HasConsistentImplementationLifetime(
+            Registration[] registrations,
+            Type implementationType)
+        {
+            var found = false;
+            var lifetime = WorldLifetime.Scoped;
+            for (int i = 0; i < registrations.Length; i++)
+            {
+                var registration = registrations[i];
+                if (registration.ImplType != implementationType) continue;
+
+                if (!found)
+                {
+                    lifetime = registration.Lifetime;
+                    found = true;
+                    continue;
+                }
+
+                if (registration.Lifetime != lifetime) return false;
+            }
+
+            return true;
+        }
+
+        private static void RegisterAliases(
+            WorldContainerBuilder builder,
+            Registration[] registrations,
+            Type implementationType)
+        {
+            for (int i = 0; i < registrations.Length; i++)
+            {
+                var registration = registrations[i];
+                if (registration.ImplType != implementationType) continue;
+                if (registration.ServiceType == implementationType) continue;
+
+                // TryRegister preserves explicit composition-root overrides.
+                builder.TryRegister(
+                    registration.ServiceType,
+                    registration.Lifetime,
+                    resolver => resolver.Resolve(implementationType));
+            }
+        }
+
+        private static void RegisterIndependently(
+            WorldContainerBuilder builder,
+            Registration[] registrations,
+            Type implementationType)
+        {
+            for (int i = 0; i < registrations.Length; i++)
+            {
+                var registration = registrations[i];
+                if (registration.ImplType != implementationType) continue;
+
+                builder.TryRegisterType(
+                    registration.ServiceType,
+                    implementationType,
+                    registration.Lifetime);
             }
         }
 

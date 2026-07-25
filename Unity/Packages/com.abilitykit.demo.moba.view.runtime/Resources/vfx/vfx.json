@@ -66,13 +66,18 @@
   },
   {
     "Id": 90005002,
-    "Resource": "effect/daji_skill2_charm_area",
-    "DurationMs": 700
+    "Resource": "effect/daji_basic_soul_orb",
+    "DurationMs": 0
   },
   {
     "Id": 90005003,
     "Resource": "effect/daji_skill3_foxfire",
     "DurationMs": 1600
+  },
+  {
+    "Id": 90005004,
+    "Resource": "effect/daji_skill3_foxfire",
+    "DurationMs": 0
   },
   {
     "Id": 90006001,

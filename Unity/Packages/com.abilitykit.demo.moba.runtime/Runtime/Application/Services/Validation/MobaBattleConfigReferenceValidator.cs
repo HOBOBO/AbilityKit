@@ -30,6 +30,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             ValidateBattleAttributeTemplates(config, report);
             ValidateSkills(config, triggers, report);
+            ValidateSkillButtonTemplates(config, report);
             ValidatePassiveSkills(config, triggers, report);
             ValidateBuffs(config, triggers, report);
             ValidateContinuousProcesses(config, triggers, report);
@@ -128,6 +129,56 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     ValidateSkillFlow(config, triggers, report, preCastFlow, $"skill.{skill.Id}.preCastFlow.{skill.PreCastFlowId}", skill.Id);
                 }
+            }
+        }
+
+        private static void ValidateSkillButtonTemplates(MobaConfigDatabase config, MobaRuntimeValidationReport report)
+        {
+            foreach (var template in All<SkillButtonTemplateMO>(config))
+            {
+                if (template == null) continue;
+                var path = $"skillButtonTemplate.{template.Id}";
+
+                WarnIfOutsideRange(report, path + ".aimMode", template.AimMode, 0, 1, "skill aim mode", template.Id);
+                WarnIfOutsideRange(report, path + ".indicatorShape", template.IndicatorShape, 0, 8, "skill aim indicator shape", template.Id);
+                WarnIfOutsideRange(report, path + ".usePointMode", template.UsePointMode, 0, 2, "skill use point mode", template.Id);
+
+                WarnIfNegative(report, path + ".longPressSeconds", template.LongPressSeconds, "skill button long press duration", template.Id);
+                WarnIfNegative(report, path + ".dragThreshold", template.DragThreshold, "skill button drag threshold", template.Id);
+                WarnIfNegative(report, path + ".aimMaxRadius", template.AimMaxRadius, "skill aim max radius", template.Id);
+                WarnIfNegative(report, path + ".indicatorWorldWidth", template.IndicatorWorldWidth, "skill aim indicator world width", template.Id);
+                WarnIfNegative(report, path + ".selectRange", template.SelectRange, "skill target select range", template.Id);
+                WarnIfNegative(report, path + ".sectorAngleDegrees", template.SectorAngleDegrees, "skill sector angle", template.Id);
+                WarnIfNegative(report, path + ".dashDistance", template.DashDistance, "skill dash distance", template.Id);
+                WarnIfNegative(report, path + ".lockOnDurationMs", template.LockOnDurationMs, "skill lock-on duration", template.Id);
+                WarnIfNegative(report, path + ".fanRadius", template.FanRadius, "skill fan radius", template.Id);
+                WarnIfNegative(report, path + ".fanAngleDegrees", template.FanAngleDegrees, "skill fan angle", template.Id);
+                WarnIfNegative(report, path + ".selfRadius", template.SelfRadius, "skill self radius", template.Id);
+                WarnIfNegative(report, path + ".lockProjectileRadius", template.LockProjectileRadius, "skill lock projectile radius", template.Id);
+            }
+        }
+
+        private static void WarnIfNegative(MobaRuntimeValidationReport report, string path, float value, string label, int businessId)
+        {
+            if (value < 0f)
+            {
+                report.Warning(Source, path, label + " is negative.", businessId.ToString());
+            }
+        }
+
+        private static void WarnIfNegative(MobaRuntimeValidationReport report, string path, int value, string label, int businessId)
+        {
+            if (value < 0)
+            {
+                report.Warning(Source, path, label + " is negative.", businessId.ToString());
+            }
+        }
+
+        private static void WarnIfOutsideRange(MobaRuntimeValidationReport report, string path, int value, int minimum, int maximum, string label, int businessId)
+        {
+            if (value < minimum || value > maximum)
+            {
+                report.Warning(Source, path, label + $" value {value} is outside supported range [{minimum}, {maximum}].", businessId.ToString());
             }
         }
 
@@ -255,7 +306,11 @@ namespace AbilityKit.Demo.Moba.Services
 
                 if (modifier.TargetKind == MobaContinuousModifierTargetKind.Attribute)
                 {
-                    RequiredRef(Ref<AttrTypeMO>(config.TryGetAttrType), modifier.TargetId, report, itemPath + ".targetId", "attribute type", businessId);
+                    if (!Enum.IsDefined(typeof(BattleAttributeType), modifier.TargetId) ||
+                        modifier.TargetId == (int)BattleAttributeType.None)
+                    {
+                        report.Error(Source, itemPath + ".targetId", "battle attribute type id is invalid.", businessId.ToString());
+                    }
                 }
                 else if (modifier.TargetKind == MobaContinuousModifierTargetKind.SkillParameter)
                 {
@@ -693,8 +748,11 @@ namespace AbilityKit.Demo.Moba.Services
                 return;
             }
 
-            if (string.IsNullOrEmpty(wait.Condition)) report.Error(Source, path + ".condition", "waitUntil condition is empty.", businessId.ToString());
             if (wait.TimeoutMs < 0) report.Error(Source, path + ".timeoutMs", "waitUntil timeout is negative.", businessId.ToString());
+            if (!SkillWaitConditionCatalog.TryValidate(wait, out var error))
+            {
+                report.Error(Source, path + ".condition", error, businessId.ToString());
+            }
         }
 
         private static void ValidateTimelinePhase(TriggerPlanJsonDatabase triggers, MobaRuntimeValidationReport report, SkillTimelinePhaseDTO timeline, string path, int businessId)

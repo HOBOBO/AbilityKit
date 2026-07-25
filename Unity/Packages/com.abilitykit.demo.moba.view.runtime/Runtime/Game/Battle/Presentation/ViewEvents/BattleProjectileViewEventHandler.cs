@@ -18,6 +18,13 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private readonly BattleProjectileVfxResolver _vfx;
         private readonly BattleProjectileSnapshotVfxResolver _snapshotVfx;
         private readonly BattleProjectileSnapshotDeduplicator _deduplicator;
+        /// <summary>
+        /// Cross-source deduplication: tracks which projectile actor IDs have already
+        /// produced a hit VFX this session (regardless of whether the signal came
+        /// from Trigger or Snapshot). Cleared on world change to avoid stale entries
+        /// after reconnect or replay.
+        /// </summary>
+        private readonly HashSet<int> _seenHitActorIds = new HashSet<int>();
 
         public BattleProjectileViewEventHandler(
             BattleContext ctx,
@@ -53,7 +60,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public void HandleTriggerHit(in TriggerEvent evt)
         {
             if (!_vfxSpawner.CanSpawn) return;
-            if (!_vfx.TryResolveTriggerHit(evt, out var vfxId, out var pos)) return;
+            if (!_vfx.TryResolveTriggerHit(evt, out var vfxId, out var pos, out var projectileId)) return;
+
+            // Cross-source deduplication: if this projectile already produced a hit VFX
+            // (via Snapshot), skip the Trigger path.
+            if (projectileId > 0 && !_seenHitActorIds.Add(projectileId)) return;
 
             var spec = new BattleProjectileVfxSpawnSpec(vfxId, in pos, default);
             _vfxSpawner.TrySpawn(in spec);
@@ -85,6 +96,16 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public void Clear()
         {
             _shellSpawner?.Clear();
+            ResetCrossSourceDeduplication();
+        }
+
+        /// <summary>
+        /// Clears cross-source deduplication state.
+        /// Call this when entering a new world or starting a replay.
+        /// </summary>
+        public void ResetCrossSourceDeduplication()
+        {
+            _seenHitActorIds.Clear();
         }
 
         private void HandleSnapshotEntry(MobaProjectileEventSnapshotEntry entry)
@@ -96,6 +117,12 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 _vfxSpawner.StopFollowingActor(entry.ProjectileActorId);
                 _shellSpawner?.StopAndReturn(entry.TemplateId, entry.ProjectileActorId);
                 return;
+            }
+
+            // For hit events, register in cross-source deduplication so Trigger path skips.
+            if (entry.Kind == (int)ProjectileEventKind.Hit && entry.ProjectileActorId > 0)
+            {
+                _seenHitActorIds.Add(entry.ProjectileActorId);
             }
 
             if (!_snapshotVfx.TryResolve(in entry, out var spec)) return;

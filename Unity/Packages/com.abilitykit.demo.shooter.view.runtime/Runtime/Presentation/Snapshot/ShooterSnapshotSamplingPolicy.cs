@@ -28,6 +28,8 @@ namespace AbilityKit.Demo.Shooter.View
         public static ShooterSnapshotSamplingPolicy Default { get; } = new ShooterSnapshotSamplingPolicy(new ShooterSnapshotSamplingPolicyOptions());
 
         private readonly ShooterSnapshotSamplingPolicyOptions _options;
+        // 采样查找缓冲（成员复用，避免每帧 new Dictionary —— 高单位量下每帧 ~16KB 临时分配）。
+        private readonly Dictionary<ShooterViewEntityKey, ShooterViewTransformComponentChange> _toByKeyBuffer = new();
 
         public ShooterSnapshotSamplingPolicy(ShooterSnapshotSamplingPolicyOptions options)
         {
@@ -80,7 +82,8 @@ namespace AbilityKit.Demo.Shooter.View
                 return fromChanges;
             }
 
-            var toByKey = new Dictionary<ShooterViewEntityKey, ShooterViewTransformComponentChange>(toChanges.Count);
+            var toByKey = _toByKeyBuffer;
+            toByKey.Clear();
             for (var i = 0; i < toChanges.Count; i++)
             {
                 toByKey[toChanges[i].Key] = toChanges[i];

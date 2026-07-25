@@ -30,7 +30,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     return;
                 }
 
-                var sourceActorId = args.SourceActorId > 0 ? args.SourceActorId : effectInput.CasterActorId;
+                // A cleanse targets every matching slow, regardless of which actor applied it.
+                var sourceActorId = args.RemoveSlow ? 0 : (args.SourceActorId > 0 ? args.SourceActorId : effectInput.CasterActorId);
                 var removed = 0;
                 for (var i = 0; i < targets.Count; i++)
                 {

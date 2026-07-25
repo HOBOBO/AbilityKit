@@ -290,7 +290,7 @@
       ],
       "failurePolicy": "Do not claim the latest Xiao Qiao Unity result until the executed Xiao Qiao EditMode batch has matching XML result files in the gate output directory.",
       "ciPolicy": {
-        "runOnPullRequest": false,
+        "runOnPullRequest": true,
         "runOnPush": false,
         "runOnSchedule": false,
         "artifactRequired": true
@@ -356,7 +356,7 @@
       ],
       "failurePolicy": "Do not claim the latest Lian Po Unity result until the executed scenario-test batch has matching XML result files in the gate output directory.",
       "ciPolicy": {
-        "runOnPullRequest": false,
+        "runOnPullRequest": true,
         "runOnPush": false,
         "runOnSchedule": false,
         "artifactRequired": true
@@ -397,7 +397,7 @@
       ],
       "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
       "ciPolicy": {
-        "runOnPullRequest": false,
+        "runOnPullRequest": true,
         "runOnPush": false,
         "runOnSchedule": true,
         "artifactRequired": true
@@ -431,7 +431,7 @@
       ],
       "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
       "ciPolicy": {
-        "runOnPullRequest": false,
+        "runOnPullRequest": true,
         "runOnPush": false,
         "runOnSchedule": true,
         "artifactRequired": true
@@ -465,7 +465,7 @@
       ],
       "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
       "ciPolicy": {
-        "runOnPullRequest": false,
+        "runOnPullRequest": true,
         "runOnPush": false,
         "runOnSchedule": true,
         "artifactRequired": true
@@ -499,7 +499,7 @@
       ],
       "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
       "ciPolicy": {
-        "runOnPullRequest": false,
+        "runOnPullRequest": true,
         "runOnPush": false,
         "runOnSchedule": true,
         "artifactRequired": true
@@ -519,15 +519,43 @@
       "level": "P1",
       "owner": "Shooter Multiplayer",
       "description": "Minute-scale Shooter protocol, policy, runtime isolation, network, record, and benchmark contract tests.",
-      "scope": ["shooter", "unit", "protocol", "policy"],
-      "requiredBefore": ["merge-shooter-sync-change"],
+      "scope": [
+        "shooter",
+        "unit",
+        "protocol",
+        "policy"
+      ],
+      "requiredBefore": [
+        "merge-shooter-sync-change"
+      ],
       "failurePolicy": "Block the pull request until pure Shooter synchronization contracts pass.",
-      "ciPolicy": { "runOnPullRequest": true, "runOnPush": true, "runOnSchedule": false, "artifactRequired": true },
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
       "steps": [
-        { "name": "Shooter runtime isolation tests", "kind": "dotnet-test", "project": "src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj" },
-        { "name": "Network runtime tests", "kind": "dotnet-test", "project": "src/AbilityKit.Network.Runtime.Tests/AbilityKit.Network.Runtime.Tests.csproj" },
-        { "name": "Record tests", "kind": "dotnet-test", "project": "src/AbilityKit.Record.Tests/AbilityKit.Record.Tests.csproj" },
-        { "name": "AOI LOD contract tests", "kind": "dotnet-test", "project": "src/AbilityKit.Demo.Shooter.AoiLodBenchmarks.Tests/AbilityKit.Demo.Shooter.AoiLodBenchmarks.Tests.csproj" }
+        {
+          "name": "Shooter runtime isolation tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj"
+        },
+        {
+          "name": "Network runtime tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Network.Runtime.Tests/AbilityKit.Network.Runtime.Tests.csproj"
+        },
+        {
+          "name": "Record tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Record.Tests/AbilityKit.Record.Tests.csproj"
+        },
+        {
+          "name": "AOI LOD contract tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Shooter.AoiLodBenchmarks.Tests/AbilityKit.Demo.Shooter.AoiLodBenchmarks.Tests.csproj"
+        }
       ]
     },
     {
@@ -535,14 +563,39 @@
       "level": "P1",
       "owner": "Shooter Multiplayer",
       "description": "Gateway, Grains, Shooter client integration, smoke contracts, and wire compatibility.",
-      "scope": ["shooter", "gateway", "grains", "client-integration", "protocol-compatibility"],
-      "requiredBefore": ["merge-shooter-server-or-client-integration-change"],
+      "scope": [
+        "shooter",
+        "gateway",
+        "grains",
+        "client-integration",
+        "protocol-compatibility"
+      ],
+      "requiredBefore": [
+        "merge-shooter-server-or-client-integration-change"
+      ],
       "failurePolicy": "Block the pull request or main branch update until cross-boundary synchronization contracts pass.",
-      "ciPolicy": { "runOnPullRequest": true, "runOnPush": true, "runOnSchedule": false, "artifactRequired": true },
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
       "steps": [
-        { "name": "Gateway integration and protocol compatibility", "kind": "dotnet-test", "project": "Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj" },
-        { "name": "Grains Shooter integration", "kind": "dotnet-test", "project": "Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/AbilityKit.Orleans.Grains.Tests.csproj" },
-        { "name": "Shooter smoke contract integration", "kind": "dotnet-test", "project": "Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests/AbilityKit.Orleans.ShooterSmoke.Tests.csproj" }
+        {
+          "name": "Gateway integration and protocol compatibility",
+          "kind": "dotnet-test",
+          "project": "Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj"
+        },
+        {
+          "name": "Grains Shooter integration",
+          "kind": "dotnet-test",
+          "project": "Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/AbilityKit.Orleans.Grains.Tests.csproj"
+        },
+        {
+          "name": "Shooter smoke contract integration",
+          "kind": "dotnet-test",
+          "project": "Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests/AbilityKit.Orleans.ShooterSmoke.Tests.csproj"
+        }
       ]
     },
     {
@@ -550,10 +603,21 @@
       "level": "P1",
       "owner": "Shooter Multiplayer",
       "description": "Unity batch PlayMode smoke for Shooter client protocol and synchronization projection.",
-      "scope": ["shooter", "unity-playmode", "client-integration"],
-      "requiredBefore": ["merge-shooter-unity-client-sync-change"],
+      "scope": [
+        "shooter",
+        "unity-playmode",
+        "client-integration"
+      ],
+      "requiredBefore": [
+        "merge-shooter-unity-client-sync-change"
+      ],
       "failurePolicy": "Block integration until Unity PlayMode emits a non-empty passing NUnit result.",
-      "ciPolicy": { "runOnPullRequest": true, "runOnPush": true, "runOnSchedule": false, "artifactRequired": true },
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
       "steps": [
         {
           "name": "Shooter synchronization PlayMode smoke",
@@ -569,16 +633,43 @@
       "level": "P1",
       "owner": "Shooter Multiplayer",
       "description": "TEST-01B minimal fault profile with isolated ports, bounded execution, cleanup, and complete diagnostics.",
-      "scope": ["shooter", "multiprocess", "test-01b", "fault-recovery"],
-      "requiredBefore": ["release-shooter-multiplayer-sync"],
+      "scope": [
+        "shooter",
+        "multiprocess",
+        "test-01b",
+        "fault-recovery"
+      ],
+      "requiredBefore": [
+        "release-shooter-multiplayer-sync"
+      ],
       "failurePolicy": "Preserve the complete run root and block scheduled/manual promotion.",
-      "ciPolicy": { "runOnPullRequest": false, "runOnPush": true, "runOnSchedule": true, "artifactRequired": true },
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": true,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
       "steps": [
         {
           "name": "TEST-01B minimal profile",
           "kind": "powershell-script",
           "script": "Server/Orleans/tools/run_shooter_multiprocess_smoke.ps1",
-          "arguments": ["-Configuration", "Release", "-Profile", "minimal", "-TcpPort", "44101", "-SiloPort", "15111", "-OrleansGatewayPort", "34101", "-ArtifactRoot", "{GateOutputDirectory}\\test-01b", "-GlobalTimeoutSeconds", "240"],
+          "arguments": [
+            "-Configuration",
+            "Release",
+            "-Profile",
+            "minimal",
+            "-TcpPort",
+            "44101",
+            "-SiloPort",
+            "15111",
+            "-OrleansGatewayPort",
+            "34101",
+            "-ArtifactRoot",
+            "{GateOutputDirectory}\\test-01b",
+            "-GlobalTimeoutSeconds",
+            "240"
+          ],
           "timeoutSeconds": 300
         }
       ]
@@ -588,16 +679,45 @@
       "level": "P2",
       "owner": "Shooter Multiplayer",
       "description": "Scheduled orthogonal multiplayer matrix across Packed/PureState payloads, one/two join clients, fault recovery, reconnect cycles, observer reactivation, and deterministic latency/jitter.",
-      "scope": ["shooter", "multiprocess", "compatibility", "payload-modes", "client-fanout", "fault-recovery"],
-      "requiredBefore": ["release-shooter-multiplayer-sync"],
+      "scope": [
+        "shooter",
+        "multiprocess",
+        "compatibility",
+        "payload-modes",
+        "client-fanout",
+        "fault-recovery"
+      ],
+      "requiredBefore": [
+        "release-shooter-multiplayer-sync"
+      ],
       "failurePolicy": "Preserve all matrix manifests and block release promotion until the failing compatibility case is triaged.",
-      "ciPolicy": { "runOnPullRequest": false, "runOnPush": false, "runOnSchedule": true, "artifactRequired": true },
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
       "steps": [
         {
           "name": "Shooter compatibility matrix",
           "kind": "powershell-script",
           "script": "Server/Orleans/tools/run_shooter_multiprocess_smoke.ps1",
-          "arguments": ["-Configuration", "Release", "-Profile", "compatibility", "-TcpPort", "44201", "-SiloPort", "15211", "-OrleansGatewayPort", "34201", "-ArtifactRoot", "{GateOutputDirectory}\\compatibility", "-GlobalTimeoutSeconds", "1200"],
+          "arguments": [
+            "-Configuration",
+            "Release",
+            "-Profile",
+            "compatibility",
+            "-TcpPort",
+            "44201",
+            "-SiloPort",
+            "15211",
+            "-OrleansGatewayPort",
+            "34201",
+            "-ArtifactRoot",
+            "{GateOutputDirectory}\\compatibility",
+            "-GlobalTimeoutSeconds",
+            "1200"
+          ],
           "timeoutSeconds": 1320
         }
       ]
@@ -607,16 +727,47 @@
       "level": "P0",
       "owner": "Shooter Multiplayer",
       "description": "Scheduled/manual 16 and 64 observer PureState soak with dynamic network phases, delivery telemetry, recovery percentiles, observer fairness, and process resource trends.",
-      "scope": ["shooter", "multiprocess", "soak", "pure-state", "network-recovery", "resource-trend"],
-      "requiredBefore": ["release-shooter-multiplayer-sync"],
+      "scope": [
+        "shooter",
+        "multiprocess",
+        "soak",
+        "pure-state",
+        "network-recovery",
+        "resource-trend"
+      ],
+      "requiredBefore": [
+        "release-shooter-multiplayer-sync"
+      ],
       "failurePolicy": "Preserve all per-client telemetry, resource samples, summaries, and manifests; block release promotion on recovery, fairness, convergence, or memory-growth violations.",
-      "ciPolicy": { "runOnPullRequest": false, "runOnPush": false, "runOnSchedule": true, "artifactRequired": true },
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
       "steps": [
         {
           "name": "Shooter 16/64 observer soak matrix",
           "kind": "powershell-script",
           "script": "Server/Orleans/tools/run_shooter_multiprocess_smoke.ps1",
-          "arguments": ["-Configuration", "Release", "-Profile", "soak", "-SoakDurationSeconds", "1800", "-TcpPort", "44401", "-SiloPort", "15411", "-OrleansGatewayPort", "34401", "-ArtifactRoot", "{GateOutputDirectory}\\soak", "-GlobalTimeoutSeconds", "3900"],
+          "arguments": [
+            "-Configuration",
+            "Release",
+            "-Profile",
+            "soak",
+            "-SoakDurationSeconds",
+            "1800",
+            "-TcpPort",
+            "44401",
+            "-SiloPort",
+            "15411",
+            "-OrleansGatewayPort",
+            "34401",
+            "-ArtifactRoot",
+            "{GateOutputDirectory}\\soak",
+            "-GlobalTimeoutSeconds",
+            "3900"
+          ],
           "timeoutSeconds": 4200
         }
       ]
@@ -626,16 +777,42 @@
       "level": "P1",
       "owner": "Shooter Multiplayer",
       "description": "TEST-01C dynamic matrix-timeout probe proving manifest-owned process cleanup, released ports, preserved timeout failure, and unrelated-process protection.",
-      "scope": ["shooter", "multiprocess", "test-01c", "process-ownership", "timeout-cleanup"],
-      "requiredBefore": ["release-shooter-multiplayer-sync"],
+      "scope": [
+        "shooter",
+        "multiprocess",
+        "test-01c",
+        "process-ownership",
+        "timeout-cleanup"
+      ],
+      "requiredBefore": [
+        "release-shooter-multiplayer-sync"
+      ],
       "failurePolicy": "Preserve the acceptance report and timeout manifests; block promotion when any owned process or port remains, identity evidence is incomplete, or an unrelated process is terminated.",
-      "ciPolicy": { "runOnPullRequest": false, "runOnPush": false, "runOnSchedule": true, "artifactRequired": true },
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
       "steps": [
         {
           "name": "TEST-01C ownership cleanup probe",
           "kind": "powershell-script",
           "script": "Server/Orleans/tools/test_shooter_multiprocess_ownership_cleanup.ps1",
-          "arguments": ["-Configuration", "Release", "-TcpPort", "44301", "-SiloPort", "15311", "-OrleansGatewayPort", "34301", "-ArtifactRoot", "{GateOutputDirectory}\\test-01c", "-GlobalTimeoutSeconds", "35"],
+          "arguments": [
+            "-Configuration",
+            "Release",
+            "-TcpPort",
+            "44301",
+            "-SiloPort",
+            "15311",
+            "-OrleansGatewayPort",
+            "34301",
+            "-ArtifactRoot",
+            "{GateOutputDirectory}\\test-01c",
+            "-GlobalTimeoutSeconds",
+            "35"
+          ],
           "timeoutSeconds": 600
         }
       ]
@@ -645,24 +822,117 @@
       "level": "P1",
       "owner": "Shooter Multiplayer",
       "description": "Threshold-enforced AOI/LOD smoke and full performance profiles with JSON reports.",
-      "scope": ["shooter", "performance", "aoi", "lod"],
-      "requiredBefore": ["accept-shooter-aoi-lod-performance"],
+      "scope": [
+        "shooter",
+        "performance",
+        "aoi",
+        "lod"
+      ],
+      "requiredBefore": [
+        "accept-shooter-aoi-lod-performance"
+      ],
       "failurePolicy": "Block on benchmark threshold violations and archive the JSON report.",
-      "ciPolicy": { "runOnPullRequest": true, "runOnPush": true, "runOnSchedule": true, "artifactRequired": true },
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
       "steps": [
         {
           "name": "AOI LOD smoke",
           "kind": "powershell-script",
           "script": "tools/run_shooter_aoi_lod_gate.ps1",
-          "arguments": ["-Profile", "smoke", "-OutputPath", "{GateOutputDirectory}\\performance\\smoke.json"],
+          "arguments": [
+            "-Profile",
+            "smoke",
+            "-OutputPath",
+            "{GateOutputDirectory}\\performance\\smoke.json"
+          ],
           "timeoutSeconds": 300
         },
         {
           "name": "AOI LOD full",
           "kind": "powershell-script",
           "script": "tools/run_shooter_aoi_lod_gate.ps1",
-          "arguments": ["-Profile", "full", "-OutputPath", "{GateOutputDirectory}\\performance\\full.json"],
+          "arguments": [
+            "-Profile",
+            "full",
+            "-OutputPath",
+            "{GateOutputDirectory}\\performance\\full.json"
+          ],
           "timeoutSeconds": 1800
+        }
+      ]
+    },
+    {
+      "name": "moba-smoke",
+      "level": "P1",
+      "owner": "MOBA Multiplayer",
+      "description": "MOBA two-client TCP Gateway smoke: login, create room, join, pick hero, ready, begin loading, start battle, submit inputs, validate aggregated authoritative frame with both player inputs.",
+      "scope": [
+        "moba",
+        "multiplayer",
+        "protocol",
+        "gateway"
+      ],
+      "requiredBefore": [
+        "merge-moba-multiplayer-or-gateway-change"
+      ],
+      "failurePolicy": "Block the pull request until the two-client MOBA smoke passes.",
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "MOBA two-client smoke",
+          "kind": "powershell-script",
+          "script": "Server/Orleans/tools/run_moba_smoke.ps1",
+          "arguments": [
+            "-Configuration",
+            "Release",
+            "-TcpPort",
+            "44101"
+          ],
+          "timeoutSeconds": 300
+        }
+      ]
+    },
+    {
+      "name": "moba-multiprocess",
+      "level": "P2",
+      "owner": "MOBA Multiplayer",
+      "description": "MOBA host-only silo lifecycle + port isolation smoke. Currently runs the host-only silo as an independent process alongside the standard smoke to verify process isolation. Future expansion: true multi-client-per-process orchestration (requires MobaSmoke --client-only mode).",
+      "scope": [
+        "moba",
+        "multiprocess",
+        "process-isolation"
+      ],
+      "requiredBefore": [
+        "release-moba-multiplayer-sync"
+      ],
+      "failurePolicy": "Investigate process isolation or port conflict before release promotion.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "MOBA multiprocess smoke",
+          "kind": "powershell-script",
+          "script": "Server/Orleans/tools/run_moba_multiprocess_smoke.ps1",
+          "arguments": [
+            "-Configuration",
+            "Release",
+            "-TcpPort",
+            "44201"
+          ],
+          "timeoutSeconds": 300
         }
       ]
     }

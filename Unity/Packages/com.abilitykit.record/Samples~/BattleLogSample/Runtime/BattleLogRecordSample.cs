@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Core.Serialization;
+using MemoryPack;
 using AbilityKit.Core.Recording.Core;
 using UnityEngine;
 
@@ -26,12 +26,12 @@ namespace AbilityKit.Record.Samples
         {
             public static byte[] Encode(int casterActorId, int skillCode, int castInstanceId)
             {
-                return BinaryObjectCodec.Encode(new Payload(casterActorId, skillCode, castInstanceId));
+                return MemoryPackSerializer.Serialize(new BattleSkillCastEventPayload(casterActorId, skillCode, castInstanceId));
             }
 
             public static void Decode(byte[] payload, out int casterActorId, out int skillCode, out int castInstanceId)
             {
-                var p = BinaryObjectCodec.Decode<Payload>(payload);
+                var p = BinaryObjectCodec.Deserialize<BattleSkillCastEventPayload>(payload);
                 casterActorId = p.CasterActorId;
                 skillCode = p.SkillCode;
                 castInstanceId = p.CastInstanceId;
@@ -57,31 +57,18 @@ namespace AbilityKit.Record.Samples
                 return true;
             }
 
-            public readonly struct Payload
-            {
-                [BinaryMember(0)] public readonly int CasterActorId;
-                [BinaryMember(1)] public readonly int SkillCode;
-                [BinaryMember(2)] public readonly int CastInstanceId;
-
-                public Payload(int casterActorId, int skillCode, int castInstanceId)
-                {
-                    CasterActorId = casterActorId;
-                    SkillCode = skillCode;
-                    CastInstanceId = castInstanceId;
-                }
-            }
-        }
+                    }
 
         public static class BattleBuffAddEventCodec
         {
             public static byte[] Encode(int sourceActorId, int targetActorId, int buffCode, int buffInstanceId, int stacks, int durationFrames)
             {
-                return BinaryObjectCodec.Encode(new Payload(sourceActorId, targetActorId, buffCode, buffInstanceId, stacks, durationFrames));
+                return MemoryPackSerializer.Serialize(new BattleBuffAddEventPayload(sourceActorId, targetActorId, buffCode, buffInstanceId, stacks, durationFrames));
             }
 
             public static void Decode(byte[] payload, out int sourceActorId, out int targetActorId, out int buffCode, out int buffInstanceId, out int stacks, out int durationFrames)
             {
-                var p = BinaryObjectCodec.Decode<Payload>(payload);
+                var p = BinaryObjectCodec.Deserialize<BattleBuffAddEventPayload>(payload);
                 sourceActorId = p.SourceActorId;
                 targetActorId = p.TargetActorId;
                 buffCode = p.BuffCode;
@@ -113,37 +100,18 @@ namespace AbilityKit.Record.Samples
                 return true;
             }
 
-            public readonly struct Payload
-            {
-                [BinaryMember(0)] public readonly int SourceActorId;
-                [BinaryMember(1)] public readonly int TargetActorId;
-                [BinaryMember(2)] public readonly int BuffCode;
-                [BinaryMember(3)] public readonly int BuffInstanceId;
-                [BinaryMember(4)] public readonly int Stacks;
-                [BinaryMember(5)] public readonly int DurationFrames;
-
-                public Payload(int sourceActorId, int targetActorId, int buffCode, int buffInstanceId, int stacks, int durationFrames)
-                {
-                    SourceActorId = sourceActorId;
-                    TargetActorId = targetActorId;
-                    BuffCode = buffCode;
-                    BuffInstanceId = buffInstanceId;
-                    Stacks = stacks;
-                    DurationFrames = durationFrames;
-                }
-            }
-        }
+                    }
 
         public static class BattleDamageEventCodec
         {
             public static byte[] Encode(int sourceActorId, int targetActorId, int skillCode, int damageAmount, int hpBefore, int hpAfter, byte critFlag)
             {
-                return BinaryObjectCodec.Encode(new Payload(sourceActorId, targetActorId, skillCode, damageAmount, hpBefore, hpAfter, critFlag));
+                return MemoryPackSerializer.Serialize(new BattleDamageEventPayload(sourceActorId, targetActorId, skillCode, damageAmount, hpBefore, hpAfter, critFlag));
             }
 
             public static void Decode(byte[] payload, out int sourceActorId, out int targetActorId, out int skillCode, out int damageAmount, out int hpBefore, out int hpAfter, out byte critFlag)
             {
-                var p = BinaryObjectCodec.Decode<Payload>(payload);
+                var p = BinaryObjectCodec.Deserialize<BattleDamageEventPayload>(payload);
                 sourceActorId = p.SourceActorId;
                 targetActorId = p.TargetActorId;
                 skillCode = p.SkillCode;
@@ -177,28 +145,7 @@ namespace AbilityKit.Record.Samples
                 return true;
             }
 
-            public readonly struct Payload
-            {
-                [BinaryMember(0)] public readonly int SourceActorId;
-                [BinaryMember(1)] public readonly int TargetActorId;
-                [BinaryMember(2)] public readonly int SkillCode;
-                [BinaryMember(3)] public readonly int DamageAmount;
-                [BinaryMember(4)] public readonly int HpBefore;
-                [BinaryMember(5)] public readonly int HpAfter;
-                [BinaryMember(6)] public readonly byte CritFlag;
-
-                public Payload(int sourceActorId, int targetActorId, int skillCode, int damageAmount, int hpBefore, int hpAfter, byte critFlag)
-                {
-                    SourceActorId = sourceActorId;
-                    TargetActorId = targetActorId;
-                    SkillCode = skillCode;
-                    DamageAmount = damageAmount;
-                    HpBefore = hpBefore;
-                    HpAfter = hpAfter;
-                    CritFlag = critFlag;
-                }
-            }
-        }
+                    }
 
         private sealed class BattleLogReplayHandler : IReplayEventHandler
         {
@@ -287,4 +234,69 @@ namespace AbilityKit.Record.Samples
             controller.Tick(1f);
         }
     }
+
+    [MemoryPackable]
+public readonly partial struct BattleSkillCastEventPayload
+    {
+        [MemoryPackOrder(0)] public readonly int CasterActorId;
+        [MemoryPackOrder(1)] public readonly int SkillCode;
+        [MemoryPackOrder(2)] public readonly int CastInstanceId;
+
+        [MemoryPackConstructor]
+    public BattleSkillCastEventPayload(int casterActorId, int skillCode, int castInstanceId)
+        {
+            CasterActorId = casterActorId;
+            SkillCode = skillCode;
+            CastInstanceId = castInstanceId;
+        }
+    }
+
+
+    [MemoryPackable]
+public readonly partial struct BattleBuffAddEventPayload
+    {
+        [MemoryPackOrder(0)] public readonly int SourceActorId;
+        [MemoryPackOrder(1)] public readonly int TargetActorId;
+        [MemoryPackOrder(2)] public readonly int BuffCode;
+        [MemoryPackOrder(3)] public readonly int BuffInstanceId;
+        [MemoryPackOrder(4)] public readonly int Stacks;
+        [MemoryPackOrder(5)] public readonly int DurationFrames;
+
+        [MemoryPackConstructor]
+    public BattleBuffAddEventPayload(int sourceActorId, int targetActorId, int buffCode, int buffInstanceId, int stacks, int durationFrames)
+        {
+            SourceActorId = sourceActorId;
+            TargetActorId = targetActorId;
+            BuffCode = buffCode;
+            BuffInstanceId = buffInstanceId;
+            Stacks = stacks;
+            DurationFrames = durationFrames;
+        }
+    }
+
+
+    [MemoryPackable]
+public readonly partial struct BattleDamageEventPayload
+    {
+        [MemoryPackOrder(0)] public readonly int SourceActorId;
+        [MemoryPackOrder(1)] public readonly int TargetActorId;
+        [MemoryPackOrder(2)] public readonly int SkillCode;
+        [MemoryPackOrder(3)] public readonly int DamageAmount;
+        [MemoryPackOrder(4)] public readonly int HpBefore;
+        [MemoryPackOrder(5)] public readonly int HpAfter;
+        [MemoryPackOrder(6)] public readonly byte CritFlag;
+
+        [MemoryPackConstructor]
+    public BattleDamageEventPayload(int sourceActorId, int targetActorId, int skillCode, int damageAmount, int hpBefore, int hpAfter, byte critFlag)
+        {
+            SourceActorId = sourceActorId;
+            TargetActorId = targetActorId;
+            SkillCode = skillCode;
+            DamageAmount = damageAmount;
+            HpBefore = hpBefore;
+            HpAfter = hpAfter;
+            CritFlag = critFlag;
+        }
+    }
+
 }

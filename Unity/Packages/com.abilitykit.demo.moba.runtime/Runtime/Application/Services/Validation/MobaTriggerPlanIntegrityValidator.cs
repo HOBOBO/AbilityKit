@@ -97,28 +97,35 @@ namespace AbilityKit.Demo.Moba.Services
                 report.Error(SourceName, path + ".scope", $"trigger plan scope is not recognized. scope={record.Scope}", businessId, code: "moba.trigger.plan.invalid_scope", category: MobaRuntimeValidationCategory.Config, businessNumericId: record.TriggerId);
             }
 
-            if (record.Scope == TriggerPlanScope.OwnerBound || record.Scope == TriggerPlanScope.Global)
+            var hasEventName = !string.IsNullOrWhiteSpace(record.EventName);
+            var hasEventId = record.EventId != 0;
+            if (!hasEventName && !hasEventId)
             {
-                if (string.IsNullOrWhiteSpace(record.EventName))
-                {
-                    report.Error(SourceName, path + ".eventName", $"{record.Scope} trigger plan must declare event name.", businessId, code: "moba.trigger.plan.event_name_missing", category: MobaRuntimeValidationCategory.Config, businessNumericId: record.TriggerId);
-                }
+                // Eventless records are explicit plans resolved and executed by trigger id.
+                return;
+            }
 
-                if (record.EventId == 0)
-                {
-                    report.Error(SourceName, path + ".eventId", $"{record.Scope} trigger plan must declare non-zero event id.", businessId, code: "moba.trigger.plan.event_id_missing", category: MobaRuntimeValidationCategory.Config, businessNumericId: record.TriggerId);
-                }
+            if (!hasEventName)
+            {
+                report.Error(SourceName, path + ".eventName", $"{record.Scope} trigger plan with an event id must declare event name.", businessId, code: "moba.trigger.plan.event_name_missing", category: MobaRuntimeValidationCategory.Config, businessNumericId: record.TriggerId);
+                return;
+            }
 
-                if (eventRegistry == null)
-                {
-                    report.Warning(SourceName, path + ".eventRegistry", "MobaEventSubscriptionRegistry is not resolved; event args type cannot be checked.", businessId, code: "moba.trigger.plan.event_registry_missing", category: MobaRuntimeValidationCategory.Config, businessNumericId: record.TriggerId);
-                    return;
-                }
+            if (!hasEventId)
+            {
+                report.Error(SourceName, path + ".eventId", $"{record.Scope} trigger plan with an event name must declare non-zero event id.", businessId, code: "moba.trigger.plan.event_id_missing", category: MobaRuntimeValidationCategory.Config, businessNumericId: record.TriggerId);
+                return;
+            }
 
-                if (!string.IsNullOrWhiteSpace(record.EventName) && (!eventRegistry.TryGetArgsType(record.EventName, out var argsType) || argsType == null))
-                {
-                    report.Error(SourceName, path + ".eventName", $"trigger event is not registered. eventName={record.EventName}", businessId, code: "moba.trigger.plan.event_unregistered", category: MobaRuntimeValidationCategory.Config, businessNumericId: record.TriggerId);
-                }
+            if (eventRegistry == null)
+            {
+                report.Warning(SourceName, path + ".eventRegistry", "MobaEventSubscriptionRegistry is not resolved; event args type cannot be checked.", businessId, code: "moba.trigger.plan.event_registry_missing", category: MobaRuntimeValidationCategory.Config, businessNumericId: record.TriggerId);
+                return;
+            }
+
+            if (!eventRegistry.TryGetArgsType(record.EventName, out var argsType) || argsType == null)
+            {
+                report.Error(SourceName, path + ".eventName", $"trigger event is not registered. eventName={record.EventName}", businessId, code: "moba.trigger.plan.event_unregistered", category: MobaRuntimeValidationCategory.Config, businessNumericId: record.TriggerId);
             }
         }
 

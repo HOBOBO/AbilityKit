@@ -38,10 +38,52 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             collectionCheck: false);
 
         private readonly Dictionary<long, Dictionary<int, IDisposable>> _regsByOwnerKey = new Dictionary<long, Dictionary<int, IDisposable>>();
+        private readonly Dictionary<long, Dictionary<int, TriggerEvaluationSnapshot>> _evaluationsByOwnerKey = new Dictionary<long, Dictionary<int, TriggerEvaluationSnapshot>>();
+
+        public readonly struct TriggerEvaluationSnapshot
+        {
+            public readonly int Count;
+            public readonly bool GatePassed;
+            public readonly bool SourceResolved;
+            public readonly bool PlanPassed;
+
+            public TriggerEvaluationSnapshot(int count, bool gatePassed, bool sourceResolved, bool planPassed)
+            {
+                Count = count;
+                GatePassed = gatePassed;
+                SourceResolved = sourceResolved;
+                PlanPassed = planPassed;
+            }
+        }
 
         public bool ContainsOwnerKey(long ownerKey)
         {
             return ownerKey != 0 && _regsByOwnerKey.ContainsKey(ownerKey);
+        }
+
+        public void CopyOwnerKeysForTrigger(int triggerId, List<long> dest)
+        {
+            if (dest == null) return;
+            dest.Clear();
+            if (triggerId <= 0) return;
+
+            foreach (var pair in _regsByOwnerKey)
+            {
+                if (pair.Value != null && pair.Value.ContainsKey(triggerId))
+                {
+                    dest.Add(pair.Key);
+                }
+            }
+        }
+
+        public bool TryGetLastEvaluation(long ownerKey, int triggerId, out TriggerEvaluationSnapshot snapshot)
+        {
+            snapshot = default;
+            return ownerKey != 0
+                && triggerId > 0
+                && _evaluationsByOwnerKey.TryGetValue(ownerKey, out var evaluations)
+                && evaluations != null
+                && evaluations.TryGetValue(triggerId, out snapshot);
         }
 
         public void CopyActiveOwnerKeys(List<long> dest)
@@ -206,7 +248,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
             var typedPlan = plan.AsArgs<TArgs>();
             var inner = new PlannedTrigger<TArgs, IWorldResolver>(typedPlan);
-            var trigger = new GatedOwnerBoundTrigger<TArgs>(ownerKey, inner, _ownerBoundGates, _effects);
+            var trigger = new GatedOwnerBoundTrigger<TArgs>(ownerKey, inner, _ownerBoundGates, _effects, RecordEvaluation);
 
             var key = new EventKey<TArgs>(eventId);
             return _runner.Register(key, trigger, typedPlan.Phase, typedPlan.Priority);
@@ -218,7 +260,20 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             if (!_regsByOwnerKey.TryGetValue(ownerKey, out var regs) || regs == null) return;
 
             _regsByOwnerKey.Remove(ownerKey);
+            _evaluationsByOwnerKey.Remove(ownerKey);
             DisposeRegistrations(ownerKey, regs);
+        }
+
+        private void RecordEvaluation(long ownerKey, int triggerId, bool gatePassed, bool sourceResolved, bool planPassed)
+        {
+            if (!_evaluationsByOwnerKey.TryGetValue(ownerKey, out var evaluations) || evaluations == null)
+            {
+                evaluations = new Dictionary<int, TriggerEvaluationSnapshot>();
+                _evaluationsByOwnerKey[ownerKey] = evaluations;
+            }
+
+            var count = evaluations.TryGetValue(triggerId, out var previous) ? previous.Count + 1 : 1;
+            evaluations[triggerId] = new TriggerEvaluationSnapshot(count, gatePassed, sourceResolved, planPassed);
         }
 
         private void RemoveStaleRegistrations(long ownerKey, Dictionary<int, IDisposable> regs, IReadOnlyList<int> desiredTriggerIds)
@@ -291,14 +346,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             private readonly ITrigger<TArgs, IWorldResolver> _inner;
             private readonly MobaOwnerBoundTriggerGateService _gates;
             private readonly MobaEffectExecutionService _effects;
+            private readonly Action<long, int, bool, bool, bool> _recordEvaluation;
             private readonly int _triggerId;
 
-            public GatedOwnerBoundTrigger(long ownerKey, ITrigger<TArgs, IWorldResolver> inner, MobaOwnerBoundTriggerGateService gates, MobaEffectExecutionService effects)
+            public GatedOwnerBoundTrigger(long ownerKey, ITrigger<TArgs, IWorldResolver> inner, MobaOwnerBoundTriggerGateService gates, MobaEffectExecutionService effects, Action<long, int, bool, bool, bool> recordEvaluation)
             {
                 _ownerKey = ownerKey;
                 _inner = inner ?? throw new ArgumentNullException(nameof(inner));
                 _gates = gates ?? throw new ArgumentNullException(nameof(gates));
                 _effects = effects ?? throw new ArgumentNullException(nameof(effects));
+                _recordEvaluation = recordEvaluation;
                 _triggerId = inner is ITriggerWithId withId ? withId.TriggerId : 0;
             }
 
@@ -307,12 +364,25 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
             public bool Evaluate(in TArgs args, in ExecCtx<IWorldResolver> ctx)
             {
-                if (!_gates.CanExecute(_ownerKey, _triggerId)) return false;
-                if (!_gates.TryGetExecutionSource(_ownerKey, _triggerId, out var source)) return false;
+                var gatePassed = _gates.CanExecute(_ownerKey, _triggerId);
+                if (!gatePassed)
+                {
+                    _recordEvaluation?.Invoke(_ownerKey, _triggerId, false, false, false);
+                    return false;
+                }
+
+                var sourceResolved = _gates.TryGetExecutionSource(_ownerKey, _triggerId, out var source);
+                if (!sourceResolved)
+                {
+                    _recordEvaluation?.Invoke(_ownerKey, _triggerId, true, false, false);
+                    return false;
+                }
 
                 using (_gates.BeginEvaluationScope(in source))
                 {
-                    return _inner.Evaluate(in args, in ctx);
+                    var planPassed = _inner.Evaluate(in args, in ctx);
+                    _recordEvaluation?.Invoke(_ownerKey, _triggerId, true, true, planPassed);
+                    return planPassed;
                 }
             }
 
@@ -333,6 +403,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             _byTriggerId.Clear();
             _argsTypeByTriggerId.Clear();
             _regsByOwnerKey.Clear();
+            _evaluationsByOwnerKey.Clear();
         }
     }
 }

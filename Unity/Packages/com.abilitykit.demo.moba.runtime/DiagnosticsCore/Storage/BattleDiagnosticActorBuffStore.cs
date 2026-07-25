@@ -16,7 +16,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         void Clear();
     }
 
-    public sealed class BattleDiagnosticActorBuffStore : IBattleDiagnosticActorBuffStore
+    public sealed class BattleDiagnosticActorBuffStore :
+        IBattleDiagnosticActorBuffStore,
+        IBattleDiagnosticBuffSnapshotSource
     {
         private readonly HashSet<long> _actorIds = new HashSet<long>();
         private BattleDiagnosticActorBuff[] _buffs = Array.Empty<BattleDiagnosticActorBuff>();
@@ -78,6 +80,14 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             SnapshotFrame = frame;
             Revision++;
             return true;
+        }
+
+        public BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorBuff> CaptureBuffSnapshot()
+        {
+            return new BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorBuff>(
+                Revision,
+                SnapshotFrame,
+                (BattleDiagnosticActorBuff[])_buffs.Clone());
         }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticActorBuff> QueryActorBuffs(

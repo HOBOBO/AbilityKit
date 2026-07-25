@@ -7,13 +7,31 @@ namespace AbilityKit.Coordinator
     /// <summary>
     /// 混合同步适配器（客户端预测模式）。
     ///
-    /// 设计：
+    /// **当前状态（2026-07-20 核校）：未完成的通用框架适配器。**
+    ///
+    /// 本类属于 coordinator 包的通用会话协调框架（与 <see cref="LocalSyncAdapter"/>、
+    /// <see cref="RemoteSyncAdapter"/> 一起提供 SyncMode=Hybrid 时的统一抽象）。
+    /// 类内 4 处 TODO（SubmitInput/Tick/Reconcile/GetAllEntityStates）尚未实现，
+    /// 本地预测循环、对账比对与预测状态读取均为空壳。
+    ///
+    /// **重要：MOBA demo 的生产战斗路径不经过本类。** MOBA 的 RemoteDriven 预测通路
+    /// 由 <c>com.abilitykit.host.extension/Runtime/FrameSync/ClientPredictionDriverModule</c>
+    /// （框架级 IHostRuntimeModule）+ view.runtime 的
+    /// <c>RemoteDrivenRollbackRegistryFactory</c> / <c>RemoteDrivenStateHashFactory</c>
+    /// / <c>RemoteDrivenPredictionContextBinder</c> 实现，不经 coordinator 的 ISyncAdapter 体系。
+    /// Shooter demo 也走自己的 <c>ShooterClientPredictionRuntimeAdapter</c>。
+    ///
+    /// 因此这 4 处 TODO 是**通用框架未来补全工作**，不阻塞演示级联机或任何当前 demo。
+    /// 补全前请先确认 coordinator 通用会话框架有实际接入方（目前没有 demo 用 SyncMode=Hybrid
+    /// 走 SessionCoordinator 路径），避免投入产出比错配。
+    ///
+    /// 设计意图（补全时应遵循）：
     /// - 客户端在本地执行预测。
     /// - 输入发送到服务端。
     /// - 服务端校验并发送校正。
     /// - 客户端根据服务端状态校正预测结果。
     ///
-    /// 适用场景：
+    /// 适用场景（补全后）：
     /// - 带客户端预测的在线多人玩法。
     /// - 降低感知延迟。
     /// - 服务端仍保持权威。

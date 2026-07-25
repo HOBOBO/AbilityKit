@@ -23,6 +23,7 @@ namespace AbilityKit.Diagnostics.Analysis
         public AnalysisDictionaries Dictionaries { get; set; } = new AnalysisDictionaries();
         public AnalysisProfilerSection Profiler { get; set; } = new AnalysisProfilerSection();
         public AnalysisTraceSection Trace { get; set; } = new AnalysisTraceSection();
+        public AnalysisBattleDiagnosticSection BattleDiagnostics { get; set; }
         public AnalysisDiagnosticsSection Diagnostics { get; set; } = new AnalysisDiagnosticsSection();
         public AnalysisRuntimeSection Runtime { get; set; } = new AnalysisRuntimeSection();
         public AnalysisInsightsSection Insights { get; set; } = new AnalysisInsightsSection();

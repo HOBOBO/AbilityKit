@@ -36,7 +36,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         SummonEnded = 17,
         EffectStarted = 18,
         EffectEnded = 19,
-        ProjectileHit = 20
+        ProjectileHit = 20,
+        TriggerAnalysis = 21
     }
 
     public enum BattleDiagnosticEventOutcome
@@ -637,6 +638,14 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             {
                 throw new ArgumentException(
                     "SyncSnapshotReceived payload requires a Sync event kind.",
+                    nameof(payload));
+            }
+
+            if (payload.Kind == BattleDiagnosticPayloadKind.TriggerAnalysis &&
+                kind != BattleDiagnosticEventKind.TriggerAnalysis)
+            {
+                throw new ArgumentException(
+                    "TriggerAnalysis payload requires a TriggerAnalysis event kind.",
                     nameof(payload));
             }
 

@@ -120,8 +120,11 @@ namespace AbilityKit.Game.Battle.Agent
         public readonly float Hp;
         public readonly float HpMax;
         public readonly int TeamId;
+        public readonly int Kind;
+        public readonly int Code;
+        public readonly int OwnerNetId;
 
-        public GatewayStateSyncActorSnapshot(int actorId, float x, float y, float z, float rotation, float velocityX, float velocityZ, float hp, float hpMax, int teamId)
+        public GatewayStateSyncActorSnapshot(int actorId, float x, float y, float z, float rotation, float velocityX, float velocityZ, float hp, float hpMax, int teamId, int kind = 0, int code = 0, int ownerNetId = 0)
         {
             ActorId = actorId;
             X = x;
@@ -133,6 +136,9 @@ namespace AbilityKit.Game.Battle.Agent
             Hp = hp;
             HpMax = hpMax;
             TeamId = teamId;
+            Kind = kind;
+            Code = code;
+            OwnerNetId = ownerNetId;
         }
     }
 

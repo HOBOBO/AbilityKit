@@ -17,6 +17,8 @@ namespace AbilityKit.Core.Snapshots.Routing
 
         public event Action<ISnapshotEnvelope> FrameReceived;
         public event Action<ISnapshotEnvelope, WorldStateSnapshot> SnapshotReceived;
+        /// <summary>当收到未注册路由的 OpCode 快照时触发（用于诊断 OpCode 漂移）。</summary>
+        public event Action<int> NoRouteForOpCode;
 
         public delegate bool TryDecode<T>(in WorldStateSnapshot snap, out T value);
 
@@ -85,6 +87,10 @@ namespace AbilityKit.Core.Snapshots.Routing
             if (_routes.TryGetValue(snap.OpCode, out var route) && route != null)
             {
                 route.Dispatch(envelope, in snap);
+            }
+            else
+            {
+                NoRouteForOpCode?.Invoke(snap.OpCode);
             }
         }
 

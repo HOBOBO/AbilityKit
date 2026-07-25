@@ -1,56 +1,62 @@
 [
-  {
-    "Id": 1001,
-    "Name": "廉颇占位模型",
-    "PrefabPath": "character/character1",
-    "Scale": 1.0
-  },
-  {
-    "Id": 1002,
-    "Name": "小乔占位模型",
-    "PrefabPath": "character/character2",
-    "Scale": 2.0
-  },
-  {
-    "Id": 1003,
-    "Name": "赵云占位模型",
-    "PrefabPath": "character/character3",
-    "Scale": 1.0
-  },
-  {
-    "Id": 1004,
-    "Name": "墨子占位模型",
-    "PrefabPath": "character/character4",
-    "Scale": 1.0
-  },
-  {
-    "Id": 1005,
-    "Name": "妲己占位模型",
-    "PrefabPath": "character/character5",
-    "Scale": 1.0
-  },
-  {
-    "Id": 1006,
-    "Name": "嬴政占位模型",
-    "PrefabPath": "character/character6",
-    "Scale": 1.0
-  },
-  {
-    "Id": 1007,
-    "Name": "孙尚香占位模型",
-    "PrefabPath": "character/character7",
-    "Scale": 1.0
-  },
-  {
-    "Id": 90000101,
-    "Name": "技能预览-圆形范围占位模型",
-    "PrefabPath": "moba/placeholders/aoe_circle_preview",
-    "Scale": 1.0
-  },
-  {
-    "Id": 90000102,
-    "Name": "技能预览-扇形范围占位模型",
-    "PrefabPath": "moba/placeholders/aoe_sector_preview",
-    "Scale": 1.0
-  }
+    {
+        "Id": 1,
+        "Name": "小兵占位模型",
+        "PrefabPath": "character/minion1",
+        "Scale": 1
+    },
+    {
+        "Id": 1001,
+        "Name": "廉颇占位模型",
+        "PrefabPath": "character/character1",
+        "Scale": 1
+    },
+    {
+        "Id": 1002,
+        "Name": "小乔占位模型",
+        "PrefabPath": "character/character2",
+        "Scale": 2
+    },
+    {
+        "Id": 1003,
+        "Name": "赵云占位模型",
+        "PrefabPath": "character/character3",
+        "Scale": 1
+    },
+    {
+        "Id": 1004,
+        "Name": "墨子占位模型",
+        "PrefabPath": "character/character4",
+        "Scale": 1
+    },
+    {
+        "Id": 1005,
+        "Name": "妲己占位模型",
+        "PrefabPath": "character/character5",
+        "Scale": 1
+    },
+    {
+        "Id": 1006,
+        "Name": "嬴政占位模型",
+        "PrefabPath": "character/character6",
+        "Scale": 1
+    },
+    {
+        "Id": 1007,
+        "Name": "孙尚香占位模型",
+        "PrefabPath": "character/character7",
+        "Scale": 1
+    },
+    {
+        "Id": 90000101,
+        "Name": "技能预览-圆形范围占位模型",
+        "PrefabPath": "moba/placeholders/aoe_circle_preview",
+        "Scale": 1
+    },
+    {
+        "Id": 90000102,
+        "Name": "技能预览-扇形范围占位模型",
+        "PrefabPath": "moba/placeholders/aoe_sector_preview",
+        "Scale": 1
+    }
 ]

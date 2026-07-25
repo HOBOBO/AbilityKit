@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Game.Battle.Component;
@@ -11,9 +13,13 @@ namespace AbilityKit.Game.Flow
 {
     internal interface ISessionReplayHost
     {
+        bool RenderPresentation { get; }
+
         void StartSession();
         void StopSession();
         void ApplyAutoPlanActions();
+        void SuspendReplayPresentation();
+        void RestoreReplayPresentation();
 
         float GetFixedDeltaSeconds();
     }
@@ -135,6 +141,113 @@ namespace AbilityKit.Game.Flow
                     replay.Pause();
                 }
             }
+        }
+
+        public bool SeekToFrame(
+            BattleStartPlan plan,
+            BattleSessionState state,
+            BattleSessionHandles handles,
+            BattleContext ctx,
+            ISessionReplayHost host,
+            int targetFrame)
+        {
+            if (state == null || handles == null || ctx == null || host == null) return false;
+            if (!plan.RunModeOptions.EnableInputReplay) return false;
+
+            var session = handles.Session;
+            var replay = handles.Replay.Driver;
+            if (session == null || replay == null) return false;
+
+            targetFrame = Math.Max(0, Math.Min(targetFrame, replay.LastFrame));
+            var wasPlaying = replay.IsPlaying;
+            var playbackSpeed = replay.PlaybackSpeed;
+            var fixedDelta = host.GetFixedDeltaSeconds();
+
+            if (targetFrame > state.Tick.LastFrame)
+            {
+                state.Tick.TickAcc = 0f;
+                for (var frame = state.Tick.LastFrame + 1; frame <= targetFrame; frame++)
+                {
+                    replay.PumpFrame(session, frame);
+                    session.Tick(fixedDelta);
+                }
+
+                state.Tick.LastFrame = targetFrame;
+                SessionContextBinder.BindRuntimeSession(ctx, state, handles);
+                RestorePlaybackState(replay, wasPlaying, playbackSpeed);
+                return true;
+            }
+
+            if (targetFrame == state.Tick.LastFrame)
+            {
+                state.Tick.TickAcc = 0f;
+                return true;
+            }
+
+            if (CanUseRollbackSeek(host.RenderPresentation, session.RollbackModule != null))
+            {
+                var worldId = new WorldId(plan.World.WorldId);
+                var probeStart = Math.Max(0, targetFrame - RollbackSeekProbeFrames);
+                for (var frame = targetFrame; frame >= probeStart; frame--)
+                {
+                    if (!session.RollbackModule.TryRollbackAndReplay(
+                            worldId,
+                            new FrameIndex(frame),
+                            new FrameIndex(targetFrame),
+                            fixedDelta))
+                    {
+                        continue;
+                    }
+
+                    replay.SeekToFrame(targetFrame + 1);
+                    state.Tick.TickAcc = 0f;
+                    state.Tick.LastFrame = targetFrame;
+                    SessionContextBinder.BindRuntimeSession(ctx, state, handles);
+                    RestorePlaybackState(replay, wasPlaying, playbackSpeed);
+                    return true;
+                }
+            }
+
+            if (host.RenderPresentation) host.SuspendReplayPresentation();
+            try
+            {
+                host.StopSession();
+                host.StartSession();
+                host.ApplyAutoPlanActions();
+
+                session = handles.Session;
+                replay = handles.Replay.Driver;
+                if (session == null || replay == null) return false;
+
+                replay.SeekToStart();
+                state.Tick.TickAcc = 0f;
+                for (var frame = 1; frame <= targetFrame; frame++)
+                {
+                    replay.PumpFrame(session, frame);
+                    session.Tick(fixedDelta);
+                }
+
+                state.Tick.LastFrame = targetFrame;
+                SessionContextBinder.BindRuntimeSession(ctx, state, handles);
+                RestorePlaybackState(replay, wasPlaying, playbackSpeed);
+                return true;
+            }
+            finally
+            {
+                if (host.RenderPresentation) host.RestoreReplayPresentation();
+            }
+        }
+
+        internal static bool CanUseRollbackSeek(bool renderPresentation, bool hasRollbackModule)
+        {
+            return !renderPresentation && hasRollbackModule;
+        }
+
+        private static void RestorePlaybackState(FrameReplayDriver replay, bool wasPlaying, float playbackSpeed)
+        {
+            replay.PlaybackSpeed = playbackSpeed;
+            if (wasPlaying) replay.Play();
+            else replay.Pause();
         }
 
         private static void RecordFrameIfNeeded(BattleStartPlan plan, BattleSessionState state, BattleContext ctx, FramePacket packet)

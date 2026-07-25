@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Serialization;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.ECS;
 using AbilityKit.Core.Mathematics;

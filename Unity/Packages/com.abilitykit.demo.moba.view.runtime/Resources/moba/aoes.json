@@ -10,6 +10,7 @@
         "OffsetZ":  0,
         "Radius":  5.0,
         "DelayMs":  0,
+        "DurationMs":  1000,
         "CollisionLayerMask":  1,
         "MaxTargets":  10,
         "OnDelayTriggerIds":  [
@@ -218,8 +219,8 @@
         "CollisionLayerMask":  1,
         "MaxTargets":  10,
         "OnDelayTriggerIds":  [
-                                  10030313
-                              ],
+                                   10030311
+                               ],
         "OnEnterTriggerIds":  [
                                   10030321
                               ]
@@ -302,7 +303,11 @@
         "MaxTargets":  10,
         "OnDelayTriggerIds":  [
                                   10060111
-                              ]
+                              ],
+        "OnIntervalTriggerIds":  [
+                                     10060111
+                                 ],
+        "IntervalMs":  500
     },
     {
         "Id":  40060201,

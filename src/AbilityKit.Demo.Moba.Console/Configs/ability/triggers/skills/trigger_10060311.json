@@ -10,9 +10,22 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "give_damage", "damage_value": 130, "damage_type": 2, "source_attack_ratio": 0.20, "reason_param": 10060301, "target_query_id": 50060301, "target_max_count": 10 },
-        { "type": "debug_log", "message": "嬴政三技能：剑阵第一波伤害", "dump_args": false }
-      ]
+        {
+          "type": "give_damage",
+          "damage_value": 130,
+          "damage_type": 2,
+          "source_attack_ratio": 0.2,
+          "reason_param": 10060301,
+          "target_query_id": 50060301,
+          "target_max_count": 10
+        },
+        {
+          "type": "debug_log",
+          "message": "嬴政三技能：剑阵第一波伤害",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

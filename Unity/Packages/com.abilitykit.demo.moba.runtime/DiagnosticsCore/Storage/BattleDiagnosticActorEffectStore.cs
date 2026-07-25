@@ -16,7 +16,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         void Clear();
     }
 
-    public sealed class BattleDiagnosticActorEffectStore : IBattleDiagnosticActorEffectStore
+    public sealed class BattleDiagnosticActorEffectStore :
+        IBattleDiagnosticActorEffectStore,
+        IBattleDiagnosticEffectSnapshotSource
     {
         private readonly HashSet<long> _actorIds = new HashSet<long>();
         private BattleDiagnosticActorEffect[] _effects = Array.Empty<BattleDiagnosticActorEffect>();
@@ -74,6 +76,14 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             SnapshotFrame = frame;
             Revision++;
             return true;
+        }
+
+        public BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorEffect> CaptureEffectSnapshot()
+        {
+            return new BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorEffect>(
+                Revision,
+                SnapshotFrame,
+                (BattleDiagnosticActorEffect[])_effects.Clone());
         }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticActorEffect> QueryActorEffects(

@@ -15,6 +15,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int Category { get; }
         public SkillType SkillType { get; }
         public int SkillButtonTemplateId { get; }
+        public int RequiredTargetQueryId { get; }
         public int LevelTableId { get; }
         public int PreCastFlowId { get; }
         public int CastFlowId { get; }
@@ -31,6 +32,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             Category = dto.Category;
             SkillType = (SkillType)dto.SkillType;
             SkillButtonTemplateId = dto.SkillButtonTemplateId;
+            RequiredTargetQueryId = dto.RequiredTargetQueryId;
             LevelTableId = dto.LevelTableId;
             PreCastFlowId = dto.PreCastFlowId;
             CastFlowId = dto.CastFlowId;

@@ -4,6 +4,7 @@
       "id": 10050000,
       "name": "妲己-失心-被动入口",
       "event": "",
+      "scope": "owner",
       "enabled": true,
       "allowExternal": false,
       "phase": "immediate",

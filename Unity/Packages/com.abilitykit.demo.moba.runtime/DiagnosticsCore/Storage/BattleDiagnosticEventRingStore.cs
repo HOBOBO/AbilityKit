@@ -66,7 +66,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         BattleDiagnosticQueryResult<BattleDiagnosticEvent> Query(BattleDiagnosticEventQuery query);
     }
 
-    public sealed class BattleDiagnosticEventRingStore : IBattleDiagnosticEventReadStore
+    public sealed class BattleDiagnosticEventRingStore :
+        IBattleDiagnosticEventReadStore,
+        IBattleDiagnosticEventSnapshotSource
     {
         public const int DefaultCapacity = 20000;
         public const int DefaultRetainedReadViewCount = 4;
@@ -161,6 +163,18 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             ClearReadViews();
         }
 
+        public BattleDiagnosticEventTrackSnapshot CaptureEventSnapshot()
+        {
+            var events = new BattleDiagnosticEvent[_count];
+            for (var index = 0; index < _count; index++)
+            {
+                events[index] = _buffer[(_head + index) % Capacity];
+            }
+
+            var metrics = Metrics;
+            return new BattleDiagnosticEventTrackSnapshot(_revision, in metrics, events);
+        }
+
         public BattleDiagnosticQueryResult<BattleDiagnosticEvent> Query(BattleDiagnosticEventQuery query)
         {
             var requestedRevision = query.Page.StoreRevision;
@@ -183,11 +197,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             var matches = new List<BattleDiagnosticEvent>(Math.Min(query.Page.Limit, readView.Length));
             var skipped = 0;
             var hasMore = false;
+            var recentFirstFrame = ResolveRecentFirstFrame(readView, query.RecentFrameCount);
 
-            for (var index = 0; index < readView.Length; index++)
+            for (var position = 0; position < readView.Length; position++)
             {
+                var index = query.NewestFirst
+                    ? readView.Length - 1 - position
+                    : position;
                 var diagnosticEvent = readView[index];
-                if (!Matches(diagnosticEvent, query.Filter))
+                if (diagnosticEvent.Frame < recentFirstFrame || !Matches(diagnosticEvent, query.Filter))
                 {
                     continue;
                 }
@@ -244,6 +262,14 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             _readViewOrder.Clear();
         }
 
+        private static int ResolveRecentFirstFrame(BattleDiagnosticEvent[] readView, int recentFrameCount)
+        {
+            if (recentFrameCount <= 0 || readView.Length == 0) return int.MinValue;
+
+            var latestFrame = readView[readView.Length - 1].Frame;
+            return latestFrame - recentFrameCount + 1;
+        }
+
         private static bool Matches(BattleDiagnosticEvent diagnosticEvent, BattleDiagnosticFilter filter)
         {
             if (!filter.Frames.Contains(diagnosticEvent.Frame)) return false;
@@ -255,9 +281,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             if (filter.AttackId != 0 && filter.AttackId != diagnosticEvent.AttackId) return false;
             if (filter.FailuresOnly && !diagnosticEvent.IsFailure) return false;
             if (filter.UnfinishedOnly && !diagnosticEvent.IsUnfinished) return false;
-            if (filter.HasTextSearch &&
-                diagnosticEvent.Summary.IndexOf(filter.SearchText, StringComparison.OrdinalIgnoreCase) < 0)
-                return false;
+            if (!MatchesTriggerAnalysisFilter(in diagnosticEvent, filter)) return false;
+            if (filter.HasTextSearch && !MatchesSearchText(diagnosticEvent, filter.SearchText)) return false;
 
             if (!filter.HasActorFilter)
             {
@@ -277,6 +302,87 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                     return diagnosticEvent.SourceActorId == filter.ActorId ||
                            diagnosticEvent.TargetActorId == filter.ActorId;
             }
+        }
+
+        private static bool MatchesSearchText(BattleDiagnosticEvent diagnosticEvent, string searchText)
+        {
+            if (diagnosticEvent.Summary.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (diagnosticEvent.Kind.ToString().IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (diagnosticEvent.Channel.ToString().IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (diagnosticEvent.Outcome.ToString().IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+
+            if (diagnosticEvent.Payload.TryGetTriggerAnalysis(out var trigger) &&
+                MatchesTriggerSearch(in trigger, searchText))
+            {
+                return true;
+            }
+
+            return MatchesNumber(diagnosticEvent.Sequence, searchText) ||
+                   MatchesNumber(diagnosticEvent.Frame, searchText) ||
+                   MatchesNumber(diagnosticEvent.SourceActorId, searchText) ||
+                   MatchesNumber(diagnosticEvent.TargetActorId, searchText) ||
+                   MatchesNumber(diagnosticEvent.ConfigId, searchText) ||
+                   MatchesNumber(diagnosticEvent.RootContextId, searchText) ||
+                   MatchesNumber(diagnosticEvent.ContextId, searchText) ||
+                   MatchesNumber(diagnosticEvent.SkillRuntime.RuntimeId, searchText) ||
+                   MatchesNumber(diagnosticEvent.AttackId, searchText);
+        }
+
+        private static bool MatchesTriggerAnalysisFilter(
+            in BattleDiagnosticEvent diagnosticEvent,
+            BattleDiagnosticFilter filter)
+        {
+            if (!filter.HasTriggerAnalysisFilter) return true;
+            if (!diagnosticEvent.Payload.TryGetTriggerAnalysis(out var trigger)) return false;
+            if (filter.TriggerStage != BattleDiagnosticTriggerAnalysisStage.Unknown &&
+                trigger.Stage != filter.TriggerStage)
+            {
+                return false;
+            }
+
+            if (filter.TriggerResult != BattleDiagnosticTriggerAnalysisResult.Unknown &&
+                trigger.Result != filter.TriggerResult)
+            {
+                return false;
+            }
+
+            if (filter.TriggerContextKind != 0 &&
+                trigger.ContextKind != filter.TriggerContextKind)
+            {
+                return false;
+            }
+
+            if (filter.TriggerOriginKind != 0 &&
+                trigger.OriginKind != filter.TriggerOriginKind)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool MatchesTriggerSearch(
+            in BattleDiagnosticTriggerAnalysisPayload trigger,
+            string searchText)
+        {
+            return trigger.Stage.ToString().IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   trigger.Result.ToString().IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   trigger.FailureKey.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   trigger.Reason.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   MatchesNumber(trigger.TriggerId, searchText) ||
+                   MatchesNumber(trigger.ContextKind, searchText) ||
+                   MatchesNumber(trigger.OriginKind, searchText) ||
+                   MatchesNumber(trigger.DetailCode, searchText) ||
+                   MatchesNumber(trigger.CurrentDepth, searchText) ||
+                   MatchesNumber(trigger.CurrentFrameCount, searchText) ||
+                   MatchesNumber(trigger.CurrentRootCount, searchText) ||
+                   MatchesNumber(trigger.CurrentSameTriggerCount, searchText);
+        }
+
+        private static bool MatchesNumber(long value, string searchText)
+        {
+            return value != 0 &&
+                   value.ToString().IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0;
         }
     }
 }

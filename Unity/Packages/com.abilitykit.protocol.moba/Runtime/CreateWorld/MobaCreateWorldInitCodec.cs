@@ -1,3 +1,4 @@
+using MemoryPack;
 using AbilityKit.Protocol.Serialization;
 
 namespace AbilityKit.Protocol.Moba.CreateWorld
@@ -6,7 +7,7 @@ namespace AbilityKit.Protocol.Moba.CreateWorld
     {
         public static byte[] Serialize(in MobaCreateWorldInitPayload payload)
         {
-            return WireSerializer.Serialize(in payload);
+            return MemoryPackSerializer.Serialize(payload);
         }
 
         public static bool TryDeserialize(byte[] bytes, out MobaCreateWorldInitPayload payload)
@@ -25,7 +26,7 @@ namespace AbilityKit.Protocol.Moba.CreateWorld
 
             try
             {
-                payload = WireSerializer.Deserialize<MobaCreateWorldInitPayload>(bytes);
+                payload = MemoryPackSerializer.Deserialize<MobaCreateWorldInitPayload>(bytes);
                 error = null;
                 return true;
             }

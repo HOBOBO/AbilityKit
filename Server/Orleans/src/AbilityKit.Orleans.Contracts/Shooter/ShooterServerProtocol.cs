@@ -44,6 +44,8 @@ public static class ShooterRoomTagKeys
     public const string MapId = "mapId";
     public const string RandomSeed = "randomSeed";
     public const string DurationFrames = "durationFrames";
+    public const string VictoryTargetDefeats = "victoryTargetDefeats";
+    public const string ContinueAfterAllPlayersDefeated = "continueAfterAllPlayersDefeated";
     public const string SyncTemplateId = "syncTemplateId";
     public const string SyncModel = "syncModel";
     public const string NetworkEnvironmentId = "networkEnvironmentId";

@@ -979,12 +979,12 @@ public sealed class RoomGrain : Grain, IRoomGrain
             }
 
             var payload = RoomStatePushBuilder.BuildRoomStateChangedPayload(snapshot, DateTime.UtcNow.Ticks);
-            var pushTarget = GrainFactory.GetGrain<IGatewayPushTargetGrain>(0L);
 
             foreach (var accountId in onlineAccounts)
             {
                 try
                 {
+                    var pushTarget = GrainFactory.GetGrain<IGatewayPushTargetGrain>(accountId);
                     await pushTarget.PushToAccountAsync(accountId, RoomGatewayOpCodes.RoomStateChanged, payload);
                 }
                 catch

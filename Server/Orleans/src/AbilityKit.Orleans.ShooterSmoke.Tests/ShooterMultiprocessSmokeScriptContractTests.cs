@@ -8,6 +8,7 @@ public sealed class ShooterMultiprocessSmokeScriptContractTests
     private static readonly string Script = File.ReadAllText(ScriptPath);
     private static readonly string ProgramSource = File.ReadAllText(GetProgramSourcePath());
     private static readonly string ClientRunnerSource = File.ReadAllText(GetClientRunnerSourcePath());
+    private static readonly string RequestClientSource = File.ReadAllText(GetRequestClientPath());
     private static readonly string ProcessUtilsSource = File.ReadAllText(GetProcessUtilsPath());
     private static readonly string OwnershipCleanupProbeSource = File.ReadAllText(GetOwnershipCleanupProbePath());
 
@@ -18,7 +19,7 @@ public sealed class ShooterMultiprocessSmokeScriptContractTests
         var command = "$tokens=$null;$errors=$null;" +
             $"$ast=[System.Management.Automation.Language.Parser]::ParseFile('{escapedPath}',[ref]$tokens,[ref]$errors);" +
             "if($errors.Count -gt 0){$errors|%{$_.ToString()};exit 1};" +
-            "$required=@('Get-ShooterFaultMatrixPlan','Get-BoundedTimeoutSeconds','Get-FailureClassification','Assert-BoundedConvergence','Invoke-GatewayFaultCommand','Wait-ForPortClosed','Wait-ForClientReconnectReady','Invoke-MatrixTimeoutOwnedCleanup','Register-RunProcess','Invoke-ShooterSoakPhases','Get-ShooterSoakSummary','Assert-ShooterSoakSummary');" +
+            "$required=@('Get-ShooterFaultMatrixPlan','Get-BoundedTimeoutSeconds','Get-FailureClassification','Assert-BoundedConvergence','Invoke-GatewayFaultCommand','Wait-ForPortClosed','Wait-ForClientReconnectReady','Invoke-MatrixTimeoutOwnedCleanup','Register-RunProcess','Wait-ForSoakRecoveryEvidence','Invoke-ShooterSoakPhases','Get-ShooterSoakSummary','Assert-ShooterSoakSummary');" +
             "$actual=@($ast.FindAll({param($n)$n -is [System.Management.Automation.Language.FunctionDefinitionAst]},$true).Name);" +
             "$missing=@($required|?{$_ -notin $actual});if($missing.Count -gt 0){Write-Error ('Missing functions: '+($missing -join ','));exit 2};'AST_OK'";
 
@@ -146,12 +147,29 @@ public sealed class ShooterMultiprocessSmokeScriptContractTests
         Assert.All(scenarios, scenario => Assert.Equal(1800, scenario.GetProperty("timeoutSeconds").GetInt32()));
         Assert.All(scenarios, scenario => Assert.Equal(30, scenario.GetProperty("resultTimeoutSeconds").GetInt32()));
         Assert.All(scenarios, scenario => Assert.Equal(30, scenario.GetProperty("convergenceTimeoutSeconds").GetInt32()));
-        Assert.All(scenarios, scenario => Assert.Equal(1995, scenario.GetProperty("executionTimeoutSeconds").GetInt32()));
-        Assert.Equal(new[] { 0, 1995 }, scenarios.Select(item => item.GetProperty("offsetSeconds").GetInt32()).ToArray());
+        Assert.All(scenarios, scenario => Assert.Equal(60, scenario.GetProperty("requestedSetupTimeoutSeconds").GetInt32()));
+        Assert.Equal(new[] { 105, 249 }, scenarios.Select(item => item.GetProperty("setupTimeoutSeconds").GetInt32()).ToArray());
+        Assert.Equal(new[] { 2040, 2184 }, scenarios.Select(item => item.GetProperty("executionTimeoutSeconds").GetInt32()).ToArray());
+        Assert.Equal(new[] { 0, 2184 }, scenarios.Select(item => item.GetProperty("offsetSeconds").GetInt32()).ToArray());
         Assert.Equal(new[] { 44401, 44411 }, scenarios.Select(item => item.GetProperty("tcpPort").GetInt32()).ToArray());
+
+        using var explicitSoak16 = RunPlan("-Profile", "custom", "-Scenario", "soak-16", "-PayloadMode", "packed");
+        var explicitSoak16Scenario = explicitSoak16.RootElement.GetProperty("scenarios")[0];
+        Assert.Equal("pure-state", explicitSoak16Scenario.GetProperty("payloadMode").GetString());
+        Assert.Equal(15, explicitSoak16Scenario.GetProperty("joinClients").GetInt32());
+        Assert.Equal(16, explicitSoak16Scenario.GetProperty("observerCount").GetInt32());
+
+        using var explicitSoak64 = RunPlan("-Profile", "custom", "-Scenario", "soak-64", "-JoinClients", "1");
+        var explicitSoak64Scenario = explicitSoak64.RootElement.GetProperty("scenarios")[0];
+        Assert.Equal("pure-state", explicitSoak64Scenario.GetProperty("payloadMode").GetString());
+        Assert.Equal(63, explicitSoak64Scenario.GetProperty("joinClients").GetInt32());
+        Assert.Equal(64, explicitSoak64Scenario.GetProperty("observerCount").GetInt32());
+
         Assert.Contains("'-SoakDurationSeconds', $SoakDurationSeconds", Script, StringComparison.Ordinal);
         Assert.Contains("'-SoakMetricsSampleIntervalMs', $SoakMetricsSampleIntervalMs", Script, StringComparison.Ordinal);
         Assert.Contains("'-SoakResourceSampleIntervalSeconds', $SoakResourceSampleIntervalSeconds", Script, StringComparison.Ordinal);
+        Assert.Contains("$setupFanoutAllowanceSeconds = if ($isSoak) { [Math]::Min(240, [int]$case.joinClients * 3) } else { 0 }", Script, StringComparison.Ordinal);
+        Assert.Contains("$setupTimeoutBudgetSeconds = $SetupTimeoutSeconds + $setupFanoutAllowanceSeconds", Script, StringComparison.Ordinal);
         Assert.Contains("$clientTimeoutSeconds = if ($isSoakRun)", Script, StringComparison.Ordinal);
         Assert.Contains("[Math]::Max($TimeoutSeconds, [int]$activePlan.executionTimeoutSeconds)", Script, StringComparison.Ordinal);
         Assert.Contains("'--timeout-seconds', $ClientTimeoutSeconds", Script, StringComparison.Ordinal);
@@ -161,14 +179,34 @@ public sealed class ShooterMultiprocessSmokeScriptContractTests
         Assert.Contains("$arguments += @('--room-max-players', $RoomMaxPlayers)", Script, StringComparison.Ordinal);
         Assert.Contains("[long]$activePlan.executionTimeoutSeconds * 60", Script, StringComparison.Ordinal);
         Assert.Contains("-BattleDurationFrames $(if ($isSoakRun)", Script, StringComparison.Ordinal);
+        Assert.Contains("$JoinClients = [int]$activePlan.joinClients", Script, StringComparison.Ordinal);
+        Assert.Contains("$PayloadMode = [string]$activePlan.payloadMode", Script, StringComparison.Ordinal);
         Assert.Contains("if ($ClientMode -eq 'create' -and $BattleDurationFrames -gt 0)", Script, StringComparison.Ordinal);
         Assert.Contains("$arguments += @('--battle-duration-frames', $BattleDurationFrames)", Script, StringComparison.Ordinal);
         Assert.Equal(1, Script.Split("-BattleDurationFrames $(if ($isSoakRun)", StringSplitOptions.None).Length - 1);
+        Assert.Contains("-BattleVictoryTargetDefeats $(if ($isSoakRun) { [int]::MaxValue } else { 0 })", Script, StringComparison.Ordinal);
+        Assert.Contains("$arguments += @('--battle-victory-target-defeats', $BattleVictoryTargetDefeats)", Script, StringComparison.Ordinal);
+        Assert.Contains("-ContinueAfterAllPlayersDefeated:$isSoakRun", Script, StringComparison.Ordinal);
+        Assert.Contains("[switch]$ContinueAfterAllPlayersDefeated", Script, StringComparison.Ordinal);
+        Assert.Contains("$arguments += '--continue-after-all-players-defeated'", Script, StringComparison.Ordinal);
+        Assert.Contains("--continue-after-all-players-defeated", ProgramSource, StringComparison.Ordinal);
+        Assert.Contains("continueAfterAllPlayersDefeated = true", ProgramSource, StringComparison.Ordinal);
+        Assert.Contains("options.ContinueAfterAllPlayersDefeated", ClientRunnerSource, StringComparison.Ordinal);
+        Assert.Contains("ShooterRoomLaunchTagKeys.ContinueAfterAllPlayersDefeated", ClientRunnerSource, StringComparison.Ordinal);
+        Assert.Contains("bool.TrueString", ClientRunnerSource, StringComparison.Ordinal);
         Assert.Contains("--battle-duration-frames", ProgramSource, StringComparison.Ordinal);
         Assert.Contains("battleDurationFrames = parsedBattleDurationFrames", ProgramSource, StringComparison.Ordinal);
+        Assert.Contains("--battle-victory-target-defeats", ProgramSource, StringComparison.Ordinal);
+        Assert.Contains("battleVictoryTargetDefeats = parsedBattleVictoryTargetDefeats", ProgramSource, StringComparison.Ordinal);
         Assert.Contains("options.BattleDurationFrames", ClientRunnerSource, StringComparison.Ordinal);
         Assert.Contains("tags[ShooterRoomLaunchTagKeys.DurationFrames]", ClientRunnerSource, StringComparison.Ordinal);
         Assert.Contains("battleDurationFrames.ToString(CultureInfo.InvariantCulture)", ClientRunnerSource, StringComparison.Ordinal);
+        Assert.Contains("options.BattleVictoryTargetDefeats", ClientRunnerSource, StringComparison.Ordinal);
+        Assert.Contains("tags[ShooterRoomLaunchTagKeys.VictoryTargetDefeats]", ClientRunnerSource, StringComparison.Ordinal);
+        Assert.Contains("battleVictoryTargetDefeats.ToString(CultureInfo.InvariantCulture)", ClientRunnerSource, StringComparison.Ordinal);
+        Assert.Contains("SHOOTER_MP_LAUNCH_SPEC", ClientRunnerSource, StringComparison.Ordinal);
+        Assert.Contains("durationFramesTag=", ClientRunnerSource, StringComparison.Ordinal);
+        Assert.Contains("victoryTargetDefeatsTag=", ClientRunnerSource, StringComparison.Ordinal);
         Assert.Contains("function Wait-ForClientCompletionReady", Script, StringComparison.Ordinal);
         Assert.Contains("Wait-ForClientCompletionReady -Client $client", Script, StringComparison.Ordinal);
         Assert.Contains("'SHOOTER_MP_CLIENT_COMPLETION_READY'", Script, StringComparison.Ordinal);
@@ -178,6 +216,13 @@ public sealed class ShooterMultiprocessSmokeScriptContractTests
     public void SoakRuntimeUsesPerClientControlTelemetryAndP0Assertions()
     {
         Assert.Contains("--network-control-path', $NetworkControlPath", Script, StringComparison.Ordinal);
+        Assert.Contains("function Read-ControlAcknowledgementIfPresent", Script, StringComparison.Ordinal);
+        Assert.Contains("[System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete", Script, StringComparison.Ordinal);
+        Assert.Contains("catch [System.IO.IOException]", Script, StringComparison.Ordinal);
+        Assert.Contains("catch [System.Text.Json.JsonException]", Script, StringComparison.Ordinal);
+        Assert.Contains("Read-ControlAcknowledgementIfPresent -Path $client.NetworkControlAckPath", Script, StringComparison.Ordinal);
+        Assert.Contains("$ack = Read-ControlAcknowledgementIfPresent -Path $ackPath", Script, StringComparison.Ordinal);
+        Assert.DoesNotContain("$ack = Get-Content -LiteralPath $ackPath -Raw | ConvertFrom-Json", Script, StringComparison.Ordinal);
         Assert.Contains("[System.IO.File]::Replace($temporaryPath, $Path, $backupPath)", Script, StringComparison.Ordinal);
         Assert.Contains("[System.IO.File]::Move($temporaryPath, $Path)", Script, StringComparison.Ordinal);
         Assert.Contains("$replaceDeadline = [DateTime]::UtcNow.AddSeconds(2)", Script, StringComparison.Ordinal);
@@ -195,6 +240,8 @@ public sealed class ShooterMultiprocessSmokeScriptContractTests
         Assert.Contains("ShooterClientResyncReason.None.ToString()", ClientRunnerSource, StringComparison.Ordinal);
         Assert.Contains("\"SoakRecovery\"", ClientRunnerSource, StringComparison.Ordinal);
         Assert.Contains("RequestFullSnapshotBaselineAsync(reason, timeout)", ClientRunnerSource, StringComparison.Ordinal);
+        Assert.Contains("Request timeout. opCode={opCode} seq={seq}", RequestClientSource, StringComparison.Ordinal);
+        Assert.Contains("TryTimeout(opCode, seq)", RequestClientSource, StringComparison.Ordinal);
         Assert.Contains("type = 'process-resource-sample'", Script, StringComparison.Ordinal);
         Assert.Contains("minimum observer sent-byte delta divided by median observer sent-byte delta", Script, StringComparison.Ordinal);
         Assert.Contains("Get-PercentileValue -Values @($recoveryDurations) -Percentile 0.95", Script, StringComparison.Ordinal);
@@ -205,6 +252,12 @@ public sealed class ShooterMultiprocessSmokeScriptContractTests
         Assert.Contains("Add-AssertionResult -Name 'soak-resource-trend'", Script, StringComparison.Ordinal);
         Assert.Contains("$timeoutPhase = 'soak result collection'", Script, StringComparison.Ordinal);
         Assert.Contains("$scenarioDeadlineUtc = [DateTime]::UtcNow.AddSeconds($activePlan.resultTimeoutSeconds)", Script, StringComparison.Ordinal);
+        Assert.Contains("function Wait-ForSoakRecoveryEvidence", Script, StringComparison.Ordinal);
+        Assert.Contains("$deadline = [DateTime]::UtcNow.AddSeconds($activePlan.convergenceTimeoutSeconds)", Script, StringComparison.Ordinal);
+        Assert.Contains("Wait-ForSoakRecoveryEvidence -Clients $Clients", Script, StringComparison.Ordinal);
+        Assert.True(
+            Script.IndexOf("Wait-ForSoakRecoveryEvidence -Clients $Clients", StringComparison.Ordinal)
+            < Script.IndexOf("New-Item -ItemType File -Path $completionReleasePath -Force", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -261,16 +314,18 @@ public sealed class ShooterMultiprocessSmokeScriptContractTests
         var matrixTimerIndex = Script.IndexOf("$matrixStartedAtUtc = [DateTime]::UtcNow", StringComparison.Ordinal);
         Assert.True(buildIndex >= 0 && matrixTimerIndex > buildIndex, "The fault-matrix timeout must start after the one-time build.");
         Assert.Contains("$applicationDll = Join-Path $projectDirectory", Script, StringComparison.Ordinal);
+        Assert.Contains("Get-AbilityKitProcessIdentity -ProcessId $ProcessId -RetryCount 40 -RetryDelayMilliseconds 50", Script, StringComparison.Ordinal);
         Assert.Contains("$arguments = @($applicationDll)", Script, StringComparison.Ordinal);
         Assert.Contains("$serverArgs = @($applicationDll)", Script, StringComparison.Ordinal);
         Assert.Contains("Shooter smoke application artifact was not found", Script, StringComparison.Ordinal);
         Assert.DoesNotContain("'run', '--project', $project, '-c', $Configuration, '--no-build'", Script, StringComparison.Ordinal);
         var serverListeningIndex = Script.IndexOf("Add-AssertionResult -Name 'server-listening'", StringComparison.Ordinal);
-        var setupTimerIndex = Script.LastIndexOf("$scenarioDeadlineUtc = [DateTime]::UtcNow.AddSeconds($SetupTimeoutSeconds)", StringComparison.Ordinal);
+        var setupTimerIndex = Script.LastIndexOf("$scenarioDeadlineUtc = [DateTime]::UtcNow.AddSeconds($timeoutBudgetSeconds)", StringComparison.Ordinal);
         var allJoinsReadyIndex = Script.IndexOf("$timeoutPhase = 'active scenario'", StringComparison.Ordinal);
         var scenarioTimerIndex = Script.LastIndexOf("$scenarioDeadlineUtc = [DateTime]::UtcNow.AddSeconds($activePlan.timeoutSeconds)", StringComparison.Ordinal);
         Assert.True(serverListeningIndex >= 0 && setupTimerIndex > serverListeningIndex, "The setup timeout must start after the server is listening.");
         Assert.True(allJoinsReadyIndex > setupTimerIndex && scenarioTimerIndex > allJoinsReadyIndex, "The active scenario timeout must start only after all join clients are ready.");
+        Assert.Contains("$timeoutBudgetSeconds = [int]$activePlan.setupTimeoutSeconds", Script, StringComparison.Ordinal);
         Assert.Contains("$childTimeoutSeconds = [Math]::Min($remainingGlobalSeconds, $plan.executionTimeoutSeconds)", Script, StringComparison.Ordinal);
         Assert.Contains("-TimeoutSeconds', $TimeoutSeconds", Script, StringComparison.Ordinal);
         Assert.Contains("Wait-ForPort -Port $TcpPort -TimeoutSeconds $StartupTimeoutSeconds", Script, StringComparison.Ordinal);
@@ -293,6 +348,10 @@ public sealed class ShooterMultiprocessSmokeScriptContractTests
         Assert.Contains("if ($isSoakRun) {", Script, StringComparison.Ordinal);
         Assert.Contains("$actualPlayerId -lt 1 -or $actualPlayerId -gt ($JoinClients + 1)", Script, StringComparison.Ordinal);
         Assert.Contains("elseif ($actualPlayerId -ne $client.PlayerId)", Script, StringComparison.Ordinal);
+        Assert.Contains("(Read-ResultInt -Fields $fields -Name 'entities') -lt 1", Script, StringComparison.Ordinal);
+        Assert.Contains("Client snapshot did not contain any visible entities", Script, StringComparison.Ordinal);
+        Assert.DoesNotContain("'entities') -lt $actualPlayerId", Script, StringComparison.Ordinal);
+        Assert.DoesNotContain("ExpectedAtLeast=$actualPlayerId", Script, StringComparison.Ordinal);
         Assert.Contains("$actualPlayerIds = @(", Script, StringComparison.Ordinal);
         Assert.Contains("$expectedPlayerIds = @(1..($JoinClients + 1))", Script, StringComparison.Ordinal);
         Assert.Contains("Soak client player ids did not uniquely cover the room player range", Script, StringComparison.Ordinal);
@@ -314,7 +373,10 @@ public sealed class ShooterMultiprocessSmokeScriptContractTests
         Assert.DoesNotContain("-TimeoutSeconds', $remainingGlobalSeconds", Script, StringComparison.Ordinal);
         Assert.Contains("return 'PreconditionFailed'", Script, StringComparison.Ordinal);
         Assert.Contains("return 'FaultRecoveryFailed'", Script, StringComparison.Ordinal);
-        Assert.Contains("$manifestFailureStage = if ($manifestFailureCategory -eq 'PreconditionFailed')", Script, StringComparison.Ordinal);
+        Assert.Contains("$timeoutPhase -eq 'startup' -or $timeoutPhase -eq 'setup'", Script, StringComparison.Ordinal);
+        Assert.Contains("$timeoutPhase = 'client result validation'", Script, StringComparison.Ordinal);
+        Assert.Contains("$timeoutPhase -eq 'client result validation'", Script, StringComparison.Ordinal);
+        Assert.Contains("'validation'", Script, StringComparison.Ordinal);
         Assert.Contains("Add-AssertionResult -Name 'scenario-completed' -Passed $true", Script, StringComparison.Ordinal);
         Assert.Contains("Add-AssertionResult -Name 'scenario-completed' -Passed $false", Script, StringComparison.Ordinal);
         Assert.Contains("Invoke-MatrixTimeoutOwnedCleanup", Script, StringComparison.Ordinal);
@@ -493,6 +555,20 @@ public sealed class ShooterMultiprocessSmokeScriptContractTests
         Assert.True(process.WaitForExit(30_000), "PowerShell contract test timed out.");
         return new ProcessResult(process.ExitCode, standardOutput, standardError);
     }
+
+    private static string GetRequestClientPath() =>
+        Path.GetFullPath(Path.Combine(
+            GetOrleansWorkspacePath(),
+            "..",
+            "..",
+            "Unity",
+            "Packages",
+            "com.abilitykit.network.runtime",
+            "Runtime",
+            "Network",
+            "Runtime",
+            "RequestResponse",
+            "RequestClient.cs"));
 
     private static string GetScriptPath() =>
         Path.Combine(GetOrleansWorkspacePath(), "tools", "run_shooter_multiprocess_smoke.ps1");

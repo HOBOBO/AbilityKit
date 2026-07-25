@@ -163,10 +163,8 @@ namespace AbilityKit.Game.Flow
                 dirty = new List<IEntityId>(capacity);
                 ctx.DirtyEntities = dirty;
             }
-            else
-            {
-                dirty.Clear();
-            }
+            // Note: clearing is delegated to SharedDirtySyncSubFeature.Tick at the
+            // start of each frame to avoid accidentally clearing between producers.
 
             return dirty;
         }

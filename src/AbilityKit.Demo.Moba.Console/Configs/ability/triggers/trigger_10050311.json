@@ -24,7 +24,8 @@
           "message": "妲己三技能女王崇拜：周期搜敌并发射狐火",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

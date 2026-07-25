@@ -23,7 +23,8 @@
           "message": "嬴政三技能至尊王权：飞剑命中造成法术伤害",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }

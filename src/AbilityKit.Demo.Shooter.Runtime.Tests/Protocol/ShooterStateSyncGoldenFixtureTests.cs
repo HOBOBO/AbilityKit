@@ -72,7 +72,7 @@ public sealed class ShooterStateSyncGoldenFixtureTests
         Assert.Empty(pureState.AcknowledgedCommands);
     }
 
-    private static byte[] CreateGatewayPushBytes(ShooterStateSyncPayloadKind payloadKind)
+    internal static byte[] CreateGatewayPushBytes(ShooterStateSyncPayloadKind payloadKind)
     {
         byte[] payload;
         int payloadOpCode;

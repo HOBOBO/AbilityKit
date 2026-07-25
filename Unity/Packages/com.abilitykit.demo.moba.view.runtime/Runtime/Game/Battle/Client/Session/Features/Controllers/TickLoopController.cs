@@ -17,6 +17,18 @@ namespace AbilityKit.Game.Flow
         {
             if (!HasSession()) return;
 
+            var replay = _handles.Replay.Driver;
+            if (replay != null)
+            {
+                if (!replay.IsPlaying)
+                {
+                    _state.Tick.TickAcc = 0f;
+                    return;
+                }
+
+                deltaTime *= replay.PlaybackSpeed;
+            }
+
             var fixedDelta = _host.GetFixedDeltaSeconds();
             if (fixedDelta <= 0f) return;
 
@@ -46,8 +58,15 @@ namespace AbilityKit.Game.Flow
         private void TickNextFrame(float fixedDelta)
         {
             var nextFrame = _state.Tick.LastFrame + 1;
+            var replay = _handles.Replay.Driver;
+            if (replay != null && nextFrame > replay.LastFrame)
+            {
+                replay.Pause();
+                _state.Tick.TickAcc = 0f;
+                return;
+            }
 
-            _handles.Replay.Driver?.Pump(_handles.Session, nextFrame);
+            replay?.Pump(_handles.Session, nextFrame);
             _handles.Session.Tick(fixedDelta);
 
             _state.Tick.LastFrame = nextFrame;
@@ -58,6 +77,7 @@ namespace AbilityKit.Game.Flow
         {
             _host.TickRemoteDrivenLocalSim(deltaTime);
             _host.TickConfirmedAuthorityWorldSim(deltaTime);
+            _host.TickRemoteInterpolation(deltaTime);
         }
     }
 }

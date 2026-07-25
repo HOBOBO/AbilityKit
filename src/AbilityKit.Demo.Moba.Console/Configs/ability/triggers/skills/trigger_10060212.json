@@ -10,9 +10,20 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "give_damage", "damage_value": 150, "damage_type": 2, "source_attack_ratio": 0.30, "reason_param": 10060201 },
-        { "type": "debug_log", "message": "嬴政被动：战力和谐额外附加伤害", "dump_args": false }
-      ]
+        {
+          "type": "give_damage",
+          "damage_value": 150,
+          "damage_type": 2,
+          "source_attack_ratio": 0.3,
+          "reason_param": 10060201
+        },
+        {
+          "type": "debug_log",
+          "message": "嬴政被动：战力和谐额外附加伤害",
+          "dump_args": false
+        }
+      ],
+      "scope": "owner"
     }
   ]
 }

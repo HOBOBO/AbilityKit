@@ -23,7 +23,8 @@
           "message": "小乔三技能：落星区域延迟命中造成法术伤害",
           "dump_args": false
         }
-      ]
+      ],
+      "scope": "owner"
     }
   ]
 }
