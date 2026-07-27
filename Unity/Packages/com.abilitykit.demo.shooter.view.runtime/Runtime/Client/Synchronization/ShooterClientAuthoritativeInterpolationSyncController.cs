@@ -250,7 +250,8 @@ namespace AbilityKit.Demo.Shooter.View
                 snapshot.WorldId,
                 snapshot.Frame,
                 snapshot.ServerTicks,
-                FilterRemoteActors(snapshot.Actors, _presentation.ControlledPlayerId));
+                snapshot.Actors,
+                _presentation.ControlledPlayerId);
 
             if (!_playback.Observe(sample))
             {
@@ -647,42 +648,6 @@ namespace AbilityKit.Demo.Shooter.View
             return snapshot.PackedSnapshot?.StateHash
                 ?? snapshot.PureStateSnapshot?.StateHash
                 ?? 0u;
-        }
-
-        private static IReadOnlyList<ShooterGatewayActorSnapshot> FilterRemoteActors(
-            IReadOnlyList<ShooterGatewayActorSnapshot> actors,
-            int controlledPlayerId)
-        {
-            if (controlledPlayerId <= 0 || actors.Count == 0)
-            {
-                return actors;
-            }
-
-            // 先统计需要剔除的数量：本地玩家不在快照中时零分配直接返回原列表。
-            var remoteCount = 0;
-            for (var i = 0; i < actors.Count; i++)
-            {
-                if (actors[i].ActorId != controlledPlayerId)
-                {
-                    remoteCount++;
-                }
-            }
-
-            if (remoteCount == actors.Count)
-            {
-                return actors;
-            }
-
-            var remote = new List<ShooterGatewayActorSnapshot>(remoteCount);
-            for (var i = 0; i < actors.Count; i++)
-            {
-                if (actors[i].ActorId != controlledPlayerId)
-                {
-                    remote.Add(actors[i]);
-                }
-            }
-
-            return remote;
         }
 
         private sealed class PendingLocalInput

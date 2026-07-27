@@ -92,6 +92,11 @@ namespace AbilityKit.Diagnostics.Analysis
         public int TriggerCurrentSameTriggerCount { get; set; }
         public string TriggerFailureKey { get; set; } = string.Empty;
         public string TriggerReason { get; set; } = string.Empty;
+        public int SkillFailureSlot { get; set; }
+        public string SkillFailureSource { get; set; } = string.Empty;
+        public string SkillFailureStage { get; set; } = string.Empty;
+        public string SkillFailureCode { get; set; } = string.Empty;
+        public string SkillFailureMessage { get; set; } = string.Empty;
     }
 
     public sealed class AnalysisBattleDiagnosticStateTrack

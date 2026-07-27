@@ -22,6 +22,8 @@ namespace AbilityKit.Orleans.Grains.Gameplays.Moba.Protocol;
 /// </summary>
 public interface IOrleansBattleProtocolMapper
 {
+    MobaBattleLaunchSpec CreateLaunchSpec(string battleId, int tickRate, BattleInitParams initParams);
+
     MobaGameStartSpec CreateGameStartSpec(string battleId, int tickRate, BattleInitParams initParams);
 
     IReadOnlyList<PlayerInputCommand> CreatePlayerInputCommands(int frame, IReadOnlyList<BattleInputItem>? inputs);
@@ -52,6 +54,7 @@ public interface IOrleansBattleProtocolMapper
 /// </summary>
 public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolMapper
 {
+    public const int CurrentSnapshotSchemaVersion = 1;
     public static readonly DefaultOrleansBattleProtocolMapper Instance = new();
 
     private DefaultOrleansBattleProtocolMapper()
@@ -61,7 +64,7 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
     private readonly MobaRuntimeSnapshotMapperRegistry<List<ActorSnapshot>> _actorSnapshotMappers =
         MobaRuntimeSnapshotMapperRegistryBuilder.FromMappers<List<ActorSnapshot>>(new ActorTransformSnapshotMapper());
 
-    public MobaGameStartSpec CreateGameStartSpec(string battleId, int tickRate, BattleInitParams initParams)
+    public MobaBattleLaunchSpec CreateLaunchSpec(string battleId, int tickRate, BattleInitParams initParams)
     {
         if (initParams == null)
         {
@@ -84,7 +87,7 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
             configVersion: initParams.ConfigVersion,
             protocolVersion: initParams.ProtocolVersion);
 
-        var launchSpec = MobaBattleLaunchSpecBuilder.FromLoadouts(
+        return MobaBattleLaunchSpecBuilder.FromLoadouts(
             battleId: battleId,
             localPlayerId: localPlayerId,
             mapId: initParams.MapId > 0 ? initParams.MapId : 1,
@@ -95,6 +98,11 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
             gameplayId: initParams.GameplayId,
             randomSeed: initParams.RandomSeed);
 
+    }
+
+    public MobaGameStartSpec CreateGameStartSpec(string battleId, int tickRate, BattleInitParams initParams)
+    {
+        var launchSpec = CreateLaunchSpec(battleId, tickRate, initParams);
         var startSpec = launchSpec.ToGameStartSpec();
         var validation = MobaProtocolValidation.ValidateEnterGameReq(in startSpec.EnterReq);
         if (!validation.IsValid)
@@ -186,7 +194,8 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
             Frame = frame,
             Timestamp = DateTime.UtcNow.Ticks,
             Actors = CreateActorSnapshots(frame, snapshot, diagnosticStates),
-            IsFullSnapshot = isFullSnapshot
+            IsFullSnapshot = isFullSnapshot,
+            SchemaVersion = CurrentSnapshotSchemaVersion
         };
     }
 
@@ -205,11 +214,15 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
         producer.ExtractAll(buffer);
 
         var actors = new List<ActorSnapshot>(isFullSnapshot ? buffer.Count : buffer.Count / 4);
+        var currentActorIds = lastFrameData == null
+            ? null
+            : new HashSet<int>();
         for (int i = 0; i < buffer.Count; i++)
         {
             var p = buffer[i];
+            currentActorIds?.Add(p.ActorId);
 
-            // Delta 帧: 实体级增量——跳过与上帧相同的 actor。
+            // Delta 帧: 实体级增量——跳过与上一已发布帧相同的 actor。
             if (!isFullSnapshot && lastFrameData != null
                 && lastFrameData.TryGetValue(p.ActorId, out var prev)
                 && ProjectionDataEquals(in p, in prev))
@@ -235,8 +248,20 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
             });
         }
 
-        // FullSnapshot 帧更新基线。
-        if (isFullSnapshot && lastFrameData != null)
+        var removedActorIds = new List<int>();
+        if (!isFullSnapshot && lastFrameData != null && currentActorIds != null)
+        {
+            foreach (var actorId in lastFrameData.Keys)
+            {
+                if (!currentActorIds.Contains(actorId))
+                {
+                    removedActorIds.Add(actorId);
+                }
+            }
+        }
+
+        // 每个已发布帧都成为下一增量帧的比较基线。
+        if (lastFrameData != null)
         {
             lastFrameData.Clear();
             for (int i = 0; i < buffer.Count; i++)
@@ -251,7 +276,9 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
             Frame = frame,
             Timestamp = DateTime.UtcNow.Ticks,
             Actors = actors,
-            IsFullSnapshot = isFullSnapshot
+            IsFullSnapshot = isFullSnapshot,
+            SchemaVersion = CurrentSnapshotSchemaVersion,
+            RemovedActorIds = removedActorIds
         };
     }
 
@@ -263,7 +290,10 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
             && a.RotX == b.RotX && a.RotY == b.RotY && a.RotZ == b.RotZ && a.RotW == b.RotW
             && a.Hp == b.Hp && a.HpMax == b.HpMax
             && a.TeamId == b.TeamId
-            && a.VelX == b.VelX && a.VelZ == b.VelZ;
+            && a.VelX == b.VelX && a.VelZ == b.VelZ
+            && a.Kind == b.Kind
+            && a.Code == b.Code
+            && a.OwnerNetId == b.OwnerNetId;
     }
 
     public BattleSnapshot CreateBattleSnapshot(int frame, WorldStateSnapshot snapshot, IReadOnlyList<MobaDiagnosticEntityState>? diagnosticStates)

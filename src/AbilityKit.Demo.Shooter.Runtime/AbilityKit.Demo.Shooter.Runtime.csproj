@@ -19,6 +19,7 @@
     <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Coordinator/AbilityKit.Coordinator.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Game.Battle.Runtime/AbilityKit.Game.Battle.Runtime.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Game.Battle.Transport.Runtime/AbilityKit.Game.Battle.Transport.Runtime.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Host/AbilityKit.Host.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.DI/AbilityKit.World.DI.csproj" />

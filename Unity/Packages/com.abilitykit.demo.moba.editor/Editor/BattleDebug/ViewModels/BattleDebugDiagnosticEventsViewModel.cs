@@ -28,6 +28,7 @@ namespace AbilityKit.Game.Editor
             string key,
             string label,
             int count,
+            int firstFrame,
             int latestFrame,
             int configId,
             string searchText,
@@ -37,6 +38,7 @@ namespace AbilityKit.Game.Editor
             Key = key ?? string.Empty;
             Label = label ?? string.Empty;
             Count = count;
+            FirstFrame = firstFrame;
             LatestFrame = latestFrame;
             ConfigId = configId;
             SearchText = searchText ?? string.Empty;
@@ -47,7 +49,13 @@ namespace AbilityKit.Game.Editor
         public string Key { get; }
         public string Label { get; }
         public int Count { get; }
+        public int FirstFrame { get; }
         public int LatestFrame { get; }
+        public int FrameSpan =>
+            FirstFrame == BattleDiagnosticFrames.Invalid ||
+            LatestFrame == BattleDiagnosticFrames.Invalid
+                ? 0
+                : Math.Max(0, LatestFrame - FirstFrame);
         public int ConfigId { get; }
         public string SearchText { get; }
         public BattleDiagnosticTriggerAnalysisStage TriggerStage { get; }
@@ -78,6 +86,8 @@ namespace AbilityKit.Game.Editor
         private long _lastAttackId;
         private long _lastSelectedActorId;
         private bool _lastHasSelection;
+        private long _worksetRevision = -1;
+        private int _nextPageOffset;
         private IReadOnlyList<BattleDiagnosticEvent> _cachedItems;
         private IReadOnlyList<BattleDebugDiagnosticIssueGroup> _issueGroups;
 
@@ -140,7 +150,16 @@ namespace AbilityKit.Game.Editor
         /// <summary>最近一次查询的状态消息（空字符串表示无特殊状态）。</summary>
         public string StatusMessage { get; private set; } = string.Empty;
 
-        /// <summary>最近一次查询时的 Store Revision。</summary>
+        /// <summary>增量加载状态；失败时保留已经加载的工作集。</summary>
+        public string PagingStatusMessage { get; private set; } = string.Empty;
+
+        public bool HasMore { get; private set; }
+        public int LoadedCount => _cachedItems?.Count ?? 0;
+
+        /// <summary>当前调查工作集绑定的固定 Store Revision。</summary>
+        public long WorksetRevision => _worksetRevision;
+
+        /// <summary>最近一次自动刷新时观察到的 Store Revision。</summary>
         public long StoreRevision => _lastStoreRevision;
 
         /// <summary>标记缓存失效，下次 <see cref="RefreshIfNeeded"/> 会重新查询。</summary>
@@ -149,6 +168,10 @@ namespace AbilityKit.Game.Editor
             _cachedItems = null;
             _issueGroups = null;
             _lastStoreRevision = -1;
+            _worksetRevision = -1;
+            _nextPageOffset = 0;
+            HasMore = false;
+            PagingStatusMessage = string.Empty;
         }
 
         public bool FocusRelated(in BattleDiagnosticEvent diagnosticEvent)
@@ -313,12 +336,17 @@ namespace AbilityKit.Game.Editor
             _lastSelectedActorId = selectedActorId;
             _lastHasSelection = hasSelection;
 
+            _worksetRevision = result.Status.StoreRevision;
+            _nextPageOffset = DisplayLimit;
+            HasMore = result.Status.HasMore;
+            PagingStatusMessage = string.Empty;
+
             if (result.Status.CanDisplayResults)
             {
                 _cachedItems = result.Items;
                 _issueGroups = BuildIssueGroups(result.Items);
                 StatusMessage = result.Status.HasMore
-                    ? $"显示前 {result.Items.Count} 条（仍有更多）"
+                    ? $"已加载 {result.Items.Count} 条（仍有更多）"
                     : string.Empty;
             }
             else
@@ -331,6 +359,119 @@ namespace AbilityKit.Game.Editor
             }
 
             return _cachedItems;
+        }
+
+        /// <summary>
+        /// 从当前调查工作集的固定 revision 追加下一页。失败不会清除已加载结果。
+        /// </summary>
+        public bool LoadMore(
+            IBattleDiagnosticReadOnlySession session,
+            long selectedActorId,
+            bool hasSelection)
+        {
+            if (session == null || _cachedItems == null || !HasMore)
+            {
+                return false;
+            }
+
+            if (!MatchesCachedFilter(selectedActorId, hasSelection))
+            {
+                PagingStatusMessage = "筛选条件已变化，请先刷新调查工作集。";
+                return false;
+            }
+
+            _lastRequestId++;
+            if (_lastRequestId <= 0) _lastRequestId = 1;
+
+            var filter = BuildFilter(selectedActorId, hasSelection);
+            var page = new BattleDiagnosticPageRequest(
+                _worksetRevision,
+                _nextPageOffset,
+                DisplayLimit);
+            var query = new BattleDiagnosticEventQuery(
+                _lastRequestId,
+                filter,
+                page,
+                newestFirst: true,
+                recentFrameCount: RecentFrameCount);
+            var result = session.QueryEvents(query);
+
+            if (!result.Status.CanDisplayResults)
+            {
+                if (result.Status.Availability == BattleDiagnosticDataAvailability.Evicted)
+                {
+                    HasMore = false;
+                    PagingStatusMessage =
+                        $"固定快照 revision {_worksetRevision} 已被淘汰；已保留 {_cachedItems.Count} 条调查结果。";
+                }
+                else if (result.Status.Phase == BattleDiagnosticQueryPhase.Empty)
+                {
+                    HasMore = false;
+                    PagingStatusMessage = $"已加载全部 {_cachedItems.Count} 条调查结果。";
+                }
+                else
+                {
+                    PagingStatusMessage =
+                        $"加载更多失败：{result.Status.Availability} {result.Status.Message}";
+                }
+
+                return false;
+            }
+
+            _cachedItems = AppendDistinct(_cachedItems, result.Items);
+            _issueGroups = BuildIssueGroups(_cachedItems);
+            _nextPageOffset += DisplayLimit;
+            HasMore = result.Status.HasMore;
+            StatusMessage = string.Empty;
+            PagingStatusMessage = HasMore
+                ? $"已加载 {_cachedItems.Count} 条，快照 revision {_worksetRevision} 仍有更多。"
+                : $"已加载全部 {_cachedItems.Count} 条，快照 revision {_worksetRevision}。";
+            return true;
+        }
+
+        private bool MatchesCachedFilter(long selectedActorId, bool hasSelection)
+        {
+            return _lastFilterBySelectedActor == FilterBySelectedActor &&
+                   _lastActorRelation == ActorRelation &&
+                   _lastFailuresOnly == FailuresOnly &&
+                   _lastEventScope == EventScope &&
+                   _lastRecentFrameCount == RecentFrameCount &&
+                   string.Equals(_lastSearchText, SearchText, StringComparison.Ordinal) &&
+                   _lastTriggerStage == TriggerStage &&
+                   _lastTriggerResult == TriggerResult &&
+                   _lastTriggerContextKind == TriggerContextKind &&
+                   _lastTriggerOriginKind == TriggerOriginKind &&
+                   _lastConfigId == ConfigId &&
+                   _lastRootContextId == RootContextId &&
+                   _lastContextId == ContextId &&
+                   _lastSkillRuntimeId == SkillRuntimeId &&
+                   _lastAttackId == AttackId &&
+                   _lastSelectedActorId == selectedActorId &&
+                   _lastHasSelection == hasSelection;
+        }
+
+        private static IReadOnlyList<BattleDiagnosticEvent> AppendDistinct(
+            IReadOnlyList<BattleDiagnosticEvent> current,
+            IReadOnlyList<BattleDiagnosticEvent> additional)
+        {
+            if (additional == null || additional.Count == 0) return current;
+
+            var sequences = new HashSet<long>();
+            var combined = new List<BattleDiagnosticEvent>(current.Count + additional.Count);
+            for (var i = 0; i < current.Count; i++)
+            {
+                var item = current[i];
+                combined.Add(item);
+                sequences.Add(item.Sequence);
+            }
+
+            for (var i = 0; i < additional.Count; i++)
+            {
+                var item = additional[i];
+                if (sequences.Add(item.Sequence)) combined.Add(item);
+            }
+
+            return combined;
         }
 
         private string BuildEmptyMessage(bool hasSelection)
@@ -467,6 +608,25 @@ namespace AbilityKit.Game.Editor
                     trigger.Result);
             }
 
+            if (diagnosticEvent.Payload.TryGetSkillFailure(out var skillFailure))
+            {
+                var stableCode = skillFailure.Code ?? string.Empty;
+                var key = $"skill|{stableCode}|{skillFailure.Source}|{skillFailure.Stage}";
+                var label = string.IsNullOrEmpty(stableCode)
+                    ? $"技能失败  {skillFailure.Source}/{skillFailure.Stage}"
+                    : $"技能失败  {stableCode}";
+                var searchText = string.IsNullOrEmpty(stableCode)
+                    ? skillFailure.Message
+                    : stableCode;
+                return new IssueGroupDescriptor(
+                    key,
+                    label,
+                    diagnosticEvent.ConfigId,
+                    searchText,
+                    BattleDiagnosticTriggerAnalysisStage.Unknown,
+                    BattleDiagnosticTriggerAnalysisResult.Unknown);
+            }
+
             var summary = diagnosticEvent.Summary ?? string.Empty;
             var genericKey = $"event|{diagnosticEvent.Kind}|{diagnosticEvent.ConfigId}|{summary}";
             var genericLabel = diagnosticEvent.ConfigId != 0
@@ -518,6 +678,7 @@ namespace AbilityKit.Game.Editor
         {
             private readonly IssueGroupDescriptor _descriptor;
             private int _count;
+            private int _firstFrame = BattleDiagnosticFrames.Invalid;
             private int _latestFrame = BattleDiagnosticFrames.Invalid;
 
             public IssueGroupBuilder(in IssueGroupDescriptor descriptor)
@@ -528,6 +689,12 @@ namespace AbilityKit.Game.Editor
             public void Add(in BattleDiagnosticEvent diagnosticEvent)
             {
                 _count++;
+                if (_firstFrame == BattleDiagnosticFrames.Invalid ||
+                    diagnosticEvent.Frame < _firstFrame)
+                {
+                    _firstFrame = diagnosticEvent.Frame;
+                }
+
                 if (diagnosticEvent.Frame > _latestFrame) _latestFrame = diagnosticEvent.Frame;
             }
 
@@ -537,6 +704,7 @@ namespace AbilityKit.Game.Editor
                     _descriptor.Key,
                     _descriptor.Label,
                     _count,
+                    _firstFrame,
                     _latestFrame,
                     _descriptor.ConfigId,
                     _descriptor.SearchText,

@@ -4,11 +4,15 @@ using AbilityKit.GameFramework.Network;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Contracts.Shooter;
 using AbilityKit.Orleans.Grains.Battle;
 using AbilityKit.Orleans.Grains.Persistence;
 using AbilityKit.Orleans.Hosting;
-using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
+using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Protocol.Room;
+using RoomSubscribeStateSyncReq = AbilityKit.Protocol.Room.WireSubscribeStateSyncReq;
+using RoomSubscribeStateSyncRes = AbilityKit.Protocol.Room.WireSubscribeStateSyncRes;
 using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -28,7 +32,7 @@ if (clientOnly)
     try
     {
         Console.WriteLine($"MOBA_SMOKE_CLIENT_ONLY connecting to {MobaSmokeConstants.HostAddress}:{connectPort}");
-        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, connectPort, TimeSpan.FromSeconds(30));
+        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, connectPort, TimeSpan.FromSeconds(60));
         Console.WriteLine(
             $"MOBA_SMOKE_PASSED RoomId={result.RoomId} NumericRoomId={result.NumericRoomId} " +
             $"BattleId={result.BattleId} WorldId={result.WorldId} Phase={result.Phase} " +
@@ -78,7 +82,7 @@ try
     }
     else
     {
-        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, tcpPort, TimeSpan.FromSeconds(20));
+        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, tcpPort, TimeSpan.FromSeconds(60));
         Console.WriteLine(
             $"MOBA_SMOKE_PASSED RoomId={result.RoomId} NumericRoomId={result.NumericRoomId} " +
             $"BattleId={result.BattleId} WorldId={result.WorldId} Phase={result.Phase} " +
@@ -179,91 +183,109 @@ static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeS
     await ownerBattle.SubscribeStateSyncAsync(final.Snapshot.BattleId, created.RoomId, timeoutCts.Token);
     await memberBattle.SubscribeStateSyncAsync(final.Snapshot.BattleId, created.RoomId, timeoutCts.Token);
 
-    var ownerProbe = await ownerBattle.SubmitFrameInputAsync(
-        final.NumericRoomId,
+    var ownerBaseline = await ownerBattle.WaitForCharacterAsync(
+        teamId: 1,
+        modelId: 1001,
+        _ => true,
+        timeoutCts.Token);
+    var memberBaseline = await memberBattle.WaitForCharacterAsync(
+        teamId: 1,
+        modelId: 1001,
+        actor => actor.ActorId == ownerBaseline.ActorId,
+        timeoutCts.Token);
+    Require(
+        MathF.Abs(ownerBaseline.X - memberBaseline.X) < 0.001f &&
+        MathF.Abs(ownerBaseline.Z - memberBaseline.Z) < 0.001f,
+        "Battle clients did not observe the same owner baseline position.");
+
+    var movePayload = MobaMoveCodec.Serialize(1f, 0f);
+    var ownerSubmit = await ownerBattle.SubmitBattleInputAsync(
+        final.Snapshot.BattleId,
         final.Snapshot.WorldId,
         ownerPlayerId,
         frame: 0,
-        inputOpCode: 1,
-        new byte[] { 0x10 },
+        inputOpCode: MobaOpCodes.Input.Move,
+        movePayload,
         timeoutCts.Token);
-    var memberProbe = await memberBattle.SubmitFrameInputAsync(
-        final.NumericRoomId,
-        final.Snapshot.WorldId,
-        memberPlayerId,
-        frame: 0,
-        inputOpCode: 1,
-        new byte[] { 0x20 },
+    Require(
+        ownerSubmit.Success && !ownerSubmit.ShouldResync,
+        $"Owner authoritative move input rejected. Status={ownerSubmit.Status} " +
+        $"AcceptedFrame={ownerSubmit.AcceptedFrame} CurrentFrame={ownerSubmit.CurrentFrame} " +
+        $"Message={ownerSubmit.Message}.");
+
+    const float movementEpsilonSquared = 0.0001f;
+    var ownerMoved = await ownerBattle.WaitForCharacterAsync(
+        teamId: 1,
+        modelId: 1001,
+        actor => PositionDistanceSquared(actor, ownerBaseline) > movementEpsilonSquared,
+        timeoutCts.Token);
+    var memberObservedMove = await memberBattle.WaitForCharacterAsync(
+        teamId: 1,
+        modelId: 1001,
+        actor => PositionDistanceSquared(actor, memberBaseline) > movementEpsilonSquared,
         timeoutCts.Token);
 
-    var targetFrame = Math.Max(ownerProbe.ServerFrame, memberProbe.ServerFrame) + 5;
-    var ownerInput = new byte[] { 0xA1, 0x01 };
-    var memberInput = new byte[] { 0xB2, 0x02 };
-    var ownerSubmit = await ownerBattle.SubmitFrameInputAsync(
-        final.NumericRoomId,
-        final.Snapshot.WorldId,
-        ownerPlayerId,
-        targetFrame,
-        inputOpCode: 7,
-        ownerInput,
-        timeoutCts.Token);
-    var memberSubmit = await memberBattle.SubmitFrameInputAsync(
-        final.NumericRoomId,
-        final.Snapshot.WorldId,
-        memberPlayerId,
-        targetFrame,
-        inputOpCode: 8,
-        memberInput,
-        timeoutCts.Token);
-    Require(ownerSubmit.Accepted, $"Owner frame input rejected. Reason={ownerSubmit.ReasonCode} ServerFrame={ownerSubmit.ServerFrame}.");
-    Require(memberSubmit.Accepted, $"Member frame input rejected. Reason={memberSubmit.ReasonCode} ServerFrame={memberSubmit.ServerFrame}.");
-
-    var ownerAggregated = await ownerBattle.WaitForFrameAsync(
-        frame => frame.Frame == targetFrame && frame.Inputs.Length == 2,
-        timeoutCts.Token);
-    var memberAggregated = await memberBattle.WaitForFrameAsync(
-        frame => frame.Frame == targetFrame && frame.Inputs.Length == 2,
-        timeoutCts.Token);
-    ValidateAggregatedFrame(ownerAggregated, final.NumericRoomId, final.Snapshot.WorldId, ownerPlayerId, memberPlayerId, ownerInput, memberInput);
-    ValidateAggregatedFrame(memberAggregated, final.NumericRoomId, final.Snapshot.WorldId, ownerPlayerId, memberPlayerId, ownerInput, memberInput);
-
-    var ownerEmpty = await ownerBattle.WaitForFrameAsync(
-        frame => frame.Frame > targetFrame && frame.Inputs.Length == 0,
-        timeoutCts.Token);
-    var memberEmpty = await memberBattle.WaitForFrameAsync(
-        frame => frame.Frame == ownerEmpty.Frame && frame.Inputs.Length == 0,
-        timeoutCts.Token);
-    Require(memberEmpty.Frame == ownerEmpty.Frame, "Battle clients did not receive the same continuous empty authoritative frame.");
-
-    // === Entity-level multiplayer validation ===
-    // Both clients subscribed to StateSync above. Wait up to 3 seconds for at least
-    // one StateSyncPush containing 2+ actors (both player heroes), then hard-assert.
-    // This closes the loop from "input aggregation" to "entity visibility": it proves
-    // the server broadcasts actor snapshots containing both players' heroes and both
-    // clients receive and decode them.
-    var stateSyncDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(3);
-    while (DateTime.UtcNow < stateSyncDeadline)
-    {
-        if (ownerBattle.StateSyncPushCount > 0 && memberBattle.StateSyncPushCount > 0 &&
-            ownerBattle.MaxActorCount >= 2 && memberBattle.MaxActorCount >= 2)
-        {
-            break;
-        }
-        await Task.Delay(100, timeoutCts.Token);
-    }
-
-    Require(ownerBattle.StateSyncPushCount > 0,
-        $"Owner did not receive any StateSyncPush (opcode 9002) after SubscribeStateSync.");
-    Require(memberBattle.StateSyncPushCount > 0,
-        $"Member did not receive any StateSyncPush (opcode 9002) after SubscribeStateSync.");
-    Require(ownerBattle.MaxActorCount >= 2,
-        $"Owner StateSyncPush did not contain both player heroes. MaxActorCount={ownerBattle.MaxActorCount}, expected >= 2.");
-    Require(memberBattle.MaxActorCount >= 2,
-        $"Member StateSyncPush did not contain both player heroes. MaxActorCount={memberBattle.MaxActorCount}, expected >= 2.");
+    Require(ownerMoved.ActorId == ownerBaseline.ActorId,
+        "Owner movement changed the authoritative actor identity.");
+    Require(memberObservedMove.ActorId == ownerBaseline.ActorId,
+        "Member observed movement for an unexpected actor identity.");
+    Require(
+        MathF.Abs(ownerMoved.X - memberObservedMove.X) < 0.001f &&
+        MathF.Abs(ownerMoved.Z - memberObservedMove.Z) < 0.001f,
+        "Battle clients did not converge on the same authoritative moved position.");
+    Require(ownerBattle.MaxActorCount >= 2 && memberBattle.MaxActorCount >= 2,
+        $"StateSync did not expose both heroes. OwnerActors={ownerBattle.MaxActorCount}, " +
+        $"MemberActors={memberBattle.MaxActorCount}.");
 
     Console.WriteLine(
-        $"MOBA_SMOKE_ENTITY_SYNC_VERIFIED OwnerPushes={ownerBattle.StateSyncPushCount} OwnerActors={ownerBattle.MaxActorCount} " +
-        $"MemberPushes={memberBattle.StateSyncPushCount} MemberActors={memberBattle.MaxActorCount}");
+        $"MOBA_SMOKE_AUTHORITATIVE_INPUT_VERIFIED AcceptedFrame={ownerSubmit.AcceptedFrame} " +
+        $"CurrentFrame={ownerSubmit.CurrentFrame} ActorId={ownerMoved.ActorId} " +
+        $"From=({ownerBaseline.X:F3},{ownerBaseline.Z:F3}) " +
+        $"To=({ownerMoved.X:F3},{ownerMoved.Z:F3}) " +
+        $"OwnerPushes={ownerBattle.StateSyncPushCount} MemberPushes={memberBattle.StateSyncPushCount}");
+
+    var recoveryBaseline = ownerBattle.CaptureRecoveryBaseline();
+    var recoveryResponse = await ownerBattle.RequestFullStateSyncAsync(
+        final.Snapshot.BattleId,
+        created.RoomId,
+        final.Snapshot.WorldId,
+        recoveryBaseline.Frame,
+        timeoutCts.Token);
+    Require(
+        recoveryResponse.Success && recoveryResponse.Accepted,
+        $"Full StateSync recovery request was rejected: {recoveryResponse.Message}");
+
+    var recovered = await ownerBattle.WaitForFullSnapshotAfterAsync(
+        recoveryBaseline.FullSnapshotCount,
+        timeoutCts.Token);
+    Require(recovered.WorldId == final.Snapshot.WorldId,
+        $"Recovered full snapshot world changed. Expected={final.Snapshot.WorldId}, Actual={recovered.WorldId}.");
+    Require(recovered.SchemaVersion > 0,
+        $"Recovered full snapshot has invalid schema version {recovered.SchemaVersion}.");
+    Require(recovered.ActorCount >= 2,
+        $"Recovered full snapshot omitted battle actors. ActorCount={recovered.ActorCount}.");
+    Require(!string.IsNullOrWhiteSpace(recovered.EventEpoch),
+        "Recovered full snapshot returned an empty reliable-event epoch.");
+    Require(recovered.EventWatermark >= 0,
+        $"Recovered full snapshot returned an invalid event watermark {recovered.EventWatermark}.");
+
+    var ack = await ownerBattle.AcknowledgeReliableBattleEventsAsync(
+        final.Snapshot.BattleId,
+        created.RoomId,
+        recovered.EventEpoch,
+        recovered.EventWatermark,
+        timeoutCts.Token);
+    Require(ack.Success,
+        $"Reliable battle event ACK failed: {ack.Message}");
+    Require(ack.AcceptedAckSequence == recovered.EventWatermark,
+        $"Reliable battle event ACK mismatch. Requested={recovered.EventWatermark}, " +
+        $"Accepted={ack.AcceptedAckSequence}.");
+
+    Console.WriteLine(
+        $"MOBA_SMOKE_RECOVERY_VERIFIED Frame={recovered.Frame} WorldId={recovered.WorldId} " +
+        $"SchemaVersion={recovered.SchemaVersion} Actors={recovered.ActorCount} " +
+        $"EventEpoch={recovered.EventEpoch} EventAck={ack.AcceptedAckSequence} " +
+        $"FullSnapshots={recovered.FullSnapshotCount}");
 
     return new MobaSmokeResult(
         created.RoomId,
@@ -275,28 +297,20 @@ static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeS
         final.Snapshot.RoomRevision);
 }
 
+static float PositionDistanceSquared(
+    WireStateSyncActorSnapshot current,
+    WireStateSyncActorSnapshot baseline)
+{
+    var dx = current.X - baseline.X;
+    var dz = current.Z - baseline.Z;
+    return dx * dx + dz * dz;
+}
+
 static uint ResolvePlayerId(WireRoomSnapshot snapshot, int heroId)
 {
     var player = snapshot.Players?.SingleOrDefault(candidate => candidate.HeroId == heroId) ?? default;
     Require(player.PlayerId != 0, $"Could not resolve player id for hero {heroId}.");
     return player.PlayerId;
-}
-
-static void ValidateAggregatedFrame(
-    WireFramePushedPush frame,
-    ulong roomId,
-    ulong worldId,
-    uint ownerPlayerId,
-    uint memberPlayerId,
-    byte[] ownerInput,
-    byte[] memberInput)
-{
-    Require(frame.RoomId == roomId, "Authoritative frame room id mismatch.");
-    Require(frame.WorldId == worldId, "Authoritative frame world id mismatch.");
-    var owner = frame.Inputs.SingleOrDefault(input => input.PlayerId == ownerPlayerId);
-    var member = frame.Inputs.SingleOrDefault(input => input.PlayerId == memberPlayerId);
-    Require(owner.PlayerId == ownerPlayerId && owner.OpCode == 7 && owner.Payload.SequenceEqual(ownerInput), "Owner authoritative input mismatch.");
-    Require(member.PlayerId == memberPlayerId && member.OpCode == 8 && member.Payload.SequenceEqual(memberInput), "Member authoritative input mismatch.");
 }
 
 static async Task WaitForTcpAsync(string host, int port, TimeSpan timeout)
@@ -359,17 +373,25 @@ internal sealed class MobaSmokeClient : IDisposable
     private readonly SmokeTcpGameFrameworkNetworkChannel _channel;
     private readonly AbilityKit.Network.Abstractions.IConnection _connection;
     private readonly RequestClient _requests;
-    private readonly Channel<WireFramePushedPush> _frames = Channel.CreateUnbounded<WireFramePushedPush>();
+    private readonly Channel<WireStateSyncSnapshotPush> _snapshots = Channel.CreateUnbounded<WireStateSyncSnapshotPush>();
     private string _sessionToken = string.Empty;
+    private long _nextCommandSequence;
 
-    // StateSync push tracking (opcode 9002). Non-zero after battle start proves the
-    // server is broadcasting actor snapshots through the gateway.
+    // StateSync diagnostics distinguish transport, decoding, and projection failures.
     internal int StateSyncPushCount => Volatile.Read(ref _stateSyncPushCount);
     internal int LastStateSyncPushSize => Volatile.Read(ref _lastStateSyncPushSize);
     internal int MaxActorCount => Volatile.Read(ref _maxActorCount);
+    private readonly object _recoveryGate = new();
     private int _stateSyncPushCount;
+    private int _fullSnapshotPushCount;
+    private int _decodedFullSnapshotPushCount;
+    private int _deltaSnapshotPushCount;
+    private int _decodeFailureCount;
     private int _lastStateSyncPushSize;
     private int _maxActorCount;
+    private MobaSmokeRecoverySnapshot _lastFullSnapshot;
+    private string _lastDecodeError = "none";
+    private string _lastSnapshotSummary = "none";
 
     public string SessionToken => _sessionToken;
 
@@ -416,7 +438,7 @@ internal sealed class MobaSmokeClient : IDisposable
 
     public async Task SubscribeStateSyncAsync(string battleId, string roomId, CancellationToken cancellationToken)
     {
-        var request = new WireSubscribeStateSyncReq
+        var request = new RoomSubscribeStateSyncReq
         {
             SessionToken = _sessionToken,
             BattleId = battleId,
@@ -424,7 +446,7 @@ internal sealed class MobaSmokeClient : IDisposable
             EventEpoch = string.Empty,
             LastEventAck = 0
         };
-        var response = await SendAsync<WireSubscribeStateSyncReq, WireSubscribeStateSyncRes>(
+        var response = await SendAsync<RoomSubscribeStateSyncReq, RoomSubscribeStateSyncRes>(
             RoomGatewayOpCodes.SubscribeStateSync,
             request,
             cancellationToken);
@@ -434,8 +456,96 @@ internal sealed class MobaSmokeClient : IDisposable
         }
     }
 
-    public async Task<WireSubmitFrameInputRes> SubmitFrameInputAsync(
-        ulong roomId,
+    public MobaSmokeRecoverySnapshot CaptureRecoveryBaseline()
+    {
+        lock (_recoveryGate)
+        {
+            return _lastFullSnapshot with
+            {
+                FullSnapshotCount = Volatile.Read(ref _decodedFullSnapshotPushCount)
+            };
+        }
+    }
+
+    public Task<WireRequestFullStateSyncRes> RequestFullStateSyncAsync(
+        string battleId,
+        string roomId,
+        ulong worldId,
+        int lastAuthoritativeFrame,
+        CancellationToken cancellationToken)
+    {
+        return SendAsync<WireRequestFullStateSyncReq, WireRequestFullStateSyncRes>(
+            RoomGatewayOpCodes.RequestFullStateSync,
+            new WireRequestFullStateSyncReq
+            {
+                SessionToken = _sessionToken,
+                BattleId = battleId,
+                RoomId = roomId,
+                WorldId = worldId,
+                ClientFrame = lastAuthoritativeFrame,
+                LastAuthoritativeFrame = lastAuthoritativeFrame,
+                ClientStateHash = 0,
+                AuthoritativeStateHash = 0,
+                Reason = "moba-smoke-recovery-verification"
+            },
+            cancellationToken);
+    }
+
+    public async Task<MobaSmokeRecoverySnapshot> WaitForFullSnapshotAfterAsync(
+        int previousFullSnapshotCount,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (Volatile.Read(ref _decodedFullSnapshotPushCount) > previousFullSnapshotCount)
+                {
+                    lock (_recoveryGate)
+                    {
+                        return _lastFullSnapshot with
+                        {
+                            FullSnapshotCount = Volatile.Read(ref _decodedFullSnapshotPushCount)
+                        };
+                    }
+                }
+
+                await Task.Delay(20, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException(
+                $"Timed out waiting for a requested full StateSync snapshot. {CreateStateSyncDiagnostic()}",
+                exception);
+        }
+
+        throw new InvalidOperationException(
+            $"Full StateSync wait ended unexpectedly. {CreateStateSyncDiagnostic()}");
+    }
+
+    public Task<WireAckReliableBattleEventsRes> AcknowledgeReliableBattleEventsAsync(
+        string battleId,
+        string roomId,
+        string epoch,
+        long ackSequence,
+        CancellationToken cancellationToken)
+    {
+        return SendAsync<WireAckReliableBattleEventsReq, WireAckReliableBattleEventsRes>(
+            RoomGatewayOpCodes.AckReliableBattleEvents,
+            new WireAckReliableBattleEventsReq
+            {
+                SessionToken = _sessionToken,
+                BattleId = battleId,
+                RoomId = roomId,
+                Epoch = epoch,
+                AckSequence = ackSequence
+            },
+            cancellationToken);
+    }
+
+    public Task<WireSubmitBattleInputRes> SubmitBattleInputAsync(
+        string battleId,
         ulong worldId,
         uint playerId,
         int frame,
@@ -443,32 +553,60 @@ internal sealed class MobaSmokeClient : IDisposable
         byte[] payload,
         CancellationToken cancellationToken)
     {
-        var request = new WireSubmitFrameInputReq(roomId, worldId, playerId, frame, inputOpCode, payload);
-        var requestPayload = WireCustomBinary.Serialize(in request);
-        var responsePayload = await _requests.SendRequestAsync(
-            OpCodes.SubmitFrameInput,
-            requestPayload,
-            TimeSpan.FromSeconds(10),
+        return SendAsync<WireSubmitBattleInputReq, WireSubmitBattleInputRes>(
+            RoomGatewayOpCodes.SubmitBattleInput,
+            new WireSubmitBattleInputReq
+            {
+                SessionToken = _sessionToken,
+                BattleId = battleId,
+                WorldId = worldId,
+                Frame = frame,
+                PlayerId = playerId,
+                InputOpCode = inputOpCode,
+                Payload = payload ?? Array.Empty<byte>(),
+                CommandSequence = unchecked((ulong)Interlocked.Increment(ref _nextCommandSequence))
+            },
             cancellationToken);
-        return WireCustomBinary.DeserializeSubmitFrameInputRes(responsePayload);
     }
 
-    public async Task<WireFramePushedPush> WaitForFrameAsync(
-        Func<WireFramePushedPush, bool> predicate,
+    public async Task<WireStateSyncActorSnapshot> WaitForCharacterAsync(
+        int teamId,
+        int modelId,
+        Func<WireStateSyncActorSnapshot, bool> predicate,
         CancellationToken cancellationToken)
     {
-        while (await _frames.Reader.WaitToReadAsync(cancellationToken))
+        try
         {
-            while (_frames.Reader.TryRead(out var frame))
+            while (await _snapshots.Reader.WaitToReadAsync(cancellationToken))
             {
-                if (predicate(frame))
+                while (_snapshots.Reader.TryRead(out var snapshot))
                 {
-                    return frame;
+                    var actors = snapshot.Actors;
+                    if (actors == null) continue;
+
+                    for (var i = 0; i < actors.Count; i++)
+                    {
+                        var actor = actors[i];
+                        if (actor.Kind == (int)SpawnEntityKind.Character &&
+                            actor.TeamId == teamId &&
+                            actor.Code == modelId &&
+                            predicate(actor))
+                        {
+                            return actor;
+                        }
+                    }
                 }
             }
         }
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException(
+                $"Timed out waiting for character team={teamId}, model={modelId}. {CreateStateSyncDiagnostic()}",
+                exception);
+        }
 
-        throw new InvalidOperationException("Frame push channel completed before a matching frame arrived.");
+        throw new InvalidOperationException(
+            $"StateSync channel completed before character team={teamId}, model={modelId} arrived. {CreateStateSyncDiagnostic()}");
     }
 
     public Task<WireCreateRoomRes> CreateRoomAsync(CancellationToken cancellationToken)
@@ -485,8 +623,10 @@ internal sealed class MobaSmokeClient : IDisposable
             Tags = new Dictionary<string, string>
             {
                 ["mapId"] = "1",
+                ["gameplayId"] = "1",
                 ["minPlayers"] = "2",
-                ["tickRate"] = "30"
+                ["tickRate"] = "30",
+                [ShooterRoomTagKeys.SyncTemplateId] = "state-sync-authority"
             }
         }, cancellationToken);
     }
@@ -504,6 +644,7 @@ internal sealed class MobaSmokeClient : IDisposable
 
     public async Task PickHeroAsync(string roomId, int heroId, int teamId, int spawnPointId, CancellationToken cancellationToken)
     {
+        var loadout = ResolveHeroLoadout(heroId);
         var response = await SendAsync<WireRoomPickHeroReq, WireRoomSnapshotRes>(RoomGatewayOpCodes.PickHero, new WireRoomPickHeroReq
         {
             SessionToken = _sessionToken,
@@ -512,14 +653,30 @@ internal sealed class MobaSmokeClient : IDisposable
             TeamId = teamId,
             SpawnPointId = spawnPointId,
             Level = 1,
-            AttributeTemplateId = 100,
-            BasicAttackSkillId = 200,
-            SkillIds = new List<int> { 201, 202 }
+            AttributeTemplateId = loadout.AttributeTemplateId,
+            BasicAttackSkillId = loadout.BasicAttackSkillId,
+            SkillIds = loadout.SkillIds
         }, cancellationToken);
         if (!response.Success)
         {
             throw new InvalidOperationException($"PickHero failed: {response.Message}");
         }
+    }
+
+    private static MobaSmokeHeroLoadout ResolveHeroLoadout(int heroId)
+    {
+        return heroId switch
+        {
+            1001 => new MobaSmokeHeroLoadout(
+                1001,
+                10010001,
+                new List<int> { 10010101, 10010201, 10010301 }),
+            1002 => new MobaSmokeHeroLoadout(
+                1002,
+                10020001,
+                new List<int> { 10020101, 10020201, 10020301 }),
+            _ => throw new InvalidOperationException($"No production loadout configured for hero {heroId}.")
+        };
     }
 
     public async Task<WireRoomSnapshotRes> SetReadyAsync(string roomId, CancellationToken cancellationToken)
@@ -578,7 +735,7 @@ internal sealed class MobaSmokeClient : IDisposable
     public void Dispose()
     {
         _connection.ServerPushReceived -= OnServerPushReceived;
-        _frames.Writer.TryComplete();
+        _snapshots.Writer.TryComplete();
         _requests.Dispose();
         _connection.Dispose();
         _channel.Dispose();
@@ -586,45 +743,106 @@ internal sealed class MobaSmokeClient : IDisposable
 
     private void OnServerPushReceived(uint opCode, ArraySegment<byte> payload)
     {
-        if (opCode == OpCodes.FramePushed)
+        var isFullOpcode = opCode == RoomGatewayOpCodes.SnapshotPushed;
+        var isDeltaOpcode = opCode == RoomGatewayOpCodes.DeltaSnapshotPushed;
+        if (!isFullOpcode && !isDeltaOpcode)
         {
-            _frames.Writer.TryWrite(WireCustomBinary.DeserializeFramePushedPush(payload));
+            return;
         }
 
-        // Track StateSync pushes (opcode 9002) and decode actor count to verify the
-        // server broadcasts actor snapshots containing both player heroes.
-        // IMPORTANT: use WireRoomGatewayBinary + WireStateSyncSnapshotPush (MemoryPack),
-        // NOT MobaWorldSnapshotCodec (BinaryObjectCodec) — the latter is incompatible
-        // with the server's wire encoding.
-        if (opCode == AbilityKit.Protocol.Moba.StateSync.OpCodes.SnapshotPushed)
+        Interlocked.Increment(ref _stateSyncPushCount);
+        Interlocked.Exchange(ref _lastStateSyncPushSize, payload.Count);
+        if (isFullOpcode)
         {
-            Interlocked.Increment(ref _stateSyncPushCount);
-            _lastStateSyncPushSize = payload.Count;
+            Interlocked.Increment(ref _fullSnapshotPushCount);
+        }
+        else
+        {
+            Interlocked.Increment(ref _deltaSnapshotPushCount);
+        }
 
-            try
+        try
+        {
+            // StateSync observer pushes use the room gateway MemoryPack envelope.
+            var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
+            _snapshots.Writer.TryWrite(wire);
+            var actors = wire.Actors;
+            var actorCount = actors?.Count ?? 0;
+            if (wire.IsFullSnapshot)
             {
-                var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
-                var actorCount = wire.Actors?.Count ?? 0;
-                // Track max actor count seen (atomsafe CAS loop)
-                var currentMax = Volatile.Read(ref _maxActorCount);
-                while (actorCount > currentMax)
+                var decodedFullCount = Interlocked.Increment(ref _decodedFullSnapshotPushCount);
+                lock (_recoveryGate)
                 {
-                    if (Interlocked.CompareExchange(ref _maxActorCount, actorCount, currentMax) == currentMax)
-                        break;
-                    currentMax = Volatile.Read(ref _maxActorCount);
+                    _lastFullSnapshot = new MobaSmokeRecoverySnapshot(
+                        decodedFullCount,
+                        wire.WorldId,
+                        wire.Frame,
+                        wire.SchemaVersion,
+                        actorCount,
+                        wire.EventEpoch ?? string.Empty,
+                        wire.EventWatermark);
                 }
             }
-            catch
+
+            if (actorCount > 0)
             {
-                // Decoding failure is non-fatal; the push count still proves the channel is wired.
+                Volatile.Write(
+                    ref _lastSnapshotSummary,
+                    $"opcode={opCode}, frame={wire.Frame}, world={wire.WorldId}, " +
+                    $"isFull={wire.IsFullSnapshot}, actors={actorCount}, " +
+                    $"actorIds={FormatActorSummary(actors)}");
+            }
+
+            var currentMax = Volatile.Read(ref _maxActorCount);
+            while (actorCount > currentMax)
+            {
+                if (Interlocked.CompareExchange(ref _maxActorCount, actorCount, currentMax) == currentMax)
+                {
+                    break;
+                }
+
+                currentMax = Volatile.Read(ref _maxActorCount);
             }
         }
+        catch (Exception exception)
+        {
+            Interlocked.Increment(ref _decodeFailureCount);
+            Volatile.Write(
+                ref _lastDecodeError,
+                $"opcode={opCode}, bytes={payload.Count}, error={exception.GetType().Name}: {exception.Message}");
+        }
+    }
+
+    private string CreateStateSyncDiagnostic()
+    {
+        return
+            $"StateSync pushes={Volatile.Read(ref _stateSyncPushCount)}, " +
+            $"full={Volatile.Read(ref _fullSnapshotPushCount)}, " +
+            $"delta={Volatile.Read(ref _deltaSnapshotPushCount)}, " +
+            $"decodeFailures={Volatile.Read(ref _decodeFailureCount)}, " +
+            $"lastBytes={Volatile.Read(ref _lastStateSyncPushSize)}, " +
+            $"maxActors={Volatile.Read(ref _maxActorCount)}, " +
+            $"lastSnapshot=[{Volatile.Read(ref _lastSnapshotSummary)}], " +
+            $"lastDecodeError=[{Volatile.Read(ref _lastDecodeError)}].";
+    }
+
+    private static string FormatActorSummary(List<WireStateSyncActorSnapshot>? actors)
+    {
+        if (actors == null || actors.Count == 0)
+        {
+            return "none";
+        }
+
+        return string.Join(
+            ';',
+            actors.Take(8).Select(actor =>
+                $"{actor.ActorId}:{actor.TeamId}:{actor.Kind}:{actor.Code}:{actor.OwnerNetId}"));
     }
 
     private async Task<TResponse> SendAsync<TRequest, TResponse>(uint opCode, TRequest request, CancellationToken cancellationToken)
     {
         var payload = WireRoomGatewayBinary.Serialize(in request);
-        var responsePayload = await _requests.SendRequestAsync(opCode, payload, TimeSpan.FromSeconds(10), cancellationToken);
+        var responsePayload = await _requests.SendRequestAsync(opCode, payload, TimeSpan.FromSeconds(30), cancellationToken);
         return WireRoomGatewayBinary.Deserialize<TResponse>(responsePayload);
     }
 }
@@ -635,6 +853,20 @@ internal static class MobaSmokeConstants
     public const string Region = "local";
     public const string ServerId = "moba-smoke";
 }
+
+internal readonly record struct MobaSmokeHeroLoadout(
+    int AttributeTemplateId,
+    int BasicAttackSkillId,
+    List<int> SkillIds);
+
+internal readonly record struct MobaSmokeRecoverySnapshot(
+    int FullSnapshotCount,
+    ulong WorldId,
+    int Frame,
+    int SchemaVersion,
+    int ActorCount,
+    string EventEpoch,
+    long EventWatermark);
 
 internal readonly record struct MobaSmokeResult(
     string RoomId,

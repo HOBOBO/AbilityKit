@@ -515,8 +515,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             var resolvedWorldId = worldId == 0 ? _worldId : worldId;
             if (_stateSyncPushOptions.PayloadMode == ShooterStateSyncPushPayloadMode.PureState)
             {
-                var snapshot = WithoutLegacyEvents(_runtime?.GetSnapshot() ?? default);
-                return CreatePureStateSyncPush(resolvedWorldId, isFullSnapshot, in snapshot);
+                return CreatePureStateSyncPush(resolvedWorldId, frame, isFullSnapshot);
             }
 
             // Packed 路径：Actors 列表直接从 Packed 玩家 chunk 构建，
@@ -543,20 +542,19 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             var resolvedWorldId = worldId == 0 ? _worldId : worldId;
-            var snapshot = WithoutLegacyEvents(_runtime?.GetSnapshot() ?? default);
             if (!TryCreateObserverInterestScope(in observerContext, out var interestScope))
             {
-                return CreatePureStateSyncPush(resolvedWorldId, isFullSnapshot, in snapshot);
+                return CreatePureStateSyncPush(resolvedWorldId, frame, isFullSnapshot);
             }
 
             var observerKey = string.IsNullOrWhiteSpace(observerContext.ObserverKey)
                 ? $"player:{interestScope.ObserverPlayerId}"
                 : observerContext.ObserverKey;
             var syncState = GetObserverPureStateSyncState(observerKey);
-            return CreatePureStateSyncPush(resolvedWorldId, isFullSnapshot, in snapshot, interestScope, syncState);
+            return CreatePureStateSyncPush(resolvedWorldId, frame, isFullSnapshot, interestScope, syncState);
         }
 
-        private StateSyncPush CreatePureStateSyncPush(ulong worldId, bool isFullSnapshot, in ShooterStateSnapshotPayload snapshot)
+        private StateSyncPush CreatePureStateSyncPush(ulong worldId, int fallbackFrame, bool isFullSnapshot)
         {
             var settings = _stateSyncPushOptions.ResolvePureStateSettings();
             var pureState = _runtime?.ExportPureStateSnapshot(
@@ -564,7 +562,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 isFullBaseline: isFullSnapshot,
                 settings,
                 baselineFrame: isFullSnapshot ? 0 : _lastPureStateBaselineFrame,
-                baselineHash: isFullSnapshot ? 0u : _lastPureStateBaselineHash) ?? ShooterPureStateSnapshotPayload.Empty(snapshot.Frame);
+                baselineHash: isFullSnapshot ? 0u : _lastPureStateBaselineHash) ?? ShooterPureStateSnapshotPayload.Empty(fallbackFrame);
 
             if (isFullSnapshot)
             {
@@ -572,13 +570,13 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 _lastPureStateBaselineHash = pureState.StateHash;
             }
 
-            return CreatePureStateSyncPush(worldId, isFullSnapshot, in snapshot, in pureState);
+            return CreatePureStateSyncPush(worldId, isFullSnapshot, in pureState);
         }
 
         private StateSyncPush CreatePureStateSyncPush(
             ulong worldId,
+            int fallbackFrame,
             bool isFullSnapshot,
-            in ShooterStateSnapshotPayload snapshot,
             ShooterPureStateInterestScope interestScope,
             ShooterObserverPureStateSyncState syncState)
         {
@@ -590,7 +588,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 baselineFrame: isFullSnapshot ? 0 : syncState.BaselineFrame,
                 baselineHash: isFullSnapshot ? 0u : syncState.BaselineHash,
                 interestScope,
-                syncState.AoiInterestSet) ?? ShooterPureStateSnapshotPayload.Empty(snapshot.Frame);
+                syncState.AoiInterestSet) ?? ShooterPureStateSnapshotPayload.Empty(fallbackFrame);
 
             if (isFullSnapshot)
             {
@@ -598,13 +596,12 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 syncState.BaselineHash = pureState.StateHash;
             }
 
-            return CreatePureStateSyncPush(worldId, isFullSnapshot, in snapshot, in pureState);
+            return CreatePureStateSyncPush(worldId, isFullSnapshot, in pureState);
         }
 
         private static StateSyncPush CreatePureStateSyncPush(
             ulong worldId,
             bool isFullSnapshot,
-            in ShooterStateSnapshotPayload snapshot,
             in ShooterPureStateSnapshotPayload pureState)
         {
             return new StateSyncPush
@@ -612,7 +609,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 WorldId = worldId,
                 Frame = pureState.Frame,
                 Timestamp = DateTime.UtcNow.Ticks,
-                Actors = CreateActorSnapshots(in snapshot),
+                Actors = null!,
                 IsFullSnapshot = isFullSnapshot,
                 PayloadOpCode = isFullSnapshot ? ShooterOpCodes.Snapshot.PureState : ShooterOpCodes.Snapshot.PureStateDelta,
                 Payload = ShooterPureStateSyncCodec.Serialize(in pureState)

@@ -47,6 +47,7 @@ internal static class ShooterSmokeClientProcessRunner
         var latestComparableAuthoritativeHash = 0u;
         var latestComparableClientHash = 0u;
         var firstAppliedSnapshotHashMatched = true;
+        var fullSnapshotsApplied = 0;
         var pureStateFullBaselinesApplied = 0;
         var pureStateDeltasApplied = 0;
         var pureStateResyncRequests = 0;
@@ -59,6 +60,11 @@ internal static class ShooterSmokeClientProcessRunner
                     replay?.RecordSnapshot(in pushResult, payload);
                     pushCount++;
                     lastPush = pushResult;
+                    if (pushResult.IsFullSnapshot && IsAppliedSnapshotResult(pushResult.ApplyResult))
+                    {
+                        fullSnapshotsApplied++;
+                    }
+
                     if (pushResult.ApplyResult == ShooterSnapshotApplyResult.AppliedActorSnapshot)
                     {
                         if (pushResult.PureStateSnapshotKind == ShooterPureStateSnapshotKinds.FullBaseline)
@@ -187,7 +193,11 @@ internal static class ShooterSmokeClientProcessRunner
         var resultTimeout = CreateResultTimeout(options.Timeout);
         if (ShouldRequestInitialFullStateSync(launched.Flow.EntryKind))
         {
-            await RequestInitialFullStateSyncWhileTickingAsync(launched, launcher, resultTimeout);
+            await RequestInitialFullStateSyncWhileTickingAsync(
+                launched,
+                launcher,
+                () => fullSnapshotsApplied,
+                resultTimeout);
         }
 
         var push = await WaitForPushWhileTickingAsync(
@@ -229,6 +239,7 @@ internal static class ShooterSmokeClientProcessRunner
             launched.Flow.BattleId,
             soakTelemetry,
             () => pushCount,
+            () => fullSnapshotsApplied,
             () => pureStateFullBaselinesApplied,
             () => pureStateResyncRequests,
             () => latestComparableSnapshotFrame,
@@ -799,11 +810,13 @@ internal static class ShooterSmokeClientProcessRunner
     private static Task RequestInitialFullStateSyncWhileTickingAsync(
         ShooterClientNetworkLaunchResult launched,
         ShooterClientNetworkLauncher launcher,
+        Func<int> getFullSnapshotsApplied,
         TimeSpan timeout)
     {
         return RequestFullStateSyncWhileTickingAsync(
             launched,
             launcher,
+            getFullSnapshotsApplied,
             timeout,
             ShooterClientResyncReason.None.ToString(),
             "initial");
@@ -812,11 +825,13 @@ internal static class ShooterSmokeClientProcessRunner
     private static Task RequestRecoveryFullStateSyncWhileTickingAsync(
         ShooterClientNetworkLaunchResult launched,
         ShooterClientNetworkLauncher launcher,
+        Func<int> getFullSnapshotsApplied,
         TimeSpan timeout)
     {
         return RequestFullStateSyncWhileTickingAsync(
             launched,
             launcher,
+            getFullSnapshotsApplied,
             timeout,
             "SoakRecovery",
             "recovery");
@@ -825,10 +840,12 @@ internal static class ShooterSmokeClientProcessRunner
     private static async Task RequestFullStateSyncWhileTickingAsync(
         ShooterClientNetworkLaunchResult launched,
         ShooterClientNetworkLauncher launcher,
+        Func<int> getFullSnapshotsApplied,
         TimeSpan timeout,
         string reason,
         string requestKind)
     {
+        var fullSnapshotsBeforeRequest = getFullSnapshotsApplied();
         var request = launched.Battle.RequestFullSnapshotBaselineAsync(reason, timeout);
         var deadline = DateTime.UtcNow + timeout;
         while (!request.IsCompleted)
@@ -846,6 +863,17 @@ internal static class ShooterSmokeClientProcessRunner
         if (!result.Success || !result.Accepted)
         {
             throw new InvalidOperationException($"{requestKind} Shooter full-state sync request was rejected. Success={result.Success}, Accepted={result.Accepted}, Message={result.Message}");
+        }
+
+        while (getFullSnapshotsApplied() <= fullSnapshotsBeforeRequest)
+        {
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new TimeoutException($"Timed out waiting for {requestKind} Shooter full-state snapshot to apply.");
+            }
+
+            launcher.Tick(1f / ShooterGameplay.DefaultTickRate);
+            await Task.Delay(10).ConfigureAwait(false);
         }
     }
 
@@ -972,6 +1000,7 @@ internal static class ShooterSmokeClientProcessRunner
         string battleId,
         ShooterSmokeSoakTelemetry soakTelemetry,
         Func<int> getPushCount,
+        Func<int> getFullSnapshotsApplied,
         Func<int> getFullBaselinesApplied,
         Func<int> getResyncRequests,
         Func<int> getComparableFrame,
@@ -1008,6 +1037,7 @@ internal static class ShooterSmokeClientProcessRunner
                 await RequestRecoveryFullStateSyncWhileTickingAsync(
                     launched,
                     launcher,
+                    getFullSnapshotsApplied,
                     TimeSpan.FromSeconds(Math.Min(10d, Math.Max(1d, timeout.TotalSeconds))))
                     .ConfigureAwait(false);
             }
@@ -1263,7 +1293,8 @@ internal static class ShooterSmokeClientProcessRunner
                 pureState.SnapshotKind,
                 pureState.BaselineFrame,
                 pureState.BaselineHash,
-                pureState.VisibilityHints?.Length ?? 0);
+                pureState.VisibilityHints?.Length ?? 0,
+                wire.IsFullSnapshot);
             return true;
         }
 
@@ -1291,7 +1322,8 @@ internal static class ShooterSmokeClientProcessRunner
                 0,
                 0,
                 0u,
-                0);
+                0,
+                wire.IsFullSnapshot);
             return true;
         }
 
@@ -1324,7 +1356,8 @@ internal static class ShooterSmokeClientProcessRunner
             0,
             0,
             0u,
-            0);
+            0,
+            wire.IsFullSnapshot);
         return true;
     }
 

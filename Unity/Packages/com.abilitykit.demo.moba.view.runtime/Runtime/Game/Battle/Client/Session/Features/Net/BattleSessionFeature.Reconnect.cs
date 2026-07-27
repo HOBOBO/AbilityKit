@@ -119,9 +119,11 @@ namespace AbilityKit.Game.Flow
             // 在此之前的窗口期内，插值层驱动全部 actor（含本地玩家），画面保持正确。
             DisposeRemoteDrivenWorld();
             _pendingStateImport = true;
+            _snapshotAdmission?.RequireFullBaseline();
+            _authoritativeSnapshotState?.Reset();
 
             // 2. 重置远端插值缓冲——旧快照时间线已失效
-            _remoteInterpolationPlayback?.Reset();
+            _remoteInterpolationController?.Reset();
 
             // 3. 重置状态哈希对账——避免旧哈希历史在重连后立即误报 mismatch
             var reconcileControl = _ctx?.PredictionReconcileControl;

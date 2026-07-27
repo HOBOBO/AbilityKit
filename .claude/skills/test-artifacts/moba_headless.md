@@ -27,10 +27,10 @@ resultPath = Path.GetFullPath("../MultiplayerHeadlessHeroReplacement.xml");
 // 相对 Unity/ 即项目根，每次跑都污染
 ```
 
-**新默认**（artifacts/headless/ + 时间戳）：
+**新默认**（local/Logs/headless/ + 时间戳）：
 
 ```csharp
-var headlessDir = Path.GetFullPath("../../artifacts/headless");
+var headlessDir = Path.GetFullPath("../../local/Logs/headless");
 Directory.CreateDirectory(headlessDir);
 var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
 resultPath = Path.Combine(headlessDir, $"MultiplayerHeadlessHeroReplacement-{stamp}.xml");
@@ -67,8 +67,8 @@ $editor = "C:\Program Files\Unity\Hub\Editor\2022.3.62f1\Editor\Unity.exe"
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 & $editor -batchmode -nographics -projectPath Unity `
     -executeMethod AbilityKit.Game.Test.UnitTest.MultiplayerHeadlessHeroReplacementCommand.Run `
-    -multiplayerHeadlessResult "artifacts/headless/MultiplayerHeadlessHeroReplacement-$stamp.xml" `
-    -logFile "artifacts/headless/$stamp.log"
+    -multiplayerHeadlessResult "local/Logs/headless/MultiplayerHeadlessHeroReplacement-$stamp.xml" `
+    -logFile "local/Logs/headless/$stamp.log"
 ```
 
 ### XML 结果结构
@@ -88,4 +88,4 @@ success=true / false 直接决定测试结果。message base64 解码后是详�
 
 ## 历史归档
 
-`artifacts/headless-archive/` 下有 26 个历史 XML（含 24 个带 `-fix/-rerun/-probe/-diagnostic` 后缀的调试快照 + 1 个无后缀 + 1 个 Unity log）。这些是 2026-07-20 之前根目录散落的产物，已归档。技术价值耗尽，仅作历史参考。
+2026-07-20 前根目录曾散落 26 个 XML / log（含 24 个带 `-fix/-rerun/-probe/-diagnostic` 后缀的调试快照）。这些本地历史产物不再作为当前路径约定的一部分；新的无头结果统一写入 `local/Logs/headless/`。

@@ -4,7 +4,7 @@
 >
 > Unity 版本：2022.3 或更高的 2022.3 LTS 版本
 >
-> 最后更新：2026-07-19
+> 最后更新：2026-07-25
 
 本包提供 MOBA 示例的配置生产、场景预览、战斗诊断、帧同步检查、Scene Gizmo 和热重载等 Unity Editor 工具。本文是工具使用与维护文档的统一入口。
 
@@ -28,8 +28,11 @@
 - 拖动实体列表和详情区之间的分隔条可调整左栏宽度；栏宽、当前工作区和各工作区面板位置会在窗口关闭后保留。
 - 在 `Actor` 工作区查看“总览”“属性”“标签”“效果”“Buff”等选中实体快照。
 - 在 `Diagnostics` 工作区查看帧同步、诊断事件、Trace 和诊断状态等全局信息。
-- 在“诊断事件”中按选中 Actor、失败结果和文本条件过滤事件；点击事件序列号可查看完整上下文和 Payload。
-- 事件带有 Root Context ID 时，可在详情中点击“打开 Trace”，自动切换并定位对应 Trace 节点；手工输入 Root Context ID 仍作为辅助入口。
+- 在“诊断事件”的“失败调查”区优先处理失败案例：按置信度和根因过滤，使用前后按钮切换案例，直接选择证据事件，并可聚焦其 Root Context、Skill Runtime、Attack 或 Context 关联链。
+- 调查工作集首屏加载 200 条，可点击“加载更多”在同一固定 Event Store revision 上追加更早结果；筛选或 live revision 变化时重建首屏，固定快照淘汰时保留已加载结果并显示明确提示。
+- 调查案例只按可靠 Root Trace 聚合；没有 Root Trace 的失败保持独立，避免仅凭 Actor 或配置建立错误因果关系。案例结论、证据摘要和结构化技能失败字段可复制。
+- 问题簇按整个已加载工作集统计次数、首次帧、最近帧和跨度；事件列表仍支持按选中 Actor、失败结果、结构化技能失败 Code/Message/Slot 和普通文本条件过滤。
+- 事件或调查案例带有 Root Context ID 时，可点击“打开 Trace”，自动切换并定位对应 Trace 节点；手工输入 Root Context ID 仍作为辅助入口。
 - Trace 支持按 Kind、状态、结束原因、Context、Actor 或 Config 搜索；搜索结果保留祖先路径。可在直接命中之间循环前后定位、批量展开/折叠分支，也可 Pin 当前节点并在浏览其他节点后快速返回。程序化定位会将目标节点滚动回树视口。
 - 在“诊断状态”中点击 Actor ID，可同步更新窗口实体选择。
 - 面板提供复制按钮时，复制内容来自诊断 DTO 在采样时固化的数据。
@@ -43,7 +46,7 @@
 | 标签 | Actor 当前 Tag | Actor Tags 只读诊断查询 |
 | 效果 | Ability Effect 实例和计时状态 | Actor Effects 只读诊断查询 |
 | Buff | MOBA Buff 实例和上下文 | Actor Buffs 只读诊断查询 |
-| 诊断事件 | 战斗事件过滤与结果检查 | Event Ring Store 查询 |
+| 诊断事件 | 固定 revision 调查工作集、失败案例、证据与关联导航、问题簇范围和事件明细 | Event Ring Store 一致分页与只读案例投影 |
 | Trace | 按 Root Context ID 查看、搜索与命中导航、批量折叠 Trace 树，检查节点状态、父链路径和临时 Pin | Trace Read Store 查询 |
 | 诊断状态 | World 与 Actor 最新状态 | State Store 查询 |
 | 帧同步/* | 帧、预测、回滚、对账和网络状态 | 既有帧同步调试接口；按运行环境动态显示 |

@@ -212,6 +212,68 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void SubmitBattleInputAsync_UsesAuthoritativeProtocolAndPreservesResponse()
+        {
+            var conn = new MockConnection();
+            var client = CreateClient(conn);
+            var requests = new List<WireSubmitBattleInputReq>();
+            var response = new WireSubmitBattleInputRes
+            {
+                Success = false,
+                AcceptedFrame = 42,
+                CurrentFrame = 40,
+                Status = "RejectedTooFarFuture",
+                Message = "resync required",
+                ShouldResync = true,
+                ServerTicks = 123456L
+            };
+            conn.Responder = _ =>
+            {
+                requests.Add(WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputReq>(conn.LastPayload));
+                return WireRoomGatewayBinary.Serialize(in response);
+            };
+
+            var first = client.SubmitBattleInputAsync(
+                "token-input",
+                "battle-input",
+                9001UL,
+                42,
+                7U,
+                100,
+                new byte[] { 1, 2, 3 }).Result;
+            var second = client.SubmitBattleInputAsync(
+                "token-input",
+                "battle-input",
+                9001UL,
+                43,
+                7U,
+                101,
+                Array.Empty<byte>()).Result;
+
+            Assert.AreEqual(RoomGatewayOpCodes.SubmitBattleInput, conn.LastOpCode);
+            Assert.AreEqual(2, requests.Count);
+            Assert.AreEqual("token-input", requests[0].SessionToken);
+            Assert.AreEqual("battle-input", requests[0].BattleId);
+            Assert.AreEqual(9001UL, requests[0].WorldId);
+            Assert.AreEqual(42, requests[0].Frame);
+            Assert.AreEqual(7U, requests[0].PlayerId);
+            Assert.AreEqual(100, requests[0].InputOpCode);
+            CollectionAssert.AreEqual(new byte[] { 1, 2, 3 }, requests[0].Payload);
+            Assert.AreEqual(1UL, requests[0].CommandSequence);
+            Assert.AreEqual(2UL, requests[1].CommandSequence);
+
+            Assert.IsFalse(first.Success);
+            Assert.AreEqual(42, first.AcceptedFrame);
+            Assert.AreEqual(40, first.CurrentFrame);
+            Assert.AreEqual("RejectedTooFarFuture", first.Status);
+            Assert.AreEqual("resync required", first.Message);
+            Assert.IsTrue(first.ShouldResync);
+            Assert.AreEqual(123456L, first.ServerTicks);
+            Assert.AreEqual(1UL, first.CommandSequence);
+            Assert.AreEqual(2UL, second.CommandSequence);
+        }
+
+        [Test]
         public void IsRoomStateChangedPush_MatchesOpCode()
         {
             var conn = new MockConnection();

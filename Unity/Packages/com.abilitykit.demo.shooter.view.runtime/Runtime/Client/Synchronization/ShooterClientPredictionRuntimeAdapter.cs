@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Shooter.View
     {
         private static readonly IWorldResolver EmptyResolver = new EmptyWorldResolver();
         private readonly IShooterBattleRuntimePort _runtime;
+        private readonly List<ShooterPlayerCommand> _commandBuffer = new List<ShooterPlayerCommand>(8);
 
         public ShooterClientPredictionRuntimeAdapter(IShooterBattleRuntimePort runtime, string worldId = "shooter-client-prediction")
         {
@@ -43,22 +44,22 @@ namespace AbilityKit.Demo.Shooter.View
                 return;
             }
 
-            var commands = new List<ShooterPlayerCommand>(inputs.Count);
+            _commandBuffer.Clear();
             for (int i = 0; i < inputs.Count; i++)
             {
                 var decoded = ShooterInputCodec.Deserialize(inputs[i].Payload);
                 for (int j = 0; j < decoded.Length; j++)
                 {
-                    commands.Add(decoded[j]);
+                    _commandBuffer.Add(decoded[j]);
                 }
             }
 
-            if (commands.Count == 0)
+            if (_commandBuffer.Count == 0)
             {
                 return;
             }
 
-            _runtime.SubmitInput(frame.Value, commands.ToArray());
+            _runtime.SubmitInput(frame.Value, _commandBuffer);
         }
 
         public void Dispose()

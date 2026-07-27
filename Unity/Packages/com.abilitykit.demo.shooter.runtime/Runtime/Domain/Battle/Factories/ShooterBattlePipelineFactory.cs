@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using AbilityKit.Game.Battle;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {
@@ -13,17 +15,32 @@ namespace AbilityKit.Demo.Shooter.Runtime
         {
             if (services == null) throw new ArgumentNullException(nameof(services));
 
-            return new ShooterBattleSveltoStepEngine(new IShooterBattleSystem[]
+            var plan = BattleSystemContributionPlanner.Create<ShooterBattleServiceContext, IShooterBattleSystem>(
+                CreateDefaultContributions());
+            return new ShooterBattleSveltoStepEngine(plan.CreateSystems(services));
+        }
+
+        internal static IReadOnlyList<IBattleSystemContribution<ShooterBattleServiceContext, IShooterBattleSystem>> CreateDefaultContributions()
+        {
+            return new IBattleSystemContribution<ShooterBattleServiceContext, IShooterBattleSystem>[]
             {
-                new ShooterFrameBeginBattleSystem(services),
-                new ShooterBotAiServiceBattleSystem(services),
-                new ShooterEnemyWaveBattleSystem(services, ShooterEnemyWavePhase.Spawn),
-                new ShooterEnemyWaveMovementBattleSystem(services),
-                new ShooterSimulationBattleSystem(services),
-                new ShooterEnemyLifecycleCleanupBattleSystem(services),
-                new ShooterEnemyWaveBattleSystem(services, ShooterEnemyWavePhase.Attack),
-                new ShooterMatchStateBattleSystem(services)
-            });
+                Contribute("shooter.frame.begin", ShooterBattleSystemOrder.BeginFrame, services => new ShooterFrameBeginBattleSystem(services)),
+                Contribute("shooter.bot_ai", ShooterBattleSystemOrder.PlayerBotAi, services => new ShooterBotAiServiceBattleSystem(services)),
+                Contribute("shooter.enemy_wave.spawn", ShooterBattleSystemOrder.EnemyWaveSpawn, services => new ShooterEnemyWaveBattleSystem(services, ShooterEnemyWavePhase.Spawn)),
+                Contribute("shooter.enemy_wave.movement", ShooterBattleSystemOrder.EnemyWaveMovement, services => new ShooterEnemyWaveMovementBattleSystem(services)),
+                Contribute("shooter.simulation", ShooterBattleSystemOrder.Simulation, services => new ShooterSimulationBattleSystem(services)),
+                Contribute("shooter.enemy.cleanup", ShooterBattleSystemOrder.EnemyLifecycleCleanup, services => new ShooterEnemyLifecycleCleanupBattleSystem(services)),
+                Contribute("shooter.enemy_wave.attack", ShooterBattleSystemOrder.EnemyWaveAttack, services => new ShooterEnemyWaveBattleSystem(services, ShooterEnemyWavePhase.Attack)),
+                Contribute("shooter.match_state", ShooterBattleSystemOrder.MatchState, services => new ShooterMatchStateBattleSystem(services)),
+            };
+        }
+
+        private static BattleSystemContribution<ShooterBattleServiceContext, IShooterBattleSystem> Contribute(
+            string id,
+            int order,
+            Func<ShooterBattleServiceContext, IShooterBattleSystem> factory)
+        {
+            return new BattleSystemContribution<ShooterBattleServiceContext, IShooterBattleSystem>(id, order, factory);
         }
     }
 }

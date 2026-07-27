@@ -37,6 +37,27 @@ public sealed class WorldDeinitializableTests
     }
 
     [Fact]
+    public void ExternalInstance_IsResolvedWithoutContainerLifecycleOwnership()
+    {
+        var instance = new ExternalLifecycleTarget();
+        var builder = new WorldContainerBuilder();
+        builder.RegisterExternalInstance<ExternalLifecycleTarget>(instance);
+
+        var container = builder.Build();
+
+        Assert.Same(instance, container.Resolve<ExternalLifecycleTarget>());
+        Assert.Equal(WorldServiceOwnership.External, container.GetDescriptor(typeof(ExternalLifecycleTarget)).Ownership);
+        Assert.Equal(WorldServiceOwnership.External, Assert.Single(builder.Registrations).Ownership);
+        Assert.Equal(0, instance.InitializeCount);
+
+        container.Dispose();
+
+        Assert.Equal(0, instance.InitializeCount);
+        Assert.Equal(0, instance.DeinitializeCount);
+        Assert.Equal(0, instance.DisposeCount);
+    }
+
+    [Fact]
     public void ContainerDispose_CallsSingletonDeinitBeforeDispose_InReverseCreationOrder()
     {
         var events = new List<string>();
@@ -61,6 +82,28 @@ public sealed class WorldDeinitializableTests
                 "dependency:dispose"
             },
             events);
+    }
+
+    private sealed class ExternalLifecycleTarget : IWorldInitializable, IWorldDeinitializable
+    {
+        public int InitializeCount { get; private set; }
+        public int DeinitializeCount { get; private set; }
+        public int DisposeCount { get; private set; }
+
+        public void OnInit(IWorldResolver services)
+        {
+            InitializeCount++;
+        }
+
+        public void OnDeinit(IWorldResolver services)
+        {
+            DeinitializeCount++;
+        }
+
+        public void Dispose()
+        {
+            DisposeCount++;
+        }
     }
 
     private sealed class ScopedDependency : IWorldDeinitializable

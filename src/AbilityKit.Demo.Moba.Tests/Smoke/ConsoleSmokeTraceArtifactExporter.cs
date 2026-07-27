@@ -18,7 +18,7 @@ public sealed class ConsoleSmokeTraceArtifactOptions
 {
     public const string PolicyEnvironmentVariable = "ABILITYKIT_MOBA_CONSOLE_SMOKE_ARTIFACTS";
     public const string DirectoryEnvironmentVariable = "ABILITYKIT_MOBA_CONSOLE_SMOKE_ARTIFACT_DIR";
-    public const string DefaultArtifactDirectory = "artifacts/moba-console-smoke";
+    public const string DefaultArtifactDirectory = "local/Logs/moba-console-smoke";
 
     public ConsoleSmokeArtifactRetentionPolicy RetentionPolicy { get; init; } = ConsoleSmokeArtifactRetentionPolicy.OnFailure;
     public string ArtifactDirectory { get; init; } = DefaultArtifactDirectory;

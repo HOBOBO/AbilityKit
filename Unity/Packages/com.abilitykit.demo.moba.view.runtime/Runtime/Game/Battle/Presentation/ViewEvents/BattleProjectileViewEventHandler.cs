@@ -96,6 +96,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public void Clear()
         {
             _shellSpawner?.Clear();
+            _deduplicator.Clear();
             ResetCrossSourceDeduplication();
         }
 
@@ -110,14 +111,18 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         private void HandleSnapshotEntry(MobaProjectileEventSnapshotEntry entry)
         {
-            if (!_deduplicator.ShouldHandle(in entry)) return;
-
             if (entry.Kind == (int)ProjectileEventKind.Exit)
             {
+                // Exit cleanup is idempotent. Completed projectile identities must not remain
+                // in session-lifetime caches after a high-volume launch has finished.
+                _deduplicator.ForgetLifecycle(in entry);
+                _seenHitActorIds.Remove(entry.ProjectileActorId);
                 _vfxSpawner.StopFollowingActor(entry.ProjectileActorId);
                 _shellSpawner?.StopAndReturn(entry.TemplateId, entry.ProjectileActorId);
                 return;
             }
+
+            if (!_deduplicator.ShouldHandle(in entry)) return;
 
             // For hit events, register in cross-source deduplication so Trigger path skips.
             if (entry.Kind == (int)ProjectileEventKind.Hit && entry.ProjectileActorId > 0)
@@ -254,10 +259,33 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
     {
         private readonly HashSet<BattleProjectileSnapshotKey> _handled = new HashSet<BattleProjectileSnapshotKey>();
 
+        internal int Count => _handled.Count;
+
         public bool ShouldHandle(in MobaProjectileEventSnapshotEntry entry)
         {
             var key = BattleProjectileSnapshotKey.From(in entry);
             return _handled.Add(key);
+        }
+
+        public void ForgetLifecycle(in MobaProjectileEventSnapshotEntry exit)
+        {
+            var identity = exit.ProjectileId > 0 ? exit.ProjectileId : exit.ProjectileActorId;
+            if (identity <= 0) return;
+
+            Forget(in exit, (int)ProjectileEventKind.Spawn);
+            Forget(in exit, (int)ProjectileEventKind.Hit);
+        }
+
+        public void Clear()
+        {
+            _handled.Clear();
+        }
+
+        private void Forget(in MobaProjectileEventSnapshotEntry source, int kind)
+        {
+            var entry = source;
+            entry.Kind = kind;
+            _handled.Remove(BattleProjectileSnapshotKey.From(in entry));
         }
     }
 

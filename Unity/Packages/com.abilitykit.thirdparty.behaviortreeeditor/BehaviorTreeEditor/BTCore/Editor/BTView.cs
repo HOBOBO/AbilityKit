@@ -129,20 +129,24 @@ namespace BTCore.Editor
             _btData.EntryNode ??= CreateNode<EntryNode>(_entryPos) as EntryNode;
 
             var treeNodes = btData.Nodes;
+            var nodeViewsByGuid = new Dictionary<string, BTNodeView>(treeNodes.Count);
             // 根据保存的数据创建对应节点
-            treeNodes.ForEach(node => CreateNodeView(node));
+            foreach (var node in treeNodes) {
+                nodeViewsByGuid[node.Guid] = CreateNodeView(node);
+            }
+
             // 根据节点数据关系创建连线
-            treeNodes.ForEach(node => {
-                var childrenGuids = node.GetChildrenGuids();
-                childrenGuids.ForEach(guid => {
-                    var parentView = FindNodeView(node.Guid);
-                    var childView = FindNodeView(guid);
-                    if (parentView != null && childView != null) {
+            foreach (var node in treeNodes) {
+                if (!nodeViewsByGuid.TryGetValue(node.Guid, out var parentView)) {
+                    continue;
+                }
+
+                foreach (var guid in node.GetChildrenGuids()) {
+                    if (nodeViewsByGuid.TryGetValue(guid, out var childView)) {
                         ConnectNode(parentView, childView);
                     }
-                    
-                });
-            });
+                }
+            }
 
             // 处理StickNote部分
             foreach (var stickNoteData in _btData.StickNotes) {
@@ -165,9 +169,8 @@ namespace BTCore.Editor
                 colorGroup.SetPosition(new Rect(groupData.X, groupData.Y, groupData.Width, groupData.Height));
 
                 foreach (var nodeGuid in groupData.NodeGuids) {
-                    var node = GetNodeByGuid(nodeGuid);
-                    if (node != null) {
-                        colorGroup.AddElement(node);
+                    if (nodeViewsByGuid.TryGetValue(nodeGuid, out var nodeView)) {
+                        colorGroup.AddElement(nodeView);
                     }
                 }
                 

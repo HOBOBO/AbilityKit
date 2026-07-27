@@ -7,7 +7,7 @@ namespace AbilityKit.Game.Flow
     {
         public readonly BattleStartPlan Plan;
         public readonly BattleContext Context;
-        public readonly BattleSessionHandles.ConfirmedHandles Handles;
+        public readonly BattleSessionConfirmedWorldRuntime Handles;
         public readonly SessionWorldCatchUpController WorldCatchUp;
         public readonly int LastTickedFrame;
         public readonly float FixedDeltaSeconds;
@@ -16,7 +16,7 @@ namespace AbilityKit.Game.Flow
         public ConfirmedAuthorityWorldTickOptions(
             BattleStartPlan plan,
             BattleContext context,
-            BattleSessionHandles.ConfirmedHandles handles,
+            BattleSessionConfirmedWorldRuntime handles,
             SessionWorldCatchUpController worldCatchUp,
             int lastTickedFrame,
             float fixedDeltaSeconds,

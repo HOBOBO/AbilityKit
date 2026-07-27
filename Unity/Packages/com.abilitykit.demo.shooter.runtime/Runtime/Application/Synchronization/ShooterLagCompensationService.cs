@@ -84,6 +84,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private readonly ServerRewindLagCompensationService _lagCompensation;
         private readonly IShooterBattleRules _rules;
+        private LagCompensatedEntitySnapshot[] _entityBuffer = Array.Empty<LagCompensatedEntitySnapshot>();
         private ShooterLagCompensationEvaluation? _lastEvaluation;
 
         public ShooterLagCompensationService()
@@ -125,19 +126,28 @@ namespace AbilityKit.Demo.Shooter.Runtime
         {
             if (runtime == null) throw new ArgumentNullException(nameof(runtime));
 
-            var snapshot = runtime.GetSnapshot();
-            RecordFrame(in snapshot);
+            RecordFrame(runtime.CurrentFrame, runtime.GetPlayerSnapshotsTransient());
         }
 
         public void RecordFrame(in ShooterStateSnapshotPayload snapshot)
         {
-            var players = snapshot.Players ?? Array.Empty<ShooterPlayerSnapshot>();
-            var entities = new LagCompensatedEntitySnapshot[players.Length];
+            RecordFrame(snapshot.Frame, snapshot.Players ?? Array.Empty<ShooterPlayerSnapshot>());
+        }
+
+        private void RecordFrame(int frame, ShooterPlayerSnapshot[] players)
+        {
+            if (_entityBuffer.Length != players.Length)
+            {
+                _entityBuffer = players.Length == 0
+                    ? Array.Empty<LagCompensatedEntitySnapshot>()
+                    : new LagCompensatedEntitySnapshot[players.Length];
+            }
+
             for (var i = 0; i < players.Length; i++)
             {
                 var player = players[i];
                 var position = new Vec3(player.X, player.Y, 0f);
-                entities[i] = new LagCompensatedEntitySnapshot(
+                _entityBuffer[i] = new LagCompensatedEntitySnapshot(
                     player.PlayerId,
                     in position,
                     _rules.HitRadius,
@@ -145,7 +155,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     player.Alive);
             }
 
-            _lagCompensation.RecordFrame(snapshot.Frame, entities);
+            // The rewind service copies this buffer into its owned history frame.
+            _lagCompensation.RecordFrame(frame, _entityBuffer);
         }
 
         public bool TryEvaluateShot(in ShooterLagCompensationShot shot, out LagCompensationHitResult result)

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4adc6f3fc33b1cc47bf99c6d08d8dfa8, type: 3}
   m_Name: BattleGatewayConfig
   m_EditorClassIdentifier: 
-  UseGatewayTransport: 0
+  UseGatewayTransport: 1
   Host: 127.0.0.1
   Port: 4000
   NumericRoomId: 0
@@ -22,8 +22,8 @@ MonoBehaviour:
   AutoCreateRoom: 1
   AutoJoinRoom: 1
   JoinRoomId: 
-  CreateRoomOpCode: 110
-  JoinRoomOpCode: 111
+  CreateRoomOpCode: 101
+  JoinRoomOpCode: 102
   TimeSyncOpCode: 1300
   TimeSyncIntervalMs: 1000
   TimeSyncAlpha: 0.2

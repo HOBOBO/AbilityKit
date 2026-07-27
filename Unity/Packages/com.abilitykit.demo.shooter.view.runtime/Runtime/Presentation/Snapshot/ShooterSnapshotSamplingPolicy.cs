@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using AbilityKit.Protocol.Shooter;
 
@@ -28,8 +29,20 @@ namespace AbilityKit.Demo.Shooter.View
         public static ShooterSnapshotSamplingPolicy Default { get; } = new ShooterSnapshotSamplingPolicy(new ShooterSnapshotSamplingPolicyOptions());
 
         private readonly ShooterSnapshotSamplingPolicyOptions _options;
-        // 采样查找缓冲（成员复用，避免每帧 new Dictionary —— 高单位量下每帧 ~16KB 临时分配）。
-        private readonly Dictionary<ShooterViewEntityKey, ShooterViewTransformComponentChange> _toByKeyBuffer = new();
+        // The key lookup and index mapping are rebuilt once per snapshot window, then reused by render-frame samples.
+        private readonly Dictionary<ShooterViewEntityKey, int> _toIndexByKeyBuffer = new();
+        private readonly ReusableTransformList _transientTransformBuffer = new ReusableTransformList();
+        private int[] _toIndexByFromIndex = Array.Empty<int>();
+        private IReadOnlyList<ShooterViewTransformComponentChange>? _mappedFromChanges;
+        private IReadOnlyList<ShooterViewTransformComponentChange>? _mappedToChanges;
+        private ulong _mappedFromSequence;
+        private ulong _mappedToSequence;
+        private int _mappedFromFrame;
+        private int _mappedToFrame;
+        private ShooterViewBatchSource _mappedFromSource;
+        private ShooterViewBatchSource _mappedToSource;
+        private ShooterViewSnapshotKind _mappedFromKind;
+        private ShooterViewSnapshotKind _mappedToKind;
 
         public ShooterSnapshotSamplingPolicy(ShooterSnapshotSamplingPolicyOptions options)
         {
@@ -40,6 +53,25 @@ namespace AbilityKit.Demo.Shooter.View
             in ShooterSnapshotViewBatch from,
             in ShooterSnapshotViewBatch to,
             float playbackFrame,
+            out bool isContinuousSample)
+        {
+            return SampleCore(in from, in to, playbackFrame, useTransientBuffer: false, out isContinuousSample);
+        }
+
+        internal ShooterSnapshotViewBatch SampleTransient(
+            in ShooterSnapshotViewBatch from,
+            in ShooterSnapshotViewBatch to,
+            float playbackFrame,
+            out bool isContinuousSample)
+        {
+            return SampleCore(in from, in to, playbackFrame, useTransientBuffer: true, out isContinuousSample);
+        }
+
+        private ShooterSnapshotViewBatch SampleCore(
+            in ShooterSnapshotViewBatch from,
+            in ShooterSnapshotViewBatch to,
+            float playbackFrame,
+            bool useTransientBuffer,
             out bool isContinuousSample)
         {
             isContinuousSample = false;
@@ -54,7 +86,12 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             var t = (playbackFrame - from.Frame) / (to.Frame - from.Frame);
-            var transformChanges = SampleTransforms(from.TransformChanges, to.TransformChanges, t, ref isContinuousSample);
+            var transformChanges = SampleTransforms(
+                in from,
+                in to,
+                t,
+                useTransientBuffer,
+                ref isContinuousSample);
 
             return new ShooterSnapshotViewBatch(
                 from.WorldId,
@@ -72,32 +109,37 @@ namespace AbilityKit.Demo.Shooter.View
         }
 
         private IReadOnlyList<ShooterViewTransformComponentChange> SampleTransforms(
-            IReadOnlyList<ShooterViewTransformComponentChange> fromChanges,
-            IReadOnlyList<ShooterViewTransformComponentChange> toChanges,
+            in ShooterSnapshotViewBatch fromBatch,
+            in ShooterSnapshotViewBatch toBatch,
             float t,
+            bool useTransientBuffer,
             ref bool isContinuousSample)
         {
+            var fromChanges = fromBatch.TransformChanges;
+            var toChanges = toBatch.TransformChanges;
             if (_options.TransformMode != ShooterSnapshotComponentSamplingMode.Interpolate || fromChanges.Count == 0 || toChanges.Count == 0)
             {
                 return fromChanges;
             }
 
-            var toByKey = _toByKeyBuffer;
-            toByKey.Clear();
-            for (var i = 0; i < toChanges.Count; i++)
+            EnsureTransformIndexMapping(in fromBatch, in toBatch);
+
+            if (useTransientBuffer)
             {
-                toByKey[toChanges[i].Key] = toChanges[i];
+                return SampleTransformsTransient(fromChanges, toChanges, t, ref isContinuousSample);
             }
 
             ShooterViewTransformComponentChange[]? sampled = null;
             for (var i = 0; i < fromChanges.Count; i++)
             {
                 var from = fromChanges[i];
-                if (!toByKey.TryGetValue(from.Key, out var to))
+                var toIndex = _toIndexByFromIndex[i];
+                if (toIndex < 0)
                 {
                     continue;
                 }
 
+                var to = toChanges[toIndex];
                 sampled ??= CopyTransforms(fromChanges);
                 sampled[i] = new ShooterViewTransformComponentChange(
                     from.Key,
@@ -111,6 +153,90 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             return sampled ?? fromChanges;
+        }
+
+        private IReadOnlyList<ShooterViewTransformComponentChange> SampleTransformsTransient(
+            IReadOnlyList<ShooterViewTransformComponentChange> fromChanges,
+            IReadOnlyList<ShooterViewTransformComponentChange> toChanges,
+            float t,
+            ref bool isContinuousSample)
+        {
+            _transientTransformBuffer.Resize(fromChanges.Count);
+            for (var i = 0; i < fromChanges.Count; i++)
+            {
+                var from = fromChanges[i];
+                var toIndex = _toIndexByFromIndex[i];
+                if (toIndex < 0)
+                {
+                    _transientTransformBuffer.Set(i, in from);
+                    continue;
+                }
+
+                var to = toChanges[toIndex];
+                var sampled = new ShooterViewTransformComponentChange(
+                    from.Key,
+                    Lerp(from.X, to.X, t),
+                    Lerp(from.Y, to.Y, t),
+                    Lerp(from.FacingX, to.FacingX, t),
+                    Lerp(from.FacingY, to.FacingY, t),
+                    Lerp(from.VelocityX, to.VelocityX, t),
+                    Lerp(from.VelocityY, to.VelocityY, t));
+                _transientTransformBuffer.Set(i, in sampled);
+                isContinuousSample = true;
+            }
+
+            return isContinuousSample ? _transientTransformBuffer : fromChanges;
+        }
+
+        private void EnsureTransformIndexMapping(
+            in ShooterSnapshotViewBatch fromBatch,
+            in ShooterSnapshotViewBatch toBatch)
+        {
+            var fromChanges = fromBatch.TransformChanges;
+            var toChanges = toBatch.TransformChanges;
+            if (ReferenceEquals(_mappedFromChanges, fromChanges) &&
+                ReferenceEquals(_mappedToChanges, toChanges) &&
+                _mappedFromSequence == fromBatch.Sequence &&
+                _mappedToSequence == toBatch.Sequence &&
+                _mappedFromFrame == fromBatch.Frame &&
+                _mappedToFrame == toBatch.Frame &&
+                _mappedFromSource == fromBatch.Source &&
+                _mappedToSource == toBatch.Source &&
+                _mappedFromKind == fromBatch.SnapshotKind &&
+                _mappedToKind == toBatch.SnapshotKind)
+            {
+                return;
+            }
+
+            if (_toIndexByFromIndex.Length < fromChanges.Count)
+            {
+                var capacity = Math.Max(fromChanges.Count, Math.Max(16, _toIndexByFromIndex.Length * 2));
+                _toIndexByFromIndex = new int[capacity];
+            }
+
+            _toIndexByKeyBuffer.Clear();
+            for (var i = 0; i < toChanges.Count; i++)
+            {
+                _toIndexByKeyBuffer[toChanges[i].Key] = i;
+            }
+
+            for (var i = 0; i < fromChanges.Count; i++)
+            {
+                _toIndexByFromIndex[i] = _toIndexByKeyBuffer.TryGetValue(fromChanges[i].Key, out var toIndex)
+                    ? toIndex
+                    : -1;
+            }
+
+            _mappedFromChanges = fromChanges;
+            _mappedToChanges = toChanges;
+            _mappedFromSequence = fromBatch.Sequence;
+            _mappedToSequence = toBatch.Sequence;
+            _mappedFromFrame = fromBatch.Frame;
+            _mappedToFrame = toBatch.Frame;
+            _mappedFromSource = fromBatch.Source;
+            _mappedToSource = toBatch.Source;
+            _mappedFromKind = fromBatch.SnapshotKind;
+            _mappedToKind = toBatch.SnapshotKind;
         }
 
         private static IReadOnlyList<T> SampleStep<T>(
@@ -143,6 +269,52 @@ namespace AbilityKit.Demo.Shooter.View
         private static float Lerp(float from, float to, float t)
         {
             return from + ((to - from) * t);
+        }
+
+        private sealed class ReusableTransformList : IReadOnlyList<ShooterViewTransformComponentChange>
+        {
+            private ShooterViewTransformComponentChange[] _items = Array.Empty<ShooterViewTransformComponentChange>();
+
+            public int Count { get; private set; }
+
+            public ShooterViewTransformComponentChange this[int index]
+            {
+                get
+                {
+                    if ((uint)index >= (uint)Count) throw new ArgumentOutOfRangeException(nameof(index));
+                    return _items[index];
+                }
+            }
+
+            public void Resize(int count)
+            {
+                if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+                if (_items.Length < count)
+                {
+                    var capacity = Math.Max(count, Math.Max(16, _items.Length * 2));
+                    _items = new ShooterViewTransformComponentChange[capacity];
+                }
+
+                Count = count;
+            }
+
+            public void Set(int index, in ShooterViewTransformComponentChange value)
+            {
+                _items[index] = value;
+            }
+
+            public IEnumerator<ShooterViewTransformComponentChange> GetEnumerator()
+            {
+                for (var i = 0; i < Count; i++)
+                {
+                    yield return _items[i];
+                }
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
         }
     }
 }

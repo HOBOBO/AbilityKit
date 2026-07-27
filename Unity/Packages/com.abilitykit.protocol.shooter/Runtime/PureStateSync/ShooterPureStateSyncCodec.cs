@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Serialization;
 using MemoryPack;
 
@@ -227,6 +228,18 @@ namespace AbilityKit.Protocol.Shooter
         public static byte[] Serialize(in ShooterPureStateSnapshotPayload snapshot)
         {
             return MemoryPackSerializer.Serialize(snapshot);
+        }
+
+        /// <summary>
+        /// Serializes into a reusable exact-length array. Consume the returned payload before the
+        /// next serialization on <paramref name="buffer"/>.
+        /// </summary>
+        public static byte[] SerializeTransient(
+            in ShooterPureStateSnapshotPayload snapshot,
+            ReusableMemoryPackSerializationBuffer buffer)
+        {
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            return buffer.SerializeTransient(in snapshot);
         }
 
         public static ShooterPureStateSnapshotPayload Deserialize(byte[] payload)

@@ -139,7 +139,10 @@ namespace AbilityKit.Network.Runtime.LagCompensation
     public sealed class ServerRewindLagCompensationService
     {
         private readonly ServerRewindLagCompensationConfig _config;
-        private readonly List<FrameSnapshot> _history = new List<FrameSnapshot>(128);
+        private readonly FrameSnapshot[] _history;
+        private readonly List<LagCompensatedEntitySnapshot[]> _recycledEntityBuffers;
+        private int _historyStart;
+        private int _historyCount;
 
         public ServerRewindLagCompensationService()
             : this(ServerRewindLagCompensationConfig.Default)
@@ -148,35 +151,57 @@ namespace AbilityKit.Network.Runtime.LagCompensation
 
         public ServerRewindLagCompensationService(ServerRewindLagCompensationConfig config)
         {
+            if (config.MaxHistoryFrames <= 0) throw new ArgumentOutOfRangeException(nameof(config));
+
             _config = config;
+            _history = new FrameSnapshot[config.MaxHistoryFrames];
+            _recycledEntityBuffers = new List<LagCompensatedEntitySnapshot[]>(config.MaxHistoryFrames);
         }
 
         public NetworkSyncModel SyncModel => NetworkSyncModel.ServerRewindLagCompensation;
 
-        public int CapturedFrameCount => _history.Count;
+        public int CapturedFrameCount => _historyCount;
 
-        public int OldestFrame => _history.Count == 0 ? -1 : _history[0].Frame;
+        public int OldestFrame => _historyCount == 0 ? -1 : GetHistory(0).Frame;
 
-        public int LatestFrame => _history.Count == 0 ? -1 : _history[_history.Count - 1].Frame;
+        public int LatestFrame => _historyCount == 0 ? -1 : GetHistory(_historyCount - 1).Frame;
 
         public void RecordFrame(int frame, IReadOnlyList<LagCompensatedEntitySnapshot> entities)
         {
             if (entities == null) throw new ArgumentNullException(nameof(entities));
 
-            var copy = new LagCompensatedEntitySnapshot[entities.Count];
-            for (var i = 0; i < entities.Count; i++) copy[i] = entities[i];
-
             var existing = FindExactFrameIndex(frame);
             if (existing >= 0)
             {
-                _history[existing] = new FrameSnapshot(frame, copy);
-            }
-            else
-            {
-                InsertSorted(new FrameSnapshot(frame, copy));
+                var replacement = CopyEntities(entities, GetHistory(existing).Entities);
+                SetHistory(existing, new FrameSnapshot(frame, replacement));
+                return;
             }
 
-            TrimHistory();
+            // A full history retains the newest frames. Recording an older frame would be
+            // immediately trimmed by the original sorted-list implementation.
+            if (_historyCount == _history.Length && frame < GetHistory(0).Frame)
+            {
+                return;
+            }
+
+            LagCompensatedEntitySnapshot[] reusable = null;
+            if (_historyCount == _history.Length)
+            {
+                reusable = GetHistory(0).Entities;
+                _history[_historyStart] = default;
+                _historyStart = (_historyStart + 1) % _history.Length;
+                _historyCount--;
+            }
+
+            var insertAt = FindInsertionIndex(frame);
+            for (var i = _historyCount; i > insertAt; i--)
+            {
+                SetHistory(i, GetHistory(i - 1));
+            }
+
+            SetHistory(insertAt, new FrameSnapshot(frame, CopyEntities(entities, reusable)));
+            _historyCount++;
         }
 
         public bool TryEvaluateHit(in LagCompensationQuery query, out LagCompensationHitResult result)
@@ -200,7 +225,7 @@ namespace AbilityKit.Network.Runtime.LagCompensation
                 return false;
             }
 
-            var frame = _history[frameIndex];
+            var frame = GetHistory(frameIndex);
             var direction = query.Direction.Normalized;
             var bestDistance = float.PositiveInfinity;
             var bestEntity = 0;
@@ -248,14 +273,22 @@ namespace AbilityKit.Network.Runtime.LagCompensation
 
         public void Clear()
         {
-            _history.Clear();
+            for (var i = 0; i < _historyCount; i++)
+            {
+                var physicalIndex = ToPhysicalIndex(i);
+                RecycleBuffer(_history[physicalIndex].Entities);
+                _history[physicalIndex] = default;
+            }
+
+            _historyStart = 0;
+            _historyCount = 0;
         }
 
         private int FindExactFrameIndex(int frame)
         {
-            for (var i = 0; i < _history.Count; i++)
+            for (var i = 0; i < _historyCount; i++)
             {
-                if (_history[i].Frame == frame) return i;
+                if (GetHistory(i).Frame == frame) return i;
             }
 
             return -1;
@@ -264,34 +297,94 @@ namespace AbilityKit.Network.Runtime.LagCompensation
         private int FindFloorFrameIndex(int frame)
         {
             var best = -1;
-            for (var i = 0; i < _history.Count; i++)
+            for (var i = 0; i < _historyCount; i++)
             {
-                if (_history[i].Frame > frame) break;
+                if (GetHistory(i).Frame > frame) break;
                 best = i;
             }
 
             return best;
         }
 
-        private void InsertSorted(in FrameSnapshot snapshot)
+        private int FindInsertionIndex(int frame)
         {
-            var insertAt = _history.Count;
-            for (var i = 0; i < _history.Count; i++)
+            for (var i = 0; i < _historyCount; i++)
             {
-                if (_history[i].Frame <= snapshot.Frame) continue;
-                insertAt = i;
-                break;
+                if (GetHistory(i).Frame > frame)
+                {
+                    return i;
+                }
             }
 
-            _history.Insert(insertAt, snapshot);
+            return _historyCount;
         }
 
-        private void TrimHistory()
+        private FrameSnapshot GetHistory(int logicalIndex)
         {
-            while (_history.Count > _config.MaxHistoryFrames)
+            return _history[ToPhysicalIndex(logicalIndex)];
+        }
+
+        private void SetHistory(int logicalIndex, in FrameSnapshot snapshot)
+        {
+            _history[ToPhysicalIndex(logicalIndex)] = snapshot;
+        }
+
+        private int ToPhysicalIndex(int logicalIndex)
+        {
+            return (_historyStart + logicalIndex) % _history.Length;
+        }
+
+        private LagCompensatedEntitySnapshot[] CopyEntities(
+            IReadOnlyList<LagCompensatedEntitySnapshot> entities,
+            LagCompensatedEntitySnapshot[] preferred)
+        {
+            var buffer = AcquireBuffer(entities.Count, preferred);
+            for (var i = 0; i < entities.Count; i++)
             {
-                _history.RemoveAt(0);
+                buffer[i] = entities[i];
             }
+
+            return buffer;
+        }
+
+        private LagCompensatedEntitySnapshot[] AcquireBuffer(
+            int count,
+            LagCompensatedEntitySnapshot[] preferred)
+        {
+            if (preferred != null && preferred.Length == count)
+            {
+                return preferred;
+            }
+
+            RecycleBuffer(preferred);
+            if (count == 0)
+            {
+                return Array.Empty<LagCompensatedEntitySnapshot>();
+            }
+
+            for (var i = _recycledEntityBuffers.Count - 1; i >= 0; i--)
+            {
+                var candidate = _recycledEntityBuffers[i];
+                if (candidate.Length != count)
+                {
+                    continue;
+                }
+
+                _recycledEntityBuffers.RemoveAt(i);
+                return candidate;
+            }
+
+            return new LagCompensatedEntitySnapshot[count];
+        }
+
+        private void RecycleBuffer(LagCompensatedEntitySnapshot[] buffer)
+        {
+            if (buffer == null || buffer.Length == 0 || _recycledEntityBuffers.Count >= _config.MaxHistoryFrames)
+            {
+                return;
+            }
+
+            _recycledEntityBuffers.Add(buffer);
         }
 
         private static bool TryRaycastSphere(

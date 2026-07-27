@@ -1,7 +1,10 @@
 ﻿using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
+using AbilityKit.Ability.World.Services;
+using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Game.Battle.Transport.Projection;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
@@ -58,7 +61,16 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             _worldId = initParams.WorldId;
-            _battleWorld = _worldManager.CreateBattleWorld(_battleId, initParams.TickRate);
+            var launchSpec = _protocolMapper.CreateLaunchSpec(_battleId, initParams.TickRate, initParams);
+            var initData = launchSpec.ToWorldInitData(MobaWorldBootstrapModule.InitOpCode);
+            _battleWorld = _worldManager.CreateBattleWorld(
+                _battleId,
+                initParams.TickRate,
+                options =>
+                {
+                    options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
+                    options.ServiceBuilder.RegisterInstance(initData);
+                });
             if (_battleWorld == null)
             {
                 return BattleRuntimeStartResult.Fail("Battle world creation returned null.");
@@ -74,11 +86,16 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
                 return BattleRuntimeStartResult.Fail(_runtimePort.Status.ToString());
             }
 
-            var startSpec = _protocolMapper.CreateGameStartSpec(_battleId, initParams.TickRate, initParams);
-            var startResult = _runtimePort.TryStartGame(in startSpec);
-            if (!startResult.Succeeded)
+            if (!_battleWorld.Services.TryResolve<MobaGameplayService>(out var gameplay) || gameplay == null)
             {
-                return BattleRuntimeStartResult.Fail(startResult.ToString());
+                return BattleRuntimeStartResult.Fail("MobaGameplayService not resolved.");
+            }
+
+            if (!gameplay.IsRunning || gameplay.CurrentGameplayId != initParams.GameplayId)
+            {
+                return BattleRuntimeStartResult.Fail(
+                    $"MOBA bootstrap did not start the requested gameplay. phase={gameplay.Phase}, " +
+                    $"currentGameplayId={gameplay.CurrentGameplayId}, requestedGameplayId={initParams.GameplayId}.");
             }
 
             _snapshotProvider = _battleWorld.Services.Resolve<IWorldStateSnapshotProvider>();

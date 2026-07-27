@@ -753,6 +753,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         var serverTicks = DateTime.UtcNow.Ticks;
         push.ServerTicks = serverTicks;
         push.EventWatermark = _reliableEvents?.Watermark ?? 0;
+        push.EventEpoch = _reliableEvents?.Epoch ?? string.Empty;
         if (push.Timestamp <= 0d)
         {
             push.Timestamp = serverTicks;

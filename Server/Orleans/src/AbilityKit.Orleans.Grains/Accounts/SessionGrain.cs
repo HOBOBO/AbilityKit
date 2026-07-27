@@ -1,6 +1,7 @@
 using AbilityKit.Orleans.Contracts.Accounts;
 using AbilityKit.Orleans.Grains.Persistence;
 using Orleans;
+using ContractGuestLoginResponse = AbilityKit.Orleans.Contracts.Accounts.GuestLoginResponse;
 
 namespace AbilityKit.Orleans.Grains.Accounts;
 
@@ -16,7 +17,7 @@ public sealed class SessionGrain : Grain, ISessionGrain
         _sessionStateStore = sessionStateStore ?? throw new ArgumentNullException(nameof(sessionStateStore));
     }
 
-    public async Task<GuestLoginResponse> CreateGuestAsync()
+    public async Task<ContractGuestLoginResponse> CreateGuestAsync()
     {
         await CleanupExpiredAsync();
 
@@ -26,7 +27,7 @@ public sealed class SessionGrain : Grain, ISessionGrain
         var expireAt = DateTimeOffset.UtcNow.AddHours(24).ToUnixTimeMilliseconds();
 
         await _sessionStateStore.UpsertAsync(new SessionStateRecord(sessionToken, accountId, now, expireAt));
-        return new GuestLoginResponse(accountId, sessionToken, expireAt);
+        return new ContractGuestLoginResponse(accountId, sessionToken, expireAt);
     }
 
     public async Task<ValidateSessionResponse> ValidateAsync(ValidateSessionRequest request)

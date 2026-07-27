@@ -7,7 +7,7 @@ namespace AbilityKit.Game.Flow
         public static void EnsureInstalled(
             BattleContext ctx,
             GameFlowDomain flow,
-            BattleSessionHandles.ConfirmedHandles handles,
+            BattleSessionConfirmedWorldRuntime handles,
             WorldId authWorldId,
             bool enabled)
         {
@@ -23,7 +23,7 @@ namespace AbilityKit.Game.Flow
 
         private static bool ShouldInstall(
             GameFlowDomain flow,
-            BattleSessionHandles.ConfirmedHandles handles,
+            BattleSessionConfirmedWorldRuntime handles,
             bool enabled)
         {
             return flow != null && handles != null && !handles.HasViewFeature() && enabled;

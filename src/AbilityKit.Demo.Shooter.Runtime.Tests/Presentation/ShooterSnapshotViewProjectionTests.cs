@@ -976,6 +976,61 @@ public sealed class ShooterSnapshotViewProjectionTests
     }
 
     [Fact]
+    public void SnapshotStreamRetainedSamplesAreNotOverwrittenByLaterSamples()
+    {
+        var stream = new ShooterSnapshotStream(bufferCapacity: 4);
+        var first = CreateBatch(frame: 10, sequence: 10ul, x: 0f);
+        var second = CreateBatch(frame: 20, sequence: 20ul, x: 10f);
+        stream.Publish(in first);
+        stream.Publish(in second);
+
+        Assert.True(stream.TrySample(playbackFrame: 12.5f, out var retained));
+        Assert.True(stream.TrySample(playbackFrame: 17.5f, out var later));
+
+        Assert.Equal(2.5f, retained.TransformChanges[0].X);
+        Assert.Equal(7.5f, later.TransformChanges[0].X);
+    }
+
+    [Fact]
+    public void SnapshotStreamTransientPlaybackReusesLargeTransformBufferAfterWarmup()
+    {
+        const int entityCount = 2048;
+        var stream = new ShooterSnapshotStream(bufferCapacity: 4)
+        {
+            PlaybackFramesPerSecond = 30f,
+            InterpolationDelayFrames = 99_999f
+        };
+        var first = CreateLargeTransformBatch(frame: 0, sequence: 1ul, entityCount, xOffset: 0f);
+        var second = CreateLargeTransformBatch(frame: 100_000, sequence: 2ul, entityCount, xOffset: 10f);
+        stream.Publish(in first);
+        stream.Publish(in second);
+
+        for (var i = 0; i < 16; i++)
+        {
+            Assert.True(stream.TryAdvancePlaybackTransient(1f / 60f, out _));
+        }
+
+        var checksum = 0f;
+        var allSamplesValid = true;
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 64; i++)
+        {
+            if (!stream.TryAdvancePlaybackTransient(1f / 60f, out var sampled) || sampled.TransformChanges.Count != entityCount)
+            {
+                allSamplesValid = false;
+                continue;
+            }
+
+            checksum += sampled.TransformChanges[0].X;
+        }
+
+        var allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.True(allSamplesValid);
+        Assert.True(checksum > 0f);
+        Assert.True(allocatedBytes < 1_024L, $"Transient interpolation allocated {allocatedBytes} bytes after warmup.");
+    }
+
+    [Fact]
     public void SnapshotViewBinderConsumesBufferedSnapshotsOnInterpolationTick()
     {
         var stream = new ShooterSnapshotStream(bufferCapacity: 4)
@@ -1080,6 +1135,30 @@ public sealed class ShooterSnapshotViewProjectionTests
             new[] { new ShooterViewTransformComponentChange(player, x, 0f, 1f, 0f, 0f, 0f) },
             hp.HasValue ? new[] { new ShooterViewHealthComponentChange(player, hp.Value) } : Array.Empty<ShooterViewHealthComponentChange>(),
             score.HasValue ? new[] { new ShooterViewScoreComponentChange(player, score.Value) } : Array.Empty<ShooterViewScoreComponentChange>(),
+            Array.Empty<ShooterViewProjectileLifetimeComponentChange>(),
+            Array.Empty<ShooterEventSnapshot>());
+    }
+
+    private static ShooterSnapshotViewBatch CreateLargeTransformBatch(int frame, ulong sequence, int entityCount, float xOffset)
+    {
+        var transforms = new ShooterViewTransformComponentChange[entityCount];
+        for (var i = 0; i < entityCount; i++)
+        {
+            var key = new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, i + 1);
+            transforms[i] = new ShooterViewTransformComponentChange(key, xOffset + i, i, 1f, 0f, 0f, 0f);
+        }
+
+        return new ShooterSnapshotViewBatch(
+            worldId: 77ul,
+            frame,
+            sequence,
+            ShooterViewSnapshotKind.Full,
+            ShooterViewBatchSource.AuthoritativeCorrection,
+            Array.Empty<ShooterViewEntityChange>(),
+            Array.Empty<ShooterViewEntityKey>(),
+            transforms,
+            Array.Empty<ShooterViewHealthComponentChange>(),
+            Array.Empty<ShooterViewScoreComponentChange>(),
             Array.Empty<ShooterViewProjectileLifetimeComponentChange>(),
             Array.Empty<ShooterEventSnapshot>());
     }

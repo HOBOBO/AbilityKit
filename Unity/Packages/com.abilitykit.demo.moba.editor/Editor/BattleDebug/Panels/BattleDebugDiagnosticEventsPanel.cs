@@ -25,6 +25,9 @@ namespace AbilityKit.Game.Editor
         private readonly BattleDebugDiagnosticEventsViewModel _viewModel = new BattleDebugDiagnosticEventsViewModel();
         private Vector2 _scroll;
         private BattleDiagnosticEvent? _selectedEvent;
+        private BattleDebugSkillInvestigationCase? _selectedInvestigation;
+        private BattleDebugInvestigationConfidenceFilter _investigationConfidenceFilter;
+        private BattleDebugInvestigationCauseFilter _investigationCauseFilter;
         private string _actionStatus = string.Empty;
 
         public bool IsVisible(in BattleDebugContext ctx) => true;
@@ -40,6 +43,7 @@ namespace AbilityKit.Game.Editor
             _viewModel.SearchText = string.Empty;
             _viewModel.InvalidateCache();
             _selectedEvent = null;
+            _selectedInvestigation = null;
             _actionStatus = string.Empty;
             _scroll = Vector2.zero;
         }
@@ -59,8 +63,12 @@ namespace AbilityKit.Game.Editor
 
             var selectedActorId = ctx.HasSelection ? ctx.SelectedId.ActorId : 0;
             var items = _viewModel.RefreshIfNeeded(session, selectedActorId, ctx.HasSelection);
+            DrawWorksetControls(in ctx, session, selectedActorId);
+            items = _viewModel.Items;
+            DrawInvestigations(in ctx, items);
             DrawIssueGroups();
-            var useSplitLayout = _selectedEvent.HasValue && EditorGUIUtility.currentViewWidth >= 900f;
+            var useSplitLayout = (_selectedEvent.HasValue || _selectedInvestigation.HasValue) &&
+                                 EditorGUIUtility.currentViewWidth >= 900f;
             if (useSplitLayout)
             {
                 EditorGUILayout.BeginHorizontal();
@@ -281,8 +289,317 @@ namespace AbilityKit.Game.Editor
                 : "全部保留历史";
             var triggerScope = FormatTriggerFilterSummary();
             EditorGUILayout.LabelField(
-                $"{frameScope}  {_viewModel.EventScope}  {actorScope}  {triggerScope}  Cfg={(_viewModel.ConfigId == 0 ? "全部" : _viewModel.ConfigId.ToString())}  最新优先  EventRevision={_viewModel.StoreRevision}  显示={_viewModel.Items?.Count ?? 0}",
+                $"{frameScope}  {_viewModel.EventScope}  {actorScope}  {triggerScope}  Cfg={(_viewModel.ConfigId == 0 ? "全部" : _viewModel.ConfigId.ToString())}  最新优先  LiveRevision={_viewModel.StoreRevision}",
                 EditorStyles.miniLabel);
+        }
+
+        private void DrawWorksetControls(
+            in BattleDebugContext ctx,
+            IBattleDiagnosticReadOnlySession session,
+            long selectedActorId)
+        {
+            EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+            GUILayout.Label("调查工作集", EditorStyles.miniBoldLabel, GUILayout.Width(66));
+            GUILayout.Label(
+                $"{_viewModel.LoadedCount} 条  SnapshotRevision={_viewModel.WorksetRevision}",
+                EditorStyles.miniLabel);
+            GUILayout.FlexibleSpace();
+            GUILayout.Label(
+                _viewModel.HasMore ? "仍有更早结果" : "已到当前快照末尾",
+                EditorStyles.miniLabel,
+                GUILayout.Width(92));
+            EditorGUI.BeginDisabledGroup(!_viewModel.HasMore);
+            if (GUILayout.Button(
+                    new GUIContent("加载更多", "从当前固定快照追加下一页，不混入新的 live revision"),
+                    EditorStyles.miniButton,
+                    GUILayout.Width(72)))
+            {
+                var selectedCaseKey = _selectedInvestigation.HasValue
+                    ? _selectedInvestigation.Value.Key
+                    : string.Empty;
+                if (_viewModel.LoadMore(session, selectedActorId, ctx.HasSelection))
+                {
+                    RestoreInvestigationSelection(selectedCaseKey, _viewModel.Items);
+                    _actionStatus = $"调查工作集已扩展到 {_viewModel.LoadedCount} 条。";
+                }
+                ctx.RequestRepaint?.Invoke();
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+
+            if (!string.IsNullOrEmpty(_viewModel.PagingStatusMessage))
+            {
+                EditorGUILayout.HelpBox(
+                    _viewModel.PagingStatusMessage,
+                    _viewModel.HasMore ? MessageType.Info : MessageType.Warning);
+            }
+        }
+
+        private void RestoreInvestigationSelection(
+            string selectedCaseKey,
+            IReadOnlyList<BattleDiagnosticEvent> items)
+        {
+            if (string.IsNullOrEmpty(selectedCaseKey)) return;
+
+            var cases = BattleDebugSkillInvestigationModel.Build(
+                items,
+                _investigationConfidenceFilter,
+                _investigationCauseFilter);
+            for (var i = 0; i < cases.Count; i++)
+            {
+                if (!string.Equals(
+                        cases[i].Key,
+                        selectedCaseKey,
+                        System.StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                _selectedInvestigation = cases[i];
+                return;
+            }
+
+            _selectedInvestigation = null;
+        }
+
+        private void DrawInvestigations(
+            in BattleDebugContext ctx,
+            IReadOnlyList<BattleDiagnosticEvent> items)
+        {
+            var cases = BattleDebugSkillInvestigationModel.Build(
+                items,
+                _investigationConfidenceFilter,
+                _investigationCauseFilter);
+
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("失败调查", EditorStyles.miniBoldLabel, GUILayout.Width(58));
+            GUILayout.Label("置信度", EditorStyles.miniLabel, GUILayout.Width(42));
+            _investigationConfidenceFilter =
+                (BattleDebugInvestigationConfidenceFilter)EditorGUILayout.EnumPopup(
+                    _investigationConfidenceFilter,
+                    EditorStyles.miniPullDown,
+                    GUILayout.Width(125));
+            GUILayout.Label("根因", EditorStyles.miniLabel, GUILayout.Width(30));
+            _investigationCauseFilter =
+                (BattleDebugInvestigationCauseFilter)EditorGUILayout.EnumPopup(
+                    _investigationCauseFilter,
+                    EditorStyles.miniPullDown,
+                    GUILayout.Width(170));
+            GUILayout.FlexibleSpace();
+            GUILayout.Label($"{cases.Count} 个案例", EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+
+            var selectedIndex = FindInvestigationIndex(cases, _selectedInvestigation);
+            if (_selectedInvestigation.HasValue && selectedIndex < 0)
+            {
+                _selectedInvestigation = null;
+            }
+            else if (selectedIndex >= 0)
+            {
+                _selectedInvestigation = cases[selectedIndex];
+            }
+
+            if (cases.Count == 0)
+            {
+                EditorGUILayout.LabelField("当前案例筛选下没有匹配项。", EditorStyles.miniLabel);
+            }
+
+            for (var i = 0; i < cases.Count; i++)
+            {
+                var investigation = cases[i];
+                EditorGUILayout.BeginHorizontal();
+                var label = $"F{investigation.FirstFrame}-F{investigation.LastFrame}  {investigation.Conclusion}";
+                var style = selectedIndex == i ? EditorStyles.toolbarButton : EditorStyles.miniButton;
+                if (GUILayout.Button(label, style, GUILayout.MinWidth(280f)))
+                {
+                    SelectInvestigation(in investigation);
+                    selectedIndex = i;
+                }
+
+                GUILayout.Label(investigation.Confidence.ToString(), EditorStyles.miniLabel, GUILayout.Width(125));
+                GUILayout.Label($"{investigation.Evidence.Count} 条", EditorStyles.miniLabel, GUILayout.Width(36));
+                if (investigation.RootContextId > 0)
+                {
+                    GUILayout.Label($"trace={investigation.RootContextId}", EditorStyles.miniLabel, GUILayout.Width(90));
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+
+            if (_selectedInvestigation.HasValue)
+            {
+                var selected = _selectedInvestigation.Value;
+                selectedIndex = FindInvestigationIndex(cases, _selectedInvestigation);
+                EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+                GUILayout.Label(
+                    selectedIndex >= 0 ? $"案例 {selectedIndex + 1}/{cases.Count}" : "案例已固定",
+                    EditorStyles.miniBoldLabel);
+                GUILayout.FlexibleSpace();
+                EditorGUI.BeginDisabledGroup(selectedIndex < 0 || selectedIndex >= cases.Count - 1);
+                if (GUILayout.Button(new GUIContent("▲", "选择更早的调查案例"), EditorStyles.toolbarButton, GUILayout.Width(26f)))
+                {
+                    var previous = cases[selectedIndex + 1];
+                    SelectInvestigation(in previous);
+                }
+                EditorGUI.EndDisabledGroup();
+                EditorGUI.BeginDisabledGroup(selectedIndex <= 0);
+                if (GUILayout.Button(new GUIContent("▼", "选择更新的调查案例"), EditorStyles.toolbarButton, GUILayout.Width(26f)))
+                {
+                    var next = cases[selectedIndex - 1];
+                    SelectInvestigation(in next);
+                }
+                EditorGUI.EndDisabledGroup();
+                EditorGUILayout.EndHorizontal();
+
+                EditorGUILayout.LabelField("调查结论", selected.Conclusion);
+                EditorGUILayout.LabelField("证据摘要", selected.EvidenceSummary, EditorStyles.wordWrappedMiniLabel);
+                DrawInvestigationEvidence(selected.Evidence);
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button("复制调查摘要", GUILayout.Width(100)))
+                {
+                    EditorGUIUtility.systemCopyBuffer = BuildInvestigationClipboardText(in selected);
+                    _actionStatus = "调查摘要已复制到剪贴板。";
+                }
+
+                EditorGUI.BeginDisabledGroup(selected.SourceActorId <= 0 || ctx.SelectActor == null);
+                if (GUILayout.Button("选择来源 Actor", GUILayout.Width(110)))
+                {
+                    ctx.SelectActor?.Invoke(selected.SourceActorId);
+                }
+                EditorGUI.EndDisabledGroup();
+
+                EditorGUI.BeginDisabledGroup(!HasCorrelatedEvidence(selected.Evidence));
+                if (GUILayout.Button("聚焦证据链", GUILayout.Width(100)))
+                {
+                    FocusInvestigationEvidence(selected.Evidence);
+                }
+                EditorGUI.EndDisabledGroup();
+
+                EditorGUI.BeginDisabledGroup(!selected.CanOpenTrace || ctx.OpenTrace == null);
+                if (GUILayout.Button("打开 Trace", GUILayout.Width(90)))
+                {
+                    ctx.OpenTrace?.Invoke(selected.RootContextId, selected.ContextId);
+                }
+                EditorGUI.EndDisabledGroup();
+
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("取消调查", GUILayout.Width(80)))
+                {
+                    _selectedInvestigation = null;
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.Space(4);
+        }
+
+        private void SelectInvestigation(in BattleDebugSkillInvestigationCase investigation)
+        {
+            _selectedInvestigation = investigation;
+            _selectedEvent = investigation.Evidence.Count > 0
+                ? investigation.Evidence[0]
+                : default(BattleDiagnosticEvent?);
+            _actionStatus = string.Empty;
+        }
+
+        private static int FindInvestigationIndex(
+            IReadOnlyList<BattleDebugSkillInvestigationCase> cases,
+            BattleDebugSkillInvestigationCase? selected)
+        {
+            if (cases == null || !selected.HasValue) return -1;
+            for (var i = 0; i < cases.Count; i++)
+            {
+                if (string.Equals(cases[i].Key, selected.Value.Key, System.StringComparison.Ordinal))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private void DrawInvestigationEvidence(IReadOnlyList<BattleDiagnosticEvent> evidence)
+        {
+            if (evidence == null || evidence.Count == 0) return;
+
+            const float buttonWidth = 58f;
+            const float buttonSpacing = 4f;
+            var availableWidth = Mathf.Max(buttonWidth, EditorGUIUtility.currentViewWidth - 70f);
+            var buttonsPerRow = Mathf.Max(
+                1,
+                Mathf.FloorToInt(availableWidth / (buttonWidth + buttonSpacing)));
+
+            EditorGUILayout.LabelField("证据事件", EditorStyles.miniBoldLabel);
+            for (var rowStart = 0; rowStart < evidence.Count; rowStart += buttonsPerRow)
+            {
+                EditorGUILayout.BeginHorizontal();
+                var rowEnd = Mathf.Min(evidence.Count, rowStart + buttonsPerRow);
+                for (var i = rowStart; i < rowEnd; i++)
+                {
+                    var item = evidence[i];
+                    var tooltip = $"F{item.Frame} {item.Kind}: {item.Summary}";
+                    if (GUILayout.Button(
+                            new GUIContent($"#{item.Sequence}", tooltip),
+                            EditorStyles.miniButton,
+                            GUILayout.Width(buttonWidth)))
+                    {
+                        _selectedEvent = item;
+                        _actionStatus = $"已选择案例证据 #{item.Sequence}。";
+                    }
+                }
+
+                GUILayout.FlexibleSpace();
+                EditorGUILayout.EndHorizontal();
+            }
+        }
+
+        private static bool HasCorrelatedEvidence(IReadOnlyList<BattleDiagnosticEvent> evidence)
+        {
+            if (evidence == null) return false;
+            for (var i = 0; i < evidence.Count; i++)
+            {
+                var item = evidence[i];
+                if (HasCorrelation(in item)) return true;
+            }
+
+            return false;
+        }
+
+        private void FocusInvestigationEvidence(IReadOnlyList<BattleDiagnosticEvent> evidence)
+        {
+            if (evidence == null) return;
+            for (var i = 0; i < evidence.Count; i++)
+            {
+                var item = evidence[i];
+                if (!_viewModel.FocusRelated(in item)) continue;
+
+                _selectedEvent = item;
+                _scroll = Vector2.zero;
+                _actionStatus = $"正在调查 {_viewModel.CorrelationFocusLabel}。";
+                return;
+            }
+        }
+
+        private static string BuildInvestigationClipboardText(in BattleDebugSkillInvestigationCase investigation)
+        {
+            var builder = new StringBuilder();
+            builder.AppendLine($"Conclusion={investigation.Conclusion}");
+            builder.AppendLine($"Cause={investigation.Cause}");
+            builder.AppendLine($"Confidence={investigation.Confidence}");
+            builder.AppendLine($"Frames={investigation.FirstFrame}-{investigation.LastFrame}");
+            builder.AppendLine($"RootContextId={investigation.RootContextId}");
+            builder.AppendLine($"ContextId={investigation.ContextId}");
+            builder.AppendLine($"SourceActorId={investigation.SourceActorId}");
+            builder.AppendLine($"TargetActorId={investigation.TargetActorId}");
+            builder.AppendLine($"ConfigId={investigation.ConfigId}");
+            builder.AppendLine($"SkillRuntime={investigation.SkillRuntime}");
+            builder.AppendLine($"Evidence={investigation.EvidenceSummary}");
+            for (var i = 0; i < investigation.Evidence.Count; i++)
+            {
+                builder.AppendLine($"EventSequence={investigation.Evidence[i].Sequence}");
+            }
+            return builder.ToString();
         }
 
         private void DrawIssueGroups()
@@ -293,7 +610,7 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             EditorGUILayout.BeginHorizontal();
             GUILayout.Label("问题聚合", EditorStyles.miniBoldLabel, GUILayout.Width(58));
-            GUILayout.Label("按当前结果归并失败原因；点击可收敛到同类事件。", EditorStyles.miniLabel);
+            GUILayout.Label("按调查工作集归并失败原因；点击可收敛到同类事件。", EditorStyles.miniLabel);
             GUILayout.FlexibleSpace();
             GUILayout.Label($"{groups.Count} 个簇", EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
@@ -311,7 +628,9 @@ namespace AbilityKit.Game.Editor
                 }
 
                 GUILayout.Label($"{group.Count} 次", EditorStyles.miniLabel, GUILayout.Width(42));
+                GUILayout.Label($"首次 F{group.FirstFrame}", EditorStyles.miniLabel, GUILayout.Width(72));
                 GUILayout.Label($"最近 F{group.LatestFrame}", EditorStyles.miniLabel, GUILayout.Width(72));
+                GUILayout.Label($"跨度 {group.FrameSpan}", EditorStyles.miniLabel, GUILayout.Width(62));
                 if (group.ConfigId != 0)
                 {
                     GUILayout.Label($"cfg={group.ConfigId}", EditorStyles.miniLabel, GUILayout.Width(66));
@@ -387,6 +706,10 @@ namespace AbilityKit.Game.Editor
                 GUILayout.Label($"trg={triggerPayload.TriggerId}", EditorStyles.miniLabel, GUILayout.Width(70));
                 GUILayout.Label($"{triggerPayload.Stage}/{triggerPayload.Result}", EditorStyles.miniLabel, GUILayout.Width(135));
             }
+            else if (evt.Payload.TryGetSkillFailure(out var skillFailure))
+            {
+                GUILayout.Label(skillFailure.Code, EditorStyles.miniLabel, GUILayout.Width(180));
+            }
 
             if (evt.ConfigId != 0)
             {
@@ -458,6 +781,10 @@ namespace AbilityKit.Game.Editor
             if (evt.Payload.TryGetTriggerAnalysis(out var triggerPayload))
             {
                 DrawTriggerPayloadDetails(in triggerPayload, evt.Payload.SchemaVersion);
+            }
+            else if (evt.Payload.TryGetSkillFailure(out var skillFailure))
+            {
+                DrawSkillFailurePayloadDetails(in skillFailure, evt.Payload.SchemaVersion);
             }
             else if (evt.Payload.TryGetSyncSnapshotReceived(out var syncPayload))
             {
@@ -572,6 +899,10 @@ namespace AbilityKit.Game.Editor
             {
                 AppendTriggerPayloadClipboard(builder, in triggerPayload, evt.Payload.SchemaVersion);
             }
+            else if (evt.Payload.TryGetSkillFailure(out var skillFailure))
+            {
+                AppendSkillFailurePayloadClipboard(builder, in skillFailure, evt.Payload.SchemaVersion);
+            }
             else if (evt.Payload.TryGetSyncSnapshotReceived(out var syncPayload))
             {
                 builder.AppendLine($"PayloadKind={evt.Payload.Kind}");
@@ -635,6 +966,31 @@ namespace AbilityKit.Game.Editor
                 EditorGUILayout.LabelField("Failure Key", string.IsNullOrEmpty(payload.FailureKey) ? "（无）" : payload.FailureKey);
                 EditorGUILayout.LabelField("Reason", string.IsNullOrEmpty(payload.Reason) ? "（无）" : payload.Reason);
             }
+        }
+
+        private static void DrawSkillFailurePayloadDetails(
+            in BattleDiagnosticSkillFailurePayload payload,
+            int schemaVersion)
+        {
+            EditorGUILayout.LabelField(
+                "Payload",
+                $"SkillFailure v{schemaVersion}: code={payload.Code}, slot={payload.Slot}");
+            EditorGUILayout.LabelField("Failure Source / Stage", $"{payload.Source} / {payload.Stage}");
+            EditorGUILayout.LabelField("Failure Message", payload.Message);
+        }
+
+        private static void AppendSkillFailurePayloadClipboard(
+            StringBuilder builder,
+            in BattleDiagnosticSkillFailurePayload payload,
+            int schemaVersion)
+        {
+            builder.AppendLine($"PayloadKind={BattleDiagnosticPayloadKind.SkillFailure}");
+            builder.AppendLine($"PayloadSchemaVersion={schemaVersion}");
+            builder.AppendLine($"SkillFailureSlot={payload.Slot}");
+            builder.AppendLine($"SkillFailureSource={payload.Source}");
+            builder.AppendLine($"SkillFailureStage={payload.Stage}");
+            builder.AppendLine($"SkillFailureCode={payload.Code}");
+            builder.AppendLine($"SkillFailureMessage={payload.Message}");
         }
 
         private static void AppendTriggerPayloadClipboard(

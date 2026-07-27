@@ -34,5 +34,9 @@ namespace BTCore.Runtime
         public void AddChild(BTNode child) {
             Children.Add(child);
         }
+
+        public void ClearChildren() {
+            Children.Clear();
+        }
     }
 }

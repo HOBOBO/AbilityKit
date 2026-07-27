@@ -4,7 +4,7 @@
 >
 > 当前能力以 [CURRENT-CAPABILITIES.md](CURRENT-CAPABILITIES.md) 为准。历史记录中的“当前”“尚未”等措辞只描述对应批次结束时的状态。
 >
-> 最后整理：2026-07-21
+> 最后整理：2026-07-25
 
 ## 阅读规则
 
@@ -299,6 +299,42 @@ Unity 手工验收：尚未在 Play Mode 验证完整 HUD/View/VFX/Timeline/插�
 已知限制：渲染模式 Seek 重建发生异常时会通过 `finally` 恢复表现，但当前异常仍向调用方传播；是否统一转成 `false` 需结合错误展示契约另行决定。自动化 fixture 验证控制顺序，不替代真实场景中的资源与订阅清理验收。
 
 当前能力文档更新：登记“渲染表现”开关、纯逻辑 Diagnostics、按模式分流的向后 Seek、表现 Suspend/Restore 顺序，以及当前启动上下文和运行时模式边界。
+
+## 第三十六批：技能失败调查案例与结构化证据
+
+目标：按 P0、P1、P2 顺序把事件列表从原始失败浏览提升为案例导向的技能调查工作流，使开发者能稳定聚合失败、判断证据置信度、定位根因并沿既有关联入口继续分析。
+
+关键结果：P0 新增纯 Editor 调查案例投影，只合并共享可靠 Root Context 的失败，无 Root Trace 的失败保持独立，并显式区分 `Confirmed`、`Inferred` 和 `InsufficientEvidence`。P1 新增版本化 `SkillFailure` Payload，稳定保存 Slot、Source、Stage、Code 和 Message；技能输入、释放准备、战斗规则、Runner 与 Pipeline 失败路径统一采集，Store 搜索、Artifact 映射、事件详情和复制文本均消费结构化字段，不从 Summary 反解析。P2 新增置信度与根因组合筛选、前后案例导航、证据事件直选、关联聚焦、Actor/Trace 跳转和可复制证据摘要；证据按钮按窗口宽度自动换行，重复技能失败按 Code/Source/Stage 形成稳定问题簇。
+
+未改变的边界：案例仍是当前事件查询结果上的只读投影，没有增加独立 Store、可变 Runtime 旁路或基于 Actor/Config 的弱因果合并；无可靠 Root Context 时不推断同一案例。顶层 `abilitykit-analysis.v1` 与 Battle Diagnostics Section 版本保持不变，新增 Artifact 字段为向后兼容的可选字段。
+
+测试：已补调查模型、Event Store、Artifact Codec 和 Events ViewModel 聚焦契约，覆盖可靠 Root Trace 聚合、无 Trace 隔离、置信度/根因分类及组合筛选、结构化 Code/Message/Slot 搜索、Artifact round-trip、复制文本和 Summary 变化时的稳定问题簇。Unity 2022.3.62f1 batchmode 在脚本编译阶段被 `SessionReplayController.cs` 两处既有 `FramePacket` 类型缺失错误阻断，目标 NUnit fixture 未进入执行，且没有生成预期 XML，因此不宣称测试通过。
+
+构建：本批执行的 `git diff --check` 通过，没有空白错误或冲突标记，仅报告工作树既有 LF/CRLF 转换提示。Unity 生成的 Editor 项目尚未收录新增调查模型脚本；未手工修改生成项目，也没有用过期生成项目的结果代替 Unity 编译结论。
+
+Unity 手工验收：未在 Play Mode 完成案例筛选、前后导航、证据选择、Actor/Trace 跳转、稳定问题簇和窄窗口换行的实际交互验收；对应步骤已加入 `TESTING.md`。
+
+已知限制：案例模型只分析当前最多 200 条事件结果，不是跨完整保留区的离线索引；稳定问题簇当前以筛选聚焦为主，没有趋势图、首次/末次发生对比或跨 Artifact 合并。除 SkillFailure 与既有强类型 Payload 外，其他失败仍可能只能给出推断或证据不足结论。
+
+当前能力文档更新：README、当前能力和测试指南已登记案例聚合规则、结构化技能失败证据、筛选与导航入口、稳定问题簇、自动化契约及手工验收边界。
+
+## 第三十七批：调查工作集与固定 Revision 分页
+
+目标：消除失败调查只分析首批 200 条结果的主要盲区，使开发者能在一致事件快照上显式扩展更早证据，同时补充问题簇的发生范围信息。
+
+关键结果：Events ViewModel 将首屏刷新与“加载更多”分离。首屏仍以 200 条为页大小，并固定当次 Event Store revision；后续页沿同一 revision 和筛选条件追加，按 Sequence 去重，重建案例与问题簇。筛选或 live revision 变化时重建首屏；固定快照淘汰时保留已加载结果、停止继续分页并显示明确状态。面板新增调查工作集数量、SnapshotRevision、剩余结果和加载操作；案例在追加后按稳定 Key 保持选择并更新证据；问题簇新增首次帧、最近帧和跨度。
+
+未改变的边界：本批只扩展 Editor 只读查询工作流，没有新增独立 Runtime Store、Bookmark、Freeze/Clear UI、Runtime PinTrace 或基于 Actor/Config 的弱因果合并。调查工作集不是后台完整索引，不跨 Artifact 聚合。
+
+测试：`BattleDebugDiagnosticViewModelTests` 新增固定 revision 下一页、追加顺序与问题簇范围、live revision 首屏重建和 revision 淘汰保留用例；既有稳定问题簇用例补充首次帧与跨度断言。Unity 2022.3.62f1 batchmode 仍在脚本编译阶段被 `SessionReplayController.cs` 两处既有 `FramePacket` 类型缺失错误阻断，目标 NUnit 未执行且没有新 XML，因此不宣称测试通过。
+
+构建：本批目标源码和文档执行范围化 `git diff --check` 通过。未手工修改 Unity 生成项目；由于生成项目刷新与上述 Unity 编译错误边界，未用过期 `.csproj` 构建代替 Unity 结果。
+
+Unity 手工验收：尚未在 Play Mode 验证超过 200 条事件的追加、live revision 并发增长、案例选择保持、问题簇范围和快照淘汰提示；对应步骤已加入 `TESTING.md`。
+
+已知限制：单页固定为 200 条，用户需显式加载更早结果；快照淘汰后只能保留已加载部分并重新刷新到 live revision，不能继续读取已淘汰历史。当前提供范围统计而非趋势图，也没有 Bookmark 或跨 Artifact 对比。
+
+当前能力文档更新：README、当前能力和测试指南已登记固定 revision 工作集、增量加载、案例选择保持、问题簇范围、淘汰语义及验证边界。
 
 ## 后续记录格式
 

@@ -12,6 +12,9 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly Dictionary<ShooterViewEntityKey, ShooterViewHealthState> _health = new Dictionary<ShooterViewEntityKey, ShooterViewHealthState>();
         private readonly Dictionary<ShooterViewEntityKey, ShooterViewScoreState> _scores = new Dictionary<ShooterViewEntityKey, ShooterViewScoreState>();
         private readonly Dictionary<ShooterViewEntityKey, ShooterViewProjectileLifetimeState> _projectileLifetimes = new Dictionary<ShooterViewEntityKey, ShooterViewProjectileLifetimeState>();
+        private int _playerCount;
+        private int _bulletCount;
+        private int _enemyCount;
 
         public IReadOnlyDictionary<ShooterViewEntityKey, ShooterViewEntityState> Entities => _entities;
 
@@ -25,11 +28,11 @@ namespace AbilityKit.Demo.Shooter.View
 
         public int EntityCount => _entities.Count;
 
-        public int PlayerCount => CountEntities(ShooterViewEntityKind.Player);
+        public int PlayerCount => _playerCount;
 
-        public int BulletCount => CountEntities(ShooterViewEntityKind.Bullet);
+        public int BulletCount => _bulletCount;
 
-        public int EnemyCount => CountEntities(ShooterViewEntityKind.Enemy);
+        public int EnemyCount => _enemyCount;
 
         public void Clear()
         {
@@ -38,22 +41,36 @@ namespace AbilityKit.Demo.Shooter.View
             _health.Clear();
             _scores.Clear();
             _projectileLifetimes.Clear();
+            _playerCount = 0;
+            _bulletCount = 0;
+            _enemyCount = 0;
         }
 
-        public void UpsertEntity(in ShooterViewEntityChange change)
+        public bool UpsertEntity(in ShooterViewEntityChange change)
         {
             if (!change.Alive)
             {
-                RemoveEntity(change.Key);
-                return;
+                return RemoveEntity(change.Key);
+            }
+
+            var existed = _entities.ContainsKey(change.Key);
+            if (!existed)
+            {
+                IncrementKindCount(change.Key.Kind);
             }
 
             _entities[change.Key] = new ShooterViewEntityState(change.Key, change.OwnerEntityId, change.Alive);
+            return existed;
         }
 
         public bool RemoveEntity(ShooterViewEntityKey key)
         {
             var removed = _entities.Remove(key);
+            if (removed)
+            {
+                DecrementKindCount(key.Kind);
+            }
+
             _transforms.Remove(key);
             _health.Remove(key);
             _scores.Remove(key);
@@ -61,11 +78,11 @@ namespace AbilityKit.Demo.Shooter.View
             return removed;
         }
 
-        public void UpsertTransform(in ShooterViewTransformComponentChange change)
+        public bool UpsertTransform(in ShooterViewTransformComponentChange change)
         {
             if (!_entities.ContainsKey(change.Key))
             {
-                return;
+                return false;
             }
 
             _transforms[change.Key] = new ShooterViewTransformState(
@@ -76,36 +93,40 @@ namespace AbilityKit.Demo.Shooter.View
                 change.FacingY,
                 change.VelocityX,
                 change.VelocityY);
+            return true;
         }
 
-        public void UpsertHealth(in ShooterViewHealthComponentChange change)
+        public bool UpsertHealth(in ShooterViewHealthComponentChange change)
         {
             if (!_entities.ContainsKey(change.Key))
             {
-                return;
+                return false;
             }
 
             _health[change.Key] = new ShooterViewHealthState(change.Key, change.Hp);
+            return true;
         }
 
-        public void UpsertScore(in ShooterViewScoreComponentChange change)
+        public bool UpsertScore(in ShooterViewScoreComponentChange change)
         {
             if (!_entities.ContainsKey(change.Key))
             {
-                return;
+                return false;
             }
 
             _scores[change.Key] = new ShooterViewScoreState(change.Key, change.Score);
+            return true;
         }
 
-        public void UpsertProjectileLifetime(in ShooterViewProjectileLifetimeComponentChange change)
+        public bool UpsertProjectileLifetime(in ShooterViewProjectileLifetimeComponentChange change)
         {
             if (!_entities.ContainsKey(change.Key))
             {
-                return;
+                return false;
             }
 
             _projectileLifetimes[change.Key] = new ShooterViewProjectileLifetimeState(change.Key, change.RemainingFrames);
+            return true;
         }
 
         public bool ContainsEntity(ShooterViewEntityKey key)
@@ -138,18 +159,36 @@ namespace AbilityKit.Demo.Shooter.View
             return _projectileLifetimes.TryGetValue(key, out state);
         }
 
-        private int CountEntities(ShooterViewEntityKind kind)
+        private void IncrementKindCount(ShooterViewEntityKind kind)
         {
-            var count = 0;
-            foreach (var entity in _entities.Values)
+            switch (kind)
             {
-                if (entity.Kind == kind && entity.Alive)
-                {
-                    count++;
-                }
+                case ShooterViewEntityKind.Player:
+                    _playerCount++;
+                    break;
+                case ShooterViewEntityKind.Bullet:
+                    _bulletCount++;
+                    break;
+                case ShooterViewEntityKind.Enemy:
+                    _enemyCount++;
+                    break;
             }
+        }
 
-            return count;
+        private void DecrementKindCount(ShooterViewEntityKind kind)
+        {
+            switch (kind)
+            {
+                case ShooterViewEntityKind.Player:
+                    _playerCount = Math.Max(0, _playerCount - 1);
+                    break;
+                case ShooterViewEntityKind.Bullet:
+                    _bulletCount = Math.Max(0, _bulletCount - 1);
+                    break;
+                case ShooterViewEntityKind.Enemy:
+                    _enemyCount = Math.Max(0, _enemyCount - 1);
+                    break;
+            }
         }
     }
 

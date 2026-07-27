@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Ability.StateSync.Aoi
 {
-    public readonly struct AoiEntityKey : IEquatable<AoiEntityKey>
+    public readonly struct AoiEntityKey : IEquatable<AoiEntityKey>, IComparable<AoiEntityKey>
     {
         public AoiEntityKey(int kind, int id)
         {
@@ -33,6 +33,12 @@ namespace AbilityKit.Ability.StateSync.Aoi
             {
                 return (Kind * 397) ^ Id;
             }
+        }
+
+        public int CompareTo(AoiEntityKey other)
+        {
+            var byKind = Kind.CompareTo(other.Kind);
+            return byKind != 0 ? byKind : Id.CompareTo(other.Id);
         }
 
         public override string ToString()
@@ -143,9 +149,16 @@ namespace AbilityKit.Ability.StateSync.Aoi
             VisibleCount = visibleCount;
         }
 
-        public IReadOnlyList<AoiInterestChange> Changes { get; }
+        public IReadOnlyList<AoiInterestChange> Changes { get; private set; }
 
-        public int VisibleCount { get; }
+        public int VisibleCount { get; private set; }
+
+        internal void Reset(IReadOnlyList<AoiInterestChange> changes, int visibleCount)
+        {
+            Changes = changes ?? EmptyChanges;
+            VisibleCount = visibleCount;
+        }
+
     }
 
     public sealed class AoiInterestSet
@@ -153,6 +166,9 @@ namespace AbilityKit.Ability.StateSync.Aoi
         private readonly HashSet<AoiEntityKey> _visible = new HashSet<AoiEntityKey>();
         private readonly HashSet<AoiEntityKey> _seenThisFrame = new HashSet<AoiEntityKey>();
         private readonly Dictionary<AoiEntityKey, AoiEntitySample> _lastVisibleSamples = new Dictionary<AoiEntityKey, AoiEntitySample>();
+        private readonly List<AoiInterestChange> _transientChanges = new List<AoiInterestChange>();
+        private readonly List<AoiEntityKey> _transientLeaves = new List<AoiEntityKey>();
+        private readonly AoiInterestEvaluation _transientEvaluation = new AoiInterestEvaluation(Array.Empty<AoiInterestChange>(), 0);
 
         public int VisibleCount => _visible.Count;
 
@@ -170,6 +186,24 @@ namespace AbilityKit.Ability.StateSync.Aoi
 
         public AoiInterestEvaluation Evaluate(IReadOnlyList<AoiEntitySample> samples, AoiInterestScope scope, bool forceFullBaseline = false)
         {
+            return EvaluateCore(samples, scope, forceFullBaseline, useTransientBuffers: false);
+        }
+
+        /// <summary>
+        /// Evaluates into reusable change buffers. Consume the result before the next transient
+        /// evaluation on this interest set.
+        /// </summary>
+        public AoiInterestEvaluation EvaluateTransient(IReadOnlyList<AoiEntitySample> samples, AoiInterestScope scope, bool forceFullBaseline = false)
+        {
+            return EvaluateCore(samples, scope, forceFullBaseline, useTransientBuffers: true);
+        }
+
+        private AoiInterestEvaluation EvaluateCore(
+            IReadOnlyList<AoiEntitySample> samples,
+            AoiInterestScope scope,
+            bool forceFullBaseline,
+            bool useTransientBuffers)
+        {
             _seenThisFrame.Clear();
 
             if (forceFullBaseline)
@@ -180,10 +214,12 @@ namespace AbilityKit.Ability.StateSync.Aoi
 
             if (samples == null || samples.Count == 0)
             {
-                return RemoveUnseenEntities();
+                return RemoveUnseenEntities(useTransientBuffers);
             }
 
-            var changes = new List<AoiInterestChange>(samples.Count);
+            var changes = useTransientBuffers
+                ? PrepareTransientChanges(samples.Count)
+                : new List<AoiInterestChange>(samples.Count);
             for (int i = 0; i < samples.Count; i++)
             {
                 var sample = samples[i];
@@ -213,8 +249,8 @@ namespace AbilityKit.Ability.StateSync.Aoi
                 changes.Add(new AoiInterestChange(sample.Key, AoiInterestTransition.Enter, distanceSquared, sample.Layer, sample.OwnerId, sample.Flags));
             }
 
-            AppendUnseenLeaves(changes);
-            return new AoiInterestEvaluation(changes, _visible.Count);
+            AppendUnseenLeaves(changes, useTransientBuffers);
+            return CreateEvaluation(changes, _visible.Count, useTransientBuffers);
         }
 
         private static bool ShouldBeVisible(bool wasVisible, float distanceSquared, AoiInterestScope scope)
@@ -240,26 +276,32 @@ namespace AbilityKit.Ability.StateSync.Aoi
             return dx * dx + dy * dy;
         }
 
-        private AoiInterestEvaluation RemoveUnseenEntities()
+        private AoiInterestEvaluation RemoveUnseenEntities(bool useTransientBuffers)
         {
             if (_visible.Count == 0)
             {
-                return new AoiInterestEvaluation(Array.Empty<AoiInterestChange>(), 0);
+                var empty = useTransientBuffers
+                    ? PrepareTransientChanges(0)
+                    : (IReadOnlyList<AoiInterestChange>)Array.Empty<AoiInterestChange>();
+                return CreateEvaluation(empty, 0, useTransientBuffers);
             }
 
-            var changes = new List<AoiInterestChange>(_visible.Count);
-            AppendUnseenLeaves(changes);
-            return new AoiInterestEvaluation(changes, _visible.Count);
+            var changes = useTransientBuffers
+                ? PrepareTransientChanges(_visible.Count)
+                : new List<AoiInterestChange>(_visible.Count);
+            AppendUnseenLeaves(changes, useTransientBuffers);
+            return CreateEvaluation(changes, _visible.Count, useTransientBuffers);
         }
 
-        private void AppendUnseenLeaves(List<AoiInterestChange> changes)
+        private void AppendUnseenLeaves(List<AoiInterestChange> changes, bool useTransientBuffers)
         {
             if (_visible.Count == 0)
             {
                 return;
             }
 
-            var leaves = new List<AoiEntityKey>();
+            var leaves = useTransientBuffers ? _transientLeaves : new List<AoiEntityKey>();
+            leaves.Clear();
             foreach (var key in _visible)
             {
                 if (!_seenThisFrame.Contains(key))
@@ -267,6 +309,8 @@ namespace AbilityKit.Ability.StateSync.Aoi
                     leaves.Add(key);
                 }
             }
+
+            leaves.Sort();
 
             for (int i = 0; i < leaves.Count; i++)
             {
@@ -281,6 +325,31 @@ namespace AbilityKit.Ability.StateSync.Aoi
 
                 changes.Add(new AoiInterestChange(key, AoiInterestTransition.Leave, 0f));
             }
+        }
+
+        private List<AoiInterestChange> PrepareTransientChanges(int capacity)
+        {
+            _transientChanges.Clear();
+            if (_transientChanges.Capacity < capacity)
+            {
+                _transientChanges.Capacity = capacity;
+            }
+
+            return _transientChanges;
+        }
+
+        private AoiInterestEvaluation CreateEvaluation(
+            IReadOnlyList<AoiInterestChange> changes,
+            int visibleCount,
+            bool useTransientBuffers)
+        {
+            if (!useTransientBuffers)
+            {
+                return new AoiInterestEvaluation(changes, visibleCount);
+            }
+
+            _transientEvaluation.Reset(changes, visibleCount);
+            return _transientEvaluation;
         }
     }
 }

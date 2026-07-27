@@ -137,6 +137,9 @@ namespace AbilityKit.Demo.Moba.Services
                 _generator.InitializeFromAttributeTemplate(entity, summon.AttributeTemplateId);
             }
 
+            // 继承属性配置：按 施法者属性 × Ratio + Add 覆写召唤物属性基础值
+            TryApplyInheritAttributes(entity, caster, summon);
+
             TryApplyDefaultComponentTemplates(entity, summon.DefaultComponentTemplateIds);
 
             TryInitSkillLoadout(entity, summon.SkillIds, summon.PassiveSkillIds);
@@ -151,6 +154,33 @@ namespace AbilityKit.Demo.Moba.Services
             PublishSummonEvent(MobaSummonTriggering.Events.SpawnedByOwner(rootOwner), rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None, in spawnSourceContext);
 
             return true;
+        }
+
+        private void TryApplyInheritAttributes(global::ActorEntity entity, global::ActorEntity caster, Config.BattleDemo.MO.SummonMO summon)
+        {
+            if (summon.InheritAttributeConfigId <= 0) return;
+            if (_config == null) return;
+            if (!_config.TryGetSummonAttrInherit(summon.InheritAttributeConfigId, out var inherit) || inherit == null) return;
+            if (inherit.Scales == null || inherit.Scales.Count == 0) return;
+            if (entity == null || caster == null) return;
+            if (!entity.hasAttributeGroup || entity.attributeGroup.Group == null) return;
+            if (!caster.hasAttributeGroup || caster.attributeGroup.Group == null) return;
+
+            var summonGroup = entity.attributeGroup.Group;
+            var casterGroup = caster.attributeGroup.Group;
+
+            for (int i = 0; i < inherit.Scales.Count; i++)
+            {
+                var scale = inherit.Scales[i];
+                if (scale.AttrId <= 0) continue;
+
+                var attrId = Attributes.MobaAttributeIds.Get((BattleAttributeType)scale.AttrId);
+                if (attrId.Equals(default(AbilityKit.Attributes.Core.AttributeId))) continue;
+
+                var casterValue = casterGroup.GetValue(attrId);
+                var inherited = casterValue * scale.Ratio + scale.Add;
+                summonGroup.SetBase(attrId, inherited);
+            }
         }
 
         private void TryApplyDefaultComponentTemplates(global::ActorEntity entity, IReadOnlyList<int> templateIds)

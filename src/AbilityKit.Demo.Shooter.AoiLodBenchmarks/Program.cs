@@ -29,7 +29,10 @@ public static class Program
                 Console.WriteLine(
                     $"{result.Case.Id}: {(result.Passed ? "PASS" : "FAIL")} " +
                     $"mean={metrics.MeanTickMilliseconds:F3}ms median={metrics.MedianTickMilliseconds:F3}ms " +
-                    $"alloc={metrics.ThreadAllocatedBytesPerTick}B/tick payload={metrics.PayloadBytesPerTick}B/tick " +
+                    $"[export={metrics.ExportMillisecondsPerTick:F3}ms serialize={metrics.SerializationMillisecondsPerTick:F3}ms] " +
+                    $"alloc={metrics.ThreadAllocatedBytesPerTick}B/tick " +
+                    $"[export={metrics.ExportAllocatedBytesPerTick}B serialize={metrics.SerializationAllocatedBytesPerTick}B] " +
+                    $"payload={metrics.PayloadBytesPerTick}B/tick " +
                     $"enter={metrics.EnterCount} leave={metrics.LeaveCount} " +
                     $"starved={metrics.StarvedEntitiesAtEnd} maxUnsent={metrics.MaxUnsentTicks}");
                 foreach (var failure in result.Failures)

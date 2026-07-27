@@ -10,16 +10,16 @@
 
 ## 排查产物位置
 
-- 同事跑完测试后产物找不到了
+- 同事跑完本地测试后产物找不到了
 - CI 上传的 artifact 在哪个路径
-- `artifacts/test-gates/` 下哪个时间戳目录是最新的
+- `local/Logs/test-gates/` 下哪个时间戳目录是最新的
 - dotnet test 的 TRX 文件在哪
 - Unity 测试的 NUnit XML 在哪
 
 ## 清理产物
 
 - 磁盘空间不够，要清理历史测试产物
-- `artifacts/` 目录太大，要识别哪些可以安全删除
+- `local/Logs/` 目录太大，要识别哪些可以安全删除
 - CI 工作流的 artifact 保留策略
 
 ## 绕过 gate 体系时

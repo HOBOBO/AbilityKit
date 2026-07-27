@@ -84,6 +84,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             if (dtoType == typeof(AoeDTO)) return DeserializeAoe(obj);
             if (dtoType == typeof(EmitterDTO)) return DeserializeEmitter(obj);
             if (dtoType == typeof(SummonDTO)) return DeserializeSummon(obj);
+            if (dtoType == typeof(SummonAttrInheritDTO)) return DeserializeSummonAttrInherit(obj);
             if (dtoType == typeof(SkillFlowDTO)) return DeserializeSkillFlow(obj);
             if (dtoType == typeof(SkillLevelTableDTO)) return DeserializeSkillLevelTable(obj);
             if (dtoType == typeof(ComponentTemplateDTO)) return DeserializeComponentTemplate(obj);
@@ -540,10 +541,22 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 SkillIds = obj["SkillIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 PassiveSkillIds = obj["PassiveSkillIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 BrainId = obj["BrainId"]?.Value<int>() ?? 0,
+                BrainTreeName = obj["BrainTreeName"]?.Value<string>() ?? string.Empty,
+                InheritAttributeConfigId = obj["InheritAttributeConfigId"]?.Value<int>() ?? 0,
                 DefaultComponentTemplateIds = obj["DefaultComponentTemplateIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>()
             };
             return dto;
+        }
+
+        private static SummonAttrInheritDTO DeserializeSummonAttrInherit(JObject obj)
+        {
+            return new SummonAttrInheritDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                Scales = DeserializeSummonAttrScales(obj["Scales"])
+            };
         }
 
         private static SummonAttrScaleDTO[] DeserializeSummonAttrScales(JToken token)

@@ -1,16 +1,33 @@
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Transport;
+using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleSessionFeature
     {
-        private MobaRemoteInterpolationPlayback _remoteInterpolationPlayback;
+        private const float SynchronizationHealthSampleIntervalSeconds = 0.5f;
+
+        private MobaClientAuthoritativeInterpolationSyncController _remoteInterpolationController;
+        private MobaClientReplicationPipeline _remoteReplicationPipeline;
+        private MobaSynchronizationHealthEvaluator _synchronizationHealthEvaluator;
+        private MobaSynchronizationHealthSnapshot _synchronizationHealth;
+        private float _synchronizationHealthSampleElapsed;
+        private MobaSnapshotAdmission _snapshotAdmission;
+        private MobaAuthoritativeSnapshotState _authoritativeSnapshotState;
+        private const int MaxPendingReliableEventBatches = 32;
+        private const int MaxReliableEventAckAttempts = 3;
+
+        private MobaReliableBattleEventCursor _reliableEventCursor;
+        private readonly Queue<WireReliableBattleEventPush> _pendingReliableEventBatches =
+            new Queue<WireReliableBattleEventPush>();
         private NetworkTransport _interpolationTransport;
         private int _lastServerAckFrame;
         private bool _pendingStateImport;
@@ -40,42 +57,274 @@ namespace AbilityKit.Game.Flow
                     _unityDispatcher,
                     _networkIoDispatcher);
 
-                // 远端实体插值播放：Gateway 推送 SnapshotPushed → 缓冲 → 每帧投影
+                // 远端实体插值播放：Gateway 推送 SnapshotPushed → 统一复制管线 → 每帧投影。
                 if (transport is NetworkTransport networkTransport)
                 {
-                    _remoteInterpolationPlayback = new MobaRemoteInterpolationPlayback();
+                    _remoteInterpolationController = new MobaClientAuthoritativeInterpolationSyncController();
+                    _remoteReplicationPipeline = new MobaClientReplicationPipeline(_remoteInterpolationController);
+                    _synchronizationHealthEvaluator = new MobaSynchronizationHealthEvaluator();
+                    _synchronizationHealth = default;
+                    _synchronizationHealthSampleElapsed = 0f;
+                    _snapshotAdmission = new MobaSnapshotAdmission();
+                    _snapshotAdmission.Reset(roomId);
+                    _authoritativeSnapshotState = new MobaAuthoritativeSnapshotState();
+                    _reliableEventCursor = new MobaReliableBattleEventCursor(
+                        gateway.BattleId ?? string.Empty);
+                    _pendingStateImport = true;
                     _interpolationTransport = networkTransport;
+                    networkTransport.Options.GetReliableEventEpoch =
+                        () => _reliableEventCursor?.Epoch ?? string.Empty;
+                    networkTransport.Options.GetReliableEventLastAcknowledgedSequence =
+                        () => _reliableEventCursor?.LastAcknowledgedSequence ?? 0L;
                     networkTransport.StateSyncSnapshotPushed += OnStateSyncSnapshotPushed;
-                    BattleSyncFeature.EnableRemoteInterpolation = true;
+                    networkTransport.ReliableEventsPushed += OnReliableEventsPushed;
+                    if (_ctx != null) _ctx.EnableRemoteInterpolation = true;
 
-                    // 输入 ACK 帧回传：SubmitInput 的 response 携带服务端帧号，
-                    // 用于 RemoteDrivenWorldTickDriver 诊断预测窗口偏差。
+                    // 输入 ACK 帧回传同时更新预测窗口和统一复制诊断。
                     networkTransport.Options.OnSubmitInputAck = serverFrame =>
                     {
                         _lastServerAckFrame = serverFrame;
+                        _remoteReplicationPipeline?.AcknowledgeInput(serverFrame);
                     };
 
                     // 断线重连：断线检测 → 退避重连 → 状态重置追帧
                     HookReconnectWatch(networkTransport);
                 }
 
-                return BattleLogicSessionHost.Start(opts, remoteTransport: transport);
+                return _sessionRegistry.Start(opts, remoteTransport: transport);
             }
 
-            return BattleLogicSessionHost.Start(opts);
+            return _sessionRegistry.Start(opts);
         }
 
         private void OnStateSyncSnapshotPushed(object rawSnapshot)
         {
-            if (rawSnapshot is not GatewayStateSyncSnapshot snapshot) return;
-
-            // 重连恢复：首个 FullSnapshot 重建预测世界并导入服务端状态。
-            if (_pendingStateImport && snapshot.IsFullSnapshot)
+            if (rawSnapshot is not GatewayStateSyncSnapshot snapshot ||
+                _snapshotAdmission == null)
             {
-                TryImportStateIntoLogicWorld(in snapshot);
+                return;
             }
 
-            _remoteInterpolationPlayback?.Observe(in snapshot);
+            var admission = _snapshotAdmission.Admit(
+                snapshot.WorldId,
+                snapshot.Frame,
+                snapshot.IsFullSnapshot,
+                snapshot.SchemaVersion);
+            if (!admission.Accepted)
+            {
+                Log.Warning(
+                    $"[BattleSessionFeature] Snapshot rejected. status={admission.Status} " +
+                    $"worldId={snapshot.WorldId} frame={snapshot.Frame} " +
+                    $"lastAcceptedFrame={admission.LastAcceptedFrame}");
+                if (admission.ShouldRequestFullResync)
+                {
+                    RequestFullStateSync(
+                        $"snapshot-admission:{admission.Status}",
+                        admission.LastAcceptedFrame);
+                }
+                return;
+            }
+
+            // Initial connect and reconnect both require a successfully imported full baseline.
+            if (_pendingStateImport)
+            {
+                if (!snapshot.IsFullSnapshot || !TryImportStateIntoLogicWorld(in snapshot))
+                {
+                    _snapshotAdmission.RequireFullBaseline();
+                    _authoritativeSnapshotState?.Reset();
+                    RequestFullStateSync("state-import-failed", snapshot.Frame);
+                    return;
+                }
+            }
+            else if (!snapshot.IsFullSnapshot)
+            {
+                ApplyRemovedActorsToLogicWorld(in snapshot);
+            }
+
+            var materialized = _authoritativeSnapshotState?.Apply(in snapshot) ?? snapshot;
+            var sample = new MobaRemoteSnapshotSample(
+                materialized.WorldId,
+                materialized.Frame,
+                materialized.Actors);
+            _remoteReplicationPipeline?.ObserveRemote(in sample);
+        }
+
+        private void OnReliableEventsPushed(object rawPush)
+        {
+            if (rawPush is not WireReliableBattleEventPush push ||
+                _reliableEventCursor == null)
+            {
+                return;
+            }
+
+            if (_pendingStateImport)
+            {
+                QueueReliableEventBatch(in push);
+                return;
+            }
+
+            var result = _reliableEventCursor.Admit(in push);
+            if (!result.Accepted)
+            {
+                Log.Warning(
+                    $"[BattleSessionFeature] Reliable event batch rejected. " +
+                    $"status={result.Status} epoch={result.Epoch} " +
+                    $"expected={result.ExpectedSequence} received={result.ReceivedSequence}");
+                InvalidateAuthoritativeTimeline(
+                    $"reliable-events:{result.Status}");
+                QueueReliableEventBatch(in push);
+                return;
+            }
+
+            if (result.Events.Length == 0)
+            {
+                if (_reliableEventCursor.LastDeliveredSequence >
+                    _reliableEventCursor.LastAcknowledgedSequence)
+                {
+                    _ = AcknowledgeReliableEventsAsync(
+                        _reliableEventCursor.Epoch,
+                        _reliableEventCursor.LastDeliveredSequence);
+                }
+                return;
+            }
+
+            try
+            {
+                for (var i = 0; i < result.Events.Length; i++)
+                {
+                    ReliableBattleEventReceived?.Invoke(result.Events[i]);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(
+                    ex,
+                    "[BattleSessionFeature] Reliable battle event delivery failed.");
+                return;
+            }
+
+            if (!_reliableEventCursor.CommitDelivered(
+                    result.Epoch,
+                    result.CommitSequence))
+            {
+                InvalidateAuthoritativeTimeline(
+                    "reliable-events:commit-rejected");
+                return;
+            }
+
+            _ = AcknowledgeReliableEventsAsync(
+                result.Epoch,
+                result.CommitSequence);
+        }
+
+        private async Task AcknowledgeReliableEventsAsync(
+            string epoch,
+            long sequence)
+        {
+            var transport = _interpolationTransport;
+            var cursor = _reliableEventCursor;
+            if (transport == null || cursor == null ||
+                string.IsNullOrWhiteSpace(epoch) || sequence <= 0)
+            {
+                return;
+            }
+
+            var acceptedSequence = -1L;
+            for (var attempt = 1; attempt <= MaxReliableEventAckAttempts; attempt++)
+            {
+                acceptedSequence = await transport.AcknowledgeReliableEventsAsync(
+                    epoch,
+                    sequence);
+
+                if (!ReferenceEquals(cursor, _reliableEventCursor) ||
+                    !string.Equals(cursor.Epoch, epoch, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                if (acceptedSequence >= 0 &&
+                    cursor.ConfirmAcknowledged(epoch, acceptedSequence) &&
+                    acceptedSequence >= sequence)
+                {
+                    return;
+                }
+
+                if (attempt < MaxReliableEventAckAttempts)
+                {
+                    await Task.Delay(50 * attempt);
+                }
+            }
+
+            Log.Warning(
+                $"[BattleSessionFeature] Reliable event ACK did not reach requested cursor. " +
+                $"epoch={epoch} requested={sequence} accepted={acceptedSequence}");
+            InvalidateAuthoritativeTimeline(
+                "reliable-events:ack-incomplete");
+        }
+
+        private void QueueReliableEventBatch(in WireReliableBattleEventPush push)
+        {
+            if (_pendingReliableEventBatches.Count >= MaxPendingReliableEventBatches)
+            {
+                _pendingReliableEventBatches.Clear();
+                RequestFullStateSync(
+                    "reliable-events:pending-queue-overflow",
+                    _snapshotAdmission?.LastAcceptedFrame ?? 0);
+                return;
+            }
+
+            _pendingReliableEventBatches.Enqueue(push);
+        }
+
+        private void CompleteReliableEventRecovery(
+            in GatewayStateSyncSnapshot snapshot)
+        {
+            var cursor = _reliableEventCursor;
+            if (cursor == null)
+            {
+                _pendingReliableEventBatches.Clear();
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(snapshot.EventEpoch))
+            {
+                if (!cursor.AdoptAuthoritativeBaseline(
+                        snapshot.EventEpoch,
+                        snapshot.EventWatermark))
+                {
+                    _pendingReliableEventBatches.Clear();
+                    return;
+                }
+
+                if (snapshot.EventWatermark > 0)
+                {
+                    _ = AcknowledgeReliableEventsAsync(
+                        snapshot.EventEpoch,
+                        snapshot.EventWatermark);
+                }
+            }
+
+            while (!_pendingStateImport &&
+                   _pendingReliableEventBatches.Count > 0)
+            {
+                var pending = _pendingReliableEventBatches.Dequeue();
+                if (!string.IsNullOrWhiteSpace(snapshot.EventEpoch) &&
+                    !string.Equals(pending.Epoch, snapshot.EventEpoch, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                OnReliableEventsPushed(pending);
+            }
+        }
+
+        private void InvalidateAuthoritativeTimeline(string reason)
+        {
+            _pendingStateImport = true;
+            _snapshotAdmission?.RequireFullBaseline();
+            _authoritativeSnapshotState?.Reset();
+            _remoteInterpolationController?.Reset();
+            RequestFullStateSync(reason, _snapshotAdmission?.LastAcceptedFrame ?? 0);
         }
 
         /// <summary>
@@ -83,9 +332,9 @@ namespace AbilityKit.Game.Flow
         /// 重建世界 → 解析 MobaLogicWorldStateImporter → 导入 actor 状态 → 对齐帧号。
         /// 导入成功后预测驱动与哈希对账从该帧恢复。
         /// </summary>
-        private void TryImportStateIntoLogicWorld(in GatewayStateSyncSnapshot snapshot)
+        private bool TryImportStateIntoLogicWorld(in GatewayStateSyncSnapshot snapshot)
         {
-            if (_ctx == null || _handles.Session == null) return;
+            if (_ctx == null || _handles.Session == null) return false;
 
             // 重建预测世界（EnsureStarted 幂等——世界在 ResetStateAfterReconnect 已销毁）
             StartRemoteDrivenLocalWorld();
@@ -94,50 +343,155 @@ namespace AbilityKit.Game.Flow
             if (world?.Services == null)
             {
                 Log.Warning("[BattleSessionFeature] State import skipped: RemoteDriven world unavailable after recreate.");
-                return;
+                return false;
             }
 
             if (!world.Services.TryResolve<AbilityKit.Demo.Moba.Services.StateImport.MobaLogicWorldStateImporter>(out var importer) || importer == null)
             {
                 Log.Warning("[BattleSessionFeature] State import skipped: MobaLogicWorldStateImporter not registered in world services.");
+                return false;
+            }
+
+            var actors = snapshot.Actors ?? Array.Empty<GatewayStateSyncActorSnapshot>();
+            var imports = new AbilityKit.Demo.Moba.Services.StateImport.MobaActorStateImport[actors.Length];
+            for (int i = 0; i < actors.Length; i++)
+            {
+                var a = actors[i];
+                imports[i] = new AbilityKit.Demo.Moba.Services.StateImport.MobaActorStateImport(
+                    a.ActorId, a.X, a.Y, a.Z, a.Rotation, a.Hp, a.HpMax, a.TeamId, a.Kind, a.Code, a.OwnerNetId);
+            }
+
+            var result = importer.Import(imports, snapshot.Frame, isFullSnapshot: true);
+            Log.Info($"[BattleSessionFeature] State import done. frame={snapshot.Frame} {result}");
+            if (result.Failed > 0)
+            {
+                Log.Warning(
+                    $"[BattleSessionFeature] State import incomplete. frame={snapshot.Frame} " +
+                    $"failed={result.Failed}");
+                return false;
+            }
+
+            // Frame alignment and recovery completion only follow a successful import.
+            _remoteDrivenLastTickedFrame = snapshot.Frame;
+            _pendingStateImport = false;
+            CompleteReliableEventRecovery(in snapshot);
+            return true;
+        }
+
+        private void ApplyRemovedActorsToLogicWorld(in GatewayStateSyncSnapshot snapshot)
+        {
+            var removedActorIds = snapshot.RemovedActorIds;
+            if (removedActorIds == null || removedActorIds.Length == 0)
+            {
                 return;
             }
 
-            var actors = snapshot.Actors;
-            if (actors != null && actors.Length > 0)
+            var world = _handles.RemoteDriven.World;
+            if (world?.Services == null
+                || !world.Services.TryResolve<AbilityKit.Demo.Moba.Services.StateImport.MobaLogicWorldStateImporter>(out var importer)
+                || importer == null)
             {
-                var imports = new AbilityKit.Demo.Moba.Services.StateImport.MobaActorStateImport[actors.Length];
-                for (int i = 0; i < actors.Length; i++)
-                {
-                    var a = actors[i];
-                    imports[i] = new AbilityKit.Demo.Moba.Services.StateImport.MobaActorStateImport(
-                        a.ActorId, a.X, a.Y, a.Z, a.Rotation, a.Hp, a.HpMax, a.TeamId, a.Kind, a.Code, a.OwnerNetId);
-                }
-
-                var result = importer.Import(imports, snapshot.Frame, isFullSnapshot: true);
-                Log.Info($"[BattleSessionFeature] State import done. frame={snapshot.Frame} {result}");
+                Log.Warning(
+                    $"[BattleSessionFeature] Authoritative actor removals skipped: importer unavailable. " +
+                    $"frame={snapshot.Frame} count={removedActorIds.Length}");
+                return;
             }
 
-            // 帧号对齐：世界从快照帧继续推进
-            _remoteDrivenLastTickedFrame = snapshot.Frame;
-            _pendingStateImport = false;
+            var removed = importer.ApplyRemovedActors(removedActorIds, snapshot.Frame);
+            Log.Info(
+                $"[BattleSessionFeature] Authoritative actor removals applied. " +
+                $"frame={snapshot.Frame} requested={removedActorIds.Length} removed={removed}");
         }
+
+        private void RequestFullStateSync(string reason, int lastAuthoritativeFrame)
+        {
+            if (_interpolationTransport == null) return;
+            _ = _interpolationTransport.RequestFullStateSyncAsync(
+                reason,
+                lastAuthoritativeFrame);
+        }
+
+        public MobaSynchronizationHealthSnapshot SynchronizationHealth => _synchronizationHealth;
 
         private void TickRemoteInterpolation(float deltaTime)
         {
             TickReconnect(deltaTime);
 
-            if (_remoteInterpolationPlayback == null || _ctx == null) return;
+            if (_remoteInterpolationController == null || _remoteReplicationPipeline == null || _ctx == null) return;
 
-            _remoteInterpolationPlayback.Advance(deltaTime);
+            _remoteReplicationPipeline.Tick(deltaTime);
+            TickSynchronizationHealth(deltaTime);
 
-            if (_remoteInterpolationPlayback.TryProjectRemoteFrame(out var projected))
+            if (_remoteInterpolationController.TryProjectRemoteFrame(out var projected))
             {
                 // 预测世界存在时本地玩家由 PredictionViewBridge 驱动（插值跳过）；
                 // 不存在时（如断线重连降级后）本地玩家也交给插值驱动。
                 var localActorId = _handles.RemoteDriven.World != null ? _ctx.LocalActorId : 0;
                 BattleRemoteInterpolationApplier.Apply(_ctx, in projected, localActorId);
             }
+        }
+
+        private void TickSynchronizationHealth(float deltaTime)
+        {
+            var evaluator = _synchronizationHealthEvaluator;
+            if (evaluator == null || _remoteInterpolationController == null || _remoteReplicationPipeline == null)
+            {
+                return;
+            }
+
+            _synchronizationHealthSampleElapsed += Math.Max(0f, deltaTime);
+            if (_synchronizationHealthSampleElapsed < SynchronizationHealthSampleIntervalSeconds)
+            {
+                return;
+            }
+            _synchronizationHealthSampleElapsed = 0f;
+
+            var replication = _remoteReplicationPipeline.GetDiagnostics();
+            var interpolation = _remoteInterpolationController.GetInterpolationDiagnostics();
+            var prediction = _ctx?.PredictionStats;
+            var tuning = _ctx?.PredictionTuningControl;
+            var sample = new MobaSynchronizationHealthSample(
+                _pendingStateImport || replication.Reconciliation.NeedsFullSnapshot,
+                replication.UnacknowledgedInputFrames,
+                Math.Max(0, replication.LastObservedFrame - replication.LastTick.Frame),
+                interpolation.IsRemotePlaybackStarved,
+                interpolation.BufferedRemoteSnapshotCount,
+                interpolation.PlaybackDelayTicks,
+                prediction?.CurrentBacklogEwma ?? 0f,
+                prediction?.IsPredictionStalledByWindow ?? false,
+                prediction?.IsPredictionStalledByIdealFrame ?? false,
+                prediction?.IsReplaying ?? false,
+                prediction?.TotalRollbackCount ?? 0L,
+                prediction?.TotalRollbackRestoreFailed ?? 0L,
+                prediction?.TotalReplayTimeout ?? 0L,
+                prediction?.TotalReconcileMismatch ?? 0L,
+                tuning?.MaxPredictionAheadFrames ?? prediction?.MaxPredictionAheadFrames ?? 6,
+                tuning?.MinPredictionWindow ?? prediction?.MinPredictionWindow ?? 2,
+                tuning?.BacklogEwmaAlpha ?? prediction?.BacklogEwmaAlpha ?? 0.2f);
+
+            _synchronizationHealth = evaluator.Evaluate(in sample);
+            var recommendation = _synchronizationHealth.Tuning;
+            ApplySynchronizationTuning(tuning, recommendation);
+        }
+
+        private static void ApplySynchronizationTuning(
+            AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionTuningControl tuning,
+            MobaPredictionTuningRecommendation recommendation)
+        {
+            if (tuning == null || !recommendation.ShouldApply)
+            {
+                return;
+            }
+
+            if (recommendation.ResetDefaults)
+            {
+                tuning.ResetDefaults();
+                return;
+            }
+
+            tuning.SetMaxPredictionAheadFrames(recommendation.MaxPredictionAheadFrames);
+            tuning.SetMinPredictionWindow(recommendation.MinPredictionWindow);
+            tuning.SetBacklogEwmaAlpha(recommendation.BacklogEwmaAlpha);
         }
 
         private void DisposeRemoteInterpolation()
@@ -147,13 +501,28 @@ namespace AbilityKit.Game.Flow
             if (_interpolationTransport != null)
             {
                 _interpolationTransport.StateSyncSnapshotPushed -= OnStateSyncSnapshotPushed;
+                _interpolationTransport.ReliableEventsPushed -= OnReliableEventsPushed;
+                _interpolationTransport.Options.GetReliableEventEpoch = null;
+                _interpolationTransport.Options.GetReliableEventLastAcknowledgedSequence = null;
                 _interpolationTransport = null;
             }
 
-            _remoteInterpolationPlayback?.Reset();
-            _remoteInterpolationPlayback = null;
+            _remoteInterpolationController?.Reset();
+            _remoteReplicationPipeline?.ResetDiagnostics();
+            _synchronizationHealthEvaluator?.Reset();
+            _synchronizationHealth = default;
+            _synchronizationHealthSampleElapsed = 0f;
+            _authoritativeSnapshotState?.Reset();
+            _pendingReliableEventBatches.Clear();
+            _reliableEventCursor?.Reset();
+            _remoteInterpolationController = null;
+            _remoteReplicationPipeline = null;
+            _synchronizationHealthEvaluator = null;
+            _snapshotAdmission = null;
+            _authoritativeSnapshotState = null;
+            _reliableEventCursor = null;
             _pendingStateImport = false;
-            BattleSyncFeature.EnableRemoteInterpolation = false;
+            if (_ctx != null) _ctx.EnableRemoteInterpolation = false;
         }
     }
 }

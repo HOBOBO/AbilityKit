@@ -20,11 +20,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterSnapshotOrderBuffer _orderBuffer = new();
         private readonly ShooterPureStateInterestPolicy _interestPolicy = new();
         private readonly Dictionary<AoiEntityKey, int> _candidateIndexByKey = new Dictionary<AoiEntityKey, int>();
+        private readonly Dictionary<AoiInterestSet, ShooterObserverReplicationState> _observerReplicationStates = new Dictionary<AoiInterestSet, ShooterObserverReplicationState>();
         private readonly List<ShooterPureStateEntityDelta> _aoiSelectedEntities = new List<ShooterPureStateEntityDelta>();
         private readonly List<ShooterPureStateVisibilityHint> _aoiSelectedHints = new List<ShooterPureStateVisibilityHint>();
         private readonly AoiSampleBufferView _aoiSampleView = new AoiSampleBufferView();
         private ShooterPureStateCandidate[] _candidateBuffer = Array.Empty<ShooterPureStateCandidate>();
         private AoiEntitySample[] _aoiSampleBuffer = Array.Empty<AoiEntitySample>();
+        private ShooterPureStateEntityDelta[] _transientEntities = Array.Empty<ShooterPureStateEntityDelta>();
+        private ShooterPureStateVisibilityHint[] _transientVisibilityHints = Array.Empty<ShooterPureStateVisibilityHint>();
 
         public ShooterPureStateSnapshotExporter(
             ShooterBattleState state,
@@ -56,21 +59,77 @@ namespace AbilityKit.Demo.Shooter.Runtime
             AoiInterestSet? aoiInterestSet = null,
             bool computeStateHash = true)
         {
+            return ExportCore(
+                worldId,
+                isFullBaseline,
+                settings,
+                baselineFrame,
+                baselineHash,
+                interestScope,
+                aoiInterestSet,
+                computeStateHash,
+                useTransientBuffers: false);
+        }
+
+        /// <summary>
+        /// Exports a payload backed by reusable exact-length arrays. The payload must be consumed
+        /// before the next transient export on this exporter.
+        /// </summary>
+        public ShooterPureStateSnapshotPayload ExportTransient(
+            ulong worldId,
+            bool isFullBaseline = true,
+            ShooterPureStateSyncSettings? settings = null,
+            int baselineFrame = 0,
+            uint baselineHash = 0,
+            ShooterPureStateInterestScope? interestScope = null,
+            AoiInterestSet? aoiInterestSet = null,
+            bool computeStateHash = true)
+        {
+            return ExportCore(
+                worldId,
+                isFullBaseline,
+                settings,
+                baselineFrame,
+                baselineHash,
+                interestScope,
+                aoiInterestSet,
+                computeStateHash,
+                useTransientBuffers: true);
+        }
+
+        private ShooterPureStateSnapshotPayload ExportCore(
+            ulong worldId,
+            bool isFullBaseline,
+            ShooterPureStateSyncSettings? settings,
+            int baselineFrame,
+            uint baselineHash,
+            ShooterPureStateInterestScope? interestScope,
+            AoiInterestSet? aoiInterestSet,
+            bool computeStateHash,
+            bool useTransientBuffers)
+        {
             var activeSettings = NormalizeSettings(settings ?? ShooterPureStateSyncSettings.Default);
             var frame = _state.CurrentFrame;
             var isLowFrequencyFrame = !isFullBaseline && activeSettings.LowFrequencyIntervalFrames > 0 && frame % activeSettings.LowFrequencyIntervalFrames == 0;
             var entityBudget = isFullBaseline ? activeSettings.MaxEntityCount : activeSettings.ActiveSyncBudget;
             var maxEntities = ResolveMaxEntities(activeSettings, entityBudget, interestScope);
+            var cullToAoiBoundary = aoiInterestSet != null && interestScope.HasValue && interestScope.Value.HasRadius;
             var candidateCount = _context != null
-                ? BuildCandidates(_context, isFullBaseline, isLowFrequencyFrame, interestScope)
-                : BuildCandidatesFromSnapshot(isFullBaseline, isLowFrequencyFrame, interestScope, out frame);
+                ? BuildCandidates(_context, isFullBaseline, isLowFrequencyFrame, interestScope, cullToAoiBoundary)
+                : BuildCandidatesFromSnapshot(isFullBaseline, isLowFrequencyFrame, interestScope, cullToAoiBoundary, out frame);
             var requiresPriorityOrder = !isFullBaseline || maxEntities < candidateCount || interestScope.HasValue || aoiInterestSet != null;
             if (requiresPriorityOrder && candidateCount > 1)
             {
-                Array.Sort(_candidateBuffer, 0, candidateCount, ShooterPureStateCandidateComparer.Instance);
+                Array.Sort(_candidateBuffer, 0, candidateCount);
             }
 
-            var selection = SelectCandidates(candidateCount, maxEntities, isFullBaseline, interestScope, aoiInterestSet);
+            var selection = SelectCandidates(
+                candidateCount,
+                maxEntities,
+                isFullBaseline,
+                interestScope,
+                aoiInterestSet,
+                useTransientBuffers);
             var entities = selection.Entities;
             var visibilityHints = selection.VisibilityHints;
 
@@ -93,13 +152,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
             bool isFullBaseline,
             bool isLowFrequencyFrame,
             ShooterPureStateInterestScope? interestScope,
+            bool cullToAoiBoundary,
             out int frame)
         {
             var snapshot = _snapshotReadPort.GetSnapshot();
             var players = snapshot.Players ?? Array.Empty<ShooterPlayerSnapshot>();
             var bullets = snapshot.Bullets ?? Array.Empty<ShooterBulletSnapshot>();
             frame = snapshot.Frame <= 0 ? _state.CurrentFrame : snapshot.Frame;
-            return BuildCandidates(players, bullets, isFullBaseline, isLowFrequencyFrame, interestScope);
+            return BuildCandidates(players, bullets, isFullBaseline, isLowFrequencyFrame, interestScope, cullToAoiBoundary);
         }
  
         private int BuildCandidates(
@@ -107,13 +167,19 @@ namespace AbilityKit.Demo.Shooter.Runtime
             ShooterBulletSnapshot[] bullets,
             bool isFullBaseline,
             bool isLowFrequencyFrame,
-            ShooterPureStateInterestScope? interestScope)
+            ShooterPureStateInterestScope? interestScope,
+            bool cullToAoiBoundary)
         {
             var candidates = EnsureCandidateCapacity(players.Length + bullets.Length);
             var index = 0;
             for (var i = 0; i < players.Length; i++)
             {
                 var player = players[i];
+                if (cullToAoiBoundary && !IsInsideAoiBoundary(player.X, player.Y, interestScope!.Value))
+                {
+                    continue;
+                }
+
                 var flags = CreatePlayerFlags(in player);
                 if (isLowFrequencyFrame && !player.Alive)
                 {
@@ -147,6 +213,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
             for (var i = 0; i < bullets.Length; i++)
             {
                 var bullet = bullets[i];
+                if (cullToAoiBoundary && !IsInsideAoiBoundary(bullet.X, bullet.Y, interestScope!.Value))
+                {
+                    continue;
+                }
+
                 var flags = (byte)(ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible);
                 if (isLowFrequencyFrame)
                 {
@@ -189,7 +260,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             ISveltoWorldContext context,
             bool isFullBaseline,
             bool isLowFrequencyFrame,
-            ShooterPureStateInterestScope? interestScope)
+            ShooterPureStateInterestScope? interestScope,
+            bool cullToAoiBoundary)
         {
             var playerCollection = context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
             playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var playerCount);
@@ -204,6 +276,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
             for (var i = 0; i < playerCount; i++)
             {
                 var player = players[playerOrder[i]];
+                if (cullToAoiBoundary && !IsInsideAoiBoundary(player.X, player.Y, interestScope!.Value))
+                {
+                    continue;
+                }
+
                 var flags = CreatePlayerFlags(in player);
                 if (isLowFrequencyFrame && !player.Alive)
                 {
@@ -238,6 +315,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
             for (var i = 0; i < bulletCount; i++)
             {
                 var bullet = bullets[projectileOrder[i]];
+                if (cullToAoiBoundary && !IsInsideAoiBoundary(bullet.X, bullet.Y, interestScope!.Value))
+                {
+                    continue;
+                }
+
                 var flags = (byte)(ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible);
                 if (isLowFrequencyFrame)
                 {
@@ -280,6 +362,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 var entityId = checked((int)enemyIds[enemyIndex]);
                 var transform = enemyTransforms[enemyIndex];
                 var health = enemyHealths[enemyIndex];
+                if (cullToAoiBoundary && !IsInsideAoiBoundary(transform.X, transform.Y, interestScope!.Value))
+                {
+                    continue;
+                }
+
                 var flags = (byte)ShooterPureStateEntityFlags.Visible;
                 if (health.Alive != 0)
                 {
@@ -328,20 +415,20 @@ namespace AbilityKit.Demo.Shooter.Runtime
             int maxEntities,
             bool isFullBaseline,
             ShooterPureStateInterestScope? interestScope,
-            AoiInterestSet? aoiInterestSet)
+            AoiInterestSet? aoiInterestSet,
+            bool useTransientBuffers)
         {
             if (aoiInterestSet == null || !interestScope.HasValue)
             {
                 var selectedCount = Math.Min(maxEntities, candidateCount);
-                var selectedEntities = new ShooterPureStateEntityDelta[selectedCount];
-                var selectedHints = new ShooterPureStateVisibilityHint[selectedCount];
+                var selection = CreateSelection(selectedCount, selectedCount, useTransientBuffers);
                 for (var i = 0; i < selectedCount; i++)
                 {
-                    selectedEntities[i] = _candidateBuffer[i].Entity;
-                    selectedHints[i] = _candidateBuffer[i].VisibilityHint;
+                    selection.Entities[i] = _candidateBuffer[i].Entity;
+                    selection.VisibilityHints[i] = _candidateBuffer[i].VisibilityHint;
                 }
 
-                return new ShooterPureStateSelection(selectedEntities, selectedHints);
+                return selection;
             }
 
             var samples = EnsureAoiSampleCapacity(candidateCount);
@@ -360,40 +447,143 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             _aoiSampleView.Reset(samples, candidateCount);
             BuildCandidateIndex(candidateCount);
-            var evaluation = aoiInterestSet.Evaluate(_aoiSampleView, interestScope.Value.ToAoiScope(), isFullBaseline);
-            _aoiSelectedEntities.Clear();
-            _aoiSelectedHints.Clear();
-            var visibleCount = 0;
-            for (var i = 0; i < evaluation.Changes.Count; i++)
+            var evaluation = aoiInterestSet.EvaluateTransient(_aoiSampleView, interestScope.Value.ToAoiScope(), isFullBaseline);
+            var replicationState = GetObserverReplicationState(aoiInterestSet);
+            if (isFullBaseline)
             {
-                var change = evaluation.Changes[i];
-                if (change.Transition == AoiInterestTransition.Leave)
-                {
-                    _aoiSelectedEntities.Add(CreateDespawnDelta(change));
-                    continue;
-                }
-
-                if (visibleCount >= maxEntities)
-                {
-                    continue;
-                }
-
-                if (!TryFindCandidate(change.Key, candidateCount, out var candidate))
-                {
-                    continue;
-                }
-
-                var entity = candidate.Entity;
-                entity.DeltaKind = change.Transition == AoiInterestTransition.Enter
-                    ? ShooterPureStateDeltaKinds.Spawn
-                    : CreateDeltaKind(isFullBaseline);
-                entity.Flags = (byte)(entity.Flags | ShooterPureStateEntityFlags.Visible);
-                _aoiSelectedEntities.Add(entity);
-                _aoiSelectedHints.Add(candidate.VisibilityHint);
-                visibleCount++;
+                replicationState.Clear();
             }
 
-            return new ShooterPureStateSelection(_aoiSelectedEntities.ToArray(), _aoiSelectedHints.ToArray());
+            _aoiSelectedEntities.Clear();
+            _aoiSelectedHints.Clear();
+            var visibleChangeCount = Math.Min(evaluation.VisibleCount, evaluation.Changes.Count);
+
+            // Leaves are lifecycle messages, not state-update budget consumers. Only emit a
+            // despawn when this observer actually received the corresponding spawn.
+            for (var i = visibleChangeCount; i < evaluation.Changes.Count; i++)
+            {
+                var change = evaluation.Changes[i];
+                if (change.Transition == AoiInterestTransition.Leave && replicationState.Replicated.Remove(change.Key))
+                {
+                    _aoiSelectedEntities.Add(CreateDespawnDelta(change));
+                }
+            }
+
+            if (visibleChangeCount == 0 || maxEntities <= 0)
+            {
+                replicationState.RotationCursor = 0;
+                return CreateAoiSelection(useTransientBuffers);
+            }
+
+            // Keep at most half of the budget for the stable high-priority prefix and rotate
+            // the rest. This keeps local/key interactions responsive while guaranteeing that
+            // ordinary visible entities eventually receive a first Spawn and later updates.
+            var reservedLimit = maxEntities / 2;
+            var reservedCount = 0;
+            while (reservedCount < visibleChangeCount && reservedCount < reservedLimit)
+            {
+                if (!TryFindCandidate(evaluation.Changes[reservedCount].Key, candidateCount, out var candidate) || candidate.Priority < 250)
+                {
+                    break;
+                }
+
+                AddVisibleCandidate(evaluation.Changes[reservedCount], in candidate, replicationState, isFullBaseline);
+                reservedCount++;
+            }
+
+            var rotatingCount = visibleChangeCount - reservedCount;
+            var rotatingBudget = maxEntities - reservedCount;
+            if (rotatingCount > 0 && rotatingBudget > 0)
+            {
+                var start = replicationState.RotationCursor % rotatingCount;
+                var selected = 0;
+                for (var offset = 0; offset < rotatingCount && selected < rotatingBudget; offset++)
+                {
+                    var changeIndex = reservedCount + ((start + offset) % rotatingCount);
+                    var change = evaluation.Changes[changeIndex];
+                    if (!TryFindCandidate(change.Key, candidateCount, out var candidate))
+                    {
+                        continue;
+                    }
+
+                    AddVisibleCandidate(change, in candidate, replicationState, isFullBaseline);
+                    selected++;
+                }
+
+                replicationState.RotationCursor = (start + selected) % rotatingCount;
+            }
+
+            return CreateAoiSelection(useTransientBuffers);
+        }
+
+        private ShooterObserverReplicationState GetObserverReplicationState(AoiInterestSet interestSet)
+        {
+            if (!_observerReplicationStates.TryGetValue(interestSet, out var state))
+            {
+                state = new ShooterObserverReplicationState();
+                _observerReplicationStates.Add(interestSet, state);
+            }
+
+            return state;
+        }
+
+        private void AddVisibleCandidate(
+            AoiInterestChange change,
+            in ShooterPureStateCandidate candidate,
+            ShooterObserverReplicationState replicationState,
+            bool isFullBaseline)
+        {
+            var entity = candidate.Entity;
+            var firstReplication = replicationState.Replicated.Add(change.Key);
+            entity.DeltaKind = firstReplication || change.Transition == AoiInterestTransition.Enter || isFullBaseline
+                ? ShooterPureStateDeltaKinds.Spawn
+                : ShooterPureStateDeltaKinds.Update;
+            entity.Flags = (byte)(entity.Flags | ShooterPureStateEntityFlags.Visible);
+            _aoiSelectedEntities.Add(entity);
+
+            var hint = candidate.VisibilityHint;
+            hint.Flags = (byte)(hint.Flags | ShooterPureStateEntityFlags.Visible);
+            _aoiSelectedHints.Add(hint);
+        }
+
+        private ShooterPureStateSelection CreateAoiSelection(bool useTransientBuffers)
+        {
+            var selection = CreateSelection(
+                _aoiSelectedEntities.Count,
+                _aoiSelectedHints.Count,
+                useTransientBuffers);
+            _aoiSelectedEntities.CopyTo(selection.Entities);
+            _aoiSelectedHints.CopyTo(selection.VisibilityHints);
+            return selection;
+        }
+
+        private ShooterPureStateSelection CreateSelection(
+            int entityCount,
+            int visibilityHintCount,
+            bool useTransientBuffers)
+        {
+            if (!useTransientBuffers)
+            {
+                return new ShooterPureStateSelection(
+                    new ShooterPureStateEntityDelta[entityCount],
+                    new ShooterPureStateVisibilityHint[visibilityHintCount]);
+            }
+
+            if (_transientEntities.Length != entityCount)
+            {
+                _transientEntities = entityCount == 0
+                    ? Array.Empty<ShooterPureStateEntityDelta>()
+                    : new ShooterPureStateEntityDelta[entityCount];
+            }
+
+            if (_transientVisibilityHints.Length != visibilityHintCount)
+            {
+                _transientVisibilityHints = visibilityHintCount == 0
+                    ? Array.Empty<ShooterPureStateVisibilityHint>()
+                    : new ShooterPureStateVisibilityHint[visibilityHintCount];
+            }
+
+            return new ShooterPureStateSelection(_transientEntities, _transientVisibilityHints);
         }
 
         private bool TryFindCandidate(AoiEntityKey key, int candidateCount, out ShooterPureStateCandidate candidate)
@@ -451,7 +641,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _candidateBuffer = new ShooterPureStateCandidate[newCapacity];
             return _candidateBuffer;
         }
- 
+
         private AoiEntitySample[] EnsureAoiSampleCapacity(int count)
         {
             if (_aoiSampleBuffer.Length >= count)
@@ -480,21 +670,17 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return maxEntities;
         }
 
-        private sealed class ShooterPureStateCandidateComparer : IComparer<ShooterPureStateCandidate>
+        private static bool IsInsideAoiBoundary(float x, float y, ShooterPureStateInterestScope scope)
         {
-            public static readonly ShooterPureStateCandidateComparer Instance = new();
-
-            public int Compare(ShooterPureStateCandidate left, ShooterPureStateCandidate right)
+            var radius = Math.Max(scope.VisibleRadius, scope.BoundaryRadius);
+            if (radius <= 0f)
             {
-                var priority = right.Priority.CompareTo(left.Priority);
-                if (priority != 0)
-                {
-                    return priority;
-                }
- 
-                var distance = left.DistanceSquared.CompareTo(right.DistanceSquared);
-                return distance != 0 ? distance : left.TieBreaker.CompareTo(right.TieBreaker);
+                return true;
             }
+
+            var dx = x - scope.CenterX;
+            var dy = y - scope.CenterY;
+            return (dx * dx) + (dy * dy) <= radius * radius;
         }
 
         private static int CreatePlayerPriority(in ShooterPlayerSnapshot player, ShooterPureStateInterestScope? interestScope)
@@ -644,7 +830,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return (int)MathF.Round(value * VelocityScale);
         }
 
-        private readonly struct ShooterPureStateCandidate
+        private readonly struct ShooterPureStateCandidate : IComparable<ShooterPureStateCandidate>
         {
             public ShooterPureStateCandidate(
                 ShooterPureStateEntityDelta entity,
@@ -680,6 +866,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
             public float Y { get; }
 
             public AoiEntityKey AoiKey { get; }
+
+            public int CompareTo(ShooterPureStateCandidate other)
+            {
+                var priority = other.Priority.CompareTo(Priority);
+                if (priority != 0)
+                {
+                    return priority;
+                }
+
+                var distance = DistanceSquared.CompareTo(other.DistanceSquared);
+                return distance != 0 ? distance : TieBreaker.CompareTo(other.TieBreaker);
+            }
         }
 
         private sealed class AoiSampleBufferView : IReadOnlyList<AoiEntitySample>
@@ -733,6 +931,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
             public ShooterPureStateEntityDelta[] Entities { get; }
 
             public ShooterPureStateVisibilityHint[] VisibilityHints { get; }
+        }
+
+        private sealed class ShooterObserverReplicationState
+        {
+            public readonly HashSet<AoiEntityKey> Replicated = new HashSet<AoiEntityKey>();
+            public int RotationCursor;
+
+            public void Clear()
+            {
+                Replicated.Clear();
+                RotationCursor = 0;
+            }
         }
     }
 }

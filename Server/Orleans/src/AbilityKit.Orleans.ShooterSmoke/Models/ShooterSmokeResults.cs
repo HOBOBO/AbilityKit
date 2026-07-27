@@ -52,7 +52,8 @@ internal readonly record struct ShooterSnapshotPushSmokeResult(
     int PureStateSnapshotKind = 0,
     int PureStateBaselineFrame = 0,
     uint PureStateBaselineHash = 0u,
-    int PureStateVisibilityHintCount = 0);
+    int PureStateVisibilityHintCount = 0,
+    bool IsFullSnapshot = false);
 
 internal readonly record struct ShooterSmokeResult(
     string AccountId,

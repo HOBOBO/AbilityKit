@@ -68,6 +68,7 @@ namespace AbilityKit.Game.Flow
 
             RuntimeWorldId = default;
             HasRuntimeWorldId = false;
+            EnableRemoteInterpolation = false;
 
             EntityNode = default;
             EntityWorld = null;

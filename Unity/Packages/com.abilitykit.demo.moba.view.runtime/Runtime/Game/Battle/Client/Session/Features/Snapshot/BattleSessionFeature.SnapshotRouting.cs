@@ -9,7 +9,7 @@ namespace AbilityKit.Game.Flow
                 _handles,
                 _ctx,
                 _session,
-                (INetAdapterContextHost)this,
+                _netAdapterContextHost,
                 OnSessionFrameReceived);
         }
 

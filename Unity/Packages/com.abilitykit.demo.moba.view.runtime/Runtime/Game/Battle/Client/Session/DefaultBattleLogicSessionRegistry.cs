@@ -4,7 +4,14 @@ namespace AbilityKit.Game.Battle
 {
     public sealed class DefaultBattleLogicSessionRegistry : IBattleLogicSessionRegistry
     {
+        private readonly bool _publishDebugFacade;
         private BattleLogicSession _current;
+        private DefaultBattleDebugFacade _debugFacade;
+
+        public DefaultBattleLogicSessionRegistry(bool publishDebugFacade = true)
+        {
+            _publishDebugFacade = publishDebugFacade;
+        }
 
         public event Action<BattleLogicSession> SessionChanged;
 
@@ -15,9 +22,12 @@ namespace AbilityKit.Game.Battle
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
 
-            BattleDebugFacadeProvider.Current = new DefaultBattleDebugFacade(() => _current);
-
             Stop();
+            if (_publishDebugFacade)
+            {
+                _debugFacade ??= new DefaultBattleDebugFacade(() => _current);
+                BattleDebugFacadeProvider.Current = _debugFacade;
+            }
 
             _current = new BattleLogicSession(options, remoteTransport);
             SessionChanged?.Invoke(_current);
@@ -26,7 +36,11 @@ namespace AbilityKit.Game.Battle
 
         public void Stop()
         {
-            if (_current == null) return;
+            if (_current == null)
+            {
+                ClearDebugFacade();
+                return;
+            }
 
             try
             {
@@ -35,7 +49,16 @@ namespace AbilityKit.Game.Battle
             finally
             {
                 _current = null;
+                ClearDebugFacade();
                 SessionChanged?.Invoke(null);
+            }
+        }
+
+        private void ClearDebugFacade()
+        {
+            if (_publishDebugFacade && ReferenceEquals(BattleDebugFacadeProvider.Current, _debugFacade))
+            {
+                BattleDebugFacadeProvider.Current = null;
             }
         }
     }

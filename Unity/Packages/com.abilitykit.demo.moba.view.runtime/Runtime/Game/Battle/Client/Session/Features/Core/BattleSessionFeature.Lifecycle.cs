@@ -53,6 +53,7 @@ namespace AbilityKit.Game.Flow
 
             _subFeatureHost?.Detach(new FeatureModuleContext<BattleSessionFeature>(ctx, this));
 
+            _replayOwner.Stop();
             StopSession();
 
             DisposeRemoteInterpolation();
@@ -64,7 +65,6 @@ namespace AbilityKit.Game.Flow
             _eventsCtrl.OnDetach(this);
 
             SessionContextBinder.ClearSession(_ctx);
-            ResetReplayPresentationState();
 
             _ctx = null;
             _flow = null;
@@ -75,6 +75,7 @@ namespace AbilityKit.Game.Flow
         {
             Hooks?.PreTick.Invoke(deltaTime);
             InvokeSubFeaturesPreTick(ctx, deltaTime);
+            _replayOwner.Tick(deltaTime);
 
             if (_session == null) return;
 

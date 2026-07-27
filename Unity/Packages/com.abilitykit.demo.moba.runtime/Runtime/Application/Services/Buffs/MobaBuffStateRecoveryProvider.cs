@@ -79,7 +79,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             }
         }
 
-        public void AddStateHash(FrameIndex frame, MobaStateHashBuilder hash)
+        public void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash)
         {
             var payload = MemoryPackSerializer.Deserialize<MobaBuffStateRecoveryPayload>(ExportState(frame));
             var entries = payload.Entries ?? Array.Empty<MobaBuffStateRecoveryEntry>();
@@ -88,7 +88,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             hash.AddInt(entries.Length);
             for (int i = 0; i < entries.Length; i++)
             {
-                AddEntryHash(entries[i], hash);
+                AddEntryHash(entries[i], ref hash);
             }
         }
 
@@ -123,7 +123,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             return a.SourceContextId.CompareTo(b.SourceContextId);
         }
 
-        private static void AddEntryHash(in MobaBuffStateRecoveryEntry entry, MobaStateHashBuilder hash)
+        private static void AddEntryHash(in MobaBuffStateRecoveryEntry entry, ref MobaStateHashBuilder hash)
         {
             hash.AddInt(entry.TargetActorId);
             hash.AddInt(entry.BuffId);

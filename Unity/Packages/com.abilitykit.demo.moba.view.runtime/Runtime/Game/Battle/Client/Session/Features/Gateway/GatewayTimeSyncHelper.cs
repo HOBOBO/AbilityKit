@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Game.Flow
 {
@@ -71,25 +72,24 @@ namespace AbilityKit.Game.Flow
             long serverTickFrequency,
             double localTickFrequency)
         {
-            if (serverTickFrequency <= 0)
+            ClockSynchronizationSample sample;
+            try
             {
-                throw new InvalidOperationException("Gateway time sync requires a positive server tick frequency.");
+                sample = ClockSynchronizationSample.FromRoundTrip(
+                    clientSendTicks,
+                    clientReceiveTicks,
+                    localTickFrequency,
+                    serverNowTicks,
+                    serverTickFrequency);
+            }
+            catch (ArgumentOutOfRangeException exception)
+            {
+                throw new InvalidOperationException("Gateway time sync requires positive local and server tick frequencies.", exception);
             }
 
-            if (localTickFrequency <= 0)
-            {
-                throw new InvalidOperationException("Gateway time sync requires a positive local tick frequency.");
-            }
-
-            var rttSeconds = (clientReceiveTicks - clientSendTicks) / localTickFrequency;
-            if (rttSeconds < 0) rttSeconds = 0;
-
-            var serverNowSeconds = serverNowTicks / (double)serverTickFrequency;
-            var localNowSeconds = clientReceiveTicks / localTickFrequency;
-            var serverNowEstimatedAtReceive = serverNowSeconds + (rttSeconds * 0.5);
-            var offsetSeconds = localNowSeconds - serverNowEstimatedAtReceive;
-
-            return new GatewayTimeSyncSample(rttSeconds, offsetSeconds);
+            return new GatewayTimeSyncSample(
+                sample.RoundTripSeconds,
+                sample.LocalMinusServerOffsetSeconds);
         }
 
         public static GatewayTimeSyncEwma ApplySample(
@@ -100,23 +100,23 @@ namespace AbilityKit.Game.Flow
             in GatewayTimeSyncSample sample,
             double alpha)
         {
-            if (alpha < 0) alpha = 0;
-            if (alpha > 1) alpha = 1;
-
-            if (!hasClockSync)
-            {
-                return new GatewayTimeSyncEwma(
-                    hasClockSync: true,
-                    clockOffsetSecondsEwma: sample.OffsetSeconds,
-                    rttSecondsEwma: sample.RttSeconds,
-                    samples: 1);
-            }
-
+            var current = new ClockSynchronizationEstimate(
+                hasClockSync,
+                currentClockOffsetSecondsEwma,
+                currentRttSecondsEwma,
+                currentSamples);
+            var frameworkSample = new ClockSynchronizationSample(
+                sample.RttSeconds,
+                sample.OffsetSeconds);
+            var estimate = ClockSynchronizationCoordinator.Smooth(
+                in current,
+                in frameworkSample,
+                alpha);
             return new GatewayTimeSyncEwma(
-                hasClockSync: true,
-                clockOffsetSecondsEwma: (alpha * sample.OffsetSeconds) + ((1.0 - alpha) * currentClockOffsetSecondsEwma),
-                rttSecondsEwma: (alpha * sample.RttSeconds) + ((1.0 - alpha) * currentRttSecondsEwma),
-                samples: currentSamples + 1);
+                estimate.HasSample,
+                estimate.LocalMinusServerOffsetSeconds,
+                estimate.RoundTripSeconds,
+                estimate.SampleCount);
         }
     }
 }

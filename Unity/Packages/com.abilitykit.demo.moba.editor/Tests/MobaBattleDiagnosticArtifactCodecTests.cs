@@ -55,6 +55,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(trigger.Result, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Failed));
             Assert.That(trigger.FailureKey, Is.EqualTo("missingMana"));
             Assert.That(trigger.Reason, Is.EqualTo("Missing mana for trigger."));
+            Assert.That(restored.Events.Events[3].Payload.TryGetSkillFailure(out var failure), Is.True);
+            Assert.That(failure.Slot, Is.EqualTo(2));
+            Assert.That(failure.Source, Is.EqualTo("Cast"));
+            Assert.That(failure.Stage, Is.EqualTo("Preparation"));
+            Assert.That(failure.Code, Is.EqualTo("Cast.TargetOutOfRange"));
+            Assert.That(failure.Message, Is.EqualTo("Target is outside cast range."));
         }
 
         [Test]
@@ -333,6 +339,13 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 failureKey: "missingMana",
                 reason: "Missing mana for trigger.");
             var triggerPayload = BattleDiagnosticEventPayload.FromTriggerAnalysis(in triggerData);
+            var failureData = new BattleDiagnosticSkillFailurePayload(
+                slot: 2,
+                source: "Cast",
+                stage: "Preparation",
+                code: "Cast.TargetOutOfRange",
+                message: "Target is outside cast range.");
+            var failurePayload = BattleDiagnosticEventPayload.FromSkillFailure(in failureData);
             var events = new[]
             {
                 new BattleDiagnosticEvent(
@@ -378,7 +391,24 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     contextId: 902,
                     payloadVersion: BattleDiagnosticTriggerAnalysisPayload.CurrentSchemaVersion,
                     summary: "Missing mana for trigger.",
-                    payload: triggerPayload)
+                    payload: triggerPayload),
+                new BattleDiagnosticEvent(
+                    _scope,
+                    Frame,
+                    4,
+                    1025,
+                    BattleDiagnosticEventKind.SkillFailure,
+                    BattleDiagnosticEventChannel.Skill,
+                    BattleDiagnosticEventOutcome.Failed,
+                    sourceActorId: 1,
+                    targetActorId: 2,
+                    configId: 101,
+                    rootContextId: 900,
+                    contextId: 900,
+                    skillRuntime: new BattleDiagnosticRuntimeHandle(700, 2),
+                    payloadVersion: BattleDiagnosticSkillFailurePayload.CurrentSchemaVersion,
+                    summary: "Structured cast failure",
+                    payload: failurePayload)
             };
             var metrics = new BattleDiagnosticStoreMetrics(8, events.Length, EventRevision, 2, 0, 1, true);
             var actors = new[]

@@ -1,4 +1,5 @@
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Game.Battle;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -70,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Services
         MobaRuntimeHealthSummary CollectHealth();
     }
 
-    public sealed class MobaRuntimeHealthSummaryValidator : IMobaRuntimeValidator, IMobaRuntimeHealthSummaryProvider
+    public sealed class MobaRuntimeHealthSummaryValidator : IMobaRuntimeValidator, IMobaRuntimeHealthSummaryProvider, IBattleHealthProvider
     {
         public const string SourceName = "runtime.health.summary";
         private const int DefaultTraceStaleFrameThreshold = 600;
@@ -95,6 +96,12 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaRuntimeHealthSummary CollectHealth()
         {
             return _hasContext ? CollectHealth(in _lastContext) : _lastSummary;
+        }
+
+        BattleHealthEntry IBattleHealthProvider.CollectHealth()
+        {
+            var summary = CollectHealth();
+            return MobaBattleCompositionAdapters.ToBattleHealthEntry(in summary);
         }
 
         public void Validate(in MobaRuntimeValidationContext context, MobaRuntimeValidationReport report)

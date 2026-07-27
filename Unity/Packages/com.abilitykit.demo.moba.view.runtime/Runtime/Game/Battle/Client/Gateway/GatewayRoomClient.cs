@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Protocol.Moba.GatewayTimeSync;
-using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Protocol.Room;
 using RoomSubscribeStateSyncReq = AbilityKit.Protocol.Room.WireSubscribeStateSyncReq;
@@ -29,6 +28,7 @@ namespace AbilityKit.Game.Battle.Agent
         private readonly IConnection _connection;
         private readonly RequestClient _request;
         private readonly GatewayRoomOpCodes _opCodes;
+        private long _nextBattleInputCommandSequence;
 
         public GatewayRoomClient(IConnection connection, GatewayRoomOpCodes opCodes)
         {
@@ -270,11 +270,30 @@ namespace AbilityKit.Game.Battle.Agent
             if (frame < 0) throw new ArgumentOutOfRangeException(nameof(frame));
             if (playerId == 0) throw new ArgumentOutOfRangeException(nameof(playerId));
 
-            var req = new WireSubmitFrameInputReq(0UL, worldId, playerId, frame, inputOpCode, inputPayload ?? Array.Empty<byte>());
-            var payload = WireCustomBinary.Serialize(in req);
+            var commandSequence = unchecked((ulong)Interlocked.Increment(ref _nextBattleInputCommandSequence));
+            var req = new WireSubmitBattleInputReq
+            {
+                SessionToken = sessionToken,
+                BattleId = battleId,
+                WorldId = worldId,
+                Frame = frame,
+                PlayerId = playerId,
+                InputOpCode = inputOpCode,
+                Payload = inputPayload ?? Array.Empty<byte>(),
+                CommandSequence = commandSequence
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
             var respPayload = await _request.SendRequestAsync(_opCodes.SubmitBattleInput, payload, timeout, cancellationToken);
-            var wire = WireCustomBinary.DeserializeSubmitFrameInputRes(respPayload);
-            return new GatewayBattleInputResult(wire.ServerFrame, wire.Accepted);
+            var wire = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputRes>(respPayload);
+            return new GatewayBattleInputResult(
+                wire.AcceptedFrame,
+                wire.Success,
+                wire.CurrentFrame,
+                wire.Status,
+                wire.Message,
+                wire.ShouldResync,
+                wire.ServerTicks,
+                commandSequence);
         }
 
         // ===== 阶段 5：资源加载屏障 / 状态查询 / 恢复 / 状态变更推送 =====
@@ -496,7 +515,7 @@ namespace AbilityKit.Game.Battle.Agent
                 var actor = source[i];
                 actors[i] = new GatewayStateSyncActorSnapshot(
                     actor.ActorId,
-                    actor.X,       // WireStateSyncActorSnapshot uses X/Y/Z (not PositionX/Y/Z)
+                    actor.X,
                     actor.Y,
                     actor.Z,
                     actor.Rotation,
@@ -510,12 +529,21 @@ namespace AbilityKit.Game.Battle.Agent
                     actor.OwnerNetId);
             }
 
+            var removedSource = push.RemovedActorIds;
+            var removedActorIds = removedSource == null || removedSource.Count == 0
+                ? Array.Empty<int>()
+                : removedSource.ToArray();
+
             return new GatewayStateSyncSnapshot(
                 push.WorldId,
                 push.Frame,
-                (long)push.Timestamp,   // WireStateSyncSnapshotPush.Timestamp is double; cast to long for GatewayStateSyncSnapshot
+                push.Timestamp,
                 push.IsFullSnapshot,
-                actors);
+                actors,
+                push.SchemaVersion,
+                removedActorIds,
+                push.EventWatermark,
+                push.EventEpoch);
         }
 
         private static GatewayWorldStartAnchor ToGatewayAnchor(in WireWorldStartAnchor anchor)

@@ -21,8 +21,8 @@ namespace BTCore.Runtime
         public readonly List<BTNode> Nodes = new();
 
         private readonly Dictionary<string, BTNode> _guid2Nodes = new();
-        
-#if UNITY_EDITOR        
+
+#if UNITY_EDITOR
         public readonly List<StickNoteNode> StickNotes = new();
         public readonly List<GroupNode> NodeGroups = new();
 
@@ -51,24 +51,35 @@ namespace BTCore.Runtime
             if (index < 0 || index >= Nodes.Count) {
                 return;
             }
-            
+
             Nodes[index] = newNode;
             _guid2Nodes[newNode.Guid] = newNode;
         }
 
         public BTNode GetNodeByGuid(string guid) {
-            return _guid2Nodes.ContainsKey(guid) ? _guid2Nodes[guid] : null;
+            return _guid2Nodes.TryGetValue(guid, out var node) ? node : null;
         }
-        
-        // TODO 其他序列化可能不会触发回调
-        [OnDeserialized]
-        private void OnAfterDeserialize(StreamingContext context) {
-            Nodes.ForEach(node => {
+
+        /// <summary>
+        /// Rebuilds runtime lookup data from the serialized node list.
+        /// </summary>
+        public void RebuildNodeIndex() {
+            EntryNode = null;
+            _guid2Nodes.Clear();
+
+            foreach (var node in Nodes) {
                 if (node is EntryNode entryNode) {
                     EntryNode = entryNode;
                 }
+
                 _guid2Nodes.Add(node.Guid, node);
-            });
+            }
+        }
+
+        // TODO 其他序列化可能不会触发回调
+        [OnDeserialized]
+        private void OnAfterDeserialize(StreamingContext context) {
+            RebuildNodeIndex();
         }
     }
 }

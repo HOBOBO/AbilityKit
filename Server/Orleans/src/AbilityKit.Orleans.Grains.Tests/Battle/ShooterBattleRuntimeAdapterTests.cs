@@ -211,6 +211,7 @@ public sealed class ShooterBattleRuntimeAdapterTests
         var fullPayload = ShooterPureStateSyncCodec.Deserialize(full.Payload!);
         Assert.Equal(ShooterOpCodes.Snapshot.PureState, full.PayloadOpCode);
         Assert.True(full.IsFullSnapshot);
+        Assert.Null(full.Actors);
         Assert.Equal(ShooterPureStateSnapshotKinds.FullBaseline, fullPayload.SnapshotKind);
         Assert.Equal(initParams.WorldId, fullPayload.WorldId);
         Assert.Equal(full.Frame, fullPayload.Frame);
@@ -237,6 +238,7 @@ public sealed class ShooterBattleRuntimeAdapterTests
         var deltaPayload = ShooterPureStateSyncCodec.Deserialize(delta.Payload!);
         Assert.Equal(ShooterOpCodes.Snapshot.PureStateDelta, delta.PayloadOpCode);
         Assert.False(delta.IsFullSnapshot);
+        Assert.Null(delta.Actors);
         Assert.Equal(ShooterPureStateSnapshotKinds.Delta, deltaPayload.SnapshotKind);
         Assert.Equal(fullPayload.Frame, deltaPayload.BaselineFrame);
         Assert.Equal(fullPayload.StateHash, deltaPayload.BaselineHash);

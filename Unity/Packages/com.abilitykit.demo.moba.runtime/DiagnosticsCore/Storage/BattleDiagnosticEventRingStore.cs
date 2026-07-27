@@ -317,6 +317,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 return true;
             }
 
+            if (diagnosticEvent.Payload.TryGetSkillFailure(out var skillFailure) &&
+                MatchesSkillFailureSearch(in skillFailure, searchText))
+            {
+                return true;
+            }
+
             return MatchesNumber(diagnosticEvent.Sequence, searchText) ||
                    MatchesNumber(diagnosticEvent.Frame, searchText) ||
                    MatchesNumber(diagnosticEvent.SourceActorId, searchText) ||
@@ -359,6 +365,17 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             }
 
             return true;
+        }
+
+        private static bool MatchesSkillFailureSearch(
+            in BattleDiagnosticSkillFailurePayload failure,
+            string searchText)
+        {
+            return failure.Source.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   failure.Stage.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   failure.Code.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   failure.Message.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   MatchesNumber(failure.Slot, searchText);
         }
 
         private static bool MatchesTriggerSearch(

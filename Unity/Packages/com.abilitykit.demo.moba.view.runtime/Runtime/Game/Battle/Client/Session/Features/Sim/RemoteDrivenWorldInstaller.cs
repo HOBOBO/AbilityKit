@@ -9,7 +9,7 @@ namespace AbilityKit.Game.Flow
     {
         public readonly BattleStartPlan Plan;
         public readonly BattleContext Context;
-        public readonly BattleSessionHandles.RemoteDrivenHandles Handles;
+        public readonly BattleSessionRemoteDrivenWorldRuntime Handles;
         public readonly float FixedDeltaSeconds;
         public readonly Func<WorldId, int> ResolveIdealFrameLimit;
         public readonly Func<bool> ShouldForceHashMismatch;
@@ -18,7 +18,7 @@ namespace AbilityKit.Game.Flow
         public RemoteDrivenWorldInstallOptions(
             BattleStartPlan plan,
             BattleContext context,
-            BattleSessionHandles.RemoteDrivenHandles handles,
+            BattleSessionRemoteDrivenWorldRuntime handles,
             float fixedDeltaSeconds,
             Func<WorldId, int> resolveIdealFrameLimit,
             Func<bool> shouldForceHashMismatch,
@@ -58,7 +58,7 @@ namespace AbilityKit.Game.Flow
         private static void CreateWorldRuntime(
             BattleStartPlan plan,
             BattleContext ctx,
-            BattleSessionHandles.RemoteDrivenHandles handles,
+            BattleSessionRemoteDrivenWorldRuntime handles,
             float fixedDeltaSeconds,
             int inputDelayFrames,
             Func<WorldId, int> resolveIdealFrameLimit,
@@ -90,7 +90,7 @@ namespace AbilityKit.Game.Flow
         }
 
         private static void CreateInputRuntime(
-            BattleSessionHandles.RemoteDrivenHandles handles,
+            BattleSessionRemoteDrivenWorldRuntime handles,
             int inputDelayFrames)
         {
             var inputRuntime = RemoteDrivenInputRuntime.Create(inputDelayFrames);

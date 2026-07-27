@@ -4,8 +4,13 @@ using AbilityKit.World.Svelto;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {
-    public sealed class ShooterWorldModule : IWorldModule
+    public sealed class ShooterWorldModule : IWorldModule, IWorldModuleInfo
     {
+        public string Id => "abilitykit.demo.shooter.world";
+        public int Order => 0;
+        public Type[] DependsOn => Array.Empty<Type>();
+        public Type[] ConflictsWith => Array.Empty<Type>();
+
         public void Configure(WorldContainerBuilder builder)
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));

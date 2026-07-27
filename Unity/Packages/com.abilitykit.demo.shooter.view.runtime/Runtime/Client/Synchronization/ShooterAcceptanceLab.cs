@@ -837,6 +837,7 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             _disposed = true;
+            _authoritativeDriver?.Dispose();
             _authoritativeDriver = null;
             _authoritativeWorldSession?.Dispose();
             _runtimeWorld.Dispose();

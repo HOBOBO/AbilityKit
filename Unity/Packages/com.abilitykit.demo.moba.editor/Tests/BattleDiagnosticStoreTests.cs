@@ -246,6 +246,69 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void SkillFailurePayload_RoundTripsEveryFieldAndRejectsWrongKind()
+        {
+            var failure = new BattleDiagnosticSkillFailurePayload(
+                slot: 3,
+                source: "Cast",
+                stage: "Preparation",
+                code: "Cast.TargetOutOfRange",
+                message: "Target is outside cast range.");
+            var payload = BattleDiagnosticEventPayload.FromSkillFailure(in failure);
+
+            Assert.That(payload.Kind, Is.EqualTo(BattleDiagnosticPayloadKind.SkillFailure));
+            Assert.That(payload.SchemaVersion, Is.EqualTo(BattleDiagnosticSkillFailurePayload.CurrentSchemaVersion));
+            Assert.That(payload.TryGetSkillFailure(out var restored), Is.True);
+            Assert.That(restored, Is.EqualTo(failure));
+            Assert.That(payload, Is.EqualTo(BattleDiagnosticEventPayload.FromSkillFailure(in failure)));
+            Assert.Throws<System.ArgumentException>(() => new BattleDiagnosticEvent(
+                _scope,
+                10,
+                1,
+                100L,
+                BattleDiagnosticEventKind.SkillRuntimeEnded,
+                BattleDiagnosticEventChannel.Skill,
+                BattleDiagnosticEventOutcome.Failed,
+                payload: payload));
+        }
+
+        [TestCase("Cast.TargetOutOfRange")]
+        [TestCase("outside cast range")]
+        [TestCase("3")]
+        public void RingStore_TextSearch_MatchesStructuredSkillFailureFields(string searchText)
+        {
+            var store = new BattleDiagnosticEventRingStore(_scope, 4);
+            var failure = new BattleDiagnosticSkillFailurePayload(
+                slot: 3,
+                source: "Cast",
+                stage: "Preparation",
+                code: "Cast.TargetOutOfRange",
+                message: "Target is outside cast range.");
+            var payload = BattleDiagnosticEventPayload.FromSkillFailure(in failure);
+            store.TryAppend(new BattleDiagnosticEvent(
+                _scope,
+                20,
+                1,
+                100L,
+                BattleDiagnosticEventKind.SkillFailure,
+                BattleDiagnosticEventChannel.Skill,
+                BattleDiagnosticEventOutcome.Failed,
+                sourceActorId: 7,
+                configId: 9001,
+                payloadVersion: BattleDiagnosticSkillFailurePayload.CurrentSchemaVersion,
+                summary: "Structured failure",
+                payload: payload));
+
+            var result = store.Query(new BattleDiagnosticEventQuery(
+                1,
+                BattleDiagnosticFilter.Default.WithSearchText(searchText),
+                new BattleDiagnosticPageRequest(0, 0, 10)));
+
+            Assert.That(result.Items.Count, Is.EqualTo(1));
+            Assert.That(result.Items[0].Sequence, Is.EqualTo(1));
+        }
+
+        [Test]
         public void RingStore_NextPage_UsesOriginalRevisionWhileNewEventsArrive()
         {
             var store = new BattleDiagnosticEventRingStore(_scope, 8);

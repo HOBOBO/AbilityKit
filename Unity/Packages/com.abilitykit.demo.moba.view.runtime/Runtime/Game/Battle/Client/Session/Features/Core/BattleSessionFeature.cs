@@ -22,15 +22,15 @@ namespace AbilityKit.Game.Flow
         private readonly IBattleSessionTransportFactory _transportFactory;
         private readonly IBattleSessionGatewayConnectionFactory _gatewayConnectionFactory;
         private readonly IBattleSessionGatewayRoomClientFactory _gatewayRoomClientFactory;
+        private readonly IBattleLogicSessionRegistry _sessionRegistry;
+        private readonly BattleReplaySessionOwner _replayOwner = new BattleReplaySessionOwner();
 
         private readonly BattleSessionState _state = new BattleSessionState();
         private readonly BattleSessionHandles _handles = new BattleSessionHandles();
 
-        private BattleViewFeature _replayViewFeature;
-        private BattleHudFeature _replayHudFeature;
-        private bool _renderReplayPresentation = true;
-        private bool _replayPresentationDetached;
-
+        private readonly SessionLifecycleHost _lifecycleHost;
+        private readonly TickLoopHost _tickLoopHost;
+        private readonly SessionNetAdapterContextHost _netAdapterContextHost;
         private readonly SessionOrchestrator _orchestrator;
         private readonly SessionDispatchersController _dispatchers;
         private readonly SessionNetAdapterController _net;
@@ -67,7 +67,8 @@ namespace AbilityKit.Game.Flow
             IBattleSessionWorldInstaller worldInstaller,
             IBattleSessionTransportFactory transportFactory = null,
             IBattleSessionGatewayConnectionFactory gatewayRoomConnectionFactory = null,
-            IBattleSessionGatewayRoomClientFactory gatewayRoomClientFactory = null)
+            IBattleSessionGatewayRoomClientFactory gatewayRoomClientFactory = null,
+            IBattleLogicSessionRegistry sessionRegistry = null)
         {
             _bootstrapper = bootstrapper;
             _connectionRegistry = connectionRegistry ?? new AbilityKitConnectionRegistry();
@@ -75,13 +76,42 @@ namespace AbilityKit.Game.Flow
             _transportFactory = transportFactory ?? new DefaultBattleSessionTransportFactory();
             _gatewayConnectionFactory = gatewayRoomConnectionFactory ?? new DefaultBattleSessionGatewayConnectionFactory(gatewayConnectionFactory);
             _gatewayRoomClientFactory = gatewayRoomClientFactory ?? new DefaultBattleSessionGatewayRoomClientFactory();
-            _orchestrator = new SessionOrchestrator(_state, _handles, this);
+            _sessionRegistry = sessionRegistry ?? new DefaultBattleLogicSessionRegistry();
+            _lifecycleHost = new SessionLifecycleHost(
+                () => _plan,
+                () => _ctx,
+                _handles,
+                () => OnFrame,
+                StartBattleLogicSession,
+                _sessionRegistry.Stop,
+                InvokeSessionStartingPipeline,
+                InvokeSessionStoppingPipeline,
+                InvokeReplaySetupPipeline,
+                StartRemoteDrivenLocalWorld,
+                StartConfirmedAuthorityWorld,
+                TryDestroyBattleWorlds,
+                DisposeSnapshotRouting,
+                DisposeConfirmedView,
+                DisposeRemoteDrivenWorld,
+                DisposeConfirmedWorld,
+                DisposeRemoteInterpolation,
+                ResetSessionHandles);
+            _orchestrator = new SessionOrchestrator(_state, _handles, _lifecycleHost);
             _dispatchers = new SessionDispatchersController();
             _net = new SessionNetAdapterController();
             _replayCtrl = new SessionReplayController();
             _planCtrl = new SessionPlanController();
             _eventsCtrl = new SessionEventsController();
-            _tickLoop = new TickLoopController(_state, _handles, this);
+            _tickLoopHost = new TickLoopHost(
+                GetFixedDeltaSeconds,
+                TickRemoteDrivenLocalSim,
+                TickConfirmedAuthorityWorldSim,
+                TickRemoteInterpolation);
+            _tickLoop = new TickLoopController(_state, _handles, _tickLoopHost);
+            _netAdapterContextHost = new SessionNetAdapterContextHost(
+                () => _plan,
+                _handles,
+                () => _snapshots);
             _snapshotRouting = new SessionSnapshotRoutingController();
             _worldCatchUp = new SessionWorldCatchUpController();
         }
@@ -90,28 +120,30 @@ namespace AbilityKit.Game.Flow
         public int LastFrame => _lastFrame;
         public BattleStartPlan Plan => _plan;
 
-        public bool IsReplaySession => _handles.Replay.Driver != null;
-        public bool IsPlaying => _handles.Replay.Driver?.IsPlaying ?? false;
-        public bool RenderPresentation => !IsReplaySession || _renderReplayPresentation;
-        public int CurrentFrame => _lastFrame;
-        int Battle.Replay.IBattleReplayControl.LastFrame => _handles.Replay.Driver?.LastFrame ?? 0;
-        public string ReplayPath => IsReplaySession ? _plan.RunModeOptions.InputReplayPath : string.Empty;
+        public bool IsReplaySession => _replayOwner.IsActive;
+        public bool IsPlaying => _replayOwner.IsPlaying;
+        public bool RenderPresentation => true;
+        public int CurrentFrame => IsReplaySession ? _replayOwner.CurrentFrame : _lastFrame;
+        int Battle.Replay.IBattleReplayControl.LastFrame => _replayOwner.LastFrame;
+        public string ReplayPath => _replayOwner.ReplayPath;
 
         public float PlaybackSpeed
         {
-            get => _handles.Replay.Driver?.PlaybackSpeed ?? 1f;
-            set
-            {
-                if (_handles.Replay.Driver != null) _handles.Replay.Driver.PlaybackSpeed = value;
-            }
+            get => _replayOwner.PlaybackSpeed;
+            set => _replayOwner.PlaybackSpeed = value;
         }
 
         public bool TryLoad(string path, bool renderPresentation, out string error)
         {
-            error = null;
             if (_session == null)
             {
                 error = "当前没有活动中的 Battle Session，无法复用战斗启动配置。";
+                return false;
+            }
+
+            if (renderPresentation)
+            {
+                error = "当前回放仅支持独立逻辑会话；呈现回放需要独立 BattleContext 资源池。";
                 return false;
             }
 
@@ -121,122 +153,34 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            try
-            {
-                var file = FrameRecordCodecs.Current.Load(path);
-                if (file == null)
-                {
-                    error = "录像文件为空或格式不受支持。";
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                error = $"录像解码失败：{ex.Message}";
-                return false;
-            }
-
-            var previousPlan = _plan;
-            var previousRenderPresentation = RenderPresentation;
-            try
-            {
-                SuspendReplayPresentation();
-                _renderReplayPresentation = renderPresentation;
-                _plan = previousPlan.WithInputReplay(path);
-                StopSession();
-                StartSession();
-                ApplyAutoPlanActions();
-
-                var replay = _handles.Replay.Driver;
-                if (replay == null)
-                {
-                    throw new InvalidOperationException("Replay Driver 创建失败。");
-                }
-
-                replay.Pause();
-                RestoreReplayPresentationIfEnabled();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                error = $"启动 Replay Session 失败：{ex.Message}";
-                _renderReplayPresentation = previousRenderPresentation;
-                TryRestoreSession(previousPlan);
-                RestoreReplayPresentationIfEnabled();
-                return false;
-            }
+            return _replayOwner.TryStart(_plan, path, out error);
         }
 
         public void Play()
         {
-            _handles.Replay.Driver?.Play();
+            _replayOwner.Play();
         }
 
         public void Pause()
         {
-            _handles.Replay.Driver?.Pause();
-            _tickAcc = 0f;
+            _replayOwner.Pause();
         }
 
         public bool StepForward()
         {
             Pause();
-            return SeekToFrame(_lastFrame + 1);
+            return SeekToFrame(_replayOwner.CurrentFrame + 1);
         }
 
         public bool StepBackward()
         {
             Pause();
-            return SeekToFrame(_lastFrame - 1);
+            return SeekToFrame(_replayOwner.CurrentFrame - 1);
         }
 
         public bool SeekToFrame(int frame)
         {
-            return _replayCtrl.SeekToFrame(_plan, _state, _handles, _ctx, this, frame);
-        }
-
-        private void SuspendReplayPresentation()
-        {
-            if (_replayPresentationDetached || _flow == null) return;
-
-            if (_replayViewFeature == null) _phaseCtx.Features.TryGet(out _replayViewFeature);
-            if (_replayHudFeature == null) _phaseCtx.Features.TryGet(out _replayHudFeature);
-
-            if (_replayHudFeature != null) _flow.Detach(_replayHudFeature);
-            if (_replayViewFeature != null) _flow.Detach(_replayViewFeature);
-            _replayPresentationDetached = true;
-        }
-
-        private void RestoreReplayPresentationIfEnabled()
-        {
-            if (!_renderReplayPresentation || !_replayPresentationDetached || _flow == null) return;
-
-            if (_replayViewFeature != null) _flow.Attach(_replayViewFeature);
-            if (_replayHudFeature != null) _flow.Attach(_replayHudFeature);
-            _replayPresentationDetached = false;
-        }
-
-        private void ResetReplayPresentationState()
-        {
-            _replayViewFeature = null;
-            _replayHudFeature = null;
-            _renderReplayPresentation = true;
-            _replayPresentationDetached = false;
-        }
-
-        private void TryRestoreSession(BattleStartPlan plan)
-        {
-            try
-            {
-                _plan = plan;
-                StopSession();
-                StartSession();
-                ApplyAutoPlanActions();
-            }
-            catch
-            {
-                StopSession();
-            }
+            return _replayOwner.SeekToFrame(frame);
         }
 
         private float GetFixedDeltaSeconds() => _orchestrator.GetFixedDeltaSeconds();

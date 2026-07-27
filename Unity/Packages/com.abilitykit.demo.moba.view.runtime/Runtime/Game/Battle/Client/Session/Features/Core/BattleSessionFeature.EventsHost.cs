@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Core.Logging;
+using AbilityKit.Protocol.Room;
 using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Flow.Battle.Modules;
@@ -46,6 +47,7 @@ namespace AbilityKit.Game.Flow
         public event Action SessionStarted;
         public event Action FirstFrameReceived;
         public event Action<Exception> SessionFailed;
+        public event Action<WireReliableBattleEvent> ReliableBattleEventReceived;
 
         // 阶段 7a：真实资源加载完成事件（manifest barrier）。
         public event Action AssetsLoadCompleted;

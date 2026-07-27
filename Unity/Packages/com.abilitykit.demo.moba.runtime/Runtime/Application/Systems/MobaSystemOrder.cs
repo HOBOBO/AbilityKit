@@ -44,6 +44,8 @@ namespace AbilityKit.Demo.Moba.Systems
         // ========== 移动系统 (Execute/Normal) ==========
         /// <summary>Actor 脑决策 Tick</summary>
         public const int BrainTick = Base + WorldSystemOrder.Normal + 8;
+        /// <summary>脑决策输出应用（Movement → MoveInput）</summary>
+        public const int BrainOutputApply = Base + WorldSystemOrder.Normal + 9;
         /// <summary>移动输入处理</summary>
         public const int MotionLocomotionInput = Base + WorldSystemOrder.Normal + 10;
         /// <summary>移动 Tick</summary>

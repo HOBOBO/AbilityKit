@@ -137,6 +137,35 @@ namespace AbilityKit.Demo.Moba.Services.StateImport
             return result;
         }
 
+        public int ApplyRemovedActors(IReadOnlyList<int> actorIds, int frame)
+        {
+            if (actorIds == null || actorIds.Count == 0)
+            {
+                return 0;
+            }
+
+            var despawnFrame = ResolveDespawnFrame(frame);
+            var removed = 0;
+            for (int i = 0; i < actorIds.Count; i++)
+            {
+                var actorId = actorIds[i];
+                if (actorId <= 0 || !_registry.TryGet(actorId, out var entity) || entity == null)
+                {
+                    continue;
+                }
+
+                if (ActorLifecycleRequests.RequestDespawn(
+                    entity,
+                    despawnFrame,
+                    ActorDespawnReason.Unknown))
+                {
+                    removed++;
+                }
+            }
+
+            return removed;
+        }
+
         private void ApplyToExisting(global::ActorEntity entity, in MobaActorStateImport a)
         {
             if (entity.hasTransform)

@@ -37,7 +37,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         EffectStarted = 18,
         EffectEnded = 19,
         ProjectileHit = 20,
-        TriggerAnalysis = 21
+        TriggerAnalysis = 21,
+        SkillFailure = 22
     }
 
     public enum BattleDiagnosticEventOutcome
@@ -646,6 +647,14 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             {
                 throw new ArgumentException(
                     "TriggerAnalysis payload requires a TriggerAnalysis event kind.",
+                    nameof(payload));
+            }
+
+            if (payload.Kind == BattleDiagnosticPayloadKind.SkillFailure &&
+                kind != BattleDiagnosticEventKind.SkillFailure)
+            {
+                throw new ArgumentException(
+                    "SkillFailure payload requires a SkillFailure event kind.",
                     nameof(payload));
             }
 

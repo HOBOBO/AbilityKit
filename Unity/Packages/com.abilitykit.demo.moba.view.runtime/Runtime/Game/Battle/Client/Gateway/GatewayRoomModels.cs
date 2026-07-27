@@ -72,11 +72,36 @@ namespace AbilityKit.Game.Battle.Agent
     {
         public readonly int AcceptedFrame;
         public readonly bool Success;
+        public readonly int CurrentFrame;
+        public readonly string Status;
+        public readonly string Message;
+        public readonly bool ShouldResync;
+        public readonly long ServerTicks;
+        public readonly ulong CommandSequence;
 
         public GatewayBattleInputResult(int acceptedFrame, bool success)
+            : this(acceptedFrame, success, acceptedFrame, string.Empty, string.Empty, !success, 0L, 0UL)
+        {
+        }
+
+        public GatewayBattleInputResult(
+            int acceptedFrame,
+            bool success,
+            int currentFrame,
+            string status,
+            string message,
+            bool shouldResync,
+            long serverTicks,
+            ulong commandSequence)
         {
             AcceptedFrame = acceptedFrame;
             Success = success;
+            CurrentFrame = currentFrame;
+            Status = status ?? string.Empty;
+            Message = message ?? string.Empty;
+            ShouldResync = shouldResync;
+            ServerTicks = serverTicks;
+            CommandSequence = commandSequence;
         }
     }
 
@@ -92,19 +117,38 @@ namespace AbilityKit.Game.Battle.Agent
 
     public readonly struct GatewayStateSyncSnapshot
     {
+        public const int CurrentSchemaVersion = 1;
+
         public readonly ulong WorldId;
         public readonly int Frame;
         public readonly double Timestamp;
         public readonly bool IsFullSnapshot;
         public readonly GatewayStateSyncActorSnapshot[] Actors;
+        public readonly int SchemaVersion;
+        public readonly int[] RemovedActorIds;
+        public readonly long EventWatermark;
+        public readonly string EventEpoch;
 
-        public GatewayStateSyncSnapshot(ulong worldId, int frame, double timestamp, bool isFullSnapshot, GatewayStateSyncActorSnapshot[] actors)
+        public GatewayStateSyncSnapshot(
+            ulong worldId,
+            int frame,
+            double timestamp,
+            bool isFullSnapshot,
+            GatewayStateSyncActorSnapshot[] actors,
+            int schemaVersion = 0,
+            int[] removedActorIds = null,
+            long eventWatermark = 0L,
+            string eventEpoch = null)
         {
             WorldId = worldId;
             Frame = frame;
             Timestamp = timestamp;
             IsFullSnapshot = isFullSnapshot;
             Actors = actors;
+            SchemaVersion = schemaVersion;
+            RemovedActorIds = removedActorIds ?? System.Array.Empty<int>();
+            EventWatermark = System.Math.Max(0L, eventWatermark);
+            EventEpoch = eventEpoch ?? string.Empty;
         }
     }
 

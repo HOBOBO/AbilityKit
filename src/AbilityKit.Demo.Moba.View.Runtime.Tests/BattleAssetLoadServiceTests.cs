@@ -120,6 +120,16 @@ public sealed class BattleAssetLoadServiceTests
         }
     }
 
+    private sealed class CollectingProgress : IProgress<BattleAssetLoadProgress>
+    {
+        public List<BattleAssetLoadProgress> Reports { get; } = new();
+
+        public void Report(BattleAssetLoadProgress value)
+        {
+            Reports.Add(value);
+        }
+    }
+
     private static BattleAssetManifest NewManifest(params BattleAssetEntry[] entries)
     {
         return new BattleAssetManifest(3, "hash-abc", 7L, entries);
@@ -196,13 +206,12 @@ public sealed class BattleAssetLoadServiceTests
         var source = new MockAssetSource("a", "b", "c");
         var service = new BattleAssetLoadService(source);
         var manifest = NewManifest(Entry("k1", "a"), Entry("k2", "b"), Entry("k3", "c"));
-        var reports = new List<BattleAssetLoadProgress>();
-        var progress = new Progress<BattleAssetLoadProgress>(p => reports.Add(p));
+        var progress = new CollectingProgress();
 
         await service.LoadAsync(manifest, progress);
 
-        Assert.True(reports.Count >= manifest.Entries.Count);
-        var last = reports[reports.Count - 1];
+        Assert.True(progress.Reports.Count >= manifest.Entries.Count);
+        var last = progress.Reports[progress.Reports.Count - 1];
         Assert.Equal(3, last.LoadedCount);
         Assert.Equal(3, last.TotalCount);
         Assert.Equal(1f, last.Progress01, 3);

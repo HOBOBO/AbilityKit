@@ -4,7 +4,7 @@ param(
     [string]$StepName,
     [string]$ConfigPath = 'tools\test-gates.json',
     [string]$Configuration = 'Debug',
-    [string]$ResultsDirectory = 'artifacts\test-gates',
+    [string]$ResultsDirectory = 'local\Logs\test-gates',
     [switch]$List,
     [switch]$NoRestore,
     [switch]$NoBuild,

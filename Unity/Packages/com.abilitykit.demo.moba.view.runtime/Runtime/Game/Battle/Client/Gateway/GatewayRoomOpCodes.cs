@@ -1,6 +1,5 @@
 using RoomOpCodes = AbilityKit.Protocol.Room.RoomGatewayOpCodes;
 using StateSyncOpCodes = AbilityKit.Protocol.Moba.StateSync.OpCodes;
-using FrameSyncOpCodes = AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.OpCodes;
 
 namespace AbilityKit.Game.Battle.Agent
 {
@@ -25,12 +24,12 @@ namespace AbilityKit.Game.Battle.Agent
         public readonly uint RoomStateChanged;
 
         public GatewayRoomOpCodes(uint createRoom, uint joinRoom)
-            : this(createRoom, joinRoom, StateSyncOpCodes.SubscribeStateSync, RoomOpCodes.SetReady, RoomOpCodes.PickHero, RoomOpCodes.StartBattle, FrameSyncOpCodes.SubmitFrameInput)
+            : this(createRoom, joinRoom, StateSyncOpCodes.SubscribeStateSync, RoomOpCodes.SetReady, RoomOpCodes.PickHero, RoomOpCodes.StartBattle, RoomOpCodes.SubmitBattleInput)
         {
         }
 
         public GatewayRoomOpCodes(uint createRoom, uint joinRoom, uint setReady, uint pickHero, uint startBattle)
-            : this(createRoom, joinRoom, StateSyncOpCodes.SubscribeStateSync, setReady, pickHero, startBattle, FrameSyncOpCodes.SubmitFrameInput)
+            : this(createRoom, joinRoom, StateSyncOpCodes.SubscribeStateSync, setReady, pickHero, startBattle, RoomOpCodes.SubmitBattleInput)
         {
         }
 
@@ -108,7 +107,7 @@ namespace AbilityKit.Game.Battle.Agent
             RoomOpCodes.SetReady,
             RoomOpCodes.PickHero,
             RoomOpCodes.StartBattle,
-            FrameSyncOpCodes.SubmitFrameInput,
+            RoomOpCodes.SubmitBattleInput,
             StateSyncOpCodes.SnapshotPushed,
             StateSyncOpCodes.DeltaSnapshotPushed,
             RoomOpCodes.BeginLoading,

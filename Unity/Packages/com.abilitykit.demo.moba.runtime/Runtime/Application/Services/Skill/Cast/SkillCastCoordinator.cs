@@ -12,6 +12,7 @@ using AbilityKit.Core.Logging;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Pipeline;
 using AbilityKit.Triggering.Eventing;
@@ -119,7 +120,14 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (!_loadout.TryGetSkillId(actorId, slot, out var skillId))
             {
-                return MobaSkillCastResult.Failed("Skill not found in slot.");
+                var failure = new MobaSkillCastFailure(
+                    "Preparation",
+                    null,
+                    SkillFailureCodes.Cast.MissingSkill,
+                    "Skill not found in slot.");
+                var result = MobaSkillCastResult.Failed("Skill not found in slot.", in failure);
+                CollectSkillFailure(actorId, skillId: 0, slot, targetActorId: 0, in result);
+                return result;
             }
 
             return TryCastSkill(actorId, skillId, slot);
@@ -139,13 +147,26 @@ namespace AbilityKit.Demo.Moba.Services
 
         public MobaSkillInputHandleResult TryHandleInputResult(int actorId, in SkillInputEvent evt)
         {
-            var validation = ValidateSkillInput(actorId, in evt);
-            if (!validation.Success)
+            var result = ValidateSkillInput(actorId, in evt);
+            if (result.Success)
             {
-                return validation;
+                result = DispatchSkillInputPhase(actorId, in evt);
             }
 
-            return DispatchSkillInputPhase(actorId, in evt);
+            if (!result.Success &&
+                string.Equals(result.Failure.Source, "Input", StringComparison.Ordinal))
+            {
+                var failure = result.Failure;
+                CollectSkillFailure(
+                    actorId,
+                    ResolveSkillId(actorId, evt.Slot),
+                    evt.Slot,
+                    evt.TargetActorId,
+                    in failure,
+                    runtimeHandle: default);
+            }
+
+            return result;
         }
 
         private static MobaSkillInputHandleResult ValidateSkillInput(int actorId, in SkillInputEvent evt)
@@ -247,9 +268,14 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (!_loadout.TryGetSkillId(actorId, slot, out var skillId))
             {
-                return MobaSkillCastResult.Failed(
-                    "Skill not found in slot.",
-                    new MobaSkillCastFailure("Preparation", null, "skill.cast.slotNotFound", "Skill not found in slot."));
+                var failure = new MobaSkillCastFailure(
+                    "Preparation",
+                    null,
+                    SkillFailureCodes.Cast.MissingSkill,
+                    "Skill not found in slot.");
+                var result = MobaSkillCastResult.Failed("Skill not found in slot.", in failure);
+                CollectSkillFailure(actorId, skillId: 0, slot, targetActorId, in result);
+                return result;
             }
 
             return TryCastSkill(actorId, skillId, slot, in aimPos, in aimDir, targetActorId);
@@ -299,13 +325,89 @@ namespace AbilityKit.Demo.Moba.Services
             var resolvedSkillId = ResolveModifiedSkillId(actorId, skillId);
             var input = new SkillCastPreparationInput(actorId, resolvedSkillId, slot, in aimPos, in aimDir, hasAim, targetActorId);
             var prepared = _preparation.Prepare(in input);
+            MobaSkillCastResult result;
             if (!prepared.Success)
             {
                 var failure = prepared.Failure;
-                return MobaSkillCastResult.Failed(prepared.FailReason, in failure);
+                result = MobaSkillCastResult.Failed(prepared.FailReason, in failure);
+            }
+            else
+            {
+                result = StartPreparedCast(actorId, resolvedSkillId, in prepared);
             }
 
-            return StartPreparedCast(actorId, resolvedSkillId, in prepared);
+            CollectSkillFailure(actorId, resolvedSkillId, slot, targetActorId, in result);
+            return result;
+        }
+
+        private int ResolveSkillId(int actorId, int slot)
+        {
+            return _loadout.TryGetSkillId(actorId, slot, out var skillId) ? skillId : 0;
+        }
+
+        private void CollectSkillFailure(
+            int actorId,
+            int skillId,
+            int slot,
+            int targetActorId,
+            in MobaSkillCastResult result)
+        {
+            if (result.Success) return;
+
+            var failure = result.Failure;
+            var runtimeHandle = result.RuntimeHandle;
+            CollectSkillFailure(
+                actorId,
+                skillId,
+                slot,
+                targetActorId,
+                in failure,
+                in runtimeHandle);
+        }
+
+        private void CollectSkillFailure(
+            int actorId,
+            int skillId,
+            int slot,
+            int targetActorId,
+            in MobaSkillCastFailure failure,
+            in MobaSkillCastRuntimeHandle runtimeHandle)
+        {
+            if (!failure.HasValue ||
+                _services == null ||
+                !_services.TryResolve<IMobaBattleDiagnosticEventSink>(out var sink) ||
+                sink == null)
+            {
+                return;
+            }
+
+            var payloadData = new BattleDiagnosticSkillFailurePayload(
+                slot,
+                failure.Source,
+                failure.Stage,
+                failure.Code,
+                failure.Message);
+            var payload = BattleDiagnosticEventPayload.FromSkillFailure(in payloadData);
+            var runtime = runtimeHandle.IsValid
+                ? new BattleDiagnosticRuntimeHandle(runtimeHandle.RuntimeId, runtimeHandle.Generation)
+                : default;
+            var rootContextId = runtimeHandle.IsValid ? runtimeHandle.RootTraceContextId : 0L;
+            var summary = $"code={payloadData.Code}, source={payloadData.Source}, stage={payloadData.Stage}, slot={slot}";
+            if (!string.IsNullOrEmpty(payloadData.Message)) summary += $", message={payloadData.Message}";
+            var draft = new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.SkillFailure,
+                BattleDiagnosticEventChannel.Skill,
+                BattleDiagnosticEventOutcome.Failed,
+                actorId,
+                targetActorId,
+                skillId,
+                rootContextId,
+                rootContextId,
+                runtime,
+                payloadVersion: BattleDiagnosticSkillFailurePayload.CurrentSchemaVersion,
+                summary: summary,
+                payload: payload);
+            sink.TryCollect(in draft);
         }
 
         private int ResolveModifiedSkillId(int actorId, int skillId)

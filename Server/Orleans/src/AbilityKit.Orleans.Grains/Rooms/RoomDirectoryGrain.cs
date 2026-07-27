@@ -1,6 +1,8 @@
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Persistence;
 using Orleans;
+using ContractCreateRoomRequest = AbilityKit.Orleans.Contracts.Rooms.CreateRoomRequest;
+using ContractCreateRoomResponse = AbilityKit.Orleans.Contracts.Rooms.CreateRoomResponse;
 
 namespace AbilityKit.Orleans.Grains.Rooms;
 
@@ -13,7 +15,7 @@ public sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         _roomStateStore = roomStateStore ?? throw new ArgumentNullException(nameof(roomStateStore));
     }
 
-    public async Task<CreateRoomResponse> CreateRoomAsync(CreateRoomRequest request)
+    public async Task<ContractCreateRoomResponse> CreateRoomAsync(ContractCreateRoomRequest request)
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
         if (string.IsNullOrWhiteSpace(request.AccountId)) throw new ArgumentException("AccountId is required", nameof(request));
@@ -50,7 +52,7 @@ public sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         var snapshot = await room.GetSnapshotAsync();
         await _roomStateStore.UpsertRoomAsync(directoryKey, snapshot.Summary);
 
-        return new CreateRoomResponse(roomId);
+        return new ContractCreateRoomResponse(roomId);
     }
 
     public async Task<ListRoomsResponse> ListRoomsAsync(ListRoomsRequest request)

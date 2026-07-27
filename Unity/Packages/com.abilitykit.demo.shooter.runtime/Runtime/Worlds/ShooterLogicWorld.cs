@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.Diagnostics;
 using AbilityKit.Ability.World.DI;
 
 namespace AbilityKit.Demo.Shooter.Runtime
@@ -16,15 +17,32 @@ namespace AbilityKit.Demo.Shooter.Runtime
             WorldType = string.IsNullOrEmpty(options.WorldType) ? ShooterGameplay.WorldType : options.WorldType;
 
             var builder = options.ServiceBuilder ?? new WorldContainerBuilder();
-            for (int i = 0; i < options.Modules.Count; i++)
+            var modulePlan = WorldModulePlanner.Create(
+                options.Modules,
+                $"World[{Id.Value}/{WorldType}]");
+
+            builder.RegisterInstance<WorldId>(Id);
+            builder.RegisterInstance<string>(WorldType);
+            builder.RegisterExternalInstance<IWorld>(this);
+
+            for (var i = 0; i < modulePlan.Entries.Count; i++)
             {
-                if (options.Modules[i] != null)
-                {
-                    builder.AddModule(options.Modules[i]);
-                }
+                builder.AddModule(modulePlan.Entries[i].Module);
             }
 
             _container = builder.Build();
+
+            var report = WorldCompositionReportBuilder.Create(
+                Id.Value,
+                WorldType,
+                modulePlan,
+                builder);
+            foreach (var serviceType in _container.RegisteredServiceTypes)
+            {
+                report.AddRegisteredService(serviceType.FullName);
+            }
+
+            WorldDebugRegistry.Report(report);
         }
 
         public WorldId Id { get; }

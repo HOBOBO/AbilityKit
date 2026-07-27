@@ -24,7 +24,7 @@ namespace AbilityKit.Game.Flow
 
         public static void DisposeConfirmedView(
             GameFlowDomain flow,
-            BattleSessionHandles.ConfirmedHandles handles,
+            BattleSessionConfirmedWorldRuntime handles,
             Action<IEntity> destroyEntityTree)
         {
             DetachConfirmedViewFeature(flow, handles);
@@ -33,7 +33,7 @@ namespace AbilityKit.Game.Flow
         }
 
         public static void DisposeRemoteDrivenWorld(
-            BattleSessionHandles.RemoteDrivenHandles handles,
+            BattleSessionRemoteDrivenWorldRuntime handles,
             Action resetTickState)
         {
             handles.ClearWorldRuntime();
@@ -43,7 +43,7 @@ namespace AbilityKit.Game.Flow
 
         public static void DisposeConfirmedWorld(
             BattleContext ctx,
-            BattleSessionHandles.ConfirmedHandles handles,
+            BattleSessionConfirmedWorldRuntime handles,
             Action resetTickState)
         {
             handles.ClearWorldRuntime();
@@ -55,7 +55,7 @@ namespace AbilityKit.Game.Flow
 
         private static void DetachConfirmedViewFeature(
             GameFlowDomain flow,
-            BattleSessionHandles.ConfirmedHandles handles)
+            BattleSessionConfirmedWorldRuntime handles)
         {
             var feature = handles.TakeViewFeature();
             if (flow != null && feature != null)
@@ -65,7 +65,7 @@ namespace AbilityKit.Game.Flow
         }
 
         private static void DisposeConfirmedViewContext(
-            BattleSessionHandles.ConfirmedHandles handles,
+            BattleSessionConfirmedWorldRuntime handles,
             Action<IEntity> destroyEntityTree)
         {
             ConfirmedViewContextDisposer.Dispose(handles.TakeViewContext(), destroyEntityTree);

@@ -361,4 +361,19 @@ public class StateSyncPush
     /// 创建该快照时已产生的可靠事件最高权威序列。
     /// </summary>
     [Id(8)] public long EventWatermark { get; set; }
+
+    /// <summary>
+    /// 快照结构版本。0 表示旧协议；1 表示支持显式 actor 删除列表。
+    /// </summary>
+    [Id(9)] public int SchemaVersion { get; set; }
+
+    /// <summary>
+    /// 相对上一已发布快照被移除的 actor id。全量快照通常为空。
+    /// </summary>
+    [Id(10)] public List<int> RemovedActorIds { get; set; } = new();
+
+    /// <summary>
+    /// EventWatermark 所属的可靠事件 epoch。与全量快照共同构成恢复基线。
+    /// </summary>
+    [Id(11)] public string EventEpoch { get; set; } = string.Empty;
 }

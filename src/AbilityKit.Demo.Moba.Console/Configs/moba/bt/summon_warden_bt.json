@@ -1,0 +1,63 @@
+{
+  "$type": "BTCore.Runtime.BTree, BTRuntime",
+  "TreeState": 0,
+  "BTData": {
+    "$type": "BTCore.Runtime.BTData, BTRuntime",
+    "EntryNode": {
+      "$type": "BTCore.Runtime.EntryNode, BTRuntime",
+      "State": 0,
+      "ChildGuid": "11111111-1111-4111-8111-111111111111",
+      "Name": "EntryNode",
+      "Guid": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      "Comment": null,
+      "PosX": 225.0,
+      "PosY": 150.0
+    },
+    "Nodes": {
+      "$type": "System.Collections.Generic.List`1[[BTCore.Runtime.BTNode, BTRuntime]], mscorlib",
+      "$values": [
+        {
+          "$type": "BTCore.Runtime.EntryNode, BTRuntime",
+          "State": 0,
+          "ChildGuid": "11111111-1111-4111-8111-111111111111",
+          "Name": "EntryNode",
+          "Guid": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+          "Comment": null,
+          "PosX": 225.0,
+          "PosY": 150.0
+        },
+        {
+          "$type": "BTCore.Runtime.Composites.Sequence, BTRuntime",
+          "AbortType": 0,
+          "State": 0,
+          "Index": 0,
+          "ChildrenGuids": {
+            "$type": "System.Collections.Generic.List`1[[System.String, mscorlib]], mscorlib",
+            "$values": [
+              "22222222-2222-4222-8222-222222222222"
+            ]
+          },
+          "Name": "Sequence",
+          "Guid": "11111111-1111-4111-8111-111111111111",
+          "Comment": null,
+          "PosX": 225.0,
+          "PosY": 250.0
+        },
+        {
+          "$type": "BTEXT:MobaChaseNearestEnemyAction",
+          "State": 0,
+          "Name": "ChaseNearestEnemy",
+          "Guid": "22222222-2222-4222-8222-222222222222",
+          "Comment": "追击最近的敌人（树灵守卫大脑）",
+          "PosX": 225.0,
+          "PosY": 350.0,
+          "TypeName": "MobaChaseNearestEnemy",
+          "Properties": {
+            "$type": "System.Collections.Generic.Dictionary`2[[System.String, mscorlib],[System.String, mscorlib]], mscorlib",
+            "range": "1.5"
+          }
+        }
+      ]
+    }
+  }
+}

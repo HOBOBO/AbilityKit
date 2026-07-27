@@ -140,6 +140,12 @@ namespace AbilityKit.Demo.Moba.Share.Config
 
         public int BrainId;
 
+        /// <summary>AI 行为树资源名（BTCore 导出 JSON，不含扩展名）。空 = 按 BrainId 走目录驱动。</summary>
+        public string BrainTreeName;
+
+        /// <summary>继承属性配置 id：指向属性继承表（summon_attr_inherits）获取继承属性占比。0 = 不继承。</summary>
+        public int InheritAttributeConfigId;
+
         public int[] DefaultComponentTemplateIds;
 
         public int[] Tags;
@@ -218,5 +224,17 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int AttrId;
         public float Ratio;
         public float Add;
+    }
+
+    /// <summary>
+    /// 召唤物继承属性配置表条目：
+    /// 召唤物生成时按 施法者属性 × Ratio + Add 写入自身属性基础值。
+    /// </summary>
+    [Serializable]
+    public sealed class SummonAttrInheritDTO
+    {
+        public int Id;
+        public string Name;
+        public SummonAttrScaleDTO[] Scales;
     }
 }

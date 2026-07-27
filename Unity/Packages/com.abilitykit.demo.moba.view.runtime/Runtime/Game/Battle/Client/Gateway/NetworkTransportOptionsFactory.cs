@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Core.Logging;
 using AbilityKit.Ability.Host;
@@ -38,6 +39,12 @@ namespace AbilityKit.Game.Battle
             if (worldIdToUlong == null) throw new ArgumentNullException(nameof(worldIdToUlong));
             if (worldIdFromUlong == null) throw new ArgumentNullException(nameof(worldIdFromUlong));
 
+            if (string.IsNullOrWhiteSpace(battleId))
+            {
+                throw new ArgumentException("Battle id is required for authoritative input submission.", nameof(battleId));
+            }
+
+            long nextCommandSequence = 0;
             return new NetworkTransportOptions
             {
                 Host = host,
@@ -73,13 +80,25 @@ namespace AbilityKit.Game.Battle
                         };
                         return WireRoomGatewayBinary.Serialize(in wire);
                     },
+                SerializePostAuthenticationWithReliableEventCursor =
+                    string.IsNullOrWhiteSpace(battleId)
+                        ? null
+                        : (eventEpoch, lastEventAck) =>
+                        {
+                            var wire = new WireSubscribeStateSyncReq
+                            {
+                                SessionToken = sessionToken,
+                                BattleId = battleId,
+                                RoomId = publicRoomId ?? string.Empty,
+                                EventEpoch = eventEpoch ?? string.Empty,
+                                LastEventAck = Math.Max(0L, lastEventAck)
+                            };
+                            return WireRoomGatewayBinary.Serialize(in wire);
+                        },
 
-                OpSubmitInput = OpCodes.SubmitFrameInput,
-                SubmitInputRetryFrameLead = 60,
-                OpFramePushed = OpCodes.FramePushed,
-                OpSnapshotPushed = StateSyncOpCodes.SnapshotPushed,
-                OpDeltaSnapshotPushed = StateSyncOpCodes.DeltaSnapshotPushed,
-                RewriteSubmitInputFrame = (requestObj, frame) =>
+                OpSubmitInput = RoomGatewayOpCodes.SubmitBattleInput,
+                SubmitInputRetryFrameLead = 2,
+                PrepareSubmitInput = requestObj =>
                 {
                     if (requestObj is not SubmitInputRequest request)
                     {
@@ -88,23 +107,84 @@ namespace AbilityKit.Game.Battle
                             nameof(requestObj));
                     }
 
-                    return new SubmitInputRequest(
-                        request.WorldId,
-                        new PlayerInputCommand(
-                            new FrameIndex(frame),
-                            request.Input.Player,
-                            request.Input.OpCode,
-                            request.Input.Payload));
+                    return new SequencedSubmitInputRequest(
+                        request,
+                        unchecked((ulong)Interlocked.Increment(ref nextCommandSequence)));
+                },
+                OpFramePushed = OpCodes.FramePushed,
+                OpSnapshotPushed = StateSyncOpCodes.SnapshotPushed,
+                OpDeltaSnapshotPushed = StateSyncOpCodes.DeltaSnapshotPushed,
+                OpReliableEventsPushed = RoomGatewayOpCodes.ReliableBattleEventsPushed,
+                OpAcknowledgeReliableEvents = RoomGatewayOpCodes.AckReliableBattleEvents,
+                DeserializeReliableEventsPushed = payload =>
+                    WireRoomGatewayBinary.Deserialize<WireReliableBattleEventPush>(payload),
+                SerializeAcknowledgeReliableEvents = (epoch, sequence) =>
+                {
+                    var wire = new WireAckReliableBattleEventsReq
+                    {
+                        SessionToken = sessionToken,
+                        BattleId = battleId,
+                        RoomId = publicRoomId ?? string.Empty,
+                        Epoch = epoch ?? string.Empty,
+                        AckSequence = Math.Max(0L, sequence)
+                    };
+                    return WireRoomGatewayBinary.Serialize(in wire);
+                },
+                DeserializeAcknowledgeReliableEventsResponse = payload =>
+                {
+                    var wire = WireRoomGatewayBinary.Deserialize<WireAckReliableBattleEventsRes>(payload);
+                    return wire.Success ? wire.AcceptedAckSequence : -1L;
+                },
+                OpRequestFullStateSync = RoomGatewayOpCodes.RequestFullStateSync,
+                SerializeRequestFullStateSync = (reason, lastAuthoritativeFrame) =>
+                {
+                    var wire = new WireRequestFullStateSyncReq
+                    {
+                        SessionToken = sessionToken,
+                        BattleId = battleId,
+                        RoomId = publicRoomId ?? string.Empty,
+                        WorldId = roomId,
+                        ClientFrame = lastAuthoritativeFrame,
+                        LastAuthoritativeFrame = lastAuthoritativeFrame,
+                        ClientStateHash = 0,
+                        AuthoritativeStateHash = 0,
+                        Reason = reason ?? string.Empty
+                    };
+                    return WireRoomGatewayBinary.Serialize(in wire);
+                },
+                DeserializeRequestFullStateSyncResponse = payload =>
+                {
+                    var wire = WireRoomGatewayBinary.Deserialize<WireRequestFullStateSyncRes>(payload);
+                    return wire.Success && wire.Accepted;
+                },
+                RewriteSubmitInputFrame = (requestObj, frame) =>
+                {
+                    if (requestObj is not SequencedSubmitInputRequest sequenced)
+                    {
+                        throw new ArgumentException(
+                            "Expected SequencedSubmitInputRequest.",
+                            nameof(requestObj));
+                    }
+
+                    var request = sequenced.Request;
+                    return new SequencedSubmitInputRequest(
+                        new SubmitInputRequest(
+                            request.WorldId,
+                            new PlayerInputCommand(
+                                new FrameIndex(frame),
+                                request.Input.Player,
+                                request.Input.OpCode,
+                                request.Input.Payload)),
+                        sequenced.CommandSequence);
                 },
                 DeserializeSubmitInputResponse = payload =>
                 {
-                    const int frameAlreadyProcessedReasonCode = 3;
-                    var wire = WireCustomBinary.DeserializeSubmitFrameInputRes(payload);
+                    var wire = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputRes>(payload);
                     return new NetworkSubmitInputResponse(
-                        wire.Accepted,
-                        wire.ServerFrame,
-                        wire.ReasonCode,
-                        wire.ReasonCode == frameAlreadyProcessedReasonCode);
+                        wire.Success,
+                        wire.CurrentFrame,
+                        wire.Success ? 0 : 1,
+                        wire.ShouldResync);
                 },
 
                 // 尚未接线，后续由 room flow 持有这些操作。
@@ -114,20 +194,25 @@ namespace AbilityKit.Game.Battle
 
                 SerializeSubmitInput = requestObj =>
                 {
-                    if (requestObj is not SubmitInputRequest req) return default;
+                    if (requestObj is not SequencedSubmitInputRequest sequenced) return default;
 
+                    var req = sequenced.Request;
                     var pid = playerIdToUInt(req.Input.Player);
                     var wid = worldIdToUlong(req.WorldId);
 
-                    var wire = new WireSubmitFrameInputReq(
-                        roomId: roomId,
-                        worldId: wid,
-                        playerId: pid,
-                        frame: req.Input.Frame.Value,
-                        inputOpCode: req.Input.OpCode,
-                        inputPayload: req.Input.Payload);
+                    var wire = new WireSubmitBattleInputReq
+                    {
+                        SessionToken = sessionToken,
+                        BattleId = battleId,
+                        WorldId = wid,
+                        Frame = req.Input.Frame.Value,
+                        PlayerId = pid,
+                        InputOpCode = req.Input.OpCode,
+                        Payload = req.Input.Payload ?? Array.Empty<byte>(),
+                        CommandSequence = sequenced.CommandSequence
+                    };
 
-                    return WireCustomBinary.Serialize(in wire);
+                    return WireRoomGatewayBinary.Serialize(in wire);
                 },
 
                 DeserializeFramePushed = payload =>
@@ -154,6 +239,20 @@ namespace AbilityKit.Game.Battle
                     return GatewayRoomClient.ToGatewaySnapshot(in wire);
                 }
             };
+        }
+
+        private readonly struct SequencedSubmitInputRequest
+        {
+            public readonly SubmitInputRequest Request;
+            public readonly ulong CommandSequence;
+
+            public SequencedSubmitInputRequest(
+                in SubmitInputRequest request,
+                ulong commandSequence)
+            {
+                Request = request;
+                CommandSequence = commandSequence;
+            }
         }
 
         private static PlayerInputCommand[] ConvertInputs(FrameIndex frame, WireInputItem[] inputs, Func<uint, PlayerId> playerIdFromUInt)

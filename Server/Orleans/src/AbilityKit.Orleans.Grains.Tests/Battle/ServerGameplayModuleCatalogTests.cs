@@ -1,4 +1,8 @@
+using System.Collections.Generic;
 using System.Linq;
+using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
+using AbilityKit.Ability.World.Services;
+using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Demo.Shooter;
@@ -8,6 +12,7 @@ using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Battle;
 using AbilityKit.Orleans.Grains.Gameplay;
 using AbilityKit.Orleans.Grains.Gameplays.Moba.Battle;
+using AbilityKit.Orleans.Grains.Gameplays.Moba.Protocol;
 using AbilityKit.Orleans.Grains.Rooms;
 using AbilityKit.Orleans.Grains.Gameplays.Moba.Rooms;
 using AbilityKit.Orleans.Grains.Gameplays.Shooter.Battle;
@@ -150,13 +155,47 @@ public sealed class ServerGameplayModuleCatalogTests
     [Fact]
     public void ServerBattleWorldManager_WhenCreatingWorlds_UsesGameplayModuleWorldBlueprints()
     {
-        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        const string mobaRoomId = "moba-room";
+        const int tickRate = 30;
+        var initParams = CreateMobaWorldInitParams();
+        var launchSpec = DefaultOrleansBattleProtocolMapper.Instance.CreateLaunchSpec(
+            mobaRoomId,
+            tickRate,
+            initParams);
+        var initData = launchSpec.ToWorldInitData(MobaWorldBootstrapModule.InitOpCode);
 
-        var mobaWorld = worldManager.CreateBattleWorld("moba-room", 30);
-        var shooterWorld = worldManager.CreateBattleWorld("shooter-room", ShooterGameplay.WorldType, 30);
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var mobaWorld = worldManager.CreateBattleWorld(
+            mobaRoomId,
+            tickRate,
+            options =>
+            {
+                options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
+                options.ServiceBuilder.RegisterInstance(initData);
+            });
+        var shooterWorld = worldManager.CreateBattleWorld("shooter-room", ShooterGameplay.WorldType, tickRate);
 
         Assert.Equal(MobaBattleWorldBlueprint.Type, mobaWorld.WorldType);
+        Assert.True(mobaWorld.Services.TryResolve<IMobaBattleRuntimePort>(out var mobaRuntimePort));
+        Assert.NotNull(mobaRuntimePort);
         Assert.Equal(ShooterGameplay.WorldType, shooterWorld.WorldType);
+    }
+
+    [Fact]
+    public void MobaBattleRuntimeSession_WhenBootstrapStartsGameplay_StartsSuccessfullyOnce()
+    {
+        const string battleId = "moba-runtime-start";
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new MobaBattleRuntimeAdapter(
+            worldManager,
+            DefaultOrleansBattleProtocolMapper.Instance);
+        using var session = adapter.CreateSession(battleId);
+
+        var result = session.Start(CreateMobaWorldInitParams());
+
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Null(result.Error);
+        Assert.True(session.Tick(1, 30, 1f / 30f));
     }
 
     private static RoomSummary CreateSummary(string roomType)
@@ -173,6 +212,33 @@ public sealed class ServerGameplayModuleCatalogTests
             OwnerAccountId: "account-a",
             CreatedAtUnixMs: 0,
             Tags: null);
+    }
+
+    private static BattleInitParams CreateMobaWorldInitParams()
+    {
+        return new BattleInitParams
+        {
+            WorldId = 1UL,
+            TickRate = 30,
+            MapId = 1,
+            GameplayId = 1,
+            RandomSeed = 12345,
+            WorldType = MobaBattleWorldBlueprint.Type,
+            Players = new List<PlayerInitInfo>
+            {
+                new()
+                {
+                    PlayerId = 1,
+                    ActorId = 1,
+                    HeroId = 1001,
+                    TeamId = 1,
+                    Level = 1,
+                    AttributeTemplateId = 1001,
+                    BasicAttackSkillId = 10010001,
+                    SkillIds = new List<int> { 10010101, 10010201, 10010301 }
+                }
+            }
+        };
     }
 
     private static BattleInitParams CreateInitParams(string? syncTemplateId)

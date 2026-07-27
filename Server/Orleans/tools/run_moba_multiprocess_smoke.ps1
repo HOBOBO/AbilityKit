@@ -6,32 +6,22 @@ param(
     [switch]$NoCleanup
 )
 
-# MOBA multiprocess smoke 编排脚本（占位）。
+# MOBA multiprocess smoke 编排脚本。
 #
-# 目标（完整版）：启动 1 个 Orleans silo（独立进程）+ 2 个独立客户端进程，
-# 每个客户端连同一个 silo、进同一房间、验证双方互见对方英雄的实体快照。
-# 对标 shooter 的 run_shooter_multiprocess_smoke.ps1。
+# 当前拓扑：1 个 host-only Orleans silo 进程 + 1 个 client-only 场景进程。
+# 场景进程内部创建 owner/member 两条独立 TCP 连接，使两名玩家进入同一房间，
+# 验证双方权威实体快照和移动结果收敛，并验证显式全量状态恢复推送及
+# 可靠事件 epoch/watermark ACK。
 #
-# 当前限制（2026-07-20）：
-#   MobaSmoke 的非 host-only 模式会自己启动 silo + 跑双客户端（单进程内）。
-#   它不支持"只跑客户端、连接外部 silo"模式。要实现真正的 multiprocess：
-#   1. 给 MobaSmoke Program.cs 加 --client-only --connect-port 参数
-#   2. --client-only 模式跳过本地 silo 启动，直接用 RequestClient 连指定端口
-#   3. 本脚本编排：启动 1 个 silo（--host-only）+ 2 个 client（--client-only --connect-port）
-#
-# 当前行为（占位）：
-#   启动一个 host-only silo 验证它能独立运行并接受连接，然后跑 run_moba_smoke.ps1
-#   （后者在另一端口启动自己的 silo + 双客户端）。这验证了端口隔离和 silo 生命周期管理，
-#   但还不是"两个客户端连同一个 silo"。
-#
-# 后续扩展步骤：
-#   1. 在 MobaSmoke Program.cs 加 --client-only 逻辑（约 30 行）
-#   2. 本脚本改为真正的 1 silo + 2 client 编排
-#   3. 加端口/超时/清理的健壮性处理（参考 shooter multiprocess 脚本）
+# 该拓扑验证 silo 与客户端场景的进程隔离，但 owner/member 尚未拆分为两个操作系统进程。
+# 若要覆盖客户端进程级崩溃和重启，需要增加外部 room id、owner/member role、
+# 房间创建就绪协调及跨进程结果汇总协议。
 
 $ErrorActionPreference = 'Stop'
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.MyCommand.Path
+$scriptDir = $PSScriptRoot
 $repoRoot = Resolve-Path (Join-Path $scriptDir '..\..\..')
+$artifactRoot = Join-Path $repoRoot 'artifacts'
+New-Item -ItemType Directory -Path $artifactRoot -Force | Out-Null
 
 . (Join-Path $scriptDir 'abilitykit_process_utils.ps1')
 
@@ -43,21 +33,22 @@ if (-not $NoCleanup) {
 }
 
 $project = Join-Path $repoRoot 'Server\Orleans\src\AbilityKit.Orleans.MobaSmoke\AbilityKit.Orleans.MobaSmoke.csproj'
+$projectDirectory = Split-Path -Parent $project
 
 if (-not $NoBuild) {
     Write-Host 'Building MOBA smoke project...' -ForegroundColor Cyan
-    & dotnet build $project -c $Configuration -p:UseSharedCompilation=false -p:nodeReuse=false
+    & dotnet build $project -c $Configuration -m:1 -p:UseSharedCompilation=false -p:nodeReuse=false
     if ($LASTEXITCODE -ne 0) {
         throw "MOBA smoke build failed with exit code $LASTEXITCODE."
     }
 }
 
-# Phase 1: 启动 host-only silo 验证独立进程能运行
+# Phase 1: 启动独立的 host-only silo 进程。
 Write-Host "Starting host-only MOBA silo on port $TcpPort..." -ForegroundColor Cyan
 $siloProc = Start-Process -FilePath 'dotnet' -ArgumentList @(
     'run', '--project', $project, '-c', $Configuration, '--no-build',
     '--', '--host-only', '--tcp-port', $TcpPort, '--host-timeout-seconds', $HostTimeoutSeconds
-) -PassThru -NoNewWindow -RedirectStandardOutput "$repoRoot\artifacts\moba-silo-out.log" -RedirectStandardError "$repoRoot\artifacts\moba-silo-err.log"
+) -WorkingDirectory $projectDirectory -PassThru -NoNewWindow -RedirectStandardOutput (Join-Path $artifactRoot 'moba-silo-out.log') -RedirectStandardError (Join-Path $artifactRoot 'moba-silo-err.log')
 
 try {
     # 等待 silo ready
@@ -65,12 +56,14 @@ try {
     $deadline = (Get-Date).AddSeconds(30)
     while ((Get-Date) -lt $deadline) {
         if ($siloProc.HasExited) {
+            $siloProc.Refresh()
             throw "Host-only silo exited prematurely with code $($siloProc.ExitCode). See artifacts\moba-silo-err.log."
         }
         Start-Sleep -Seconds 1
         # 检查输出日志是否含 MOBA_SMOKE_HOST_READY
-        if (Test-Path "$repoRoot\artifacts\moba-silo-out.log") {
-            $logContent = Get-Content "$repoRoot\artifacts\moba-silo-out.log" -Raw -ErrorAction SilentlyContinue
+        $siloOutputPath = Join-Path $artifactRoot 'moba-silo-out.log'
+        if (Test-Path $siloOutputPath) {
+            $logContent = Get-Content $siloOutputPath -Raw -ErrorAction SilentlyContinue
             if ($logContent -match 'MOBA_SMOKE_HOST_READY') {
                 $ready = $true
                 Write-Host "MOBA silo is ready." -ForegroundColor Green
@@ -83,12 +76,10 @@ try {
         throw "Host-only silo did not signal ready within 30 seconds."
     }
 
-    # Phase 2: 跑 client-only smoke 连接外部 silo（真正的进程隔离）
-    # MobaSmoke --client-only 模式跳过本地 silo 启动，直接连接 connect-port 指定的外部 silo。
-    # RunScenarioAsync 内部仍创建两个 TCP 客户端（owner + member），进同一房间。
-    # 这验证了"独立 silo 进程 + 独立 client 进程"的进程隔离。
+    # Phase 2: 启动 client-only 场景进程连接外部 silo。
+    # RunScenarioAsync 在该进程内创建 owner/member 两条 TCP 连接并加入同一房间。
     Write-Host "Running client-only MOBA smoke connecting to port $TcpPort..." -ForegroundColor Cyan
-    Push-Location (Split-Path -Parent $project)
+    Push-Location $projectDirectory
     try {
         & dotnet run --project $project -c $Configuration --no-build -- --client-only --connect-port $TcpPort
         if ($LASTEXITCODE -ne 0) {

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AbilityKit.Ability.StateSync.Aoi;
 using AbilityKit.Protocol.Shooter;
 
@@ -19,6 +20,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
     public interface IShooterInputPort
     {
         int SubmitInput(int frame, ShooterPlayerCommand[] commands);
+
+        int SubmitInput(int frame, IReadOnlyList<ShooterPlayerCommand> commands);
     }
 
     public interface IShooterSimulationClock
@@ -52,6 +55,16 @@ namespace AbilityKit.Demo.Shooter.Runtime
     public interface IShooterPureStateSnapshotPort
     {
         ShooterPureStateSnapshotPayload ExportPureStateSnapshot(
+            ulong worldId,
+            bool isFullBaseline = true,
+            ShooterPureStateSyncSettings? settings = null,
+            int baselineFrame = 0,
+            uint baselineHash = 0,
+            ShooterPureStateInterestScope? interestScope = null,
+            AoiInterestSet? aoiInterestSet = null,
+            bool computeStateHash = true);
+
+        ShooterPureStateSnapshotPayload ExportPureStateSnapshotTransient(
             ulong worldId,
             bool isFullBaseline = true,
             ShooterPureStateSyncSettings? settings = null,

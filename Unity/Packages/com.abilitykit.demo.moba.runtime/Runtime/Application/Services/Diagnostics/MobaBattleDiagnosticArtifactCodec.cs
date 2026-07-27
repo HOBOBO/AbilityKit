@@ -222,6 +222,7 @@ namespace AbilityKit.Demo.Moba.Services
             var result = new AnalysisBattleDiagnosticEvent { Frame = item.Frame, Sequence = item.Sequence, MonotonicTimestamp = item.MonotonicTimestamp, Kind = (int)item.Kind, Channel = (int)item.Channel, Outcome = (int)item.Outcome, SourceActorId = item.SourceActorId, TargetActorId = item.TargetActorId, ConfigId = item.ConfigId, RootContextId = item.RootContextId, ContextId = item.ContextId, SkillRuntimeId = item.SkillRuntime.RuntimeId, SkillRuntimeGeneration = item.SkillRuntime.Generation, AttackId = item.AttackId, PayloadVersion = item.PayloadVersion, Summary = item.Summary };
             if (item.Payload.TryGetSyncSnapshotReceived(out var payload)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, AuthoritativeFrame = payload.AuthoritativeFrame, StateHash = payload.StateHash };
             else if (item.Payload.TryGetTriggerAnalysis(out var trigger)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, TriggerId = trigger.TriggerId, TriggerContextKind = trigger.ContextKind, TriggerOriginKind = trigger.OriginKind, TriggerStage = (int)trigger.Stage, TriggerResult = (int)trigger.Result, TriggerDetailCode = trigger.DetailCode, TriggerCurrentDepth = trigger.CurrentDepth, TriggerCurrentFrameCount = trigger.CurrentFrameCount, TriggerCurrentRootCount = trigger.CurrentRootCount, TriggerCurrentSameTriggerCount = trigger.CurrentSameTriggerCount, TriggerFailureKey = trigger.FailureKey, TriggerReason = trigger.Reason };
+            else if (item.Payload.TryGetSkillFailure(out var failure)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, SkillFailureSlot = failure.Slot, SkillFailureSource = failure.Source, SkillFailureStage = failure.Stage, SkillFailureCode = failure.Code, SkillFailureMessage = failure.Message };
             return result;
         }
 
@@ -251,6 +252,16 @@ namespace AbilityKit.Demo.Moba.Services
                         item.Payload.TriggerFailureKey,
                         item.Payload.TriggerReason);
                     payload = BattleDiagnosticEventPayload.FromTriggerAnalysis(in trigger);
+                }
+                else if (item.Payload.Kind == (int)BattleDiagnosticPayloadKind.SkillFailure && item.Payload.SchemaVersion == BattleDiagnosticSkillFailurePayload.CurrentSchemaVersion)
+                {
+                    var failure = new BattleDiagnosticSkillFailurePayload(
+                        item.Payload.SkillFailureSlot,
+                        item.Payload.SkillFailureSource,
+                        item.Payload.SkillFailureStage,
+                        item.Payload.SkillFailureCode,
+                        item.Payload.SkillFailureMessage);
+                    payload = BattleDiagnosticEventPayload.FromSkillFailure(in failure);
                 }
                 else
                 {

@@ -515,7 +515,8 @@ namespace AbilityKit.Demo.Shooter.View
 
         private void PublishRuntimeSnapshot()
         {
-            _presentation.ApplyLocalPredictionSnapshot(_runtime.GetSnapshot());
+            var snapshot = _runtime.GetSnapshotTransient();
+            _presentation.ApplyLocalPredictionSnapshot(in snapshot);
         }
     }
 

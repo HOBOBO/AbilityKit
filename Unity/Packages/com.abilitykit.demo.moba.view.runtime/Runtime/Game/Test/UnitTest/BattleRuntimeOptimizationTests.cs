@@ -415,6 +415,39 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void BattleProjectileSnapshotDeduplicator_ReclaimsFiftyFiveCompletedProjectileLifecycles()
+        {
+            var deduplicator = new BattleProjectileSnapshotDeduplicator();
+
+            for (var projectileId = 1; projectileId <= 55; projectileId++)
+            {
+                var spawn = new MobaProjectileEventSnapshotEntry
+                {
+                    Kind = (int)ProtocolProjectileEventKind.Spawn,
+                    ProjectileId = projectileId,
+                    ProjectileActorId = 100000 + projectileId,
+                    TemplateId = 30060301,
+                    LauncherActorId = 31060301,
+                };
+                var hit = spawn;
+                hit.Kind = (int)ProtocolProjectileEventKind.Hit;
+                var exit = spawn;
+                exit.Kind = (int)ProtocolProjectileEventKind.Exit;
+
+                Assert.IsTrue(deduplicator.ShouldHandle(in spawn));
+                Assert.IsTrue(deduplicator.ShouldHandle(in hit));
+                Assert.AreEqual(2, deduplicator.Count);
+
+                deduplicator.ForgetLifecycle(in exit);
+                Assert.AreEqual(0, deduplicator.Count);
+
+                // Exit cleanup is intentionally idempotent because replay/reconnect can resend it.
+                deduplicator.ForgetLifecycle(in exit);
+                Assert.AreEqual(0, deduplicator.Count);
+            }
+        }
+
+        [Test]
         public void BattleProjectileVfxResolver_DoesNotCreateUnconfiguredHitOrExitPlaceholder()
         {
             var resolver = new BattleProjectileVfxResolver();

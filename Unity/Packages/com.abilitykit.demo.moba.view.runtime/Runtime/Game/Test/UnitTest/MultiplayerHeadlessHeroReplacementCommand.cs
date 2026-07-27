@@ -68,10 +68,10 @@ namespace AbilityKit.Game.Test.UnitTest
             var resultPath = GetArgValue("-multiplayerHeadlessResult");
             if (string.IsNullOrWhiteSpace(resultPath))
             {
-                // Default to artifacts/headless/ under the repository root (Unity/.. = repo root).
+                // Default to local/Logs/headless/ under the repository root (Unity/.. = repo root).
                 // Named by timestamp so repeated runs do not overwrite each other.
-                // Override with -multiplayerHeadlessResult for ad-hoc diagnostic snapshots.
-                var headlessDir = Path.GetFullPath("../../artifacts/headless");
+                // Override with -multiplayerHeadlessResult for CI or ad-hoc diagnostic snapshots.
+                var headlessDir = Path.GetFullPath("../../local/Logs/headless");
                 Directory.CreateDirectory(headlessDir);
                 var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
                 resultPath = Path.Combine(headlessDir, $"MultiplayerHeadlessHeroReplacement-{stamp}.xml");

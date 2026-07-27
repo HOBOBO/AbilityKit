@@ -1,4 +1,4 @@
-﻿//------------------------------------------------------------
+//------------------------------------------------------------
 //        File:  BTree.cs
 //       Brief:  BTree
 //
@@ -21,9 +21,9 @@ namespace BTCore.Runtime
         public BTData BTData { get; set; } = new();
         public Blackboard Blackboard { get; set; } = new();
         public BTSettings Settings { get; set; } = new();
-        
+
         public NodeState TreeState = NodeState.Inactive;
-        
+
         private readonly List<BTNode> _nodeList = new(); // 前序遍历方式存放所有节点
         private readonly List<int> _parentIndex = new(); // 记录每个节点的父节点的索引值
         private readonly List<List<int>> _childrenIndex = new(); // 记录每个节点的所有子节点的索引值
@@ -35,35 +35,45 @@ namespace BTCore.Runtime
         private readonly Dictionary<int, ConditionalReevaluate> _index2ConditionalReevaluate = new(); // 索引值 -> 条件评估对象
 
         private readonly List<Stack<int>> _runStack = new(); // 节点运行栈
-        
+
         private int _preIndex;
-        private NodeState _preState; 
-        
+        private NodeState _preState;
+
         // TODO 其他序列化可能不会触发回调
         [OnDeserialized]
         private void OnAfterDeserialize(StreamingContext context) {
-            BTData.Nodes.ForEach(node => {
+            foreach (var node in BTData.Nodes) {
                 node.SetBlackboard(Blackboard);
-            });
+            }
         }
-        
+
         /// <summary>
         /// 反序列化后重建树的节点之间的连接关系
         /// </summary>
         public void RebuildTree() {
-            var treeNodes = BTData.Nodes;
-            treeNodes.ForEach(RebindChild);
+            BTData.RebuildNodeIndex();
+            foreach (var node in BTData.Nodes) {
+                node.SetBlackboard(Blackboard);
+                RebindChild(node);
+            }
         }
-        
+
         private void RebindChild(BTNode node) {
+            if (node is EntryNode entryNode) {
+                entryNode.SetChild(null);
+            }
+            else if (node is ParentNode parentNode) {
+                parentNode.ClearChildren();
+            }
+
             var childrenGuids = node.GetChildrenGuids();
             foreach (var guid in childrenGuids) {
-                if (node is EntryNode entryNode) {
-                    entryNode.SetChild(BTData.GetNodeByGuid(guid));
+                if (node is EntryNode) {
+                    ((EntryNode)node).SetChild(BTData.GetNodeByGuid(guid));
                     break;
                 }
-                if (node is ParentNode parentNode) {
-                    parentNode.AddChild(BTData.GetNodeByGuid(guid));
+                if (node is ParentNode) {
+                    ((ParentNode)node).AddChild(BTData.GetNodeByGuid(guid));
                 }
             }
 
@@ -76,7 +86,8 @@ namespace BTCore.Runtime
                 BTLogger.Error("Entry node is null!");
                 return;
             }
-            
+
+            ResetRuntimeState();
             _parentIndex.Add(-1);
             _relativeChildIndex.Add(-1);
             _parentCompositeIndex.Add(-1);
@@ -87,21 +98,36 @@ namespace BTCore.Runtime
             PushNode(0, 0);
         }
 
+        private void ResetRuntimeState() {
+            TreeState = NodeState.Inactive;
+            _nodeList.Clear();
+            _parentIndex.Clear();
+            _childrenIndex.Clear();
+            _relativeChildIndex.Clear();
+            _parentCompositeIndex.Clear();
+            _childConditionalIndex.Clear();
+            _conditionalReevaluates.Clear();
+            _index2ConditionalReevaluate.Clear();
+            _runStack.Clear();
+            _preIndex = -1;
+            _preState = NodeState.Inactive;
+        }
+
         public void Restart() {
             // 未删除的条件评估CompositeIndex为-1
             RemoveChildConditionalReevaluate(-1);
             // 推入根节点索引到运行栈中
             PushNode(0, 0);
         }
-        
+
         private void Preorder(BTNode root, int parentCompositeIndex) {
             if (root == null) {
                 return;
             }
-            
+
             _nodeList.Add(root);
             var index = _nodeList.Count - 1;
-            
+
             if (root is ParentNode parentNode) {
                 _childrenIndex.Add(new List<int>());
                 _childConditionalIndex.Add(new List<int>());
@@ -121,7 +147,7 @@ namespace BTCore.Runtime
                 // 非ParentNode节点没有子节点
                 _childrenIndex.Add(null);
                 _childConditionalIndex.Add(null);
-                
+
                 // 当前节点为条件节点
                 if (root is Condition) {
                     var parentIndex = _parentCompositeIndex[index];
@@ -131,7 +157,7 @@ namespace BTCore.Runtime
                 }
             }
         }
-        
+
         public void Update() {
             ReevaluateConditionalNode();
 
@@ -139,7 +165,7 @@ namespace BTCore.Runtime
                 var stack = _runStack[i];
                 _preIndex = -1;
                 _preState = NodeState.Inactive;
-            
+
                 // 1. 运行栈前一次的状态已经是Running，则不需要再运行栈，防止一个节点再一个tick运行多次
                 // 2. 并行节点的子节点的运行栈元素全部弹出时，需要删除该运行栈。这里需要加个索引越界判断
                 while (_preState != NodeState.Running && i < _runStack.Count && stack.Count > 0) {
@@ -148,7 +174,7 @@ namespace BTCore.Runtime
                     if (_preIndex == index) {
                         break;
                     }
-                
+
                     _preIndex = index;
                     _preState = RunNode(index, i, _preState);
                 }
@@ -162,20 +188,20 @@ namespace BTCore.Runtime
                 if (conditionalReevaluate.CompositeIndex == -1) {
                     continue;
                 }
-        
+
                 var curState = _nodeList[conditionalReevaluate.Index].Update();
                 // 条件节点状态没有发生变化
                 if (curState == conditionalReevaluate.State) {
                     continue;
                 }
-                
+
                 // 倒序遍历所有运行栈
                 for (var j = _runStack.Count - 1; j >= 0; j--) {
                     var stack = _runStack[j];
                     if (stack.Count <= 0) {
                         continue;
                     }
-                    
+
                     // 寻找条件节点与当前运行栈顶节点的共同父节点索引
                     var curNodeIndex = stack.Peek();
                     var commonParentIndex = FindCommonParentIndex(conditionalReevaluate.Index, curNodeIndex);
@@ -200,8 +226,8 @@ namespace BTCore.Runtime
                         _conditionalReevaluates.RemoveAt(j);
                     }
                 }
-                
-                // 3. 同一组合节点下的条件重评估对象需停止运行, 从其左边节点倒序遍历 
+
+                // 3. 同一组合节点下的条件重评估对象需停止运行, 从其左边节点倒序遍历
                 if (_nodeList[_parentCompositeIndex[conditionalReevaluate.Index]] is Composite compositeNode) {
                     for (var j = i - 1; j >= 0; j--) {
                         var leftConditionalReevaluate = _conditionalReevaluates[j];
@@ -220,8 +246,8 @@ namespace BTCore.Runtime
                         }
                     }
                 }
-                
-        
+
+
                 // 4. 当前的变化的条件节点到其组合节点之间需执行OnConditionAbort
                 var conditionalParentIndex = new List<int>();
                 for (var j = _parentIndex[conditionalReevaluate.Index];
@@ -261,7 +287,7 @@ namespace BTCore.Runtime
             if (stack.Count > 0 && stack.Peek() == index) {
                 return;
             }
-            
+
             stack.Push(index);
             var node = _nodeList[index];
             node.Start();
@@ -274,9 +300,9 @@ namespace BTCore.Runtime
             var node = _nodeList[index];
             node.Stop();
             node.State = state;
-            
+
             // BTLogger.Debug($"Pop Node: {node}");
-            
+
             // 有父节点为ParentNode, 需要根据子节点的状态改变其变化
             var parentIndex = _parentIndex[index];
             if (parentIndex != -1) {
@@ -305,13 +331,13 @@ namespace BTCore.Runtime
                 // 子节点弹出栈才会影响到部分父组合节点的状态(Sequence、Selector)
                 var parentNode = _nodeList[parentIndex] as ParentNode;
                 parentNode?.OnChildExecute(_relativeChildIndex[index], state);
-                
+
                 // 父节点为装饰节点，可能改变返回状态
                 if (parentNode is Decorator decorator) {
                     state = decorator.Decorate(state);
                 }
             }
-            
+
             // 组合节点被弹出栈时
             if (node is Composite composite) {
                 // 当前组合节点的中断类型为Self or None or 运行栈中已经没有元素了，需删除该节点管理的条件评估
@@ -353,18 +379,18 @@ namespace BTCore.Runtime
                     }
                 }
             }
-            
+
             // 当前运行栈还有元素
             if (stack.Count > 0) {
                 return state;
             }
-            
+
             // 当前为主运行栈
             if (stackIndex == 0) {
                 if (Settings.RestartWhenComplete) {
                     Restart();
                 }
-            } 
+            }
             // 删除当前运行栈
             else {
                 _runStack.RemoveAt(stackIndex);
@@ -425,7 +451,7 @@ namespace BTCore.Runtime
             if (node.CanRunParallel() && node.OverrideState(NodeState.Running) == NodeState.Running) {
                 return preState;
             }
-            
+
             var childState = NodeState.Inactive;
             var preIndex = -1;
             while (node.CanExecute() && (childState != NodeState.Running || node.CanRunParallel())) {
@@ -448,7 +474,7 @@ namespace BTCore.Runtime
                 preIndex = curIndex;
                 childState = preState = RunNode(_childrenIndex[index][childIndex], stackIndex, preState);
             }
-            
+
             // 当持续性的子节点运行完成后，弹出栈，可能会导致parentNode的CanExecute方法返回false
             // 而childState默认为Inactive，因此需要返回记录上一次运行的子节点状态
             return preState;

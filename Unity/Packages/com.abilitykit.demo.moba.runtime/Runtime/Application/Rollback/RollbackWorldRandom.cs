@@ -85,7 +85,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             Import(frame, payload);
         }
 
-        public void AddStateHash(FrameIndex frame, MobaStateHashBuilder hash)
+        public void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash)
         {
             hash.AddInt(Key);
             hash.AddInt(_seed);

@@ -10,6 +10,7 @@ namespace AbilityKit.Network.Runtime.Tests;
 
 public sealed class NetworkConditioningBandwidthTests
 {
+    private const int AllocationIterations = 1_000;
     private static readonly NetworkPacketHeader TestHeader =
         new NetworkPacketHeader(NetworkPacketFlags.None, 1u, 1u, 0u);
 
@@ -73,6 +74,84 @@ public sealed class NetworkConditioningBandwidthTests
         middleware.Advance(now);
 
         Assert.Equal(new[] { "in" }, delivered);
+    }
+
+    [Fact]
+    public void DelayedPacketOwnsPayloadUntilDeliveryAndUsesExactSegmentLength()
+    {
+        long now = 0;
+        var profile = new NetworkConditionProfile(10, 0, 0d, 0d, 0);
+        var middleware = new NetworkConditioningMiddleware(profile, () => now, seed: 1);
+        var source = new byte[] { 90, 1, 2, 3, 91 };
+        byte[] delivered = Array.Empty<byte>();
+        var deliveredCount = -1;
+
+        middleware.OnInbound(
+            null!,
+            TestHeader,
+            new ArraySegment<byte>(source, 1, 3),
+            (_, payload) =>
+            {
+                deliveredCount = payload.Count;
+                delivered = payload.ToArray();
+            });
+
+        source[1] = 99;
+        source[2] = 99;
+        source[3] = 99;
+        now = 10;
+        middleware.Advance(now);
+
+        Assert.Equal(3, deliveredCount);
+        Assert.Equal(new byte[] { 1, 2, 3 }, delivered);
+    }
+
+    [Fact]
+    public void ClearPendingDiscardsDelayedPackets()
+    {
+        long now = 0;
+        var profile = new NetworkConditionProfile(100, 0, 0d, 0d, 0);
+        var middleware = new NetworkConditioningMiddleware(profile, () => now, seed: 1);
+        var delivered = 0;
+        var payload = new byte[8];
+
+        middleware.OnInbound(
+            null!,
+            TestHeader,
+            new ArraySegment<byte>(payload),
+            (_, _) => delivered++);
+
+        Assert.Equal(1, middleware.GetStats().PendingCount);
+        middleware.ClearPending();
+        now = 100;
+        middleware.Advance(now);
+
+        Assert.Equal(0, delivered);
+        Assert.Equal(0, middleware.GetStats().PendingCount);
+    }
+
+    [Fact]
+    public void WarmConditioningPathReusesPacketAndPayloadStorage()
+    {
+        long now = 0;
+        var middleware = new NetworkConditioningMiddleware(NetworkConditionProfile.Ideal, () => now, seed: 1);
+        var payload = new byte[32];
+        var delivered = 0;
+        Action<NetworkPacketHeader, ArraySegment<byte>> onDelivered = (_, _) => delivered++;
+
+        middleware.OnInbound(null!, TestHeader, new ArraySegment<byte>(payload), onDelivered);
+        middleware.Advance(now);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < AllocationIterations; i++)
+        {
+            middleware.OnInbound(null!, TestHeader, new ArraySegment<byte>(payload), onDelivered);
+            middleware.Advance(now);
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal(AllocationIterations + 1, delivered);
+        Assert.True(allocated <= 1_024L, $"Expected pooled steady state, allocated {allocated} bytes.");
     }
 
     private static NetworkConditioningMiddleware CreateMiddleware(int bandwidthKbps, Func<long> clock)

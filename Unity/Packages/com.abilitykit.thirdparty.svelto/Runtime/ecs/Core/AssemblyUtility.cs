@@ -23,15 +23,20 @@ public static class AssemblyUtility
 
     public static IEnumerable<Type> GetTypesSafe(Assembly assembly)
     {
+        Type[] types;
         try
         {
-            Type[] types = assembly.GetTypes();
-
-            return types;
+            types = assembly.GetTypes();
         }
         catch (ReflectionTypeLoadException e)
         {
-            return e.Types;
+            types = e.Types;
+        }
+
+        foreach (Type type in types)
+        {
+            if (type != null)
+                yield return type;
         }
     }
 

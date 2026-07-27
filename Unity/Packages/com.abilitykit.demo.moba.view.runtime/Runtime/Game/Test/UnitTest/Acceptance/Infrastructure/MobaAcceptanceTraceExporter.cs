@@ -13,7 +13,7 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public static class MobaAcceptanceTraceExporter
     {
-        public const string DefaultArtifactDirectory = "artifacts/moba-acceptance";
+        public const string DefaultArtifactDirectory = "local/Logs/moba-acceptance";
 
         public static MobaAcceptanceTraceRecord[] CaptureTraceRecords(MobaSkillConfigTestHarness harness, string caseId)
         {

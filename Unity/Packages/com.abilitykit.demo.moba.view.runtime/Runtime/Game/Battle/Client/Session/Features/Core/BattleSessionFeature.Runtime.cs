@@ -19,11 +19,7 @@ namespace AbilityKit.Game.Flow
         ISessionEditorHooksRuntime,
 #endif
         ISessionPlanHost,
-        ISessionReplayHost,
-        ISessionEventsHost,
-        ITickLoopHost,
-        ISessionOrchestratorHost,
-        INetAdapterContextHost
+        ISessionEventsHost
     {
         BattleSessionHandles ISessionDispatchersRuntime.Handles => _handles;
         SessionDispatchersController ISessionDispatchersRuntime.Dispatchers => _dispatchers;

@@ -8,6 +8,8 @@ using AbilityKit.Orleans.Grains.Persistence;
 using AbilityKit.Orleans.Grains.Rooms.Gameplay;
 using AbilityKit.Protocol.Room;
 using Orleans;
+using ContractJoinRoomMemberRequest = AbilityKit.Orleans.Contracts.Rooms.JoinRoomMemberRequest;
+using ContractJoinRoomResponse = AbilityKit.Orleans.Contracts.Rooms.JoinRoomResponse;
 
 namespace AbilityKit.Orleans.Grains.Rooms;
 
@@ -147,12 +149,12 @@ public sealed class RoomGrain : Grain, IRoomGrain
             state.Summary.Tags == null ? null : new Dictionary<string, string>(state.Summary.Tags)));
     }
 
-    public Task<JoinRoomResponse> JoinAsync(string accountId)
+    public Task<ContractJoinRoomResponse> JoinAsync(string accountId)
     {
-        return JoinMemberAsync(new JoinRoomMemberRequest(accountId));
+        return JoinMemberAsync(new ContractJoinRoomMemberRequest(accountId));
     }
 
-    public async Task<JoinRoomResponse> JoinMemberAsync(JoinRoomMemberRequest request)
+    public async Task<ContractJoinRoomResponse> JoinMemberAsync(ContractJoinRoomMemberRequest request)
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
         EnsureAccountId(request.AccountId);
@@ -186,7 +188,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
             await NotifyRoomChangedAsync();
         }
 
-        return new JoinRoomResponse(
+        return new ContractJoinRoomResponse(
             await GetSnapshotAsync(),
             alreadyMember ? RoomJoinKind.Reconnect : RoomJoinKind.TeamLobby,
             DateTime.UtcNow.Ticks);
@@ -864,9 +866,9 @@ public sealed class RoomGrain : Grain, IRoomGrain
         }
     }
 
-    private async Task<JoinRoomResponse> JoinExistingBattleAsync(
+    private async Task<ContractJoinRoomResponse> JoinExistingBattleAsync(
         RoomPersistentState state,
-        JoinRoomMemberRequest request,
+        ContractJoinRoomMemberRequest request,
         bool alreadyMember)
     {
         if (alreadyMember)
@@ -878,7 +880,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
                 await PersistAndRestoreAsync(transition.State);
             }
 
-            return new JoinRoomResponse(await GetSnapshotAsync(), RoomJoinKind.Reconnect, DateTime.UtcNow.Ticks);
+            return new ContractJoinRoomResponse(await GetSnapshotAsync(), RoomJoinKind.Reconnect, DateTime.UtcNow.Ticks);
         }
 
         if (state.Summary.MaxPlayers > 0 && state.Members.Count >= state.Summary.MaxPlayers)
@@ -907,14 +909,14 @@ public sealed class RoomGrain : Grain, IRoomGrain
         };
         await PersistAndRestoreAsync(next);
         await NotifyRoomChangedAsync();
-        return new JoinRoomResponse(await GetSnapshotAsync(), RoomJoinKind.LateJoin, DateTime.UtcNow.Ticks);
+        return new ContractJoinRoomResponse(await GetSnapshotAsync(), RoomJoinKind.LateJoin, DateTime.UtcNow.Ticks);
     }
 
     private async Task JoinRunningBattleAsync(
         IRoomGameplayAdapter gameplay,
         object gameplayState,
         RoomSummary summary,
-        JoinRoomMemberRequest request)
+        ContractJoinRoomMemberRequest request)
     {
         if (string.IsNullOrWhiteSpace(_battleId))
         {

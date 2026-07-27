@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
 using Xunit;
 using Xunit.Abstractions;
@@ -75,6 +76,96 @@ public sealed class ShooterSnapshotAllocationDiagnosticsTests
         WriteAllocationDiagnostic("pure-state-snapshot-export", allocatedBytes);
         Assert.True(allocatedBytes >= 0);
         Assert.True(allocatedBytes / Iterations < 2_000_000L);
+    }
+
+    [Fact]
+    public void TransientStateSnapshotReusesBuffersWithoutSteadyStateArrayAllocation()
+    {
+        var runtime = CreateRuntime("state-transient-allocation-diagnostics", seed: 8104);
+        WarmUp(runtime);
+        var first = runtime.GetSnapshotTransient();
+        var last = first;
+
+        var allocatedBytes = MeasureAllocatedBytes(() =>
+        {
+            for (var i = 0; i < Iterations; i++)
+            {
+                last = runtime.GetSnapshotTransient();
+            }
+        });
+
+        WriteAllocationDiagnostic("state-snapshot-transient", allocatedBytes);
+        Assert.Same(first.Players, last.Players);
+        Assert.Same(first.Bullets, last.Bullets);
+        Assert.Same(first.Events, last.Events);
+        Assert.Same(first.Enemies, last.Enemies);
+        Assert.True(allocatedBytes / Iterations < 1_024L);
+    }
+
+    [Fact]
+    public void OwnedStateSnapshotDoesNotAliasTransientBuffers()
+    {
+        var runtime = CreateRuntime("state-transient-ownership", seed: 8105);
+        WarmUp(runtime);
+
+        var transient = runtime.GetSnapshotTransient();
+        var owned = runtime.GetSnapshot();
+
+        Assert.NotSame(transient.Players, owned.Players);
+        Assert.NotSame(transient.Bullets, owned.Bullets);
+        Assert.NotSame(transient.Events, owned.Events);
+        Assert.Equal(transient.Players, owned.Players);
+        Assert.Equal(transient.Bullets, owned.Bullets);
+        Assert.Equal(transient.Events, owned.Events);
+    }
+
+    [Fact]
+    public void PlayerOnlyTransientSnapshotReusesTheFullSnapshotPlayerBuffer()
+    {
+        var runtime = CreateRuntime("player-only-transient", seed: 8107);
+        WarmUp(runtime);
+
+        var playersOnly = runtime.GetPlayerSnapshotsTransient();
+        var full = runtime.GetSnapshotTransient();
+
+        Assert.Same(playersOnly, full.Players);
+        Assert.Equal(runtime.GetSnapshot().Players, playersOnly);
+    }
+
+    [Fact]
+    public void PureStateTransientSerializeAvoidsExporterArrayAllocation()
+    {
+        var runtime = CreateRuntime("pure-state-transient-allocation-diagnostics", seed: 8106);
+        WarmUp(runtime);
+        var settings = new ShooterPureStateSyncSettings(128, 128, 60, 1, 10, 3);
+        var baseline = runtime.ExportPureStateSnapshot(8106ul, isFullBaseline: true, settings: settings);
+        var warmPayload = runtime.ExportPureStateSnapshotTransient(
+            8106ul,
+            isFullBaseline: false,
+            settings: settings,
+            baselineFrame: baseline.Frame,
+            baselineHash: baseline.StateHash);
+        var serializationBuffer = new ReusableMemoryPackSerializationBuffer();
+        ShooterPureStateSyncCodec.SerializeTransient(in warmPayload, serializationBuffer);
+        byte[] lastBytes = Array.Empty<byte>();
+
+        var allocatedBytes = MeasureAllocatedBytes(() =>
+        {
+            for (var i = 0; i < Iterations; i++)
+            {
+                var snapshot = runtime.ExportPureStateSnapshotTransient(
+                    8106ul,
+                    isFullBaseline: false,
+                    settings: settings,
+                    baselineFrame: baseline.Frame,
+                    baselineHash: baseline.StateHash);
+                lastBytes = ShooterPureStateSyncCodec.SerializeTransient(in snapshot, serializationBuffer);
+            }
+        });
+
+        WriteAllocationDiagnostic("pure-state-transient-serialize", allocatedBytes);
+        Assert.NotEmpty(lastBytes);
+        Assert.True(allocatedBytes / Iterations < 1_024L);
     }
 
     [Fact]

@@ -62,7 +62,7 @@ namespace AbilityKit.Game.Flow
             _session.CreateWorld(req);
         }
 
-        private void TrySetupProtocolWireSerializerInstaller()
+        internal static void TrySetupProtocolWireSerializerInstaller()
         {
             var path = ResolveConfigPath(FeatureConfigFileName);
             var cfg = PersistentJsonConfigLoader.LoadOrDefault<ModuleInstallerConfigSet>(path, JsonUtility.FromJson<ModuleInstallerConfigSet>);

@@ -35,7 +35,7 @@ on:
 
 ## Artifact 上传（关键）
 
-每个 job 末尾必须：
+本地默认输出是 `local/Logs/test-gates/`，但 CI 必须显式传入 `-ResultsDirectory artifacts\\test-gates\\{job}`，再上传同一目录。每个 job 末尾必须：
 
 ```yaml
 - name: Upload test artifacts
@@ -48,11 +48,14 @@ on:
 
 `if: always()` 是契约要求。`validate_shooter_test_gates.ps1` 会检查每个必需 job 都有这个守卫。
 
+CI 使用 `artifacts/` 仅因为 GitHub Actions 的工作区短生命周期且上传步骤需要稳定路径；不得将其作为本地手动测试的默认输出目录。
+
 ## 本地复现 CI
 
 ```powershell
 # 复现 PR 触发的 precheck
 ./tools/run_test_gate.ps1 -Gate precheck -CI
+# 本地结果仍写入 local/Logs/test-gates/；不要复制 CI 的 artifacts/ 覆写参数。
 
 # 复现 push 触发的 shooter-fast
 ./tools/run_test_gate.ps1 -Gate shooter-fast -CI

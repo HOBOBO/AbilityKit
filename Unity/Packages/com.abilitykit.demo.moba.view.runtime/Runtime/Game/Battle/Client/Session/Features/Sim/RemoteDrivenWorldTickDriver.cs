@@ -5,7 +5,7 @@ namespace AbilityKit.Game.Flow
     internal readonly struct RemoteDrivenWorldTickOptions
     {
         public readonly BattleStartPlan Plan;
-        public readonly BattleSessionHandles.RemoteDrivenHandles Handles;
+        public readonly BattleSessionRemoteDrivenWorldRuntime Handles;
         public readonly SessionWorldCatchUpController WorldCatchUp;
         public readonly FrameSnapshotDispatcher Snapshots;
         public readonly int LastTickedFrame;
@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Flow
 
         public RemoteDrivenWorldTickOptions(
             BattleStartPlan plan,
-            BattleSessionHandles.RemoteDrivenHandles handles,
+            BattleSessionRemoteDrivenWorldRuntime handles,
             SessionWorldCatchUpController worldCatchUp,
             FrameSnapshotDispatcher snapshots,
             int lastTickedFrame,

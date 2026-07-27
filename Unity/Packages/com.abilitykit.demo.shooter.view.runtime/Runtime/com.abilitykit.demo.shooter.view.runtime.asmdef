@@ -12,6 +12,7 @@
     "AbilityKit.GameFramework",
     "AbilityKit.GameFramework.Network",
     "AbilityKit.Game.View.Runtime",
+    "AbilityKit.Game.Battle.Runtime",
     "AbilityKit.Host",
     "AbilityKit.Host.Extensions",
     "AbilityKit.Host.Extensions.Client",

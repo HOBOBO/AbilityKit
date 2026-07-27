@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Logging;
+using AbilityKit.Game.Battle;
 
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
 {
@@ -90,6 +91,51 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
         }
     }
 
+    public sealed class MobaBootstrapStagePlan
+    {
+        private readonly IReadOnlyList<MobaBootstrapStageBase> _orderedStages;
+
+        private MobaBootstrapStagePlan(IReadOnlyList<MobaBootstrapStageBase> orderedStages)
+        {
+            _orderedStages = orderedStages;
+        }
+
+        public IReadOnlyList<MobaBootstrapStageBase> OrderedStages => _orderedStages;
+
+        public static MobaBootstrapStagePlan Create(IEnumerable<MobaBootstrapStageBase> stages)
+        {
+            if (stages == null) throw new ArgumentNullException(nameof(stages));
+
+            var stageList = new List<MobaBootstrapStageBase>();
+            var definitions = new List<BattleStageDefinition>();
+            var byName = new Dictionary<string, MobaBootstrapStageBase>(StringComparer.Ordinal);
+            foreach (var stage in stages)
+            {
+                if (stage == null)
+                {
+                    throw new InvalidOperationException($"MOBA bootstrap stage at index {stageList.Count} is null.");
+                }
+
+                var dependencies = stage.Dependencies ?? Array.Empty<string>();
+                stageList.Add(stage);
+                definitions.Add(new BattleStageDefinition(stage.Name, prerequisites: dependencies));
+                if (!byName.TryAdd(stage.Name, stage))
+                {
+                    throw new InvalidOperationException($"Duplicate MOBA bootstrap stage name '{stage.Name}'.");
+                }
+            }
+
+            var graph = BattleStageGraph.Create(definitions);
+            var ordered = new MobaBootstrapStageBase[graph.OrderedStages.Count];
+            for (int i = 0; i < graph.OrderedStages.Count; i++)
+            {
+                ordered[i] = byName[graph.OrderedStages[i].Id];
+            }
+
+            return new MobaBootstrapStagePlan(ordered);
+        }
+    }
+
     /// <summary>
     /// Stage 注册表
     /// 管理所有 Bootstrap Stage
@@ -140,65 +186,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
 
         private static IReadOnlyList<MobaBootstrapStageBase> GetSortedStages()
         {
-            var sorted = new List<MobaBootstrapStageBase>(_stages.Count);
-            var visiting = new HashSet<string>(StringComparer.Ordinal);
-            var visited = new HashSet<string>(StringComparer.Ordinal);
-            var byName = new Dictionary<string, MobaBootstrapStageBase>(StringComparer.Ordinal);
-
-            for (int i = 0; i < _stages.Count; i++)
-            {
-                var stage = _stages[i];
-                if (!byName.ContainsKey(stage.Name))
-                {
-                    byName.Add(stage.Name, stage);
-                }
-            }
-
-            for (int i = 0; i < _stages.Count; i++)
-            {
-                Visit(_stages[i], byName, visiting, visited, sorted);
-            }
-
-            return sorted;
-        }
-
-        private static void Visit(
-            MobaBootstrapStageBase stage,
-            Dictionary<string, MobaBootstrapStageBase> byName,
-            HashSet<string> visiting,
-            HashSet<string> visited,
-            List<MobaBootstrapStageBase> sorted)
-        {
-            var name = stage.Name;
-            if (visited.Contains(name)) return;
-            if (!visiting.Add(name))
-            {
-                Log.Warning($"[MobaBootstrapStageRegistry] Circular dependency detected at stage: {name}");
-                return;
-            }
-
-            var dependencies = stage.Dependencies;
-            if (dependencies != null)
-            {
-                for (int i = 0; i < dependencies.Length; i++)
-                {
-                    var dependencyName = dependencies[i];
-                    if (string.IsNullOrEmpty(dependencyName)) continue;
-
-                    if (byName.TryGetValue(dependencyName, out var dependency))
-                    {
-                        Visit(dependency, byName, visiting, visited, sorted);
-                    }
-                    else
-                    {
-                        Log.Warning($"[MobaBootstrapStageRegistry] Stage dependency not found: {name} -> {dependencyName}");
-                    }
-                }
-            }
-
-            visiting.Remove(name);
-            visited.Add(name);
-            sorted.Add(stage);
+            return MobaBootstrapStagePlan.Create(_stages).OrderedStages;
         }
 
         /// <summary>

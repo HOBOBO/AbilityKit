@@ -19,6 +19,7 @@ namespace AbilityKit.Demo.Shooter.View
         private ShooterSnapshotViewBatchKey _lastSampledBatchKey;
         private bool _hasLastSampledBatchKey;
         private bool _playbackInitialized;
+        private int _playbackSearchIndex;
 
         public ShooterSnapshotStream()
             : this(DefaultBufferCapacity)
@@ -26,7 +27,7 @@ namespace AbilityKit.Demo.Shooter.View
         }
 
         public ShooterSnapshotStream(int bufferCapacity)
-            : this(bufferCapacity, ShooterSnapshotSamplingPolicy.Default)
+            : this(bufferCapacity, new ShooterSnapshotSamplingPolicy(new ShooterSnapshotSamplingPolicyOptions()))
         {
         }
 
@@ -96,6 +97,20 @@ namespace AbilityKit.Demo.Shooter.View
 
         public bool TryAdvancePlayback(float deltaTime, out ShooterSnapshotViewBatch batch)
         {
+            return TryAdvancePlaybackCore(deltaTime, useTransientBuffer: false, out batch);
+        }
+
+        /// <summary>
+        /// Advances playback without allocating interpolated transform arrays. The returned
+        /// transform list is valid only until the next transient playback sample on this stream.
+        /// </summary>
+        public bool TryAdvancePlaybackTransient(float deltaTime, out ShooterSnapshotViewBatch batch)
+        {
+            return TryAdvancePlaybackCore(deltaTime, useTransientBuffer: true, out batch);
+        }
+
+        private bool TryAdvancePlaybackCore(float deltaTime, bool useTransientBuffer, out ShooterSnapshotViewBatch batch)
+        {
             if (deltaTime < 0f) throw new ArgumentOutOfRangeException(nameof(deltaTime));
 
             if (_count == 0)
@@ -115,9 +130,20 @@ namespace AbilityKit.Demo.Shooter.View
                 _playbackFrame += deltaTime * Math.Max(0f, PlaybackFramesPerSecond);
             }
 
-            if (!TrySample(_playbackFrame, out batch, out var isContinuousSample))
+            if (!TryFindPlaybackSampleWindow(_playbackFrame, out var from, out var to))
             {
+                batch = default;
                 return false;
+            }
+
+            bool isContinuousSample;
+            if (useTransientBuffer)
+            {
+                batch = _samplingPolicy.SampleTransient(in from, in to, _playbackFrame, out isContinuousSample);
+            }
+            else
+            {
+                batch = _samplingPolicy.Sample(in from, in to, _playbackFrame, out isContinuousSample);
             }
 
             if (isContinuousSample)
@@ -146,6 +172,7 @@ namespace AbilityKit.Demo.Shooter.View
             _lastSampledBatchKey = default;
             _hasLastSampledBatchKey = false;
             _playbackInitialized = false;
+            _playbackSearchIndex = 0;
         }
 
         private bool TryFindSampleWindow(float playbackFrame, out ShooterSnapshotViewBatch from, out ShooterSnapshotViewBatch to)
@@ -175,6 +202,43 @@ namespace AbilityKit.Demo.Shooter.View
             return true;
         }
 
+        private bool TryFindPlaybackSampleWindow(float playbackFrame, out ShooterSnapshotViewBatch from, out ShooterSnapshotViewBatch to)
+        {
+            if (_count == 0)
+            {
+                from = default;
+                to = default;
+                return false;
+            }
+
+            var searchIndex = Math.Min(_playbackSearchIndex, _count - 1);
+            if (GetAt(searchIndex).Frame > playbackFrame)
+            {
+                searchIndex = 0;
+            }
+
+            from = GetAt(searchIndex);
+            to = from;
+            var fromIndex = searchIndex;
+            for (var i = searchIndex; i < _count; i++)
+            {
+                var candidate = GetAt(i);
+                if (candidate.Frame > playbackFrame)
+                {
+                    to = candidate;
+                    _playbackSearchIndex = fromIndex;
+                    return true;
+                }
+
+                from = candidate;
+                to = candidate;
+                fromIndex = i;
+            }
+
+            _playbackSearchIndex = fromIndex;
+            return true;
+        }
+
         private void Store(in ShooterSnapshotViewBatch batch)
         {
             var insertIndex = (_start + _count) % _buffer.Length;
@@ -183,6 +247,7 @@ namespace AbilityKit.Demo.Shooter.View
                 insertIndex = _start;
                 _buffer[insertIndex].ReleasePooledResources();
                 _start = (_start + 1) % _buffer.Length;
+                _playbackSearchIndex = Math.Max(0, _playbackSearchIndex - 1);
             }
             else
             {

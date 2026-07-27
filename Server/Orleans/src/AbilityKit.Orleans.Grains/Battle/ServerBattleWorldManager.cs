@@ -1,10 +1,15 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Config;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.WorldBlueprints;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Demo.Moba.Worlds.Blueprints;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Management;
+using AbilityKit.Ability.World.Services;
 using AbilityKit.Orleans.Grains.Gameplay;
+using AbilityKit.Orleans.Grains.Gameplays.Moba.Resources;
 using Microsoft.Extensions.Logging;
 using IWorldStateSnapshotProvider = AbilityKit.Ability.Host.IWorldStateSnapshotProvider;
 
@@ -36,7 +41,7 @@ public sealed class ServerBattleWorldManager : IDisposable
             blueprintRegistry.Register(blueprint);
         }
 
-        RegisterWorldTypes(_worldRegistry, baseFactory.Create, blueprintRegistry, gameplayModules.GetWorldTypes());
+        RegisterWorldTypes(_worldRegistry, baseFactory.Create, blueprintRegistry, gameplayModules.GetWorldTypes(), _logger);
 
         _worldFactory = new RegistryWorldFactory(_worldRegistry);
         _worldManager = new WorldManager(_worldFactory);
@@ -46,6 +51,14 @@ public sealed class ServerBattleWorldManager : IDisposable
 
     public IWorld CreateBattleWorld(string roomId, int tickRate)
     {
+        return CreateBattleWorld(roomId, tickRate, configureOptions: null);
+    }
+
+    public IWorld CreateBattleWorld(
+        string roomId,
+        int tickRate,
+        Action<WorldCreateOptions>? configureOptions)
+    {
         lock (_lock)
         {
             if (_worlds.TryGetValue(roomId, out var existingWorld))
@@ -54,7 +67,7 @@ public sealed class ServerBattleWorldManager : IDisposable
                 return existingWorld;
             }
 
-            return CreateBattleWorldCore(roomId, GetDefaultWorldType());
+            return CreateBattleWorldCore(roomId, GetDefaultWorldType(), configureOptions);
         }
     }
 
@@ -95,9 +108,20 @@ public sealed class ServerBattleWorldManager : IDisposable
             WorldType = worldType,
             Id = new WorldId(roomId)
         };
+        ConfigureMobaResourceLoader(options);
         configureOptions?.Invoke(options);
 
+        _logger.LogInformation(
+            "[ServerBattleWorldManager] Creating battle world for room: {RoomId}, WorldType: {WorldType}",
+            roomId,
+            worldType);
+        var createStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
         var world = _worldManager.Create(options);
+        var createElapsed = System.Diagnostics.Stopwatch.GetElapsedTime(createStartedAt);
+        _logger.LogInformation(
+            "[ServerBattleWorldManager] Battle world factory completed for room: {RoomId}, ElapsedMs: {ElapsedMs}",
+            roomId,
+            createElapsed.TotalMilliseconds);
 
         _worlds[roomId] = world;
         _logger.LogInformation(
@@ -109,11 +133,29 @@ public sealed class ServerBattleWorldManager : IDisposable
         return world;
     }
 
+    private static void ConfigureMobaResourceLoader(WorldCreateOptions options)
+    {
+        if (!string.Equals(options.WorldType, MobaBattleWorldBlueprint.Type, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
+        var loader = new ServerMobaTextAssetLoader();
+        options.ServiceBuilder.TryRegister<ITextAssetLoader>(
+            WorldLifetime.Singleton,
+            _ => loader);
+        options.ServiceBuilder.TryRegister<ITextAssetDirectoryLoader>(
+            WorldLifetime.Singleton,
+            _ => loader);
+    }
+
     private static void RegisterWorldTypes(
         WorldTypeRegistry registry,
         Func<WorldCreateOptions, IWorld> baseFactory,
         WorldBlueprintRegistry blueprintRegistry,
-        IReadOnlyList<string> worldTypes)
+        IReadOnlyList<string> worldTypes,
+        ILogger logger)
     {
         if (worldTypes.Count == 0)
         {
@@ -128,17 +170,33 @@ public sealed class ServerBattleWorldManager : IDisposable
                 continue;
             }
 
-            registry.Register(worldType, options => CreateWorldFromBlueprint(baseFactory, blueprintRegistry, options));
+            registry.Register(worldType, options => CreateWorldFromBlueprint(baseFactory, blueprintRegistry, options, logger));
         }
     }
 
     private static IWorld CreateWorldFromBlueprint(
         Func<WorldCreateOptions, IWorld> baseFactory,
         WorldBlueprintRegistry blueprintRegistry,
-        WorldCreateOptions options)
+        WorldCreateOptions options,
+        ILogger logger)
     {
+        logger.LogInformation(
+            "[ServerBattleWorldManager] Configuring world blueprint for WorldId: {WorldId}, WorldType: {WorldType}",
+            options.Id,
+            options.WorldType);
         blueprintRegistry.Configure(options);
-        return baseFactory(options);
+        logger.LogInformation(
+            "[ServerBattleWorldManager] World blueprint configured for WorldId: {WorldId}, Modules: {ModuleCount}",
+            options.Id,
+            options.Modules.Count);
+        logger.LogInformation(
+            "[ServerBattleWorldManager] Invoking base world factory for WorldId: {WorldId}",
+            options.Id);
+        var world = baseFactory(options);
+        logger.LogInformation(
+            "[ServerBattleWorldManager] Base world factory completed for WorldId: {WorldId}",
+            options.Id);
+        return world;
     }
 
     public bool TryGetBattleWorld(string roomId, out IWorld? world)

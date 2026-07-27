@@ -142,8 +142,7 @@ namespace AbilityKit.Demo.Shooter.View
             for (int i = 0; i < changes.Count; i++)
             {
                 var change = changes[i];
-                var existed = _store.ContainsEntity(change.Key);
-                _store.UpsertEntity(change);
+                var existed = _store.UpsertEntity(change);
                 if (!change.Alive)
                 {
                     if (existed)
@@ -204,13 +203,12 @@ namespace AbilityKit.Demo.Shooter.View
 
         private bool TryRecoverMissingPlayerEntity(ShooterViewEntityKey key)
         {
-            if (key.Kind != ShooterViewEntityKind.Player || _store.ContainsEntity(key))
+            if (key.Kind != ShooterViewEntityKind.Player)
             {
                 return false;
             }
 
-            _store.UpsertEntity(new ShooterViewEntityChange(key, ownerEntityId: 0, alive: true));
-            return true;
+            return !_store.UpsertEntity(new ShooterViewEntityChange(key, ownerEntityId: 0, alive: true));
         }
 
         private int ApplyTransformChanges(in ShooterSnapshotViewBatch batch)
@@ -219,10 +217,7 @@ namespace AbilityKit.Demo.Shooter.View
             var changes = batch.TransformChanges;
             for (int i = 0; i < changes.Count; i++)
             {
-                if (!_store.ContainsEntity(changes[i].Key)) continue;
-
-                _store.UpsertTransform(changes[i]);
-                applied++;
+                if (_store.UpsertTransform(changes[i])) applied++;
             }
 
             return applied;
@@ -234,10 +229,7 @@ namespace AbilityKit.Demo.Shooter.View
             var changes = batch.HealthChanges;
             for (int i = 0; i < changes.Count; i++)
             {
-                if (!_store.ContainsEntity(changes[i].Key)) continue;
-
-                _store.UpsertHealth(changes[i]);
-                applied++;
+                if (_store.UpsertHealth(changes[i])) applied++;
             }
 
             return applied;
@@ -249,10 +241,7 @@ namespace AbilityKit.Demo.Shooter.View
             var changes = batch.ScoreChanges;
             for (int i = 0; i < changes.Count; i++)
             {
-                if (!_store.ContainsEntity(changes[i].Key)) continue;
-
-                _store.UpsertScore(changes[i]);
-                applied++;
+                if (_store.UpsertScore(changes[i])) applied++;
             }
 
             return applied;
@@ -264,10 +253,7 @@ namespace AbilityKit.Demo.Shooter.View
             var changes = batch.ProjectileLifetimeChanges;
             for (int i = 0; i < changes.Count; i++)
             {
-                if (!_store.ContainsEntity(changes[i].Key)) continue;
-
-                _store.UpsertProjectileLifetime(changes[i]);
-                applied++;
+                if (_store.UpsertProjectileLifetime(changes[i])) applied++;
             }
 
             return applied;

@@ -4,6 +4,7 @@ using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Contracts.Shooter;
 using Orleans;
+using ContractCreateRoomRequest = AbilityKit.Orleans.Contracts.Rooms.CreateRoomRequest;
 
 namespace AbilityKit.Orleans.Grains.Automation;
 
@@ -50,7 +51,7 @@ public sealed class ShooterSandboxGrain : Grain, IShooterSandboxGrain
         var ownerAccount = CreateOwnerAccount();
         var directory = GrainFactory.GetGrain<IRoomDirectoryGrain>($"{region}:{serverId}");
         var tags = BuildRoomTags(request.Tags, tickRate);
-        var create = await directory.CreateRoomAsync(new CreateRoomRequest(
+        var create = await directory.CreateRoomAsync(new ContractCreateRoomRequest(
             ownerAccount,
             region,
             serverId,

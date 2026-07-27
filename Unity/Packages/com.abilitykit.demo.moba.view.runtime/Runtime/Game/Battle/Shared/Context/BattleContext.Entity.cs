@@ -10,6 +10,12 @@ namespace AbilityKit.Game.Flow
     {
         public WorldId RuntimeWorldId;
         public bool HasRuntimeWorldId;
+        /// <summary>
+        /// 远端插值路径激活标记（会话实例级，替代原 BattleSyncFeature 静态标志）。
+        /// Gateway 传输创建插值播放后置 true；DisposeRemoteInterpolation 复位。
+        /// 为 true 时 BattleSyncFeature 不再订阅 ActorTransform（由插值路径写入）。
+        /// </summary>
+        public bool EnableRemoteInterpolation;
         public EC.IEntity EntityNode;
         public EC.IECWorld EntityWorld;
         public BattleEntityLookup EntityLookup;

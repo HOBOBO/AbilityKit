@@ -222,7 +222,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             if (_usePureStatePresentationSnapshots)
             {
                 var isFullBaseline = ShouldPublishPresentationPureStateBaseline();
-                var snapshot = _session.Runtime.ExportPureStateSnapshot(
+                var snapshot = _session.Runtime.ExportPureStateSnapshotTransient(
                     worldId: 0,
                     isFullBaseline: isFullBaseline,
                     settings: _presentationPureStateSettings,
@@ -240,7 +240,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 return;
             }
 
-            var fullSnapshot = _session.Runtime.GetSnapshot();
+            var fullSnapshot = _session.Runtime.GetSnapshotTransient();
             _session.Presentation.ApplyLocalAuthoritativeSnapshot(in fullSnapshot);
         }
 

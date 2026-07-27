@@ -1,0 +1,22 @@
+{
+  "triggers": [
+    {
+      "id": 9900001,
+      "name": "测试-召唤树灵守卫",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "scope": "owner",
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "spawn_summon",
+          "summon_id": 2,
+          "position_mode": 0
+        }
+      ]
+    }
+  ]
+}

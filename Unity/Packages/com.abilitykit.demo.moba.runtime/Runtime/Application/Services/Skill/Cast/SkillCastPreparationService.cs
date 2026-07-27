@@ -5,8 +5,10 @@ using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Search;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.ECS;
 using AbilityKit.Trace;
 
@@ -68,7 +70,7 @@ namespace AbilityKit.Demo.Moba.Services
                 && configs != null
                 && configs.TryGetSkill(skillId, out var skill)
                 && skill != null
-                && skill.RequiredTargetQueryId > 0)
+                && RequiresTargetSearch(skill))
             {
                 if (!_services.TryResolve<SearchTargetService>(out var search) || search == null)
                 {
@@ -76,13 +78,20 @@ namespace AbilityKit.Demo.Moba.Services
                 }
 
                 var targets = new List<int>(1);
-                if (!search.TrySearchActorIds(
+                var found = skill.RequiredTargetQueryId > 0
+                    ? search.TrySearchActorIds(
                         skill.RequiredTargetQueryId,
                         actorId,
                         in casterPos,
                         finalTargetActorId,
                         targets)
-                    || targets.Count == 0)
+                    : search.TrySearchActorIds(
+                        NormalAttackTargetQuery.Create(skill.Range),
+                        actorId,
+                        in casterPos,
+                        finalTargetActorId,
+                        targets);
+                if (!found || targets.Count == 0)
                 {
                     return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "No valid target is within cast range.");
                 }
@@ -158,6 +167,12 @@ namespace AbilityKit.Demo.Moba.Services
             return SkillCastPreparationResult.Ready(in request, context, runtimes, preConfig, prePhases, castConfig, castPhases);
         }
 
+        private static bool RequiresTargetSearch(SkillMO skill)
+        {
+            return skill.RequiredTargetQueryId > 0
+                || skill.SkillType == SkillType.NormalAttack;
+        }
+
         private void ResolveCasterTransform(int actorId, out Vec3 position, out Vec3 forward)
         {
             position = Vec3.Zero;
@@ -195,6 +210,39 @@ namespace AbilityKit.Demo.Moba.Services
 
             _castSequenceByActor[actorId] = sequence;
             return sequence;
+        }
+    }
+
+    internal static class NormalAttackTargetQuery
+    {
+        public static SearchQueryTemplateMO Create(float range)
+        {
+            if (range <= 0f)
+            {
+                throw new ArgumentOutOfRangeException(nameof(range), range, "Normal attack range must be positive.");
+            }
+
+            return new SearchQueryTemplateMO(
+                id: 0,
+                name: "normal_attack_target_query",
+                maxCount: 1,
+                explicitTargetPolicy: (int)SearchQueryExplicitTargetPolicy.PreferExplicitTarget,
+                provider: new SearchTargetProviderConfig(0, (int)SearchTargetProviderKind.EnemyTeam),
+                rules: new[]
+                {
+                    new SearchTargetRuleConfig(
+                        id: 0,
+                        kind: (int)SearchTargetRuleKind.CircleShape,
+                        center: (int)SearchTargetPointKind.Caster,
+                        radius: range)
+                },
+                scorer: new SearchTargetScorerConfig(
+                    id: 0,
+                    kind: (int)SearchTargetScorerKind.DistanceToCaster,
+                    source: (int)SearchTargetPointKind.Caster),
+                selector: new SearchTargetSelectorConfig(
+                    id: 0,
+                    kind: (int)SearchTargetSelectorKind.TopKByScore));
         }
     }
 }

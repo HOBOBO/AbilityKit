@@ -675,5 +675,45 @@
                 }
             }
         ]
+    },
+    {
+        "Id": 9900001,
+        "Name": "测试-召唤树灵",
+        "Phases": [
+            {
+                "Type": 4,
+                "RulePlan": {
+                    "TriggerIds": [
+                        900101011
+                    ],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_release_failed"
+                }
+            },
+            {
+                "Type": 4,
+                "RulePlan": {
+                    "TriggerIds": [
+                        900101012
+                    ],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_commit_failed"
+                }
+            },
+            {
+                "Type": 2,
+                "Timeline": {
+                    "DurationMs": 500,
+                    "Events": [
+                        {
+                            "AtMs": 100,
+                            "EffectId": 9900001,
+                            "ExecuteMode": 0,
+                            "EventTag": "test_summon_warden"
+                        }
+                    ]
+                }
+            }
+        ]
     }
 ]

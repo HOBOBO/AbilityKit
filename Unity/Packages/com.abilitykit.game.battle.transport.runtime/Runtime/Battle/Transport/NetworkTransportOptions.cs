@@ -13,6 +13,9 @@ namespace AbilityKit.Game.Battle.Transport
         public Func<string, ArraySegment<byte>> SerializeRenewSession;
         public uint OpPostAuthentication;
         public Func<ArraySegment<byte>> SerializePostAuthentication;
+        public Func<string, long, ArraySegment<byte>> SerializePostAuthenticationWithReliableEventCursor;
+        public Func<string> GetReliableEventEpoch;
+        public Func<long> GetReliableEventLastAcknowledgedSequence;
 
         public Func<ITransport> TransportFactory;
 
@@ -25,19 +28,28 @@ namespace AbilityKit.Game.Battle.Transport
         public int SubmitInputRetryFrameLead = 2;
 
         public uint OpFramePushed;
-		public uint OpSnapshotPushed;
-		public uint OpDeltaSnapshotPushed;
+        public uint OpSnapshotPushed;
+        public uint OpDeltaSnapshotPushed;
+        public uint OpReliableEventsPushed;
+        public uint OpAcknowledgeReliableEvents;
+        public uint OpRequestFullStateSync;
 
         public Func<object, ArraySegment<byte>> SerializeCreateWorld;
         public Func<object, ArraySegment<byte>> SerializeJoin;
         public Func<object, ArraySegment<byte>> SerializeLeave;
+        public Func<object, object> PrepareSubmitInput;
         public Func<object, ArraySegment<byte>> SerializeSubmitInput;
         public Func<object, int, object> RewriteSubmitInputFrame;
         public Func<ArraySegment<byte>, NetworkSubmitInputResponse> DeserializeSubmitInputResponse;
 
         public Func<ArraySegment<byte>, AbilityKit.Ability.Host.FramePacket> DeserializeFramePushed;
-		public Func<ArraySegment<byte>, object> DeserializeSnapshotPushed;
-		public Action<int> OnSubmitInputAck;
+        public Func<ArraySegment<byte>, object> DeserializeSnapshotPushed;
+        public Func<ArraySegment<byte>, object> DeserializeReliableEventsPushed;
+        public Func<string, long, ArraySegment<byte>> SerializeAcknowledgeReliableEvents;
+        public Func<ArraySegment<byte>, long> DeserializeAcknowledgeReliableEventsResponse;
+        public Func<string, int, ArraySegment<byte>> SerializeRequestFullStateSync;
+        public Func<ArraySegment<byte>, bool> DeserializeRequestFullStateSyncResponse;
+        public Action<int> OnSubmitInputAck;
     }
 
     public readonly struct NetworkSubmitInputResponse

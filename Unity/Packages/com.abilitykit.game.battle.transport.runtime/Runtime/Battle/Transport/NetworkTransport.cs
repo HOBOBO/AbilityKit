@@ -10,6 +10,7 @@ namespace AbilityKit.Game.Battle.Transport
 {
     public sealed class NetworkTransport : IBattleLogicTransport, IDisposable
     {
+        private bool _fullStateSyncRequestInFlight;
         private readonly NetworkTransportOptions _options;
 
         public NetworkTransportOptions Options => _options;
@@ -46,6 +47,7 @@ namespace AbilityKit.Game.Battle.Transport
 
         public event Action<FramePacket> FramePushed;
         public event Action<object> StateSyncSnapshotPushed;
+        public event Action<object> ReliableEventsPushed;
         /// <summary>TCP 连接建立（含重连）时触发，早于鉴权/重订阅。</summary>
         public event Action ConnectionEstablished;
         /// <summary>TCP 连接断开（含异常断线）时触发。</summary>
@@ -88,7 +90,8 @@ namespace AbilityKit.Game.Battle.Transport
             if (_options.SerializeSubmitInput == null) throw new InvalidOperationException("SerializeSubmitInput is not configured.");
             if (_options.DeserializeSubmitInputResponse == null)
             {
-                var payload = _options.SerializeSubmitInput.Invoke(request);
+                var prepared = _options.PrepareSubmitInput?.Invoke(request) ?? request;
+                var payload = _options.SerializeSubmitInput.Invoke(prepared);
                 _connection.Send(_options.OpSubmitInput, payload, flags: (ushort)NetworkPacketFlags.Request);
                 return;
             }
@@ -98,7 +101,7 @@ namespace AbilityKit.Game.Battle.Transport
 
         private async System.Threading.Tasks.Task SendInputWithResponseAsync(SubmitInputRequest request)
         {
-            object current = request;
+            object current = _options.PrepareSubmitInput?.Invoke(request) ?? request;
             try
             {
                 for (var attempt = 0; attempt < 2; attempt++)
@@ -138,6 +141,74 @@ namespace AbilityKit.Game.Battle.Transport
             }
         }
 
+        public async System.Threading.Tasks.Task<long> AcknowledgeReliableEventsAsync(
+            string epoch,
+            long sequence)
+        {
+            if (_options.OpAcknowledgeReliableEvents == 0 ||
+                _options.SerializeAcknowledgeReliableEvents == null ||
+                _options.DeserializeAcknowledgeReliableEventsResponse == null)
+            {
+                Log.Warning("[NetworkTransport] Reliable event acknowledgement is not configured.");
+                return -1;
+            }
+
+            try
+            {
+                var payload = _options.SerializeAcknowledgeReliableEvents.Invoke(
+                    epoch ?? string.Empty,
+                    sequence);
+                var responsePayload = await _request.SendRequestAsync(
+                    _options.OpAcknowledgeReliableEvents,
+                    payload,
+                    TimeSpan.FromSeconds(5));
+                return _options.DeserializeAcknowledgeReliableEventsResponse.Invoke(
+                    responsePayload);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[NetworkTransport] Reliable event acknowledgement failed.");
+                return -1;
+            }
+        }
+
+        public async System.Threading.Tasks.Task<bool> RequestFullStateSyncAsync(
+            string reason,
+            int lastAuthoritativeFrame)
+        {
+            if (_fullStateSyncRequestInFlight) return false;
+            if (_options.OpRequestFullStateSync == 0 ||
+                _options.SerializeRequestFullStateSync == null ||
+                _options.DeserializeRequestFullStateSyncResponse == null)
+            {
+                Log.Warning("[NetworkTransport] Full state sync request is not configured.");
+                return false;
+            }
+
+            _fullStateSyncRequestInFlight = true;
+            try
+            {
+                var payload = _options.SerializeRequestFullStateSync.Invoke(
+                    reason ?? string.Empty,
+                    lastAuthoritativeFrame);
+                var responsePayload = await _request.SendRequestAsync(
+                    _options.OpRequestFullStateSync,
+                    payload,
+                    TimeSpan.FromSeconds(5));
+                return _options.DeserializeRequestFullStateSyncResponse.Invoke(
+                    responsePayload);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[NetworkTransport] Full state sync request failed.");
+                return false;
+            }
+            finally
+            {
+                _fullStateSyncRequestInFlight = false;
+            }
+        }
+
         public void Dispose()
         {
             _connection.PacketReceived -= OnPacketReceived;
@@ -174,10 +245,25 @@ namespace AbilityKit.Game.Battle.Transport
 
                 if (_options.OpPostAuthentication != 0)
                 {
-                    if (_options.SerializePostAuthentication == null)
-                        throw new InvalidOperationException("SerializePostAuthentication is not configured.");
+                    ArraySegment<byte> subscribePayload;
+                    if (_options.SerializePostAuthenticationWithReliableEventCursor != null)
+                    {
+                        var epoch = _options.GetReliableEventEpoch?.Invoke() ?? string.Empty;
+                        var lastAck = Math.Max(
+                            0L,
+                            _options.GetReliableEventLastAcknowledgedSequence?.Invoke() ?? 0L);
+                        subscribePayload = _options.SerializePostAuthenticationWithReliableEventCursor.Invoke(
+                            epoch,
+                            lastAck);
+                    }
+                    else
+                    {
+                        if (_options.SerializePostAuthentication == null)
+                            throw new InvalidOperationException("SerializePostAuthentication is not configured.");
 
-                    var subscribePayload = _options.SerializePostAuthentication.Invoke();
+                        subscribePayload = _options.SerializePostAuthentication.Invoke();
+                    }
+
                     await _request.SendRequestAsync(_options.OpPostAuthentication, subscribePayload);
                     Log.Info("[NetworkTransport] Post-authentication request ok (authoritative frame subscription active).");
                 }
@@ -202,13 +288,15 @@ namespace AbilityKit.Game.Battle.Transport
         private void OnPacketReceived(uint opCode, uint seq, ArraySegment<byte> payload)
         {
             if (TryHandleFramePushed(opCode, payload)) return;
-            TryHandleSnapshotPushed(opCode, payload);
+            if (TryHandleSnapshotPushed(opCode, payload)) return;
+            TryHandleReliableEventsPushed(opCode, payload);
         }
 
         private void OnServerPushReceived(uint opCode, ArraySegment<byte> payload)
         {
             if (TryHandleFramePushed(opCode, payload)) return;
-            TryHandleSnapshotPushed(opCode, payload);
+            if (TryHandleSnapshotPushed(opCode, payload)) return;
+            TryHandleReliableEventsPushed(opCode, payload);
         }
 
         private bool TryHandleFramePushed(uint opCode, ArraySegment<byte> payload)
@@ -224,6 +312,20 @@ namespace AbilityKit.Game.Battle.Transport
             if ((opCode != _options.OpSnapshotPushed && opCode != _options.OpDeltaSnapshotPushed) || opCode == 0 || _options.DeserializeSnapshotPushed == null) return false;
             var snapshot = _options.DeserializeSnapshotPushed.Invoke(payload);
             StateSyncSnapshotPushed?.Invoke(snapshot);
+            return true;
+        }
+
+        private bool TryHandleReliableEventsPushed(uint opCode, ArraySegment<byte> payload)
+        {
+            if (opCode == 0 ||
+                opCode != _options.OpReliableEventsPushed ||
+                _options.DeserializeReliableEventsPushed == null)
+            {
+                return false;
+            }
+
+            var events = _options.DeserializeReliableEventsPushed.Invoke(payload);
+            ReliableEventsPushed?.Invoke(events);
             return true;
         }
 

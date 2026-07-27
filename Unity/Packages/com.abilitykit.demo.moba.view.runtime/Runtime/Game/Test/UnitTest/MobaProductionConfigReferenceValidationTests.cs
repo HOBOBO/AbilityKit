@@ -1,15 +1,23 @@
 using System;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Game.Flow;
+using AbilityKit.Protocol.Room;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Testing;
 using NUnit.Framework;
+using UnityEditor;
 
 namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class MobaProductionConfigReferenceValidationTests
     {
+        private const string GatewayConfigPath =
+            "Packages/com.abilitykit.demo.moba.view.runtime/Configs/BattleStart/BattleGatewayConfig.asset";
+        private const string RemotePresetPath =
+            "Packages/com.abilitykit.demo.moba.view.runtime/Configs/BattleStart/BattleStartPreset_远程.asset";
+
         [Test]
         public void DefaultProductionResources_ShouldPassCompleteRuntimeValidationContract()
         {
@@ -30,6 +38,23 @@ namespace AbilityKit.Game.Test.UnitTest
                     "Strict bootstrap must execute the production validation contract.");
                 Assert.That(report.ShouldBlockStartup, Is.False, report.FormatAllEntries());
             }
+        }
+
+        [Test]
+        public void MultiplayerProductionAssets_ShouldUseCanonicalGatewayProtocol()
+        {
+            var gateway = AssetDatabase.LoadAssetAtPath<BattleGatewayConfigSO>(GatewayConfigPath);
+            var preset = AssetDatabase.LoadAssetAtPath<BattleStartPresetSO>(RemotePresetPath);
+
+            Assert.That(gateway, Is.Not.Null, GatewayConfigPath);
+            Assert.That(preset, Is.Not.Null, RemotePresetPath);
+            Assert.That(gateway.UseGatewayTransport, Is.True);
+            Assert.That(gateway.Host, Is.EqualTo("127.0.0.1"));
+            Assert.That(gateway.Port, Is.EqualTo(4000));
+            Assert.That(gateway.CreateRoomOpCode, Is.EqualTo(RoomGatewayOpCodes.CreateRoom));
+            Assert.That(gateway.JoinRoomOpCode, Is.EqualTo(RoomGatewayOpCodes.JoinRoom));
+            Assert.That(preset.HostMode, Is.EqualTo(BattleStartConfig.BattleHostMode.GatewayRemote));
+            Assert.That(preset.GatewaySO, Is.SameAs(gateway));
         }
 
         [Test]

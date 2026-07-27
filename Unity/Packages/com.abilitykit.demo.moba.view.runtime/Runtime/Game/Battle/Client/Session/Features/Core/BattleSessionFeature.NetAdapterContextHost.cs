@@ -1,53 +1,67 @@
+using System;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Recording.FrameRecord;
-using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Game.Flow
 {
-    public sealed partial class BattleSessionFeature
+    internal sealed class SessionNetAdapterContextHost : INetAdapterContextHost
     {
-        BattleStartPlan INetAdapterContextHost.Plan => _plan;
-        IWorld INetAdapterContextHost.RemoteDrivenWorld => _handles.RemoteDriven.World;
-        IWorld INetAdapterContextHost.ConfirmedWorld => _handles.Confirmed.World;
+        private readonly Func<BattleStartPlan> _getPlan;
+        private readonly BattleSessionHandles _handles;
+        private readonly Func<FrameSnapshotDispatcher> _getSnapshots;
 
-        IRemoteFrameSource<PlayerInputCommand[]> INetAdapterContextHost.RemoteDrivenInputSource
+        public SessionNetAdapterContextHost(
+            Func<BattleStartPlan> getPlan,
+            BattleSessionHandles handles,
+            Func<FrameSnapshotDispatcher> getSnapshots)
+        {
+            _getPlan = getPlan;
+            _handles = handles;
+            _getSnapshots = getSnapshots;
+        }
+
+        public BattleStartPlan Plan => _getPlan();
+        public IWorld RemoteDrivenWorld => _handles.RemoteDriven.World;
+        public IWorld ConfirmedWorld => _handles.Confirmed.World;
+
+        public IRemoteFrameSource<PlayerInputCommand[]> RemoteDrivenInputSource
         {
             get => _handles.RemoteDriven.InputSource;
             set => _handles.RemoteDriven.InputSource = value;
         }
 
-        IConsumableRemoteFrameSource<PlayerInputCommand[]> INetAdapterContextHost.RemoteDrivenConsumable
+        public IConsumableRemoteFrameSource<PlayerInputCommand[]> RemoteDrivenConsumable
         {
             get => _handles.RemoteDriven.Consumable;
             set => _handles.RemoteDriven.Consumable = value;
         }
 
-        IRemoteFrameSink<PlayerInputCommand[]> INetAdapterContextHost.RemoteDrivenSink
+        public IRemoteFrameSink<PlayerInputCommand[]> RemoteDrivenSink
         {
             get => _handles.RemoteDriven.Sink;
             set => _handles.RemoteDriven.Sink = value;
         }
 
-        IRemoteFrameSource<PlayerInputCommand[]> INetAdapterContextHost.ConfirmedInputSource
+        public IRemoteFrameSource<PlayerInputCommand[]> ConfirmedInputSource
         {
             get => _handles.Confirmed.InputSource;
             set => _handles.Confirmed.InputSource = value;
         }
 
-        IConsumableRemoteFrameSource<PlayerInputCommand[]> INetAdapterContextHost.ConfirmedConsumable
+        public IConsumableRemoteFrameSource<PlayerInputCommand[]> ConfirmedConsumable
         {
             get => _handles.Confirmed.Consumable;
             set => _handles.Confirmed.Consumable = value;
         }
 
-        IRemoteFrameSink<PlayerInputCommand[]> INetAdapterContextHost.ConfirmedSink
+        public IRemoteFrameSink<PlayerInputCommand[]> ConfirmedSink
         {
             get => _handles.Confirmed.Sink;
             set => _handles.Confirmed.Sink = value;
         }
 
-        FrameSnapshotDispatcher INetAdapterContextHost.Snapshots => _snapshots;
+        public FrameSnapshotDispatcher Snapshots => _getSnapshots();
     }
 }

@@ -1,32 +1,28 @@
 #nullable enable
 
-using System;
-using AbilityKit.Ability.Host.Extensions.Client.FrameSync;
 using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Demo.Shooter.View
 {
     public sealed class ShooterTimeAnchorCoordinator
     {
-        private SyncClock _localClock;
+        private readonly ClockSynchronizationCoordinator _coordinator;
 
         public ShooterTimeAnchorCoordinator(int tickRate)
         {
-            _localClock = CreateClock(tickRate);
+            _coordinator = new ClockSynchronizationCoordinator(tickRate);
         }
 
-        public SyncTimeAnchor LastLocalAnchor { get; private set; }
+        public SyncTimeAnchor LastLocalAnchor => _coordinator.LastLocalAnchor;
 
         public SyncTimeAnchor AdvanceLocal()
         {
-            LastLocalAnchor = _localClock.Advance();
-            return LastLocalAnchor;
+            return _coordinator.AdvanceLocal();
         }
 
         public void Reset(int tickRate)
         {
-            _localClock = CreateClock(tickRate);
-            LastLocalAnchor = default;
+            _coordinator.Reset(tickRate);
         }
 
         public static ShooterTimeAnchorCoordinator CreateLocal(int tickRate)
@@ -38,7 +34,12 @@ namespace AbilityKit.Demo.Shooter.View
             in ShooterGatewayWorldStartAnchor worldStartAnchor,
             long serverNowTicks)
         {
-            var projection = RemoteTimeAnchorProjector.Project(worldStartAnchor.ToFrameStartAnchor(), serverNowTicks);
+            var projection = ClockSynchronizationCoordinator.ProjectAuthoritative(
+                worldStartAnchor.StartServerTicks,
+                worldStartAnchor.ServerTickFrequency,
+                worldStartAnchor.StartFrame,
+                worldStartAnchor.FixedDeltaSeconds,
+                serverNowTicks);
             if (!projection.AnchorValid)
             {
                 return default;
@@ -51,16 +52,6 @@ namespace AbilityKit.Demo.Shooter.View
                 projection.CatchUpFrames,
                 projection.ElapsedSeconds,
                 projection.TimeAnchor);
-        }
-
-        private static SyncClock CreateClock(int tickRate)
-        {
-            if (tickRate <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(tickRate));
-            }
-
-            return new SyncClock(1d / tickRate, timelineTicksPerStep: 1L);
         }
     }
 

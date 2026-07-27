@@ -435,7 +435,12 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
             PayloadOpCode = push.PayloadOpCode,
             Payload = push.Payload,
             ServerTicks = push.ServerTicks,
-            EventWatermark = push.EventWatermark
+            EventWatermark = push.EventWatermark,
+            SchemaVersion = push.SchemaVersion,
+            RemovedActorIds = push.RemovedActorIds == null || push.RemovedActorIds.Count == 0
+                ? null
+                : new List<int>(push.RemovedActorIds),
+            EventEpoch = push.EventEpoch ?? string.Empty
         };
     }
 

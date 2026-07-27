@@ -48,7 +48,7 @@ namespace AbilityKit.Demo.Shooter.View
                 return;
             }
 
-            if (_presentation.Snapshots.TryAdvancePlayback(deltaTime, out var batch))
+            if (_presentation.Snapshots.TryAdvancePlaybackTransient(deltaTime, out var batch))
             {
                 Sync(in batch);
             }

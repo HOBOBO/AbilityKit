@@ -42,7 +42,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             Import(frame, payload);
         }
 
-        public void AddStateHash(FrameIndex frame, MobaStateHashBuilder hash)
+        public void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash)
         {
             var entries = s_entryListPool.Get();
             try
@@ -63,7 +63,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 for (int i = 0; i < entries.Count; i++)
                 {
                     var it = entries[i];
-                    AddEntryHash(it, hash);
+                    AddEntryHash(it, ref hash);
                 }
             }
             finally
@@ -129,7 +129,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             e.ReplaceMotion(m.Pipeline, state, output, m.Solver, m.Policy, m.Events, m.Initialized, m.HitTriggerRuntime);
         }
 
-        private static void AddEntryHash(in MobaActorTransformRollbackEntry entry, MobaStateHashBuilder hash)
+        private static void AddEntryHash(in MobaActorTransformRollbackEntry entry, ref MobaStateHashBuilder hash)
         {
             var t = entry.Transform;
             hash.AddInt(entry.ActorId);

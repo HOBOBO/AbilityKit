@@ -8,54 +8,45 @@ namespace AbilityKit.Demo.Shooter.View
 {
     internal sealed class ShooterClientRecoveryCoordinator
     {
-        private readonly Func<int> _getCurrentFrame;
-        private readonly ShooterFastReconnectDriver _fastReconnect;
-        private SyncHealthEvent[] _lastHealthEvents = Array.Empty<SyncHealthEvent>();
-        private ShooterClientRecoveryState _state = ShooterClientRecoveryState.Normal;
+        private readonly ClientSyncRecoveryCoordinator<ShooterClientResyncReason> _recovery;
 
         public ShooterClientRecoveryCoordinator(ShooterClientDriftRecoveryPolicy policy, Func<int> getCurrentFrame)
         {
-            _getCurrentFrame = getCurrentFrame ?? throw new ArgumentNullException(nameof(getCurrentFrame));
-            _fastReconnect = new ShooterFastReconnectDriver(policy.ReplayThreshold);
+            _recovery = new ClientSyncRecoveryCoordinator<ShooterClientResyncReason>(
+                policy.ReplayThreshold,
+                getCurrentFrame,
+                ShooterClientResyncReason.None);
         }
 
-        public ShooterClientRecoveryState State => _state;
+        public ShooterClientRecoveryState State => (ShooterClientRecoveryState)_recovery.State;
 
-        public bool NeedsFullSnapshotResync { get; private set; }
+        public bool NeedsFullSnapshotResync => _recovery.NeedsFullSnapshotResync;
 
-        public FastReconnectPhase FastReconnectPhase => _fastReconnect.Phase;
+        public FastReconnectPhase FastReconnectPhase => _recovery.FastReconnectPhase;
 
-        public IReadOnlyList<SyncHealthEvent> LastFastReconnectHealthEvents => _lastHealthEvents;
+        public IReadOnlyList<SyncHealthEvent> LastFastReconnectHealthEvents =>
+            _recovery.LastFastReconnectHealthEvents;
 
-        public ShooterClientResyncReason LastResyncReason { get; private set; } = ShooterClientResyncReason.None;
+        public ShooterClientResyncReason LastResyncReason => _recovery.LastRecoveryReason;
 
-        public int LastResyncClientFrame { get; private set; }
+        public int LastResyncClientFrame => _recovery.LastRecoveryClientFrame;
 
-        public int LastResyncAuthoritativeFrame { get; private set; }
+        public int LastResyncAuthoritativeFrame => _recovery.LastRecoveryAuthoritativeFrame;
 
-        public uint LastResyncClientStateHash { get; private set; }
+        public uint LastResyncClientStateHash => _recovery.LastRecoveryClientStateHash;
 
-        public uint LastResyncAuthoritativeStateHash { get; private set; }
+        public uint LastResyncAuthoritativeStateHash => _recovery.LastRecoveryAuthoritativeStateHash;
 
-        public int CatchUpTargetFrame { get; private set; }
+        public int CatchUpTargetFrame => _recovery.CatchUpTargetFrame;
 
         public void SetState(ShooterClientRecoveryState next)
         {
-            var previous = _state;
-            _state = next;
-            if (previous == next)
-            {
-                return;
-            }
-
-            DriveFastReconnect(next);
+            _recovery.SetState((SyncRecoveryState)next);
         }
 
         public void EnterCatchUp(int authoritativeFrame)
         {
-            CatchUpTargetFrame = authoritativeFrame;
-            LastResyncAuthoritativeFrame = authoritativeFrame;
-            SetState(ShooterClientRecoveryState.CatchUp);
+            _recovery.EnterCatchUp(authoritativeFrame);
         }
 
         public void MarkFullSnapshotResyncNeeded(
@@ -65,82 +56,22 @@ namespace AbilityKit.Demo.Shooter.View
             uint clientStateHash,
             uint authoritativeStateHash)
         {
-            NeedsFullSnapshotResync = true;
-            LastResyncReason = reason;
-            LastResyncClientFrame = clientFrame;
-            LastResyncAuthoritativeFrame = authoritativeFrame;
-            LastResyncClientStateHash = clientStateHash;
-            LastResyncAuthoritativeStateHash = authoritativeStateHash;
-            CatchUpTargetFrame = authoritativeFrame > clientFrame ? authoritativeFrame : clientFrame;
-            SetState(ShooterClientRecoveryState.AwaitingFullSnapshot);
+            _recovery.MarkFullSnapshotResyncNeeded(
+                reason,
+                clientFrame,
+                authoritativeFrame,
+                clientStateHash,
+                authoritativeStateHash);
         }
 
         public void ClearFullSnapshotResync()
         {
-            NeedsFullSnapshotResync = false;
-            LastResyncReason = ShooterClientResyncReason.None;
-            LastResyncClientFrame = 0;
-            LastResyncAuthoritativeFrame = 0;
-            LastResyncClientStateHash = 0u;
-            LastResyncAuthoritativeStateHash = 0u;
-            CatchUpTargetFrame = 0;
+            _recovery.ClearFullSnapshotResync();
         }
 
         public void HeartbeatFastReconnect(int authoritativeFrame)
         {
-            _fastReconnect.ResetEventBuffer();
-            _fastReconnect.Heartbeat(authoritativeFrame);
-            CaptureHealthEvents();
-        }
-
-        private void DriveFastReconnect(ShooterClientRecoveryState next)
-        {
-            _fastReconnect.ResetEventBuffer();
-            switch (next)
-            {
-                case ShooterClientRecoveryState.CatchUp:
-                {
-                    var currentFrame = _getCurrentFrame();
-                    var gap = CatchUpTargetFrame > currentFrame ? CatchUpTargetFrame - currentFrame : 1;
-                    _fastReconnect.Reconcile(FastReconnectPhase.Resuming, LastResyncAuthoritativeFrame, gap);
-                    break;
-                }
-                case ShooterClientRecoveryState.AwaitingFullSnapshot:
-                {
-                    var gap = LastResyncAuthoritativeFrame - LastResyncClientFrame;
-                    _fastReconnect.Reconcile(FastReconnectPhase.AwaitingFullSnapshot, LastResyncAuthoritativeFrame, gap);
-                    break;
-                }
-                case ShooterClientRecoveryState.ApplyingFullSnapshot:
-                    break;
-                case ShooterClientRecoveryState.Recovered:
-                    _fastReconnect.Reconcile(FastReconnectPhase.Recovered, LastResyncAuthoritativeFrame, 0);
-                    break;
-                case ShooterClientRecoveryState.Normal:
-                default:
-                    _fastReconnect.Reconcile(FastReconnectPhase.Connected, _getCurrentFrame(), 0);
-                    break;
-            }
-
-            CaptureHealthEvents();
-        }
-
-        private void CaptureHealthEvents()
-        {
-            var collected = _fastReconnect.CollectedEvents;
-            if (collected.Count == 0)
-            {
-                _lastHealthEvents = Array.Empty<SyncHealthEvent>();
-                return;
-            }
-
-            var buffer = new SyncHealthEvent[collected.Count];
-            for (var i = 0; i < collected.Count; i++)
-            {
-                buffer[i] = collected[i];
-            }
-
-            _lastHealthEvents = buffer;
+            _recovery.HeartbeatFastReconnect(authoritativeFrame);
         }
     }
 }

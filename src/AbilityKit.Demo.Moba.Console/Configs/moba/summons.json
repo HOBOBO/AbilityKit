@@ -1,19 +1,40 @@
 [
-  {
-    "Id": 1,
-    "Name": "小兵",
-    "UnitSubType": 1,
-    "ModelId": 1,
-    "AttributeTemplateId": 1001,
-    "LifetimeMs": 60000,
-    "DespawnOnOwnerDie": true,
-    "MaxAlivePerOwner": 10,
-    "OverflowPolicy": 0,
-    "StatsMode": 0,
-    "AttrScales": [],
-    "SkillIds": [],
-    "PassiveSkillIds": [],
-    "DefaultComponentTemplateIds": [],
-    "Tags": []
-  }
+    {
+        "Id": 1,
+        "Name": "小兵",
+        "UnitSubType": 1,
+        "ModelId": 1,
+        "AttributeTemplateId": 1001,
+        "LifetimeMs": 60000,
+        "DespawnOnOwnerDie": true,
+        "MaxAlivePerOwner": 10,
+        "OverflowPolicy": 0,
+        "StatsMode": 0,
+        "AttrScales": [],
+        "SkillIds": [],
+        "PassiveSkillIds": [],
+        "DefaultComponentTemplateIds": [],
+        "Tags": [],
+        "BrainId": 1
+    },
+    {
+        "Id": 2,
+        "Name": "树灵守卫",
+        "UnitSubType": 1,
+        "ModelId": 1001,
+        "AttributeTemplateId": 1001,
+        "LifetimeMs": 30000,
+        "DespawnOnOwnerDie": true,
+        "MaxAlivePerOwner": 2,
+        "OverflowPolicy": 0,
+        "StatsMode": 0,
+        "AttrScales": [],
+        "SkillIds": [],
+        "PassiveSkillIds": [],
+        "BrainId": 3,
+        "BrainTreeName": "summon_warden_bt",
+        "InheritAttributeConfigId": 1,
+        "DefaultComponentTemplateIds": [],
+        "Tags": []
+    }
 ]

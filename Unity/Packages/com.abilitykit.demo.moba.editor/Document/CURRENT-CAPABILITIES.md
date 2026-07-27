@@ -1,6 +1,6 @@
 # MOBA 战斗诊断当前能力与限制
 
-> 状态日期：2026-07-21
+> 状态日期：2026-07-25
 >
 > 本文是当前实现状态的唯一事实入口。设计目标请查阅架构设计，历史批次请查阅实施历史。
 
@@ -83,13 +83,23 @@ Battle Debug 在本地 Play Mode 提供嵌入式录像控制区。当前 MVP 不
 
 - 固定容量和严格递增 Sequence。
 - Scope 校验与有界淘汰。
-- 按 Actor、Channel、结果和文本组合过滤。
+- 按 Actor、Channel、结果和文本组合过滤；文本搜索覆盖结构化技能失败的 Code、Message 和 Slot。
 - 基于 Store revision 的一致分页。
 - 已丢弃 revision 的 `Evicted` 语义。
 - Freeze、Clear 和采集通道开关的内部控制端口。
-- 不可变查询结果和版本化强类型 Payload。
+- 不可变查询结果和版本化强类型 Payload；当前正式覆盖同步状态哈希、触发分析和技能失败。
 
-事件面板当前显示最多 200 条结果，支持选择事件后查看信封字段、Summary 和已知结构化 Payload，并可从事件一键打开对应 Trace。完整 Timeline、Bookmark 和导出尚未落地。
+事件面板以每页 200 条的调查工作集展示结果，并将失败事件投影为案例导向的调查入口：
+
+- 首屏绑定查询时的 Event Store revision；“加载更多”只从同一固定 revision 追加更早结果，不把新的 live 数据混入已有工作集。
+- 筛选条件或 live revision 变化时重建首屏；固定 revision 被 Store 淘汰时保留已经加载的数据、停止继续分页并显示明确状态。
+- 只有共享可靠 Root Context 的失败才合并；无 Root Trace 的失败按事件独立保留。
+- 案例显式标注 `Confirmed`、`Inferred` 或 `InsufficientEvidence`，支持按置信度和根因组合过滤；增量加载后按稳定案例 Key 保持当前选择。
+- 支持前后案例导航、直接选择证据事件、聚焦证据关联链、选择来源 Actor、打开 Trace 和复制证据摘要。
+- 结构化技能失败按稳定 Code/Source/Stage 形成问题簇，不依赖 Summary 文案；问题簇统计整个已加载工作集的次数、首次帧、最近帧和跨度。
+- 事件详情展示信封字段、Summary 和已知结构化 Payload，并可从单个事件继续关联调查或打开 Trace。
+
+完整跨帧 Timeline 和 Bookmark 尚未落地；诊断快照导出由 Battle Debug 顶部 Artifact 工作流提供。
 
 ## Trace Store
 
@@ -111,7 +121,7 @@ Trace 数据仍受 Runtime Store 保留范围约束。Editor 临时 Pin 只是�
 
 | 事件来源 | 状态 | 说明 |
 | --- | --- | --- |
-| 技能生命周期 | 可用 | 开始、完成、失败、打断 |
+| 技能生命周期 | 可用 | 开始、完成、失败、打断；输入、准备、战斗规则、Runner 与 Pipeline 失败额外保留 Slot、Source、Stage、Code、Message |
 | Damage | 可用 | 管线最终伤害与直接伤害 |
 | Heal | 可用 | 直接治疗 |
 | Buff 生命周期 | 可用 | 添加与移除 |
@@ -166,7 +176,8 @@ Trace 数据仍受 Runtime Store 保留范围约束。Editor 临时 Pin 只是�
 - Local Session 的 Scope 默认仍可能使用临时本地身份，稳定外部 Session/World/Epoch 配置入口尚未完整产品化。
 - Actor 状态类 Store 不保留历史帧；历史查看依赖录像确定性重演，不能从单个 Store 或 Artifact 直接查询任意过去帧。
 - Replay 当前要求活动战斗提供完整 `BattleStartPlan`，尚不能仅凭录像文件在 Edit Mode 或空场景中独立创建逻辑世界，也未实现 Live 与 Replay 并行对照；“渲染表现”是当前 Replay 控制器的运行时选择，尚未写入启动计划或录像文件。
-- 强类型 Event Payload 当前只正式覆盖同步状态哈希；其他事件主要依赖稳定信封字段和 Summary。
+- 强类型 Event Payload 当前正式覆盖同步状态哈希、触发分析和技能失败；其他事件仍主要依赖稳定信封字段和 Summary。
+- 调查工作集仍是当前筛选下的显式增量读取，不是完整保留区的后台索引；不提供趋势图、跨 Artifact 问题合并或 Bookmark。
 - Freeze、Clear 和通道控制存在内部端口，但没有完整面板操作与权限模型。
 - Battle Debug 已提供实时快照磁盘导出、离线 Artifact 导入和 Play Mode 录像重演，但尚无文件大小限制、来源信任策略、自监控指标或远端能力；Editor 当前树内的临时导航 Pin 不跨文件持久化。
 - Replay 控制会重启、推进或回滚当前逻辑 Session；除该显式工作流外，Diagnostics 查询面板仍保持只读，不建立任意可变 Runtime 旁路。

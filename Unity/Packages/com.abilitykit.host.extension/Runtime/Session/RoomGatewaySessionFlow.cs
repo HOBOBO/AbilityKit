@@ -315,8 +315,9 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         }
 
         /// <summary>
-        /// 阶段 7：等待战斗开始（轮询 snapshot Phase -> Starting/InBattle）。
-        /// 通过 GetSnapshot 轮询，直到 Phase 进入 Starting/InBattle 或超时。
+        /// 阶段 7：等待战斗提交完成。
+        /// 通过 GetSnapshot 轮询，直到 Phase=InBattle 且 BattleId 已回填或超时。
+        /// Starting 仅表示服务端正在初始化战斗运行时，尚不可订阅状态同步。
         /// </summary>
         public async Task<RoomGatewayGetSnapshotResult> WaitForBattleStartAsync(
             string sessionToken,
@@ -339,14 +340,12 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                     timeout,
                     cancellationToken).ConfigureAwait(false);
 
-                if (snapshot.Success && snapshot.Snapshot != null)
+                if (snapshot.Success &&
+                    snapshot.Snapshot != null &&
+                    snapshot.Snapshot.Phase == RoomGatewaySessionPhase.InBattle &&
+                    !string.IsNullOrWhiteSpace(snapshot.Snapshot.BattleId))
                 {
-                    var phase = snapshot.Snapshot.Phase;
-                    if (phase == RoomGatewaySessionPhase.Starting ||
-                        phase == RoomGatewaySessionPhase.InBattle)
-                    {
-                        return snapshot;
-                    }
+                    return snapshot;
                 }
 
                 try

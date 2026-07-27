@@ -22,7 +22,7 @@ shooter 测试全部在 `tools/test-gates.json` 注册：
 | `shooter-multiprocess-ownership-cleanup` (TEST-01C) | `test_shooter_multiprocess_ownership_cleanup.ps1` | `{GateOutputDirectory}/test-01c/` |
 | `shooter-performance` | `run_shooter_aoi_lod_gate.ps1 -Profile {smoke/full}` | `{GateOutputDirectory}/performance/{smoke,full}.json` |
 
-`{GateOutputDirectory}` 由 `run_test_gate.ps1` 自动替换为 `artifacts/test-gates/{ts}-{gate}/`。
+本地运行时，`{GateOutputDirectory}` 由 `run_test_gate.ps1` 自动替换为 `local/Logs/test-gates/{ts}-{gate}/`。CI 通过工作流显式覆写为 `artifacts/test-gates/{job}/`。
 
 ## TEST-01B / TEST-01C 的产物结构
 
@@ -72,7 +72,7 @@ TEST-01C 还会生成：
     -Configuration Release `
     -Profile minimal `
     -TcpPort 44101 -SiloPort 15111 -OrleansGatewayPort 34101 `
-    -ArtifactRoot artifacts/shooter-manual/{yyyyMMdd-HHmmss} `
+    -ArtifactRoot local/Logs/shooter-manual/{yyyyMMdd-HHmmss} `
     -GlobalTimeoutSeconds 240
 
 # 启动 state-sync 服务器（前台）
@@ -88,7 +88,7 @@ TEST-01C 还会生成：
 - `shooter-multiprocess-ownership-cleanup`（schedule）
 - `shooter-performance-smoke` + `shooter-performance-full`
 
-每个 job 都用 `actions/upload-artifact@v4 with if: always()` 上传整个 `artifacts/test-gates/{ts}-{gate}/`。
+每个 job 都显式覆写结果目录为 `artifacts/test-gates/{job}/`，并用 `actions/upload-artifact@v4 with if: always()` 上传该目录；本地默认仍是 `local/Logs/test-gates/`。
 
 ## 端口约定（避免冲突）
 

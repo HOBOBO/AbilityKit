@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using AbilityKit.Network.Abstractions;
@@ -26,14 +27,19 @@ namespace AbilityKit.Network.Runtime.Conditioning
             public long Sequence;
             public bool Inbound;
             public NetworkPacketHeader Header;
-            public byte[] Payload;
-            public Action<NetworkPacketHeader, ArraySegment<byte>> Next;
+            public byte[] Payload = Array.Empty<byte>();
+            public int PayloadLength;
+            public Action<NetworkPacketHeader, ArraySegment<byte>>? Next;
         }
+
+        private const int MaxPooledPackets = 256;
 
         private readonly NetworkConditionProfile _profile;
         private readonly Func<long> _clockMs;
         private readonly Random _random;
         private readonly List<PendingPacket> _pending = new List<PendingPacket>();
+        private readonly List<PendingPacket> _ready = new List<PendingPacket>();
+        private readonly Stack<PendingPacket> _packetPool = new Stack<PendingPacket>();
 
         private long _enqueueCounter;
         private long _inboundBandwidthAvailableAtMs;
@@ -81,6 +87,11 @@ namespace AbilityKit.Network.Runtime.Conditioning
         /// </summary>
         public void Advance(long nowMs)
         {
+            if (_pending.Count == 0)
+            {
+                return;
+            }
+
             // 稳定顺序：先按投递时间，再按原始入队序号；除非调度时显式乱序，否则相同时间保持到达顺序。
             _pending.Sort(static (a, b) =>
             {
@@ -88,17 +99,81 @@ namespace AbilityKit.Network.Runtime.Conditioning
                 return byTime != 0 ? byTime : a.Sequence.CompareTo(b.Sequence);
             });
 
-            int i = 0;
-            while (i < _pending.Count && _pending[i].DeliverAtMs <= nowMs)
+            int dueCount = 0;
+            while (dueCount < _pending.Count && _pending[dueCount].DeliverAtMs <= nowMs)
             {
-                var packet = _pending[i];
-                _pending.RemoveAt(i);
-
-                if (packet.Inbound) _inboundDelivered++;
-                else _outboundDelivered++;
-
-                packet.Next(packet.Header, new ArraySegment<byte>(packet.Payload));
+                dueCount++;
             }
+
+            if (dueCount == 0)
+            {
+                return;
+            }
+
+            _ready.Clear();
+            if (_ready.Capacity < dueCount)
+            {
+                _ready.Capacity = dueCount;
+            }
+
+            for (int i = 0; i < dueCount; i++)
+            {
+                _ready.Add(_pending[i]);
+            }
+
+            _pending.RemoveRange(0, dueCount);
+
+            int deliveryIndex = 0;
+            try
+            {
+                for (; deliveryIndex < _ready.Count; deliveryIndex++)
+                {
+                    var packet = _ready[deliveryIndex];
+
+                    if (packet.Inbound) _inboundDelivered++;
+                    else _outboundDelivered++;
+
+                    try
+                    {
+                        packet.Next!(packet.Header, new ArraySegment<byte>(packet.Payload, 0, packet.PayloadLength));
+                    }
+                    finally
+                    {
+                        ReleasePacket(packet);
+                    }
+                }
+            }
+            catch
+            {
+                // Preserve packets that had not yet reached their callback, matching the previous
+                // one-at-a-time removal behavior when a downstream callback throws.
+                for (int i = deliveryIndex + 1; i < _ready.Count; i++)
+                {
+                    _pending.Add(_ready[i]);
+                }
+
+                throw;
+            }
+            finally
+            {
+                _ready.Clear();
+            }
+        }
+
+        /// <summary>
+        /// Discards queued packets and returns their storage to the shared pools.
+        /// The middleware is not thread-safe; call this outside <see cref="Advance"/>.
+        /// </summary>
+        public void ClearPending()
+        {
+            for (int i = 0; i < _pending.Count; i++)
+            {
+                ReleasePacket(_pending[i]);
+            }
+
+            _pending.Clear();
+            _inboundBandwidthAvailableAtMs = 0;
+            _outboundBandwidthAvailableAtMs = 0;
         }
 
         public NetworkConditioningStats GetStats()
@@ -148,21 +223,49 @@ namespace AbilityKit.Network.Runtime.Conditioning
             long bandwidthDelay = ReserveBandwidth(inbound, now, payload.Count);
 
             // 复制载荷，因为调用方缓冲区可能在该调用返回后被复用。
-            var copy = new byte[payload.Count];
+            var copy = payload.Count == 0
+                ? Array.Empty<byte>()
+                : ArrayPool<byte>.Shared.Rent(payload.Count);
             if (payload.Count > 0)
             {
                 Buffer.BlockCopy(payload.Array!, payload.Offset, copy, 0, payload.Count);
             }
 
-            _pending.Add(new PendingPacket
+            var packet = RentPacket();
+            packet.DeliverAtMs = now + delay + bandwidthDelay;
+            packet.Sequence = reordered ? long.MinValue + _enqueueCounter++ : _enqueueCounter++;
+            packet.Inbound = inbound;
+            packet.Header = header;
+            packet.Payload = copy;
+            packet.PayloadLength = payload.Count;
+            packet.Next = next;
+            _pending.Add(packet);
+        }
+
+        private PendingPacket RentPacket()
+        {
+            return _packetPool.Count > 0 ? _packetPool.Pop() : new PendingPacket();
+        }
+
+        private void ReleasePacket(PendingPacket packet)
+        {
+            if (packet.Payload.Length > 0)
             {
-                DeliverAtMs = now + delay + bandwidthDelay,
-                Sequence = reordered ? long.MinValue + _enqueueCounter++ : _enqueueCounter++,
-                Inbound = inbound,
-                Header = header,
-                Payload = copy,
-                Next = next,
-            });
+                ArrayPool<byte>.Shared.Return(packet.Payload);
+            }
+
+            packet.DeliverAtMs = 0;
+            packet.Sequence = 0;
+            packet.Inbound = false;
+            packet.Header = default;
+            packet.Payload = Array.Empty<byte>();
+            packet.PayloadLength = 0;
+            packet.Next = null;
+
+            if (_packetPool.Count < MaxPooledPackets)
+            {
+                _packetPool.Push(packet);
+            }
         }
 
         private long ReserveBandwidth(bool inbound, long nowMs, int payloadBytes)

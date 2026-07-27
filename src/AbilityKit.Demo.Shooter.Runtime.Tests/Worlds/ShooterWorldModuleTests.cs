@@ -4,6 +4,7 @@ using AbilityKit.Ability.Host.WorldBlueprints;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Management;
+using AbilityKit.Game.Battle;
 using AbilityKit.Demo.Shooter;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Protocol.Shooter;
@@ -445,6 +446,7 @@ public sealed class ShooterWorldModuleTests
             .Build();
 
         var runtime = container.Resolve<IShooterBattleRuntimePort>();
+        var statusProvider = Assert.IsAssignableFrom<IBattleRuntimeStatusProvider>(runtime);
         var state = container.Resolve<ShooterBattleState>();
         var start = new ShooterStartGamePayload(
             "victory-result",
@@ -452,8 +454,22 @@ public sealed class ShooterWorldModuleTests
             1,
             new[] { new ShooterStartPlayer(1, "P1", 0f, 0f) });
 
+        var readyStatus = statusProvider.BattleStatus;
+        Assert.Equal(BattleRuntimeState.Ready, readyStatus.State);
+        Assert.True(readyStatus.Has(
+            BattleRuntimeCapability.GameStart |
+            BattleRuntimeCapability.Input |
+            BattleRuntimeCapability.Simulation |
+            BattleRuntimeCapability.SnapshotOutput |
+            BattleRuntimeCapability.SnapshotInput |
+            BattleRuntimeCapability.StateReadModel |
+            BattleRuntimeCapability.StateHash |
+            BattleRuntimeCapability.BotControl));
+
         Assert.True(runtime.StartGame(in start));
         Assert.Equal(ShooterBattleMatchState.Running, runtime.MatchState);
+        Assert.Equal(BattleRuntimeState.Running, statusProvider.BattleStatus.State);
+        Assert.True(statusProvider.BattleStatus.Meets(BattleReadinessRequirement.BattleLoop));
 
         state.VictoryTargetDefeats = 1;
         state.DefeatedEnemies = 1;
@@ -461,6 +477,8 @@ public sealed class ShooterWorldModuleTests
         Assert.False(runtime.Tick(1f / 30f));
         Assert.Equal(ShooterBattleMatchState.Victory, runtime.MatchState);
         Assert.False(runtime.IsStarted);
+        Assert.Equal(BattleRuntimeState.Completed, statusProvider.BattleStatus.State);
+        Assert.False(statusProvider.BattleStatus.Meets(BattleReadinessRequirement.BattleLoop));
 
         var result = runtime.MatchResult;
         Assert.True(result.IsFinal);

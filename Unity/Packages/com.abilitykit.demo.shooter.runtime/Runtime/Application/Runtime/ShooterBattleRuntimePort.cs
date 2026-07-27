@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.StateSync.Aoi;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Game.Battle;
 using AbilityKit.Protocol.Shooter;
 using AbilityKit.World.Svelto;
 
@@ -120,6 +122,17 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _services.EnginesRoot.AddEngine(_battleStepEngine);
         }
 
+        public BattleRuntimeStatus BattleStatus => new BattleRuntimeStatus(
+            BattleRuntimeCapability.GameStart |
+            BattleRuntimeCapability.Input |
+            BattleRuntimeCapability.Simulation |
+            BattleRuntimeCapability.SnapshotOutput |
+            BattleRuntimeCapability.SnapshotInput |
+            BattleRuntimeCapability.StateReadModel |
+            BattleRuntimeCapability.StateHash |
+            BattleRuntimeCapability.BotControl,
+            MapRuntimeState(_state.MatchState));
+
         public bool IsStarted => _state.IsStarted;
 
         public ShooterBattleMatchState MatchState => _state.MatchState;
@@ -179,13 +192,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public int SubmitInput(int frame, ShooterPlayerCommand[] commands)
         {
-            if (!_state.IsStarted || commands == null || commands.Length == 0)
+            return SubmitInput(frame, (IReadOnlyList<ShooterPlayerCommand>)commands);
+        }
+
+        public int SubmitInput(int frame, IReadOnlyList<ShooterPlayerCommand> commands)
+        {
+            if (!_state.IsStarted || commands == null || commands.Count == 0)
             {
                 return 0;
             }
 
             var accepted = 0;
-            for (int i = 0; i < commands.Length; i++)
+            for (int i = 0; i < commands.Count; i++)
             {
                 var command = commands[i];
                 if (!_entities.HasPlayer(command.PlayerId)) continue;
@@ -212,6 +230,16 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public ShooterStateSnapshotPayload GetSnapshot()
         {
             return _snapshotExporter.Export();
+        }
+
+        public ShooterStateSnapshotPayload GetSnapshotTransient()
+        {
+            return _snapshotExporter.ExportTransient();
+        }
+
+        public ShooterPlayerSnapshot[] GetPlayerSnapshotsTransient()
+        {
+            return _snapshotExporter.ExportPlayersTransient();
         }
 
         public uint ComputeStateHash()
@@ -252,6 +280,19 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return _pureStateSnapshotExporter.Export(worldId, isFullBaseline, settings, baselineFrame, baselineHash, interestScope, aoiInterestSet, computeStateHash);
         }
 
+        public ShooterPureStateSnapshotPayload ExportPureStateSnapshotTransient(
+            ulong worldId,
+            bool isFullBaseline = true,
+            ShooterPureStateSyncSettings? settings = null,
+            int baselineFrame = 0,
+            uint baselineHash = 0,
+            ShooterPureStateInterestScope? interestScope = null,
+            AoiInterestSet? aoiInterestSet = null,
+            bool computeStateHash = true)
+        {
+            return _pureStateSnapshotExporter.ExportTransient(worldId, isFullBaseline, settings, baselineFrame, baselineHash, interestScope, aoiInterestSet, computeStateHash);
+        }
+
         public bool TryGetPlayer(int playerId, out ShooterSveltoPlayerComponent player)
         {
             return _entities.TryGetPlayer(playerId, out player);
@@ -277,6 +318,19 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public void ClearBotAi()
         {
             _botAiService.ClearBotAi();
+        }
+
+        private static BattleRuntimeState MapRuntimeState(ShooterBattleMatchState state)
+        {
+            return state switch
+            {
+                ShooterBattleMatchState.NotStarted => BattleRuntimeState.Ready,
+                ShooterBattleMatchState.Running => BattleRuntimeState.Running,
+                ShooterBattleMatchState.Victory => BattleRuntimeState.Completed,
+                ShooterBattleMatchState.Defeat => BattleRuntimeState.Completed,
+                ShooterBattleMatchState.Ended => BattleRuntimeState.Completed,
+                _ => BattleRuntimeState.Unknown,
+            };
         }
 
         private static ShooterBattleState CreateState(IShooterEntityManager entities)

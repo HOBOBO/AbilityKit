@@ -1438,5 +1438,20 @@
                 ]
             }
         ]
+    },
+    {
+        "Id": 9900001,
+        "ParamNames": [
+            "damage"
+        ],
+        "Levels": [
+            {
+                "CooldownMs": 5000,
+                "Cost": 0,
+                "Params": [
+                    100
+                ]
+            }
+        ]
     }
 ]

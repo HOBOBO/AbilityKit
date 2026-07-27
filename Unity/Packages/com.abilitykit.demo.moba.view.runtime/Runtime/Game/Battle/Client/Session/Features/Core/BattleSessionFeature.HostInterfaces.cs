@@ -1,8 +1,4 @@
-using System;
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle;
-using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Game.Flow
 {
@@ -20,9 +16,10 @@ namespace AbilityKit.Game.Flow
         BattleStartPlan Plan { get; }
         BattleContext Context { get; }
 
-        Action<FramePacket> FrameReceivedHandler { get; }
-
-        BattleLogicSession StartBattleLogicSession(BattleLogicSessionOptions opts);
+        void StartBattleLogicSession(BattleLogicSessionOptions opts);
+        void SubscribeFrameReceived();
+        void UnsubscribeFrameReceived();
+        void StopBattleLogicSession();
 
         void InvokeSessionStartingPipeline();
         void InvokeSessionStoppingPipeline();
@@ -36,8 +33,8 @@ namespace AbilityKit.Game.Flow
         void DisposeConfirmedView();
         void DisposeRemoteDrivenWorld();
         void DisposeConfirmedWorld();
-        void DisposeNetworkIoDispatcher();
+        void DisposeRemoteInterpolation();
 
-        void ResetHandles();
+        void ResetSessionHandles();
     }
 }

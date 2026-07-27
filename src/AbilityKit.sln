@@ -163,6 +163,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Record.Tools", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Record.Tests", "AbilityKit.Record.Tests\AbilityKit.Record.Tests.csproj", "{403E8E63-8823-4F6F-B48C-241A1BC88AEB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.BTCore.Tests", "AbilityKit.BTCore.Tests\AbilityKit.BTCore.Tests.csproj", "{1C9065BF-752E-4EF6-B8AB-8864B6496037}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -1133,6 +1135,18 @@ Global
 		{403E8E63-8823-4F6F-B48C-241A1BC88AEB}.Release|x64.Build.0 = Release|Any CPU
 		{403E8E63-8823-4F6F-B48C-241A1BC88AEB}.Release|x86.ActiveCfg = Release|Any CPU
 		{403E8E63-8823-4F6F-B48C-241A1BC88AEB}.Release|x86.Build.0 = Release|Any CPU
+		{1C9065BF-752E-4EF6-B8AB-8864B6496037}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C9065BF-752E-4EF6-B8AB-8864B6496037}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C9065BF-752E-4EF6-B8AB-8864B6496037}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1C9065BF-752E-4EF6-B8AB-8864B6496037}.Debug|x64.Build.0 = Debug|Any CPU
+		{1C9065BF-752E-4EF6-B8AB-8864B6496037}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1C9065BF-752E-4EF6-B8AB-8864B6496037}.Debug|x86.Build.0 = Debug|Any CPU
+		{1C9065BF-752E-4EF6-B8AB-8864B6496037}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C9065BF-752E-4EF6-B8AB-8864B6496037}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1C9065BF-752E-4EF6-B8AB-8864B6496037}.Release|x64.ActiveCfg = Release|Any CPU
+		{1C9065BF-752E-4EF6-B8AB-8864B6496037}.Release|x64.Build.0 = Release|Any CPU
+		{1C9065BF-752E-4EF6-B8AB-8864B6496037}.Release|x86.ActiveCfg = Release|Any CPU
+		{1C9065BF-752E-4EF6-B8AB-8864B6496037}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

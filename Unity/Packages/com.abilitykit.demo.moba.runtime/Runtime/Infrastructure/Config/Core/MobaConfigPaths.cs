@@ -25,6 +25,8 @@
 
         public const string SummonsFile = "summons";
 
+        public const string SummonAttrInheritsFile = "summon_attr_inherits";
+
         public const string ComponentTemplatesFile = "component_templates";
 
         public const string SkillButtonTemplatesFile = "skill_button_templates";

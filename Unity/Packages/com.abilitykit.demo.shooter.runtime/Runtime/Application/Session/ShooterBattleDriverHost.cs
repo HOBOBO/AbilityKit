@@ -15,6 +15,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
     {
         private readonly IShooterBattleRuntimePort _runtime;
         private readonly List<ShooterPlayerCommand> _commandBuffer = new List<ShooterPlayerCommand>(16);
+        private readonly ShooterPlayerCommand[] _singleCommandBuffer = new ShooterPlayerCommand[1];
         private readonly List<SnapshotEntityState> _stateBuffer = new List<SnapshotEntityState>(64);
         private double _logicTimeSeconds;
         private bool _isRunning;
@@ -75,13 +76,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return 0;
             }
 
-            var payload = new ShooterPlayerCommand[commands.Count];
-            for (int i = 0; i < commands.Count; i++)
-            {
-                payload[i] = commands[i];
-            }
-
-            return _runtime.SubmitInput(frame, payload);
+            return _runtime.SubmitInput(frame, commands);
         }
 
         public int SubmitCommand(int frame, in ShooterPlayerCommand command)
@@ -91,7 +86,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return 0;
             }
 
-            return _runtime.SubmitInput(frame, new[] { command });
+            _singleCommandBuffer[0] = command;
+            return _runtime.SubmitInput(frame, _singleCommandBuffer);
         }
 
         public void AdvanceFrame(float deltaTime)
@@ -110,8 +106,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public SnapshotEntityState[] GetAllEntityStates()
         {
             _stateBuffer.Clear();
-            var snapshot = _runtime.GetSnapshot();
-            var players = snapshot.Players ?? Array.Empty<ShooterPlayerSnapshot>();
+            var players = _runtime.GetPlayerSnapshotsTransient();
             for (int i = 0; i < players.Length; i++)
             {
                 var player = players[i];

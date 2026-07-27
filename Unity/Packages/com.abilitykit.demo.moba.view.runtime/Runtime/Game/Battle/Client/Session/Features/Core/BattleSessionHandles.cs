@@ -2,37 +2,36 @@ using AbilityKit.Game.Battle;
 
 namespace AbilityKit.Game.Flow
 {
-    internal sealed partial class BattleSessionHandles
+    // The feature owns one explicit session runtime composed from independently testable domain resources.
+    internal sealed class BattleSessionHandles
     {
         internal BattleLogicSession Session;
 
-        internal readonly SnapshotHandles Snapshot = new SnapshotHandles();
-        internal readonly NetHandles Net = new NetHandles();
+        internal readonly BattleSessionSnapshotRuntime Snapshot = new BattleSessionSnapshotRuntime();
+        internal readonly BattleSessionNetworkRuntime Net = new BattleSessionNetworkRuntime();
+        internal readonly BattleSessionDispatcherRuntime Dispatchers = new BattleSessionDispatcherRuntime();
+        internal readonly BattleSessionReplayRuntime Replay = new BattleSessionReplayRuntime();
+        internal readonly BattleSessionPhaseRuntime Phase = new BattleSessionPhaseRuntime();
+        internal readonly BattleSessionGatewayRoomRuntime GatewayRoom = new BattleSessionGatewayRoomRuntime();
+        internal readonly BattleSessionConfirmedWorldRuntime Confirmed = new BattleSessionConfirmedWorldRuntime();
+        internal readonly BattleSessionRemoteDrivenWorldRuntime RemoteDriven = new BattleSessionRemoteDrivenWorldRuntime();
 
-        internal readonly DispatcherHandles Dispatchers = new DispatcherHandles();
-
-        internal readonly ReplayHandles Replay = new ReplayHandles();
-
-        internal readonly PhaseHandles Phase = new PhaseHandles();
-
-        internal readonly GatewayRoomHandles GatewayRoom = new GatewayRoomHandles();
-
-        internal readonly ConfirmedHandles Confirmed = new ConfirmedHandles();
-
-        internal readonly RemoteDrivenHandles RemoteDriven = new RemoteDrivenHandles();
+        public void ResetSessionResources()
+        {
+            Session = null;
+            Snapshot.Reset();
+            Net.Reset();
+            Replay.Reset();
+            Confirmed.Reset();
+            RemoteDriven.Reset();
+        }
 
         public void Reset()
         {
-            Session = null;
-
-            Snapshot.Reset();
-            Net.Reset();
+            ResetSessionResources();
             Dispatchers.Reset();
-            Replay.Reset();
             Phase.Reset();
             GatewayRoom.Reset();
-            Confirmed.Reset();
-            RemoteDriven.Reset();
         }
     }
 }

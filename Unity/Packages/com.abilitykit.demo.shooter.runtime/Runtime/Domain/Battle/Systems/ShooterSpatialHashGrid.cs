@@ -8,8 +8,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
     internal sealed class ShooterSpatialHashGrid
     {
         private readonly float _cellSize;
-        private readonly Dictionary<int, ShooterSpatialHashCell> _cells = new();
-        private readonly List<int> _activeCellKeys = new(128);
+        private readonly Dictionary<long, ShooterSpatialHashCell> _cells = new();
+        private readonly List<long> _activeCellKeys = new(128);
         private readonly List<ShooterSpatialSearchOffset> _ringOffsets = new(128);
         private readonly List<ShooterSpatialRingOffsetRange> _ringOffsetRanges = new(16);
         private int _largestCellOccupancy;
@@ -118,7 +118,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
         }
 
-        private int ComputeCellKey(float x, float y)
+        private long ComputeCellKey(float x, float y)
         {
             return CombineCellKey(ComputeCellX(x), ComputeCellY(y));
         }
@@ -156,11 +156,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
         }
 
-        public static int CombineCellKey(int cellX, int cellY)
+        public static long CombineCellKey(int cellX, int cellY)
         {
             unchecked
             {
-                return (cellX * 73856093) ^ (cellY * 19349663);
+                return ((long)(uint)cellX << 32) | (uint)cellY;
             }
         }
 

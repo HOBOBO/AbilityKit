@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.LagCompensation;
@@ -7,6 +8,85 @@ namespace AbilityKit.Network.Runtime.Tests;
 
 public sealed class ServerRewindLagCompensationServiceTests
 {
+    [Fact]
+    public void ReusesEvictedHistoryBuffersWithoutSteadyStateAllocation()
+    {
+        var service = new ServerRewindLagCompensationService(new ServerRewindLagCompensationConfig(
+            maxHistoryFrames: 4,
+            maxRewindFrames: 10));
+        var entities = new[]
+        {
+            Entity(1, new Vec3(1f, 0f, 0f), radius: 0.5f),
+            Entity(2, new Vec3(2f, 0f, 0f), radius: 0.5f)
+        };
+        for (var frame = 1; frame <= 5; frame++)
+        {
+            service.RecordFrame(frame, entities);
+        }
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var frame = 6; frame < 70; frame++)
+        {
+            service.RecordFrame(frame, entities);
+        }
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(4, service.CapturedFrameCount);
+        Assert.Equal(66, service.OldestFrame);
+        Assert.Equal(69, service.LatestFrame);
+        Assert.True(allocated < 256, $"Expected allocation-free ring reuse, actual={allocated} bytes.");
+    }
+
+    [Fact]
+    public void ClearReusesPreviouslyOwnedHistoryBuffers()
+    {
+        var service = new ServerRewindLagCompensationService(new ServerRewindLagCompensationConfig(
+            maxHistoryFrames: 2,
+            maxRewindFrames: 10));
+        var entities = new[] { Entity(2, new Vec3(1f, 0f, 0f), radius: 0.5f) };
+        service.RecordFrame(1, entities);
+        service.RecordFrame(2, entities);
+
+        service.Clear();
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        service.RecordFrame(3, entities);
+        service.RecordFrame(4, entities);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(2, service.CapturedFrameCount);
+        Assert.Equal(3, service.OldestFrame);
+        Assert.Equal(4, service.LatestFrame);
+        Assert.True(allocated < 256, $"Expected cleared buffers to be reused, actual={allocated} bytes.");
+    }
+
+    [Fact]
+    public void PreservesSortedFloorLookupAfterRingWrapAndOutOfOrderInsert()
+    {
+        var service = new ServerRewindLagCompensationService(new ServerRewindLagCompensationConfig(
+            maxHistoryFrames: 3,
+            maxRewindFrames: 20));
+        service.RecordFrame(10, new[] { Entity(2, new Vec3(5f, 3f, 0f), radius: 0.5f) });
+        service.RecordFrame(20, new[] { Entity(2, new Vec3(5f, 3f, 0f), radius: 0.5f) });
+        service.RecordFrame(30, new[] { Entity(2, new Vec3(5f, 3f, 0f), radius: 0.5f) });
+        service.RecordFrame(40, new[] { Entity(2, new Vec3(5f, 3f, 0f), radius: 0.5f) });
+        service.RecordFrame(35, new[] { Entity(2, new Vec3(5f, 0f, 0f), radius: 0.5f) });
+        var query = new LagCompensationQuery(
+            shooterEntityId: 1,
+            origin: Vec3.Zero,
+            direction: Vec3.Right,
+            maxDistance: 10f,
+            targetLayerMask: 1,
+            rewindFrame: 36,
+            serverReceiveFrame: 40);
+
+        var accepted = service.TryEvaluateHit(in query, out var result);
+
+        Assert.True(accepted);
+        Assert.Equal(30, service.OldestFrame);
+        Assert.Equal(40, service.LatestFrame);
+        Assert.Equal(35, result.EvaluatedFrame);
+    }
+
     [Fact]
     public void ExposesServerRewindSyncModel()
     {

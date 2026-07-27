@@ -340,6 +340,9 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(6)] public byte[]? Payload { get; set; }
         [MemoryPackOrder(7)] public long ServerTicks { get; set; }
         [MemoryPackOrder(8)] public long EventWatermark { get; set; }
+        [MemoryPackOrder(9)] public int SchemaVersion { get; set; }
+        [MemoryPackOrder(10)] public List<int>? RemovedActorIds { get; set; }
+        [MemoryPackOrder(11)] public string EventEpoch { get; set; }
     }
 
     [MemoryPackable]

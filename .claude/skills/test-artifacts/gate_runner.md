@@ -26,7 +26,7 @@
 ./tools/run_test_gate.ps1 -Gate regression -StepName "AOI LOD smoke"
 
 # 指定结果目录
-./tools/run_test_gate.ps1 -ResultsDirectory artifacts/test-gates-custom
+./tools/run_test_gate.ps1 -ResultsDirectory local/Logs/test-gates-custom
 
 # CI 模式（无进度条、nologo）
 ./tools/run_test_gate.ps1 -Gate precheck -CI
@@ -34,10 +34,10 @@
 
 ## 产物路径
 
-默认 `-ResultsDirectory artifacts/test-gates`，每次运行生成：
+本地默认 `-ResultsDirectory local/Logs/test-gates`，每次运行生成：
 
 ```
-artifacts/test-gates/{yyyyMMdd-HHmmss}-{Gate}/
+local/Logs/test-gates/{yyyyMMdd-HHmmss}-{Gate}/
 ├── gate-summary.json                    ← 总结（status/startedAt/endedAt/steps[]）
 ├── 01-{StepName}.log                    ← 每个 step 的控制台输出
 ├── 01-{StepName}.error.log              ← stderr（仅 powershell-script step）
@@ -49,7 +49,7 @@ artifacts/test-gates/{yyyyMMdd-HHmmss}-{Gate}/
     └── {StepName}.command.txt           ← 完整命令行
 ```
 
-nested gate 路径嵌套：`artifacts/test-gates/{ts}-regression/{ts}-moba-zhaoyun-unity/...`
+nested gate 路径嵌套：`local/Logs/test-gates/{ts}-regression/{ts}-moba-zhaoyun-unity/...`
 
 ## 17 个 Gate 清单
 
@@ -124,8 +124,8 @@ runner 检测循环依赖（`HashSet<string> Visiting`），抛 `"Circular gate 
   "startedAt": "2026-07-20T...",
   "endedAt": "2026-07-20T...",
   "elapsedSeconds": 12.345,
-  "outputDirectory": "artifacts/test-gates/20260720-...",
-  "summaryPath": "artifacts/test-gates/20260720-.../gate-summary.json",
+  "outputDirectory": "local/Logs/test-gates/20260720-...",
+  "summaryPath": "local/Logs/test-gates/20260720-.../gate-summary.json",
   "failureMessage": null,
   "steps": [
     { "name": "...", "kind": "dotnet-test", "status": "Passed", "exitCode": 0, ... }
@@ -133,4 +133,4 @@ runner 检测循环依赖（`HashSet<string> Visiting`），抛 `"Circular gate 
 }
 ```
 
-CI 用 `if: always() + actions/upload-artifact@v4` 永远上传整个 `artifacts/test-gates/{ts}-{gate}/`。
+CI 工作流会显式传入 `-ResultsDirectory artifacts\\test-gates\\{job}`，再用 `if: always() + actions/upload-artifact@v4` 上传对应的 `artifacts/test-gates/{job}/`。本地运行不应复用该路径。

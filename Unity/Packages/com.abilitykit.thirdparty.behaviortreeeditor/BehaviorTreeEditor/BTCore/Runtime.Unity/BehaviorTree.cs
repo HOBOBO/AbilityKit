@@ -27,6 +27,7 @@ namespace BTCore.Runtime.Unity
         }
 
         public void CreateBTree() {
+            BTree = null;
             if (_btAsset == null) {
                 Debug.LogError("Please assign bt asset file.");
                 return;
@@ -43,6 +44,10 @@ namespace BTCore.Runtime.Unity
 
         private void Update() {
             BTree?.Update();
+        }
+
+        private void OnDestroy() {
+            BTLogger.OnLogReceived -= OnLogReceived;
         }
         
         private void OnLogReceived(string message, BTLogType logType) {

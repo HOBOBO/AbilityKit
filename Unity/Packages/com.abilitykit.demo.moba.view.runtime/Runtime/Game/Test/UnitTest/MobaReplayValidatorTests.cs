@@ -402,206 +402,53 @@ namespace AbilityKit.Game.Test.UnitTest
         }
     }
 
-    public sealed class SessionReplayControllerTests
+    public sealed class BattleLogicSessionRegistryIsolationTests
     {
-        [TestCase(false, true, true)]
-        [TestCase(false, false, false)]
-        [TestCase(true, true, false)]
-        [TestCase(true, false, false)]
-        public void CanUseRollbackSeek_OnlyAllowsLogicOnlyReplayWithRollback(
-            bool renderPresentation,
-            bool hasRollbackModule,
-            bool expected)
-        {
-            Assert.AreEqual(
-                expected,
-                SessionReplayController.CanUseRollbackSeek(renderPresentation, hasRollbackModule));
-        }
-
         [Test]
-        public void SeekBackward_WithPresentation_RebuildsSessionBetweenSuspendAndRestore()
+        public void NonPublishingRegistry_StopOwnedReplaySession_DoesNotClearLiveDebugFacade()
         {
-            var fixture = ReplaySeekFixture.Create(renderPresentation: true);
+            var previous = BattleDebugFacadeProvider.Current;
+            var liveFacade = new DefaultBattleDebugFacade();
+            BattleDebugFacadeProvider.Current = liveFacade;
+            var replayRegistry = new DefaultBattleLogicSessionRegistry(publishDebugFacade: false);
+
             try
             {
-                var result = fixture.Controller.SeekToFrame(
-                    fixture.Plan,
-                    fixture.State,
-                    fixture.Handles,
-                    fixture.Context,
-                    fixture.Host,
-                    0);
-
-                Assert.IsTrue(result);
-                CollectionAssert.AreEqual(
-                    new[] { "suspend", "stop", "start", "auto", "restore" },
-                    fixture.Calls);
-                Assert.AreEqual(0, fixture.State.Tick.LastFrame);
-                Assert.AreSame(fixture.Handles.Session, fixture.Context.Session);
-            }
-            finally
-            {
-                fixture.Dispose();
-            }
-        }
-
-        [Test]
-        public void SeekBackward_WithPresentation_RestoresPresentationWhenRestartFails()
-        {
-            var fixture = ReplaySeekFixture.Create(renderPresentation: true, failRestart: true);
-            try
-            {
-                var result = fixture.Controller.SeekToFrame(
-                    fixture.Plan,
-                    fixture.State,
-                    fixture.Handles,
-                    fixture.Context,
-                    fixture.Host,
-                    0);
-
-                Assert.IsFalse(result);
-                CollectionAssert.AreEqual(
-                    new[] { "suspend", "stop", "start", "auto", "restore" },
-                    fixture.Calls);
-            }
-            finally
-            {
-                fixture.Dispose();
-            }
-        }
-
-        private sealed class ReplaySeekFixture : IDisposable
-        {
-            private ReplaySeekFixture()
-            {
-            }
-
-            public SessionReplayController Controller { get; private set; }
-            public BattleStartPlan Plan { get; private set; }
-            public BattleSessionState State { get; private set; }
-            public BattleSessionHandles Handles { get; private set; }
-            public BattleContext Context { get; private set; }
-            public ISessionReplayHost Host { get; private set; }
-            public IReadOnlyList<string> Calls => ((RecordingReplayHost)Host).Calls;
-
-            public static ReplaySeekFixture Create(bool renderPresentation, bool failRestart = false)
-            {
-                var plan = new TestBattleBootstrapper().Build().WithInputReplay("replay-test.json");
-                var handles = new BattleSessionHandles();
-                handles.Session = CreateSession(plan.World.WorldId);
-                handles.Replay.Driver = CreateDriver(plan.World.WorldId);
-
-                var state = new BattleSessionState();
-                state.Tick.LastFrame = 5;
-                var context = BattleContext.Rent();
-                SessionContextBinder.BindRuntimeSession(context, state, handles);
-
-                return new ReplaySeekFixture
-                {
-                    Controller = new SessionReplayController(),
-                    Plan = plan,
-                    State = state,
-                    Handles = handles,
-                    Context = context,
-                    Host = new RecordingReplayHost(
-                        handles,
-                        plan.World.WorldId,
-                        renderPresentation,
-                        failRestart),
-                };
-            }
-
-            public void Dispose()
-            {
-                Handles.Session?.Dispose();
-                Handles.Session = null;
-                BattleContext.Return(Context);
-                Context = null;
-            }
-
-            private static BattleLogicSession CreateSession(string worldId)
-            {
-                return new BattleLogicSession(new BattleLogicSessionOptions
-                {
-                    WorldId = new WorldId(worldId),
-                    PlayerId = "replay-test-player",
-                    ScanAllLoadedAssemblies = false,
-                    AutoCreateWorld = false,
-                    AutoJoin = false,
-                });
-            }
-
-            private static FrameReplayDriver CreateDriver(string worldId)
-            {
-                return new FrameReplayDriver(
-                    new WorldId(worldId),
-                    new FrameRecordFile
+                replayRegistry.Start(
+                    new BattleLogicSessionOptions
                     {
-                        Inputs = new List<FrameRecordInputFrame>
-                        {
-                            new FrameRecordInputFrame { Frame = 5, PlayerId = "replay-test-player" }
-                        }
-                    });
-            }
+                        Mode = BattleLogicMode.Remote,
+                        WorldId = new WorldId("replay-registry-isolation"),
+                        AutoCreateWorld = false,
+                        AutoJoin = false,
+                    },
+                    new NoopBattleLogicTransport());
 
-            private sealed class RecordingReplayHost : ISessionReplayHost
+                Assert.IsTrue(replayRegistry.HasSession);
+                Assert.AreSame(liveFacade, BattleDebugFacadeProvider.Current);
+
+                replayRegistry.Stop();
+
+                Assert.IsFalse(replayRegistry.HasSession);
+                Assert.AreSame(liveFacade, BattleDebugFacadeProvider.Current);
+            }
+            finally
             {
-                private readonly BattleSessionHandles _handles;
-                private readonly string _worldId;
-                private readonly bool _failRestart;
-
-                public RecordingReplayHost(
-                    BattleSessionHandles handles,
-                    string worldId,
-                    bool renderPresentation,
-                    bool failRestart)
-                {
-                    _handles = handles;
-                    _worldId = worldId;
-                    _failRestart = failRestart;
-                    RenderPresentation = renderPresentation;
-                }
-
-                public bool RenderPresentation { get; }
-                public List<string> Calls { get; } = new List<string>();
-
-                public void StartSession()
-                {
-                    Calls.Add("start");
-                    if (_failRestart) return;
-
-                    _handles.Session = CreateSession(_worldId);
-                    _handles.Replay.Driver = CreateDriver(_worldId);
-                }
-
-                public void StopSession()
-                {
-                    Calls.Add("stop");
-                    _handles.Session?.Dispose();
-                    _handles.Session = null;
-                    _handles.Replay.Driver = null;
-                }
-
-                public void ApplyAutoPlanActions()
-                {
-                    Calls.Add("auto");
-                }
-
-                public void SuspendReplayPresentation()
-                {
-                    Calls.Add("suspend");
-                }
-
-                public void RestoreReplayPresentation()
-                {
-                    Calls.Add("restore");
-                }
-
-                public float GetFixedDeltaSeconds()
-                {
-                    return 1f / 30f;
-                }
+                replayRegistry.Stop();
+                BattleDebugFacadeProvider.Current = previous;
             }
+        }
+
+        private sealed class NoopBattleLogicTransport : IBattleLogicTransport
+        {
+            public event Action<FramePacket> FramePushed;
+
+            public void Connect() { }
+            public void Disconnect() { }
+            public void SendCreateWorld(CreateWorldRequest request) { }
+            public void SendJoin(JoinWorldRequest request) { }
+            public void SendLeave(LeaveWorldRequest request) { }
+            public void SendInput(SubmitInputRequest request) { }
         }
     }
 
@@ -656,7 +503,8 @@ namespace AbilityKit.Game.Test.UnitTest
         public void Pump_RealLogicSession_SubmitsRecordedInputOnlyAtMatchingFrames()
         {
             var worldId = new WorldId("frame-replay-driver-session");
-            var session = CreateLocalMobaSession(worldId);
+            var transport = new RecordingBattleLogicTransport();
+            var session = CreateRemoteSession(worldId, transport);
             var receivedInputs = new List<PlayerInputCommand>();
             session.FrameReceived += packet =>
             {
@@ -721,28 +569,20 @@ namespace AbilityKit.Game.Test.UnitTest
                 });
         }
 
-        private static BattleLogicSession CreateLocalMobaSession(WorldId worldId)
+        private static BattleLogicSession CreateRemoteSession(
+            WorldId worldId,
+            RecordingBattleLogicTransport transport)
         {
-            var plan = new TestBattleBootstrapper().Build();
-            var session = new BattleLogicSession(new BattleLogicSessionOptions
-            {
-                WorldId = worldId,
-                PlayerId = "p1",
-                ScanAllLoadedAssemblies = true,
-                AutoCreateWorld = false,
-                AutoJoin = false,
-            });
-            var createWorld = plan.CreateWorld;
-            var worldOptions = SessionMobaWorldBootstrapFactory.CreateWorldOptions(
-                plan,
-                worldId,
-                registerWorldInitData: false);
-            session.CreateWorld(new CreateWorldRequest(
-                worldOptions,
-                createWorld.OpCode,
-                createWorld.Payload));
-
-            return session;
+            return new BattleLogicSession(
+                new BattleLogicSessionOptions
+                {
+                    Mode = BattleLogicMode.Remote,
+                    WorldId = worldId,
+                    PlayerId = "p1",
+                    AutoCreateWorld = false,
+                    AutoJoin = false,
+                },
+                transport);
         }
 
         private static FrameRecordInputFrame CreateInput(
@@ -767,6 +607,30 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             driver.Pump(session, frame);
             session.Tick(1f / 30f);
+        }
+
+        private sealed class RecordingBattleLogicTransport : IBattleLogicTransport
+        {
+            private readonly List<PlayerInputCommand> _pendingInputs = new List<PlayerInputCommand>();
+
+            public event Action<FramePacket> FramePushed;
+
+            public void Connect() { }
+            public void Disconnect() { }
+            public void SendCreateWorld(CreateWorldRequest request) { }
+            public void SendJoin(JoinWorldRequest request) { }
+            public void SendLeave(LeaveWorldRequest request) { }
+
+            public void SendInput(SubmitInputRequest request)
+            {
+                _pendingInputs.Add(request.Input);
+                FramePushed?.Invoke(new FramePacket(
+                    request.WorldId,
+                    request.Input.Frame,
+                    _pendingInputs.ToArray(),
+                    snapshot: null));
+                _pendingInputs.Clear();
+            }
         }
 
         private static void AssertInput(

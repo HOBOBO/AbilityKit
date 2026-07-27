@@ -92,6 +92,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
 
             // Summons
             new Entry(MobaConfigPaths.SummonsFile, typeof(SummonDTO), typeof(MO.SummonMO)),
+            new Entry(MobaConfigPaths.SummonAttrInheritsFile, typeof(SummonAttrInheritDTO), typeof(MO.SummonAttrInheritMO)),
 
             // Component templates
             new Entry(MobaConfigPaths.ComponentTemplatesFile, typeof(ComponentTemplateDTO), typeof(MO.ComponentTemplateMO)),

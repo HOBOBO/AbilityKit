@@ -12,6 +12,7 @@ namespace AbilityKit.Demo.Moba.Worlds.Blueprints
 
         protected override void ConfigureModules(AbilityKit.Ability.World.Abstractions.WorldCreateOptions options)
         {
+            EnsureModule(options, () => new AbilityKit.Demo.Moba.Systems.MobaServicesAutoModule());
             EnsureModule(options, () => new AbilityKit.Demo.Moba.Systems.MobaWorldBootstrapModule());
         }
     }

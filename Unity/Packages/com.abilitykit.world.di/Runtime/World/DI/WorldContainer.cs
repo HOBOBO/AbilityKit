@@ -121,10 +121,15 @@ namespace AbilityKit.Ability.World.DI
                     try
                     {
                         var created = descriptor.Factory(this);
-                        TryInit(created, this);
+                        if (descriptor.Ownership == WorldServiceOwnership.Container)
+                        {
+                            TryInit(created, this);
+                        }
                         _singletons[serviceType] = created;
 
-                        if (created != null && _singletonDisposeSet.Add(created))
+                        if (descriptor.Ownership == WorldServiceOwnership.Container &&
+                            created != null &&
+                            _singletonDisposeSet.Add(created))
                         {
                             _singletonDisposeOrder.Add(created);
                         }

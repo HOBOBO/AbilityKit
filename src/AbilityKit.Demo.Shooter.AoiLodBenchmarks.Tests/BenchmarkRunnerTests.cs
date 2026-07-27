@@ -44,14 +44,23 @@ public sealed class BenchmarkRunnerTests
     public void Aggregation_ReportsNormalizedAndDerivedMetrics()
     {
         var metrics = ShooterAoiLodBenchmarkRunner.RunCase(
-            new BenchmarkCase(100, 1, BenchmarkScenario.Churn),
+            new BenchmarkCase(100, 1, BenchmarkScenario.Steady),
             FastOptions());
 
         Assert.True(metrics.MeanTickMilliseconds > 0);
         Assert.True(metrics.MedianTickMilliseconds > 0);
         Assert.True(metrics.NormalizedNanosecondsPerEntityObserver > 0);
-        Assert.True(metrics.ThreadAllocatedBytesPerTick > 0);
-        Assert.True(metrics.AllocatedBytesPerEntityObserver > 0);
+        Assert.True(metrics.ThreadAllocatedBytesPerTick >= 0);
+        Assert.True(metrics.AllocatedBytesPerEntityObserver >= 0);
+        Assert.InRange(
+            metrics.ThreadAllocatedBytesPerTick -
+            (metrics.ExportAllocatedBytesPerTick + metrics.SerializationAllocatedBytesPerTick),
+            0,
+            1);
+        Assert.Equal(0, metrics.ObservationAllocatedBytesPerTick);
+        Assert.True(metrics.ExportMillisecondsPerTick > 0);
+        Assert.True(metrics.SerializationMillisecondsPerTick > 0);
+        Assert.Equal(0, metrics.ThreadAllocatedBytesPerTick);
         Assert.Equal(metrics.EnterCount + metrics.LeaveCount, metrics.ChangedCount);
     }
 
@@ -122,7 +131,7 @@ public sealed class BenchmarkRunnerTests
 
         Assert.NotNull(restored);
         Assert.Equal(BenchmarkReport.Schema, restored!.SchemaVersion);
-        Assert.Equal(5, restored.MetricDefinitions.Count);
+        Assert.Equal(6, restored.MetricDefinitions.Count);
         Assert.Single(restored.Results);
         Assert.Equal(report.Results[0].Metrics.DeterminismDigest, restored.Results[0].Metrics.DeterminismDigest);
     }

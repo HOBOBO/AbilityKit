@@ -3,8 +3,63 @@ using AbilityKit.Game.Battle;
 
 namespace AbilityKit.Game.Flow
 {
+    internal enum BattleSessionLifecycleState
+    {
+        Created,
+        Starting,
+        Running,
+        Stopping,
+        Stopped,
+        Faulted,
+    }
+
     internal sealed class BattleSessionState
     {
+        public BattleSessionLifecycleState Lifecycle { get; private set; } = BattleSessionLifecycleState.Created;
+        public Exception LastLifecycleFailure { get; private set; }
+        public int Generation { get; private set; }
+
+        public void BeginStart()
+        {
+            if (Lifecycle == BattleSessionLifecycleState.Starting || Lifecycle == BattleSessionLifecycleState.Stopping)
+            {
+                throw new InvalidOperationException($"Cannot start battle session while lifecycle is {Lifecycle}.");
+            }
+
+            Generation++;
+            LastLifecycleFailure = null;
+            Lifecycle = BattleSessionLifecycleState.Starting;
+        }
+
+        public void CompleteStart()
+        {
+            if (Lifecycle != BattleSessionLifecycleState.Starting)
+            {
+                throw new InvalidOperationException($"Cannot complete battle session start while lifecycle is {Lifecycle}.");
+            }
+
+            Lifecycle = BattleSessionLifecycleState.Running;
+        }
+
+        public void BeginStop()
+        {
+            if (Lifecycle != BattleSessionLifecycleState.Stopping)
+            {
+                Lifecycle = BattleSessionLifecycleState.Stopping;
+            }
+        }
+
+        public void CompleteStop()
+        {
+            LastLifecycleFailure = null;
+            Lifecycle = BattleSessionLifecycleState.Stopped;
+        }
+
+        public void Fault(Exception exception)
+        {
+            LastLifecycleFailure = exception ?? throw new ArgumentNullException(nameof(exception));
+            Lifecycle = BattleSessionLifecycleState.Faulted;
+        }
         internal sealed class TickState
         {
             public int LastFrame;

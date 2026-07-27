@@ -13,7 +13,7 @@
 # ✓ 对（显式 -logFile）
 & $editor -batchmode -projectPath Unity `
     -executeMethod MyMethod `
-    -logFile artifacts/unity-manual/{yyyyMMdd-HHmmss}.log
+    -logFile local/Logs/unity-manual/{yyyyMMdd-HHmmss}.log
 ```
 
 ### dotnet test 直接调
@@ -25,7 +25,7 @@ dotnet test src/X.csproj
 # ✓ 对（显式 --results-directory）
 dotnet test src/X.csproj `
     --logger "trx;LogFileName=result.trx" `
-    --results-directory artifacts/dotnet/{yyyyMMdd-HHmmss}
+    --results-directory local/Logs/dotnet/{yyyyMMdd-HHmmss}
 ```
 
 ### Unity executeMethod 产物
@@ -37,12 +37,12 @@ dotnet test src/X.csproj `
 ### 一次性清理所有测试产物
 
 ```powershell
-# 清理 artifacts/ 下所有内容（保留 headless-archive 历史归档）
-Remove-Item -Recurse -Force artifacts/test-gates/*
-Remove-Item -Recurse -Force artifacts/headless/*
-Remove-Item -Recurse -Force artifacts/dotnet/*
-Remove-Item -Recurse -Force artifacts/unity-manual/*
-Remove-Item -Recurse -Force artifacts/shooter-manual/*
+# 清理 local/Logs/ 下所有本地测试产物
+Remove-Item -Recurse -Force local/Logs/test-gates/*
+Remove-Item -Recurse -Force local/Logs/headless/*
+Remove-Item -Recurse -Force local/Logs/dotnet/*
+Remove-Item -Recurse -Force local/Logs/unity-manual/*
+Remove-Item -Recurse -Force local/Logs/shooter-manual/*
 
 # 清理所有 TestResults
 Get-ChildItem -Path . -Filter "TestResults" -Directory -Recurse |
@@ -53,7 +53,7 @@ Get-ChildItem -Path . -Filter "TestResults" -Directory -Recurse |
 ### 清理超过 7 天的产物
 
 ```powershell
-Get-ChildItem -Path artifacts/test-gates -Directory |
+Get-ChildItem -Path local/Logs/test-gates -Directory |
     Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } |
     Remove-Item -Recurse -Force
 ```
@@ -77,8 +77,8 @@ Get-ChildItem -Path . -Filter "*.trx" -Recurse |
 ad-hoc 调试时（如 `MultiplayerHeadlessHeroReplacementCommand`），可以用描述性后缀：
 
 ```
-artifacts/headless/MultiplayerHeadlessHeroReplacement-20260720-143015-debug-buffer.xml
-artifacts/headless/MultiplayerHeadlessHeroReplacement-20260720-143215-rerun.xml
+local/Logs/headless/MultiplayerHeadlessHeroReplacement-20260720-143015-debug-buffer.xml
+local/Logs/headless/MultiplayerHeadlessHeroReplacement-20260720-143215-rerun.xml
 ```
 
 **不要**用模糊后缀如 `-final` / `-v2` / `-last`（看不出时间顺序，且容易堆积）。
@@ -88,8 +88,8 @@ artifacts/headless/MultiplayerHeadlessHeroReplacement-20260720-143215-rerun.xml
 多步骤 ad-hoc 测试：`{project}-{scenario}-{timestamp}.{ext}`
 
 ```
-artifacts/unity-manual/moba-zhaoyun-skill1-20260720-143015.xml
-artifacts/shooter-manual/multiprocess-minimal-20260720-143015/
+local/Logs/unity-manual/moba-zhaoyun-skill1-20260720-143015.xml
+local/Logs/shooter-manual/multiprocess-minimal-20260720-143015/
 ```
 
 ## 历史教训（不要再犯）
@@ -102,7 +102,7 @@ artifacts/shooter-manual/multiprocess-minimal-20260720-143015/
 resultPath = Path.GetFullPath("../MultiplayerHeadlessHeroReplacement.xml");
 ```
 
-导致根目录累积 24 个调试 XML。2026-07-20 修复为 `artifacts/headless/{timestamp}.xml`。
+导致根目录累积 24 个调试 XML。现已修复为 `local/Logs/headless/{timestamp}.xml`。
 
 ### 教训 2：Unity batchmode 不指定 -logFile
 

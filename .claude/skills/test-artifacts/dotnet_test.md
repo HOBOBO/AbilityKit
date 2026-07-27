@@ -19,19 +19,7 @@
 
 ## 默认产物路径
 
-`dotnet test` 默认输出：
-
-```
-{ProjectDir}/TestResults/{Configuration}/{Framework}/_(_(_(net10.0)))/{timestamp}.trx
-```
-
-例如：
-
-```
-src/AbilityKit.Demo.Moba.Tests/TestResults/Debug/net10.0/_(_(_(net10.0)))/2026-07-20_14_30_15.trx
-```
-
-**`.gitignore` 的 `**/TestResults/` 覆盖所有这些路径**。
+直接执行 `dotnet test` 的工具默认会写入项目内的 `TestResults/`。本仓库的本地约定是始终传入 `--results-directory`，将 TRX 写入 `local/Logs/dotnet/{yyyyMMdd-HHmmss}/`；`**/TestResults/` 仅用于兜底忽略未遵守约定的工具默认值。
 
 ## 推荐命令（带显式产物路径）
 
@@ -39,13 +27,14 @@ src/AbilityKit.Demo.Moba.Tests/TestResults/Debug/net10.0/_(_(_(net10.0)))/2026-0
 # 单项目跑，结果到指定目录
 dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj `
     --logger "trx;LogFileName=moba.trx" `
-    --results-directory artifacts/dotnet/manual/{yyyyMMdd-HHmmss}
+    --results-directory local/Logs/dotnet/manual/{yyyyMMdd-HHmmss}
 
 # 跑全部
-dotnet test
+$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+dotnet test --results-directory "local/Logs/dotnet/$stamp"
 
 # 带筛选
-dotnet test --filter "Gate=MobaConsoleSmoke"
+dotnet test --filter "Gate=MobaConsoleSmoke" --results-directory "local/Logs/dotnet/$stamp"
 ```
 
 ## TRX 文件结构

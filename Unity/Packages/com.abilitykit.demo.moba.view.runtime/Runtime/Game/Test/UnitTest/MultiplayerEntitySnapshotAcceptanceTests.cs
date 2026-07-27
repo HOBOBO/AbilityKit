@@ -131,6 +131,10 @@ namespace AbilityKit.Game.Test.UnitTest
                 Frame = 100,
                 Timestamp = 1.5,
                 IsFullSnapshot = true,
+                EventWatermark = 42,
+                SchemaVersion = 3,
+                RemovedActorIds = new List<int> { 3003, 4004 },
+                EventEpoch = "epoch-20260725",
                 Actors = new List<WireStateSyncActorSnapshot>
                 {
                     new WireStateSyncActorSnapshot
@@ -158,6 +162,10 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(100, decoded.Frame);
             Assert.AreEqual(1.5, decoded.Timestamp, 0.001);
             Assert.IsTrue(decoded.IsFullSnapshot);
+            Assert.AreEqual(42L, decoded.EventWatermark);
+            Assert.AreEqual(3, decoded.SchemaVersion);
+            Assert.AreEqual("epoch-20260725", decoded.EventEpoch);
+            CollectionAssert.AreEqual(new[] { 3003, 4004 }, decoded.RemovedActorIds);
 
             // Actor 列表
             Assert.NotNull(decoded.Actors);
@@ -200,6 +208,84 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(200, decoded.Frame);
             Assert.IsFalse(decoded.IsFullSnapshot);
             // Actors 为 null 是合法的（delta 快照可能只含 Payload 字段）
+        }
+
+        [Test]
+        public void WireReliableBattleEventPush_RoundTrip_PreservesRecoveryCursorAndEvents()
+        {
+            var push = new WireReliableBattleEventPush
+            {
+                BattleId = "battle-1",
+                Epoch = "epoch-2",
+                FirstAvailableSequence = 6,
+                Watermark = 7,
+                RetentionGap = true,
+                Events = new List<WireReliableBattleEvent>
+                {
+                    new WireReliableBattleEvent
+                    {
+                        EventId = "event-6",
+                        BattleId = "battle-1",
+                        Epoch = "epoch-2",
+                        Sequence = 6,
+                        SourceFrame = 120,
+                        EventType = 9,
+                        Payload = new byte[] { 1, 2, 3 }
+                    }
+                }
+            };
+
+            var wire = WireRoomGatewayBinary.Serialize(in push);
+            var decoded = WireRoomGatewayBinary.Deserialize<WireReliableBattleEventPush>(wire);
+
+            Assert.AreEqual("battle-1", decoded.BattleId);
+            Assert.AreEqual("epoch-2", decoded.Epoch);
+            Assert.AreEqual(6L, decoded.FirstAvailableSequence);
+            Assert.AreEqual(7L, decoded.Watermark);
+            Assert.IsTrue(decoded.RetentionGap);
+            Assert.NotNull(decoded.Events);
+            Assert.AreEqual(1, decoded.Events.Count);
+            Assert.AreEqual("event-6", decoded.Events[0].EventId);
+            Assert.AreEqual(6L, decoded.Events[0].Sequence);
+            Assert.AreEqual(120, decoded.Events[0].SourceFrame);
+            Assert.AreEqual(9, decoded.Events[0].EventType);
+            CollectionAssert.AreEqual(new byte[] { 1, 2, 3 }, decoded.Events[0].Payload);
+        }
+
+        [Test]
+        public void WireAckReliableBattleEvents_RoundTrip_PreservesRequestAndResponse()
+        {
+            var request = new WireAckReliableBattleEventsReq
+            {
+                SessionToken = "session-1",
+                BattleId = "battle-1",
+                RoomId = "room-1",
+                Epoch = "epoch-2",
+                AckSequence = 7
+            };
+            var requestWire = WireRoomGatewayBinary.Serialize(in request);
+            var decodedRequest =
+                WireRoomGatewayBinary.Deserialize<WireAckReliableBattleEventsReq>(requestWire);
+
+            Assert.AreEqual("session-1", decodedRequest.SessionToken);
+            Assert.AreEqual("battle-1", decodedRequest.BattleId);
+            Assert.AreEqual("room-1", decodedRequest.RoomId);
+            Assert.AreEqual("epoch-2", decodedRequest.Epoch);
+            Assert.AreEqual(7L, decodedRequest.AckSequence);
+
+            var response = new WireAckReliableBattleEventsRes
+            {
+                Success = true,
+                AcceptedAckSequence = 7,
+                Message = "accepted"
+            };
+            var responseWire = WireRoomGatewayBinary.Serialize(in response);
+            var decodedResponse =
+                WireRoomGatewayBinary.Deserialize<WireAckReliableBattleEventsRes>(responseWire);
+
+            Assert.IsTrue(decodedResponse.Success);
+            Assert.AreEqual(7L, decodedResponse.AcceptedAckSequence);
+            Assert.AreEqual("accepted", decodedResponse.Message);
         }
 
         // ===================================================================

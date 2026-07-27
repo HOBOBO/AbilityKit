@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AbilityKit.Ability.StateSync.Aoi;
 using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
 using AbilityKit.World.Svelto;
 
@@ -57,6 +58,12 @@ public sealed record BenchmarkMetrics
     public required double NormalizedNanosecondsPerEntityObserver { get; init; }
     public required long ThreadAllocatedBytesPerTick { get; init; }
     public required double AllocatedBytesPerEntityObserver { get; init; }
+    public double ExportMillisecondsPerTick { get; init; }
+    public double SerializationMillisecondsPerTick { get; init; }
+    public double ObservationMillisecondsPerTick { get; init; }
+    public long ExportAllocatedBytesPerTick { get; init; }
+    public long SerializationAllocatedBytesPerTick { get; init; }
+    public long ObservationAllocatedBytesPerTick { get; init; }
     public required long PayloadBytesPerTick { get; init; }
     public required long EnterCount { get; init; }
     public required long LeaveCount { get; init; }
@@ -153,7 +160,10 @@ public static class BenchmarkThresholdEvaluator
         var churnFraction = metrics.ChangedCount / (double)Math.Max(1L, (long)benchmarkCase.Entities * benchmarkCase.Observers * measuredTicks);
         var deterministicChurnLimit = benchmarkCase.Scenario == BenchmarkScenario.Steady ? 0d : thresholds.MaxChurnFractionPerTick;
         AddMaximum(failures, "aoi.churnFractionPerTick", churnFraction, deterministicChurnLimit);
-        AddMaximum(failures, "starvation.entitiesPerObserver", metrics.StarvedEntitiesAtEnd / (double)benchmarkCase.Observers, thresholds.MaxStarvedEntitiesPerObserver);
+        var maxStarvedEntities = benchmarkCase.Scenario == BenchmarkScenario.Steady
+            ? 0
+            : thresholds.MaxStarvedEntitiesPerObserver;
+        AddMaximum(failures, "starvation.entitiesPerObserver", metrics.StarvedEntitiesAtEnd / (double)benchmarkCase.Observers, maxStarvedEntities);
         AddMaximum(failures, "starvation.maxUnsentTicks", metrics.MaxUnsentTicks, thresholds.MaxUnsentTicks);
 
         if (baseline is not null && baseline.NormalizedNanosecondsPerEntityObserver > 0)
@@ -180,8 +190,9 @@ public static class ShooterAoiLodBenchmarkRunner
 {
     public static readonly IReadOnlyDictionary<string, string> MetricDefinitions = new Dictionary<string, string>
     {
-        ["cpu"] = "Wall-clock time for one tick of all observers, including production exporter AOI/LOD selection and ShooterPureStateSyncCodec serialization; median and mean are reported. normalizedNanoseconds divides mean tick nanoseconds by entities*observers.",
-        ["threadAllocation"] = "GC.GetAllocatedBytesForCurrentThread delta around the same measured exporter+codec tick, averaged per tick; normalized value divides by entities*observers.",
+        ["cpu"] = "Summed production time for one tick of all observers, including exporter AOI/LOD selection and ShooterPureStateSyncCodec serialization while excluding benchmark observation bookkeeping; median and mean are reported. normalizedNanoseconds divides mean tick nanoseconds by entities*observers.",
+        ["threadAllocation"] = "GC.GetAllocatedBytesForCurrentThread deltas measured only around exporter and codec calls, averaged per tick; normalized value divides by entities*observers.",
+        ["phaseBreakdown"] = "Per-tick time and thread allocation are split into export, serialization and benchmark observation phases. Observation is diagnostic overhead and is excluded from production totals.",
         ["payloadBytes"] = "Sum of serialized ShooterPureStateSyncCodec payload lengths for all observers, averaged per measured tick.",
         ["aoiChurn"] = "Complete geometric interest-set transitions independent of send budget: enter is outside-to-visible and leave is boundary-visible-to-outside; changedCount=enter+leave across measured ticks and observers.",
         ["starvation"] = "For entities geometrically eligible for an observer, consecutive ticks absent from that observer's budgeted payload. Reports eligible entities never sent by the end and maximum consecutive unsent ticks."
@@ -222,22 +233,32 @@ public static class ShooterAoiLodBenchmarkRunner
         var fixture = new BenchmarkFixture(benchmarkCase, options);
         for (var iteration = 0; iteration < options.WarmupIterations; iteration++)
             for (var tick = 0; tick < options.TicksPerIteration; tick++)
-                fixture.ExecuteTick(measure: false);
+                fixture.ExecuteTick(measure: true);
 
         fixture.ResetMeasurements();
         var elapsedMilliseconds = new double[options.MeasurementIterations * options.TicksPerIteration];
-        long allocatedBytes = 0;
+        long exportAllocatedBytes = 0;
+        long serializationAllocatedBytes = 0;
+        long observationAllocatedBytes = 0;
+        long exportTimestampTicks = 0;
+        long serializationTimestampTicks = 0;
+        long observationTimestampTicks = 0;
         long payloadBytes = 0;
         var sample = 0;
         for (var iteration = 0; iteration < options.MeasurementIterations; iteration++)
         {
             for (var tick = 0; tick < options.TicksPerIteration; tick++)
             {
-                var allocationStart = GC.GetAllocatedBytesForCurrentThread();
-                var timestamp = Stopwatch.GetTimestamp();
-                payloadBytes += fixture.ExecuteTick(measure: true);
-                elapsedMilliseconds[sample++] = Stopwatch.GetElapsedTime(timestamp).TotalMilliseconds;
-                allocatedBytes += GC.GetAllocatedBytesForCurrentThread() - allocationStart;
+                var measurement = fixture.ExecuteTick(measure: true);
+                payloadBytes += measurement.PayloadBytes;
+                exportAllocatedBytes += measurement.ExportAllocatedBytes;
+                serializationAllocatedBytes += measurement.SerializationAllocatedBytes;
+                observationAllocatedBytes += measurement.ObservationAllocatedBytes;
+                exportTimestampTicks += measurement.ExportTimestampTicks;
+                serializationTimestampTicks += measurement.SerializationTimestampTicks;
+                observationTimestampTicks += measurement.ObservationTimestampTicks;
+                elapsedMilliseconds[sample++] = TimestampTicksToMilliseconds(
+                    measurement.ExportTimestampTicks + measurement.SerializationTimestampTicks);
             }
         }
 
@@ -248,13 +269,20 @@ public static class ShooterAoiLodBenchmarkRunner
             ? (elapsedMilliseconds[measuredTicks / 2 - 1] + elapsedMilliseconds[measuredTicks / 2]) / 2d
             : elapsedMilliseconds[measuredTicks / 2];
         var scale = (double)benchmarkCase.Entities * benchmarkCase.Observers;
+        var productionAllocatedBytes = exportAllocatedBytes + serializationAllocatedBytes;
         return new BenchmarkMetrics
         {
             MeanTickMilliseconds = mean,
             MedianTickMilliseconds = median,
             NormalizedNanosecondsPerEntityObserver = mean * 1_000_000d / scale,
-            ThreadAllocatedBytesPerTick = allocatedBytes / measuredTicks,
-            AllocatedBytesPerEntityObserver = allocatedBytes / measuredTicks / scale,
+            ThreadAllocatedBytesPerTick = productionAllocatedBytes / measuredTicks,
+            AllocatedBytesPerEntityObserver = productionAllocatedBytes / measuredTicks / scale,
+            ExportMillisecondsPerTick = TimestampTicksToMilliseconds(exportTimestampTicks) / measuredTicks,
+            SerializationMillisecondsPerTick = TimestampTicksToMilliseconds(serializationTimestampTicks) / measuredTicks,
+            ObservationMillisecondsPerTick = TimestampTicksToMilliseconds(observationTimestampTicks) / measuredTicks,
+            ExportAllocatedBytesPerTick = exportAllocatedBytes / measuredTicks,
+            SerializationAllocatedBytesPerTick = serializationAllocatedBytes / measuredTicks,
+            ObservationAllocatedBytesPerTick = observationAllocatedBytes / measuredTicks,
             PayloadBytesPerTick = payloadBytes / measuredTicks,
             EnterCount = fixture.EnterCount,
             LeaveCount = fixture.LeaveCount,
@@ -263,6 +291,9 @@ public static class ShooterAoiLodBenchmarkRunner
             DeterminismDigest = fixture.Digest
         };
     }
+
+    private static double TimestampTicksToMilliseconds(long ticks) =>
+        ticks * 1000d / Stopwatch.Frequency;
 
     public static void WriteReport(string path, BenchmarkReport report)
     {
@@ -314,7 +345,9 @@ public static class ShooterAoiLodBenchmarkRunner
         private readonly AoiInterestSet[] _interestSets;
         private readonly ObserverState[] _observers;
         private readonly HashSet<AoiEntityKey>[] _geometricVisible;
+        private readonly HashSet<AoiEntityKey>[] _geometricScratch;
         private readonly Dictionary<AoiEntityKey, int>[] _lastSentTick;
+        private readonly ReusableMemoryPackSerializationBuffer _serializationBuffer = new();
         private int _tick;
         private int _measurementTick;
 
@@ -328,12 +361,14 @@ public static class ShooterAoiLodBenchmarkRunner
             _interestSets = new AoiInterestSet[benchmarkCase.Observers];
             _observers = CreateObservers(benchmarkCase.Observers, options.Seed);
             _geometricVisible = new HashSet<AoiEntityKey>[benchmarkCase.Observers];
+            _geometricScratch = new HashSet<AoiEntityKey>[benchmarkCase.Observers];
             _lastSentTick = new Dictionary<AoiEntityKey, int>[benchmarkCase.Observers];
             for (var i = 0; i < benchmarkCase.Observers; i++)
             {
                 _exporters[i] = new ShooterPureStateSnapshotExporter(_state, _snapshotPort, ZeroHashProvider.Instance);
                 _interestSets[i] = new AoiInterestSet();
                 _geometricVisible[i] = new HashSet<AoiEntityKey>();
+                _geometricScratch[i] = new HashSet<AoiEntityKey>();
                 _lastSentTick[i] = new Dictionary<AoiEntityKey, int>();
             }
         }
@@ -362,11 +397,11 @@ public static class ShooterAoiLodBenchmarkRunner
                     _options.VisibleRadius,
                     _options.BoundaryRadius,
                     _options.EntityBudget);
-                _geometricVisible[observerIndex] = ComputeGeometricVisible(scope, _geometricVisible[observerIndex]);
+                RefreshGeometricVisible(observerIndex, scope);
             }
         }
 
-        public int ExecuteTick(bool measure)
+        public TickMeasurement ExecuteTick(bool measure)
         {
             _tick++;
             if (measure)
@@ -376,7 +411,7 @@ public static class ShooterAoiLodBenchmarkRunner
                 MoveForChurn();
             _snapshotPort.SetFrame(_tick);
 
-            var payloadBytes = 0;
+            var measurement = new TickMeasurement();
             for (var observerIndex = 0; observerIndex < _case.Observers; observerIndex++)
             {
                 var observer = _observers[observerIndex];
@@ -387,19 +422,60 @@ public static class ShooterAoiLodBenchmarkRunner
                     _options.VisibleRadius,
                     _options.BoundaryRadius,
                     _options.EntityBudget);
-                var payload = _exporters[observerIndex].Export(
-                    1,
-                    isFullBaseline: false,
-                    settings: CreateSettings(),
-                    interestScope: scope,
-                    aoiInterestSet: _interestSets[observerIndex],
-                    computeStateHash: false);
-                var bytes = ShooterPureStateSyncCodec.Serialize(in payload);
-                payloadBytes += bytes.Length;
+                ShooterPureStateSnapshotPayload payload;
+                byte[] bytes;
                 if (measure)
+                {
+                    var allocationStart = GC.GetAllocatedBytesForCurrentThread();
+                    var timestamp = Stopwatch.GetTimestamp();
+                    payload = _exporters[observerIndex].ExportTransient(
+                        1,
+                        isFullBaseline: false,
+                        settings: CreateSettings(),
+                        interestScope: scope,
+                        aoiInterestSet: _interestSets[observerIndex],
+                        computeStateHash: false);
+                    measurement.ExportTimestampTicks += Stopwatch.GetTimestamp() - timestamp;
+                    measurement.ExportAllocatedBytes += GC.GetAllocatedBytesForCurrentThread() - allocationStart;
+
+                    allocationStart = GC.GetAllocatedBytesForCurrentThread();
+                    timestamp = Stopwatch.GetTimestamp();
+                    bytes = ShooterPureStateSyncCodec.SerializeTransient(in payload, _serializationBuffer);
+                    measurement.SerializationTimestampTicks += Stopwatch.GetTimestamp() - timestamp;
+                    measurement.SerializationAllocatedBytes += GC.GetAllocatedBytesForCurrentThread() - allocationStart;
+                    measurement.PayloadBytes += bytes.Length;
+
+                    allocationStart = GC.GetAllocatedBytesForCurrentThread();
+                    timestamp = Stopwatch.GetTimestamp();
                     Observe(observerIndex, scope, payload, bytes.Length);
+                    measurement.ObservationTimestampTicks += Stopwatch.GetTimestamp() - timestamp;
+                    measurement.ObservationAllocatedBytes += GC.GetAllocatedBytesForCurrentThread() - allocationStart;
+                }
+                else
+                {
+                    payload = _exporters[observerIndex].ExportTransient(
+                        1,
+                        isFullBaseline: false,
+                        settings: CreateSettings(),
+                        interestScope: scope,
+                        aoiInterestSet: _interestSets[observerIndex],
+                        computeStateHash: false);
+                    bytes = ShooterPureStateSyncCodec.SerializeTransient(in payload, _serializationBuffer);
+                    measurement.PayloadBytes += bytes.Length;
+                }
             }
-            return payloadBytes;
+            return measurement;
+        }
+
+        public struct TickMeasurement
+        {
+            public int PayloadBytes;
+            public long ExportTimestampTicks;
+            public long SerializationTimestampTicks;
+            public long ObservationTimestampTicks;
+            public long ExportAllocatedBytes;
+            public long SerializationAllocatedBytes;
+            public long ObservationAllocatedBytes;
         }
 
         public int CountNeverSentEligible()
@@ -415,7 +491,8 @@ public static class ShooterAoiLodBenchmarkRunner
         private void Observe(int observerIndex, ShooterPureStateInterestScope scope, ShooterPureStateSnapshotPayload payload, int bytes)
         {
             var previous = _geometricVisible[observerIndex];
-            var current = ComputeGeometricVisible(scope, previous);
+            var current = _geometricScratch[observerIndex];
+            ComputeGeometricVisible(scope, previous, current);
             foreach (var key in current)
                 if (!previous.Contains(key))
                     EnterCount++;
@@ -423,6 +500,7 @@ public static class ShooterAoiLodBenchmarkRunner
                 if (!current.Contains(key))
                     LeaveCount++;
             _geometricVisible[observerIndex] = current;
+            _geometricScratch[observerIndex] = previous;
 
             var sent = _lastSentTick[observerIndex];
             foreach (var entity in payload.Entities)
@@ -443,14 +521,25 @@ public static class ShooterAoiLodBenchmarkRunner
             }
         }
 
-        private HashSet<AoiEntityKey> ComputeGeometricVisible(ShooterPureStateInterestScope scope, HashSet<AoiEntityKey> previous)
+        private void RefreshGeometricVisible(int observerIndex, ShooterPureStateInterestScope scope)
         {
-            var result = new HashSet<AoiEntityKey>();
+            var previous = _geometricVisible[observerIndex];
+            var current = _geometricScratch[observerIndex];
+            ComputeGeometricVisible(scope, previous, current);
+            _geometricVisible[observerIndex] = current;
+            _geometricScratch[observerIndex] = previous;
+        }
+
+        private void ComputeGeometricVisible(
+            ShooterPureStateInterestScope scope,
+            HashSet<AoiEntityKey> previous,
+            HashSet<AoiEntityKey> result)
+        {
+            result.Clear();
             foreach (var player in _snapshotPort.Snapshot.Players)
                 AddIfVisible(result, previous, new AoiEntityKey(ShooterPackedEntityKinds.Player, player.PlayerId), player.X, player.Y, scope);
             foreach (var bullet in _snapshotPort.Snapshot.Bullets)
                 AddIfVisible(result, previous, new AoiEntityKey(ShooterPackedEntityKinds.Projectile, bullet.BulletId), bullet.X, bullet.Y, scope);
-            return result;
         }
 
         private static void AddIfVisible(HashSet<AoiEntityKey> result, HashSet<AoiEntityKey> previous, AoiEntityKey key, float x, float y, ShooterPureStateInterestScope scope)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Logging;
@@ -14,6 +15,27 @@ namespace AbilityKit.Game.Flow
         private readonly BattleSessionState _state;
         private readonly BattleSessionHandles _handles;
         private readonly ISessionOrchestratorHost _host;
+        private CleanupStep _completedCleanupSteps;
+        private bool _cleanupRequired;
+        private bool _sessionStartingPipelineEntered;
+
+        [Flags]
+        private enum CleanupStep
+        {
+            None = 0,
+            RecordWriter = 1 << 0,
+            BattleContext = 1 << 1,
+            StoppingPipeline = 1 << 2,
+            SnapshotRouting = 1 << 3,
+            ConfirmedView = 1 << 4,
+            BattleWorlds = 1 << 5,
+            ConfirmedWorld = 1 << 6,
+            RemoteDrivenWorld = 1 << 7,
+            RemoteInterpolation = 1 << 8,
+            FrameSubscription = 1 << 9,
+            LogicSession = 1 << 10,
+            SessionHandles = 1 << 11,
+        }
 
         public SessionOrchestrator(BattleSessionState state, BattleSessionHandles handles, ISessionOrchestratorHost host)
         {
@@ -31,43 +53,76 @@ namespace AbilityKit.Game.Flow
         public void StartSession()
         {
             StopSession();
+            _state.BeginStart();
+            _cleanupRequired = true;
+            _completedCleanupSteps = CleanupStep.None;
+            _sessionStartingPipelineEntered = false;
 
-            var plan = _host.Plan;
-            StartLogicSession(plan);
-            StartAuxiliaryWorlds(plan);
-            _host.InvokeSessionStartingPipeline();
-            ResetTickState();
-            BindBattleContext();
-            _host.InvokeReplaySetupPipeline();
+            try
+            {
+                var plan = _host.Plan;
+                StartLogicSession(plan);
+                StartAuxiliaryWorlds(plan);
+                _sessionStartingPipelineEntered = true;
+                _host.InvokeSessionStartingPipeline();
+                ResetTickState();
+                BindBattleContext();
+                _host.InvokeReplaySetupPipeline();
+                _state.CompleteStart();
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    DisposeSessionResources();
+                }
+                catch (Exception cleanupEx)
+                {
+                    var combined = new AggregateException(ex, cleanupEx);
+                    var failure = new InvalidOperationException(
+                        "Battle session startup failed and cleanup also reported failures.",
+                        combined);
+                    _state.Fault(failure);
+                    throw failure;
+                }
+
+                _state.Fault(ex);
+                throw;
+            }
         }
 
         public void StopSession()
         {
-            if (_handles.Session == null) return;
+            if (_state.Lifecycle == BattleSessionLifecycleState.Stopping) return;
+            if (!_cleanupRequired &&
+                (_state.Lifecycle == BattleSessionLifecycleState.Created ||
+                 _state.Lifecycle == BattleSessionLifecycleState.Stopped))
+            {
+                if (_state.Lifecycle == BattleSessionLifecycleState.Created)
+                {
+                    _state.BeginStop();
+                    _state.CompleteStop();
+                }
+                return;
+            }
 
+            _state.BeginStop();
             try
             {
-                _handles.Session.FrameReceived -= _host.FrameReceivedHandler;
-
-                _host.InvokeSessionStoppingPipeline();
-                BattleLogicSessionHost.Stop();
+                DisposeSessionResources();
+                _state.CompleteStop();
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, "[BattleSessionFeature] StopSession failed");
-            }
-            finally
-            {
-                DisposeContextRecordWriter();
-                DisposeRuntimeResources();
-                _host.ResetHandles();
+                _state.Fault(ex);
+                throw;
             }
         }
 
         private void StartLogicSession(BattleStartPlan plan)
         {
-            _handles.Session = _host.StartBattleLogicSession(BuildSessionOptions(plan));
-            _handles.Session.FrameReceived += _host.FrameReceivedHandler;
+            _host.StartBattleLogicSession(BuildSessionOptions(plan));
+            _host.SubscribeFrameReceived();
         }
 
         private static BattleLogicSessionOptions BuildSessionOptions(BattleStartPlan plan)
@@ -132,30 +187,80 @@ namespace AbilityKit.Game.Flow
             SessionContextBinder.BindRuntimeSession(_host.Context, _state, _handles);
         }
 
-        private void DisposeContextRecordWriter()
+        private void DisposeSessionResources()
         {
-            try
-            {
-                var ctx = _host.Context;
-                if (ctx == null) return;
+            if (!_cleanupRequired) return;
 
-                ctx.InputRecordWriter?.Dispose();
-                ctx.InputRecordWriter = null;
-            }
-            catch (Exception ex)
+            var failures = new List<Exception>();
+
+            void DisposeStep(CleanupStep step, Action action, string name)
             {
-                Log.Exception(ex, "[BattleSessionFeature] Dispose InputRecordWriter on StopSession failed");
+                if ((_completedCleanupSteps & step) != 0) return;
+
+                try
+                {
+                    action?.Invoke();
+                    _completedCleanupSteps |= step;
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(new InvalidOperationException(
+                        $"Battle session cleanup step failed: {name}.",
+                        ex));
+                    Log.Exception(ex, $"[BattleSessionFeature] Session resource cleanup failed: {name}");
+                }
             }
+
+            // Reverse startup order. Each successful step is remembered so a later Stop can
+            // resume only the failed work without repeating already-completed teardown.
+            DisposeStep(CleanupStep.RecordWriter, DisposeContextRecordWriter, "input record writer");
+            DisposeStep(CleanupStep.BattleContext, ClearBattleContext, "battle context");
+
+            if (_sessionStartingPipelineEntered)
+            {
+                DisposeStep(CleanupStep.StoppingPipeline, _host.InvokeSessionStoppingPipeline, "session stopping pipeline");
+            }
+            else
+            {
+                _completedCleanupSteps |= CleanupStep.StoppingPipeline;
+            }
+
+            DisposeStep(CleanupStep.SnapshotRouting, _host.DisposeSnapshotRouting, "snapshot routing");
+            DisposeStep(CleanupStep.ConfirmedView, _host.DisposeConfirmedView, "confirmed view");
+            DisposeStep(CleanupStep.BattleWorlds, _host.TryDestroyBattleWorlds, "battle worlds");
+            DisposeStep(CleanupStep.ConfirmedWorld, _host.DisposeConfirmedWorld, "confirmed world");
+            DisposeStep(CleanupStep.RemoteDrivenWorld, _host.DisposeRemoteDrivenWorld, "remote-driven world");
+            DisposeStep(CleanupStep.RemoteInterpolation, _host.DisposeRemoteInterpolation, "remote interpolation");
+            DisposeStep(CleanupStep.FrameSubscription, _host.UnsubscribeFrameReceived, "unsubscribe frame receiver");
+            DisposeStep(CleanupStep.LogicSession, _host.StopBattleLogicSession, "battle logic session");
+
+            if (failures.Count == 0)
+            {
+                DisposeStep(CleanupStep.SessionHandles, _host.ResetSessionHandles, "session handles");
+            }
+
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("Battle session cleanup completed with one or more failures.", failures);
+            }
+
+            _cleanupRequired = false;
+            _sessionStartingPipelineEntered = false;
         }
 
-        private void DisposeRuntimeResources()
+        private void DisposeContextRecordWriter()
         {
-            _host.TryDestroyBattleWorlds();
-            _host.DisposeSnapshotRouting();
-            _host.DisposeConfirmedView();
-            _host.DisposeRemoteDrivenWorld();
-            _host.DisposeConfirmedWorld();
-            _host.DisposeNetworkIoDispatcher();
+            var ctx = _host.Context;
+            if (ctx == null) return;
+
+            var writer = ctx.InputRecordWriter;
+            ctx.InputRecordWriter = null;
+            writer?.Dispose();
+        }
+
+        private void ClearBattleContext()
+        {
+            SessionContextBinder.ClearSession(_host.Context);
         }
 
         private static int ResolveTickRate(BattleStartPlan plan)

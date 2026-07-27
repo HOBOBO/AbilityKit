@@ -10,7 +10,7 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
         string Name { get; }
         byte[] ExportState(FrameIndex frame);
         void ImportState(FrameIndex frame, byte[] payload);
-        void AddStateHash(FrameIndex frame, MobaStateHashBuilder hash);
+        void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash);
     }
 
     [MemoryPackable]

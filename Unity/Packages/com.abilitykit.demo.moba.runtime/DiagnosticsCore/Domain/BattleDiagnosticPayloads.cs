@@ -9,7 +9,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
     {
         None = 0,
         SyncSnapshotReceived = 1,
-        TriggerAnalysis = 2
+        TriggerAnalysis = 2,
+        SkillFailure = 3
     }
 
     public enum BattleDiagnosticTriggerAnalysisStage
@@ -159,6 +160,59 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         }
     }
 
+    public readonly struct BattleDiagnosticSkillFailurePayload :
+        IEquatable<BattleDiagnosticSkillFailurePayload>
+    {
+        public const int CurrentSchemaVersion = 1;
+
+        public BattleDiagnosticSkillFailurePayload(
+            int slot,
+            string source,
+            string stage,
+            string code,
+            string message)
+        {
+            Slot = slot;
+            Source = source ?? string.Empty;
+            Stage = stage ?? string.Empty;
+            Code = code ?? string.Empty;
+            Message = message ?? string.Empty;
+        }
+
+        public int Slot { get; }
+        public string Source { get; }
+        public string Stage { get; }
+        public string Code { get; }
+        public string Message { get; }
+
+        public bool Equals(BattleDiagnosticSkillFailurePayload other)
+        {
+            return Slot == other.Slot &&
+                   string.Equals(Source, other.Source, StringComparison.Ordinal) &&
+                   string.Equals(Stage, other.Stage, StringComparison.Ordinal) &&
+                   string.Equals(Code, other.Code, StringComparison.Ordinal) &&
+                   string.Equals(Message, other.Message, StringComparison.Ordinal);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is BattleDiagnosticSkillFailurePayload other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = Slot;
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Source ?? string.Empty);
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Stage ?? string.Empty);
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Code ?? string.Empty);
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Message ?? string.Empty);
+                return hashCode;
+            }
+        }
+    }
+
     /// <summary>
     /// 平台无关、版本化诊断载荷判别联合。
     /// 未迁移事件使用 <see cref="None"/>，消费者必须按 Kind 通过专用 TryGet 读取。
@@ -179,6 +233,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         private readonly int _int32Value10;
         private readonly string _stringValue;
         private readonly string _stringValue2;
+        private readonly string _stringValue3;
+        private readonly string _stringValue4;
 
         private BattleDiagnosticEventPayload(
             BattleDiagnosticPayloadKind kind,
@@ -195,7 +251,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             int int32Value9 = 0,
             int int32Value10 = 0,
             string stringValue = "",
-            string stringValue2 = "")
+            string stringValue2 = "",
+            string stringValue3 = "",
+            string stringValue4 = "")
         {
             if (kind == BattleDiagnosticPayloadKind.None)
             {
@@ -222,6 +280,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             _int32Value10 = int32Value10;
             _stringValue = stringValue ?? string.Empty;
             _stringValue2 = stringValue2 ?? string.Empty;
+            _stringValue3 = stringValue3 ?? string.Empty;
+            _stringValue4 = stringValue4 ?? string.Empty;
         }
 
         public static BattleDiagnosticEventPayload None => default;
@@ -303,6 +363,38 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             return true;
         }
 
+        public static BattleDiagnosticEventPayload FromSkillFailure(
+            in BattleDiagnosticSkillFailurePayload payload)
+        {
+            return new BattleDiagnosticEventPayload(
+                BattleDiagnosticPayloadKind.SkillFailure,
+                BattleDiagnosticSkillFailurePayload.CurrentSchemaVersion,
+                payload.Slot,
+                0U,
+                stringValue: payload.Source,
+                stringValue2: payload.Stage,
+                stringValue3: payload.Code,
+                stringValue4: payload.Message);
+        }
+
+        public bool TryGetSkillFailure(out BattleDiagnosticSkillFailurePayload payload)
+        {
+            if (Kind != BattleDiagnosticPayloadKind.SkillFailure ||
+                SchemaVersion != BattleDiagnosticSkillFailurePayload.CurrentSchemaVersion)
+            {
+                payload = default;
+                return false;
+            }
+
+            payload = new BattleDiagnosticSkillFailurePayload(
+                _int32Value,
+                _stringValue,
+                _stringValue2,
+                _stringValue3,
+                _stringValue4);
+            return true;
+        }
+
         public bool Equals(BattleDiagnosticEventPayload other)
         {
             return Kind == other.Kind &&
@@ -319,7 +411,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    _int32Value9 == other._int32Value9 &&
                    _int32Value10 == other._int32Value10 &&
                    string.Equals(_stringValue, other._stringValue, StringComparison.Ordinal) &&
-                   string.Equals(_stringValue2, other._stringValue2, StringComparison.Ordinal);
+                   string.Equals(_stringValue2, other._stringValue2, StringComparison.Ordinal) &&
+                   string.Equals(_stringValue3, other._stringValue3, StringComparison.Ordinal) &&
+                   string.Equals(_stringValue4, other._stringValue4, StringComparison.Ordinal);
         }
 
         public override bool Equals(object obj)
@@ -346,6 +440,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ _int32Value10;
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(_stringValue ?? string.Empty);
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(_stringValue2 ?? string.Empty);
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(_stringValue3 ?? string.Empty);
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(_stringValue4 ?? string.Empty);
                 return hashCode;
             }
         }

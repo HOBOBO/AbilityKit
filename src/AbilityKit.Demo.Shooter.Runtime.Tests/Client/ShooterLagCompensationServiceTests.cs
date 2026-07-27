@@ -8,6 +8,31 @@ namespace AbilityKit.Demo.Shooter.Runtime.Tests.Client;
 public sealed class ShooterLagCompensationServiceTests
 {
     [Fact]
+    public void RecordsPlayerHitboxesDirectlyFromRuntime()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var start = new ShooterStartGamePayload(
+            "lag-compensation-runtime",
+            tickRate: 30,
+            randomSeed: 7201,
+            new[]
+            {
+                new ShooterStartPlayer(1, "P1", 0f, 0f),
+                new ShooterStartPlayer(2, "P2", 5f, 0f)
+            });
+        var service = new ShooterLagCompensationService(new ServerRewindLagCompensationConfig(
+            maxHistoryFrames: 8,
+            maxRewindFrames: 10));
+
+        Assert.True(runtime.StartGame(in start));
+        Assert.True(runtime.Tick(1f / 30f));
+        service.RecordFrame(runtime);
+
+        Assert.Equal(1, service.CapturedFrameCount);
+        Assert.Equal(runtime.CurrentFrame, service.LatestFrame);
+    }
+
+    [Fact]
     public void RecordsPlayerHitboxesFromShooterSnapshots()
     {
         var service = new ShooterLagCompensationService(new ServerRewindLagCompensationConfig(

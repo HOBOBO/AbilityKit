@@ -92,6 +92,13 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 return false;
             }
 
+            var modelId = resolved.Character.ModelId;
+            if (modelId > 0)
+            {
+                if (entity.hasModelId) entity.ReplaceModelId(modelId);
+                else entity.AddModelId(modelId);
+            }
+
             _attributes.Apply(entity, in preparedAttributes);
             _skills.Apply(entity, in preparedSkills);
             return true;

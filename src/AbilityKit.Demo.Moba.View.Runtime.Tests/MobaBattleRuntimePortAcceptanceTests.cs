@@ -4,6 +4,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Game.Battle;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.LogicWorld;
 using AbilityKit.Protocol.Moba;
@@ -30,6 +31,8 @@ public sealed class MobaBattleRuntimePortAcceptanceTests
             new FakeStateReadModel());
 
         var status = port.Status;
+        var statusProvider = Assert.IsAssignableFrom<IBattleRuntimeStatusProvider>(port);
+        var battleStatus = statusProvider.BattleStatus;
 
         Assert.True(status.Has(MobaBattleRuntimeCapability.GameStart));
         Assert.True(status.Has(MobaBattleRuntimeCapability.Input));
@@ -38,6 +41,16 @@ public sealed class MobaBattleRuntimePortAcceptanceTests
         Assert.True(status.IsReadyForGameStart);
         Assert.True(status.IsReadyForBattleLoop);
         Assert.Equal(string.Empty, status.MissingServices);
+
+        Assert.Equal(BattleRuntimeState.Ready, battleStatus.State);
+        Assert.True(battleStatus.Has(
+            BattleRuntimeCapability.GameStart |
+            BattleRuntimeCapability.Input |
+            BattleRuntimeCapability.SnapshotOutput |
+            BattleRuntimeCapability.StateReadModel));
+        Assert.False(battleStatus.Has(BattleRuntimeCapability.Simulation));
+        Assert.False(battleStatus.Meets(BattleReadinessRequirement.BattleLoop));
+        Assert.Equal(string.Empty, battleStatus.MissingDependencies);
     }
 
     [Fact]
@@ -50,6 +63,7 @@ public sealed class MobaBattleRuntimePortAcceptanceTests
             stateReadModel: null);
 
         var status = port.Status;
+        var battleStatus = ((IBattleRuntimeStatusProvider)port).BattleStatus;
 
         Assert.Equal(MobaBattleRuntimeCapability.None, status.Capabilities);
         Assert.False(status.IsReadyForGameStart);
@@ -58,6 +72,10 @@ public sealed class MobaBattleRuntimePortAcceptanceTests
         Assert.Contains(nameof(IMobaBattleInputPort), status.MissingServices);
         Assert.Contains(nameof(IMobaBattleOutputPort), status.MissingServices);
         Assert.Contains(nameof(IMobaLogicWorldStateReadModel), status.MissingServices);
+
+        Assert.Equal(BattleRuntimeCapability.None, battleStatus.Capabilities);
+        Assert.Equal(BattleRuntimeState.Created, battleStatus.State);
+        Assert.Equal(status.MissingServices, battleStatus.MissingDependencies);
     }
 
     [Fact]

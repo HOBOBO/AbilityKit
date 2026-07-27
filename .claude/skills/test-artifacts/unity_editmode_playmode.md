@@ -40,8 +40,8 @@
 Unity.exe -batchmode -nographics -projectPath Unity \
     -runTests -testPlatform EditMode \
     -testFilter "AbilityKit.Game.Test.UnitTest.ZhaoYunSkillAcceptanceTests" \
-    -testResults artifacts/test-gates/{ts}-moba-zhaoyun-unity/unity-results/{name}.xml \
-    -logFile artifacts/test-gates/{ts}-moba-zhaoyun-unity/unity-results/{name}.log
+    -testResults local/Logs/test-gates/{ts}-moba-zhaoyun-unity/unity-results/{name}.xml \
+    -logFile local/Logs/test-gates/{ts}-moba-zhaoyun-unity/unity-results/{name}.log
 ```
 
 ## 直接跑（绕过 gate）
@@ -59,8 +59,8 @@ $editor = "C:\Program Files\Unity\Hub\Editor\2022.3.62f1\Editor\Unity.exe"
 & $editor -batchmode -nographics -projectPath Unity `
     -runTests -testPlatform EditMode `
     -testFilter "AbilityKit.Game.Test.UnitTest.ZhaoYunSkillAcceptanceTests" `
-    -testResults artifacts/unity-manual/{yyyyMMdd-HHmmss}-zhaoYun.xml `
-    -logFile artifacts/unity-manual/{yyyyMMdd-HHmmss}-zhaoYun.log
+    -testResults local/Logs/unity-manual/{yyyyMMdd-HHmmss}-zhaoYun.xml `
+    -logFile local/Logs/unity-manual/{yyyyMMdd-HHmmss}-zhaoYun.log
 ```
 
 **重要**：必须显式指定 `-testResults` 和 `-logFile`，否则 Unity 会把结果写到默认位置（可能是项目根 `Unity/` 下，污染）。

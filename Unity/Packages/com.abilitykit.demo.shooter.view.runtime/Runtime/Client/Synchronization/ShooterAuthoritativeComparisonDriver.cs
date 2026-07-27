@@ -13,7 +13,7 @@ namespace AbilityKit.Demo.Shooter.View
     /// 负责验收会话中的权威世界推进、Carrier 快照发布和 LagComp 历史采集。
     /// <see cref="ShooterAcceptanceSession"/> 只保留会话门面职责，具体的权威侧编排集中在这里。
     /// </summary>
-    internal sealed class ShooterAuthoritativeComparisonDriver
+    internal sealed class ShooterAuthoritativeComparisonDriver : IDisposable
     {
         private readonly IShooterClientSyncController _controller;
         private readonly ShooterBattleRuntimePort _authoritativeWorld;
@@ -78,6 +78,7 @@ namespace AbilityKit.Demo.Shooter.View
  
         public void ApplyNetwork(NetworkConditionProfile profile)
         {
+            _carrierNetworkLink.Dispose();
             _networkProfile = profile;
             _pendingInputs.Clear();
             _lastDeliveredInputCount = 0;
@@ -87,6 +88,13 @@ namespace AbilityKit.Demo.Shooter.View
             _lagCompensation.Clear();
             _lastCarrierTimeAnchor = default;
             _networkElapsedSeconds = 0d;
+        }
+
+        public void Dispose()
+        {
+            _carrierNetworkLink.Dispose();
+            _pendingInputs.Clear();
+            _driverHost.Stop();
         }
 
         public void EnqueueInput(int commandFrame, in ShooterPlayerCommand command)
@@ -121,7 +129,7 @@ namespace AbilityKit.Demo.Shooter.View
 
             if (_authoritativePresentation != null)
             {
-                var authoritySnapshot = _authoritativeWorld.GetSnapshot();
+                var authoritySnapshot = _authoritativeWorld.GetSnapshotTransient();
                 _authoritativePresentation.ApplyLocalAuthoritativeSnapshot(in authoritySnapshot);
             }
         }
@@ -169,7 +177,7 @@ namespace AbilityKit.Demo.Shooter.View
 
             var settings = sendPolicy.ToPureStateSettings();
             var interestScope = CreateInterestScope(sendPolicy);
-            var pureState = _authoritativeWorld.ExportPureStateSnapshot(
+            var pureState = _authoritativeWorld.ExportPureStateSnapshotTransient(
                 worldId: 1UL,
                 isFullBaseline: isFullBaseline,
                 settings: settings,
@@ -203,8 +211,7 @@ namespace AbilityKit.Demo.Shooter.View
                 return null;
             }
 
-            var snapshot = _authoritativeWorld.GetSnapshot();
-            var players = snapshot.Players ?? Array.Empty<ShooterPlayerSnapshot>();
+            var players = _authoritativeWorld.GetPlayerSnapshotsTransient();
             if (players.Length > 0)
             {
                 var observer = players[0];

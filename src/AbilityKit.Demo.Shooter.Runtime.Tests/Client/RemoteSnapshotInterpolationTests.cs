@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Network.Runtime;
 using Xunit;
 
@@ -18,6 +19,24 @@ public sealed class RemoteSnapshotInterpolationTests
         public long TimelineTicks { get; }
 
         public float Value { get; }
+    }
+
+    [Fact]
+    public void ShooterRemoteSampleExcludesActorWithoutCopyingRemainingOrder()
+    {
+        var actors = new[]
+        {
+            new ShooterGatewayActorSnapshot(1, 1f, 0f, 0f, 0f, 0f, 100f, 100f, 1),
+            new ShooterGatewayActorSnapshot(2, 2f, 0f, 0f, 0f, 0f, 100f, 100f, 1),
+            new ShooterGatewayActorSnapshot(3, 3f, 0f, 0f, 0f, 0f, 100f, 100f, 1)
+        };
+
+        var sample = new ShooterRemoteSnapshotSample(1ul, frame: 1, serverTicks: 100L, actors, excludedActorId: 2);
+
+        Assert.Same(sample, sample.Actors);
+        Assert.Equal(2, sample.Count);
+        Assert.Equal(1, sample[0].ActorId);
+        Assert.Equal(3, sample[1].ActorId);
     }
 
     [Fact]
