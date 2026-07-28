@@ -125,7 +125,12 @@ namespace AbilityKit.Pipeline.Pooling
 
         private static PoolKey GetRunPhaseListKey<TCtx>()
         {
-            return new PoolKey("Pipeline.RunPhaseList." + typeof(TCtx).FullName);
+            return RunPhaseListPoolKey<TCtx>.Value;
+        }
+
+        private static class RunPhaseListPoolKey<TCtx>
+        {
+            public static readonly PoolKey Value = new PoolKey("Pipeline.RunPhaseList." + typeof(TCtx).FullName);
         }
 
         private static PoolScope Scope => Pools.GetOrCreateScope(ScopeName, destroyOnDispose: false);

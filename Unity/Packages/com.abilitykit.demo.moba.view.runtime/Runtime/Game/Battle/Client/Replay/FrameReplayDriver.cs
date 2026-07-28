@@ -46,7 +46,7 @@ namespace AbilityKit.Game.Flow.Battle.Replay
         public FrameReplayDriver(WorldId worldId, FrameRecordFile file)
         {
             _worldId = worldId;
-            _inputs = file?.Inputs ?? new List<FrameRecordInputFrame>();
+            _inputs = CreateOrderedInputSnapshot(file?.Inputs);
             _expectedStateHashes = new Dictionary<int, FrameRecordStateHashFrame>(file?.StateHashes?.Count ?? 0);
             if (file?.StateHashes != null)
             {
@@ -69,11 +69,52 @@ namespace AbilityKit.Game.Flow.Battle.Replay
         public float PlaybackSpeed
         {
             get => _playbackSpeed;
-            set => _playbackSpeed = Math.Max(0.1f, Math.Min(8f, value));
+            set => _playbackSpeed = NormalizePlaybackSpeed(value);
         }
 
         public void Play() => _isPlaying = true;
         public void Pause() => _isPlaying = false;
+
+        private static float NormalizePlaybackSpeed(float value)
+        {
+            if (float.IsNaN(value) || float.IsInfinity(value)) return 1f;
+            return Math.Max(0.1f, Math.Min(8f, value));
+        }
+
+        private static List<FrameRecordInputFrame> CreateOrderedInputSnapshot(
+            IList<FrameRecordInputFrame> inputs)
+        {
+            var ordered = new List<OrderedInput>(inputs?.Count ?? 0);
+            if (inputs == null) return new List<FrameRecordInputFrame>();
+
+            for (var i = 0; i < inputs.Count; i++)
+            {
+                var input = inputs[i];
+                if (input != null) ordered.Add(new OrderedInput(input, i));
+            }
+
+            ordered.Sort((left, right) =>
+            {
+                var frameOrder = left.Input.Frame.CompareTo(right.Input.Frame);
+                return frameOrder != 0 ? frameOrder : left.SourceIndex.CompareTo(right.SourceIndex);
+            });
+
+            var snapshot = new List<FrameRecordInputFrame>(ordered.Count);
+            for (var i = 0; i < ordered.Count; i++) snapshot.Add(ordered[i].Input);
+            return snapshot;
+        }
+
+        private readonly struct OrderedInput
+        {
+            public OrderedInput(FrameRecordInputFrame input, int sourceIndex)
+            {
+                Input = input;
+                SourceIndex = sourceIndex;
+            }
+
+            public FrameRecordInputFrame Input { get; }
+            public int SourceIndex { get; }
+        }
 
         private static int ResolveLastFrame(FrameRecordFile file)
         {

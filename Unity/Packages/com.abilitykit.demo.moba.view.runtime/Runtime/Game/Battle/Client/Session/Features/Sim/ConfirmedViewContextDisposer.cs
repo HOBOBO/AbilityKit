@@ -9,15 +9,18 @@ namespace AbilityKit.Game.Flow
         {
             if (ctx == null) return;
 
-            ctx.ClearSnapshotRouting();
+            SessionSimRuntimeDisposer.ExecuteCleanupSteps(
+                "Failed to clean confirmed view context.",
+                ctx.ClearSnapshotRouting,
+                () => DestroyEntityTree(ctx, destroyEntityTree),
+                () => ctx.EntityLookup?.Clear());
 
-            if (ctx.EntityNode.IsValid)
-            {
-                destroyEntityTree?.Invoke(ctx.EntityNode);
-            }
-
-            ctx.EntityLookup?.Clear();
             BattleContext.Return(ctx);
+        }
+
+        private static void DestroyEntityTree(BattleContext ctx, Action<IEntity> destroyEntityTree)
+        {
+            if (ctx.EntityNode.IsValid) destroyEntityTree?.Invoke(ctx.EntityNode);
         }
     }
 }

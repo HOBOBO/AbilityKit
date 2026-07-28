@@ -36,7 +36,10 @@ namespace AbilityKit.Demo.Moba.Systems
             var entities = _group.GetEntities();
             for (var i = 0; i < entities.Length; i++)
             {
-                _brains.EnsureBehavior(entities[i]);
+                if (!entities[i].hasActorStateMachine)
+                {
+                    _brains.EnsureBehavior(entities[i]);
+                }
             }
 
             var dt = ResolveDeltaTime();

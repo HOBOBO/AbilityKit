@@ -88,15 +88,16 @@ flowchart TB
 
 ### 3.1 框架使用者路径
 
-1. [序章：为什么需要 AbilityKit](00-Prologue.md)
-2. [AbilityKit 能力地图](01-OverviewAndGettingStarted/00-AbilityKitCapabilityMap.md)
-3. [AbilityKit 是什么](01-OverviewAndGettingStarted/01-WhatIsAbilityKit.md)
-4. [核心概念](01-OverviewAndGettingStarted/02-CoreConcepts.md)
-5. [逻辑世界概述](02-LogicalWorldDesign/01-WorldOverview.md)
-6. [Host 运行时](03-LogicalWorldHostDesign/01-HostRuntime.md)
-7. [技能系统架构](08-GameplayModules/01-SkillSystemArchitecture.md)
-8. [触发器系统](08-GameplayModules/02-TriggeringSystem.md)
-9. [网络同步能力地图](07-NetworkSynchronization/00-SynchronizationCapabilityMap.md)
+1. [内训 PPT 与飞书深入阅读导航](00-PresentationAndFeishuNavigation.md)
+2. [序章：为什么需要 AbilityKit](00-Prologue.md)
+3. [AbilityKit 能力地图](01-OverviewAndGettingStarted/00-AbilityKitCapabilityMap.md)
+4. [AbilityKit 是什么](01-OverviewAndGettingStarted/01-WhatIsAbilityKit.md)
+5. [核心概念](01-OverviewAndGettingStarted/02-CoreConcepts.md)
+6. [逻辑世界概述](02-LogicalWorldDesign/01-WorldOverview.md)
+7. [Host 运行时](03-LogicalWorldHostDesign/01-HostRuntime.md)
+8. [技能系统架构](08-GameplayModules/01-SkillSystemArchitecture.md)
+9. [触发器系统](08-GameplayModules/02-TriggeringSystem.md)
+10. [网络同步能力地图](07-NetworkSynchronization/00-SynchronizationCapabilityMap.md)
 
 ### 3.2 框架扩展者路径
 
@@ -130,6 +131,7 @@ flowchart TB
 | 文档 | 定位 | 说明 |
 |------|------|------|
 | [00-序章：为什么需要 AbilityKit](00-Prologue.md) | 背景与边界 | 项目起因、战斗系统补丁化困境、跨项目复用诉求、GAS/EGamePlay/ET/Orleans 技术选型、Unity Package + .NET 双入口、源码证据链与测试验证路线 |
+| [PPT 与飞书深入阅读导航](00-PresentationAndFeishuNavigation.md) | 内训导航 | PPT 阶段到设计文档的跳转、MOBA/Shooter 展示契约、图片选择和飞书链接规则 |
 
 ### 01 概览与入门
 

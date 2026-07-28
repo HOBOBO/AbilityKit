@@ -751,7 +751,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             long actorId = 0,
             int configId = 0,
             string kind = "",
-            string endReason = "")
+            string endReason = "",
+            int skillId = 0,
+            int castFlowId = 0,
+            string phaseId = "")
         {
             if (rootContextId == 0) throw new ArgumentOutOfRangeException(nameof(rootContextId));
             if (contextId == 0) throw new ArgumentOutOfRangeException(nameof(contextId));
@@ -770,6 +773,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             ConfigId = configId;
             Kind = kind ?? string.Empty;
             EndReason = endReason ?? string.Empty;
+            SkillId = skillId;
+            CastFlowId = castFlowId;
+            PhaseId = phaseId ?? string.Empty;
         }
 
         public BattleDiagnosticSessionScope Scope { get; }
@@ -783,6 +789,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public int ConfigId { get; }
         public string Kind { get; }
         public string EndReason { get; }
+        public int SkillId { get; }
+        public int CastFlowId { get; }
+        public string PhaseId { get; }
         public bool IsActive => State == BattleDiagnosticTraceNodeState.Active;
 
         public bool Equals(BattleDiagnosticTraceNodeSummary other)
@@ -792,7 +801,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    StartFrame == other.StartFrame && EndFrame == other.EndFrame && State == other.State &&
                    ActorId == other.ActorId && ConfigId == other.ConfigId &&
                    string.Equals(Kind, other.Kind, StringComparison.Ordinal) &&
-                   string.Equals(EndReason, other.EndReason, StringComparison.Ordinal);
+                   string.Equals(EndReason, other.EndReason, StringComparison.Ordinal) &&
+                   SkillId == other.SkillId && CastFlowId == other.CastFlowId &&
+                   string.Equals(PhaseId, other.PhaseId, StringComparison.Ordinal);
         }
 
         public override bool Equals(object obj) => obj is BattleDiagnosticTraceNodeSummary other && Equals(other);
@@ -812,6 +823,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ ConfigId;
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Kind ?? string.Empty);
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(EndReason ?? string.Empty);
+                hashCode = (hashCode * 397) ^ SkillId;
+                hashCode = (hashCode * 397) ^ CastFlowId;
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(PhaseId ?? string.Empty);
                 return hashCode;
             }
         }

@@ -158,6 +158,9 @@ namespace AbilityKit.Protocol.Shooter
         [MemoryPackOrder(9)] public ShooterPureStateEntityDelta[] Entities;
         [MemoryPackOrder(10)] public ShooterPureStateVisibilityHint[] VisibilityHints;
         [MemoryPackOrder(11)] public ShooterCommandAcknowledgement[] AcknowledgedCommands;
+        [MemoryPackIgnore] private int _entityCount;
+        [MemoryPackIgnore] private int _visibilityHintCount;
+        [MemoryPackIgnore] private int _acknowledgedCommandCount;
 
         [MemoryPackConstructor]
         public ShooterPureStateSnapshotPayload(
@@ -183,9 +186,41 @@ namespace AbilityKit.Protocol.Shooter
             BaselineHash = baselineHash;
             StateHash = stateHash;
             Settings = settings;
-            Entities = entities;
-            VisibilityHints = visibilityHints;
+            Entities = entities ?? Array.Empty<ShooterPureStateEntityDelta>();
+            VisibilityHints = visibilityHints ?? Array.Empty<ShooterPureStateVisibilityHint>();
             AcknowledgedCommands = acknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>();
+            _entityCount = Entities.Length;
+            _visibilityHintCount = VisibilityHints.Length;
+            _acknowledgedCommandCount = AcknowledgedCommands.Length;
+        }
+
+        [MemoryPackIgnore]
+        public int EffectiveEntityCount => ClampCount(_entityCount, Entities);
+
+        [MemoryPackIgnore]
+        public int EffectiveVisibilityHintCount => ClampCount(_visibilityHintCount, VisibilityHints);
+
+        [MemoryPackIgnore]
+        public int EffectiveAcknowledgedCommandCount => ClampCount(_acknowledgedCommandCount, AcknowledgedCommands);
+
+        /// <summary>Sets the valid prefixes for capacity-backed transient arrays.</summary>
+        public void SetTransientCounts(int entityCount, int visibilityHintCount, int acknowledgedCommandCount = -1)
+        {
+            _entityCount = ClampCount(entityCount, Entities);
+            _visibilityHintCount = ClampCount(visibilityHintCount, VisibilityHints);
+            _acknowledgedCommandCount = acknowledgedCommandCount < 0
+                ? (AcknowledgedCommands?.Length ?? 0)
+                : ClampCount(acknowledgedCommandCount, AcknowledgedCommands);
+        }
+
+        private static int ClampCount<T>(int count, T[]? values)
+        {
+            if (values == null || values.Length == 0)
+            {
+                return 0;
+            }
+
+            return Math.Max(0, Math.Min(count, values.Length));
         }
 
         public static ShooterPureStateSnapshotPayload Empty(int frame = 0)
@@ -227,7 +262,12 @@ namespace AbilityKit.Protocol.Shooter
 
         public static byte[] Serialize(in ShooterPureStateSnapshotPayload snapshot)
         {
-            return MemoryPackSerializer.Serialize(snapshot);
+#if UNITY_5_3_OR_NEWER
+            var compatibleSnapshot = CreateUnityCompatibleSnapshot(in snapshot);
+            return MemoryPackSerializer.Serialize(compatibleSnapshot);
+#else
+            return MemoryPackSerializer.Serialize(new ShooterPureStateSnapshotTransient(in snapshot));
+#endif
         }
 
         /// <summary>
@@ -239,8 +279,68 @@ namespace AbilityKit.Protocol.Shooter
             ReusableMemoryPackSerializationBuffer buffer)
         {
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
-            return buffer.SerializeTransient(in snapshot);
+#if UNITY_5_3_OR_NEWER
+            var compatibleSnapshot = CreateUnityCompatibleSnapshot(in snapshot);
+            return buffer.SerializeTransient(in compatibleSnapshot);
+#else
+            return buffer.SerializeTransient(new ShooterPureStateSnapshotTransient(in snapshot));
+#endif
         }
+
+        /// <summary>
+        /// Serializes into a reusable backing buffer without an exact-length payload copy.
+        /// Consume the returned segment before the next serialization on <paramref name="buffer"/>.
+        /// </summary>
+        public static ArraySegment<byte> SerializeTransientSegment(
+            in ShooterPureStateSnapshotPayload snapshot,
+            ReusableMemoryPackSerializationBuffer buffer)
+        {
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+#if UNITY_5_3_OR_NEWER
+            var compatibleSnapshot = CreateUnityCompatibleSnapshot(in snapshot);
+            return buffer.SerializeTransientSegment(in compatibleSnapshot);
+#else
+            return buffer.SerializeTransientSegment(new ShooterPureStateSnapshotTransient(in snapshot));
+#endif
+        }
+
+#if UNITY_5_3_OR_NEWER
+        private static ShooterPureStateSnapshotPayload CreateUnityCompatibleSnapshot(
+            in ShooterPureStateSnapshotPayload snapshot)
+        {
+            return new ShooterPureStateSnapshotPayload(
+                snapshot.Version,
+                snapshot.WorldId,
+                snapshot.Frame,
+                snapshot.ServerTick,
+                snapshot.SnapshotKind,
+                snapshot.BaselineFrame,
+                snapshot.BaselineHash,
+                snapshot.StateHash,
+                snapshot.Settings,
+                CopyPrefix(snapshot.Entities, snapshot.EffectiveEntityCount),
+                CopyPrefix(snapshot.VisibilityHints, snapshot.EffectiveVisibilityHintCount),
+                CopyPrefix(snapshot.AcknowledgedCommands, snapshot.EffectiveAcknowledgedCommandCount));
+        }
+
+        private static T[] CopyPrefix<T>(T[]? values, int count)
+        {
+            if (values == null || count <= 0)
+            {
+                return Array.Empty<T>();
+            }
+
+            count = Math.Min(count, values.Length);
+            if (count == values.Length)
+            {
+                return values;
+            }
+
+            var copy = new T[count];
+            Array.Copy(values, copy, count);
+            return copy;
+        }
+#endif
 
         public static ShooterPureStateSnapshotPayload Deserialize(byte[] payload)
         {
@@ -284,4 +384,53 @@ namespace AbilityKit.Protocol.Shooter
             }
         }
     }
+
+#if !UNITY_5_3_OR_NEWER
+    internal readonly struct ShooterPureStateSnapshotTransient : IMemoryPackable<ShooterPureStateSnapshotTransient>
+    {
+        private readonly ShooterPureStateSnapshotPayload _snapshot;
+
+        public ShooterPureStateSnapshotTransient(in ShooterPureStateSnapshotPayload snapshot)
+        {
+            _snapshot = snapshot;
+        }
+
+        public static void RegisterFormatter()
+        {
+            if (!MemoryPackFormatterProvider.IsRegistered<ShooterPureStateSnapshotTransient>())
+            {
+                MemoryPackFormatterProvider.Register(
+                    new MemoryPack.Formatters.MemoryPackableFormatter<ShooterPureStateSnapshotTransient>());
+            }
+        }
+
+        static void IMemoryPackable<ShooterPureStateSnapshotTransient>.Serialize<TBufferWriter>(
+            ref MemoryPackWriter<TBufferWriter> writer,
+            scoped ref ShooterPureStateSnapshotTransient value)
+        {
+            ref readonly var snapshot = ref value._snapshot;
+            writer.WriteUnmanagedWithObjectHeader(
+                12,
+                snapshot.Version,
+                snapshot.WorldId,
+                snapshot.Frame,
+                snapshot.ServerTick,
+                snapshot.SnapshotKind,
+                snapshot.BaselineFrame,
+                snapshot.BaselineHash,
+                snapshot.StateHash,
+                snapshot.Settings);
+            writer.WriteUnmanagedSpan((snapshot.Entities ?? Array.Empty<ShooterPureStateEntityDelta>()).AsSpan(0, snapshot.EffectiveEntityCount));
+            writer.WriteUnmanagedSpan((snapshot.VisibilityHints ?? Array.Empty<ShooterPureStateVisibilityHint>()).AsSpan(0, snapshot.EffectiveVisibilityHintCount));
+            writer.WriteUnmanagedSpan((snapshot.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>()).AsSpan(0, snapshot.EffectiveAcknowledgedCommandCount));
+        }
+
+        static void IMemoryPackable<ShooterPureStateSnapshotTransient>.Deserialize(
+            ref MemoryPackReader reader,
+            scoped ref ShooterPureStateSnapshotTransient value)
+        {
+            throw new NotSupportedException("Transient pure-state views are serialization-only.");
+        }
+    }
+#endif
 }

@@ -15,6 +15,12 @@ namespace AbilityKit.Game.Battle
             if (world.Services.TryResolve<MobaActorRegistry>(out var actorReg) && actorReg != null)
             {
                 reg.Register(new MobaActorTransformRollbackProvider(actorReg));
+                if (world.Services.TryResolve<AbilityKit.Demo.Moba.Services.StateMachine.MobaActorStateMachineFactory>(
+                        out var stateMachineFactory)
+                    && stateMachineFactory != null)
+                {
+                    reg.Register(new MobaActorStateMachineRollbackProvider(actorReg, stateMachineFactory));
+                }
             }
 
             if (world.Services.TryResolve<RollbackWorldRandom>(out var rng) && rng != null)

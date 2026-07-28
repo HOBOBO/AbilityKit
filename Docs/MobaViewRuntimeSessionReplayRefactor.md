@@ -26,17 +26,27 @@ The deterministic checkpoint coordinator captures a header containing world iden
 
 Restore validates checkpoint identity before importing provider state. Import is transactional: if any provider fails, every touched provider is restored to its pre-import state. A successful restore reproduces the captured provider hash.
 
-`FrameRecordChunkIndex` remains a seek anchor index rather than a restorable world checkpoint. The checkpoint protocol is available to deterministic runtime owners, but `BattleReplaySessionOwner` does not yet consume it. Replay backward seek therefore still restarts the isolated runtime and replays recorded input to the target frame; skipping prior input requires an explicit checkpoint-to-replay integration contract.
+`FrameRecordChunkIndex` remains a seek anchor index rather than a restorable world checkpoint. `BattleReplaySessionOwner` now consumes an explicit optional replay-runtime checkpoint capability: it captures runtime-owned opaque tokens at frame 0 and every 30 frames, restores the nearest checkpoint not newer than a backward-seek target, and replays only the remaining recorded input. Tokens have explicit release ownership. The owner retains at most 64 checkpoints, preserves the frame-0 baseline while evicting old non-baseline tokens, invalidates and releases future-branch tokens after a backward restore, and releases every retained token before disposing the runtime. Cleanup attempts all releases and runtime disposal in deterministic order; one failure is propagated unchanged and multiple failures are aggregated. Runtime disposal remains the final reclamation boundary for tokens whose explicit release failed.
+
+The default production replay runtime does not declare checkpoint capability because its complete deterministic recovery-provider registry has not yet been established. It retains the isolated-runtime restart and replay fallback rather than exposing a partial checkpoint implementation as deterministic recovery.
 
 ## P3: Replay Ownership
 
 `BattleReplayManifest` validates replay schema, world identity, world type, effective tick rate, frame range, and sorted seek anchors before startup.
 
-`BattleReplaySessionOwner` receives testable runtime/session creation boundaries and owns a separate local `BattleLogicSession`, replay driver, fixed-step accumulator, and `IBattleLogicSessionRegistry`. Startup failure rolls back partially created resources. Backward seek recreates only the owner runtime and replays to the target. Disposal clears owner-visible state before releasing resources and continues convergence if an individual disposal action fails.
+`BattleReplaySessionOwner` receives testable runtime/session creation boundaries and owns a separate local `BattleLogicSession`, replay driver, fixed-step accumulator, and `IBattleLogicSessionRegistry`. Startup failure rolls back partially created resources. Backward seek uses the nearest runtime checkpoint when the optional capability is available and otherwise recreates only the owner runtime before replaying to the target. Checkpoint capture, restore, release, pump, or runtime-disposal failure follows the stop convergence path and is exposed through the owner's most recent terminal-failure diagnostic. A successfully established replacement session clears that diagnostic.
+
+Continuous playback is budgeted to at most eight simulation frames per Unity tick and buffers at most 30 frames of playback debt, preventing a large render delta from causing an unbounded main-thread loop. NaN and infinity deltas contribute no time, and non-finite playback speeds normalize to 1x. Synchronous explicit seek remains an immediate operation and should not be used as an unbounded per-frame workload by presentation code.
+
+`FrameReplayDriver` snapshots the input list during construction, removes null entries, orders records by frame, and preserves source order among records from the same frame. Binary seek therefore operates on a stable ordered data set, and later mutation of the deserialized source list cannot alter an active replay.
 
 The owner uses a non-publishing registry, so replay startup and shutdown cannot replace or clear the live battle debug facade. Loading replay through `BattleSessionFeature` does not mutate the live start plan, handles, registry, world resources, or shared `BattleContext`. A `Replay` start plan starts the isolated owner directly and does not start the live pipeline.
 
 The live replay subfeature is record-only: it may initialize a `FrameRecordWriter` in `Record` mode, but cannot assign a replay driver to live `BattleSessionHandles`. Replay drivers are owner-owned.
+
+## Teardown Failure Contract
+
+Concrete session teardown runs independent cleanup steps best-effort and preserves execution-order failure aggregation. Confirmed-view feature and context handles use commit-on-success ownership clearing: detach, entity-tree cleanup, lookup clearing, and pool return must complete before the owning handle is cleared. A failed context cleanup does not return the context to the pool while it is still owner-reachable. Session-owned input, snapshot, and view-event runtime handles propagate disposal failures and clear their references only after successful disposal, allowing the orchestrator to retry unfinished cleanup work.
 
 ## Presentation Boundary
 
@@ -44,10 +54,12 @@ The current replay owner is logic-only. `TryLoad(path, renderPresentation: true,
 
 ## Verification
 
-The runtime and runtime-test .NET projects build successfully with single-node MSBuild. Single-node execution is required in this workspace because a parallel build previously lost an MSBuild child node with `MSB4166`; source compilation itself reported no errors.
+The runtime and runtime-test .NET projects previously built successfully with single-node MSBuild. Single-node execution is required in this workspace because a parallel build previously lost an MSBuild child node with `MSB4166`; that earlier source compilation reported no errors.
 
 Focused .NET verification passed 13 of 13 P1 tests covering replication diagnostics/reset, reliable-event epoch behavior, retention gaps, monotonic acknowledgements, health hysteresis/reset, and replay manifest contracts. The deterministic checkpoint suite passed 4 of 4 P2 tests covering ordered capture/stable hash, equivalent restore, transactional rollback, and world-identity rejection.
 
-The combined Unity 2022.3.62f1 EditMode gate produced a non-empty 17,543-byte NUnit XML result and passed 20 of 20 tests with zero failures and zero skips. It covers `SessionOrchestratorLifecycleTests`, `BattleReplaySessionOwnerTests`, `FrameReplayDriverTests`, and `BattleLogicSessionRegistryIsolationTests`. The previously focused XML evidence also records 10 of 10 P0 lifecycle tests and 5 of 5 P3 owner tests.
+The earlier focused XML evidence records 10 of 10 P0 lifecycle tests and 5 of 5 P3 owner tests. Those results predate the optional replay-checkpoint and concrete world-disposal tests described below and are retained only as historical context.
 
-The .NET project intentionally does not compile the Unity session-feature graph, so Unity editor compilation and a non-empty NUnit XML remain required integration gates. The current focused lifecycle tests inject host-contract failures; end-to-end fault injection for concrete gateway/world teardown remains a residual boundary.
+The remaining-logic change adds owner contract tests for checkpoint selection, residual replay, bounded retention, branch invalidation, explicit release ordering, capture/pump/release/dispose failures, cleanup aggregation, playback budgets, non-finite timing, and diagnostic recovery. Driver tests cover non-finite speed, unordered/null source data, source-list mutation isolation, and stable same-frame command order. Concrete teardown tests prove best-effort execution, unchanged single-failure propagation, and deterministic multi-failure aggregation. End-to-end injection through sealed gateway/world implementations remains outside this test boundary.
+
+The current exclusive Unity 2022.3.62f1 EditMode gate produced `Unity/artifacts/moba-session-replay-p0-p3-integration-results.xml`, a non-empty 17,543-byte NUnit result. Its root result is `Passed`, with 20 total tests, 20 passed, zero failed, and zero skipped. The gate covers `SessionOrchestratorLifecycleTests`, `BattleReplaySessionOwnerTests`, `FrameReplayDriverTests`, and `BattleLogicSessionRegistryIsolationTests`, including the newly added checkpoint, deterministic-input, diagnostic-recovery, and teardown failure-contract cases. The repository Unity batch process exited after writing the result; the only subsequently observed Unity editor process belonged to a different project and was not modified by this verification.

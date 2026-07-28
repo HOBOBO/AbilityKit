@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
+using MemoryPack;
 using Xunit;
 
 namespace AbilityKit.Demo.Shooter.Runtime.Tests.Protocol;
@@ -38,6 +39,85 @@ public sealed class ShooterPureStateSyncCodecTests
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
         Assert.True(allocated < 256, $"Expected allocation-free steady state, actual={allocated} bytes.");
+    }
+
+    [Fact]
+    public void CapacityBackedSnapshotSerializesOnlyEffectivePrefixesInV1Layout()
+    {
+        var exact = CreateSnapshot();
+        var entities = new ShooterPureStateEntityDelta[8];
+        var hints = new ShooterPureStateVisibilityHint[8];
+        entities[0] = exact.Entities[0];
+        hints[0] = exact.VisibilityHints[0];
+        var capacityBacked = new ShooterPureStateSnapshotPayload(
+            exact.Version,
+            exact.WorldId,
+            exact.Frame,
+            exact.ServerTick,
+            exact.SnapshotKind,
+            exact.BaselineFrame,
+            exact.BaselineHash,
+            exact.StateHash,
+            exact.Settings,
+            entities,
+            hints);
+        capacityBacked.SetTransientCounts(1, 1);
+
+        var expected = MemoryPackSerializer.Serialize(exact);
+        var actual = ShooterPureStateSyncCodec.Serialize(in capacityBacked);
+        var restored = ShooterPureStateSyncCodec.Deserialize(actual);
+
+        Assert.Equal(expected, actual);
+        Assert.Single(restored.Entities);
+        Assert.Single(restored.VisibilityHints);
+        Assert.Equal(exact.Entities[0], restored.Entities[0]);
+    }
+
+    [Fact]
+    public void SegmentSerializationReusesCapacityBufferAcrossPayloadLengths()
+    {
+        var snapshot = CreateSnapshot();
+        var buffer = new ReusableMemoryPackSerializationBuffer();
+        var first = ShooterPureStateSyncCodec.SerializeTransientSegment(in snapshot, buffer);
+        snapshot.SetTransientCounts(0, 0);
+        var second = ShooterPureStateSyncCodec.SerializeTransientSegment(in snapshot, buffer);
+
+        Assert.Same(first.Array, second.Array);
+        Assert.True(first.Count > second.Count);
+        Assert.Equal(buffer.WrittenCount, second.Count);
+        var restored = ShooterPureStateSyncCodec.Deserialize(second.ToArray());
+        Assert.Empty(restored.Entities);
+        Assert.Empty(restored.VisibilityHints);
+    }
+
+    [Fact]
+    public void WireSegmentSerializationMatchesOwnedPayloadLayout()
+    {
+        var payloadCapacity = new byte[64];
+        payloadCapacity[0] = 1;
+        payloadCapacity[1] = 2;
+        payloadCapacity[2] = 3;
+        var wire = new WireStateSyncSnapshotPush
+        {
+            WorldId = 9,
+            Frame = 10,
+            Timestamp = 1.25,
+            IsFullSnapshot = false,
+            PayloadOpCode = 77,
+            Payload = new byte[] { 1, 2, 3 },
+            ServerTicks = 11
+        };
+        var expected = WireRoomGatewayBinary.Serialize(in wire);
+        var buffer = new ReusableMemoryPackSerializationBuffer();
+
+        var actual = WireRoomGatewayBinary.SerializeTransient(
+            in wire,
+            new ArraySegment<byte>(payloadCapacity, 0, 3),
+            buffer);
+        var restored = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(actual);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(new byte[] { 1, 2, 3 }, restored.Payload);
     }
 
     [Fact]

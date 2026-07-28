@@ -307,6 +307,32 @@ public sealed class ShooterSnapshotViewProjectionTests
     }
 
     [Fact]
+    public void PureStateVisibilityChangeRemovesHiddenEntityFromProjection()
+    {
+        var projection = new ShooterSnapshotViewProjection();
+        var mapper = new ShooterSnapshotViewModelMapper();
+        var key = new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, 2001);
+        var visible = CreatePureStateVisibilitySnapshot(
+            frame: 1,
+            deltaKind: ShooterPureStateDeltaKinds.Spawn,
+            flags: ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible);
+        var hidden = CreatePureStateVisibilitySnapshot(
+            frame: 2,
+            deltaKind: ShooterPureStateDeltaKinds.VisibilityChange,
+            flags: ShooterPureStateEntityFlags.Alive);
+
+        var visibleBatch = mapper.Map(in visible);
+        projection.Apply(in visibleBatch);
+        var hiddenBatch = mapper.Map(in hidden);
+        var result = projection.Apply(in hiddenBatch);
+
+        Assert.True(visibleBatch.EntityChanges[0].Alive);
+        Assert.False(hiddenBatch.EntityChanges[0].Alive);
+        Assert.Equal(1, result.DeadEntityRemovals);
+        Assert.False(projection.Store.ContainsEntity(key));
+    }
+
+    [Fact]
     public void DeltaSnapshotUpdatesComponentsWithoutRemovingMissingEntities()
     {
         var projection = new ShooterSnapshotViewProjection();
@@ -549,6 +575,70 @@ public sealed class ShooterSnapshotViewProjectionTests
         Assert.False(projection.Store.ContainsEntity(playerTwo));
         Assert.False(projection.Store.Transforms.ContainsKey(playerTwo));
         Assert.Equal(1, projection.Store.PlayerCount);
+    }
+
+    [Fact]
+    public void EmptyAuthoritativeFullSnapshotClearsLargeProjection()
+    {
+        const int entityCount = 2048;
+        var projection = new ShooterSnapshotViewProjection();
+        var entities = new ShooterViewEntityChange[entityCount];
+        var transforms = new ShooterViewTransformComponentChange[entityCount];
+        for (var i = 0; i < entityCount; i++)
+        {
+            var key = new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, i + 1);
+            entities[i] = new ShooterViewEntityChange(key, 0, alive: true);
+            transforms[i] = new ShooterViewTransformComponentChange(key, i, 0f, 1f, 0f, 0f, 0f);
+        }
+
+        var full = new ShooterSnapshotViewBatch(
+            77ul,
+            1,
+            1ul,
+            ShooterViewSnapshotKind.Full,
+            ShooterViewBatchSource.AuthoritativeCorrection,
+            entities,
+            Array.Empty<ShooterViewEntityKey>(),
+            transforms,
+            Array.Empty<ShooterViewHealthComponentChange>(),
+            Array.Empty<ShooterViewScoreComponentChange>(),
+            Array.Empty<ShooterViewProjectileLifetimeComponentChange>(),
+            Array.Empty<ShooterEventSnapshot>());
+        var empty = new ShooterSnapshotViewBatch(
+            77ul,
+            2,
+            2ul,
+            ShooterViewSnapshotKind.Full,
+            ShooterViewBatchSource.AuthoritativeCorrection,
+            Array.Empty<ShooterViewEntityChange>(),
+            Array.Empty<ShooterViewEntityKey>(),
+            Array.Empty<ShooterViewTransformComponentChange>(),
+            Array.Empty<ShooterViewHealthComponentChange>(),
+            Array.Empty<ShooterViewScoreComponentChange>(),
+            Array.Empty<ShooterViewProjectileLifetimeComponentChange>(),
+            Array.Empty<ShooterEventSnapshot>());
+
+        projection.Apply(in full);
+        var result = projection.Apply(in empty);
+
+        Assert.Equal(entityCount, result.MissingEntityRemovals);
+        Assert.Equal(0, result.FinalEntityCount);
+        Assert.Empty(projection.Store.Entities);
+        Assert.Empty(projection.Store.Transforms);
+    }
+
+    [Fact]
+    public void ClearBatchRemovesAllProjectedEntities()
+    {
+        var projection = new ShooterSnapshotViewProjection();
+        var full = CreateBatch(frame: 1, sequence: 1ul);
+
+        projection.Apply(in full);
+        var result = projection.Apply(ShooterSnapshotViewBatch.Empty);
+
+        Assert.True(ShooterSnapshotViewBatch.Empty.ShouldReplaceMissingEntities);
+        Assert.Equal(1, result.MissingEntityRemovals);
+        Assert.Equal(0, projection.Store.EntityCount);
     }
 
     [Fact]
@@ -1012,6 +1102,8 @@ public sealed class ShooterSnapshotViewProjectionTests
 
         var checksum = 0f;
         var allSamplesValid = true;
+        var sampleFramesAdvance = true;
+        var lastSampleFrame = float.MinValue;
         var before = GC.GetAllocatedBytesForCurrentThread();
         for (var i = 0; i < 64; i++)
         {
@@ -1021,13 +1113,59 @@ public sealed class ShooterSnapshotViewProjectionTests
                 continue;
             }
 
+            sampleFramesAdvance &= sampled.SampleFrame > lastSampleFrame;
+            lastSampleFrame = sampled.SampleFrame;
             checksum += sampled.TransformChanges[0].X;
         }
 
         var allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - before;
         Assert.True(allSamplesValid);
+        Assert.True(sampleFramesAdvance);
         Assert.True(checksum > 0f);
         Assert.True(allocatedBytes < 1_024L, $"Transient interpolation allocated {allocatedBytes} bytes after warmup.");
+    }
+
+    [Fact]
+    public void LargeStateMappingKeepsSteadyStateAllocationBoundedAfterWarmup()
+    {
+        const int entityCount = 2048;
+        var enemies = new ShooterEnemySnapshot[entityCount];
+        for (var i = 0; i < enemies.Length; i++)
+        {
+            enemies[i] = new ShooterEnemySnapshot(i + 1, i, 0f, 1f, 0f, 10, 10, alive: true);
+        }
+
+        var snapshot = new ShooterStateSnapshotPayload(
+            1,
+            Array.Empty<ShooterPlayerSnapshot>(),
+            Array.Empty<ShooterBulletSnapshot>(),
+            Array.Empty<ShooterEventSnapshot>(),
+            0,
+            0,
+            0,
+            enemies);
+        var mapper = new ShooterSnapshotViewModelMapper();
+        var warmup = mapper.Map(in snapshot);
+        warmup.ReleasePooledResources();
+
+        var countsAreValid = true;
+        long mapAllocated = 0;
+        long releaseAllocated = 0;
+        for (var i = 0; i < 32; i++)
+        {
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            var batch = mapper.Map(in snapshot);
+            mapAllocated += GC.GetAllocatedBytesForCurrentThread() - before;
+            countsAreValid &= batch.EntityChangeCount == entityCount;
+            countsAreValid &= batch.TransformChanges.Count == entityCount;
+            before = GC.GetAllocatedBytesForCurrentThread();
+            batch.ReleasePooledResources();
+            releaseAllocated += GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+
+        var allocated = mapAllocated + releaseAllocated;
+        Assert.True(countsAreValid);
+        Assert.True(allocated < 256_000L, $"Large mapping allocated {allocated} bytes after warmup (map={mapAllocated}, release={releaseAllocated}).");
     }
 
     [Fact]
@@ -1161,6 +1299,38 @@ public sealed class ShooterSnapshotViewProjectionTests
             Array.Empty<ShooterViewScoreComponentChange>(),
             Array.Empty<ShooterViewProjectileLifetimeComponentChange>(),
             Array.Empty<ShooterEventSnapshot>());
+    }
+
+    private static ShooterPureStateSnapshotPayload CreatePureStateVisibilitySnapshot(int frame, int deltaKind, byte flags)
+    {
+        return new ShooterPureStateSnapshotPayload(
+            ShooterPureStateSyncCodec.CurrentVersion,
+            77ul,
+            frame,
+            frame,
+            frame == 1 ? ShooterPureStateSnapshotKinds.FullBaseline : ShooterPureStateSnapshotKinds.Delta,
+            1,
+            0u,
+            0u,
+            ShooterPureStateSyncSettings.Default,
+            new[]
+            {
+                new ShooterPureStateEntityDelta(
+                    2001,
+                    ShooterPackedEntityKinds.Enemy,
+                    ShooterPureStateEntityLayers.Combat,
+                    deltaKind,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    10,
+                    0,
+                    0,
+                    flags)
+            },
+            Array.Empty<ShooterPureStateVisibilityHint>());
     }
 
     private sealed class RecordingSnapshotViewSink : IShooterSnapshotViewSink

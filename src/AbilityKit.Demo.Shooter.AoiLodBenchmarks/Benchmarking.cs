@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -423,7 +424,7 @@ public static class ShooterAoiLodBenchmarkRunner
                     _options.BoundaryRadius,
                     _options.EntityBudget);
                 ShooterPureStateSnapshotPayload payload;
-                byte[] bytes;
+                ArraySegment<byte> bytes;
                 if (measure)
                 {
                     var allocationStart = GC.GetAllocatedBytesForCurrentThread();
@@ -440,14 +441,14 @@ public static class ShooterAoiLodBenchmarkRunner
 
                     allocationStart = GC.GetAllocatedBytesForCurrentThread();
                     timestamp = Stopwatch.GetTimestamp();
-                    bytes = ShooterPureStateSyncCodec.SerializeTransient(in payload, _serializationBuffer);
+                    bytes = ShooterPureStateSyncCodec.SerializeTransientSegment(in payload, _serializationBuffer);
                     measurement.SerializationTimestampTicks += Stopwatch.GetTimestamp() - timestamp;
                     measurement.SerializationAllocatedBytes += GC.GetAllocatedBytesForCurrentThread() - allocationStart;
-                    measurement.PayloadBytes += bytes.Length;
+                    measurement.PayloadBytes += bytes.Count;
 
                     allocationStart = GC.GetAllocatedBytesForCurrentThread();
                     timestamp = Stopwatch.GetTimestamp();
-                    Observe(observerIndex, scope, payload, bytes.Length);
+                    Observe(observerIndex, scope, payload, bytes.Count);
                     measurement.ObservationTimestampTicks += Stopwatch.GetTimestamp() - timestamp;
                     measurement.ObservationAllocatedBytes += GC.GetAllocatedBytesForCurrentThread() - allocationStart;
                 }
@@ -460,8 +461,8 @@ public static class ShooterAoiLodBenchmarkRunner
                         interestScope: scope,
                         aoiInterestSet: _interestSets[observerIndex],
                         computeStateHash: false);
-                    bytes = ShooterPureStateSyncCodec.SerializeTransient(in payload, _serializationBuffer);
-                    measurement.PayloadBytes += bytes.Length;
+                    bytes = ShooterPureStateSyncCodec.SerializeTransientSegment(in payload, _serializationBuffer);
+                    measurement.PayloadBytes += bytes.Count;
                 }
             }
             return measurement;
@@ -503,8 +504,10 @@ public static class ShooterAoiLodBenchmarkRunner
             _geometricScratch[observerIndex] = previous;
 
             var sent = _lastSentTick[observerIndex];
-            foreach (var entity in payload.Entities)
+            var entityCount = payload.EffectiveEntityCount;
+            for (var i = 0; i < entityCount; i++)
             {
+                var entity = payload.Entities[i];
                 var key = new AoiEntityKey(entity.EntityKind, entity.EntityId);
                 if (entity.DeltaKind != ShooterPureStateDeltaKinds.Despawn)
                     sent[key] = _measurementTick;

@@ -112,8 +112,58 @@ namespace UnityHFSM.Extension
             }
         }
 
+        public CompositeActionStateSnapshot CaptureRuntimeSnapshot()
+        {
+            if (!(_root is IRollbackActionBehaviour rollbackRoot))
+            {
+                throw new System.InvalidOperationException(
+                    $"Root action '{_root?.GetType().FullName ?? "null"}' does not support rollback.");
+            }
+
+            return new CompositeActionStateSnapshot(
+                _exitRequested,
+                _completed,
+                _lastStatus,
+                rollbackRoot.CaptureSnapshot());
+        }
+
+        public void RestoreRuntimeSnapshot(CompositeActionStateSnapshot snapshot)
+        {
+            if (snapshot == null) throw new System.ArgumentNullException(nameof(snapshot));
+            if (!(_root is IRollbackActionBehaviour rollbackRoot))
+            {
+                throw new System.InvalidOperationException(
+                    $"Root action '{_root?.GetType().FullName ?? "null"}' does not support rollback.");
+            }
+
+            rollbackRoot.RestoreSnapshot(snapshot.Root);
+            _exitRequested = snapshot.ExitRequested;
+            _completed = snapshot.Completed;
+            _lastStatus = snapshot.LastStatus;
+        }
+
         public bool IsCompleted => _completed;
         public ActionBehaviourStatus LastStatus => _lastStatus;
+    }
+
+    public sealed class CompositeActionStateSnapshot
+    {
+        public CompositeActionStateSnapshot(
+            bool exitRequested,
+            bool completed,
+            ActionBehaviourStatus lastStatus,
+            ActionBehaviourSnapshot root)
+        {
+            ExitRequested = exitRequested;
+            Completed = completed;
+            LastStatus = lastStatus;
+            Root = root ?? throw new System.ArgumentNullException(nameof(root));
+        }
+
+        public bool ExitRequested { get; }
+        public bool Completed { get; }
+        public ActionBehaviourStatus LastStatus { get; }
+        public ActionBehaviourSnapshot Root { get; }
     }
 
     public sealed class CompositeActionState<TStateId> : CompositeActionState<TStateId, string>

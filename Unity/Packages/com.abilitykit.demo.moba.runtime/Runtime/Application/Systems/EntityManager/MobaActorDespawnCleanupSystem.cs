@@ -152,6 +152,11 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         {
             try
             {
+                if (entity.hasActorStateMachine)
+                {
+                    entity.RemoveActorStateMachine();
+                }
+
                 entity.Destroy();
             }
             catch (System.Exception ex)

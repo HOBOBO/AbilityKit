@@ -16,17 +16,66 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     {
         public override void OnInspectorGUI()
         {
-            if (GUILayout.Button("Export Config Json"))
-            {
-                var assetPath = AssetDatabase.GetAssetPath(target);
-                var folder = AssetDatabase.IsValidFolder(assetPath)
-                    ? assetPath
-                    : Path.GetDirectoryName(assetPath)?.Replace('\\', '/');
+            MobaConfigInspectorGui.DrawExportButton(target);
 
-                MobaConfigJsonExporter.ExportFromFolder(folder);
+            DrawInspectorBody();
+        }
+    }
+
+    [CustomEditor(typeof(SkillFlowSO))]
+    public sealed class SkillFlowSOEditor : EditorBase
+    {
+        public override void OnInspectorGUI()
+        {
+            MobaConfigInspectorGui.DrawExportButton(target);
+
+            var selection = SkillFlowInspectorSelectionState.Current;
+            if (selection.IsValid && ReferenceEquals(selection.Asset, target))
+            {
+                ExpandSelection(selection.SerializedPropertyPath);
+                var previous = GUI.backgroundColor;
+                GUI.backgroundColor = new Color(0.35f, 0.75f, 1f, 1f);
+                EditorGUILayout.HelpBox(
+                    string.IsNullOrEmpty(selection.PhaseId)
+                        ? $"Trace selected: SkillFlow #{selection.FlowId}"
+                        : $"Trace selected: SkillFlow #{selection.FlowId} / {selection.PhaseId}",
+                    MessageType.Info);
+                GUI.backgroundColor = previous;
             }
 
             DrawInspectorBody();
+        }
+
+        private void ExpandSelection(string selectedPath)
+        {
+            if (string.IsNullOrEmpty(selectedPath)) return;
+
+            serializedObject.UpdateIfRequiredOrScript();
+            var property = serializedObject.GetIterator();
+            var enterChildren = true;
+            while (property.NextVisible(enterChildren))
+            {
+                enterChildren = true;
+                if (selectedPath.StartsWith(property.propertyPath, StringComparison.Ordinal))
+                {
+                    property.isExpanded = true;
+                }
+            }
+            serializedObject.ApplyModifiedProperties();
+        }
+    }
+
+    internal static class MobaConfigInspectorGui
+    {
+        public static void DrawExportButton(UnityEngine.Object target)
+        {
+            if (!GUILayout.Button("Export Config Json")) return;
+
+            var assetPath = AssetDatabase.GetAssetPath(target);
+            var folder = AssetDatabase.IsValidFolder(assetPath)
+                ? assetPath
+                : Path.GetDirectoryName(assetPath)?.Replace('\\', '/');
+            MobaConfigJsonExporter.ExportFromFolder(folder);
         }
     }
 

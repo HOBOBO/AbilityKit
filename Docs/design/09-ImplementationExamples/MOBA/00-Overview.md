@@ -128,7 +128,22 @@ sequenceDiagram
 15. [17-主动、被动、Buff、Projectile 与 AOE 触发效果设计](17-ActivePassiveBuffProjectileAoeTriggerEffects.md)：主动技能、被动 owner-bound、Buff、Projectile stage 与 AOE stage 如何进入 TriggerPlan 并落到领域服务。
 16. [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md)：逻辑结果如何同步到客户端表现。
 
-## 5. 关键源码入口
+## 5. 当前完整战局完成度
+
+MOBA 示例已具备正式的单局逻辑闭环。`MobaUnitLifecycleService` 负责执行已经由玩法规则批准的复活状态转换，包括死亡状态校验、生命恢复、可选复活位置、死亡去重状态重置、`unit.respawn` 发布，以及恢复结果快照同步。复活倒计时、出生点选择和复活次数仍由上层 gameplay rule 决定，避免把局内规则固化进通用生命周期服务。
+
+完整战局采用两层验收，而不再只依赖 `FullBattleScenario` 输入脚本：
+
+| 层级 | 验收入口 | 覆盖范围 |
+|------|----------|----------|
+| Console World 生命周期 smoke | `MobaCompleteBattleLifecycleSmokeTests` | 正式 World DI 装配、死亡、复活、再次死亡、再次复活、终局 |
+| Unity 完整战局 acceptance | `MobaCompleteBattleJourneyAcceptanceTests` | 进场、移动、技能、Effect trace、Projectile、Buff、伤害、死亡、异地半血复活、再次战斗、再次死亡与终局 |
+
+这两层共同证明逻辑生命周期和技能表现事件链可以协作，但不等于多人网络复活表现已经完成。下一阶段仍需补齐自动复活规则、倒计时、出生点配置、独立的死亡/复活网络表现事件，以及 `BattleActorDeathViewEventHandler`、`BattleActorRespawnViewEventHandler` 到正式 runtime/network event sink 的接线。
+
+对应 P1 门禁为 `moba-complete-battle-journey`。
+
+## 6. 关键源码入口
 
 | 主题 | 源码 |
 |------|------|
@@ -147,6 +162,7 @@ sequenceDiagram
 | Buff 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffService.cs` |
 | Projectile 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileService.cs` |
 | Damage 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/MobaDamageService.cs` |
+| Unit 生命周期 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Unit/MobaUnitLifecycleService.cs` |
 | Trace Registry | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceRegistry.cs` |
 | Effect Lineage | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaEffectLineageInput.cs` |
 | Combat Context | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs` |
@@ -170,6 +186,8 @@ sequenceDiagram
 | Summon Source Context | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/SummonSourceContext.cs` |
 | Gameplay Trigger Binding | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Gameplay/Triggering/MobaGameplayTriggerBindingService.cs` |
 | MOBA Tests | `src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj`、`src/AbilityKit.Demo.Moba.Tests/Smoke/ConsoleMobaSmokeFlowTests.cs` |
+| 完整战局 Console Smoke | `src/AbilityKit.Demo.Moba.Tests/Smoke/MobaCompleteBattleLifecycleSmokeTests.cs` |
+| 完整战局 Unity Acceptance | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/MobaCompleteBattleJourneyAcceptanceTests.cs` |
 | MOBA Smoke Artifact | `src/AbilityKit.Demo.Moba.Tests/Smoke/ConsoleSmokeTraceArtifactExporter.cs` |
 | 会话门面 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Core/BattleSessionFeature.cs` |
 | Gateway 房间协议 | `Unity/Packages/com.abilitykit.protocol.moba/Runtime/Room/WireRoomGatewayTypes.cs` |

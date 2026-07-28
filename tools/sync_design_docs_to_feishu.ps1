@@ -1191,7 +1191,7 @@ foreach ($entry in $entries) {
     $planLines.Add("| $($entry.order) | $action | $feishuTitle | $folderDisplay | $($entry.source) | $($entry.markdown) | $remoteToken | $remoteUrl |")
 }
 
-if ($null -ne $previousState -and $null -ne $previousState.documents) {
+if ([string]::IsNullOrWhiteSpace($Source) -and $null -ne $previousState -and $null -ne $previousState.documents) {
     foreach ($property in $previousState.documents.PSObject.Properties) {
         if ($null -eq ($entries | Where-Object { $_.source -eq $property.Name } | Select-Object -First 1)) {
             $deletedFolderPath = if ($null -ne $property.Value.PSObject.Properties["targetFolderPath"] -and -not [string]::IsNullOrWhiteSpace([string]$property.Value.targetFolderPath)) { "/$($property.Value.targetFolderPath)" } else { "/" }

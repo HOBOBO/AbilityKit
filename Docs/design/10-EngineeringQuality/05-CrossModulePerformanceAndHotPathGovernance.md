@@ -1,6 +1,6 @@
 # 10.5 跨模块性能与热路径治理
 
-> 本文定义 AbilityKit 跨模块热路径的识别、测量、基线、预算、回归判断和门禁晋升规则。当前仓库已经存在 Shooter 场景耗时与线程分配采样，也存在 P0/P1/P2 功能门禁，但尚未建立覆盖全框架的统一性能预算或通用性能阻断门禁。本文既记录现状，也规定后续把场景 benchmark 晋升为公司级治理能力所需的证据。
+> 本文定义 AbilityKit 跨模块热路径的识别、测量、基线、预算、回归判断和门禁晋升规则。当前仓库已经存在 Shooter 场景 benchmark，以及 Pipeline/Triggering 共用的运行时测量、JSON artifact 和 P2 informational gate，但尚未建立覆盖全框架的统一性能预算或通用性能阻断门禁。本文既记录现状，也规定后续把场景 benchmark 晋升为公司级治理能力所需的证据。
 
 ---
 
@@ -39,9 +39,31 @@
 |------|----------|--------------|
 | P0 | 开发阻断 | 适合快速功能和基础契约，不代表统一性能预算 |
 | P1 | 契约阻断 | 可承载稳定、低噪声的关键性能契约，但当前未配置通用性能 gate |
-| P2 | 回归基线 | 适合场景、Smoke 和发布前回归，可先接入 informational benchmark |
+| P2 | 回归基线 | 已接入 `runtime-performance-measurement` informational benchmark；当前只阻断契约、执行和 artifact 失败，不按性能数值阻断 |
 
-因此当前准确表述是：“仓库已有场景性能采样和分层功能门禁，但没有框架级通用性能预算门禁。”
+因此当前准确表述是：“仓库已有可复用测量基础设施、Pipeline/Triggering 场景基线和分层门禁，但没有框架级通用性能预算门禁。”
+
+### 2.3 Pipeline 与 Triggering 首批基线
+
+通用测量契约位于 `src/AbilityKit.Benchmarking`，场景入口位于 `src/AbilityKit.Runtime.Benchmarks`，契约与场景正确性测试位于 `src/AbilityKit.Runtime.Benchmarks.Tests`。artifact schema 为 `abilitykit.runtime-benchmark.v1`，统一记录环境、配置、workload、原始样本、mean/median/P95/P99/max、当前线程托管分配、吞吐和确定性摘要。初始化、iteration setup、验证、清理和 JSON 序列化均在测量区间外。
+
+首批稳定 ID：
+
+- `pipeline.synchronous.phases-{4|32|64}`：Run 创建、阶段实例隔离、同步完成和清理的端到端成本，以 phase 归一化。
+- `pipeline.active-runs.count-{1000|5000}`：跨帧活跃 Run 的 Tick 成本，以 run-tick 归一化。
+- `triggering.dispatch.immediate.control-implicit.fanout-{1|64|256}`：即时派发并由 Runner 创建 control。
+- `triggering.dispatch.immediate.control-reused.fanout-{64|256}`：即时派发并复用调用方 control。
+- `triggering.dispatch.queued.control-implicit.fanout-{64|256}`：队列批量派发后统一 Flush。
+
+运行入口：
+
+```powershell
+tools/run_runtime_benchmarks.ps1 -Profile smoke
+tools/run_runtime_benchmarks.ps1 -Profile full -Module pipeline
+tools/run_test_gate.ps1 -Gate runtime-performance-measurement -Configuration Release
+```
+
+2026-07-27 的首轮本地 Release 测量只用于验证口径，不是批准预算。结果显示 1,000/5,000 active Pipeline runs 的 Tick 路径保持零当前线程托管分配且单位成本同阶；Triggering 默认空 Cue 路径移除无效上下文构造后，复用 control 的 64/256 fanout 均保持零当前线程托管分配，隐式 control 表现为每事件固定分配并随 fanout 摊薄。同步 Pipeline Start 仍包含 Run 和独立 phase 实例的生命周期分配，需要在后续历史趋势中继续观察，不能与纯 Tick 成本混为一项预算。
 
 ---
 
@@ -324,10 +346,10 @@ Artifact schema 变化属于行为契约变化。历史基线无法读取时，�
 
 ## 12. 当前落地顺序
 
-1. 保留 Shooter benchmark 为明确标注环境的场景基线样板。
-2. 为 Targeting、Pipeline、EventDispatcher、Snapshot/Record 各选择一个稳定 workload。
-3. 统一 artifact 最小字段和结果状态。
-4. 在 nightly 或 P2 中先接入 informational 比较。
+1. 已保留 Shooter benchmark 为明确标注环境的场景基线样板。
+2. 已落地 Pipeline/Triggering 稳定 workload；继续补齐 Targeting、EventDispatcher、Snapshot/Record。
+3. 已建立 `abilitykit.runtime-benchmark.v1` 最小 artifact 和结果状态；新增模块应复用该契约。
+4. 已在 nightly/manual P2 中接入 `runtime-performance-measurement` informational 测量。
 5. 收集至少一个稳定周期的噪声、趋势和失败数据。
 6. 由 owner 与采用项目批准预算。
 7. 先晋升低噪声 P2 阻断，再评估少量 P1 性能契约。
@@ -346,14 +368,18 @@ Artifact schema 变化属于行为契约变化。历史基线无法读取时，�
 - [查询与遍历源码深潜](../06-ECSArchitecture/03-QueryAndIteration.md)
 - [Shooter Svelto 性能模式深潜](../09-ImplementationExamples/Shooter/09-SveltoPerformanceModeDeepDive.md)
 - `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Gameplay/Scenario/ShooterSveltoGameplayBenchmark.cs`
+- `src/AbilityKit.Benchmarking`
+- `src/AbilityKit.Runtime.Benchmarks`
+- `src/AbilityKit.Runtime.Benchmarks.Tests`
+- `tools/run_runtime_benchmarks.ps1`
 - `tools/test-gates.json`
 
 ---
 
 ## 14. 治理结论
 
-性能治理不是给每个模块贴上“高性能”标签，而是把工作负载、测量口径、基线、预算和阻断策略逐层建立。AbilityKit 当前已有场景采样和功能门禁基础，但框架级性能治理仍需统一 artifact、稳定 workload、预算审批和 CI 观察期。任何性能声明都必须限定场景和证据；任何优化都不能以破坏生命周期、稳定顺序、确定性、恢复能力或可观测性为代价。
+性能治理不是给每个模块贴上“高性能”标签，而是把工作负载、测量口径、基线、预算和阻断策略逐层建立。AbilityKit 当前已有统一测量 artifact、Pipeline/Triggering 首批 workload 和 informational CI 基础，但框架级性能治理仍需扩展模块覆盖、积累稳定历史并完成预算审批。任何性能声明都必须限定场景和证据；任何优化都不能以破坏生命周期、稳定顺序、确定性、恢复能力或可观测性为代价。
 
 ---
 
-*文档版本：v1.0 | 最后更新：2026-07-14*
+*文档版本：v1.1 | 最后更新：2026-07-27*

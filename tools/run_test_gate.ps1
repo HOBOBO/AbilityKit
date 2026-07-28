@@ -288,17 +288,40 @@ function Invoke-PowerShellScriptStep {
     Write-Host ("=== {0} ===" -f $DisplayName) -ForegroundColor Cyan
     Write-Host $commandText -ForegroundColor DarkGray
 
-    $process = Start-Process -FilePath 'powershell.exe' -ArgumentList $arguments -RedirectStandardOutput $logFile -RedirectStandardError $errorLogFile -PassThru
+    $nativeArguments = ($arguments | ForEach-Object {
+        $value = [string]$_
+        if ($value -match '[\s"]') { '"{0}"' -f $value.Replace('"', '\"') } else { $value }
+    }) -join ' '
+    $processStartInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $processStartInfo.FileName = 'powershell.exe'
+    $processStartInfo.Arguments = $nativeArguments
+    $processStartInfo.UseShellExecute = $false
+    $processStartInfo.CreateNoWindow = $true
+    $processStartInfo.RedirectStandardOutput = $true
+    $processStartInfo.RedirectStandardError = $true
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $processStartInfo
+    $null = $process.Start()
+    $standardOutputStream = [System.IO.File]::Create($logFile)
+    $standardErrorStream = [System.IO.File]::Create($errorLogFile)
+    $standardOutputTask = $process.StandardOutput.BaseStream.CopyToAsync($standardOutputStream)
+    $standardErrorTask = $process.StandardError.BaseStream.CopyToAsync($standardErrorStream)
     $timedOut = $timeoutSeconds -gt 0 -and -not $process.WaitForExit($timeoutSeconds * 1000)
     if ($timedOut) {
-        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        try { $process.Kill() } catch { }
         $process.WaitForExit()
         $exitCode = 124
     }
     else {
         $process.WaitForExit()
-        $exitCode = $process.ExitCode
+        $exitCode = [int]$process.ExitCode
     }
+    $standardOutputAwaiter = $standardOutputTask.GetAwaiter()
+    $standardErrorAwaiter = $standardErrorTask.GetAwaiter()
+    $null = $standardOutputAwaiter.GetResult()
+    $null = $standardErrorAwaiter.GetResult()
+    $standardOutputStream.Dispose()
+    $standardErrorStream.Dispose()
     if (Test-Path -LiteralPath $logFile) { Get-Content -LiteralPath $logFile | ForEach-Object { Write-Host $_ } }
     if (Test-Path -LiteralPath $errorLogFile) { Get-Content -LiteralPath $errorLogFile | ForEach-Object { Write-Host $_ -ForegroundColor Red } }
     $endedAt = Get-Date

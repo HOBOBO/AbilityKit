@@ -28,6 +28,12 @@ namespace AbilityKit.Game.Flow
                 registry.Register(new MobaActorHpRollbackProvider(actorRegistry));
                 registry.Register(new MobaBuffTimerRollbackProvider(actorRegistry));
                 registry.Register(new MobaSkillCooldownRollbackProvider(actorRegistry));
+                if (world.Services.TryResolve<AbilityKit.Demo.Moba.Services.StateMachine.MobaActorStateMachineFactory>(
+                        out var stateMachineFactory)
+                    && stateMachineFactory != null)
+                {
+                    registry.Register(new MobaActorStateMachineRollbackProvider(actorRegistry, stateMachineFactory));
+                }
             }
 
             if (world.Services.TryResolve<PassiveSkillTriggerEventRollbackLog>(out var passiveLog) && passiveLog != null)

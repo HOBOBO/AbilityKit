@@ -9,7 +9,7 @@ namespace AbilityKit.Demo.Shooter.Runtime.Tests;
 public sealed class ShooterPureStateSnapshotRuntimeTests
 {
     [Fact]
-    public void PureStateTransientSnapshotReusesExactLengthBuffers()
+    public void PureStateTransientSnapshotReusesCapacityBuffers()
     {
         var runtime = CreateTransientRuntime();
 
@@ -18,8 +18,8 @@ public sealed class ShooterPureStateSnapshotRuntimeTests
 
         Assert.Same(first.Entities, second.Entities);
         Assert.Same(first.VisibilityHints, second.VisibilityHints);
-        Assert.Equal(first.Entities.Length, second.Entities.Length);
-        Assert.Equal(first.VisibilityHints.Length, second.VisibilityHints.Length);
+        Assert.Equal(first.EffectiveEntityCount, second.EffectiveEntityCount);
+        Assert.Equal(first.EffectiveVisibilityHintCount, second.EffectiveVisibilityHintCount);
     }
 
     [Fact]
@@ -32,8 +32,8 @@ public sealed class ShooterPureStateSnapshotRuntimeTests
 
         Assert.NotSame(transient.Entities, owned.Entities);
         Assert.NotSame(transient.VisibilityHints, owned.VisibilityHints);
-        Assert.Equal(transient.Entities, owned.Entities);
-        Assert.Equal(transient.VisibilityHints, owned.VisibilityHints);
+        Assert.Equal(owned.Entities, transient.Entities.AsSpan(0, transient.EffectiveEntityCount).ToArray());
+        Assert.Equal(owned.VisibilityHints, transient.VisibilityHints.AsSpan(0, transient.EffectiveVisibilityHintCount).ToArray());
     }
 
     [Fact]
@@ -49,8 +49,8 @@ public sealed class ShooterPureStateSnapshotRuntimeTests
         Assert.Equal(77ul, decoded.WorldId);
         Assert.Equal(transient.Frame, decoded.Frame);
         Assert.Equal(transient.StateHash, decoded.StateHash);
-        Assert.Equal(transient.Entities, decoded.Entities);
-        Assert.Equal(transient.VisibilityHints, decoded.VisibilityHints);
+        Assert.Equal(transient.Entities.AsSpan(0, transient.EffectiveEntityCount).ToArray(), decoded.Entities);
+        Assert.Equal(transient.VisibilityHints.AsSpan(0, transient.EffectiveVisibilityHintCount).ToArray(), decoded.VisibilityHints);
     }
 
     [Fact]
@@ -242,9 +242,9 @@ public sealed class ShooterPureStateSnapshotRuntimeTests
 
             Assert.True(runtime.StartGame(in start));
             var commands = players
-                .Select(player => new ShooterPlayerCommand(player.PlayerId, 0f, 0f, 1f, 0f, true))
+                .Select(player => new ShooterPlayerCommand(player.PlayerId, 0f, 0f, 0f, 1f, true))
                 .ToArray();
-            runtime.SubmitInput(0, commands);
+            runtime.SubmitInput(runtime.CurrentFrame, commands);
             Assert.True(runtime.Tick(1f / 30f));
 
             var payload = runtime.ExportPureStateSnapshot(100ul + (ulong)profile.PlayerCount, isFullBaseline: false, settings: settings);

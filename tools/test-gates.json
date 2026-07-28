@@ -818,6 +818,48 @@
       ]
     },
     {
+      "name": "runtime-performance-measurement",
+      "level": "P2",
+      "owner": "Runtime Platform",
+      "description": "Informational Pipeline and Triggering performance measurement with reusable benchmark contracts and JSON artifacts.",
+      "scope": [
+        "runtime-performance",
+        "pipeline",
+        "triggering",
+        "benchmark-contracts"
+      ],
+      "requiredBefore": [
+        "approve-pipeline-or-triggering-performance-budget",
+        "large-runtime-hot-path-refactor"
+      ],
+      "failurePolicy": "Block when benchmark contracts, functional validation, execution, or artifact production fail. Metric values remain informational until a reviewed budget is approved.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Runtime benchmark contracts",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Runtime.Benchmarks.Tests/AbilityKit.Runtime.Benchmarks.Tests.csproj"
+        },
+        {
+          "name": "Pipeline and Triggering benchmark smoke",
+          "kind": "powershell-script",
+          "script": "tools/run_runtime_benchmarks.ps1",
+          "arguments": [
+            "-Profile",
+            "smoke",
+            "-OutputPath",
+            "{GateOutputDirectory}\\runtime-benchmarks.json"
+          ],
+          "timeoutSeconds": 300
+        }
+      ]
+    },
+    {
       "name": "shooter-performance",
       "level": "P1",
       "owner": "Shooter Multiplayer",
@@ -862,6 +904,44 @@
             "{GateOutputDirectory}\\performance\\full.json"
           ],
           "timeoutSeconds": 1800
+        }
+      ]
+    },
+    {
+      "name": "moba-complete-battle-journey",
+      "level": "P1",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "MOBA complete battle journey: formal World lifecycle plus Unity skill, projectile, buff, damage, death, respawn and settlement acceptance.",
+      "scope": [
+        "moba",
+        "complete-battle-journey",
+        "unit-lifecycle",
+        "unity-editmode"
+      ],
+      "requiredBefore": [
+        "merge-moba-combat-lifecycle-change",
+        "claim-moba-complete-battle-journey"
+      ],
+      "failurePolicy": "Block MOBA combat lifecycle promotion until both the Console World lifecycle smoke and Unity complete battle journey acceptance pass.",
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "MOBA Console World lifecycle smoke",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
+          "filter": "FullyQualifiedName~MobaCompleteBattleLifecycleSmokeTests"
+        },
+        {
+          "name": "MOBA Unity complete battle journey acceptance",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaCompleteBattleJourneyAcceptanceTests.DajiBattleJourney_ShouldCoverCombatDeathRespawnAndSettlement"
         }
       ]
     },

@@ -69,6 +69,23 @@ flowchart TB
 - `Checks` 和 `Handlers` 仍保留在 DTO 中，是为了兼容旧配置结构，但 `TableDrivenMobaSkillPipelineLibrary` 会直接抛异常，`MobaBattleConfigReferenceValidator` 也会报错。
 - 新配置应优先使用 `RulePlan` 表达释放条件、资源扣除、提交检查和失败原因，用 `Timeline` 触发正式效果。
 
+### 3.1 Unity Editor 树形创作
+
+`SkillFlowSO.dataList` 已使用正式树形编辑模型承载运行时 Phase：
+
+- 根节点和 `Sequence`、`Parallel` 子节点的新增菜单支持 `RulePlan`、`Timeline`、`Sequence`、`Parallel`、`Repeat`、`Delay` 和 `WaitUntil`。
+- `Repeat` 显式持有唯一子 Phase；组合节点递归导出 `Children`，不会退化为非结构化 JSON 字段。
+- 每个节点提供稳定 `PhaseId`，导出时去除首尾空白，为后续运行时节点回跳配置提供稳定键。
+- Flow 顶层可编辑并导出 `PipelineContinuousTagTemplateId`。
+- `Checks` 编辑类型仅为已有 SerializeReference 资产的反序列化和迁移保留，不再出现在新增菜单中；`Handlers` 没有新的编辑类型。
+- `MinValue`、`Required` 和废弃阶段提示用于即时暴露基础结构错误，正式引用完整性仍以 `MobaBattleConfigReferenceValidator` 为权威。
+
+当前采用 Inspector 树而不是 GraphView。这个选择先保证 DTO、运行时构建器和编辑模型同构；Battle Debug 已在这棵正式编辑树上增加运行节点选中、递归展开和高亮，后续即使增加节点画布也不应再复制一套技能数据模型。
+
+Battle Debug 已增加统一配置源索引和 `Open Config`：Skill Runtime、Event、Trace、Buff、Projectile 与 Area 面板通过类型化引用定位 `Resources/moba` 或 `Resources/ability` 下的权威 JSON 条目。索引使用 JSON Token 行号而不是文本搜索，TriggerPlan 按 `Triggers/TriggerId` 查找，SkillFlow 还支持在指定 Flow 内递归查找稳定 `PhaseId`。SkillFlow 索引校验通过后会选中正式 `SkillFlowSO` 资产并展开对应编辑节点；缺失条目不会退回同号或相似文本结果。
+
+Cast Pipeline 的正式 Phase 事件会在阶段 Trace 容器下生成真实 Phase 子节点，并将 `SkillId`、`CastFlowId`、`PhaseId` 写入 Trace DTO、ReadStore 和离线 Artifact。编辑器按 `SkillId -> CastFlowId -> PhaseId` 稳定身份直接定位 Inspector 树节点，不从 Summary 或 EndReason 解析字符串。PreCast 在启用独立 Flow 契约前不写入 CastFlowId，避免错误跳转到 Cast 配置。
+
 ## 4. Timeline Phase
 
 `Timeline` 是当前大多数技能的主路径。配置示例：
@@ -210,11 +227,12 @@ sequenceDiagram
 
 ## 10. 源码阅读路径
 
-1. `Unity/Assets/Resources/moba/skills.json`：技能到 `CastFlowId` / `PreCastFlowId` 的绑定。
-2. `Unity/Assets/Resources/moba/skill_flows.json`：Flow phase 编排、Timeline、RulePlan、Sequence、WaitUntil 示例。
+1. `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skills.json`：技能到 `CastFlowId` / `PreCastFlowId` 的绑定。
+2. `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skill_flows.json`：Flow phase 编排、Timeline、RulePlan、Sequence、WaitUntil 示例。
 3. `Unity/Packages/com.abilitykit.demo.moba.share/Runtime/Game/Config/Dto/SkillDtos.cs`：DTO 字段和 `SkillPhaseType` 数字映射。
 4. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SkillFlowMO.cs`：DTO 到运行时 MO 的轻量封装。
 5. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/TableDrivenMobaSkillPipelineLibrary.cs`：表驱动 Pipeline 构建核心。
 6. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Phases/SkillTimelinePhase.cs`：Timeline event 如何按时间执行。
 7. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Phases/SkillRulePlanPhase.cs`：RulePlan phase 如何执行和中断。
 8. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleConfigReferenceValidator.cs`：配置引用与废弃 phase 校验。
+9. `Unity/Packages/com.abilitykit.demo.moba.editor/Editor/BattleDebug/Configuration/BattleDebugConfigSourceIndex.cs`：运行时配置引用到权威 JSON 条目与行号的编辑器索引。

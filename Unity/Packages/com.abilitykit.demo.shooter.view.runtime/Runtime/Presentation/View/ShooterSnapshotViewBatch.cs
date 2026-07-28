@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Pooling;
 using AbilityKit.Game.View.Presentation;
 using AbilityKit.Protocol.Shooter;
 
@@ -30,7 +29,8 @@ namespace AbilityKit.Demo.Shooter.View
             IReadOnlyList<ShooterViewHealthComponentChange> healthChanges,
             IReadOnlyList<ShooterViewScoreComponentChange> scoreChanges,
             IReadOnlyList<ShooterViewProjectileLifetimeComponentChange> projectileLifetimeChanges,
-            IReadOnlyList<ShooterEventSnapshot> events)
+            IReadOnlyList<ShooterEventSnapshot> events,
+            float sampleFrame = float.NaN)
         {
             WorldId = worldId;
             Frame = frame;
@@ -44,6 +44,7 @@ namespace AbilityKit.Demo.Shooter.View
             ScoreChanges = scoreChanges ?? throw new ArgumentNullException(nameof(scoreChanges));
             ProjectileLifetimeChanges = projectileLifetimeChanges ?? throw new ArgumentNullException(nameof(projectileLifetimeChanges));
             Events = events ?? throw new ArgumentNullException(nameof(events));
+            SampleFrame = float.IsNaN(sampleFrame) ? frame : sampleFrame;
         }
 
         public ulong WorldId { get; }
@@ -55,6 +56,8 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterViewSnapshotKind SnapshotKind { get; }
 
         public ShooterViewBatchSource Source { get; }
+
+        public float SampleFrame { get; }
  
         public IReadOnlyList<ShooterViewEntityChange> EntityChanges { get; }
 
@@ -81,14 +84,15 @@ namespace AbilityKit.Demo.Shooter.View
         public bool ShouldReplaceMissingEntities => IsFullSnapshot &&
             (Source == ShooterViewBatchSource.AuthoritativeCorrection ||
              Source == ShooterViewBatchSource.JoinOrReconnect ||
-             Source == ShooterViewBatchSource.LocalAuthoritative);
+             Source == ShooterViewBatchSource.LocalAuthoritative ||
+             Source == ShooterViewBatchSource.Clear);
  
         public static ShooterSnapshotViewBatch Empty { get; } = new ShooterSnapshotViewBatch(
             0UL,
             0,
             0UL,
             ShooterViewSnapshotKind.Full,
-            ShooterViewBatchSource.DebugSnapshot,
+            ShooterViewBatchSource.Clear,
             EmptyEntityChanges,
             EmptyRemovedEntities,
             EmptyTransformChanges,
@@ -111,7 +115,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
             if (list is List<ShooterViewEntityChange> pooled)
             {
-                Pools.Release(pooled);
+                ShooterSnapshotViewModelMapper.ReleasePooledList(pooled);
             }
         }
 
@@ -119,7 +123,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
             if (list is List<ShooterViewEntityKey> pooled)
             {
-                Pools.Release(pooled);
+                ShooterSnapshotViewModelMapper.ReleasePooledList(pooled);
             }
         }
 
@@ -127,7 +131,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
             if (list is List<ShooterViewTransformComponentChange> pooled)
             {
-                Pools.Release(pooled);
+                ShooterSnapshotViewModelMapper.ReleasePooledList(pooled);
             }
         }
 
@@ -135,7 +139,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
             if (list is List<ShooterViewHealthComponentChange> pooled)
             {
-                Pools.Release(pooled);
+                ShooterSnapshotViewModelMapper.ReleasePooledList(pooled);
             }
         }
 
@@ -143,7 +147,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
             if (list is List<ShooterViewScoreComponentChange> pooled)
             {
-                Pools.Release(pooled);
+                ShooterSnapshotViewModelMapper.ReleasePooledList(pooled);
             }
         }
 
@@ -151,7 +155,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
             if (list is List<ShooterViewProjectileLifetimeComponentChange> pooled)
             {
-                Pools.Release(pooled);
+                ShooterSnapshotViewModelMapper.ReleasePooledList(pooled);
             }
         }
 
@@ -159,7 +163,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
             if (list is List<ShooterEventSnapshot> pooled)
             {
-                Pools.Release(pooled);
+                ShooterSnapshotViewModelMapper.ReleasePooledList(pooled);
             }
         }
     }
@@ -212,7 +216,8 @@ namespace AbilityKit.Demo.Shooter.View
         AuthoritativeCorrection = 2,
         JoinOrReconnect = 3,
         DebugSnapshot = 4,
-        LocalAuthoritative = 5
+        LocalAuthoritative = 5,
+        Clear = 6
     }
 
     public readonly struct ShooterViewEntityChange

@@ -130,6 +130,28 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
             Index.Remove(actorId);
         }
 
+        public void PublishRespawn(global::ActorEntity entity)
+        {
+            if (entity == null || !entity.hasActorId) return;
+
+            var actorId = entity.actorId.Value;
+            if (actorId <= 0 || !_byActorId.ContainsKey(actorId)) return;
+
+            var team = entity.hasTeam ? entity.team.Value : Team.None;
+            var mainType = entity.hasEntityMainType ? entity.entityMainType.Value : EntityMainType.Unit;
+            var unitSubType = entity.hasUnitSubType ? entity.unitSubType.Value : UnitSubType.Hero;
+            var ownerPlayer = entity.hasOwnerPlayerId ? entity.ownerPlayerId.Value : default;
+            PublishUnitEvent(
+                MobaUnitTriggering.Events.Respawn,
+                actorId,
+                team,
+                mainType,
+                unitSubType,
+                ownerPlayer,
+                entity,
+                MobaTraceKind.UnitRespawn);
+        }
+
         private void PublishUnitEvent(string eventId, int actorId, Team team, EntityMainType mainType, UnitSubType unitSubType, PlayerId ownerPlayer, global::ActorEntity entity, MobaTraceKind traceKind)
         {
             if (string.IsNullOrEmpty(eventId)) return;

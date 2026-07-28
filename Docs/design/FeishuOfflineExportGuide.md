@@ -215,3 +215,9 @@ artifacts/feishu-design-export/
 - Mermaid 展示：默认 Board 模式语义转换后写入可编辑节点，失败时不使用图片兜底；`native` 模式保留原始源码并交给飞书 Markdown 导入器
 
 租户接口路径确有差异时，仍可在本地配置中增加 `apiBaseUrl`、`sourceDir`、`exportDir`、`syncStatePath`、`oauth`、超时字段，以及 `import.endpointPaths` 覆盖默认值。旧的企业应用身份模式仍可通过 `"authMode": "tenant-app"` 启用。
+
+## 8. PPT 深入阅读链接
+
+公司内训 PPT 的文档跳转以 [`00-PresentationAndFeishuNavigation.md`](00-PresentationAndFeishuNavigation.md) 为总入口。PPT 中不要写入本地 Markdown 相对路径或源码路径；正式上传完成后，从 `feishu-sync-state.local.json` 中按源文件键读取 `feishuDocumentUrl`，再写入 PPT 超链接。
+
+当前工具不会把 Markdown 中的跨文档相对链接自动改写成目标飞书页面 URL，并且版本化重导入可能生成新的页面 URL。因此每次批量更新文档后，应重新核对 PPT 使用的 URL。建议至少验收导航总页、MOBA 总览、Shooter 总览、网络同步能力地图、玩法能力地图和工程质量入口六类链接。

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Pipeline;
+using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -9,6 +10,8 @@ namespace AbilityKit.Demo.Moba.Services
         private static readonly IReadOnlyList<PipelineTraceEvent> EmptySnapshot = Array.Empty<PipelineTraceEvent>();
 
         private readonly IMobaBattleDiagnosticsService _diagnostics;
+        private readonly Dictionary<IPipelineLifeOwner, ActivePhaseTrace> _activePhaseTraces =
+            new Dictionary<IPipelineLifeOwner, ActivePhaseTrace>();
 
         public MobaPipelineDiagnosticsRecorder(IMobaBattleDiagnosticsService diagnostics)
         {
@@ -20,6 +23,17 @@ namespace AbilityKit.Demo.Moba.Services
         public void Record(IPipelineLifeOwner owner, PipelineTraceData data)
         {
             if (_diagnostics == null || !_diagnostics.IsEnabled(MobaBattleDiagnosticChannel.PipelineHook)) return;
+
+            try
+            {
+                RecordSkillPhaseTrace(owner, in data);
+            }
+            catch (Exception ex)
+            {
+                _diagnostics.Warning(
+                    MobaBattleDiagnosticMetric.PipelinePhaseError,
+                    () => $"[MobaPipelineDiagnosticsRecorder] Skill phase trace failed. owner={owner?.OwnerName ?? string.Empty} phase={data.PhaseId} type={data.Type} error={ex.Message}");
+            }
 
             if (data.Type == EPipelineTraceEventType.PhaseError)
             {
@@ -34,6 +48,76 @@ namespace AbilityKit.Demo.Moba.Services
 
             _diagnostics.Counter(MobaBattleDiagnosticMetric.PipelineTraceEvent);
             _diagnostics.Counter(GetMetricName(data.Type));
+        }
+
+        private void RecordSkillPhaseTrace(IPipelineLifeOwner owner, in PipelineTraceData data)
+        {
+            if (owner == null || !(owner is IAbilityPipelineRun<SkillPipelineContext> run)) return;
+
+            var context = run.Context;
+            if (context == null) return;
+
+            switch (data.Type)
+            {
+                case EPipelineTraceEventType.PhaseStart:
+                    BeginPhaseTrace(owner, context, data.PhaseId.ToString());
+                    break;
+                case EPipelineTraceEventType.PhaseComplete:
+                    EndPhaseTrace(owner, TraceLifecycleReason.Completed);
+                    break;
+                case EPipelineTraceEventType.PhaseError:
+                    EndPhaseTrace(owner, TraceLifecycleReason.Failed);
+                    break;
+                case EPipelineTraceEventType.Interrupt:
+                    EndPhaseTrace(owner, TraceLifecycleReason.Interrupted);
+                    break;
+                case EPipelineTraceEventType.RunEnd:
+                    EndPhaseTrace(
+                        owner,
+                        data.State == EAbilityPipelineState.Completed
+                            ? TraceLifecycleReason.Completed
+                            : TraceLifecycleReason.Failed);
+                    break;
+            }
+        }
+
+        private void BeginPhaseTrace(
+            IPipelineLifeOwner owner,
+            SkillPipelineContext context,
+            string phaseId)
+        {
+            EndPhaseTrace(owner, TraceLifecycleReason.Interrupted);
+            if (context.PipelineTraceParentContextId == 0L || string.IsNullOrEmpty(phaseId) ||
+                context.WorldServices == null ||
+                !context.WorldServices.TryResolve<MobaTraceRegistry>(out var trace) || trace == null)
+            {
+                return;
+            }
+
+            var contextId = trace.CreateChildContext(
+                context.PipelineTraceParentContextId,
+                MobaTraceKind.SkillPhase,
+                context.SkillId,
+                context.CasterActorId,
+                context.TargetActorId,
+                TraceEndpoint.Config(MobaRuntimeKindNames.SkillPipeline, context.CastFlowId),
+                TraceEndpoint.Actor(context.TargetActorId));
+            if (contextId == 0L) return;
+
+            trace.TrySetSkillPhaseLocation(
+                contextId,
+                context.SkillId,
+                context.CastFlowId,
+                phaseId);
+            _activePhaseTraces[owner] = new ActivePhaseTrace(trace, contextId);
+        }
+
+        private void EndPhaseTrace(IPipelineLifeOwner owner, TraceLifecycleReason reason)
+        {
+            if (!_activePhaseTraces.TryGetValue(owner, out var active)) return;
+
+            _activePhaseTraces.Remove(owner);
+            active.Registry.EndContext(active.ContextId, reason);
         }
 
         public IPipelineRunTrace GetTrace(int ownerId)
@@ -71,6 +155,18 @@ namespace AbilityKit.Demo.Moba.Services
                 default:
                     return MobaBattleDiagnosticMetric.PipelineTraceEvent;
             }
+        }
+
+        private readonly struct ActivePhaseTrace
+        {
+            public ActivePhaseTrace(MobaTraceRegistry registry, long contextId)
+            {
+                Registry = registry;
+                ContextId = contextId;
+            }
+
+            public MobaTraceRegistry Registry { get; }
+            public long ContextId { get; }
         }
     }
 }

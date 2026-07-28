@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Protocol.Shooter;
 using Xunit;
@@ -51,12 +52,15 @@ public sealed class ShooterBotAiRuntimeSmokeTests
         Assert.True(runtime.StartGame(in start));
         Assert.True(runtime.MountBotAi(new ShooterBotAiMountOptions(1, ShooterBotAiProfile.SimpleBattle, "simple-battle")));
 
-        for (var i = 0; i < 12; i++)
+        var fired = false;
+        for (var i = 0; i < 30; i++)
         {
             Assert.True(runtime.Tick(1f / 30f));
+            var frame = runtime.GetSnapshot();
+            fired |= frame.Bullets.Length > 0;
+            fired |= Array.Exists(frame.Events, static evt => evt.EventType == (int)ShooterEventType.Fire);
         }
 
-        var snapshot = runtime.GetSnapshot();
-        Assert.NotEmpty(snapshot.Bullets);
+        Assert.True(fired, "Expected the bot's held attack cadence to align with a primary-fire window.");
     }
 }

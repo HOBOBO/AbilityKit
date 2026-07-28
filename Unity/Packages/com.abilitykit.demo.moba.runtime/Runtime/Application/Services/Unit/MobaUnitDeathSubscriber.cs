@@ -73,6 +73,14 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        internal void NotifyRespawned(int actorId)
+        {
+            if (actorId > 0)
+            {
+                _reported.Remove(actorId);
+            }
+        }
+
         public void OnDeinit(IWorldResolver services)
         {
             var s = _sub;

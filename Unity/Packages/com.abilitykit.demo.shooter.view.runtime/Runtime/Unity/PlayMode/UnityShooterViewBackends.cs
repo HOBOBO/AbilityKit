@@ -253,6 +253,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private ulong _lastAuthoritySequence;
         private int _lastClientFrame;
         private int _lastAuthorityFrame;
+        private float _lastClientSampleFrame;
+        private float _lastAuthoritySampleFrame;
         private ShooterViewBatchSource _lastClientSource;
         private ShooterViewBatchSource _lastAuthoritySource;
         private ShooterViewSnapshotKind _lastClientSnapshotKind;
@@ -324,6 +326,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             return _hasAppliedClientBatch &&
                 batch.Sequence == _lastClientSequence &&
                 batch.Frame == _lastClientFrame &&
+                batch.SampleFrame.Equals(_lastClientSampleFrame) &&
                 batch.Source == _lastClientSource &&
                 batch.SnapshotKind == _lastClientSnapshotKind;
         }
@@ -333,6 +336,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             return _hasAppliedAuthorityBatch &&
                 batch.Sequence == _lastAuthoritySequence &&
                 batch.Frame == _lastAuthorityFrame &&
+                batch.SampleFrame.Equals(_lastAuthoritySampleFrame) &&
                 batch.Source == _lastAuthoritySource &&
                 batch.SnapshotKind == _lastAuthoritySnapshotKind;
         }
@@ -341,6 +345,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         {
             _lastClientSequence = batch.Sequence;
             _lastClientFrame = batch.Frame;
+            _lastClientSampleFrame = batch.SampleFrame;
             _lastClientSource = batch.Source;
             _lastClientSnapshotKind = batch.SnapshotKind;
             _hasAppliedClientBatch = true;
@@ -350,6 +355,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         {
             _lastAuthoritySequence = batch.Sequence;
             _lastAuthorityFrame = batch.Frame;
+            _lastAuthoritySampleFrame = batch.SampleFrame;
             _lastAuthoritySource = batch.Source;
             _lastAuthoritySnapshotKind = batch.SnapshotKind;
             _hasAppliedAuthorityBatch = true;
@@ -368,6 +374,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastAuthoritySequence = 0UL;
             _lastClientFrame = 0;
             _lastAuthorityFrame = 0;
+            _lastClientSampleFrame = 0f;
+            _lastAuthoritySampleFrame = 0f;
             _lastClientSource = default;
             _lastAuthoritySource = default;
             _lastClientSnapshotKind = default;
@@ -440,6 +448,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private void RebuildInstanceBuffer(ShooterViewEntityStore store, InstanceBuffer buffer, int controlledPlayerId, float worldScale, bool isAuthority)
         {
             buffer.Clear();
+            buffer.EnsureCapacity(store.PlayerCount, store.BulletCount, store.EnemyCount);
             foreach (var kvp in store.Entities)
             {
                 var entity = kvp.Value;
@@ -806,6 +815,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             public int SkippedDeadPlayerCount;
             public int SkippedPlayerWithoutTransformCount;
 
+            public void EnsureCapacity(int playerCount, int bulletCount, int enemyCount)
+            {
+                EnsureCapacity(Players, playerCount);
+                EnsureCapacity(Bullets, bulletCount);
+                EnsureCapacity(Enemies, enemyCount);
+            }
+
             public void Clear()
             {
                 Players.Clear();
@@ -818,6 +834,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 EnemyCount = 0;
                 SkippedDeadPlayerCount = 0;
                 SkippedPlayerWithoutTransformCount = 0;
+            }
+
+            private static void EnsureCapacity(List<Matrix4x4> matrices, int capacity)
+            {
+                if (capacity > matrices.Capacity)
+                {
+                    matrices.Capacity = capacity;
+                }
             }
         }
 

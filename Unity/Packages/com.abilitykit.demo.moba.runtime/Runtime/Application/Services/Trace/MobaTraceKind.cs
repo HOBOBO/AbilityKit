@@ -40,6 +40,7 @@ namespace AbilityKit.Demo.Moba.Services
         UnitSpawn = 60,
         UnitDespawn = 61,
         UnitDeath = 62,
+        UnitRespawn = 63,
 
         // 伤害管线溯源
         DamageAttack = 70,

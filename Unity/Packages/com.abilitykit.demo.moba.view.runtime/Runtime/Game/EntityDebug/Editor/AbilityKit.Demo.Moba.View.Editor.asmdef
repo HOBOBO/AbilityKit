@@ -1,0 +1,20 @@
+{
+  "name": "AbilityKit.Demo.Moba.View.Editor",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Demo.Moba.View.Runtime",
+    "AbilityKit.Core",
+    "AbilityKit.World.ECS"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

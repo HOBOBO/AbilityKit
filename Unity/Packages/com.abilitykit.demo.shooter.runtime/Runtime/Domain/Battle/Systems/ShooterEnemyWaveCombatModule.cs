@@ -18,6 +18,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ISveltoWorldContext _context;
         private readonly int _attackIntervalFrames;
         private readonly int _attackDamage;
+        private readonly float _attackRangeSquared;
+        private readonly int _maxAttackersPerPlayer;
+        private int[] _attackersPerPlayer = Array.Empty<int>();
         private ShooterSpatialTargetIndex _targetIndex => _state.PlayerTargetIndex;
 
         public ShooterEnemyWaveCombatModule(ShooterBattleState state, IShooterEntityManager entities)
@@ -34,6 +37,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var activeOptions = options ?? ShooterEnemyWaveOptions.DefaultEnabled;
             _attackIntervalFrames = activeOptions.EnemyAttackIntervalFrames;
             _attackDamage = activeOptions.EnemyAttackDamage;
+            _attackRangeSquared = activeOptions.EnemyAttackRange * activeOptions.EnemyAttackRange;
+            _maxAttackersPerPlayer = activeOptions.MaxEnemyAttackersPerPlayer;
         }
 
         public void Tick()
@@ -59,7 +64,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
-            AttackNearestPlayers(players, transforms, healths, ids, count, ref emittedEvents);
+            AttackNearestPlayers(players, playerCount, transforms, healths, ids, count, ref emittedEvents);
         }
 
         private void AttackSinglePlayer(
@@ -77,6 +82,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             var damage = 0;
+            var attackerCount = 0;
             var playerId = players[playerIndex].PlayerId;
             for (var i = 0; i < count; i++)
             {
@@ -85,8 +91,20 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     continue;
                 }
 
+                var dx = transforms[i].X - players[playerIndex].X;
+                var dy = transforms[i].Y - players[playerIndex].Y;
+                if (dx * dx + dy * dy > _attackRangeSquared)
+                {
+                    continue;
+                }
+
                 damage += _attackDamage;
+                attackerCount++;
                 AddEnemyAttackEvent(ids[i], playerId, transforms[i].X, transforms[i].Y, ref emittedEvents);
+                if (attackerCount >= _maxAttackersPerPlayer)
+                {
+                    break;
+                }
             }
 
             ApplyDamage(ref players[playerIndex], damage);
@@ -94,12 +112,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private void AttackNearestPlayers(
             NB<ShooterSveltoPlayerComponent> players,
+            int playerCount,
             NB<ShooterSveltoTransformComponent> transforms,
             NB<ShooterSveltoHealthComponent> healths,
             NativeEntityIDs ids,
             int count,
             ref int emittedEvents)
         {
+            EnsureAttackerCapacity(playerCount);
             for (var i = 0; i < count; i++)
             {
                 if (healths[i].Alive == 0 || healths[i].Current <= 0)
@@ -113,14 +133,28 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     selfPlayerId: 0,
                     out var playerIndex,
                     out var player,
-                    out _))
+                    out var distanceSquared) ||
+                    distanceSquared > _attackRangeSquared ||
+                    _attackersPerPlayer[playerIndex] >= _maxAttackersPerPlayer)
                 {
                     continue;
                 }
 
+                _attackersPerPlayer[playerIndex]++;
                 ApplyDamage(ref players[playerIndex], _attackDamage);
                 AddEnemyAttackEvent(ids[i], player.PlayerId, transforms[i].X, transforms[i].Y, ref emittedEvents);
             }
+        }
+
+        private void EnsureAttackerCapacity(int playerCount)
+        {
+            if (_attackersPerPlayer.Length < playerCount)
+            {
+                _attackersPerPlayer = new int[playerCount];
+                return;
+            }
+
+            Array.Clear(_attackersPerPlayer, 0, playerCount);
         }
 
         private void ApplyDamage(ref ShooterSveltoPlayerComponent player, int damage)

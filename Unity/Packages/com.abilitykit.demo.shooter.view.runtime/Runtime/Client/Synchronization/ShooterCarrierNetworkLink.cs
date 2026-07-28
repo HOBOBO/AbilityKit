@@ -65,7 +65,7 @@ namespace AbilityKit.Demo.Shooter.View
             var payloadOpCode = isDelta
                 ? ShooterOpCodes.Snapshot.PureStateDelta
                 : ShooterOpCodes.Snapshot.PureState;
-            var payload = ShooterPureStateSyncCodec.SerializeTransient(in snapshot, _pureStatePayloadBuffer);
+            var payload = ShooterPureStateSyncCodec.SerializeTransientSegment(in snapshot, _pureStatePayloadBuffer);
             PublishPayload(
                 snapshot.WorldId,
                 snapshot.Frame,
@@ -85,6 +85,25 @@ namespace AbilityKit.Demo.Shooter.View
             int payloadOpCode,
             byte[] payload)
         {
+            PublishPayload(
+                worldId,
+                frame,
+                serverTick,
+                timestamp,
+                isDelta,
+                payloadOpCode,
+                new ArraySegment<byte>(payload));
+        }
+
+        private void PublishPayload(
+            ulong worldId,
+            int frame,
+            long serverTick,
+            double timestamp,
+            bool isDelta,
+            int payloadOpCode,
+            ArraySegment<byte> payload)
+        {
             var pushOpCode = isDelta
                 ? RoomGatewayOpCodes.DeltaSnapshotPushed
                 : RoomGatewayOpCodes.SnapshotPushed;
@@ -97,11 +116,10 @@ namespace AbilityKit.Demo.Shooter.View
                 IsFullSnapshot = !isDelta,
                 Actors = null,
                 PayloadOpCode = payloadOpCode,
-                Payload = payload,
                 ServerTicks = serverTick
             };
 
-            var pushPayload = WireRoomGatewayBinary.SerializeTransient(in wire, _wirePayloadBuffer);
+            var pushPayload = WireRoomGatewayBinary.SerializeTransient(in wire, payload, _wirePayloadBuffer);
             var header = new NetworkPacketHeader(
                 NetworkPacketFlags.None,
                 pushOpCode,

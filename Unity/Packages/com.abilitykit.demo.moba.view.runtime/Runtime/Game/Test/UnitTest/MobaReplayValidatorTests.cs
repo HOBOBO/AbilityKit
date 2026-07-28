@@ -475,6 +475,18 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(8f, driver.PlaybackSpeed);
         }
 
+        [TestCase(float.NaN)]
+        [TestCase(float.PositiveInfinity)]
+        [TestCase(float.NegativeInfinity)]
+        public void PlaybackSpeed_WhenNonFinite_FallsBackToNormalSpeed(float speed)
+        {
+            var driver = CreateDriver();
+
+            driver.PlaybackSpeed = speed;
+
+            Assert.AreEqual(1f, driver.PlaybackSpeed);
+        }
+
         [Test]
         public void LastFrame_UsesFurthestInputHashOrSnapshot()
         {
@@ -497,6 +509,89 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.IsFalse(driver.TryValidateStateHashOnce(30, 1, 0xBADU, out var resetExpected));
             Assert.AreEqual(0x1234U, resetExpected.Hash);
+        }
+
+        [Test]
+        public void Pump_RealLogicSession_WithUnorderedInputs_SubmitsInFrameOrder()
+        {
+            var worldId = new WorldId("frame-replay-driver-unordered");
+            var transport = new RecordingBattleLogicTransport();
+            var session = CreateRemoteSession(worldId, transport);
+            var receivedInputs = new List<PlayerInputCommand>();
+            session.FrameReceived += packet =>
+            {
+                if (packet.Inputs != null) receivedInputs.AddRange(packet.Inputs);
+            };
+
+            try
+            {
+                var sourceInputs = new List<FrameRecordInputFrame>
+                {
+                    CreateInput(4, "p1", MobaOpCodes.Input.Move, Array.Empty<byte>()),
+                    null,
+                    CreateInput(2, "p1", MobaOpCodes.Input.Move, Array.Empty<byte>()),
+                };
+                var driver = new FrameReplayDriver(
+                    worldId,
+                    new FrameRecordFile { Inputs = sourceInputs });
+                sourceInputs.Clear();
+
+                PumpAndTick(driver, session, 2);
+                PumpAndTick(driver, session, 4);
+
+                Assert.That(receivedInputs, Has.Count.EqualTo(2));
+                Assert.That(receivedInputs[0].Frame.Value, Is.EqualTo(2));
+                Assert.That(receivedInputs[1].Frame.Value, Is.EqualTo(4));
+            }
+            finally
+            {
+                session.Dispose();
+            }
+        }
+
+        [Test]
+        public void Pump_RealLogicSession_WithSameFrameInputs_PreservesRecordedOrder()
+        {
+            var worldId = new WorldId("frame-replay-driver-same-frame");
+            var transport = new RecordingBattleLogicTransport();
+            var session = CreateRemoteSession(worldId, transport);
+            var receivedInputs = new List<PlayerInputCommand>();
+            session.FrameReceived += packet =>
+            {
+                if (packet.Inputs != null) receivedInputs.AddRange(packet.Inputs);
+            };
+
+            try
+            {
+                var firstPayload = new byte[] { 0x11 };
+                var secondPayload = new byte[] { 0x22 };
+                var thirdPayload = new byte[] { 0x33 };
+                var driver = new FrameReplayDriver(
+                    worldId,
+                    new FrameRecordFile
+                    {
+                        Inputs = new List<FrameRecordInputFrame>
+                        {
+                            CreateInput(4, "p2", 103, firstPayload),
+                            CreateInput(2, "p1", 101, Array.Empty<byte>()),
+                            CreateInput(4, "p1", 102, secondPayload),
+                            CreateInput(4, "p3", 104, thirdPayload),
+                        }
+                    });
+
+                PumpAndTick(driver, session, 2);
+                PumpAndTick(driver, session, 4);
+
+                Assert.That(receivedInputs, Has.Count.EqualTo(4));
+                AssertInput(receivedInputs[0], 2, "p1", 101, Array.Empty<byte>());
+                AssertInput(receivedInputs[1], 4, "p2", 103, firstPayload);
+                AssertInput(receivedInputs[2], 4, "p1", 102, secondPayload);
+                AssertInput(receivedInputs[3], 4, "p3", 104, thirdPayload);
+            }
+            finally
+            {
+                session.Dispose();
+            }
         }
 
         [Test]

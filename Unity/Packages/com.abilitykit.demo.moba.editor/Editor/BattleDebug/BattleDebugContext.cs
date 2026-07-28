@@ -18,6 +18,7 @@ namespace AbilityKit.Game.Editor
             Action<long> selectActor = null,
             Action<long, long> openTrace = null,
             Action<long> openEvents = null,
+            Action<BattleDebugConfigReference> openConfig = null,
             Func<int, bool> seekReplayFrame = null,
             IBattleDiagnosticReadOnlySession diagnosticSession = null,
             MobaSkillCastRuntimeService skillRuntimeService = null,
@@ -31,6 +32,7 @@ namespace AbilityKit.Game.Editor
             SelectActor = selectActor;
             OpenTrace = openTrace;
             OpenEvents = openEvents;
+            OpenConfig = openConfig;
             SeekReplayFrame = seekReplayFrame;
             DiagnosticSession = diagnosticSession;
             SkillRuntimeService = skillRuntimeService;
@@ -45,6 +47,7 @@ namespace AbilityKit.Game.Editor
         public Action<long> SelectActor { get; }
         public Action<long, long> OpenTrace { get; }
         public Action<long> OpenEvents { get; }
+        public Action<BattleDebugConfigReference> OpenConfig { get; }
         public Func<int, bool> SeekReplayFrame { get; }
         public IBattleDiagnosticReadOnlySession DiagnosticSession { get; }
         public MobaSkillCastRuntimeService SkillRuntimeService { get; }

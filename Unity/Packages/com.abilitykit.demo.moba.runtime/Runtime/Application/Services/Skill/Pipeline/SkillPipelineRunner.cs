@@ -420,6 +420,7 @@ namespace AbilityKit.Demo.Moba.Services
             entry.Context = new SkillPipelineContext();
             entry.Context.Initialize(entry.AbilityInstance, in entry.Request, entry.TriggerContext);
             entry.Context.SetFrame(entry.StartFrame);
+            entry.Context.SetPipelineTraceLocation(0, 0L);
             TryBeginPhaseTrace(ref entry);
             entry.Run = entry.Pipeline.Start(entry.PreCastConfig, entry.Context);
 
@@ -464,6 +465,7 @@ namespace AbilityKit.Demo.Moba.Services
             entry.Context = new SkillPipelineContext();
             entry.Context.Initialize(entry.AbilityInstance, in entry.Request, entry.TriggerContext);
             entry.Context.SetFrame(ResolveCurrentFrame(in entry, entry.StartFrame));
+            entry.Context.SetPipelineTraceLocation(entry.TriggerContext?.CastFlowId ?? 0, 0L);
             TryBindPipelineContinuous(ref entry);
             TryBeginPhaseTrace(ref entry);
             entry.Run = entry.Pipeline.Start(entry.CastConfig, entry.Context);
@@ -655,6 +657,14 @@ namespace AbilityKit.Demo.Moba.Services
                     entry.Request.TargetActorId,
                     TraceEndpoint.Config(MobaRuntimeKindNames.SkillPipeline, entry.Request.SkillId),
                     TraceEndpoint.Actor(entry.Request.TargetActorId));
+                trace.TrySetSkillPhaseLocation(
+                    entry.PhaseTraceContextId,
+                    entry.Request.SkillId,
+                    entry.Context?.CastFlowId ?? 0,
+                    string.Empty);
+                entry.Context?.SetPipelineTraceLocation(
+                    entry.Context.CastFlowId,
+                    entry.PhaseTraceContextId);
             }
             catch (Exception ex)
             {
@@ -669,6 +679,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (phaseContextId == 0) return;
 
             entry.PhaseTraceContextId = 0L;
+            entry.Context?.SetPipelineTraceLocation(entry.Context.CastFlowId, 0L);
             var trace = SafeResolve<MobaTraceRegistry>(in entry, $"actor={entry.Request.CasterActorId}, skill={entry.Request.SkillId}, phaseContextId={phaseContextId}, reason={reason}");
             if (trace == null) return;
 

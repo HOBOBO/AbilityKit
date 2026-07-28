@@ -153,6 +153,9 @@ namespace AbilityKit.Diagnostics.Analysis
         public int ConfigId { get; set; }
         public string Kind { get; set; } = string.Empty;
         public string EndReason { get; set; } = string.Empty;
+        public int SkillId { get; set; }
+        public int CastFlowId { get; set; }
+        public string PhaseId { get; set; } = string.Empty;
     }
 
     public sealed class AnalysisBattleDiagnosticAttributeTrack

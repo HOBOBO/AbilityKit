@@ -807,6 +807,9 @@ namespace AbilityKit.Game.Editor
                 EditorGUILayout.HelpBox(_actionStatus, MessageType.Info);
             }
 
+            var hasConfigReference = BattleDebugConfigReferenceMapper.TryFromEvent(
+                in evt,
+                out var configReference);
             EditorGUILayout.BeginHorizontal();
             EditorGUI.BeginDisabledGroup(evt.SourceActorId == 0 || ctx.SelectActor == null);
             if (GUILayout.Button("选择来源 Actor", GUILayout.Width(110)))
@@ -823,6 +826,12 @@ namespace AbilityKit.Game.Editor
             EditorGUI.EndDisabledGroup();
 
             GUILayout.FlexibleSpace();
+            EditorGUI.BeginDisabledGroup(!hasConfigReference || ctx.OpenConfig == null);
+            if (GUILayout.Button("打开配置", GUILayout.Width(80)))
+            {
+                ctx.OpenConfig?.Invoke(configReference);
+            }
+            EditorGUI.EndDisabledGroup();
             EditorGUI.BeginDisabledGroup(evt.RootContextId <= 0 || ctx.OpenTrace == null);
             if (GUILayout.Button("打开 Trace", GUILayout.Width(90)))
             {

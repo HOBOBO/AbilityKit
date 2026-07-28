@@ -134,7 +134,10 @@ namespace AbilityKit.Demo.Moba.Services
                 metadata?.SourceActorId ?? 0,
                 metadata?.ConfigId ?? 0,
                 node.KindName ?? ((MobaTraceKind)node.Kind).ToString(),
-                node.IsEnded ? ResolveEndReason(node.EndReason) : string.Empty);
+                node.IsEnded ? ResolveEndReason(node.EndReason) : string.Empty,
+                metadata?.SkillId ?? 0,
+                metadata?.CastFlowId ?? 0,
+                metadata?.PhaseId ?? string.Empty);
         }
 
         private static BattleDiagnosticTraceNodeState ResolveState(bool isEnded, int reason)

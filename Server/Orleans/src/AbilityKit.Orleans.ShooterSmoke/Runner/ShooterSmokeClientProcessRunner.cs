@@ -34,7 +34,7 @@ internal static class ShooterSmokeClientProcessRunner
         connection.Tick(0f);
 
         var login = await ShooterSmokeScenarioBase.LoginGuestAsync(connection);
-        var presentationContext = ShooterSmokeScenarioBase.CreatePresentationContext();
+        using var presentationContext = ShooterSmokeScenarioBase.CreatePresentationContext();
         var runtime = presentationContext.Runtime;
         var presentation = presentationContext.Presentation;
         var session = presentationContext.Session;
@@ -241,6 +241,7 @@ internal static class ShooterSmokeClientProcessRunner
             () => pushCount,
             () => fullSnapshotsApplied,
             () => pureStateFullBaselinesApplied,
+            () => pureStateDeltasApplied,
             () => pureStateResyncRequests,
             () => latestComparableSnapshotFrame,
             () => latestComparableAuthoritativeHash != 0u
@@ -1002,17 +1003,27 @@ internal static class ShooterSmokeClientProcessRunner
         Func<int> getPushCount,
         Func<int> getFullSnapshotsApplied,
         Func<int> getFullBaselinesApplied,
+        Func<int> getDeltasApplied,
         Func<int> getResyncRequests,
         Func<int> getComparableFrame,
         Func<bool> getComparableHashMatched,
         TimeSpan timeout)
     {
-        if (string.IsNullOrWhiteSpace(options.CompletionReleasePath))
+        var waitsForCompletionRelease = !string.IsNullOrWhiteSpace(options.CompletionReleasePath);
+        var waitsForPureStateActivity = string.Equals(
+            options.StateSyncPayloadMode,
+            "pure-state",
+            StringComparison.OrdinalIgnoreCase);
+        if (!waitsForCompletionRelease && !waitsForPureStateActivity)
         {
             return;
         }
 
-        Console.WriteLine($"SHOOTER_MP_CLIENT_COMPLETION_READY clientId=\"{Escape(options.ClientId)}\"");
+        if (waitsForCompletionRelease)
+        {
+            Console.WriteLine($"SHOOTER_MP_CLIENT_COMPLETION_READY clientId=\"{Escape(options.ClientId)}\"");
+        }
+
         soakTelemetry.StartCommandPolling(
             channel,
             getFullBaselinesApplied,
@@ -1021,13 +1032,21 @@ internal static class ShooterSmokeClientProcessRunner
         var sampleInterval = TimeSpan.FromMilliseconds(Math.Max(100, options.MetricsSampleIntervalMs));
         var nextSampleAtUtc = DateTime.MinValue;
         Task<WireGetStateSyncDeliveryMetricsRes>? metricsTask = null;
-        while (!File.Exists(options.CompletionReleasePath))
+        while ((waitsForCompletionRelease && !File.Exists(options.CompletionReleasePath))
+            || (waitsForPureStateActivity
+                && getDeltasApplied() == 0
+                && getResyncRequests() == 0
+                && getFullBaselinesApplied() < 2))
         {
             var now = DateTime.UtcNow;
             if (now >= deadline)
             {
                 throw new TimeoutException(
-                    $"Timed out waiting for completion release file: {options.CompletionReleasePath}");
+                    $"Timed out waiting for client completion. " +
+                    $"ReleasePath={options.CompletionReleasePath}, " +
+                    $"PureStateFullBaselines={getFullBaselinesApplied()}, " +
+                    $"PureStateDeltas={getDeltasApplied()}, " +
+                    $"PureStateResyncRequests={getResyncRequests()}.");
             }
 
             launcher.Tick(1f / ShooterGameplay.DefaultTickRate);

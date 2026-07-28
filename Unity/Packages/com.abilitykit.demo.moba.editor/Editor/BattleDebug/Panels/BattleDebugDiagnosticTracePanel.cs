@@ -74,7 +74,7 @@ namespace AbilityKit.Game.Editor
             }
 
             DrawTree(in ctx);
-            DrawSelectionDetails();
+            DrawSelectionDetails(in ctx);
         }
 
         private void DrawToolbar(
@@ -254,7 +254,7 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.EndHorizontal();
         }
 
-        private void DrawSelectionDetails()
+        private void DrawSelectionDetails(in BattleDebugContext ctx)
         {
             var path = _viewModel.SelectedPath;
             if (path.Count == 0) return;
@@ -272,6 +272,15 @@ namespace AbilityKit.Game.Editor
                     ? $"{selected.StartFrame} -> {selected.EndFrame}"
                     : $"{selected.StartFrame} -> active");
             EditorGUILayout.LabelField("Actor / Config", $"{selected.ActorId} / {selected.ConfigId}");
+            var hasConfigReference = BattleDebugConfigReferenceMapper.TryFromTraceNode(
+                in selected,
+                out var configReference);
+            EditorGUI.BeginDisabledGroup(!hasConfigReference || ctx.OpenConfig == null);
+            if (GUILayout.Button("打开配置", GUILayout.Width(80)))
+            {
+                ctx.OpenConfig?.Invoke(configReference);
+            }
+            EditorGUI.EndDisabledGroup();
             if (_viewModel.PinnedContextId != 0)
             {
                 EditorGUILayout.LabelField(

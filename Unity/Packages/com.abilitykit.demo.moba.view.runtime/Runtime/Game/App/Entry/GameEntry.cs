@@ -15,6 +15,8 @@ namespace AbilityKit.Game
 
         [SerializeField] private bool _debugEnabled;
         [SerializeField] private BattleGatewayConfigSO _multiplayerGatewayConfig;
+        [SerializeField] private BattleStartConfig _battleStartConfig;
+        [SerializeField] private BattleStartPresetSO[] _battleStartPresets;
 
         public static GameEntry Instance
         {
@@ -32,6 +34,9 @@ namespace AbilityKit.Game
             get => _debugEnabled;
             set => _debugEnabled = value;
         }
+
+        public BattleStartConfig BattleStartConfig => _battleStartConfig;
+        public IReadOnlyList<BattleStartPresetSO> BattleStartPresets => _battleStartPresets;
 
         public EntityWorld World { get; private set; }
         public IEntity Root { get; private set; }
@@ -252,7 +257,6 @@ namespace AbilityKit.Game
 
         private void OnGUI()
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (_entry == null && GameEntry.IsInitialized)
             {
                 _entry = GameEntry.Instance;
@@ -260,14 +264,19 @@ namespace AbilityKit.Game
 
             if (_entry == null)
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 GUILayout.BeginArea(new Rect(10f, Screen.height - 58f, 300f, 48f), "GameEntry GUI", GUI.skin.window);
                 GUILayout.Label("Entry: missing");
                 GUILayout.EndArea();
+#endif
                 return;
             }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             DrawLocalDebugShortcuts();
             _entry.DispatchRuntimeGUI(drawBridgeStatus: true);
+#else
+            _entry.DispatchRuntimeGUI(drawBridgeStatus: false);
 #endif
         }
 

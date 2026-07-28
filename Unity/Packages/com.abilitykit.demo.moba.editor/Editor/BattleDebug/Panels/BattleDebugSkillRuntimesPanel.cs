@@ -132,6 +132,14 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.BeginHorizontal();
             DrawActorButton("施法者", runtime.CasterActorId, ctx.SelectActor);
             DrawActorButton("目标", runtime.TargetActorId, ctx.SelectActor);
+            EditorGUI.BeginDisabledGroup(runtime.SkillId <= 0 || ctx.OpenConfig == null);
+            if (GUILayout.Button("打开配置", GUILayout.Width(80)))
+            {
+                ctx.OpenConfig?.Invoke(new BattleDebugConfigReference(
+                    BattleDebugConfigKind.Skill,
+                    runtime.SkillId));
+            }
+            EditorGUI.EndDisabledGroup();
             EditorGUI.BeginDisabledGroup(handle.RootTraceContextId <= 0L || ctx.OpenTrace == null);
             if (GUILayout.Button("打开 Trace", GUILayout.Width(90)))
             {

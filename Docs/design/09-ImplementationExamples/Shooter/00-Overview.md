@@ -178,3 +178,17 @@ Shooter 示例适合作为以下能力的参考实现：
 | Multiprocess Script Contracts | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests/ShooterMultiprocessSmokeScriptContractTests.cs` |
 | Shooter Runtime Tests | `src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj`、`src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterAcceptanceSpecRunnerTests.cs` |
 | Shooter Smoke Script | `Server/Orleans/tools/run_shooter_smoke.ps1` |
+
+## 6. 当前长局与高密度完成度
+
+Shooter PlayMode 默认战局已调整为至少 10 分钟，并将“同屏敌人预算”和“整场敌人总量”拆开：默认同屏预算为 512，整场敌人总量为同屏预算的 5 倍，每 60 秒投入一组增援。胜利目标使用实际生成的整场敌人总量，低密度自定义配置不会再因固定胜利目标而无法结束。
+
+当前提供三档受支持的表现密度配置：
+
+| 档位 | 同屏敌人预算 | 定位 |
+|------|--------------|------|
+| Playable | 512 | 默认可玩长局与日常功能验收 |
+| Medium | 2048 | Unity 高密度表现、映射和批处理验证入口 |
+| High Density | 8192 | 极限配置契约与高密度同步/表现路径验证入口 |
+
+外部传入的敌人预算会钳制到 `1..8192`，避免异常输入生成超大波次数组或触发 OOM。512、2048、8192 表示代码和测试覆盖的配置契约，不代表所有目标硬件都已满足长时帧率预算。后续应把 2K Unity 长时运行、GPU 实例残留和退出/重连清理作为正式 soak；5K 至 10K 更适合作为 headless、AOI/LOD 和网络容量验证，而不是默认客户端全量绘制承诺。

@@ -1,15 +1,69 @@
 using System.Linq;
 using AbilityKit.Combat.Projectile;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Trace;
+using AbilityKit.Pipeline;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Trace;
 
 public sealed class MobaTraceRegistrySmokeTests
 {
+    [Fact]
+    public void Skill_phase_location_is_preserved_on_trace_metadata()
+    {
+        using var registry = new MobaTraceRegistry();
+        var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 1001, 1, 2);
+        var phaseId = registry.CreateChildContext(rootId, MobaTraceKind.SkillPhase, 1001, 1, 2);
+
+        Assert.True(registry.TrySetSkillPhaseLocation(phaseId, 1001, 3001, "cast.release"));
+        Assert.True(registry.TryGetNodeSnapshot(phaseId, out var snapshot));
+        var metadata = Assert.IsType<MobaTraceMetadata>(snapshot.Metadata);
+        Assert.Equal(1001, metadata.SkillId);
+        Assert.Equal(3001, metadata.CastFlowId);
+        Assert.Equal("cast.release", metadata.PhaseId);
+    }
+
+    [Fact]
+    public void Pipeline_recorder_creates_and_completes_real_skill_phase_trace()
+    {
+        using var registry = new MobaTraceRegistry();
+        var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 1001, 1, 2);
+        var parentId = registry.CreateChildContext(rootId, MobaTraceKind.SkillPhase, 1001, 1, 2);
+        var resolver = new TestWorldResolver(registry);
+        var aimPos = Vec3.Zero;
+        var aimDir = Vec3.Forward;
+        var request = new SkillCastRequest(1001, 1, 1, 2, in aimPos, in aimDir, resolver, null, null, null);
+        var castContext = new SkillCastContext { CastFlowId = 3001, SourceContextId = rootId };
+        var context = new SkillPipelineContext();
+        context.Initialize(null, in request, castContext);
+        context.SetPipelineTraceLocation(3001, parentId);
+        var owner = new TestPipelineRun(42, context);
+        var recorder = new MobaPipelineDiagnosticsRecorder(new TestBattleDiagnosticsService());
+        var pipelinePhaseId = new AbilityPipelinePhaseId("cast.release");
+
+        recorder.Record(owner, new PipelineTraceData(1, EPipelineTraceEventType.PhaseStart, pipelinePhaseId, EAbilityPipelineState.Executing, "phase"));
+
+        var active = registry.GetNodeSnapshotsByRoot(rootId)
+            .Single(node => node.ParentId == parentId &&
+                            node.Metadata is MobaTraceMetadata metadata &&
+                            metadata.PhaseId == "cast.release");
+        var activeMetadata = Assert.IsType<MobaTraceMetadata>(active.Metadata);
+        Assert.False(active.IsEnded);
+        Assert.Equal(1001, activeMetadata.SkillId);
+        Assert.Equal(3001, activeMetadata.CastFlowId);
+
+        recorder.Record(owner, new PipelineTraceData(2, EPipelineTraceEventType.PhaseComplete, pipelinePhaseId, EAbilityPipelineState.Executing, "phase"));
+
+        Assert.True(registry.TryGetNodeSnapshot(active.ContextId, out var ended));
+        Assert.True(ended.IsEnded);
+        Assert.Equal((int)TraceLifecycleReason.Completed, ended.EndReason);
+    }
+
     [Fact]
     public void Registry_can_create_query_snapshot_and_end_moba_trace_chain()
     {
@@ -416,5 +470,57 @@ public sealed class MobaTraceRegistrySmokeTests
         public IReadOnlyList<MobaBattleDiagnosticWarningRecord> GetWarningsSnapshot() => Array.Empty<MobaBattleDiagnosticWarningRecord>();
         public IReadOnlyList<MobaBattleDiagnosticExceptionRecord> GetExceptionsSnapshot() => Array.Empty<MobaBattleDiagnosticExceptionRecord>();
         public MobaBattleDiagnosticsSnapshot GetSnapshot() => default;
+    }
+
+    private sealed class TestWorldResolver : IWorldResolver
+    {
+        private readonly MobaTraceRegistry _trace;
+
+        public TestWorldResolver(MobaTraceRegistry trace) => _trace = trace;
+
+        public object Resolve(Type serviceType) =>
+            serviceType == typeof(MobaTraceRegistry) ? _trace : null;
+
+        public T Resolve<T>() => TryResolve<T>(out var instance) ? instance : default;
+
+        public bool TryResolve(Type serviceType, out object instance)
+        {
+            instance = Resolve(serviceType);
+            return instance != null;
+        }
+
+        public bool TryResolve<T>(out T instance)
+        {
+            if (_trace is T resolved)
+            {
+                instance = resolved;
+                return true;
+            }
+
+            instance = default;
+            return false;
+        }
+    }
+
+    private sealed class TestPipelineRun : IAbilityPipelineRun<SkillPipelineContext>, IPipelineLifeOwner
+    {
+        public TestPipelineRun(int ownerId, SkillPipelineContext context)
+        {
+            OwnerId = ownerId;
+            Context = context;
+        }
+
+        public int OwnerId { get; }
+        public string OwnerName => "test-skill-pipeline";
+        public EAbilityPipelineState State { get; private set; } = EAbilityPipelineState.Executing;
+        public SkillPipelineContext Context { get; }
+        public AbilityPipelinePhaseId CurrentPhaseId => Context.CurrentPhaseId;
+        public bool IsPaused => false;
+        public IReadOnlyList<AbilityPipelinePhaseId> ActivePhases => Array.Empty<AbilityPipelinePhaseId>();
+        public void Tick(float deltaTime) { }
+        public void Pause() { }
+        public void Resume() { }
+        public void Interrupt() => State = EAbilityPipelineState.Failed;
+        public void Cancel() { }
     }
 }

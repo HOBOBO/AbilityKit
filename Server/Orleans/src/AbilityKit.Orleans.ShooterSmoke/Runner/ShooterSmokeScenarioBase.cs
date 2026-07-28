@@ -83,18 +83,31 @@ internal abstract class ShooterSmokeScenarioBase
 
     internal static ShooterSmokePresentationContext CreatePresentationContext()
     {
-        var runtime = new ShooterBattleRuntimePort();
-        var presentation = new ShooterPresentationFacade();
-        var recorder = new RecordingProjectedViewSink();
-        var projectedSink = new ShooterProjectedSnapshotViewSink(recorder);
-        var session = ShooterPresentationSessionContext.CreateFromFacade(presentation, projectedSink);
-        if (session.View is null)
+        var worldSession = ShooterBattleWorldSession.Create();
+        try
         {
-            throw new InvalidOperationException("Shooter presentation session did not create a view.");
-        }
+            var presentation = new ShooterPresentationFacade();
+            var recorder = new RecordingProjectedViewSink();
+            var projectedSink = new ShooterProjectedSnapshotViewSink(recorder);
+            var session = ShooterPresentationSessionContext.CreateFromFacade(presentation, projectedSink);
+            if (session.View is null)
+            {
+                if (session.Binder is IDisposable disposableBinder)
+                {
+                    disposableBinder.Dispose();
+                }
 
-        session.View.InterpolationEnabled = false;
-        return new ShooterSmokePresentationContext(runtime, presentation, recorder, session);
+                throw new InvalidOperationException("Shooter presentation session did not create a view.");
+            }
+
+            session.View.InterpolationEnabled = false;
+            return new ShooterSmokePresentationContext(worldSession, presentation, recorder, session);
+        }
+        catch
+        {
+            worldSession.Dispose();
+            throw;
+        }
     }
 
     internal static ShooterViewProjectionApplyResult ValidateProjectedPresentation(
@@ -381,8 +394,48 @@ internal abstract class ShooterSmokeScenarioBase
     }
 }
 
-internal sealed record ShooterSmokePresentationContext(
-    ShooterBattleRuntimePort Runtime,
-    ShooterPresentationFacade Presentation,
-    RecordingProjectedViewSink Recorder,
-    ShooterPresentationSessionContext Session);
+internal sealed class ShooterSmokePresentationContext : IDisposable
+{
+    private readonly ShooterBattleWorldSession _worldSession;
+    private bool _disposed;
+
+    public ShooterSmokePresentationContext(
+        ShooterBattleWorldSession worldSession,
+        ShooterPresentationFacade presentation,
+        RecordingProjectedViewSink recorder,
+        ShooterPresentationSessionContext session)
+    {
+        _worldSession = worldSession ?? throw new ArgumentNullException(nameof(worldSession));
+        Presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
+        Recorder = recorder ?? throw new ArgumentNullException(nameof(recorder));
+        Session = session ?? throw new ArgumentNullException(nameof(session));
+    }
+
+    public ShooterBattleRuntimePort Runtime => _worldSession.Runtime;
+
+    public ShooterPresentationFacade Presentation { get; }
+
+    public RecordingProjectedViewSink Recorder { get; }
+
+    public ShooterPresentationSessionContext Session { get; }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        if (Session.Binder is IDisposable disposableBinder)
+        {
+            disposableBinder.Dispose();
+        }
+        else
+        {
+            Session.Binder.Clear();
+        }
+
+        _worldSession.Dispose();
+    }
+}

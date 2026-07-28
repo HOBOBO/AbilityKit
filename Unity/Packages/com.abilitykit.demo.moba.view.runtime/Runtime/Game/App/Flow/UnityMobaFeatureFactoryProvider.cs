@@ -20,15 +20,14 @@ namespace AbilityKit.Game.Flow
                 .Register("hud", (in GamePhaseContext ctx) => new BattleHudFeature())
                 .Register("loading_screen", (in GamePhaseContext ctx) => new BattleLoadingScreenFeature())
                 .Register("end_recorder", (in GamePhaseContext ctx) => new BattleEndSummaryRecorder())
-                .Register("end_settlement", (in GamePhaseContext ctx) => new BattleEndSettlementFeature());
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            registry
+                .Register("end_settlement", (in GamePhaseContext ctx) => new BattleEndSettlementFeature())
                 .Register("demo_lobby", (in GamePhaseContext ctx) => new DemoLobbyOnGUIFeature())
                 .Register("formal_lobby", (in GamePhaseContext ctx) => new FormalLobbyFeature())
-                .Register("boot_menu", (in GamePhaseContext ctx) => new BootMenuOnGUIFeature())
                 .Register("root_debug", (in GamePhaseContext ctx) => new RootDebugOnGUIFeature())
                 .Register("debug_ongui", (in GamePhaseContext ctx) => new BattleDebugOnGUIFeature());
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            registry.Register("boot_menu", (in GamePhaseContext ctx) => new BootMenuOnGUIFeature());
 #endif
 
             return registry;

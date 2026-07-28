@@ -1,6 +1,6 @@
 # MOBA 战斗诊断当前能力与限制
 
-> 状态日期：2026-07-25
+> 状态日期：2026-07-27
 >
 > 本文是当前实现状态的唯一事实入口。设计目标请查阅架构设计，历史批次请查阅实施历史。
 
@@ -135,6 +135,23 @@ Trace 数据仍受 Runtime Store 保留范围约束。Editor 临时 Pin 只是�
 | Snapshot Gap | 未实现 | 同步层尚未暴露可靠事实来源 |
 | Rollback/Replay 完成 | 未实现 | 不从空对账报告推断事件 |
 | Full Snapshot 请求/应用 | 未实现 | 等待同步控制器正式事件 |
+
+## SkillFlow Editor 与运行时诊断边界
+
+`SkillFlowSO.dataList` 已提供与正式运行时 DTO 同构的递归树形编辑模型：支持 `RulePlan`、`Timeline`、`Sequence`、`Parallel`、`Repeat`、`Delay` 和 `WaitUntil`，并映射稳定 `PhaseId` 与 `PipelineContinuousTagTemplateId`。废弃的 `Checks` 编辑类型只为已有 SerializeReference 资产迁移保留，不再进入新增菜单；`Handlers` 不提供新的编辑类型。
+
+Battle Debug 已建立只读配置源索引，通过类型化的 `BattleDebugConfigReference` 将运行时 ID 映射到权威 JSON，而不让诊断面板持有可变配置对象。索引使用结构化 JSON 解析和行号信息定位准确条目，支持普通 `Id` 数组表、`ability_trigger_plans.json` 的 `Triggers/TriggerId` 结构，以及 `skill_flows.json` 内按 `Id + PhaseId` 递归定位嵌套 Phase；缺失 ID 或 Phase 时明确失败，不回退为模糊文本命中。
+
+当前 `Open Config` 入口覆盖：
+
+- Skill Runtime 的 Skill 配置。
+- Event 中语义明确的 Skill、TriggerPlan、Effect、Buff、Projectile、Area 和 Summon 配置。
+- Trace 中语义明确的 Skill、Effect、Buff、Projectile、Area、Summon 和 PresentationTemplate 配置。
+- Actor Buff 和实时 Projectile/Area 对象配置。
+
+权威配置源位于 `com.abilitykit.demo.moba.view.runtime/Resources/moba` 和 `Resources/ability`。普通配置跳转会选中并 Ping 对应 `TextAsset`，再调用 Unity 外部编辑器打开准确行；SkillFlow Trace 则在 JSON 精确索引校验通过后选中正式 `SkillFlowSO` 资产。`EffectAction` 的 `ConfigId` 是动作模块 ID；Damage/Heal Event 的 `ConfigId` 可能代表 Skill、Buff、Item 或环境原因参数，Damage Trace 的 ID 语义也不稳定。因此这些入口不会生成配置跳转，避免碰巧同号导致误定位。
+
+运行中的 Cast Pipeline Phase 已通过正式 `PhaseStart/PhaseComplete/PhaseError` 事件生成独立 Trace 子节点，并把 `SkillId -> CastFlowId -> PhaseId` 写入只读 Diagnostics DTO 与离线 Artifact。Battle Debug 会把该节点映射为 `SkillFlow(CastFlowId, PhaseId)`，选中正式 `SkillFlowSO`，递归解析 Sequence/Parallel/Repeat 节点，自动展开序列化路径，并在 Inspector 与 Odin 节点位置显示 Trace 高亮。该链路不从 Summary、EndReason 或日志文本解析身份；PreCast 在正式启用独立 Flow 契约前保持技能级定位，不会错误复用 CastFlowId。
 
 ## Editor 工作区与面板边界
 

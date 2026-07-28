@@ -6,10 +6,6 @@ namespace AbilityKit.Game.Flow
     /// <summary>
     /// 正式多人大厅 Feature：从 <see cref="MultiplayerRoomFlowController"/> 投影状态，
     /// 提供创建房间、加入房间、选英雄、Ready 等操作。
-    /// <para>
-    /// 核心逻辑（状态投影、命令提交）委托给纯 C# 的 <see cref="MultiplayerRoomFlowController"/>，
-    /// OnGUI 仅作为渲染层，用 <c>#if UNITY_EDITOR || DEVELOPMENT_BUILD</c> 包裹。
-    /// </para>
     /// </summary>
     public sealed class FormalLobbyFeature : IGamePhaseFeature, IOnGUIFeature
     {
@@ -84,11 +80,20 @@ namespace AbilityKit.Game.Flow
                 : null;
         }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        internal static bool ShouldEnterBattle(
+            LobbyBattleEntrySelection selection,
+            MultiplayerRoomFlowController controller)
+        {
+            return selection?.IsRemoteSelected == true &&
+                   controller?.CurrentState == MultiplayerRoomFlowState.InBattle &&
+                   controller.CurrentSnapshot?.NumericRoomId > 0UL &&
+                   controller.CurrentSnapshot.WorldId > 0UL;
+        }
+
         public void OnGUI(in GamePhaseContext ctx)
         {
             if (!_show) return;
-            if (ctx.Entry == null || !ctx.Entry.DebugEnabled) return;
+            if (ctx.Entry == null) return;
 
             var sink = ctx.Entry.Get<IFlowCommandSink>();
             if (sink != null && sink.CurrentRootPhase == MobaRootState.Battle) return;
@@ -128,16 +133,6 @@ namespace AbilityKit.Game.Flow
         internal static bool ShouldShowFlowWindow(LobbyBattleEntrySelection selection)
         {
             return selection?.IsRemoteSelected == true;
-        }
-
-        internal static bool ShouldEnterBattle(
-            LobbyBattleEntrySelection selection,
-            MultiplayerRoomFlowController controller)
-        {
-            return ShouldShowFlowWindow(selection) &&
-                   controller?.CurrentState == MultiplayerRoomFlowState.InBattle &&
-                   controller.CurrentSnapshot?.NumericRoomId > 0UL &&
-                   controller.CurrentSnapshot.WorldId > 0UL;
         }
 
         private void DrawByState()
@@ -262,11 +257,5 @@ namespace AbilityKit.Game.Flow
                 MaxPlayers = 2
             };
         }
-#else
-        public void OnGUI(in GamePhaseContext ctx)
-        {
-            // 非 Development 构建：正式大厅 UI 不渲染（由正式 UI 框架接管）。
-        }
-#endif
     }
 }

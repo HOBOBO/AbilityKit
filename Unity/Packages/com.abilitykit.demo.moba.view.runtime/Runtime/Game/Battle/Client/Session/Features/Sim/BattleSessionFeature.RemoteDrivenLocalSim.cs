@@ -10,7 +10,11 @@ namespace AbilityKit.Game.Flow
                 _handles.RemoteDriven,
                 GetFixedDeltaSeconds(),
                 ResolveIdealFrameLimit,
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 () => DebugForceClientHashMismatch,
+#else
+                () => false,
+#endif
                 () => _remoteDrivenLastTickedFrame = 0));
         }
     }

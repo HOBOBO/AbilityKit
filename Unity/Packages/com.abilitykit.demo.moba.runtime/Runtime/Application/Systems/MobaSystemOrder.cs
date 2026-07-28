@@ -42,6 +42,8 @@ namespace AbilityKit.Demo.Moba.Systems
         public const int MotionInit = Base + WorldSystemOrder.Early + 10;
 
         // ========== 移动系统 (Execute/Normal) ==========
+        /// <summary>Actor 分层状态机装配与 Tick</summary>
+        public const int ActorStateMachineTick = Base + WorldSystemOrder.Normal + 7;
         /// <summary>Actor 脑决策 Tick</summary>
         public const int BrainTick = Base + WorldSystemOrder.Normal + 8;
         /// <summary>脑决策输出应用（Movement → MoveInput）</summary>
@@ -100,6 +102,11 @@ namespace AbilityKit.Demo.Moba.Systems
             if (!RunsBefore(EntityManagerSync, MotionInit))
             {
                 return Fail(nameof(EntityManagerSync), nameof(MotionInit));
+            }
+
+            if (!RunsBefore(ActorStateMachineTick, BrainTick))
+            {
+                return Fail(nameof(ActorStateMachineTick), nameof(BrainTick));
             }
 
             if (!RunsBefore(BrainTick, MotionLocomotionInput))

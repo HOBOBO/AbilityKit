@@ -123,7 +123,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             var importedSpawnCount = SynchronizeNextEnemyIdFromExistingTargets();
-            _spawnDirector.SynchronizeFromImportedTargets(importedSpawnCount);
+            var resolvedSpawnCount = Math.Max(importedSpawnCount, _state.DefeatedEnemies + _entities.EnemyCount);
+            if (resolvedSpawnCount > 0)
+            {
+                _idAllocator.AdvancePast(ShooterEnemyIdAllocator.FirstEnemyEntityId + resolvedSpawnCount - 1);
+            }
+
+            _spawnDirector.SynchronizeFromImportedTargets(resolvedSpawnCount);
             _lastSynchronizedFrame = _state.CurrentFrame;
         }
 

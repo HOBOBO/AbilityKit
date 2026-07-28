@@ -10,6 +10,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public static ShooterEnemyWaveOptions DefaultEnabled { get; } = new ShooterEnemyWaveOptions(true, ShooterSveltoGameplayBattleFlowConfig.Default);
 
+        public const float DefaultEnemyAttackRange = 1.1f;
+
+        public const int DefaultMaxEnemyAttackersPerPlayer = 3;
+
         public ShooterEnemyWaveOptions(bool enabled)
             : this(enabled, ShooterSveltoGameplayBattleFlowConfig.Default)
         {
@@ -25,6 +29,23 @@ namespace AbilityKit.Demo.Shooter.Runtime
             ShooterSveltoGameplayBattleFlowConfig battleFlow,
             int enemyAttackIntervalFrames,
             int enemyAttackDamage)
+            : this(
+                enabled,
+                battleFlow,
+                enemyAttackIntervalFrames,
+                enemyAttackDamage,
+                DefaultEnemyAttackRange,
+                DefaultMaxEnemyAttackersPerPlayer)
+        {
+        }
+
+        public ShooterEnemyWaveOptions(
+            bool enabled,
+            ShooterSveltoGameplayBattleFlowConfig battleFlow,
+            int enemyAttackIntervalFrames,
+            int enemyAttackDamage,
+            float enemyAttackRange,
+            int maxEnemyAttackersPerPlayer)
         {
             Enabled = enabled;
             BattleFlow = battleFlow.DurationFrames <= 0
@@ -35,6 +56,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 : Array.Empty<ShooterSveltoGameplayWaveConfig>();
             EnemyAttackIntervalFrames = enemyAttackIntervalFrames < 1 ? 1 : enemyAttackIntervalFrames;
             EnemyAttackDamage = enemyAttackDamage < 1 ? 1 : enemyAttackDamage;
+            EnemyAttackRange = enemyAttackRange <= 0f ? DefaultEnemyAttackRange : enemyAttackRange;
+            MaxEnemyAttackersPerPlayer = maxEnemyAttackersPerPlayer < 1
+                ? DefaultMaxEnemyAttackersPerPlayer
+                : maxEnemyAttackersPerPlayer;
         }
 
         public bool Enabled { get; }
@@ -52,5 +77,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public int EnemyAttackIntervalFrames { get; }
 
         public int EnemyAttackDamage { get; }
+
+        public float EnemyAttackRange { get; }
+
+        public int MaxEnemyAttackersPerPlayer { get; }
     }
 }

@@ -112,12 +112,12 @@ namespace AbilityKit.Demo.Shooter.View
             if (envelope.IsFullBaseline)
             {
                 SetHealthEvents(
-                    SyncHealthEvent.Info(SyncHealthEventKind.SnapshotReceived, pureState.Frame, pureState.Entities?.Length ?? 0),
+                    SyncHealthEvent.Info(SyncHealthEventKind.SnapshotReceived, pureState.Frame, pureState.EffectiveEntityCount),
                     SyncHealthEvent.Info(SyncHealthEventKind.FullSnapshotApplied, pureState.Frame, pureState.BaselineFrame));
             }
             else
             {
-                SetHealthEvents(SyncHealthEvent.Info(SyncHealthEventKind.SnapshotReceived, pureState.Frame, pureState.Entities?.Length ?? 0));
+                SetHealthEvents(SyncHealthEvent.Info(SyncHealthEventKind.SnapshotReceived, pureState.Frame, pureState.EffectiveEntityCount));
             }
 
             var result = envelope.IsFullBaseline
@@ -292,8 +292,8 @@ namespace AbilityKit.Demo.Shooter.View
                 result,
                 snapshot.Frame,
                 snapshot.SnapshotKind,
-                snapshot.Entities?.Length ?? 0,
-                snapshot.VisibilityHints?.Length ?? 0,
+                snapshot.EffectiveEntityCount,
+                snapshot.EffectiveVisibilityHintCount,
                 snapshot.BaselineFrame,
                 snapshot.BaselineHash,
                 snapshot.StateHash,

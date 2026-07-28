@@ -66,40 +66,44 @@ namespace AbilityKit.Demo.Moba.Services
                 }
             }
 
+            var castFlowId = 0;
             if (_services.TryResolve<MobaConfigDatabase>(out var configs)
                 && configs != null
                 && configs.TryGetSkill(skillId, out var skill)
-                && skill != null
-                && RequiresTargetSearch(skill))
+                && skill != null)
             {
-                if (!_services.TryResolve<SearchTargetService>(out var search) || search == null)
+                castFlowId = skill.CastFlowId;
+                if (RequiresTargetSearch(skill))
                 {
-                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "Required target search service is unavailable.");
-                }
+                    if (!_services.TryResolve<SearchTargetService>(out var search) || search == null)
+                    {
+                        return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "Required target search service is unavailable.");
+                    }
 
-                var targets = new List<int>(1);
-                var found = skill.RequiredTargetQueryId > 0
-                    ? search.TrySearchActorIds(
-                        skill.RequiredTargetQueryId,
-                        actorId,
-                        in casterPos,
-                        finalTargetActorId,
-                        targets)
-                    : search.TrySearchActorIds(
-                        NormalAttackTargetQuery.Create(skill.Range),
-                        actorId,
-                        in casterPos,
-                        finalTargetActorId,
-                        targets);
-                if (!found || targets.Count == 0)
-                {
-                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "No valid target is within cast range.");
-                }
+                    var targets = new List<int>(1);
+                    var found = skill.RequiredTargetQueryId > 0
+                        ? search.TrySearchActorIds(
+                            skill.RequiredTargetQueryId,
+                            actorId,
+                            in casterPos,
+                            finalTargetActorId,
+                            targets)
+                        : search.TrySearchActorIds(
+                            NormalAttackTargetQuery.Create(skill.Range),
+                            actorId,
+                            in casterPos,
+                            finalTargetActorId,
+                            targets);
+                    if (!found || targets.Count == 0)
+                    {
+                        return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "No valid target is within cast range.");
+                    }
 
-                finalTargetActorId = targets[0];
-                if (!_units.TryResolve(new EcsEntityId(finalTargetActorId), out targetUnit) || targetUnit == null)
-                {
-                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, $"Resolved target not found. targetActorId={finalTargetActorId}.");
+                    finalTargetActorId = targets[0];
+                    if (!_units.TryResolve(new EcsEntityId(finalTargetActorId), out targetUnit) || targetUnit == null)
+                    {
+                        return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, $"Resolved target not found. targetActorId={finalTargetActorId}.");
+                    }
                 }
             }
 
@@ -128,6 +132,7 @@ namespace AbilityKit.Demo.Moba.Services
                 .WithSkillLevel(skillLevel)
                 .WithSequence(sequence)
                 .Build();
+            context.CastFlowId = castFlowId;
 
             var trace = _services.Resolve<MobaTraceRegistry>();
             if (trace == null)
@@ -146,6 +151,7 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TraceRootCreateFailed, "Skill cast trace root creation failed.");
             }
+            trace.TrySetSkillPhaseLocation(context.SourceContextId, skillId, castFlowId, string.Empty);
 
             var runtimes = _services.Resolve<MobaSkillCastRuntimeService>();
             if (runtimes == null)

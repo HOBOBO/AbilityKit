@@ -1,6 +1,6 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Core.Logging;
 using AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
@@ -11,15 +11,19 @@ namespace AbilityKit.Game.Flow
             BattleStartPlan plan,
             BattleSessionHandles handles)
         {
-            try
-            {
-                handles.RemoteDriven.DestroyWorld(new WorldId(plan.World.WorldId));
-                handles.Confirmed.DestroyWorld(ConfirmedAuthorityWorldId.Create(plan));
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex);
-            }
+            DestroyBattleWorlds(
+                () => handles.RemoteDriven.DestroyWorld(new WorldId(plan.World.WorldId)),
+                () => handles.Confirmed.DestroyWorld(ConfirmedAuthorityWorldId.Create(plan)));
+        }
+
+        internal static void DestroyBattleWorlds(
+            Action destroyRemoteDrivenWorld,
+            Action destroyConfirmedWorld)
+        {
+            ExecuteCleanupSteps(
+                "Failed to destroy battle worlds.",
+                destroyRemoteDrivenWorld,
+                destroyConfirmedWorld);
         }
 
         public static void DisposeConfirmedView(
@@ -27,18 +31,22 @@ namespace AbilityKit.Game.Flow
             BattleSessionConfirmedWorldRuntime handles,
             Action<IEntity> destroyEntityTree)
         {
-            DetachConfirmedViewFeature(flow, handles);
-            handles.DisposeViewSnapshotRuntime();
-            DisposeConfirmedViewContext(handles, destroyEntityTree);
+            ExecuteCleanupSteps(
+                "Failed to dispose confirmed view resources.",
+                () => DetachConfirmedViewFeature(flow, handles),
+                handles.DisposeViewSnapshotRuntime,
+                () => DisposeConfirmedViewContext(handles, destroyEntityTree));
         }
 
         public static void DisposeRemoteDrivenWorld(
             BattleSessionRemoteDrivenWorldRuntime handles,
             Action resetTickState)
         {
-            handles.ClearWorldRuntime();
-            resetTickState?.Invoke();
-            handles.DisposeInput();
+            ExecuteCleanupSteps(
+                "Failed to dispose remote-driven world resources.",
+                handles.ClearWorldRuntime,
+                resetTickState,
+                handles.DisposeInput);
         }
 
         public static void DisposeConfirmedWorld(
@@ -46,29 +54,58 @@ namespace AbilityKit.Game.Flow
             BattleSessionConfirmedWorldRuntime handles,
             Action resetTickState)
         {
-            handles.ClearWorldRuntime();
-            resetTickState?.Invoke();
-            handles.DisposeInput();
-            handles.DisposeViewEventPipeline();
-            ConfirmedAuthorityDebugStatsPublisher.Clear(ctx);
+            ExecuteCleanupSteps(
+                "Failed to dispose confirmed world resources.",
+                handles.ClearWorldRuntime,
+                resetTickState,
+                handles.DisposeInput,
+                handles.DisposeViewEventPipeline,
+                () => ConfirmedAuthorityDebugStatsPublisher.Clear(ctx));
+        }
+
+        internal static void ExecuteCleanupSteps(string message, params Action[] cleanupSteps)
+        {
+            var failures = new List<Exception>(cleanupSteps?.Length ?? 0);
+            if (cleanupSteps != null)
+            {
+                for (var i = 0; i < cleanupSteps.Length; i++)
+                {
+                    TryCleanup(cleanupSteps[i], failures);
+                }
+            }
+
+            if (failures.Count == 1) throw failures[0];
+            if (failures.Count > 1) throw new AggregateException(message, failures);
         }
 
         private static void DetachConfirmedViewFeature(
             GameFlowDomain flow,
             BattleSessionConfirmedWorldRuntime handles)
         {
-            var feature = handles.TakeViewFeature();
-            if (flow != null && feature != null)
-            {
-                flow.Detach(feature);
-            }
+            var feature = handles.GetViewFeature();
+            if (flow != null && feature != null) flow.Detach(feature);
+            handles.ClearViewFeature(feature);
         }
 
         private static void DisposeConfirmedViewContext(
             BattleSessionConfirmedWorldRuntime handles,
             Action<IEntity> destroyEntityTree)
         {
-            ConfirmedViewContextDisposer.Dispose(handles.TakeViewContext(), destroyEntityTree);
+            var context = handles.GetViewContext();
+            ConfirmedViewContextDisposer.Dispose(context, destroyEntityTree);
+            handles.ClearViewContext(context);
+        }
+
+        private static void TryCleanup(Action cleanup, ICollection<Exception> failures)
+        {
+            try
+            {
+                cleanup?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
         }
     }
 }

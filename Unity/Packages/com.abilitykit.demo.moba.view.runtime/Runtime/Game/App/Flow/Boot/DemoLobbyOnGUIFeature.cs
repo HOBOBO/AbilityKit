@@ -17,7 +17,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            LoadAssets();
+            LoadAssets(ctx.Entry as GameEntry);
         }
 
         public void OnDetach(in GamePhaseContext ctx)
@@ -31,14 +31,14 @@ namespace AbilityKit.Game.Flow
         public void OnGUI(in GamePhaseContext ctx)
         {
             if (!_show) return;
-            if (ctx.Entry == null || !ctx.Entry.DebugEnabled) return;
+            if (ctx.Entry == null) return;
 
             var sink = ctx.Entry.Get<IFlowCommandSink>();
             if (sink != null && sink.CurrentRootPhase == MobaRootState.Battle) return;
 
             if (!_loaded)
             {
-                LoadAssets();
+                LoadAssets(ctx.Entry as GameEntry);
             }
 
             GUILayout.BeginArea(new Rect(10, 10, 360, 260), GUI.skin.window);
@@ -114,15 +114,35 @@ namespace AbilityKit.Game.Flow
                    preset.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote;
         }
 
-        private void LoadAssets()
+        private void LoadAssets(GameEntry entry)
         {
             _loaded = true;
             _presets.Clear();
-            _config = null;
+            _config = entry != null ? entry.BattleStartConfig : null;
+
+            var runtimePresets = entry?.BattleStartPresets;
+            if (runtimePresets != null)
+            {
+                for (var i = 0; i < runtimePresets.Count; i++)
+                {
+                    var preset = runtimePresets[i];
+                    if (preset != null && !_presets.Contains(preset))
+                    {
+                        _presets.Add(preset);
+                    }
+                }
+            }
 
 #if UNITY_EDITOR
-            _config = LoadFirstAsset<BattleStartConfig>();
-            LoadAllAssets(_presets);
+            if (_config == null)
+            {
+                _config = LoadFirstAsset<BattleStartConfig>();
+            }
+
+            if (_presets.Count == 0)
+            {
+                LoadAllAssets(_presets);
+            }
 #endif
         }
 

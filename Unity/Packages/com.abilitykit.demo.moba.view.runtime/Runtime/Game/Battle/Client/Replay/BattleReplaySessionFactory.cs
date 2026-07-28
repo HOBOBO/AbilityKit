@@ -20,6 +20,20 @@ namespace AbilityKit.Game.Flow.Battle.Replay
         void PumpAndTick(int frame, float fixedDeltaSeconds);
     }
 
+    internal interface IBattleReplayCheckpoint
+    {
+    }
+
+    internal interface IBattleReplayCheckpointRuntime
+    {
+        IBattleReplayCheckpoint CaptureCheckpoint();
+        void RestoreCheckpoint(IBattleReplayCheckpoint checkpoint);
+
+        // Checkpoints are runtime-owned resources. Release must be safe to repeat during
+        // failure convergence, and runtime disposal must reclaim any unreleased tokens.
+        void ReleaseCheckpoint(IBattleReplayCheckpoint checkpoint);
+    }
+
     internal interface IBattleReplaySessionFactory
     {
         FrameRecordFile Load(string path);

@@ -105,7 +105,8 @@ namespace AbilityKit.Demo.Shooter.View
                 SampleStep(from.HealthChanges, to.HealthChanges, _options.HealthMode),
                 SampleStep(from.ScoreChanges, to.ScoreChanges, _options.ScoreMode),
                 SampleStep(from.ProjectileLifetimeChanges, to.ProjectileLifetimeChanges, _options.ProjectileLifetimeMode),
-                from.Events);
+                from.Events,
+                sampleFrame: playbackFrame);
         }
 
         private IReadOnlyList<ShooterViewTransformComponentChange> SampleTransforms(

@@ -123,6 +123,7 @@ namespace AbilityKit.Game.Editor
                 selectActor: SelectActor,
                 openTrace: OpenTrace,
                 openEvents: OpenEvents,
+                openConfig: OpenConfig,
                 seekReplayFrame: CanSeekReplayFrame() ? SeekReplayFrame : null,
                 diagnosticSession: diagnosticResolution.Session,
                 skillRuntimeService: diagnosticResolution.SkillRuntimeService,
@@ -1032,6 +1033,82 @@ namespace AbilityKit.Game.Editor
             }
         }
 
+        private void OpenConfig(BattleDebugConfigReference reference)
+        {
+            if (!BattleDebugConfigSourceIndex.TryLocate(in reference, out var location, out var error))
+            {
+                _fileStatus = $"配置定位失败：{error}";
+                _fileStatusType = MessageType.Warning;
+                ShowNotification(new GUIContent(_fileStatus));
+                Repaint();
+                return;
+            }
+
+            if (reference.Kind == BattleDebugConfigKind.SkillFlow &&
+                TryOpenSkillFlowInspector(in reference, out var inspectorStatus))
+            {
+                _fileStatus = inspectorStatus;
+                _fileStatusType = MessageType.Info;
+                ShowNotification(new GUIContent(_fileStatus));
+                Repaint();
+                return;
+            }
+
+            Selection.activeObject = location.Asset;
+            EditorGUIUtility.PingObject(location.Asset);
+            var opened = AssetDatabase.OpenAsset(location.Asset, location.LineNumber);
+            _fileStatus = opened
+                ? $"已定位 {reference}：{location.AssetPath}:{location.LineNumber}"
+                : $"已选中 {reference} 的配置源，但外部编辑器未能打开：{location.AssetPath}:{location.LineNumber}";
+            _fileStatusType = opened ? MessageType.Info : MessageType.Warning;
+            ShowNotification(new GUIContent(_fileStatus));
+            Repaint();
+        }
+
+        private static bool TryOpenSkillFlowInspector(
+            in BattleDebugConfigReference reference,
+            out string status)
+        {
+            var flowId = reference.Id;
+            var guids = AssetDatabase.FindAssets("t:SkillFlowSO");
+            var resolutionError = string.Empty;
+            for (var i = 0; i < guids.Length; i++)
+            {
+                var assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
+                var asset = AssetDatabase.LoadAssetAtPath<
+                    AbilityKit.Ability.Impl.BattleDemo.Moba.Editor.SkillFlowSO>(assetPath);
+                if (asset == null) continue;
+
+                if (!AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
+                    .SkillFlowInspectorSelectionState.TrySelect(
+                        asset,
+                        flowId,
+                        reference.PhaseId,
+                        out _,
+                        out var error))
+                {
+                    if (asset.dataList != null &&
+                        Array.Exists(asset.dataList, flow => flow != null && flow.Id == flowId))
+                    {
+                        resolutionError = error;
+                    }
+                    continue;
+                }
+
+                Selection.activeObject = asset;
+                EditorGUIUtility.PingObject(asset);
+                status = string.IsNullOrEmpty(reference.PhaseId)
+                    ? $"Selected SkillFlow #{flowId} in {assetPath}."
+                    : $"Selected SkillFlow #{flowId} / {reference.PhaseId} in {assetPath}.";
+                return true;
+            }
+
+            status = string.IsNullOrEmpty(resolutionError)
+                ? $"No SkillFlow asset contains flow #{flowId}."
+                : resolutionError;
+            return false;
+        }
+
         private static int CountDiagnosticsPanelsBefore(
             System.Collections.Generic.IReadOnlyList<IBattleDebugPanel> panels,
             int exclusiveIndex)
@@ -1080,6 +1157,7 @@ namespace AbilityKit.Game.Editor
                 selectActor: SelectActor,
                 openTrace: OpenTrace,
                 openEvents: OpenEvents,
+                openConfig: OpenConfig,
                 seekReplayFrame: CanSeekReplayFrame() ? SeekReplayFrame : null,
                 diagnosticSession: diagnosticResolution.Session,
                 skillRuntimeService: diagnosticResolution.SkillRuntimeService,

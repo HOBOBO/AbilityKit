@@ -31,6 +31,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501, 7, 21);
             frameTime.StepTo(new FrameIndex(11), 0.02f);
             var firstChildId = registry.CreateChildContext(rootId, MobaTraceKind.SkillPhase, 502, 7, 21);
+            registry.TrySetSkillPhaseLocation(firstChildId, 501, 7001, "cast.release");
             var secondChildId = registry.CreateChildContext(rootId, MobaTraceKind.EffectExecution, 503, 8, 22);
             frameTime.StepTo(new FrameIndex(12), 0.02f);
             var grandChildId = registry.CreateChildContext(firstChildId, MobaTraceKind.EffectAction, 504, 9, 23);
@@ -51,6 +52,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(result.Items[2].StartFrame, Is.EqualTo(12));
             Assert.That(result.Items[2].EndFrame, Is.EqualTo(15));
             Assert.That(result.Items[2].ParentContextId, Is.EqualTo(firstChildId));
+            Assert.That(result.Items[1].SkillId, Is.EqualTo(501));
+            Assert.That(result.Items[1].CastFlowId, Is.EqualTo(7001));
+            Assert.That(result.Items[1].PhaseId, Is.EqualTo("cast.release"));
             Assert.That(result.Items[2].State, Is.EqualTo(BattleDiagnosticTraceNodeState.Ended));
             Assert.That(result.Items[2].EndReason, Is.EqualTo(nameof(TraceLifecycleReason.Completed)));
             Assert.That(result.Items[2].ActorId, Is.EqualTo(9));

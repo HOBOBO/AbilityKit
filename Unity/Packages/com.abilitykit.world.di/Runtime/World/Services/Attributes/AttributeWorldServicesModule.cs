@@ -282,17 +282,22 @@ namespace AbilityKit.Ability.World.Services.Attributes
                         if (!ok) continue;
                     }
 
-                    var attrs = (WorldServiceAttribute[])t.GetCustomAttributes(typeof(WorldServiceAttribute), false);
-                    if (attrs == null || attrs.Length == 0) continue;
-
-                    for (int k = 0; k < attrs.Length; k++)
+                    var attributes = CustomAttributeData.GetCustomAttributes(t);
+                    for (int k = 0; k < attributes.Count; k++)
                     {
-                        var attr = attrs[k];
-                        if (attr.ServiceType == null) continue;
-                        if ((attr.Profile & profile) == 0) continue;
-                        if (!attr.ServiceType.IsAssignableFrom(t)) continue;
+                        var attribute = attributes[k];
+                        if (attribute.AttributeType != typeof(WorldServiceAttribute)) continue;
+                        if (attribute.ConstructorArguments.Count != 4) continue;
 
-                        list.Add(new Registration(attr.ServiceType, t, attr.Lifetime, attr.IsDefault));
+                        var serviceType = attribute.ConstructorArguments[0].Value as Type;
+                        var lifetime = (WorldLifetime)(int)attribute.ConstructorArguments[1].Value;
+                        var isDefault = (bool)attribute.ConstructorArguments[2].Value;
+                        var attributeProfile = (WorldServiceProfile)(int)attribute.ConstructorArguments[3].Value;
+                        if (serviceType == null) continue;
+                        if ((attributeProfile & profile) == 0) continue;
+                        if (!serviceType.IsAssignableFrom(t)) continue;
+
+                        list.Add(new Registration(serviceType, t, lifetime, isDefault));
                     }
                 }
             }

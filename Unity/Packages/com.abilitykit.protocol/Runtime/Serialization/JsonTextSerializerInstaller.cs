@@ -1,4 +1,3 @@
-#if UNITY_EDITOR || USE_NEWTONSOFT_JSON
 using AbilityKit.Protocol.Serialization;
 using Newtonsoft.Json;
 
@@ -26,4 +25,3 @@ namespace AbilityKit.Protocol.Serialization
         }
     }
 }
-#endif

@@ -236,6 +236,10 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   _debugEnabled: 1
   _multiplayerGatewayConfig: {fileID: 11400000, guid: 04a8c5ec5617630468ff9a1d1a66340c, type: 2}
+  _battleStartConfig: {fileID: 11400000, guid: 16ef5c90d07e210479cc2968d27f260d, type: 2}
+  _battleStartPresets:
+  - {fileID: 11400000, guid: 8d3da6860dfaff9439d982857e24b28d, type: 2}
+  - {fileID: 11400000, guid: 46d731bcc0b3d3f4aa20aecdacedc7c9, type: 2}
 --- !u!4 &880015087
 Transform:
   m_ObjectHideFlags: 0

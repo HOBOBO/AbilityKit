@@ -81,13 +81,14 @@ namespace AbilityKit.Demo.Shooter.View
 
         private static bool ShouldReplaceMissingEntities(in ShooterSnapshotViewBatch batch)
         {
-            return batch.ShouldReplaceMissingEntities && batch.EntityChangeCount > 0;
+            return batch.ShouldReplaceMissingEntities;
         }
 
         private int RemoveEntitiesMissingFromFullSnapshot(in ShooterSnapshotViewBatch batch)
         {
             _presentEntities.Clear();
             var entityChanges = batch.EntityChanges;
+            _presentEntities.EnsureCapacity(entityChanges.Count);
             for (int i = 0; i < entityChanges.Count; i++)
             {
                 var change = entityChanges[i];
@@ -98,6 +99,11 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             _staleEntities.Clear();
+            if (_store.EntityCount > _staleEntities.Capacity)
+            {
+                _staleEntities.Capacity = _store.EntityCount;
+            }
+
             foreach (var key in _store.Entities.Keys)
             {
                 if (!_presentEntities.Contains(key))

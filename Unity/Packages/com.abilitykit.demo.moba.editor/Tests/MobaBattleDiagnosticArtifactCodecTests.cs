@@ -418,7 +418,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             };
             var traces = new[]
             {
-                new BattleDiagnosticTraceNodeSummary(_scope, 900, 900, 0, Frame - 2, Frame, BattleDiagnosticTraceNodeState.Ended, 1, 101, "Skill", "Completed"),
+                new BattleDiagnosticTraceNodeSummary(_scope, 900, 900, 0, Frame - 2, Frame, BattleDiagnosticTraceNodeState.Ended, 1, 101, "SkillPhase", "Completed", 101, 7001, "cast.release"),
                 new BattleDiagnosticTraceNodeSummary(_scope, 900, 901, 900, Frame - 1, Frame, BattleDiagnosticTraceNodeState.Ended, 2, 201, "Damage", "Failed")
             };
             var attributes = new[]

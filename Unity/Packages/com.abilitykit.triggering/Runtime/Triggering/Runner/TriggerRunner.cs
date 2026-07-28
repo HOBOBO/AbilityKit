@@ -314,6 +314,12 @@ namespace AbilityKit.Triggering.Runtime
             _lifecycle.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, "Evaluate", 0, 0, ex.Message);
             _observer.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, "Evaluate", 0, 0, ex.Message, in execCtx);
 
+            var cue = entry.Trigger.Cue;
+            if (ReferenceEquals(cue, NullTriggerCue.Instance))
+            {
+                return;
+            }
+
             var failCtx = BuildCueContext(
                 key,
                 in args,
@@ -328,7 +334,7 @@ namespace AbilityKit.Triggering.Runtime
                 control,
                 Config.ECueLevel.Trigger,
                 Config.ECueLifecycleStage.ConditionFailed);
-            entry.Trigger.Cue.OnConditionFailed(in failCtx);
+            cue.OnConditionFailed(in failCtx);
         }
 
         private void NotifyConditionPassed<TArgs>(
@@ -340,6 +346,12 @@ namespace AbilityKit.Triggering.Runtime
         {
             _lifecycle.OnConditionPassed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name);
             _observer.OnConditionPassed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
+
+            var cue = entry.Trigger.Cue;
+            if (ReferenceEquals(cue, NullTriggerCue.Instance))
+            {
+                return;
+            }
 
             var passCtx = BuildCueContext(
                 key,
@@ -355,7 +367,7 @@ namespace AbilityKit.Triggering.Runtime
                 control,
                 Config.ECueLevel.Trigger,
                 Config.ECueLifecycleStage.ConditionPassed);
-            entry.Trigger.Cue.OnConditionPassed(in passCtx);
+            cue.OnConditionPassed(in passCtx);
         }
 
         private void NotifyConditionFailed<TArgs>(
@@ -367,6 +379,12 @@ namespace AbilityKit.Triggering.Runtime
         {
             _lifecycle.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name);
             _observer.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
+
+            var cue = entry.Trigger.Cue;
+            if (ReferenceEquals(cue, NullTriggerCue.Instance))
+            {
+                return;
+            }
 
             var failCtx = BuildCueContext(
                 key,
@@ -382,7 +400,7 @@ namespace AbilityKit.Triggering.Runtime
                 control,
                 Config.ECueLevel.Trigger,
                 Config.ECueLifecycleStage.ConditionFailed);
-            entry.Trigger.Cue.OnConditionFailed(in failCtx);
+            cue.OnConditionFailed(in failCtx);
         }
 
         /// <summary>
@@ -426,26 +444,30 @@ namespace AbilityKit.Triggering.Runtime
             out bool wasInterrupted)
         {
             wasInterrupted = false;
+            var cue = entry.Trigger.Cue;
 
             _lifecycle.OnBeforeExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
             _lifecycle.OnActionExecuting(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1);
             _observer.OnActionExecuting(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, in execCtx);
-            var executeCtx = BuildCueContext(
-                key,
-                in args,
-                entry.Phase,
-                entry.Priority,
-                entry.Order,
-                entry.Trigger,
-                ShortCircuitReason.None,
-                null,
-                0,
-                true,
-                control,
-                Config.ECueLevel.Trigger,
-                Config.ECueLifecycleStage.BeforeAction,
-                0);
-            entry.Trigger.Cue.OnBeforeAction(in executeCtx, 0);
+            if (!ReferenceEquals(cue, NullTriggerCue.Instance))
+            {
+                var executeCtx = BuildCueContext(
+                    key,
+                    in args,
+                    entry.Phase,
+                    entry.Priority,
+                    entry.Order,
+                    entry.Trigger,
+                    ShortCircuitReason.None,
+                    null,
+                    0,
+                    true,
+                    control,
+                    Config.ECueLevel.Trigger,
+                    Config.ECueLifecycleStage.BeforeAction,
+                    0);
+                cue.OnBeforeAction(in executeCtx, 0);
+            }
 
             var actionExecuted = TryExecuteTrigger(key, in args, in entry, in execCtx);
             if (TryHandleHardStop(key, in args, in entry, control, in execCtx))
@@ -469,21 +491,24 @@ namespace AbilityKit.Triggering.Runtime
                 return false;
             }
 
-            var executedCtx = BuildCueContext(
-                key,
-                in args,
-                entry.Phase,
-                entry.Priority,
-                entry.Order,
-                entry.Trigger,
-                ShortCircuitReason.None,
-                null,
-                0,
-                true,
-                control,
-                Config.ECueLevel.Trigger,
-                Config.ECueLifecycleStage.Executed);
-            entry.Trigger.Cue.OnExecuted(in executedCtx);
+            if (!ReferenceEquals(cue, NullTriggerCue.Instance))
+            {
+                var executedCtx = BuildCueContext(
+                    key,
+                    in args,
+                    entry.Phase,
+                    entry.Priority,
+                    entry.Order,
+                    entry.Trigger,
+                    ShortCircuitReason.None,
+                    null,
+                    0,
+                    true,
+                    control,
+                    Config.ECueLevel.Trigger,
+                    Config.ECueLifecycleStage.Executed);
+                cue.OnExecuted(in executedCtx);
+            }
             return true;
         }
 
@@ -547,6 +572,12 @@ namespace AbilityKit.Triggering.Runtime
             _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, TriggerRunnerCueDispatcher.MapReason(reason), in execCtx);
             RecordTrace(key, in entry, TriggerRecordKind.ShortCircuited, null, reason, 0L);
 
+            var cue = entry.Trigger.Cue;
+            if (ReferenceEquals(cue, NullTriggerCue.Instance))
+            {
+                return;
+            }
+
             var cueContext = TriggerRunnerCueDispatcher.BuildCueContext(
                 key,
                 in args,
@@ -561,7 +592,15 @@ namespace AbilityKit.Triggering.Runtime
                 control,
                 Config.ECueLevel.Trigger,
                 cueKind == ShortCircuitCueKind.Skipped ? Config.ECueLifecycleStage.Skipped : Config.ECueLifecycleStage.Interrupted);
-            TriggerRunnerCueDispatcher.DispatchShortCircuitCue(entry.Trigger, in cueContext, (TriggerRunnerShortCircuitCueKind)cueKind);
+            switch (cueKind)
+            {
+                case ShortCircuitCueKind.Skipped:
+                    cue.OnSkipped(in cueContext);
+                    break;
+                case ShortCircuitCueKind.Interrupted:
+                    cue.OnInterrupted(in cueContext);
+                    break;
+            }
         }
 
         private static void DispatchShortCircuitCue<TArgs>(

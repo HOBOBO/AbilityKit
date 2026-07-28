@@ -7,6 +7,7 @@
     "AbilityKit.ThirdParty.Luban.Runtime",
     "AbilityKit.GameplayTags",
     "AbilityKit.Core",
+    "AbilityKit.HFSM.Core",
     "AbilityKit.Protocol.Moba",
     "AbilityKit.Attributes",
     "AbilityKit.Modifiers",

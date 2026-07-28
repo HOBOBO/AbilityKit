@@ -110,9 +110,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnGUI(in GamePhaseContext ctx)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
             Features.OnGUI(in ctx);
-#endif
         }
 
         public int AttachBootFeatures()

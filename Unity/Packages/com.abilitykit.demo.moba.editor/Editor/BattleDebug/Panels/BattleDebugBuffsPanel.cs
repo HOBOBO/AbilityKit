@@ -58,7 +58,7 @@ namespace AbilityKit.Game.Editor
             {
                 for (var i = 0; i < buffs.Count; i++)
                 {
-                    DrawBuff(buffs[i]);
+                    DrawBuff(in ctx, buffs[i]);
                 }
             }
             EditorGUILayout.EndScrollView();
@@ -80,7 +80,9 @@ namespace AbilityKit.Game.Editor
                 EditorStyles.miniLabel);
         }
 
-        private static void DrawBuff(in BattleDiagnosticActorBuff buff)
+        private static void DrawBuff(
+            in BattleDebugContext ctx,
+            in BattleDiagnosticActorBuff buff)
         {
             var displayName = string.IsNullOrEmpty(buff.Name)
                 ? $"Buff {buff.BuffId}"
@@ -106,6 +108,14 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField(
                 $"SkillRuntime={buff.SkillRuntime}  ModifierBindings={buff.ModifierBindingCount}",
                 EditorStyles.miniLabel);
+            EditorGUI.BeginDisabledGroup(buff.BuffId <= 0 || ctx.OpenConfig == null);
+            if (GUILayout.Button("打开配置", GUILayout.Width(80)))
+            {
+                ctx.OpenConfig?.Invoke(new BattleDebugConfigReference(
+                    BattleDebugConfigKind.Buff,
+                    buff.BuffId));
+            }
+            EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndVertical();
         }
     }

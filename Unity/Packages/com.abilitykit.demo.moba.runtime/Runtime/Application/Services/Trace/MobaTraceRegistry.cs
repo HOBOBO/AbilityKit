@@ -98,6 +98,24 @@ namespace AbilityKit.Demo.Moba.Services
             return _query.ValidateChain(rootId);
         }
 
+        public bool TrySetSkillPhaseLocation(
+            long contextId,
+            int skillId,
+            int castFlowId,
+            string phaseId)
+        {
+            if (contextId == 0 || !TryGetNodeSnapshot(contextId, out var snapshot) ||
+                !(snapshot.Metadata is MobaTraceMetadata metadata))
+            {
+                return false;
+            }
+
+            metadata.SkillId = skillId;
+            metadata.CastFlowId = castFlowId;
+            metadata.PhaseId = phaseId ?? string.Empty;
+            return true;
+        }
+
         public override string GetKindName(int kind)
         {
             return ((MobaTraceKind)kind).ToString();

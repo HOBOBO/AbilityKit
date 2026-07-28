@@ -25,9 +25,11 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillCastRuntimeHandle RuntimeHandle { get; set; }
         public long RuntimeId { get; set; }
         public long SourceContextId { get; set; }
+        public long PipelineTraceParentContextId { get; set; }
         public string FailReason { get; set; }
 
         public int SkillId { get; private set; }
+        public int CastFlowId { get; private set; }
         public int SkillSlot { get; private set; }
         public int SkillLevel { get; private set; }
         public int CastSequence { get; private set; }
@@ -174,8 +176,10 @@ namespace AbilityKit.Demo.Moba.Services
             RuntimeHandle = triggerContext != null ? triggerContext.RuntimeHandle : default;
             RuntimeId = RuntimeHandle.IsValid ? RuntimeHandle.RuntimeId : triggerContext?.RuntimeId ?? 0L;
             SourceContextId = triggerContext?.SourceContextId ?? 0L;
+            PipelineTraceParentContextId = 0L;
 
             SkillId = request.SkillId;
+            CastFlowId = triggerContext?.CastFlowId ?? 0;
             SkillSlot = request.SkillSlot;
             CasterActorId = request.CasterActorId;
             TargetActorId = request.TargetActorId;
@@ -197,6 +201,12 @@ namespace AbilityKit.Demo.Moba.Services
             this.SetContextKind((int)EffectContextKind.Skill);
             this.SetSourceContextId(SourceContextId);
             this.SetSkillRuntimeHandle(in runtimeHandle);
+        }
+
+        public void SetPipelineTraceLocation(int castFlowId, long parentContextId)
+        {
+            CastFlowId = castFlowId;
+            PipelineTraceParentContextId = parentContextId;
         }
 
         public void UpdateInput(in Vec3 aimPos, in Vec3 aimDir, int targetActorId)

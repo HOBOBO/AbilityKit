@@ -72,8 +72,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         /// <summary>
-        /// Exports a payload backed by reusable exact-length arrays. The payload must be consumed
-        /// before the next transient export on this exporter.
+        /// Exports a payload backed by reusable capacity arrays. Only the effective counts are
+        /// valid, and the payload must be consumed before the next transient export.
         /// </summary>
         public ShooterPureStateSnapshotPayload ExportTransient(
             ulong worldId,
@@ -134,7 +134,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var visibilityHints = selection.VisibilityHints;
 
             var stateHash = computeStateHash ? _stateHashProvider.ComputeStateHash() : 0u;
-            return new ShooterPureStateSnapshotPayload(
+            var payload = new ShooterPureStateSnapshotPayload(
                 ShooterPureStateSyncCodec.CurrentVersion,
                 worldId,
                 frame,
@@ -146,6 +146,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 activeSettings,
                 entities,
                 visibilityHints);
+            if (useTransientBuffers)
+            {
+                payload.SetTransientCounts(selection.EntityCount, selection.VisibilityHintCount);
+            }
+
+            return payload;
         }
 
         private int BuildCandidatesFromSnapshot(
@@ -566,24 +572,39 @@ namespace AbilityKit.Demo.Shooter.Runtime
             {
                 return new ShooterPureStateSelection(
                     new ShooterPureStateEntityDelta[entityCount],
-                    new ShooterPureStateVisibilityHint[visibilityHintCount]);
+                    entityCount,
+                    new ShooterPureStateVisibilityHint[visibilityHintCount],
+                    visibilityHintCount);
             }
 
-            if (_transientEntities.Length != entityCount)
+            _transientEntities = EnsureCapacity(_transientEntities, entityCount);
+            _transientVisibilityHints = EnsureCapacity(_transientVisibilityHints, visibilityHintCount);
+            return new ShooterPureStateSelection(
+                _transientEntities,
+                entityCount,
+                _transientVisibilityHints,
+                visibilityHintCount);
+        }
+
+        private static T[] EnsureCapacity<T>(T[] buffer, int count)
+        {
+            if (count <= 0)
             {
-                _transientEntities = entityCount == 0
-                    ? Array.Empty<ShooterPureStateEntityDelta>()
-                    : new ShooterPureStateEntityDelta[entityCount];
+                return buffer;
             }
 
-            if (_transientVisibilityHints.Length != visibilityHintCount)
+            if (buffer.Length >= count)
             {
-                _transientVisibilityHints = visibilityHintCount == 0
-                    ? Array.Empty<ShooterPureStateVisibilityHint>()
-                    : new ShooterPureStateVisibilityHint[visibilityHintCount];
+                return buffer;
             }
 
-            return new ShooterPureStateSelection(_transientEntities, _transientVisibilityHints);
+            var capacity = buffer.Length == 0 ? 16 : buffer.Length;
+            while (capacity < count)
+            {
+                capacity = checked(capacity * 2);
+            }
+
+            return new T[capacity];
         }
 
         private bool TryFindCandidate(AoiEntityKey key, int candidateCount, out ShooterPureStateCandidate candidate)
@@ -922,15 +943,25 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private readonly struct ShooterPureStateSelection
         {
-            public ShooterPureStateSelection(ShooterPureStateEntityDelta[] entities, ShooterPureStateVisibilityHint[] visibilityHints)
+            public ShooterPureStateSelection(
+                ShooterPureStateEntityDelta[] entities,
+                int entityCount,
+                ShooterPureStateVisibilityHint[] visibilityHints,
+                int visibilityHintCount)
             {
                 Entities = entities;
+                EntityCount = entityCount;
                 VisibilityHints = visibilityHints;
+                VisibilityHintCount = visibilityHintCount;
             }
 
             public ShooterPureStateEntityDelta[] Entities { get; }
 
+            public int EntityCount { get; }
+
             public ShooterPureStateVisibilityHint[] VisibilityHints { get; }
+
+            public int VisibilityHintCount { get; }
         }
 
         private sealed class ShooterObserverReplicationState

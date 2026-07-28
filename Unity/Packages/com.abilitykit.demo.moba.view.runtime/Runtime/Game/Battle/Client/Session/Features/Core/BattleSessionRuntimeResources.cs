@@ -221,56 +221,60 @@ namespace AbilityKit.Game.Flow
         {
             if (InputRuntime != null)
             {
-                DisposeUtils.TryDispose(ref InputRuntime, ex => Log.Exception(ex));
-                InputSource = null;
+                InputRuntime.Dispose();
+                InputRuntime = null;
             }
-            else
+            else if (InputSource is IDisposable inputSourceDisposable)
             {
-                IDisposable inputSourceDisposable = InputSource;
-                InputSource = null;
-                DisposeUtils.TryDispose(ref inputSourceDisposable, ex => Log.Exception(ex));
+                inputSourceDisposable.Dispose();
             }
 
+            InputSource = null;
             Consumable = null;
             Sink = null;
         }
 
         internal void DisposeViewSnapshotRuntime()
         {
-            DisposeUtils.TryDispose(ref ViewSnapshotRuntime, ex => Log.Exception(ex));
+            if (ViewSnapshotRuntime == null) return;
+            ViewSnapshotRuntime.Dispose();
+            ViewSnapshotRuntime = null;
         }
 
         internal void DisposeViewEventPipeline()
         {
             if (ViewEventPipeline != null)
             {
-                DisposeUtils.TryDispose(ref ViewEventPipeline, ex => Log.Exception(ex));
-                Snapshots = null;
-                SnapshotViewAdapter = null;
-                TriggerBridge = null;
+                ViewEventPipeline.Dispose();
+                ViewEventPipeline = null;
             }
             else
             {
-                DisposeUtils.TryDispose(ref Snapshots, ex => Log.Exception(ex));
-                DisposeUtils.TryDispose(ref SnapshotViewAdapter, ex => Log.Exception(ex));
-                DisposeUtils.TryDispose(ref TriggerBridge, ex => Log.Exception(ex));
+                SessionSimRuntimeDisposer.ExecuteCleanupSteps(
+                    "Failed to dispose confirmed view event pipeline resources.",
+                    () => Snapshots?.Dispose(),
+                    () => SnapshotViewAdapter?.Dispose(),
+                    () => TriggerBridge?.Dispose());
             }
 
+            Snapshots = null;
+            SnapshotViewAdapter = null;
+            TriggerBridge = null;
             ViewEventSink = null;
         }
 
-        internal BattleContext TakeViewContext()
+        internal BattleContext GetViewContext() => ViewCtx;
+
+        internal void ClearViewContext(BattleContext expected)
         {
-            var ctx = ViewCtx;
-            ViewCtx = null;
-            return ctx;
+            if (ReferenceEquals(ViewCtx, expected)) ViewCtx = null;
         }
 
-        internal ConfirmedBattleViewFeature TakeViewFeature()
+        internal ConfirmedBattleViewFeature GetViewFeature() => ViewFeature;
+
+        internal void ClearViewFeature(ConfirmedBattleViewFeature expected)
         {
-            var feature = ViewFeature;
-            ViewFeature = null;
-            return feature;
+            if (ReferenceEquals(ViewFeature, expected)) ViewFeature = null;
         }
 
         public void Reset()
@@ -334,16 +338,15 @@ namespace AbilityKit.Game.Flow
         {
             if (InputRuntime != null)
             {
-                DisposeUtils.TryDispose(ref InputRuntime, ex => Log.Exception(ex));
-                InputSource = null;
+                InputRuntime.Dispose();
+                InputRuntime = null;
             }
-            else
+            else if (InputSource is IDisposable inputSourceDisposable)
             {
-                IDisposable inputSourceDisposable = InputSource;
-                InputSource = null;
-                DisposeUtils.TryDispose(ref inputSourceDisposable, ex => Log.Exception(ex));
+                inputSourceDisposable.Dispose();
             }
 
+            InputSource = null;
             Consumable = null;
             Sink = null;
         }

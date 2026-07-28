@@ -112,6 +112,17 @@ artifact 保留策略由环境变量控制：
 
 summary 的稳定字段包括 `caseId`、`worldId`、`tickRate`、`scenario.name`、`scenario.stepCount`、`scenario.tickCount`、`result.passed`、`result.skillCastTraceFound`、`result.effectExecutionTraceFound`、`result.projectileLaunched`、`result.traceNodeCount`、`traceCounts`、`retention.policy`、`traceJsonlPath` 和 `summaryJsonPath`。这些字段是前端诊断、CI 汇总和失败复盘的契约。
 
+### 3.5 完整战局生命周期门禁
+
+`FullBattleScenario` 只证明输入脚本可以运行，不能单独证明技能、Projectile、Buff、死亡、复活和终局通过正式服务协作。完整战局因此使用两个互补入口：
+
+| 层级 | 测试 | 关键断言 |
+|------|------|----------|
+| Console World smoke | `MobaCompleteBattleLifecycleSmokeTests` | 正式 DI 装配、死亡、复活、再次死亡、再次复活、终局 |
+| Unity EditMode acceptance | `MobaCompleteBattleJourneyAcceptanceTests` | EnterGame、移动、技能 2、Effect trace、Projectile 命中、Buff、伤害、死亡、异地半血复活、再次战斗和结算 |
+
+两者由 P1 `moba-complete-battle-journey` gate 统一执行。`MobaUnitLifecycleService` 只负责已批准复活的状态转换；自动复活倒计时、出生点策略和次数限制属于玩法规则。当前 Unity acceptance 验证逻辑层和技能表现事件链，不应据此声称多人网络死亡/复活表现已经闭环；独立网络表现事件和 View handler 正式接线仍是后续验收项。
+
 ---
 
 ## 4. Shooter 工业化流程
@@ -182,6 +193,12 @@ smoke 结果应至少覆盖以下机器可读字段：
 | gameplay loop | `GameplayMoved`、`GameplayFired`、`GameplayDefeatedEnemy`、`GameplayFinalMatchState` | smoke 跑过真实战斗行为 |
 | replay artifact | `InputLogicReplayPath`、`MinimizedInputLogicReplayPath`、`InputLogicReplayValidation` | 输入逻辑可录制、可回放、可最小化 |
 
+### 4.5 PlayMode 长局与密度契约
+
+PlayMode 默认战局至少运行 10 分钟，默认同屏敌人预算为 512，整场敌人总量为同屏预算的 5 倍，并以 60 秒为间隔投入增援。胜利目标必须和实际波次敌人总量一致。密度输入统一钳制到 `1..8192`，防止异常配置扩大数组和内存占用。
+
+512、2048、8192 是受支持的表现密度配置档，不是同一等级的性能承诺。512 用于默认可玩长局；2048 用于 Unity 高密度表现与映射 soak；8192 用于极限配置和同步路径验证。2K Unity 长时运行、GPU 实例残留、停止/重连后的清理必须继续作为后续 soak gate；5K 至 10K 的容量结论应主要来自 headless、AOI/LOD 与网络基准，不能用配置可创建替代实测结果。
+
 ---
 
 ## 5. DSL 与配置环境测试
@@ -205,7 +222,7 @@ MOBA 与 Shooter 的工业化流程都依赖 Triggering、PlanAction、JSON 配�
 | 层级 | 触发条件 | 命令/入口 |
 |------|----------|-----------|
 | P0 targeted | 改动单个领域服务、DTO、validator、codec | `dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj` 或 `dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj` 的 targeted filter |
-| P1 example acceptance | 改动 MOBA 技能/Trigger/Trace，或 Shooter snapshot/sync/client | MOBA smoke tests、Shooter acceptance/spec/sync tests |
+| P1 example acceptance | 改动 MOBA 技能/Trigger/Trace/死亡复活，或 Shooter snapshot/sync/client | `moba-complete-battle-journey`、MOBA smoke tests、Shooter acceptance/spec/sync tests |
 | P1 DSL environment | 改动 TriggerPlan、ActionCall、ExecutionRoot、PlanAction schema | Unity Triggering Editor NUnit / generated csproj test entry |
 | P2 runtime smoke | 改动 Gateway/Room/BattleAdapter、runtime port、端到端同步、artifact/replay | `powershell -ExecutionPolicy Bypass -File Server/Orleans/tools/run_shooter_smoke.ps1` |
 | P2 artifact review | 改动 smoke 输出、诊断前端、replay/trace 消费 | 检查 MOBA trace/summary/batch summary 或 Shooter replay artifact |
@@ -222,6 +239,8 @@ MOBA 与 Shooter 的工业化流程都依赖 Triggering、PlanAction、JSON 配�
 4. 改动 Gateway/Room/Grain 或端侧同步控制器时，应跑 Shooter Orleans smoke，并保留 replay artifact 作为失败复盘入口。
 5. 改动 Triggering validator、ExecutionRoot 或 ActionCall DSL 时，应保证稳定错误码不被无意修改，并同步检查 MOBA 示例是否仍能通过 PlanAction/Triggering 测试。
 6. 文档更新后必须运行 Mermaid 校验和 `git diff --check`，防止流程图或 Markdown 空白破坏后续同步。
+7. 改动 MOBA 死亡、复活或结算状态时，必须运行 `moba-complete-battle-journey`；在网络事件和 View handler 接线完成前，不得把逻辑 acceptance 作为多人复活表现完成的证据。
+8. 改动 Shooter PlayMode 波次、胜利目标或密度预算时，必须验证同屏预算与整场总量分离、输入钳制和低密度可结束；2K 以上表现能力必须附带对应硬件上的长时 soak 结果。
 
 ---
 
@@ -231,9 +250,12 @@ MOBA 与 Shooter 的工业化流程都依赖 Triggering、PlanAction、JSON 配�
 2. `src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj`：MOBA 测试工程依赖和配置复制边界。
 3. `src/AbilityKit.Demo.Moba.Tests/Smoke/ConsoleMobaSmokeFlowTests.cs`：MOBA Console smoke 场景、runtime input port 和 trace artifact 断言。
 4. `src/AbilityKit.Demo.Moba.Tests/Smoke/ConsoleSmokeTraceArtifactExporter.cs`：MOBA trace jsonl、summary json、batch summary 字段契约。
-5. `src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj`：Shooter runtime/sync/view/network 测试工程依赖。
-6. `src/AbilityKit.Demo.Shooter.Runtime.Tests/Worlds/ShooterWorldModuleTests.cs`：Shooter runtime DI、Svelto、movement/projectile、enemy wave 和事件断言。
-7. `src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterAcceptanceSpecRunnerTests.cs`：Shooter acceptance spec 的 deterministic frame/hash/events 断言。
-8. `Server/Orleans/tools/run_shooter_smoke.ps1`：Shooter Orleans smoke 启动参数、artifact 目录和 replay 文件断言。
-9. `Unity/Packages/com.abilitykit.triggering/Tests/Editor/TriggerPlanExecutableTests.cs`：TriggerPlan 可执行 DSL 与 metadata validator。
-10. `Unity/Packages/com.abilitykit.triggering/Tests/Editor/ValidatingTriggerPlanJsonDatabaseExecutionRootTests.cs`：JSON ExecutionRoot 校验和稳定错误码。
+5. `src/AbilityKit.Demo.Moba.Tests/Smoke/MobaCompleteBattleLifecycleSmokeTests.cs`：MOBA 正式 World 死亡、复活、再次死亡和终局生命周期断言。
+6. `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/MobaCompleteBattleJourneyAcceptanceTests.cs`：MOBA 技能到终局的 Unity 完整战局验收。
+7. `src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj`：Shooter runtime/sync/view/network 测试工程依赖。
+8. `src/AbilityKit.Demo.Shooter.Runtime.Tests/Worlds/ShooterWorldModuleTests.cs`：Shooter runtime DI、Svelto、movement/projectile、enemy wave 和事件断言。
+9. `src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterAcceptanceSpecRunnerTests.cs`：Shooter acceptance spec 的 deterministic frame/hash/events 断言。
+10. `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/PlayMode/ShooterPlayModeSessionOptions.cs`：Shooter 长局、增援和密度配置契约。
+11. `Server/Orleans/tools/run_shooter_smoke.ps1`：Shooter Orleans smoke 启动参数、artifact 目录和 replay 文件断言。
+12. `Unity/Packages/com.abilitykit.triggering/Tests/Editor/TriggerPlanExecutableTests.cs`：TriggerPlan 可执行 DSL 与 metadata validator。
+13. `Unity/Packages/com.abilitykit.triggering/Tests/Editor/ValidatingTriggerPlanJsonDatabaseExecutionRootTests.cs`：JSON ExecutionRoot 校验和稳定错误码。

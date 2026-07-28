@@ -122,6 +122,96 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void DestroyBattleWorlds_WhenRemoteDestroyFails_StillDestroysConfirmedAndPropagates()
+        {
+            var calls = new List<string>();
+            var failure = new InvalidOperationException("remote destroy failed");
+
+            var thrown = Assert.Throws<InvalidOperationException>(() =>
+                SessionSimRuntimeDisposer.DestroyBattleWorlds(
+                    () =>
+                    {
+                        calls.Add("remote");
+                        throw failure;
+                    },
+                    () => calls.Add("confirmed")));
+
+            Assert.That(thrown, Is.SameAs(failure));
+            Assert.That(calls, Is.EqualTo(new[] { "remote", "confirmed" }));
+        }
+
+        [Test]
+        public void DestroyBattleWorlds_WhenBothDestroyOperationsFail_AggregatesBothFailures()
+        {
+            var calls = new List<string>();
+
+            var thrown = Assert.Throws<AggregateException>(() =>
+                SessionSimRuntimeDisposer.DestroyBattleWorlds(
+                    () =>
+                    {
+                        calls.Add("remote");
+                        throw new InvalidOperationException("remote destroy failed");
+                    },
+                    () =>
+                    {
+                        calls.Add("confirmed");
+                        throw new InvalidOperationException("confirmed destroy failed");
+                    }));
+
+            Assert.That(calls, Is.EqualTo(new[] { "remote", "confirmed" }));
+            Assert.That(thrown.InnerExceptions, Has.Count.EqualTo(2));
+            Assert.That(thrown.InnerExceptions[0].Message, Is.EqualTo("remote destroy failed"));
+            Assert.That(thrown.InnerExceptions[1].Message, Is.EqualTo("confirmed destroy failed"));
+        }
+
+        [Test]
+        public void ExecuteCleanupSteps_WhenMiddleStepFails_ContinuesAndPropagatesOriginalFailure()
+        {
+            var calls = new List<string>();
+            var failure = new InvalidOperationException("middle failed");
+
+            var thrown = Assert.Throws<InvalidOperationException>(() =>
+                SessionSimRuntimeDisposer.ExecuteCleanupSteps(
+                    "cleanup failed",
+                    () => calls.Add("first"),
+                    () =>
+                    {
+                        calls.Add("second");
+                        throw failure;
+                    },
+                    () => calls.Add("third")));
+
+            Assert.That(thrown, Is.SameAs(failure));
+            Assert.That(calls, Is.EqualTo(new[] { "first", "second", "third" }));
+        }
+
+        [Test]
+        public void ExecuteCleanupSteps_WhenMultipleStepsFail_AggregatesInExecutionOrder()
+        {
+            var calls = new List<string>();
+
+            var thrown = Assert.Throws<AggregateException>(() =>
+                SessionSimRuntimeDisposer.ExecuteCleanupSteps(
+                    "cleanup failed",
+                    () =>
+                    {
+                        calls.Add("first");
+                        throw new InvalidOperationException("first failed");
+                    },
+                    () => calls.Add("second"),
+                    () =>
+                    {
+                        calls.Add("third");
+                        throw new InvalidOperationException("third failed");
+                    }));
+
+            Assert.That(calls, Is.EqualTo(new[] { "first", "second", "third" }));
+            Assert.That(thrown.InnerExceptions, Has.Count.EqualTo(2));
+            Assert.That(thrown.InnerExceptions[0].Message, Is.EqualTo("first failed"));
+            Assert.That(thrown.InnerExceptions[1].Message, Is.EqualTo("third failed"));
+        }
+
+        [Test]
         public void ResetSessionResources_PreservesAttachmentOwnedPhaseAndGatewayState()
         {
             var handles = new BattleSessionHandles();

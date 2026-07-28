@@ -139,6 +139,7 @@ namespace AbilityKit.Game.Editor
                     source.OwnerContextId,
                     in skillRuntimeHandle,
                     in ctx);
+                DrawConfigButton(BattleDebugConfigKind.Projectile, source.ProjectileConfigId, in ctx);
                 EditorGUILayout.EndVertical();
             }
         }
@@ -172,6 +173,7 @@ namespace AbilityKit.Game.Editor
                     area.OwnerContextId,
                     in noSkillRuntime,
                     in ctx);
+                DrawConfigButton(BattleDebugConfigKind.Area, area.TemplateId, in ctx);
                 EditorGUILayout.EndVertical();
             }
         }
@@ -240,6 +242,19 @@ namespace AbilityKit.Game.Editor
         private static string FormatRuntime(in MobaSkillCastRuntimeHandle handle)
         {
             return handle.IsValid ? $"#{handle.RuntimeId}:{handle.Generation}" : "-";
+        }
+
+        private static void DrawConfigButton(
+            BattleDebugConfigKind kind,
+            int configId,
+            in BattleDebugContext ctx)
+        {
+            EditorGUI.BeginDisabledGroup(configId <= 0 || ctx.OpenConfig == null);
+            if (GUILayout.Button("打开配置", GUILayout.Width(80)))
+            {
+                ctx.OpenConfig?.Invoke(new BattleDebugConfigReference(kind, configId));
+            }
+            EditorGUI.EndDisabledGroup();
         }
 
         private static void DrawActorButton(string label, int actorId, Action<long> selectActor)

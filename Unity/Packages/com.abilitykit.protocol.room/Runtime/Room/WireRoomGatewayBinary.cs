@@ -24,6 +24,44 @@ namespace AbilityKit.Protocol.Room
             return new ArraySegment<byte>(buffer.SerializeTransient(in value));
         }
 
+        /// <summary>
+        /// Serializes a state-sync push whose payload is a slice of a reusable buffer. The wire
+        /// layout remains identical to <see cref="WireStateSyncSnapshotPush"/>.
+        /// </summary>
+        public static ArraySegment<byte> SerializeTransient(
+            in WireStateSyncSnapshotPush value,
+            ArraySegment<byte> payload,
+            ReusableMemoryPackSerializationBuffer buffer)
+        {
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+#if UNITY_5_3_OR_NEWER
+            var compatibleValue = value;
+            compatibleValue.Payload = CopySegment(payload);
+            return SerializeTransient(in compatibleValue, buffer);
+#else
+            return buffer.SerializeTransientSegment(new WireStateSyncSnapshotPushTransient(in value, payload));
+#endif
+        }
+
+#if UNITY_5_3_OR_NEWER
+        private static byte[] CopySegment(ArraySegment<byte> payload)
+        {
+            if (payload.Array == null || payload.Count == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+            if (payload.Offset == 0 && payload.Count == payload.Array.Length)
+            {
+                return payload.Array;
+            }
+
+            var copy = new byte[payload.Count];
+            Buffer.BlockCopy(payload.Array, payload.Offset, copy, 0, payload.Count);
+            return copy;
+        }
+#endif
+
         public static T Deserialize<T>(ArraySegment<byte> payload)
         {
             if (payload.Array == null || payload.Count == 0)
@@ -56,8 +94,7 @@ namespace AbilityKit.Protocol.Room
 
         public byte[] SerializeTransient<T>(in T value)
         {
-            _writtenCount = 0;
-            MemoryPackSerializer.Serialize(this, value);
+            SerializeTransientSegment(in value);
             if (_writtenCount == 0)
             {
                 _exactBuffer = Array.Empty<byte>();
@@ -71,6 +108,17 @@ namespace AbilityKit.Protocol.Room
 
             Buffer.BlockCopy(_writeBuffer, 0, _exactBuffer, 0, _writtenCount);
             return _exactBuffer;
+        }
+
+        /// <summary>
+        /// Serializes into the reusable backing buffer without copying to an exact-length array.
+        /// Consume the returned segment before the next serialization on this instance.
+        /// </summary>
+        public ArraySegment<byte> SerializeTransientSegment<T>(in T value)
+        {
+            _writtenCount = 0;
+            MemoryPackSerializer.Serialize(this, value);
+            return new ArraySegment<byte>(_writeBuffer, 0, _writtenCount);
         }
 
         public void Advance(int count)
@@ -117,4 +165,48 @@ namespace AbilityKit.Protocol.Room
             _writeBuffer = next;
         }
     }
+
+#if !UNITY_5_3_OR_NEWER
+    internal readonly struct WireStateSyncSnapshotPushTransient : IMemoryPackable<WireStateSyncSnapshotPushTransient>
+    {
+        private readonly WireStateSyncSnapshotPush _value;
+        private readonly ArraySegment<byte> _payload;
+
+        public WireStateSyncSnapshotPushTransient(in WireStateSyncSnapshotPush value, ArraySegment<byte> payload)
+        {
+            _value = value;
+            _payload = payload;
+        }
+
+        public static void RegisterFormatter()
+        {
+            if (!MemoryPackFormatterProvider.IsRegistered<WireStateSyncSnapshotPushTransient>())
+            {
+                MemoryPackFormatterProvider.Register(
+                    new MemoryPack.Formatters.MemoryPackableFormatter<WireStateSyncSnapshotPushTransient>());
+            }
+        }
+
+        static void IMemoryPackable<WireStateSyncSnapshotPushTransient>.Serialize<TBufferWriter>(
+            ref MemoryPackWriter<TBufferWriter> writer,
+            scoped ref WireStateSyncSnapshotPushTransient value)
+        {
+            ref readonly var push = ref value._value;
+            writer.WriteUnmanagedWithObjectHeader(12, push.WorldId, push.Frame, push.Timestamp, push.IsFullSnapshot);
+            MemoryPack.Formatters.ListFormatter.SerializePackable(ref writer, push.Actors);
+            writer.WriteUnmanaged(push.PayloadOpCode);
+            writer.WriteUnmanagedSpan(value._payload.AsSpan());
+            writer.WriteUnmanaged(push.ServerTicks, push.EventWatermark, push.SchemaVersion);
+            writer.WriteValue(push.RemovedActorIds);
+            writer.WriteString(push.EventEpoch);
+        }
+
+        static void IMemoryPackable<WireStateSyncSnapshotPushTransient>.Deserialize(
+            ref MemoryPackReader reader,
+            scoped ref WireStateSyncSnapshotPushTransient value)
+        {
+            throw new NotSupportedException("Transient wire views are serialization-only.");
+        }
+    }
+#endif
 }

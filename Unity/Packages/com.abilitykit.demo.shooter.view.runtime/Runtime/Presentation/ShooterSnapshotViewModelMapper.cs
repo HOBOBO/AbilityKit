@@ -43,51 +43,54 @@ namespace AbilityKit.Demo.Shooter.View
         {
             BeginSnapshot();
 
+            var players = snapshot.Players ?? Array.Empty<ShooterPlayerSnapshot>();
+            var bullets = snapshot.Bullets ?? Array.Empty<ShooterBulletSnapshot>();
+            var enemies = snapshot.Enemies ?? Array.Empty<ShooterEnemySnapshot>();
+            var events = snapshot.Events ?? Array.Empty<ShooterEventSnapshot>();
             var trackLocalAuthoritativeEntities = source == ShooterViewBatchSource.LocalAuthoritative;
+            EnsureMappingCapacity(
+                SaturatingAdd(players.Length, bullets.Length, enemies.Length),
+                SaturatingAdd(players.Length, bullets.Length, enemies.Length),
+                SaturatingAdd(players.Length, enemies.Length),
+                players.Length,
+                bullets.Length,
+                events.Length,
+                trackLocalAuthoritativeEntities ? _localAuthoritativePreviousLiveEntities.Count : 0);
             if (trackLocalAuthoritativeEntities)
             {
                 _localAuthoritativeCurrentLiveEntities.Clear();
             }
 
-            if (snapshot.Players != null)
+            for (int i = 0; i < players.Length; i++)
             {
-                for (int i = 0; i < snapshot.Players.Length; i++)
-                {
-                    var player = snapshot.Players[i];
-                    var key = new ShooterViewEntityKey(ShooterViewEntityKind.Player, player.PlayerId);
-                    AddEntityIfNeeded(trackLocalAuthoritativeEntities, key, 0, player.Alive);
-                    TrackLocalAuthoritativeLiveEntity(trackLocalAuthoritativeEntities, key, player.Alive);
-                    AddTransform(key, player.X, player.Y, player.AimX, player.AimY, 0f, 0f);
-                    AddHealthIfChanged(trackLocalAuthoritativeEntities, key, player.Hp);
-                    AddScoreIfChanged(trackLocalAuthoritativeEntities, key, player.Score);
-                }
+                var player = players[i];
+                var key = new ShooterViewEntityKey(ShooterViewEntityKind.Player, player.PlayerId);
+                AddEntityIfNeeded(trackLocalAuthoritativeEntities, key, 0, player.Alive);
+                TrackLocalAuthoritativeLiveEntity(trackLocalAuthoritativeEntities, key, player.Alive);
+                AddTransform(key, player.X, player.Y, player.AimX, player.AimY, 0f, 0f);
+                AddHealthIfChanged(trackLocalAuthoritativeEntities, key, player.Hp);
+                AddScoreIfChanged(trackLocalAuthoritativeEntities, key, player.Score);
             }
 
-            if (snapshot.Bullets != null)
+            for (int i = 0; i < bullets.Length; i++)
             {
-                for (int i = 0; i < snapshot.Bullets.Length; i++)
-                {
-                    var bullet = snapshot.Bullets[i];
-                    var key = new ShooterViewEntityKey(ShooterViewEntityKind.Bullet, bullet.BulletId);
-                    var alive = bullet.RemainingFrames > 0;
-                    AddEntityIfNeeded(trackLocalAuthoritativeEntities, key, bullet.OwnerPlayerId, alive);
-                    TrackLocalAuthoritativeLiveEntity(trackLocalAuthoritativeEntities, key, alive);
-                    AddTransform(key, bullet.X, bullet.Y, bullet.VelocityX, bullet.VelocityY, bullet.VelocityX, bullet.VelocityY);
-                    AddProjectileLifetimeIfChanged(trackLocalAuthoritativeEntities, key, bullet.RemainingFrames);
-                }
+                var bullet = bullets[i];
+                var key = new ShooterViewEntityKey(ShooterViewEntityKind.Bullet, bullet.BulletId);
+                var alive = bullet.RemainingFrames > 0;
+                AddEntityIfNeeded(trackLocalAuthoritativeEntities, key, bullet.OwnerPlayerId, alive);
+                TrackLocalAuthoritativeLiveEntity(trackLocalAuthoritativeEntities, key, alive);
+                AddTransform(key, bullet.X, bullet.Y, bullet.VelocityX, bullet.VelocityY, bullet.VelocityX, bullet.VelocityY);
+                AddProjectileLifetimeIfChanged(trackLocalAuthoritativeEntities, key, bullet.RemainingFrames);
             }
 
-            if (snapshot.Enemies != null)
+            for (int i = 0; i < enemies.Length; i++)
             {
-                for (int i = 0; i < snapshot.Enemies.Length; i++)
-                {
-                    var enemy = snapshot.Enemies[i];
-                    var key = new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, enemy.EnemyId);
-                    AddEntityIfNeeded(trackLocalAuthoritativeEntities, key, 0, enemy.Alive);
-                    TrackLocalAuthoritativeLiveEntity(trackLocalAuthoritativeEntities, key, enemy.Alive);
-                    AddTransform(key, enemy.X, enemy.Y, enemy.FacingX, enemy.FacingY, 0f, 0f);
-                    AddHealthIfChanged(trackLocalAuthoritativeEntities, key, enemy.Hp);
-                }
+                var enemy = enemies[i];
+                var key = new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, enemy.EnemyId);
+                AddEntityIfNeeded(trackLocalAuthoritativeEntities, key, 0, enemy.Alive);
+                TrackLocalAuthoritativeLiveEntity(trackLocalAuthoritativeEntities, key, enemy.Alive);
+                AddTransform(key, enemy.X, enemy.Y, enemy.FacingX, enemy.FacingY, 0f, 0f);
+                AddHealthIfChanged(trackLocalAuthoritativeEntities, key, enemy.Hp);
             }
 
             if (trackLocalAuthoritativeEntities)
@@ -95,9 +98,9 @@ namespace AbilityKit.Demo.Shooter.View
                 AddLocalAuthoritativeMissingEntityRemovals();
             }
 
-            if (snapshot.Events != null)
+            if (events.Length > 0)
             {
-                _events!.AddRange(snapshot.Events);
+                _events!.AddRange(events);
             }
 
             return CompleteSnapshot(
@@ -198,7 +201,9 @@ namespace AbilityKit.Demo.Shooter.View
             BeginSnapshot();
 
             var entities = snapshot.Entities ?? Array.Empty<ShooterPureStateEntityDelta>();
-            for (var i = 0; i < entities.Length; i++)
+            var entityCount = Math.Min(snapshot.EffectiveEntityCount, entities.Length);
+            EnsureMappingCapacity(entityCount, entityCount, entityCount, entityCount, entityCount, 0, entityCount);
+            for (var i = 0; i < entityCount; i++)
             {
                 ApplyPureStateEntity(in entities[i], controlledPlayerId);
             }
@@ -227,7 +232,9 @@ namespace AbilityKit.Demo.Shooter.View
                 return;
             }
 
-            var alive = (entity.Flags & ShooterPureStateEntityFlags.Alive) != 0 && entity.DeltaKind != ShooterPureStateDeltaKinds.Despawn;
+            var alive = (entity.Flags & ShooterPureStateEntityFlags.Alive) != 0 &&
+                (entity.Flags & ShooterPureStateEntityFlags.Visible) != 0 &&
+                entity.DeltaKind != ShooterPureStateDeltaKinds.Despawn;
             AddEntity(key.Value, entity.OwnerId, alive);
             AddTransform(
                 key.Value,
@@ -386,6 +393,42 @@ namespace AbilityKit.Demo.Shooter.View
             _scoreChanges = ScoreChangePool.Get();
             _projectileLifetimeChanges = ProjectileLifetimeChangePool.Get();
             _events = EventPool.Get();
+        }
+
+        private void EnsureMappingCapacity(
+            int entityChanges,
+            int transformChanges,
+            int healthChanges,
+            int scoreChanges,
+            int projectileLifetimeChanges,
+            int events,
+            int removedEntities)
+        {
+            EnsureCapacity(_entityChanges!, entityChanges);
+            EnsureCapacity(_transformChanges!, transformChanges);
+            EnsureCapacity(_healthChanges!, healthChanges);
+            EnsureCapacity(_scoreChanges!, scoreChanges);
+            EnsureCapacity(_projectileLifetimeChanges!, projectileLifetimeChanges);
+            EnsureCapacity(_events!, events);
+            EnsureCapacity(_removedEntities!, removedEntities);
+        }
+
+        private static void EnsureCapacity<T>(List<T> values, int capacity)
+        {
+            if (capacity > values.Capacity)
+            {
+                values.Capacity = capacity;
+            }
+        }
+
+        private static int SaturatingAdd(int first, int second)
+        {
+            return first > int.MaxValue - second ? int.MaxValue : first + second;
+        }
+
+        private static int SaturatingAdd(int first, int second, int third)
+        {
+            return SaturatingAdd(SaturatingAdd(first, second), third);
         }
 
         private void AddEntity(ShooterViewEntityKey key, int ownerEntityId, bool alive)
@@ -558,6 +601,20 @@ namespace AbilityKit.Demo.Shooter.View
                 maxSize: MaxPooledListsPerType,
                 collectionCheck: false);
         }
+
+        internal static void ReleasePooledList(List<ShooterViewEntityChange> values) => EntityChangePool.Release(values);
+
+        internal static void ReleasePooledList(List<ShooterViewEntityKey> values) => RemovedEntityPool.Release(values);
+
+        internal static void ReleasePooledList(List<ShooterViewTransformComponentChange> values) => TransformChangePool.Release(values);
+
+        internal static void ReleasePooledList(List<ShooterViewHealthComponentChange> values) => HealthChangePool.Release(values);
+
+        internal static void ReleasePooledList(List<ShooterViewScoreComponentChange> values) => ScoreChangePool.Release(values);
+
+        internal static void ReleasePooledList(List<ShooterViewProjectileLifetimeComponentChange> values) => ProjectileLifetimeChangePool.Release(values);
+
+        internal static void ReleasePooledList(List<ShooterEventSnapshot> values) => EventPool.Release(values);
 
         private static ShooterViewEntityKey? CreateViewEntityKey(int entityKind, int entityId)
         {

@@ -156,6 +156,8 @@ namespace UnityHFSM
 
 		public TStateId ActiveStateName => ActiveState.name;
 
+		public bool IsActive => activeState != null;
+
 		public TStateId PendingStateName => pendingTransition.targetState;
 		public StateBase<TStateId> PendingState => GetState(PendingStateName);
 		public bool HasPendingTransition => pendingTransition.isPending;
@@ -501,6 +503,47 @@ namespace UnityHFSM
 		public void SetStartState(TStateId name)
 		{
 			startState = (name, true);
+		}
+
+		/// <summary>
+		/// Restores the machine's structural runtime state without invoking lifecycle callbacks.
+		/// Intended for deterministic rollback systems that restore child state separately.
+		/// </summary>
+		public void RestoreRuntimeState(bool hasActiveState, TStateId activeStateName, TStateId rememberedStartStateName)
+		{
+			StateBundle rememberedBundle;
+			if (!stateBundlesByName.TryGetValue(rememberedStartStateName, out rememberedBundle)
+				|| rememberedBundle.state == null)
+			{
+				throw UnityHFSM.Exceptions.Common.StateNotFound(
+					this,
+					rememberedStartStateName?.ToString(),
+					context: "Restoring the remembered start state");
+			}
+
+			startState = (rememberedStartStateName, true);
+			pendingTransition.Clear();
+
+			if (!hasActiveState)
+			{
+				activeState = null;
+				activeTransitions = noTransitions;
+				activeTriggerTransitions = noTriggerTransitions;
+				return;
+			}
+
+			StateBundle activeBundle;
+			if (!stateBundlesByName.TryGetValue(activeStateName, out activeBundle) || activeBundle.state == null)
+			{
+				throw UnityHFSM.Exceptions.Common.StateNotFound(
+					this,
+					activeStateName?.ToString(),
+					context: "Restoring the active state");
+			}
+
+			activeState = activeBundle.state;
+			activeTransitions = activeBundle.transitions ?? noTransitions;
+			activeTriggerTransitions = activeBundle.triggerToTransitions ?? noTriggerTransitions;
 		}
 
 		/// <summary>

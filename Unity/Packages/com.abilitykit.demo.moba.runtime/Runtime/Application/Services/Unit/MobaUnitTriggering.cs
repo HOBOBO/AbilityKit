@@ -7,6 +7,7 @@
             public const string Spawn = "unit.spawn";
             public const string Despawn = "unit.despawn";
             public const string Die = "unit.die";
+            public const string Respawn = "unit.respawn";
         }
 
         public static class Args
