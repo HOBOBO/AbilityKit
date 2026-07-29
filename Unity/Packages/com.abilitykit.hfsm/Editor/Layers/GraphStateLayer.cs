@@ -283,7 +283,7 @@ namespace UnityHFSM.Editor
 
         private string GetBehaviorDisplayText(UnityHFSM.HfsmBehaviorItem item, HfsmStateNode stateNode, int depth)
         {
-            string typeName = GetBehaviorTypeShortName(item.Type);
+            string typeName = GetBehaviorTypeShortName(item.TypeName);
 
             // 获取子行为
             var childItems = new List<UnityHFSM.HfsmBehaviorItem>();
@@ -330,7 +330,7 @@ namespace UnityHFSM.Editor
             }
 
             // 如果有自定义名称，显示名称
-            if (!string.IsNullOrEmpty(item.displayName) && item.displayName != item.Type.ToString())
+            if (!string.IsNullOrEmpty(item.displayName) && item.displayName != item.TypeName)
             {
                 return item.displayName;
             }
@@ -340,34 +340,34 @@ namespace UnityHFSM.Editor
 
         private string GetBehaviorParamBrief(UnityHFSM.HfsmBehaviorItem item)
         {
-            switch (item.Type)
+            switch (item.TypeName)
             {
-                case UnityHFSM.HfsmBehaviorType.Wait:
+                case "Wait":
                     return $"{item.GetParamValue<float>("duration")}s";
-                case UnityHFSM.HfsmBehaviorType.Log:
+                case "Log":
                     string msg = item.GetParamValue<string>("message");
                     if (string.IsNullOrEmpty(msg)) return "(empty)";
                     if (msg.Length > 10) msg = msg.Substring(0, 7) + "...";
                     return $"\"{msg}\"";
-                case UnityHFSM.HfsmBehaviorType.SetFloat:
-                case UnityHFSM.HfsmBehaviorType.SetBool:
-                case UnityHFSM.HfsmBehaviorType.SetInt:
+                case "SetFloat":
+                case "SetBool":
+                case "SetInt":
                     string varName = item.GetParamValue<string>("variableName");
                     if (string.IsNullOrEmpty(varName)) return "?";
                     return varName;
-                case UnityHFSM.HfsmBehaviorType.PlayAnimation:
+                case "PlayAnimation":
                     string stateName = item.GetParamValue<string>("stateName");
                     if (string.IsNullOrEmpty(stateName)) return "?";
                     if (stateName.Length > 8) stateName = stateName.Substring(0, 5) + "...";
                     return stateName;
-                case UnityHFSM.HfsmBehaviorType.Repeat:
+                case "Repeat":
                     int count = item.GetParamValue<int>("count");
                     return count < 0 ? "inf" : count.ToString();
-                case UnityHFSM.HfsmBehaviorType.TimeLimit:
+                case "TimeLimit":
                     return $"{item.GetParamValue<float>("timeLimit")}s";
-                case UnityHFSM.HfsmBehaviorType.Cooldown:
+                case "Cooldown":
                     return $"{item.GetParamValue<float>("cooldownDuration")}s";
-                case UnityHFSM.HfsmBehaviorType.SetActive:
+                case "SetActive":
                     bool active = item.GetParamValue<bool>("active");
                     return active ? "ON" : "OFF";
                 default:
@@ -375,33 +375,9 @@ namespace UnityHFSM.Editor
             }
         }
 
-        private string GetBehaviorTypeShortName(HfsmBehaviorType type)
+        private string GetBehaviorTypeShortName(string typeName)
         {
-            return type switch
-            {
-                HfsmBehaviorType.Sequence => "Seq",
-                HfsmBehaviorType.Selector => "Sel",
-                HfsmBehaviorType.Parallel => "Par",
-                HfsmBehaviorType.RandomSelector => "RandSel",
-                HfsmBehaviorType.RandomSequence => "RandSeq",
-                HfsmBehaviorType.Repeat => "Repeat",
-                HfsmBehaviorType.Invert => "Invert",
-                HfsmBehaviorType.UntilSuccess => "UntilSucc",
-                HfsmBehaviorType.UntilFailure => "UntilFail",
-                HfsmBehaviorType.TimeLimit => "TimeLimit",
-                HfsmBehaviorType.Cooldown => "Cooldown",
-                HfsmBehaviorType.If => "If",
-                HfsmBehaviorType.Wait => "Wait",
-                HfsmBehaviorType.WaitUntil => "WaitUntil",
-                HfsmBehaviorType.Log => "Log",
-                HfsmBehaviorType.SetBool => "SetBool",
-                HfsmBehaviorType.SetInt => "SetInt",
-                HfsmBehaviorType.SetFloat => "SetFloat",
-                HfsmBehaviorType.PlayAnimation => "Anim",
-                HfsmBehaviorType.SetActive => "SetActive",
-                HfsmBehaviorType.MoveTo => "MoveTo",
-                _ => type.ToString()
-            };
+            return typeName;
         }
 
         private void DrawStateMachineIndicator(Rect rect)

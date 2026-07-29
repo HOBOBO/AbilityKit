@@ -68,35 +68,11 @@ namespace UnityHFSM.Graph.Descriptor
     /// <summary>
     /// 行为类型枚举
     /// </summary>
-    public enum DescriptorBehaviorType
-    {
         // ========== 原子行为 ==========
-        Wait,
-        WaitUntil,
-        Log,
-        SetFloat,
-        SetBool,
-        SetInt,
-        PlayAnimation,
-        SetActive,
-        MoveTo,
 
         // ========== 复合行为 ==========
-        Sequence,
-        Selector,
-        Parallel,
-        RandomSelector,
-        RandomSequence,
 
         // ========== 修饰器行为 ==========
-        Repeat,
-        Invert,
-        TimeLimit,
-        UntilSuccess,
-        UntilFailure,
-        Cooldown,
-        If
-    }
 
     // ========================================================================
     // 行为描述器
@@ -128,7 +104,7 @@ namespace UnityHFSM.Graph.Descriptor
     {
         string Id { get; }
         string Name { get; }
-        DescriptorBehaviorType BehaviorType { get; }
+        string TypeName { get; }
         string ParentId { get; }
         IReadOnlyList<string> ChildIds { get; }
         bool IsExpanded { get; }

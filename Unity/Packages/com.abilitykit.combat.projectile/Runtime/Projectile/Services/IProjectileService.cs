@@ -11,6 +11,9 @@ namespace AbilityKit.Combat.Projectile
         ProjectileId Spawn(in ProjectileSpawnParams p);
         bool Despawn(ProjectileId id);
         bool Despawn(ProjectileId id, int frame, ProjectileExitReason reason);
+        bool TryGetRuntimeState(ProjectileId id, out ProjectileRuntimeState state);
+        bool TrySetPosition(ProjectileId id, in AbilityKit.Core.Mathematics.Vec3 position);
+        bool ResumeSimulation(ProjectileId id);
 
         void Tick(int frame, float fixedDeltaSeconds);
 

@@ -184,7 +184,7 @@ namespace AbilityKit.Game.Flow
                     var p = playersSo.Team1Players[i];
                     if (p == null || string.IsNullOrEmpty(p.PlayerId)) continue;
 
-                    var ov = new MobaRoomLoadoutOverrides(p.Level, p.AttributeTemplateId, ResolveBasicAttackSkillId(p), p.SkillIds);
+                    var ov = new MobaRoomLoadoutOverrides(p.Level, p.AttributeTemplateId, ResolveBasicAttackSkillId(p), p.SkillIds, p.BrainId, p.EnableBrainOnSpawn);
                     slots.Add(new MobaRoomPlayerSlot(new PlayerId(p.PlayerId), (int)p.TeamId, p.HeroId, p.SpawnIndex, in ov));
                 }
             }
@@ -196,7 +196,7 @@ namespace AbilityKit.Game.Flow
                     var p = playersSo.Team2Players[i];
                     if (p == null || string.IsNullOrEmpty(p.PlayerId)) continue;
 
-                    var ov = new MobaRoomLoadoutOverrides(p.Level, p.AttributeTemplateId, ResolveBasicAttackSkillId(p), p.SkillIds);
+                    var ov = new MobaRoomLoadoutOverrides(p.Level, p.AttributeTemplateId, ResolveBasicAttackSkillId(p), p.SkillIds, p.BrainId, p.EnableBrainOnSpawn);
                     slots.Add(new MobaRoomPlayerSlot(new PlayerId(p.PlayerId), (int)p.TeamId, p.HeroId, p.SpawnIndex, in ov));
                 }
             }
@@ -311,7 +311,9 @@ namespace AbilityKit.Game.Flow
                         hasSpawnPosition: 1,
                         spawnX: p.SpawnPosition.x,
                         spawnY: p.SpawnPosition.y,
-                        spawnZ: p.SpawnPosition.z));
+                        spawnZ: p.SpawnPosition.z,
+                        brainId: p.BrainId,
+                        enableBrainOnSpawn: p.EnableBrainOnSpawn));
                 }
             }
 
@@ -335,7 +337,9 @@ namespace AbilityKit.Game.Flow
                         hasSpawnPosition: 1,
                         spawnX: p.SpawnPosition.x,
                         spawnY: p.SpawnPosition.y,
-                        spawnZ: p.SpawnPosition.z));
+                        spawnZ: p.SpawnPosition.z,
+                        brainId: p.BrainId,
+                        enableBrainOnSpawn: p.EnableBrainOnSpawn));
                 }
             }
 

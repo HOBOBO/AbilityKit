@@ -3,6 +3,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
@@ -196,6 +197,37 @@ namespace AbilityKit.Game.Flow
             }
         }
 
+        public bool IsEnemyAiEnabled
+        {
+            get
+            {
+                var ctx = Context;
+                if (!TryResolveEnemyActorServices(
+                        ctx,
+                        out var loadouts,
+                        out var localTeamId,
+                        out var playerActors,
+                        out var actors))
+                {
+                    return false;
+                }
+
+                for (var i = 0; i < loadouts.Length; i++)
+                {
+                    var loadout = loadouts[i];
+                    if (loadout.TeamId == localTeamId || loadout.BrainId <= 0) continue;
+                    if (!playerActors.TryGetActorId(loadout.PlayerId, out var actorId)) continue;
+                    if (!actors.TryGetActorEntity(actorId, out var actor) || actor == null) continue;
+                    if (actor.hasActorBrain && actor.actorBrain.SourceKind == MobaBrainSourceKinds.BattleTemplate)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
         public BattleDebugHeroOption[] HeroOptions
         {
             get
@@ -375,6 +407,114 @@ namespace AbilityKit.Game.Flow
 
             message = $"已重置 {count} 个技能的冷却时间";
             return count > 0;
+        }
+
+        public bool TryToggleEnemyAi(out string message)
+        {
+            message = string.Empty;
+            var ctx = Context;
+            if (!IsAvailable)
+            {
+                message = "本地战斗不可用";
+                return false;
+            }
+
+            if (!TryResolveWorldService(ctx, out MobaBrainService brains) || brains == null)
+            {
+                message = "AI 服务缺失";
+                return false;
+            }
+
+            if (!TryResolveEnemyActorServices(
+                    ctx,
+                    out var loadouts,
+                    out var localTeamId,
+                    out var playerActors,
+                    out var actors))
+            {
+                message = "无法解析敌方角色";
+                return false;
+            }
+
+            var disable = IsEnemyAiEnabled;
+            var configuredCount = 0;
+            var changedCount = 0;
+            for (var i = 0; i < loadouts.Length; i++)
+            {
+                var loadout = loadouts[i];
+                if (loadout.TeamId == localTeamId || loadout.BrainId <= 0) continue;
+                configuredCount++;
+
+                if (!playerActors.TryGetActorId(loadout.PlayerId, out var actorId) ||
+                    !actors.TryGetActorEntity(actorId, out var actor) ||
+                    actor == null)
+                {
+                    continue;
+                }
+
+                if (disable)
+                {
+                    if (actor.hasActorBrain &&
+                        actor.actorBrain.SourceKind == MobaBrainSourceKinds.BattleTemplate &&
+                        brains.DeactivateBrain(actor))
+                    {
+                        changedCount++;
+                    }
+                }
+                else if (brains.ActivateBrain(
+                             actor,
+                             loadout.BrainId,
+                             MobaBrainSourceKinds.BattleTemplate,
+                             loadout.SpawnIndex))
+                {
+                    changedCount++;
+                }
+            }
+
+            if (configuredCount == 0)
+            {
+                message = "敌方槽位未配置 AI";
+                return false;
+            }
+
+            message = disable
+                ? $"已关闭 {changedCount} 个敌方角色的 AI"
+                : $"已开启 {changedCount}/{configuredCount} 个敌方角色的 AI";
+            return changedCount > 0;
+        }
+
+        private static bool TryResolveEnemyActorServices(
+            BattleContext ctx,
+            out MobaPlayerLoadout[] loadouts,
+            out int localTeamId,
+            out MobaPlayerActorMapService playerActors,
+            out MobaActorLookupService actors)
+        {
+            loadouts = null;
+            localTeamId = 0;
+            playerActors = null;
+            actors = null;
+            if (ctx == null ||
+                !TryResolveWorldService(ctx, out playerActors) ||
+                !TryResolveWorldService(ctx, out actors))
+            {
+                return false;
+            }
+
+            loadouts = ctx.BuildEffectivePlayerLoadouts();
+            if (loadouts == null || loadouts.Length == 0) return false;
+
+            var localPlayerId = ctx.Plan.LaunchSpec.LocalPlayerId.Value;
+            if (string.IsNullOrEmpty(localPlayerId)) localPlayerId = ctx.ResolveLocalControlPlayerId();
+
+            for (var i = 0; i < loadouts.Length; i++)
+            {
+                if (!string.Equals(loadouts[i].PlayerId.Value, localPlayerId, StringComparison.OrdinalIgnoreCase)) continue;
+                localTeamId = loadouts[i].TeamId;
+                return true;
+            }
+
+            return false;
         }
 
         public bool TryReplaceHero(int heroId, out string message)

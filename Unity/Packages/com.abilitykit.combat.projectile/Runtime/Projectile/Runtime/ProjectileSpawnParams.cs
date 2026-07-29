@@ -43,7 +43,7 @@ namespace AbilityKit.Combat.Projectile
         public readonly IProjectileHitFilter HitFilter;
         public readonly int HitCooldownFrames;
 
-        public readonly ProjectileLifecycleSpec Lifecycle;
+        public readonly bool StartSuspended;
         public readonly int PatternSlotIndex;
         public readonly int PatternSlotCount;
 
@@ -70,7 +70,7 @@ namespace AbilityKit.Combat.Projectile
             int tickIntervalFrames = 0,
             IProjectileHitFilter hitFilter = null,
             int hitCooldownFrames = 0,
-            ProjectileLifecycleSpec lifecycle = default,
+            bool startSuspended = false,
             int patternSlotIndex = 0,
             int patternSlotCount = 1,
             int trackingTargetActorId = 0,
@@ -108,7 +108,7 @@ namespace AbilityKit.Combat.Projectile
             HitFilter = hitFilter;
             HitCooldownFrames = hitCooldownFrames;
 
-            Lifecycle = lifecycle;
+            StartSuspended = startSuspended;
             PatternSlotIndex = patternSlotIndex < 0 ? 0 : patternSlotIndex;
             PatternSlotCount = patternSlotCount <= 0 ? 1 : patternSlotCount;
         }
@@ -138,7 +138,7 @@ namespace AbilityKit.Combat.Projectile
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
                 hitCooldownFrames: HitCooldownFrames,
-                lifecycle: Lifecycle,
+                startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex,
                 patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,
@@ -170,39 +170,7 @@ namespace AbilityKit.Combat.Projectile
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
                 hitCooldownFrames: HitCooldownFrames,
-                lifecycle: Lifecycle,
-                patternSlotIndex: PatternSlotIndex,
-                patternSlotCount: PatternSlotCount,
-                trackingTargetActorId: TrackingTargetActorId,
-                collisionHalfExtents: CollisionHalfExtents);
-        }
-
-        public ProjectileSpawnParams WithLifecycle(in ProjectileLifecycleSpec lifecycle)
-        {
-            return new ProjectileSpawnParams(
-                ownerId: OwnerId,
-                templateId: TemplateId,
-                launcherActorId: LauncherActorId,
-                rootActorId: RootActorId,
-                spawnFrame: SpawnFrame,
-                position: Position,
-                direction: Direction,
-                speed: Speed,
-                returnAfterFrames: ReturnAfterFrames,
-                returnSpeed: ReturnSpeed,
-                returnStopDistance: ReturnStopDistance,
-                lifetimeFrames: LifetimeFrames,
-                maxDistance: MaxDistance,
-                collisionLayerMask: CollisionLayerMask,
-                ignoreCollider: IgnoreCollider,
-                hitPolicy: HitPolicy,
-                hitsRemaining: HitsRemaining,
-                hitPolicyKind: HitPolicyKind,
-                hitPolicyParam: HitPolicyParam,
-                tickIntervalFrames: TickIntervalFrames,
-                hitFilter: HitFilter,
-                hitCooldownFrames: HitCooldownFrames,
-                lifecycle: lifecycle,
+                startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex,
                 patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,
@@ -234,7 +202,7 @@ namespace AbilityKit.Combat.Projectile
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
                 hitCooldownFrames: HitCooldownFrames,
-                lifecycle: Lifecycle,
+                startSuspended: StartSuspended,
                 patternSlotIndex: slotIndex,
                 patternSlotCount: slotCount,
                 trackingTargetActorId: TrackingTargetActorId,
@@ -266,7 +234,7 @@ namespace AbilityKit.Combat.Projectile
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
                 hitCooldownFrames: HitCooldownFrames,
-                lifecycle: Lifecycle,
+                startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex,
                 patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,

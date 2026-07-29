@@ -28,9 +28,6 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
         public int BrainId { get; }
 
-        /// <summary>AI 行为树资源名（BTCore 导出 JSON，不含扩展名）。空 = 按 BrainId 走目录驱动。</summary>
-        public string BrainTreeName { get; }
-
         /// <summary>继承属性配置 id：指向属性继承表获取继承属性占比。0 = 不继承。</summary>
         public int InheritAttributeConfigId { get; }
 
@@ -77,7 +74,6 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             SkillIds = dto.SkillIds ?? Array.Empty<int>();
             PassiveSkillIds = dto.PassiveSkillIds ?? Array.Empty<int>();
             BrainId = dto.BrainId;
-            BrainTreeName = dto.BrainTreeName ?? string.Empty;
             InheritAttributeConfigId = dto.InheritAttributeConfigId;
             DefaultComponentTemplateIds = dto.DefaultComponentTemplateIds ?? Array.Empty<int>();
             Tags = dto.Tags ?? Array.Empty<int>();

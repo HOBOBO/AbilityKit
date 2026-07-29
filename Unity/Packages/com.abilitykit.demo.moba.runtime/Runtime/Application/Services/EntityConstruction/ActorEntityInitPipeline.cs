@@ -3,6 +3,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Protocol.Moba;
 using MO = AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 
@@ -101,7 +102,41 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 
             _attributes.Apply(entity, in preparedAttributes);
             _skills.Apply(entity, in preparedSkills);
+            ApplyConfiguredBrain(entity, in loadout);
             return true;
+        }
+
+        private void ApplyConfiguredBrain(global::ActorEntity entity, in MobaPlayerLoadout loadout)
+        {
+            if (entity == null) return;
+
+            if (_services != null && _services.TryResolve<MobaBrainService>(out var brains) && brains != null)
+            {
+                if (loadout.BrainId > 0 && loadout.EnableBrainOnSpawn)
+                {
+                    brains.ActivateBrain(entity, loadout.BrainId, MobaBrainSourceKinds.BattleTemplate, loadout.SpawnIndex);
+                }
+                else if (entity.hasActorBrain && entity.actorBrain.SourceKind == MobaBrainSourceKinds.BattleTemplate)
+                {
+                    brains.DeactivateBrain(entity);
+                }
+                return;
+            }
+
+            if (loadout.BrainId > 0 && loadout.EnableBrainOnSpawn)
+            {
+                if (entity.hasActorBrain)
+                    entity.ReplaceActorBrain(loadout.BrainId, entity.hasActorId ? entity.actorId.Value : 0,
+                        MobaBrainSourceKinds.BattleTemplate, loadout.SpawnIndex, 0L);
+                else
+                    entity.AddActorBrain(loadout.BrainId, entity.hasActorId ? entity.actorId.Value : 0,
+                        MobaBrainSourceKinds.BattleTemplate, loadout.SpawnIndex, 0L);
+            }
+            else if (entity.hasActorBrain && entity.actorBrain.SourceKind == MobaBrainSourceKinds.BattleTemplate)
+            {
+                entity.RemoveActorBrain();
+                if (entity.hasMoveInput) entity.ReplaceMoveInput(0f, 0f);
+            }
         }
 
         private bool EnsureConfig()

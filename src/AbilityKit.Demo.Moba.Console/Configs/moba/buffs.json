@@ -682,7 +682,7 @@
 
                               ],
         "IntervalMs":  0,
-        "StackingPolicy":  4,
+        "StackingPolicy":  3,
         "RefreshPolicy":  2,
         "MaxStacks":  3,
         "TriggerIds":  [
@@ -697,7 +697,7 @@
                               "AttrTypeId":  9,
                               "TargetId":  9,
                               "Op":  0,
-                              "Value":  -20,
+                              "Value":  -30,
                               "Priority":  20
                           }
                       ]

@@ -170,6 +170,60 @@ public sealed class ShooterPureStateSnapshotRuntimeTests
     }
 
     [Fact]
+    public void PureStateDeltaEmitsProjectileDespawnOutsideActiveSyncBudget()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var start = new ShooterStartGamePayload(
+            "pure-state-despawn-budget",
+            30,
+            7010,
+            new[]
+            {
+                new ShooterStartPlayer(1, "P1", 0f, 0f),
+                new ShooterStartPlayer(2, "P2", 3f, 0f)
+            });
+        var settings = new ShooterPureStateSyncSettings(
+            maxEntityCount: 10,
+            activeSyncBudget: 1,
+            baselineIntervalFrames: 300,
+            deltaIntervalFrames: 1,
+            lowFrequencyIntervalFrames: 300,
+            interpolationDelayFrames: 1);
+
+        Assert.True(runtime.StartGame(in start));
+        runtime.SubmitInput(0, new[] { new ShooterPlayerCommand(1, 0f, 0f, 1f, 0f, true) });
+        Assert.True(runtime.Tick(1f / 30f));
+
+        var baseline = runtime.ExportPureStateSnapshotTransient(95ul, isFullBaseline: true, settings: settings);
+        var projectile = Assert.Single(
+            baseline.Entities.Take(baseline.EffectiveEntityCount),
+            entity => entity.EntityKind == ShooterPackedEntityKinds.Projectile);
+
+        for (var i = 0; i < 300 && runtime.GetSnapshot().Bullets.Length > 0; i++)
+        {
+            Assert.True(runtime.Tick(1f / 30f));
+        }
+
+        Assert.Empty(runtime.GetSnapshot().Bullets);
+        var delta = runtime.ExportPureStateSnapshotTransient(
+            95ul,
+            isFullBaseline: false,
+            settings: settings,
+            baselineFrame: baseline.Frame,
+            baselineHash: baseline.StateHash);
+        var effectiveEntities = delta.Entities.Take(delta.EffectiveEntityCount).ToArray();
+        var despawn = Assert.Single(
+            effectiveEntities,
+            entity => entity.EntityKind == ShooterPackedEntityKinds.Projectile &&
+                entity.EntityId == projectile.EntityId &&
+                entity.DeltaKind == ShooterPureStateDeltaKinds.Despawn);
+
+        Assert.Equal(0, despawn.Flags & ShooterPureStateEntityFlags.Alive);
+        Assert.Equal(settings.ActiveSyncBudget + 1, effectiveEntities.Length);
+        Assert.Equal(settings.ActiveSyncBudget, delta.EffectiveVisibilityHintCount);
+    }
+
+    [Fact]
     public void PureStateDeltaSnapshotMarksLowFrequencyFrames()
     {
         var runtime = new ShooterBattleRuntimePort();

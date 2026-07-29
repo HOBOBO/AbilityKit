@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using AbilityKit.Protocol.Shooter;
 using AbilityKit.World.Svelto;
 using Newtonsoft.Json;
@@ -220,7 +221,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
     internal sealed class ShooterBotAiRuntimeBuilder
     {
-        private readonly HfsmRuntimeProfileBuilder<ShooterBotAiBlackboard, ShooterBotAiActionConfig> _builder;
+        private readonly HfsmHierarchicalRuntimeProfileBuilder<ShooterBotAiBlackboard, ShooterBotAiActionConfig> _builder;
 
         public ShooterBotAiRuntimeBuilder()
             : this(ShooterBotAiActionRegistry.Default, ShooterBotAiConditionRegistry.Default)
@@ -232,7 +233,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             if (actions == null) throw new ArgumentNullException(nameof(actions));
             if (conditions == null) throw new ArgumentNullException(nameof(conditions));
 
-            _builder = new HfsmRuntimeProfileBuilder<ShooterBotAiBlackboard, ShooterBotAiActionConfig>(
+            _builder = new HfsmHierarchicalRuntimeProfileBuilder<ShooterBotAiBlackboard, ShooterBotAiActionConfig>(
                 actions.Create,
                 conditions.Evaluate);
         }
@@ -428,13 +429,27 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public IReadOnlyList<ShooterBotAiTransitionConfig> Transitions { get; }
 
-        public HfsmRuntimeProfile<ShooterBotAiActionConfig> ToHfsmRuntimeProfile()
+        public HfsmHierarchicalRuntimeProfile<ShooterBotAiActionConfig> ToHfsmRuntimeProfile()
         {
-            var states = new HfsmRuntimeActionStateSpec<ShooterBotAiActionConfig>[States.Count];
+            var states = new HfsmRuntimeNodeSpec<ShooterBotAiActionConfig>[States.Count];
             for (var i = 0; i < States.Count; i++)
             {
                 var state = States[i];
-                states[i] = new HfsmRuntimeActionStateSpec<ShooterBotAiActionConfig>(state.Id, state.Interval, state.Actions);
+                var children = new List<HfsmRuntimeBehaviourSpec<ShooterBotAiActionConfig>>(state.Actions.Count + 1);
+                for (var actionIndex = 0; actionIndex < state.Actions.Count; actionIndex++)
+                {
+                    children.Add(HfsmRuntimeBehaviourSpec<ShooterBotAiActionConfig>.Task(state.Actions[actionIndex]));
+                }
+
+                if (state.Interval > 0f)
+                {
+                    children.Add(HfsmRuntimeBehaviourSpec<ShooterBotAiActionConfig>.Delay(state.Interval));
+                }
+
+                states[i] = new HfsmRuntimeNodeSpec<ShooterBotAiActionConfig>(
+                    state.Id,
+                    HfsmRuntimeBehaviourSpec<ShooterBotAiActionConfig>.Sequence(children.ToArray()),
+                    ActionStateCompletionPolicy.Loop);
             }
 
             var transitions = new HfsmRuntimeTransitionSpec[Transitions.Count];
@@ -444,7 +459,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 transitions[i] = new HfsmRuntimeTransitionSpec(transition.From, transition.To, transition.Condition);
             }
 
-            return new HfsmRuntimeProfile<ShooterBotAiActionConfig>(StartState, states, transitions);
+            return new HfsmHierarchicalRuntimeProfile<ShooterBotAiActionConfig>(
+                Id,
+                StartState,
+                states,
+                transitions);
         }
     }
 

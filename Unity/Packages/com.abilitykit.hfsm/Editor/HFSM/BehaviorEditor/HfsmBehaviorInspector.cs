@@ -151,7 +151,7 @@ namespace UnityHFSM.Editor
             }
 
             // Behavior type icon
-            DrawBehaviorIcon(item.Type);
+            DrawBehaviorIcon(item.TypeName);
 
             // Display name
             EditorGUI.BeginChangeCheck();
@@ -355,15 +355,15 @@ namespace UnityHFSM.Editor
             return false;
         }
 
-        private void DrawBehaviorIcon(HfsmBehaviorType type)
+        private void DrawBehaviorIcon(string typeName)
         {
-            Color iconColor = GetBehaviorColor(type);
+            Color iconColor = GetBehaviorColor(typeName);
 
             Rect iconRect = GUILayoutUtility.GetRect(16, 16, GUILayout.Width(16), GUILayout.Height(16));
             EditorGUI.DrawRect(iconRect, iconColor);
 
             // Draw icon text
-            string iconChar = GetBehaviorIconChar(type);
+            string iconChar = GetBehaviorIconChar(typeName);
             if (!string.IsNullOrEmpty(iconChar))
             {
                 GUI.color = Color.white;
@@ -377,40 +377,40 @@ namespace UnityHFSM.Editor
             }
         }
 
-        private Color GetBehaviorColor(HfsmBehaviorType type)
+        private Color GetBehaviorColor(string typeName)
         {
-            return type switch
+            return typeName switch
             {
-                HfsmBehaviorType.Wait => new Color(0.3f, 0.7f, 0.3f),
-                HfsmBehaviorType.Log => new Color(0.5f, 0.5f, 0.5f),
-                HfsmBehaviorType.SetFloat or HfsmBehaviorType.SetBool or HfsmBehaviorType.SetInt => new Color(0.2f, 0.5f, 0.8f),
-                HfsmBehaviorType.PlayAnimation => new Color(0.8f, 0.4f, 0.2f),
-                HfsmBehaviorType.SetActive or HfsmBehaviorType.MoveTo => new Color(0.6f, 0.3f, 0.6f),
-                HfsmBehaviorType.Sequence or HfsmBehaviorType.RandomSequence => new Color(0.2f, 0.6f, 0.8f),
-                HfsmBehaviorType.Selector or HfsmBehaviorType.RandomSelector => new Color(0.8f, 0.6f, 0.2f),
-                HfsmBehaviorType.Parallel => new Color(0.4f, 0.4f, 0.8f),
-                HfsmBehaviorType.Repeat or HfsmBehaviorType.UntilSuccess or HfsmBehaviorType.UntilFailure => new Color(0.6f, 0.6f, 0.3f),
-                HfsmBehaviorType.Invert => new Color(0.5f, 0.2f, 0.5f),
-                HfsmBehaviorType.TimeLimit or HfsmBehaviorType.Cooldown => new Color(0.4f, 0.6f, 0.4f),
-                HfsmBehaviorType.If => new Color(0.7f, 0.5f, 0.3f),
+                "Wait" => new Color(0.3f, 0.7f, 0.3f),
+                "Log" => new Color(0.5f, 0.5f, 0.5f),
+                "SetFloat" or "SetBool" or "SetInt" => new Color(0.2f, 0.5f, 0.8f),
+                "PlayAnimation" => new Color(0.8f, 0.4f, 0.2f),
+                "SetActive" or "MoveTo" => new Color(0.6f, 0.3f, 0.6f),
+                "Sequence" or "RandomSequence" => new Color(0.2f, 0.6f, 0.8f),
+                "Selector" or "RandomSelector" => new Color(0.8f, 0.6f, 0.2f),
+                "Parallel" => new Color(0.4f, 0.4f, 0.8f),
+                "Repeat" or "UntilSuccess" or "UntilFailure" => new Color(0.6f, 0.6f, 0.3f),
+                "Invert" => new Color(0.5f, 0.2f, 0.5f),
+                "TimeLimit" or "Cooldown" => new Color(0.4f, 0.6f, 0.4f),
+                "If" => new Color(0.7f, 0.5f, 0.3f),
                 _ => Color.gray
             };
         }
 
-        private string GetBehaviorIconChar(HfsmBehaviorType type)
+        private string GetBehaviorIconChar(string typeName)
         {
-            return type switch
+            return typeName switch
             {
-                HfsmBehaviorType.Wait => "W",
-                HfsmBehaviorType.Log => "L",
-                HfsmBehaviorType.SetFloat or HfsmBehaviorType.SetBool or HfsmBehaviorType.SetInt => "S",
-                HfsmBehaviorType.PlayAnimation => "A",
-                HfsmBehaviorType.Sequence => ">",
-                HfsmBehaviorType.Selector => "?",
-                HfsmBehaviorType.Parallel => "&",
-                HfsmBehaviorType.Repeat => "R",
-                HfsmBehaviorType.Invert => "!",
-                HfsmBehaviorType.MoveTo => "M",
+                "Wait" => "W",
+                "Log" => "L",
+                "SetFloat" or "SetBool" or "SetInt" => "S",
+                "PlayAnimation" => "A",
+                "Sequence" => ">",
+                "Selector" => "?",
+                "Parallel" => "&",
+                "Repeat" => "R",
+                "Invert" => "!",
+                "MoveTo" => "M",
                 _ => ""
             };
         }
@@ -532,11 +532,11 @@ namespace UnityHFSM.Editor
         private string GetChildBriefInfo(HfsmBehaviorItem child)
         {
             // 显示子行为的简短信息
-            string shortType = GetShortTypeName(child.Type);
+            string shortType = GetShortTypeName(child.TypeName);
             string customName = child.displayName;
 
             // 如果有自定义名称且与类型默认名不同，显示自定义名
-            if (!string.IsNullOrEmpty(customName) && customName != GetDefaultDisplayName(child.Type))
+            if (!string.IsNullOrEmpty(customName) && customName != GetDefaultDisplayName(child.TypeName))
             {
                 // 尝试获取参数摘要
                 string paramBrief = GetParameterBrief(child);
@@ -559,36 +559,36 @@ namespace UnityHFSM.Editor
 
         private string GetParameterBrief(HfsmBehaviorItem item)
         {
-            switch (item.Type)
+            switch (item.TypeName)
             {
-                case HfsmBehaviorType.Wait:
+                case "Wait":
                     return $"{item.GetParamValue<float>("duration")}s";
-                case HfsmBehaviorType.Log:
+                case "Log":
                     string msg = item.GetParamValue<string>("message");
                     if (msg.Length > 15) msg = msg.Substring(0, 12) + "...";
                     return $"\"{msg}\"";
-                case HfsmBehaviorType.SetFloat:
-                case HfsmBehaviorType.SetBool:
-                case HfsmBehaviorType.SetInt:
+                case "SetFloat":
+                case "SetBool":
+                case "SetInt":
                     string varName = item.GetParamValue<string>("variableName");
                     if (string.IsNullOrEmpty(varName)) varName = "?";
                     return varName;
-                case HfsmBehaviorType.PlayAnimation:
+                case "PlayAnimation":
                     return item.GetParamValue<string>("stateName") ?? "?";
-                case HfsmBehaviorType.Repeat:
+                case "Repeat":
                     int count = item.GetParamValue<int>("count");
                     return count < 0 ? "inf" : count.ToString();
-                case HfsmBehaviorType.TimeLimit:
+                case "TimeLimit":
                     return $"{item.GetParamValue<float>("timeLimit")}s";
-                case HfsmBehaviorType.Cooldown:
+                case "Cooldown":
                     return $"{item.GetParamValue<float>("cooldownDuration")}s";
-                case HfsmBehaviorType.If:
+                case "If":
                     return "?";
-                case HfsmBehaviorType.Sequence:
-                case HfsmBehaviorType.Selector:
-                case HfsmBehaviorType.Parallel:
-                case HfsmBehaviorType.RandomSelector:
-                case HfsmBehaviorType.RandomSequence:
+                case "Sequence":
+                case "Selector":
+                case "Parallel":
+                case "RandomSelector":
+                case "RandomSequence":
                     return $"[{item.childIds.Count}]";
                 default:
                     return "";
@@ -597,104 +597,57 @@ namespace UnityHFSM.Editor
 
         private string GetParameterDescription(HfsmBehaviorItem item)
         {
-            switch (item.Type)
+            switch (item.TypeName)
             {
-                case HfsmBehaviorType.Wait:
+                case "Wait":
                     return $"Duration: {item.GetParamValue<float>("duration")}s";
-                case HfsmBehaviorType.Log:
+                case "Log":
                     string msg = item.GetParamValue<string>("message");
                     if (string.IsNullOrEmpty(msg)) return "Message: (empty)";
                     if (msg.Length > 30) msg = msg.Substring(0, 27) + "...";
                     return $"Message: \"{msg}\"";
-                case HfsmBehaviorType.SetFloat:
+                case "SetFloat":
                     return $"Var: {item.GetParamValue<string>("variableName")}, Value: {item.GetParamValue<float>("value")}";
-                case HfsmBehaviorType.SetBool:
+                case "SetBool":
                     return $"Var: {item.GetParamValue<string>("variableName")}, Value: {item.GetParamValue<bool>("value")}";
-                case HfsmBehaviorType.SetInt:
+                case "SetInt":
                     return $"Var: {item.GetParamValue<string>("variableName")}, Value: {item.GetParamValue<int>("value")}";
-                case HfsmBehaviorType.PlayAnimation:
+                case "PlayAnimation":
                     return $"State: {item.GetParamValue<string>("stateName")}, CrossFade: {item.GetParamValue<float>("crossFadeDuration")}s";
-                case HfsmBehaviorType.SetActive:
+                case "SetActive":
                     bool active = item.GetParamValue<bool>("active");
                     return active ? "Set Active" : "Set Inactive";
-                case HfsmBehaviorType.MoveTo:
+                case "MoveTo":
                     var dest = item.GetParamValue<UnityEngine.Vector3>("destination");
                     return $"To ({dest.x:F1}, {dest.y:F1}, {dest.z:F1}) @ {item.GetParamValue<float>("speed")}m/s";
-                case HfsmBehaviorType.Repeat:
+                case "Repeat":
                     int count = item.GetParamValue<int>("count");
                     return count < 0 ? "Repeat: Infinite" : $"Repeat: {count} times";
-                case HfsmBehaviorType.TimeLimit:
+                case "TimeLimit":
                     return $"Time Limit: {item.GetParamValue<float>("timeLimit")}s";
-                case HfsmBehaviorType.Cooldown:
+                case "Cooldown":
                     return $"Cooldown: {item.GetParamValue<float>("cooldownDuration")}s";
-                case HfsmBehaviorType.Invert:
+                case "Invert":
                     return "Invert result";
-                case HfsmBehaviorType.UntilSuccess:
+                case "UntilSuccess":
                     return "Until Success";
-                case HfsmBehaviorType.UntilFailure:
+                case "UntilFailure":
                     return "Until Failure";
-                case HfsmBehaviorType.If:
+                case "If":
                     return "Conditional branch";
                 default:
                     return "";
             }
         }
 
-        private string GetShortTypeName(HfsmBehaviorType type)
+        private string GetShortTypeName(string typeName)
         {
-            return type switch
-            {
-                HfsmBehaviorType.Sequence => "Seq",
-                HfsmBehaviorType.Selector => "Sel",
-                HfsmBehaviorType.Parallel => "Par",
-                HfsmBehaviorType.RandomSelector => "RandSel",
-                HfsmBehaviorType.RandomSequence => "RandSeq",
-                HfsmBehaviorType.Repeat => "Repeat",
-                HfsmBehaviorType.Invert => "Invert",
-                HfsmBehaviorType.UntilSuccess => "UntilSucc",
-                HfsmBehaviorType.UntilFailure => "UntilFail",
-                HfsmBehaviorType.TimeLimit => "TimeLimit",
-                HfsmBehaviorType.Cooldown => "Cooldown",
-                HfsmBehaviorType.If => "If",
-                HfsmBehaviorType.Wait => "Wait",
-                HfsmBehaviorType.Log => "Log",
-                HfsmBehaviorType.SetFloat => "SetF",
-                HfsmBehaviorType.SetBool => "SetB",
-                HfsmBehaviorType.SetInt => "SetI",
-                HfsmBehaviorType.PlayAnimation => "Anim",
-                HfsmBehaviorType.SetActive => "Active",
-                HfsmBehaviorType.MoveTo => "MoveTo",
-                _ => type.ToString()
-            };
+            return typeName;
         }
 
-        private string GetDefaultDisplayName(HfsmBehaviorType type)
+        private string GetDefaultDisplayName(string typeName)
         {
-            return type switch
-            {
-                HfsmBehaviorType.Wait => "Wait",
-                HfsmBehaviorType.WaitUntil => "Wait Until",
-                HfsmBehaviorType.Log => "Log",
-                HfsmBehaviorType.SetFloat => "Set Float",
-                HfsmBehaviorType.SetBool => "Set Bool",
-                HfsmBehaviorType.SetInt => "Set Int",
-                HfsmBehaviorType.PlayAnimation => "Play Animation",
-                HfsmBehaviorType.SetActive => "Set Active",
-                HfsmBehaviorType.MoveTo => "Move To",
-                HfsmBehaviorType.Sequence => "Sequence",
-                HfsmBehaviorType.Selector => "Selector",
-                HfsmBehaviorType.Parallel => "Parallel",
-                HfsmBehaviorType.RandomSelector => "Random Selector",
-                HfsmBehaviorType.RandomSequence => "Random Sequence",
-                HfsmBehaviorType.Repeat => "Repeat",
-                HfsmBehaviorType.Invert => "Invert",
-                HfsmBehaviorType.TimeLimit => "Time Limit",
-                HfsmBehaviorType.UntilSuccess => "Until Success",
-                HfsmBehaviorType.UntilFailure => "Until Failure",
-                HfsmBehaviorType.Cooldown => "Cooldown",
-                HfsmBehaviorType.If => "If",
-                _ => type.ToString()
-            };
+            return HfsmBehaviorTypeRegistry.GetDefinition(typeName)?.displayName ?? typeName;
         }
 
         private List<HfsmBehaviorItem> GetChildren(HfsmBehaviorItem parent)
@@ -723,7 +676,7 @@ namespace UnityHFSM.Editor
 
             if (GUILayout.Button("+ Add Sequence", GUILayout.Width(100)))
             {
-                AddBehavior(HfsmBehaviorType.Sequence, null);
+                AddBehavior("Sequence", null);
             }
 
             EditorGUILayout.EndHorizontal();
@@ -779,85 +732,38 @@ namespace UnityHFSM.Editor
         private void ShowAddRootMenu()
         {
             var menu = new GenericMenu();
-
-            // Primitive actions
-            menu.AddItem(new GUIContent("Primitive/Wait"), false, () => AddBehavior(HfsmBehaviorType.Wait, null));
-            menu.AddItem(new GUIContent("Primitive/Log"), false, () => AddBehavior(HfsmBehaviorType.Log, null));
-            menu.AddItem(new GUIContent("Primitive/Set Float"), false, () => AddBehavior(HfsmBehaviorType.SetFloat, null));
-            menu.AddItem(new GUIContent("Primitive/Set Bool"), false, () => AddBehavior(HfsmBehaviorType.SetBool, null));
-            menu.AddItem(new GUIContent("Primitive/Set Int"), false, () => AddBehavior(HfsmBehaviorType.SetInt, null));
-            menu.AddItem(new GUIContent("Primitive/Play Animation"), false, () => AddBehavior(HfsmBehaviorType.PlayAnimation, null));
-            menu.AddItem(new GUIContent("Primitive/Set Active"), false, () => AddBehavior(HfsmBehaviorType.SetActive, null));
-            menu.AddItem(new GUIContent("Primitive/Move To"), false, () => AddBehavior(HfsmBehaviorType.MoveTo, null));
-
-            menu.AddSeparator("");
-
-            // Composite actions
-            menu.AddItem(new GUIContent("Composite/Sequence"), false, () => AddBehavior(HfsmBehaviorType.Sequence, null));
-            menu.AddItem(new GUIContent("Composite/Selector"), false, () => AddBehavior(HfsmBehaviorType.Selector, null));
-            menu.AddItem(new GUIContent("Composite/Parallel"), false, () => AddBehavior(HfsmBehaviorType.Parallel, null));
-            menu.AddItem(new GUIContent("Composite/Random Selector"), false, () => AddBehavior(HfsmBehaviorType.RandomSelector, null));
-            menu.AddItem(new GUIContent("Composite/Random Sequence"), false, () => AddBehavior(HfsmBehaviorType.RandomSequence, null));
-
-            menu.AddSeparator("");
-
-            // Decorator actions
-            menu.AddItem(new GUIContent("Decorator/Repeat"), false, () => AddBehavior(HfsmBehaviorType.Repeat, null));
-            menu.AddItem(new GUIContent("Decorator/Invert"), false, () => AddBehavior(HfsmBehaviorType.Invert, null));
-            menu.AddItem(new GUIContent("Decorator/Time Limit"), false, () => AddBehavior(HfsmBehaviorType.TimeLimit, null));
-            menu.AddItem(new GUIContent("Decorator/Until Success"), false, () => AddBehavior(HfsmBehaviorType.UntilSuccess, null));
-            menu.AddItem(new GUIContent("Decorator/Until Failure"), false, () => AddBehavior(HfsmBehaviorType.UntilFailure, null));
-            menu.AddItem(new GUIContent("Decorator/Cooldown"), false, () => AddBehavior(HfsmBehaviorType.Cooldown, null));
-            menu.AddItem(new GUIContent("Decorator/If"), false, () => AddBehavior(HfsmBehaviorType.If, null));
-
+            PopulateBehaviorMenu(menu, null);
             menu.ShowAsContext();
         }
 
         private void ShowAddChildMenu(HfsmBehaviorItem parent)
         {
             var menu = new GenericMenu();
-
-            // Primitive actions
-            menu.AddItem(new GUIContent("Primitive/Wait"), false, () => AddBehavior(HfsmBehaviorType.Wait, parent));
-            menu.AddItem(new GUIContent("Primitive/Log"), false, () => AddBehavior(HfsmBehaviorType.Log, parent));
-            menu.AddItem(new GUIContent("Primitive/Set Float"), false, () => AddBehavior(HfsmBehaviorType.SetFloat, parent));
-            menu.AddItem(new GUIContent("Primitive/Set Bool"), false, () => AddBehavior(HfsmBehaviorType.SetBool, parent));
-            menu.AddItem(new GUIContent("Primitive/Set Int"), false, () => AddBehavior(HfsmBehaviorType.SetInt, parent));
-            menu.AddItem(new GUIContent("Primitive/Play Animation"), false, () => AddBehavior(HfsmBehaviorType.PlayAnimation, parent));
-            menu.AddItem(new GUIContent("Primitive/Set Active"), false, () => AddBehavior(HfsmBehaviorType.SetActive, parent));
-            menu.AddItem(new GUIContent("Primitive/Move To"), false, () => AddBehavior(HfsmBehaviorType.MoveTo, parent));
-
-            menu.AddSeparator("");
-
-            // Composite actions
-            menu.AddItem(new GUIContent("Composite/Sequence"), false, () => AddBehavior(HfsmBehaviorType.Sequence, parent));
-            menu.AddItem(new GUIContent("Composite/Selector"), false, () => AddBehavior(HfsmBehaviorType.Selector, parent));
-            menu.AddItem(new GUIContent("Composite/Parallel"), false, () => AddBehavior(HfsmBehaviorType.Parallel, parent));
-            menu.AddItem(new GUIContent("Composite/Random Selector"), false, () => AddBehavior(HfsmBehaviorType.RandomSelector, parent));
-            menu.AddItem(new GUIContent("Composite/Random Sequence"), false, () => AddBehavior(HfsmBehaviorType.RandomSequence, parent));
-
-            menu.AddSeparator("");
-
-            // Decorator actions
-            menu.AddItem(new GUIContent("Decorator/Repeat"), false, () => AddBehavior(HfsmBehaviorType.Repeat, parent));
-            menu.AddItem(new GUIContent("Decorator/Invert"), false, () => AddBehavior(HfsmBehaviorType.Invert, parent));
-            menu.AddItem(new GUIContent("Decorator/Time Limit"), false, () => AddBehavior(HfsmBehaviorType.TimeLimit, parent));
-            menu.AddItem(new GUIContent("Decorator/Until Success"), false, () => AddBehavior(HfsmBehaviorType.UntilSuccess, parent));
-            menu.AddItem(new GUIContent("Decorator/Until Failure"), false, () => AddBehavior(HfsmBehaviorType.UntilFailure, parent));
-            menu.AddItem(new GUIContent("Decorator/Cooldown"), false, () => AddBehavior(HfsmBehaviorType.Cooldown, parent));
-            menu.AddItem(new GUIContent("Decorator/If"), false, () => AddBehavior(HfsmBehaviorType.If, parent));
-
+            PopulateBehaviorMenu(menu, parent);
             menu.ShowAsContext();
         }
 
-        private void AddBehavior(HfsmBehaviorType type, HfsmBehaviorItem parent)
+        private void PopulateBehaviorMenu(GenericMenu menu, HfsmBehaviorItem parent)
+        {
+            if (!HfsmBehaviorTypeRegistry.IsInitialized)
+                HfsmBehaviorTypeRegistry.Initialize();
+
+            foreach (var definition in HfsmBehaviorTypeRegistry.AllTypes)
+            {
+                var typeName = definition.typeName;
+                var path = $"{definition.categoryName}/{definition.displayName}";
+                menu.AddItem(new GUIContent(path), false, () => AddBehavior(typeName, parent));
+            }
+        }
+
+        private void AddBehavior(string typeName, HfsmBehaviorItem parent)
         {
             if (targetState.BehaviorItems == null || targetState.BehaviorItems.Count == 0)
             {
                 targetState.InitializeBehaviorItems(new List<HfsmBehaviorItem>());
             }
 
-            var newItem = new HfsmBehaviorItem(type);
+            var newItem = new HfsmBehaviorItem(typeName);
 
             if (parent != null)
             {

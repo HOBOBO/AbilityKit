@@ -167,6 +167,12 @@ namespace UnityHFSM
 		public bool IsRootFsm => fsm == null;
 
 		/// <summary>
+		/// Controls whether a root state machine is exposed to the Unity editor live inspector.
+		/// Disable this for high-volume pooled runtime machines that are not useful to inspect individually.
+		/// </summary>
+		public bool RegisterForInspection { get; set; } = true;
+
+		/// <summary>
 		/// Initialises a new instance of the StateMachine class.
 		/// </summary>
 		/// <param name="needsExitTime">(Only for hierarchical states):
@@ -418,7 +424,7 @@ namespace UnityHFSM
 		public override void OnEnter()
 		{
 			#if UNITY_EDITOR
-			if (IsRootFsm)
+			if (IsRootFsm && RegisterForInspection)
 			{
 				HfsmLiveRegistry.AutoRegister(this);
 			}
@@ -470,7 +476,7 @@ namespace UnityHFSM
 		public override void OnExit()
 		{
 			#if UNITY_EDITOR
-			if (IsRootFsm)
+			if (IsRootFsm && RegisterForInspection)
 			{
 				HfsmLiveRegistry.Unregister(this);
 			}
@@ -484,6 +490,9 @@ namespace UnityHFSM
 				startState = (activeState.name, true);
 			}
 
+			// Exiting cancels delayed transitions. An interrupted composite may report cancellation
+			// from OnExit and must not be allowed to enter another state while the machine is stopping.
+			pendingTransition.Clear();
 			activeState.OnExit();
 			// By setting the activeState to null, the state's onExit method won't be called
 			// a second time when the state machine enters again (and changes to the start state).

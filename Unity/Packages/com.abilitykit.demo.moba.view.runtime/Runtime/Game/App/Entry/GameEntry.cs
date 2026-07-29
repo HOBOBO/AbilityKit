@@ -360,10 +360,16 @@ namespace AbilityKit.Game
                 }
             }
 
+            GUILayout.BeginHorizontal();
             if (GUILayout.Button("重置技能冷却", GUILayout.Height(30f)))
             {
                 RunLocalDebugAction(_localDebug.TryResetCooldowns);
             }
+            if (GUILayout.Button(_localDebug.IsEnemyAiEnabled ? "关闭敌方 AI" : "开启敌方 AI", GUILayout.Height(30f)))
+            {
+                RunLocalDebugAction(_localDebug.TryToggleEnemyAi);
+            }
+            GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("创建己方单位", GUILayout.Height(30f)))

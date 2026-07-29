@@ -36,6 +36,87 @@ namespace AbilityKit.Game.Test.UnitTest
     public sealed class BattleRuntimeOptimizationTests
     {
         [Test]
+        public void BattleProjectileShellPool_FirstRentCreatesOnlyRequestedInstance()
+        {
+            var created = 0;
+            var pool = new BattleProjectileShellPool(_ =>
+            {
+                created++;
+                return new GameObject("projectile-shell");
+            }, capacityPerTemplate: 8);
+
+            var instance = pool.Rent(30060301);
+
+            Assert.IsNotNull(instance);
+            Assert.AreEqual(1, created, "A lazy bucket must not synchronously prewarm eight shells in the spawn frame.");
+            pool.Return(instance);
+            pool.Clear();
+        }
+
+        [Test]
+        public void BattleVfxGameObjectPool_FirstRentCreatesOnlyRequestedInstance()
+        {
+            var created = 0;
+            var pool = new BattleVfxGameObjectPool(_ =>
+            {
+                created++;
+                return new GameObject("projectile-vfx");
+            }, capacityPerVfxId: 16);
+
+            Assert.IsTrue(pool.TryRent(90006003, out var instance));
+
+            Assert.IsNotNull(instance);
+            Assert.AreEqual(1, created, "A lazy bucket must not synchronously prewarm sixteen VFX objects in the spawn frame.");
+            pool.Return(90006003, instance);
+            pool.Clear();
+        }
+
+        [Test]
+        public void BattleProjectileViewEventHandler_ConfiguredVfxSuppressesFallbackShell()
+        {
+            var db = new VfxDatabase(new Dictionary<int, VfxDTO>
+            {
+                [90006003] = new VfxDTO { Id = 90006003, Resource = "missing/ying_zheng_sword", DurationMs = 30000 }
+            });
+            var manager = new BattleVfxManager(db);
+            var world = new EntityWorld();
+            var root = world.Create("vfxRoot");
+            var lookup = new BattleEntityLookup();
+            var query = new BattleEntityQuery(world, lookup);
+            var ctx = BattleContext.Rent();
+            ctx.EntityWorld = world;
+            var shellCreates = 0;
+            var shellPool = new BattleProjectileShellPool(_ =>
+            {
+                shellCreates++;
+                return new GameObject("fallback-shell");
+            });
+
+            try
+            {
+                var handler = new BattleProjectileViewEventHandler(ctx, query, manager, in root, shellPool: shellPool);
+                var spawn = new MobaProjectileEventSnapshotEntry
+                {
+                    Kind = (int)ProtocolProjectileEventKind.Spawn,
+                    ProjectileId = 42,
+                    ProjectileActorId = 10042,
+                    TemplateId = 30060301,
+                    ForwardX = 1f,
+                };
+
+                handler.HandleSnapshot(new[] { spawn });
+
+                Assert.AreEqual(0, shellCreates, "A successfully spawned configured VFX must be the only projectile visual.");
+            }
+            finally
+            {
+                shellPool.Clear();
+                if (root.IsValid) world.DestroyRecursive(root.Id);
+                BattleContext.Return(ctx);
+            }
+        }
+
+        [Test]
         public void DefaultBattleDebugFacade_InvokesInjectedSessionProvider()
         {
             var invoked = false;

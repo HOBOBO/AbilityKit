@@ -38,7 +38,9 @@ namespace AbilityKit.Game.Test.UnitTest
                     hasSpawnPosition: 1,
                     spawnX: 0f,
                     spawnY: 0f,
-                    spawnZ: 0f)
+                    spawnZ: 0f,
+                    brainId: 100,
+                    enableBrainOnSpawn: false)
             };
             var spec = new MobaCreateWorldSpec(
                 matchId: "roundtrip_match",
@@ -61,6 +63,8 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(1, decodedPlayers[0].Level);
             Assert.AreEqual(1, decodedPlayers[0].BasicAttackSkillId);
             CollectionAssert.AreEqual(new[] { 10010101, 10010201, 10010301 }, decodedPlayers[0].SkillIds);
+            Assert.AreEqual(100, decodedPlayers[0].BrainId);
+            Assert.IsFalse(decodedPlayers[0].EnableBrainOnSpawn);
         }
 
         [TestCase(MobaDebugSpawnUnitRelation.Ally)]

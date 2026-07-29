@@ -24,7 +24,7 @@ namespace AbilityKit.Combat.Projectile
         private static readonly ObjectPool<Projectile> Pool = Pools.GetPool(
             key: "Projectile",
             createFunc: () => new Projectile(),
-            defaultCapacity: 32,
+            defaultCapacity: 0,
             maxSize: 4096);
 
         private readonly ICollisionWorld _collision;
@@ -83,21 +83,49 @@ namespace AbilityKit.Combat.Projectile
             proj.HitCooldownFrames = p.HitCooldownFrames;
             proj.LastHitCollider = default;
             proj.LastHitAllowedFrame = 0;
-            proj.Lifecycle = p.Lifecycle;
+            proj.IsSuspended = p.StartSuspended;
             proj.PatternSlotIndex = p.PatternSlotIndex;
             proj.PatternSlotCount = p.PatternSlotCount;
-            proj.PrepareStartPosition = p.Position;
-            proj.PrepareTargetPosition = ResolvePrepareTarget(in p);
-            proj.LifecyclePhaseStartFrame = p.SpawnFrame;
-            proj.LifecycleState = ResolveInitialLifecycleState(in p);
-            proj.IsArmed = proj.LifecycleState == ProjectileLifecycleState.Flying || p.Lifecycle.ArmedBeforeFlying;
-            if (proj.LifecycleState == ProjectileLifecycleState.Holding)
-            {
-                proj.Position = proj.PrepareTargetPosition;
-            }
 
             _active.Add(proj);
             return proj.Id;
+        }
+
+        public bool TryGetRuntimeState(ProjectileId id, out ProjectileRuntimeState state)
+        {
+            var projectile = Find(id);
+            if (projectile == null)
+            {
+                state = default;
+                return false;
+            }
+
+            state = new ProjectileRuntimeState(
+                projectile.Id,
+                in projectile.Position,
+                in projectile.Direction,
+                projectile.LauncherActorId,
+                projectile.RootActorId,
+                projectile.PatternSlotIndex,
+                projectile.PatternSlotCount,
+                projectile.IsSuspended);
+            return true;
+        }
+
+        public bool TrySetPosition(ProjectileId id, in Vec3 position)
+        {
+            var projectile = Find(id);
+            if (projectile == null) return false;
+            projectile.Position = position;
+            return true;
+        }
+
+        public bool ResumeSimulation(ProjectileId id)
+        {
+            var projectile = Find(id);
+            if (projectile == null) return false;
+            projectile.IsSuspended = false;
+            return true;
         }
 
         public byte[] ExportRollback(FrameIndex frame)
@@ -132,25 +160,14 @@ namespace AbilityKit.Combat.Projectile
                     hitPolicyParam: p.HitPolicyParam,
                     tickIntervalFrames: p.TickIntervalFrames,
                     nextTickFrame: p.NextTickFrame,
-                    lifecycleState: p.LifecycleState,
-                    isArmed: p.IsArmed ? 1 : 0,
-                    lifecyclePhaseStartFrame: p.LifecyclePhaseStartFrame,
-                    prepareStartPosition: p.PrepareStartPosition,
-                    prepareTargetPosition: p.PrepareTargetPosition,
+                    isSuspended: p.IsSuspended ? 1 : 0,
                     patternSlotIndex: p.PatternSlotIndex,
-                    patternSlotCount: p.PatternSlotCount,
-                    prepareMotionMode: p.Lifecycle.PrepareMotionMode,
-                    prepareFrames: p.Lifecycle.PrepareFrames,
-                    holdFrames: p.Lifecycle.HoldFrames,
-                    prepareOffset: p.Lifecycle.PrepareOffset,
-                    prepareSlotSpacing: p.Lifecycle.PrepareSlotSpacing,
-                    consumeLifetimeBeforeFlying: p.Lifecycle.ConsumeLifetimeBeforeFlying ? 1 : 0,
-                    armedBeforeFlying: p.Lifecycle.ArmedBeforeFlying ? 1 : 0
+                    patternSlotCount: p.PatternSlotCount
                 );
             }
 
             return MemoryPackSerializer.Serialize(new ProjectileWorldSnapshotPayload(
-                version: 5,
+                version: 6,
                 frame: frame,
                 nextId: _nextId,
                 items: items
@@ -202,19 +219,7 @@ namespace AbilityKit.Combat.Projectile
                 p.HitCooldownFrames = 0;
                 p.LastHitCollider = default;
                 p.LastHitAllowedFrame = 0;
-                p.Lifecycle = new ProjectileLifecycleSpec(
-                    it.PrepareMotionMode,
-                    it.PrepareFrames,
-                    it.HoldFrames,
-                    in it.PrepareOffset,
-                    it.PrepareSlotSpacing,
-                    it.ConsumeLifetimeBeforeFlying != 0,
-                    it.ArmedBeforeFlying != 0);
-                p.LifecycleState = it.LifecycleState;
-                p.IsArmed = it.IsArmed != 0;
-                p.LifecyclePhaseStartFrame = it.LifecyclePhaseStartFrame;
-                p.PrepareStartPosition = it.PrepareStartPosition;
-                p.PrepareTargetPosition = it.PrepareTargetPosition;
+                p.IsSuspended = it.IsSuspended != 0;
                 p.PatternSlotIndex = it.PatternSlotIndex;
                 p.PatternSlotCount = it.PatternSlotCount;
 
@@ -280,24 +285,17 @@ namespace AbilityKit.Combat.Projectile
                     continue;
                 }
 
+                if (p.IsSuspended)
+                {
+                    EmitTickIfDue(p, frame, tickEvents);
+                    continue;
+                }
+
                 if (p.LifetimeFramesLeft <= 0)
                 {
                     exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Lifetime, frame, p.Position));
                     RemoveAtSwapBack(i);
                     i--;
-                    continue;
-                }
-
-                var lifecycleTickResult = TickLifecycleBeforeFlight(p, frame, exitEvents, tickEvents);
-                if (lifecycleTickResult == ProjectileLifecycleTickResult.Remove)
-                {
-                    RemoveAtSwapBack(i);
-                    i--;
-                    continue;
-                }
-
-                if (lifecycleTickResult == ProjectileLifecycleTickResult.Handled)
-                {
                     continue;
                 }
 
@@ -386,17 +384,11 @@ namespace AbilityKit.Combat.Projectile
                 // 防止同一帧内对同一个碰撞体重复触发命中回调。
                 // 这样可保留“返回过程可跨帧多次命中同一目标”的行为，
                 // 同时避免单帧内多段射线检测造成重复触发。
-                var hitCollidersThisTick = new ColliderId[maxHitsPerStep + 1];
+                var hitCollidersThisTick = p.HitCollidersThisTick;
                 var hitColliderCount = 0;
                 if (p.IgnoreCollider.Value != 0)
                 {
                     hitCollidersThisTick[hitColliderCount++] = p.IgnoreCollider;
-                }
-
-                if (!p.IsArmed)
-                {
-                    origin = origin + dir * remaining;
-                    remaining = 0f;
                 }
 
                 while (remaining > 0f)
@@ -535,117 +527,6 @@ namespace AbilityKit.Combat.Projectile
             }
         }
 
-        private static ProjectileLifecycleState ResolveInitialLifecycleState(in ProjectileSpawnParams p)
-        {
-            if (!p.Lifecycle.HasPreFlight) return ProjectileLifecycleState.Flying;
-            if (p.Lifecycle.PrepareFrames > 0) return ProjectileLifecycleState.Preparing;
-            if (p.Lifecycle.HoldFrames > 0) return ProjectileLifecycleState.Holding;
-            return ProjectileLifecycleState.Flying;
-        }
-
-        private static Vec3 ResolvePrepareTarget(in ProjectileSpawnParams p)
-        {
-            if (p.Lifecycle.PrepareMotionMode != ProjectilePrepareMotionMode.MoveToRelativeOffset)
-            {
-                return p.Position;
-            }
-
-            var forward = p.Direction.SqrMagnitude > 0f ? p.Direction.Normalized : Vec3.Forward;
-            var up = Vec3.Up;
-            var right = Vec3.Cross(in up, in forward).Normalized;
-            if (right.SqrMagnitude <= 0f) right = Vec3.Right;
-
-            var slotOffset = 0f;
-            if (p.PatternSlotCount > 1 && p.Lifecycle.PrepareSlotSpacing > 0f)
-            {
-                slotOffset = (p.PatternSlotIndex - (p.PatternSlotCount - 1) * 0.5f) * p.Lifecycle.PrepareSlotSpacing;
-            }
-
-            var offset = p.Lifecycle.PrepareOffset;
-            return p.Position + right * (offset.X + slotOffset) + Vec3.Up * offset.Y + forward * offset.Z;
-        }
-
-        private ProjectileLifecycleTickResult TickLifecycleBeforeFlight(Projectile p, int frame, List<ProjectileExitEvent> exitEvents, List<ProjectileTickEvent> tickEvents)
-        {
-            if (p.LifecycleState == ProjectileLifecycleState.Flying) return ProjectileLifecycleTickResult.ContinueFlight;
-            if (p.LifecycleState == ProjectileLifecycleState.Finished)
-            {
-                exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Lifetime, frame, p.Position));
-                return ProjectileLifecycleTickResult.Remove;
-            }
-
-            if (p.LifecycleState == ProjectileLifecycleState.Preparing)
-            {
-                var elapsed = frame - p.LifecyclePhaseStartFrame;
-                if (p.Lifecycle.PrepareFrames <= 0 || elapsed >= p.Lifecycle.PrepareFrames)
-                {
-                    p.Position = p.PrepareTargetPosition;
-                    EnterHoldOrFlying(p, frame);
-                    if (p.LifecycleState == ProjectileLifecycleState.Flying) return ProjectileLifecycleTickResult.ContinueFlight;
-                }
-                else
-                {
-                    var t = elapsed <= 0 ? 0f : (float)elapsed / p.Lifecycle.PrepareFrames;
-                    p.Position = Vec3.Lerp(in p.PrepareStartPosition, in p.PrepareTargetPosition, t);
-                    TickPreFlightLifetime(p);
-                    EmitTickIfDue(p, frame, tickEvents);
-                    return ProjectileLifecycleTickResult.Handled;
-                }
-            }
-
-            if (p.LifecycleState == ProjectileLifecycleState.Holding)
-            {
-                p.Position = p.PrepareTargetPosition;
-                var elapsed = frame - p.LifecyclePhaseStartFrame;
-                if (p.Lifecycle.HoldFrames <= 0 || elapsed >= p.Lifecycle.HoldFrames)
-                {
-                    EnterFlying(p, frame);
-                    return ProjectileLifecycleTickResult.ContinueFlight;
-                }
-
-                TickPreFlightLifetime(p);
-                EmitTickIfDue(p, frame, tickEvents);
-                return ProjectileLifecycleTickResult.Handled;
-            }
-
-            return ProjectileLifecycleTickResult.ContinueFlight;
-        }
-
-        private enum ProjectileLifecycleTickResult
-        {
-            ContinueFlight = 0,
-            Handled = 1,
-            Remove = 2,
-        }
-
-        private static void EnterHoldOrFlying(Projectile p, int frame)
-        {
-            if (p.Lifecycle.HoldFrames > 0)
-            {
-                p.LifecycleState = ProjectileLifecycleState.Holding;
-                p.LifecyclePhaseStartFrame = frame;
-                p.IsArmed = p.Lifecycle.ArmedBeforeFlying;
-                return;
-            }
-
-            EnterFlying(p, frame);
-        }
-
-        private static void EnterFlying(Projectile p, int frame)
-        {
-            p.LifecycleState = ProjectileLifecycleState.Flying;
-            p.LifecyclePhaseStartFrame = frame;
-            p.IsArmed = true;
-        }
-
-        private static void TickPreFlightLifetime(Projectile p)
-        {
-            if (p.Lifecycle.ConsumeLifetimeBeforeFlying && p.LifetimeFramesLeft != int.MaxValue)
-            {
-                p.LifetimeFramesLeft--;
-            }
-        }
-
         private static void EmitTickIfDue(Projectile p, int frame, List<ProjectileTickEvent> tickEvents)
         {
             if (p.TickIntervalFrames <= 0) return;
@@ -667,6 +548,18 @@ namespace AbilityKit.Combat.Projectile
             }
 
             return rootActorId > 0 && rootActorId != launcherActorId && _returnTargetProvider.TryGetReturnTargetPosition(rootActorId, out position);
+        }
+
+        private Projectile Find(ProjectileId id)
+        {
+            if (id.Value <= 0) return null;
+            for (var i = 0; i < _active.Count; i++)
+            {
+                var projectile = _active[i];
+                if (projectile != null && projectile.Id.Equals(id)) return projectile;
+            }
+
+            return null;
         }
 
         private void RemoveAtSwapBack(int index)
@@ -812,22 +705,11 @@ namespace AbilityKit.Combat.Projectile
         [MemoryPackOrder(19)] public readonly float ReturnSpeed;
         [MemoryPackOrder(20)] public readonly float ReturnStopDistance;
         [MemoryPackOrder(21)] public readonly int IsReturning;
-        [MemoryPackOrder(22)] public readonly ProjectileLifecycleState LifecycleState;
-        [MemoryPackOrder(23)] public readonly int IsArmed;
-        [MemoryPackOrder(24)] public readonly int LifecyclePhaseStartFrame;
-        [MemoryPackOrder(25)] public readonly Vec3 PrepareStartPosition;
-        [MemoryPackOrder(26)] public readonly Vec3 PrepareTargetPosition;
-        [MemoryPackOrder(27)] public readonly int PatternSlotIndex;
-        [MemoryPackOrder(28)] public readonly int PatternSlotCount;
-        [MemoryPackOrder(29)] public readonly ProjectilePrepareMotionMode PrepareMotionMode;
-        [MemoryPackOrder(30)] public readonly int PrepareFrames;
-        [MemoryPackOrder(31)] public readonly int HoldFrames;
-        [MemoryPackOrder(32)] public readonly Vec3 PrepareOffset;
-        [MemoryPackOrder(33)] public readonly float PrepareSlotSpacing;
-        [MemoryPackOrder(34)] public readonly int ConsumeLifetimeBeforeFlying;
-        [MemoryPackOrder(35)] public readonly int ArmedBeforeFlying;
-        [MemoryPackOrder(36)] public readonly int TrackingTargetActorId;
-        [MemoryPackOrder(37)] public readonly Vec3 CollisionHalfExtents;
+        [MemoryPackOrder(22)] public readonly int IsSuspended;
+        [MemoryPackOrder(23)] public readonly int PatternSlotIndex;
+        [MemoryPackOrder(24)] public readonly int PatternSlotCount;
+        [MemoryPackOrder(25)] public readonly int TrackingTargetActorId;
+        [MemoryPackOrder(26)] public readonly Vec3 CollisionHalfExtents;
 
         public ProjectileWorldSnapshotItem(
             int id,
@@ -854,20 +736,9 @@ namespace AbilityKit.Combat.Projectile
             int hitPolicyParam,
             int tickIntervalFrames,
             int nextTickFrame,
-            ProjectileLifecycleState lifecycleState,
-            int isArmed,
-            int lifecyclePhaseStartFrame,
-            in Vec3 prepareStartPosition,
-            in Vec3 prepareTargetPosition,
+            int isSuspended,
             int patternSlotIndex,
-            int patternSlotCount,
-            ProjectilePrepareMotionMode prepareMotionMode,
-            int prepareFrames,
-            int holdFrames,
-            in Vec3 prepareOffset,
-            float prepareSlotSpacing,
-            int consumeLifetimeBeforeFlying,
-            int armedBeforeFlying)
+            int patternSlotCount)
         {
             Id = id;
             OwnerId = ownerId;
@@ -893,20 +764,9 @@ namespace AbilityKit.Combat.Projectile
             HitPolicyParam = hitPolicyParam;
             TickIntervalFrames = tickIntervalFrames;
             NextTickFrame = nextTickFrame;
-            LifecycleState = lifecycleState;
-            IsArmed = isArmed;
-            LifecyclePhaseStartFrame = lifecyclePhaseStartFrame;
-            PrepareStartPosition = prepareStartPosition;
-            PrepareTargetPosition = prepareTargetPosition;
+            IsSuspended = isSuspended;
             PatternSlotIndex = patternSlotIndex;
             PatternSlotCount = patternSlotCount;
-            PrepareMotionMode = prepareMotionMode;
-            PrepareFrames = prepareFrames;
-            HoldFrames = holdFrames;
-            PrepareOffset = prepareOffset;
-            PrepareSlotSpacing = prepareSlotSpacing;
-            ConsumeLifetimeBeforeFlying = consumeLifetimeBeforeFlying;
-            ArmedBeforeFlying = armedBeforeFlying;
         }
     }
 

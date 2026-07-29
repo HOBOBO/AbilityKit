@@ -206,7 +206,7 @@ namespace UnityHFSM.Editor.Export
                 {
                     id = item.Id,
                     name = item.Name,
-                    type = item.BehaviorType.ToString(),
+                    type = item.TypeName,
                     parentId = item.ParentId ?? "",
                     isExpanded = item.IsExpanded
                 };

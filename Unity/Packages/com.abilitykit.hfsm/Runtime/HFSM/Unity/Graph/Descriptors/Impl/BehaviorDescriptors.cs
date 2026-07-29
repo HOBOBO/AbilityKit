@@ -69,7 +69,7 @@ namespace UnityHFSM.Graph.Descriptor.Impl
 
         public string Id => _item.id;
         public string Name => _item.displayName;
-        public DescriptorBehaviorType BehaviorType => ConvertBehaviorType(_item.Type);
+        public string TypeName => _item.TypeName;
         public string ParentId => _item.parentId;
         public IReadOnlyList<string> ChildIds => _item.childIds;
         public bool IsExpanded => _item.isExpanded;
@@ -99,79 +99,6 @@ namespace UnityHFSM.Graph.Descriptor.Impl
             }
         }
 
-        private static DescriptorBehaviorType ConvertBehaviorType(HfsmBehaviorType type)
-        {
-            // 优先从注册表获取 DescriptorBehaviorType
-            if (HfsmBehaviorTypeRegistry.IsInitialized)
-            {
-                var def = HfsmBehaviorTypeRegistry.GetDefinition(type.ToString());
-                if (def != null)
-                {
-                    // 如果注册表中的类型可以转换为 DescriptorBehaviorType，进行转换
-                    // 这里使用字符串匹配来兼容旧版本
-                    if (Enum.TryParse<DescriptorBehaviorType>(def.typeName, out var result))
-                    {
-                        return result;
-                    }
-                }
-            }
-
-            // 回退到旧的 switch 逻辑
-            return type switch
-            {
-                HfsmBehaviorType.Wait => DescriptorBehaviorType.Wait,
-                HfsmBehaviorType.WaitUntil => DescriptorBehaviorType.WaitUntil,
-                HfsmBehaviorType.Log => DescriptorBehaviorType.Log,
-                HfsmBehaviorType.SetFloat => DescriptorBehaviorType.SetFloat,
-                HfsmBehaviorType.SetBool => DescriptorBehaviorType.SetBool,
-                HfsmBehaviorType.SetInt => DescriptorBehaviorType.SetInt,
-                HfsmBehaviorType.PlayAnimation => DescriptorBehaviorType.PlayAnimation,
-                HfsmBehaviorType.SetActive => DescriptorBehaviorType.SetActive,
-                HfsmBehaviorType.MoveTo => DescriptorBehaviorType.MoveTo,
-                HfsmBehaviorType.Sequence => DescriptorBehaviorType.Sequence,
-                HfsmBehaviorType.Selector => DescriptorBehaviorType.Selector,
-                HfsmBehaviorType.Parallel => DescriptorBehaviorType.Parallel,
-                HfsmBehaviorType.RandomSelector => DescriptorBehaviorType.RandomSelector,
-                HfsmBehaviorType.RandomSequence => DescriptorBehaviorType.RandomSequence,
-                HfsmBehaviorType.Repeat => DescriptorBehaviorType.Repeat,
-                HfsmBehaviorType.Invert => DescriptorBehaviorType.Invert,
-                HfsmBehaviorType.TimeLimit => DescriptorBehaviorType.TimeLimit,
-                HfsmBehaviorType.UntilSuccess => DescriptorBehaviorType.UntilSuccess,
-                HfsmBehaviorType.UntilFailure => DescriptorBehaviorType.UntilFailure,
-                HfsmBehaviorType.Cooldown => DescriptorBehaviorType.Cooldown,
-                HfsmBehaviorType.If => DescriptorBehaviorType.If,
-                _ => DescriptorBehaviorType.Wait
-            };
-        }
-
-        /// <summary>
-        /// 根据类型名称转换行为类型
-        /// 支持包外扩展的类型名称
-        /// </summary>
-        private static DescriptorBehaviorType ConvertBehaviorTypeFromTypeName(string typeName)
-        {
-            // 优先从注册表获取定义
-            if (HfsmBehaviorTypeRegistry.IsInitialized)
-            {
-                var def = HfsmBehaviorTypeRegistry.GetDefinition(typeName);
-                if (def != null)
-                {
-                    // 尝试将类型名转换为 DescriptorBehaviorType
-                    if (Enum.TryParse<DescriptorBehaviorType>(def.typeName, out var result))
-                    {
-                        return result;
-                    }
-                }
-            }
-
-            // 回退到尝试直接解析
-            if (Enum.TryParse<DescriptorBehaviorType>(typeName, out var fallback))
-            {
-                return fallback;
-            }
-
-            return DescriptorBehaviorType.Wait;
-        }
     }
 
     /// <summary>

@@ -207,6 +207,8 @@ namespace UnityHFSM
         private readonly object parentFsm;
         private BehaviorExecutor executor;
         private ActionStorage<TEvent> actionStorage;
+        private string behaviorRootId;
+        private bool behaviorCompleted;
 
         public event Action<string, BehaviorStatus> OnBehaviorCompleted;
         public event Action<string> OnBehaviorFailed;
@@ -238,14 +240,6 @@ namespace UnityHFSM
             executor.SetUserData(userData);
             executor.SetFsm(parentFsm);
 
-            executor.OnStatusChanged += (status) =>
-            {
-                if (status == BehaviorStatus.Failure)
-                {
-                    OnBehaviorFailed?.Invoke(node.RootBehaviorId);
-                }
-            };
-
             var action = CreateActionTree(node);
             if (action != null)
             {
@@ -258,319 +252,16 @@ namespace UnityHFSM
             if (stateNode.BehaviorItems == null || stateNode.BehaviorItems.Count == 0)
                 return null;
 
-            var rootItems = stateNode.GetRootBehaviorItems();
-            if (rootItems.Count == 0)
-                return null;
-
-            if (rootItems.Count == 1)
-            {
-                return CreateAction(rootItems[0], stateNode);
-            }
-
-            var sequence = new SequenceAction();
-            foreach (var item in rootItems)
-            {
-                var action = CreateAction(item, stateNode);
-                if (action != null)
-                {
-                    sequence.children.Add(action);
-                }
-            }
-
-            return sequence.children.Count > 0 ? sequence : null;
-        }
-
-        private IAction CreateAction(HfsmBehaviorItem item, HfsmStateNode stateNode)
-        {
-            if (item == null)
-                return null;
-
-            IAction action = item.Type switch
-            {
-                HfsmBehaviorType.Wait => CreateWaitAction(item),
-                HfsmBehaviorType.Log => CreateLogAction(item),
-                HfsmBehaviorType.SetFloat => CreateSetFloatAction(item),
-                HfsmBehaviorType.SetBool => CreateSetBoolAction(item),
-                HfsmBehaviorType.SetInt => CreateSetIntAction(item),
-                HfsmBehaviorType.PlayAnimation => CreatePlayAnimationAction(item),
-                HfsmBehaviorType.SetActive => CreateSetActiveAction(item),
-                HfsmBehaviorType.MoveTo => CreateMoveToAction(item),
-                HfsmBehaviorType.Sequence => CreateSequenceAction(item, stateNode),
-                HfsmBehaviorType.Selector => CreateSelectorAction(item, stateNode),
-                HfsmBehaviorType.Parallel => CreateParallelAction(item, stateNode),
-                HfsmBehaviorType.RandomSelector => CreateRandomSelectorAction(item, stateNode),
-                HfsmBehaviorType.RandomSequence => CreateRandomSequenceAction(item, stateNode),
-                HfsmBehaviorType.Repeat => CreateRepeatAction(item, stateNode),
-                HfsmBehaviorType.Invert => CreateInvertAction(item, stateNode),
-                HfsmBehaviorType.TimeLimit => CreateTimeLimitAction(item, stateNode),
-                HfsmBehaviorType.UntilSuccess => CreateUntilSuccessAction(item, stateNode),
-                HfsmBehaviorType.UntilFailure => CreateUntilFailureAction(item, stateNode),
-                HfsmBehaviorType.Cooldown => CreateCooldownAction(item, stateNode),
-                _ => null
-            };
-
-            return action;
-        }
-
-        private WaitAction CreateWaitAction(HfsmBehaviorItem item)
-        {
-            var duration = item.GetParamValue<float>("duration");
-            return new WaitAction(duration);
-        }
-
-        private LogAction CreateLogAction(HfsmBehaviorItem item)
-        {
-            var message = item.GetParamValue<string>("message");
-            return new LogAction(message);
-        }
-
-        private SetFloatAction CreateSetFloatAction(HfsmBehaviorItem item)
-        {
-            var varName = item.GetParamValue<string>("variableName");
-            var value = item.GetParamValue<float>("value");
-            return new SetFloatAction(varName, value);
-        }
-
-        private SetBoolAction CreateSetBoolAction(HfsmBehaviorItem item)
-        {
-            var varName = item.GetParamValue<string>("variableName");
-            var value = item.GetParamValue<bool>("value");
-            return new SetBoolAction(varName, value);
-        }
-
-        private SetIntAction CreateSetIntAction(HfsmBehaviorItem item)
-        {
-            var varName = item.GetParamValue<string>("variableName");
-            var value = item.GetParamValue<int>("value");
-            return new SetIntAction(varName, value);
-        }
-
-        private PlayAnimationAction CreatePlayAnimationAction(HfsmBehaviorItem item)
-        {
-            var stateName = item.GetParamValue<string>("stateName");
-            var duration = item.GetParamValue<float>("crossFadeDuration");
-            return new PlayAnimationAction(stateName, duration);
-        }
-
-        private SetActiveAction CreateSetActiveAction(HfsmBehaviorItem item)
-        {
-            var target = item.GetParamValue<UnityEngine.Object>("target");
-            var active = item.GetParamValue<bool>("active");
-            var action = new SetActiveAction();
-            action.targetObject = target;
-            action.active = active;
-            return action;
-        }
-
-        private MoveToAction CreateMoveToAction(HfsmBehaviorItem item)
-        {
-            var target = item.GetParamValue<Transform>("target");
-            var dest = item.GetParamValue<Vector3>("destination");
-            var speed = item.GetParamValue<float>("speed");
-            var action = new MoveToAction(target, dest, speed);
-            return action;
-        }
-
-        private SequenceAction CreateSequenceAction(HfsmBehaviorItem item, HfsmStateNode stateNode)
-        {
-            var sequence = new SequenceAction();
-            foreach (var childId in item.childIds)
-            {
-                var child = stateNode.GetBehaviorItem(childId);
-                if (child != null)
-                {
-                    var childAction = CreateAction(child, stateNode);
-                    if (childAction != null)
-                    {
-                        sequence.children.Add(childAction);
-                    }
-                }
-            }
-            return sequence;
-        }
-
-        private SelectorAction CreateSelectorAction(HfsmBehaviorItem item, HfsmStateNode stateNode)
-        {
-            var selector = new SelectorAction();
-            foreach (var childId in item.childIds)
-            {
-                var child = stateNode.GetBehaviorItem(childId);
-                if (child != null)
-                {
-                    var childAction = CreateAction(child, stateNode);
-                    if (childAction != null)
-                    {
-                        selector.children.Add(childAction);
-                    }
-                }
-            }
-            return selector;
-        }
-
-        private ParallelAction CreateParallelAction(HfsmBehaviorItem item, HfsmStateNode stateNode)
-        {
-            var parallel = new ParallelAction();
-            parallel.failOnAnyFailure = item.GetParamValue<bool>("failOnAnyFailure");
-
-            foreach (var childId in item.childIds)
-            {
-                var child = stateNode.GetBehaviorItem(childId);
-                if (child != null)
-                {
-                    var childAction = CreateAction(child, stateNode);
-                    if (childAction != null)
-                    {
-                        parallel.children.Add(childAction);
-                    }
-                }
-            }
-            return parallel;
-        }
-
-        private RandomSelectorAction CreateRandomSelectorAction(HfsmBehaviorItem item, HfsmStateNode stateNode)
-        {
-            var randomSelector = new RandomSelectorAction();
-            foreach (var childId in item.childIds)
-            {
-                var child = stateNode.GetBehaviorItem(childId);
-                if (child != null)
-                {
-                    var childAction = CreateAction(child, stateNode);
-                    if (childAction != null)
-                    {
-                        randomSelector.children.Add(childAction);
-                    }
-                }
-            }
-            return randomSelector;
-        }
-
-        private RandomSequenceAction CreateRandomSequenceAction(HfsmBehaviorItem item, HfsmStateNode stateNode)
-        {
-            var randomSeq = new RandomSequenceAction();
-            foreach (var childId in item.childIds)
-            {
-                var child = stateNode.GetBehaviorItem(childId);
-                if (child != null)
-                {
-                    var childAction = CreateAction(child, stateNode);
-                    if (childAction != null)
-                    {
-                        randomSeq.children.Add(childAction);
-                    }
-                }
-            }
-            return randomSeq;
-        }
-
-        private RepeatAction CreateRepeatAction(HfsmBehaviorItem item, HfsmStateNode stateNode)
-        {
-            var count = item.GetParamValue<int>("count");
-            var childId = item.childIds.Count > 0 ? item.childIds[0] : null;
-            IAction child = null;
-
-            if (!string.IsNullOrEmpty(childId))
-            {
-                var childItem = stateNode.GetBehaviorItem(childId);
-                if (childItem != null)
-                {
-                    child = CreateAction(childItem, stateNode);
-                }
-            }
-
-            return new RepeatAction(child, count);
-        }
-
-        private InvertAction CreateInvertAction(HfsmBehaviorItem item, HfsmStateNode stateNode)
-        {
-            var childId = item.childIds.Count > 0 ? item.childIds[0] : null;
-            IAction child = null;
-
-            if (!string.IsNullOrEmpty(childId))
-            {
-                var childItem = stateNode.GetBehaviorItem(childId);
-                if (childItem != null)
-                {
-                    child = CreateAction(childItem, stateNode);
-                }
-            }
-
-            return new InvertAction(child);
-        }
-
-        private TimeLimitAction CreateTimeLimitAction(HfsmBehaviorItem item, HfsmStateNode stateNode)
-        {
-            var timeLimit = item.GetParamValue<float>("timeLimit");
-            var childId = item.childIds.Count > 0 ? item.childIds[0] : null;
-            IAction child = null;
-
-            if (!string.IsNullOrEmpty(childId))
-            {
-                var childItem = stateNode.GetBehaviorItem(childId);
-                if (childItem != null)
-                {
-                    child = CreateAction(childItem, stateNode);
-                }
-            }
-
-            return new TimeLimitAction(child, timeLimit);
-        }
-
-        private UntilSuccessAction CreateUntilSuccessAction(HfsmBehaviorItem item, HfsmStateNode stateNode)
-        {
-            var childId = item.childIds.Count > 0 ? item.childIds[0] : null;
-            IAction child = null;
-
-            if (!string.IsNullOrEmpty(childId))
-            {
-                var childItem = stateNode.GetBehaviorItem(childId);
-                if (childItem != null)
-                {
-                    child = CreateAction(childItem, stateNode);
-                }
-            }
-
-            return new UntilSuccessAction(child);
-        }
-
-        private UntilFailureAction CreateUntilFailureAction(HfsmBehaviorItem item, HfsmStateNode stateNode)
-        {
-            var childId = item.childIds.Count > 0 ? item.childIds[0] : null;
-            IAction child = null;
-
-            if (!string.IsNullOrEmpty(childId))
-            {
-                var childItem = stateNode.GetBehaviorItem(childId);
-                if (childItem != null)
-                {
-                    child = CreateAction(childItem, stateNode);
-                }
-            }
-
-            return new UntilFailureAction(child);
-        }
-
-        private CooldownAction CreateCooldownAction(HfsmBehaviorItem item, HfsmStateNode stateNode)
-        {
-            var cooldown = item.GetParamValue<float>("cooldownDuration");
-            var childId = item.childIds.Count > 0 ? item.childIds[0] : null;
-            IAction child = null;
-
-            if (!string.IsNullOrEmpty(childId))
-            {
-                var childItem = stateNode.GetBehaviorItem(childId);
-                if (childItem != null)
-                {
-                    child = CreateAction(childItem, stateNode);
-                }
-            }
-
-            return new CooldownAction(child, cooldown);
+            var roots = stateNode.GetRootBehaviorItems();
+            if (roots.Count == 1)
+                behaviorRootId = roots[0].id;
+            return BehaviorTreeBuilder.BuildFromEditorItems(stateNode.BehaviorItems);
         }
 
         public override void OnEnter()
         {
             base.OnEnter();
+            behaviorCompleted = false;
             executor?.Reset();
         }
 
@@ -578,28 +269,24 @@ namespace UnityHFSM
         {
             base.OnLogic();
 
-            if (executor != null && executor.IsRunning)
+            if (executor != null && !behaviorCompleted)
             {
                 var status = executor.Tick(Time.deltaTime);
-                OnBehaviorCompleted?.Invoke(node.RootBehaviorId, status);
-
-                if (status == BehaviorStatus.Success && needsExitTime)
+                if (status != BehaviorStatus.Running)
                 {
-                    fsm?.StateCanExit();
-                }
-                else if (status == BehaviorStatus.Failure)
-                {
-                    OnBehaviorFailed?.Invoke(node.RootBehaviorId);
+                    behaviorCompleted = true;
+                    OnBehaviorCompleted?.Invoke(behaviorRootId, status);
+                    if (status == BehaviorStatus.Failure)
+                        OnBehaviorFailed?.Invoke(behaviorRootId);
                     if (needsExitTime)
-                    {
                         fsm?.StateCanExit();
-                    }
                 }
             }
         }
 
         public override void OnExit()
         {
+            behaviorCompleted = true;
             executor?.ForceEnd();
             base.OnExit();
         }

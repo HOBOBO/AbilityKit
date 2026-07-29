@@ -4,6 +4,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
@@ -30,6 +31,12 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             builder.TryRegister<IMobaConfigDtoBytesDeserializer>(WorldLifetime.Singleton, _ => new LubanMobaConfigDtoBytesDeserializer());
             builder.TryRegister<IMobaConfigDtoProvider>(WorldLifetime.Singleton, _ => EmptyMobaConfigDtoProvider.Instance);
             builder.TryRegister<IMobaConfigLoadProfile>(WorldLifetime.Singleton, _ => ResourcesJsonMobaConfigLoadProfile.Default);
+            builder.TryRegister<IMobaActorBrainCatalog>(WorldLifetime.Singleton, _ =>
+            {
+                var catalog = new MobaActorBrainCatalog();
+                MobaActorBrainCatalogJsonLoader.Load(_.Resolve<ITextAssetLoader>(), catalog);
+                return catalog;
+            });
             builder.TryRegister<IMobaActorStateMachineProfileCatalog>(WorldLifetime.Singleton, _ =>
             {
                 var catalog = new MobaActorStateMachineProfileCatalog();

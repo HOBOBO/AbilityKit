@@ -4,6 +4,7 @@ using AbilityKit.Ability.Behavior;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Behavior.BTree;
+using AbilityKit.Demo.Moba.Services.Search;
 
 namespace AbilityKit.Demo.Moba.Services.Behavior
 {
@@ -19,6 +20,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         public readonly long OwnerActorId;
         public readonly int SourceKind;
         public readonly int SourceId;
+        public readonly SearchTargetService SearchTargets;
+        public readonly Func<long> CurrentTimeMsProvider;
 
         public MobaBrainDecisionCreateContext(
             in MobaActorBrainDefinition definition,
@@ -26,7 +29,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             MobaConfigDatabase config,
             long ownerActorId,
             int sourceKind,
-            int sourceId)
+            int sourceId,
+            SearchTargetService searchTargets = null,
+            Func<long> currentTimeMsProvider = null)
         {
             Definition = definition;
             Registry = registry;
@@ -34,6 +39,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             OwnerActorId = ownerActorId;
             SourceKind = sourceKind;
             SourceId = sourceId;
+            SearchTargets = searchTargets;
+            CurrentTimeMsProvider = currentTimeMsProvider;
         }
     }
 
@@ -68,8 +75,6 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         {
             return new MobaBrainDecisionDriverRegistry(new IMobaBrainDecisionDriver[]
             {
-                new MobaIdleBrainDecisionDriver(),
-                new MobaCodeBrainDecisionDriver(),
                 new MobaBTreeBrainDecisionDriver(),
                 new MobaHfsmBrainDecisionDriver(),
             });
@@ -91,23 +96,6 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     }
 
     /// <summary>
-    /// Code 决策驱动器，保持既有目录定义与决策工厂的映射行为。
-    /// </summary>
-    public sealed class MobaCodeBrainDecisionDriver : IMobaBrainDecisionDriver
-    {
-        public MobaBrainDriverKind Kind => MobaBrainDriverKind.Code;
-
-        public bool TryCreate(in MobaBrainDecisionCreateContext context, out IBehaviorDecision decision)
-        {
-            decision = MobaBrainDecisionFactory.Create(
-                in context.Definition,
-                context.Registry,
-                context.OwnerActorId);
-            return decision != null;
-        }
-    }
-
-    /// <summary>
     /// BTCore 决策驱动器。定义键对应导出的行为树资源名。
     /// </summary>
     public sealed class MobaBTreeBrainDecisionDriver : IMobaBrainDecisionDriver
@@ -124,7 +112,12 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
                 return false;
             }
 
-            decision = MobaBTreeDecision.Create(json, context.Registry);
+            decision = MobaBTreeDecision.Create(
+                json,
+                context.Registry,
+                context.Config,
+                context.SearchTargets,
+                context.CurrentTimeMsProvider);
             if (decision == null)
             {
                 Log.Warning($"[MobaBrain] behavior tree create failed. brainId={context.Definition.BrainId} tree={treeName}");
@@ -168,17 +161,4 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         }
     }
 
-    /// <summary>
-    /// 无决策配置时的稳定回退驱动器。
-    /// </summary>
-    public sealed class MobaIdleBrainDecisionDriver : IMobaBrainDecisionDriver
-    {
-        public MobaBrainDriverKind Kind => MobaBrainDriverKind.Idle;
-
-        public bool TryCreate(in MobaBrainDecisionCreateContext context, out IBehaviorDecision decision)
-        {
-            decision = MobaBrainDecisionFactory.Create(in context.Definition, context.Registry, context.OwnerActorId);
-            return true;
-        }
-    }
 }

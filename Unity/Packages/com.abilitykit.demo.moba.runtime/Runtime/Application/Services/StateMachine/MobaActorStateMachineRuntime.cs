@@ -4,6 +4,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Demo.Moba.Services.Projectile;
 using UnityHFSM;
 using UnityHFSM.Extension;
 
@@ -88,6 +89,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             RegisterAction("noop", (_, __) => new CallbackBehaviour(null));
             RegisterCondition("always", (_, __) => true);
             RegisterCondition("never", (_, __) => false);
+            MobaProjectileHfsmActions.Register(this);
         }
 
         public void RegisterAction(string type, MobaHfsmActionFactory factory)

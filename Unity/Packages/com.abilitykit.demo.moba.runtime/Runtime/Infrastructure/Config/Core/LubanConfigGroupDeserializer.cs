@@ -453,21 +453,10 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 ReturnAfterMs = obj["ReturnAfterMs"]?.Value<int>() ?? 0,
                 ReturnSpeed = obj["ReturnSpeed"]?.Value<float>() ?? 0,
                 ReturnStopDistance = obj["ReturnStopDistance"]?.Value<float>() ?? 0,
-                PrepareMotionMode = obj["PrepareMotionMode"]?.Value<int>() ?? 0,
-                PrepareMs = obj["PrepareMs"]?.Value<int>() ?? 0,
-                HoldMs = obj["HoldMs"]?.Value<int>() ?? 0,
-                PrepareOffsetX = obj["PrepareOffsetX"]?.Value<float>() ?? 0,
-                PrepareOffsetY = obj["PrepareOffsetY"]?.Value<float>() ?? 0,
-                PrepareOffsetZ = obj["PrepareOffsetZ"]?.Value<float>() ?? 0,
-                PrepareSlotSpacing = obj["PrepareSlotSpacing"]?.Value<float>() ?? 0,
+                StateMachineProfileId = obj["StateMachineProfileId"]?.Value<string>() ?? string.Empty,
                 SpawnRandomOffsetX = obj["SpawnRandomOffsetX"]?.Value<float>() ?? 0,
                 SpawnRandomOffsetY = obj["SpawnRandomOffsetY"]?.Value<float>() ?? 0,
-                SpawnRandomOffsetZ = obj["SpawnRandomOffsetZ"]?.Value<float>() ?? 0,
-                PrepareRandomOffsetX = obj["PrepareRandomOffsetX"]?.Value<float>() ?? 0,
-                PrepareRandomOffsetY = obj["PrepareRandomOffsetY"]?.Value<float>() ?? 0,
-                PrepareRandomOffsetZ = obj["PrepareRandomOffsetZ"]?.Value<float>() ?? 0,
-                ConsumeLifetimeBeforeFlying = obj["ConsumeLifetimeBeforeFlying"]?.Value<bool>() ?? true,
-                ArmedBeforeFlying = obj["ArmedBeforeFlying"]?.Value<bool>() ?? true
+                SpawnRandomOffsetZ = obj["SpawnRandomOffsetZ"]?.Value<float>() ?? 0
             };
             return dto;
         }
@@ -541,7 +530,6 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 SkillIds = obj["SkillIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 PassiveSkillIds = obj["PassiveSkillIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 BrainId = obj["BrainId"]?.Value<int>() ?? 0,
-                BrainTreeName = obj["BrainTreeName"]?.Value<string>() ?? string.Empty,
                 InheritAttributeConfigId = obj["InheritAttributeConfigId"]?.Value<int>() ?? 0,
                 DefaultComponentTemplateIds = obj["DefaultComponentTemplateIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>()

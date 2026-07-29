@@ -3,7 +3,21 @@ using System.Collections.Generic;
 
 namespace UnityHFSM.Extension
 {
-    public sealed class CallbackBehaviour : IRollbackActionBehaviour
+    public delegate bool ActionBehaviourPredicate(in ActionBehaviourContext context);
+
+    public enum ParallelSuccessPolicy
+    {
+        All = 0,
+        Any = 1,
+    }
+
+    public enum ParallelFailurePolicy
+    {
+        Any = 0,
+        All = 1,
+    }
+
+    public sealed class CallbackBehaviour : IRollbackActionBehaviour, IInterruptibleActionBehaviour
     {
         private readonly Action _action;
         private bool _done;
@@ -24,6 +38,11 @@ namespace UnityHFSM.Extension
             _done = true;
             _action?.Invoke();
             return ActionBehaviourStatus.Success;
+        }
+
+        public void Abort(in ActionBehaviourContext ctx)
+        {
+            _done = true;
         }
 
         public ActionBehaviourSnapshot CaptureSnapshot()
@@ -48,7 +67,7 @@ namespace UnityHFSM.Extension
         }
     }
 
-    public sealed class DelayBehaviour : IRollbackActionBehaviour
+    public sealed class DelayBehaviour : IRollbackActionBehaviour, IInterruptibleActionBehaviour
     {
         private readonly float _duration;
         private readonly bool _useUnscaled;
@@ -56,7 +75,7 @@ namespace UnityHFSM.Extension
 
         public DelayBehaviour(float duration, bool useUnscaled = false)
         {
-            _duration = duration;
+            _duration = Math.Max(0f, duration);
             _useUnscaled = useUnscaled;
         }
 
@@ -71,6 +90,10 @@ namespace UnityHFSM.Extension
             return _elapsed >= _duration ? ActionBehaviourStatus.Success : ActionBehaviourStatus.Running;
         }
 
+        public void Abort(in ActionBehaviourContext ctx)
+        {
+        }
+
         public ActionBehaviourSnapshot CaptureSnapshot()
         {
             return new ActionBehaviourSnapshot(nameof(DelayBehaviour), floatValue: _elapsed);
@@ -83,7 +106,38 @@ namespace UnityHFSM.Extension
         }
     }
 
-    public sealed class SequenceBehaviour : IRollbackActionBehaviour
+    public sealed class ConditionBehaviour : IRollbackActionBehaviour
+    {
+        private readonly ActionBehaviourPredicate _predicate;
+
+        public ConditionBehaviour(ActionBehaviourPredicate predicate)
+        {
+            _predicate = predicate;
+        }
+
+        public void Reset()
+        {
+        }
+
+        public ActionBehaviourStatus Tick(in ActionBehaviourContext ctx)
+        {
+            return _predicate != null && _predicate(in ctx)
+                ? ActionBehaviourStatus.Success
+                : ActionBehaviourStatus.Failure;
+        }
+
+        public ActionBehaviourSnapshot CaptureSnapshot()
+        {
+            return new ActionBehaviourSnapshot(nameof(ConditionBehaviour));
+        }
+
+        public void RestoreSnapshot(ActionBehaviourSnapshot snapshot)
+        {
+            CallbackBehaviour.ValidateSnapshot(snapshot, nameof(ConditionBehaviour));
+        }
+    }
+
+    public sealed class SequenceBehaviour : IRollbackActionBehaviour, IInterruptibleActionBehaviour
     {
         private readonly List<IActionBehaviour> _children = new List<IActionBehaviour>();
         private int _index;
@@ -97,23 +151,25 @@ namespace UnityHFSM.Extension
         public void Reset()
         {
             _index = 0;
-            for (int i = 0; i < _children.Count; i++)
-            {
-                _children[i].Reset();
-            }
+            for (var i = 0; i < _children.Count; i++) _children[i].Reset();
         }
 
         public ActionBehaviourStatus Tick(in ActionBehaviourContext ctx)
         {
             while (_index < _children.Count)
             {
-                var s = _children[_index].Tick(ctx);
-                if (s == ActionBehaviourStatus.Running) return ActionBehaviourStatus.Running;
-                if (s == ActionBehaviourStatus.Failure) return ActionBehaviourStatus.Failure;
+                var status = _children[_index].Tick(in ctx);
+                if (status == ActionBehaviourStatus.Running) return ActionBehaviourStatus.Running;
+                if (status != ActionBehaviourStatus.Success) return status;
                 _index++;
             }
 
             return ActionBehaviourStatus.Success;
+        }
+
+        public void Abort(in ActionBehaviourContext ctx)
+        {
+            if (_index < _children.Count) AbortChild(_children[_index], in ctx);
         }
 
         public ActionBehaviourSnapshot CaptureSnapshot()
@@ -178,11 +234,86 @@ namespace UnityHFSM.Extension
                 rollbackBehaviour.RestoreSnapshot(snapshots[i]);
             }
         }
+
+        internal static void AbortChild(IActionBehaviour child, in ActionBehaviourContext ctx)
+        {
+            if (child is IInterruptibleActionBehaviour interruptible) interruptible.Abort(in ctx);
+        }
     }
 
-    public sealed class ParallelBehaviour : IRollbackActionBehaviour
+    public sealed class SelectorBehaviour : IRollbackActionBehaviour, IInterruptibleActionBehaviour
     {
         private readonly List<IActionBehaviour> _children = new List<IActionBehaviour>();
+        private int _index;
+
+        public SelectorBehaviour Add(IActionBehaviour child)
+        {
+            if (child != null) _children.Add(child);
+            return this;
+        }
+
+        public void Reset()
+        {
+            _index = 0;
+            for (var i = 0; i < _children.Count; i++) _children[i].Reset();
+        }
+
+        public ActionBehaviourStatus Tick(in ActionBehaviourContext ctx)
+        {
+            while (_index < _children.Count)
+            {
+                var status = _children[_index].Tick(in ctx);
+                if (status == ActionBehaviourStatus.Running) return ActionBehaviourStatus.Running;
+                if (status == ActionBehaviourStatus.Success) return ActionBehaviourStatus.Success;
+                if (status == ActionBehaviourStatus.Cancelled) return ActionBehaviourStatus.Cancelled;
+                _index++;
+            }
+
+            return ActionBehaviourStatus.Failure;
+        }
+
+        public void Abort(in ActionBehaviourContext ctx)
+        {
+            if (_index < _children.Count) SequenceBehaviour.AbortChild(_children[_index], in ctx);
+        }
+
+        public ActionBehaviourSnapshot CaptureSnapshot()
+        {
+            return new ActionBehaviourSnapshot(
+                nameof(SelectorBehaviour),
+                integerValue: _index,
+                children: SequenceBehaviour.CaptureChildren(_children, nameof(SelectorBehaviour)));
+        }
+
+        public void RestoreSnapshot(ActionBehaviourSnapshot snapshot)
+        {
+            CallbackBehaviour.ValidateSnapshot(snapshot, nameof(SelectorBehaviour));
+            SequenceBehaviour.RestoreChildren(_children, snapshot.Children, nameof(SelectorBehaviour));
+            if (snapshot.IntegerValue < 0 || snapshot.IntegerValue > _children.Count)
+            {
+                throw new InvalidOperationException(
+                    $"Selector action index '{snapshot.IntegerValue}' is outside [0, {_children.Count}].");
+            }
+
+            _index = snapshot.IntegerValue;
+        }
+    }
+
+    public sealed class ParallelBehaviour : IRollbackActionBehaviour, IInterruptibleActionBehaviour
+    {
+        private const string ChildSnapshotKind = "ParallelChild";
+        private readonly List<IActionBehaviour> _children = new List<IActionBehaviour>();
+        private readonly ParallelSuccessPolicy _successPolicy;
+        private readonly ParallelFailurePolicy _failurePolicy;
+        private ActionBehaviourStatus[] _statuses = Array.Empty<ActionBehaviourStatus>();
+
+        public ParallelBehaviour(
+            ParallelSuccessPolicy successPolicy = ParallelSuccessPolicy.All,
+            ParallelFailurePolicy failurePolicy = ParallelFailurePolicy.Any)
+        {
+            _successPolicy = successPolicy;
+            _failurePolicy = failurePolicy;
+        }
 
         public ParallelBehaviour Add(IActionBehaviour child)
         {
@@ -192,36 +323,296 @@ namespace UnityHFSM.Extension
 
         public void Reset()
         {
-            for (int i = 0; i < _children.Count; i++)
-            {
-                _children[i].Reset();
-            }
+            _statuses = new ActionBehaviourStatus[_children.Count];
+            for (var i = 0; i < _children.Count; i++) _children[i].Reset();
         }
 
         public ActionBehaviourStatus Tick(in ActionBehaviourContext ctx)
         {
-            var anyRunning = false;
-            for (int i = 0; i < _children.Count; i++)
+            if (_children.Count == 0) return ActionBehaviourStatus.Success;
+            if (_statuses.Length != _children.Count) Reset();
+
+            for (var i = 0; i < _children.Count; i++)
             {
-                var s = _children[i].Tick(ctx);
-                if (s == ActionBehaviourStatus.Failure) return ActionBehaviourStatus.Failure;
-                if (s == ActionBehaviourStatus.Running) anyRunning = true;
+                if (_statuses[i] != ActionBehaviourStatus.Running) continue;
+                _statuses[i] = _children[i].Tick(in ctx);
             }
 
-            return anyRunning ? ActionBehaviourStatus.Running : ActionBehaviourStatus.Success;
+            CountStatuses(out var running, out var succeeded, out var failed);
+            var failureReached = _failurePolicy == ParallelFailurePolicy.Any
+                ? failed > 0
+                : failed == _children.Count;
+            var successReached = _successPolicy == ParallelSuccessPolicy.Any
+                ? succeeded > 0
+                : succeeded == _children.Count;
+
+            if (failureReached)
+            {
+                AbortRunningChildren(in ctx);
+                return ActionBehaviourStatus.Failure;
+            }
+
+            if (successReached)
+            {
+                AbortRunningChildren(in ctx);
+                return ActionBehaviourStatus.Success;
+            }
+
+            if (running == 0)
+            {
+                return ActionBehaviourStatus.Failure;
+            }
+
+            return ActionBehaviourStatus.Running;
+        }
+
+        public void Abort(in ActionBehaviourContext ctx)
+        {
+            if (_statuses.Length != _children.Count) _statuses = new ActionBehaviourStatus[_children.Count];
+            AbortRunningChildren(in ctx);
         }
 
         public ActionBehaviourSnapshot CaptureSnapshot()
         {
-            return new ActionBehaviourSnapshot(
-                nameof(ParallelBehaviour),
-                children: SequenceBehaviour.CaptureChildren(_children, nameof(ParallelBehaviour)));
+            if (_statuses.Length != _children.Count) _statuses = new ActionBehaviourStatus[_children.Count];
+            var children = new ActionBehaviourSnapshot[_children.Count];
+            for (var i = 0; i < _children.Count; i++)
+            {
+                if (!(_children[i] is IRollbackActionBehaviour rollbackBehaviour))
+                {
+                    throw new InvalidOperationException(
+                        $"Action '{_children[i]?.GetType().FullName ?? "null"}' in '{nameof(ParallelBehaviour)}' does not support rollback.");
+                }
+
+                children[i] = new ActionBehaviourSnapshot(
+                    ChildSnapshotKind,
+                    integerValue: (int)_statuses[i],
+                    children: new[] { rollbackBehaviour.CaptureSnapshot() });
+            }
+
+            return new ActionBehaviourSnapshot(nameof(ParallelBehaviour), children: children);
         }
 
         public void RestoreSnapshot(ActionBehaviourSnapshot snapshot)
         {
             CallbackBehaviour.ValidateSnapshot(snapshot, nameof(ParallelBehaviour));
-            SequenceBehaviour.RestoreChildren(_children, snapshot.Children, nameof(ParallelBehaviour));
+            if (snapshot.Children.Count != _children.Count)
+            {
+                throw new InvalidOperationException(
+                    $"Action snapshot for '{nameof(ParallelBehaviour)}' has {snapshot.Children.Count} children; expected {_children.Count}.");
+            }
+
+            _statuses = new ActionBehaviourStatus[_children.Count];
+            for (var i = 0; i < _children.Count; i++)
+            {
+                var childSnapshot = snapshot.Children[i];
+                CallbackBehaviour.ValidateSnapshot(childSnapshot, ChildSnapshotKind);
+                if (childSnapshot.Children.Count != 1
+                    || childSnapshot.IntegerValue < (int)ActionBehaviourStatus.Running
+                    || childSnapshot.IntegerValue > (int)ActionBehaviourStatus.Cancelled)
+                {
+                    throw new InvalidOperationException("Parallel child snapshot is malformed.");
+                }
+
+                if (!(_children[i] is IRollbackActionBehaviour rollbackBehaviour))
+                {
+                    throw new InvalidOperationException(
+                        $"Action '{_children[i]?.GetType().FullName ?? "null"}' in '{nameof(ParallelBehaviour)}' does not support rollback.");
+                }
+
+                _statuses[i] = (ActionBehaviourStatus)childSnapshot.IntegerValue;
+                rollbackBehaviour.RestoreSnapshot(childSnapshot.Children[0]);
+            }
+        }
+
+        private void CountStatuses(out int running, out int succeeded, out int failed)
+        {
+            running = 0;
+            succeeded = 0;
+            failed = 0;
+            for (var i = 0; i < _statuses.Length; i++)
+            {
+                switch (_statuses[i])
+                {
+                    case ActionBehaviourStatus.Running:
+                        running++;
+                        break;
+                    case ActionBehaviourStatus.Success:
+                        succeeded++;
+                        break;
+                    default:
+                        failed++;
+                        break;
+                }
+            }
+        }
+
+        private void AbortRunningChildren(in ActionBehaviourContext ctx)
+        {
+            for (var i = 0; i < _children.Count; i++)
+            {
+                if (_statuses[i] != ActionBehaviourStatus.Running) continue;
+                SequenceBehaviour.AbortChild(_children[i], in ctx);
+                _statuses[i] = ActionBehaviourStatus.Cancelled;
+            }
+        }
+    }
+
+    public sealed class InvertBehaviour : IRollbackActionBehaviour, IInterruptibleActionBehaviour
+    {
+        private readonly IActionBehaviour _child;
+
+        public InvertBehaviour(IActionBehaviour child)
+        {
+            _child = child;
+        }
+
+        public void Reset()
+        {
+            _child?.Reset();
+        }
+
+        public ActionBehaviourStatus Tick(in ActionBehaviourContext ctx)
+        {
+            if (_child == null) return ActionBehaviourStatus.Failure;
+            var status = _child.Tick(in ctx);
+            return status switch
+            {
+                ActionBehaviourStatus.Success => ActionBehaviourStatus.Failure,
+                ActionBehaviourStatus.Failure => ActionBehaviourStatus.Success,
+                _ => status,
+            };
+        }
+
+        public void Abort(in ActionBehaviourContext ctx)
+        {
+            SequenceBehaviour.AbortChild(_child, in ctx);
+        }
+
+        public ActionBehaviourSnapshot CaptureSnapshot()
+        {
+            return new ActionBehaviourSnapshot(
+                nameof(InvertBehaviour),
+                children: SequenceBehaviour.CaptureChildren(new[] { _child }, nameof(InvertBehaviour)));
+        }
+
+        public void RestoreSnapshot(ActionBehaviourSnapshot snapshot)
+        {
+            CallbackBehaviour.ValidateSnapshot(snapshot, nameof(InvertBehaviour));
+            SequenceBehaviour.RestoreChildren(new[] { _child }, snapshot.Children, nameof(InvertBehaviour));
+        }
+    }
+
+    public sealed class RepeatBehaviour : IRollbackActionBehaviour, IInterruptibleActionBehaviour
+    {
+        private readonly IActionBehaviour _child;
+        private readonly int _count;
+        private int _completedCount;
+
+        public RepeatBehaviour(IActionBehaviour child, int count = -1)
+        {
+            _child = child;
+            _count = count;
+        }
+
+        public void Reset()
+        {
+            _completedCount = 0;
+            _child?.Reset();
+        }
+
+        public ActionBehaviourStatus Tick(in ActionBehaviourContext ctx)
+        {
+            if (_child == null) return ActionBehaviourStatus.Failure;
+            if (_count == 0) return ActionBehaviourStatus.Success;
+
+            var status = _child.Tick(in ctx);
+            if (status != ActionBehaviourStatus.Success) return status;
+
+            _completedCount++;
+            if (_count > 0 && _completedCount >= _count) return ActionBehaviourStatus.Success;
+
+            _child.Reset();
+            return ActionBehaviourStatus.Running;
+        }
+
+        public void Abort(in ActionBehaviourContext ctx)
+        {
+            SequenceBehaviour.AbortChild(_child, in ctx);
+        }
+
+        public ActionBehaviourSnapshot CaptureSnapshot()
+        {
+            return new ActionBehaviourSnapshot(
+                nameof(RepeatBehaviour),
+                integerValue: _completedCount,
+                children: SequenceBehaviour.CaptureChildren(new[] { _child }, nameof(RepeatBehaviour)));
+        }
+
+        public void RestoreSnapshot(ActionBehaviourSnapshot snapshot)
+        {
+            CallbackBehaviour.ValidateSnapshot(snapshot, nameof(RepeatBehaviour));
+            if (snapshot.IntegerValue < 0 || (_count >= 0 && snapshot.IntegerValue > _count))
+            {
+                throw new InvalidOperationException("Repeat action snapshot has an invalid completed count.");
+            }
+
+            _completedCount = snapshot.IntegerValue;
+            SequenceBehaviour.RestoreChildren(new[] { _child }, snapshot.Children, nameof(RepeatBehaviour));
+        }
+    }
+
+    public sealed class TimeoutBehaviour : IRollbackActionBehaviour, IInterruptibleActionBehaviour
+    {
+        private readonly IActionBehaviour _child;
+        private readonly float _duration;
+        private readonly bool _useUnscaled;
+        private float _elapsed;
+
+        public TimeoutBehaviour(IActionBehaviour child, float duration, bool useUnscaled = false)
+        {
+            _child = child;
+            _duration = Math.Max(0f, duration);
+            _useUnscaled = useUnscaled;
+        }
+
+        public void Reset()
+        {
+            _elapsed = 0f;
+            _child?.Reset();
+        }
+
+        public ActionBehaviourStatus Tick(in ActionBehaviourContext ctx)
+        {
+            if (_child == null) return ActionBehaviourStatus.Failure;
+            var status = _child.Tick(in ctx);
+            if (status != ActionBehaviourStatus.Running) return status;
+
+            _elapsed += ctx.GetScaledDelta(_useUnscaled);
+            if (_elapsed < _duration) return ActionBehaviourStatus.Running;
+
+            SequenceBehaviour.AbortChild(_child, in ctx);
+            return ActionBehaviourStatus.Failure;
+        }
+
+        public void Abort(in ActionBehaviourContext ctx)
+        {
+            SequenceBehaviour.AbortChild(_child, in ctx);
+        }
+
+        public ActionBehaviourSnapshot CaptureSnapshot()
+        {
+            return new ActionBehaviourSnapshot(
+                nameof(TimeoutBehaviour),
+                floatValue: _elapsed,
+                children: SequenceBehaviour.CaptureChildren(new[] { _child }, nameof(TimeoutBehaviour)));
+        }
+
+        public void RestoreSnapshot(ActionBehaviourSnapshot snapshot)
+        {
+            CallbackBehaviour.ValidateSnapshot(snapshot, nameof(TimeoutBehaviour));
+            _elapsed = snapshot.FloatValue;
+            SequenceBehaviour.RestoreChildren(new[] { _child }, snapshot.Children, nameof(TimeoutBehaviour));
         }
     }
 }

@@ -91,6 +91,7 @@ namespace UnityHFSM.Actions.Runtime
             }
 
             var status = rootAction.Execute(context);
+            IsRunning = status == BehaviorStatus.Running;
 
             OnStatusChanged?.Invoke(status);
 

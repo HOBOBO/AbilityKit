@@ -14,6 +14,19 @@ namespace AbilityKit.Tests
     /// </summary>
     public class ActionStateMachineTests
     {
+        private sealed class CustomCompositeAction : ActionBase, ICompositeAction
+        {
+            public readonly List<IAction> Children = new List<IAction>();
+
+            public CustomCompositeAction()
+            {
+            }
+
+            public void AddChild(IAction child) => Children.Add(child);
+
+            public override BehaviorStatus Execute(BehaviorContext context) => BehaviorStatus.Success;
+        }
+
         /// <summary>
         /// Test that ActionStateMachine can be created and initialized
         /// </summary>
@@ -42,10 +55,10 @@ namespace AbilityKit.Tests
         [Test]
         public void HfsmBehaviorItem_CanCreateWaitAction()
         {
-            var item = new HfsmBehaviorItem(HfsmBehaviorType.Wait);
+            var item = new HfsmBehaviorItem("Wait");
             item.SetParameter("duration", 1f);
 
-            Assert.AreEqual(HfsmBehaviorType.Wait, item.Type);
+            Assert.AreEqual("Wait", item.TypeName);
             Assert.AreEqual(1f, item.GetParamValue<float>("duration"));
         }
 
@@ -55,14 +68,43 @@ namespace AbilityKit.Tests
         [Test]
         public void HfsmBehaviorItem_CloneCreatesNewId()
         {
-            var original = new HfsmBehaviorItem(HfsmBehaviorType.Wait);
+            var original = new HfsmBehaviorItem("Wait");
             original.SetParameter("duration", 2f);
 
             var clone = original.Clone();
 
             Assert.AreNotEqual(original.id, clone.id);
-            Assert.AreEqual(original.Type, clone.Type);
+            Assert.AreEqual(original.TypeName, clone.TypeName);
             Assert.AreEqual(original.GetParamValue<float>("duration"), clone.GetParamValue<float>("duration"));
+        }
+
+        [Test]
+        public void HfsmBehaviorItem_CustomTypeNameSurvivesCloneAndSerialization()
+        {
+            var original = new HfsmBehaviorItem("Package.CustomComposite");
+
+            var clone = original.Clone();
+            var json = JsonUtility.ToJson(original);
+
+            Assert.AreEqual("Package.CustomComposite", clone.TypeName);
+            StringAssert.Contains("\"typeName\":\"Package.CustomComposite\"", json);
+            StringAssert.DoesNotContain("typeIndex", json);
+        }
+
+        [Test]
+        public void HfsmParameter_UsesTypedDefaultValue()
+        {
+            var parameter = new HfsmParameter("speed", HfsmParameterType.Float)
+            {
+                DefaultFloatValue = 3.5f
+            };
+
+            var clone = parameter.Clone("speedClone");
+            var json = JsonUtility.ToJson(parameter);
+
+            Assert.AreEqual(3.5f, parameter.GetSerializedDefaultValue());
+            Assert.AreEqual(3.5f, clone.GetSerializedDefaultValue());
+            StringAssert.DoesNotContain("defaultValueJson", json);
         }
 
         /// <summary>
@@ -73,14 +115,14 @@ namespace AbilityKit.Tests
         {
             var stateNode = new HfsmStateNode("TestState");
 
-            var behaviorItem = new HfsmBehaviorItem(HfsmBehaviorType.Wait);
+            var behaviorItem = new HfsmBehaviorItem("Wait");
             behaviorItem.SetParameter("duration", 1f);
 
             stateNode.AddBehaviorItem(behaviorItem);
 
             Assert.IsTrue(stateNode.HasBehaviors);
             Assert.AreEqual(1, stateNode.BehaviorItems.Count);
-            Assert.AreEqual(HfsmBehaviorType.Wait, stateNode.BehaviorItems[0].Type);
+            Assert.AreEqual("Wait", stateNode.BehaviorItems[0].TypeName);
         }
 
         /// <summary>
@@ -91,8 +133,8 @@ namespace AbilityKit.Tests
         {
             var stateNode = new HfsmStateNode("TestState");
 
-            var behavior1 = new HfsmBehaviorItem(HfsmBehaviorType.Wait);
-            var behavior2 = new HfsmBehaviorItem(HfsmBehaviorType.Log);
+            var behavior1 = new HfsmBehaviorItem("Wait");
+            var behavior2 = new HfsmBehaviorItem("Log");
 
             stateNode.AddBehaviorItem(behavior1);
             stateNode.AddBehaviorItem(behavior2);
@@ -110,9 +152,9 @@ namespace AbilityKit.Tests
         {
             var stateNode = new HfsmStateNode("TestState");
 
-            var parent = new HfsmBehaviorItem(HfsmBehaviorType.Sequence);
-            var child1 = new HfsmBehaviorItem(HfsmBehaviorType.Wait);
-            var child2 = new HfsmBehaviorItem(HfsmBehaviorType.Log);
+            var parent = new HfsmBehaviorItem("Sequence");
+            var child1 = new HfsmBehaviorItem("Wait");
+            var child2 = new HfsmBehaviorItem("Log");
 
             parent.childIds.Add(child1.id);
             parent.childIds.Add(child2.id);
@@ -136,7 +178,7 @@ namespace AbilityKit.Tests
         {
             var stateNode = new HfsmStateNode("TestState");
 
-            var behavior = new HfsmBehaviorItem(HfsmBehaviorType.Wait);
+            var behavior = new HfsmBehaviorItem("Wait");
             stateNode.AddBehaviorItem(behavior);
 
             Assert.IsTrue(stateNode.HasBehaviors);
@@ -154,7 +196,7 @@ namespace AbilityKit.Tests
         {
             var items = new List<HfsmBehaviorItem>();
 
-            var waitItem = new HfsmBehaviorItem(HfsmBehaviorType.Wait);
+            var waitItem = new HfsmBehaviorItem("Wait");
             waitItem.SetParameter("duration", 0.1f);
             items.Add(waitItem);
 
@@ -172,10 +214,10 @@ namespace AbilityKit.Tests
         {
             var items = new List<HfsmBehaviorItem>();
 
-            var sequenceItem = new HfsmBehaviorItem(HfsmBehaviorType.Sequence);
-            var waitItem1 = new HfsmBehaviorItem(HfsmBehaviorType.Wait);
+            var sequenceItem = new HfsmBehaviorItem("Sequence");
+            var waitItem1 = new HfsmBehaviorItem("Wait");
             waitItem1.SetParameter("duration", 0.1f);
-            var waitItem2 = new HfsmBehaviorItem(HfsmBehaviorType.Wait);
+            var waitItem2 = new HfsmBehaviorItem("Wait");
             waitItem2.SetParameter("duration", 0.2f);
 
             sequenceItem.childIds.Add(waitItem1.id);
@@ -194,6 +236,85 @@ namespace AbilityKit.Tests
 
             var sequence = action as SequenceAction;
             Assert.AreEqual(2, sequence.children.Count);
+        }
+
+        [Test]
+        public void BehaviorTreeBuilder_BuildsRegisteredExternalComposite()
+        {
+            const string typeName = "Tests.CustomComposite";
+            if (!HfsmBehaviorTypeRegistry.IsInitialized)
+                HfsmBehaviorTypeRegistry.Initialize();
+            if (!HfsmBehaviorTypeRegistry.IsRegistered(typeName))
+            {
+                HfsmBehaviorTypeRegistry.RegisterExternal<CustomCompositeAction>(
+                    typeName,
+                    "Custom Composite",
+                    BehaviorCategory.Composite);
+            }
+
+            var root = new HfsmBehaviorItem(typeName);
+            var child = new HfsmBehaviorItem("Wait");
+            root.childIds.Add(child.id);
+            child.parentId = root.id;
+
+            var action = BehaviorTreeBuilder.BuildFromEditorItems(
+                new List<HfsmBehaviorItem> { root, child },
+                root.id);
+
+            var composite = (CustomCompositeAction)action;
+            Assert.AreEqual(1, composite.Children.Count);
+            Assert.IsInstanceOf<WaitAction>(composite.Children[0]);
+        }
+
+        [Test]
+        public void BehaviorTreeBuilder_RejectsUnknownType()
+        {
+            var item = new HfsmBehaviorItem("Tests.UnknownBehavior");
+
+            Assert.Throws<InvalidOperationException>(() =>
+                BehaviorTreeBuilder.BuildFromEditorItems(new List<HfsmBehaviorItem> { item }, item.id));
+        }
+
+        [Test]
+        public void BehaviorTreeBuilder_ConnectsDecoratorChild()
+        {
+            var root = new HfsmBehaviorItem("Invert");
+            var child = new HfsmBehaviorItem("Log");
+            root.childIds.Add(child.id);
+            child.parentId = root.id;
+
+            var action = BehaviorTreeBuilder.BuildFromEditorItems(
+                new List<HfsmBehaviorItem> { root, child },
+                root.id);
+
+            Assert.IsInstanceOf<LogAction>(((InvertAction)action).child);
+        }
+
+        [Test]
+        public void ActionBehaviorState_StartsOnFirstLogicAndCompletesOnlyOnce()
+        {
+            var node = new HfsmStateNode("ActionState");
+            var behavior = new HfsmBehaviorItem("Log");
+            node.AddBehaviorItem(behavior);
+            var state = new ActionBehaviorState<string, string>(
+                node,
+                needsExitTime: false,
+                isGhostState: false,
+                mono: null,
+                userData: null,
+                parentFsm: null);
+            var completionCount = 0;
+            state.OnBehaviorCompleted += (_, status) =>
+            {
+                Assert.AreEqual(BehaviorStatus.Success, status);
+                completionCount++;
+            };
+
+            state.OnEnter();
+            state.OnLogic();
+            state.OnLogic();
+
+            Assert.AreEqual(1, completionCount);
         }
 
         /// <summary>
@@ -412,7 +533,7 @@ namespace AbilityKit.Tests
         [Test]
         public void HfsmBehaviorItem_GetDescription_Wait()
         {
-            var item = new HfsmBehaviorItem(HfsmBehaviorType.Wait);
+            var item = new HfsmBehaviorItem("Wait");
             item.SetParameter("duration", 1.5f);
 
             var description = item.GetDescription();
@@ -426,7 +547,7 @@ namespace AbilityKit.Tests
         [Test]
         public void HfsmBehaviorItem_GetDescription_SetFloat()
         {
-            var item = new HfsmBehaviorItem(HfsmBehaviorType.SetFloat);
+            var item = new HfsmBehaviorItem("SetFloat");
             item.SetParameter("variableName", "health");
             item.SetParameter("value", 100f);
 
@@ -441,7 +562,7 @@ namespace AbilityKit.Tests
         [Test]
         public void HfsmBehaviorItem_IsComposite_TrueForSequence()
         {
-            var item = new HfsmBehaviorItem(HfsmBehaviorType.Sequence);
+            var item = new HfsmBehaviorItem("Sequence");
 
             Assert.IsTrue(item.IsComposite);
             Assert.IsFalse(item.IsDecorator);
@@ -453,7 +574,7 @@ namespace AbilityKit.Tests
         [Test]
         public void HfsmBehaviorItem_IsDecorator_TrueForRepeat()
         {
-            var item = new HfsmBehaviorItem(HfsmBehaviorType.Repeat);
+            var item = new HfsmBehaviorItem("Repeat");
 
             Assert.IsFalse(item.IsComposite);
             Assert.IsTrue(item.IsDecorator);

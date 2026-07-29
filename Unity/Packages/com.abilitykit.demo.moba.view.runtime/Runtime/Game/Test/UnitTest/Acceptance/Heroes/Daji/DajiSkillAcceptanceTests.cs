@@ -52,6 +52,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var actorId = harness.AssertPlayerActorBound();
                 var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f, z: 0.8f);
                 var hpBefore = harness.GetActorHp(targetActorId);
+                var magicDefenseBefore = harness.GetActorAttribute(targetActorId, BattleAttributeType.MAGIC_DEFENSE);
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 var cast = skills.TryCastBySlot(actorId, Skill1.Slot, aimPos: default, aimDir: Vec3.Right, targetActorId: 0);
                 Assert.IsTrue(cast.Success, "Daji skill 1 should cast along the selected direction. failReason=" + cast.FailReason);
@@ -70,39 +71,67 @@ namespace AbilityKit.Game.Test.UnitTest
                     hpBefore,
                     maxTicks: 60,
                     message: "Daji skill 1 rectangular wave should hit a target offset from the center ray but inside its configured width.");
+                AssertHeartbreakStacks(harness, targetActorId, expectedStacks: 1, magicDefenseBefore);
             }
         }
 
         [Test]
-        public void Passive10050000_ShouldStackThreeLayersAndReduceMagicDefense()
+        public void Passive10050000_ShouldCapAtThreeLayersAndIncreaseFinalMagicDamage()
         {
             using (var harness = HeroSkillHeadlessContract.CreateHarness(Daji, "daji_passive_stack_contract_world"))
             {
                 harness.EnterGameAndWarmup(reason: "daji passive stack contract");
                 var actorId = harness.AssertPlayerActorBound();
                 var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f);
-                var magicDefenseBefore = harness.GetActorAttribute(targetActorId, BattleAttributeType.MAGIC_DEFENSE);
+                Assert.IsTrue(harness.Config.TryGetBuff(10050000, out var heartbreak), "Daji Heartbreak passive Buff config should exist.");
+                Assert.AreEqual(BuffStackingPolicy.AddStack, heartbreak.StackingPolicy, "Daji Heartbreak should add one stack for every skill hit.");
+                Assert.AreEqual(BuffRefreshPolicy.ResetRemaining, heartbreak.RefreshPolicy, "Every Daji skill hit should refresh Heartbreak's duration.");
+                Assert.AreEqual(3, heartbreak.MaxStacks, "Daji Heartbreak should cap at three stacks.");
+                Assert.AreEqual(1, heartbreak.Modifiers.Count, "Daji Heartbreak should contain one magic-defense modifier.");
+                Assert.AreEqual((int)BattleAttributeType.MAGIC_DEFENSE, heartbreak.Modifiers[0].TargetId, "Daji Heartbreak should modify magic defense.");
+                Assert.AreEqual(-30f, heartbreak.Modifiers[0].Value, 0.01f, "Each Heartbreak stack should reduce magic defense by 30.");
 
-                for (var i = 0; i < 3; i++)
+                var magicDefenseBefore = harness.GetActorAttribute(targetActorId, BattleAttributeType.MAGIC_DEFENSE);
+                var damageBeforeStacks = HeroSkillHeadlessContract.ExecuteDamage(
+                    harness,
+                    actorId,
+                    targetActorId,
+                    baseDamage: 100f,
+                    reasonKind: DamageReasonKind.Skill,
+                    reasonParam: 10050101,
+                    damageType: DamageType.Magic);
+                Assert.IsNotNull(damageBeforeStacks, "Baseline magic damage should resolve before Heartbreak is applied.");
+
+                for (var i = 0; i < 4; i++)
                 {
                     harness.AddScenarioBuff(targetActorId, 10050000, actorId, durationOverrideMs: 3000);
                 }
 
-                Assert.IsTrue(
-                    harness.TryGetActorBuffStackCount(targetActorId, 10050000, out var stackCount),
-                    "Daji passive should create its target debuff runtime.");
-                Assert.AreEqual(3, stackCount, "Daji passive should cap at three magic-defense-reduction stacks.");
-                Assert.AreEqual(
-                    magicDefenseBefore - 90f,
-                    harness.GetActorAttribute(targetActorId, BattleAttributeType.MAGIC_DEFENSE),
-                    0.01f,
-                    "Three Daji passive stacks should reduce magic defense by 30 each.");
+                AssertHeartbreakStacks(harness, targetActorId, expectedStacks: 3, magicDefenseBefore);
                 HeroSkillHeadlessContract.AssertFreshBuff(
                     harness,
                     targetActorId,
                     10050000,
                     minRemainingSeconds: 2.8f,
                     message: "Reapplying Daji passive should refresh the three-second stack duration.");
+
+                var damageAfterThreeStacks = HeroSkillHeadlessContract.ExecuteDamage(
+                    harness,
+                    actorId,
+                    targetActorId,
+                    baseDamage: 100f,
+                    reasonKind: DamageReasonKind.Skill,
+                    reasonParam: 10050101,
+                    damageType: DamageType.Magic);
+                Assert.IsNotNull(damageAfterThreeStacks, "Magic damage should resolve after Heartbreak reaches three stacks.");
+                var effectiveDefenseBefore = magicDefenseBefore > 0f ? magicDefenseBefore : 0f;
+                var expectedBeforeStacks = 100f * 100f / (100f + effectiveDefenseBefore);
+                var magicDefenseAfter = harness.GetActorAttribute(targetActorId, BattleAttributeType.MAGIC_DEFENSE);
+                var effectiveDefenseAfter = magicDefenseAfter > 0f ? magicDefenseAfter : 0f;
+                var expectedAfterThreeStacks = 100f * 100f / (100f + effectiveDefenseAfter);
+                Assert.AreEqual(expectedBeforeStacks, damageBeforeStacks.Value, 0.01f, "Baseline final magic damage should use the target's original magic defense.");
+                Assert.AreEqual(expectedAfterThreeStacks, damageAfterThreeStacks.Value, 0.01f, "Final magic damage should use the reduced magic defense at three Heartbreak stacks.");
+                Assert.Greater(damageAfterThreeStacks.Value, damageBeforeStacks.Value, "Three Heartbreak stacks should increase subsequent final magic damage.");
             }
         }
 
@@ -146,6 +175,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.EnterGameAndWarmup(reason: "daji skill 2 homing charm contract");
                 var actorId = harness.AssertPlayerActorBound();
                 var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 6f);
+                var magicDefenseBefore = harness.GetActorAttribute(targetActorId, BattleAttributeType.MAGIC_DEFENSE);
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 var cast = skills.TryCastBySlot(actorId, Skill2.Slot, aimPos: default, aimDir: Vec3.Right, targetActorId: 0);
                 Assert.IsTrue(cast.Success, "Daji skill 2 should automatically lock an enemy inside its cast range. failReason=" + cast.FailReason);
@@ -176,6 +206,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     10050201,
                     minRemainingSeconds: 1.0f,
                     message: "Daji charm projectile should apply the configured control buff after hitting its locked target.");
+                AssertHeartbreakStacks(harness, targetActorId, expectedStacks: 1, magicDefenseBefore);
             }
         }
 
@@ -194,12 +225,18 @@ namespace AbilityKit.Game.Test.UnitTest
                     harness,
                     10050314,
                     (int)TriggeringConstants.GetActionId(TriggeringConstants.Actions.AdjustDamageNumber).Value);
+                HeroSkillHeadlessContract.AssertTriggerActions(
+                    harness,
+                    10050313,
+                    (int)TriggeringConstants.GiveDamageId.Value,
+                    (int)TriggeringConstants.AddBuffId.Value);
                 harness.AssertProjectileConfigExists(31050301, 30050301);
 
                 harness.EnterGameAndWarmup(reason: "daji skill 3 five foxfires contract");
                 var actorId = harness.AssertPlayerActorBound();
                 var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f);
                 var targetHpBefore = harness.GetActorHp(targetActorId);
+                var magicDefenseBefore = harness.GetActorAttribute(targetActorId, BattleAttributeType.MAGIC_DEFENSE);
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 var cast = skills.TryCastBySlot(actorId, Skill3.Slot, aimPos: default, aimDir: Vec3.Right, targetActorId: targetActorId);
                 Assert.IsTrue(cast.Success, "Daji ultimate should cast at the selected enemy. failReason=" + cast.FailReason);
@@ -228,7 +265,33 @@ namespace AbilityKit.Game.Test.UnitTest
                     targetHpBefore,
                     maxTicks: 30,
                     message: "Daji foxfires should damage their selected target.");
+                TickUntilHeartbreakStacks(harness, targetActorId, expectedStacks: 3, maxTicks: 60);
+                AssertHeartbreakStacks(harness, targetActorId, expectedStacks: 3, magicDefenseBefore);
             }
+        }
+
+        private static void AssertHeartbreakStacks(MobaSkillConfigTestHarness harness, int actorId, int expectedStacks, float magicDefenseBefore)
+        {
+            Assert.IsTrue(
+                harness.TryGetActorBuffStackCount(actorId, 10050000, out var stackCount),
+                "Daji skill damage should apply Heartbreak to its target.");
+            Assert.AreEqual(expectedStacks, stackCount, "Daji skill hits should add Heartbreak up to its configured three-stack cap.");
+            Assert.AreEqual(
+                magicDefenseBefore - expectedStacks * 30f,
+                harness.GetActorAttribute(actorId, BattleAttributeType.MAGIC_DEFENSE),
+                0.01f,
+                "Each Heartbreak stack should reduce the target's magic defense by 30.");
+        }
+
+        private static void TickUntilHeartbreakStacks(MobaSkillConfigTestHarness harness, int actorId, int expectedStacks, int maxTicks)
+        {
+            for (var i = 0; i <= maxTicks; i++)
+            {
+                if (harness.TryGetActorBuffStackCount(actorId, 10050000, out var stackCount) && stackCount >= expectedStacks) return;
+                if (i < maxTicks) harness.Tick(1);
+            }
+
+            Assert.Fail("Daji skill hits should stack Heartbreak to " + expectedStacks + " layers within the expected time.");
         }
 
         private static void TickUntilActorHpLessThan(MobaSkillConfigTestHarness harness, int actorId, float hp, int maxTicks, string message)

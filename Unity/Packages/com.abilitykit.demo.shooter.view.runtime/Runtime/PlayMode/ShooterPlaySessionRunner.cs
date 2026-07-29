@@ -27,6 +27,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private float _accumulator;
         private long _stepCount;
         private long _renderCount;
+        private long _presentationPublishCount;
         private ShooterTimeAnchorCoordinator? _timeAnchors;
         private long _droppedCatchUpTicks;
         private int _presentationSnapshotIntervalTicks = 1;
@@ -54,6 +55,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public int LastAuthorityAcceptedInputs => _lastAuthorityAcceptedInputs;
         public long StepCount => _stepCount;
         public long RenderCount => _renderCount;
+        public long PresentationPublishCount => _presentationPublishCount;
         public SyncTimeAnchor LastLocalTimeAnchor => _timeAnchors?.LastLocalAnchor ?? default;
         public long DroppedCatchUpTicks => _droppedCatchUpTicks;
         public int PresentationSnapshotIntervalTicks => _presentationSnapshotIntervalTicks;
@@ -95,6 +97,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _accumulator = 0f;
             _stepCount = 0;
             _renderCount = 0;
+            _presentationPublishCount = 0;
             _timeAnchors = ShooterTimeAnchorCoordinator.CreateLocal(_options.TickRate);
             _droppedCatchUpTicks = 0;
             _presentationSnapshotIntervalTicks = DeterminePresentationSnapshotIntervalTicks(_options);
@@ -124,6 +127,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _accumulator = 0f;
             _stepCount = 0;
             _renderCount = 0;
+            _presentationPublishCount = 0;
             _timeAnchors = null;
             _droppedCatchUpTicks = 0;
             _presentationSnapshotIntervalTicks = 1;
@@ -148,10 +152,12 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _accumulator += Math.Max(0f, deltaSeconds);
 
             var ticksThisRender = 0;
+            var shouldPublishPresentationSnapshot = false;
             while (_accumulator >= tickInterval && ticksThisRender++ < MaxCatchUpTicksPerRender)
             {
                 _accumulator -= tickInterval;
                 StepOnce(tickInterval);
+                shouldPublishPresentationSnapshot |= ShouldPublishPresentationSnapshot();
             }
 
             if (_accumulator >= tickInterval)
@@ -159,6 +165,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 var skippedTicks = (long)(_accumulator / tickInterval);
                 _droppedCatchUpTicks += skippedTicks;
                 _accumulator = 0f;
+            }
+
+            // The view sink only consumes the latest batch once per rendered frame. Publishing
+            // multiple deltas here would make lifecycle changes in an intermediate tick invisible
+            // to the sink, so map the final simulation state once after all catch-up ticks.
+            if (shouldPublishPresentationSnapshot)
+            {
+                PublishPresentationSnapshot();
             }
 
             RenderLatest();
@@ -205,11 +219,6 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 _session.TickAuthoritativeWorld(deltaSeconds);
                 _lastAuthorityAcceptedInputs = _session.LastAuthorityDeliveredInputCount;
             }
-
-            if (ShouldPublishPresentationSnapshot())
-            {
-                PublishPresentationSnapshot();
-            }
         }
 
         private void PublishPresentationSnapshot()
@@ -218,6 +227,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             {
                 return;
             }
+
+            _presentationPublishCount++;
 
             if (_usePureStatePresentationSnapshots)
             {
@@ -295,7 +306,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             }
 
             var baselineInterval = Math.Max(1, _presentationPureStateSettings.BaselineIntervalFrames);
-            return _stepCount > 0 && _stepCount % baselineInterval == 0;
+            return _session != null &&
+                _session.Runtime.CurrentFrame - _presentationPureStateBaselineFrame >= baselineInterval;
         }
 
         private static int DeterminePresentationSnapshotIntervalTicks(ShooterPlayModeSessionOptions options)

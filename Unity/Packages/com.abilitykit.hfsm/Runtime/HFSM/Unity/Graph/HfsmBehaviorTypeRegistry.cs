@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using IAction = UnityHFSM.Actions.IAction;
+using ICompositeAction = UnityHFSM.Actions.ICompositeAction;
+using IDecoratorAction = UnityHFSM.Actions.IDecoratorAction;
 
 namespace UnityHFSM
 {
@@ -85,7 +87,9 @@ namespace UnityHFSM
         public HfsmBehaviorParameterType valueType;
         public string displayName;
         public string description;
-        public string defaultValueJson; // JSON 序列化的默认值
+
+        [NonSerialized]
+        public object defaultValue;
 
         public BehaviorParameterDefinition() { }
 
@@ -95,12 +99,47 @@ namespace UnityHFSM
             this.valueType = valueType;
             this.displayName = displayName ?? name;
             this.description = description ?? string.Empty;
-            this.defaultValueJson = defaultValue != null ? UnityEngine.JsonUtility.ToJson(new JsonValue { value = defaultValue }) : string.Empty;
+            this.defaultValue = defaultValue;
+        }
+
+        public void ApplyDefaultValue(HfsmBehaviorParameter parameter)
+        {
+            if (parameter == null)
+                throw new ArgumentNullException(nameof(parameter));
+            if (defaultValue == null)
+                return;
+
+            switch (valueType)
+            {
+                case HfsmBehaviorParameterType.Float:
+                    parameter.floatValue = Convert.ToSingle(defaultValue);
+                    break;
+                case HfsmBehaviorParameterType.Int:
+                    parameter.intValue = Convert.ToInt32(defaultValue);
+                    break;
+                case HfsmBehaviorParameterType.Bool:
+                    parameter.boolValue = Convert.ToBoolean(defaultValue);
+                    break;
+                case HfsmBehaviorParameterType.String:
+                    parameter.stringValue = Convert.ToString(defaultValue);
+                    break;
+                case HfsmBehaviorParameterType.Object:
+                    parameter.objectValue = (UnityEngine.Object)defaultValue;
+                    break;
+                case HfsmBehaviorParameterType.Vector2:
+                    parameter.vector2Value = (UnityEngine.Vector2)defaultValue;
+                    break;
+                case HfsmBehaviorParameterType.Vector3:
+                    parameter.vector3Value = (UnityEngine.Vector3)defaultValue;
+                    break;
+                case HfsmBehaviorParameterType.Color:
+                    parameter.colorValue = (UnityEngine.Color)defaultValue;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
     }
-
-    [Serializable]
-    internal class JsonValue { public object value; }
 
     /// <summary>
     /// 行为类型注册表 - 替代枚举，支持运行时扩展
@@ -161,7 +200,7 @@ namespace UnityHFSM
         {
             if (_types.TryGetValue(typeName, out var def))
                 return def.category;
-            return BehaviorCategory.Primitive;
+            throw new InvalidOperationException($"Unknown behavior type '{typeName}'.");
         }
 
         /// <summary>
@@ -234,11 +273,15 @@ namespace UnityHFSM
         {
             if (string.IsNullOrEmpty(typeName))
                 throw new ArgumentException("typeName cannot be null or empty", nameof(typeName));
+            if (actionType == null || !typeof(IAction).IsAssignableFrom(actionType))
+                throw new ArgumentException($"Behavior type '{typeName}' must implement {nameof(IAction)}.", nameof(actionType));
+            if (category == BehaviorCategory.Composite && !typeof(ICompositeAction).IsAssignableFrom(actionType))
+                throw new ArgumentException($"Composite behavior type '{typeName}' must implement {nameof(ICompositeAction)}.", nameof(actionType));
+            if (category == BehaviorCategory.Decorator && !typeof(IDecoratorAction).IsAssignableFrom(actionType))
+                throw new ArgumentException($"Decorator behavior type '{typeName}' must implement {nameof(IDecoratorAction)}.", nameof(actionType));
 
             if (_types.ContainsKey(typeName))
-            {
-                Debug.LogWarning($"[HfsmBehaviorTypeRegistry] Type '{typeName}' is already registered. Overwriting.");
-            }
+                throw new InvalidOperationException($"Behavior type '{typeName}' is already registered.");
 
             var definition = new BehaviorTypeDefinition(typeName, displayName, category, categoryName, description)
             {
@@ -286,16 +329,10 @@ namespace UnityHFSM
         public static UnityHFSM.Actions.IAction CreateInstance(string typeName)
         {
             if (!_types.TryGetValue(typeName, out var definition))
-            {
-                Debug.LogError($"[HfsmBehaviorTypeRegistry] Unknown behavior type: '{typeName}'");
-                return null;
-            }
+                throw new InvalidOperationException($"Unknown behavior type '{typeName}'.");
 
             if (definition.actionType == null)
-            {
-                Debug.LogError($"[HfsmBehaviorTypeRegistry] Behavior type '{typeName}' has no associated action type.");
-                return null;
-            }
+                throw new InvalidOperationException($"Behavior type '{typeName}' has no associated action type.");
 
             try
             {
@@ -303,8 +340,7 @@ namespace UnityHFSM
             }
             catch (Exception e)
             {
-                Debug.LogError($"[HfsmBehaviorTypeRegistry] Failed to create instance of '{typeName}': {e.Message}");
-                return null;
+                throw new InvalidOperationException($"Failed to create behavior type '{typeName}'.", e);
             }
         }
 
@@ -314,8 +350,6 @@ namespace UnityHFSM
         public static UnityHFSM.Actions.IAction CreateAndConfigure(string typeName, HfsmBehaviorItem item)
         {
             var action = CreateInstance(typeName);
-            if (action == null)
-                return null;
 
             // 使用工厂方法配置参数
             if (_factories.TryGetValue(typeName, out var factory))
@@ -326,7 +360,7 @@ namespace UnityHFSM
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError($"[HfsmBehaviorTypeRegistry] Failed to configure behavior '{typeName}': {e.Message}");
+                    throw new InvalidOperationException($"Failed to configure behavior type '{typeName}'.", e);
                 }
             }
 
@@ -401,19 +435,6 @@ namespace UnityHFSM
                 {
                     var waitAction = (UnityHFSM.Actions.WaitAction)action;
                     waitAction.duration = item.GetParamValue<float>("duration");
-                }
-            );
-
-            Register<UnityHFSM.Actions.WaitUntilAction>(
-                "WaitUntil",
-                "等待条件",
-                BehaviorCategory.Primitive,
-                "基础行为",
-                "等待条件满足",
-                null,
-                (action, item) =>
-                {
-                    // WaitUntil 需要在外部绑定条件
                 }
             );
 
@@ -690,15 +711,6 @@ namespace UnityHFSM
                 }
             );
 
-            Register<UnityHFSM.Actions.IfAction>(
-                "If",
-                "条件分支",
-                BehaviorCategory.Decorator,
-                "修饰器",
-                "根据条件选择执行",
-                null,
-                null
-            );
         }
 
         /// <summary>

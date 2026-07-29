@@ -37,9 +37,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             {
                 var spawn = results[i];
                 var position = spawn.Position + ResolveLocalRandomOffset(in spawn.Direction, _projectile.SpawnRandomOffsetX, _projectile.SpawnRandomOffsetY, _projectile.SpawnRandomOffsetZ, _random);
-                var prepareOffset = spawn.Lifecycle.PrepareOffset + ResolveAxisRandomOffset(_projectile.PrepareRandomOffsetX, _projectile.PrepareRandomOffsetY, _projectile.PrepareRandomOffsetZ, _random);
-                var lifecycle = spawn.Lifecycle.WithPrepareOffset(in prepareOffset);
-                results[i] = spawn.WithPosition(in position).WithLifecycle(in lifecycle);
+                results[i] = spawn.WithPosition(in position);
             }
         }
 
@@ -47,10 +45,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
         {
             return projectile.SpawnRandomOffsetX > 0f
                    || projectile.SpawnRandomOffsetY > 0f
-                   || projectile.SpawnRandomOffsetZ > 0f
-                   || projectile.PrepareRandomOffsetX > 0f
-                   || projectile.PrepareRandomOffsetY > 0f
-                   || projectile.PrepareRandomOffsetZ > 0f;
+                   || projectile.SpawnRandomOffsetZ > 0f;
         }
 
         private static Vec3 ResolveLocalRandomOffset(in Vec3 direction, float x, float y, float z, IWorldRandom random)

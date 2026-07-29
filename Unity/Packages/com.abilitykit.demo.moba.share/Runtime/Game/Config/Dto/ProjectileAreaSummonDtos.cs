@@ -49,21 +49,10 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public float ReturnSpeed;
         public float ReturnStopDistance;
 
-        public int PrepareMotionMode;
-        public int PrepareMs;
-        public int HoldMs;
-        public float PrepareOffsetX;
-        public float PrepareOffsetY;
-        public float PrepareOffsetZ;
-        public float PrepareSlotSpacing;
+        public string StateMachineProfileId;
         public float SpawnRandomOffsetX;
         public float SpawnRandomOffsetY;
         public float SpawnRandomOffsetZ;
-        public float PrepareRandomOffsetX;
-        public float PrepareRandomOffsetY;
-        public float PrepareRandomOffsetZ;
-        public bool ConsumeLifetimeBeforeFlying;
-        public bool ArmedBeforeFlying;
     }
 
     [Serializable]
@@ -139,9 +128,6 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int[] PassiveSkillIds;
 
         public int BrainId;
-
-        /// <summary>AI 行为树资源名（BTCore 导出 JSON，不含扩展名）。空 = 按 BrainId 走目录驱动。</summary>
-        public string BrainTreeName;
 
         /// <summary>继承属性配置 id：指向属性继承表（summon_attr_inherits）获取继承属性占比。0 = 不继承。</summary>
         public int InheritAttributeConfigId;

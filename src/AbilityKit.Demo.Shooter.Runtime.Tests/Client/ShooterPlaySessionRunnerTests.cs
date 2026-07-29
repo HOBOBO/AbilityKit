@@ -360,6 +360,23 @@ public sealed class ShooterPlaySessionRunnerTests
     }
 
     [Fact]
+    public void CatchUpFramePublishesOnlyFinalPresentationSnapshot()
+    {
+        var input = new ScriptedInputSource(Array.Empty<ShooterHostFrameInput>());
+        var view = new RecordingViewSink();
+        using var runner = new ShooterPlaySessionRunner(input, view);
+        runner.Start(ShooterPlayModeSessionOptions.Default);
+
+        runner.Tick(2.1f / runner.Options.TickRate);
+        var session = runner.Session!;
+
+        Assert.Equal(2, runner.StepCount);
+        Assert.Equal(1, runner.RenderCount);
+        Assert.Equal(1, runner.PresentationPublishCount);
+        Assert.Equal(session.Runtime.CurrentFrame, session.Presentation.ViewModel.Current.Frame);
+    }
+
+    [Fact]
     public void MediumDensityPlayModeProjectionRemovesExpiredBulletsAndDefeatedEnemiesAfterLongRun()
     {
         var tickRate = ShooterPlayModeSessionOptions.Default.TickRate;

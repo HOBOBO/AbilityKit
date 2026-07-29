@@ -11,16 +11,27 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
         public readonly int AttributeTemplateId;
         public readonly int BasicAttackSkillId;
         public readonly int[] SkillIds;
+        public readonly int BrainId;
+        public readonly bool EnableBrainOnSpawn;
 
-        public MobaRoomLoadoutOverrides(int level, int attributeTemplateId, int basicAttackSkillId, int[] skillIds)
+        public MobaRoomLoadoutOverrides(
+            int level,
+            int attributeTemplateId,
+            int basicAttackSkillId,
+            int[] skillIds,
+            int brainId = 0,
+            bool enableBrainOnSpawn = true)
         {
             Level = level;
             AttributeTemplateId = attributeTemplateId;
             BasicAttackSkillId = basicAttackSkillId;
             SkillIds = skillIds;
+            BrainId = brainId;
+            EnableBrainOnSpawn = enableBrainOnSpawn;
         }
 
-        public bool HasAnyOverride => Level > 0 || AttributeTemplateId > 0 || BasicAttackSkillId > 0 || (SkillIds != null && SkillIds.Length > 0);
+        public bool HasAnyOverride => Level > 0 || AttributeTemplateId > 0 || BasicAttackSkillId > 0
+            || (SkillIds != null && SkillIds.Length > 0) || BrainId > 0;
     }
 
     public readonly struct MobaHostSpawnData
@@ -78,7 +89,9 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
                 level: ov.Level,
                 basicAttackSkillId: ov.BasicAttackSkillId,
                 skillIds: ov.SkillIds,
-                spawnIndex: SpawnPointId > 0 ? SpawnPointId : spawnIndexFallback);
+                spawnIndex: SpawnPointId > 0 ? SpawnPointId : spawnIndexFallback,
+                brainId: ov.BrainId,
+                enableBrainOnSpawn: ov.EnableBrainOnSpawn);
 
             var validation = MobaProtocolValidation.ValidatePlayerLoadout(in loadout);
             if (!validation.IsValid)

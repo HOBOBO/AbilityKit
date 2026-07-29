@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Mathematics;
@@ -155,6 +157,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.AreEqual(250, launcher.IntervalMs, "Ying Zheng ultimate should emit sword waves every 250ms.");
                 Assert.AreEqual(5, launcher.CountPerShot, "Ying Zheng ultimate should emit five swords per wave.");
                 Assert.AreEqual(0f, launcher.FanAngleDeg, 0.0001f, "Ying Zheng ultimate should emit every sword in its locked cast direction without per-wave fan spread.");
+                Assert.IsTrue(harness.Config.TryGetProjectile(30060301, out var projectile), "Ying Zheng ultimate projectile config should exist.");
+                Assert.AreEqual("ying_zheng_ultimate_projectile", projectile.StateMachineProfileId);
 
                 var actorId = harness.AssertPlayerActorBound();
                 var effectTrace = HeroSkillHeadlessContract.CastSlotAndAssertEffect(harness, Skill3, "ying zheng skill 3 locked direction launcher contract");
@@ -184,10 +188,36 @@ namespace AbilityKit.Game.Test.UnitTest
                 var projectileActor = harness.AssertActorEntity(spawn.ProjectileActorId);
                 Assert.IsTrue(projectileActor.hasTransform, "Ying Zheng ultimate projectile actor should have a transform for client-followed movement.");
                 var initialPosition = projectileActor.transform.Value.Position;
-                var moved = TickUntilActorPositionXGreaterThan(harness, spawn.ProjectileActorId, initialPosition.X + 0.05f, maxTicks: 20);
-                Assert.Greater(moved.X, initialPosition.X + 0.05f, "Ying Zheng ultimate projectile actor should move after its preparation motion completes.");
+                var positions = new List<Vec3>(19) { initialPosition };
+                for (var i = 0; i < 18; i++)
+                {
+                    harness.Tick(1);
+                    positions.Add(harness.AssertActorEntity(spawn.ProjectileActorId).transform.Value.Position);
+                }
+
+                var rearIndex = 0;
+                for (var i = 1; i < positions.Count; i++)
+                {
+                    if (positions[i].X < positions[rearIndex].X) rearIndex = i;
+                }
+
+                var rearPosition = positions[rearIndex];
+                Assert.Less(rearPosition.X, initialPosition.X - 0.5f, "Preparing should first move the sword behind the caster along the opposite cast direction.");
+                var observedHold = false;
+                for (var i = 1; i < positions.Count; i++)
+                {
+                    if (positions[i].X < initialPosition.X - 0.5f && Math.Abs(positions[i].X - positions[i - 1].X) <= 0.0001f)
+                    {
+                        observedHold = true;
+                        break;
+                    }
+                }
+                Assert.IsTrue(observedHold, "The sword should remain at its rear target for at least one simulation tick before attacking.");
+
+                var moved = positions[positions.Count - 1];
+                Assert.Greater(moved.X, rearPosition.X + 0.05f, "After holding, the attack state should move the sword along the locked cast direction.");
                 Assert.IsTrue(TryCollectActorTransformSnapshot(harness, spawn.ProjectileActorId, out var transformEntry), "Ying Zheng moving ultimate projectile should be included in actor transform snapshots.");
-                Assert.Greater(transformEntry.X, initialPosition.X + 0.05f, "Ying Zheng ultimate transform snapshot should carry its moved position for the view layer.");
+                Assert.Greater(transformEntry.X, rearPosition.X + 0.05f, "Ying Zheng ultimate transform snapshot should carry its attack-state position for the view layer.");
 
                 var resolver = new BattleProjectileVfxResolver();
                 Assert.AreEqual(90006003, resolver.ResolveSnapshotVfxId(spawn.TemplateId, spawn.Kind), "Ying Zheng ultimate should resolve its configured flying-sword VFX.");

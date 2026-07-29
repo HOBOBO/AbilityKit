@@ -16,18 +16,16 @@ namespace AbilityKit.Game.Flow
     public sealed class BattleProjectileShellPool
     {
         private readonly Func<int, GameObject> _factory;
-        private readonly int _defaultCapacity;
         private readonly int _maxSize;
         private readonly Dictionary<int, ObjectPool<GameObject>> _pools = new Dictionary<int, ObjectPool<GameObject>>(32);
         private readonly BattleViewHierarchyManager _hierarchy;
 
         /// <param name="factory">Creates a fresh projectile shell GameObject for the given projectileTemplateId.</param>
-        /// <param name="capacityPerTemplate">Warm instance count per bucket.</param>
+        /// <param name="capacityPerTemplate">Base capacity used to derive each bucket's retention limit.</param>
         /// <param name="hierarchy">Optional manager that organizes pool instances in the Hierarchy.</param>
         public BattleProjectileShellPool(Func<int, GameObject> factory, int capacityPerTemplate = 8, BattleViewHierarchyManager hierarchy = null)
         {
             _factory = factory ?? throw new ArgumentNullException(nameof(factory));
-            _defaultCapacity = Mathf.Max(0, capacityPerTemplate);
             _maxSize = Mathf.Max(1, capacityPerTemplate * 2);
             _hierarchy = hierarchy;
         }
@@ -104,7 +102,7 @@ namespace AbilityKit.Game.Flow
             return new ObjectPool<GameObject>(
                 PoolOptions.For(
                     createFunc: () => _factory(projectileTemplateId),
-                    defaultCapacity: _defaultCapacity,
+                    defaultCapacity: 0,
                     maxSize: _maxSize)
                 .WithLifecycle(
                     onGet: go =>

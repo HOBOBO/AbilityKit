@@ -6,6 +6,40 @@ using System.Collections.Generic;
 
 namespace UnityHFSM.Extension
 {
+    public enum HfsmRuntimeTransitionMode
+    {
+        Condition = 0,
+        OnSucceeded = 1,
+        OnFailed = 2,
+        OnFinished = 3,
+    }
+
+    public readonly struct HfsmRuntimeTransitionSpec
+    {
+        public readonly string From;
+        public readonly string To;
+        public readonly string Condition;
+        public readonly HfsmRuntimeTransitionMode Mode;
+        public readonly int Priority;
+        public readonly bool ForceInstantly;
+
+        public HfsmRuntimeTransitionSpec(
+            string from,
+            string to,
+            string condition,
+            HfsmRuntimeTransitionMode mode = HfsmRuntimeTransitionMode.Condition,
+            int priority = 0,
+            bool forceInstantly = false)
+        {
+            From = from ?? string.Empty;
+            To = to ?? string.Empty;
+            Condition = condition ?? string.Empty;
+            Mode = mode;
+            Priority = priority;
+            ForceInstantly = forceInstantly;
+        }
+    }
+
     public enum HfsmRuntimeNodeKind
     {
         ActionState = 0,
@@ -14,20 +48,6 @@ namespace UnityHFSM.Extension
 
     public sealed class HfsmRuntimeNodeSpec<TAction>
     {
-        public HfsmRuntimeNodeSpec(
-            string id,
-            IReadOnlyList<TAction>? actions,
-            float intervalSeconds = 0f)
-        {
-            Id = id ?? string.Empty;
-            Kind = HfsmRuntimeNodeKind.ActionState;
-            IntervalSeconds = intervalSeconds < 0f ? 0f : intervalSeconds;
-            Actions = actions ?? Array.Empty<TAction>();
-            Children = Array.Empty<HfsmRuntimeNodeSpec<TAction>>();
-            Transitions = Array.Empty<HfsmRuntimeTransitionSpec>();
-            StartState = string.Empty;
-        }
-
         public HfsmRuntimeNodeSpec(
             string id,
             string startState,
@@ -41,7 +61,22 @@ namespace UnityHFSM.Extension
             Children = children ?? Array.Empty<HfsmRuntimeNodeSpec<TAction>>();
             Transitions = transitions ?? Array.Empty<HfsmRuntimeTransitionSpec>();
             RememberLastState = rememberLastState;
-            Actions = Array.Empty<TAction>();
+        }
+
+        public HfsmRuntimeNodeSpec(
+            string id,
+            HfsmRuntimeBehaviourSpec<TAction> behaviourRoot,
+            ActionStateCompletionPolicy completionPolicy = ActionStateCompletionPolicy.Hold,
+            bool needsExitTime = false)
+        {
+            Id = id ?? string.Empty;
+            Kind = HfsmRuntimeNodeKind.ActionState;
+            BehaviourRoot = behaviourRoot ?? throw new ArgumentNullException(nameof(behaviourRoot));
+            CompletionPolicy = completionPolicy;
+            NeedsExitTime = needsExitTime;
+            Children = Array.Empty<HfsmRuntimeNodeSpec<TAction>>();
+            Transitions = Array.Empty<HfsmRuntimeTransitionSpec>();
+            StartState = string.Empty;
         }
 
         public string Id { get; }
@@ -50,9 +85,11 @@ namespace UnityHFSM.Extension
 
         public string StartState { get; } = string.Empty;
 
-        public float IntervalSeconds { get; }
+        public HfsmRuntimeBehaviourSpec<TAction>? BehaviourRoot { get; }
 
-        public IReadOnlyList<TAction> Actions { get; }
+        public ActionStateCompletionPolicy CompletionPolicy { get; }
+
+        public bool NeedsExitTime { get; }
 
         public IReadOnlyList<HfsmRuntimeNodeSpec<TAction>> Children { get; }
 
@@ -129,8 +166,8 @@ namespace UnityHFSM.Extension
         {
             var fsm = new StateMachine<string>(needsExitTime: false, rememberLastState: rememberLastState);
             var stateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var firstState = string.Empty;
-
+            var actionStates = new Dictionary<string, CompositeActionState<string, string>>(
+                StringComparer.OrdinalIgnoreCase);
             for (var i = 0; i < states.Count; i++)
             {
                 var state = states[i] ?? throw new InvalidOperationException($"HFSM node at '{path}[{i}]' is null.");
@@ -143,8 +180,6 @@ namespace UnityHFSM.Extension
                 {
                     throw new InvalidOperationException($"HFSM state id '{state.Id}' is duplicated in '{path}'.");
                 }
-
-                if (firstState.Length == 0) firstState = state.Id;
 
                 StateBase<string> runtimeState;
                 if (state.Kind == HfsmRuntimeNodeKind.StateMachine)
@@ -160,7 +195,9 @@ namespace UnityHFSM.Extension
                 }
                 else
                 {
-                    runtimeState = CreateActionState(timeSource, blackboard, state);
+                    var actionState = CreateActionState(timeSource, blackboard, state);
+                    actionStates.Add(state.Id, actionState);
+                    runtimeState = actionState;
                 }
 
                 fsm.AddState(state.Id, runtimeState);
@@ -171,9 +208,10 @@ namespace UnityHFSM.Extension
                 throw new InvalidOperationException($"HFSM state machine '{path}' must contain at least one state.");
             }
 
-            for (var i = 0; i < transitions.Count; i++)
+            var transitionOrder = GetTransitionOrder(transitions);
+            for (var i = 0; i < transitionOrder.Count; i++)
             {
-                var transition = transitions[i];
+                var transition = transitions[transitionOrder[i]];
                 if (!stateIds.Contains(transition.From))
                 {
                     throw new InvalidOperationException($"HFSM transition source '{transition.From}' does not exist in '{path}'.");
@@ -184,19 +222,31 @@ namespace UnityHFSM.Extension
                     throw new InvalidOperationException($"HFSM transition target '{transition.To}' does not exist in '{path}'.");
                 }
 
+                actionStates.TryGetValue(transition.From, out var sourceActionState);
+                if (transition.Mode != HfsmRuntimeTransitionMode.Condition && sourceActionState == null)
+                {
+                    throw new InvalidOperationException(
+                        $"HFSM result transition source '{transition.From}' in '{path}' must be an action state.");
+                }
+
                 fsm.AddTransition(new Transition<string>(
                     transition.From,
                     transition.To,
-                    _ => _conditionEvaluator(blackboard, transition.Condition)));
+                    _ => ShouldTransition(blackboard, transition, sourceActionState),
+                    forceInstantly: transition.ForceInstantly));
             }
 
-            var startState = string.IsNullOrWhiteSpace(configuredStartState) ? firstState : configuredStartState;
-            if (!stateIds.Contains(startState))
+            if (string.IsNullOrWhiteSpace(configuredStartState))
             {
-                throw new InvalidOperationException($"HFSM start state '{startState}' does not exist in '{path}'.");
+                throw new InvalidOperationException($"HFSM state machine '{path}' requires an explicit start state.");
             }
 
-            fsm.SetStartState(startState);
+            if (!stateIds.Contains(configuredStartState))
+            {
+                throw new InvalidOperationException($"HFSM start state '{configuredStartState}' does not exist in '{path}'.");
+            }
+
+            fsm.SetStartState(configuredStartState);
             return fsm;
         }
 
@@ -205,27 +255,57 @@ namespace UnityHFSM.Extension
             TBlackboard blackboard,
             HfsmRuntimeNodeSpec<TAction> state)
         {
-            var sequence = new SequenceBehaviour();
-            for (var i = 0; i < state.Actions.Count; i++)
-            {
-                var action = _actionFactory(blackboard, state.Actions[i]);
-                if (action == null)
-                {
-                    throw new InvalidOperationException($"HFSM action factory returned null for state '{state.Id}'.");
-                }
+            if (state.BehaviourRoot == null)
+                throw new InvalidOperationException($"HFSM action state '{state.Id}' requires a behavior root.");
 
-                sequence.Add(action);
-            }
+            var root = HfsmRuntimeBehaviourFactory.Build(
+                blackboard,
+                state.BehaviourRoot,
+                _actionFactory,
+                _conditionEvaluator,
+                state.Id);
 
-            if (state.IntervalSeconds > 0f)
-            {
-                sequence.Add(new DelayBehaviour(state.IntervalSeconds));
-            }
-
-            return new CompositeActionState<string>(needsExitTime: false)
+            return new CompositeActionState<string>(needsExitTime: state.NeedsExitTime)
                 .SetTimeSource(timeSource)
-                .SetLoop(true)
-                .SetRoot(sequence);
+                .SetCompletionPolicy(state.CompletionPolicy)
+                .SetRoot(root);
+        }
+
+        private bool ShouldTransition(
+            TBlackboard blackboard,
+            in HfsmRuntimeTransitionSpec transition,
+            CompositeActionState<string, string>? sourceState)
+        {
+            var resultMatches = transition.Mode switch
+            {
+                HfsmRuntimeTransitionMode.Condition => true,
+                HfsmRuntimeTransitionMode.OnSucceeded =>
+                    sourceState?.IsCompleted == true
+                    && sourceState.LastStatus == ActionBehaviourStatus.Success,
+                HfsmRuntimeTransitionMode.OnFailed =>
+                    sourceState?.IsCompleted == true
+                    && sourceState.LastStatus == ActionBehaviourStatus.Failure,
+                HfsmRuntimeTransitionMode.OnFinished =>
+                    sourceState?.IsCompleted == true
+                    && sourceState.LastStatus != ActionBehaviourStatus.Running,
+                _ => false,
+            };
+
+            return resultMatches
+                   && (string.IsNullOrWhiteSpace(transition.Condition)
+                       || _conditionEvaluator(blackboard, transition.Condition));
+        }
+
+        private static List<int> GetTransitionOrder(IReadOnlyList<HfsmRuntimeTransitionSpec> transitions)
+        {
+            var order = new List<int>(transitions.Count);
+            for (var i = 0; i < transitions.Count; i++) order.Add(i);
+            order.Sort((left, right) =>
+            {
+                var priority = transitions[right].Priority.CompareTo(transitions[left].Priority);
+                return priority != 0 ? priority : left.CompareTo(right);
+            });
+            return order;
         }
     }
 }

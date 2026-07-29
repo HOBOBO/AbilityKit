@@ -36,6 +36,7 @@
         "AbilityKit.World.Entitas",
         "AbilityKit.World.FrameSync",
         "AbilityKit.GameplayTags",
+        "MemoryPack",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

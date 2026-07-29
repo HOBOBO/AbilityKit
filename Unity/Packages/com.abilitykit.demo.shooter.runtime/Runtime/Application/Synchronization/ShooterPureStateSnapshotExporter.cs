@@ -21,6 +21,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterPureStateInterestPolicy _interestPolicy = new();
         private readonly Dictionary<AoiEntityKey, int> _candidateIndexByKey = new Dictionary<AoiEntityKey, int>();
         private readonly Dictionary<AoiInterestSet, ShooterObserverReplicationState> _observerReplicationStates = new Dictionary<AoiInterestSet, ShooterObserverReplicationState>();
+        private readonly ShooterObserverReplicationState _unscopedReplicationState = new ShooterObserverReplicationState();
+        private readonly List<AoiEntityKey> _unscopedDespawnKeys = new List<AoiEntityKey>();
         private readonly List<ShooterPureStateEntityDelta> _aoiSelectedEntities = new List<ShooterPureStateEntityDelta>();
         private readonly List<ShooterPureStateVisibilityHint> _aoiSelectedHints = new List<ShooterPureStateVisibilityHint>();
         private readonly AoiSampleBufferView _aoiSampleView = new AoiSampleBufferView();
@@ -28,6 +30,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private AoiEntitySample[] _aoiSampleBuffer = Array.Empty<AoiEntitySample>();
         private ShooterPureStateEntityDelta[] _transientEntities = Array.Empty<ShooterPureStateEntityDelta>();
         private ShooterPureStateVisibilityHint[] _transientVisibilityHints = Array.Empty<ShooterPureStateVisibilityHint>();
+        private ulong _unscopedReplicationWorldId;
+        private bool _hasUnscopedReplicationWorld;
 
         public ShooterPureStateSnapshotExporter(
             ShooterBattleState state,
@@ -114,6 +118,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var entityBudget = isFullBaseline ? activeSettings.MaxEntityCount : activeSettings.ActiveSyncBudget;
             var maxEntities = ResolveMaxEntities(activeSettings, entityBudget, interestScope);
             var cullToAoiBoundary = aoiInterestSet != null && interestScope.HasValue && interestScope.Value.HasRadius;
+            if ((aoiInterestSet == null || !interestScope.HasValue) &&
+                (!_hasUnscopedReplicationWorld || _unscopedReplicationWorldId != worldId))
+            {
+                _unscopedReplicationState.Clear();
+                _unscopedReplicationWorldId = worldId;
+                _hasUnscopedReplicationWorld = true;
+            }
+
             var candidateCount = _context != null
                 ? BuildCandidates(_context, isFullBaseline, isLowFrequencyFrame, interestScope, cullToAoiBoundary)
                 : BuildCandidatesFromSnapshot(isFullBaseline, isLowFrequencyFrame, interestScope, cullToAoiBoundary, out frame);
@@ -427,11 +439,50 @@ namespace AbilityKit.Demo.Shooter.Runtime
             if (aoiInterestSet == null || !interestScope.HasValue)
             {
                 var selectedCount = Math.Min(maxEntities, candidateCount);
-                var selection = CreateSelection(selectedCount, selectedCount, useTransientBuffers);
+                _unscopedDespawnKeys.Clear();
+                if (isFullBaseline)
+                {
+                    _unscopedReplicationState.Clear();
+                }
+                else if (_unscopedReplicationState.Replicated.Count > 0)
+                {
+                    BuildCandidateIndex(candidateCount);
+                    foreach (var key in _unscopedReplicationState.Replicated)
+                    {
+                        if (!TryFindCandidate(key, candidateCount, out var candidate) ||
+                            !IsAliveAndVisible(candidate.Entity))
+                        {
+                            _unscopedDespawnKeys.Add(key);
+                        }
+                    }
+                }
+
+                var selection = CreateSelection(
+                    selectedCount + _unscopedDespawnKeys.Count,
+                    selectedCount,
+                    useTransientBuffers);
                 for (var i = 0; i < selectedCount; i++)
                 {
-                    selection.Entities[i] = _candidateBuffer[i].Entity;
-                    selection.VisibilityHints[i] = _candidateBuffer[i].VisibilityHint;
+                    var candidate = _candidateBuffer[i];
+                    selection.Entities[i] = candidate.Entity;
+                    selection.VisibilityHints[i] = candidate.VisibilityHint;
+                    if (IsAliveAndVisible(candidate.Entity))
+                    {
+                        _unscopedReplicationState.Replicated.Add(candidate.AoiKey);
+                    }
+                    else
+                    {
+                        _unscopedReplicationState.Replicated.Remove(candidate.AoiKey);
+                    }
+                }
+
+                for (var i = 0; i < _unscopedDespawnKeys.Count; i++)
+                {
+                    var key = _unscopedDespawnKeys[i];
+                    _unscopedReplicationState.Replicated.Remove(key);
+                    selection.Entities[selectedCount + i] = TryFindCandidate(key, candidateCount, out var candidate)
+                        ? CreateDespawnDelta(candidate.Entity)
+                        : CreateDespawnDelta(key);
                 }
 
                 return selection;
@@ -635,6 +686,41 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 0,
                 0,
                 (byte)(change.Flags & ~ShooterPureStateEntityFlags.Alive));
+        }
+
+        private static ShooterPureStateEntityDelta CreateDespawnDelta(ShooterPureStateEntityDelta entity)
+        {
+            var despawn = entity;
+            despawn.DeltaKind = ShooterPureStateDeltaKinds.Despawn;
+            despawn.Flags = (byte)(despawn.Flags &
+                ~(ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible));
+            return despawn;
+        }
+
+        private static ShooterPureStateEntityDelta CreateDespawnDelta(AoiEntityKey key)
+        {
+            return new ShooterPureStateEntityDelta(
+                key.Id,
+                key.Kind,
+                key.Kind == ShooterPackedEntityKinds.Player
+                    ? ShooterPureStateEntityLayers.KeyInteraction
+                    : ShooterPureStateEntityLayers.Combat,
+                ShooterPureStateDeltaKinds.Despawn,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0);
+        }
+
+        private static bool IsAliveAndVisible(ShooterPureStateEntityDelta entity)
+        {
+            return (entity.Flags & ShooterPureStateEntityFlags.Alive) != 0 &&
+                (entity.Flags & ShooterPureStateEntityFlags.Visible) != 0;
         }
 
         private void BuildCandidateIndex(int candidateCount)

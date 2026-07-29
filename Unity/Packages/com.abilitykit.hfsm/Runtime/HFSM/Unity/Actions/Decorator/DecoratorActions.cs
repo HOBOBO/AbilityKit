@@ -1,5 +1,4 @@
 using System;
-using UnityHFSM.Config;
 
 namespace UnityHFSM.Actions
 {
@@ -7,8 +6,7 @@ namespace UnityHFSM.Actions
     /// 重复执行器：重复执行子行为指定次数，-1 表示无限重复
     /// </summary>
     [System.Serializable]
-    [HfsmActionType("Repeat", "重复", "重复执行子行为指定次数", "装饰器")]
-    public class RepeatAction : ActionBase
+    public class RepeatAction : ActionBase, IDecoratorAction
     {
         public IAction child;
         public int count = -1; // -1 表示无限重复
@@ -22,6 +20,8 @@ namespace UnityHFSM.Actions
             this.child = child;
             this.count = count;
         }
+
+        public void SetChild(IAction value) => child = value;
 
         public override void Reset()
         {
@@ -81,8 +81,7 @@ namespace UnityHFSM.Actions
     /// 反转器：反转子行为的结果（成功变失败，失败变成成功）
     /// </summary>
     [System.Serializable]
-    [HfsmActionType("Invert", "反转", "反转子行为的结果", "装饰器")]
-    public class InvertAction : ActionBase
+    public class InvertAction : ActionBase, IDecoratorAction
     {
         public IAction child;
 
@@ -92,6 +91,8 @@ namespace UnityHFSM.Actions
         {
             this.child = child;
         }
+
+        public void SetChild(IAction value) => child = value;
 
         public override void Reset()
         {
@@ -133,8 +134,7 @@ namespace UnityHFSM.Actions
     /// 时间限制器：限制子行为的最大执行时间
     /// </summary>
     [System.Serializable]
-    [HfsmActionType("TimeLimit", "时间限制", "限制子行为的最大执行时间", "装饰器")]
-    public class TimeLimitAction : ActionBase
+    public class TimeLimitAction : ActionBase, IDecoratorAction
     {
         public IAction child;
         public float timeLimit = 5f;
@@ -148,6 +148,8 @@ namespace UnityHFSM.Actions
             this.child = child;
             this.timeLimit = timeLimit;
         }
+
+        public void SetChild(IAction value) => child = value;
 
         public override void Reset()
         {
@@ -197,8 +199,7 @@ namespace UnityHFSM.Actions
     /// 直到成功：重复执行直到成功
     /// </summary>
     [System.Serializable]
-    [HfsmActionType("UntilSuccess", "直到成功", "重复执行直到成功", "装饰器")]
-    public class UntilSuccessAction : ActionBase
+    public class UntilSuccessAction : ActionBase, IDecoratorAction
     {
         public IAction child;
 
@@ -208,6 +209,8 @@ namespace UnityHFSM.Actions
         {
             this.child = child;
         }
+
+        public void SetChild(IAction value) => child = value;
 
         public override void Reset()
         {
@@ -254,7 +257,7 @@ namespace UnityHFSM.Actions
     /// 直到失败：重复执行直到失败
     /// </summary>
     [System.Serializable]
-    public class UntilFailureAction : ActionBase
+    public class UntilFailureAction : ActionBase, IDecoratorAction
     {
         public IAction child;
 
@@ -264,6 +267,8 @@ namespace UnityHFSM.Actions
         {
             this.child = child;
         }
+
+        public void SetChild(IAction value) => child = value;
 
         public override void Reset()
         {
@@ -310,7 +315,7 @@ namespace UnityHFSM.Actions
     /// 冷却时间：限制子行为的执行频率
     /// </summary>
     [System.Serializable]
-    public class CooldownAction : ActionBase
+    public class CooldownAction : ActionBase, IDecoratorAction
     {
         public IAction child;
         public float cooldownDuration = 1f;
@@ -325,6 +330,8 @@ namespace UnityHFSM.Actions
             this.child = child;
             this.cooldownDuration = cooldownDuration;
         }
+
+        public void SetChild(IAction value) => child = value;
 
         public override void Reset()
         {
@@ -387,7 +394,7 @@ namespace UnityHFSM.Actions
     /// 条件执行：如果条件满足则执行 thenAction，否则执行 elseAction（可选）
     /// </summary>
     [System.Serializable]
-    public class IfAction : ActionBase
+    public class IfAction : ActionBase, IDecoratorAction
     {
         public Func<bool> condition;
         public IAction thenAction;
@@ -403,6 +410,8 @@ namespace UnityHFSM.Actions
             this.thenAction = thenAction;
             this.elseAction = elseAction;
         }
+
+        public void SetChild(IAction child) => thenAction = child;
 
         public override void Reset()
         {
@@ -474,7 +483,7 @@ namespace UnityHFSM.Actions
     /// 条件逆变器：如果条件满足则执行成功，否则执行子行为
     /// </summary>
     [System.Serializable]
-    public class ConditionalAbortAction : ActionBase
+    public class ConditionalAbortAction : ActionBase, IDecoratorAction
     {
         public Func<bool> condition;
         public IAction child;
@@ -486,6 +495,8 @@ namespace UnityHFSM.Actions
             this.condition = condition;
             this.child = child;
         }
+
+        public void SetChild(IAction value) => child = value;
 
         public override void Reset()
         {

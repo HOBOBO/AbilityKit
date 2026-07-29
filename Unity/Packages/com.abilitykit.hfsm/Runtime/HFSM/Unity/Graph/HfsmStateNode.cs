@@ -43,9 +43,6 @@ namespace UnityHFSM.Graph
         [SerializeField]
         private List<HfsmBehaviorItem> _behaviorItems = new List<HfsmBehaviorItem>();
 
-        [SerializeField]
-        private string _rootBehaviorId;
-
         /// <summary>
         /// If true, the state will wait for CanExit to return true before transitioning.
         /// </summary>
@@ -79,15 +76,6 @@ namespace UnityHFSM.Graph
         /// Access to behavior items list for editor and serialization
         /// </summary>
         public List<HfsmBehaviorItem> BehaviorItemsInternal => _behaviorItems;
-
-        /// <summary>
-        /// The root behavior item ID.
-        /// </summary>
-        public string RootBehaviorId
-        {
-            get => _rootBehaviorId;
-            set => _rootBehaviorId = value;
-        }
 
         /// <summary>
         /// Whether this state has any behaviors defined.
@@ -184,7 +172,6 @@ namespace UnityHFSM.Graph
         public void ClearBehaviorItems()
         {
             _behaviorItems.Clear();
-            _rootBehaviorId = null;
         }
 
         /// <summary>
@@ -326,11 +313,6 @@ namespace UnityHFSM.Graph
                     clonedItem.childIds = newChildIds;
                 }
 
-                // Update root behavior ID
-                if (!string.IsNullOrEmpty(_rootBehaviorId) && idMapping.TryGetValue(_rootBehaviorId, out var newRootId))
-                {
-                    clone._rootBehaviorId = newRootId;
-                }
             }
 
             return clone;

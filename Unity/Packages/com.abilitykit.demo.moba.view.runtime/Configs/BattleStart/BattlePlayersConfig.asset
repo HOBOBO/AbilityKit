@@ -25,6 +25,8 @@ MonoBehaviour:
     SkillIds: f5bd980059be9800bdbe9800
     SpawnIndex: 0
     SpawnPosition: {x: 0, y: 0, z: 0}
+    BrainId: 0
+    EnableBrainOnSpawn: 1
   Team2Players:
   - PlayerId: p2
     TeamId: 2
@@ -37,3 +39,5 @@ MonoBehaviour:
     SkillIds: 05e5980069e59800cde59800
     SpawnIndex: 0
     SpawnPosition: {x: 6, y: 0, z: 0}
+    BrainId: 100
+    EnableBrainOnSpawn: 0

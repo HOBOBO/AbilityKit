@@ -6,6 +6,7 @@ using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Util.Converter;
 using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 
 namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 {
@@ -117,6 +118,25 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             });
 
             links.Link(evt.Projectile, projectileActorId);
+            AttachConfiguredStateMachine(evt.TemplateId, spawnResult.Entity);
+        }
+
+        private void AttachConfiguredStateMachine(int templateId, global::ActorEntity actor)
+        {
+            if (actor == null || _sys.Configs == null) return;
+            if (!_sys.Configs.TryGetProjectile(templateId, out ProjectileMO config) || config == null) return;
+            if (string.IsNullOrWhiteSpace(config.StateMachineProfileId)) return;
+
+            var factory = _sys.StateMachineFactory
+                          ?? throw new InvalidOperationException(
+                              $"Projectile '{templateId}' requires HFSM profile '{config.StateMachineProfileId}', but the state-machine factory is unavailable.");
+            if (!factory.TryCreate(actor, config.StateMachineProfileId, out var runtime) || runtime == null)
+            {
+                throw new InvalidOperationException(
+                    $"Projectile '{templateId}' references missing HFSM profile '{config.StateMachineProfileId}'.");
+            }
+
+            actor.AddActorStateMachine(config.StateMachineProfileId, runtime);
         }
 
         private void IncrementLauncherActiveBullets(int launcherActorId)

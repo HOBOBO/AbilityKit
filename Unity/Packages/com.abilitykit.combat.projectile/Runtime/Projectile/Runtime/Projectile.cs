@@ -5,6 +5,10 @@ namespace AbilityKit.Combat.Projectile
 {
     internal sealed class Projectile : IPoolable
     {
+        internal const int HitColliderBufferCapacity = 9;
+
+        public readonly ColliderId[] HitCollidersThisTick = new ColliderId[HitColliderBufferCapacity];
+
         public ProjectileId Id;
         public int OwnerId;
 
@@ -47,12 +51,7 @@ namespace AbilityKit.Combat.Projectile
         public ColliderId LastHitCollider;
         public int LastHitAllowedFrame;
 
-        public ProjectileLifecycleSpec Lifecycle;
-        public ProjectileLifecycleState LifecycleState;
-        public bool IsArmed;
-        public int LifecyclePhaseStartFrame;
-        public Vec3 PrepareStartPosition;
-        public Vec3 PrepareTargetPosition;
+        public bool IsSuspended;
         public int PatternSlotIndex;
         public int PatternSlotCount;
 
@@ -92,12 +91,7 @@ namespace AbilityKit.Combat.Projectile
             HitCooldownFrames = 0;
             LastHitCollider = default;
             LastHitAllowedFrame = 0;
-            Lifecycle = default;
-            LifecycleState = default;
-            IsArmed = false;
-            LifecyclePhaseStartFrame = 0;
-            PrepareStartPosition = Vec3.Zero;
-            PrepareTargetPosition = Vec3.Zero;
+            IsSuspended = false;
             PatternSlotIndex = 0;
             PatternSlotCount = 0;
         }

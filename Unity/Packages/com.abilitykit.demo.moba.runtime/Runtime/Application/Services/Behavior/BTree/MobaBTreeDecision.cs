@@ -1,61 +1,58 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using AbilityKit.Ability.Behavior;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.Moba.Behavior;
 using BTCore.Runtime;
 using BTCore.Runtime.Blackboards;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 {
     /// <summary>
-    /// BT 驱动决策：把一个 BTCore 行为树包装成 <see cref="IBehaviorDecision"/>。
-    ///
-    /// 每 tick 流程：
-    /// 1. 同步黑板输入：owner 位置/速度、最近敌人（registry 扫描，队伍过滤）
-    /// 2. <see cref="BTCore.Runtime.BTree.Update()"/> 推进树
-    /// 3. 读取黑板输出 out.hasMove/out.moveX/out.moveZ 翻译成 Movement
-    ///
-    /// 树结束（Success/Failure）时不会终止大脑——由决策层保持 Running 继续下一评估周期，
-    /// 并调用 <see cref="BTCore.Runtime.BTree.Restart()"/> 让树回到初始状态。
+    /// Adapts a BTCore tree to the shared behavior runtime. MOBA trees are expected to be reactive:
+    /// frame facts are refreshed before Update, and intent nodes must publish their request each tick.
+    /// Persistent state belongs under memory.* rather than in transient fact or intent keys.
     /// </summary>
     internal sealed class MobaBTreeDecision : IBehaviorDecision
     {
         private readonly global::BTCore.Runtime.BTree _tree;
-        private readonly MobaActorRegistry _registry;
+        private readonly MobaBTreeRuntimeContext _runtimeContext;
+        private bool _reportedRunningRoot;
 
         public string DecisionType => "MobaBTree";
         public string CurrentState { get; private set; } = "Running";
+        internal Blackboard Blackboard => _tree.Blackboard;
 
-        private MobaBTreeDecision(global::BTCore.Runtime.BTree tree, MobaActorRegistry registry)
+        private MobaBTreeDecision(
+            global::BTCore.Runtime.BTree tree,
+            MobaBTreeRuntimeContext runtimeContext)
         {
             _tree = tree;
-            _registry = registry;
+            _runtimeContext = runtimeContext;
         }
 
-        public static MobaBTreeDecision Create(string json, MobaActorRegistry registry)
+        public static MobaBTreeDecision Create(
+            string json,
+            MobaActorRegistry registry,
+            MobaConfigDatabase config = null,
+            SearchTargetService searchTargets = null,
+            Func<long> currentTimeMsProvider = null)
         {
             if (string.IsNullOrEmpty(json)) return null;
-
-            // 编辑器导出的 JSON 用 BTEXT: 占位类型名（跨 Unity/src 程序集名不一致——
-            // Unity 是 AbilityKit.Demo.Moba.Runtime，src 测试是 AbilityKit.Demo.Moba.Core），
-            // 加载时替换为当前程序集的 AssemblyQualifiedName。
-            json = json.Replace(
-                "\"$type\": \"BTEXT:MobaChaseNearestEnemyAction\"",
-                "\"$type\": \"" + typeof(MobaChaseNearestEnemyAction).AssemblyQualifiedName + "\"");
-
-            // BTCore 的程序集名同样因宿主而异（Unity asmdef=BTRuntime，src=AbilityKit.BTCore），
-            // 统一替换为当前加载的 BTree 所在程序集名。
-            // 覆盖两种形态：顶层类型 ", BTRuntime" 与嵌套泛型 ", BTRuntime]]"。
-            var btAssemblyName = typeof(global::BTCore.Runtime.BTree).Assembly.GetName().Name;
-            json = json.Replace(", BTRuntime\"", ", " + btAssemblyName + "\"");
-            json = json.Replace(", BTRuntime]]", ", " + btAssemblyName + "]]");
 
             global::BTCore.Runtime.BTree tree;
             try
             {
-                tree = JsonConvert.DeserializeObject<global::BTCore.Runtime.BTree>(json, BTDef.SerializerSettingsAuto);
+                json = NormalizeSerializedTypes(json);
+                tree = JsonConvert.DeserializeObject<global::BTCore.Runtime.BTree>(
+                    json,
+                    BTDef.SerializerSettingsAuto);
             }
             catch (Exception ex)
             {
@@ -65,103 +62,124 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 
             if (tree == null) return null;
 
+            MobaBTreeBlackboard.Initialize(tree.Blackboard);
+            var runtimeContext = new MobaBTreeRuntimeContext(
+                registry,
+                config,
+                searchTargets,
+                currentTimeMsProvider);
+            foreach (var node in tree.BTData.Nodes)
+            {
+                if (node is IMobaBTreeContextNode contextNode) contextNode.Bind(runtimeContext);
+            }
+
             tree.RebuildTree();
             tree.Enable();
-            return new MobaBTreeDecision(tree, registry);
+            return new MobaBTreeDecision(tree, runtimeContext);
+        }
+
+        private static string NormalizeSerializedTypes(string json)
+        {
+            var root = JObject.Parse(json);
+            var nodeTypes = typeof(MobaBTreeDecision).Assembly
+                .GetTypes()
+                .Where(type => !type.IsAbstract
+                               && typeof(BTNode).IsAssignableFrom(type)
+                               && type.Namespace == typeof(MobaBTreeDecision).Namespace)
+                .ToDictionary(type => type.Name, StringComparer.Ordinal);
+            var btAssemblyName = typeof(global::BTCore.Runtime.BTree).Assembly.GetName().Name;
+
+            foreach (var obj in new[] { root }.Concat(root.Descendants().OfType<JObject>()))
+            {
+                if (obj["$type"]?.Type != JTokenType.String) continue;
+                var serializedType = obj["$type"].Value<string>();
+                if (serializedType.StartsWith("BTEXT:", StringComparison.Ordinal))
+                {
+                    var nodeName = serializedType.Substring("BTEXT:".Length);
+                    if (!nodeTypes.TryGetValue(nodeName, out var nodeType))
+                        throw new JsonSerializationException($"Unknown MOBA behavior-tree node: {nodeName}");
+                    serializedType = nodeType.AssemblyQualifiedName;
+                }
+                else
+                {
+                    serializedType = serializedType.Replace(", BTRuntime", ", " + btAssemblyName);
+                }
+
+                obj["$type"] = serializedType;
+            }
+
+            return root.ToString(Formatting.None);
         }
 
         public DecisionResult Decide(IBehaviorContext context, IWorldQuery world)
         {
-            if (_tree == null || context == null || world == null) return DecisionResult.Continue(CurrentState);
+            if (_tree == null || context == null || world == null)
+                return DecisionResult.Continue(CurrentState);
 
             var bb = _tree.Blackboard;
-            SyncBlackboard(bb, context, world);
-
+            _runtimeContext.BeginEvaluation(context, world);
+            SyncFrameFacts(bb, context, world);
             _tree.Update();
 
-            if (_tree.TreeState == BTCore.Runtime.NodeState.Success
-                || _tree.TreeState == BTCore.Runtime.NodeState.Failure)
+            var rootState = _tree.BTData.EntryNode?.GetChild()?.State ?? _tree.TreeState;
+            if (rootState == NodeState.Success || rootState == NodeState.Failure)
             {
                 _tree.Restart();
             }
-
-            if (bb.GetValue<bool>("out.hasMove"))
+            else if (rootState == NodeState.Running && !_reportedRunningRoot)
             {
-                var moveX = bb.GetValue<float>("out.moveX");
-                var moveZ = bb.GetValue<float>("out.moveZ");
-                var speed = world.GetMoveSpeed(context.OwnerId, 5f);
-                CurrentState = "Chasing";
-                return DecisionResult.Continue(CurrentState)
-                    .WithMovement(new Vec3(moveX, 0f, moveZ), null, speed);
+                _reportedRunningRoot = true;
+                Log.Warning("[MobaBTreeDecision] root is Running. A running MOBA node must refresh " +
+                            "every fact it consumes and re-emit its intent on every update.");
             }
 
-            CurrentState = "Holding";
-            return DecisionResult.Continue(CurrentState);
-        }
-
-        private void SyncBlackboard(Blackboard bb, IBehaviorContext context, IWorldQuery world)
-        {
-            var ownerPos = world.GetPosition(context.OwnerId);
-            bb.SetValue("owner.x", ownerPos.X);
-            bb.SetValue("owner.z", ownerPos.Z);
-            bb.SetValue("owner.speed", world.GetMoveSpeed(context.OwnerId, 5f));
-
-            var enemyId = FindNearestEnemy(world, context.OwnerId, ownerPos);
-            if (enemyId > 0)
+            var parameters = new Dictionary<string, object>();
+            var outputKind = (MobaBTreeIntentKind)bb.GetValue<int>(MobaBTreeKeys.OutputKind);
+            if (outputKind == MobaBTreeIntentKind.Move && bb.GetValue<bool>(MobaBTreeKeys.HasMove))
             {
-                var enemyPos = world.GetPosition(new BehaviorEntityId(enemyId));
-                bb.SetValue("enemy.valid", true);
-                bb.SetValue("enemy.x", enemyPos.X);
-                bb.SetValue("enemy.z", enemyPos.Z);
-                bb.SetValue("enemy.dist", world.GetDistanceToPosition(context.OwnerId, enemyPos));
+                parameters["MoveTarget"] = new Vec3(
+                    bb.GetValue<float>(MobaBTreeKeys.MoveX),
+                    bb.GetValue<float>(MobaBTreeKeys.MoveY),
+                    bb.GetValue<float>(MobaBTreeKeys.MoveZ));
+                parameters["MoveSpeed"] = world.GetMoveSpeed(context.OwnerId, 5f);
+                CurrentState = "Chasing";
+            }
+            else if (outputKind == MobaBTreeIntentKind.Cast && bb.GetValue<bool>(MobaBTreeKeys.HasCast))
+            {
+                parameters[MobaBrainExecutor.SkillIdParam] = bb.GetValue<int>(MobaBTreeKeys.CastSkillId);
+                parameters[MobaBrainExecutor.SkillSlotParam] = bb.GetValue<int>(MobaBTreeKeys.CastSkillSlot);
+                parameters[MobaBrainExecutor.TargetActorIdParam] =
+                    bb.GetValue<int>(MobaBTreeKeys.CastTargetActorId);
+                parameters[MobaBrainExecutor.AimPositionParam] = new Vec3(
+                    bb.GetValue<float>(MobaBTreeKeys.CastAimX),
+                    bb.GetValue<float>(MobaBTreeKeys.CastAimY),
+                    bb.GetValue<float>(MobaBTreeKeys.CastAimZ));
+                parameters[MobaBrainExecutor.AimDirectionParam] = new Vec3(
+                    bb.GetValue<float>(MobaBTreeKeys.CastDirectionX),
+                    bb.GetValue<float>(MobaBTreeKeys.CastDirectionY),
+                    bb.GetValue<float>(MobaBTreeKeys.CastDirectionZ));
+                CurrentState = "Casting";
             }
             else
             {
-                bb.SetValue("enemy.valid", false);
+                CurrentState = "Holding";
             }
+
+            return DecisionResult.Continue(CurrentState).WithParams(parameters);
         }
 
-        private int FindNearestEnemy(IWorldQuery world, BehaviorEntityId ownerId, Vec3 ownerPos)
+        private static void SyncFrameFacts(Blackboard bb, IBehaviorContext context, IWorldQuery world)
         {
-            if (_registry == null) return 0;
-
-            var ownerTeam = 0;
-            if (world is AbilityKit.Moba.Behavior.MobaWorldQuery moba)
-            {
-                ownerTeam = moba.GetTeam(ownerId);
-            }
-
-            var bestId = 0;
-            var bestDistSq = float.MaxValue;
-
-            foreach (var kv in _registry.Entries)
-            {
-                var e = kv.Value;
-                if (e == null || !e.isEnabled || !e.hasTransform) continue;
-                if (kv.Key == ownerId.Value) continue;
-
-                if (e.hasTeam)
-                {
-                    var team = (int)e.team.Value;
-                    if (ownerTeam != 0 && team != 0 && team == ownerTeam) continue;
-                }
-
-                if (e.hasAttributeGroup && e.attributeGroup.Group != null
-                    && e.attributeGroup.Group.GetValue(Attributes.MobaAttributeIds.HP) <= 0f)
-                {
-                    continue;
-                }
-
-                var delta = e.transform.Value.Position - ownerPos;
-                var distSq = delta.SqrMagnitude;
-                if (distSq < bestDistSq)
-                {
-                    bestDistSq = distSq;
-                    bestId = kv.Key;
-                }
-            }
-
-            return bestId;
+            var ownerPosition = world.GetPosition(context.OwnerId);
+            bb.SetValue(MobaBTreeKeys.OwnerId, context.OwnerId.Value);
+            bb.SetValue(MobaBTreeKeys.OwnerX, ownerPosition.X);
+            bb.SetValue(MobaBTreeKeys.OwnerY, ownerPosition.Y);
+            bb.SetValue(MobaBTreeKeys.OwnerZ, ownerPosition.Z);
+            bb.SetValue(MobaBTreeKeys.OwnerSpeed, world.GetMoveSpeed(context.OwnerId, 5f));
+            bb.SetValue(MobaBTreeKeys.OwnerCanMove, world.CanMove(context.OwnerId));
+            bb.SetValue(MobaBTreeKeys.OwnerCanCast, world.CanCast(context.OwnerId));
+            bb.SetValue(MobaBTreeKeys.EvaluationFrame, context.CurrentFrame);
+            MobaBTreeBlackboard.ClearTransientIntents(bb);
         }
     }
 }

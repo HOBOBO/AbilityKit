@@ -44,6 +44,12 @@ namespace AbilityKit.Game.Flow
 
             [LabelText("Spawn Position")]
             public Vector3 SpawnPosition = default;
+
+            [LabelText("AI Brain Id (0 = Player Controlled)")]
+            public int BrainId;
+
+            [LabelText("Enable AI On Spawn")]
+            public bool EnableBrainOnSpawn = true;
         }
 
         [LabelText("鏈湴鐜╁ID")]
@@ -76,7 +82,9 @@ namespace AbilityKit.Game.Flow
                 BasicAttackSkillId = 10020001,
                 SkillIds = new[] { 10020101, 10020201, 10020301 },
                 SpawnIndex = 0,
-                SpawnPosition = new Vector3(6f, 0f, 0f)
+                SpawnPosition = new Vector3(6f, 0f, 0f),
+                BrainId = 100,
+                EnableBrainOnSpawn = false
             }
         };
     }

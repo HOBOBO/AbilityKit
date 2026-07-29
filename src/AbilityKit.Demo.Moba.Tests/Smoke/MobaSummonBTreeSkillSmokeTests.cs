@@ -18,7 +18,7 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 /// 2. 召唤物"树灵守卫"（summons id 2）生成：
 ///    - ModelId/属性模板 初始化
 ///    - InheritAttributeConfigId=1 继承施法者属性占比（物攻×0.8、最大生命×0.6、移速×1.0）
-///    - BrainTreeName=summon_warden_bt → MobaBrainService 创建 MobaBTreeDecision（BTCore 驱动）
+///    - BrainId=3 is resolved by the battle-template brain catalog to summon_warden_bt.
 /// 3. BT 的 chase 节点驱动召唤物向最近敌人移动
 /// </summary>
 public sealed class MobaSummonBTreeSkillSmokeTests

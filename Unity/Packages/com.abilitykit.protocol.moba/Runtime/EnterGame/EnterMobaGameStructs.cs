@@ -21,6 +21,8 @@ namespace AbilityKit.Protocol.Moba
         [MemoryPackOrder(11)] public readonly float SpawnX;
         [MemoryPackOrder(12)] public readonly float SpawnY;
         [MemoryPackOrder(13)] public readonly float SpawnZ;
+        [MemoryPackOrder(14)] public readonly int BrainId;
+        [MemoryPackOrder(15)] public readonly bool EnableBrainOnSpawn;
 
         [MemoryPackConstructor]
         public MobaPlayerLoadout(
@@ -37,7 +39,9 @@ namespace AbilityKit.Protocol.Moba
             int hasSpawnPosition = 0,
             float spawnX = 0f,
             float spawnY = 0f,
-            float spawnZ = 0f)
+            float spawnZ = 0f,
+            int brainId = 0,
+            bool enableBrainOnSpawn = true)
         {
             PlayerId = playerId;
             TeamId = teamId;
@@ -54,6 +58,8 @@ namespace AbilityKit.Protocol.Moba
             SpawnX = spawnX;
             SpawnY = spawnY;
             SpawnZ = spawnZ;
+            BrainId = brainId;
+            EnableBrainOnSpawn = enableBrainOnSpawn;
         }
     }
 
@@ -195,6 +201,7 @@ namespace AbilityKit.Protocol.Moba
             InvalidSpawnIndex = 16,
             InvalidSpawnPositionFlag = 17,
             MissingLocalPlayerLoadout = 18,
+            InvalidBrainId = 19,
         }
     
         public readonly struct MobaProtocolValidationResult
@@ -383,7 +390,12 @@ namespace AbilityKit.Protocol.Moba
                 {
                     return Fail(MobaProtocolValidationCode.InvalidSpawnPositionFlag, $"has spawn position must be 0 or 1, actual={loadout.HasSpawnPosition}", playerIndex);
                 }
-    
+
+                if (loadout.BrainId < 0)
+                {
+                    return Fail(MobaProtocolValidationCode.InvalidBrainId, $"brain id cannot be negative, actual={loadout.BrainId}", playerIndex);
+                }
+
                 return MobaProtocolValidationResult.Ok;
             }
     

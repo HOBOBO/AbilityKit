@@ -37,7 +37,13 @@ namespace UnityHFSM.Graph
         private HfsmParameterType _parameterType;
 
         [SerializeField]
-        private string _defaultValueJson;
+        private bool _defaultBoolValue;
+
+        [SerializeField]
+        private float _defaultFloatValue;
+
+        [SerializeField]
+        private int _defaultIntValue;
 
         /// <summary>
         /// Name of this parameter.
@@ -57,13 +63,22 @@ namespace UnityHFSM.Graph
             set => _parameterType = value;
         }
 
-        /// <summary>
-        /// JSON representation of the default value.
-        /// </summary>
-        public string DefaultValueJson
+        public bool DefaultBoolValue
         {
-            get => _defaultValueJson;
-            set => _defaultValueJson = value;
+            get => _defaultBoolValue;
+            set => _defaultBoolValue = value;
+        }
+
+        public float DefaultFloatValue
+        {
+            get => _defaultFloatValue;
+            set => _defaultFloatValue = value;
+        }
+
+        public int DefaultIntValue
+        {
+            get => _defaultIntValue;
+            set => _defaultIntValue = value;
         }
 
         public HfsmParameter()
@@ -83,7 +98,9 @@ namespace UnityHFSM.Graph
             var clone = new HfsmParameter();
             clone._name = newName ?? _name;
             clone._parameterType = _parameterType;
-            clone._defaultValueJson = _defaultValueJson;
+            clone._defaultBoolValue = _defaultBoolValue;
+            clone._defaultFloatValue = _defaultFloatValue;
+            clone._defaultIntValue = _defaultIntValue;
             return clone;
         }
 
@@ -92,39 +109,15 @@ namespace UnityHFSM.Graph
         /// </summary>
         public object GetSerializedDefaultValue()
         {
-            if (string.IsNullOrEmpty(_defaultValueJson))
+            return _parameterType switch
             {
-                return _parameterType switch
-                {
-                    HfsmParameterType.Bool => false,
-                    HfsmParameterType.Float => 0f,
-                    HfsmParameterType.Int => 0,
-                    HfsmParameterType.Trigger => false,
-                    _ => null
-                };
-            }
-
-            try
-            {
-                return JsonUtility.FromJson<object>(_defaultValueJson);
-            }
-            catch
-            {
-                return _parameterType switch
-                {
-                    HfsmParameterType.Bool => false,
-                    HfsmParameterType.Float => 0f,
-                    HfsmParameterType.Int => 0,
-                    HfsmParameterType.Trigger => false,
-                    _ => null
-                };
-            }
+                HfsmParameterType.Bool => _defaultBoolValue,
+                HfsmParameterType.Float => _defaultFloatValue,
+                HfsmParameterType.Int => _defaultIntValue,
+                HfsmParameterType.Trigger => false,
+                _ => throw new ArgumentOutOfRangeException()
+            };
         }
-
-        /// <summary>
-        /// Type alias for compatibility
-        /// </summary>
-        public HfsmParameterType Type => ParameterType;
 
         public override string ToString()
         {

@@ -36,21 +36,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public float ReturnSpeed { get; }
         public float ReturnStopDistance { get; }
 
-        public ProjectilePrepareMotionMode PrepareMotionMode { get; }
-        public int PrepareMs { get; }
-        public int HoldMs { get; }
-        public float PrepareOffsetX { get; }
-        public float PrepareOffsetY { get; }
-        public float PrepareOffsetZ { get; }
-        public float PrepareSlotSpacing { get; }
+        public string StateMachineProfileId { get; }
         public float SpawnRandomOffsetX { get; }
         public float SpawnRandomOffsetY { get; }
         public float SpawnRandomOffsetZ { get; }
-        public float PrepareRandomOffsetX { get; }
-        public float PrepareRandomOffsetY { get; }
-        public float PrepareRandomOffsetZ { get; }
-        public bool ConsumeLifetimeBeforeFlying { get; }
-        public bool ArmedBeforeFlying { get; }
 
         public ProjectileMO(ProjectileDTO dto)
         {
@@ -85,21 +74,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             ReturnSpeed = dto.ReturnSpeed;
             ReturnStopDistance = dto.ReturnStopDistance;
 
-            PrepareMotionMode = (ProjectilePrepareMotionMode)dto.PrepareMotionMode;
-            PrepareMs = dto.PrepareMs;
-            HoldMs = dto.HoldMs;
-            PrepareOffsetX = dto.PrepareOffsetX;
-            PrepareOffsetY = dto.PrepareOffsetY;
-            PrepareOffsetZ = dto.PrepareOffsetZ;
-            PrepareSlotSpacing = dto.PrepareSlotSpacing;
+            StateMachineProfileId = dto.StateMachineProfileId ?? string.Empty;
             SpawnRandomOffsetX = dto.SpawnRandomOffsetX;
             SpawnRandomOffsetY = dto.SpawnRandomOffsetY;
             SpawnRandomOffsetZ = dto.SpawnRandomOffsetZ;
-            PrepareRandomOffsetX = dto.PrepareRandomOffsetX;
-            PrepareRandomOffsetY = dto.PrepareRandomOffsetY;
-            PrepareRandomOffsetZ = dto.PrepareRandomOffsetZ;
-            ConsumeLifetimeBeforeFlying = dto.ConsumeLifetimeBeforeFlying;
-            ArmedBeforeFlying = dto.ArmedBeforeFlying;
         }
     }
 }

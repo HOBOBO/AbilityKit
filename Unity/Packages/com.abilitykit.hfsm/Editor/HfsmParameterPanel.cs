@@ -82,6 +82,8 @@ namespace UnityHFSM.Editor
             // Parameter type (read-only display)
             EditorGUILayout.LabelField(GetTypeLabel(parameter.ParameterType), EditorStyles.miniLabel, GUILayout.Width(50));
 
+            DrawDefaultValue(parameter);
+
             GUILayout.FlexibleSpace();
 
             // Delete button
@@ -91,6 +93,40 @@ namespace UnityHFSM.Editor
             }
 
             EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawDefaultValue(HfsmParameter parameter)
+        {
+            var boolValue = parameter.DefaultBoolValue;
+            var floatValue = parameter.DefaultFloatValue;
+            var intValue = parameter.DefaultIntValue;
+            EditorGUI.BeginChangeCheck();
+            switch (parameter.ParameterType)
+            {
+                case HfsmParameterType.Bool:
+                    boolValue = EditorGUILayout.Toggle(boolValue, GUILayout.Width(45));
+                    break;
+                case HfsmParameterType.Float:
+                    floatValue = EditorGUILayout.FloatField(floatValue, GUILayout.Width(60));
+                    break;
+                case HfsmParameterType.Int:
+                    intValue = EditorGUILayout.IntField(intValue, GUILayout.Width(60));
+                    break;
+                case HfsmParameterType.Trigger:
+                    EditorGUILayout.LabelField("false", EditorStyles.miniLabel, GUILayout.Width(45));
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+
+            if (EditorGUI.EndChangeCheck())
+            {
+                Undo.RecordObject(_context.GraphAsset, "Change Parameter Default");
+                parameter.DefaultBoolValue = boolValue;
+                parameter.DefaultFloatValue = floatValue;
+                parameter.DefaultIntValue = intValue;
+                EditorUtility.SetDirty(_context.GraphAsset);
+            }
         }
 
         private string GetTypeLabel(HfsmParameterType type)

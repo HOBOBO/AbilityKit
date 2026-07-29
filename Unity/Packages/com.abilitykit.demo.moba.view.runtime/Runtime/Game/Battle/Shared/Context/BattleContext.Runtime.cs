@@ -62,7 +62,9 @@ namespace AbilityKit.Game.Flow
                 source.HasSpawnPosition,
                 source.SpawnX,
                 source.SpawnY,
-                source.SpawnZ);
+                source.SpawnZ,
+                source.BrainId,
+                source.EnableBrainOnSpawn);
 
             _runtimePlayerLoadouts ??=
                 new Dictionary<string, MobaPlayerLoadout>(StringComparer.OrdinalIgnoreCase);

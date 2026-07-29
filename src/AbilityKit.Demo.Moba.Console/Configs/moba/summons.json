@@ -32,7 +32,6 @@
         "SkillIds": [],
         "PassiveSkillIds": [],
         "BrainId": 3,
-        "BrainTreeName": "summon_warden_bt",
         "InheritAttributeConfigId": 1,
         "DefaultComponentTemplateIds": [],
         "Tags": []

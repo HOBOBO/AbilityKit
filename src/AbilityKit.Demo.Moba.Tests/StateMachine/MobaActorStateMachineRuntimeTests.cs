@@ -2,6 +2,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateMachine;
+using Newtonsoft.Json;
 using UnityHFSM.Extension;
 using Xunit;
 
@@ -23,14 +24,14 @@ public sealed class MobaActorStateMachineRuntimeTests
                   {
                     "id": "approach",
                     "kind": "actionState",
-                    "actions": [ { "type": "count", "argument": "approach" } ]
+                    "behaviorRoot": { "kind": "action", "type": "count", "argument": "approach" }
                   }
                 ]
               },
               {
                 "id": "done",
                 "kind": "actionState",
-                "actions": [ { "type": "count", "argument": "done" } ]
+                "behaviorRoot": { "kind": "action", "type": "count", "argument": "done" }
               }
             ],
             "transitions": [
@@ -39,6 +40,206 @@ public sealed class MobaActorStateMachineRuntimeTests
           }
         ]
         """;
+
+    [Fact]
+    public void Json_profile_maps_action_state_lifecycle_and_result_transition_settings()
+    {
+        const string json = """
+            [
+              {
+                "id": "result-driven",
+                "startState": "work",
+                "states": [
+                  {
+                    "id": "work",
+                    "kind": "actionState",
+                    "needsExitTime": true,
+                    "completionPolicy": "hold",
+                    "behaviorRoot": { "kind": "action", "type": "count", "argument": "work" }
+                  },
+                  {
+                    "id": "done",
+                    "kind": "actionState",
+                    "behaviorRoot": { "kind": "action", "type": "noop" }
+                  }
+                ],
+                "transitions": [
+                  {
+                    "from": "work",
+                    "to": "done",
+                    "mode": "onSucceeded",
+                    "priority": 42,
+                    "forceInstantly": true
+                  }
+                ]
+              }
+            ]
+            """;
+
+        var catalog = new MobaActorStateMachineProfileCatalog();
+        Assert.Equal(1, MobaActorStateMachineProfileJsonLoader.LoadJson(json, catalog));
+        Assert.True(catalog.TryGet("result-driven", out var profile));
+
+        Assert.Equal(2, profile.States.Count);
+        var state = profile.States[0];
+        Assert.True(state.NeedsExitTime);
+        Assert.Equal(ActionStateCompletionPolicy.Hold, state.CompletionPolicy);
+
+        var transition = Assert.Single(profile.Transitions);
+        Assert.Equal(HfsmRuntimeTransitionMode.OnSucceeded, transition.Mode);
+        Assert.Equal(42, transition.Priority);
+        Assert.True(transition.ForceInstantly);
+    }
+
+    [Fact]
+    public void Json_behavior_root_builds_and_executes_all_composite_node_types()
+    {
+        const string json = """
+            [
+              {
+                "id": "composite",
+                "startState": "work",
+                "states": [
+                  {
+                    "id": "work",
+                    "kind": "actionState",
+                    "behaviorRoot": {
+                      "kind": "sequence",
+                      "children": [
+                        { "kind": "condition", "condition": "always" },
+                        { "kind": "action", "type": "trace", "argument": "begin" },
+                        {
+                          "kind": "selector",
+                          "children": [
+                            { "kind": "condition", "condition": "never" },
+                            { "kind": "action", "type": "trace", "argument": "selected" }
+                          ]
+                        },
+                        {
+                          "kind": "parallel",
+                          "successPolicy": "all",
+                          "failurePolicy": "any",
+                          "children": [
+                            { "kind": "action", "type": "trace", "argument": "parallel" },
+                            { "kind": "delay", "durationSeconds": 0.2 }
+                          ]
+                        },
+                        {
+                          "kind": "repeat",
+                          "repeatCount": 2,
+                          "child": { "kind": "action", "type": "trace", "argument": "repeat" }
+                        },
+                        {
+                          "kind": "invert",
+                          "child": { "kind": "condition", "condition": "never" }
+                        },
+                        {
+                          "kind": "timeout",
+                          "durationSeconds": 0.5,
+                          "useUnscaledTime": true,
+                          "child": { "kind": "delay", "durationSeconds": 0.1 }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "done",
+                    "kind": "actionState",
+                    "behaviorRoot": { "kind": "action", "type": "trace", "argument": "done" }
+                  }
+                ],
+                "transitions": [
+                  { "from": "work", "to": "done", "mode": "onSucceeded" }
+                ]
+              }
+            ]
+            """;
+
+        var catalog = new MobaActorStateMachineProfileCatalog();
+        Assert.Equal(1, MobaActorStateMachineProfileJsonLoader.LoadJson(json, catalog));
+        Assert.True(catalog.TryGet("composite", out var profile));
+        var root = Assert.IsType<HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec>>(
+            profile.States[0].BehaviourRoot);
+        Assert.Equal(HfsmRuntimeBehaviourKind.Sequence, root.Kind);
+        Assert.Equal(7, root.Children.Count);
+        Assert.Equal(ParallelSuccessPolicy.All, root.Children[3].ParallelSuccessPolicy);
+        Assert.Equal(ParallelFailurePolicy.Any, root.Children[3].ParallelFailurePolicy);
+        Assert.Equal(0.2f, root.Children[3].Children[1].DurationSeconds);
+        Assert.Equal(2, root.Children[4].RepeatCount);
+        Assert.Equal(0.5f, root.Children[6].DurationSeconds);
+        Assert.True(root.Children[6].UseUnscaledTime);
+        Assert.Equal(ActionStateCompletionPolicy.Hold, profile.States[0].CompletionPolicy);
+
+        var trace = new List<string>();
+        var registry = new MobaActorStateMachineRuntimeRegistry();
+        registry.RegisterAction("trace", (_, argument) => new CallbackBehaviour(() => trace.Add(argument)));
+        var actor = new ActorContext().CreateEntity();
+        var factory = new MobaActorStateMachineFactory(null, catalog, registry);
+        Assert.True(factory.TryCreate(actor, "composite", out var runtime));
+
+        runtime.Tick(0.1f);
+        runtime.Tick(0.1f);
+        runtime.Tick(0.1f);
+        runtime.Tick(0.1f);
+
+        Assert.Equal("done", runtime.StateMachine.ActiveStateName);
+        Assert.Equal(
+            new[] { "begin", "selected", "parallel", "repeat", "repeat", "done" },
+            trace);
+    }
+
+    [Fact]
+    public void Json_profile_rejects_removed_flat_format_and_malformed_decorator()
+    {
+        const string ambiguousJson = """
+            [
+              {
+                "id": "invalid",
+                "startState": "work",
+                "states": [
+                  {
+                    "id": "work",
+                    "kind": "actionState",
+                    "actions": [ { "type": "noop" } ]
+                  }
+                ]
+              }
+            ]
+            """;
+        const string malformedDecoratorJson = """
+            [
+              {
+                "id": "invalid",
+                "startState": "work",
+                "states": [
+                  {
+                    "id": "work",
+                    "kind": "actionState",
+                    "behaviorRoot": {
+                      "kind": "repeat",
+                      "children": [
+                        { "kind": "action", "type": "noop" },
+                        { "kind": "action", "type": "noop" }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+            """;
+
+        var legacyError = Assert.Throws<JsonSerializationException>(() =>
+            MobaActorStateMachineProfileJsonLoader.LoadJson(
+                ambiguousJson,
+                new MobaActorStateMachineProfileCatalog()));
+        Assert.Contains("actions", legacyError.Message);
+
+        var decoratorError = Assert.Throws<InvalidOperationException>(() =>
+            MobaActorStateMachineProfileJsonLoader.LoadJson(
+                malformedDecoratorJson,
+                new MobaActorStateMachineProfileCatalog()));
+        Assert.Contains("must use 'child'", decoratorError.Message);
+    }
 
     [Fact]
     public void Json_profile_builds_and_ticks_hierarchical_runtime()
@@ -120,11 +321,19 @@ public sealed class MobaActorStateMachineRuntimeTests
             [
               {
                 "id": "invalid",
+                "startState": "nested",
                 "states": [
                   {
                     "id": "nested",
-                    "kind": "machine",
-                    "states": [ { "id": "only", "kind": "action" } ],
+                    "kind": "stateMachine",
+                    "startState": "only",
+                    "states": [
+                      {
+                        "id": "only",
+                        "kind": "actionState",
+                        "behaviorRoot": { "kind": "action", "type": "noop" }
+                      }
+                    ],
                     "transitions": [ { "from": "only", "to": "missing", "condition": "always" } ]
                   }
                 ]
@@ -154,8 +363,8 @@ public sealed class MobaActorStateMachineRuntimeTests
                 "states": [
                   {
                     "id": "wait",
-                    "kind": "action",
-                    "actions": [ { "type": "delay", "argument": "1" } ]
+                    "kind": "actionState",
+                    "behaviorRoot": { "kind": "action", "type": "delay", "argument": "1" }
                   }
                 ]
               }

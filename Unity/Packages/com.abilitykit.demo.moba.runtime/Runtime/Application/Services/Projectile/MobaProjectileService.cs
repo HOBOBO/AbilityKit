@@ -362,8 +362,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             var returnAfterFrames = ResolveOptionalFramesFromMs(projectile.ReturnAfterMs, frameTime);
             var returnSpeed = projectile.ReturnSpeed;
             var returnStopDistance = projectile.ReturnStopDistance;
-            var lifecycle = ResolveLifecycleSpec(projectile, frameTime);
-
             var count = repeatCount;
 
             var bulletsPerShot = request.CountPerShot;
@@ -391,6 +389,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             var hitCooldownFrames = ResolveOptionalFramesFromMs(projectile.HitCooldownMs, frameTime);
             var tickIntervalFrames = ResolveOptionalFramesFromMs(projectile.TickIntervalMs, frameTime);
+            var hasStateMachine = !string.IsNullOrWhiteSpace(projectile.StateMachineProfileId);
+            if (hasStateMachine)
+            {
+                tickIntervalFrames = 1;
+            }
             if (returnAfterFrames > 0)
             {
                 tickIntervalFrames = 1;
@@ -433,7 +436,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 tickIntervalFrames: tickIntervalFrames,
                 hitFilter: new MobaTeamProjectileHitFilter(_registry),
                 hitCooldownFrames: hitCooldownFrames,
-                lifecycle: lifecycle,
+                startSuspended: hasStateMachine,
                 trackingTargetActorId: request.TrackTarget ? request.SourceContext.InitialTargetActorId : 0,
                 collisionHalfExtents: new Vec3(
                     projectile.CollisionWidth * 0.5f,
@@ -533,27 +536,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             }
 
             return System.Math.Max(1, (durationMs / intervalMs) + 1);
-        }
-
-        private static ProjectileLifecycleSpec ResolveLifecycleSpec(ProjectileMO projectile, IFrameTime frameTime)
-        {
-            if (projectile == null) return ProjectileLifecycleSpec.Default;
-            if (projectile.PrepareMotionMode == ProjectilePrepareMotionMode.None)
-            {
-                return ProjectileLifecycleSpec.Default;
-            }
-
-            var prepareFrames = ResolveOptionalFramesFromMs(projectile.PrepareMs, frameTime);
-            var holdFrames = ResolveOptionalFramesFromMs(projectile.HoldMs, frameTime);
-            var offset = new Vec3(projectile.PrepareOffsetX, projectile.PrepareOffsetY, projectile.PrepareOffsetZ);
-            return new ProjectileLifecycleSpec(
-                projectile.PrepareMotionMode,
-                prepareFrames,
-                holdFrames,
-                in offset,
-                projectile.PrepareSlotSpacing,
-                projectile.ConsumeLifetimeBeforeFlying,
-                projectile.ArmedBeforeFlying);
         }
 
         private static int ResolveOptionalFramesFromMs(int milliseconds, IFrameTime frameTime)

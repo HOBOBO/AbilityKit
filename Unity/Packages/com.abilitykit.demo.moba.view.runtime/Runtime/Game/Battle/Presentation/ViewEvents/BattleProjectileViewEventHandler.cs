@@ -131,9 +131,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             }
 
             if (!_snapshotVfx.TryResolve(in entry, out var spec)) return;
-            _vfxSpawner.TrySpawn(in spec);
+            var spawnedConfiguredVfx = _vfxSpawner.TrySpawn(in spec);
 
-            if (_shellSpawner != null)
+            // The shell is a fallback for missing/broken VFX, not a second visual for every projectile.
+            if (!spawnedConfiguredVfx && _shellSpawner != null)
             {
                 var position = spec.Position;
                 var forward = spec.Rotation * UnityEngine.Vector3.forward;

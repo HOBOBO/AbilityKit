@@ -24,7 +24,7 @@ namespace AbilityKit.Game.Battle.Vfx
     public sealed class BattleVfxGameObjectPool
     {
         private readonly Func<int, GameObject> _factory;
-        private readonly int _defaultCapacity;
+        private readonly int _capacityPerVfxId;
         private readonly int _maxSize;
         private readonly BattleViewHierarchyManager _hierarchy;
         private readonly Dictionary<int, ObjectPool<GameObject>> _pools = new Dictionary<int, ObjectPool<GameObject>>(64);
@@ -32,15 +32,15 @@ namespace AbilityKit.Game.Battle.Vfx
         public BattleVfxGameObjectPool(Func<int, GameObject> factory, int capacityPerVfxId = 16, BattleViewHierarchyManager hierarchy = null)
         {
             _factory = factory ?? throw new ArgumentNullException(nameof(factory));
-            _defaultCapacity = Mathf.Max(0, capacityPerVfxId);
+            _capacityPerVfxId = Mathf.Max(0, capacityPerVfxId);
             _maxSize = Mathf.Max(1, capacityPerVfxId * 2);
             _hierarchy = hierarchy;
         }
 
         /// <summary>
-        /// Total capacity across all vfxId buckets.
+        /// Configured base capacity used to size each lazily created vfxId bucket.
         /// </summary>
-        public int CapacityPerVfxId => _defaultCapacity;
+        public int CapacityPerVfxId => _capacityPerVfxId;
 
         /// <summary>
         /// Total inactive instances currently held in all buckets.
@@ -114,7 +114,7 @@ namespace AbilityKit.Game.Battle.Vfx
                 pool = new ObjectPool<GameObject>(
                     PoolOptions.For(
                         createFunc: () => _factory(vfxId),
-                        defaultCapacity: _defaultCapacity,
+                        defaultCapacity: 0,
                         maxSize: _maxSize)
                     .WithLifecycle(
                         onGet: go =>

@@ -209,9 +209,9 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
                     CreatePlayer("player_1", "廉颇", 1, 1001, 1001, new[] { 10010101, 10010201, 10010301 }, 0, 0),
                     CreatePlayer("player_2", "小乔", 1, 1002, 1002, new[] { 10020101, 10020201, 10020301 }, 10, 0),
                     CreatePlayer("player_3", "赵云", 1, 1003, 1003, new[] { 10030101, 10030201, 10030301 }, -10, 0),
-                    CreatePlayer("ai_1", "Enemy Warrior", 2, 1001, 1001, new[] { 10010101, 10010201, 10010301 }, 0, 50),
-                    CreatePlayer("ai_2", "Enemy Archer", 2, 1002, 1002, new[] { 10020101, 10020201, 10020301 }, 10, 50),
-                    CreatePlayer("ai_3", "Enemy Mage", 2, 1003, 1003, new[] { 10030101, 10030201, 10030301 }, -10, 50),
+                    CreatePlayer("ai_1", "Enemy Warrior", 2, 1001, 1001, new[] { 10010101, 10010201, 10010301 }, 0, 50, 100, false),
+                    CreatePlayer("ai_2", "Enemy Archer", 2, 1002, 1002, new[] { 10020101, 10020201, 10020301 }, 10, 50, 100, false),
+                    CreatePlayer("ai_3", "Enemy Mage", 2, 1003, 1003, new[] { 10030101, 10030201, 10030301 }, -10, 50, 100, false),
                 }
             };
             return config;
@@ -243,7 +243,9 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
                     hasSpawnPosition: 1,
                     spawnX: player.PositionX,
                     spawnY: player.PositionY,
-                    spawnZ: player.PositionZ);
+                    spawnZ: player.PositionZ,
+                    brainId: player.BrainId,
+                    enableBrainOnSpawn: player.EnableBrainOnSpawn);
 
                 var validation = MobaProtocolValidation.ValidatePlayerLoadout(in loadouts[i], i);
                 if (!validation.IsValid)
@@ -255,7 +257,17 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
             return loadouts;
         }
 
-        private static PlayerConfig CreatePlayer(string playerId, string name, int teamId, int heroId, int attributeTemplateId, int[] skillIds, float positionX, float positionZ)
+        private static PlayerConfig CreatePlayer(
+            string playerId,
+            string name,
+            int teamId,
+            int heroId,
+            int attributeTemplateId,
+            int[] skillIds,
+            float positionX,
+            float positionZ,
+            int brainId = 0,
+            bool enableBrainOnSpawn = true)
         {
             if (skillIds == null || skillIds.Length == 0)
             {
@@ -275,7 +287,9 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
                 UnitSubType = 1,
                 MainType = 1,
                 PositionX = positionX,
-                PositionZ = positionZ
+                PositionZ = positionZ,
+                BrainId = brainId,
+                EnableBrainOnSpawn = enableBrainOnSpawn
             };
         }
 
@@ -320,5 +334,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
         public float PositionX { get; set; }
         public float PositionY { get; set; }
         public float PositionZ { get; set; }
+        public int BrainId { get; set; }
+        public bool EnableBrainOnSpawn { get; set; } = true;
     }
 }

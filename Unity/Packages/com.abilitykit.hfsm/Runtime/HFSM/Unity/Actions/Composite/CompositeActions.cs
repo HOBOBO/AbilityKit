@@ -6,7 +6,7 @@ namespace UnityHFSM.Actions
     /// 序列行为：顺序执行子行为，任一失败则整体失败，全部成功才返回成功
     /// </summary>
     [System.Serializable]
-    public class SequenceAction : ActionBase
+    public class SequenceAction : ActionBase, ICompositeAction
     {
         public List<IAction> children = new List<IAction>();
         private int currentIndex;
@@ -22,6 +22,8 @@ namespace UnityHFSM.Actions
         {
             this.children = children;
         }
+
+        public void AddChild(IAction child) => children.Add(child);
 
         public override void Reset()
         {
@@ -75,7 +77,7 @@ namespace UnityHFSM.Actions
     /// 选择器行为：尝试执行子行为，任一成功则整体成功，全部失败才返回失败
     /// </summary>
     [System.Serializable]
-    public class SelectorAction : ActionBase
+    public class SelectorAction : ActionBase, ICompositeAction
     {
         public List<IAction> children = new List<IAction>();
         private int currentIndex;
@@ -91,6 +93,8 @@ namespace UnityHFSM.Actions
         {
             this.children = children;
         }
+
+        public void AddChild(IAction child) => children.Add(child);
 
         public override void Reset()
         {
@@ -144,7 +148,7 @@ namespace UnityHFSM.Actions
     /// 并行行为：同时执行所有子行为
     /// </summary>
     [System.Serializable]
-    public class ParallelAction : ActionBase
+    public class ParallelAction : ActionBase, ICompositeAction
     {
         public List<IAction> children = new List<IAction>();
         public bool failOnAnyFailure = false;
@@ -159,6 +163,8 @@ namespace UnityHFSM.Actions
             this.children = children;
             this.failOnAnyFailure = failOnAnyFailure;
         }
+
+        public void AddChild(IAction child) => children.Add(child);
 
         public override void Reset()
         {
@@ -240,7 +246,7 @@ namespace UnityHFSM.Actions
     /// 随机选择器：随机选择一个子行为执行
     /// </summary>
     [System.Serializable]
-    public class RandomSelectorAction : ActionBase
+    public class RandomSelectorAction : ActionBase, ICompositeAction
     {
         public List<IAction> children = new List<IAction>();
         public List<float> weights = new List<float>();
@@ -254,6 +260,8 @@ namespace UnityHFSM.Actions
             this.children = children;
             this.weights = weights;
         }
+
+        public void AddChild(IAction child) => children.Add(child);
 
         public override void Reset()
         {
@@ -332,7 +340,7 @@ namespace UnityHFSM.Actions
     /// 随机序列：随机顺序执行子行为
     /// </summary>
     [System.Serializable]
-    public class RandomSequenceAction : ActionBase
+    public class RandomSequenceAction : ActionBase, ICompositeAction
     {
         public List<IAction> children = new List<IAction>();
         private List<IAction> shuffledChildren;
@@ -344,6 +352,8 @@ namespace UnityHFSM.Actions
         {
             this.children = children;
         }
+
+        public void AddChild(IAction child) => children.Add(child);
 
         public override void Reset()
         {

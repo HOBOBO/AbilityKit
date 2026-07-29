@@ -156,21 +156,10 @@
         "ReturnAfterMs":  0,
         "ReturnSpeed":  0,
         "ReturnStopDistance":  0,
-        "PrepareMotionMode":  1,
-        "PrepareMs":  180,
-        "HoldMs":  120,
-        "PrepareOffsetX":  0,
-        "PrepareOffsetY":  0,
-        "PrepareOffsetZ":  -1.8,
-        "PrepareSlotSpacing":  0.45,
+        "StateMachineProfileId":  "ying_zheng_ultimate_projectile",
         "SpawnRandomOffsetX":  0.25,
         "SpawnRandomOffsetY":  0,
-        "SpawnRandomOffsetZ":  0.2,
-        "PrepareRandomOffsetX":  1.0,
-        "PrepareRandomOffsetY":  0,
-        "PrepareRandomOffsetZ":  0.45,
-        "ConsumeLifetimeBeforeFlying":  false,
-        "ArmedBeforeFlying":  false
+        "SpawnRandomOffsetZ":  0.2
     },
     {
         "Id":  30020001,

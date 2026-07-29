@@ -29,6 +29,22 @@ namespace UnityHFSM.Actions
     }
 
     /// <summary>
+    /// A behavior node that owns an ordered list of child behaviors.
+    /// </summary>
+    public interface ICompositeAction : IAction
+    {
+        void AddChild(IAction child);
+    }
+
+    /// <summary>
+    /// A behavior node that wraps exactly one child behavior.
+    /// </summary>
+    public interface IDecoratorAction : IAction
+    {
+        void SetChild(IAction child);
+    }
+
+    /// <summary>
     /// 支持协程的行为基类
     /// </summary>
     public interface IYieldAction : IAction

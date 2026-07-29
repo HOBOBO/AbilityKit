@@ -17,19 +17,6 @@ namespace UnityHFSM.Graph.Conditions
     }
 
     /// <summary>
-    /// 条件类型枚举
-    /// </summary>
-    public enum HfsmConditionType
-    {
-        ParameterBool,
-        ParameterFloat,
-        ParameterInt,
-        ParameterTrigger,
-        BehaviorComplete,
-        TimeElapsed,
-    }
-
-    /// <summary>
     /// 抽象条件基类 - 所有条件都必须继承此类
     /// </summary>
     [Serializable]

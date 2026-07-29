@@ -297,7 +297,7 @@ root 状态机必须显式调用 `Init()`，它会选择 start state 并调用�
 
 | 运行面 | 仓库证据 | 成熟度判断 |
 |--------|----------|------------|
-| Core HFSM | Shooter Bot AI 使用 `HfsmRuntimeProfileBuilder`、blackboard 和自定义逻辑时间源；MOBA View Flow 使用双层状态机和 trigger transition | 有真实生产接入 |
+| Core HFSM | Shooter Bot AI 使用 `HfsmHierarchicalRuntimeProfileBuilder`、递归行为树和自定义逻辑时间源；MOBA View Flow 使用双层状态机和 trigger transition | 有真实生产接入 |
 | Runtime profile builder | Shooter profile 构建后立即 `Init()`；无效 transition 会被跳过，start state 无效时回退首个有效 state | 可用但需上层配置验证和诊断 |
 | Unity Action/Graph | 包内有 Action、Graph 和 Behavior 基础测试 | 有工具基础，运行图转移尚未闭环 |
 | Editor/exporter | 有窗口、monitor、descriptor 和 JSON exporter | 可用于 authoring/观察，未证明 runtime round-trip |

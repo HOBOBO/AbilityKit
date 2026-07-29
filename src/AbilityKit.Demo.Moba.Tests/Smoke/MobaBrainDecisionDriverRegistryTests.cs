@@ -7,27 +7,35 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 public sealed class MobaBrainDecisionDriverRegistryTests
 {
     [Fact]
-    public void Default_registry_creates_code_decision_from_catalog_definition()
+    public void Brain_catalog_loader_accepts_only_canonical_data_driven_definitions()
     {
-        var registry = MobaBrainDecisionDriverRegistry.CreateDefault();
-        var definition = new MobaActorBrainDefinition(
-            brainId: 1,
-            MobaBrainDriverKind.Code,
-            decisionName: "chase",
-            param0: 1.5f);
-        var context = new MobaBrainDecisionCreateContext(
-            in definition,
-            registry: null,
-            config: null,
-            ownerActorId: 101,
-            sourceKind: 0,
-            sourceId: 0);
+        const string json = """
+            [
+              {
+                "BrainId": 7,
+                "DriverKind": "behaviorTree",
+                "DecisionName": "combat"
+              }
+            ]
+            """;
+        var catalog = new MobaActorBrainCatalog();
 
-        var created = registry.TryCreate(in context, out var decision);
+        Assert.Equal(1, MobaActorBrainCatalogJsonLoader.LoadJson(json, catalog));
+        Assert.True(catalog.TryGet(7, out var definition));
+        Assert.Equal(MobaBrainDriverKind.BTree, definition.DriverKind);
+        Assert.False(catalog.TryGet(999, out _));
 
-        Assert.True(created);
-        Assert.NotNull(decision);
-        Assert.Equal("NearestEnemyChase", decision.DecisionType);
+        const string removedCodeDriverJson = """
+            [
+              {
+                "BrainId": 8,
+                "DriverKind": "code",
+                "DecisionName": "chase"
+              }
+            ]
+            """;
+        Assert.Throws<InvalidOperationException>(() =>
+            MobaActorBrainCatalogJsonLoader.LoadJson(removedCodeDriverJson, new MobaActorBrainCatalog()));
     }
 
     [Fact]

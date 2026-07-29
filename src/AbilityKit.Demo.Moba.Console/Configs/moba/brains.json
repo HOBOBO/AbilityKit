@@ -1,0 +1,17 @@
+[
+  {
+    "BrainId": 1,
+    "DriverKind": "behaviorTree",
+    "DecisionName": "summon_warden_bt"
+  },
+  {
+    "BrainId": 3,
+    "DriverKind": "behaviorTree",
+    "DecisionName": "summon_warden_bt"
+  },
+  {
+    "BrainId": 100,
+    "DriverKind": "behaviorTree",
+    "DecisionName": "generic_hero_combat_bt"
+  }
+]

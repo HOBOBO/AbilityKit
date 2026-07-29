@@ -70,6 +70,14 @@ namespace AbilityKit.Combat.Projectile
 
         public bool Despawn(ProjectileId id) => _world.Despawn(id);
 
+        public bool TryGetRuntimeState(ProjectileId id, out ProjectileRuntimeState state) =>
+            _world.TryGetRuntimeState(id, out state);
+
+        public bool TrySetPosition(ProjectileId id, in Vec3 position) =>
+            _world.TrySetPosition(id, in position);
+
+        public bool ResumeSimulation(ProjectileId id) => _world.ResumeSimulation(id);
+
         public bool Despawn(ProjectileId id, int frame, ProjectileExitReason reason)
         {
             if (!_world.Despawn(id, frame, reason, out var exitEvent))
