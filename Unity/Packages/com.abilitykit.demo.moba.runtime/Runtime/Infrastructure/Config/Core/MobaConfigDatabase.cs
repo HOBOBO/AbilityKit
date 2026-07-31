@@ -26,6 +26,7 @@ using SkillButtonTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SkillBut
 using TagTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.TagTemplateMO;
 using ContinuousTagTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.ContinuousTagTemplateMO;
 using SearchQueryTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SearchQueryTemplateMO;
+using BattleMapMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.BattleMapMO;
 using GameplayMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.GameplayMO;
 using MotionGroupMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.MotionGroupMO;
  
@@ -518,6 +519,9 @@ using MotionGroupMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.MotionGroupMO;
             return false;
         }
 
+        public BattleMapMO GetBattleMap(int id) => GetTable<BattleMapMO>().Get(id);
+        public bool TryGetBattleMap(int id, out BattleMapMO mo) => GetTable<BattleMapMO>().TryGet(id, out mo);
+        public IEnumerable<BattleMapMO> GetAllBattleMaps() => GetTable<BattleMapMO>().All();
         public bool TryGetProjectileLauncher(int id, out ProjectileLauncherMO mo) => GetTable<ProjectileLauncherMO>().TryGet(id, out mo);
         public bool TryGetProjectile(int id, out ProjectileMO mo) => GetTable<ProjectileMO>().TryGet(id, out mo);
         public bool TryGetAoe(int id, out AoeMO mo) => GetTable<AoeMO>().TryGet(id, out mo);

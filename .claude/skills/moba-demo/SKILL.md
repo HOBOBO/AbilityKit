@@ -1,11 +1,11 @@
 ---
 name: moba-demo
-description: AbilityKit MOBA Demo（com.abilitykit.demo.moba.*）——5 个包的总览与装配、Bootstrap 11 阶段机、39 个 Actor*Component ECS 状态、view.runtime 的 BattleSessionFeature 37 partial 与双 Sim 模式、Editor 14 个 BattleDebug 面板、Console Demo net10.0 入口、4 套测试体系、Configs/{moba,luban,ability} 三套配置。触发场景：定位 moba 包结构、修改 Bootstrap Stage、添加 Actor*Component、拆 BattleSessionFeature、加 BattleDebug 面板、加 Console Demo CLI 模式、跑 moba 自动测试、配 luban 表、查团队约定 Docs。
+description: AbilityKit MOBA Demo（com.abilitykit.demo.moba.*）——5 个包的总览与装配、Bootstrap 12 阶段机、39 个 Actor*Component ECS 状态、view.runtime 的 BattleSessionFeature 37 partial 与双 Sim 模式、Editor 14 个 BattleDebug 面板 + 寻路 Gizmo、Console Demo net10.0 入口、4 套测试体系（179/179 全部通过）、Configs/{moba,luban,ability,battle_maps} 配置、**导航/寻路/碰撞墙体/PathFollowing/地图运行时/AI BT 修复**。触发场景：定位 moba 包结构、修改 Bootstrap Stage、添加 Actor*Component、拆 BattleSessionFeature、加 BattleDebug 面板、加 Console Demo CLI 模式、跑 moba 自动测试、配 luban 表、查团队约定 Docs、修改寻路/碰撞/墙体策略、更新地图障碍物、调试 AI 行为树移动。
 ---
 
 # moba-demo skill
 
-基于源码核校（2026-07-20）。**只覆盖 demo 装配/阶段机/ECS/视图/同步/网络/Editor/测试/配置**——技能/触发器/BUFF/Passive 业务内容归 [ability-kit](../ability-kit/SKILL.md)。
+基于源码核校（2026-07-29）。**覆盖 demo 装配/阶段机/ECS/视图/同步/网络/Editor/测试/配置 以及 导航/寻路/碰撞墙体/PathFollowing/map运行时/AI BT**——技能/触发器/BUFF/Passive 业务内容归 [ability-kit](../ability-kit/SKILL.md)。碰撞/移动/导航基础设施（`com.abilitykit.combat.{collision,motion,navigation}` 包）归 ability-kit 的 [combat_* 子目录](../ability-kit/SKILL.md)。
 
 ## 5 个包总览
 
@@ -42,17 +42,22 @@ Host/Session → WorldTypeRegistry → MobaWorldBlueprintsRegistration
 
 ## Sections
 
-- [packages_overview.md](packages_overview.md) — 5 包职责 + 依赖图
+- [packages_overview.md](packages_overview.md) — 5 包职责 + 依赖图（含 `com.abilitykit.combat.navigation`）
 - [runtime_architecture.md](runtime_architecture.md) — runtime 包 Application/Domain/Common/Infrastructure/Worlds 分层 + 11 篇团队约定 Docs 导航
-- [bootstrap_flow.md](bootstrap_flow.md) — 11 个 Bootstrap Stage + 拓扑排序 + 启动全链路
-- [ecs_components.md](ecs_components.md) — 5 Context + 39 Actor*Component 分组清单
+- [bootstrap_flow.md](bootstrap_flow.md) — 12 个 Bootstrap Stage + 拓扑排序 + 启动全链路（含 MapRuntime → nav.Build）
+- [ecs_components.md](ecs_components.md) — 5 Context + 39 Actor*Component 分组清单 + Motion 初始化生命周期
 - [view_runtime.md](view_runtime.md) — view.runtime 目录树 + BattleSessionFeature 37 partial + 双 Sim 模式
 - [app_flow.md](app_flow.md) — Game/App/Flow 状态机 + GamePhase + IBattleSessionFeature
-- [editor_toolchain.md](editor_toolchain.md) — 14 BattleDebug 面板 + ConfigSync + SceneGizmos + HotReload
+- [editor_toolchain.md](editor_toolchain.md) — 14 BattleDebug 面板 + ConfigSync + SceneGizmos + NavigationGizmoDrawer + HotReload
 - [console_demo.md](console_demo.md) — src/ Console 项目结构 + Program 4 模式 + Phases/Steps
-- [testing.md](testing.md) — 4 套测试体系（xUnit Tests/NetworkCondition + Unity Tests + view.runtime 内联）
-- [configs.md](configs.md) — moba/luban/ability 三套配置分工 + 加载链
-- [src_dotnet_projects.md](src_dotnet_projects.md) — 7 个 .NET 项目职责+依赖图
+- [testing.md](testing.md) — 4 套测试体系（179/179 全绿）+ Navigation 5 + Motion/Wall 4
+- [configs.md](configs.md) — moba/luban/ability/battle_maps 四套配置分工 + 加载链
+- [src_dotnet_projects.md](src_dotnet_projects.md) — 8 个 .NET 项目职责+依赖图（含 AbilityKit.Combat.Navigation）
+- [navigation.md](navigation.md) — **NEW** 导航运行时：`com.abilitykit.combat.navigation` 纯包 + demo 烘焙 + Debug 状态
+- [path_following.md](path_following.md) — **NEW** 寻路跟随系统：MobaPathFollowingSystem 读脑→查路径→Path 源
+- [collision_and_walls.md](collision_and_walls.md) — **NEW** 碰撞世界/移动碰撞/墙体系统：sync/adapter/墙滑/per-skill 策略
+- [map_runtime.md](map_runtime.md) — **NEW** 地图运行时服务：MobaMapRuntimeService + battle_maps.json
+- [ai_bt.md](ai_bt.md) — **NEW** AI 行为树修复：DefaultApproachRange 0.5 + CreateSummon WithMoveInput
 
 ## 相关 skill
 

@@ -44,12 +44,31 @@ namespace AbilityKit.Game.Battle.Agent
 
     public readonly struct GatewayRoomSnapshotResult
     {
+        public readonly bool Success;
+        public readonly bool Applied;
+        public readonly int ErrorCode;
+        public readonly string Message;
         public readonly string RoomId;
         public readonly ulong NumericRoomId;
 
         public GatewayRoomSnapshotResult(string roomId, ulong numericRoomId)
+            : this(true, true, 0, string.Empty, roomId, numericRoomId)
         {
-            RoomId = roomId;
+        }
+
+        public GatewayRoomSnapshotResult(
+            bool success,
+            bool applied,
+            int errorCode,
+            string message,
+            string roomId,
+            ulong numericRoomId)
+        {
+            Success = success;
+            Applied = applied;
+            ErrorCode = errorCode;
+            Message = message ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
             NumericRoomId = numericRoomId;
         }
     }

@@ -77,7 +77,7 @@ namespace AbilityKit.Game.Battle
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 
-            builder.Register<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService());
+            builder.Register<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService(new CollisionWorldOptions { BroadphaseType = BroadphaseType.Grid, GridCellSize = 4f }));
         }
 
         private static IWorldManager CreateWorldManager()

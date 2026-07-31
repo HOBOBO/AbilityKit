@@ -144,6 +144,15 @@
         "com.abilitykit.combat.collision.abstractions": "0.0.1"
       }
     },
+    "com.abilitykit.combat.navigation": {
+      "version": "file:com.abilitykit.combat.navigation",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "0.0.1",
+        "com.abilitykit.world.di": "0.0.1"
+      }
+    },
     "com.abilitykit.combat.projectile": {
       "version": "file:com.abilitykit.combat.projectile",
       "depth": 0,
@@ -223,6 +232,7 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
+        "com.abilitykit.combat.navigation": "0.0.1",
         "com.abilitykit.demo.moba.runtime": "0.0.1",
         "com.abilitykit.demo.moba.view.runtime": "0.0.1",
         "com.abilitykit.world.ecs": "0.0.1",
@@ -250,12 +260,29 @@
         "com.abilitykit.world.snapshot": "0.0.1",
         "com.abilitykit.ability": "0.0.1",
         "com.abilitykit.behavior": "0.0.1",
+        "com.abilitykit.context": "0.0.1",
+        "com.abilitykit.coordinator": "0.0.1",
         "com.abilitykit.combat.entitymanager": "0.0.1",
         "com.abilitykit.combat.projectile": "0.0.1",
         "com.abilitykit.combat.damage": "0.0.1",
         "com.abilitykit.combat.targeting": "0.0.1",
         "com.abilitykit.combat.collision.abstractions": "0.0.1",
-        "com.abilitykit.triggering": "0.0.1"
+        "com.abilitykit.combat.navigation": "0.0.1",
+        "com.abilitykit.diagnostics": "0.0.1",
+        "com.abilitykit.game.battle.runtime": "0.0.1",
+        "com.abilitykit.game.battle.transport.runtime": "0.0.1",
+        "com.abilitykit.gameplaytags": "0.0.1",
+        "com.abilitykit.host.extension": "0.0.1",
+        "com.abilitykit.modifiers": "0.0.1",
+        "com.abilitykit.pipeline": "0.0.1",
+        "com.abilitykit.protocol.moba": "0.0.1",
+        "com.abilitykit.thirdparty.behaviortreeeditor": "0.0.1",
+        "com.abilitykit.thirdparty.luban.runtime": "0.0.1",
+        "com.abilitykit.trace": "0.0.1",
+        "com.abilitykit.triggering": "0.0.1",
+        "com.abilitykit.world.networkfragments": "0.0.1",
+        "com.abilitykit.world.statesync": "0.0.1",
+        "com.cysharp.memorypack": "1.10.0"
       }
     },
     "com.abilitykit.demo.moba.share": {
@@ -287,10 +314,12 @@
         "com.abilitykit.ability": "0.0.1",
         "com.abilitykit.actionschema": "0.0.1",
         "com.abilitykit.attributes": "0.0.1",
+        "com.abilitykit.combat.collision.abstractions": "0.0.1",
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.flow": "0.0.1",
         "com.abilitykit.game.battle.runtime": "0.0.1",
         "com.abilitykit.game.battle.transport.runtime": "0.0.1",
+        "com.abilitykit.game.view.runtime": "0.0.1",
         "com.abilitykit.hfsm": "0.0.1",
         "com.abilitykit.host": "0.0.1",
         "com.abilitykit.host.extension": "0.0.1",
@@ -300,6 +329,7 @@
         "com.abilitykit.protocol.room": "0.0.1",
         "com.abilitykit.record": "0.0.1",
         "com.abilitykit.world.entitas": "0.0.1",
+        "com.abilitykit.world.di": "0.0.1",
         "com.abilitykit.world.ecs": "0.0.1",
         "com.abilitykit.world.framesync": "0.0.1",
         "com.abilitykit.world.networkfragments": "0.0.1",
@@ -331,17 +361,37 @@
         "com.abilitykit.network.runtime": "0.0.1"
       }
     },
+    "com.abilitykit.demo.shooter.jobs": {
+      "version": "file:com.abilitykit.demo.shooter.jobs",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.demo.shooter.runtime": "0.0.1",
+        "com.abilitykit.world.di": "0.0.1",
+        "com.unity.burst": "1.8.21",
+        "com.unity.collections": "2.1.4"
+      }
+    },
     "com.abilitykit.demo.shooter.runtime": {
       "version": "file:com.abilitykit.demo.shooter.runtime",
       "depth": 0,
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.core": "0.0.1",
+        "com.abilitykit.coordinator": "0.0.1",
+        "com.abilitykit.game.battle.runtime": "0.0.1",
+        "com.abilitykit.game.battle.transport.runtime": "0.0.1",
+        "com.abilitykit.hfsm": "0.0.1",
         "com.abilitykit.host": "0.0.1",
+        "com.abilitykit.network.runtime": "0.0.1",
+        "com.abilitykit.thirdparty.svelto": "0.0.1",
         "com.abilitykit.world.di": "0.0.1",
+        "com.abilitykit.world.framesync": "0.0.1",
+        "com.abilitykit.world.statesync": "0.0.1",
         "com.abilitykit.world.svelto": "0.0.1",
         "com.abilitykit.demo.shooter.share": "0.0.1",
-        "com.abilitykit.protocol.shooter": "0.0.1"
+        "com.abilitykit.protocol.shooter": "0.0.1",
+        "com.unity.nuget.newtonsoft-json": "3.2.1"
       }
     },
     "com.abilitykit.demo.shooter.share": {
@@ -361,10 +411,22 @@
       "dependencies": {
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.demo.common": "0.0.1",
+        "com.abilitykit.demo.shooter.jobs": "0.0.1",
         "com.abilitykit.demo.shooter.runtime": "0.0.1",
         "com.abilitykit.demo.shooter.share": "0.0.1",
+        "com.abilitykit.game.battle.runtime": "0.0.1",
+        "com.abilitykit.game.view.runtime": "0.0.1",
+        "com.abilitykit.host": "0.0.1",
+        "com.abilitykit.host.extension": "0.0.1",
+        "com.abilitykit.network.runtime": "0.0.1",
         "com.abilitykit.protocol.room": "0.0.1",
         "com.abilitykit.protocol.shooter": "0.0.1",
+        "com.abilitykit.record": "0.0.1",
+        "com.abilitykit.world.di": "0.0.1",
+        "com.abilitykit.world.framesync": "0.0.1",
+        "com.abilitykit.world.networkfragments": "0.0.1",
+        "com.abilitykit.world.snapshot": "0.0.1",
+        "com.abilitykit.world.statesync": "0.0.1",
         "com.abilitykit.gameframework": "0.0.1",
         "com.abilitykit.gameframework.network": "0.0.1"
       }
@@ -593,6 +655,12 @@
       "source": "embedded",
       "dependencies": {}
     },
+    "com.abilitykit.thirdparty.rvo2": {
+      "version": "file:com.abilitykit.thirdparty.rvo2",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.abilitykit.thirdparty.svelto": {
       "version": "file:com.abilitykit.thirdparty.svelto",
       "depth": 0,
@@ -721,11 +789,32 @@
       "dependencies": {},
       "url": "https://package.openupm.com"
     },
+    "com.unity.burst": {
+      "version": "1.8.21",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.mathematics": "1.2.1",
+        "com.unity.modules.jsonserialize": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
     "com.unity.collab-proxy": {
       "version": "2.11.2",
       "depth": 0,
       "source": "registry",
       "dependencies": {},
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.collections": {
+      "version": "2.1.4",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.burst": "1.8.4",
+        "com.unity.nuget.mono-cecil": "1.11.4",
+        "com.unity.modules.unityanalytics": "1.0.0"
+      },
       "url": "https://packages.unity.com"
     },
     "com.unity.editorcoroutines": {
@@ -784,6 +873,13 @@
     "com.unity.mathematics": {
       "version": "1.2.6",
       "depth": 0,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.nuget.mono-cecil": {
+      "version": "1.11.4",
+      "depth": 2,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"

@@ -47,6 +47,7 @@
 - BUFF 的 duration/interval 持续行为
 - Skill pipeline 的 continuous 效果
 - 标签的有效性查询（考虑持续修改器叠加后的实际标签）
+- **Motion 持续位移**（dash/jump/pull/blink）：`MobaMotionContinuousRuntime` 实现 `IMobaTickableContinuous`，在 `OnActivating` 时 `PipeLine.AddSource(motionSource)`，`TickManaged` 检测 `motionSource.IsActive` 结束，`OnEnding` 时 `Cancel+RemoveSource`。携带 `MobaMotionHitTriggerRuntime`（碰撞命中触发）和 `MobaMotionLandingTriggerRuntime`（落地触发）。详见 [combat_motion](../combat_motion/README.md)。
 
 ## 属性与修改器（demo 侧）
 

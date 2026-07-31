@@ -16,7 +16,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 
             builder.TryRegister<ShooterEnemyWaveOptions>(WorldLifetime.Singleton, _ => ShooterEnemyWaveOptions.DefaultEnabled);
+            builder.TryRegister<ShooterRvoOptions>(WorldLifetime.Singleton, _ => ShooterRvoOptions.Default);
+            builder.TryRegister<IShooterRvoNeighborAccelerationService>(
+                WorldLifetime.Singleton,
+                _ => ShooterNullRvoNeighborAccelerationService.Instance);
             builder.TryRegister<ShooterArenaGameplayOptions>(WorldLifetime.Singleton, _ => ShooterArenaGameplayOptions.Disabled);
+            builder.TryRegister<ShooterMatchStateOptions>(WorldLifetime.Singleton, _ => ShooterMatchStateOptions.Default);
             builder.AddModule(new SveltoWorldModule());
             builder.AddModule(new ShooterServicesAutoModule());
         }

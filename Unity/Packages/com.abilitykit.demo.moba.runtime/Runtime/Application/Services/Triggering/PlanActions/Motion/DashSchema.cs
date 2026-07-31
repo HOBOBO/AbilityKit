@@ -30,8 +30,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var motionGroupId = ReadInt(namedArgs, ctx, 0, "motion_group_id", "motiongroupid", "motion_group", "motiongroup", "group_id", "groupid");
             var moveToAimPosition = ReadBool(namedArgs, ctx, false, "move_to_aim_position", "movetoaimposition", "to_aim_position", "toaimposition");
             var continuous = ReadContinuousSettings(namedArgs, ctx);
+            var passThroughWalls = ReadBool(namedArgs, ctx, false, "pass_through_walls", "passthroughwalls", "pass_walls", "passwalls");
 
-            return new DashArgs(speed, durationMs, directionMode, priority, applyToCaster, hitTriggerPlanId, motionGroupId, moveToAimPosition, continuous);
+            return new DashArgs(speed, durationMs, directionMode, priority, applyToCaster, hitTriggerPlanId, motionGroupId, moveToAimPosition, continuous, passThroughWalls);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

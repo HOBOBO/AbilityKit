@@ -1,8 +1,11 @@
 using System;
+using AbilityKit.Game.Battle.Agent;
 
 namespace AbilityKit.Game.Flow
 {
-    internal sealed class ExistingGatewayRoomBattleBootstrapper : IBattleBootstrapper
+    internal sealed class ExistingGatewayRoomBattleBootstrapper :
+        IBattleBootstrapper,
+        IMobaReliableBattleEventCheckpointStore
     {
         private readonly IBattleBootstrapper _inner;
         private readonly string _sessionToken;
@@ -10,6 +13,7 @@ namespace AbilityKit.Game.Flow
         private readonly string _battleId;
         private readonly ulong _numericRoomId;
         private readonly ulong _worldId;
+        private readonly IMobaReliableBattleEventCheckpointStore _checkpointStore;
 
         public ExistingGatewayRoomBattleBootstrapper(
             IBattleBootstrapper inner,
@@ -17,7 +21,8 @@ namespace AbilityKit.Game.Flow
             string roomId,
             string battleId,
             ulong numericRoomId,
-            ulong worldId)
+            ulong worldId,
+            IMobaReliableBattleEventCheckpointStore checkpointStore = null)
         {
             _inner = inner ?? throw new ArgumentNullException(nameof(inner));
             _sessionToken = sessionToken ?? string.Empty;
@@ -25,6 +30,7 @@ namespace AbilityKit.Game.Flow
             _battleId = battleId ?? string.Empty;
             _numericRoomId = numericRoomId;
             _worldId = worldId;
+            _checkpointStore = checkpointStore;
         }
 
         public BattleStartPlan Build()
@@ -50,6 +56,8 @@ namespace AbilityKit.Game.Flow
             var runMode = plan.RunModeOptions;
             var createWorld = plan.CreateWorld;
             var timeSync = plan.TimeSync;
+            var checkpoint = default(MobaReliableBattleEventCheckpoint);
+            _checkpointStore?.TryLoad(_battleId, out checkpoint);
 
             return new BattleStartPlan(
                 worldId: _worldId.ToString(),
@@ -96,7 +104,21 @@ namespace AbilityKit.Game.Flow
                 idealFrameSafetyMaxMarginFrames: timeSync.IdealFrameSafetyMaxMarginFrames,
                 enabledSnapshotRegistryIds: plan.Sync.EnabledSnapshotRegistryIds,
                 launchSpec: plan.LaunchSpec,
-                gatewayBattleId: _battleId);
+                gatewayBattleId: _battleId,
+                reliableEventCheckpoint: checkpoint);
+        }
+
+        public bool TryLoad(
+            string battleId,
+            out MobaReliableBattleEventCheckpoint checkpoint)
+        {
+            checkpoint = default;
+            return _checkpointStore?.TryLoad(battleId, out checkpoint) == true;
+        }
+
+        public void Save(in MobaReliableBattleEventCheckpoint checkpoint)
+        {
+            _checkpointStore?.Save(in checkpoint);
         }
     }
 }

@@ -61,14 +61,20 @@ public sealed class ShooterClientGatewayLauncherTests
         Assert.Equal("battle-launch", launched.Summary.BattleId);
         Assert.Equal(9041ul, launched.Summary.WorldId);
         Assert.Equal(41u, launched.Summary.PlayerId);
-        Assert.Equal(7, transport.OpCodes.Count);
         Assert.Equal(RoomGatewayOpCodes.CreateRoom, transport.OpCodes[0]);
         Assert.Equal(RoomGatewayOpCodes.JoinRoom, transport.OpCodes[1]);
         Assert.Equal(RoomGatewayOpCodes.SetReady, transport.OpCodes[2]);
         Assert.Equal(RoomGatewayOpCodes.BeginLoading, transport.OpCodes[3]);
-        Assert.Equal(RoomGatewayOpCodes.ReportAssetsLoaded, transport.OpCodes[4]);
-        Assert.Equal(RoomGatewayOpCodes.GetSnapshot, transport.OpCodes[5]);
-        Assert.Equal(RoomGatewayOpCodes.SubscribeStateSync, transport.OpCodes[6]);
+        var progressCount = transport.OpCodes.Count(opCode => opCode == RoomGatewayOpCodes.ReportLoadingProgress);
+        Assert.True(progressCount >= 1);
+        Assert.All(
+            transport.OpCodes.GetRange(4, progressCount),
+            opCode => Assert.Equal(RoomGatewayOpCodes.ReportLoadingProgress, opCode));
+        var assetsIndex = 4 + progressCount;
+        Assert.Equal(RoomGatewayOpCodes.ReportAssetsLoaded, transport.OpCodes[assetsIndex]);
+        Assert.Equal(RoomGatewayOpCodes.GetSnapshot, transport.OpCodes[assetsIndex + 1]);
+        Assert.Equal(RoomGatewayOpCodes.SubscribeStateSync, transport.OpCodes[assetsIndex + 2]);
+        Assert.Equal(assetsIndex + 3, transport.OpCodes.Count);
         Assert.DoesNotContain(RoomGatewayOpCodes.StartBattle, transport.OpCodes);
         Assert.Equal(7L, transport.LastReportAssetsLoadedRequest.LaunchGeneration);
         Assert.Equal(3, transport.LastReportAssetsLoadedRequest.ManifestVersion);
@@ -77,7 +83,7 @@ public sealed class ShooterClientGatewayLauncherTests
         var submit = await launched.Battle.SubmitLocalInputToGatewayAsync(moveX: 1f, moveY: 0f, aimX: 1f, aimY: 0f, fire: false);
 
         Assert.True(submit.Remote.Success);
-        Assert.Equal(RoomGatewayOpCodes.SubmitBattleInput, transport.OpCodes[7]);
+        Assert.Equal(RoomGatewayOpCodes.SubmitBattleInput, transport.OpCodes[transport.OpCodes.Count - 1]);
         var wire = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputReq>(transport.LastPayload);
         Assert.Equal("session-token", wire.SessionToken);
         Assert.Equal("battle-launch", wire.BattleId);

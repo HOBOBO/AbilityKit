@@ -1,13 +1,16 @@
 # 4 套测试体系
 
-## 1. .NET xUnit（`src/AbilityKit.Demo.Moba.Tests/`，25 个）
+## 1. .NET xUnit（`src/AbilityKit.Demo.Moba.Tests/`，179 个，全部通过 ✅）
 
 按业务分目录：
 
 - `AI/`（2）：AiTrainingEnvironment / AiTrainingRunnerOutput
 - `Buff/`（1）：BuffStackingPolicyApplier
+- **`Collision/`（8）**：`GridCollisionWorldTests`（4，grid/naive 等价）+ `CollisionCorrectnessFixTests`（3，OBB sweep+GridBroadphase）+ `MobaMotionCollisionWorldAdapterTests`（3）— NEW
 - `Context/`（2）：ContextBridge / ContinuousExecutionContext
 - `Continuous/`（1）：ContinuousLifecycle
+- **`Motion/`（9）**：`MotionWallInteractionTests`（5，穿墙投影/blink/block）+ `ConfigurableMotionSolverSlideTests`（2，墙滑）+ `MobaSummonBTreeSkillSmokeTests`（已修复）— NEW
+- **`Navigation/`（5）**：`GridPathfinderTests`（5，绕障/不可达/确定性/直线化简/walkable）— NEW
 - `Passive/`（1）：PassiveLifecycleService
 - `Skill/`（2）：SkillCastRuntimeService / SkillInputHandleResult
 - `Smoke/`（10）：ConsoleMobaSmokeFlowTests(+TestBase) / ConsoleSmokeTraceArtifactExporter / BattleTestScenarioLibrary / BattleTestScriptRunner / MobaRuntimeFirstFrameSnapshotAcceptance / MobaRuntimeLog / MobaRuntimeValidationReport / MobaSkillPipelinePrewarm / MobaSmokeEntryContract / MobaSnapshotBufferConsumption

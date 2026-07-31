@@ -74,6 +74,7 @@ namespace AbilityKit.Game.Flow
 
         public MobaRootState CurrentPhase => _core.CurrentPhase;
         public MobaBattleState CurrentBattlePhase => _core.CurrentBattlePhase;
+        public bool IsFaulted => _core.IsFaulted;
         MobaRootState IFlowCommandSink.CurrentRootPhase => ((IFlowCommandSink)_core).CurrentRootPhase;
         MobaBattleState IFlowCommandSink.CurrentBattlePhase => ((IFlowCommandSink)_core).CurrentBattlePhase;
 
@@ -82,6 +83,7 @@ namespace AbilityKit.Game.Flow
         public bool TrySaveSettingsOverridesToPersistent() => _core.TrySaveSettingsOverridesToPersistent();
         public void Tick(float deltaTime) => _core.Tick(deltaTime);
         public void OnGUI() => _core.OnGUI();
+        public void Shutdown() => _core.Shutdown();
         public void SwitchTo(IGamePhase next) => _core.SwitchTo(next);
 
         public void Attach(IGamePhaseFeature feature) => _core.Attach(feature);

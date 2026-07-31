@@ -56,6 +56,11 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
 
+        Task<ShooterGatewayRoomOperationResult> ReportLoadingProgressAsync(
+            ShooterGatewayReportLoadingProgressRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+
         Task<ShooterGatewayGetRoomSnapshotResult> GetSnapshotAsync(
             ShooterGatewayGetRoomSnapshotRequest request,
             TimeSpan? timeout = null,
@@ -82,10 +87,21 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default);
     }
 
-    public sealed class ShooterRoomGatewayRoomClient : IShooterRoomGatewayRoomClient
+    public interface IShooterRoomGatewaySnapshotFeed
+    {
+        ShooterGatewayStagedRoomSnapshot? Current { get; }
+
+        event Action<ShooterGatewayStagedRoomSnapshot>? SnapshotChanged;
+    }
+
+    public sealed class ShooterRoomGatewayRoomClient :
+        IShooterRoomGatewayRoomClient,
+        IShooterRoomGatewaySnapshotFeed
     {
         private readonly IShooterRoomGatewayRequestTransport _transport;
         private readonly ShooterRoomGatewayRoomOpCodes _opCodes;
+        private readonly object _snapshotGate = new object();
+        private ShooterGatewayStagedRoomSnapshot? _current;
 
         public ShooterRoomGatewayRoomClient(IShooterRoomGatewayRequestTransport transport)
             : this(transport, ShooterRoomGatewayRoomOpCodes.Default)
@@ -96,7 +112,18 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _opCodes = opCodes;
+            if (_transport is IShooterRoomGatewayPushTransport pushTransport)
+            {
+                pushTransport.ServerPushReceived += HandleServerPush;
+            }
         }
+
+        public ShooterGatewayStagedRoomSnapshot? Current
+        {
+            get { lock (_snapshotGate) return _current; }
+        }
+
+        public event Action<ShooterGatewayStagedRoomSnapshot>? SnapshotChanged;
 
         public async Task<ShooterGatewayGuestLoginResult> GuestLoginAsync(
             ShooterGatewayGuestLoginRequest request,
@@ -319,6 +346,29 @@ namespace AbilityKit.Demo.Shooter.View
             return ToRoomOperationResult(in wire);
         }
 
+        public async Task<ShooterGatewayRoomOperationResult> ReportLoadingProgressAsync(
+            ShooterGatewayReportLoadingProgressRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateRoomOperation(request.SessionToken, request.RoomId);
+            if (request.Progress < 0 || request.Progress > 100) throw new ArgumentOutOfRangeException(nameof(request));
+
+            var req = new WireReportLoadingProgressReq
+            {
+                SessionToken = request.SessionToken,
+                RoomId = request.RoomId,
+                LaunchGeneration = request.LaunchGeneration,
+                ManifestVersion = request.ManifestVersion,
+                ManifestHash = request.ManifestHash,
+                Progress = request.Progress
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _transport.SendRequestAsync(_opCodes.ReportLoadingProgress, payload, timeout, cancellationToken).ConfigureAwait(false);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
+            return ToRoomOperationResult(in wire);
+        }
+
         public async Task<ShooterGatewayGetRoomSnapshotResult> GetSnapshotAsync(
             ShooterGatewayGetRoomSnapshotRequest request,
             TimeSpan? timeout = null,
@@ -336,6 +386,7 @@ namespace AbilityKit.Demo.Shooter.View
             var wire = WireRoomGatewayBinary.Deserialize<WireRoomSnapshotRes>(respPayload);
             var wireSnapshot = wire.Snapshot;
             var snapshot = ToStagedSnapshot(in wireSnapshot);
+            if (wire.Success) PublishSnapshot(snapshot);
             return new ShooterGatewayGetRoomSnapshotResult(
                 wire.Success,
                 wire.RoomId ?? string.Empty,
@@ -635,10 +686,13 @@ namespace AbilityKit.Demo.Shooter.View
             }
         }
 
-        private static ShooterGatewayRoomOperationResult ToRoomOperationResult(in WireRoomOperationRes wire)
+        private ShooterGatewayRoomOperationResult ToRoomOperationResult(in WireRoomOperationRes wire)
         {
             var wireSnapshot = wire.Snapshot;
-            var snapshot = ToStagedSnapshot(in wireSnapshot);
+            var snapshot = string.IsNullOrWhiteSpace(wireSnapshot.Summary.RoomId)
+                ? null
+                : ToStagedSnapshot(in wireSnapshot);
+            if (wire.Success && snapshot != null) PublishSnapshot(snapshot);
             return new ShooterGatewayRoomOperationResult(
                 wire.Success,
                 wire.Applied,
@@ -648,11 +702,46 @@ namespace AbilityKit.Demo.Shooter.View
                 snapshot);
         }
 
+        private void HandleServerPush(uint opCode, ArraySegment<byte> payload)
+        {
+            if (opCode != RoomGatewayOpCodes.RoomStateChanged) return;
+
+            try
+            {
+                var push = WireRoomGatewayBinary.Deserialize<WireRoomStateChangedPush>(payload);
+                var wireSnapshot = push.Snapshot;
+                PublishSnapshot(ToStagedSnapshot(in wireSnapshot));
+            }
+            catch (Exception)
+            {
+                // A malformed or incompatible push must not break request/response traffic.
+            }
+        }
+
+        private void PublishSnapshot(ShooterGatewayStagedRoomSnapshot snapshot)
+        {
+            if (snapshot == null || string.IsNullOrWhiteSpace(snapshot.RoomId)) return;
+
+            lock (_snapshotGate)
+            {
+                if (_current != null &&
+                    string.Equals(_current.RoomId, snapshot.RoomId, StringComparison.Ordinal) &&
+                    snapshot.RoomRevision <= _current.RoomRevision)
+                {
+                    return;
+                }
+
+                _current = snapshot;
+            }
+
+            SnapshotChanged?.Invoke(snapshot);
+        }
+
         private static ShooterGatewayStagedRoomSnapshot ToStagedSnapshot(in WireRoomSnapshot wire)
         {
             var wireAnchor = wire.WorldStartAnchor;
             var anchor = ToAnchor(in wireAnchor);
-            return new ShooterGatewayStagedRoomSnapshot(
+            var snapshot = new ShooterGatewayStagedRoomSnapshot(
                 wire.Summary.RoomId ?? string.Empty,
                 wire.Phase,
                 wire.PhaseReason ?? string.Empty,
@@ -666,7 +755,36 @@ namespace AbilityKit.Demo.Shooter.View
                 wire.CanStart,
                 wire.BattleId ?? string.Empty,
                 wire.WorldId,
-                in anchor);
+                in anchor)
+            {
+                OwnerAccountId = wire.Summary.OwnerAccountId ?? string.Empty,
+                Players = ToStagedPlayers(wire.Players)
+            };
+            return snapshot;
+        }
+
+        private static IReadOnlyList<ShooterGatewayStagedRoomPlayerSnapshot> ToStagedPlayers(
+            List<WireRoomPlayerSnapshot> players)
+        {
+            if (players == null || players.Count == 0)
+            {
+                return Array.Empty<ShooterGatewayStagedRoomPlayerSnapshot>();
+            }
+
+            var result = new ShooterGatewayStagedRoomPlayerSnapshot[players.Count];
+            for (var i = 0; i < players.Count; i++)
+            {
+                var player = players[i];
+                result[i] = new ShooterGatewayStagedRoomPlayerSnapshot(
+                    player.AccountId ?? string.Empty,
+                    player.PlayerId,
+                    player.IsOnline,
+                    player.LobbyReady,
+                    player.AssetsLoaded,
+                    player.LoadingProgress);
+            }
+
+            return result;
         }
 
         private static ShooterGatewayWorldStartAnchor ToAnchor(in WireWorldStartAnchor anchor)
@@ -703,6 +821,7 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly uint AckReliableBattleEvents;
         public readonly uint BeginLoading;
         public readonly uint ReportAssetsLoaded;
+        public readonly uint ReportLoadingProgress;
         public readonly uint GetSnapshot;
 
         public ShooterRoomGatewayRoomOpCodes(uint createRoom, uint joinRoom, uint subscribeStateSync, uint setReady, uint startBattle)
@@ -745,6 +864,7 @@ namespace AbilityKit.Demo.Shooter.View
             AckReliableBattleEvents = ackReliableBattleEvents;
             BeginLoading = RoomGatewayOpCodes.BeginLoading;
             ReportAssetsLoaded = RoomGatewayOpCodes.ReportAssetsLoaded;
+            ReportLoadingProgress = RoomGatewayOpCodes.ReportLoadingProgress;
             GetSnapshot = RoomGatewayOpCodes.GetSnapshot;
         }
     }
@@ -947,6 +1067,32 @@ namespace AbilityKit.Demo.Shooter.View
             ManifestVersion = manifestVersion;
             ManifestHash = manifestHash ?? string.Empty;
             CommandId = commandId ?? string.Empty;
+        }
+    }
+
+    public readonly struct ShooterGatewayReportLoadingProgressRequest
+    {
+        public readonly string SessionToken;
+        public readonly string RoomId;
+        public readonly long LaunchGeneration;
+        public readonly int ManifestVersion;
+        public readonly string ManifestHash;
+        public readonly int Progress;
+
+        public ShooterGatewayReportLoadingProgressRequest(
+            string sessionToken,
+            string roomId,
+            long launchGeneration,
+            int manifestVersion,
+            string manifestHash,
+            int progress)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+            LaunchGeneration = launchGeneration;
+            ManifestVersion = manifestVersion;
+            ManifestHash = manifestHash ?? string.Empty;
+            Progress = progress;
         }
     }
 
@@ -1164,6 +1310,7 @@ namespace AbilityKit.Demo.Shooter.View
         RoomClosed = 3,
         RoomExpired = 4,
         InvalidSession = 5,
+        Timeout = 6,
         Failed = 100
     }
 
@@ -1175,6 +1322,7 @@ namespace AbilityKit.Demo.Shooter.View
         RoomClosed = 3,
         RoomExpired = 4,
         InvalidSession = 5,
+        Timeout = 6,
         InternalError = 100
     }
 
@@ -1346,7 +1494,9 @@ namespace AbilityKit.Demo.Shooter.View
             bool canStart,
             string battleId,
             ulong worldId,
-            in ShooterGatewayWorldStartAnchor worldStartAnchor)
+            in ShooterGatewayWorldStartAnchor worldStartAnchor,
+            string ownerAccountId = "",
+            IReadOnlyList<ShooterGatewayStagedRoomPlayerSnapshot>? players = null)
         {
             RoomId = roomId ?? string.Empty;
             Phase = phase;
@@ -1362,9 +1512,13 @@ namespace AbilityKit.Demo.Shooter.View
             BattleId = battleId ?? string.Empty;
             WorldId = worldId;
             WorldStartAnchor = worldStartAnchor;
+            OwnerAccountId = ownerAccountId ?? string.Empty;
+            Players = players ?? Array.Empty<ShooterGatewayStagedRoomPlayerSnapshot>();
         }
 
         public string RoomId { get; }
+        public string OwnerAccountId { get; internal set; } = string.Empty;
+        public IReadOnlyList<ShooterGatewayStagedRoomPlayerSnapshot> Players { get; internal set; } = Array.Empty<ShooterGatewayStagedRoomPlayerSnapshot>();
         public int Phase { get; }
         public string PhaseReason { get; }
         public long LaunchGeneration { get; }
@@ -1380,6 +1534,32 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterGatewayWorldStartAnchor WorldStartAnchor { get; }
     }
 
+    public sealed class ShooterGatewayStagedRoomPlayerSnapshot
+    {
+        public ShooterGatewayStagedRoomPlayerSnapshot(
+            string accountId,
+            uint playerId,
+            bool isOnline,
+            bool lobbyReady,
+            bool assetsLoaded,
+            int loadingProgress)
+        {
+            AccountId = accountId ?? string.Empty;
+            PlayerId = playerId;
+            IsOnline = isOnline;
+            LobbyReady = lobbyReady;
+            AssetsLoaded = assetsLoaded;
+            LoadingProgress = Math.Max(0, Math.Min(100, loadingProgress));
+        }
+
+        public string AccountId { get; }
+        public uint PlayerId { get; }
+        public bool IsOnline { get; }
+        public bool LobbyReady { get; }
+        public bool AssetsLoaded { get; }
+        public int LoadingProgress { get; }
+    }
+
     public readonly struct ShooterGatewayRoomOperationResult
     {
         public readonly bool Success;
@@ -1387,9 +1567,9 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly int ErrorCode;
         public readonly string Message;
         public readonly long RoomRevision;
-        public readonly ShooterGatewayStagedRoomSnapshot Snapshot;
+        public readonly ShooterGatewayStagedRoomSnapshot? Snapshot;
 
-        public ShooterGatewayRoomOperationResult(bool success, bool applied, int errorCode, string message, long roomRevision, ShooterGatewayStagedRoomSnapshot snapshot)
+        public ShooterGatewayRoomOperationResult(bool success, bool applied, int errorCode, string message, long roomRevision, ShooterGatewayStagedRoomSnapshot? snapshot)
         {
             Success = success;
             Applied = applied;

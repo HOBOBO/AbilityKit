@@ -8,6 +8,13 @@ using System.Threading.Tasks;
 
 namespace AbilityKit.Ability.Host.Extensions.Session
 {
+    public interface IRoomGatewaySnapshotFeed
+    {
+        RoomGatewaySnapshot? Current { get; }
+
+        event Action<RoomGatewaySnapshot>? SnapshotChanged;
+    }
+
     public interface IRoomGatewaySessionClient
     {
         Task<RoomGatewayCreateResult> CreateRoomAsync(RoomGatewayCreateRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
@@ -28,7 +35,11 @@ namespace AbilityKit.Ability.Host.Extensions.Session
 
         Task<RoomGatewayBeginLoadingResult> BeginLoadingAsync(RoomGatewayBeginLoadingRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
 
+        Task<RoomGatewayReportLoadingProgressResult> ReportLoadingProgressAsync(RoomGatewayReportLoadingProgressRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
+
         Task<RoomGatewayReportAssetsLoadedResult> ReportAssetsLoadedAsync(RoomGatewayReportAssetsLoadedRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
+
+        Task<RoomGatewayCancelLoadingResult> CancelLoadingAsync(RoomGatewayCancelLoadingRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
 
         Task<RoomGatewayGetSnapshotResult> GetSnapshotAsync(RoomGatewayGetSnapshotRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
     }
@@ -40,188 +51,6 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         public RoomGatewaySessionFlow(IRoomGatewaySessionClient client)
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
-        }
-
-        [Obsolete("Use staged flow (CreateRoomAsync -> JoinRoomAsync -> SetReadyAsync -> BeginLoadingAsync -> ReportAssetsLoadedAsync -> WaitForBattleStartAsync -> SubscribeStateSyncAsync).")]
-        public async Task<RoomGatewaySessionFlowResult> CreateReadyStartAndSubscribeAsync(
-            string sessionToken,
-            RoomGatewayLaunchSpec launchSpec,
-            uint playerId,
-            TimeSpan? timeout = null,
-            CancellationToken cancellationToken = default)
-        {
-            ValidateSessionToken(sessionToken);
-            ValidatePlayerId(playerId);
-
-            var create = await _client.CreateRoomAsync(
-                new RoomGatewayCreateRequest(sessionToken, launchSpec.Region, launchSpec.ServerId, launchSpec.RoomType, launchSpec.RoomTitle, true, launchSpec.MaxPlayers, launchSpec.Tags),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(create.Success, create.Message, "create room");
-
-            var join = await _client.JoinRoomAsync(
-                new RoomGatewayJoinRequest(sessionToken, launchSpec.Region, launchSpec.ServerId, create.RoomId),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(join.Success, join.Message, "join room");
-
-            var ready = await _client.SetReadyAsync(
-                new RoomGatewayReadyRequest(sessionToken, create.RoomId, true),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(ready.Success, ready.Message, "set ready");
-
-            return await CompleteStagedLaunchAsync(
-                sessionToken,
-                create.RoomId,
-                create.NumericRoomId,
-                SelectPlayerId(join.CurrentPlayerId, playerId),
-                join.WorldStartAnchor,
-                ready.CanStart,
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-        }
-
-        [Obsolete("Use staged flow (JoinRoomAsync -> SetReadyAsync -> BeginLoadingAsync -> ReportAssetsLoadedAsync -> WaitForBattleStartAsync -> SubscribeStateSyncAsync).")]
-        public async Task<RoomGatewaySessionFlowResult> JoinReadyStartAndSubscribeAsync(
-            string sessionToken,
-            string roomId,
-            RoomGatewayLaunchSpec launchSpec,
-            uint playerId,
-            TimeSpan? timeout = null,
-            CancellationToken cancellationToken = default)
-        {
-            ValidateSessionToken(sessionToken);
-            if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
-            ValidatePlayerId(playerId);
-
-            var join = await _client.JoinRoomAsync(
-                new RoomGatewayJoinRequest(sessionToken, launchSpec.Region, launchSpec.ServerId, roomId),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(join.Success, join.Message, "join room");
-
-            if (join.JoinKind != RoomGatewaySessionEntryKind.TeamLobby && !string.IsNullOrWhiteSpace(join.BattleId))
-            {
-                var runningSubscribe = await _client.SubscribeStateSyncAsync(
-                    new RoomGatewayStateSyncSubscriptionRequest(sessionToken, join.BattleId, roomId),
-                    timeout,
-                    cancellationToken).ConfigureAwait(false);
-                EnsureSuccess(runningSubscribe.Success, runningSubscribe.Message, "subscribe state sync");
-
-                return new RoomGatewaySessionFlowResult(
-                    sessionToken,
-                    roomId,
-                    join.NumericRoomId,
-                    join.BattleId,
-                    join.WorldId,
-                    SelectPlayerId(join.CurrentPlayerId, playerId),
-                    join.WorldStartAnchor,
-                    join.ServerNowTicks,
-                    join.JoinKind,
-                    join.CanStart,
-                    started: true,
-                    runningSubscribe.Success,
-                    runningSubscribe.Message);
-            }
-
-            var ready = await _client.SetReadyAsync(
-                new RoomGatewayReadyRequest(sessionToken, roomId, true),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(ready.Success, ready.Message, "set ready");
-
-            return await CompleteStagedLaunchAsync(
-                sessionToken,
-                roomId,
-                join.NumericRoomId,
-                SelectPlayerId(join.CurrentPlayerId, playerId),
-                join.WorldStartAnchor,
-                ready.CanStart,
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-        }
-
-        public Task<RoomGatewaySessionFlowResult> RestoreRoomAsync(
-            string sessionToken,
-            string region,
-            string serverId,
-            RoomGatewayLaunchSpec launchSpec,
-            uint playerId,
-            TimeSpan? timeout = null,
-            CancellationToken cancellationToken = default)
-        {
-            return RestoreRoomAsync(
-                sessionToken,
-                region,
-                serverId,
-                launchSpec,
-                playerId,
-                string.Empty,
-                0L,
-                timeout,
-                cancellationToken);
-        }
-
-        public async Task<RoomGatewaySessionFlowResult> RestoreRoomAsync(
-            string sessionToken,
-            string region,
-            string serverId,
-            RoomGatewayLaunchSpec launchSpec,
-            uint playerId,
-            string eventEpoch,
-            long lastEventAck,
-            TimeSpan? timeout = null,
-            CancellationToken cancellationToken = default)
-        {
-            ValidateSessionToken(sessionToken);
-            if (string.IsNullOrWhiteSpace(region)) throw new ArgumentException("region is required.", nameof(region));
-            if (string.IsNullOrWhiteSpace(serverId)) throw new ArgumentException("serverId is required.", nameof(serverId));
-            ValidatePlayerId(playerId);
-
-            var restored = await _client.RestoreRoomAsync(
-                new RoomGatewayRestoreRoomRequest(sessionToken, region, serverId),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(restored.Success, restored.Message, "restore room");
-
-            if (!restored.HasActiveRoom || string.IsNullOrWhiteSpace(restored.RoomId))
-            {
-                throw new InvalidOperationException("restore room did not find an active room.");
-            }
-
-            if (!restored.IsInBattle || string.IsNullOrWhiteSpace(restored.BattleId))
-            {
-                throw new InvalidOperationException("restore room did not find a running battle.");
-            }
-
-            var subscribe = await _client.SubscribeStateSyncAsync(
-                new RoomGatewayStateSyncSubscriptionRequest(
-                    sessionToken,
-                    restored.BattleId,
-                    restored.RoomId,
-                    eventEpoch,
-                    lastEventAck),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(subscribe.Success, subscribe.Message, "subscribe state sync");
-
-            return new RoomGatewaySessionFlowResult(
-                sessionToken,
-                restored.RoomId,
-                restored.NumericRoomId,
-                restored.BattleId,
-                restored.WorldId,
-                SelectPlayerId(restored.CurrentPlayerId, playerId),
-                restored.WorldStartAnchor,
-                restored.ServerNowTicks,
-                restored.JoinKind,
-                restored.CanStart,
-                started: true,
-                subscribe.Success,
-                subscribe.Message,
-                restored.Status,
-                restored.ErrorCode);
         }
 
         // ===== 阶段 5：阶段化资源加载流程（每步独立可恢复） =====
@@ -314,51 +143,236 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             return _client.ReportAssetsLoadedAsync(request, timeout, cancellationToken);
         }
 
+        public Task<RoomGatewayReportLoadingProgressResult> ReportLoadingProgressAsync(
+            RoomGatewayReportLoadingProgressRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(request.SessionToken);
+            if (string.IsNullOrWhiteSpace(request.RoomId)) throw new ArgumentException("roomId is required.", nameof(request));
+            if (request.Progress < 0 || request.Progress > 100) throw new ArgumentOutOfRangeException(nameof(request));
+            return _client.ReportLoadingProgressAsync(request, timeout, cancellationToken);
+        }
+
+        public Task<RoomGatewayCancelLoadingResult> CancelLoadingAsync(
+            RoomGatewayCancelLoadingRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(request.SessionToken);
+            if (string.IsNullOrWhiteSpace(request.RoomId)) throw new ArgumentException("roomId is required.", nameof(request));
+            return _client.CancelLoadingAsync(request, timeout, cancellationToken);
+        }
+
+        public Task<RoomGatewayGetSnapshotResult> GetSnapshotAsync(
+            string sessionToken,
+            string roomId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(sessionToken);
+            if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
+            return _client.GetSnapshotAsync(
+                new RoomGatewayGetSnapshotRequest(sessionToken, roomId),
+                timeout,
+                cancellationToken);
+        }
+
         /// <summary>
         /// 阶段 7：等待战斗提交完成。
         /// 通过 GetSnapshot 轮询，直到 Phase=InBattle 且 BattleId 已回填或超时。
         /// Starting 仅表示服务端正在初始化战斗运行时，尚不可订阅状态同步。
         /// </summary>
-        public async Task<RoomGatewayGetSnapshotResult> WaitForBattleStartAsync(
+        public Task<RoomGatewayGetSnapshotResult> WaitForBattleStartAsync(
             string sessionToken,
             string roomId,
             TimeSpan pollInterval,
             TimeSpan timeout,
             CancellationToken cancellationToken = default)
         {
+            return WaitForBattleStartAsync(
+                sessionToken,
+                roomId,
+                pollInterval,
+                timeout,
+                progress: null,
+                cancellationToken);
+        }
+
+        public async Task<RoomGatewayGetSnapshotResult> WaitForBattleStartAsync(
+            string sessionToken,
+            string roomId,
+            TimeSpan pollInterval,
+            TimeSpan timeout,
+            IProgress<RoomGatewaySnapshot>? progress,
+            CancellationToken cancellationToken = default)
+        {
+            return await WaitForSnapshotAsync(
+                sessionToken,
+                roomId,
+                snapshot => snapshot.Phase == RoomGatewaySessionPhase.InBattle &&
+                            !string.IsNullOrWhiteSpace(snapshot.BattleId),
+                pollInterval,
+                timeout,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<RoomGatewayGetSnapshotResult> WaitForSnapshotAsync(
+            string sessionToken,
+            string roomId,
+            Func<RoomGatewaySnapshot, bool> predicate,
+            TimeSpan pollInterval,
+            TimeSpan timeout,
+            IProgress<RoomGatewaySnapshot>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
             ValidateSessionToken(sessionToken);
             if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
+            if (predicate == null) throw new ArgumentNullException(nameof(predicate));
             if (pollInterval <= TimeSpan.Zero) pollInterval = TimeSpan.FromMilliseconds(500);
+            if (timeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(timeout));
 
             var deadline = DateTime.UtcNow + timeout;
-            while (DateTime.UtcNow < deadline)
+            var observedLoading = false;
+            var feed = _client as IRoomGatewaySnapshotFeed;
+            if (feed != null && pollInterval < TimeSpan.FromSeconds(2))
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                pollInterval = TimeSpan.FromSeconds(2);
+            }
 
-                var snapshot = await _client.GetSnapshotAsync(
-                    new RoomGatewayGetSnapshotRequest(sessionToken, roomId),
-                    timeout,
-                    cancellationToken).ConfigureAwait(false);
-
-                if (snapshot.Success &&
-                    snapshot.Snapshot != null &&
-                    snapshot.Snapshot.Phase == RoomGatewaySessionPhase.InBattle &&
-                    !string.IsNullOrWhiteSpace(snapshot.Snapshot.BattleId))
+            TaskCompletionSource<bool>? signal = null;
+            Action<RoomGatewaySnapshot>? onSnapshotChanged = null;
+            if (feed != null)
+            {
+                signal = CreateSignal();
+                onSnapshotChanged = snapshot =>
                 {
-                    return snapshot;
+                    if (snapshot != null && string.Equals(snapshot.RoomId, roomId, StringComparison.Ordinal))
+                    {
+                        progress?.Report(snapshot);
+                        signal?.TrySetResult(true);
+                    }
+                };
+                feed.SnapshotChanged += onSnapshotChanged;
+            }
+
+            try
+            {
+                while (DateTime.UtcNow < deadline)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var pushed = feed?.Current;
+                    if (pushed != null && string.Equals(pushed.RoomId, roomId, StringComparison.Ordinal))
+                    {
+                        ExtendDeadlineFromSnapshot(pushed, ref deadline);
+                        EnsureWaitablePhase(pushed, roomId, ref observedLoading);
+                    }
+
+                    var remaining = deadline - DateTime.UtcNow;
+                    if (remaining <= TimeSpan.Zero) break;
+                    var requestTimeout = remaining < TimeSpan.FromSeconds(10)
+                        ? remaining
+                        : TimeSpan.FromSeconds(10);
+                    var snapshot = await GetSnapshotAsync(
+                        sessionToken,
+                        roomId,
+                        requestTimeout,
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (!snapshot.Success)
+                    {
+                        return snapshot;
+                    }
+
+                    if (snapshot.Snapshot != null)
+                    {
+                        progress?.Report(snapshot.Snapshot);
+                        ExtendDeadlineFromSnapshot(snapshot.Snapshot, ref deadline);
+                        EnsureWaitablePhase(snapshot.Snapshot, roomId, ref observedLoading);
+                        if (predicate(snapshot.Snapshot))
+                        {
+                            return snapshot;
+                        }
+                    }
+
+                    remaining = deadline - DateTime.UtcNow;
+                    if (remaining <= TimeSpan.Zero) break;
+                    var delay = pollInterval < remaining ? pollInterval : remaining;
+                    if (feed == null || signal == null)
+                    {
+                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    var observedSignal = signal;
+                    var delayTask = Task.Delay(delay, cancellationToken);
+                    await Task.WhenAny(observedSignal.Task, delayTask).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (observedSignal.Task.IsCompleted)
+                    {
+                        signal = CreateSignal();
+                    }
                 }
-
-                try
+            }
+            finally
+            {
+                if (feed != null && onSnapshotChanged != null)
                 {
-                    await Task.Delay(pollInterval, cancellationToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
+                    feed.SnapshotChanged -= onSnapshotChanged;
                 }
             }
 
-            throw new TimeoutException($"WaitForBattleStart timed out after {timeout} for room {roomId}.");
+            throw new TimeoutException($"Room snapshot wait timed out after {timeout} for room {roomId}.");
+        }
+
+        private static TaskCompletionSource<bool> CreateSignal() =>
+            new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private static void ExtendDeadlineFromSnapshot(RoomGatewaySnapshot snapshot, ref DateTime deadline)
+        {
+            if (snapshot.LoadingDeadlineUnixMs <= 0L) return;
+            DateTime authoritativeDeadline;
+            try
+            {
+                authoritativeDeadline = DateTimeOffset
+                    .FromUnixTimeMilliseconds(snapshot.LoadingDeadlineUnixMs)
+                    .UtcDateTime
+                    .AddSeconds(15);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return;
+            }
+
+            if (authoritativeDeadline > deadline) deadline = authoritativeDeadline;
+        }
+
+        private static void EnsureWaitablePhase(
+            RoomGatewaySnapshot snapshot,
+            string roomId,
+            ref bool observedLoading)
+        {
+            if (snapshot.Phase == RoomGatewaySessionPhase.Loading ||
+                snapshot.Phase == RoomGatewaySessionPhase.Starting)
+            {
+                observedLoading = true;
+            }
+            else if (observedLoading && snapshot.Phase == RoomGatewaySessionPhase.Lobby)
+            {
+                throw new InvalidOperationException(
+                    $"Room {roomId} returned to Lobby while waiting: {snapshot.PhaseReason}");
+            }
+
+            switch (snapshot.Phase)
+            {
+                case RoomGatewaySessionPhase.Closing:
+                case RoomGatewaySessionPhase.Closed:
+                case RoomGatewaySessionPhase.Expired:
+                    throw new InvalidOperationException(
+                        $"Room {roomId} entered terminal phase {snapshot.Phase}: {snapshot.PhaseReason}");
+            }
         }
 
         /// <summary>
@@ -371,10 +385,34 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
+            return SubscribeStateSyncAsync(
+                sessionToken,
+                battleId,
+                roomId,
+                string.Empty,
+                0L,
+                timeout,
+                cancellationToken);
+        }
+
+        public Task<RoomGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(
+            string sessionToken,
+            string battleId,
+            string roomId,
+            string eventEpoch,
+            long lastEventAck,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
             ValidateSessionToken(sessionToken);
             if (string.IsNullOrWhiteSpace(battleId)) throw new ArgumentException("battleId is required.", nameof(battleId));
             return _client.SubscribeStateSyncAsync(
-                new RoomGatewayStateSyncSubscriptionRequest(sessionToken, battleId, roomId),
+                new RoomGatewayStateSyncSubscriptionRequest(
+                    sessionToken,
+                    battleId,
+                    roomId,
+                    eventEpoch,
+                    lastEventAck),
                 timeout,
                 cancellationToken);
         }
@@ -396,11 +434,42 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             if (string.IsNullOrWhiteSpace(serverId)) throw new ArgumentException("serverId is required.", nameof(serverId));
             ValidatePlayerId(playerId);
 
-            var restored = await _client.RestoreRoomAsync(
-                new RoomGatewayRestoreRoomRequest(sessionToken, region, serverId),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(restored.Success, restored.Message, "restore room");
+            RoomGatewayRestoreRoomResult restored;
+            try
+            {
+                restored = await _client.RestoreRoomAsync(
+                    new RoomGatewayRestoreRoomRequest(sessionToken, region, serverId),
+                    timeout,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                return CreateRestoreTimeoutResult(playerId, "Room restore request timed out.");
+            }
+            catch (TimeoutException ex)
+            {
+                return CreateRestoreTimeoutResult(playerId, ex.Message);
+            }
+
+            // Restore failures are part of the session protocol. Preserve their status and
+            // error code so callers can decide whether to retry, re-authenticate, or return
+            // to the lobby instead of collapsing every outcome into InvalidOperationException.
+            if (!restored.Success)
+            {
+                return new RoomGatewayStagedRestoreResult(
+                    restored.RoomId,
+                    restored.NumericRoomId,
+                    null,
+                    RoomGatewaySessionPhase.Closed,
+                    RoomGatewayStagedRestoreNextStep.None,
+                    SelectPlayerId(restored.CurrentPlayerId, playerId),
+                    restored.ServerNowTicks,
+                    restored.Message,
+                    restored.JoinKind,
+                    restored.CanStart,
+                    restored.Status,
+                    restored.ErrorCode);
+            }
 
             if (!restored.HasActiveRoom || string.IsNullOrWhiteSpace(restored.RoomId))
             {
@@ -412,26 +481,125 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                     RoomGatewayStagedRestoreNextStep.None,
                     SelectPlayerId(restored.CurrentPlayerId, playerId),
                     restored.ServerNowTicks,
-                    restored.Message);
+                    restored.Message,
+                    restored.JoinKind,
+                    restored.CanStart,
+                    restored.Status,
+                    restored.ErrorCode);
             }
 
-            var phase = restored.IsInBattle
-                ? RoomGatewaySessionPhase.InBattle
-                : RoomGatewaySessionPhase.Lobby;
-            var nextStep = ResolveNextStep(phase, restored.IsInBattle);
+            RoomGatewayGetSnapshotResult current;
+            try
+            {
+                current = await _client.GetSnapshotAsync(
+                    new RoomGatewayGetSnapshotRequest(sessionToken, restored.RoomId),
+                    timeout,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                current = default;
+            }
+            catch (TimeoutException)
+            {
+                current = default;
+            }
+            var snapshot = current.Success && current.Snapshot != null
+                ? MergeRestoreSnapshot(current.Snapshot, in restored)
+                : CreateRestoreSnapshot(in restored);
+            var phase = ResolvePhase(snapshot);
+            var nextStep = ResolveNextStep(
+                phase,
+                restored.IsInBattle && !string.IsNullOrWhiteSpace(snapshot.BattleId));
+            var numericRoomId = restored.NumericRoomId != 0ul
+                ? restored.NumericRoomId
+                : current.NumericRoomId;
+            var serverNowTicks = current.Success && current.ServerNowTicks != 0L
+                ? current.ServerNowTicks
+                : restored.ServerNowTicks;
 
             return new RoomGatewayStagedRestoreResult(
                 restored.RoomId,
-                restored.NumericRoomId,
-                null,
+                numericRoomId,
+                snapshot,
                 phase,
                 nextStep,
                 SelectPlayerId(restored.CurrentPlayerId, playerId),
-                restored.ServerNowTicks,
-                restored.Message);
+                serverNowTicks,
+                restored.Message,
+                restored.JoinKind,
+                restored.CanStart,
+                restored.Status,
+                restored.ErrorCode);
         }
 
-        private static RoomGatewaySessionPhase ResolvePhase(RoomGatewaySnapshot snapshot)
+        private static RoomGatewayStagedRestoreResult CreateRestoreTimeoutResult(
+            uint playerId,
+            string message)
+        {
+            return new RoomGatewayStagedRestoreResult(
+                string.Empty,
+                0UL,
+                null,
+                RoomGatewaySessionPhase.Closed,
+                RoomGatewayStagedRestoreNextStep.None,
+                playerId,
+                0L,
+                message,
+                RoomGatewaySessionEntryKind.TeamLobby,
+                false,
+                RoomGatewaySessionRestoreStatus.Timeout,
+                RoomGatewaySessionRestoreErrorCode.Timeout);
+        }
+
+        private static RoomGatewaySnapshot CreateRestoreSnapshot(in RoomGatewayRestoreRoomResult restored)
+        {
+            return new RoomGatewaySnapshot
+            {
+                RoomId = restored.RoomId,
+                Phase = restored.IsInBattle
+                    ? RoomGatewaySessionPhase.InBattle
+                    : RoomGatewaySessionPhase.Lobby,
+                CanStart = restored.CanStart,
+                BattleId = restored.BattleId,
+                WorldId = restored.WorldId,
+                WorldStartAnchor = restored.WorldStartAnchor
+            };
+        }
+
+        private static RoomGatewaySnapshot MergeRestoreSnapshot(
+            RoomGatewaySnapshot snapshot,
+            in RoomGatewayRestoreRoomResult restored)
+        {
+            return new RoomGatewaySnapshot
+            {
+                RoomId = string.IsNullOrWhiteSpace(snapshot.RoomId)
+                    ? restored.RoomId
+                    : snapshot.RoomId,
+                OwnerAccountId = snapshot.OwnerAccountId,
+                Phase = snapshot.Phase,
+                PhaseReason = snapshot.PhaseReason,
+                LaunchGeneration = snapshot.LaunchGeneration,
+                LoadingDeadlineUnixMs = snapshot.LoadingDeadlineUnixMs,
+                LaunchManifestHash = snapshot.LaunchManifestHash,
+                LaunchManifestVersion = snapshot.LaunchManifestVersion,
+                LastStartFailureCode = snapshot.LastStartFailureCode,
+                RoomRevision = snapshot.RoomRevision,
+                LastEventSequence = snapshot.LastEventSequence,
+                CanStart = snapshot.CanStart || restored.CanStart,
+                BattleId = string.IsNullOrWhiteSpace(snapshot.BattleId)
+                    ? restored.BattleId
+                    : snapshot.BattleId,
+                WorldId = snapshot.WorldId == 0ul ? restored.WorldId : snapshot.WorldId,
+                Members = snapshot.Members,
+                Players = snapshot.Players,
+                WorldStartAnchor = snapshot.WorldStartAnchor.IsValid
+                    ? snapshot.WorldStartAnchor
+                    : restored.WorldStartAnchor
+            };
+        }
+
+        private static RoomGatewaySessionPhase ResolvePhase(RoomGatewaySnapshot? snapshot)
         {
             if (snapshot == null)
             {
@@ -441,7 +609,9 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             return snapshot.Phase;
         }
 
-        private static RoomGatewayStagedRestoreNextStep ResolveNextStep(RoomGatewaySessionPhase phase, bool isInBattle)
+        private static RoomGatewayStagedRestoreNextStep ResolveNextStep(
+            RoomGatewaySessionPhase phase,
+            bool canSubscribeRunningBattle)
         {
             switch (phase)
             {
@@ -452,7 +622,7 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                 case RoomGatewaySessionPhase.Starting:
                     return RoomGatewayStagedRestoreNextStep.WaitForBattleStart;
                 case RoomGatewaySessionPhase.InBattle:
-                    return isInBattle
+                    return canSubscribeRunningBattle
                         ? RoomGatewayStagedRestoreNextStep.SubscribeStateSync
                         : RoomGatewayStagedRestoreNextStep.WaitForBattleStart;
                 default:
@@ -460,90 +630,9 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             }
         }
 
-        private async Task<RoomGatewaySessionFlowResult> CompleteStagedLaunchAsync(
-            string sessionToken,
-            string roomId,
-            ulong numericRoomId,
-            uint playerId,
-            RoomGatewayWorldStartAnchor fallbackAnchor,
-            bool canStart,
-            TimeSpan? timeout,
-            CancellationToken cancellationToken)
-        {
-            var begin = await _client.BeginLoadingAsync(
-                new RoomGatewayBeginLoadingRequest(sessionToken, roomId, null, Guid.NewGuid().ToString("N")),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(begin.Success, begin.Message, "begin loading");
-            if (begin.Snapshot == null)
-            {
-                throw new InvalidOperationException("Room gateway begin loading did not return a snapshot.");
-            }
-
-            var report = await _client.ReportAssetsLoadedAsync(
-                new RoomGatewayReportAssetsLoadedRequest(
-                    sessionToken,
-                    roomId,
-                    begin.Snapshot.LaunchGeneration,
-                    begin.Snapshot.LaunchManifestVersion,
-                    begin.Snapshot.LaunchManifestHash,
-                    Guid.NewGuid().ToString("N")),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(report.Success, report.Message, "report assets loaded");
-
-            var waitTimeout = timeout ?? TimeSpan.FromSeconds(30);
-            var running = await WaitForBattleStartAsync(
-                sessionToken,
-                roomId,
-                TimeSpan.FromMilliseconds(50),
-                waitTimeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(running.Success, running.Message, "wait for battle start");
-            if (running.Snapshot == null)
-            {
-                throw new InvalidOperationException("Room gateway battle start polling did not return a snapshot.");
-            }
-
-            var battleId = SelectBattleId(running.Snapshot.BattleId, string.Empty, string.Empty);
-            var subscribe = await _client.SubscribeStateSyncAsync(
-                new RoomGatewayStateSyncSubscriptionRequest(sessionToken, battleId, roomId),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(subscribe.Success, subscribe.Message, "subscribe state sync");
-
-            return new RoomGatewaySessionFlowResult(
-                sessionToken,
-                roomId,
-                numericRoomId,
-                battleId,
-                running.Snapshot.WorldId,
-                playerId,
-                SelectWorldStartAnchor(running.Snapshot.WorldStartAnchor, fallbackAnchor),
-                running.ServerNowTicks,
-                RoomGatewaySessionEntryKind.TeamLobby,
-                canStart,
-                started: true,
-                subscribe.Success,
-                subscribe.Message);
-        }
-
         private static uint SelectPlayerId(uint serverPlayerId, uint fallbackPlayerId)
         {
             return serverPlayerId == 0u ? fallbackPlayerId : serverPlayerId;
-        }
-
-        private static RoomGatewayWorldStartAnchor SelectWorldStartAnchor(RoomGatewayWorldStartAnchor startAnchor, RoomGatewayWorldStartAnchor joinAnchor)
-        {
-            return startAnchor.IsValid ? startAnchor : joinAnchor;
-        }
-
-        private static string SelectBattleId(string startBattleId, string readyBattleId, string joinBattleId)
-        {
-            var battleId = string.IsNullOrWhiteSpace(startBattleId) ? readyBattleId : startBattleId;
-            if (string.IsNullOrWhiteSpace(battleId)) battleId = joinBattleId;
-            if (string.IsNullOrWhiteSpace(battleId)) throw new InvalidOperationException("start battle did not return a battle id.");
-            return battleId;
         }
 
         private static void ValidateSessionToken(string sessionToken)
@@ -577,7 +666,8 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         RoomClosed = 3,
         RoomExpired = 4,
         InvalidSession = 5,
-        Failed = 6
+        Failed = 6,
+        Timeout = 7
     }
 
     public enum RoomGatewaySessionRestoreErrorCode
@@ -588,7 +678,8 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         RoomClosed = 3,
         RoomExpired = 4,
         InvalidSession = 5,
-        InternalError = 6
+        InternalError = 6,
+        Timeout = 7
     }
 
     public readonly struct RoomGatewayWorldStartAnchor
@@ -1066,14 +1157,35 @@ namespace AbilityKit.Ability.Host.Extensions.Session
     public readonly struct RoomGatewayPickHeroResult
     {
         public readonly bool Success;
+        public readonly bool Applied;
+        public readonly int ErrorCode;
         public readonly string RoomId;
         public readonly ulong NumericRoomId;
         public readonly RoomGatewaySnapshot Snapshot;
         public readonly string Message;
 
-        public RoomGatewayPickHeroResult(bool success, string roomId, ulong numericRoomId, RoomGatewaySnapshot snapshot, string message)
+        public RoomGatewayPickHeroResult(
+            bool success,
+            string roomId,
+            ulong numericRoomId,
+            RoomGatewaySnapshot snapshot,
+            string message)
+            : this(success, success, 0, roomId, numericRoomId, snapshot, message)
+        {
+        }
+
+        public RoomGatewayPickHeroResult(
+            bool success,
+            bool applied,
+            int errorCode,
+            string roomId,
+            ulong numericRoomId,
+            RoomGatewaySnapshot snapshot,
+            string message)
         {
             Success = success;
+            Applied = applied;
+            ErrorCode = errorCode;
             RoomId = roomId ?? string.Empty;
             NumericRoomId = numericRoomId;
             Snapshot = snapshot;
@@ -1104,9 +1216,9 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         public readonly int ErrorCode;
         public readonly string Message;
         public readonly long RoomRevision;
-        public readonly RoomGatewaySnapshot Snapshot;
+        public readonly RoomGatewaySnapshot? Snapshot;
 
-        public RoomGatewayBeginLoadingResult(bool success, bool applied, int errorCode, string message, long roomRevision, RoomGatewaySnapshot snapshot)
+        public RoomGatewayBeginLoadingResult(bool success, bool applied, int errorCode, string message, long roomRevision, RoomGatewaySnapshot? snapshot)
         {
             Success = success;
             Applied = applied;
@@ -1144,9 +1256,97 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         public readonly int ErrorCode;
         public readonly string Message;
         public readonly long RoomRevision;
-        public readonly RoomGatewaySnapshot Snapshot;
+        public readonly RoomGatewaySnapshot? Snapshot;
 
-        public RoomGatewayReportAssetsLoadedResult(bool success, bool applied, int errorCode, string message, long roomRevision, RoomGatewaySnapshot snapshot)
+        public RoomGatewayReportAssetsLoadedResult(bool success, bool applied, int errorCode, string message, long roomRevision, RoomGatewaySnapshot? snapshot)
+        {
+            Success = success;
+            Applied = applied;
+            ErrorCode = errorCode;
+            Message = message ?? string.Empty;
+            RoomRevision = roomRevision;
+            Snapshot = snapshot;
+        }
+    }
+
+    public readonly struct RoomGatewayReportLoadingProgressRequest
+    {
+        public readonly string SessionToken;
+        public readonly string RoomId;
+        public readonly long LaunchGeneration;
+        public readonly int ManifestVersion;
+        public readonly string ManifestHash;
+        public readonly int Progress;
+
+        public RoomGatewayReportLoadingProgressRequest(
+            string sessionToken,
+            string roomId,
+            long launchGeneration,
+            int manifestVersion,
+            string manifestHash,
+            int progress)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+            LaunchGeneration = launchGeneration;
+            ManifestVersion = manifestVersion;
+            ManifestHash = manifestHash ?? string.Empty;
+            Progress = progress;
+        }
+    }
+
+    public readonly struct RoomGatewayReportLoadingProgressResult
+    {
+        public readonly bool Success;
+        public readonly bool Applied;
+        public readonly int ErrorCode;
+        public readonly string Message;
+        public readonly long RoomRevision;
+        public readonly RoomGatewaySnapshot? Snapshot;
+
+        public RoomGatewayReportLoadingProgressResult(
+            bool success,
+            bool applied,
+            int errorCode,
+            string message,
+            long roomRevision,
+            RoomGatewaySnapshot? snapshot)
+        {
+            Success = success;
+            Applied = applied;
+            ErrorCode = errorCode;
+            Message = message ?? string.Empty;
+            RoomRevision = roomRevision;
+            Snapshot = snapshot;
+        }
+    }
+
+    public readonly struct RoomGatewayCancelLoadingRequest
+    {
+        public readonly string SessionToken;
+        public readonly string RoomId;
+        public readonly long? ExpectedRevision;
+        public readonly string CommandId;
+
+        public RoomGatewayCancelLoadingRequest(string sessionToken, string roomId, long? expectedRevision, string commandId)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+            ExpectedRevision = expectedRevision;
+            CommandId = commandId ?? string.Empty;
+        }
+    }
+
+    public readonly struct RoomGatewayCancelLoadingResult
+    {
+        public readonly bool Success;
+        public readonly bool Applied;
+        public readonly int ErrorCode;
+        public readonly string Message;
+        public readonly long RoomRevision;
+        public readonly RoomGatewaySnapshot? Snapshot;
+
+        public RoomGatewayCancelLoadingResult(bool success, bool applied, int errorCode, string message, long roomRevision, RoomGatewaySnapshot? snapshot)
         {
             Success = success;
             Applied = applied;
@@ -1174,16 +1374,16 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         public readonly bool Success;
         public readonly string RoomId;
         public readonly ulong NumericRoomId;
-        public readonly RoomGatewaySnapshot Snapshot;
+        public readonly RoomGatewaySnapshot? Snapshot;
         public readonly string Message;
         public readonly long ServerNowTicks;
 
-        public RoomGatewayGetSnapshotResult(bool success, string roomId, ulong numericRoomId, RoomGatewaySnapshot snapshot, string message)
+        public RoomGatewayGetSnapshotResult(bool success, string roomId, ulong numericRoomId, RoomGatewaySnapshot? snapshot, string message)
             : this(success, roomId, numericRoomId, snapshot, message, 0L)
         {
         }
 
-        public RoomGatewayGetSnapshotResult(bool success, string roomId, ulong numericRoomId, RoomGatewaySnapshot snapshot, string message, long serverNowTicks)
+        public RoomGatewayGetSnapshotResult(bool success, string roomId, ulong numericRoomId, RoomGatewaySnapshot? snapshot, string message, long serverNowTicks)
         {
             Success = success;
             RoomId = roomId ?? string.Empty;
@@ -1200,6 +1400,7 @@ namespace AbilityKit.Ability.Host.Extensions.Session
     public sealed class RoomGatewaySnapshot
     {
         public string RoomId { get; set; } = string.Empty;
+        public string OwnerAccountId { get; set; } = string.Empty;
         public RoomGatewaySessionPhase Phase { get; set; }
         public string PhaseReason { get; set; } = string.Empty;
         public long LaunchGeneration { get; set; }
@@ -1212,7 +1413,31 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         public bool CanStart { get; set; }
         public string BattleId { get; set; } = string.Empty;
         public ulong WorldId { get; set; }
+        public IReadOnlyList<string> Members { get; set; } = Array.Empty<string>();
+        public IReadOnlyList<RoomGatewayPlayerSnapshot> Players { get; set; } = Array.Empty<RoomGatewayPlayerSnapshot>();
         public RoomGatewayWorldStartAnchor WorldStartAnchor { get; set; }
+    }
+
+    public sealed class RoomGatewayPlayerSnapshot
+    {
+        public string AccountId { get; set; } = string.Empty;
+        public uint PlayerId { get; set; }
+        public int TeamId { get; set; }
+        public int HeroId { get; set; }
+        public int SpawnPointId { get; set; }
+        public int Level { get; set; }
+        public int AttributeTemplateId { get; set; }
+        public int BasicAttackSkillId { get; set; }
+        public IReadOnlyList<int> SkillIds { get; set; } = Array.Empty<int>();
+        public bool LobbyReady { get; set; }
+        public bool AssetsLoaded { get; set; }
+        public int LoadingProgress { get; set; }
+        public bool IsOnline { get; set; }
+        public long JoinOrdinal { get; set; }
+        public int LoadedManifestVersion { get; set; }
+        public string LoadedManifestHash { get; set; } = string.Empty;
+        public long LastSeenTicks { get; set; }
+        public long OfflineSinceTicks { get; set; }
     }
 
     /// <summary>
@@ -1222,22 +1447,35 @@ namespace AbilityKit.Ability.Host.Extensions.Session
     {
         public readonly string RoomId;
         public readonly ulong NumericRoomId;
-        public readonly RoomGatewaySnapshot Snapshot;
+        public readonly RoomGatewaySnapshot? Snapshot;
         public readonly RoomGatewaySessionPhase Phase;
         public readonly RoomGatewayStagedRestoreNextStep NextStep;
         public readonly uint PlayerId;
         public readonly long ServerNowTicks;
         public readonly string Message;
+        public readonly RoomGatewaySessionEntryKind EntryKind;
+        public readonly bool CanStart;
+        public readonly RoomGatewaySessionRestoreStatus RestoreStatus;
+        public readonly RoomGatewaySessionRestoreErrorCode RestoreErrorCode;
+
+        public bool CanRetry =>
+            RestoreStatus == RoomGatewaySessionRestoreStatus.Timeout ||
+            (RestoreStatus == RoomGatewaySessionRestoreStatus.Failed &&
+             RestoreErrorCode == RoomGatewaySessionRestoreErrorCode.InternalError);
 
         public RoomGatewayStagedRestoreResult(
             string roomId,
             ulong numericRoomId,
-            RoomGatewaySnapshot snapshot,
+            RoomGatewaySnapshot? snapshot,
             RoomGatewaySessionPhase phase,
             RoomGatewayStagedRestoreNextStep nextStep,
             uint playerId,
             long serverNowTicks,
-            string message)
+            string message,
+            RoomGatewaySessionEntryKind entryKind,
+            bool canStart,
+            RoomGatewaySessionRestoreStatus restoreStatus,
+            RoomGatewaySessionRestoreErrorCode restoreErrorCode)
         {
             RoomId = roomId ?? string.Empty;
             NumericRoomId = numericRoomId;
@@ -1247,6 +1485,10 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             PlayerId = playerId;
             ServerNowTicks = serverNowTicks;
             Message = message ?? string.Empty;
+            EntryKind = entryKind;
+            CanStart = canStart;
+            RestoreStatus = restoreStatus;
+            RestoreErrorCode = restoreErrorCode;
         }
     }
 }

@@ -50,6 +50,8 @@ namespace AbilityKit.Demo.Moba.Systems
         public const int BrainOutputApply = Base + WorldSystemOrder.Normal + 9;
         /// <summary>移动输入处理</summary>
         public const int MotionLocomotionInput = Base + WorldSystemOrder.Normal + 10;
+        /// <summary>寻路跟随（读脑决策目标，驱动 Path motion 源；晚于 LocomotionInput、早于 MotionTick）</summary>
+        public const int PathFollowing = Base + WorldSystemOrder.Normal + 20;
         /// <summary>移动 Tick</summary>
         public const int MotionTick = Base + WorldSystemOrder.Normal + 50;
 
@@ -117,6 +119,16 @@ namespace AbilityKit.Demo.Moba.Systems
             if (!RunsBefore(MotionLocomotionInput, MotionTick))
             {
                 return Fail(nameof(MotionLocomotionInput), nameof(MotionTick));
+            }
+
+            if (!RunsBefore(BrainTick, PathFollowing))
+            {
+                return Fail(nameof(BrainTick), nameof(PathFollowing));
+            }
+
+            if (!RunsBefore(PathFollowing, MotionTick))
+            {
+                return Fail(nameof(PathFollowing), nameof(MotionTick));
             }
 
             if (!RunsBefore(PassiveSkillTriggers, SkillPipelines))

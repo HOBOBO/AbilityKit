@@ -57,7 +57,7 @@ namespace AbilityKit.Game.Battle
             // Ensure local/in-memory world dependencies are resolvable.
             // Server worlds typically register IFrameTime via ServerFrameTimeModule.
             options.ServiceBuilder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new FrameTime());
-            options.ServiceBuilder.Register<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService());
+            options.ServiceBuilder.Register<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService(new CollisionWorldOptions { BroadphaseType = BroadphaseType.Grid, GridCellSize = 4f }));
             options.ServiceBuilder.TryRegister<IAssetProvider>(WorldLifetime.Singleton, _ => ResourcesAssetProvider.Shared);
 
             // Defensive: upstream may already have added MobaWorldBootstrapModule (possibly multiple times).

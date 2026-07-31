@@ -21,7 +21,7 @@ internal interface IRoomGameplayAdapter
 
     void SetReady(object state, RoomReadyRequest request);
 
-    void SubmitCommand(object state, RoomGameplayCommandRequest request);
+    RoomGameplayCommandResult SubmitCommand(object state, RoomGameplayCommandRequest request);
 
     bool CanStart(object state);
 
@@ -34,4 +34,18 @@ internal interface IRoomGameplayAdapter
     BattleInitParams BuildBattleInitParams(object state, RoomSummary summary, StartRoomBattleRequest request);
 
     PlayerInitInfo? BuildLateJoinPlayer(object state, RoomSummary summary, string accountId);
+}
+
+internal readonly record struct RoomGameplayCommandResult(
+    bool Success,
+    RoomOperationErrorCode ErrorCode,
+    string Message)
+{
+    public static RoomGameplayCommandResult Accepted() =>
+        new(true, RoomOperationErrorCode.None, string.Empty);
+
+    public static RoomGameplayCommandResult Rejected(
+        RoomOperationErrorCode errorCode,
+        string message) =>
+        new(false, errorCode, message ?? string.Empty);
 }

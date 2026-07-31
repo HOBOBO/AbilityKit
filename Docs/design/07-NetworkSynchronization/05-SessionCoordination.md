@@ -64,7 +64,7 @@ AbilityKit 把这些职责拆成几层：
 | Gateway flow | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/RoomGatewaySessionFlow.cs` | create/join/ready/start/subscribe/restore 编排 |
 | 帧包适配 | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs` | 输入双写和快照路由 |
 | MOBA view adapter | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/BattleSessionNetAdapter.cs` | Demo View 包对通用帧包适配器的封装 |
-| Shooter coordinator host | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Hosting/ShooterCoordinatorSessionHost.cs` | Shooter 使用已有 world + transport 注入 |
+| Shooter 客户端会话 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client` | 已有完整 session 生命周期，直接组合 Gateway flow、预测管线与框架输入队列 |
 
 ### 2.2 Server/Orleans
 
@@ -335,20 +335,21 @@ flowchart LR
 
 ## 6. Gateway 入场流程
 
-`RoomGatewaySessionFlow` 是一个高层流程编排器，依赖 `IRoomGatewaySessionClient`。它封装了 create/join/ready/start/subscribe/restore 的常见顺序，并返回 `RoomGatewaySessionFlowResult`。
+`RoomGatewaySessionFlow` 是依赖 `IRoomGatewaySessionClient` 的阶段化会话工具。框架公开 create/join/ready/loading/wait/subscribe/restore 原子阶段；具体示例在自己的会话层组合阶段。未稳定的 create/join/restore 聚合入口已经删除，不再维护两套流程。
 
 ### 6.1 创建房间并开战
 
-`CreateReadyStartAndSubscribeAsync` 的源码步骤：
+Shooter 创建房间的业务用例按以下阶段组合：
 
 1. 校验 `sessionToken` 和 `playerId`。
 2. `CreateRoomAsync`。
 3. `JoinRoomAsync`。
 4. `SetReadyAsync`。
-5. `StartBattleAsync`。
-6. 从 start/ready/join 结果选择 `battleId`。
-7. `SubscribeStateSyncAsync`。
-8. 返回 result，包含 room、battle、world、player、anchor、server ticks、entry kind、订阅状态。
+5. `BeginLoadingAsync`。
+6. `ReportAssetsLoadedAsync`。
+7. `WaitForBattleStartAsync`。
+8. `SubscribeStateSyncAsync`。
+9. 示例会话构造包含 room、battle、world、player、anchor、server ticks、entry kind 的最终结果。
 
 ```mermaid
 sequenceDiagram
@@ -361,22 +362,24 @@ sequenceDiagram
     Client-->>Flow: JoinResult
     Flow->>Client: SetReadyAsync
     Client-->>Flow: ReadyResult
-    Flow->>Client: StartBattleAsync
+    Flow->>Client: BeginLoadingAsync
+    Flow->>Client: ReportAssetsLoadedAsync
+    Flow->>Client: WaitForBattleStartAsync
     Client-->>Flow: BattleId + WorldId + WorldStartAnchor
     Flow->>Client: SubscribeStateSyncAsync
     Client-->>Flow: SubscriptionResult
-    Flow-->>Flow: Build RoomGatewaySessionFlowResult
+    Flow-->>Flow: Build example launch result
 ```
 
 ### 6.2 加入房间或运行中战斗
 
-`JoinReadyStartAndSubscribeAsync` 先 join。如果 join 结果不是 `TeamLobby`，且带 `BattleId`，说明已经是 reconnect 或 late join 到运行中战斗：
+示例会话先调用 `JoinRoomAsync`。如果 join 结果不是 `TeamLobby`，且带 `BattleId`，说明已经是 reconnect 或 late join 到运行中战斗：
 
 - 直接 `SubscribeStateSyncAsync`。
 - 返回 `started: true`。
 - 使用 join 结果中的 `WorldStartAnchor`、`WorldId`、`JoinKind`。
 
-否则才进入 ready/start/subscribe。
+否则才进入 ready/loading/report/wait/subscribe。
 
 ```mermaid
 flowchart TD
@@ -384,23 +387,22 @@ flowchart TD
     B -- yes --> C[SubscribeStateSyncAsync]
     C --> D[return running battle result]
     B -- no --> E[SetReadyAsync]
-    E --> F[StartBattleAsync]
-    F --> G[SubscribeStateSyncAsync]
+    E --> F[BeginLoading + ReportAssetsLoaded]
+    F --> G[WaitForBattleStart + SubscribeStateSync]
     G --> H[return lobby-start result]
 ```
 
-### 6.3 恢复运行中战斗
+### 6.3 从任意房间阶段恢复
 
-`RestoreRoomAsync` 的源码步骤：
+`RestoreAsync` 的源码步骤：
 
 1. 校验 session token、region、serverId、playerId。
-2. `RestoreRoomAsync(sessionToken, region, serverId)`。
-3. 如果没有 active room，抛异常。
-4. 如果不是 in battle 或没有 battleId，抛异常。
-5. `SubscribeStateSyncAsync`。
-6. 返回包含 restore status/error code 的 result。
+2. 调用底层 `RestoreRoomAsync(sessionToken, region, serverId)` 恢复成员关系。
+3. active room 存在时读取一次 `GetSnapshotAsync`；请求失败时用 restore 响应合成最小快照。
+4. 根据快照阶段返回 `RoomGatewayStagedRestoreNextStep`。
+5. 结果同时保留 snapshot、entry kind、can start、restore status/error code 和服务器时间。
 
-这条路径用于断线恢复。它要求恢复结果已经指向运行中 battle，不能恢复到一个没有 battle 的大厅态。
+示例会话根据 `NextStep` 从正确位置继续：Lobby 从 ready/loading 开始，Loading 只补资源上报，Starting 只等待开战，InBattle 直接订阅。最终订阅携带 `eventEpoch` 和 `lastEventAck`，不会因阶段恢复丢失可靠事件游标。
 
 ---
 
@@ -725,7 +727,11 @@ flowchart TD
 - 如果没有 `_battleId`，join kind 是 `TeamLobby`。
 - 如果已有 `_battleId`，join kind 是 `Reconnect`，`IsInBattle` 为 true。
 
-`RoomGatewaySessionFlow.RestoreRoomAsync` 更严格：它要求恢复结果必须有 active room 且处于 battle，否则直接抛异常，因为这个方法的目标就是恢复到运行中的战斗并订阅状态同步。
+`RoomGatewaySessionFlow.RestoreAsync` 会再读取房间快照并返回阶段化 `NextStep`。因此客户端既能恢复运行中战斗，也能从 Lobby、Loading、Starting 继续，不需要回退到整条聚合启动流程。
+
+MOBA 的 `MultiplayerRoomFlowController.RestoreAsync` 只根据 `NextStep` 定位业务状态：Lobby 对应 `InLobby`，Loading 对应 `LoadingAssets`，Starting 对应 `WaitingForBattle`，InBattle 对应 `InBattle`。恢复本身不会重放 ready、begin-loading、assets-loaded 或 wait 请求；后续动作仍由各状态的显式入口触发。状态同步订阅继续由 `BattleSessionFeature` 持有，房间恢复层不会建立第二套订阅生命周期。
+
+恢复失败使用结构化诊断而不是统一抛出 `InvalidOperationException`。`NoActiveRoom`、`NotMember`、`RoomClosed`、`RoomExpired`、`InvalidSession`、`Timeout` 和 `Failed/InternalError` 会保留到示例结果；`Timeout` 与内部错误标记为可重试，调用者取消仍保持取消语义并直接抛出。
 
 ### 10.3 已有 world 接入 Coordinator
 
@@ -739,29 +745,20 @@ flowchart TD
 - `DisposeAll` 不销毁外部 world。
 - `ExistingWorldOverlayResolver` 会先查 service overrides，再查原 world services。
 
-Shooter 的接入就是专门封装：
+`ExistingWorldSessionCoordinatorHost` 只适合 Coordinator 确实拥有完整会话编排的场景。Shooter 当前已经由 `ShooterClientSession`、`ShooterClientNetworkLauncher` 和 `RoomGatewaySessionFlow` 持有连接、房间、快照订阅、预测与重连生命周期，因此没有再接入 Coordinator：
 
 ```mermaid
 flowchart TD
-    A[Existing Shooter IWorld] --> B[ShooterGatewayCoordinatorInputTransport]
-    A --> C[ShooterCoordinatorSessionHost]
-    B --> C
-    C --> D[ExistingWorldSessionCoordinatorHost]
-    D --> E[SessionCoordinator.Initialize]
-    E --> F[RemoteSyncAdapter resolves transport]
+    A[ShooterRemoteStateSyncPlayModeHost] --> B[ShooterClientSession]
+    A --> C[ShooterClientNetworkLauncher]
+    C --> D[RoomGatewaySessionFlow]
+    B --> E[Local prediction and reconciliation]
+    A --> F[RemoteClientInputSubmitQueue]
+    F --> G[ShooterClientBattleHandle]
+    G --> H[Gateway battle input]
 ```
 
-`ShooterCoordinatorSessionHost.ConfigureShooterSession` 会设置：
-
-- `SyncMode = StateSync`
-- `HostMode = Client`
-- `WorldType = ShooterGameplay.WorldType`
-- `UseCoordinatorSpawnService = false`
-- `RequireLogicWorldDriveGate = true`
-- `EnableClientPrediction = false`
-- `MaxPredictionAheadFrames = 0`
-
-这说明 Shooter 客户端把已有 runtime world 纳入通用会话层，但不让 Coordinator 再负责生成玩家或盲目驱动逻辑世界。
+该边界避免为了转发一次已接受输入而创建 `SessionCoordinator`、existing-world overlay、remote adapter 和额外 Tick。Shooter 仍复用框架 `RemoteClientInputSubmitQueue` 的背压、最新值替换和诊断能力；只有协议相关提交留在 `ShooterClientBattleHandle`。
 
 ---
 
@@ -773,7 +770,7 @@ flowchart TD
 
 ### 11.2 Gateway Flow 管入场脚本，不管每帧输入
 
-`RoomGatewaySessionFlow` 适合 create/join/ready/start/subscribe/restore 这种阶段性操作。每帧输入走 `RemoteSyncAdapter.SubmitInput`，这样输入、快照和连接状态仍在 sync adapter 生命周期中。
+`RoomGatewaySessionFlow` 适合 create/join/ready/start/subscribe/restore 这种阶段性操作。每帧输入的出口由当前会话所有者决定：Coordinator 拥有完整会话时走 `RemoteSyncAdapter.SubmitInput`；Shooter 已有完整客户端 session 时走框架提交队列到 `ShooterClientBattleHandle`。两种方式都只能有一个网络生命周期所有者。
 
 ### 11.3 Room 管成员和恢复，Battle 管权威模拟
 
@@ -794,9 +791,9 @@ Room 如果直接 Tick 战斗，会混入成员清理、目录通知、玩法房
 | 风险 | 表现 | 检查点 |
 |------|------|--------|
 | 把 adapter 类型存在当作模式完备 | Hybrid 被宣传为已完成预测、校正和重演 | 对照 5.4 成熟度矩阵与源码 TODO，按子能力声明 |
-| 业务绕过 Coordinator | 输入直接打 Gateway，回放/本地/测试路径不一致 | 所有本地输入先进入 `SubmitLocalInput` |
+| 重复创建会话协调层 | 只为输入转发又启动一套 Coordinator、transport 和 Tick | 先确认现有 session 是否已经拥有连接、预测、快照与重连生命周期 |
 | transport 未注入 | Remote 模式启动但永远 disconnected | world services 是否能解析 `IRemoteBattleSyncTransport` |
-| 已有 world 被重复创建 | 客户端出现两个逻辑世界或双 Tick | 使用 `ExistingWorldSessionCoordinatorHost` |
+| 已有 world 被重复创建 | 客户端出现两个逻辑世界或双 Tick | 完整接入 Coordinator 时使用 `ExistingWorldSessionCoordinatorHost`；已有完整 session 时不要再叠加 Coordinator |
 | Room/Battle 边界混乱 | 晚加入、恢复、权威 Tick 互相影响 | Room 只管成员/生命周期，Battle 只管 runtime/Tick |
 | 输入帧落点不一致 | 客户端请求帧与服务端接受帧不同步 | 检查 `BattleInputSubmitResult.AcceptedFrame` 和 `Status` |
 | 快照订阅缺失 | 战斗开始后客户端没有状态推送 | Gateway flow 是否调用 `SubscribeStateSyncAsync` |

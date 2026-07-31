@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly bool IsFullSnapshot;
         public readonly IReadOnlyList<ShooterGatewayActorSnapshot> Actors;
         public readonly int PayloadOpCode;
+        public readonly byte[] PayloadBytes;
         public readonly ShooterPackedSnapshotPayload? PackedSnapshot;
         public readonly ShooterPureStateSnapshotPayload? PureStateSnapshot;
 
@@ -24,7 +25,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
         }
 
-        public ShooterGatewaySnapshot(ulong worldId, int frame, double timestamp, long serverTicks, bool isFullSnapshot, IReadOnlyList<ShooterGatewayActorSnapshot> actors, int payloadOpCode = 0, ShooterPackedSnapshotPayload? packedSnapshot = null, ShooterPureStateSnapshotPayload? pureStateSnapshot = null)
+        public ShooterGatewaySnapshot(ulong worldId, int frame, double timestamp, long serverTicks, bool isFullSnapshot, IReadOnlyList<ShooterGatewayActorSnapshot> actors, int payloadOpCode = 0, ShooterPackedSnapshotPayload? packedSnapshot = null, ShooterPureStateSnapshotPayload? pureStateSnapshot = null, byte[]? payloadBytes = null)
         {
             WorldId = worldId;
             Frame = frame;
@@ -33,6 +34,7 @@ namespace AbilityKit.Demo.Shooter.View
             IsFullSnapshot = isFullSnapshot;
             Actors = actors ?? Array.Empty<ShooterGatewayActorSnapshot>();
             PayloadOpCode = payloadOpCode;
+            PayloadBytes = payloadBytes ?? Array.Empty<byte>();
             PackedSnapshot = packedSnapshot;
             PureStateSnapshot = pureStateSnapshot;
         }
@@ -82,7 +84,8 @@ namespace AbilityKit.Demo.Shooter.View
                     Array.Empty<ShooterGatewayActorSnapshot>(),
                     push.PayloadOpCode,
                     packedSnapshot,
-                    pureStateSnapshot);
+                    pureStateSnapshot,
+                    push.Payload);
             }
 
             var actors = new ShooterGatewayActorSnapshot[source.Count];
@@ -110,7 +113,8 @@ namespace AbilityKit.Demo.Shooter.View
                 actors,
                 push.PayloadOpCode,
                 packedSnapshot,
-                pureStateSnapshot);
+                pureStateSnapshot,
+                push.Payload);
         }
 
         private static ShooterPackedSnapshotPayload? TryDecodePackedSnapshot(int payloadOpCode, byte[]? payload)

@@ -76,7 +76,6 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             return new MobaBrainDecisionDriverRegistry(new IMobaBrainDecisionDriver[]
             {
                 new MobaBTreeBrainDecisionDriver(),
-                new MobaHfsmBrainDecisionDriver(),
             });
         }
 
@@ -84,6 +83,11 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         {
             if (driver == null) throw new ArgumentNullException(nameof(driver));
             _drivers[driver.Kind] = driver;
+        }
+
+        public bool Contains(MobaBrainDriverKind kind)
+        {
+            return _drivers.ContainsKey(kind);
         }
 
         public bool TryCreate(in MobaBrainDecisionCreateContext context, out IBehaviorDecision decision)
@@ -117,7 +121,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
                 context.Registry,
                 context.Config,
                 context.SearchTargets,
-                context.CurrentTimeMsProvider);
+                context.CurrentTimeMsProvider,
+                context.Definition.SkillSelectionPolicy);
             if (decision == null)
             {
                 Log.Warning($"[MobaBrain] behavior tree create failed. brainId={context.Definition.BrainId} tree={treeName}");

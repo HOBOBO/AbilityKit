@@ -1,16 +1,16 @@
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Transport;
-using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Game.Flow
 {
     /// <summary>
-    /// 断线重连编排（客户端战斗链路）。
+    /// 断线后的战斗状态恢复（客户端战斗链路）。
     ///
     /// 触发链：
-    /// NetworkTransport.ConnectionClosed → 进入重连等待（指数退避）→ Connect()
-    /// → ConnectionEstablished → 重置客户端状态 → 世界随 FullSnapshot 追帧恢复。
+    /// ConnectionManager 统一执行退避重连 → NetworkTransport.ConnectionEstablished
+    /// → 重置客户端状态 → 世界随 FullSnapshot 追帧恢复。
+    /// 本 Feature 只消费连接事件，不维护第二套 socket 重连计时或 attempt 生命周期。
     ///
     /// 重连后的状态重置（P1 端到端）：
     /// 1. 销毁 RemoteDriven 预测世界（含重置 _remoteDrivenLastTickedFrame），标记待状态导入
@@ -26,21 +26,15 @@ namespace AbilityKit.Game.Flow
     /// </summary>
     public sealed partial class BattleSessionFeature
     {
-        private const int MaxReconnectAttempts = ReconnectBackoffPolicy.MaxAttempts;
-
         private bool _reconnectWatchEnabled;
-        private bool _reconnectPending;
-        private int _reconnectAttempts;
-        private float _reconnectTimer;
+        private bool _battleConnectionRecoveryPending;
 
         private void HookReconnectWatch(NetworkTransport transport)
         {
             if (transport == null || _reconnectWatchEnabled) return;
 
             _reconnectWatchEnabled = true;
-            _reconnectPending = false;
-            _reconnectAttempts = 0;
-            _reconnectTimer = 0f;
+            _battleConnectionRecoveryPending = false;
             transport.ConnectionClosed += OnBattleConnectionClosed;
             transport.ConnectionEstablished += OnBattleConnectionEstablished;
         }
@@ -49,7 +43,7 @@ namespace AbilityKit.Game.Flow
         {
             if (!_reconnectWatchEnabled) return;
             _reconnectWatchEnabled = false;
-            _reconnectPending = false;
+            _battleConnectionRecoveryPending = false;
 
             if (_interpolationTransport != null)
             {
@@ -62,52 +56,21 @@ namespace AbilityKit.Game.Flow
         {
             // 会话已停止（主动 Disconnect）时不进入自动重连。
             if (!_reconnectWatchEnabled || _handles.Session == null) return;
-            if (_reconnectAttempts >= MaxReconnectAttempts) return;
+            _battleConnectionRecoveryPending = true;
 
-            _reconnectPending = true;
-            _reconnectTimer = 0f;
-            Log.Warning($"[BattleSessionFeature] Battle connection lost. Scheduling reconnect (attempt {_reconnectAttempts + 1}/{MaxReconnectAttempts}).");
+            Log.Warning(
+                "[BattleSessionFeature] Battle connection lost. " +
+                "ConnectionManager is scheduling transport recovery.");
         }
 
         private void OnBattleConnectionEstablished()
         {
-            if (!_reconnectWatchEnabled || !_reconnectPending) return;
+            if (!_reconnectWatchEnabled || !_battleConnectionRecoveryPending) return;
 
-            _reconnectPending = false;
-            _reconnectAttempts = 0;
-            _reconnectTimer = 0f;
+            _battleConnectionRecoveryPending = false;
 
             Log.Info("[BattleSessionFeature] Battle connection re-established. Resetting client state for catch-up.");
             ResetStateAfterReconnect();
-        }
-
-        private void TickReconnect(float deltaTime)
-        {
-            if (!_reconnectPending) return;
-
-            _reconnectTimer += deltaTime;
-            var delay = ReconnectBackoffPolicy.ResolveDelay(_reconnectAttempts);
-            if (_reconnectTimer < delay) return;
-
-            _reconnectTimer = 0f;
-            _reconnectAttempts++;
-
-            if (_reconnectAttempts > MaxReconnectAttempts)
-            {
-                _reconnectPending = false;
-                Log.Error($"[BattleSessionFeature] Reconnect gave up after {MaxReconnectAttempts} attempts.");
-                return;
-            }
-
-            Log.Info($"[BattleSessionFeature] Reconnect attempt {_reconnectAttempts}/{MaxReconnectAttempts}...");
-            try
-            {
-                _interpolationTransport?.Connect();
-            }
-            catch (System.Exception ex)
-            {
-                Log.Exception(ex, "[BattleSessionFeature] Reconnect attempt failed");
-            }
         }
 
         private void ResetStateAfterReconnect()
@@ -119,6 +82,7 @@ namespace AbilityKit.Game.Flow
             // 在此之前的窗口期内，插值层驱动全部 actor（含本地玩家），画面保持正确。
             DisposeRemoteDrivenWorld();
             _pendingStateImport = true;
+            if (_ctx != null) _ctx.CanSubmitGameplayInput = false;
             _snapshotAdmission?.RequireFullBaseline();
             _authoritativeSnapshotState?.Reset();
 

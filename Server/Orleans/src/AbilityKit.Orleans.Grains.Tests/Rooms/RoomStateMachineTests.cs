@@ -158,6 +158,28 @@ public sealed class RoomStateMachineTests
     }
 
     [Fact]
+    public void ReportAssetsLoaded_WithMismatchedManifest_IsRejectedWithoutMutation()
+    {
+        var state = CreateLoadingState("a");
+
+        var report = RoomStateMachine.ReportAssetsLoaded(
+            state,
+            "a",
+            generation: state.Launch.Generation,
+            manifestVersion: state.Launch.ManifestVersion + 1,
+            manifestHash: "wrong-hash",
+            nowTicks: NowTicks,
+            nowUnixMs: NowUnixMs);
+
+        Assert.False(report.Result.Success);
+        Assert.False(report.Applied);
+        Assert.Equal(RoomOperationErrorCode.InvalidOperation, report.Result.ErrorCode);
+        Assert.Equal(RoomPhase.Loading, report.State.Phase);
+        Assert.False(report.State.Members[0].State.AssetsLoaded);
+        Assert.Equal(0, report.State.Members[0].State.LoadingProgress);
+    }
+
+    [Fact]
     public void ReportAssetsLoaded_OutsideLoading_ReturnsInvalidPhase()
     {
         // generation 匹配但 phase=Lobby，应拒绝 InvalidPhase。
@@ -211,6 +233,69 @@ public sealed class RoomStateMachineTests
         Assert.True(first.Applied);
         Assert.False(second.Applied);
         Assert.True(second.Result.Success);
+    }
+
+    [Fact]
+    public void ReportLoadingProgress_IsMonotonicAndDoesNotMarkAssetsLoaded()
+    {
+        var state = CreateLoadingState("a");
+
+        var first = RoomStateMachine.ReportLoadingProgress(
+            state, "a", state.Launch.Generation, 1, "hash", 35, NowTicks, NowUnixMs);
+        var regressive = RoomStateMachine.ReportLoadingProgress(
+            first.State, "a", state.Launch.Generation, 1, "hash", 20, NowTicks, NowUnixMs);
+
+        Assert.True(first.Applied);
+        Assert.Equal(35, first.State.Members[0].State.LoadingProgress);
+        Assert.False(first.State.Members[0].State.AssetsLoaded);
+        Assert.False(regressive.Applied);
+        Assert.Equal(35, regressive.State.Members[0].State.LoadingProgress);
+    }
+
+    [Fact]
+    public void ReportLoadingProgress_CoalescesSubThresholdDeltaButAlwaysAcceptsCompletion()
+    {
+        var state = CreateLoadingState("a");
+        var first = RoomStateMachine.ReportLoadingProgress(
+            state, "a", state.Launch.Generation, 1, "hash", 35, NowTicks, NowUnixMs);
+        var coalesced = RoomStateMachine.ReportLoadingProgress(
+            first.State, "a", state.Launch.Generation, 1, "hash", 36, NowTicks, NowUnixMs);
+        var completion = RoomStateMachine.ReportLoadingProgress(
+            first.State, "a", state.Launch.Generation, 1, "hash", 100, NowTicks, NowUnixMs);
+
+        Assert.False(coalesced.Applied);
+        Assert.Equal(35, coalesced.State.Members[0].State.LoadingProgress);
+        Assert.True(completion.Applied);
+        Assert.Equal(100, completion.State.Members[0].State.LoadingProgress);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(101)]
+    public void ReportLoadingProgress_RejectsOutOfRange(int progress)
+    {
+        var state = CreateLoadingState("a");
+
+        var report = RoomStateMachine.ReportLoadingProgress(
+            state, "a", state.Launch.Generation, 1, "hash", progress, NowTicks, NowUnixMs);
+
+        Assert.False(report.Result.Success);
+        Assert.Equal(RoomOperationErrorCode.InvalidOperation, report.Result.ErrorCode);
+    }
+
+    [Fact]
+    public void ReportAssetsLoaded_AtomicallyCompletesProgress()
+    {
+        var state = CreateLoadingState("a");
+        var partial = RoomStateMachine.ReportLoadingProgress(
+            state, "a", state.Launch.Generation, 1, "hash", 75, NowTicks, NowUnixMs);
+
+        var loaded = RoomStateMachine.ReportAssetsLoaded(
+            partial.State, "a", state.Launch.Generation, 1, "hash", NowTicks, NowUnixMs);
+
+        Assert.True(loaded.State.Members[0].State.AssetsLoaded);
+        Assert.Equal(100, loaded.State.Members[0].State.LoadingProgress);
+        Assert.Equal(RoomPhase.Starting, loaded.State.Phase);
     }
 
     [Fact]
@@ -672,7 +757,7 @@ public sealed class RoomStateMachineTests
             Members = members,
             NextJoinOrdinal = ordinal,
             Summary = state.Summary with { PlayerCount = members.Count },
-            Launch = new RoomLaunchPersistentState(7, 0, 0, null, accountIds.ToList())
+            Launch = new RoomLaunchPersistentState(7, 0, 1, "hash", accountIds.ToList())
         };
     }
 }

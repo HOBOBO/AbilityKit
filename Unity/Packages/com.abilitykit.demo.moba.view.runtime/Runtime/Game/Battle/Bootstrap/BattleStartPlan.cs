@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
+using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Game.Flow
@@ -14,6 +15,7 @@ namespace AbilityKit.Game.Flow
         public readonly BattleStartPlanRunModeOptions RunModeOptions;
         public readonly BattleStartPlanCreateWorldOptions CreateWorld;
         public readonly BattleStartPlanTimeSyncOptions TimeSync;
+        public readonly MobaReliableBattleEventCheckpoint ReliableEventCheckpoint;
 
         public readonly BattleStartConfig.BattleHostMode HostMode;
         public readonly MobaBattleLaunchSpec LaunchSpec;
@@ -137,7 +139,8 @@ namespace AbilityKit.Game.Flow
                 idealFrameSafetyMaxMarginFrames: TimeSync.IdealFrameSafetyMaxMarginFrames,
                 enabledSnapshotRegistryIds: Sync.EnabledSnapshotRegistryIds,
                 launchSpec: LaunchSpec,
-                gatewayBattleId: Gateway.BattleId);
+                gatewayBattleId: Gateway.BattleId,
+                reliableEventCheckpoint: ReliableEventCheckpoint);
         }
 
         public BattleStartPlan WithGatewayRoom(string worldId, ulong numericRoomId)
@@ -187,7 +190,8 @@ namespace AbilityKit.Game.Flow
                 idealFrameSafetyMaxMarginFrames: TimeSync.IdealFrameSafetyMaxMarginFrames,
                 enabledSnapshotRegistryIds: Sync.EnabledSnapshotRegistryIds,
                 launchSpec: LaunchSpec,
-                gatewayBattleId: Gateway.BattleId);
+                gatewayBattleId: Gateway.BattleId,
+                reliableEventCheckpoint: ReliableEventCheckpoint);
         }
 
         public BattleStartPlan WithInputReplay(string inputReplayPath)
@@ -237,7 +241,8 @@ namespace AbilityKit.Game.Flow
                 idealFrameSafetyMaxMarginFrames: TimeSync.IdealFrameSafetyMaxMarginFrames,
                 enabledSnapshotRegistryIds: Sync.EnabledSnapshotRegistryIds,
                 launchSpec: LaunchSpec,
-                gatewayBattleId: Gateway.BattleId);
+                gatewayBattleId: Gateway.BattleId,
+                reliableEventCheckpoint: ReliableEventCheckpoint);
         }
 
         public BattleStartPlan(
@@ -285,7 +290,8 @@ namespace AbilityKit.Game.Flow
             int idealFrameSafetyMaxMarginFrames = 30,
             string[] enabledSnapshotRegistryIds = null,
             MobaBattleLaunchSpec launchSpec = default,
-            string gatewayBattleId = "")
+            string gatewayBattleId = "",
+            MobaReliableBattleEventCheckpoint reliableEventCheckpoint = default)
         {
             World = new BattleStartPlanWorldOptions(
                 worldId,
@@ -330,6 +336,7 @@ namespace AbilityKit.Game.Flow
 
             HostMode = hostMode;
             LaunchSpec = launchSpec;
+            ReliableEventCheckpoint = reliableEventCheckpoint;
         }
 
         public BattleStartPlan(

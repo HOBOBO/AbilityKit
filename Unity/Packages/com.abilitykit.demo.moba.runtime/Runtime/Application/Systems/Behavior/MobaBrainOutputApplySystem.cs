@@ -5,6 +5,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
+using AbilityKit.Demo.Moba.Services.Map;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
@@ -27,6 +28,7 @@ namespace AbilityKit.Demo.Moba.Systems
         private MobaBrainService _brains;
         private SkillCastCoordinator _skills;
         private IFrameTime _frameTime;
+        private IMobaMapRuntimeService _maps;
         private Entitas.IGroup<global::ActorEntity> _group;
 
         public MobaBrainOutputApplySystem(global::Entitas.IContexts contexts, IWorldResolver services)
@@ -39,6 +41,7 @@ namespace AbilityKit.Demo.Moba.Systems
             Services.TryResolve(out _brains);
             Services.TryResolve(out _skills);
             Services.TryResolve(out _frameTime);
+            Services.TryResolve(out _maps);
             _group = Contexts.Actor().GetGroup(global::ActorMatcher.AllOf(
                 global::ActorComponentsLookup.ActorId,
                 global::ActorComponentsLookup.ActorBrain));
@@ -63,6 +66,12 @@ namespace AbilityKit.Demo.Moba.Systems
                 if (movement.HasValue && movement.Value.TargetPosition.HasValue)
                 {
                     var targetPos = movement.Value.TargetPosition.Value;
+                    if (_maps != null && _maps.IsLoaded
+                        && _maps.TryProjectToWalkable(in targetPos, 0.5f, out var projectedTarget))
+                    {
+                        targetPos = projectedTarget;
+                    }
+
                     var ownerPos = e.transform.Value.Position;
                     var dx = targetPos.X - ownerPos.X;
                     var dz = targetPos.Z - ownerPos.Z;

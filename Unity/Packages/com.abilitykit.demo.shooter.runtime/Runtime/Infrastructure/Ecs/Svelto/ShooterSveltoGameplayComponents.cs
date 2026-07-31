@@ -17,6 +17,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public int Alive;
     }
 
+    public struct ShooterSveltoNavigationComponent : IEntityComponent
+    {
+        public float VelocityX;
+        public float VelocityY;
+        public float Radius;
+        public float MaxSpeed;
+    }
+
     public struct ShooterSveltoWeaponComponent : IEntityComponent
     {
         public int LoadoutId;

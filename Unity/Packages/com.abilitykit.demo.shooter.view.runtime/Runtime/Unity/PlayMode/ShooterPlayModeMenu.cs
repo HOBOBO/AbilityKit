@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Demo.Shooter.View.Hosting;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
@@ -62,9 +63,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private string _status = "Ready";
         private string _error = string.Empty;
         private bool _busy;
+        private bool _multiplayerEntry;
 
         private void Awake()
         {
+            _multiplayerEntry = ShooterMultiplayerLaunchContext.ConsumeRequest();
             EnsureUniqueDefaultIdentity();
         }
 
@@ -89,10 +92,16 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
             DrawSessionSettings();
             DrawRenderingSettings();
-            DrawLocalControls();
-            DrawGatewayControls();
-            DrawRemoteControls();
-            DrawRoomList();
+            if (_multiplayerEntry)
+            {
+                DrawGatewayControls();
+                DrawRemoteControls();
+                DrawRoomList();
+            }
+            else
+            {
+                DrawLocalControls();
+            }
             DrawStatus();
 
             GUILayout.Space(4f);
@@ -278,6 +287,45 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             GUILayout.EndHorizontal();
             GUILayout.Label($"Remote: {RemoteStateLabel()}");
             GUILayout.Label($"Initial Sync: {ShooterRemoteStateSyncPlayModeHost.LastInitialFullStateSyncApplyResult}");
+            DrawMultiplayerLoadingStatus();
+        }
+
+        private static void DrawMultiplayerLoadingStatus()
+        {
+            var loading = ShooterMultiplayerLoadingStatus.Current;
+            if (loading.LocalProgress <= 0 && string.IsNullOrWhiteSpace(loading.Stage) && loading.Snapshot == null)
+            {
+                return;
+            }
+
+            GUILayout.Space(4f);
+            GUILayout.Label($"Loading: {loading.LocalProgress}%  {loading.Stage}");
+            DrawProgressBar(loading.LocalProgress);
+
+            var players = loading.Snapshot?.Players;
+            if (players == null || players.Count == 0)
+            {
+                return;
+            }
+
+            GUILayout.Label("Authoritative player readiness:");
+            for (var i = 0; i < players.Count; i++)
+            {
+                var player = players[i];
+                var state = player.AssetsLoaded ? "Ready" : "Loading";
+                GUILayout.Label($"P{player.PlayerId} {player.AccountId}: {player.LoadingProgress}% ({state})");
+                DrawProgressBar(player.LoadingProgress);
+            }
+        }
+
+        private static void DrawProgressBar(int progress)
+        {
+            var value = Mathf.Clamp(progress, 0, 100);
+            var rect = GUILayoutUtility.GetRect(1f, 18f, GUILayout.ExpandWidth(true));
+            GUI.Box(rect, string.Empty);
+            var fill = new Rect(rect.x + 2f, rect.y + 2f, (rect.width - 4f) * value / 100f, rect.height - 4f);
+            if (fill.width > 0f) GUI.Box(fill, string.Empty);
+            GUI.Label(rect, $"{value}%", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
         }
 
         private void DrawRoomList()
@@ -321,6 +369,12 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             if (!string.IsNullOrWhiteSpace(_error))
             {
                 GUILayout.Label($"Error: {_error}");
+            }
+
+            if (_multiplayerEntry && !_busy && GUILayout.Button("Exit to Multiplayer Starter", GUILayout.Height(28f)))
+            {
+                ShooterRemoteStateSyncPlayModeHost.Stop();
+                SceneManager.LoadScene("MultiplayerStarterScene", LoadSceneMode.Single);
             }
         }
 

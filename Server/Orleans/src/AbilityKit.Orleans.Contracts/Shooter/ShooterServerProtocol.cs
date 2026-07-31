@@ -40,6 +40,7 @@ public static class ShooterServerProtocol
 
 public static class ShooterRoomTagKeys
 {
+    public const string MinPlayers = "minPlayers";
     public const string TickRate = "tickRate";
     public const string MapId = "mapId";
     public const string RandomSeed = "randomSeed";

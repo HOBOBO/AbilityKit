@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using AbilityKit.Game;
 using UnityEditor;
@@ -9,6 +10,7 @@ namespace AbilityKit.Game.Editor
 {
     public static class MobaDemoSceneMenu
     {
+        private const int DemoMapId = 1;
         private const string DemoScenePath = "Assets/Scenes/MobaDemoScene.unity";
         private const string MenuRoot = "Tools/AbilityKit/MOBA Demo/";
 
@@ -28,6 +30,14 @@ namespace AbilityKit.Game.Editor
 
             EditorUtility.DisplayDialog("MOBA Demo", $"Demo scene is ready:\n{DemoScenePath}", "OK");
             PingSceneAsset();
+        }
+
+        public static void CreateOrRefreshDemoSceneBatch()
+        {
+            if (!TryOpenOrCreateDemoScene(saveScene: true, out _))
+            {
+                throw new InvalidOperationException("Unable to create or refresh the MOBA demo scene.");
+            }
         }
 
         [MenuItem(MenuRoot + "Play Demo Scene", priority = 12)]
@@ -88,6 +98,7 @@ namespace AbilityKit.Game.Editor
             EnsureCamera(scene);
             EnsureDirectionalLight(scene);
             EnsureGameEntry(scene);
+            MobaMapSceneGenerator.Refresh(scene, DemoMapId);
             EditorSceneManager.MarkSceneDirty(scene);
         }
 

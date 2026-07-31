@@ -2,7 +2,6 @@
   "name": "AbilityKit.Demo.Moba.Runtime",
   "rootNamespace": "AbilityKit.Demo.Moba",
   "references": [
-    "AbilityKit.Demo.Moba.Runtime.Impl",
     "AbilityKit.Demo.Moba.Share",
     "AbilityKit.ThirdParty.Luban.Runtime",
     "AbilityKit.GameplayTags",
@@ -31,6 +30,7 @@
     "AbilityKit.Combat.EntityManager",
     "AbilityKit.Combat.Targeting",
     "AbilityKit.Combat.Collision.Abstractions",
+    "AbilityKit.Combat.Navigation",
     "AbilityKit.Triggering",
     "AbilityKit.Pipeline",
     "AbilityKit.Trace",

@@ -57,6 +57,36 @@ namespace AbilityKit.Game.Editor.Gizmos
             return true;
         }
 
+        [MenuItem(MenuRoot + "Navigation Grid", priority = 110)]
+        private static void ToggleNavGrid()
+        {
+            var enabled = !MobaSceneGizmoSettings.IsNavigationEnabled();
+            MobaSceneGizmoSettings.SetNavigationEnabled(enabled);
+            ShowEnabledToast("Navigation Grid", enabled);
+        }
+
+        [MenuItem(MenuRoot + "Navigation Grid", validate = true)]
+        private static bool ValidateNavGrid()
+        {
+            Menu.SetChecked(MenuRoot + "Navigation Grid", MobaSceneGizmoSettings.IsNavigationEnabled());
+            return true;
+        }
+
+        [MenuItem(MenuRoot + "Path Lines", priority = 111)]
+        private static void TogglePath()
+        {
+            var enabled = !MobaSceneGizmoSettings.IsPathEnabled();
+            MobaSceneGizmoSettings.SetPathEnabled(enabled);
+            ShowEnabledToast("Path Lines", enabled);
+        }
+
+        [MenuItem(MenuRoot + "Path Lines", validate = true)]
+        private static bool ValidatePath()
+        {
+            Menu.SetChecked(MenuRoot + "Path Lines", MobaSceneGizmoSettings.IsPathEnabled());
+            return true;
+        }
+
         [MenuItem(MenuRoot + "Reset Defaults", priority = 200)]
         private static void ResetDefaults()
         {

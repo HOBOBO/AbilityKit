@@ -41,6 +41,8 @@ public enum RoomOperationErrorCode
     CommandIdConflict = 5,
     LaunchGenerationMismatch = 6,
     RoomClosed = 7,
+    HeroConflict = 8,
+    InvalidGameplayCommand = 9,
     InvalidOperation = 100
 }
 
@@ -72,7 +74,8 @@ public sealed record RoomMemberState(
     [property: Id(5)] bool LobbyReady = false,
     [property: Id(6)] bool AssetsLoaded = false,
     [property: Id(7)] int LoadedManifestVersion = 0,
-    [property: Id(8)] string? LoadedManifestHash = null);
+    [property: Id(8)] string? LoadedManifestHash = null,
+    [property: Id(9)] int LoadingProgress = 0);
 
 [GenerateSerializer]
 public sealed record CreateRoomRequest(
@@ -128,7 +131,10 @@ public sealed record RoomPlayerSnapshot(
     [property: Id(12)] bool IsOnline = false,
     [property: Id(13)] long JoinOrdinal = 0,
     [property: Id(14)] int LoadedManifestVersion = 0,
-    [property: Id(15)] string? LoadedManifestHash = null);
+    [property: Id(15)] string? LoadedManifestHash = null,
+    [property: Id(16)] long LastSeenTicks = 0,
+    [property: Id(17)] long OfflineSinceTicks = 0,
+    [property: Id(18)] int LoadingProgress = 0);
 
 [GenerateSerializer]
 public sealed record RoomSnapshot(

@@ -161,6 +161,7 @@ internal sealed class FakeGatewayConnection : IConnection
                     RoomRevision = 2,
                     Snapshot = new WireRoomSnapshot
                     {
+                        Summary = new WireRoomSummary { RoomId = "room-launch", OwnerAccountId = "account-1" },
                         CanStart = true,
                         BattleId = "battle-launch",
                         WorldId = 9041ul,
@@ -187,6 +188,7 @@ internal sealed class FakeGatewayConnection : IConnection
                     RoomRevision = 3,
                     Snapshot = new WireRoomSnapshot
                     {
+                        Summary = new WireRoomSummary { RoomId = "room-launch", OwnerAccountId = "account-1" },
                         CanStart = true,
                         BattleId = "battle-launch",
                         WorldId = 9041ul,
@@ -198,6 +200,36 @@ internal sealed class FakeGatewayConnection : IConnection
                     Message = "assets-loaded"
                 });
                 break;
+            case RoomGatewayOpCodes.ReportLoadingProgress:
+                var progressRequest = WireRoomGatewayBinary.Deserialize<WireReportLoadingProgressReq>(LastSentPayload);
+                CompleteResponse(opCode, seq, new WireRoomOperationRes
+                {
+                    Success = true,
+                    Applied = true,
+                    RoomRevision = 2,
+                    Snapshot = new WireRoomSnapshot
+                    {
+                        Summary = new WireRoomSummary { RoomId = "room-launch", OwnerAccountId = "account-1" },
+                        CanStart = true,
+                        Phase = 1,
+                        LaunchGeneration = 1,
+                        LaunchManifestVersion = 1,
+                        LaunchManifestHash = "test-manifest",
+                        Players = new List<WireRoomPlayerSnapshot>
+                        {
+                            new WireRoomPlayerSnapshot
+                            {
+                                AccountId = "account-1",
+                                PlayerId = 1,
+                                IsOnline = true,
+                                LobbyReady = true,
+                                LoadingProgress = progressRequest.Progress
+                            }
+                        }
+                    },
+                    Message = "progress"
+                });
+                break;
             case RoomGatewayOpCodes.GetSnapshot:
                 CompleteResponse(opCode, seq, new WireRoomSnapshotRes
                 {
@@ -206,6 +238,7 @@ internal sealed class FakeGatewayConnection : IConnection
                     NumericRoomId = 1041ul,
                     Snapshot = new WireRoomSnapshot
                     {
+                        Summary = new WireRoomSummary { RoomId = "room-launch", OwnerAccountId = "account-1" },
                         CanStart = true,
                         BattleId = "battle-launch",
                         WorldId = 9041ul,

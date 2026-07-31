@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace AbilityKit.Game.Flow
 {
@@ -14,10 +15,10 @@ namespace AbilityKit.Game.Flow
         private LobbyBattleEntrySelection _selection;
         private IMultiplayerGatewayRuntime _gatewayRuntime;
         private BattleGatewayConfigSO _gatewayConfig;
-        private bool _battleEntryRequested;
+        private readonly MultiplayerBattleEntryGate _battleEntryGate = new MultiplayerBattleEntryGate();
         private bool _show = true;
         private string _joinRoomId = string.Empty;
-        private int _selectedHeroId = 1001;
+        private int _selectedHeroId = 10001;
         private readonly List<MultiplayerRoomFlowState> _stateHistory = new List<MultiplayerRoomFlowState>(16);
 
         public void OnAttach(in GamePhaseContext ctx)
@@ -44,26 +45,41 @@ namespace AbilityKit.Game.Flow
                 _controller.StateChanged -= HandleStateChanged;
             }
 
-            _battleEntryRequested = false;
+            _battleEntryGate.Reset();
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
         {
-            if (_battleEntryRequested || !ShouldEnterBattle(_selection, _controller)) return;
+            if (!ShouldEnterBattle(_selection, _controller)) return;
 
             var snapshot = _controller.CurrentSnapshot;
             var flow = ctx.Entry?.Get<GameFlowDomain>();
-            if (snapshot == null || flow == null || _session == null) return;
+            if (snapshot == null ||
+                flow == null ||
+                _session == null ||
+                string.IsNullOrWhiteSpace(_session.SessionToken))
+            {
+                return;
+            }
+            if (!_battleEntryGate.TryAccept(_controller.CurrentState, snapshot)) return;
 
-            _battleEntryRequested = true;
-            var configured = new ConfiguredBattleBootstrapper(_selection.Config, _selection.Preset);
-            flow.EnterBattle(new ExistingGatewayRoomBattleBootstrapper(
-                configured,
-                _session.SessionToken,
-                snapshot.RoomId,
-                snapshot.BattleId,
-                snapshot.NumericRoomId,
-                snapshot.WorldId));
+            try
+            {
+                var configured = new ConfiguredBattleBootstrapper(_selection.Config, _selection.Preset);
+                flow.EnterBattle(new ExistingGatewayRoomBattleBootstrapper(
+                    configured,
+                    _session.SessionToken,
+                    snapshot.RoomId,
+                    snapshot.BattleId,
+                    snapshot.NumericRoomId,
+                    snapshot.WorldId,
+                    _session));
+            }
+            catch
+            {
+                _battleEntryGate.Reset();
+                throw;
+            }
         }
 
         private void HandleStateChanged(MultiplayerRoomFlowState state)
@@ -85,9 +101,10 @@ namespace AbilityKit.Game.Flow
             MultiplayerRoomFlowController controller)
         {
             return selection?.IsRemoteSelected == true &&
-                   controller?.CurrentState == MultiplayerRoomFlowState.InBattle &&
-                   controller.CurrentSnapshot?.NumericRoomId > 0UL &&
-                   controller.CurrentSnapshot.WorldId > 0UL;
+                   controller != null &&
+                   MultiplayerBattleEntryGate.CanEnter(
+                       controller.CurrentState,
+                       controller.CurrentSnapshot);
         }
 
         public void OnGUI(in GamePhaseContext ctx)
@@ -110,14 +127,24 @@ namespace AbilityKit.Game.Flow
             GUILayout.BeginArea(new Rect(390, 10, 380, 460), GUI.skin.window);
             GUILayout.BeginHorizontal();
             GUILayout.Label("正式多人大厅");
-            if (GUILayout.Button("隐藏", GUILayout.Width(56)))
+            if (GUILayout.Button("Exit", GUILayout.Width(56)))
             {
-                _show = false;
+                ExitToStarter();
             }
             GUILayout.EndHorizontal();
 
             GUILayout.Space(4);
             GUILayout.Label($"连接: {_gatewayRuntime?.ConnectionState}");
+            if (_gatewayRuntime != null &&
+                _gatewayRuntime.RecoveryState != MultiplayerRecoveryState.None)
+            {
+                GUILayout.Label($"恢复: {_gatewayRuntime.RecoveryState}");
+                if (_gatewayRuntime.RecoveryState == MultiplayerRecoveryState.ReconnectExhausted &&
+                    GUILayout.Button("重新连接", GUILayout.Height(28)))
+                {
+                    _gatewayRuntime.ResetReconnect();
+                }
+            }
             GUILayout.Label($"状态: {_controller.CurrentState}");
             if (!string.IsNullOrEmpty(_controller.LastError))
             {
@@ -147,18 +174,23 @@ namespace AbilityKit.Game.Flow
                     DrawLobby();
                     break;
                 case MultiplayerRoomFlowState.LoadingAssets:
-                    GUILayout.Label("正在加载资源，请稍候...");
-                    if (GUILayout.Button("资源加载完成", GUILayout.Height(28)))
+                    GUILayout.Label("正在加载战斗场景和资源...");
+                    DrawLocalLoadingProgress();
+                    DrawLoadingDeadline(_controller.CurrentSnapshot);
+                    DrawPlayers(_controller.CurrentSnapshot);
+                    var previousEnabled = GUI.enabled;
+                    GUI.enabled = previousEnabled && _controller.IsLocalRoomOwner;
+                    if (GUILayout.Button("取消加载", GUILayout.Height(28)))
                     {
-                        _ = _controller.ReportAssetsLoadedAsync();
+                        _ = _controller.CancelLoadingAsync();
                     }
+                    GUI.enabled = previousEnabled;
                     break;
                 case MultiplayerRoomFlowState.WaitingForBattle:
-                    GUILayout.Label("等待战斗开始...");
-                    if (GUILayout.Button("等待服务端开战", GUILayout.Height(28)))
-                    {
-                        _ = _controller.WaitForBattleStartAsync();
-                    }
+                    GUILayout.Label("等待其他客户端与战斗服就绪...");
+                    DrawLocalLoadingProgress();
+                    DrawLoadingDeadline(_controller.CurrentSnapshot);
+                    DrawPlayers(_controller.CurrentSnapshot);
                     break;
                 case MultiplayerRoomFlowState.Failed:
                     DrawFailed();
@@ -195,6 +227,14 @@ namespace AbilityKit.Game.Flow
                     _ = _controller.StartJoinRoomAsync(spec, _joinRoomId.Trim());
                 }
             }
+
+            if (GUILayout.Button("Restore Room", GUILayout.Height(30)))
+            {
+                var fallbackPlayerId = _gatewayConfig != null
+                    ? _gatewayConfig.RestoreFallbackPlayerId
+                    : 1u;
+                _ = _controller.RestoreAsync(spec, fallbackPlayerId == 0u ? 1u : fallbackPlayerId);
+            }
             GUI.enabled = previousEnabled;
         }
 
@@ -206,6 +246,8 @@ namespace AbilityKit.Game.Flow
                 GUILayout.Label($"房间: {snapshot.RoomId} ({snapshot.NumericRoomId})");
                 GUILayout.Label($"阶段: {snapshot.Phase}");
                 GUILayout.Label($"可开始: {snapshot.CanStart}");
+                GUILayout.Label($"房主: {snapshot.OwnerAccountId}");
+                DrawPlayers(snapshot);
             }
 
             GUILayout.Space(4);
@@ -230,10 +272,77 @@ namespace AbilityKit.Game.Flow
                 _ = _controller.SetReadyAsync(true);
             }
 
+            var previousEnabled = GUI.enabled;
+            GUI.enabled = previousEnabled &&
+                          _controller.IsLocalRoomOwner &&
+                          snapshot?.CanStart == true;
             if (GUILayout.Button("开始加载", GUILayout.Height(28)))
             {
                 _ = _controller.BeginLoadingAsync();
             }
+            GUI.enabled = previousEnabled;
+        }
+
+        private static void DrawPlayers(MultiplayerRoomSnapshot snapshot)
+        {
+            if (snapshot == null) return;
+            var players = snapshot.Players;
+            if (players == null || players.Count == 0)
+            {
+                GUILayout.Label("等待权威成员快照...");
+                return;
+            }
+
+            GUILayout.Space(4);
+            GUILayout.Label("成员:");
+            for (var i = 0; i < players.Count; i++)
+            {
+                var player = players[i];
+                var owner = string.Equals(player.AccountId, snapshot.OwnerAccountId)
+                    ? " [房主]"
+                    : string.Empty;
+                var presence = player.IsOnline ? "在线" : "离线";
+                var ready = player.LobbyReady ? "已准备" : "未准备";
+                var loaded = snapshot.Phase == MultiplayerRoomPhase.Lobby
+                    ? string.Empty
+                    : player.AssetsLoaded
+                        ? " / 已加载 100%"
+                        : $" / 加载中 {player.LoadingProgress}%";
+                GUILayout.Label(
+                    $"P{player.PlayerId} {player.AccountId}{owner} | 英雄 {player.HeroId} | {presence} | {ready}{loaded}");
+                if (snapshot.Phase != MultiplayerRoomPhase.Lobby)
+                {
+                    DrawProgressBar(player.LoadingProgress);
+                }
+            }
+        }
+
+        private void DrawLocalLoadingProgress()
+        {
+            var progress = _controller.LocalLoadingProgress;
+            var assetKey = _controller.CurrentLoadingAssetKey;
+            GUILayout.Label(string.IsNullOrWhiteSpace(assetKey)
+                ? $"本地加载: {progress}%"
+                : $"本地加载: {progress}%  {assetKey}");
+            DrawProgressBar(progress);
+        }
+
+        private static void DrawProgressBar(int progress)
+        {
+            var value = Mathf.Clamp(progress, 0, 100);
+            var rect = GUILayoutUtility.GetRect(1f, 18f, GUILayout.ExpandWidth(true));
+            GUI.Box(rect, string.Empty);
+            var fill = new Rect(rect.x + 2f, rect.y + 2f, (rect.width - 4f) * value / 100f, rect.height - 4f);
+            if (fill.width > 0f) GUI.Box(fill, string.Empty);
+            GUI.Label(rect, $"{value}%", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
+        }
+
+        private static void DrawLoadingDeadline(MultiplayerRoomSnapshot snapshot)
+        {
+            if (snapshot == null || snapshot.LoadingDeadlineUnixMs <= 0) return;
+            var remainingMs = snapshot.LoadingDeadlineUnixMs -
+                              System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            GUILayout.Label($"剩余加载时间: {System.Math.Max(0, remainingMs) / 1000}s");
         }
 
         private void DrawFailed()
@@ -256,6 +365,18 @@ namespace AbilityKit.Game.Flow
                 RoomTitle = "Dev Room",
                 MaxPlayers = 2
             };
+        }
+
+        private void ExitToStarter()
+        {
+            _controller?.Cancel();
+            _selection?.Clear();
+            if (GameEntry.IsInitialized)
+            {
+                Object.Destroy(GameEntry.Instance.gameObject);
+            }
+
+            SceneManager.LoadScene("MultiplayerStarterScene", LoadSceneMode.Single);
         }
     }
 }

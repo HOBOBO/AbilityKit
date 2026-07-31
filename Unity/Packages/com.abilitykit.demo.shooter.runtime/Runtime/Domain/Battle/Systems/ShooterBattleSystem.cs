@@ -20,7 +20,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public const int EnemyWaveSpawn = 150;
 
-        public const int EnemyWaveMovement = 175;
+        public const int EnemyMovementIntent = 170;
+
+        public const int EnemyRvoSolve = 175;
+
+        public const int EnemyMovementIntegration = 180;
 
         public const int Simulation = 200;
 

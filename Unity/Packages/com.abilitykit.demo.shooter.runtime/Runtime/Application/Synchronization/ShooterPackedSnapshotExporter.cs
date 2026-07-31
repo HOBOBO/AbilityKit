@@ -90,8 +90,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
             projectileCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> bullets, out _, out var projectileCount);
             var projectileOrder = projectileCount > 0 ? _projectileOrderBuffer.CreateSortedProjectileOrder(bullets, projectileCount) : null;
 
-            var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
-            enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> enemyTransforms, out NB<ShooterSveltoHealthComponent> enemyHealths, out NativeEntityIDs enemyIds, out var enemyCount);
+            var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent, ShooterSveltoNavigationComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            enemyCollection.Deconstruct(
+                out NB<ShooterSveltoTransformComponent> enemyTransforms,
+                out NB<ShooterSveltoHealthComponent> enemyHealths,
+                out NB<ShooterSveltoNavigationComponent> enemyNavigation,
+                out NativeEntityIDs enemyIds,
+                out var enemyCount);
             var enemyOrder = enemyCount > 0 ? _enemyOrderBuffer.CreateSortedEnemyOrder(enemyIds, enemyCount) : null;
 
             return new[]
@@ -102,7 +107,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 ExportEnemyLifecycleChunk(enemyHealths, enemyIds, enemyCount, enemyOrder, isFullSnapshot),
                 ExportPlayerTransformChunk(players, playerCount, playerOrder),
                 ExportProjectileTransformChunk(bullets, projectileCount, projectileOrder),
-                ExportEnemyTransformChunk(enemyTransforms, enemyIds, enemyCount, enemyOrder),
+                ExportEnemyTransformChunk(enemyTransforms, enemyNavigation, enemyIds, enemyCount, enemyOrder),
                 ExportPlayerHealthChunk(players, playerCount, playerOrder),
                 ExportEnemyHealthChunk(enemyHealths, enemyIds, enemyCount, enemyOrder),
                 ExportPlayerScoreChunk(players, playerCount, playerOrder),
@@ -456,7 +461,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         private ShooterPackedComponentChunk ExportEnemyTransformChunk(
-            NB<ShooterSveltoTransformComponent> transforms, NativeEntityIDs ids, int count, int[] order)
+            NB<ShooterSveltoTransformComponent> transforms,
+            NB<ShooterSveltoNavigationComponent> navigation,
+            NativeEntityIDs ids,
+            int count,
+            int[] order)
         {
             if (count == 0)
             {
@@ -468,6 +477,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var posY = Ensure(ref _enemyTransformArrays.F1, count);
             var facingX = Ensure(ref _enemyTransformArrays.F2, count);
             var facingY = Ensure(ref _enemyTransformArrays.F3, count);
+            var packedVelocity = Ensure(ref _enemyTransformArrays.Packed, count * 2);
             for (int i = 0; i < count; i++)
             {
                 var sourceIndex = order[i];
@@ -476,6 +486,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 posY[i] = transforms[sourceIndex].Y;
                 facingX[i] = transforms[sourceIndex].DirectionX;
                 facingY[i] = transforms[sourceIndex].DirectionY;
+                ShooterPackedSnapshotChunkCodec.SetPackedPairValue(
+                    packedVelocity,
+                    i,
+                    navigation[sourceIndex].VelocityX,
+                    navigation[sourceIndex].VelocityY);
             }
 
             return new ShooterPackedComponentChunk(
@@ -490,7 +505,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 Array.Empty<int>(),
                 Array.Empty<byte>(),
                 Array.Empty<int>(),
-                Array.Empty<int>());
+                packedVelocity);
         }
 
         private ShooterPackedComponentChunk ExportPlayerHealthChunk(

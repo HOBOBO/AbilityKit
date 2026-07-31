@@ -62,6 +62,7 @@
     <ProjectReference Include="..\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />
     <ProjectReference Include="..\AbilityKit.Host.Extension\AbilityKit.Host.Extension.csproj" />
     <ProjectReference Include="..\AbilityKit.Combat.EntityManager\AbilityKit.Combat.EntityManager.csproj" />
+    <ProjectReference Include="..\AbilityKit.Combat.Navigation\AbilityKit.Combat.Navigation.csproj" />
     <ProjectReference Include="..\AbilityKit.Coordinator\AbilityKit.Coordinator.csproj" />
     <ProjectReference Include="..\AbilityKit.World.DI\AbilityKit.World.DI.csproj" />
     <ProjectReference Include="..\AbilityKit.World.Entitas\AbilityKit.World.Entitas.csproj" />

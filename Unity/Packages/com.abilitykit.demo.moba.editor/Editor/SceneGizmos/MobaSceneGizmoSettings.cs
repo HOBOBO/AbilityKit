@@ -17,6 +17,8 @@ namespace AbilityKit.Game.Editor.Gizmos
         public const int AttackBit = 1 << 3;
         public const int BuffBit = 1 << 4;
         public const int SpawnBit = 1 << 5;
+        public const int NavigationBit = 1 << 6;
+        public const int PathBit = 1 << 7;
 
         public static class Masks
         {
@@ -54,6 +56,24 @@ namespace AbilityKit.Game.Editor.Gizmos
         public static int MaxBuffPerActor { get; set; } = 8;
         public static int MaxActors { get; set; } = 64;
         public static int MaxAreas { get; set; } = 64;
+        public static int MaxNavCells { get; set; } = 2048;
+
+        private static int s_navFreeColorR = 64;
+        private static int s_navFreeColorG = 220;
+        private static int s_navFreeColorB = 96;
+        private static int s_navBlockedColorR = 220;
+        private static int s_navBlockedColorG = 64;
+        private static int s_navBlockedColorB = 64;
+        private static int s_pathColorR = 64;
+        private static int s_pathColorG = 192;
+        private static int s_pathColorB = 255;
+
+        public static DebugDrawColor NavFreeColor =>
+            new DebugDrawColor((byte)s_navFreeColorR, (byte)s_navFreeColorG, (byte)s_navFreeColorB, 80);
+        public static DebugDrawColor NavBlockedColor =>
+            new DebugDrawColor((byte)s_navBlockedColorR, (byte)s_navBlockedColorG, (byte)s_navBlockedColorB, 120);
+        public static DebugDrawColor PathColor =>
+            new DebugDrawColor((byte)s_pathColorR, (byte)s_pathColorG, (byte)s_pathColorB, 255);
 
         public static int GetOrCreateEnabledMask()
         {
@@ -64,10 +84,14 @@ namespace AbilityKit.Game.Editor.Gizmos
         public static bool IsAttackEnabled() => (GetOrCreateEnabledMask() & AttackBit) != 0;
         public static bool IsBuffEnabled() => (GetOrCreateEnabledMask() & BuffBit) != 0;
         public static bool IsSpawnEnabled() => (GetOrCreateEnabledMask() & SpawnBit) != 0;
+        public static bool IsNavigationEnabled() => (GetOrCreateEnabledMask() & NavigationBit) != 0;
+        public static bool IsPathEnabled() => (GetOrCreateEnabledMask() & PathBit) != 0;
 
         public static void SetAttackEnabled(bool value) => SetBit(AttackBit, value);
         public static void SetBuffEnabled(bool value) => SetBit(BuffBit, value);
         public static void SetSpawnEnabled(bool value) => SetBit(SpawnBit, value);
+        public static void SetNavigationEnabled(bool value) => SetBit(NavigationBit, value);
+        public static void SetPathEnabled(bool value) => SetBit(PathBit, value);
 
         public static void SetBit(int bit, bool enabled)
         {

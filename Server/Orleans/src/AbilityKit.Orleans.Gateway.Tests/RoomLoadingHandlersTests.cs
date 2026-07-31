@@ -47,6 +47,14 @@ public sealed class RoomLoadingHandlersTests
     }
 
     [Fact]
+    public async System.Threading.Tasks.Task ReportLoadingProgressHandler_empty_payload_returns_bad_request()
+    {
+        var handler = new ReportLoadingProgressHandler(clusterClient: null!);
+        var response = await handler.HandleAsync(NewEmptyRequest(), NewContext(), default);
+        Assert.Equal(GatewayStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async System.Threading.Tasks.Task CancelLoadingHandler_empty_payload_returns_bad_request()
     {
         var handler = new CancelLoadingHandler(clusterClient: null!);
@@ -166,6 +174,20 @@ public sealed class RoomLoadingHandlersTests
     }
 
     [Fact]
+    public void ToRoomOperationRes_without_snapshot_keeps_lightweight_result_fields()
+    {
+        var result = RoomOperationResult.AppliedAt(77L);
+
+        var wire = RoomGatewayWireMapper.ToRoomOperationRes(result, snapshot: null);
+
+        Assert.True(wire.Success);
+        Assert.True(wire.Applied);
+        Assert.Equal(77L, wire.RoomRevision);
+        Assert.True(string.IsNullOrEmpty(wire.Snapshot.Summary.RoomId));
+        Assert.Null(wire.Snapshot.Players);
+    }
+
+    [Fact]
     public void ToRoomOperationRes_maps_rejected_result_with_error_code()
     {
         var result = RoomOperationResult.Rejected(
@@ -237,6 +259,28 @@ public sealed class RoomLoadingHandlersTests
         Assert.Equal(8, grain.ManifestVersion);
         Assert.Equal("hash-8", grain.ManifestHash);
         Assert.Equal("cmd-2", grain.CommandId);
+    }
+
+    [Fact]
+    public void ToReportLoadingProgressReq_maps_launch_identity_and_progress()
+    {
+        var wire = new WireReportLoadingProgressReq
+        {
+            SessionToken = "s",
+            RoomId = "r",
+            LaunchGeneration = 5L,
+            ManifestVersion = 9,
+            ManifestHash = "hash-9",
+            Progress = 64
+        };
+
+        var grain = RoomGatewayWireMapper.ToReportLoadingProgressReq("account-progress", wire);
+
+        Assert.Equal("account-progress", grain.AccountId);
+        Assert.Equal(5L, grain.LaunchGeneration);
+        Assert.Equal(9, grain.ManifestVersion);
+        Assert.Equal("hash-9", grain.ManifestHash);
+        Assert.Equal(64, grain.Progress);
     }
 
     [Fact]

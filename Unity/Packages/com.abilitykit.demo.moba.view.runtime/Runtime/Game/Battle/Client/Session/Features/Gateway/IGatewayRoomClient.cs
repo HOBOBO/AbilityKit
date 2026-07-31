@@ -77,6 +77,16 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
 
+        Task<GatewayRoomOperationResult> ReportLoadingProgressAsync(
+            string sessionToken,
+            string roomId,
+            long launchGeneration,
+            int manifestVersion,
+            string manifestHash,
+            int progress,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Owner 取消加载阶段，回到 Lobby。
         /// </summary>

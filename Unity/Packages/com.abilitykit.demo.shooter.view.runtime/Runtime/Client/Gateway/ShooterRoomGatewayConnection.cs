@@ -8,7 +8,10 @@ using AbilityKit.Network.Runtime;
 
 namespace AbilityKit.Demo.Shooter.View
 {
-    public sealed class ShooterRoomGatewayConnection : IShooterRoomGatewayRequestTransport, IDisposable
+    public sealed class ShooterRoomGatewayConnection :
+        IShooterRoomGatewayRequestTransport,
+        IShooterRoomGatewayPushTransport,
+        IDisposable
     {
         private static readonly TimeSpan AutomaticFullStateSyncTimeout = TimeSpan.FromSeconds(10);
 
@@ -33,6 +36,8 @@ namespace AbilityKit.Demo.Shooter.View
         }
 
         public event Action<uint, ArraySegment<byte>, ShooterSnapshotApplyResult>? SnapshotPushDispatched;
+
+        public event Action<uint, ArraySegment<byte>>? ServerPushReceived;
 
         public ShooterSnapshotApplyResult LastPushResult { get; private set; } = ShooterSnapshotApplyResult.Ignored;
 
@@ -64,6 +69,8 @@ namespace AbilityKit.Demo.Shooter.View
             {
                 return;
             }
+
+            ServerPushReceived?.Invoke(opCode, payload);
 
             var session = _session;
             var result = session == null

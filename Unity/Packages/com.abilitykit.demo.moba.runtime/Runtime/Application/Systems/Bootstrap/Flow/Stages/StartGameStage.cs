@@ -14,7 +14,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
         public override string[] Dependencies => new[]
         {
-            MobaBootstrapStageNames.WorldInit,
+            MobaBootstrapStageNames.MapRuntime,
         };
 
         protected internal override void Install(

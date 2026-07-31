@@ -18,12 +18,18 @@ namespace AbilityKit.Game.Flow
             _worldId = worldId;
         }
 
-        public void Submit(in PlayerInputCommand cmd)
+        public bool Submit(in PlayerInputCommand cmd)
         {
+            if (_ctx == null || !_ctx.CanSubmitGameplayInput || _ctx.Session == null)
+            {
+                return false;
+            }
+
             _ctx.InputRecordWriter?.Append(in cmd);
             _ctx.Session.SubmitInput(new SubmitInputRequest(_worldId, cmd));
             (_ctx.LocalInputQueue ??= new BattleLocalInputQueue())
                 .Enqueue(new LocalPlayerInputEvent(_playerId, cmd.OpCode, cmd.Payload));
+            return true;
         }
     }
 }

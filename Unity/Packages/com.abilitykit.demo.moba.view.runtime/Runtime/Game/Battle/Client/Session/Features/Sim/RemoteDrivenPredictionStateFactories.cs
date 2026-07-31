@@ -1,55 +1,12 @@
 using System;
-using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Demo.Moba.Attributes;
-using AbilityKit.Demo.Moba.EntitasAdapters;
-using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.StateSync;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class RemoteDrivenRollbackRegistryFactory
-    {
-        public static RollbackRegistry Create(IWorld world)
-        {
-            var registry = new RollbackRegistry();
-            if (world?.Services == null) return registry;
-
-            if (world.Services.TryResolve<IFrameTime>(out var frameTime) && frameTime is FrameTime mutableFrameTime)
-            {
-                registry.Register(new FrameTimeRollbackStateProvider(mutableFrameTime));
-            }
-
-            if (world.Services.TryResolve<MobaActorRegistry>(out var actorRegistry) && actorRegistry != null)
-            {
-                registry.Register(new MobaActorTransformRollbackProvider(actorRegistry));
-                registry.Register(new MobaActorHpRollbackProvider(actorRegistry));
-                registry.Register(new MobaBuffTimerRollbackProvider(actorRegistry));
-                registry.Register(new MobaSkillCooldownRollbackProvider(actorRegistry));
-                if (world.Services.TryResolve<AbilityKit.Demo.Moba.Services.StateMachine.MobaActorStateMachineFactory>(
-                        out var stateMachineFactory)
-                    && stateMachineFactory != null)
-                {
-                    registry.Register(new MobaActorStateMachineRollbackProvider(actorRegistry, stateMachineFactory));
-                }
-            }
-
-            if (world.Services.TryResolve<PassiveSkillTriggerEventRollbackLog>(out var passiveLog) && passiveLog != null)
-            {
-                registry.Register(passiveLog);
-            }
-
-            if (world.Services.TryResolve<RollbackWorldRandom>(out var random) && random != null)
-            {
-                registry.Register(random);
-            }
-
-            return registry;
-        }
-    }
-
     internal static class RemoteDrivenStateHashFactory
     {
         public static Func<FrameIndex, WorldStateHash> Create(IWorld world, Func<bool> shouldForceMismatch)
@@ -66,71 +23,17 @@ namespace AbilityKit.Game.Flow
                 return null;
             }
 
-            return _ => new WorldStateHash(ComputeStateHash(phase, registry, shouldForceMismatch));
-        }
-
-        private static uint ComputeStateHash(
-            MobaLogicWorldRunGateService phase,
-            MobaActorRegistry registry,
-            Func<bool> shouldForceMismatch)
-        {
-            // P0-1 FIX (2026-07-24): Aligned with server-side MobaStateHashSnapshotService.ComputeStateHash.
-            // Both sides now compute: InGame + TransformKey(10001) + count + per-actor:
-            // actorId + Pos(3) + Rot(4) + Scale(3) + HP.
-            // Random and Buff hashing removed from server side to match (their rollback providers
-            // still do recovery; drift surfaces through Transform/HP divergence).
-            var entries = new List<(int actorId, float x, float y, float z, float rotX, float rotY, float rotZ, float rotW, float sx, float sy, float sz, float hp)>(16);
-            foreach (var pair in registry.Entries)
+            var calculator = new MobaAuthoritativeStateHashCalculator();
+            return _ =>
             {
-                var actorId = pair.Key;
-                var entity = pair.Value;
-                if (entity == null) continue;
-                if (!entity.hasTransform) continue;
-
-                var t = entity.transform.Value;
-
-                float hp = 0f;
-                if (entity.hasAttributeGroup && entity.attributeGroup.Group != null)
+                var hash = calculator.Compute(phase.InGame, registry);
+                if (ShouldForceMismatch(shouldForceMismatch))
                 {
-                    hp = entity.attributeGroup.Group.GetValue(MobaAttributeIds.HP);
+                    hash ^= 1u;
                 }
 
-                entries.Add((actorId, t.Position.X, t.Position.Y, t.Position.Z,
-                             t.Rotation.X, t.Rotation.Y, t.Rotation.Z, t.Rotation.W,
-                             t.Scale.X, t.Scale.Y, t.Scale.Z,
-                             hp));
-            }
-
-            entries.Sort((a, b) => a.actorId.CompareTo(b.actorId));
-
-            uint hash = 2166136261u;
-            AddByte(ref hash, phase != null && phase.InGame ? (byte)1 : (byte)0);
-            AddInt(ref hash, MobaActorTransformRollbackProvider.DefaultKey);
-            AddInt(ref hash, entries.Count);
-
-            for (int i = 0; i < entries.Count; i++)
-            {
-                var item = entries[i];
-                AddInt(ref hash, item.actorId);
-                AddFloat(ref hash, item.x);
-                AddFloat(ref hash, item.y);
-                AddFloat(ref hash, item.z);
-                AddFloat(ref hash, item.rotX);
-                AddFloat(ref hash, item.rotY);
-                AddFloat(ref hash, item.rotZ);
-                AddFloat(ref hash, item.rotW);
-                AddFloat(ref hash, item.sx);
-                AddFloat(ref hash, item.sy);
-                AddFloat(ref hash, item.sz);
-                AddFloat(ref hash, item.hp);
-            }
-
-            if (ShouldForceMismatch(shouldForceMismatch))
-            {
-                hash ^= 1u;
-            }
-
-            return hash;
+                return new WorldStateHash(hash);
+            };
         }
 
         private static bool ShouldForceMismatch(Func<bool> shouldForceMismatch)
@@ -142,31 +45,5 @@ namespace AbilityKit.Game.Flow
 #endif
         }
 
-        private static void AddByte(ref uint hash, byte value)
-        {
-            hash ^= value;
-            hash *= 16777619u;
-        }
-
-        private static void AddUInt(ref uint hash, uint value)
-        {
-            AddByte(ref hash, (byte)(value & 0xFF));
-            AddByte(ref hash, (byte)((value >> 8) & 0xFF));
-            AddByte(ref hash, (byte)((value >> 16) & 0xFF));
-            AddByte(ref hash, (byte)((value >> 24) & 0xFF));
-        }
-
-        private static void AddInt(ref uint hash, int value)
-        {
-            unchecked
-            {
-                AddUInt(ref hash, (uint)value);
-            }
-        }
-
-        private static void AddFloat(ref uint hash, float value)
-        {
-            AddInt(ref hash, BitConverter.SingleToInt32Bits(value));
-        }
     }
 }

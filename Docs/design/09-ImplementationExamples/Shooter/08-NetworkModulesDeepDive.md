@@ -12,7 +12,7 @@ flowchart TB
         Launcher[ShooterClientNetworkLauncher]
         Session[ShooterClientSession]
         Input[ShooterClientInputCoordinator]
-        FrameSync[ShooterClientFrameSyncCoordinator]
+        FrameSync[ShooterClientFrameSyncController]
         Factory[ShooterClientSyncControllerFactory]
         PackedCtrl[ShooterPackedSnapshotSyncController]
         PureCtrl[ShooterPureStateSnapshotSyncController]
@@ -107,8 +107,7 @@ Shooter 输入链路按“本地输入采样 → frame sync 协调 → Gateway �
 | 模块 | 职责 |
 |------|------|
 | `ShooterClientInputCoordinator` | 采样移动、瞄准、开火等输入，生成协议输入 |
-| `ShooterClientFrameSyncCoordinator` | 将输入绑定到帧号，处理帧同步节奏 |
-| `ShooterClientFrameSyncController` | 客户端 frame sync 控制器，连接输入与远端帧确认 |
+| `ShooterClientFrameSyncController` | 将输入绑定到帧号，处理预测、回滚和帧同步节奏 |
 | `BattleFrameSyncGrain` | 服务端聚合输入帧，形成权威帧推进依据 |
 | `FramePacketNetAdapter` | Host Extension 中的 frame packet 网络适配层 |
 
@@ -258,7 +257,7 @@ sequenceDiagram
 | Gateway Flow | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Gateway/ShooterRoomGatewayFlow.cs` |
 | Gateway Client | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Gateway/ShooterRoomGatewayClient.cs` |
 | 输入协调 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Session/ShooterClientInputCoordinator.cs` |
-| 帧同步协调 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Session/ShooterClientFrameSyncCoordinator.cs` |
+| 帧同步控制 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientFrameSyncController.cs` |
 | 同步控制器工厂 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientSyncControllerFactory.cs` |
 | packed 控制器 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterPackedSnapshotSyncController.cs` |
 | pure-state 控制器 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterPureStateSnapshotSyncController.cs` |

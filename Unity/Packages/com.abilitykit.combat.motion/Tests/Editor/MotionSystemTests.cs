@@ -174,6 +174,12 @@ namespace AbilityKit.Combat.MotionSystem.Tests
                 projectedPosition = ProjectedPosition;
                 return ProjectResult;
             }
+
+            public bool TryProjectToFreeDirectional(int moverId, in Vec3 from, in Vec3 to, float radius, int obstacleMask, int ignoreMask, out Vec3 projectedPosition)
+            {
+                projectedPosition = ProjectedPosition;
+                return ProjectResult;
+            }
         }
     }
 }

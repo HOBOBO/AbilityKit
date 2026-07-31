@@ -20,6 +20,7 @@
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Console\AbilityKit.Demo.Moba.Console.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.ET.Logic\AbilityKit.Demo.ET.Logic.csproj" />
     <ProjectReference Include="..\AbilityKit.Context\AbilityKit.Context.csproj" />
+    <ProjectReference Include="..\AbilityKit.Combat.Navigation\AbilityKit.Combat.Navigation.csproj" />
     <ProjectReference Include="..\AbilityKit.Trace\AbilityKit.Trace.csproj" />
   </ItemGroup>
 

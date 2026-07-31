@@ -21,6 +21,7 @@ namespace AbilityKit.Game.Flow
         public int LocalActorId;
         public string LocalControlPlayerId;
         public BattleSessionHooks Hooks;
+        public bool CanSubmitGameplayInput = true;
         public int RuntimePlayerLoadoutRevision { get; private set; }
 
         public bool TryGetRuntimeWorld(out IWorld world)

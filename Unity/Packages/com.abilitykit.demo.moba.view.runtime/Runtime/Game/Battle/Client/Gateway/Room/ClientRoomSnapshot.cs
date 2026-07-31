@@ -36,10 +36,13 @@ namespace AbilityKit.Game.Battle.Agent
         // 阶段 4 append-only 字段
         public bool LobbyReady { get; set; }
         public bool AssetsLoaded { get; set; }
+        public int LoadingProgress { get; set; }
         public bool IsOnline { get; set; }
         public long JoinOrdinal { get; set; }
         public int LoadedManifestVersion { get; set; }
         public string LoadedManifestHash { get; set; } = string.Empty;
+        public long LastSeenTicks { get; set; }
+        public long OfflineSinceTicks { get; set; }
     }
 
     /// <summary>
@@ -49,6 +52,7 @@ namespace AbilityKit.Game.Battle.Agent
     public sealed class ClientRoomSnapshot
     {
         public string RoomId { get; set; } = string.Empty;
+        public string OwnerAccountId { get; set; } = string.Empty;
         public ClientRoomPhase Phase { get; set; }
         public string PhaseReason { get; set; } = string.Empty;
         public long LaunchGeneration { get; set; }

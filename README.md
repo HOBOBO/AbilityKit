@@ -118,7 +118,7 @@ Ability-Kit 的高价值点不只在于模块数量，而在于这些模块可�
 
 | 示例               | 主要展示能力                                                                                      | 适合关注的问题                                            |
 | ---------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `demo.moba.*`    | 复杂战斗玩法表达：技能输入、技能 Pipeline、Trigger Plan、Buff/Continuous、投射物、区域、伤害、位移、表现 Cue、配置加载与 Entitas 集成 | 如何把一个 MOBA/ARPG 风格的技能系统从硬编码拆成配置、流程、触发、Action 和运行实例 |
+| `demo.moba.*`    | 复杂战斗玩法表达：技能输入、技能 Pipeline、Trigger Plan、Buff/Continuous、投射物、区域、伤害、位移、**寻路避障(A\*)**、**墙体交互(墙滑/穿墙/闪烁终点投影)**、**碰撞 grid broadphase**、**BT AI 寻路**、表现 Cue、配置加载与 Entitas 集成 | 如何把一个 MOBA/ARPG 风格从硬编码拆成配置、流程、触发、Action、运行实例、碰撞/寻路/墙体 统一基础设施 |
 | `demo.shooter.*` | 多人同步与运行时工程：预测回滚、权威插值、混合同步、快照导入导出、状态 Hash、断线重连、Svelto ECS、纯 C# 验收和 Editor 展示外壳               | 如何验证框架在网络同步、高性能实体和可观测验收场景下的边界                      |
 
 因此，`demo.moba` 更像“复杂战斗能力展柜”，`demo.shooter` 更像“同步与验收能力展柜”。真实项目可以从这两个示例中选取需要的组织方式，但不建议直接把示例包整体当作业务必选框架层。
@@ -253,18 +253,15 @@ flowchart TD
 | `com.abilitykit.ability`         | 技能聚合运行时：Ability、Effect、Triggering、EffectSource、配置加载、热重载和编辑器工具 |
 | `com.abilitykit.ability.explain` | 技能解释/调试框架：Forest、Tree + Navigation Protocol                                  |
 | `com.abilitykit.behavior`        | 行为运行时与 Pipeline 行为阶段：可将行为决策/执行器嵌入技能流程，适合复杂 AI、引导、锁定和持续决策 |
-| `com.abilitykit.combat.motion`   | 移动系统：MotionPipeline、来源组合、碰撞求解                                                |
-
-
-
-| 模块                                    | 说明                          |
-| ------------------------------------- | --------------------------- |
-| `com.abilitykit.combat.entitymanager` | 实体管理器：索引表实现高效查询             |
-| `com.abilitykit.combat.skilllibrary`  | 技能库：索引表实现高效技能查询             |
-| `com.abilitykit.combat.targeting`     | 目标查找：查找目标、筛选、排序、流式处理、零 GC   |
-| `com.abilitykit.combat.projectile`    | 投射物系统：对象池、帧同步、命中策略、范围效果     |
+| `com.abilitykit.combat.motion`   | 移动系统：MotionPipeline、来源组合(dash/jump/path)、碰撞求解(墙滑/穿墙/终点投影)、per-skill CollisionPolicy 透传 |
+| `com.abilitykit.combat.navigation`  | 导航系统：NavigationGrid + 确定性 A\* 寻路(无定点数学)、GridPathfinder、INavigationWorld/INavigationService |
+| `com.abilitykit.combat.collision.abstractions` | 碰撞：ICollisionWorld Naive/Grid 双实现 + OBB sweep 窄相 + GridBroadphase + LayerFilter |
+| `com.abilitykit.combat.entitymanager` | 实体管理器：索引表实现高效查询 |
+| `com.abilitykit.combat.skilllibrary`  | 技能库：索引表实现高效技能查询 |
+| `com.abilitykit.combat.targeting`     | 目标查找：查找目标、筛选、排序、流式处理、零 GC |
+| `com.abilitykit.combat.projectile`    | 投射物系统：对象池、帧同步、命中策略、范围效果 |
 | `com.abilitykit.combat.damage`        | 伤害系统：DamagePipeline、自定义伤害公式 |
-| `com.abilitykit.combat.collision.abstractions` | 碰撞抽象：为投射物、区域、命中检测提供引擎无关的 Collider/Shape 边界 |
+
 
 
 ### 运行时与流程层
@@ -433,6 +430,18 @@ flowchart TD
 
 ---
 
+### 战斗基础设施（Motion + Collision + Navigation）
+
+战斗基础设施回答"实体如何移动、如何感知空间、如何找到路径"。三者都是纯 math/logic 包（不依赖 Entitas/Unity Physics），互相解耦但通过共享接口协作：
+
+- **Motion**（`com.abilitykit.combat.motion`）：MotionPipeline 负责多源（locomotion/dash/jump/path）按 group 优先级和叠加策略求和，`ConfigurableMotionSolver` 负责碰撞约束（墙滑切向迭代、穿墙跳过 sweep、终点按 `EndOverlapPolicy` 处理）。`MotionOutput.DominantCollisionPolicy` 把主导源（dash/blink 等）的 per-skill 墙体策略透传到 solver，无需改 `IMotionSource` 实现者。
+- **Collision**（`com.abilitykit.combat.collision.abstractions`）：`ICollisionWorld` 定义碰撞体生命周期（Add/Update/Remove）和查询（Raycast/OverlapSphere/SweepOrientedBox）。`NaiveCollisionWorld` 是参考实现；`GridCollisionWorld` 用 `GridBroadphase` 空间哈希分桶，现在完整实现 `IOrientedBoxSweepCollisionWorld`（含 OBB sweep 窄相），demo 生产已翻转至 Grid。
+- **Navigation**（`com.abilitykit.combat.navigation`）：`NavigationGrid` 均匀方格存储 blocked 标记，`GridPathfinder` 用整数格 A\*（cell 坐标 + 代价 10/14 + 固定邻居序 + searchId 计数器）在确定性前提下找到路径，`INavigationWorld` 提供 `FindPath/IsWalkable/TryProjectToWalkable`。demo 的 `MobaNavigationBake` 从 `BattleMapMO` + `ICollisionWorld.OverlapSphere` 采样烘焙 grid。
+
+**设计原则**：三者的约束是"不依赖 Unity、不依赖 ECS、不依赖帧同步"——可在服务器/客户端/编辑器/控制台任何环境复用。运动管线消费导航输出；导航烘焙复用碰撞世界；碰撞广相支撑运动求解和导航烘焙的查询效率。MOBA 示例中 `MobaMotionInitSystem` 装配 `ConfigurableMotionSolver`，`MapRuntimeStage` 调 `nav.Build()`，`MobaPathFollowingSystem` 读 BT 决策目标调 `FindPath` 驱动 `PathFollowerMotionSource`。
+
+---
+
 ## src/ 源码结构
 
 `src/` 包含多个 .NET SDK 项目，通过 `<Compile Include>` 引用 `Unity/Packages/` 中的唯一源码。同一套源码既用于 Unity 编译，也用于 `dotnet build` 纯 C# 测试。
@@ -500,7 +509,7 @@ src/
 ├── AbilityKit.Combat.Projectile/           # 投射物
 ├── AbilityKit.Combat.Damage/              # 伤害系统
 ├── AbilityKit.Combat.Collision.Abstractions/ # 碰撞抽象
-├── AbilityKit.Combat.Collision.Unity/      # Unity 碰撞实现
+├── AbilityKit.Combat.Navigation/          # 导航网格 + 确定性 A\*
 │
 ├── AbilityKit.Game.Battle.Runtime/          # 战斗传输接口
 ├── AbilityKit.Game.Battle.Transport.Runtime/ # 传输层实现
@@ -558,6 +567,7 @@ dotnet run
 | 理解技能系统主线 | 读 `Pipeline`、`Triggering`、`Ability` 相关模块文档，再看 `demo.moba.*` 的技能运行链路 |
 | 理解复杂战斗落地 | 从 `demo.moba.*` 入手，重点看技能输入、Trigger Plan、Buff/Continuous、Projectile、Trace 与配置加载 |
 | 理解网络同步能力 | 从 `demo.shooter.*` 和 `world.statesync`、`world.snapshot`、`world.networkfragments` 文档入手 |
+| 理解战斗基础设施 | 读 `com.abilitykit.combat.{motion,collision,navigation,projectile,damage,targeting}` 模块文档 + ability-kit skill 的 combat_* 子目录 |
 | 只想复用基础模块 | 按 `模块速览` 选择 `core`、`flow`、`hfsm`、`timer`、`context` 等轻量包 |
 | 准备接入真实项目 | 先按需裁剪包，再建立配置规范、Trace/诊断入口和自动化回归门禁 |
 

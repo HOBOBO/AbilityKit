@@ -12,7 +12,9 @@ namespace AbilityKit.Demo.Shooter.View
 {
     internal sealed class ShooterClientSyncCore
     {
-        private readonly ShooterClientFrameSyncCoordinator _frameSync;
+        private readonly IShooterBattleRuntimePort _runtime;
+        private readonly ShooterPresentationFacade _presentation;
+        private readonly ShooterClientFrameSyncController _frameSync;
         private readonly ShooterClientInputCoordinator _input;
         private readonly SyncHealthEventListView _lastHealthEvents;
 
@@ -23,18 +25,20 @@ namespace AbilityKit.Demo.Shooter.View
             ShooterGatewaySnapshotDecoder? decoder,
             IShooterRoomGatewayClient? gateway)
         {
-            _frameSync = new ShooterClientFrameSyncCoordinator(runtime, presentation, tickRate, decoder);
-            _input = new ShooterClientInputCoordinator(_frameSync.Controller, gateway);
+            _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
+            _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
+            _frameSync = new ShooterClientFrameSyncController(_runtime, _presentation, tickRate, decoder);
+            _input = new ShooterClientInputCoordinator(_frameSync, gateway);
             _lastHealthEvents = new SyncHealthEventListView(
                 () => _frameSync.LastFastReconnectHealthEvents,
                 () => _input.LastHealthEvents);
         }
 
-        public bool IsStarted => _frameSync.IsStarted;
+        public bool IsStarted => _runtime.IsStarted;
 
         public int CurrentFrame => _frameSync.CurrentFrame;
 
-        public ShooterClientFrameSyncController FrameSync => _frameSync.Controller;
+        public ShooterClientFrameSyncController FrameSync => _frameSync;
 
         public ShooterClientInputCoordinator InputCoordinator => _input;
 
@@ -65,7 +69,12 @@ namespace AbilityKit.Demo.Shooter.View
 
         public bool StartGame(in ShooterStartGamePayload startGame)
         {
-            return _frameSync.StartGame(in startGame);
+            if (!_runtime.StartGame(in startGame))
+                return false;
+
+            var snapshot = _runtime.GetSnapshotTransient();
+            _presentation.ApplyLocalPredictionSnapshot(in snapshot);
+            return true;
         }
 
         public ShooterClientInputSubmitResult SubmitLocalInput(int playerId, float moveX, float moveY, float aimX, float aimY, bool fire)

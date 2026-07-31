@@ -1,6 +1,6 @@
 # Editor 工具链
 
-包：`com.abilitykit.demo.moba.editor`，asmdef `AbilityKit.Demo.Moba.Editor`（仅 Editor 平台，引用 21 个 asmdef 含 HotReload）。
+包：`com.abilitykit.demo.moba.editor`，asmdef `AbilityKit.Demo.Moba.Editor`（仅 Editor 平台，引用 22 个 asmdef 含 `AbilityKit.Combat.Navigation` 和 HotReload）。
 
 ## BattleDebug 14 个面板（`Editor/BattleDebug/Panels/`）
 
@@ -52,8 +52,19 @@
 - **FrameSync/**：`FrameSyncTestWindow`（帧同步测试窗口）
 - **HotReload/**：`HotReloadMenu` / `UnityHotfixLogger`
 - **Preview/**：`EditorGameFlowPumpWindow` / `MobaDemoSceneMenu`
-- **SceneGizmos/**：`ActorBuffGizmoDrawer` / `ActorCombatGizmoDrawer` / `MobaSceneGizmoSettings` / `MobaGizmoSettingsPersistence` / `SceneGizmoSettingsMenu`
+- **SceneGizmos/**：`ActorBuffGizmoDrawer` / `ActorCombatGizmoDrawer` / `NavigationGizmoDrawer`（**NEW**，导航网格+路径线） / `MobaSceneGizmoSettings` / `MobaGizmoSettingsPersistence` / `SceneGizmoSettingsMenu`
 - **CollisionDebug/**：`CollisionWorldGizmoDrawer`
 - **DebugDraw/**
 - **Document/**
 - **Tests/**：23 个 Edit-mode 测试（asmdef `AbilityKit.Demo.Moba.Diagnostics.Core.Tests`）
+
+## Navigation Gizmo（NEW 2026-07-29）
+
+`NavigationGizmoDrawer.cs` — `[InitializeOnLoad]` 注册 `IDebugDrawContributor`，在 Scene View 绘制：
+- **导航网格**：读 `NavigationDebugState.Grid`，绿框=free cell / 红框=blocked cell（上限 `MaxNavCells=2048`）
+- **寻路路径线**：读 `NavigationDebugState.ActivePaths`，蓝线连 waypoints + 目标小球标记
+
+`MobaSceneGizmoSettings` 新增：
+- `NavigationBit = 1 << 6` / `PathBit = 1 << 7`
+- `MaxNavCells` / `NavFreeColor`(绿) / `NavBlockedColor`(红) / `PathColor`(蓝)
+- 菜单 `Moba/Gizmos/Navigation Grid` + `Path Lines` toggle

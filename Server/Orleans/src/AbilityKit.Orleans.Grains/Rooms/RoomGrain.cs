@@ -103,10 +103,13 @@ public sealed class RoomGrain : Grain, IRoomGrain
                     Ready = memberState.LobbyReady,
                     LobbyReady = memberState.LobbyReady,
                     AssetsLoaded = memberState.AssetsLoaded,
+                    LoadingProgress = memberState.LoadingProgress,
                     IsOnline = memberState.IsOnline,
                     JoinOrdinal = memberState.JoinOrdinal,
                     LoadedManifestVersion = memberState.LoadedManifestVersion,
-                    LoadedManifestHash = memberState.LoadedManifestHash
+                    LoadedManifestHash = memberState.LoadedManifestHash,
+                    LastSeenTicks = memberState.LastSeenTicks,
+                    OfflineSinceTicks = memberState.OfflineSinceTicks
                 };
             }
         }
@@ -303,10 +306,18 @@ public sealed class RoomGrain : Grain, IRoomGrain
         gameplay.SetReady(gameplayState, request);
         var next = transition.State with { GameplayState = gameplay.ExportPersistentState(gameplayState) };
         await PersistAndRestoreAsync(next);
+        await NotifyRoomChangedAsync();
         return transition.Result;
     }
 
     public async Task SubmitGameplayCommandAsync(RoomGameplayCommandRequest request)
+    {
+        var result = await SubmitGameplayCommandWithResultAsync(request);
+        ThrowIfRejected(result);
+    }
+
+    public async Task<RoomOperationResult> SubmitGameplayCommandWithResultAsync(
+        RoomGameplayCommandRequest request)
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
         EnsureAccountId(request.AccountId);
@@ -316,13 +327,26 @@ public sealed class RoomGrain : Grain, IRoomGrain
             request.AccountId,
             DateTime.UtcNow.Ticks,
             NowUnixMs());
-        ThrowIfRejected(transition.Result);
+        if (!transition.Applied)
+        {
+            return transition.Result;
+        }
 
         var gameplay = RequireGameplay();
         var gameplayState = gameplay.RestorePersistentState(state.Summary, state.GameplayState);
-        gameplay.SubmitCommand(gameplayState, request);
+        var commandResult = gameplay.SubmitCommand(gameplayState, request);
+        if (!commandResult.Success)
+        {
+            return RoomOperationResult.Rejected(
+                commandResult.ErrorCode,
+                commandResult.Message,
+                state.Revision);
+        }
+
         var next = transition.State with { GameplayState = gameplay.ExportPersistentState(gameplayState) };
         await PersistAndRestoreAsync(next);
+        await NotifyRoomChangedAsync();
+        return transition.Result;
     }
 
     public async Task<StartRoomBattleResponse> StartBattleAsync(StartRoomBattleRequest request)
@@ -507,6 +531,31 @@ public sealed class RoomGrain : Grain, IRoomGrain
         if (next.Phase == RoomPhase.Starting && next.BattleCommit.Status == RoomBattleCommitStatus.Pending)
         {
             await CommitBattleAsync(next);
+        }
+
+        return transition.Result;
+    }
+
+    public async Task<RoomOperationResult> ReportLoadingProgressWithResultAsync(ReportLoadingProgressRequest request)
+    {
+        if (request is null) throw new ArgumentNullException(nameof(request));
+        EnsureAccountId(request.AccountId);
+
+        var state = RequirePersistentState();
+        var transition = RoomStateMachine.ReportLoadingProgress(
+            state,
+            request.AccountId,
+            request.LaunchGeneration,
+            request.ManifestVersion,
+            request.ManifestHash,
+            request.Progress,
+            DateTime.UtcNow.Ticks,
+            NowUnixMs());
+
+        if (transition.Applied)
+        {
+            await PersistAndRestoreAsync(transition.State);
+            await NotifyRoomChangedAsync();
         }
 
         return transition.Result;

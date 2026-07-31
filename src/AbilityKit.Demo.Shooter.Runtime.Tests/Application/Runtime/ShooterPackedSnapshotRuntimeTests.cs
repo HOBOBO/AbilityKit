@@ -372,6 +372,65 @@ public sealed class ShooterPackedSnapshotRuntimeTests
     }
 
     [Fact]
+    public void PackedSnapshotRoundTripRestoresEnemyNavigationVelocityAndLegacyPayloadDefaultsToZero()
+    {
+        var sourceContainer = new WorldContainerBuilder()
+            .AddModule(new ShooterWorldModule())
+            .Build();
+        var source = sourceContainer.Resolve<IShooterBattleRuntimePort>();
+        var sourceEntities = sourceContainer.Resolve<IShooterEntityManager>();
+        var start = new ShooterStartGamePayload(
+            "enemy-navigation-packed-roundtrip",
+            30,
+            4280,
+            new[] { new ShooterStartPlayer(1, "P1", 0f, 0f) });
+
+        Assert.True(source.StartGame(in start));
+        sourceEntities.AddEnemy(
+            100,
+            new ShooterSveltoTransformComponent { X = 2f, Y = 1f, DirectionX = -1f, DirectionY = 0f },
+            new ShooterSveltoHealthComponent { Current = 3, Max = 3, Alive = 1 });
+        Assert.True(sourceEntities.SveltoContext.EntitiesDB.TryQueryMappedEntities<ShooterSveltoNavigationComponent>(
+            ShooterSveltoGroups.GameplayTargets,
+            out var sourceNavigation));
+        sourceNavigation.Entity(100u) = new ShooterSveltoNavigationComponent
+        {
+            VelocityX = -0.75f,
+            VelocityY = 0.25f
+        };
+
+        var snapshot = source.ExportPackedSnapshot(99ul, isFullSnapshot: true, authorityOverride: true);
+        var targetContainer = new WorldContainerBuilder()
+            .AddModule(new ShooterWorldModule())
+            .Build();
+        var target = targetContainer.Resolve<IShooterBattleRuntimePort>();
+        var targetEntities = targetContainer.Resolve<IShooterEntityManager>();
+
+        Assert.True(target.ImportPackedSnapshot(in snapshot));
+        Assert.True(targetEntities.SveltoContext.EntitiesDB.TryQueryMappedEntities<ShooterSveltoNavigationComponent>(
+            ShooterSveltoGroups.GameplayTargets,
+            out var targetNavigation));
+        var restored = targetNavigation.Entity(100u);
+        Assert.Equal(-0.75f, restored.VelocityX, 4);
+        Assert.Equal(0.25f, restored.VelocityY, 4);
+        Assert.Equal(source.ComputeStateHash(), target.ComputeStateHash());
+
+        var legacySnapshot = WithoutEnemyNavigation(in snapshot);
+        var legacyContainer = new WorldContainerBuilder()
+            .AddModule(new ShooterWorldModule())
+            .Build();
+        var legacyTarget = legacyContainer.Resolve<IShooterBattleRuntimePort>();
+        var legacyEntities = legacyContainer.Resolve<IShooterEntityManager>();
+        Assert.True(legacyTarget.ImportPackedSnapshot(in legacySnapshot));
+        Assert.True(legacyEntities.SveltoContext.EntitiesDB.TryQueryMappedEntities<ShooterSveltoNavigationComponent>(
+            ShooterSveltoGroups.GameplayTargets,
+            out var legacyNavigation));
+        var legacyRestored = legacyNavigation.Entity(100u);
+        Assert.Equal(0f, legacyRestored.VelocityX);
+        Assert.Equal(0f, legacyRestored.VelocityY);
+    }
+
+    [Fact]
     public void DeltaSnapshotImportPreservesEntityCountAfterMultipleDeltas()
     {
         var source = new ShooterBattleRuntimePort();
@@ -407,6 +466,45 @@ public sealed class ShooterPackedSnapshotRuntimeTests
 
         Assert.Equal(baselineEntityCount, target.ExportPackedSnapshot(98ul).EntityCount);
         Assert.Equal(source.CurrentFrame, target.CurrentFrame);
+    }
+
+    private static ShooterPackedSnapshotPayload WithoutEnemyNavigation(in ShooterPackedSnapshotPayload snapshot)
+    {
+        var chunks = (ShooterPackedComponentChunk[])snapshot.ComponentChunks.Clone();
+        for (var i = 0; i < chunks.Length; i++)
+        {
+            var chunk = chunks[i];
+            if (chunk.ComponentKind != ShooterPackedComponentKinds.Transform ||
+                chunk.EntityKind != ShooterPackedEntityKinds.Enemy)
+            {
+                continue;
+            }
+
+            chunks[i] = new ShooterPackedComponentChunk(
+                chunk.ComponentKind,
+                chunk.EntityKind,
+                chunk.Count,
+                chunk.EntityIds,
+                chunk.ValueX,
+                chunk.ValueY,
+                chunk.ValueZ,
+                chunk.ValueW,
+                chunk.IntValues,
+                chunk.Flags,
+                chunk.OwnerIds,
+                Array.Empty<int>());
+        }
+
+        return new ShooterPackedSnapshotPayload(
+            snapshot.Version,
+            snapshot.WorldId,
+            snapshot.Frame,
+            snapshot.ServerTick,
+            snapshot.SnapshotFlags,
+            snapshot.StateHash,
+            snapshot.EntityCount,
+            snapshot.ExtensionPayload,
+            chunks);
     }
 
     private static ShooterPackedComponentChunk? FindPackedChunk(in ShooterPackedSnapshotPayload snapshot, int componentKind, int entityKind)

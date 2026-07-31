@@ -12,6 +12,11 @@ namespace AbilityKit.Demo.Shooter.View
         Task<ArraySegment<byte>> SendRequestAsync(uint opCode, ArraySegment<byte> payload, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
     }
 
+    public interface IShooterRoomGatewayPushTransport
+    {
+        event Action<uint, ArraySegment<byte>>? ServerPushReceived;
+    }
+
     public interface IShooterRoomGatewayClient
     {
         Task<ShooterGatewayBattleInputResult> SubmitBattleInputAsync(

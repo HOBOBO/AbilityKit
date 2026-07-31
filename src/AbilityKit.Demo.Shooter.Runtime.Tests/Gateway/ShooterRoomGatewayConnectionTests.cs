@@ -13,6 +13,44 @@ namespace AbilityKit.Demo.Shooter.Runtime.Tests;
 public sealed class ShooterRoomGatewayConnectionTests
 {
     [Fact]
+    public void RoomStatePushUpdatesShooterRoomSnapshotFeedWithoutBattleSession()
+    {
+        var connection = new FakeGatewayConnection();
+        using var gatewayConnection = new ShooterRoomGatewayConnection(connection);
+        var roomClient = new ShooterRoomGatewayRoomClient(gatewayConnection);
+        var feed = Assert.IsAssignableFrom<IShooterRoomGatewaySnapshotFeed>(roomClient);
+        var changed = 0;
+        feed.SnapshotChanged += _ => changed++;
+        var push = new WireRoomStateChangedPush
+        {
+            RoomId = "room-push",
+            Snapshot = new WireRoomSnapshot
+            {
+                Summary = new WireRoomSummary
+                {
+                    RoomId = "room-push",
+                    OwnerAccountId = "owner"
+                },
+                Phase = 1,
+                RoomRevision = 7,
+                LaunchGeneration = 3,
+                LaunchManifestVersion = 2,
+                LaunchManifestHash = "manifest"
+            }
+        };
+
+        connection.Push(
+            RoomGatewayOpCodes.RoomStateChanged,
+            WireRoomGatewayBinary.Serialize(in push));
+
+        Assert.Equal(1, changed);
+        Assert.NotNull(feed.Current);
+        Assert.Equal("room-push", feed.Current!.RoomId);
+        Assert.Equal(7, feed.Current.RoomRevision);
+        Assert.Equal(3, feed.Current.LaunchGeneration);
+    }
+
+    [Fact]
     public async Task GatewayConnectionUsesTransportNeutralConnectionForRequestsAndSnapshotPushes()
     {
         var runtime = new ShooterBattleRuntimePort();

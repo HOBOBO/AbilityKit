@@ -16,11 +16,17 @@ namespace AbilityKit.Combat.Collision
 
         private struct CellEntry
         {
-            public int CellX;
-            public int CellY;
-            public int CellZ;
+            public int MinX;
+            public int MinY;
+            public int MinZ;
+            public int MaxX;
+            public int MaxY;
+            public int MaxZ;
 
             public bool IsValid;
+
+            public bool SameRange(int mnX, int mnY, int mnZ, int mxX, int mxY, int mxZ)
+                => MinX == mnX && MinY == mnY && MinZ == mnZ && MaxX == mxX && MaxY == mxY && MaxZ == mxZ;
         }
 
         public GridBroadphase(float cellSize = 4f, int poolSize = 1024)
@@ -54,18 +60,12 @@ namespace AbilityKit.Combat.Collision
 
             if (exists && oldEntry.IsValid)
             {
-                if (oldEntry.CellX == minCX && oldEntry.CellY == minCY && oldEntry.CellZ == minCZ)
+                if (oldEntry.SameRange(minCX, minCY, minCZ, maxCX, maxCY, maxCZ))
                 {
                     return;
                 }
 
-                var oldKey = GetCellKey(oldEntry.CellX, oldEntry.CellY, oldEntry.CellZ);
-                if (_cells.TryGetValue(oldKey, out var oldList))
-                {
-                    oldList.Remove(colliderId);
-                    if (oldList.Count == 0)
-                        _cells.Remove(oldKey);
-                }
+                RemoveFromRange(colliderId, in oldEntry);
             }
 
             for (var cx = minCX; cx <= maxCX; cx++)
@@ -87,9 +87,12 @@ namespace AbilityKit.Combat.Collision
 
             _colliderToCell[colliderId] = new CellEntry
             {
-                CellX = minCX,
-                CellY = minCY,
-                CellZ = minCZ,
+                MinX = minCX,
+                MinY = minCY,
+                MinZ = minCZ,
+                MaxX = maxCX,
+                MaxY = maxCY,
+                MaxZ = maxCZ,
                 IsValid = true
             };
         }
@@ -99,15 +102,28 @@ namespace AbilityKit.Combat.Collision
             if (!_colliderToCell.TryGetValue(colliderId, out var entry) || !entry.IsValid)
                 return;
 
-            var key = GetCellKey(entry.CellX, entry.CellY, entry.CellZ);
-            if (_cells.TryGetValue(key, out var list))
-            {
-                list.Remove(colliderId);
-                if (list.Count == 0)
-                    _cells.Remove(key);
-            }
-
+            RemoveFromRange(colliderId, in entry);
             _colliderToCell.Remove(colliderId);
+        }
+
+        private void RemoveFromRange(int colliderId, in CellEntry entry)
+        {
+            for (var cx = entry.MinX; cx <= entry.MaxX; cx++)
+            {
+                for (var cy = entry.MinY; cy <= entry.MaxY; cy++)
+                {
+                    for (var cz = entry.MinZ; cz <= entry.MaxZ; cz++)
+                    {
+                        var key = GetCellKey(cx, cy, cz);
+                        if (_cells.TryGetValue(key, out var list))
+                        {
+                            list.Remove(colliderId);
+                            if (list.Count == 0)
+                                _cells.Remove(key);
+                        }
+                    }
+                }
+            }
         }
 
         public int Query(in Core.Mathematics.Aabb queryAabb, int[] results, int maxResults)

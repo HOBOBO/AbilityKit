@@ -192,6 +192,8 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(3)] public WireRoomSnapshot Snapshot { get; set; }
         [MemoryPackOrder(4)] public string Message { get; set; }
         [MemoryPackOrder(5)] public long ServerNowTicks { get; set; }
+        [MemoryPackOrder(6)] public bool Applied { get; set; }
+        [MemoryPackOrder(7)] public int ErrorCode { get; set; }
     }
 
     [MemoryPackable]
@@ -399,6 +401,9 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(13)] public long JoinOrdinal { get; set; }
         [MemoryPackOrder(14)] public int LoadedManifestVersion { get; set; }
         [MemoryPackOrder(15)] public string LoadedManifestHash { get; set; }
+        [MemoryPackOrder(16)] public long LastSeenTicks { get; set; }
+        [MemoryPackOrder(17)] public long OfflineSinceTicks { get; set; }
+        [MemoryPackOrder(18)] public int LoadingProgress { get; set; }
     }
 
     [MemoryPackable]
@@ -474,6 +479,20 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(3)] public int ManifestVersion { get; set; }
         [MemoryPackOrder(4)] public string ManifestHash { get; set; }
         [MemoryPackOrder(5)] public string CommandId { get; set; }
+    }
+
+    /// <summary>
+    /// Monotonic loading progress for the current launch generation.
+    /// </summary>
+    [MemoryPackable]
+    public partial struct WireReportLoadingProgressReq
+    {
+        [MemoryPackOrder(0)] public string SessionToken { get; set; }
+        [MemoryPackOrder(1)] public string RoomId { get; set; }
+        [MemoryPackOrder(2)] public long LaunchGeneration { get; set; }
+        [MemoryPackOrder(3)] public int ManifestVersion { get; set; }
+        [MemoryPackOrder(4)] public string ManifestHash { get; set; }
+        [MemoryPackOrder(5)] public int Progress { get; set; }
     }
 
     /// <summary>

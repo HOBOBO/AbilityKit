@@ -1,4 +1,6 @@
 using System;
+using AbilityKit.Combat.MotionSystem.Collision;
+using AbilityKit.Combat.MotionSystem.Constraints;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
@@ -19,6 +21,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     [PlanActionModule(order: MobaPlanActionModuleOrders.Blink)]
     public sealed class BlinkPlanActionModule : MobaPlanActionModuleBase<BlinkArgs, BlinkPlanActionModule>
     {
+        private const float BlinkCollisionRadius = 0.5f;
+
         protected override IActionSchema<BlinkArgs, IWorldResolver> Schema => BlinkSchema.Instance;
 
         protected override void Execute(object triggerArgs, BlinkArgs args, ExecCtx<IWorldResolver> ctx)
@@ -66,8 +70,28 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 dir = t.Forward;
             }
 
-            var delta = dir * args.Distance;
-            var newPos = new Vec3(t.Position.X + delta.X, t.Position.Y + delta.Y, t.Position.Z + delta.Z);
+            var desiredDelta = dir * args.Distance;
+            var startPos = t.Position;
+            // 回退（solver 非 ConfigurableMotionSolver 时）：裸传送。
+            var newPos = new Vec3(startPos.X + desiredDelta.X, startPos.Y + desiredDelta.Y, startPos.Z + desiredDelta.Z);
+
+            // 经碰撞解析落安全终点：block（PassThroughWalls=false）= 全距 sweep 钳到墙前；
+            // pass（PassThroughWalls=true）= 穿墙，终点落障碍物内则沿方向投影到边界。
+            if (m.Solver is ConfigurableMotionSolver configurable)
+            {
+                var blinkPolicy = new MotionCollisionConstraints(
+                    enable: true,
+                    allowPassThrough: args.PassThroughWalls,
+                    endOverlapPolicy: MotionEndOverlapPolicy.ProjectAlongDirection,
+                    radius: BlinkCollisionRadius,
+                    skin: 0f,
+                    obstacleMask: MobaCollisionLayers.WorldMask,
+                    ignoreMask: 0,
+                    slideAlongWalls: false,
+                    maxSlideIterations: 1);
+                var resolved = configurable.Resolve(actorId, in startPos, in desiredDelta, in blinkPolicy);
+                newPos = new Vec3(startPos.X + resolved.AppliedDelta.X, startPos.Y + resolved.AppliedDelta.Y, startPos.Z + resolved.AppliedDelta.Z);
+            }
 
             var state = m.State;
             var newState = new MotionState(in newPos)

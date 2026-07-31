@@ -46,6 +46,7 @@ namespace AbilityKit.Game.Flow
 
             LocalActorId = 0;
             LocalControlPlayerId = null;
+            CanSubmitGameplayInput = true;
             ClearRuntimePlayerLoadouts();
 
             Hooks = null;

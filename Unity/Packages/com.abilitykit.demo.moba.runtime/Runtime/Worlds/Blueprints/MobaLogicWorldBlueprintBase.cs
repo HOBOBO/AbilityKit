@@ -31,7 +31,7 @@ namespace AbilityKit.Demo.Moba.Worlds.Blueprints
         protected virtual void ConfigureCommon(WorldCreateOptions options)
         {
             options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
-            options.ServiceBuilder.Register<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService());
+            options.ServiceBuilder.Register<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService(new CollisionWorldOptions { BroadphaseType = BroadphaseType.Grid, GridCellSize = 4f }));
 
             if ((Features & MobaLogicWorldFeatures.EntitasContexts) != 0)
             {

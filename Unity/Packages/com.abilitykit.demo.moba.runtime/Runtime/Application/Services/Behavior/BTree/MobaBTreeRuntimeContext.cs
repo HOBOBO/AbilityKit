@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         internal MobaConfigDatabase Config { get; }
         internal SearchTargetService SearchTargets { get; }
         internal Func<long> CurrentTimeMsProvider { get; }
+        internal MobaBrainSkillSelectionPolicy SkillSelectionPolicy { get; }
         internal IBehaviorContext Behavior { get; private set; }
         internal IWorldQuery World { get; private set; }
 
@@ -28,18 +29,26 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             MobaActorRegistry registry,
             MobaConfigDatabase config,
             SearchTargetService searchTargets,
-            Func<long> currentTimeMsProvider)
+            Func<long> currentTimeMsProvider,
+            MobaBrainSkillSelectionPolicy skillSelectionPolicy)
         {
             Registry = registry;
             Config = config;
             SearchTargets = searchTargets;
             CurrentTimeMsProvider = currentTimeMsProvider;
+            SkillSelectionPolicy = skillSelectionPolicy;
         }
 
         internal void BeginEvaluation(IBehaviorContext behavior, IWorldQuery world)
         {
             Behavior = behavior;
             World = world;
+        }
+
+        internal void EndEvaluation()
+        {
+            Behavior = null;
+            World = null;
         }
 
         internal long GetCurrentTimeMs()
@@ -137,6 +146,11 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     {
         public static void Initialize(Blackboard bb)
         {
+            if (bb == null) throw new ArgumentNullException(nameof(bb));
+            if (bb.Values == null)
+                bb.Values = new System.Collections.Generic.List<BTCore.Runtime.Blackboards.BlackboardValue>();
+
+            ValidateDeclaredKeys(bb);
             Ensure<long>(bb, MobaBTreeKeys.OwnerId);
             Ensure<float>(bb, MobaBTreeKeys.OwnerX);
             Ensure<float>(bb, MobaBTreeKeys.OwnerY);
@@ -280,10 +294,34 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetValue(MobaBTreeKeys.CastDirectionZ, 0f);
         }
 
+        private static void ValidateDeclaredKeys(Blackboard bb)
+        {
+            var names = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < bb.Values.Count; i++)
+            {
+                var value = bb.Values[i]
+                    ?? throw new InvalidOperationException($"MOBA behavior-tree blackboard value at index {i} is null.");
+                if (string.IsNullOrWhiteSpace(value.Name))
+                    throw new InvalidOperationException($"MOBA behavior-tree blackboard value at index {i} has an empty name.");
+                if (!names.Add(value.Name))
+                    throw new InvalidOperationException($"MOBA behavior-tree blackboard key '{value.Name}' is duplicated.");
+            }
+        }
+
         private static void Ensure<T>(Blackboard bb, string key)
         {
-            if (bb.Values.Exists(value => value.Name == key)) return;
-            bb.Values.Add(new BTCore.Runtime.Blackboards.BlackboardValue<T>(key));
+            var existing = bb.Values.Find(value => string.Equals(value.Name, key, StringComparison.Ordinal));
+            if (existing == null)
+            {
+                bb.Values.Add(new BTCore.Runtime.Blackboards.BlackboardValue<T>(key));
+                return;
+            }
+
+            if (existing.Type != typeof(T))
+            {
+                throw new InvalidOperationException(
+                    $"MOBA behavior-tree blackboard key '{key}' must be '{typeof(T).FullName}', but was '{existing.Type?.FullName ?? "<null>"}'.");
+            }
         }
     }
 }

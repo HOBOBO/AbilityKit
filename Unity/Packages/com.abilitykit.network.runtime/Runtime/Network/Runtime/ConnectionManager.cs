@@ -4,6 +4,7 @@ using System.Text;
 using AbilityKit.Core.Logging;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
+using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Network.Runtime
 {
@@ -26,9 +27,7 @@ namespace AbilityKit.Network.Runtime
 
         private bool _openRequested;
 
-        private int _reconnectAttempts;
-        private float _reconnectDelaySeconds;
-        private float _timeToReconnect;
+        private readonly ReconnectAttemptScheduler _reconnectScheduler;
 
         public ConnectionManager(Func<ITransport> transportFactory, ConnectionOptions options = null, IDispatcher dispatcher = null)
         {
@@ -36,6 +35,7 @@ namespace AbilityKit.Network.Runtime
             _options = options ?? new ConnectionOptions();
             _dispatcher = dispatcher ?? InlineDispatcher.Instance;
             _ioDispatcher = _dispatcher;
+            _reconnectScheduler = CreateReconnectScheduler(_options);
 
             State = ConnectionState.Disconnected;
         }
@@ -46,11 +46,14 @@ namespace AbilityKit.Network.Runtime
             _options = options ?? new ConnectionOptions();
             _dispatcher = callbackDispatcher ?? InlineDispatcher.Instance;
             _ioDispatcher = ioDispatcher ?? InlineDispatcher.Instance;
+            _reconnectScheduler = CreateReconnectScheduler(_options);
 
             State = ConnectionState.Disconnected;
         }
 
         public ConnectionState State { get; private set; }
+
+        public bool IsReconnectExhausted { get; private set; }
 
         public bool IsConnected => _transport != null && _transport.IsConnected;
 
@@ -64,6 +67,9 @@ namespace AbilityKit.Network.Runtime
         public event Action Connected;
         public event Action Disconnected;
         public event Action<Exception> Error;
+        public event Action<int, float> ReconnectScheduled;
+        public event Action<int> ReconnectAttemptStarted;
+        public event Action<int> ReconnectExhausted;
 
         /// <summary>
         /// 新会话管线创建并安装内置中间件后触发。重连会创建新管线并再次触发。
@@ -89,6 +95,11 @@ namespace AbilityKit.Network.Runtime
             _port = port;
             _openRequested = true;
 
+            if (IsReconnectExhausted)
+            {
+                return;
+            }
+
             if (State == ConnectionState.Disconnected)
             {
                 StartConnect(ConnectionState.Connecting);
@@ -99,6 +110,16 @@ namespace AbilityKit.Network.Runtime
         {
             _openRequested = false;
             StopInternal();
+        }
+
+        public void ResetReconnect()
+        {
+            IsReconnectExhausted = false;
+            _reconnectScheduler.Reset();
+            if (_openRequested && State == ConnectionState.Disconnected)
+            {
+                StartConnect(ConnectionState.Connecting);
+            }
         }
 
         public void Tick(float deltaTime)
@@ -112,10 +133,21 @@ namespace AbilityKit.Network.Runtime
 
             if (State == ConnectionState.Reconnecting)
             {
-                _timeToReconnect -= deltaTime;
-                if (_timeToReconnect <= 0f)
+                if (_reconnectScheduler.TryTakeAttempt(deltaTime, out var attemptNumber))
                 {
-                    StartConnect(ConnectionState.Reconnecting);
+                    _dispatcher.Post(() => ReconnectAttemptStarted?.Invoke(attemptNumber));
+                    try
+                    {
+                        StartConnect(ConnectionState.Reconnecting);
+                    }
+                    catch (Exception ex)
+                    {
+                        _dispatcher.Post(() => Error?.Invoke(ex));
+                        if (_reconnectScheduler.IsExhausted)
+                        {
+                            MarkReconnectExhausted();
+                        }
+                    }
                 }
                 return;
             }
@@ -163,7 +195,6 @@ namespace AbilityKit.Network.Runtime
             StopInternal(keepState: true);
 
             State = connectState;
-            _reconnectDelaySeconds = 0f;
 
             _transport = _transportFactory.Invoke();
             _session = new NetworkSession(_transport, _dispatcher, _ioDispatcher, _options.FrameCodec);
@@ -185,7 +216,7 @@ namespace AbilityKit.Network.Runtime
             _transport.Connect(_host, _port);
         }
 
-        private void StopInternal(bool keepState = false)
+        private void StopInternal(bool keepState = false, bool resetReconnect = true)
         {
             if (_session != null)
             {
@@ -227,8 +258,10 @@ namespace AbilityKit.Network.Runtime
             _timeSinceLastReceive = 0f;
             _timeSinceLastHeartbeatSend = 0f;
 
-            _reconnectAttempts = 0;
-            _timeToReconnect = 0f;
+            if (!keepState && resetReconnect)
+            {
+                _reconnectScheduler.Reset();
+            }
         }
 
         private void OnTransportBytesReceived(ArraySegment<byte> bytes)
@@ -244,8 +277,8 @@ namespace AbilityKit.Network.Runtime
         private void OnSessionConnected()
         {
             State = ConnectionState.Connected;
-            _reconnectAttempts = 0;
-            _timeToReconnect = 0f;
+            IsReconnectExhausted = false;
+            _reconnectScheduler.Reset();
             _timeSinceLastReceive = 0f;
             _timeSinceLastHeartbeatSend = 0f;
 
@@ -391,27 +424,22 @@ namespace AbilityKit.Network.Runtime
                 return;
             }
 
-            if (_options.ReconnectMaxAttempts >= 0 && _reconnectAttempts >= _options.ReconnectMaxAttempts)
+            var wasPending = _reconnectScheduler.IsPending;
+            if (_options.ReconnectMaxAttempts == 0 ||
+                _reconnectScheduler.IsExhausted ||
+                !_reconnectScheduler.Request())
             {
-                StopInternal();
+                MarkReconnectExhausted();
                 return;
             }
 
-            _reconnectAttempts++;
-
-            var initial = (float)_options.ReconnectInitialDelay.TotalSeconds;
-            var max = (float)_options.ReconnectMaxDelay.TotalSeconds;
-            if (_reconnectDelaySeconds <= 0f)
-            {
-                _reconnectDelaySeconds = initial;
-            }
-            else
-            {
-                _reconnectDelaySeconds = (float)Math.Min(max, _reconnectDelaySeconds * _options.ReconnectBackoffMultiplier);
-            }
-
             State = ConnectionState.Reconnecting;
-            _timeToReconnect = _reconnectDelaySeconds;
+            if (!wasPending)
+            {
+                var attemptNumber = _reconnectScheduler.NextAttemptNumber;
+                var delaySeconds = _reconnectScheduler.NextDelaySeconds;
+                _dispatcher.Post(() => ReconnectScheduled?.Invoke(attemptNumber, delaySeconds));
+            }
 
             try
             {
@@ -421,6 +449,37 @@ namespace AbilityKit.Network.Runtime
             {
                 Log.Exception(ex2, "[ConnectionManager] ScheduleReconnect: transport close failed");
             }
+        }
+
+        private void MarkReconnectExhausted()
+        {
+            if (IsReconnectExhausted) return;
+            IsReconnectExhausted = true;
+            var attempts = _reconnectScheduler.AttemptsStarted;
+            StopInternal(resetReconnect: false);
+            _dispatcher.Post(() => ReconnectExhausted?.Invoke(attempts));
+        }
+
+        private static ReconnectAttemptScheduler CreateReconnectScheduler(
+            ConnectionOptions options)
+        {
+            var maxAttempts = options.ReconnectMaxAttempts > 0
+                ? options.ReconnectMaxAttempts
+                : int.MaxValue;
+            return new ReconnectAttemptScheduler(
+                maxAttempts,
+                attemptIndex => ResolveReconnectDelay(options, attemptIndex));
+        }
+
+        private static float ResolveReconnectDelay(
+            ConnectionOptions options,
+            int attemptIndex)
+        {
+            var initial = Math.Max(0d, options.ReconnectInitialDelay.TotalSeconds);
+            var max = Math.Max(initial, options.ReconnectMaxDelay.TotalSeconds);
+            var multiplier = Math.Max(0d, options.ReconnectBackoffMultiplier);
+            var delay = initial * Math.Pow(multiplier, Math.Max(0, attemptIndex));
+            return (float)Math.Min(max, delay);
         }
 
     }

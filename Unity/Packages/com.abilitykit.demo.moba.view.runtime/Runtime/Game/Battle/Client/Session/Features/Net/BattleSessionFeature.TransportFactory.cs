@@ -7,6 +7,7 @@ using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Transport;
+using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Flow
@@ -19,6 +20,7 @@ namespace AbilityKit.Game.Flow
         private MobaClientReplicationPipeline _remoteReplicationPipeline;
         private MobaSynchronizationHealthEvaluator _synchronizationHealthEvaluator;
         private MobaSynchronizationHealthSnapshot _synchronizationHealth;
+        private SyncHealthReport _synchronizationHealthReport = SyncHealthReport.Empty;
         private float _synchronizationHealthSampleElapsed;
         private MobaSnapshotAdmission _snapshotAdmission;
         private MobaAuthoritativeSnapshotState _authoritativeSnapshotState;
@@ -64,13 +66,24 @@ namespace AbilityKit.Game.Flow
                     _remoteReplicationPipeline = new MobaClientReplicationPipeline(_remoteInterpolationController);
                     _synchronizationHealthEvaluator = new MobaSynchronizationHealthEvaluator();
                     _synchronizationHealth = default;
+                    _synchronizationHealthReport = SyncHealthReport.Empty;
                     _synchronizationHealthSampleElapsed = 0f;
                     _snapshotAdmission = new MobaSnapshotAdmission();
                     _snapshotAdmission.Reset(roomId);
                     _authoritativeSnapshotState = new MobaAuthoritativeSnapshotState();
                     _reliableEventCursor = new MobaReliableBattleEventCursor(
                         gateway.BattleId ?? string.Empty);
+                    var reliableEventCheckpoint = _plan.ReliableEventCheckpoint;
+                    if (reliableEventCheckpoint.IsValid &&
+                        !_reliableEventCursor.TryRestore(
+                            in reliableEventCheckpoint))
+                    {
+                        Log.Warning(
+                            "[BattleSessionFeature] Reliable event checkpoint rejected " +
+                            "because it does not match the active battle.");
+                    }
                     _pendingStateImport = true;
+                    if (_ctx != null) _ctx.CanSubmitGameplayInput = false;
                     _interpolationTransport = networkTransport;
                     networkTransport.Options.GetReliableEventEpoch =
                         () => _reliableEventCursor?.Epoch ?? string.Empty;
@@ -246,6 +259,7 @@ namespace AbilityKit.Game.Flow
                     cursor.ConfirmAcknowledged(epoch, acceptedSequence) &&
                     acceptedSequence >= sequence)
                 {
+                    PersistReliableEventCheckpoint(cursor);
                     return;
                 }
 
@@ -276,34 +290,43 @@ namespace AbilityKit.Game.Flow
             _pendingReliableEventBatches.Enqueue(push);
         }
 
-        private void CompleteReliableEventRecovery(
+        private bool CompleteReliableEventRecovery(
             in GatewayStateSyncSnapshot snapshot)
         {
             var cursor = _reliableEventCursor;
             if (cursor == null)
             {
                 _pendingReliableEventBatches.Clear();
-                return;
+                _pendingStateImport = false;
+                return true;
             }
 
-            if (!string.IsNullOrWhiteSpace(snapshot.EventEpoch))
+            if (string.IsNullOrWhiteSpace(snapshot.EventEpoch))
             {
-                if (!cursor.AdoptAuthoritativeBaseline(
-                        snapshot.EventEpoch,
-                        snapshot.EventWatermark))
-                {
-                    _pendingReliableEventBatches.Clear();
-                    return;
-                }
-
-                if (snapshot.EventWatermark > 0)
-                {
-                    _ = AcknowledgeReliableEventsAsync(
-                        snapshot.EventEpoch,
-                        snapshot.EventWatermark);
-                }
+                Log.Warning(
+                    "[BattleSessionFeature] Full snapshot rejected: reliable event epoch is missing.");
+                _pendingReliableEventBatches.Clear();
+                return false;
             }
 
+            if (!cursor.AdoptAuthoritativeBaseline(
+                    snapshot.EventEpoch,
+                    snapshot.EventWatermark))
+            {
+                _pendingReliableEventBatches.Clear();
+                return false;
+            }
+
+            PersistReliableEventCheckpoint(cursor);
+
+            if (snapshot.EventWatermark > 0)
+            {
+                _ = AcknowledgeReliableEventsAsync(
+                    snapshot.EventEpoch,
+                    snapshot.EventWatermark);
+            }
+
+            _pendingStateImport = false;
             while (!_pendingStateImport &&
                    _pendingReliableEventBatches.Count > 0)
             {
@@ -316,15 +339,34 @@ namespace AbilityKit.Game.Flow
 
                 OnReliableEventsPushed(pending);
             }
+
+            return !_pendingStateImport;
         }
 
         private void InvalidateAuthoritativeTimeline(string reason)
         {
             _pendingStateImport = true;
+            if (_ctx != null) _ctx.CanSubmitGameplayInput = false;
             _snapshotAdmission?.RequireFullBaseline();
             _authoritativeSnapshotState?.Reset();
             _remoteInterpolationController?.Reset();
             RequestFullStateSync(reason, _snapshotAdmission?.LastAcceptedFrame ?? 0);
+        }
+
+        private void PersistReliableEventCheckpoint(
+            MobaReliableBattleEventCursor cursor)
+        {
+            if (cursor == null ||
+                _bootstrapper is not IMobaReliableBattleEventCheckpointStore store)
+            {
+                return;
+            }
+
+            var checkpoint = cursor.CreateCheckpoint();
+            if (checkpoint.IsValid)
+            {
+                store.Save(in checkpoint);
+            }
         }
 
         /// <summary>
@@ -373,8 +415,12 @@ namespace AbilityKit.Game.Flow
 
             // Frame alignment and recovery completion only follow a successful import.
             _remoteDrivenLastTickedFrame = snapshot.Frame;
-            _pendingStateImport = false;
-            CompleteReliableEventRecovery(in snapshot);
+            if (!CompleteReliableEventRecovery(in snapshot))
+            {
+                return false;
+            }
+
+            _ctx.CanSubmitGameplayInput = true;
             return true;
         }
 
@@ -413,10 +459,10 @@ namespace AbilityKit.Game.Flow
 
         public MobaSynchronizationHealthSnapshot SynchronizationHealth => _synchronizationHealth;
 
+        public SyncHealthReport SynchronizationHealthReport => _synchronizationHealthReport;
+
         private void TickRemoteInterpolation(float deltaTime)
         {
-            TickReconnect(deltaTime);
-
             if (_remoteInterpolationController == null || _remoteReplicationPipeline == null || _ctx == null) return;
 
             _remoteReplicationPipeline.Tick(deltaTime);
@@ -447,6 +493,7 @@ namespace AbilityKit.Game.Flow
             _synchronizationHealthSampleElapsed = 0f;
 
             var replication = _remoteReplicationPipeline.GetDiagnostics();
+            _synchronizationHealthReport = replication.Health;
             var interpolation = _remoteInterpolationController.GetInterpolationDiagnostics();
             var prediction = _ctx?.PredictionStats;
             var tuning = _ctx?.PredictionTuningControl;
@@ -511,6 +558,7 @@ namespace AbilityKit.Game.Flow
             _remoteReplicationPipeline?.ResetDiagnostics();
             _synchronizationHealthEvaluator?.Reset();
             _synchronizationHealth = default;
+            _synchronizationHealthReport = SyncHealthReport.Empty;
             _synchronizationHealthSampleElapsed = 0f;
             _authoritativeSnapshotState?.Reset();
             _pendingReliableEventBatches.Clear();
@@ -522,7 +570,11 @@ namespace AbilityKit.Game.Flow
             _authoritativeSnapshotState = null;
             _reliableEventCursor = null;
             _pendingStateImport = false;
-            if (_ctx != null) _ctx.EnableRemoteInterpolation = false;
+            if (_ctx != null)
+            {
+                _ctx.EnableRemoteInterpolation = false;
+                _ctx.CanSubmitGameplayInput = true;
+            }
         }
     }
 }

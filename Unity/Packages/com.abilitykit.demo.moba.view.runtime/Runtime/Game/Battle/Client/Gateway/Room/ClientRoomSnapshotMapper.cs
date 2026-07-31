@@ -20,6 +20,7 @@ namespace AbilityKit.Game.Battle.Agent
             var snapshot = new ClientRoomSnapshot
             {
                 RoomId = ResolveRoomId(wire),
+                OwnerAccountId = wire.Summary.OwnerAccountId ?? string.Empty,
                 Phase = ToClientPhase(wire.Phase),
                 PhaseReason = wire.PhaseReason ?? string.Empty,
                 LaunchGeneration = wire.LaunchGeneration,
@@ -58,10 +59,13 @@ namespace AbilityKit.Game.Battle.Agent
                 PlayerId = wire.PlayerId,
                 LobbyReady = wire.LobbyReady,
                 AssetsLoaded = wire.AssetsLoaded,
+                LoadingProgress = wire.LoadingProgress,
                 IsOnline = wire.IsOnline,
                 JoinOrdinal = wire.JoinOrdinal,
                 LoadedManifestVersion = wire.LoadedManifestVersion,
-                LoadedManifestHash = wire.LoadedManifestHash ?? string.Empty
+                LoadedManifestHash = wire.LoadedManifestHash ?? string.Empty,
+                LastSeenTicks = wire.LastSeenTicks,
+                OfflineSinceTicks = wire.OfflineSinceTicks
             };
         }
 

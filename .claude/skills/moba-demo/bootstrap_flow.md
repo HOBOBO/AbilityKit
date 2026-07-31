@@ -4,7 +4,7 @@
 
 注意：`BootstrapFlowGuide.md` 第 161 行声称 "Dependencies 属性存在但未被使用，Stage 按注册顺序执行"——**此文档已过时**。实际 `MobaBootstrapStageBase.cs` 第 141-202 行的 `GetSortedStages`/`Visit` 已实现拓扑排序，循环依赖会被检测并 Warning。
 
-## 11 个 Stage（位于 `Application/Systems/Bootstrap/Flow/Stages/`）
+## 12 个 Stage（位于 `Application/Systems/Bootstrap/Flow/Stages/`）
 
 标 `[MobaBootstrapStage]` 由反射自动注册：
 
@@ -18,13 +18,14 @@
 | 4 | `TriggerPlansStage` | `TriggerPlans` | Configure | WorldModules | 触发计划加载与索引 |
 | 4 | `TargetingAndSkillsStage` | `TargetingAndSkills` | Configure | WorldModules | 事件订阅、触发器索引、技能条件 Registry |
 | 5 | `WorldInitStage` | `Install.WorldInit` | Install | TargetingAndSkills, TriggerPlans | MemoryPack 序列化、`WorldInitData`、`RollbackWorldRandom`、`MobaGameStartSpec`、切 InGame |
-| 6 | `PlanTriggeringStage` | `Install.PlanTriggering` | Configure+Install | TriggerPlans, WorldInit | `TriggerPlanJsonDatabase`、计划触发系统 |
-| 7 | `StartGameStage` | `StartGame` | Install | WorldInit | 启动末段初始化 |
+| **6** | **`MapRuntimeStage`** | **`MapRuntime`** | **Install** | **WorldInit** | **`maps.Load(mapId)` → 注册障碍物进碰撞世界 → `navigation.Build()` 烘焙导航网格** |
+| 7 | `PlanTriggeringStage` | `Install.PlanTriggering` | Configure+Install | TriggerPlans, WorldInit | `TriggerPlanJsonDatabase`、计划触发系统 |
+| 8 | `StartGameStage` | `StartGame` | Install | WorldInit | 启动末段初始化 |
 
 ## 拓扑
 
 - Configure 链：`CoreState → Config → WorldModules → {TriggerPlans, TargetingAndSkills}`
-- Install 链：`{TargetingAndSkills, TriggerPlans} → WorldInit → {PlanTriggering, StartGame}`
+- Install 链：`{TargetingAndSkills, TriggerPlans} → WorldInit → MapRuntime → {PlanTriggering, StartGame}`
 
 ## 辅助类型（Bootstrap/Flow 根）
 

@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -10,6 +13,77 @@ using UnityHFSM.Extension;
 
 namespace AbilityKit.Demo.Moba.Services.StateMachine
 {
+    public readonly struct MobaActorStateMachineBinding : IEquatable<MobaActorStateMachineBinding>
+    {
+        public MobaActorStateMachineBinding(
+            int actorId,
+            int brainId,
+            int ownerActorId,
+            int sourceKind,
+            int sourceId,
+            string profileId)
+        {
+            ActorId = actorId;
+            BrainId = brainId;
+            OwnerActorId = ownerActorId;
+            SourceKind = sourceKind;
+            SourceId = sourceId;
+            ProfileId = profileId ?? string.Empty;
+        }
+
+        public int ActorId { get; }
+        public int BrainId { get; }
+        public int OwnerActorId { get; }
+        public int SourceKind { get; }
+        public int SourceId { get; }
+        public string ProfileId { get; }
+
+        public static MobaActorStateMachineBinding From(global::ActorEntity actor, string profileId)
+        {
+            if (actor == null)
+                return new MobaActorStateMachineBinding(0, 0, 0, 0, 0, profileId);
+
+            var actorId = actor.hasActorId ? actor.actorId.Value : 0;
+            if (!actor.hasActorBrain)
+                return new MobaActorStateMachineBinding(actorId, 0, 0, 0, 0, profileId);
+
+            var brain = actor.actorBrain;
+            return new MobaActorStateMachineBinding(
+                actorId,
+                brain.BrainId,
+                brain.OwnerActorId,
+                brain.SourceKind,
+                brain.SourceId,
+                profileId);
+        }
+
+        public bool Equals(MobaActorStateMachineBinding other)
+        {
+            return ActorId == other.ActorId
+                && BrainId == other.BrainId
+                && OwnerActorId == other.OwnerActorId
+                && SourceKind == other.SourceKind
+                && SourceId == other.SourceId
+                && string.Equals(ProfileId, other.ProfileId, StringComparison.Ordinal);
+        }
+
+        public override bool Equals(object obj) => obj is MobaActorStateMachineBinding other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hash = ActorId;
+                hash = (hash * 397) ^ BrainId;
+                hash = (hash * 397) ^ OwnerActorId;
+                hash = (hash * 397) ^ SourceKind;
+                hash = (hash * 397) ^ SourceId;
+                hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(ProfileId ?? string.Empty);
+                return hash;
+            }
+        }
+    }
+
     public readonly struct MobaHfsmActionSpec
     {
         public MobaHfsmActionSpec(string type, string argument = null)
@@ -38,7 +112,11 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
 
     public interface IMobaActorStateMachineProfileCatalog : IService
     {
+        IReadOnlyList<HfsmHierarchicalRuntimeProfile<MobaHfsmActionSpec>> Profiles { get; }
+
         bool TryGet(string profileId, out HfsmHierarchicalRuntimeProfile<MobaHfsmActionSpec> profile);
+
+        bool TryGetContentHash(string profileId, out string contentHash);
     }
 
     [WorldService(typeof(IMobaActorStateMachineProfileCatalog))]
@@ -46,14 +124,29 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
     {
         private readonly Dictionary<string, HfsmHierarchicalRuntimeProfile<MobaHfsmActionSpec>> _profiles =
             new Dictionary<string, HfsmHierarchicalRuntimeProfile<MobaHfsmActionSpec>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> _contentHashes =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+
+        public IReadOnlyList<HfsmHierarchicalRuntimeProfile<MobaHfsmActionSpec>> Profiles
+        {
+            get
+            {
+                var profiles = new List<HfsmHierarchicalRuntimeProfile<MobaHfsmActionSpec>>(_profiles.Values);
+                profiles.Sort((left, right) => StringComparer.Ordinal.Compare(left.Id, right.Id));
+                return profiles;
+            }
+        }
 
         public void Register(HfsmHierarchicalRuntimeProfile<MobaHfsmActionSpec> profile)
         {
             if (profile == null) throw new ArgumentNullException(nameof(profile));
             if (string.IsNullOrWhiteSpace(profile.Id))
                 throw new ArgumentException("A state-machine profile id is required.", nameof(profile));
+            if (_profiles.ContainsKey(profile.Id))
+                throw new InvalidOperationException($"MOBA state-machine profile id '{profile.Id}' is duplicated.");
 
-            _profiles[profile.Id] = profile;
+            _profiles.Add(profile.Id, profile);
+            _contentHashes.Add(profile.Id, MobaActorStateMachineProfileContentHash.Compute(profile));
         }
 
         public bool TryGet(string profileId, out HfsmHierarchicalRuntimeProfile<MobaHfsmActionSpec> profile)
@@ -62,9 +155,17 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             return !string.IsNullOrWhiteSpace(profileId) && _profiles.TryGetValue(profileId, out profile);
         }
 
+        public bool TryGetContentHash(string profileId, out string contentHash)
+        {
+            contentHash = string.Empty;
+            return !string.IsNullOrWhiteSpace(profileId)
+                && _contentHashes.TryGetValue(profileId, out contentHash);
+        }
+
         public void Dispose()
         {
             _profiles.Clear();
+            _contentHashes.Clear();
         }
     }
 
@@ -102,6 +203,17 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         {
             if (string.IsNullOrWhiteSpace(type)) throw new ArgumentException("A condition type is required.", nameof(type));
             _conditions[type] = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
+        }
+
+        public bool ContainsAction(string type)
+        {
+            return !string.IsNullOrWhiteSpace(type) && _actions.ContainsKey(type);
+        }
+
+        public bool ContainsCondition(string expression)
+        {
+            SplitExpression(expression, out var type, out _);
+            return !string.IsNullOrWhiteSpace(type) && _conditions.ContainsKey(type);
         }
 
         public IActionBehaviour CreateAction(MobaActorStateMachineBlackboard blackboard, MobaHfsmActionSpec spec)
@@ -150,6 +262,105 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         public float UnscaledDeltaTime => DeltaTime;
     }
 
+    public static class MobaActorStateMachineProfileContentHash
+    {
+        public static string Compute(HfsmHierarchicalRuntimeProfile<MobaHfsmActionSpec> profile)
+        {
+            if (profile == null) throw new ArgumentNullException(nameof(profile));
+
+            var canonical = new StringBuilder(512);
+            AppendString(canonical, profile.Id);
+            AppendString(canonical, profile.StartState);
+            AppendStates(canonical, profile.States);
+            AppendTransitions(canonical, profile.Transitions);
+
+            using (var sha256 = SHA256.Create())
+            {
+                var bytes = Encoding.UTF8.GetBytes(canonical.ToString());
+                var hash = sha256.ComputeHash(bytes);
+                var result = new StringBuilder(hash.Length * 2);
+                for (var i = 0; i < hash.Length; i++) result.Append(hash[i].ToString("x2", CultureInfo.InvariantCulture));
+                return result.ToString();
+            }
+        }
+
+        private static void AppendStates(
+            StringBuilder target,
+            IReadOnlyList<HfsmRuntimeNodeSpec<MobaHfsmActionSpec>> states)
+        {
+            target.Append(states?.Count ?? 0).Append(';');
+            if (states == null) return;
+            for (var i = 0; i < states.Count; i++)
+            {
+                var state = states[i];
+                if (state == null)
+                {
+                    target.Append("null;");
+                    continue;
+                }
+
+                target.Append((int)state.Kind).Append(';');
+                AppendString(target, state.Id);
+                AppendString(target, state.StartState);
+                target.Append((int)state.CompletionPolicy).Append(';')
+                    .Append(state.NeedsExitTime ? 1 : 0).Append(';')
+                    .Append(state.RememberLastState ? 1 : 0).Append(';');
+                AppendBehaviour(target, state.BehaviourRoot);
+                AppendStates(target, state.Children);
+                AppendTransitions(target, state.Transitions);
+            }
+        }
+
+        private static void AppendTransitions(
+            StringBuilder target,
+            IReadOnlyList<HfsmRuntimeTransitionSpec> transitions)
+        {
+            target.Append(transitions?.Count ?? 0).Append(';');
+            if (transitions == null) return;
+            for (var i = 0; i < transitions.Count; i++)
+            {
+                var transition = transitions[i];
+                AppendString(target, transition.From);
+                AppendString(target, transition.To);
+                AppendString(target, transition.Condition);
+                target.Append((int)transition.Mode).Append(';')
+                    .Append(transition.Priority).Append(';')
+                    .Append(transition.ForceInstantly ? 1 : 0).Append(';');
+            }
+        }
+
+        private static void AppendBehaviour(
+            StringBuilder target,
+            HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec> behaviour)
+        {
+            if (behaviour == null)
+            {
+                target.Append("null;");
+                return;
+            }
+
+            target.Append((int)behaviour.Kind).Append(';');
+            AppendString(target, behaviour.Action.Type);
+            AppendString(target, behaviour.Action.Argument);
+            target.Append(behaviour.RepeatCount).Append(';');
+            AppendString(target, behaviour.DurationSeconds.ToString("R", CultureInfo.InvariantCulture));
+            target.Append(behaviour.UseUnscaledTime ? 1 : 0).Append(';')
+                .Append((int)behaviour.ParallelSuccessPolicy).Append(';')
+                .Append((int)behaviour.ParallelFailurePolicy).Append(';');
+            AppendString(target, behaviour.Condition);
+            target.Append(behaviour.Children?.Count ?? 0).Append(';');
+            if (behaviour.Children == null) return;
+            for (var i = 0; i < behaviour.Children.Count; i++)
+                AppendBehaviour(target, behaviour.Children[i]);
+        }
+
+        private static void AppendString(StringBuilder target, string value)
+        {
+            value ??= string.Empty;
+            target.Append(value.Length).Append(':').Append(value).Append(';');
+        }
+    }
+
     public sealed class MobaActorStateMachineRuntime : IDisposable
     {
         private readonly MobaActorStateMachineTimeSource _timeSource;
@@ -158,11 +369,15 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
 
         internal MobaActorStateMachineRuntime(
             string profileId,
+            string profileContentHash,
+            MobaActorStateMachineBinding binding,
             MobaActorStateMachineBlackboard blackboard,
             StateMachine<string> stateMachine,
             MobaActorStateMachineTimeSource timeSource)
         {
             ProfileId = profileId ?? string.Empty;
+            ProfileContentHash = profileContentHash ?? string.Empty;
+            Binding = binding;
             Blackboard = blackboard ?? throw new ArgumentNullException(nameof(blackboard));
             StateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
             _timeSource = timeSource ?? throw new ArgumentNullException(nameof(timeSource));
@@ -175,6 +390,10 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         }
 
         public string ProfileId { get; }
+
+        public string ProfileContentHash { get; }
+
+        public MobaActorStateMachineBinding Binding { get; }
 
         public MobaActorStateMachineBlackboard Blackboard { get; }
 
@@ -230,6 +449,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             if (_disposed) throw new ObjectDisposedException(nameof(MobaActorStateMachineRuntime));
             return new MobaActorStateMachineRuntimeSnapshot(
                 ProfileId,
+                ProfileContentHash,
                 _timeSource.DeltaTime,
                 _state,
                 HfsmRuntimeSnapshotUtility.Capture(StateMachine));
@@ -243,6 +463,12 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             {
                 throw new InvalidOperationException(
                     $"State-machine snapshot profile '{snapshot.ProfileId}' does not match runtime profile '{ProfileId}'.");
+            }
+            if (!string.IsNullOrEmpty(snapshot.ProfileContentHash)
+                && !string.Equals(ProfileContentHash, snapshot.ProfileContentHash, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"State-machine snapshot profile '{snapshot.ProfileId}' content hash does not match the runtime profile.");
             }
 
             HfsmRuntimeSnapshotUtility.Restore(StateMachine, snapshot.Root);
@@ -302,17 +528,20 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
     {
         public MobaActorStateMachineRuntimeSnapshot(
             string profileId,
+            string profileContentHash,
             float deltaTime,
             MobaActorStateMachineState state,
             HfsmRuntimeSnapshot root)
         {
             ProfileId = profileId ?? string.Empty;
+            ProfileContentHash = profileContentHash ?? string.Empty;
             DeltaTime = deltaTime;
             State = state;
             Root = root ?? throw new ArgumentNullException(nameof(root));
         }
 
         public string ProfileId { get; }
+        public string ProfileContentHash { get; }
         public float DeltaTime { get; }
         public MobaActorStateMachineState State { get; }
         public HfsmRuntimeSnapshot Root { get; }
@@ -335,10 +564,17 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         }
 
+        public bool TryGetProfileContentHash(string profileId, out string contentHash)
+        {
+            return _profiles.TryGetContentHash(profileId, out contentHash);
+        }
+
         public bool TryCreate(global::ActorEntity actor, string profileId, out MobaActorStateMachineRuntime runtime)
         {
             runtime = null;
             if (actor == null || !_profiles.TryGet(profileId, out var profile) || profile == null) return false;
+            if (!_profiles.TryGetContentHash(profileId, out var profileContentHash))
+                throw new InvalidOperationException($"MOBA state-machine profile '{profileId}' has no content hash.");
 
             var blackboard = new MobaActorStateMachineBlackboard(actor, _services);
             var timeSource = new MobaActorStateMachineTimeSource();
@@ -347,7 +583,13 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
                 _registry.EvaluateCondition);
 
             var stateMachine = builder.Build(timeSource, blackboard, profile);
-            runtime = new MobaActorStateMachineRuntime(profileId, blackboard, stateMachine, timeSource);
+            runtime = new MobaActorStateMachineRuntime(
+                profileId,
+                profileContentHash,
+                MobaActorStateMachineBinding.From(actor, profileId),
+                blackboard,
+                stateMachine,
+                timeSource);
             return true;
         }
 

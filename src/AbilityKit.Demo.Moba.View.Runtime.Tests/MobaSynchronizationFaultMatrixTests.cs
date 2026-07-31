@@ -115,6 +115,39 @@ public sealed class MobaSynchronizationFaultMatrixTests
         Assert.Equal(3, cursor.LastAcknowledgedSequence);
     }
 
+    [Fact]
+    public void Checkpoint_RestoresAcknowledgedCursorWithoutSharingRuntimeObject()
+    {
+        var original = DeliveredThrough(3);
+        Assert.True(original.ConfirmAcknowledged("epoch-1", 2));
+        var checkpoint = original.CreateCheckpoint();
+        var restored = new MobaReliableBattleEventCursor("battle-1");
+
+        Assert.True(restored.TryRestore(in checkpoint));
+        Assert.Equal("epoch-1", restored.Epoch);
+        Assert.Equal(2, restored.LastDeliveredSequence);
+        Assert.Equal(2, restored.LastAcknowledgedSequence);
+
+        var replay = Push("epoch-1", Event(2), Event(3));
+        var result = restored.Admit(in replay);
+        Assert.True(result.Accepted);
+        Assert.Single(result.Events);
+        Assert.Equal(3, result.Events[0].Sequence);
+    }
+
+    [Fact]
+    public void Checkpoint_FromDifferentBattle_IsRejected()
+    {
+        var cursor = new MobaReliableBattleEventCursor("battle-2");
+        var checkpoint = new MobaReliableBattleEventCheckpoint(
+            "battle-1",
+            "epoch-1",
+            4);
+
+        Assert.False(cursor.TryRestore(in checkpoint));
+        Assert.Equal(0, cursor.LastAcknowledgedSequence);
+    }
+
     private static MobaReliableBattleEventCursor DeliveredThrough(long sequence)
     {
         var cursor = new MobaReliableBattleEventCursor("battle-1");

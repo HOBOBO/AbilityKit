@@ -35,6 +35,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             typeof(SpawnSummonActionTemplateDTO),
             typeof(ComponentTemplateDTO),
             typeof(PresentationTemplateDTO),
+            typeof(BattleMapDTO),
             typeof(GameplayDTO),
         };
 

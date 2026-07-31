@@ -17,7 +17,9 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
 
     public object CreateState(RoomSummary summary)
     {
-        return new ShooterRoomState(summary.MaxPlayers > 0 ? summary.MaxPlayers : ShooterGameplay.DefaultMaxPlayers);
+        var maxPlayers = summary.MaxPlayers > 0 ? summary.MaxPlayers : ShooterGameplay.DefaultMaxPlayers;
+        var minPlayers = ReadIntTag(summary, ShooterRoomTagKeys.MinPlayers, 1);
+        return new ShooterRoomState(maxPlayers, minPlayers);
     }
 
     public RoomGameplayPersistentState ExportPersistentState(object state)
@@ -26,7 +28,12 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
         var players = BuildOrderedPlayerSlots(roomState)
             .Select(pair => new ShooterPersistentPlayer(pair.Key, pair.Value.PlayerId, pair.Value.Ready))
             .ToList();
-        var snapshot = new ShooterPersistentSnapshot(roomState.MaxPlayers, roomState.NextPlayerId, roomState.ReleasedPlayerIds.ToList(), players);
+        var snapshot = new ShooterPersistentSnapshot(
+            roomState.MaxPlayers,
+            roomState.MinPlayers,
+            roomState.NextPlayerId,
+            roomState.ReleasedPlayerIds.ToList(),
+            players);
         return new RoomGameplayPersistentState(PersistentFormat, 1, JsonSerializer.SerializeToUtf8Bytes(snapshot));
     }
 
@@ -59,9 +66,10 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
         RequireState(state).SetReady(request.AccountId, request.Ready);
     }
 
-    public void SubmitCommand(object state, RoomGameplayCommandRequest request)
+    public RoomGameplayCommandResult SubmitCommand(object state, RoomGameplayCommandRequest request)
     {
         // Shooter 刻意保持房间配置极简；该玩法会忽略房间玩法命令。
+        return RoomGameplayCommandResult.Accepted();
     }
 
     public bool CanStart(object state)
@@ -235,12 +243,15 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
 
     private sealed class ShooterRoomState
     {
-        public ShooterRoomState(int maxPlayers)
+        public ShooterRoomState(int maxPlayers, int minPlayers)
         {
             MaxPlayers = Math.Max(1, maxPlayers);
+            MinPlayers = Math.Max(1, Math.Min(MaxPlayers, minPlayers));
         }
 
         public int MaxPlayers { get; }
+
+        public int MinPlayers { get; }
 
         public Dictionary<string, ShooterRoomPlayer> Players { get; } = new(StringComparer.Ordinal);
 
@@ -250,7 +261,7 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
 
         public static ShooterRoomState Restore(ShooterPersistentSnapshot snapshot)
         {
-            var state = new ShooterRoomState(snapshot.MaxPlayers)
+            var state = new ShooterRoomState(snapshot.MaxPlayers, snapshot.MinPlayers <= 0 ? 1 : snapshot.MinPlayers)
             {
                 NextPlayerId = Math.Max(1, snapshot.NextPlayerId)
             };
@@ -294,7 +305,7 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
 
         public bool CanStart()
         {
-            if (Players.Count == 0) return false;
+            if (Players.Count < MinPlayers) return false;
             foreach (var kv in Players)
             {
                 if (!kv.Value.Ready) return false;
@@ -319,6 +330,7 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
 
     internal sealed record ShooterPersistentSnapshot(
         int MaxPlayers,
+        int MinPlayers,
         int NextPlayerId,
         List<int> ReleasedPlayerIds,
         List<ShooterPersistentPlayer> Players);

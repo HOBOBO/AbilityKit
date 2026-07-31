@@ -2,6 +2,7 @@ using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Demo.Moba.Rollback;
 
 namespace AbilityKit.Game.Flow
 {
@@ -72,7 +73,7 @@ namespace AbilityKit.Game.Flow
                 _ => handles.Consumable,
                 _ => ctx != null ? ctx.LocalInputQueue : null,
                 resolveIdealFrameLimit,
-                RemoteDrivenRollbackRegistryFactory.Create,
+                MobaRollbackRegistryBuilder.Create,
                 world => CreateStateHash(world, shouldForceHashMismatch)));
 
             handles.BindWorldRuntime(worldRuntime);

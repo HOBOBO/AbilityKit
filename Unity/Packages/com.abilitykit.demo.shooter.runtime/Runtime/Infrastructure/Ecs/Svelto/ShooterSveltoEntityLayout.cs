@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var initializer = context.EntityFactory.BuildEntity<ShooterSveltoGameplayTargetDescriptor>(entityId, ShooterSveltoGroups.GameplayTargets);
             initializer.Init(transform);
             initializer.Init(health);
+            initializer.Init(default(ShooterSveltoNavigationComponent));
         }
     }
 }

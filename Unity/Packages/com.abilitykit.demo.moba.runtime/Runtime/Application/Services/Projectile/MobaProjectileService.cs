@@ -24,9 +24,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
     [WorldService(typeof(MobaProjectileService))]
     public sealed class MobaProjectileService : IService, IMobaProjectileLaunchExecutor, IMobaProjectileLaunchRuntime
     {
-        private const int CollisionLayer_Unit = 1 << 0;
-        private const int CollisionLayer_World = 1 << 2;
-
         [WorldInject] private IProjectileService _projectiles = null;
         [WorldInject] private ActorIdAllocator _actorIds = null;
         [WorldInject] private MobaActorRegistry _registry = null;
@@ -104,7 +101,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             var ignore = default(ColliderId);
             if (caster.hasCollisionId) ignore = caster.collisionId.Value;
 
-            var collisionMask = CollisionLayer_Unit | CollisionLayer_World;
+            var collisionMask = MobaCollisionLayers.UnitMask | MobaCollisionLayers.WorldMask;
 
             var spawnFrame = GetCurrentFrame();
 
@@ -399,7 +396,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 tickIntervalFrames = 1;
             }
 
-            var collisionMask = CollisionLayer_Unit | CollisionLayer_World;
+            var collisionMask = MobaCollisionLayers.UnitMask | MobaCollisionLayers.WorldMask;
             var ignore = default(ColliderId);
             if (caster.hasCollisionId) ignore = caster.collisionId.Value;
 

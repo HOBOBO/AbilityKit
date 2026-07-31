@@ -49,6 +49,28 @@ namespace AbilityKit.Demo.Shooter.View.Tests
             Assert.IsTrue(tags.ContainsKey(ShooterRoomLaunchTagKeys.DurationFrames));
         }
 
+        [Test]
+        public void FrameworkSnapshotPipelineReusesGatewayPayloadBytes()
+        {
+            var payload = new byte[] { 1, 2, 3, 4 };
+            var snapshot = new ShooterGatewaySnapshot(
+                worldId: 7UL,
+                frame: 12,
+                timestamp: 1.5d,
+                serverTicks: 99L,
+                isFullSnapshot: true,
+                actors: Array.Empty<ShooterGatewayActorSnapshot>(),
+                payloadOpCode: 123,
+                payloadBytes: payload);
+
+            var packet = ShooterFrameworkSnapshotPipeline.ToFramePacket(in snapshot);
+
+            Assert.That(snapshot.PayloadBytes, Is.SameAs(payload));
+            Assert.That(packet.Snapshot.HasValue, Is.True);
+            Assert.That(packet.Snapshot.Value.Payload, Is.SameAs(payload),
+                "Gateway payload should enter SnapshotPipeline without a serialize/deserialize round trip.");
+        }
+
         private static void AssertTemplate(string templateId, NetworkSyncModel expectedModel)
         {
             var template = ShooterAcceptanceCatalog.GetSyncTemplate(templateId);

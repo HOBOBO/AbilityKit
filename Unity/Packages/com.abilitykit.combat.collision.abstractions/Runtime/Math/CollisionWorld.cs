@@ -163,7 +163,23 @@ namespace AbilityKit.Core.Mathematics
             out RaycastHit hit);
     }
 
-    public sealed class NaiveCollisionWorld : ICollisionWorld, IOrientedBoxSweepCollisionWorld, Combat.Collision.ICollisionLayerRelation
+    /// <summary>
+    /// 支持球形移动体扫掠的碰撞世界。把"半径 r 的球沿方向扫掠是否命中"归约为
+    /// "球心射线对每个障碍按 r 做 Minkowski 膨胀后做射线检测"——对 OBB/AABB/球精确
+    /// （OBB 保留旋转），胶囊沿用既有近似。供 MOBA 圆形移动体使用。
+    /// </summary>
+    public interface ISphereSweepCollisionWorld
+    {
+        bool SweepSphere(
+            in Vec3 start,
+            in Vec3 direction,
+            float maxDistance,
+            float radius,
+            in Combat.Collision.LayerFilter filter,
+            out RaycastHit hit);
+    }
+
+    public sealed class NaiveCollisionWorld : ICollisionWorld, IOrientedBoxSweepCollisionWorld, ISphereSweepCollisionWorld, Combat.Collision.ICollisionLayerRelation
     {
         private struct Entry
         {
@@ -291,6 +307,7 @@ namespace AbilityKit.Core.Mathematics
                 var e = _entries[i];
                 if (!e.Alive) continue;
                 if (!filter.IsLayerIncluded(e.LayerId)) continue;
+                if (filter.ShouldIgnore(i + 1)) continue;
 
                 var worldShape = ToWorldShape(in e.Transform, in e.LocalShape);
                 if (!CollisionQueries.Raycast(ray, worldShape, out var d, out var n)) continue;
@@ -326,28 +343,66 @@ namespace AbilityKit.Core.Mathematics
             var best = float.PositiveInfinity;
             var bestId = default(ColliderId);
             var bestNormal = Vec3.Zero;
-            var localRay = new Ray3(Vec3.Zero, ToBoxLocal(dir, in box));
+            var localRay = new Ray3(Vec3.Zero, OrientedBoxSweepQueries.ToBoxLocal(dir, in box));
 
             for (var i = 0; i < _entries.Count; i++)
             {
                 var e = _entries[i];
                 if (!e.Alive) continue;
                 if (!filter.IsLayerIncluded(e.LayerId)) continue;
+                if (filter.ShouldIgnore(i + 1)) continue;
 
                 var worldShape = ToWorldShape(in e.Transform, in e.LocalShape);
-                var bounds = ToBoxLocalBounds(in worldShape, in box);
-                var expanded = new Aabb(bounds.Min - box.HalfExtents, bounds.Max + box.HalfExtents);
-                if (!CollisionQueries.Raycast(localRay, expanded, out var distance, out var localNormal)) continue;
-                if (distance < 0f || distance > maxDistance || distance >= best) continue;
+                if (!OrientedBoxSweepQueries.SweepVsShape(in box, in localRay, maxDistance, in worldShape, out var distance, out var candidateNormal)) continue;
+                if (distance >= best) continue;
 
                 best = distance;
                 bestId = new ColliderId(i + 1);
-                bestNormal = FromBoxLocal(localNormal, in box).Normalized;
+                bestNormal = candidateNormal;
             }
 
             if (best < float.PositiveInfinity)
             {
                 hit = new RaycastHit(bestId, best, box.Center + dir * best, bestNormal);
+                return true;
+            }
+
+            hit = default;
+            return false;
+        }
+
+        public bool SweepSphere(in Vec3 start, in Vec3 direction, float maxDistance, float radius, in Combat.Collision.LayerFilter filter, out RaycastHit hit)
+        {
+            var dir = direction.Normalized;
+            if (dir.SqrMagnitude <= 0f || maxDistance < 0f)
+            {
+                hit = default;
+                return false;
+            }
+
+            var best = float.PositiveInfinity;
+            var bestId = default(ColliderId);
+            var bestNormal = Vec3.Zero;
+
+            for (var i = 0; i < _entries.Count; i++)
+            {
+                var e = _entries[i];
+                if (!e.Alive) continue;
+                if (!filter.IsLayerIncluded(e.LayerId)) continue;
+                if (filter.ShouldIgnore(i + 1)) continue;
+
+                var worldShape = ToWorldShape(in e.Transform, in e.LocalShape);
+                if (!SphereSweepQueries.SweepVsShape(in start, in dir, maxDistance, radius, in worldShape, out var d, out var n)) continue;
+                if (d >= best) continue;
+
+                best = d;
+                bestId = new ColliderId(i + 1);
+                bestNormal = n;
+            }
+
+            if (best < float.PositiveInfinity)
+            {
+                hit = new RaycastHit(bestId, best, start + dir * best, bestNormal);
                 return true;
             }
 
@@ -365,6 +420,7 @@ namespace AbilityKit.Core.Mathematics
                 var e = _entries[i];
                 if (!e.Alive) continue;
                 if (!filter.IsLayerIncluded(e.LayerId)) continue;
+                if (filter.ShouldIgnore(i + 1)) continue;
 
                 var worldShape = ToWorldShape(in e.Transform, in e.LocalShape);
                 if (!CollisionQueries.Overlap(sphere, worldShape)) continue;
@@ -397,55 +453,15 @@ namespace AbilityKit.Core.Mathematics
                     var aabb = ToWorldAabbConservative(in t, in local.Aabb);
                     return ColliderShape.CreateAabb(aabb.Min, aabb.Max);
                 }
+                case ColliderShapeType.OBB:
+                {
+                    var c = t.TransformPoint(local.Obb.Center);
+                    var rot = t.Rotation * local.Obb.Rotation;
+                    var ext = local.Obb.HalfExtents * MaxAbsComponent(t.Scale);
+                    return ColliderShape.CreateObb(c, rot, ext);
+                }
                 default:
                     return local;
-            }
-        }
-
-        private static Vec3 ToBoxLocal(in Vec3 worldVector, in OrientedBoxSweep box)
-        {
-            return new Vec3(
-                Vec3.Dot(worldVector, box.Right),
-                Vec3.Dot(worldVector, box.Up),
-                Vec3.Dot(worldVector, box.Forward));
-        }
-
-        private static Vec3 FromBoxLocal(in Vec3 localVector, in OrientedBoxSweep box)
-        {
-            return box.Right * localVector.X + box.Up * localVector.Y + box.Forward * localVector.Z;
-        }
-
-        private static Aabb ToBoxLocalBounds(in ColliderShape shape, in OrientedBoxSweep box)
-        {
-            switch (shape.Type)
-            {
-                case ColliderShapeType.Sphere:
-                {
-                    var center = ToBoxLocal(shape.Sphere.Center - box.Center, in box);
-                    var radius = shape.Sphere.Radius;
-                    var extent = new Vec3(radius, radius, radius);
-                    return new Aabb(center - extent, center + extent);
-                }
-                case ColliderShapeType.Capsule:
-                {
-                    var a = ToBoxLocal(shape.Capsule.A - box.Center, in box);
-                    var b = ToBoxLocal(shape.Capsule.B - box.Center, in box);
-                    var radius = shape.Capsule.Radius;
-                    var extent = new Vec3(radius, radius, radius);
-                    return new Aabb(Vec3.Min(a, b) - extent, Vec3.Max(a, b) + extent);
-                }
-                case ColliderShapeType.Aabb:
-                default:
-                {
-                    var centerWorld = (shape.Aabb.Min + shape.Aabb.Max) * 0.5f;
-                    var worldExtent = (shape.Aabb.Max - shape.Aabb.Min) * 0.5f;
-                    var center = ToBoxLocal(centerWorld - box.Center, in box);
-                    var extent = new Vec3(
-                        MathUtil.Abs(box.Right.X) * worldExtent.X + MathUtil.Abs(box.Right.Y) * worldExtent.Y + MathUtil.Abs(box.Right.Z) * worldExtent.Z,
-                        MathUtil.Abs(box.Up.X) * worldExtent.X + MathUtil.Abs(box.Up.Y) * worldExtent.Y + MathUtil.Abs(box.Up.Z) * worldExtent.Z,
-                        MathUtil.Abs(box.Forward.X) * worldExtent.X + MathUtil.Abs(box.Forward.Y) * worldExtent.Y + MathUtil.Abs(box.Forward.Z) * worldExtent.Z);
-                    return new Aabb(center - extent, center + extent);
-                }
             }
         }
 

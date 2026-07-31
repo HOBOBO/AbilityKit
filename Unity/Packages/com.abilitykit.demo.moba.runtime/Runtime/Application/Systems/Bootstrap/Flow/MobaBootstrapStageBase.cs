@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
         public const string TriggerPlans = "TriggerPlans";
         public const string TargetingAndSkills = "TargetingAndSkills";
         public const string WorldInit = "Install.WorldInit";
+        public const string MapRuntime = "Install.MapRuntime";
         public const string StartGame = "StartGame";
         public const string PlanTriggering = "Install.PlanTriggering";
     }

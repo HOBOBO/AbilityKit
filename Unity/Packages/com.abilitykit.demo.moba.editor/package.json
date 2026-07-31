@@ -6,6 +6,7 @@
   "description": "MOBA demo editor tools.",
   "author": { "name": "AbilityKit" },
   "dependencies": {
+    "com.abilitykit.combat.navigation": "0.0.1",
     "com.abilitykit.demo.moba.runtime": "0.0.1",
     "com.abilitykit.demo.moba.view.runtime": "0.0.1",
     "com.abilitykit.world.ecs": "0.0.1",

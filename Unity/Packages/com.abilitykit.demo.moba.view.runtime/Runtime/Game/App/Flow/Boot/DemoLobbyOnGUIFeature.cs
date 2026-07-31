@@ -33,6 +33,9 @@ namespace AbilityKit.Game.Flow
             if (!_show) return;
             if (ctx.Entry == null) return;
 
+            var selection = ctx.Entry.Get<LobbyBattleEntrySelection>();
+            if (selection?.IsRemoteSelected == true) return;
+
             var sink = ctx.Entry.Get<IFlowCommandSink>();
             if (sink != null && sink.CurrentRootPhase == MobaRootState.Battle) return;
 
@@ -126,7 +129,7 @@ namespace AbilityKit.Game.Flow
                 for (var i = 0; i < runtimePresets.Count; i++)
                 {
                     var preset = runtimePresets[i];
-                    if (preset != null && !_presets.Contains(preset))
+                    if (preset != null && !IsRemotePreset(preset) && !_presets.Contains(preset))
                     {
                         _presets.Add(preset);
                     }
@@ -167,6 +170,11 @@ namespace AbilityKit.Game.Flow
             {
                 var path = AssetDatabase.GUIDToAssetPath(guids[i]);
                 var asset = AssetDatabase.LoadAssetAtPath<T>(path);
+                if (asset is BattleStartPresetSO preset && IsRemotePreset(preset))
+                {
+                    continue;
+                }
+
                 if (asset != null && !results.Contains(asset))
                 {
                     results.Add(asset);

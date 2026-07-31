@@ -73,7 +73,7 @@ namespace AbilityKit.Game.Flow
                 builder.RegisterInstance(new WorldInitData(createWorld.OpCode, createWorld.Payload));
             }
             builder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new FrameTime());
-            builder.TryRegister<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService());
+            builder.TryRegister<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService(new CollisionWorldOptions { BroadphaseType = BroadphaseType.Grid, GridCellSize = 4f }));
 
             if (authorityFramesSource != null)
             {

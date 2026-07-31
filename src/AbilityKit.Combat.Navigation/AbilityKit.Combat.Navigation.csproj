@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit</RootNamespace>
+    <AssemblyName>AbilityKit.Combat.Navigation</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.combat.navigation/Runtime/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.World.DI/AbilityKit.World.DI.csproj" />
+  </ItemGroup>
+
+</Project>

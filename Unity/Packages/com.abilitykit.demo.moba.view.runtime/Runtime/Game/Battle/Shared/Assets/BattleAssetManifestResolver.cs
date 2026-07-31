@@ -65,7 +65,7 @@ namespace AbilityKit.Game.Battle.Shared.Assets
                     if (heroId > 0 && seenHero.Add(heroId))
                     {
                         entries.Add(new BattleAssetEntry(
-                            "moba/characters/" + heroId,
+                            "moba/characters/characters_" + heroId,
                             "character:" + heroId,
                             BattleAssetKind.Character));
                     }
@@ -99,7 +99,7 @@ namespace AbilityKit.Game.Battle.Shared.Assets
             // 4. 地图引用
             var mapKey = ResolveMapKey();
             entries.Add(new BattleAssetEntry(
-                "moba/maps/" + mapKey,
+                "moba/battle_maps",
                 "map:" + mapKey,
                 BattleAssetKind.Map));
 
@@ -121,7 +121,7 @@ namespace AbilityKit.Game.Battle.Shared.Assets
             if (skillId > 0 && seen.Add(skillId))
             {
                 entries.Add(new BattleAssetEntry(
-                    "moba/skills/" + skillId,
+                    "moba/skills/skills_" + skillId,
                     "skill:" + skillId,
                     BattleAssetKind.Config));
             }

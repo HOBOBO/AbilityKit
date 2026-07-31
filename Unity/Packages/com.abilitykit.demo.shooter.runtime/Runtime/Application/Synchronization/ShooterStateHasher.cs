@@ -24,7 +24,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             unchecked
             {
                 var hash = 2166136261u;
-                hash = Hash(hash, 4); // hash schema version
+                hash = Hash(hash, 5); // hash schema version
                 hash = Hash(hash, _state.CurrentFrame);
                 hash = Hash(hash, (int)_state.MatchState);
                 hash = Hash(hash, _state.MatchCompletedFrame);
@@ -67,8 +67,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     hash = Hash(hash, bullet.ExplosionDamage);
                 }
 
-                var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
-                enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> enemyTransforms, out NB<ShooterSveltoHealthComponent> enemyHealths, out var enemyIds, out var enemyCount);
+                var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent, ShooterSveltoNavigationComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+                enemyCollection.Deconstruct(
+                    out NB<ShooterSveltoTransformComponent> enemyTransforms,
+                    out NB<ShooterSveltoHealthComponent> enemyHealths,
+                    out NB<ShooterSveltoNavigationComponent> enemyNavigation,
+                    out var enemyIds,
+                    out var enemyCount);
                 var enemyOrder = _orderBuffer.CreateSortedEnemyOrder(enemyIds, enemyCount);
                 for (int i = 0; i < enemyCount; i++)
                 {
@@ -76,11 +81,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     var enemyId = checked((int)enemyIds[enemyIndex]);
                     var transform = enemyTransforms[enemyIndex];
                     var health = enemyHealths[enemyIndex];
+                    var navigation = enemyNavigation[enemyIndex];
                     hash = Hash(hash, enemyId);
                     hash = Hash(hash, ShooterRuntimeSnapshotUtility.Quantize(transform.X));
                     hash = Hash(hash, ShooterRuntimeSnapshotUtility.Quantize(transform.Y));
                     hash = Hash(hash, ShooterRuntimeSnapshotUtility.Quantize(transform.DirectionX));
                     hash = Hash(hash, ShooterRuntimeSnapshotUtility.Quantize(transform.DirectionY));
+                    hash = Hash(hash, ShooterRuntimeSnapshotUtility.Quantize(navigation.VelocityX));
+                    hash = Hash(hash, ShooterRuntimeSnapshotUtility.Quantize(navigation.VelocityY));
                     hash = Hash(hash, health.Current);
                     hash = Hash(hash, health.Max);
                     hash = Hash(hash, health.Alive);

@@ -320,7 +320,7 @@ namespace AbilityKit.Demo.Moba.Console
 
             builder.RegisterInstance(launchSpec.ToWorldInitData(MobaWorldBootstrapModule.InitOpCode));
             builder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new FrameTime());
-            builder.TryRegister<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService());
+            builder.TryRegister<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService(new CollisionWorldOptions { BroadphaseType = BroadphaseType.Grid, GridCellSize = 4f }));
 
             var options = new WorldCreateOptions(new WorldId(launchSpec.WorldId), launchSpec.WorldType)
             {

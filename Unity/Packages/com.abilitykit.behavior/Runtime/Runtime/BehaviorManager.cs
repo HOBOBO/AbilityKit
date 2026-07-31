@@ -352,6 +352,10 @@ namespace AbilityKit.Ability.Behavior
             
             behavior.OnComplete -= OnRuntimeComplete;
             behavior.OnInterrupt -= OnRuntimeInterrupt;
+            if (behavior.Decision is IDisposable disposableDecision)
+            {
+                disposableDecision.Dispose();
+            }
             
             // 清理绑定
             if (_bindings.TryGetValue(instanceId, out var binding))

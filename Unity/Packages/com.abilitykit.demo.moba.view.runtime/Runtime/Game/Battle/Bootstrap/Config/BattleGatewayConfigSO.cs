@@ -21,6 +21,9 @@ namespace AbilityKit.Game.Flow
         [LabelText("SessionToken")]
         public string SessionToken = string.Empty;
 
+        [LabelText("Restore Fallback PlayerId")]
+        public uint RestoreFallbackPlayerId = 1u;
+
         [LabelText("Region")]
         public string Region = "dev";
 

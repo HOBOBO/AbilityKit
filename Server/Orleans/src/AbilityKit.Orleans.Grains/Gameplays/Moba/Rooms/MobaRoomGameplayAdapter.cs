@@ -73,29 +73,81 @@ internal sealed class MobaRoomGameplayAdapter : IRoomGameplayAdapter
         roomState.TrySetReady(new PlayerId(request.AccountId), request.Ready);
     }
 
-    public void SubmitCommand(object state, RoomGameplayCommandRequest request)
+    public RoomGameplayCommandResult SubmitCommand(object state, RoomGameplayCommandRequest request)
     {
         if (!string.Equals(request.CommandName, RoomGameplayCommandNames.ConfigureMobaLoadout, StringComparison.Ordinal))
         {
-            throw new InvalidOperationException($"Unsupported MOBA room gameplay command. CommandName={request.CommandName}");
+            return RoomGameplayCommandResult.Rejected(
+                RoomOperationErrorCode.InvalidGameplayCommand,
+                $"Unsupported MOBA room gameplay command. CommandName={request.CommandName}");
         }
 
         var roomState = RequireMobaState(state);
-        var fields = request.Fields ?? throw new InvalidOperationException("MOBA loadout command fields are required.");
+        var fields = request.Fields;
+        if (fields == null)
+        {
+            return RoomGameplayCommandResult.Rejected(
+                RoomOperationErrorCode.InvalidGameplayCommand,
+                "MOBA loadout command fields are required.");
+        }
+
         var playerId = new PlayerId(request.AccountId);
-        roomState.TrySetTeam(playerId, ReadIntField(fields, "teamId", 0));
-        roomState.TrySetSpawnPoint(playerId, ReadIntField(fields, "spawnPointId", 0));
+        if (!roomState.Players.ContainsKey(playerId.Value))
+        {
+            return RoomGameplayCommandResult.Rejected(
+                RoomOperationErrorCode.NotMember,
+                "Account is not in the MOBA room roster.");
+        }
+
+        var teamId = ReadIntField(fields, "teamId", 0);
+        var heroId = ReadIntField(fields, "heroId", 0);
+        var spawnPointId = ReadIntField(fields, "spawnPointId", 0);
+        var attributeTemplateId = ReadIntField(fields, "attributeTemplateId", 0);
+        var level = ReadIntField(fields, "level", 1);
+        var basicAttackSkillId = ReadIntField(fields, "basicAttackSkillId", 0);
+        var skillIds = ReadIntArrayField(fields, "skillIds");
+        if (teamId <= 0 ||
+            heroId <= 0 ||
+            attributeTemplateId <= 0 ||
+            level <= 0 ||
+            basicAttackSkillId <= 0 ||
+            skillIds is not { Length: > 0 } ||
+            skillIds.Any(skillId => skillId <= 0))
+        {
+            return RoomGameplayCommandResult.Rejected(
+                RoomOperationErrorCode.InvalidGameplayCommand,
+                "MOBA loadout requires positive team, hero, attribute, level, basic attack, and skill ids.");
+        }
+
+        foreach (var entry in roomState.Players)
+        {
+            if (!string.Equals(entry.Key, playerId.Value, StringComparison.Ordinal) &&
+                entry.Value.TeamId == teamId &&
+                entry.Value.HeroId == heroId)
+            {
+                return RoomGameplayCommandResult.Rejected(
+                    RoomOperationErrorCode.HeroConflict,
+                    $"Hero {heroId} is already selected by another player on team {teamId}.");
+            }
+        }
+
+        roomState.TrySetTeam(playerId, teamId);
+        roomState.TrySetSpawnPoint(playerId, spawnPointId);
         var ok = roomState.TryPickHero(
             playerId,
-            ReadIntField(fields, "heroId", 0),
-            ReadIntField(fields, "attributeTemplateId", 0),
-            ReadIntField(fields, "level", 1),
-            ReadIntField(fields, "basicAttackSkillId", 0),
-            ReadIntArrayField(fields, "skillIds"));
+            heroId,
+            attributeTemplateId,
+            level,
+            basicAttackSkillId,
+            skillIds);
         if (!ok)
         {
-            throw new InvalidOperationException("Invalid MOBA room loadout command. Full player loadout fields are required.");
+            return RoomGameplayCommandResult.Rejected(
+                RoomOperationErrorCode.InvalidGameplayCommand,
+                "Invalid MOBA room loadout command. Full player loadout fields are required.");
         }
+
+        return RoomGameplayCommandResult.Accepted();
     }
 
     public bool CanStart(object state)

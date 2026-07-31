@@ -11,13 +11,14 @@ namespace AbilityKit.Combat.Collision
     /// - 层过滤（LayerFilter）
     /// - 层关系矩阵（CollisionLayerMatrix）
     /// </summary>
-    public sealed class GridCollisionWorld : ICollisionWorld, ICollisionLayerRelation
+    public sealed class GridCollisionWorld : ICollisionWorld, ICollisionLayerRelation, IOrientedBoxSweepCollisionWorld, ISphereSweepCollisionWorld
     {
         private readonly GridBroadphase _broadphase;
         private readonly int _initialCapacity;
         private Entry[] _entries;
         private int _nextId = 1;
         private readonly CollisionLayerMatrix _layerMatrix;
+        private readonly int[] _queryResults;
 
         private struct Entry
         {
@@ -33,6 +34,7 @@ namespace AbilityKit.Combat.Collision
             _initialCapacity = initialCapacity;
             _entries = new Entry[initialCapacity];
             _layerMatrix = new CollisionLayerMatrix();
+            _queryResults = new int[initialCapacity];
         }
 
         // ============ ICollisionLayerRelation 实现 ============
@@ -155,8 +157,7 @@ namespace AbilityKit.Combat.Collision
 
         public bool Raycast(in Ray3 ray, float maxDistance, in LayerFilter filter, out RaycastHit hit)
         {
-            var candidateIds = new int[_initialCapacity];
-            var candidates = CollectCandidates(in ray, maxDistance, candidateIds);
+            var candidates = CollectCandidates(in ray, maxDistance, _queryResults);
 
             var best = float.PositiveInfinity;
             var bestId = default(ColliderId);
@@ -164,9 +165,11 @@ namespace AbilityKit.Combat.Collision
 
             for (var i = 0; i < candidates; i++)
             {
-                var idx = candidateIds[i] - 1;
+                var candidateId = _queryResults[i];
+                var idx = candidateId - 1;
                 if (idx < 0 || idx >= _entries.Length || !_entries[idx].Alive) continue;
                 if (!filter.IsLayerIncluded(_entries[idx].LayerId)) continue;
+                if (filter.ShouldIgnore(candidateId)) continue;
 
                 var worldShape = ToWorldShape(in _entries[idx].Transform, in _entries[idx].LocalShape);
                 if (!CollisionQueries.Raycast(ray, worldShape, out var d, out var n)) continue;
@@ -175,7 +178,7 @@ namespace AbilityKit.Combat.Collision
                 if (d < best)
                 {
                     best = d;
-                    bestId = new ColliderId(candidateIds[i]);
+                    bestId = new ColliderId(candidateId);
                     bestNormal = n;
                 }
             }
@@ -198,24 +201,126 @@ namespace AbilityKit.Combat.Collision
                 sphere.Center - new Vec3(sphere.Radius, sphere.Radius, sphere.Radius),
                 sphere.Center + new Vec3(sphere.Radius, sphere.Radius, sphere.Radius));
 
-            var candidates = new int[_initialCapacity];
-            var count = _broadphase.Query(in queryAabb, candidates, candidates.Length);
+            var count = _broadphase.Query(in queryAabb, _queryResults, _queryResults.Length);
 
             var resultCount = 0;
             for (var i = 0; i < count; i++)
             {
-                var idx = candidates[i] - 1;
+                var candidateId = _queryResults[i];
+                var idx = candidateId - 1;
                 if (idx < 0 || idx >= _entries.Length || !_entries[idx].Alive) continue;
                 if (!filter.IsLayerIncluded(_entries[idx].LayerId)) continue;
+                if (filter.ShouldIgnore(candidateId)) continue;
 
                 var worldShape = ToWorldShape(in _entries[idx].Transform, in _entries[idx].LocalShape);
                 if (!CollisionQueries.Overlap(sphere, worldShape)) continue;
 
-                results.Add(new ColliderId(candidates[i]));
+                results.Add(new ColliderId(candidateId));
                 resultCount++;
             }
 
             return resultCount;
+        }
+
+        public bool SweepOrientedBox(in OrientedBoxSweep box, in Vec3 direction, float maxDistance, in LayerFilter filter, out RaycastHit hit)
+        {
+            var dir = direction.Normalized;
+            if (dir.SqrMagnitude <= 0f || maxDistance < 0f)
+            {
+                hit = default;
+                return false;
+            }
+
+            // 扫掠路径 + 盒半范围的保守 AABB，用于 broadphase 取候选。
+            var far = box.Center + dir * maxDistance;
+            var he = box.HalfExtents;
+            var queryAabb = new Aabb(
+                new Vec3(
+                    System.Math.Min(box.Center.X, far.X) - he.X,
+                    System.Math.Min(box.Center.Y, far.Y) - he.Y,
+                    System.Math.Min(box.Center.Z, far.Z) - he.Z),
+                new Vec3(
+                    System.Math.Max(box.Center.X, far.X) + he.X,
+                    System.Math.Max(box.Center.Y, far.Y) + he.Y,
+                    System.Math.Max(box.Center.Z, far.Z) + he.Z));
+            var count = _broadphase.Query(in queryAabb, _queryResults, _queryResults.Length);
+
+            var best = float.PositiveInfinity;
+            var bestId = default(ColliderId);
+            var bestNormal = Vec3.Zero;
+            var localRay = new Ray3(Vec3.Zero, OrientedBoxSweepQueries.ToBoxLocal(dir, in box));
+
+            for (var i = 0; i < count; i++)
+            {
+                var candidateId = _queryResults[i];
+                var idx = candidateId - 1;
+                if (idx < 0 || idx >= _entries.Length || !_entries[idx].Alive) continue;
+                if (!filter.IsLayerIncluded(_entries[idx].LayerId)) continue;
+                if (filter.ShouldIgnore(candidateId)) continue;
+
+                var worldShape = ToWorldShape(in _entries[idx].Transform, in _entries[idx].LocalShape);
+                if (!OrientedBoxSweepQueries.SweepVsShape(in box, in localRay, maxDistance, in worldShape, out var distance, out var candidateNormal)) continue;
+                if (distance >= best) continue;
+
+                best = distance;
+                bestId = new ColliderId(candidateId);
+                bestNormal = candidateNormal;
+            }
+
+            if (best < float.PositiveInfinity)
+            {
+                hit = new RaycastHit(bestId, best, box.Center + dir * best, bestNormal);
+                return true;
+            }
+
+            hit = default;
+            return false;
+        }
+
+        public bool SweepSphere(in Vec3 start, in Vec3 direction, float maxDistance, float radius, in LayerFilter filter, out RaycastHit hit)
+        {
+            var dir = direction.Normalized;
+            if (dir.SqrMagnitude <= 0f || maxDistance < 0f)
+            {
+                hit = default;
+                return false;
+            }
+
+            // 扫掠路径 + 球半径的保守 AABB，用于 broadphase 取候选。
+            var far = start + dir * maxDistance;
+            var ext = new Vec3(radius, radius, radius);
+            var queryAabb = new Aabb(Vec3.Min(start, far) - ext, Vec3.Max(start, far) + ext);
+            var count = _broadphase.Query(in queryAabb, _queryResults, _queryResults.Length);
+
+            var best = float.PositiveInfinity;
+            var bestId = default(ColliderId);
+            var bestNormal = Vec3.Zero;
+
+            for (var i = 0; i < count; i++)
+            {
+                var candidateId = _queryResults[i];
+                var idx = candidateId - 1;
+                if (idx < 0 || idx >= _entries.Length || !_entries[idx].Alive) continue;
+                if (!filter.IsLayerIncluded(_entries[idx].LayerId)) continue;
+                if (filter.ShouldIgnore(candidateId)) continue;
+
+                var worldShape = ToWorldShape(in _entries[idx].Transform, in _entries[idx].LocalShape);
+                if (!SphereSweepQueries.SweepVsShape(in start, in dir, maxDistance, radius, in worldShape, out var d, out var n)) continue;
+                if (d >= best) continue;
+
+                best = d;
+                bestId = new ColliderId(candidateId);
+                bestNormal = n;
+            }
+
+            if (best < float.PositiveInfinity)
+            {
+                hit = new RaycastHit(bestId, best, start + dir * best, bestNormal);
+                return true;
+            }
+
+            hit = default;
+            return false;
         }
 
         private int CollectCandidates(in Ray3 ray, float maxDistance, int[] results)
@@ -250,6 +355,18 @@ namespace AbilityKit.Combat.Collision
                     var max = Vec3.Max(worldShape.Capsule.A, worldShape.Capsule.B);
                     return new Aabb(min - new Vec3(worldShape.Capsule.Radius, worldShape.Capsule.Radius, worldShape.Capsule.Radius),
                         max + new Vec3(worldShape.Capsule.Radius, worldShape.Capsule.Radius, worldShape.Capsule.Radius));
+                case ColliderShapeType.OBB:
+                    // OBB 的世界 AABB：half extents = 各 OBB 本地轴（世界系）在三个世界轴上的
+                    // 绝对投影之和。修复前 OBB 落到 default 分支，返回原点零尺寸 AABB，导致
+                    // broadphase 永远查不到 OBB 碰撞体——旋转矩形障碍因此对所有查询"隐形"。
+                    worldShape.Obb.GetAxes(out var obbRight, out var obbUp, out var obbForward);
+                    var obbHe = worldShape.Obb.HalfExtents;
+                    var obbExt = new Vec3(
+                        System.Math.Abs(obbRight.X) * obbHe.X + System.Math.Abs(obbUp.X) * obbHe.Y + System.Math.Abs(obbForward.X) * obbHe.Z,
+                        System.Math.Abs(obbRight.Y) * obbHe.X + System.Math.Abs(obbUp.Y) * obbHe.Y + System.Math.Abs(obbForward.Y) * obbHe.Z,
+                        System.Math.Abs(obbRight.Z) * obbHe.X + System.Math.Abs(obbUp.Z) * obbHe.Y + System.Math.Abs(obbForward.Z) * obbHe.Z);
+                    var obbCenter = worldShape.Obb.Center;
+                    return new Aabb(obbCenter - obbExt, obbCenter + obbExt);
                 default:
                     return new Aabb(Vec3.Zero, Vec3.Zero);
             }

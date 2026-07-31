@@ -25,8 +25,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly IShooterEntityManager _entities;
         private readonly IShooterBattleRules _rules;
         private readonly ShooterEnemyWaveOptions _enemyWaveOptions;
+        private readonly ShooterRvoOptions _rvoOptions;
         private readonly ShooterArenaGameplayOptions _arenaOptions;
         private readonly ShooterMatchStateOptions _matchStateOptions;
+        private readonly IShooterRvoNeighborAccelerationService _rvoNeighborAcceleration;
         private readonly ShooterStateSnapshotExporter _snapshotExporter;
         private readonly ShooterStateHasher _stateHasher;
         private readonly ShooterPackedSnapshotExporter _packedSnapshotExporter;
@@ -54,22 +56,44 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         public ShooterBattleRuntimePort(ShooterEntityLimitOptions entityLimits, ShooterEnemyWaveOptions enemyWaveOptions, ShooterArenaGameplayOptions arenaOptions)
-            : this(CreateDefaultEntityManager(entityLimits), enemyWaveOptions, arenaOptions)
+            : this(entityLimits, enemyWaveOptions, ShooterRvoOptions.Default, arenaOptions)
         {
         }
 
-        private ShooterBattleRuntimePort(IShooterEntityManager entities, ShooterEnemyWaveOptions enemyWaveOptions, ShooterArenaGameplayOptions arenaOptions)
-            : this(CreateState(entities), enemyWaveOptions, arenaOptions)
+        public ShooterBattleRuntimePort(
+            ShooterEntityLimitOptions entityLimits,
+            ShooterEnemyWaveOptions enemyWaveOptions,
+            ShooterRvoOptions rvoOptions,
+            ShooterArenaGameplayOptions arenaOptions)
+            : this(CreateDefaultEntityManager(entityLimits), enemyWaveOptions, rvoOptions, arenaOptions)
         {
         }
 
-        private ShooterBattleRuntimePort(ShooterBattleState state, ShooterEnemyWaveOptions enemyWaveOptions, ShooterArenaGameplayOptions arenaOptions)
-            : this(state, ShooterBattleRules.Default, enemyWaveOptions, arenaOptions)
+        private ShooterBattleRuntimePort(
+            IShooterEntityManager entities,
+            ShooterEnemyWaveOptions enemyWaveOptions,
+            ShooterRvoOptions rvoOptions,
+            ShooterArenaGameplayOptions arenaOptions)
+            : this(CreateState(entities), enemyWaveOptions, rvoOptions, arenaOptions)
         {
         }
 
-        private ShooterBattleRuntimePort(ShooterBattleState state, IShooterBattleRules rules, ShooterEnemyWaveOptions enemyWaveOptions, ShooterArenaGameplayOptions arenaOptions)
-            : this(state, new ShooterBattleSimulation(state, rules, arenaOptions), state.Entities, rules, enemyWaveOptions, arenaOptions)
+        private ShooterBattleRuntimePort(
+            ShooterBattleState state,
+            ShooterEnemyWaveOptions enemyWaveOptions,
+            ShooterRvoOptions rvoOptions,
+            ShooterArenaGameplayOptions arenaOptions)
+            : this(state, ShooterBattleRules.Default, enemyWaveOptions, rvoOptions, arenaOptions)
+        {
+        }
+
+        private ShooterBattleRuntimePort(
+            ShooterBattleState state,
+            IShooterBattleRules rules,
+            ShooterEnemyWaveOptions enemyWaveOptions,
+            ShooterRvoOptions rvoOptions,
+            ShooterArenaGameplayOptions arenaOptions)
+            : this(state, new ShooterBattleSimulation(state, rules, arenaOptions), state.Entities, rules, enemyWaveOptions, rvoOptions, arenaOptions, ShooterMatchStateOptions.Default)
         {
         }
 
@@ -79,17 +103,17 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         public ShooterBattleRuntimePort(ShooterBattleState state, IShooterBattleSimulation simulation, IShooterEntityManager entities, IShooterBattleRules rules)
-            : this(state, simulation, entities, rules, ShooterEnemyWaveOptions.Disabled, ShooterArenaGameplayOptions.Disabled)
+            : this(state, simulation, entities, rules, ShooterEnemyWaveOptions.Disabled, ShooterRvoOptions.Default, ShooterArenaGameplayOptions.Disabled, ShooterMatchStateOptions.Default)
         {
         }
 
         public ShooterBattleRuntimePort(ShooterBattleState state, IShooterBattleSimulation simulation, IShooterEntityManager entities, IShooterBattleRules rules, ShooterEnemyWaveOptions enemyWaveOptions)
-            : this(state, simulation, entities, rules, enemyWaveOptions, ShooterArenaGameplayOptions.Disabled)
+            : this(state, simulation, entities, rules, enemyWaveOptions, ShooterRvoOptions.Default, ShooterArenaGameplayOptions.Disabled, ShooterMatchStateOptions.Default)
         {
         }
 
         public ShooterBattleRuntimePort(ShooterBattleState state, IShooterBattleSimulation simulation, IShooterEntityManager entities, IShooterBattleRules rules, ShooterEnemyWaveOptions enemyWaveOptions, ShooterArenaGameplayOptions arenaOptions)
-            : this(state, simulation, entities, rules, enemyWaveOptions, arenaOptions, ShooterMatchStateOptions.Default)
+            : this(state, simulation, entities, rules, enemyWaveOptions, ShooterRvoOptions.Default, arenaOptions, ShooterMatchStateOptions.Default)
         {
         }
 
@@ -101,14 +125,52 @@ namespace AbilityKit.Demo.Shooter.Runtime
             ShooterEnemyWaveOptions enemyWaveOptions,
             ShooterArenaGameplayOptions arenaOptions,
             ShooterMatchStateOptions matchStateOptions)
+            : this(state, simulation, entities, rules, enemyWaveOptions, ShooterRvoOptions.Default, arenaOptions, matchStateOptions)
+        {
+        }
+
+        public ShooterBattleRuntimePort(
+            ShooterBattleState state,
+            IShooterBattleSimulation simulation,
+            IShooterEntityManager entities,
+            IShooterBattleRules rules,
+            ShooterEnemyWaveOptions enemyWaveOptions,
+            ShooterRvoOptions rvoOptions,
+            ShooterArenaGameplayOptions arenaOptions,
+            ShooterMatchStateOptions matchStateOptions)
+            : this(
+                state,
+                simulation,
+                entities,
+                rules,
+                enemyWaveOptions,
+                rvoOptions,
+                arenaOptions,
+                matchStateOptions,
+                ShooterNullRvoNeighborAccelerationService.Instance)
+        {
+        }
+
+        public ShooterBattleRuntimePort(
+            ShooterBattleState state,
+            IShooterBattleSimulation simulation,
+            IShooterEntityManager entities,
+            IShooterBattleRules rules,
+            ShooterEnemyWaveOptions enemyWaveOptions,
+            ShooterRvoOptions rvoOptions,
+            ShooterArenaGameplayOptions arenaOptions,
+            ShooterMatchStateOptions matchStateOptions,
+            IShooterRvoNeighborAccelerationService rvoNeighborAcceleration)
         {
             _state = state ?? throw new ArgumentNullException(nameof(state));
             _simulation = simulation ?? throw new ArgumentNullException(nameof(simulation));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
             _rules = rules ?? throw new ArgumentNullException(nameof(rules));
             _enemyWaveOptions = enemyWaveOptions ?? ShooterEnemyWaveOptions.Disabled;
+            _rvoOptions = rvoOptions ?? ShooterRvoOptions.Default;
             _arenaOptions = arenaOptions ?? ShooterArenaGameplayOptions.Disabled;
             _matchStateOptions = matchStateOptions ?? ShooterMatchStateOptions.Default;
+            _rvoNeighborAcceleration = rvoNeighborAcceleration ?? ShooterNullRvoNeighborAccelerationService.Instance;
             _snapshotExporter = new ShooterStateSnapshotExporter(_state, _entities);
             _stateHasher = new ShooterStateHasher(_state, _entities);
             _packedSnapshotExporter = new ShooterPackedSnapshotExporter(_state, _entities, _rules, this);
@@ -345,6 +407,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private ShooterBattleServiceContext CreateServiceContext(ShooterEnemyWaveOptions enemyWaveOptions)
         {
+            var rvoWorkspace = new ShooterRvoWorldWorkspace(128, _rvoOptions.MaxNeighbors);
+            IShooterRvoSolver rvoSolver = new ShooterManagedRvoSolver(_rvoNeighborAcceleration);
             return new ShooterBattleServiceContext(_entities.SveltoContext)
                 .Add(_state)
                 .Add<IShooterBattleSimulation>(_simulation)
@@ -352,6 +416,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 .Add<IShooterBattleRules>(_rules)
                 .Add<IShooterBotAiRuntime>(_botAiRuntime)
                 .Add(enemyWaveOptions)
+                .Add(_rvoOptions)
+                .Add(rvoWorkspace)
+                .Add<IShooterRvoSolver>(rvoSolver)
                 .Add(_arenaOptions)
                 .Add(_matchStateOptions);
         }

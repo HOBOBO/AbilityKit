@@ -52,21 +52,27 @@ public sealed class ShooterClientNetworkLauncherTests
         Assert.Equal(launched.Session, launched.Battle.Session);
         Assert.Equal("battle-launch", launched.Battle.BattleId);
         Assert.Equal(launcher.GatewayConnection, launched.GatewayConnection);
-        Assert.Equal(7, connection.SentOpCodes.Count);
         Assert.Equal(RoomGatewayOpCodes.CreateRoom, connection.SentOpCodes[0]);
         Assert.Equal(RoomGatewayOpCodes.JoinRoom, connection.SentOpCodes[1]);
         Assert.Equal(RoomGatewayOpCodes.SetReady, connection.SentOpCodes[2]);
         Assert.Equal(RoomGatewayOpCodes.BeginLoading, connection.SentOpCodes[3]);
-        Assert.Equal(RoomGatewayOpCodes.ReportAssetsLoaded, connection.SentOpCodes[4]);
-        Assert.Equal(RoomGatewayOpCodes.GetSnapshot, connection.SentOpCodes[5]);
-        Assert.Equal(RoomGatewayOpCodes.SubscribeStateSync, connection.SentOpCodes[6]);
+        var progressCount = connection.SentOpCodes.Count(opCode => opCode == RoomGatewayOpCodes.ReportLoadingProgress);
+        Assert.True(progressCount >= 1);
+        Assert.All(
+            connection.SentOpCodes.GetRange(4, progressCount),
+            opCode => Assert.Equal(RoomGatewayOpCodes.ReportLoadingProgress, opCode));
+        var assetsIndex = 4 + progressCount;
+        Assert.Equal(RoomGatewayOpCodes.ReportAssetsLoaded, connection.SentOpCodes[assetsIndex]);
+        Assert.Equal(RoomGatewayOpCodes.GetSnapshot, connection.SentOpCodes[assetsIndex + 1]);
+        Assert.Equal(RoomGatewayOpCodes.SubscribeStateSync, connection.SentOpCodes[assetsIndex + 2]);
+        Assert.Equal(assetsIndex + 3, connection.SentOpCodes.Count);
 
         launcher.Tick(1f / 30f);
         var submit = await launched.Battle.SubmitLocalInputToGatewayAsync(moveX: 1f, moveY: 0f, aimX: 1f, aimY: 0f, fire: true);
 
         Assert.Equal(1, connection.TickCount);
         Assert.True(submit.Remote.Success);
-        Assert.Equal(RoomGatewayOpCodes.SubmitBattleInput, connection.SentOpCodes[7]);
+        Assert.Equal(RoomGatewayOpCodes.SubmitBattleInput, connection.SentOpCodes[connection.SentOpCodes.Count - 1]);
         var inputWire = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputReq>(connection.LastSentPayload);
         Assert.Equal("battle-launch", inputWire.BattleId);
         Assert.Equal(9041ul, inputWire.WorldId);

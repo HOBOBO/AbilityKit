@@ -4,7 +4,10 @@
   "references": [
     "AbilityKit.Demo.Common",
     "AbilityKit.Demo.Shooter.View.Runtime",
-    "AbilityKit.Network.Runtime"
+    "AbilityKit.Network.Runtime",
+    "AbilityKit.Host",
+    "AbilityKit.Protocol.Shooter",
+    "AbilityKit.World.NetworkFragments"
   ],
   "includePlatforms": [
     "Editor"

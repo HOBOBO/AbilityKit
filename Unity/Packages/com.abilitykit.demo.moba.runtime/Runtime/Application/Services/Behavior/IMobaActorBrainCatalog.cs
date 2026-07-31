@@ -20,32 +20,51 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
 
     public readonly struct MobaActorBrainDefinition
     {
-        public MobaActorBrainDefinition(int brainId, MobaBrainDriverKind driverKind, string decisionName)
+        public MobaActorBrainDefinition(
+            int brainId,
+            MobaBrainDriverKind driverKind,
+            string decisionName,
+            MobaBrainSkillSelectionPolicy skillSelectionPolicy = MobaBrainSkillSelectionPolicy.FirstReady)
         {
             if (brainId <= 0) throw new ArgumentOutOfRangeException(nameof(brainId));
             if (string.IsNullOrWhiteSpace(decisionName))
                 throw new ArgumentException("A brain decision name is required.", nameof(decisionName));
-
+ 
             BrainId = brainId;
             DriverKind = driverKind;
             DecisionName = decisionName;
+            SkillSelectionPolicy = skillSelectionPolicy;
         }
-
+ 
         public int BrainId { get; }
-
+ 
         public MobaBrainDriverKind DriverKind { get; }
-
+ 
         public string DecisionName { get; }
+ 
+        public MobaBrainSkillSelectionPolicy SkillSelectionPolicy { get; }
     }
 
     public interface IMobaActorBrainCatalog : IService
     {
+        IReadOnlyList<MobaActorBrainDefinition> Definitions { get; }
+
         bool TryGet(int brainId, out MobaActorBrainDefinition definition);
     }
 
     public sealed class MobaActorBrainCatalog : IMobaActorBrainCatalog
     {
         private readonly Dictionary<int, MobaActorBrainDefinition> _definitions = new();
+
+        public IReadOnlyList<MobaActorBrainDefinition> Definitions
+        {
+            get
+            {
+                var definitions = new List<MobaActorBrainDefinition>(_definitions.Values);
+                definitions.Sort((left, right) => left.BrainId.CompareTo(right.BrainId));
+                return definitions;
+            }
+        }
 
         public void Register(in MobaActorBrainDefinition definition)
         {
@@ -101,7 +120,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
                 var definition = new MobaActorBrainDefinition(
                     source.BrainId,
                     ParseDriverKind(source.DriverKind),
-                    source.DecisionName);
+                    source.DecisionName,
+                    ParseSkillSelectionPolicy(source.SkillSelectionPolicy));
                 catalog.Register(in definition);
             }
 
@@ -118,11 +138,23 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             };
         }
 
+        private static MobaBrainSkillSelectionPolicy ParseSkillSelectionPolicy(string policy)
+        {
+            if (string.IsNullOrWhiteSpace(policy)) return MobaBrainSkillSelectionPolicy.FirstReady;
+            return policy switch
+            {
+                "firstReady" => MobaBrainSkillSelectionPolicy.FirstReady,
+                "highestRange" => MobaBrainSkillSelectionPolicy.HighestRange,
+                _ => throw new InvalidOperationException($"Unsupported MOBA brain skill selection policy '{policy}'."),
+            };
+        }
+
         private sealed class BrainDefinition
         {
             public int BrainId { get; set; }
             public string DriverKind { get; set; }
             public string DecisionName { get; set; }
+            public string SkillSelectionPolicy { get; set; }
         }
     }
 }

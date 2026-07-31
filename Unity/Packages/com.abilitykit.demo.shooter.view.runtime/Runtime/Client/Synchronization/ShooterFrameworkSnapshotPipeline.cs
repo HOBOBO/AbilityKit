@@ -193,6 +193,11 @@ namespace AbilityKit.Demo.Shooter.View
 
         private static byte[] ResolvePayloadBytes(in ShooterGatewaySnapshot snapshot)
         {
+            if (snapshot.PayloadBytes != null && snapshot.PayloadBytes.Length > 0)
+            {
+                return snapshot.PayloadBytes;
+            }
+
             if (snapshot.PackedSnapshot.HasValue)
             {
                 var packed = snapshot.PackedSnapshot.Value;

@@ -985,7 +985,7 @@ namespace AbilityKit.Game.Test.UnitTest
             });
             builder.RegisterInstance<AbilityKit.Ability.Config.ITextAssetLoader>((AbilityKit.Ability.Config.ITextAssetLoader)Activator.CreateInstance(typeof(ResourcesTextAssetLoader), new object[] { null }));
             builder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new FrameTime());
-            builder.TryRegister<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService());
+            builder.TryRegister<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService(new CollisionWorldOptions { BroadphaseType = BroadphaseType.Grid, GridCellSize = 4f }));
 
             var options = new WorldCreateOptions(worldId, worldType)
             {

@@ -35,7 +35,7 @@ flowchart TB
     end
 
     subgraph Runtime[运行时协同]
-        FrameSync[ShooterClientFrameSyncCoordinator]
+        FrameSync[ShooterClientFrameSyncController]
         Input[ShooterClientInputCoordinator]
         Playback[RemoteInterpolationPlayback<ShooterRemoteSnapshotSample>]
         Presentation[ShooterPresentationFacade]

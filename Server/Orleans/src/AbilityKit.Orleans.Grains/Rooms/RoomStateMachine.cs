@@ -248,6 +248,12 @@ internal static class RoomStateMachine
             return Reject(state, RoomOperationErrorCode.InvalidPhase, $"Assets loaded is not allowed in phase {state.Phase}.");
         }
 
+        if (manifestVersion != state.Launch.ManifestVersion ||
+            !string.Equals(manifestHash, state.Launch.ManifestHash, StringComparison.Ordinal))
+        {
+            return Reject(state, RoomOperationErrorCode.InvalidOperation, "Loaded manifest does not match the active launch manifest.");
+        }
+
         if (!state.Launch.LockedRoster.Contains(accountId, StringComparer.Ordinal))
         {
             return Reject(state, RoomOperationErrorCode.NotMember, "Account is not in the locked roster.");
@@ -281,6 +287,7 @@ internal static class RoomStateMachine
             State = member.State with
             {
                 AssetsLoaded = true,
+                LoadingProgress = 100,
                 LoadedManifestVersion = manifestVersion,
                 LoadedManifestHash = manifestHash,
                 LastSeenTicks = nowTicks,
@@ -294,8 +301,12 @@ internal static class RoomStateMachine
             var index = FindMemberIndex(members, rosterAccountId);
             return index >= 0
                 && members[index].State.AssetsLoaded
-                && members[index].State.LoadedManifestVersion == manifestVersion
-                && string.Equals(members[index].State.LoadedManifestHash, manifestHash, StringComparison.Ordinal);
+                && members[index].State.LoadingProgress == 100
+                && members[index].State.LoadedManifestVersion == state.Launch.ManifestVersion
+                && string.Equals(
+                    members[index].State.LoadedManifestHash,
+                    state.Launch.ManifestHash,
+                    StringComparison.Ordinal);
         });
 
         if (!allLoaded)
@@ -316,6 +327,75 @@ internal static class RoomStateMachine
             }
         };
         return Apply(starting, nowUnixMs);
+    }
+
+    public static RoomTransitionResult ReportLoadingProgress(
+        RoomPersistentState state,
+        string accountId,
+        long generation,
+        int manifestVersion,
+        string? manifestHash,
+        int progress,
+        long nowTicks,
+        long nowUnixMs)
+    {
+        if (progress is < 0 or > 100)
+        {
+            return Reject(state, RoomOperationErrorCode.InvalidOperation, "Loading progress must be between 0 and 100.");
+        }
+
+        if (generation != state.Launch.Generation)
+        {
+            return NoChange(state, "Stale launch generation ignored.");
+        }
+
+        if (state.Phase != RoomPhase.Loading)
+        {
+            return Reject(state, RoomOperationErrorCode.InvalidPhase, $"Loading progress is not allowed in phase {state.Phase}.");
+        }
+
+        if (manifestVersion != state.Launch.ManifestVersion ||
+            !string.Equals(manifestHash, state.Launch.ManifestHash, StringComparison.Ordinal))
+        {
+            return Reject(state, RoomOperationErrorCode.InvalidOperation, "Loading progress manifest does not match the active launch manifest.");
+        }
+
+        if (!state.Launch.LockedRoster.Contains(accountId, StringComparer.Ordinal))
+        {
+            return Reject(state, RoomOperationErrorCode.NotMember, "Account is not in the locked roster.");
+        }
+
+        var memberIndex = FindMemberIndex(state.Members, accountId);
+        if (memberIndex < 0)
+        {
+            return Reject(state, RoomOperationErrorCode.NotMember, "Account is not in room.");
+        }
+
+        var member = state.Members[memberIndex];
+        if (progress <= member.State.LoadingProgress)
+        {
+            return NoChange(state, progress == member.State.LoadingProgress
+                ? "Loading progress is unchanged."
+                : "Regressive loading progress ignored.");
+        }
+
+        if (progress < 100 && progress - member.State.LoadingProgress < 2)
+        {
+            return NoChange(state, "Loading progress delta is below the server reporting threshold.");
+        }
+
+        var members = CloneMembers(state.Members);
+        members[memberIndex] = member with
+        {
+            State = member.State with
+            {
+                LoadingProgress = progress,
+                LastSeenTicks = nowTicks,
+                IsOnline = true,
+                OfflineSinceTicks = 0
+            }
+        };
+        return Apply(state with { Members = members }, nowUnixMs);
     }
 
     public static RoomTransitionResult CancelLoading(
@@ -643,6 +723,7 @@ internal static class RoomStateMachine
             State = member.State with
             {
                 AssetsLoaded = false,
+                LoadingProgress = 0,
                 LoadedManifestVersion = 0,
                 LoadedManifestHash = null
             }

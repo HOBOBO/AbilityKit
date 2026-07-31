@@ -14,7 +14,7 @@ namespace AbilityKit.Demo.Shooter.View
     /// <summary>
     /// <see cref="NetworkSyncModel.PredictRollback"/> 客户端控制器。
     /// 将现有本地预测、权威快照、回滚与重放链路
-    /// （<see cref="ShooterClientFrameSyncCoordinator"/> + <see cref="ShooterClientInputCoordinator"/>）
+    /// （<see cref="ShooterClientFrameSyncController"/> + <see cref="ShooterClientInputCoordinator"/>）
     /// 包装到通用 <see cref="IShooterClientSyncController"/> 接缝之后，让会话无需了解当前同步模型即可委托执行。
     /// </summary>
     public sealed class ShooterClientPredictRollbackSyncController : IShooterClientSyncController

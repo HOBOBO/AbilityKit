@@ -33,26 +33,99 @@ namespace AbilityKit.Combat.MotionSystem.Collision
 
             if (!constraints.Collision.Enable) return MotionSolveResult.NoHit(desiredDelta);
             if (_world == null) return MotionSolveResult.NoHit(desiredDelta);
-            if (constraints.Collision.AllowPassThrough) return MotionSolveResult.NoHit(desiredDelta);
 
-            var start = state.Position;
-            var desired = desiredDelta;
+            var collision = input.HasDominantCollisionPolicy ? input.DominantCollisionPolicy : constraints.Collision;
+            return Resolve(id, in state.Position, in desiredDelta, in collision);
+        }
 
-            if (_world.Sweep(
-                    moverId: id,
-                    start: in start,
-                    desiredDelta: in desired,
-                    radius: constraints.Collision.Radius,
-                    obstacleMask: constraints.Collision.ObstacleMask,
-                    ignoreMask: constraints.Collision.IgnoreMask,
-                    hit: out var hit,
-                    appliedDelta: out var applied))
+        /// <summary>
+        /// 共享解析核：供管线 <see cref="Solve"/> 与瞬移类技能（blink）直接调用。
+        /// AllowPassThrough=true 时跳过行进 sweep（穿墙），但仍执行终点 <see cref="ResolveEndOverlap"/>
+        /// （终点落障碍物内则按 <see cref="MotionEndOverlapPolicy"/> 处理，如 ProjectAlongDirection）。
+        /// </summary>
+        public MotionSolveResult Resolve(int moverId, in Vec3 start, in Vec3 desiredDelta, in MotionCollisionConstraints constraints)
+        {
+            if (!constraints.Enable) return MotionSolveResult.NoHit(desiredDelta);
+            if (_world == null) return MotionSolveResult.NoHit(desiredDelta);
+
+            Vec3 applied;
+            MotionHit hit;
+            if (constraints.AllowPassThrough)
             {
-                return ResolveEndOverlap(id, in state, in constraints.Collision, in applied, in hit);
+                applied = desiredDelta;
+                hit = MotionHit.None;
+            }
+            else
+            {
+                applied = ResolveMovementWithSlide(moverId, in start, in constraints, in desiredDelta, out hit);
             }
 
-            var noHit = new MotionHit(false, 0, Vec3.Zero, 0f);
-            return ResolveEndOverlap(id, in state, in constraints.Collision, in desired, in noHit);
+            var endState = new MotionState(start);
+            return ResolveEndOverlap(moverId, in endState, in constraints, in applied, in hit);
+        }
+
+        /// <summary>
+        /// 沿 desiredDelta 推进，遇墙时按 <see cref="MotionCollisionConstraints.SlideAlongWalls"/>
+        /// 决定单次钳制（丢弃切向分量）或迭代切向滑动。返回累积已通过位移与（若有）最后一次撞击。
+        /// SlideAlongWalls=false 时等价于原有单次 Sweep 钳制行为。
+        /// </summary>
+        private Vec3 ResolveMovementWithSlide(
+            int id,
+            in Vec3 start,
+            in MotionCollisionConstraints constraints,
+            in Vec3 desiredDelta,
+            out MotionHit hit)
+        {
+            hit = MotionHit.None;
+            var maxIterations = constraints.SlideAlongWalls ? constraints.MaxSlideIterations : 1;
+
+            var currentPos = start;
+            var remaining = desiredDelta;
+            var totalApplied = Vec3.Zero;
+            var collided = false;
+
+            for (int iteration = 0; iteration < maxIterations && remaining.SqrMagnitude > 1e-8f; iteration++)
+            {
+                if (!_world.Sweep(
+                        moverId: id,
+                        start: in currentPos,
+                        desiredDelta: in remaining,
+                        radius: constraints.Radius,
+                        obstacleMask: constraints.ObstacleMask,
+                        ignoreMask: constraints.IgnoreMask,
+                        hit: out var stepHit,
+                        appliedDelta: out var stepApplied))
+                {
+                    totalApplied += remaining;
+                    break;
+                }
+
+                collided = true;
+                hit = stepHit;
+                totalApplied += stepApplied;
+
+                if (!constraints.SlideAlongWalls) break;
+
+                remaining -= stepApplied;
+
+                // 切向滑动：消除剩余位移里指向墙法向（XZ）的分量，保留沿墙分量。
+                var normal = stepHit.Normal;
+                var normalSqr = normal.X * normal.X + normal.Z * normal.Z;
+                if (normalSqr <= 1e-8f) break;
+                var inverseLength = 1f / (float)Math.Sqrt(normalSqr);
+                var nx = normal.X * inverseLength;
+                var nz = normal.Z * inverseLength;
+                var intoWall = remaining.X * nx + remaining.Z * nz;
+                if (intoWall < 0f)
+                {
+                    remaining = new Vec3(remaining.X - nx * intoWall, remaining.Y, remaining.Z - nz * intoWall);
+                }
+
+                currentPos = start + totalApplied;
+            }
+
+            if (!collided) hit = MotionHit.None;
+            return totalApplied;
         }
 
         private MotionConstraints ResolveConstraints(int id, in MotionState state, in MotionOutput input, float dt)
@@ -88,6 +161,17 @@ namespace AbilityKit.Combat.MotionSystem.Collision
                     if (_world.TryProjectToFree(id, in end, constraints.Radius, constraints.ObstacleMask, constraints.IgnoreMask, out var projected))
                     {
                         var projectedDelta = projected - state.Position;
+                        Diagnostics?.OnEndOverlapResolved(id, in state, in constraints, constraints.EndOverlapPolicy, true);
+                        return new MotionSolveResult(projectedDelta, hit);
+                    }
+
+                    Diagnostics?.OnEndOverlapResolved(id, in state, in constraints, constraints.EndOverlapPolicy, false);
+                    return MotionSolveResult.NoHit(Vec3.Zero);
+
+                case MotionEndOverlapPolicy.ProjectAlongDirection:
+                    if (_world.TryProjectToFreeDirectional(id, in state.Position, in end, constraints.Radius, constraints.ObstacleMask, constraints.IgnoreMask, out var directionallyProjected))
+                    {
+                        var projectedDelta = directionallyProjected - state.Position;
                         Diagnostics?.OnEndOverlapResolved(id, in state, in constraints, constraints.EndOverlapPolicy, true);
                         return new MotionSolveResult(projectedDelta, hit);
                     }

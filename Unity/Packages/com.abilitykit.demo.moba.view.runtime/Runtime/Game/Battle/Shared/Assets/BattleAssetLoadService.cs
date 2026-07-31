@@ -22,7 +22,7 @@ namespace AbilityKit.Game.Battle.Shared.Assets
             _source = source ?? throw new ArgumentNullException(nameof(source));
         }
 
-        public Task<BattleAssetLoadResult> LoadAsync(
+        public async Task<BattleAssetLoadResult> LoadAsync(
             BattleAssetManifest manifest,
             IProgress<BattleAssetLoadProgress> progress = null,
             CancellationToken cancellationToken = default)
@@ -32,10 +32,10 @@ namespace AbilityKit.Game.Battle.Shared.Assets
                 throw new ArgumentNullException(nameof(manifest));
             }
 
-            return Task.FromResult(LoadSynchronously(manifest, progress, cancellationToken));
+            return await LoadIncrementallyAsync(manifest, progress, cancellationToken);
         }
 
-        private BattleAssetLoadResult LoadSynchronously(
+        private async Task<BattleAssetLoadResult> LoadIncrementallyAsync(
             BattleAssetManifest manifest,
             IProgress<BattleAssetLoadProgress> progress,
             CancellationToken cancellationToken)
@@ -62,6 +62,8 @@ namespace AbilityKit.Game.Battle.Shared.Assets
 
                 // 报告"正在加载该项"的进度（LoadedCount = i，当前 key = entry）。
                 progress?.Report(new BattleAssetLoadProgress(i, total, entry.AssetKey));
+                await Task.Yield();
+                cancellationToken.ThrowIfCancellationRequested();
 
                 bool ok;
                 try

@@ -97,7 +97,27 @@ internal static class RoomGatewayWireMapper
             NumericRoomId = RoomGatewayIds.CreateNumericRoomId(roomId),
             Snapshot = ToWireSnapshot(snapshot),
             Message = message ?? string.Empty,
-            ServerNowTicks = DateTime.UtcNow.Ticks
+            ServerNowTicks = DateTime.UtcNow.Ticks,
+            Applied = true,
+            ErrorCode = (int)RoomOperationErrorCode.None
+        };
+    }
+
+    public static WireRoomSnapshotRes ToSnapshotRes(
+        RoomSnapshot snapshot,
+        RoomOperationResult result)
+    {
+        var roomId = snapshot.Summary?.RoomId ?? string.Empty;
+        return new WireRoomSnapshotRes
+        {
+            Success = result.Success,
+            RoomId = roomId,
+            NumericRoomId = RoomGatewayIds.CreateNumericRoomId(roomId),
+            Snapshot = ToWireSnapshot(snapshot),
+            Message = result.Message ?? string.Empty,
+            ServerNowTicks = DateTime.UtcNow.Ticks,
+            Applied = result.Applied,
+            ErrorCode = (int)result.ErrorCode
         };
     }
 
@@ -183,7 +203,7 @@ internal static class RoomGatewayWireMapper
     /// <summary>
     /// 将 RoomOperationResult + 操作后快照映射为 wire 响应。
     /// </summary>
-    public static WireRoomOperationRes ToRoomOperationRes(RoomOperationResult result, RoomSnapshot snapshot)
+    public static WireRoomOperationRes ToRoomOperationRes(RoomOperationResult result, RoomSnapshot? snapshot)
     {
         return new WireRoomOperationRes
         {
@@ -192,7 +212,7 @@ internal static class RoomGatewayWireMapper
             ErrorCode = (int)result.ErrorCode,
             Message = result.Message ?? string.Empty,
             RoomRevision = result.RoomRevision,
-            Snapshot = ToWireSnapshot(snapshot)
+            Snapshot = snapshot == null ? default : ToWireSnapshot(snapshot)
         };
     }
 
@@ -218,6 +238,16 @@ internal static class RoomGatewayWireMapper
             wire.ManifestVersion,
             string.IsNullOrWhiteSpace(wire.ManifestHash) ? null : wire.ManifestHash,
             string.IsNullOrWhiteSpace(wire.CommandId) ? null : wire.CommandId);
+    }
+
+    public static ReportLoadingProgressRequest ToReportLoadingProgressReq(string accountId, WireReportLoadingProgressReq wire)
+    {
+        return new ReportLoadingProgressRequest(
+            accountId,
+            wire.LaunchGeneration,
+            wire.ManifestVersion,
+            string.IsNullOrWhiteSpace(wire.ManifestHash) ? null : wire.ManifestHash,
+            wire.Progress);
     }
 
     /// <summary>
@@ -352,10 +382,13 @@ internal static class RoomGatewayWireMapper
                 // 阶段 4 append-only 字段
                 LobbyReady = player.LobbyReady,
                 AssetsLoaded = player.AssetsLoaded,
+                LoadingProgress = player.LoadingProgress,
                 IsOnline = player.IsOnline,
                 JoinOrdinal = player.JoinOrdinal,
                 LoadedManifestVersion = player.LoadedManifestVersion,
-                LoadedManifestHash = player.LoadedManifestHash ?? string.Empty
+                LoadedManifestHash = player.LoadedManifestHash ?? string.Empty,
+                LastSeenTicks = player.LastSeenTicks,
+                OfflineSinceTicks = player.OfflineSinceTicks
             });
         }
 

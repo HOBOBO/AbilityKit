@@ -1,0 +1,19 @@
+{
+  "name": "com.abilitykit.thirdparty.rvo2",
+  "version": "2.0.1",
+  "displayName": "AbilityKit 第三方 RVO2",
+  "description": "纯 C# RVO2 互惠式碰撞规避库的 Unity 包。",
+  "unity": "2022.3",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "University of North Carolina at Chapel Hill",
+    "url": "https://gamma.cs.unc.edu/RVO2/"
+  },
+  "keywords": [
+    "rvo2",
+    "orca",
+    "collision-avoidance",
+    "navigation",
+    "crowd-simulation"
+  ]
+}

@@ -1,5 +1,6 @@
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba.Rollback;
+using MemoryPack;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using Newtonsoft.Json;
@@ -410,6 +411,169 @@ public sealed class MobaActorStateMachineRuntimeTests
     }
 
     [Fact]
+    public void Profile_content_hash_is_deterministic_and_changes_with_runtime_specification()
+    {
+        const string modifiedProfileJson = """
+            [
+              {
+                "id": "combat",
+                "startState": "engage",
+                "states": [
+                  {
+                    "id": "engage",
+                    "kind": "stateMachine",
+                    "startState": "approach",
+                    "states": [
+                      {
+                        "id": "approach",
+                        "kind": "actionState",
+                        "behaviorRoot": { "kind": "action", "type": "count", "argument": "changed" }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "done",
+                    "kind": "actionState",
+                    "behaviorRoot": { "kind": "action", "type": "count", "argument": "done" }
+                  }
+                ],
+                "transitions": [
+                  { "from": "engage", "to": "done", "condition": "flag:finish" }
+                ]
+              }
+            ]
+            """;
+
+        var firstCatalog = new MobaActorStateMachineProfileCatalog();
+        var secondCatalog = new MobaActorStateMachineProfileCatalog();
+        var modifiedCatalog = new MobaActorStateMachineProfileCatalog();
+        MobaActorStateMachineProfileJsonLoader.LoadJson(HierarchicalProfileJson, firstCatalog);
+        MobaActorStateMachineProfileJsonLoader.LoadJson(HierarchicalProfileJson, secondCatalog);
+        MobaActorStateMachineProfileJsonLoader.LoadJson(modifiedProfileJson, modifiedCatalog);
+
+        Assert.True(firstCatalog.TryGetContentHash("combat", out var firstHash));
+        Assert.True(secondCatalog.TryGetContentHash("combat", out var secondHash));
+        Assert.True(modifiedCatalog.TryGetContentHash("combat", out var modifiedHash));
+        Assert.Equal(firstHash, secondHash);
+        Assert.NotEqual(firstHash, modifiedHash);
+    }
+
+    [Fact]
+    public void Rollback_provider_exports_v3_payload_with_runtime_profile_content_hash()
+    {
+        var catalog = new MobaActorStateMachineProfileCatalog();
+        MobaActorStateMachineProfileJsonLoader.LoadJson(HierarchicalProfileJson, catalog);
+        var runtimeRegistry = new MobaActorStateMachineRuntimeRegistry();
+        runtimeRegistry.RegisterAction("count", (_, __) => new CallbackBehaviour(null));
+        runtimeRegistry.RegisterCondition("flag", (_, __) => false);
+        var actor = new ActorContext().CreateEntity();
+        var actors = new MobaActorRegistry();
+        actors.Register(12, actor);
+        var factory = new MobaActorStateMachineFactory(null, catalog, runtimeRegistry);
+        Assert.True(factory.TryCreate(actor, "combat", out var runtime));
+        actor.AddActorStateMachine("combat", runtime);
+        var provider = new MobaActorStateMachineRollbackProvider(actors, factory);
+
+        var payload = MemoryPackSerializer.Deserialize<MobaActorStateMachineRollbackPayload>(
+            provider.Export(new FrameIndex(5)));
+
+        Assert.Equal(3, payload.Version);
+        var entry = Assert.Single(payload.Entries);
+        Assert.Equal(runtime.ProfileContentHash, entry.ProfileContentHash);
+        Assert.True(catalog.TryGetContentHash("combat", out var catalogHash));
+        Assert.Equal(catalogHash, entry.ProfileContentHash);
+    }
+
+    [Fact]
+    public void Rollback_provider_rejects_v3_payload_when_profile_content_changed_under_same_id()
+    {
+        const string changedProfileJson = """
+            [
+              {
+                "id": "combat",
+                "startState": "engage",
+                "states": [
+                  {
+                    "id": "engage",
+                    "kind": "stateMachine",
+                    "startState": "approach",
+                    "states": [
+                      {
+                        "id": "approach",
+                        "kind": "actionState",
+                        "behaviorRoot": { "kind": "action", "type": "count", "argument": "different" }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+            """;
+
+        var originalCatalog = new MobaActorStateMachineProfileCatalog();
+        MobaActorStateMachineProfileJsonLoader.LoadJson(HierarchicalProfileJson, originalCatalog);
+        var runtimeRegistry = new MobaActorStateMachineRuntimeRegistry();
+        runtimeRegistry.RegisterAction("count", (_, __) => new CallbackBehaviour(null));
+        runtimeRegistry.RegisterCondition("flag", (_, __) => false);
+        var actor = new ActorContext().CreateEntity();
+        var actors = new MobaActorRegistry();
+        actors.Register(13, actor);
+        var originalFactory = new MobaActorStateMachineFactory(null, originalCatalog, runtimeRegistry);
+        Assert.True(originalFactory.TryCreate(actor, "combat", out var runtime));
+        actor.AddActorStateMachine("combat", runtime);
+        var originalProvider = new MobaActorStateMachineRollbackProvider(actors, originalFactory);
+        var payload = originalProvider.Export(new FrameIndex(6));
+
+        var changedCatalog = new MobaActorStateMachineProfileCatalog();
+        MobaActorStateMachineProfileJsonLoader.LoadJson(changedProfileJson, changedCatalog);
+        var changedProvider = new MobaActorStateMachineRollbackProvider(
+            actors,
+            new MobaActorStateMachineFactory(null, changedCatalog, runtimeRegistry));
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            changedProvider.Import(new FrameIndex(6), payload));
+        Assert.Contains("content hash", error.Message);
+    }
+
+    [Fact]
+    public void Rollback_provider_imports_legacy_v2_payload_without_profile_content_hash()
+    {
+        var catalog = new MobaActorStateMachineProfileCatalog();
+        MobaActorStateMachineProfileJsonLoader.LoadJson(HierarchicalProfileJson, catalog);
+        var runtimeRegistry = new MobaActorStateMachineRuntimeRegistry();
+        runtimeRegistry.RegisterAction("count", (_, __) => new CallbackBehaviour(null));
+        runtimeRegistry.RegisterCondition("flag", (_, __) => false);
+        var actor = new ActorContext().CreateEntity();
+        var actors = new MobaActorRegistry();
+        actors.Register(14, actor);
+        var factory = new MobaActorStateMachineFactory(null, catalog, runtimeRegistry);
+        Assert.True(factory.TryCreate(actor, "combat", out var runtime));
+        actor.AddActorStateMachine("combat", runtime);
+        var provider = new MobaActorStateMachineRollbackProvider(actors, factory);
+        var v3Payload = MemoryPackSerializer.Deserialize<MobaActorStateMachineRollbackPayload>(
+            provider.Export(new FrameIndex(7)));
+        var entry = Assert.Single(v3Payload.Entries);
+        var legacyPayload = MemoryPackSerializer.Serialize(new LegacyStateMachineRollbackPayload(
+            2,
+            new[]
+            {
+                new LegacyStateMachineRollbackEntry(
+                    entry.ActorId,
+                    entry.HasRuntime,
+                    entry.ProfileId,
+                    entry.DeltaTime,
+                    entry.State,
+                    entry.Root)
+            }));
+
+        actor.RemoveActorStateMachine();
+        provider.Import(new FrameIndex(7), legacyPayload);
+
+        Assert.True(actor.hasActorStateMachine);
+        Assert.Equal("combat", actor.actorStateMachine.ProfileId);
+    }
+
+    [Fact]
     public void Rollback_provider_removes_runtime_absent_at_snapshot_frame()
     {
         var catalog = new MobaActorStateMachineProfileCatalog();
@@ -431,5 +595,46 @@ public sealed class MobaActorStateMachineRuntimeTests
 
         Assert.False(actor.hasActorStateMachine);
         Assert.True(predictedRuntime.IsDisposed);
+    }
+}
+
+[MemoryPackable]
+public readonly partial struct LegacyStateMachineRollbackPayload
+{
+    [MemoryPackOrder(0)] public readonly int Version;
+    [MemoryPackOrder(1)] public readonly LegacyStateMachineRollbackEntry[] Entries;
+
+    [MemoryPackConstructor]
+    public LegacyStateMachineRollbackPayload(int version, LegacyStateMachineRollbackEntry[] entries)
+    {
+        Version = version;
+        Entries = entries;
+    }
+}
+
+[MemoryPackable]
+public readonly partial struct LegacyStateMachineRollbackEntry
+{
+    [MemoryPackOrder(0)] public readonly int ActorId;
+    [MemoryPackOrder(1)] public readonly bool HasRuntime;
+    [MemoryPackOrder(2)] public readonly string ProfileId;
+    [MemoryPackOrder(3)] public readonly float DeltaTime;
+    [MemoryPackOrder(4)] public readonly MobaActorStateMachineRollbackState State;
+    [MemoryPackOrder(5)] public readonly MobaHfsmSnapshotNode Root;
+
+    public LegacyStateMachineRollbackEntry(
+        int actorId,
+        bool hasRuntime,
+        string profileId,
+        float deltaTime,
+        MobaActorStateMachineRollbackState state,
+        MobaHfsmSnapshotNode root)
+    {
+        ActorId = actorId;
+        HasRuntime = hasRuntime;
+        ProfileId = profileId ?? string.Empty;
+        DeltaTime = deltaTime;
+        State = state;
+        Root = root;
     }
 }

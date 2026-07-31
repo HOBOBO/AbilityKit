@@ -26,6 +26,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private static readonly UnityShooterPlayInputSource InputSource = new();
         private static readonly UnityShooterSwitchableViewSink ViewSink = new();
         private static readonly ShooterRemoteInputPump InputPump = new(InputSource);
+        private static readonly ReconnectAttemptScheduler SessionReconnectScheduler = new();
         private static ShooterRemoteStateSyncRuntimeState? _state;
         private static ShooterRemoteInputSubmitStrategy? _inputSubmitStrategy;
         private static ShooterRemoteStateSyncLaunchOptions _options;
@@ -39,6 +40,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private static bool _isStarting;
         private static bool _isPaused;
         private static bool _isAutoReconnecting;
+        private static bool _isAutoReconnectAttemptRunning;
         private static bool _isWaitingForInitialFullStateSync;
         private static ShooterSnapshotApplyResult _lastInitialFullStateSyncApplyResult;
         private static Exception? _lastError;
@@ -113,6 +115,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _pausedResumeOptions = default;
             _isPaused = false;
             _isAutoReconnecting = false;
+            _isAutoReconnectAttemptRunning = false;
+            SessionReconnectScheduler.Reset();
             _isWaitingForInitialFullStateSync = false;
             _lastInitialFullStateSyncApplyResult = default;
             NotifyStateChanged();
@@ -126,17 +130,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                     throw new OperationCanceledException("Shooter remote state-sync start was superseded by a newer lifecycle.");
                 }
 
-                _state = state;
-                _inputSubmitStrategy = ShooterRemoteInputSubmitStrategy.Create(state.CoordinatorInputBridge, launchOptions.Timeout);
-                _lastInput = default;
-                _lastSubmitResult = default;
-                _lastTickResult = default;
-                _stepCount = 0;
-                _renderCount = 0;
-                _timeAnchors = ShooterTimeAnchorCoordinator.CreateLocal(_options.SessionOptions.TickRate);
-                _lastRemoteTimeAnchor = state.Launch.Flow.RemoteTimeAnchorProjection.TimeAnchor;
-                _lastRemoteLatencyCompensationDiagnostics = default;
-                _lastError = null;
+                ActivateRunningState(state, launchOptions);
                 return state.Launch;
             }
             catch (Exception ex)
@@ -289,13 +283,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 _effectiveControlledPlayerId = ResolveEffectiveControlledPlayerId(connectionResult.Launch.Flow, launchOptions.SessionOptions.ControlledPlayerId);
                 connectionResult.Launch.Session.Presentation.ControlledPlayerId = _effectiveControlledPlayerId;
 
-                var coordinatorInputBridge = ShooterCoordinatorInputBridge.Create(
-                    runtimeWorld.World,
-                    connectionResult.Launch,
-                    launchOptions.Endpoint,
-                    launchOptions.SessionOptions.TickRate);
-
-                return new ShooterRemoteStateSyncRuntimeState(runtimeWorld, launcher, connectionResult.Launch, coordinatorInputBridge);
+                return new ShooterRemoteStateSyncRuntimeState(runtimeWorld, launcher, connectionResult.Launch);
             }
             catch
             {
@@ -313,8 +301,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private static void TickRunningSession(float deltaSeconds)
         {
             var state = _state;
-            if (state == null || _isPaused || _isAutoReconnecting)
+            if (state == null || _isPaused)
             {
+                return;
+            }
+
+            if (_isAutoReconnecting)
+            {
+                TickAutoReconnect(deltaSeconds);
                 return;
             }
 
@@ -337,7 +331,6 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _stepCount++;
 
             _lastTickResult = state.Launch.Session.Tick(deltaSeconds);
-            state.CoordinatorInputBridge.Tick(deltaSeconds);
             _inputSubmitStrategy?.CompleteIfFinished();
             _lastRemoteLatencyCompensationDiagnostics = CreateRemoteLatencyCompensationDiagnostics();
 
@@ -389,6 +382,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _isStarting = false;
             _isPaused = false;
             _isAutoReconnecting = false;
+            _isAutoReconnectAttemptRunning = false;
+            SessionReconnectScheduler.Reset();
             _isWaitingForInitialFullStateSync = false;
             _lastInitialFullStateSyncApplyResult = default;
         }
@@ -411,17 +406,43 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 return false;
             }
 
+            if (SessionReconnectScheduler.IsExhausted)
+            {
+                return true;
+            }
+
+            if (!SessionReconnectScheduler.Request())
+            {
+                return true;
+            }
+
             _isAutoReconnecting = true;
             _pausedResumeOptions = ShooterReconnectLaunchOptionsBuilder.RestoreOnly(_options, state.Launch.Flow.RoomId);
             _inputSubmitStrategy?.Reset();
             _inputSubmitStrategy = null;
             state.Launcher.Close();
             NotifyStateChanged();
-            _ = ResumeAfterSocketLossAsync(_pausedResumeOptions, _lifecycleGeneration);
             return true;
         }
 
-        private static async Task ResumeAfterSocketLossAsync(ShooterRemoteStateSyncLaunchOptions resumeOptions, long sourceGeneration)
+        private static void TickAutoReconnect(float deltaSeconds)
+        {
+            if (_isAutoReconnectAttemptRunning ||
+                !SessionReconnectScheduler.TryTakeAttempt(deltaSeconds, out var attempt))
+            {
+                return;
+            }
+
+            _isAutoReconnectAttemptRunning = true;
+            Debug.Log(
+                $"[ShooterRemoteStateSync] Session restore attempt " +
+                $"{attempt}/{SessionReconnectScheduler.MaxAttempts}.");
+            _ = ResumeAfterSocketLossAsync(_pausedResumeOptions, _lifecycleGeneration);
+        }
+
+        private static async Task ResumeAfterSocketLossAsync(
+            ShooterRemoteStateSyncLaunchOptions resumeOptions,
+            long sourceGeneration)
         {
             try
             {
@@ -430,7 +451,22 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                     return;
                 }
 
-                await StartAsync(resumeOptions).ConfigureAwait(false);
+                var restoredState = await StartSessionAsync(
+                    resumeOptions,
+                    sourceGeneration).ConfigureAwait(false);
+                if (!IsCurrentLifecycle(sourceGeneration))
+                {
+                    restoredState.Dispose();
+                    return;
+                }
+
+                var previousState = _state;
+                ActivateRunningState(restoredState, resumeOptions);
+                previousState?.Dispose();
+                SessionReconnectScheduler.Reset();
+                _isAutoReconnectAttemptRunning = false;
+                _isAutoReconnecting = false;
+                NotifyStateChanged();
             }
             catch (Exception ex)
             {
@@ -440,10 +476,36 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 }
 
                 _lastError = ex;
-                _isAutoReconnecting = false;
+                _isAutoReconnectAttemptRunning = false;
+                if (SessionReconnectScheduler.IsExhausted)
+                {
+                    _isAutoReconnecting = false;
+                }
                 Debug.LogException(ex);
                 NotifyStateChanged();
             }
+        }
+
+        private static void ActivateRunningState(
+            ShooterRemoteStateSyncRuntimeState state,
+            ShooterRemoteStateSyncLaunchOptions launchOptions)
+        {
+            _state = state;
+            _options = launchOptions;
+            _pausedResumeOptions = default;
+            _inputSubmitStrategy = ShooterRemoteInputSubmitStrategy.Create(
+                state.Launch.Battle,
+                launchOptions.Timeout);
+            _lastInput = default;
+            _lastSubmitResult = default;
+            _lastTickResult = default;
+            _stepCount = 0;
+            _renderCount = 0;
+            _timeAnchors = ShooterTimeAnchorCoordinator.CreateLocal(
+                launchOptions.SessionOptions.TickRate);
+            _lastRemoteTimeAnchor = state.Launch.Flow.RemoteTimeAnchorProjection.TimeAnchor;
+            _lastRemoteLatencyCompensationDiagnostics = default;
+            _lastError = null;
         }
 
         private static long AdvanceLifecycleGeneration()
@@ -669,20 +731,16 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             public ShooterRemoteStateSyncRuntimeState(
                 ShooterBattleWorldSession runtimeWorld,
                 ShooterClientNetworkLauncher launcher,
-                ShooterClientNetworkLaunchResult launch,
-                ShooterCoordinatorInputBridge coordinatorInputBridge)
+                ShooterClientNetworkLaunchResult launch)
             {
                 RuntimeWorld = runtimeWorld ?? throw new ArgumentNullException(nameof(runtimeWorld));
                 Launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
                 Launch = launch ?? throw new ArgumentNullException(nameof(launch));
-                CoordinatorInputBridge = coordinatorInputBridge ?? throw new ArgumentNullException(nameof(coordinatorInputBridge));
             }
 
             public ShooterBattleWorldSession RuntimeWorld { get; }
             public ShooterClientNetworkLauncher Launcher { get; }
             public ShooterClientNetworkLaunchResult Launch { get; }
-            public ShooterCoordinatorInputBridge CoordinatorInputBridge { get; }
-
             public void Dispose()
             {
                 if (_disposed)
@@ -691,7 +749,6 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 }
 
                 _disposed = true;
-                CoordinatorInputBridge.Dispose();
                 Launcher.Dispose();
                 RuntimeWorld.Dispose();
             }

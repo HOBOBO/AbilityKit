@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using BTCore.Runtime;
@@ -12,7 +13,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     /// </summary>
     public sealed class MobaSelectReadySkillAction : ExternalAction, IMobaBTreeContextNode
     {
-        internal const float DefaultApproachRange = 1.5f;
+        internal const float DefaultApproachRange = 0.5f;
         private const string SkillIdProperty = "skillId";
         private const string RequiredTagProperty = "requiredTag";
 
@@ -40,36 +41,47 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 
             var skills = owner.skillLoadout.ActiveSkills;
             if (skills == null || skills.Length == 0) return NodeState.Success;
-
+ 
             var requiredSkillId = ReadIntProperty(SkillIdProperty);
             var requiredTag = ReadIntProperty(RequiredTagProperty);
             var nowMs = _context.GetCurrentTimeMs();
             var maxConfiguredRange = 0f;
-
+            var candidates = new List<MobaSkillSelectionCandidate>();
+ 
             for (var i = 0; i < skills.Length; i++)
             {
                 var runtime = skills[i];
                 if (runtime == null || runtime.SkillId <= 0) continue;
                 if (!config.TryGetSkill(runtime.SkillId, out var skill) || skill == null) continue;
-
+ 
                 var range = Math.Max(0f, skill.Range);
                 maxConfiguredRange = Math.Max(maxConfiguredRange, range);
                 if (requiredSkillId > 0 && skill.Id != requiredSkillId) continue;
                 if (requiredTag > 0 && !HasTag(skill, requiredTag)) continue;
                 if (runtime.CooldownEndTimeMs > nowMs) continue;
-
-                Blackboard.SetValue(MobaBTreeKeys.SkillId, skill.Id);
-                Blackboard.SetValue(MobaBTreeKeys.SkillSlot, i + 1);
-                Blackboard.SetValue(MobaBTreeKeys.SkillRange, range);
+ 
+                candidates.Add(new MobaSkillSelectionCandidate(skill.Id, i + 1, range));
+            }
+ 
+            if (MobaBrainSkillSelectionPolicies.TrySelect(
+                    _context.SkillSelectionPolicy,
+                    candidates,
+                    out var selected)
+                && config.TryGetSkill(selected.SkillId, out var selectedSkill)
+                && selectedSkill != null)
+            {
+                Blackboard.SetValue(MobaBTreeKeys.SkillId, selected.SkillId);
+                Blackboard.SetValue(MobaBTreeKeys.SkillSlot, selected.Slot);
+                Blackboard.SetValue(MobaBTreeKeys.SkillRange, selected.Range);
                 Blackboard.SetValue(MobaBTreeKeys.SkillApproachRange,
-                    range > 0f ? range : DefaultApproachRange);
-                Blackboard.SetValue(MobaBTreeKeys.SkillCategory, skill.Category);
-                Blackboard.SetValue(MobaBTreeKeys.SkillType, (int)skill.SkillType);
-                Blackboard.SetValue(MobaBTreeKeys.SkillTargetQueryId, skill.RequiredTargetQueryId);
+                    selected.Range > 0f ? selected.Range : DefaultApproachRange);
+                Blackboard.SetValue(MobaBTreeKeys.SkillCategory, selectedSkill.Category);
+                Blackboard.SetValue(MobaBTreeKeys.SkillType, (int)selectedSkill.SkillType);
+                Blackboard.SetValue(MobaBTreeKeys.SkillTargetQueryId, selectedSkill.RequiredTargetQueryId);
                 Blackboard.SetValue(MobaBTreeKeys.SkillValid, true);
                 return NodeState.Success;
             }
-
+ 
             if (maxConfiguredRange > 0f)
                 Blackboard.SetValue(MobaBTreeKeys.SkillApproachRange, maxConfiguredRange);
             return NodeState.Success;

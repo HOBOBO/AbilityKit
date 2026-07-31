@@ -78,7 +78,9 @@ namespace AbilityKit.Game
                 Root.WithRef<IGameFlowFeatureInstaller>(existingFlow);
             }
 
-            Root.WithRef(new LobbyBattleEntrySelection());
+            var entrySelection = new LobbyBattleEntrySelection();
+            Root.WithRef(entrySelection);
+            ApplyPendingLaunchIntent(entrySelection);
             EnsureRuntimeGuiBridge();
 
             _entryModuleContext = new GameEntryModuleContext(this, Root);
@@ -180,6 +182,36 @@ namespace AbilityKit.Game
             return new ModuleHost<GameEntryModuleContext, IGameEntryModule>(
                 modules,
                 message => Debug.LogError($"[GameEntry] {message}"));
+        }
+
+        private void ApplyPendingLaunchIntent(LobbyBattleEntrySelection selection)
+        {
+            if (!MobaMultiplayerLaunchContext.ConsumeRequest())
+            {
+                return;
+            }
+
+            BattleStartPresetSO remotePreset = null;
+            if (_battleStartPresets != null)
+            {
+                for (var i = 0; i < _battleStartPresets.Length; i++)
+                {
+                    var candidate = _battleStartPresets[i];
+                    if (candidate != null && candidate.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote)
+                    {
+                        remotePreset = candidate;
+                        break;
+                    }
+                }
+            }
+
+            if (_battleStartConfig == null || remotePreset == null)
+            {
+                throw new InvalidOperationException(
+                    "Multiplayer starter requires a BattleStartConfig and a GatewayRemote preset.");
+            }
+
+            selection.SelectRemote(_battleStartConfig, remotePreset);
         }
 
         public T Get<T>() where T : class

@@ -38,10 +38,11 @@ public sealed partial class RoomPickHeroHandler : GatewayRequestHandlerBase
                 return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
 
             var room = _clusterClient.GetGrain<IRoomGrain>(roomId);
-            await room.SubmitGameplayCommandAsync(RoomGatewayWireMapper.ToGameplayCommand(accountId, req));
+            var result = await room.SubmitGameplayCommandWithResultAsync(
+                RoomGatewayWireMapper.ToGameplayCommand(accountId, req));
 
             var snapshot = await room.GetSnapshotAsync();
-            var wire = RoomGatewayWireMapper.ToSnapshotRes(snapshot);
+            var wire = RoomGatewayWireMapper.ToSnapshotRes(snapshot, result);
             var responsePayload = WireRoomGatewayBinary.Serialize(in wire);
 
             context.RoomId = roomId;

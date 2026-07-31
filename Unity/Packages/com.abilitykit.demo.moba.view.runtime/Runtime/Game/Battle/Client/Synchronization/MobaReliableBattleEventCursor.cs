@@ -5,6 +5,36 @@ using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Battle.Agent
 {
+    public readonly struct MobaReliableBattleEventCheckpoint
+    {
+        public readonly string BattleId;
+        public readonly string Epoch;
+        public readonly long LastAcknowledgedSequence;
+
+        public MobaReliableBattleEventCheckpoint(
+            string battleId,
+            string epoch,
+            long lastAcknowledgedSequence)
+        {
+            BattleId = battleId ?? string.Empty;
+            Epoch = epoch ?? string.Empty;
+            LastAcknowledgedSequence = Math.Max(0L, lastAcknowledgedSequence);
+        }
+
+        public bool IsValid =>
+            !string.IsNullOrWhiteSpace(BattleId) &&
+            !string.IsNullOrWhiteSpace(Epoch);
+    }
+
+    public interface IMobaReliableBattleEventCheckpointStore
+    {
+        bool TryLoad(
+            string battleId,
+            out MobaReliableBattleEventCheckpoint checkpoint);
+
+        void Save(in MobaReliableBattleEventCheckpoint checkpoint);
+    }
+
     public enum MobaReliableBattleEventBatchStatus
     {
         Accepted = 0,
@@ -70,6 +100,33 @@ namespace AbilityKit.Game.Battle.Agent
         public string Epoch => _epoch;
         public long LastDeliveredSequence => _lastDeliveredSequence;
         public long LastAcknowledgedSequence => _lastAcknowledgedSequence;
+
+        public bool TryRestore(in MobaReliableBattleEventCheckpoint checkpoint)
+        {
+            if (!checkpoint.IsValid ||
+                checkpoint.LastAcknowledgedSequence < 0 ||
+                (!string.IsNullOrEmpty(_battleId) &&
+                 !string.Equals(
+                     _battleId,
+                     checkpoint.BattleId,
+                     StringComparison.Ordinal)))
+            {
+                return false;
+            }
+
+            _epoch = checkpoint.Epoch;
+            _lastDeliveredSequence = checkpoint.LastAcknowledgedSequence;
+            _lastAcknowledgedSequence = checkpoint.LastAcknowledgedSequence;
+            return true;
+        }
+
+        public MobaReliableBattleEventCheckpoint CreateCheckpoint()
+        {
+            return new MobaReliableBattleEventCheckpoint(
+                _battleId,
+                _epoch,
+                _lastAcknowledgedSequence);
+        }
 
         public MobaReliableBattleEventBatchResult Admit(
             in WireReliableBattleEventPush push)

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using AbilityKit.Game.View.Flow;
 
 namespace AbilityKit.Game.Flow
@@ -14,18 +16,22 @@ namespace AbilityKit.Game.Flow
             PhaseStateFeatureSpec battleCreateOrJoinWorldFeatures,
             PhaseStateFeatureSpec battleLoadAssetsFeatures,
             PhaseStateFeatureSpec battleInMatchFeatures,
-            PhaseStateFeatureSpec battleEndFeatures)
+            PhaseStateFeatureSpec battleEndFeatures,
+            IReadOnlyDictionary<MobaRootState, string> rootStateDescriptions,
+            IReadOnlyDictionary<MobaBattleState, string> battleStateDescriptions)
         {
-            RootMachine = rootMachine;
-            BattleMachine = battleMachine;
-            BootFeatures = bootFeatures;
-            LobbyFeatures = lobbyFeatures;
-            BattlePrepareFeatures = battlePrepareFeatures;
-            BattleConnectFeatures = battleConnectFeatures;
-            BattleCreateOrJoinWorldFeatures = battleCreateOrJoinWorldFeatures;
-            BattleLoadAssetsFeatures = battleLoadAssetsFeatures;
-            BattleInMatchFeatures = battleInMatchFeatures;
-            BattleEndFeatures = battleEndFeatures;
+            RootMachine = rootMachine ?? throw new ArgumentNullException(nameof(rootMachine));
+            BattleMachine = battleMachine ?? throw new ArgumentNullException(nameof(battleMachine));
+            BootFeatures = bootFeatures ?? throw new ArgumentNullException(nameof(bootFeatures));
+            LobbyFeatures = lobbyFeatures ?? throw new ArgumentNullException(nameof(lobbyFeatures));
+            BattlePrepareFeatures = battlePrepareFeatures ?? throw new ArgumentNullException(nameof(battlePrepareFeatures));
+            BattleConnectFeatures = battleConnectFeatures ?? throw new ArgumentNullException(nameof(battleConnectFeatures));
+            BattleCreateOrJoinWorldFeatures = battleCreateOrJoinWorldFeatures ?? throw new ArgumentNullException(nameof(battleCreateOrJoinWorldFeatures));
+            BattleLoadAssetsFeatures = battleLoadAssetsFeatures ?? throw new ArgumentNullException(nameof(battleLoadAssetsFeatures));
+            BattleInMatchFeatures = battleInMatchFeatures ?? throw new ArgumentNullException(nameof(battleInMatchFeatures));
+            BattleEndFeatures = battleEndFeatures ?? throw new ArgumentNullException(nameof(battleEndFeatures));
+            RootStateDescriptions = rootStateDescriptions ?? throw new ArgumentNullException(nameof(rootStateDescriptions));
+            BattleStateDescriptions = battleStateDescriptions ?? throw new ArgumentNullException(nameof(battleStateDescriptions));
         }
 
         public PhaseStateMachineSpec<MobaRootState, MobaRootEvent> RootMachine { get; }
@@ -38,10 +44,15 @@ namespace AbilityKit.Game.Flow
         public PhaseStateFeatureSpec BattleLoadAssetsFeatures { get; }
         public PhaseStateFeatureSpec BattleInMatchFeatures { get; }
         public PhaseStateFeatureSpec BattleEndFeatures { get; }
+        public IReadOnlyDictionary<MobaRootState, string> RootStateDescriptions { get; }
+        public IReadOnlyDictionary<MobaBattleState, string> BattleStateDescriptions { get; }
+
+        public string GetRootStateDescription(MobaRootState state) => RootStateDescriptions[state];
+        public string GetBattleStateDescription(MobaBattleState state) => BattleStateDescriptions[state];
 
         public static MobaFlowConfiguration CreateDefault()
         {
-            return new MobaFlowConfiguration(
+            var configuration = new MobaFlowConfiguration(
                 BuildRootMachine(),
                 BuildBattleMachine(),
                 new PhaseStateFeatureSpec("Boot", clearBeforeEnter: true),
@@ -74,7 +85,35 @@ namespace AbilityKit.Game.Flow
                 new PhaseStateFeatureSpec("Battle.End", clearBeforeEnter: true)
                     .AddFeature("end_settlement")
                     .AddFeature("debug_ongui")
-                    .AddEnterAfterAction(MobaFlowActionIds.ReturnLobbyAfterBattleEnd));
+                    .AddEnterAfterAction(MobaFlowActionIds.ReturnLobbyAfterBattleEnd),
+                BuildRootStateDescriptions(),
+                BuildBattleStateDescriptions());
+
+            MobaFlowConfigurationValidator.ValidateOrThrow(configuration);
+            return configuration;
+        }
+
+        private static IReadOnlyDictionary<MobaRootState, string> BuildRootStateDescriptions()
+        {
+            return new Dictionary<MobaRootState, string>
+            {
+                [MobaRootState.Boot] = "Boot",
+                [MobaRootState.Lobby] = "Lobby",
+                [MobaRootState.Battle] = "Battle",
+            };
+        }
+
+        private static IReadOnlyDictionary<MobaBattleState, string> BuildBattleStateDescriptions()
+        {
+            return new Dictionary<MobaBattleState, string>
+            {
+                [MobaBattleState.Prepare] = "Prepare battle session",
+                [MobaBattleState.Connect] = "Connect battle session",
+                [MobaBattleState.CreateOrJoinWorld] = "Create or join battle world",
+                [MobaBattleState.LoadAssets] = "Load battle assets",
+                [MobaBattleState.InMatch] = "Run battle match",
+                [MobaBattleState.End] = "Finalize battle session",
+            };
         }
 
         private static PhaseStateMachineSpec<MobaRootState, MobaRootEvent> BuildRootMachine()

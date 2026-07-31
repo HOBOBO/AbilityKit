@@ -252,6 +252,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                         DirectionX = ShooterPackedSnapshotChunkCodec.GetFloat(chunk.ValueZ, i, 1f),
                         DirectionY = ShooterPackedSnapshotChunkCodec.GetFloat(chunk.ValueW, i)
                     };
+                    enemy.Navigation.VelocityX = ShooterPackedSnapshotChunkCodec.GetPackedPairValue(chunk.Aux, i, 0);
+                    enemy.Navigation.VelocityY = ShooterPackedSnapshotChunkCodec.GetPackedPairValue(chunk.Aux, i, 1);
                     enemies[entityId] = enemy;
                 }
             }
@@ -339,10 +341,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
             if (_entities.HasEnemy(enemy.EntityId))
             {
                 _entities.SetEnemy(enemy.EntityId, in enemy.Transform, in enemy.Health);
-                return;
+            }
+            else
+            {
+                _entities.AddEnemy(enemy.EntityId, in enemy.Transform, in enemy.Health);
             }
 
-            _entities.AddEnemy(enemy.EntityId, in enemy.Transform, in enemy.Health);
+            if (_entities.SveltoContext.EntitiesDB.TryQueryMappedEntities<ShooterSveltoNavigationComponent>(
+                    ShooterSveltoGroups.GameplayTargets,
+                    out var navigationMapper))
+            {
+                navigationMapper.Entity((uint)enemy.EntityId) = enemy.Navigation;
+            }
         }
 
         private struct ImportedEnemy
@@ -350,6 +360,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             public int EntityId;
             public ShooterSveltoTransformComponent Transform;
             public ShooterSveltoHealthComponent Health;
+            public ShooterSveltoNavigationComponent Navigation;
         }
     }
 }

@@ -113,6 +113,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             // Presentation templates
             new Entry(MobaConfigPaths.PresentationTemplatesFile, typeof(PresentationTemplateDTO), typeof(MO.PresentationTemplateMO)),
 
+            // Battle maps
+            new Entry(MobaConfigPaths.BattleMapsFile, typeof(BattleMapDTO), typeof(MO.BattleMapMO)),
+
             // Gameplay modes
             new Entry(MobaConfigPaths.GameplaysFile, typeof(GameplayDTO), typeof(MO.GameplayMO)),
 

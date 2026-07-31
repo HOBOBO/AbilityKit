@@ -40,6 +40,7 @@ namespace AbilityKit.Combat.Collision
             {
                 BroadphaseType.Naive => new NaiveCollisionWorld(),
                 BroadphaseType.Grid => new GridCollisionWorld(options.GridCellSize, options.InitialCapacity),
+                // NOTE: DynamicAabbTree 后端尚未实现（无 tree-backed world），暂等价 Grid；建 tree-world 另列。
                 BroadphaseType.DynamicAabbTree => new GridCollisionWorld(options.GridCellSize, options.InitialCapacity),
                 _ => new NaiveCollisionWorld()
             };
@@ -62,7 +63,8 @@ namespace AbilityKit.Combat.Collision
         }
 
         /// <summary>
-        /// 创建基于动态 AABB 树的碰撞世界
+        /// 创建基于动态 AABB 树的碰撞世界。
+        /// 注意：tree-backed world 尚未实现，当前等价返回 Grid 碰撞世界。
         /// </summary>
         public static ICollisionWorld CreateWithDynamicTree(int capacity = 64)
         {

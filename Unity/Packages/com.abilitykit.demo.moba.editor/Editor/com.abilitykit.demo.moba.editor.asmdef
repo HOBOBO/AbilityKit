@@ -13,6 +13,7 @@
     "AbilityKit.Core",
     "AbilityKit.Core.Editor",
     "AbilityKit.Combat.Collision.Abstractions",
+    "AbilityKit.Combat.Navigation",
     "AbilityKit.Combat.Projectile",
     "AbilityKit.Attributes",
     "AbilityKit.World.FrameSync",

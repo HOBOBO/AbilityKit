@@ -83,6 +83,15 @@ internal sealed class ScriptedShooterGatewayLaunchTransport : IShooterRoomGatewa
                     Snapshot = CreateStagedSnapshot(phase: 1, battleId: string.Empty, worldId: 0ul),
                     Message = "loading"
                 }));
+            case RoomGatewayOpCodes.ReportLoadingProgress:
+                return Task.FromResult(WireRoomGatewayBinary.Serialize(new WireRoomOperationRes
+                {
+                    Success = true,
+                    Applied = true,
+                    RoomRevision = 3L,
+                    Snapshot = CreateStagedSnapshot(phase: 1, battleId: string.Empty, worldId: 0ul),
+                    Message = "progress"
+                }));
             case RoomGatewayOpCodes.ReportAssetsLoaded:
                 LastReportAssetsLoadedRequest = WireRoomGatewayBinary.Deserialize<WireReportAssetsLoadedReq>(payload);
                 return Task.FromResult(WireRoomGatewayBinary.Serialize(new WireRoomOperationRes

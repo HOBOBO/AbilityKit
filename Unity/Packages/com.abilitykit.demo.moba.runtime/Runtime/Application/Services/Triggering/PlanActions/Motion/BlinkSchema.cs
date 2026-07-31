@@ -24,8 +24,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var directionMode = ReadInt(namedArgs, ctx, 0, "direction_mode", "directionmode", "dir_mode");
             var priority = ReadInt(namedArgs, ctx, 15, "priority");
             var applyToCaster = ReadBool(namedArgs, ctx, true, "apply_to_caster", "applytocaster");
+            var passThroughWalls = ReadBool(namedArgs, ctx, false, "pass_through_walls", "passthroughwalls", "pass_walls", "passwalls");
 
-            return new BlinkArgs(distance, directionMode, priority, applyToCaster);
+            return new BlinkArgs(distance, directionMode, priority, applyToCaster, passThroughWalls);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

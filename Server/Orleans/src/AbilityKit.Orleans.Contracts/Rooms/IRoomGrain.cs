@@ -30,11 +30,15 @@ public interface IRoomGrain : IGrainWithStringKey
 
     Task SubmitGameplayCommandAsync(RoomGameplayCommandRequest request);
 
+    Task<RoomOperationResult> SubmitGameplayCommandWithResultAsync(RoomGameplayCommandRequest request);
+
     Task<StartRoomBattleResponse> StartBattleAsync(StartRoomBattleRequest request);
 
     Task CloseAsync(string accountId);
 
     Task<RoomOperationResult> BeginLoadingWithResultAsync(BeginLoadingRequest request);
+
+    Task<RoomOperationResult> ReportLoadingProgressWithResultAsync(ReportLoadingProgressRequest request);
 
     Task<RoomOperationResult> ReportAssetsLoadedWithResultAsync(ReportAssetsLoadedRequest request);
 

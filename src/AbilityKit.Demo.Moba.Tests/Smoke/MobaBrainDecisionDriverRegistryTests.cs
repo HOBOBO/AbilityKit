@@ -89,6 +89,25 @@ public sealed class MobaBrainDecisionDriverRegistryTests
         Assert.Equal("TestDriver", decision.DecisionType);
     }
 
+    [Fact]
+    public void Default_registry_does_not_register_a_generic_hfsm_driver()
+    {
+        var definition = new MobaActorBrainDefinition(
+            brainId: 10,
+            MobaBrainDriverKind.Hfsm,
+            decisionName: "combat");
+        var context = new MobaBrainDecisionCreateContext(
+            in definition,
+            registry: null,
+            config: null,
+            ownerActorId: 404,
+            sourceKind: 0,
+            sourceId: 0);
+
+        Assert.False(MobaBrainDecisionDriverRegistry.CreateDefault().TryCreate(in context, out var decision));
+        Assert.Null(decision);
+    }
+
     private sealed class TestDriver : IMobaBrainDecisionDriver
     {
         public MobaBrainDriverKind Kind => MobaBrainDriverKind.Hfsm;

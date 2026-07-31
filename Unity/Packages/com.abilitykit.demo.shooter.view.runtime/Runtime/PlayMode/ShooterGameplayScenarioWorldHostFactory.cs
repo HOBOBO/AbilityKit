@@ -3,6 +3,9 @@
 using System;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Demo.Shooter.Runtime;
+#if UNITY_5_3_OR_NEWER
+using AbilityKit.Demo.Shooter.Jobs;
+#endif
 
 namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
@@ -10,16 +13,29 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     {
         public static ShooterWorldHost Create(ShooterSveltoGameplayScenarioConfig? scenario)
         {
-            return scenario.HasValue
-                ? new ShooterWorldHost(options => ConfigureWorldOptions(options, scenario.Value))
-                : new ShooterWorldHost();
+            return new ShooterWorldHost(options => ConfigureWorldOptions(options, scenario));
         }
 
-        public static void ConfigureWorldOptions(WorldCreateOptions options, in ShooterSveltoGameplayScenarioConfig scenario)
+        public static void ConfigureWorldOptions(
+            WorldCreateOptions options,
+            ShooterSveltoGameplayScenarioConfig? scenario)
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
 
-            options.Extensions[typeof(ShooterSveltoGameplayScenarioConfig)] = scenario;
+#if UNITY_5_3_OR_NEWER
+            options.Modules.Add(new ShooterUnityJobsWorldModule());
+#endif
+            if (scenario.HasValue)
+            {
+                options.Extensions[typeof(ShooterSveltoGameplayScenarioConfig)] = scenario.Value;
+            }
+        }
+
+        public static void ConfigureWorldOptions(
+            WorldCreateOptions options,
+            in ShooterSveltoGameplayScenarioConfig scenario)
+        {
+            ConfigureWorldOptions(options, (ShooterSveltoGameplayScenarioConfig?)scenario);
         }
     }
 }

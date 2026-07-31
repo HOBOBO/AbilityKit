@@ -49,7 +49,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public readonly MobaMotionContinuousSettings Continuous;
 
-        public DashArgs(float speed, float durationMs, int directionMode = 0, int priority = 10, bool applyToCaster = true, int hitTriggerPlanId = 0, int motionGroupId = 0, bool moveToAimPosition = false, MobaMotionContinuousSettings continuous = default)
+        /// <summary>是否可穿墙：true 时行进忽略墙体，但终点落障碍物内会沿方向投影到边界。</summary>
+        public readonly bool PassThroughWalls;
+
+        public DashArgs(float speed, float durationMs, int directionMode = 0, int priority = 10, bool applyToCaster = true, int hitTriggerPlanId = 0, int motionGroupId = 0, bool moveToAimPosition = false, MobaMotionContinuousSettings continuous = default, bool passThroughWalls = false)
         {
             Speed = speed;
             DurationMs = durationMs;
@@ -60,8 +63,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             HitTriggerPlanId = hitTriggerPlanId;
             MotionGroupId = motionGroupId;
             Continuous = continuous;
+            PassThroughWalls = passThroughWalls;
         }
 
-        public static DashArgs Default => new DashArgs(0f, 0f, 0, 10, true, 0, 0, false, MobaMotionContinuousSettings.Empty);
+        public static DashArgs Default => new DashArgs(0f, 0f, 0, 10, true, 0, 0, false, MobaMotionContinuousSettings.Empty, false);
     }
 }

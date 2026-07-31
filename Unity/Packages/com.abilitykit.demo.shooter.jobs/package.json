@@ -1,0 +1,16 @@
+{
+  "name": "com.abilitykit.demo.shooter.jobs",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Demo Shooter Jobs",
+  "unity": "2022.3",
+  "description": "Optional Unity Jobs acceleration services for the AbilityKit Shooter runtime.",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.demo.shooter.runtime": "0.0.1",
+    "com.abilitykit.world.di": "0.0.1",
+    "com.unity.burst": "1.8.21",
+    "com.unity.collections": "2.1.4"
+  }
+}

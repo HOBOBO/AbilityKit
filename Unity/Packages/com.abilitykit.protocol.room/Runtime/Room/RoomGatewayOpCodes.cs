@@ -26,6 +26,7 @@ namespace AbilityKit.Protocol.Room
         public const uint GetSnapshot = 115;
         public const uint AckReliableBattleEvents = 116;
         public const uint GetStateSyncDeliveryMetrics = 117;
+        public const uint ReportLoadingProgress = 118;
 
         public const uint SnapshotPushed = 9002;
         public const uint DeltaSnapshotPushed = 9003;

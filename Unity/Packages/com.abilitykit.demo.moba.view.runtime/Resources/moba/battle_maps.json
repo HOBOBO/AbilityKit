@@ -1,0 +1,124 @@
+[
+  {
+    "Id": 1,
+    "Name": "Prototype Arena",
+    "Bounds": {
+      "Center": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+      "Size": { "X": 36.0, "Y": 4.0, "Z": 24.0 }
+    },
+    "WalkableAreas": [
+      {
+        "Id": 1,
+        "Name": "Main Arena",
+        "Center": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+        "Size": { "X": 35.0, "Y": 0.0, "Z": 23.0 }
+      }
+    ],
+    "SpawnPoints": [
+      {
+        "Id": 101,
+        "TeamId": 1,
+        "Position": { "X": -12.0, "Y": 0.0, "Z": 0.0 },
+        "YawDegrees": 90.0
+      },
+      {
+        "Id": 201,
+        "TeamId": 2,
+        "Position": { "X": 12.0, "Y": 0.0, "Z": 0.0 },
+        "YawDegrees": -90.0
+      }
+    ],
+    "CollisionObjects": [
+      {
+        "Id": 1001,
+        "Name": "North Wall",
+        "ObjectType": "Boundary",
+        "ShapeType": "Box",
+        "Position": { "X": 0.0, "Y": 1.0, "Z": 12.0 },
+        "RotationEuler": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+        "Size": { "X": 36.0, "Y": 2.0, "Z": 1.0 },
+        "Radius": 0.0,
+        "Height": 0.0,
+        "CollisionLayer": 2,
+        "BlocksMovement": true,
+        "ProjectileResponse": "Default",
+        "GenerateView": true
+      },
+      {
+        "Id": 1002,
+        "Name": "South Wall",
+        "ObjectType": "Boundary",
+        "ShapeType": "Box",
+        "Position": { "X": 0.0, "Y": 1.0, "Z": -12.0 },
+        "RotationEuler": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+        "Size": { "X": 36.0, "Y": 2.0, "Z": 1.0 },
+        "Radius": 0.0,
+        "Height": 0.0,
+        "CollisionLayer": 2,
+        "BlocksMovement": true,
+        "ProjectileResponse": "Default",
+        "GenerateView": true
+      },
+      {
+        "Id": 1003,
+        "Name": "West Wall",
+        "ObjectType": "Boundary",
+        "ShapeType": "Box",
+        "Position": { "X": -18.0, "Y": 1.0, "Z": 0.0 },
+        "RotationEuler": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+        "Size": { "X": 1.0, "Y": 2.0, "Z": 24.0 },
+        "Radius": 0.0,
+        "Height": 0.0,
+        "CollisionLayer": 2,
+        "BlocksMovement": true,
+        "ProjectileResponse": "Default",
+        "GenerateView": true
+      },
+      {
+        "Id": 1004,
+        "Name": "East Wall",
+        "ObjectType": "Boundary",
+        "ShapeType": "Box",
+        "Position": { "X": 18.0, "Y": 1.0, "Z": 0.0 },
+        "RotationEuler": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+        "Size": { "X": 1.0, "Y": 2.0, "Z": 24.0 },
+        "Radius": 0.0,
+        "Height": 0.0,
+        "CollisionLayer": 2,
+        "BlocksMovement": true,
+        "ProjectileResponse": "Default",
+        "GenerateView": true
+      },
+      {
+        "Id": 1101,
+        "Name": "Center Blocker",
+        "ObjectType": "StaticObstacle",
+        "ShapeType": "Box",
+        "Position": { "X": 5.0, "Y": 1.0, "Z": 2.0 },
+        "RotationEuler": { "X": 0.0, "Y": 30.0, "Z": 0.0 },
+        "Size": { "X": 3.0, "Y": 2.0, "Z": 6.0 },
+        "Radius": 0.0,
+        "Height": 0.0,
+        "CollisionLayer": 2,
+        "BlocksMovement": true,
+        "ProjectileResponse": "Block",
+        "GenerateView": true
+      },
+      {
+        "Id": 1102,
+        "Name": "Projectile Pass Through Pillar",
+        "ObjectType": "StaticObstacle",
+        "ShapeType": "Capsule",
+        "Position": { "X": -5.0, "Y": 1.5, "Z": -2.0 },
+        "RotationEuler": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+        "Size": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+        "Radius": 1.0,
+        "Height": 3.0,
+        "CollisionLayer": 2,
+        "BlocksMovement": true,
+        "ProjectileResponse": "Ignore",
+        "GenerateView": true
+      }
+    ]
+  }
+]

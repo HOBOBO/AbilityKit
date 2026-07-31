@@ -6,7 +6,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
     {
     }
 
-    public sealed class ShooterSveltoGameplayTargetDescriptor : GenericEntityDescriptor<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>
+    public sealed class ShooterSveltoGameplayTargetDescriptor : GenericEntityDescriptor<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent, ShooterSveltoNavigationComponent>
     {
     }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Grains.Gameplays.Moba.Rooms;
 using AbilityKit.Orleans.Grains.Persistence;
 using AbilityKit.Orleans.Grains.Rooms;
 using Xunit;
@@ -57,6 +58,109 @@ public sealed class RoomMultiplayerE2EFlowTests
         Assert.Equal(1, persistedOwner.State.JoinOrdinal);
         Assert.Equal(2, persisted.NextJoinOrdinal);
         Assert.Equal(1, persisted.Summary.PlayerCount);
+    }
+
+    [Fact]
+    public void PickHero_SameTeamConflict_DoesNotAdvanceRevisionOrMutateRejectedPlayer()
+    {
+        var summary = new RoomSummary(
+            Region: "local",
+            ServerId: "server-a",
+            RoomId: "room-hero-conflict",
+            RoomType: "moba",
+            Title: "Room",
+            IsPublic: true,
+            MaxPlayers: 2,
+            PlayerCount: 0,
+            OwnerAccountId: "owner",
+            CreatedAtUnixMs: NowUnixMs,
+            Tags: null);
+
+        var adapter = new MobaRoomGameplayAdapter();
+        var gameplayState = adapter.CreateState(summary);
+        adapter.Join(gameplayState, summary, Array.Empty<string>(), "owner");
+        adapter.Join(gameplayState, summary, new[] { "owner" }, "player2");
+        var ownerResult = adapter.SubmitCommand(
+            gameplayState,
+            CreateLoadout("owner", heroId: 1001, teamId: 1));
+        Assert.True(ownerResult.Success);
+        var beforeConflict = adapter.ExportPersistentState(gameplayState);
+
+        var state = CreateLobbyState();
+        state = RoomStateMachine.Join(state, "owner", false, NowTicks, NowUnixMs).State;
+        state = RoomStateMachine.Join(state, "player2", false, NowTicks + 1, NowUnixMs + 1).State;
+        state = RoomStateMachine.GameplayChanged(state, "owner", NowTicks + 2, NowUnixMs + 2).State;
+        var revisionBeforeConflict = state.Revision;
+        var candidateTransition = RoomStateMachine.GameplayChanged(
+            state,
+            "player2",
+            NowTicks + 3,
+            NowUnixMs + 3);
+        var result = adapter.SubmitCommand(
+            gameplayState,
+            CreateLoadout("player2", heroId: 1001, teamId: 1));
+        var afterConflict = adapter.ExportPersistentState(gameplayState);
+
+        Assert.False(result.Success);
+        Assert.Equal(RoomOperationErrorCode.HeroConflict, result.ErrorCode);
+        Assert.True(candidateTransition.Applied);
+        Assert.Equal(revisionBeforeConflict, state.Revision);
+        Assert.Equal(beforeConflict.Payload, afterConflict.Payload);
+
+        var invalidResult = adapter.SubmitCommand(
+            gameplayState,
+            RoomGameplayCommandRequest.CreateMobaLoadout(
+                "player2",
+                heroId: 1002,
+                teamId: 1,
+                spawnPointId: 9,
+                level: 1,
+                attributeTemplateId: 2002,
+                basicAttackSkillId: 3004,
+                skillIds: Array.Empty<int>()));
+        Assert.False(invalidResult.Success);
+        Assert.Equal(RoomOperationErrorCode.InvalidGameplayCommand, invalidResult.ErrorCode);
+        Assert.Equal(beforeConflict.Payload, adapter.ExportPersistentState(gameplayState).Payload);
+    }
+
+    [Fact]
+    public void Restore_InBattleMemberReconnectsWithoutLosingBattleIdentity()
+    {
+        var state = CreateLobbyState();
+        state = RoomStateMachine.Join(state, "owner", false, NowTicks, NowUnixMs).State;
+        state = RoomStateMachine.Join(state, "player2", false, NowTicks + 1, NowUnixMs + 1).State;
+        state = state with
+        {
+            Phase = RoomPhase.InBattle,
+            BattleCommit = new RoomBattleCommitPersistentState(
+                Generation: 3,
+                CommitId: "room-1:3",
+                Status: RoomBattleCommitStatus.Committed,
+                InitSpecHash: "init-hash",
+                BattleId: "battle-1",
+                WorldId: 42UL,
+                WorldStartAnchor: new WorldStartAnchor(1000, 60, 0, 1d / 60d),
+                AttemptCount: 1,
+                LastError: null)
+        };
+        var offline = RoomStateMachine.MarkOffline(
+            state,
+            "player2",
+            NowTicks + 2,
+            NowUnixMs + 2);
+        var restored = RoomStateMachine.Reconnect(
+            offline.State,
+            "player2",
+            false,
+            NowTicks + 3,
+            NowUnixMs + 3);
+
+        Assert.True(restored.Applied);
+        Assert.Equal(RoomPhase.InBattle, restored.State.Phase);
+        Assert.True(restored.State.Members.Single(member => member.AccountId == "player2").State.IsOnline);
+        Assert.Equal("battle-1", restored.State.BattleCommit.BattleId);
+        Assert.Equal(42UL, restored.State.BattleCommit.WorldId);
+        Assert.Equal(3, restored.State.BattleCommit.Generation);
     }
 
     /// <summary>
@@ -258,5 +362,21 @@ public sealed class RoomMultiplayerE2EFlowTests
             CommandDedupEntries: new List<RoomCommandDedupEntry>(),
             TerminalReason: null,
             UpdatedAtUnixMs: 0);
+    }
+
+    private static RoomGameplayCommandRequest CreateLoadout(
+        string accountId,
+        int heroId,
+        int teamId)
+    {
+        return RoomGameplayCommandRequest.CreateMobaLoadout(
+            accountId,
+            heroId,
+            teamId,
+            spawnPointId: 1,
+            level: 1,
+            attributeTemplateId: 2001,
+            basicAttackSkillId: 3001,
+            skillIds: new[] { 3002, 3003 });
     }
 }

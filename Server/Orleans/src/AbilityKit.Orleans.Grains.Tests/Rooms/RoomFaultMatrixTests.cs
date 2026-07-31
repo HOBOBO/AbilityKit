@@ -292,7 +292,7 @@ public sealed class RoomFaultMatrixTests
             Members = members,
             NextJoinOrdinal = ordinal,
             Summary = state.Summary with { PlayerCount = members.Count },
-            Launch = new RoomLaunchPersistentState(7, 0, 0, null, new List<string>(accountIds))
+            Launch = new RoomLaunchPersistentState(7, 0, ManifestVersion, ManifestHash, new List<string>(accountIds))
         };
     }
 

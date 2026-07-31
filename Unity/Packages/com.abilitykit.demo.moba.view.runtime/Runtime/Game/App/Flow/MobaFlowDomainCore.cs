@@ -30,6 +30,9 @@ namespace AbilityKit.Game.Flow
         private MobaRootState _activeRoot;
         private MobaBattleState _activeBattle;
         private bool _battleRequested;
+        private bool _isStarted;
+        private bool _isFaulted;
+        private bool _isShutdown;
         private StateMachine<MobaRootState, MobaBattleState, MobaBattleEvent> _battleFsm;
 
         public MobaFlowDomainCore(
@@ -148,20 +151,19 @@ namespace AbilityKit.Game.Flow
 
         public MobaRootState CurrentPhase => _activeRoot;
         public MobaBattleState CurrentBattlePhase => _activeBattle;
+        public bool IsFaulted => _isFaulted;
         MobaRootState IFlowCommandSink.CurrentRootPhase => _activeRoot;
         MobaBattleState IFlowCommandSink.CurrentBattlePhase => _activeBattle;
 
         public void Start()
         {
-            _runner.Start();
-            _rootEvents.Enqueue(MobaRootEvent.BootCompleted);
+            BeginStart();
             _runtime.LoadPersistentSettings(Settings);
         }
 
         public void StartWithPersistentSettingsSync()
         {
-            _runner.Start();
-            _rootEvents.Enqueue(MobaRootEvent.BootCompleted);
+            BeginStart();
             _runtime.LoadPersistentSettingsSync(Settings);
         }
 
@@ -172,13 +174,18 @@ namespace AbilityKit.Game.Flow
 
         public void Tick(float deltaTime)
         {
+            if (!_isStarted || _isFaulted || _isShutdown)
+                return;
+
             try
             {
                 _runner.Step(deltaTime);
             }
             catch (Exception ex)
             {
+                _isFaulted = true;
                 _log.Exception(ex, "[MobaFlowDomainCore] HFSM Step failed");
+                return;
             }
 
             _featureScheduler.Tick(in _ctx, deltaTime);
@@ -186,7 +193,26 @@ namespace AbilityKit.Game.Flow
 
         public void OnGUI()
         {
+            if (!_isStarted || _isFaulted || _isShutdown)
+                return;
+
             _featureScheduler.OnGUI(in _ctx);
+        }
+
+        public void Shutdown()
+        {
+            if (_isShutdown)
+                return;
+
+            _isShutdown = true;
+            try
+            {
+                _featureScheduler.ClearFeatures();
+            }
+            catch (Exception ex)
+            {
+                _log.Exception(ex, "[MobaFlowDomainCore] Feature shutdown failed");
+            }
         }
 
         public void SwitchTo(IGamePhase next)
@@ -231,6 +257,18 @@ namespace AbilityKit.Game.Flow
             }
         }
         void IFlowCommandSink.RequestReturnLobby() => ReturnToBoot();
+
+        private void BeginStart()
+        {
+            if (_isStarted)
+                throw new InvalidOperationException("Moba flow domain has already been started.");
+            if (_isShutdown)
+                throw new InvalidOperationException("Moba flow domain has already been shut down.");
+
+            _isStarted = true;
+            _runner.Start();
+            _rootEvents.Enqueue(MobaRootEvent.BootCompleted);
+        }
 
         public void ResetBattleSessionRuntimeState() => _battleScopeManager.ResetBattleSessionRuntimeState();
         public void TryAdvanceOnConnectEnter() => _battleScopeManager.TryAdvanceOnConnectEnter();

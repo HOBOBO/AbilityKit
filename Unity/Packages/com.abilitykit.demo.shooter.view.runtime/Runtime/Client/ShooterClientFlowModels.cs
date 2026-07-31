@@ -8,6 +8,7 @@ namespace AbilityKit.Demo.Shooter.View
 {
     public static class ShooterRoomLaunchTagKeys
     {
+        public const string MinPlayers = "minPlayers";
         public const string SyncTemplateId = "syncTemplateId";
         public const string SyncModel = "syncModel";
         public const string NetworkEnvironmentId = "networkEnvironmentId";
@@ -117,6 +118,7 @@ namespace AbilityKit.Demo.Shooter.View
             {
                 [RoomTagKeys.Gameplay] = ShooterGameplay.RoomType,
                 [RoomTagKeys.WorldType] = ShooterGameplay.WorldType,
+                [ShooterRoomLaunchTagKeys.MinPlayers] = "2",
                 [RoomTagKeys.TickRate] = ShooterGameplay.DefaultTickRate.ToString(),
                 [RoomTagKeys.OfflineTimeoutSeconds] = DefaultOfflineTimeoutSeconds.ToString()
             };

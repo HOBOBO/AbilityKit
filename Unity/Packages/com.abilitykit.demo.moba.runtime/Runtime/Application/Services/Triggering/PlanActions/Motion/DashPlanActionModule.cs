@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Combat.MotionSystem.Constraints;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Combat.MotionSystem.Generic;
 using AbilityKit.Core.Logging;
@@ -21,6 +22,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     [PlanActionModule(order: MobaPlanActionModuleOrders.Dash)]
     public sealed class DashPlanActionModule : MobaPlanActionModuleBase<DashArgs, DashPlanActionModule>
     {
+        private const float DashCollisionRadius = 0.5f;
+
         protected override IActionSchema<DashArgs, IWorldResolver> Schema => DashSchema.Instance;
 
         protected override void Execute(object triggerArgs, DashArgs args, ExecCtx<IWorldResolver> ctx)
@@ -87,7 +90,26 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 velocity = dir * args.Speed;
             }
             var group = MobaMotionGroupConfigResolver.Resolve(ctx.Context, args.MotionGroupId, MotionGroups.Ability, args.Priority, 10);
-            var source = new FixedDeltaMotionSource(velocity, duration, group.Priority, group.GroupId, group.Stacking);
+
+            // 穿墙 dash：行进忽略墙体，终点落障碍物内沿方向投影到边界。否则沿用 actor 默认（block + 墙滑）。
+            MotionCollisionConstraints collisionPolicy = default;
+            var hasCollisionPolicy = false;
+            if (args.PassThroughWalls)
+            {
+                collisionPolicy = new MotionCollisionConstraints(
+                    enable: true,
+                    allowPassThrough: true,
+                    endOverlapPolicy: MotionEndOverlapPolicy.ProjectAlongDirection,
+                    radius: DashCollisionRadius,
+                    skin: 0f,
+                    obstacleMask: MobaCollisionLayers.WorldMask,
+                    ignoreMask: 0,
+                    slideAlongWalls: false,
+                    maxSlideIterations: 1);
+                hasCollisionPolicy = true;
+            }
+
+            var source = new FixedDeltaMotionSource(velocity, duration, group.Priority, group.GroupId, group.Stacking, collisionPolicy, hasCollisionPolicy);
 
             Log.Info($"[DashPlanActionModule] activate request actorId={actorId}, caster={input.CasterActorId}, directionMode={args.DirectionMode}, moveToAimPosition={args.MoveToAimPosition}, fallbackToForward={fallbackToForward}, dir=({dir.X:F3},{dir.Y:F3},{dir.Z:F3}), aimDelta=({aimDelta.X:F3},{aimDelta.Y:F3},{aimDelta.Z:F3}), speed={args.Speed:F3}, velocity=({velocity.X:F3},{velocity.Y:F3},{velocity.Z:F3}), duration={duration:F3}, groupId={group.GroupId}, priority={group.Priority}, stacking={group.Stacking}, hitTrigger={args.HitTriggerPlanId}");
 

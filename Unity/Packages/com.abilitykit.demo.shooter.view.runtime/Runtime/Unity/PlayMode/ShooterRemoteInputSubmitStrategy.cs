@@ -26,13 +26,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public long FailedCount => _queue.FailedCount;
         public long ResyncRequestedCount => _queue.ResyncRequestedCount;
 
-        public static ShooterRemoteInputSubmitStrategy Create(ShooterCoordinatorInputBridge inputBridge, TimeSpan timeout)
+        public static ShooterRemoteInputSubmitStrategy Create(ShooterClientBattleHandle battle, TimeSpan timeout)
         {
-            if (inputBridge == null) throw new ArgumentNullException(nameof(inputBridge));
+            if (battle == null) throw new ArgumentNullException(nameof(battle));
 
             return new ShooterRemoteInputSubmitStrategy(
                 new RemoteClientInputSubmitQueue<ShooterClientInputSubmitResult, ShooterClientGatewayInputSubmitResult>(
-                    (local, requestTimeout) => inputBridge.SubmitAcceptedInputAsync(local, requestTimeout),
+                    (local, requestTimeout) => battle.SubmitAcceptedInputToGatewayAsync(local, requestTimeout),
                     timeout,
                     result => result.Remote.ShouldResync));
         }

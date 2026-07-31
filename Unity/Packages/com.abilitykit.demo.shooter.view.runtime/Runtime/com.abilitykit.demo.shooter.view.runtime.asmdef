@@ -4,6 +4,7 @@
   "references": [
     "AbilityKit.Core",
     "AbilityKit.Demo.Common",
+    "AbilityKit.Demo.Shooter.Jobs",
     "AbilityKit.Demo.Shooter.Runtime",
     "AbilityKit.Demo.Shooter.Share",
     "AbilityKit.Protocol.Room",
@@ -21,8 +22,7 @@
     "AbilityKit.World.StateSync",
     "AbilityKit.World.NetworkFragments",
     "AbilityKit.World.Snapshot",
-    "AbilityKit.Record",
-    "AbilityKit.Coordinator"
+    "AbilityKit.Record"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

@@ -20,7 +20,6 @@
     <ProjectReference Include="../AbilityKit.GameFramework/AbilityKit.GameFramework.csproj" />
     <ProjectReference Include="../AbilityKit.GameFramework.Network/AbilityKit.GameFramework.Network.csproj" />
     <ProjectReference Include="../AbilityKit.Host.Extension/AbilityKit.Host.Extension.csproj" />
-    <ProjectReference Include="../AbilityKit.Coordinator/AbilityKit.Coordinator.csproj" />
     <ProjectReference Include="../AbilityKit.World.DI/AbilityKit.World.DI.csproj" />
     <ProjectReference Include="../AbilityKit.World.FrameSync/AbilityKit.World.FrameSync.csproj" />
     <ProjectReference Include="../AbilityKit.World.StateSync/AbilityKit.World.StateSync.csproj" />

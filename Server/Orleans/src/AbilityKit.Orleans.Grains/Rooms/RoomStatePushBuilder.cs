@@ -120,10 +120,13 @@ internal static class RoomStatePushBuilder
                 PlayerId = player.PlayerId,
                 LobbyReady = player.LobbyReady,
                 AssetsLoaded = player.AssetsLoaded,
+                LoadingProgress = player.LoadingProgress,
                 IsOnline = player.IsOnline,
                 JoinOrdinal = player.JoinOrdinal,
                 LoadedManifestVersion = player.LoadedManifestVersion,
-                LoadedManifestHash = player.LoadedManifestHash ?? string.Empty
+                LoadedManifestHash = player.LoadedManifestHash ?? string.Empty,
+                LastSeenTicks = player.LastSeenTicks,
+                OfflineSinceTicks = player.OfflineSinceTicks
             });
         }
 

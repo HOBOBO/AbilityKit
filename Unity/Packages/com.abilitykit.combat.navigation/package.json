@@ -1,0 +1,12 @@
+{
+  "name": "com.abilitykit.combat.navigation",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Combat Navigation",
+  "unity": "2022.3",
+  "description": "Navigation grid, deterministic pathfinding interfaces and math-only implementation.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.world.di": "0.0.1"
+  }
+}

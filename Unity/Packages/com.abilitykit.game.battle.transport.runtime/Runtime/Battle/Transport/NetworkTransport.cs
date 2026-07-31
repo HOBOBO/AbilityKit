@@ -5,6 +5,7 @@ using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Game.Battle.Transport
 {
@@ -31,7 +32,14 @@ namespace AbilityKit.Game.Battle.Transport
 
             var connOptions = new ConnectionOptions
             {
-                FrameCodec = _options.FrameCodec
+                FrameCodec = _options.FrameCodec,
+                EnableReconnect = true,
+                ReconnectInitialDelay = TimeSpan.FromSeconds(
+                    ReconnectBackoffPolicy.BaseDelaySeconds),
+                ReconnectMaxDelay = TimeSpan.FromSeconds(
+                    ReconnectBackoffPolicy.MaxDelaySeconds),
+                ReconnectBackoffMultiplier = 2d,
+                ReconnectMaxAttempts = ReconnectBackoffPolicy.MaxAttempts
             };
 
             _connection = new ConnectionManager(_options.TransportFactory, connOptions, callbackDispatcher, ioDispatcher);

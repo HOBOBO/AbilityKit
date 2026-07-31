@@ -1,0 +1,14 @@
+{
+  "name": "AbilityKit.ThirdParty.RVO2",
+  "rootNamespace": "RVO",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

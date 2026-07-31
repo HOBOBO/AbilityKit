@@ -130,7 +130,7 @@ namespace AbilityKit.Demo.Moba.Session
 
             options.ServiceBuilder.TryRegister<ICollisionService>(
                 WorldLifetime.Singleton,
-                _ => new CollisionService());
+                _ => new CollisionService(new CollisionWorldOptions { BroadphaseType = BroadphaseType.Grid, GridCellSize = 4f }));
         }
 
         public void RegisterServices(IWorld world, SessionConfig config)

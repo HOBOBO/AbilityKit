@@ -25,14 +25,20 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         /// </summary>
         public readonly bool ApplyToCaster;
 
-        public BlinkArgs(float distance, int directionMode = 0, int priority = 15, bool applyToCaster = true)
+        /// <summary>
+        /// 是否可穿墙：true 时行进忽略墙体，但终点落障碍物内会沿方向投影到边界。
+        /// </summary>
+        public readonly bool PassThroughWalls;
+
+        public BlinkArgs(float distance, int directionMode = 0, int priority = 15, bool applyToCaster = true, bool passThroughWalls = false)
         {
             Distance = distance;
             DirectionMode = directionMode;
             Priority = priority;
             ApplyToCaster = applyToCaster;
+            PassThroughWalls = passThroughWalls;
         }
 
-        public static BlinkArgs Default => new BlinkArgs(0f, 0, 15, true);
+        public static BlinkArgs Default => new BlinkArgs(0f, 0, 15, true, false);
     }
 }

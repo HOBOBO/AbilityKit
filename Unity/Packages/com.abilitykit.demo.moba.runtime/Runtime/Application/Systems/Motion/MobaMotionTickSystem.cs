@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
@@ -17,6 +18,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
         private IWorldClock _clock;
         private MobaMotionHitTriggerService _hitTriggers;
         private global::Entitas.IGroup<global::ActorEntity> _group;
+        private static int _slideDiagCount;
 
         public MobaMotionTickSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
@@ -60,6 +62,13 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                 var output = m.Output;
 
                 var result = m.Pipeline.Tick(e.actorId.Value, ref state, dt, ref output);
+
+                // TEMP 诊断：撞墙时打印期望/实际位移与命中法向，用于定位"撞墙停住不滑行"。
+                if (result.Hit.Hit && System.Threading.Interlocked.Increment(ref _slideDiagCount) <= 80)
+                {
+                    Log.Info($"[MOBASLIDE] actor={e.actorId.Value} desired=({output.DesiredDelta.X:F2},{output.DesiredDelta.Y:F2},{output.DesiredDelta.Z:F2}) applied=({result.AppliedDelta.X:F2},{result.AppliedDelta.Y:F2},{result.AppliedDelta.Z:F2}) normal=({result.Hit.Normal.X:F2},{result.Hit.Normal.Y:F2},{result.Hit.Normal.Z:F2})");
+                }
+
                 var hitTriggerRuntime = m.HitTriggerRuntime;
                 if (_hitTriggers != null && hitTriggerRuntime.IsValid && result.Hit.Hit)
                 {

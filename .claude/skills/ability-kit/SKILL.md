@@ -5,7 +5,7 @@ description: AbilityKit MOBA 技能框架速查与实现约束。涵盖两套触
 
 # ability-kit skill
 
-基于当前源码核校（2026-07-20）。本目录按业务域分子目录，避免扁平化难维护。
+基于当前源码核校（2026-07-29）。本目录按业务域分子目录，避免扁平化难维护。
 
 ## 最重要的架构事实（必读）
 
@@ -107,6 +107,12 @@ ability-kit/
 - [combat_continuous/README.md](combat_continuous/README.md) — Combat/Damage Pipeline + Continuous + Summon + Trace
 - [host/README.md](host/README.md) — Host 4 包装配范式
 - [console_demo/README.md](console_demo/README.md) — Console Demo 运行/调试/配置
+- [combat_motion/README.md](combat_motion/README.md) — **NEW** MotionPipeline + 碰撞约束求解 + 运动源（dash/path/locomotion）
+- [combat_collision/README.md](combat_collision/README.md) — **NEW** ICollisionWorld/GridCollisionWorld/OBB sweep/广相
+- [combat_navigation/README.md](combat_navigation/README.md) — **NEW** NavigationGrid + 确定性 A\*
+- [combat_projectile/README.md](combat_projectile/README.md) — **NEW** ProjectileWorld + 发射器/模式/策略
+- [combat_damage/README.md](combat_damage/README.md) — **NEW** DamageData + 处理器链 + 9 阶段管道
+- [combat_targeting/README.md](combat_targeting/README.md) — **NEW** TargetSearchEngine + 可组合搜索管道
 
 ## 相关 skill
 

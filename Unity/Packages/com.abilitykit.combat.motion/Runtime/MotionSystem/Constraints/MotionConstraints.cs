@@ -8,6 +8,8 @@ namespace AbilityKit.Combat.MotionSystem.Constraints
         ClampToLastValid = 1,
         ProjectToNearestFree = 2,
         AllowInside = 3,
+        /// <summary>沿位移方向（to→from）把终点投影到障碍物边界外。用于穿墙位移落地墙内时。</summary>
+        ProjectAlongDirection = 4,
     }
 
     public readonly struct MotionCollisionConstraints
@@ -22,6 +24,12 @@ namespace AbilityKit.Combat.MotionSystem.Constraints
         public readonly int ObstacleMask;
         public readonly int IgnoreMask;
 
+        /// <summary>撞击后是否沿墙切向滑动（而非单次钳制丢弃切向分量）。默认 false 以保持既有行为。</summary>
+        public readonly bool SlideAlongWalls;
+
+        /// <summary>滑动迭代上限（每次迭代消去一个被阻挡的法向分量）。</summary>
+        public readonly int MaxSlideIterations;
+
         public MotionCollisionConstraints(
             bool enable,
             bool allowPassThrough,
@@ -29,7 +37,9 @@ namespace AbilityKit.Combat.MotionSystem.Constraints
             float radius,
             float skin,
             int obstacleMask,
-            int ignoreMask)
+            int ignoreMask,
+            bool slideAlongWalls = false,
+            int maxSlideIterations = 2)
         {
             Enable = enable;
             AllowPassThrough = allowPassThrough;
@@ -38,6 +48,8 @@ namespace AbilityKit.Combat.MotionSystem.Constraints
             Skin = skin;
             ObstacleMask = obstacleMask;
             IgnoreMask = ignoreMask;
+            SlideAlongWalls = slideAlongWalls;
+            MaxSlideIterations = maxSlideIterations < 1 ? 1 : maxSlideIterations;
         }
 
         public static MotionCollisionConstraints Disabled => new MotionCollisionConstraints(

@@ -144,7 +144,13 @@ namespace AbilityKit.Game.Battle.Agent
             var payload = WireRoomGatewayBinary.Serialize(in req);
             var respPayload = await _request.SendRequestAsync(_opCodes.SetReady, payload, timeout, cancellationToken);
             var wire = WireRoomGatewayBinary.Deserialize<WireRoomSnapshotRes>(respPayload);
-            return new GatewayRoomSnapshotResult(wire.RoomId ?? string.Empty, wire.NumericRoomId);
+            return new GatewayRoomSnapshotResult(
+                wire.Success,
+                wire.Applied,
+                wire.ErrorCode,
+                wire.Message,
+                wire.RoomId,
+                wire.NumericRoomId);
         }
 
         public async Task<GatewayRoomSnapshotResult> PickHeroAsync(
@@ -178,7 +184,13 @@ namespace AbilityKit.Game.Battle.Agent
             var payload = WireRoomGatewayBinary.Serialize(in req);
             var respPayload = await _request.SendRequestAsync(_opCodes.PickHero, payload, timeout, cancellationToken);
             var wire = WireRoomGatewayBinary.Deserialize<WireRoomSnapshotRes>(respPayload);
-            return new GatewayRoomSnapshotResult(wire.RoomId ?? string.Empty, wire.NumericRoomId);
+            return new GatewayRoomSnapshotResult(
+                wire.Success,
+                wire.Applied,
+                wire.ErrorCode,
+                wire.Message,
+                wire.RoomId,
+                wire.NumericRoomId);
         }
 
         public async Task<GatewayStartBattleResult> StartBattleAsync(
@@ -346,6 +358,35 @@ namespace AbilityKit.Game.Battle.Agent
             };
             var payload = WireRoomGatewayBinary.Serialize(in req);
             var respPayload = await _request.SendRequestAsync(_opCodes.ReportAssetsLoaded, payload, timeout, cancellationToken);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
+            return ToOperationResult(wire);
+        }
+
+        public async Task<GatewayRoomOperationResult> ReportLoadingProgressAsync(
+            string sessionToken,
+            string roomId,
+            long launchGeneration,
+            int manifestVersion,
+            string manifestHash,
+            int progress,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(sessionToken)) throw new ArgumentException("sessionToken is required.", nameof(sessionToken));
+            if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
+            if (progress < 0 || progress > 100) throw new ArgumentOutOfRangeException(nameof(progress));
+
+            var req = new WireReportLoadingProgressReq
+            {
+                SessionToken = sessionToken,
+                RoomId = roomId,
+                LaunchGeneration = launchGeneration,
+                ManifestVersion = manifestVersion,
+                ManifestHash = manifestHash ?? string.Empty,
+                Progress = progress
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _request.SendRequestAsync(_opCodes.ReportLoadingProgress, payload, timeout, cancellationToken);
             var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
             return ToOperationResult(wire);
         }

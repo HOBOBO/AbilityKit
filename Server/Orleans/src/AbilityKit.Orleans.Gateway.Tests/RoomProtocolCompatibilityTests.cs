@@ -238,7 +238,10 @@ public sealed class RoomProtocolCompatibilityTests
             IsOnline = true,
             JoinOrdinal = 3L,
             LoadedManifestVersion = 3,
-            LoadedManifestHash = "sha-xyz"
+            LoadedManifestHash = "sha-xyz",
+            LastSeenTicks = 1234L,
+            OfflineSinceTicks = 1200L,
+            LoadingProgress = 100
         };
 
         var bytes = WireRoomGatewayBinary.Serialize(in player);
@@ -250,6 +253,9 @@ public sealed class RoomProtocolCompatibilityTests
         Assert.Equal(3L, restored.JoinOrdinal);
         Assert.Equal(3, restored.LoadedManifestVersion);
         Assert.Equal("sha-xyz", restored.LoadedManifestHash);
+        Assert.Equal(1234L, restored.LastSeenTicks);
+        Assert.Equal(1200L, restored.OfflineSinceTicks);
+        Assert.Equal(100, restored.LoadingProgress);
     }
 
     [Fact]
@@ -324,6 +330,58 @@ public sealed class RoomProtocolCompatibilityTests
         Assert.Equal("room-3", restored.Snapshot.Summary.RoomId);
         Assert.Equal(1, restored.Snapshot.Phase);
         Assert.Equal(2L, restored.Snapshot.LaunchGeneration);
+    }
+
+    [Fact]
+    public void WireReportLoadingProgressRequestRoundTripPreservesLaunchIdentityAndProgress()
+    {
+        var req = new WireReportLoadingProgressReq
+        {
+            SessionToken = "session-progress",
+            RoomId = "room-progress",
+            LaunchGeneration = 8L,
+            ManifestVersion = 4,
+            ManifestHash = "hash-progress",
+            Progress = 67
+        };
+
+        var bytes = WireRoomGatewayBinary.Serialize(in req);
+        var restored = WireRoomGatewayBinary.Deserialize<WireReportLoadingProgressReq>(bytes);
+
+        Assert.Equal("session-progress", restored.SessionToken);
+        Assert.Equal("room-progress", restored.RoomId);
+        Assert.Equal(8L, restored.LaunchGeneration);
+        Assert.Equal(4, restored.ManifestVersion);
+        Assert.Equal("hash-progress", restored.ManifestHash);
+        Assert.Equal(67, restored.Progress);
+    }
+
+    [Fact]
+    public void WireRoomSnapshotResRoundTripPreservesGameplayRejection()
+    {
+        var res = new WireRoomSnapshotRes
+        {
+            Success = false,
+            Applied = false,
+            ErrorCode = 8,
+            RoomId = "room-conflict",
+            NumericRoomId = 42UL,
+            Message = "Hero is already selected.",
+            Snapshot = new WireRoomSnapshot
+            {
+                Summary = new WireRoomSummary { RoomId = "room-conflict" },
+                RoomRevision = 7L
+            }
+        };
+
+        var bytes = WireRoomGatewayBinary.Serialize(in res);
+        var restored = WireRoomGatewayBinary.Deserialize<WireRoomSnapshotRes>(bytes);
+
+        Assert.False(restored.Success);
+        Assert.False(restored.Applied);
+        Assert.Equal(8, restored.ErrorCode);
+        Assert.Equal("Hero is already selected.", restored.Message);
+        Assert.Equal(7L, restored.Snapshot.RoomRevision);
     }
 
     [Fact]

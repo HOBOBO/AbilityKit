@@ -28,6 +28,99 @@ public sealed class GatewayMultiplayerRoomSessionTests
     }
 
     [Fact]
+    public void SnapshotProvider_ProjectsAuthoritativeMemberPresenceAndLoadout()
+    {
+        var store = new ClientRoomStore();
+        using var provider = new ClientRoomSnapshotProvider(store);
+        var snapshot = Snapshot(ClientRoomPhase.Loading, revision: 3, sequence: 1);
+        snapshot.OwnerAccountId = "owner-1";
+        snapshot.Members = new[] { "owner-1" };
+        snapshot.LoadingDeadlineUnixMs = 123456L;
+        snapshot.Players = new[]
+        {
+            new ClientRoomPlayer
+            {
+                AccountId = "owner-1",
+                PlayerId = 9,
+                HeroId = 10001,
+                LobbyReady = true,
+                AssetsLoaded = true,
+                IsOnline = false,
+                OfflineSinceTicks = 77
+            }
+        };
+
+        store.ApplySnapshot(snapshot);
+
+        var projected = provider.Current!;
+        Assert.Equal("owner-1", projected.OwnerAccountId);
+        Assert.Equal(123456L, projected.LoadingDeadlineUnixMs);
+        Assert.Single(projected.Players);
+        Assert.Equal(10001, projected.Players[0].HeroId);
+        Assert.True(projected.Players[0].AssetsLoaded);
+        Assert.False(projected.Players[0].IsOnline);
+        Assert.Equal(77, projected.Players[0].OfflineSinceTicks);
+    }
+
+    [Fact]
+    public void ReliableEventCheckpointStore_IsScopedByBattleIdentity()
+    {
+        var session = NewSession(
+            new StubGatewayRoomClient(),
+            new ClientRoomStore());
+        var checkpoint = new MobaReliableBattleEventCheckpoint(
+            "battle-1",
+            "epoch-7",
+            19);
+
+        session.Save(in checkpoint);
+
+        Assert.True(session.TryLoad("battle-1", out var restored));
+        Assert.Equal("epoch-7", restored.Epoch);
+        Assert.Equal(19, restored.LastAcknowledgedSequence);
+        Assert.False(session.TryLoad("battle-2", out _));
+    }
+
+    [Fact]
+    public async Task PickHero_HeroConflictFailsControllerWithoutRefreshingAsSuccess()
+    {
+        var client = new StubGatewayRoomClient
+        {
+            PickHeroResult = new GatewayRoomSnapshotResult(
+                success: false,
+                applied: false,
+                errorCode: 8,
+                message: "Hero 1001 is already selected by another player on team 1.",
+                roomId: "room-1",
+                numericRoomId: 1UL)
+        };
+        client.Snapshots.Enqueue(Snapshot(ClientRoomPhase.Lobby, revision: 4, sequence: 4));
+        var store = new ClientRoomStore();
+        var session = NewSession(client, store);
+        await session.JoinRoomAsync(NewSpec(), "room-1", CancellationToken.None);
+        using var provider = new ClientRoomSnapshotProvider(store);
+        using var controller = new MultiplayerRoomFlowController(session, provider);
+        controller.RestoreFromSnapshot();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => controller.PickHeroAsync(new MultiplayerLoadoutSpec(
+                heroId: 1001,
+                teamId: 1,
+                spawnPointId: 1,
+                level: 1,
+                attributeTemplateId: 2001,
+                basicAttackSkillId: 3001,
+                skillIds: new[] { 3002, 3003 })));
+
+        Assert.Contains("failed (8)", exception.Message);
+        Assert.Contains("already selected", exception.Message);
+        Assert.Equal(MultiplayerRoomFlowState.Failed, controller.CurrentState);
+        Assert.Equal(exception.Message, controller.LastError);
+        Assert.Equal(1, client.GetSnapshotCalls);
+        Assert.Equal(4, store.Current.RoomRevision);
+    }
+
+    [Fact]
     public async Task ReportAssetsLoaded_UsesAuthoritativeManifestIdentity()
     {
         var client = new StubGatewayRoomClient();
@@ -47,27 +140,185 @@ public sealed class GatewayMultiplayerRoomSessionTests
     }
 
     [Fact]
+    public async Task CancelLoading_UsesAuthoritativeRevisionAndAppliesLobbySnapshot()
+    {
+        var client = new StubGatewayRoomClient();
+        client.Snapshots.Enqueue(Snapshot(ClientRoomPhase.Lobby, revision: 1, sequence: 1));
+        var store = new ClientRoomStore();
+        var session = NewSession(client, store);
+        await session.JoinRoomAsync(NewSpec(), "room-1", CancellationToken.None);
+        store.ApplySnapshot(Snapshot(ClientRoomPhase.Loading, revision: 9, sequence: 2));
+
+        await session.CancelLoadingAsync("room-1", CancellationToken.None);
+
+        Assert.Equal(9, client.CancelExpectedRevision);
+        Assert.StartsWith("cancel-loading:", client.CancelCommandId);
+        Assert.Equal(ClientRoomPhase.Lobby, store.Current.Phase);
+    }
+
+    [Fact]
     public async Task WaitForBattleStart_WaitsPastStartingUntilCommittedIdentityExists()
     {
         var client = new StubGatewayRoomClient();
         client.Snapshots.Enqueue(Snapshot(ClientRoomPhase.Lobby, revision: 1, sequence: 1));
         client.Snapshots.Enqueue(Snapshot(ClientRoomPhase.Starting, revision: 2, sequence: 2));
-        client.Snapshots.Enqueue(Snapshot(
+        var inBattle = Snapshot(
             ClientRoomPhase.InBattle,
             revision: 3,
             sequence: 3,
             battleId: "battle-1",
-            worldId: 42));
+            worldId: 42);
+        client.Snapshots.Enqueue(inBattle);
         var store = new ClientRoomStore();
         var session = NewSession(client, store);
 
         await session.JoinRoomAsync(NewSpec(), "room-1", CancellationToken.None);
-        await session.WaitForBattleStartAsync("room-1", CancellationToken.None);
+        var waiting = session.WaitForBattleStartAsync("room-1", CancellationToken.None);
+        await client.StartingSnapshotRead.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        store.ApplySnapshot(inBattle);
+        await waiting;
 
         Assert.Equal(3, client.GetSnapshotCalls);
         Assert.Equal(ClientRoomPhase.InBattle, store.Current.Phase);
         Assert.Equal("battle-1", store.Current.BattleId);
         Assert.Equal(42UL, store.Current.WorldId);
+    }
+
+    [Theory]
+    [InlineData(ClientRoomPhase.Lobby, MultiplayerRoomRestoreNextStep.SetReadyAndBeginLoading)]
+    [InlineData(ClientRoomPhase.Loading, MultiplayerRoomRestoreNextStep.ReportAssetsLoaded)]
+    [InlineData(ClientRoomPhase.Starting, MultiplayerRoomRestoreNextStep.WaitForBattleStart)]
+    [InlineData(ClientRoomPhase.InBattle, MultiplayerRoomRestoreNextStep.EnterBattle)]
+    public async Task Restore_MapsFrameworkNextStep_WithoutExecutingPendingStage(
+        ClientRoomPhase phase,
+        MultiplayerRoomRestoreNextStep expectedNextStep)
+    {
+        var client = new StubGatewayRoomClient();
+        var battleId = phase == ClientRoomPhase.InBattle ? "battle-1" : string.Empty;
+        var worldId = phase == ClientRoomPhase.InBattle ? 42UL : 0UL;
+        var restoredSnapshot = Snapshot(phase, revision: 5, sequence: 8, battleId, worldId);
+        restoredSnapshot.OwnerAccountId = "owner-1";
+        restoredSnapshot.Members = new[] { "owner-1" };
+        restoredSnapshot.Players = new[]
+        {
+            new ClientRoomPlayer
+            {
+                AccountId = "owner-1",
+                PlayerId = 15u,
+                HeroId = 10001,
+                LobbyReady = true,
+                IsOnline = true,
+                LastSeenTicks = 1234L
+            }
+        };
+        client.RestoreResult = new GatewayRestoreRoomResult(
+            true,
+            true,
+            phase == ClientRoomPhase.InBattle,
+            "room-1",
+            77UL,
+            restoredSnapshot,
+            default,
+            string.Empty,
+            phase == ClientRoomPhase.InBattle ? RoomGatewayJoinKind.Reconnect : RoomGatewayJoinKind.TeamLobby,
+            123L,
+            15u);
+        client.Snapshots.Enqueue(restoredSnapshot);
+        var store = new ClientRoomStore();
+        var session = NewSession(client, store);
+
+        var result = await session.RestoreAsync(NewSpec(), 9u, CancellationToken.None);
+
+        Assert.True(result.HasActiveRoom);
+        Assert.Equal(expectedNextStep, result.NextStep);
+        Assert.Equal(15u, result.PlayerId);
+        Assert.Equal(77UL, store.Current.NumericRoomId);
+        Assert.Equal(phase, store.Current.Phase);
+        Assert.Equal("owner-1", store.Current.OwnerAccountId);
+        Assert.Single(store.Current.Members);
+        Assert.Single(store.Current.Players);
+        Assert.Equal(10001, store.Current.Players[0].HeroId);
+        Assert.Equal(1234L, store.Current.Players[0].LastSeenTicks);
+        Assert.Equal(1, client.RestoreCalls);
+        Assert.Equal(1, client.GetSnapshotCalls);
+        Assert.Equal(0, client.SetReadyCalls);
+        Assert.Equal(0, client.BeginLoadingCalls);
+        Assert.Equal(0, client.ReportAssetsLoadedCalls);
+    }
+
+    [Fact]
+    public async Task Restore_NoActiveRoom_ResetsStaleRoomAndDoesNotPullSnapshot()
+    {
+        var client = new StubGatewayRoomClient
+        {
+            RestoreResult = new GatewayRestoreRoomResult(
+                true,
+                false,
+                false,
+                string.Empty,
+                0UL,
+                null!,
+                default,
+                "no active room",
+                RoomGatewayJoinKind.TeamLobby,
+                0L,
+                9u)
+        };
+        var store = new ClientRoomStore();
+        store.ApplySnapshot(Snapshot(ClientRoomPhase.Lobby, 99, 99));
+        var session = NewSession(client, store);
+
+        var result = await session.RestoreAsync(NewSpec(), 9u, CancellationToken.None);
+
+        Assert.Equal(MultiplayerRoomRestoreStatus.NoActiveRoom, result.Status);
+        Assert.False(result.CanRetry);
+        Assert.Null(store.Current);
+        Assert.Equal(0, client.GetSnapshotCalls);
+    }
+
+    [Fact]
+    public async Task Restore_Timeout_ReturnsRetryableDiagnostic()
+    {
+        var client = new StubGatewayRoomClient
+        {
+            RestoreException = new TimeoutException("restore timeout")
+        };
+        var session = NewSession(client, new ClientRoomStore());
+
+        var result = await session.RestoreAsync(NewSpec(), 9u, CancellationToken.None);
+
+        Assert.Equal(MultiplayerRoomRestoreStatus.Timeout, result.Status);
+        Assert.Equal(MultiplayerRoomRestoreErrorCode.Timeout, result.ErrorCode);
+        Assert.True(result.CanRetry);
+        Assert.Contains("restore timeout", result.Message);
+    }
+
+    [Fact]
+    public async Task Restore_ProtocolFailure_PreservesRetryableInternalDiagnostic()
+    {
+        var client = new StubGatewayRoomClient
+        {
+            RestoreResult = new GatewayRestoreRoomResult(
+                false,
+                false,
+                false,
+                string.Empty,
+                0UL,
+                null!,
+                default,
+                "restore service unavailable",
+                RoomGatewayJoinKind.TeamLobby,
+                0L,
+                9u)
+        };
+        var session = NewSession(client, new ClientRoomStore());
+
+        var result = await session.RestoreAsync(NewSpec(), 9u, CancellationToken.None);
+
+        Assert.Equal(MultiplayerRoomRestoreStatus.Failed, result.Status);
+        Assert.Equal(MultiplayerRoomRestoreErrorCode.InternalError, result.ErrorCode);
+        Assert.True(result.CanRetry);
+        Assert.Equal(0, client.GetSnapshotCalls);
     }
 
     [Fact]
@@ -174,10 +425,22 @@ public sealed class GatewayMultiplayerRoomSessionTests
         public readonly Queue<ClientRoomSnapshot> Snapshots = new();
         public readonly Queue<ClientRoomSnapshot> PushSnapshots = new();
         public int GetSnapshotCalls { get; private set; }
+        public TaskCompletionSource<bool> StartingSnapshotRead { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int RestoreCalls { get; private set; }
+        public int SetReadyCalls { get; private set; }
+        public int BeginLoadingCalls { get; private set; }
+        public int ReportAssetsLoadedCalls { get; private set; }
         public long ReportGeneration { get; private set; }
         public int ReportManifestVersion { get; private set; }
         public string ReportManifestHash { get; private set; } = string.Empty;
         public string ReportCommandId { get; private set; } = string.Empty;
+        public long? CancelExpectedRevision { get; private set; }
+        public string CancelCommandId { get; private set; } = string.Empty;
+        public Exception? RestoreException { get; set; }
+        public GatewayRestoreRoomResult RestoreResult { get; set; }
+        public GatewayRoomSnapshotResult PickHeroResult { get; set; } =
+            new GatewayRoomSnapshotResult("room-1", 1UL);
 
         public Task<GatewayTimeSyncResult> TimeSyncAsync(uint timeSyncOpCode, long clientSendTicks, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
@@ -192,16 +455,23 @@ public sealed class GatewayMultiplayerRoomSessionTests
             => Task.FromResult(new GatewayJoinRoomResult(1, string.Empty, default));
 
         public Task<GatewayRoomSnapshotResult> SetReadyAsync(string sessionToken, string roomId, bool ready, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-            => Task.FromResult(new GatewayRoomSnapshotResult(roomId, 1));
+        {
+            SetReadyCalls++;
+            return Task.FromResult(new GatewayRoomSnapshotResult(roomId, 1));
+        }
 
         public Task<GatewayRoomSnapshotResult> PickHeroAsync(string sessionToken, string roomId, int heroId, int teamId, int spawnPointId, int level, int attributeTemplateId, int basicAttackSkillId, IReadOnlyList<int> skillIds, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-            => Task.FromResult(new GatewayRoomSnapshotResult(roomId, 1));
+            => Task.FromResult(PickHeroResult);
 
         public Task<GatewayRoomOperationResult> BeginLoadingAsync(string sessionToken, string roomId, long? expectedRevision, string commandId, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-            => Task.FromResult(new GatewayRoomOperationResult(true, true, 0, string.Empty, expectedRevision ?? 0, null!));
+        {
+            BeginLoadingCalls++;
+            return Task.FromResult(new GatewayRoomOperationResult(true, true, 0, string.Empty, expectedRevision ?? 0, null!));
+        }
 
         public Task<GatewayRoomOperationResult> ReportAssetsLoadedAsync(string sessionToken, string roomId, long launchGeneration, int manifestVersion, string manifestHash, string commandId, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
         {
+            ReportAssetsLoadedCalls++;
             ReportGeneration = launchGeneration;
             ReportManifestVersion = manifestVersion;
             ReportManifestHash = manifestHash;
@@ -210,17 +480,46 @@ public sealed class GatewayMultiplayerRoomSessionTests
         }
 
         public Task<GatewayRoomOperationResult> CancelLoadingAsync(string sessionToken, string roomId, long? expectedRevision, string commandId, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+        {
+            CancelExpectedRevision = expectedRevision;
+            CancelCommandId = commandId;
+            return Task.FromResult(new GatewayRoomOperationResult(
+                true,
+                true,
+                0,
+                string.Empty,
+                (expectedRevision ?? 0) + 1,
+                Snapshot(ClientRoomPhase.Lobby, (expectedRevision ?? 0) + 1, 3)));
+        }
+
+        public Task<GatewayRoomOperationResult> ReportLoadingProgressAsync(string sessionToken, string roomId, long launchGeneration, int manifestVersion, string manifestHash, int progress, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new GatewayRoomOperationResult(
+                true,
+                true,
+                0,
+                string.Empty,
+                2,
+                Snapshot(ClientRoomPhase.Loading, 2, 2)));
+        }
 
         public Task<GatewayGetSnapshotResult> GetSnapshotAsync(string sessionToken, string roomId, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
         {
             GetSnapshotCalls++;
             var snapshot = Snapshots.Dequeue();
+            if (snapshot.Phase == ClientRoomPhase.Starting)
+            {
+                StartingSnapshotRead.TrySetResult(true);
+            }
             return Task.FromResult(new GatewayGetSnapshotResult(true, roomId, 1, snapshot, string.Empty));
         }
 
         public Task<GatewayRestoreRoomResult> RestoreRoomAsync(string sessionToken, string region, string serverId, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+        {
+            RestoreCalls++;
+            if (RestoreException != null) throw RestoreException;
+            return Task.FromResult(RestoreResult);
+        }
 
         public ClientRoomSnapshot DeserializeRoomStateChangedPush(ArraySegment<byte> payload)
             => PushSnapshots.Dequeue();

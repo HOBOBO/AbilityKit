@@ -18,6 +18,7 @@ namespace AbilityKit.Game.Battle.Agent
         // 阶段 5：资源加载屏障 / 状态查询 / 状态变更推送 opcodes
         public readonly uint BeginLoading;
         public readonly uint ReportAssetsLoaded;
+        public readonly uint ReportLoadingProgress;
         public readonly uint CancelLoading;
         public readonly uint GetSnapshot;
         public readonly uint RestoreRoom;
@@ -91,6 +92,7 @@ namespace AbilityKit.Game.Battle.Agent
             DeltaSnapshotPushed = deltaSnapshotPushed;
             BeginLoading = beginLoading;
             ReportAssetsLoaded = reportAssetsLoaded;
+            ReportLoadingProgress = RoomOpCodes.ReportLoadingProgress;
             CancelLoading = cancelLoading;
             GetSnapshot = getSnapshot;
             RestoreRoom = restoreRoom;

@@ -15,7 +15,10 @@ namespace AbilityKit.Game.Battle.Agent
     /// </summary>
     public sealed class MobaClientReplicationPipeline
     {
+        private const int HealthEventCapacity = 64;
+
         private readonly IClientSyncStrategy<PlayerInputCommand, MobaRemoteSnapshotSample> _strategy;
+        private readonly SyncHealthEventBuffer _healthEvents = new SyncHealthEventBuffer(HealthEventCapacity);
         private int _lastSubmittedFrame;
         private int _lastAcknowledgedFrame;
         private int _lastObservedFrame;
@@ -23,6 +26,7 @@ namespace AbilityKit.Game.Battle.Agent
         private int _observedSnapshotCount;
         private SyncTickResult _lastTick;
         private SyncReconciliationReport _lastReconciliation;
+        private bool _hasObservedSnapshot;
 
         public MobaClientReplicationPipeline(
             IClientSyncStrategy<PlayerInputCommand, MobaRemoteSnapshotSample> strategy)
@@ -33,6 +37,8 @@ namespace AbilityKit.Game.Battle.Agent
 
         public NetworkSyncModel SyncModel => _strategy.SyncModel;
 
+        public SyncHealthReport CreateHealthReport() => _healthEvents.CreateReport();
+
         public void SubmitInput(in PlayerInputCommand input)
         {
             _strategy.SubmitInput(in input);
@@ -42,22 +48,82 @@ namespace AbilityKit.Game.Battle.Agent
 
         public void AcknowledgeInput(int authoritativeFrame)
         {
-            if (authoritativeFrame > _lastAcknowledgedFrame)
-                _lastAcknowledgedFrame = authoritativeFrame;
+            if (authoritativeFrame <= _lastAcknowledgedFrame) return;
+
+            _lastAcknowledgedFrame = authoritativeFrame;
+            var healthEvent = SyncHealthEvent.Info(
+                SyncHealthEventKind.InputAccepted,
+                authoritativeFrame,
+                Math.Max(0, _lastSubmittedFrame - authoritativeFrame));
+            _healthEvents.Publish(in healthEvent);
         }
 
         public void ObserveRemote(in MobaRemoteSnapshotSample sample)
         {
             _strategy.ObserveRemote(in sample);
-            _lastObservedFrame = Math.Max(_lastObservedFrame, sample.Frame);
             _observedSnapshotCount++;
+
+            if (_hasObservedSnapshot && sample.Frame <= _lastObservedFrame)
+            {
+                var stale = SyncHealthEvent.Warning(
+                    SyncHealthEventKind.SnapshotStale,
+                    sample.Frame,
+                    _lastObservedFrame);
+                _healthEvents.Publish(in stale);
+                return;
+            }
+
+            if (_hasObservedSnapshot && sample.Frame > _lastObservedFrame + 1)
+            {
+                var gap = SyncHealthEvent.Warning(
+                    SyncHealthEventKind.SnapshotGap,
+                    sample.Frame,
+                    sample.Frame - _lastObservedFrame - 1L);
+                _healthEvents.Publish(in gap);
+            }
+
+            _hasObservedSnapshot = true;
+            _lastObservedFrame = sample.Frame;
+            var received = SyncHealthEvent.Info(
+                SyncHealthEventKind.SnapshotReceived,
+                sample.Frame,
+                sample.Actors.Count);
+            _healthEvents.Publish(in received);
         }
 
         public SyncTickResult Tick(float deltaSeconds)
         {
+            var previousRecoveryState = _lastReconciliation.RecoveryState;
             _lastTick = _strategy.Tick(deltaSeconds);
             _lastReconciliation = _strategy.GetReconciliationReport();
+            PublishReconciliationHealth(previousRecoveryState, in _lastReconciliation);
             return _lastTick;
+        }
+
+        private void PublishReconciliationHealth(
+            SyncRecoveryState previousRecoveryState,
+            in SyncReconciliationReport reconciliation)
+        {
+            if (reconciliation.DidReconcile ||
+                (reconciliation.RecoveryState == SyncRecoveryState.CatchUp &&
+                 previousRecoveryState != SyncRecoveryState.CatchUp))
+            {
+                var rollback = SyncHealthEvent.Warning(
+                    SyncHealthEventKind.RollbackStarted,
+                    reconciliation.AuthoritativeFrame,
+                    reconciliation.ReplayTicks);
+                _healthEvents.Publish(in rollback);
+            }
+
+            if (reconciliation.RecoveryState == SyncRecoveryState.Recovered &&
+                previousRecoveryState != SyncRecoveryState.Recovered)
+            {
+                var replay = SyncHealthEvent.Info(
+                    SyncHealthEventKind.ReplayCompleted,
+                    reconciliation.ClientFrame,
+                    reconciliation.ReplayTicks);
+                _healthEvents.Publish(in replay);
+            }
         }
 
         /// <summary>
@@ -73,6 +139,8 @@ namespace AbilityKit.Game.Battle.Agent
             _observedSnapshotCount = 0;
             _lastTick = default;
             _lastReconciliation = SyncReconciliationReport.None;
+            _hasObservedSnapshot = false;
+            _healthEvents.Reset();
         }
 
         public MobaReplicationDiagnostics GetDiagnostics()
@@ -86,7 +154,8 @@ namespace AbilityKit.Game.Battle.Agent
                 _submittedInputCount,
                 _observedSnapshotCount,
                 _lastTick,
-                _lastReconciliation);
+                _lastReconciliation,
+                _healthEvents.CreateReport());
         }
     }
 
@@ -102,7 +171,8 @@ namespace AbilityKit.Game.Battle.Agent
             int submittedInputCount,
             int observedSnapshotCount,
             SyncTickResult lastTick,
-            SyncReconciliationReport reconciliation)
+            SyncReconciliationReport reconciliation,
+            SyncHealthReport health)
         {
             SyncModel = syncModel;
             IsStarted = isStarted;
@@ -113,6 +183,7 @@ namespace AbilityKit.Game.Battle.Agent
             ObservedSnapshotCount = observedSnapshotCount;
             LastTick = lastTick;
             Reconciliation = reconciliation;
+            Health = health ?? SyncHealthReport.Empty;
         }
 
         public NetworkSyncModel SyncModel { get; }
@@ -124,6 +195,7 @@ namespace AbilityKit.Game.Battle.Agent
         public int ObservedSnapshotCount { get; }
         public SyncTickResult LastTick { get; }
         public SyncReconciliationReport Reconciliation { get; }
+        public SyncHealthReport Health { get; }
         public int UnacknowledgedInputFrames => Math.Max(0, LastSubmittedFrame - LastAcknowledgedFrame);
     }
 }

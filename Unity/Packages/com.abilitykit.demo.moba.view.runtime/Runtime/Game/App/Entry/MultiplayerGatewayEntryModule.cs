@@ -5,6 +5,7 @@ using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.World.ECS;
 using AbilityKit.Game.Flow;
+using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.View.Modules;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
@@ -16,6 +17,20 @@ namespace AbilityKit.Game
     {
         bool IsRemoteActive { get; }
         ConnectionState ConnectionState { get; }
+        MultiplayerRecoveryState RecoveryState { get; }
+        void ResetReconnect();
+    }
+
+    public enum MultiplayerRecoveryState
+    {
+        None = 0,
+        ReconnectScheduled = 1,
+        ReconnectAttempt = 2,
+        ReconnectExhausted = 3,
+        RestoringRoom = 4,
+        RestoringLoadingBarrier = 5,
+        RestoringBattleSnapshot = 6,
+        Recovered = 7
     }
 
     public sealed class MultiplayerGatewayEntryModule :
@@ -24,7 +39,7 @@ namespace AbilityKit.Game
         IMultiplayerGatewayRuntime
     {
         private readonly BattleGatewayConfigSO _config;
-        private IConnection _connection;
+        private ConnectionManager _connection;
         private DedicatedThreadDispatcher _ioDispatcher;
         private CancellationTokenSource _lifetime;
         private ClientRoomStore _store;
@@ -32,12 +47,16 @@ namespace AbilityKit.Game
         private GatewayMultiplayerRoomSession _session;
         private ClientRoomSnapshotProvider _snapshotProvider;
         private MultiplayerRoomFlowController _controller;
+        private MultiplayerBattleAssetLoader _assetLoader;
         private ClientRoomPushSynchronizer _pushSynchronizer;
         private LobbyBattleEntrySelection _selection;
+        private bool _connectedOnce;
+        private bool _restoreAfterReconnect;
 
         public bool IsRemoteActive => _selection?.IsRemoteSelected == true;
         public ConnectionState ConnectionState =>
             _connection != null ? _connection.State : ConnectionState.Disconnected;
+        public MultiplayerRecoveryState RecoveryState { get; private set; }
 
         public MultiplayerGatewayEntryModule(BattleGatewayConfigSO config)
         {
@@ -61,7 +80,12 @@ namespace AbilityKit.Game
             var options = new ConnectionOptions
             {
                 FrameCodec = LengthPrefixedFrameCodec.Instance,
-                KickPushOpCode = 9000
+                KickPushOpCode = 9000,
+                EnableReconnect = true,
+                ReconnectInitialDelay = TimeSpan.FromSeconds(1),
+                ReconnectMaxDelay = TimeSpan.FromSeconds(15),
+                ReconnectBackoffMultiplier = 2d,
+                ReconnectMaxAttempts = AbilityKit.Network.Runtime.Sync.ReconnectBackoffPolicy.MaxAttempts
             };
 
             _connection = new ConnectionManager(
@@ -75,13 +99,20 @@ namespace AbilityKit.Game
                 new GatewayRoomOpCodes(_config.CreateRoomOpCode, _config.JoinRoomOpCode));
             _session = new GatewayMultiplayerRoomSession(_client, _store);
             _snapshotProvider = new ClientRoomSnapshotProvider(_store);
-            _controller = new MultiplayerRoomFlowController(_session, _snapshotProvider);
+            _assetLoader = new MultiplayerBattleAssetLoader(ResourcesBattleAssetLoadService.Default);
+            _controller = new MultiplayerRoomFlowController(_session, _snapshotProvider, _assetLoader);
             _pushSynchronizer = new ClientRoomPushSynchronizer(
                 _client,
                 _store,
                 RefreshCurrentRoomAsync);
 
             _connection.ServerPushReceived += HandleServerPush;
+            _connection.Connected += HandleConnected;
+            _connection.Disconnected += HandleDisconnected;
+            _connection.ReconnectScheduled += HandleReconnectScheduled;
+            _connection.ReconnectAttemptStarted += HandleReconnectAttemptStarted;
+            _connection.ReconnectExhausted += HandleReconnectExhausted;
+            _controller.StateChanged += HandleRoomFlowStateChanged;
             ctx.Root.TryGetRef(out _selection);
             if (_selection != null)
             {
@@ -115,6 +146,16 @@ namespace AbilityKit.Game
             if (_connection != null)
             {
                 _connection.ServerPushReceived -= HandleServerPush;
+                _connection.Connected -= HandleConnected;
+                _connection.Disconnected -= HandleDisconnected;
+                _connection.ReconnectScheduled -= HandleReconnectScheduled;
+                _connection.ReconnectAttemptStarted -= HandleReconnectAttemptStarted;
+                _connection.ReconnectExhausted -= HandleReconnectExhausted;
+            }
+
+            if (_controller != null)
+            {
+                _controller.StateChanged -= HandleRoomFlowStateChanged;
             }
 
             if (ctx.Root.IsValid)
@@ -138,6 +179,7 @@ namespace AbilityKit.Game
             _pushSynchronizer = null;
             _selection = null;
             _controller = null;
+            _assetLoader = null;
             _snapshotProvider = null;
             _session = null;
             _client = null;
@@ -145,6 +187,116 @@ namespace AbilityKit.Game
             _connection = null;
             _ioDispatcher = null;
             _lifetime = null;
+            _connectedOnce = false;
+            _restoreAfterReconnect = false;
+            RecoveryState = MultiplayerRecoveryState.None;
+        }
+
+        public void ResetReconnect()
+        {
+            RecoveryState = MultiplayerRecoveryState.None;
+            _connection?.ResetReconnect();
+        }
+
+        private void HandleConnected()
+        {
+            if (!_connectedOnce)
+            {
+                _connectedOnce = true;
+                RecoveryState = MultiplayerRecoveryState.None;
+                return;
+            }
+
+            if (_restoreAfterReconnect)
+            {
+                _restoreAfterReconnect = false;
+                RestoreRoomAfterReconnectAsync();
+            }
+        }
+
+        private void HandleDisconnected()
+        {
+            if (_connectedOnce && !string.IsNullOrWhiteSpace(_controller?.CurrentRoomId))
+            {
+                _restoreAfterReconnect = true;
+            }
+        }
+
+        private void HandleReconnectScheduled(int attemptNumber, float delaySeconds)
+        {
+            if (_connectedOnce && !string.IsNullOrWhiteSpace(_controller?.CurrentRoomId))
+            {
+                _restoreAfterReconnect = true;
+            }
+
+            RecoveryState = MultiplayerRecoveryState.ReconnectScheduled;
+        }
+
+        private void HandleReconnectAttemptStarted(int attemptNumber)
+        {
+            RecoveryState = MultiplayerRecoveryState.ReconnectAttempt;
+        }
+
+        private void HandleReconnectExhausted(int attempts)
+        {
+            RecoveryState = MultiplayerRecoveryState.ReconnectExhausted;
+        }
+
+        private void HandleRoomFlowStateChanged(MultiplayerRoomFlowState state)
+        {
+            if (RecoveryState != MultiplayerRecoveryState.RestoringRoom &&
+                RecoveryState != MultiplayerRecoveryState.RestoringLoadingBarrier &&
+                RecoveryState != MultiplayerRecoveryState.RestoringBattleSnapshot)
+            {
+                return;
+            }
+
+            if (state == MultiplayerRoomFlowState.InLobby ||
+                state == MultiplayerRoomFlowState.InBattle)
+            {
+                RecoveryState = MultiplayerRecoveryState.Recovered;
+            }
+        }
+
+        private async void RestoreRoomAfterReconnectAsync()
+        {
+            var controller = _controller;
+            var spec = controller?.CurrentLaunchSpec;
+            var lifetime = _lifetime;
+            if (controller == null || spec == null || lifetime == null) return;
+
+            try
+            {
+                RecoveryState = MultiplayerRecoveryState.RestoringRoom;
+                var fallbackPlayerId = _config.RestoreFallbackPlayerId == 0u
+                    ? 1u
+                    : _config.RestoreFallbackPlayerId;
+                var result = await controller.RestoreAsync(
+                    spec,
+                    fallbackPlayerId,
+                    lifetime.Token);
+                RecoveryState = !result.HasActiveRoom
+                    ? MultiplayerRecoveryState.None
+                    : result.Phase switch
+                {
+                    MultiplayerRoomPhase.Loading => MultiplayerRecoveryState.RestoringLoadingBarrier,
+                    MultiplayerRoomPhase.Starting => MultiplayerRecoveryState.RestoringLoadingBarrier,
+                    MultiplayerRoomPhase.InBattle => MultiplayerRecoveryState.Recovered,
+                    _ => MultiplayerRecoveryState.Recovered
+                };
+            }
+            catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+            {
+            }
+            catch (Exception ex)
+            {
+                if (RecoveryState == MultiplayerRecoveryState.RestoringRoom)
+                {
+                    RecoveryState = MultiplayerRecoveryState.None;
+                }
+
+                Log.Exception(ex, "[MultiplayerGatewayEntryModule] Room restore after reconnect failed.");
+            }
         }
 
         private void HandleEntrySelectionChanged()

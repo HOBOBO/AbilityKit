@@ -4,9 +4,6 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 {
     public static class MobaActorArchetypeAssembler
     {
-        private const int CollisionLayer_Unit = 1 << 0;
-        private const int CollisionLayer_Projectile = 1 << 1;
-
         public static void RegisterDefaults(MobaActorArchetypeRegistry registry)
         {
             if (registry == null) return;
@@ -28,7 +25,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 .WithMotion()
                 .WithMoveInput()
                 .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.5f)))
-                .WithCollisionLayer(layerMask: CollisionLayer_Unit)
+                .WithCollisionLayer(layerMask: MobaCollisionLayers.UnitMask)
                 .Build();
 
             ActorEntityMetaApplier.Apply(entity, in info);
@@ -41,8 +38,9 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 .WithActorId(info.ActorId)
                 .WithTransform(info.Transform)
                 .WithMotion()
+                .WithMoveInput()
                 .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.5f)))
-                .WithCollisionLayer(layerMask: CollisionLayer_Unit)
+                .WithCollisionLayer(layerMask: MobaCollisionLayers.UnitMask)
                 .Build();
 
             ActorEntityMetaApplier.Apply(entity, in info);
@@ -56,7 +54,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 .WithTransform(info.Transform)
                 .WithMotion()
                 .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.6f)))
-                .WithCollisionLayer(layerMask: CollisionLayer_Unit)
+                .WithCollisionLayer(layerMask: MobaCollisionLayers.UnitMask)
                 .Build();
 
             ActorEntityMetaApplier.Apply(entity, in info);
@@ -69,7 +67,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 .WithActorId(info.ActorId)
                 .WithTransform(info.Transform)
                 .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.15f)))
-                .WithCollisionLayer(layerMask: CollisionLayer_Projectile)
+                .WithCollisionLayer(layerMask: MobaCollisionLayers.ProjectileMask)
                 .Build();
 
             ActorEntityMetaApplier.Apply(entity, in info);
@@ -82,8 +80,9 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 .WithActorId(info.ActorId)
                 .WithTransform(info.Transform)
                 .WithMotion()
+                .WithMoveInput()
                 .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.5f)))
-                .WithCollisionLayer(layerMask: CollisionLayer_Unit)
+                .WithCollisionLayer(layerMask: MobaCollisionLayers.UnitMask)
                 .Build();
 
             ActorEntityMetaApplier.Apply(entity, in info);
@@ -107,7 +106,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 .WithActorId(info.ActorId)
                 .WithTransform(info.Transform)
                 .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.5f)))
-                .WithCollisionLayer(layerMask: CollisionLayer_Projectile)
+                .WithCollisionLayer(layerMask: MobaCollisionLayers.ProjectileMask)
                 .Build();
 
             ActorEntityMetaApplier.Apply(entity, in info);

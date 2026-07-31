@@ -99,7 +99,7 @@ flowchart TB
 
 这张图里的关键点是：
 
-1. 本地输入先进入 `SessionCoordinator.SubmitLocalInput`，再交给当前 `ISyncAdapter`。
+1. 由 Coordinator 管理完整会话时，本地输入先进入 `SessionCoordinator.SubmitLocalInput`，再交给当前 `ISyncAdapter`；已有完整客户端 session 时应复用更小的框架组合工具，不能为输入转发重复创建会话层。
 2. 远端模式下 `RemoteSyncAdapter` 只通过 `IRemoteBattleSyncTransport` 连接外部网络，不直接依赖 Gateway 类型。
 3. Gateway 把输入转发到 `BattleLogicHostGrain.SubmitInputAsync`，服务端通过调度器决定输入落在哪一帧。
 4. 服务端快照通过 observer 或 transport 回到客户端，客户端再转成 `FramePacket` 或 `SnapshotEntityState[]` 消费。
@@ -121,7 +121,7 @@ flowchart TB
 | Host Extension | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session` | `FramePacketNetAdapter`、`RoomGatewaySessionFlow` |
 | Record | `Unity/Packages/com.abilitykit.record/Runtime/Record` | 通用容器、事件轨道、固定步长回放、按帧记录文件 |
 | Demo View | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session` | `BattleSessionNetAdapter` 如何复用通用 `FramePacketNetAdapter` |
-| Shooter View | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Hosting` | `ShooterCoordinatorSessionHost` 如何复用已有 world |
+| Shooter View | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client`、`Runtime/Unity/PlayMode` | 已有完整 session 如何组合 Gateway flow、预测回滚和 `RemoteClientInputSubmitQueue` |
 
 ### 3.2 Server/Orleans 侧
 
@@ -396,15 +396,20 @@ sequenceDiagram
 
 ### 5.4 Gateway Session Flow 是客户端入场脚本，不是底层网络协议
 
-`RoomGatewaySessionFlow` 面向 `IRoomGatewaySessionClient`，提供三条高层路径：
+`RoomGatewaySessionFlow` 面向 `IRoomGatewaySessionClient`，提供可组合的阶段 API，不再维护 create/join/restore 的旧聚合入口：
 
 | 方法 | 场景 | 步骤 |
 |------|------|------|
-| `CreateReadyStartAndSubscribeAsync` | 房主创建并开局 | create room -> join -> ready -> start battle -> subscribe state sync |
-| `JoinReadyStartAndSubscribeAsync` | 加入已有房间或运行中战斗 | join；如果已在 battle 则直接 subscribe，否则 ready/start/subscribe |
-| `RestoreRoomAsync` | 断线恢复到运行中战斗 | restore room -> 校验 active battle -> subscribe state sync |
+| `CreateRoomAsync` / `JoinRoomAsync` / `SetReadyAsync` | 创建、加入和准备 | 每一步独立返回结果，由示例会话决定后续分支 |
+| `BeginLoadingAsync` / `ReportAssetsLoadedAsync` / `WaitForBattleStartAsync` | 资源加载和等待开战 | 支持从 Loading 或 Starting 阶段继续，而不重复已完成阶段 |
+| `SubscribeStateSyncAsync` | 订阅运行中战斗 | 可携带 `eventEpoch` 和 `lastEventAck` 恢复可靠事件游标 |
+| `RestoreAsync` | 恢复任意房间阶段 | restore -> get snapshot -> 输出 `NextStep`，覆盖 Lobby/Loading/Starting/InBattle |
 
-它输出 `RoomGatewaySessionFlowResult`，包含 `RoomId`、`BattleId`、`WorldId`、`PlayerId`、`WorldStartAnchor`、`EntryKind`、是否订阅成功等字段。这个对象是客户端会话恢复和时间对齐的重要锚点。
+恢复结果保留 `RestoreStatus`、`RestoreErrorCode` 与 `CanRetry`。无活动房间、成员失效、房间关闭/过期、会话失效、请求超时和内部错误不再被压成同一种异常；其中请求超时和内部错误可重试，其余结果由业务回到登录或大厅。MOBA 通过自己的恢复 DTO 消费该契约，Shooter 也把相同诊断投影到启动结果。
+
+MOBA 的协议适配器只转换 DTO，不直接写 `ClientRoomStore`。`GatewayMultiplayerRoomSession` 是唯一快照写入者，负责将框架合并后的恢复快照提交到 store，避免同 revision 的中间快照抢先写入后阻止权威元数据更新。
+
+框架只负责阶段请求、校验入口和恢复阶段判定。Shooter、MOBA 等业务会话负责组合这些阶段并构造自己的最终启动结果，避免框架固化某一种房间玩法顺序。
 
 ---
 
@@ -414,8 +419,8 @@ sequenceDiagram
 |------|----------|--------------------------|
 | 单机或本地验证战斗逻辑 | `FrameIndex`、本地 `ISyncAdapter`、Console Demo | Orleans Gateway、Room/Battle Grain |
 | 本地模拟远端输入 | `FramePacket`、`RemoteFrameAggregator`、`FramePacketNetAdapter` | 真实 Gateway 协议 |
-| 客户端接入权威服 | `SessionCoordinator`、`RemoteSyncAdapter`、`IRemoteBattleSyncTransport` | 直接在业务层调用 Gateway handler |
-| 已有 world 接入 Coordinator | `ExistingWorldSessionCoordinatorHost` | 再创建第二套 world |
+| 客户端接入权威服 | 完整会话可用 `SessionCoordinator`；已有 session 复用 Gateway flow、同步控制器与框架提交队列 | 同时维护两套 session/transport/Tick 生命周期 |
+| 已有 world 接入 Coordinator | Coordinator 拥有完整会话时使用 `ExistingWorldSessionCoordinatorHost` | 只为输入转发接入 Coordinator |
 | 状态同步表现 | `FrameSnapshotDispatcher`、StateSync snapshot handler | 把快照解析写死在 transport 层 |
 | 服务端房间和战斗 | `RoomGrain`、`BattleLogicHostGrain`、contracts | 把准备/晚加入/恢复塞进 Battle runtime |
 | 回放和问题复现 | `RecordSession`、`FrameRecordFile`、Console `.akrec` | 只保存日志文本 |
@@ -450,7 +455,7 @@ Room 维护成员身份、在线状态、准备、恢复、晚加入和开战入
 | 双输入源混用 | 预测、确认、远端驱动互相污染 | 区分 `RemoteDriven` 和 `Confirmed` 的消费方 |
 | 聚合器不裁剪 | 长连接内存增长 | 定期调用 `RemoteFrameAggregator.TrimBefore` |
 | transport 缺失 | 远端模式看似启动但永远不连接 | 检查 world services 是否注入 `IRemoteBattleSyncTransport` |
-| 已有 world 重复创建 | Shooter/View 层出现两个逻辑世界 | 使用 `ExistingWorldSessionCoordinatorHost` 或专用 host |
+| 会话生命周期重复 | Shooter/View 层出现两个 world、两个 transport 或双 Tick | 完整接入时使用 `ExistingWorldSessionCoordinatorHost`；已有完整 session 时只组合所需工具 |
 | 快照 handler 耦合协议 | 表现层依赖 Gateway DTO | 让 transport 产出 `FramePacket`、`SnapshotEntityState[]` 或 envelope，再交给 dispatcher |
 | 回放格式分裂 | 通用 Record 和 Demo `.akrec` 混用 | 在文档/工具中标清使用哪种格式和适用场景 |
 

@@ -41,7 +41,7 @@ SkillCastCoordinator.TryCastSkill / CastSkill
 - **Skill**：`AddBuff` / `GiveDamage` / `TakeDamage` / `ShootProjectile` / `SpawnArea` / `SpawnSummon` / `StartCooldown` / `ConsumeResource` / `AddShield` / `RemoveShield` / `RemoveBuff` / `RemoveArea` / `RemoveSummon` / `CancelSkill`
 - **Gameplay**：`SetGameplayVar` / `AddGameplayVar` / `EndGame`
 - **Presentation**：`PlayPresentation` / `Emit`
-- **Motion**：`Blink`
+- **Motion**：`Blink` / `Dash` / `Jump` / `Pull` — Blink/Dash 现支持 `PassThroughWalls`(bool) 字段（Schema `ReadBool` 读 `"pass_through_walls"`），控制穿墙+终点投影 vs block+扫掠。详见 moba-demo [collision_and_walls](../../moba-demo/collision_and_walls.md)
 - **Debug**：`DebugLog`
 
 每个 PlanAction = Args + Schema + PlanActionModule，通过 `[AutoPlanAction]` 特性自动注册到 `ActionSchemaRegistry`。统一执行网关：`MobaTriggerExecutionGateway` + `MobaTriggerPlanSubscriptionService`（`com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/`）。

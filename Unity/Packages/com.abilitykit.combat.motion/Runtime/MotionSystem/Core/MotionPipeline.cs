@@ -13,6 +13,16 @@ namespace AbilityKit.Combat.MotionSystem.Core
         private List<int> _suppressedGroups;
         private bool _disposed;
 
+        // 主导源碰撞策略的 group 优先级（高→低）：硬控 > 主动技能 > 寻路 > 基础移动。
+        // 固定数组序保证选取确定性（不依赖字典迭代序）。
+        private static readonly int[] PolicyGroupPrecedence =
+        {
+            MotionGroups.Control,
+            MotionGroups.Ability,
+            MotionGroups.Path,
+            MotionGroups.Locomotion,
+        };
+
         public MotionPipeline()
         {
             _sources = MotionPipelinePool.RentSourceList();
@@ -144,6 +154,23 @@ namespace AbilityKit.Combat.MotionSystem.Core
                 if (!s.IsActive)
                 {
                     NotifyFinished(id, in state, s);
+                }
+            }
+
+            // 选主导贡献源的碰撞策略（按 group 优先级，命中可选 IMotionCollisionPolicySource 才透传）。
+            output.HasDominantCollisionPolicy = false;
+            for (int pi = 0; pi < PolicyGroupPrecedence.Length; pi++)
+            {
+                var gid = PolicyGroupPrecedence[pi];
+                if (!_bestIndexByGroup.TryGetValue(gid, out var bestIdx)) continue;
+                if (bestIdx < 0 || bestIdx >= _sources.Count) continue;
+                if (IsSuppressed(gid)) continue;
+
+                if (_sources[bestIdx] is IMotionCollisionPolicySource policySource && policySource.HasCollisionPolicy)
+                {
+                    output.DominantCollisionPolicy = policySource.CollisionPolicy;
+                    output.HasDominantCollisionPolicy = true;
+                    break;
                 }
             }
 

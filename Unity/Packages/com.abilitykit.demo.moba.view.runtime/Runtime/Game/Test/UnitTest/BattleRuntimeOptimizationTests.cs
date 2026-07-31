@@ -1379,6 +1379,43 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsTrue(found, state.ToString());
             }
         }
+
+        [Test]
+        public void MobaFlowConfiguration_ProvidesStableDescriptionsForEveryConfiguredState()
+        {
+            var config = MobaFlowConfiguration.CreateDefault();
+
+            foreach (MobaRootState state in Enum.GetValues(typeof(MobaRootState)))
+            {
+                Assert.IsFalse(string.IsNullOrWhiteSpace(config.GetRootStateDescription(state)), state.ToString());
+            }
+
+            foreach (MobaBattleState state in Enum.GetValues(typeof(MobaBattleState)))
+            {
+                Assert.IsFalse(string.IsNullOrWhiteSpace(config.GetBattleStateDescription(state)), state.ToString());
+            }
+        }
+
+        [Test]
+        public void MobaFlowConfigurationValidator_AcceptsDefaultConfiguration()
+        {
+            var result = MobaFlowConfigurationValidator.Validate(MobaFlowConfiguration.CreateDefault());
+
+            Assert.IsTrue(result.IsValid, string.Join(" | ", result.Errors));
+        }
+
+        [Test]
+        public void MobaFlowConfigurationValidator_ReportsMissingStateDescription()
+        {
+            var config = MobaFlowConfiguration.CreateDefault();
+            var descriptions = (Dictionary<MobaBattleState, string>)config.BattleStateDescriptions;
+            descriptions.Remove(MobaBattleState.LoadAssets);
+
+            var result = MobaFlowConfigurationValidator.Validate(config);
+
+            Assert.IsFalse(result.IsValid);
+            Assert.IsTrue(ContainsError(result.Errors, "MOBA battle state has no stable description: LoadAssets"));
+        }
  
         [Test]
         public void GatewayRoomCleanupHelper_ClearsAnchorsAndRemovesReliableConnection()
@@ -1605,6 +1642,16 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(decision.ShouldSeek);
             Assert.AreEqual(13, decision.Frame);
             Assert.AreEqual(0.04f, decision.SecondsPerFrame, 0.0001f);
+        }
+
+        private static bool ContainsError(IReadOnlyList<string> errors, string expected)
+        {
+            for (var i = 0; i < errors.Count; i++)
+            {
+                if (string.Equals(errors[i], expected, StringComparison.Ordinal)) return true;
+            }
+
+            return false;
         }
 
         private static EC.IEntityId GetActiveCueEntityId(
@@ -2015,6 +2062,17 @@ namespace AbilityKit.Game.Test.UnitTest
                 int manifestVersion,
                 string manifestHash,
                 string commandId,
+                TimeSpan? timeout = null,
+                CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public Task<GatewayRoomOperationResult> ReportLoadingProgressAsync(
+                string sessionToken,
+                string roomId,
+                long launchGeneration,
+                int manifestVersion,
+                string manifestHash,
+                int progress,
                 TimeSpan? timeout = null,
                 CancellationToken cancellationToken = default)
                 => throw new NotSupportedException();

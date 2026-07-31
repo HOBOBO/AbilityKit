@@ -31,6 +31,9 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             builder.TryRegister<IMobaConfigDtoBytesDeserializer>(WorldLifetime.Singleton, _ => new LubanMobaConfigDtoBytesDeserializer());
             builder.TryRegister<IMobaConfigDtoProvider>(WorldLifetime.Singleton, _ => EmptyMobaConfigDtoProvider.Instance);
             builder.TryRegister<IMobaConfigLoadProfile>(WorldLifetime.Singleton, _ => ResourcesJsonMobaConfigLoadProfile.Default);
+            builder.TryRegister<MobaBrainDecisionDriverRegistry>(
+                WorldLifetime.Singleton,
+                _ => MobaBrainDecisionDriverRegistry.CreateDefault());
             builder.TryRegister<IMobaActorBrainCatalog>(WorldLifetime.Singleton, _ =>
             {
                 var catalog = new MobaActorBrainCatalog();
@@ -74,7 +77,18 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                     throw;
                 }
             });
+        }
 
+        protected internal override void Install(
+            Entitas.IContexts contexts,
+            Entitas.Systems systems,
+            IWorldResolver services)
+        {
+            MobaBrainConfigurationValidator.Validate(
+                services.Resolve<IMobaActorBrainCatalog>(),
+                services.Resolve<IMobaActorStateMachineProfileCatalog>(),
+                services.Resolve<MobaActorStateMachineRuntimeRegistry>(),
+                services.Resolve<MobaBrainDecisionDriverRegistry>());
         }
     }
 }
