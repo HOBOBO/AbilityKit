@@ -14,4 +14,15 @@ namespace AbilityKit.Combat.MotionSystem.Core
 
         MotionCollisionConstraints CollisionPolicy { get; }
     }
+
+    /// <summary>
+    /// 可选接口：source 在本帧贡献最后一段位移并完成时，可声明仅用于该完成帧的碰撞策略。
+    /// 典型用途是允许持续位移的中间帧处于障碍内，仅在最终落点执行重叠修正。
+    /// </summary>
+    public interface IMotionCompletionCollisionPolicySource
+    {
+        bool HasCompletionCollisionPolicy { get; }
+
+        MotionCollisionConstraints CompletionCollisionPolicy { get; }
+    }
 }

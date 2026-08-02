@@ -25,6 +25,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private readonly BattleActorRespawnViewEventHandler _respawnEvents;
         private readonly BattlePresentationCueViewEventHandler _presentationCues;
         private readonly BattleViewDirtyEntityRefresher _dirtyViews;
+        private readonly bool _presentDamageTriggers;
+        private readonly bool _presentDamageSnapshots;
 
         public BattleViewEventSink(
             BattleContext ctx,
@@ -61,6 +63,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _respawnEvents = handlers.CreateRespawnEvents(query, vfx, in vfxNode);
             _presentationCues = handlers.CreatePresentationCues(ctx, query, vfx, in vfxNode);
             _dirtyViews = handlers.CreateDirtyViews(ctx, query, binder);
+            var sourceMode = ctx != null
+                ? ctx.Plan.Sync.ViewEventSourceMode
+                : BattleViewEventSourceMode.SnapshotOnly;
+            _presentDamageTriggers = BattleDamagePresentationSourcePolicy.ShouldPresentTrigger(sourceMode);
+            _presentDamageSnapshots = BattleDamagePresentationSourcePolicy.ShouldPresentSnapshot(sourceMode);
         }
 
         public void OnTriggerEvent(in TriggerEvent evt)
@@ -69,7 +76,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
             if (evt.Id == DamagePipelineEvents.AfterApply)
             {
-                if (evt.Payload is DamageResult result)
+                if (_presentDamageTriggers && evt.Payload is DamageResult result)
                 {
                     _damageEvents.HandleDamageResult(result);
                 }
@@ -109,7 +116,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         public void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries)
         {
-            _damageEvents.HandleSnapshot(entries);
+            if (_presentDamageSnapshots)
+            {
+                _damageEvents.HandleSnapshot(entries);
+            }
         }
 
         public void OnPresentationCueSnapshot(ISnapshotEnvelope packet, PresentationCueData[] entries)

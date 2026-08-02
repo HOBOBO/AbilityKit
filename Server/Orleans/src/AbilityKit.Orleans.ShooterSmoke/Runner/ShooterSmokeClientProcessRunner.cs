@@ -18,6 +18,11 @@ internal static class ShooterSmokeClientProcessRunner
             throw new ArgumentException("roomId is required for join client mode.", nameof(options));
         }
 
+        if (options.Mode != ShooterSmokeClientProcessMode.Join && options.ReconnectCount > 0)
+        {
+            throw new ArgumentException("reconnectCount is supported only for join client mode.", nameof(options));
+        }
+
         await ShooterSmokeScenarioBase.WaitForTcpAsync(options.Host, options.Port, options.Timeout);
 
         using var replay = ShooterSmokeReplayRecordScope.CreateInputStateReplay(options.InputStateReplayOutputPath, in options);
@@ -33,7 +38,8 @@ internal static class ShooterSmokeClientProcessRunner
         connection.Open(options.Host, options.Port);
         connection.Tick(0f);
 
-        var login = await ShooterSmokeScenarioBase.LoginGuestAsync(connection);
+        var accountId = $"shooter-smoke-{options.ClientId}-{Guid.NewGuid():N}";
+        var login = await ShooterSmokeScenarioBase.LoginAccountAsync(connection, accountId, kickExisting: true);
         using var presentationContext = ShooterSmokeScenarioBase.CreatePresentationContext();
         var runtime = presentationContext.Runtime;
         var presentation = presentationContext.Presentation;
@@ -1175,7 +1181,7 @@ internal static class ShooterSmokeClientProcessRunner
     {
         if (options.Mode != ShooterSmokeClientProcessMode.Join)
         {
-            return default;
+            throw new ArgumentException("Reconnect requires join client mode.", nameof(options));
         }
 
         var firstPushCount = getPushCount();

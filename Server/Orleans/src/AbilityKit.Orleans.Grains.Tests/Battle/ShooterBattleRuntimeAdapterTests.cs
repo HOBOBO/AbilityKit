@@ -2,6 +2,7 @@
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Orleans.Contracts.Battle;
+using AbilityKit.Orleans.Contracts.Shooter;
 using AbilityKit.Orleans.Grains.Battle;
 using AbilityKit.Orleans.Grains.Battle.Gameplay;
 using AbilityKit.Orleans.Grains.Gameplays.Shooter.Battle;
@@ -395,6 +396,51 @@ public sealed class ShooterBattleRuntimeAdapterTests
         Assert.Equal(4, payload.Settings.DeltaIntervalFrames);
         Assert.Equal(30, payload.Settings.LowFrequencyIntervalFrames);
         Assert.Equal(6, payload.Settings.InterpolationDelayFrames);
+    }
+
+    [Fact]
+    public void DefaultAdapter_WhenMassBattleTemplateStarts_UsesTemplatePureStateAndAoiBudget()
+    {
+        var previous = Environment.GetEnvironmentVariable(ShooterStateSyncPushOptions.PayloadModeEnvironmentVariable);
+        try
+        {
+            Environment.SetEnvironmentVariable(ShooterStateSyncPushOptions.PayloadModeEnvironmentVariable, null);
+            using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+            var adapter = new ShooterBattleRuntimeAdapter(worldManager);
+            using var session = adapter.CreateSession("shooter-mass-template-adapter-test");
+            var initParams = CreateInitParams();
+            initParams.SyncOptions = new BattleSyncStartOptions(
+                ShooterServerProtocol.MassBattleLodAoiTemplate,
+                SyncModel: 0,
+                NetworkEnvironmentId: "limitedbw",
+                CarrierName: null,
+                EnableAuthoritativeWorld: false,
+                InterpolationEnabled: true,
+                InputDelayFrames: 0);
+
+            var start = session.Start(initParams);
+            Assert.True(start.Succeeded, start.Error);
+            Assert.True(session.Tick(frame: 1, tickRate: 30, deltaTime: 1f / 30f));
+
+            var observerSession = Assert.IsAssignableFrom<IObserverAwareBattleRuntimeSession>(session);
+            var observer = new BattleStateSyncObserverContext("observer-1", "account-1", "room-1");
+            var push = observerSession.CreateStateSyncPush(
+                initParams.WorldId,
+                frame: 1,
+                isFullSnapshot: true,
+                in observer);
+            var payload = ShooterPureStateSyncCodec.Deserialize(push.Payload!);
+
+            Assert.Equal(ShooterOpCodes.Snapshot.PureState, push.PayloadOpCode);
+            Assert.Equal(20000, payload.Settings.MaxEntityCount);
+            Assert.Equal(2048, payload.Settings.ActiveSyncBudget);
+            Assert.Equal(450, payload.Settings.BaselineIntervalFrames);
+            Assert.Equal(90, payload.Settings.DeltaIntervalFrames);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ShooterStateSyncPushOptions.PayloadModeEnvironmentVariable, previous);
+        }
     }
 
     private static void AssertPackedEnemiesVisible(in ShooterPackedSnapshotPayload packed)

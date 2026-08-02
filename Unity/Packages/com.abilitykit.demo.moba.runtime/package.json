@@ -35,6 +35,7 @@
     "com.abilitykit.game.battle.transport.runtime": "0.0.1",
     "com.abilitykit.gameplaytags": "0.0.1",
     "com.abilitykit.host.extension": "0.0.1",
+    "com.abilitykit.demo.moba.host": "0.0.1",
     "com.abilitykit.modifiers": "0.0.1",
     "com.abilitykit.pipeline": "0.0.1",
     "com.abilitykit.protocol.moba": "0.0.1",

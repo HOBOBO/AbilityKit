@@ -13,6 +13,8 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaBattleConfigReferenceValidator : IMobaRuntimeValidator
     {
         private const string Source = "battle.config.references";
+        private const int DefaultSkillReleaseTriggerId = 900101011;
+        private const int DefaultSkillCommitTriggerId = 900101012;
 
         public string Name => Source;
 
@@ -112,8 +114,18 @@ namespace AbilityKit.Demo.Moba.Services
 
                 if (skill.CooldownMs < 0)
                 {
-                    report.Warning(Source, path + ".cooldownMs", "skill cooldown is negative.", skill.Id.ToString());
+                    report.Error(
+                        Source,
+                        path + ".cooldownMs",
+                        "skill cooldown is negative.",
+                        skill.Id.ToString(),
+                        code: "moba.skill.configuration.negative_cooldown",
+                        category: MobaRuntimeValidationCategory.Config,
+                        businessNumericId: skill.Id);
                 }
+
+                var hasPositiveCost = ValidateSkillLevelConfiguration(config, skill, report, path);
+                ValidateSkillResourceContract(config, skill, hasPositiveCost, report, path);
 
                 if (skill.Range < 0)
                 {
@@ -130,6 +142,150 @@ namespace AbilityKit.Demo.Moba.Services
                     ValidateSkillFlow(config, triggers, report, preCastFlow, $"skill.{skill.Id}.preCastFlow.{skill.PreCastFlowId}", skill.Id);
                 }
             }
+        }
+
+        private static bool ValidateSkillLevelConfiguration(
+            MobaConfigDatabase config,
+            SkillMO skill,
+            MobaRuntimeValidationReport report,
+            string path)
+        {
+            if (skill.LevelTableId <= 0) return false;
+            if (!config.TryGetSkillLevelTable(skill.LevelTableId, out var table) || table == null) return false;
+
+            var levels = table.Levels;
+            if (levels == null || levels.Count == 0)
+            {
+                report.Error(
+                    Source,
+                    path + ".levelTable.levels",
+                    "skill level table has no levels.",
+                    skill.Id.ToString(),
+                    code: "moba.skill.configuration.empty_level_table",
+                    category: MobaRuntimeValidationCategory.Config,
+                    businessNumericId: skill.Id);
+                return false;
+            }
+
+            var hasPositiveCost = false;
+            for (var i = 0; i < levels.Count; i++)
+            {
+                var level = levels[i];
+                var levelPath = $"{path}.levelTable.levels[{i}]";
+                if (level == null)
+                {
+                    report.Error(
+                        Source,
+                        levelPath,
+                        "skill level entry is null.",
+                        skill.Id.ToString(),
+                        code: "moba.skill.configuration.null_level",
+                        category: MobaRuntimeValidationCategory.Config,
+                        businessNumericId: skill.Id);
+                    continue;
+                }
+
+                if (level.Cost < 0)
+                {
+                    report.Error(
+                        Source,
+                        levelPath + ".cost",
+                        "skill level cost is negative.",
+                        skill.Id.ToString(),
+                        code: "moba.skill.configuration.negative_cost",
+                        category: MobaRuntimeValidationCategory.Config,
+                        businessNumericId: skill.Id);
+                }
+                else if (level.Cost > 0)
+                {
+                    hasPositiveCost = true;
+                }
+
+                if (level.CooldownMs < 0)
+                {
+                    report.Error(
+                        Source,
+                        levelPath + ".cooldownMs",
+                        "skill level cooldown is negative.",
+                        skill.Id.ToString(),
+                        code: "moba.skill.configuration.negative_level_cooldown",
+                        category: MobaRuntimeValidationCategory.Config,
+                        businessNumericId: skill.Id);
+                }
+            }
+
+            return hasPositiveCost;
+        }
+
+        private static void ValidateSkillResourceContract(
+            MobaConfigDatabase config,
+            SkillMO skill,
+            bool hasPositiveCost,
+            MobaRuntimeValidationReport report,
+            string path)
+        {
+            if (!hasPositiveCost) return;
+
+            if (skill.SkillType == SkillType.NormalAttack)
+            {
+                report.Error(
+                    Source,
+                    path + ".levelTable.levels",
+                    "normal attack skill must have zero resource cost.",
+                    skill.Id.ToString(),
+                    code: "moba.skill.contract.normal_attack_has_cost",
+                    category: MobaRuntimeValidationCategory.Config,
+                    businessNumericId: skill.Id);
+                return;
+            }
+
+            if (skill.CastFlowId <= 0 ||
+                !config.TryGetSkillFlow(skill.CastFlowId, out var flow) ||
+                flow == null)
+            {
+                return;
+            }
+
+            var hasRelease = ContainsSkillRulePlanTrigger(flow.Phases, DefaultSkillReleaseTriggerId);
+            var hasCommit = ContainsSkillRulePlanTrigger(flow.Phases, DefaultSkillCommitTriggerId);
+            if (hasRelease && hasCommit) return;
+
+            report.Error(
+                Source,
+                path + $".castFlow.{skill.CastFlowId}.phases",
+                $"nonzero-cost active skill requires paired default release and commit RulePlan phases. release={hasRelease}, commit={hasCommit}.",
+                skill.Id.ToString(),
+                code: "moba.skill.contract.release_commit_required",
+                category: MobaRuntimeValidationCategory.Config,
+                businessNumericId: skill.Id);
+        }
+
+        private static bool ContainsSkillRulePlanTrigger(IReadOnlyList<SkillPhaseDTO> phases, int triggerId)
+        {
+            if (phases == null || phases.Count == 0) return false;
+            for (var i = 0; i < phases.Count; i++)
+            {
+                if (ContainsSkillRulePlanTrigger(phases[i], triggerId)) return true;
+            }
+
+            return false;
+        }
+
+        private static bool ContainsSkillRulePlanTrigger(SkillPhaseDTO phase, int triggerId)
+        {
+            if (phase == null) return false;
+            if ((SkillPhaseType)phase.Type == SkillPhaseType.RulePlan &&
+                phase.RulePlan?.TriggerIds != null)
+            {
+                for (var i = 0; i < phase.RulePlan.TriggerIds.Length; i++)
+                {
+                    if (phase.RulePlan.TriggerIds[i] == triggerId) return true;
+                }
+            }
+
+            if (ContainsSkillRulePlanTrigger(phase.Children, triggerId)) return true;
+            return phase.Repeat?.Phase != null &&
+                   ContainsSkillRulePlanTrigger(phase.Repeat.Phase, triggerId);
         }
 
         private static void ValidateSkillButtonTemplates(MobaConfigDatabase config, MobaRuntimeValidationReport report)

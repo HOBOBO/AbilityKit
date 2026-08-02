@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace AbilityKit.Game.Battle.Agent
@@ -14,6 +15,47 @@ namespace AbilityKit.Game.Battle.Agent
         DuplicateIgnored,
         /// <summary>旧 revision 的乱序 push，忽略，不触发事件。</summary>
         StaleIgnored
+    }
+
+    /// <summary>
+    /// A structured membership delta derived from two authoritative snapshots.
+    /// </summary>
+    public sealed class ClientRoomMembershipChange
+    {
+        public ClientRoomMembershipChange(
+            string roomId,
+            long previousRevision,
+            long currentRevision,
+            IReadOnlyList<string> joinedAccountIds,
+            IReadOnlyList<string> leftAccountIds,
+            string previousOwnerAccountId,
+            string currentOwnerAccountId)
+        {
+            RoomId = roomId ?? string.Empty;
+            PreviousRevision = previousRevision;
+            CurrentRevision = currentRevision;
+            JoinedAccountIds = joinedAccountIds ?? Array.Empty<string>();
+            LeftAccountIds = leftAccountIds ?? Array.Empty<string>();
+            PreviousOwnerAccountId = previousOwnerAccountId ?? string.Empty;
+            CurrentOwnerAccountId = currentOwnerAccountId ?? string.Empty;
+        }
+
+        public string RoomId { get; }
+        public long PreviousRevision { get; }
+        public long CurrentRevision { get; }
+        public IReadOnlyList<string> JoinedAccountIds { get; }
+        public IReadOnlyList<string> LeftAccountIds { get; }
+        public string PreviousOwnerAccountId { get; }
+        public string CurrentOwnerAccountId { get; }
+        public bool OwnerChanged => !string.Equals(
+            PreviousOwnerAccountId,
+            CurrentOwnerAccountId,
+            StringComparison.Ordinal);
+
+        internal bool HasChanges =>
+            JoinedAccountIds.Count > 0 ||
+            LeftAccountIds.Count > 0 ||
+            OwnerChanged;
     }
 
     /// <summary>
@@ -34,6 +76,8 @@ namespace AbilityKit.Game.Battle.Agent
         /// 快照变更事件（仅在真正应用新 revision 时触发；重复/旧 revision 不触发）。
         /// </summary>
         public event Action<ClientRoomSnapshot> OnSnapshotChanged;
+
+        public event Action<ClientRoomMembershipChange> OnMembershipChanged;
 
         /// <summary>
         /// 当前最新快照（或 null）。
@@ -79,6 +123,7 @@ namespace AbilityKit.Game.Battle.Agent
             }
 
             ClientRoomSnapshot toPublish = null;
+            ClientRoomMembershipChange membershipChange = null;
 
             lock (_gate)
             {
@@ -124,17 +169,88 @@ namespace AbilityKit.Game.Battle.Agent
                     else
                     {
                         // 新 revision：检测 EventSequence 缺口。
+                        var previous = _current;
                         var expectedNext = _current.LastEventSequence + 1L;
                         _stale = snapshot.LastEventSequence > expectedNext;
                         _current = snapshot;
                         toPublish = snapshot;
+                        if (sameRoom && HasPotentialMembershipChange(previous, snapshot))
+                        {
+                            membershipChange = BuildMembershipChange(previous, snapshot);
+                        }
                     }
                 }
             }
 
             // 在锁外触发事件，避免回调内再次进入 store 造成死锁。
             OnSnapshotChanged?.Invoke(toPublish);
+            if (membershipChange?.HasChanges == true)
+            {
+                OnMembershipChanged?.Invoke(membershipChange);
+            }
             return ClientRoomSnapshotApplyResult.Applied;
+        }
+
+        private static ClientRoomMembershipChange BuildMembershipChange(
+            ClientRoomSnapshot previous,
+            ClientRoomSnapshot current)
+        {
+            return new ClientRoomMembershipChange(
+                current.RoomId,
+                previous.RoomRevision,
+                current.RoomRevision,
+                BuildDifference(current.Members, previous.Members),
+                BuildDifference(previous.Members, current.Members),
+                previous.OwnerAccountId,
+                current.OwnerAccountId);
+        }
+
+        private static bool HasPotentialMembershipChange(
+            ClientRoomSnapshot previous,
+            ClientRoomSnapshot current)
+        {
+            if (!string.Equals(
+                    previous.OwnerAccountId,
+                    current.OwnerAccountId,
+                    StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            var previousMembers = previous.Members ?? Array.Empty<string>();
+            var currentMembers = current.Members ?? Array.Empty<string>();
+            if (previousMembers.Count != currentMembers.Count) return true;
+            for (var i = 0; i < previousMembers.Count; i++)
+            {
+                if (!string.Equals(previousMembers[i], currentMembers[i], StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static IReadOnlyList<string> BuildDifference(
+            IReadOnlyList<string> source,
+            IReadOnlyList<string> excluded)
+        {
+            source ??= Array.Empty<string>();
+            excluded ??= Array.Empty<string>();
+
+            var excludedSet = new HashSet<string>(excluded, StringComparer.Ordinal);
+            var added = new HashSet<string>(StringComparer.Ordinal);
+            var result = new List<string>();
+            for (var i = 0; i < source.Count; i++)
+            {
+                var accountId = source[i];
+                if (!excludedSet.Contains(accountId) && added.Add(accountId))
+                {
+                    result.Add(accountId);
+                }
+            }
+
+            return result.Count == 0 ? Array.Empty<string>() : result;
         }
 
         /// <summary>

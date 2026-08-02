@@ -16,7 +16,11 @@ namespace AbilityKit.Game.Flow
             if (meta.Kind != BattleEntityKind.Summon) return 0;
 
             int modelId = ResolveFromSummonConfig(configs, meta.EntityCode);
-            return modelId > 0 ? modelId : BattleViewPlaceholderIds.CharacterModel;
+            return modelId > 0
+                ? modelId
+                : BattleViewFallbackPolicy.DevelopmentOnly(
+                    BattleViewPlaceholderIds.CharacterModel,
+                    "summon:" + meta.EntityCode);
         }
 
         private static int ResolveFromSummonConfig(MobaConfigDatabase configs, int entityCode)
@@ -51,7 +55,11 @@ namespace AbilityKit.Game.Flow
 
             // TODO: Replace with configs.TryGetTurret(meta.EntityCode, out var turret) once available.
             int modelId = ResolveFromConfig(configs, meta.EntityCode);
-            return modelId > 0 ? modelId : BattleViewPlaceholderIds.TurretModel;
+            return modelId > 0
+                ? modelId
+                : BattleViewFallbackPolicy.DevelopmentOnly(
+                    BattleViewPlaceholderIds.TurretModel,
+                    "turret:" + meta.EntityCode);
         }
 
         private static int ResolveFromConfig(MobaConfigDatabase configs, int entityCode)
@@ -74,7 +82,11 @@ namespace AbilityKit.Game.Flow
             if (meta.Kind != BattleEntityKind.Monster) return 0;
 
             int modelId = ResolveFromConfig(configs, meta.EntityCode);
-            return modelId > 0 ? modelId : BattleViewPlaceholderIds.MonsterModel;
+            return modelId > 0
+                ? modelId
+                : BattleViewFallbackPolicy.DevelopmentOnly(
+                    BattleViewPlaceholderIds.MonsterModel,
+                    "monster:" + meta.EntityCode);
         }
 
         private static int ResolveFromConfig(MobaConfigDatabase configs, int entityCode)
@@ -97,7 +109,11 @@ namespace AbilityKit.Game.Flow
             if (meta.Kind != BattleEntityKind.Building) return 0;
 
             int modelId = ResolveFromConfig(configs, meta.EntityCode);
-            return modelId > 0 ? modelId : BattleViewPlaceholderIds.BuildingModel;
+            return modelId > 0
+                ? modelId
+                : BattleViewFallbackPolicy.DevelopmentOnly(
+                    BattleViewPlaceholderIds.BuildingModel,
+                    "building:" + meta.EntityCode);
         }
 
         private static int ResolveFromConfig(MobaConfigDatabase configs, int entityCode)

@@ -9,6 +9,61 @@ namespace AbilityKit.Demo.Shooter.Runtime.Tests;
 public sealed class ShooterRoomGatewayRoomClientTests
 {
     [Fact]
+    public async Task RoomGatewayRoomClientCanCancelLoading()
+    {
+        var transport = new RecordingShooterRoomFlowTransport();
+        using var roomClient = new ShooterRoomGatewayRoomClient(transport);
+        transport.SetResponse(new WireRoomOperationRes
+        {
+            Success = true,
+            Applied = true,
+            RoomRevision = 12L,
+            Message = "cancelled"
+        });
+
+        var result = await roomClient.CancelLoadingAsync(
+            new ShooterGatewayCancelLoadingRequest("session-token", "room-1", 11L, "cancel-1"));
+
+        Assert.Equal(RoomGatewayOpCodes.CancelLoading, transport.LastOpCode);
+        var wire = WireRoomGatewayBinary.Deserialize<WireCancelLoadingReq>(transport.LastPayload);
+        Assert.Equal("session-token", wire.SessionToken);
+        Assert.Equal("room-1", wire.RoomId);
+        Assert.Equal(11L, wire.ExpectedRevision);
+        Assert.Equal("cancel-1", wire.CommandId);
+        Assert.True(result.Success);
+        Assert.True(result.Applied);
+        Assert.Equal(12L, result.RoomRevision);
+    }
+
+    [Fact]
+    public async Task RoomGatewayRoomClientCanLeaveAuthoritativeRoom()
+    {
+        var transport = new RecordingShooterRoomFlowTransport();
+        var roomClient = new ShooterRoomGatewayRoomClient(transport);
+        transport.SetResponse(new WireRoomOperationRes
+        {
+            Success = true,
+            Applied = true,
+            RoomRevision = 8L,
+            Message = "left"
+        });
+
+        var result = await roomClient.LeaveRoomAsync(
+            new ShooterGatewayLeaveRoomRequest("session-token", "room-1", 7L, "leave-1"));
+
+        Assert.Equal(RoomGatewayOpCodes.LeaveRoom, transport.LastOpCode);
+        var wire = WireRoomGatewayBinary.Deserialize<WireLeaveRoomReq>(transport.LastPayload);
+        Assert.Equal("session-token", wire.SessionToken);
+        Assert.Equal("room-1", wire.RoomId);
+        Assert.Equal(7L, wire.ExpectedRevision);
+        Assert.Equal("leave-1", wire.CommandId);
+        Assert.True(result.Success);
+        Assert.True(result.Applied);
+        Assert.Equal(8L, result.RoomRevision);
+        Assert.Equal("left", result.Message);
+    }
+
+    [Fact]
     public async Task RoomGatewayRoomClientUsesGenericRoomLifecycleProtocol()
     {
         var transport = new RecordingShooterRoomFlowTransport();

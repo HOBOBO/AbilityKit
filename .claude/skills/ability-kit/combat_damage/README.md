@@ -1,4 +1,5 @@
 # combat.damage — 伤害类型与处理器
+> v0.1.0 Beta -- AbilityKitStable=true, has direct src tests, zero hard errors.
 
 包 `com.abilitykit.combat.damage`。轻量包（4 个 .cs 文件），定义伤害类型枚举、数据结构、计算上下文和处理器链。
 

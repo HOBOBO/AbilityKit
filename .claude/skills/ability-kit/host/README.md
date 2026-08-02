@@ -1,4 +1,5 @@
 # Host / WorldBlueprints 接入与排查
+> v0.1.0 Beta -- AbilityKitStable=true, has direct src tests, zero hard errors.
 
 > WorldBlueprint 机制**存在且健康**，但拆分到 4 个包，注册流程代码已与旧 skill 描述完全不同。旧 `LogicWorldServer` 实际只是示例 `LogicWorldServerExample`。
 

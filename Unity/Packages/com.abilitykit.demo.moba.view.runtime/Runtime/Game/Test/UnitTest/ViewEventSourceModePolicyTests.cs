@@ -1,4 +1,5 @@
 using AbilityKit.Game.Flow;
+using AbilityKit.Game.Flow.Battle.ViewEvents;
 using NUnit.Framework;
 
 namespace AbilityKit.Game.Test.UnitTest
@@ -33,6 +34,15 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(policy.ShouldUseSnapshotAdapter(BattleViewEventSourceMode.SnapshotOnly));
             Assert.IsFalse(policy.ShouldUseSnapshotAdapter(BattleViewEventSourceMode.TriggerOnly));
             Assert.IsTrue(policy.ShouldUseSnapshotAdapter(BattleViewEventSourceMode.Hybrid));
+        }
+
+        [Test]
+        public void HybridDamagePresentation_HasExactlyOneTransientOwner()
+        {
+            Assert.IsFalse(BattleDamagePresentationSourcePolicy.ShouldPresentTrigger(BattleViewEventSourceMode.Hybrid));
+            Assert.IsTrue(BattleDamagePresentationSourcePolicy.ShouldPresentSnapshot(BattleViewEventSourceMode.Hybrid));
+            Assert.IsTrue(BattleDamagePresentationSourcePolicy.ShouldPresentSnapshot(BattleViewEventSourceMode.SnapshotOnly));
+            Assert.IsFalse(BattleDamagePresentationSourcePolicy.ShouldPresentTrigger(BattleViewEventSourceMode.SnapshotOnly));
         }
     }
 }

@@ -10,6 +10,7 @@ using AbilityKit.Game.View.Modules;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Demo.Common.Rooms;
 
 namespace AbilityKit.Game
 {
@@ -39,6 +40,7 @@ namespace AbilityKit.Game
         IMultiplayerGatewayRuntime
     {
         private readonly BattleGatewayConfigSO _config;
+        private readonly DemoMultiplayerLaunchRequest _launchRequest;
         private ConnectionManager _connection;
         private DedicatedThreadDispatcher _ioDispatcher;
         private CancellationTokenSource _lifetime;
@@ -58,9 +60,12 @@ namespace AbilityKit.Game
             _connection != null ? _connection.State : ConnectionState.Disconnected;
         public MultiplayerRecoveryState RecoveryState { get; private set; }
 
-        public MultiplayerGatewayEntryModule(BattleGatewayConfigSO config)
+        public MultiplayerGatewayEntryModule(
+            BattleGatewayConfigSO config,
+            DemoMultiplayerLaunchRequest launchRequest = null)
         {
             _config = config;
+            _launchRequest = launchRequest;
         }
 
         public string Id => "game.entry.multiplayer-gateway";
@@ -72,7 +77,7 @@ namespace AbilityKit.Game
                 return;
             }
 
-            ValidateConfig(_config);
+            ValidateConfig(_config, _launchRequest);
 
             _lifetime = new CancellationTokenSource();
             _ioDispatcher = new DedicatedThreadDispatcher("LobbyGatewayNetworkThread");
@@ -96,10 +101,13 @@ namespace AbilityKit.Game
             _store = new ClientRoomStore();
             _client = new GatewayRoomClient(
                 _connection,
-                new GatewayRoomOpCodes(_config.CreateRoomOpCode, _config.JoinRoomOpCode));
+                GatewayRoomOpCodes.Default);
             _session = new GatewayMultiplayerRoomSession(_client, _store);
             _snapshotProvider = new ClientRoomSnapshotProvider(_store);
-            _assetLoader = new MultiplayerBattleAssetLoader(ResourcesBattleAssetLoadService.Default);
+            _assetLoader = new MultiplayerBattleAssetLoader(
+                ResourcesBattleAssetLoadService.Default,
+                dependencyProvider: ResourcesBattleAssetDependencyProvider.Default,
+                mainThreadDispatcher: callbackDispatcher);
             _controller = new MultiplayerRoomFlowController(_session, _snapshotProvider, _assetLoader);
             _pushSynchronizer = new ClientRoomPushSynchronizer(
                 _client,
@@ -120,12 +128,17 @@ namespace AbilityKit.Game
             }
 
             ctx.Root.WithRef(_config);
+            if (_launchRequest != null)
+            {
+                ctx.Root.WithRef(_launchRequest);
+            }
             ctx.Root.WithRef(_store);
             ctx.Root.WithRef<IGatewayRoomClient>(_client);
             ctx.Root.WithRef<IMultiplayerRoomSession>(_session);
             ctx.Root.WithRef(_session);
             ctx.Root.WithRef<IRoomSnapshotProvider>(_snapshotProvider);
             ctx.Root.WithRef(_controller);
+            ctx.Root.WithRef<IBattleAssetLeaseTransferSource>(_assetLoader);
             ctx.Root.WithRef<IMultiplayerGatewayRuntime>(this);
             ApplyEntrySelection();
         }
@@ -161,6 +174,7 @@ namespace AbilityKit.Game
             if (ctx.Root.IsValid)
             {
                 ctx.Root.RemoveComponent(typeof(IMultiplayerGatewayRuntime));
+                ctx.Root.RemoveComponent(typeof(IBattleAssetLeaseTransferSource));
                 ctx.Root.RemoveComponent(typeof(MultiplayerRoomFlowController));
                 ctx.Root.RemoveComponent(typeof(IRoomSnapshotProvider));
                 ctx.Root.RemoveComponent(typeof(GatewayMultiplayerRoomSession));
@@ -168,6 +182,7 @@ namespace AbilityKit.Game
                 ctx.Root.RemoveComponent(typeof(IGatewayRoomClient));
                 ctx.Root.RemoveComponent(typeof(ClientRoomStore));
                 ctx.Root.RemoveComponent(typeof(BattleGatewayConfigSO));
+                ctx.Root.RemoveComponent(typeof(DemoMultiplayerLaunchRequest));
             }
 
             _controller?.Dispose();
@@ -315,7 +330,7 @@ namespace AbilityKit.Game
             {
                 if (_connection.State == ConnectionState.Disconnected)
                 {
-                    _connection.Open(_config.Host, _config.Port);
+                    _connection.Open(EffectiveHost(), EffectivePort());
                 }
 
                 return;
@@ -365,17 +380,44 @@ namespace AbilityKit.Game
             return _session.RefreshSnapshotAsync(roomId, cancellationToken);
         }
 
-        private static void ValidateConfig(BattleGatewayConfigSO config)
+        private static void ValidateConfig(
+            BattleGatewayConfigSO config,
+            DemoMultiplayerLaunchRequest launchRequest)
         {
-            if (string.IsNullOrWhiteSpace(config.Host))
+            if (!config.TryValidateFormalLobby(out var error))
             {
-                throw new InvalidOperationException("Lobby Gateway Host is required.");
+                throw new InvalidOperationException(error);
             }
 
-            if (config.Port <= 0 || config.Port > 65535)
+            var host = launchRequest != null && !string.IsNullOrWhiteSpace(launchRequest.Host)
+                ? launchRequest.Host
+                : config.Host;
+            if (string.IsNullOrWhiteSpace(host))
             {
-                throw new InvalidOperationException("Lobby Gateway Port must be between 1 and 65535.");
+                throw new InvalidOperationException("Effective Gateway host is required.");
             }
+
+            var port = launchRequest != null && launchRequest.Port > 0
+                ? launchRequest.Port
+                : config.Port;
+            if (port <= 0 || port > 65535)
+            {
+                throw new InvalidOperationException("Effective Gateway port must be between 1 and 65535.");
+            }
+        }
+
+        private string EffectiveHost()
+        {
+            return _launchRequest != null && !string.IsNullOrWhiteSpace(_launchRequest.Host)
+                ? _launchRequest.Host
+                : _config.Host;
+        }
+
+        private int EffectivePort()
+        {
+            return _launchRequest != null && _launchRequest.Port > 0
+                ? _launchRequest.Port
+                : _config.Port;
         }
     }
 }

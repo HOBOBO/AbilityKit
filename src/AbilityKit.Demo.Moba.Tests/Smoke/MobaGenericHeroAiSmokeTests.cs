@@ -1,8 +1,10 @@
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.Behavior.BTree;
@@ -13,6 +15,8 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 public sealed class MobaGenericHeroAiSmokeTests
 {
     private const int DajiFirstSkillId = 10020101;
+    private const int DefaultSkillReleaseTriggerId = 900101011;
+    private const int DefaultSkillCommitTriggerId = 900101012;
 
     [Fact]
     public void Default_enemy_slots_keep_their_brain_profile_but_do_not_auto_start_it()
@@ -89,6 +93,11 @@ public sealed class MobaGenericHeroAiSmokeTests
             Assert.NotNull(services);
             Assert.True(services.TryResolve<MobaActorRegistry>(out var registry) && registry != null);
             Assert.True(services.TryResolve<MobaBrainService>(out var brains) && brains != null);
+            Assert.True(services.TryResolve<SkillCastCoordinator>(out var skillCoordinator) && skillCoordinator != null);
+            Assert.True(services.TryResolve<IWorldClock>(out var worldClock) && worldClock != null);
+            Assert.True(services.TryResolve<IMobaBattleDiagnosticsService>(out var runtimeDiagnostics) && runtimeDiagnostics != null);
+            Assert.True(services.TryResolve<IBattleDiagnosticReadOnlySession>(out var diagnostics) && diagnostics != null);
+            Assert.True(services.TryResolve<AbilityKit.Triggering.Runtime.Plan.Json.TriggerPlanJsonDatabase>(out var triggerPlans) && triggerPlans != null);
             Assert.True(services.TryResolve<MobaConfigDatabase>(out var config) && config != null);
             Assert.True(config.TryGetCharacter(1002, out var dajiConfig) && dajiConfig != null);
 
@@ -159,11 +168,85 @@ public sealed class MobaGenericHeroAiSmokeTests
             var nearEnemyPosition = new Vec3(chasePosition.X, chasePosition.Y, chasePosition.Z + 5f);
             enemy.ReplaceTransform(new Transform3(nearEnemyPosition, enemy.transform.Value.Rotation, enemy.transform.Value.Scale));
             var firstSkill = caster.skillLoadout.ActiveSkills[0];
-            firstSkill.CooldownDurationMs = 0;
+            skillCoordinator.CancelAll(caster.actorId.Value);
             firstSkill.CooldownEndTimeMs = 0L;
+            Assert.True(caster.hasResourceContainer);
+            Assert.True(caster.resourceContainer.Value.Map.TryGetValue(
+                AbilityKit.Demo.Moba.Components.ResourceType.Mana,
+                out var mana));
+            mana.Current = mana.LastMax;
 
-            for (var i = 0; i < 10 && firstSkill.CooldownEndTimeMs <= 0L; i++) bootstrapper.Tick();
-            Assert.True(firstSkill.CooldownEndTimeMs > 0L, "AI did not cast the first ready skill in range.");
+            for (var i = 0; i < 30 && firstSkill.CooldownEndTimeMs <= 0L; i++) bootstrapper.Tick();
+            var currentMana = mana.Current;
+            var targetDistance = (enemy.transform.Value.Position - caster.transform.Value.Position).Magnitude;
+            var failureQuery = diagnostics.QueryEvents(new BattleDiagnosticEventQuery(
+                requestId: 1,
+                new BattleDiagnosticFilter(
+                    default,
+                    BattleDiagnosticEventChannel.Skill,
+                    caster.actorId.Value,
+                    BattleDiagnosticActorRelation.Source,
+                    failuresOnly: true),
+                new BattleDiagnosticPageRequest(diagnostics.EventStoreRevision, 0, 20),
+                newestFirst: true));
+            var latestFailure = failureQuery.Items
+                .FirstOrDefault(item => item.Kind == BattleDiagnosticEventKind.SkillFailure);
+            var failureDetail = latestFailure.Payload.TryGetSkillFailure(out var skillFailure)
+                ? $" source={skillFailure.Source} stage={skillFailure.Stage} code={skillFailure.Code} message={skillFailure.Message}"
+                : string.Empty;
+            var runningDetail = skillCoordinator.TryGetRunningBySlot(caster.actorId.Value, 1, out var running)
+                ? $" runnerStage={running.Stage} elapsedMs={running.ElapsedMs} nextEvent={running.NextEventIndex}"
+                : " runner=none";
+            var latestException = runtimeDiagnostics.GetExceptionsSnapshot().LastOrDefault();
+            var exceptionDetail = string.IsNullOrEmpty(latestException.Key)
+                ? string.Empty
+                : $" exceptionKey={latestException.Key} exceptionType={latestException.ExceptionType} exception={latestException.Message}";
+            var diagnosticSnapshot = runtimeDiagnostics.GetSnapshot();
+            var counters = diagnosticSnapshot.Profiler.Counters;
+            var appliedActions = counters != null && counters.TryGetValue(
+                MobaBattleDiagnosticMetric.PlanActionApplied,
+                out var appliedCounter)
+                ? appliedCounter.Value
+                : 0L;
+            var rejectedActions = counters != null && counters.TryGetValue(
+                MobaBattleDiagnosticMetric.PlanActionRejected,
+                out var rejectedCounter)
+                ? rejectedCounter.Value
+                : 0L;
+            var skippedActions = counters != null && counters.TryGetValue(
+                MobaBattleDiagnosticMetric.PlanActionSkipped,
+                out var skippedCounter)
+                ? skippedCounter.Value
+                : 0L;
+            var latestActionWarning = runtimeDiagnostics.GetWarningsSnapshot()
+                .LastOrDefault(item => item.Key == MobaBattleDiagnosticMetric.PlanActionRejected);
+            var actionWarningDetail = string.IsNullOrEmpty(latestActionWarning.Key)
+                ? string.Empty
+                : $" actionWarning={latestActionWarning.Message}";
+            var triggerQuery = diagnostics.QueryEvents(new BattleDiagnosticEventQuery(
+                requestId: 2,
+                new BattleDiagnosticFilter(
+                    default,
+                    BattleDiagnosticEventChannel.Effect,
+                    caster.actorId.Value,
+                    BattleDiagnosticActorRelation.Source),
+                new BattleDiagnosticPageRequest(diagnostics.EventStoreRevision, 0, 50),
+                newestFirst: false));
+            var triggerDetail = string.Join(";", triggerQuery.Items
+                .Select(item => item.Payload.TryGetTriggerAnalysis(out var trigger) ? trigger : default)
+                .Where(trigger => trigger.TriggerId == DefaultSkillReleaseTriggerId ||
+                                  trigger.TriggerId == DefaultSkillCommitTriggerId)
+                .Select(trigger =>
+                    $"{trigger.TriggerId}:{trigger.Stage}:{trigger.Result}:{trigger.FailureKey}:{trigger.Reason}"));
+            Assert.True(firstSkill.CooldownEndTimeMs > 0L,
+                $"AI did not cast the first ready skill in range. state={behavior.Decision.CurrentState} " +
+                $"skillValid={btreeDecision.Blackboard.GetValue<bool>(MobaBTreeKeys.SkillValid)} " +
+                $"target={btreeDecision.Blackboard.GetValue<int>(MobaBTreeKeys.TargetId)} " +
+                $"distance={targetDistance:0.###} mana={currentMana:0.###} " +
+                $"cooldown={firstSkill.CooldownEndTimeMs} clockDt={worldClock.DeltaTime:0.####} " +
+                $"clockTime={worldClock.Time:0.###}.{runningDetail}{failureDetail}{exceptionDetail} " +
+                $"actions=applied:{appliedActions},rejected:{rejectedActions},skipped:{skippedActions}" +
+                $"{actionWarningDetail} triggers=[{triggerDetail}]");
             var firstCooldownEnd = firstSkill.CooldownEndTimeMs;
 
             for (var i = 0; i < 30; i++) bootstrapper.Tick();

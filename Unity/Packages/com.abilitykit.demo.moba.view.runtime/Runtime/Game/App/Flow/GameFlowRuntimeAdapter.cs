@@ -51,7 +51,12 @@ namespace AbilityKit.Game.Flow
                 _entity = entity;
             }
 
-            public void AttachFeature(object feature) => _entity.WithRef((object)feature);
+            public void AttachFeature(object feature)
+            {
+                if (feature == null) throw new ArgumentNullException(nameof(feature));
+                _entity.WithRef(feature.GetType(), feature);
+            }
+
             public void DetachFeature(object feature) => _entity.RemoveComponent(feature.GetType());
         }
 

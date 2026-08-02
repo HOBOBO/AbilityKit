@@ -1138,6 +1138,11 @@
               "ConstValue": 1.0,
               "Scale": 1.0
             },
+            "pass_through_walls": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
             "priority": {
               "Kind": "Const",
               "ConstValue": 20.0,

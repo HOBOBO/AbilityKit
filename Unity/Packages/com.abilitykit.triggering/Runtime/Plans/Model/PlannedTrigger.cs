@@ -110,7 +110,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                         _actionExecutor.Execute(in args, in ctx, i);
                     }
 
-                    if (ctx.Control != null && ctx.Control.IsHardStopped)
+                    if (ctx.Control != null && ctx.Control.IsPlanStopped)
                     {
                         return;
                     }
@@ -169,7 +169,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 {
                     _actionExecutor.Execute(in args, in ctx, i);
 
-                    if (ctx.Control != null && ctx.Control.IsHardStopped) return;
+                    if (ctx.Control != null && ctx.Control.IsPlanStopped) return;
                 }
             }
             finally

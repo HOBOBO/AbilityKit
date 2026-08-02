@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using AbilityKit.Ability.Config;
 using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
@@ -19,11 +20,23 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 
         public static bool TryLoad(string treeName, out string json)
         {
+            return TryLoad(null, treeName, out json);
+        }
+
+        public static bool TryLoad(ITextAssetLoader loader, string treeName, out string json)
+        {
             json = null;
             if (string.IsNullOrWhiteSpace(treeName)) return false;
 
             if (s_cache.TryGetValue(treeName, out json))
             {
+                return true;
+            }
+
+            var resourcePath = $"moba/bt/{treeName}";
+            if (loader != null && loader.TryLoadText(resourcePath, out json) && !string.IsNullOrWhiteSpace(json))
+            {
+                s_cache[treeName] = json;
                 return true;
             }
 

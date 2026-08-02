@@ -13,24 +13,24 @@ namespace AbilityKit.Orleans.Grains.Gameplays.Shooter.Battle;
 internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
 {
     private readonly ServerBattleWorldManager _worldManager;
-    private readonly ShooterStateSyncPushOptions _stateSyncPushOptions;
+    private readonly ShooterStateSyncPushOptions? _stateSyncPushOptionsOverride;
 
     public ShooterBattleRuntimeAdapter(ServerBattleWorldManager worldManager)
-        : this(worldManager, ShooterStateSyncPushOptions.FromEnvironmentDefault())
+        : this(worldManager, null)
     {
     }
 
-    internal ShooterBattleRuntimeAdapter(ServerBattleWorldManager worldManager, ShooterStateSyncPushOptions stateSyncPushOptions)
+    internal ShooterBattleRuntimeAdapter(ServerBattleWorldManager worldManager, ShooterStateSyncPushOptions? stateSyncPushOptions)
     {
         _worldManager = worldManager ?? throw new ArgumentNullException(nameof(worldManager));
-        _stateSyncPushOptions = stateSyncPushOptions ?? ShooterStateSyncPushOptions.PackedDefault;
+        _stateSyncPushOptionsOverride = stateSyncPushOptions;
     }
 
     public string RoomType => ShooterGameplay.RoomType;
 
     public IBattleRuntimeSession CreateSession(string battleId)
     {
-        return new ShooterBattleRuntimeSession(battleId, _worldManager, _stateSyncPushOptions);
+        return new ShooterBattleRuntimeSession(battleId, _worldManager, _stateSyncPushOptionsOverride);
     }
 
     internal static ShooterStateSnapshotPayload WithoutLegacyEvents(ShooterStateSnapshotPayload snapshot)
@@ -43,7 +43,8 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
     {
         private readonly string _battleId;
         private readonly ServerBattleWorldManager _worldManager;
-        private readonly ShooterStateSyncPushOptions _stateSyncPushOptions;
+        private readonly ShooterStateSyncPushOptions? _stateSyncPushOptionsOverride;
+        private ShooterStateSyncPushOptions _stateSyncPushOptions = ShooterStateSyncPushOptions.PackedDefault;
         private IWorld? _battleWorld;
         private IShooterBattleRuntimePort? _runtime;
         private ShooterBattleDriverHost? _driverHost;
@@ -56,11 +57,11 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
         public ShooterBattleRuntimeSession(
             string battleId,
             ServerBattleWorldManager worldManager,
-            ShooterStateSyncPushOptions stateSyncPushOptions)
+            ShooterStateSyncPushOptions? stateSyncPushOptions)
         {
             _battleId = battleId ?? string.Empty;
             _worldManager = worldManager ?? throw new ArgumentNullException(nameof(worldManager));
-            _stateSyncPushOptions = stateSyncPushOptions ?? ShooterStateSyncPushOptions.PackedDefault;
+            _stateSyncPushOptionsOverride = stateSyncPushOptions;
         }
 
         public BattleRuntimeStartResult Start(BattleInitParams initParams)
@@ -69,6 +70,8 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             {
                 return BattleRuntimeStartResult.Fail("Battle init params are missing.");
             }
+
+            _stateSyncPushOptions = ResolveStateSyncPushOptions(initParams);
 
             _worldId = initParams.WorldId;
             _battleWorld = _worldManager.CreateBattleWorld(
@@ -109,6 +112,22 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             _driverHost = new ShooterBattleDriverHost(_runtime);
             _driverHost.Start();
             return BattleRuntimeStartResult.Success();
+        }
+
+        private ShooterStateSyncPushOptions ResolveStateSyncPushOptions(BattleInitParams initParams)
+        {
+            if (_stateSyncPushOptionsOverride != null)
+            {
+                return _stateSyncPushOptionsOverride;
+            }
+
+            if (ShooterStateSyncPushOptions.TryFromEnvironment(out var environmentOverride))
+            {
+                return environmentOverride;
+            }
+
+            var policy = ShooterServerSyncTemplateCatalog.Resolve(initParams.SyncOptions?.SyncTemplateId);
+            return policy.CreatePushOptions(initParams.SyncOptions?.NetworkEnvironmentId);
         }
 
         private static void ConfigureShooterWorldOptions(
@@ -536,7 +555,8 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
 
         public StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot, in BattleStateSyncObserverContext observerContext)
         {
-            if (_stateSyncPushOptions.PayloadMode != ShooterStateSyncPushPayloadMode.PureState)
+            if (_stateSyncPushOptions.PayloadMode != ShooterStateSyncPushPayloadMode.PureState
+                || !_stateSyncPushOptions.UseObserverAoi)
             {
                 return CreateStateSyncPush(worldId, frame, isFullSnapshot);
             }

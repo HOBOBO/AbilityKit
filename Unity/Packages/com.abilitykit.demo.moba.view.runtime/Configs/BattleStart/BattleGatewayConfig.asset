@@ -15,15 +15,33 @@ MonoBehaviour:
   UseGatewayTransport: 1
   Host: 127.0.0.1
   Port: 4000
-  NumericRoomId: 0
-  SessionToken: 
+  RestoreFallbackPlayerId: 1
   Region: dev
   ServerId: local
-  AutoCreateRoom: 1
-  AutoJoinRoom: 1
-  JoinRoomId: 
-  CreateRoomOpCode: 101
-  JoinRoomOpCode: 102
+  RoomType: moba
+  RoomTitle: MOBA Room
+  MaxPlayers: 2
+  RoomListLimit: 10
+  GameplayId: 1
+  RuleSetId: 1
+  ConfigVersion: 1
+  ProtocolVersion: 1
+  WorldType: moba
+  ClientId: moba-client
+  RestoreRoomOnEntry: 1
+  AutoReadyDefaultLoadout: 1
+  AutoStartWhenReady: 1
+  DefaultHeroId: 1001
+  DefaultTeamId: 1
+  DefaultSpawnPointId: 0
+  DefaultHeroLevel: 1
+  DefaultAttributeTemplateId: 1001
+  DefaultBasicAttackSkillId: 10010001
+  DefaultSkillIds:
+  - 10010101
+  - 10010201
+  - 10010301
+  StarterSceneName: MultiplayerStarterScene
   TimeSyncOpCode: 1300
   TimeSyncIntervalMs: 1000
   TimeSyncAlpha: 0.2

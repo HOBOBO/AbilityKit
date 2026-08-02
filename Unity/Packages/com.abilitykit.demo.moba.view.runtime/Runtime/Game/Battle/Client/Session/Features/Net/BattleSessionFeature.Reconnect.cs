@@ -1,3 +1,4 @@
+using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Transport;
@@ -93,13 +94,27 @@ namespace AbilityKit.Game.Flow
             var reconcileControl = _ctx?.PredictionReconcileControl;
             if (reconcileControl != null)
             {
+                WorldId worldId;
                 if (_ctx.HasRuntimeWorldId)
                 {
-                    reconcileControl.ResetReconcile(_ctx.RuntimeWorldId);
+                    worldId = _ctx.RuntimeWorldId;
+                    reconcileControl.ResetReconcile(worldId);
                 }
                 else if (!string.IsNullOrWhiteSpace(_plan.World.WorldId))
                 {
-                    reconcileControl.ResetReconcile(new AbilityKit.Ability.World.Abstractions.WorldId(_plan.World.WorldId));
+                    worldId = new WorldId(_plan.World.WorldId);
+                    reconcileControl.ResetReconcile(worldId);
+                }
+                else
+                {
+                    worldId = default;
+                }
+
+                // 重连后重新启用对账——避免因 replay 超时（120 tick）导致 ReconcileEnabled
+                // 被永久禁用，使得后续静默状态分歧无法检测。
+                if (!string.IsNullOrWhiteSpace(worldId.Value))
+                {
+                    reconcileControl.SetReconcileEnabled(worldId, true);
                 }
             }
 

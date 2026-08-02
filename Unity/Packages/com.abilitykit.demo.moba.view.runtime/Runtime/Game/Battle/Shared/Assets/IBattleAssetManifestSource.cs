@@ -38,4 +38,14 @@ namespace AbilityKit.Game.Battle.Shared.Assets
         /// <summary>启动代际。</summary>
         long LaunchGeneration { get; }
     }
+
+    /// <summary>
+    /// Expands aggregate battle configuration into concrete presentation assets.
+    /// Implementations must return deterministic entries for the same source and
+    /// must not perform asynchronous loading.
+    /// </summary>
+    public interface IBattleAssetDependencyProvider
+    {
+        IReadOnlyList<BattleAssetEntry> ResolveDependencies(IBattleAssetManifestSource source);
+    }
 }

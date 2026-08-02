@@ -28,8 +28,15 @@ namespace AbilityKit.Game.Battle.Vfx
             var asset = ResourcesAssetProvider.Shared.Load<TextAsset>(path);
             if (asset == null) throw new InvalidOperationException($"Vfx json not found in Resources: {path}");
 
-            var json = asset.text;
-            if (string.IsNullOrEmpty(json)) throw new InvalidOperationException($"Vfx json is empty: {path}");
+            return LoadFromJson(asset.text, path);
+        }
+
+        public static VfxDatabase LoadFromJson(string json, string sourceName = null)
+        {
+            if (string.IsNullOrEmpty(json))
+            {
+                throw new InvalidOperationException($"Vfx json is empty: {sourceName ?? "<memory>"}");
+            }
 
             var arr = JsonConvert.DeserializeObject<VfxDTO[]>(json);
             var dict = new Dictionary<int, VfxDTO>();

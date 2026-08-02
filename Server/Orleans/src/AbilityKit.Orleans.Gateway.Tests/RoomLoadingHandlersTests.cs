@@ -70,6 +70,14 @@ public sealed class RoomLoadingHandlersTests
         Assert.Equal(GatewayStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact]
+    public async System.Threading.Tasks.Task LeaveRoomHandler_empty_payload_returns_bad_request()
+    {
+        var handler = new LeaveRoomHandler(clusterClient: null!, roomMembership: null!);
+        var response = await handler.HandleAsync(NewEmptyRequest(), NewContext(), default);
+        Assert.Equal(GatewayStatusCode.BadRequest, response.StatusCode);
+    }
+
     // ===== 入参校验：缺 session/room -> BadRequest（不触达 cluster） =====
 
     [Fact]
@@ -86,6 +94,15 @@ public sealed class RoomLoadingHandlersTests
     {
         var handler = new GetSnapshotHandler(clusterClient: null!);
         var req = new WireGetSnapshotReq { SessionToken = "session-1" };
+        var response = await handler.HandleAsync(NewRequest(req), NewContext(), default);
+        Assert.Equal(GatewayStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task LeaveRoomHandler_missing_session_returns_bad_request()
+    {
+        var handler = new LeaveRoomHandler(clusterClient: null!, roomMembership: null!);
+        var req = new WireLeaveRoomReq { RoomId = "room-1" };
         var response = await handler.HandleAsync(NewRequest(req), NewContext(), default);
         Assert.Equal(GatewayStatusCode.BadRequest, response.StatusCode);
     }

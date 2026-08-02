@@ -7,7 +7,7 @@ namespace AbilityKit.Core.Markers
 {
     /// <summary>
     /// Marker 系统引导类，提供统一的标记扫描入口。
-    /// 框架启动时调用 <see cref="ScanAll"/> 扫描所有注册的标记类型。
+    /// 框架启动时调用 <see cref="ScanAll()"/> 扫描所有注册的标记类型。
     /// </summary>
     /// <example>
     /// <code>

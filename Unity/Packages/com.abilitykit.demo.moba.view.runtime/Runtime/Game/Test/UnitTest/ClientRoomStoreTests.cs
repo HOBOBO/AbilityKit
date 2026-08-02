@@ -17,6 +17,17 @@ namespace AbilityKit.Game.Test.UnitTest
             };
         }
 
+        private static ClientRoomSnapshot NewMembershipSnapshot(
+            long revision,
+            string ownerAccountId,
+            params string[] members)
+        {
+            var snapshot = NewSnapshot(revision, revision);
+            snapshot.OwnerAccountId = ownerAccountId;
+            snapshot.Members = members;
+            return snapshot;
+        }
+
         [Test]
         public void FirstApply_SucceedsAndPublishes()
         {
@@ -143,6 +154,88 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.AreEqual(2, published.Count);
             Assert.AreEqual(2, published[1].RoomRevision);
+        }
+
+        [Test]
+        public void ApplyNewRevision_WhenMemberLeaves_PublishesMembershipChangeOnce()
+        {
+            var store = new ClientRoomStore();
+            var changes = new List<ClientRoomMembershipChange>();
+            store.OnMembershipChanged += change => changes.Add(change);
+            store.ApplySnapshot(NewMembershipSnapshot(1, "account-a", "account-a", "account-b"));
+
+            store.ApplySnapshot(NewMembershipSnapshot(2, "account-a", "account-a"));
+
+            Assert.AreEqual(1, changes.Count);
+            Assert.AreEqual("room-1", changes[0].RoomId);
+            Assert.AreEqual(1, changes[0].PreviousRevision);
+            Assert.AreEqual(2, changes[0].CurrentRevision);
+            CollectionAssert.AreEqual(new[] { "account-b" }, changes[0].LeftAccountIds);
+            CollectionAssert.IsEmpty(changes[0].JoinedAccountIds);
+            Assert.IsFalse(changes[0].OwnerChanged);
+        }
+
+        [Test]
+        public void ApplyNewRevision_WhenMemberJoinsAndOwnerChanges_PublishesOneCombinedChange()
+        {
+            var store = new ClientRoomStore();
+            ClientRoomMembershipChange published = null;
+            store.OnMembershipChanged += change => published = change;
+            store.ApplySnapshot(NewMembershipSnapshot(1, "account-a", "account-a"));
+
+            store.ApplySnapshot(NewMembershipSnapshot(2, "account-b", "account-a", "account-b"));
+
+            Assert.IsNotNull(published);
+            CollectionAssert.AreEqual(new[] { "account-b" }, published.JoinedAccountIds);
+            CollectionAssert.IsEmpty(published.LeftAccountIds);
+            Assert.AreEqual("account-a", published.PreviousOwnerAccountId);
+            Assert.AreEqual("account-b", published.CurrentOwnerAccountId);
+            Assert.IsTrue(published.OwnerChanged);
+        }
+
+        [Test]
+        public void FirstSnapshot_DoesNotPublishMembershipChange()
+        {
+            var store = new ClientRoomStore();
+            var published = 0;
+            store.OnMembershipChanged += _ => published++;
+
+            store.ApplySnapshot(NewMembershipSnapshot(1, "account-a", "account-a"));
+
+            Assert.AreEqual(0, published);
+        }
+
+        [Test]
+        public void DuplicateStaleAndMetadataCompletion_DoNotPublishMembershipChange()
+        {
+            var store = new ClientRoomStore();
+            var published = 0;
+            store.OnMembershipChanged += _ => published++;
+            store.ApplySnapshot(NewMembershipSnapshot(5, "account-a", "account-a"));
+
+            store.ApplySnapshot(NewMembershipSnapshot(5, "account-b", "account-b"));
+            store.ApplySnapshot(NewMembershipSnapshot(4, "account-b", "account-b"));
+            var metadataCompletion = NewMembershipSnapshot(5, "account-b", "account-b");
+            metadataCompletion.NumericRoomId = 9001UL;
+            store.ApplySnapshot(metadataCompletion);
+
+            Assert.AreEqual(0, published);
+        }
+
+        [Test]
+        public void SnapshotForDifferentRoom_DoesNotPublishMembershipChange()
+        {
+            var store = new ClientRoomStore();
+            var published = 0;
+            store.OnMembershipChanged += _ => published++;
+            store.ApplySnapshot(NewMembershipSnapshot(1, "account-a", "account-a"));
+            var otherRoom = NewMembershipSnapshot(2, "account-b", "account-b");
+            otherRoom.RoomId = "room-2";
+
+            var result = store.ApplySnapshot(otherRoom);
+
+            Assert.AreEqual(ClientRoomSnapshotApplyResult.Applied, result);
+            Assert.AreEqual(0, published);
         }
     }
 }

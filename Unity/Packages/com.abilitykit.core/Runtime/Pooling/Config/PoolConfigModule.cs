@@ -50,9 +50,9 @@ namespace AbilityKit.Core.Pooling
         /// 创建构建器，并可指定默认作用域、模块名、来源和优先级。
         /// </summary>
         public PoolConfigBuilder(
-            string defaultScopeName = null,
-            string moduleName = null,
-            string source = null,
+            string? defaultScopeName = null,
+            string? moduleName = null,
+            string? source = null,
             int priority = 0)
         {
             _defaultScopeName = string.IsNullOrEmpty(defaultScopeName) ? PoolRegistry.GlobalScopeName : defaultScopeName;

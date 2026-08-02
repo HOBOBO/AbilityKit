@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int SkillSlot;
         public int SkillLevel;
         public int CastFlowId;
+        public ResolvedSkillCastConfiguration ResolvedConfiguration;
 
         public int Sequence;
 
@@ -102,6 +103,7 @@ namespace AbilityKit.Demo.Moba.Services
             SkillSlot = skillSlot;
             SkillLevel = skillLevel;
             CastFlowId = 0;
+            ResolvedConfiguration = default;
             Sequence = sequence;
             RuntimeHandle = default;
             RuntimeId = 0L;
@@ -123,6 +125,7 @@ namespace AbilityKit.Demo.Moba.Services
             SkillSlot = 0;
             SkillLevel = 0;
             CastFlowId = 0;
+            ResolvedConfiguration = default;
             Sequence = 0;
             RuntimeHandle = default;
             RuntimeId = 0L;

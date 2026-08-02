@@ -20,6 +20,8 @@ namespace AbilityKit.Game.Flow
         /// <summary>是否已收到首帧（对应原 <c>_battleFirstFrameReceived</c>）。</summary>
         bool FirstFrameReceived { get; set; }
 
+        bool AssetsLoadCompleted { get; set; }
+
         /// <summary>把运行态清零。新 scope 实例本就为 false，此方法用于 Prepare-enter 的显式重置语义。</summary>
         void Reset();
     }
@@ -30,10 +32,13 @@ namespace AbilityKit.Game.Flow
 
         public bool FirstFrameReceived { get; set; }
 
+        public bool AssetsLoadCompleted { get; set; }
+
         public void Reset()
         {
             SessionStarted = false;
             FirstFrameReceived = false;
+            AssetsLoadCompleted = false;
         }
     }
 }

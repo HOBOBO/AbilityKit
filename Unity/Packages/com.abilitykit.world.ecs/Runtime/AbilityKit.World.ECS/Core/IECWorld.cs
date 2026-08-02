@@ -42,6 +42,8 @@ namespace AbilityKit.World.ECS
         /// <summary>设置引用类型组件（null表示移除）。</summary>
         void SetComponentRef<T>(IEntityId id, T component) where T : class;
 
+        void SetComponentRef(IEntityId id, Type componentType, object component);
+
         /// <summary>获取值类型组件（未找到时返回default）。</summary>
         T GetComponent<T>(IEntityId id) where T : struct;
 
@@ -59,6 +61,8 @@ namespace AbilityKit.World.ECS
 
         /// <summary>移除组件。</summary>
         bool RemoveComponent<T>(IEntityId id) where T : struct;
+
+        bool RemoveComponent(IEntityId id, Type componentType);
 
         // ============ 查询 ============
 

@@ -23,6 +23,7 @@ namespace AbilityKit.Game.Battle.Agent
         public readonly uint GetSnapshot;
         public readonly uint RestoreRoom;
         public readonly uint RoomStateChanged;
+        public readonly uint LeaveRoom;
 
         public GatewayRoomOpCodes(uint createRoom, uint joinRoom)
             : this(createRoom, joinRoom, StateSyncOpCodes.SubscribeStateSync, RoomOpCodes.SetReady, RoomOpCodes.PickHero, RoomOpCodes.StartBattle, RoomOpCodes.SubmitBattleInput)
@@ -97,6 +98,7 @@ namespace AbilityKit.Game.Battle.Agent
             GetSnapshot = getSnapshot;
             RestoreRoom = restoreRoom;
             RoomStateChanged = roomStateChanged;
+            LeaveRoom = RoomOpCodes.LeaveRoom;
         }
 
         /// <summary>

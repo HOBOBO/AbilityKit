@@ -6,6 +6,20 @@ using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
+    internal static class BattleDamagePresentationSourcePolicy
+    {
+        public static bool ShouldPresentTrigger(BattleViewEventSourceMode mode)
+        {
+            return mode == BattleViewEventSourceMode.TriggerOnly;
+        }
+
+        public static bool ShouldPresentSnapshot(BattleViewEventSourceMode mode)
+        {
+            return mode == BattleViewEventSourceMode.SnapshotOnly ||
+                   mode == BattleViewEventSourceMode.Hybrid;
+        }
+    }
+
     internal sealed class BattleDamageViewEventHandler
     {
         private readonly BattleDamageFloatingTextSpawner _floatingTexts;

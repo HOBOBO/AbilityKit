@@ -12,6 +12,14 @@ public sealed class ShooterSmokeClientProcessRunnerContractTests
         "Runtime", "Client", "ShooterClientBattleHandle.cs"));
 
     [Fact]
+    public void ClientProcessUsesFormalAccountLoginProtocol()
+    {
+        Assert.Contains("var accountId = $\"shooter-smoke-{options.ClientId}-{Guid.NewGuid():N}\";", Source, StringComparison.Ordinal);
+        Assert.Contains("ShooterSmokeScenarioBase.LoginAccountAsync(connection, accountId, kickExisting: true)", Source, StringComparison.Ordinal);
+        Assert.DoesNotContain("ShooterSmokeScenarioBase.LoginGuestAsync(connection)", Source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void FinalResultReusesSingleRuntimeStateSample()
     {
         Assert.Contains("var finalRuntimeFrame = runtime.CurrentFrame;", Source, StringComparison.Ordinal);

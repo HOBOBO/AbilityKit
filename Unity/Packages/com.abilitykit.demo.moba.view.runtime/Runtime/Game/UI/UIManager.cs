@@ -36,6 +36,11 @@ namespace AbilityKit.Game.UI
             _layerRoots[layer] = root;
         }
 
+        public bool TryGetLayerRoot(UILayer layer, out Transform root)
+        {
+            return _layerRoots.TryGetValue(layer, out root) && root != null;
+        }
+
         public void Register<T>(string key, string prefabPath, UILayer layer) where T : UIBase
         {
             if (string.IsNullOrEmpty(key)) throw new ArgumentException("UI key is required", nameof(key));
@@ -53,8 +58,22 @@ namespace AbilityKit.Game.UI
 
         public void RegisterPrefab<T>(string key, GameObject prefab, UILayer layer) where T : UIBase
         {
+            RegisterPrefab(key, prefab, typeof(T), layer);
+        }
+
+        public void RegisterPrefab(string key, GameObject prefab, Type uiType, UILayer layer)
+        {
             if (string.IsNullOrEmpty(key)) throw new ArgumentException("UI key is required", nameof(key));
             if (prefab == null) throw new ArgumentNullException(nameof(prefab));
+            if (uiType == null) throw new ArgumentNullException(nameof(uiType));
+            if (!typeof(UIBase).IsAssignableFrom(uiType))
+            {
+                throw new ArgumentException($"UI type must derive from {nameof(UIBase)}: {uiType.FullName}", nameof(uiType));
+            }
+            if (prefab.GetComponent(uiType) == null)
+            {
+                throw new ArgumentException($"UI prefab does not contain component {uiType.FullName}", nameof(prefab));
+            }
 
             _registry[key] = new UIReg
             {
@@ -62,7 +81,7 @@ namespace AbilityKit.Game.UI
                 Path = null,
                 Prefab = prefab,
                 Layer = layer,
-                UiType = typeof(T)
+                UiType = uiType
             };
         }
 

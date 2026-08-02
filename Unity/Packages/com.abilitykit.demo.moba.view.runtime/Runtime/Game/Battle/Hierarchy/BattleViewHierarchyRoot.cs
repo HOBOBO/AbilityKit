@@ -78,23 +78,35 @@ namespace AbilityKit.Game.Battle.Hierarchy
         /// </summary>
         public static BattleViewHierarchyRoot CreateOrFind(string displayName = null)
         {
-            var existing = FindAny();
+            var resolvedName = string.IsNullOrEmpty(displayName) ? "[Battle]" : displayName;
+            var existing = FindByName(resolvedName);
             if (existing != null)
             {
-                if (!string.IsNullOrEmpty(displayName) && existing.name != displayName)
-                {
-                    existing.name = displayName;
-                }
                 return existing;
             }
 
-            var go = new GameObject(string.IsNullOrEmpty(displayName) ? "[Battle]" : displayName);
+            var go = new GameObject(resolvedName);
             var root = go.AddComponent<BattleViewHierarchyRoot>();
             if (!string.IsNullOrEmpty(displayName))
             {
                 root._rootName = displayName;
             }
             return root;
+        }
+
+        private static BattleViewHierarchyRoot FindByName(string displayName)
+        {
+            var roots = Object.FindObjectsOfType<BattleViewHierarchyRoot>(true);
+            for (var i = 0; i < roots.Length; i++)
+            {
+                var root = roots[i];
+                if (root != null && string.Equals(root.name, displayName, System.StringComparison.Ordinal))
+                {
+                    return root;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

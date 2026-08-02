@@ -44,7 +44,7 @@ namespace AbilityKit.Game.Flow
 
             if (insertAt <= 0) return;
 
-            _samples.ShiftLeftAndAppend(in sample);
+            _samples.RemoveFirstAndInsertAt(insertAt, in sample);
         }
 
         public bool TryEvaluate(double time, out Vector3 pos)

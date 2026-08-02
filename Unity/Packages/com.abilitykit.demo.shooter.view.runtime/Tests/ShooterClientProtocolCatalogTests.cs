@@ -15,6 +15,7 @@ namespace AbilityKit.Demo.Shooter.View.Tests
             Assert.AreEqual(ShooterSyncTemplateIds.PredictRollbackAuthority, ShooterRoomLaunchSpec.DefaultSyncTemplateId);
             Assert.AreEqual(ShooterSyncTemplateIds.PredictRollbackAuthority, spec.SyncTemplateId);
             Assert.AreEqual((int)NetworkSyncModel.PredictRollback, spec.SyncModel);
+            Assert.AreEqual("1", spec.Tags[ShooterRoomLaunchTagKeys.MinPlayers]);
         }
 
         [Test]

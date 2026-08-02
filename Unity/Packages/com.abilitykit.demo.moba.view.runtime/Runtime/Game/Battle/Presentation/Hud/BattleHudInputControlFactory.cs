@@ -8,6 +8,17 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleHudInputControlFactory
     {
+        private static readonly Color TransparentInputColor =
+            new Color(0f, 0f, 0f, 0.001f);
+        private static readonly Color JoystickOuterColor =
+            new Color(0.04f, 0.07f, 0.1f, 0.72f);
+        private static readonly Color JoystickInnerColor =
+            new Color(0.08f, 0.68f, 0.82f, 0.9f);
+        private static readonly Color SkillButtonColor =
+            new Color(0.04f, 0.08f, 0.13f, 0.82f);
+        private static readonly Color InfoButtonColor =
+            new Color(0.05f, 0.09f, 0.14f, 0.78f);
+
         private readonly BattleHudImageElementFactory _images;
 
         public BattleHudInputControlFactory()
@@ -29,20 +40,20 @@ namespace AbilityKit.Game.Flow
                 Vector2.zero,
                 new Vector2(180f, 180f),
                 new Vector2(360f, 360f),
-                new Color(1f, 1f, 1f, 0.001f),
+                TransparentInputColor,
                 raycastTarget: true);
 
             var outerRt = CreateJoystickPart(
                 area.GameObject.transform,
                 "Outer",
                 new Vector2(220f, 220f),
-                new Color(1f, 1f, 1f, 0.15f),
+                JoystickOuterColor,
                 raycastTarget: true);
             var innerRt = CreateJoystickPart(
                 area.GameObject.transform,
                 "Inner",
                 new Vector2(90f, 90f),
-                new Color(1f, 1f, 1f, 0.25f),
+                JoystickInnerColor,
                 raycastTarget: false);
 
             var joystick = area.GameObject.AddComponent<JoystickAreaView>();
@@ -65,7 +76,7 @@ namespace AbilityKit.Game.Flow
                 new Vector2(1f, 0f),
                 anchoredPos,
                 new Vector2(110f, 110f),
-                new Color(1f, 1f, 1f, 0.2f),
+                SkillButtonColor,
                 raycastTarget: true);
 
             var cfg = SkillButtonConfig.Default;
@@ -90,7 +101,7 @@ namespace AbilityKit.Game.Flow
                 Vector2.one,
                 anchoredPos,
                 new Vector2(90f, 45f),
-                new Color(1f, 1f, 1f, 0.18f),
+                InfoButtonColor,
                 raycastTarget: true,
                 typeof(Button));
 

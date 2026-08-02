@@ -17,7 +17,7 @@ namespace AbilityKit.Game.Flow
                 return existing;
             }
 
-            var created = _factory.Create() ?? new BattlePresentationSessionFactory().Create();
+            var created = _factory.Create(ctx) ?? new BattlePresentationSessionFactory().Create(ctx);
             created.Retain();
             ctx.Features.Set(created);
 

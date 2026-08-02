@@ -187,6 +187,60 @@ public sealed class RoomBattleCommitTests
         Assert.Equal(RoomBattleCommitStatus.Committed, committed.State.BattleCommit.Status);
     }
 
+    [Fact]
+    public void ReportAssetsLoadedCommitResult_Committed_ReturnsAppliedAtFinalRevision()
+    {
+        var state = CreateStartingState() with
+        {
+            Phase = RoomPhase.InBattle,
+            Revision = 12,
+            BattleCommit = new RoomBattleCommitPersistentState(
+                1,
+                "room-1:1",
+                RoomBattleCommitStatus.Committed,
+                "hash-A",
+                "battle-1",
+                42,
+                new WorldStartAnchor(1000, 60, 0, 0.0166),
+                0,
+                null)
+        };
+
+        var result = RoomGrain.ResolveReportAssetsLoadedCommitResult(state);
+
+        Assert.True(result.Success);
+        Assert.True(result.Applied);
+        Assert.Equal(12, result.RoomRevision);
+    }
+
+    [Fact]
+    public void ReportAssetsLoadedCommitResult_RolledBack_ReturnsCommitFailure()
+    {
+        var state = CreateStartingState() with
+        {
+            Phase = RoomPhase.Lobby,
+            Revision = 13,
+            BattleCommit = new RoomBattleCommitPersistentState(
+                1,
+                null,
+                RoomBattleCommitStatus.Failed,
+                null,
+                null,
+                0,
+                null,
+                3,
+                "BattleInitException:missing runtime")
+        };
+
+        var result = RoomGrain.ResolveReportAssetsLoadedCommitResult(state);
+
+        Assert.False(result.Success);
+        Assert.False(result.Applied);
+        Assert.Equal(RoomOperationErrorCode.InvalidOperation, result.ErrorCode);
+        Assert.Contains("BattleInitException:missing runtime", result.Message);
+        Assert.Equal(13, result.RoomRevision);
+    }
+
     private static RoomPersistentState CreateStartingState()
     {
         var summary = new RoomSummary(

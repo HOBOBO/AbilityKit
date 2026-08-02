@@ -3,6 +3,7 @@ using AbilityKit.Protocol.Moba;
 using System;
 using System.IO;
 using UnityEngine;
+using RoomGatewayOpCodes = AbilityKit.Protocol.Room.RoomGatewayOpCodes;
 
 namespace AbilityKit.Game.Flow
 {
@@ -48,8 +49,8 @@ namespace AbilityKit.Game.Flow
                 throw new InvalidOperationException("GatewaySO is required when HostMode is GatewayRemote.");
             }
 
-            var numericRoomId = gateway != null ? gateway.NumericRoomId : 0;
-            var joinRoomId = gateway != null ? gateway.JoinRoomId : string.Empty;
+            var numericRoomId = 0UL;
+            var joinRoomId = string.Empty;
             if (overrides != null && overrides.HasNumericRoomId) numericRoomId = overrides.NumericRoomId;
             if (overrides != null && overrides.HasGatewayJoinRoomId) joinRoomId = overrides.GatewayJoinRoomId;
 
@@ -79,14 +80,14 @@ namespace AbilityKit.Game.Flow
                     host: gateway != null ? gateway.Host : "127.0.0.1",
                     port: gateway != null ? gateway.Port : 4000,
                     numericRoomId: numericRoomId,
-                    sessionToken: gateway != null ? gateway.SessionToken : string.Empty,
+                    sessionToken: string.Empty,
                     region: gateway != null ? gateway.Region : "dev",
                     serverId: gateway != null ? gateway.ServerId : "local",
-                    autoCreateRoom: gateway != null && gateway.AutoCreateRoom,
-                    autoJoinRoom: gateway != null && gateway.AutoJoinRoom,
+                    autoCreateRoom: false,
+                    autoJoinRoom: false,
                     joinRoomId: joinRoomId,
-                    createRoomOpCode: gateway != null ? gateway.CreateRoomOpCode : 110,
-                    joinRoomOpCode: gateway != null ? gateway.JoinRoomOpCode : 111)
+                    createRoomOpCode: RoomGatewayOpCodes.CreateRoom,
+                    joinRoomOpCode: RoomGatewayOpCodes.JoinRoom)
                 .WithAutoFlow(autoConnect, autoCreateWorld, autoJoin, autoReady)
                 .WithRunMode(
                     runMode: runMode,

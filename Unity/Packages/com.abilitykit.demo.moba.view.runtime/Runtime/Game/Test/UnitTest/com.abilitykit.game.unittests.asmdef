@@ -2,6 +2,7 @@
     "name": "AbilityKit.Game.UnitTests",
     "rootNamespace": "",
     "references": [
+        "AbilityKit.Demo.Common",
         "AbilityKit.Demo.Moba.View.Runtime",
         "AbilityKit.Demo.Moba.Runtime",
         "AbilityKit.Demo.Moba.Share",

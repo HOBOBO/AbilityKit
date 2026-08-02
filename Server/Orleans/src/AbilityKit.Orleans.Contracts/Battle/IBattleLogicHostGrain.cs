@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using AbilityKit.Orleans.Contracts.FrameSync;
 using Orleans;
 
 namespace AbilityKit.Orleans.Contracts.Battle;
@@ -76,6 +78,12 @@ public interface IBattleLogicHostGrain : IGrainWithStringKey
     /// 取消订阅状态同步观察者
     /// </summary>
     Task UnsubscribeAsync(IStateSyncObserverGrain observer);
+
+    /// <summary>
+    /// 由帧同步外部时钟驱动的单帧 Tick。仅在 <c>BattleWorldWithFrameSync</c> 模式下使用。
+    /// </summary>
+    Task<BattleTickFrameResult> TickFrameAsync(ulong worldId, int frame, float deltaTime,
+        IReadOnlyList<FrameInputItem> frameInputs);
 
     /// <summary>
     /// 销毁战斗世界
@@ -377,3 +385,12 @@ public class StateSyncPush
     /// </summary>
     [Id(11)] public string EventEpoch { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// 帧同步外部时钟 Tick 的结果。
+/// </summary>
+[GenerateSerializer]
+public sealed record BattleTickFrameResult(
+    [property: Id(0)] int Frame,
+    [property: Id(1)] bool WorldTicked,
+    [property: Id(2)] long StateHash);

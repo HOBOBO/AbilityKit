@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Ability.Host.Extensions.Time;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Configuration;
@@ -26,6 +27,8 @@ using AbilityKit.Game.Flow;
 using AbilityKit.Game.Flow.Battle.View;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.CreateWorld;
 using AbilityKit.World.ECS;
 using EC = AbilityKit.World.ECS;
 using NUnit.Framework;
@@ -654,10 +657,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
         [TestCase(BattleStartConfig.BattleHostMode.Local)]
         [TestCase(BattleStartConfig.BattleHostMode.GatewayRemote)]
-        public void BattleSessionFeature_CompletesPreFrameAssetBarrierOnFirstFrame(
+        public void BattleSessionFeature_DoesNotTreatFirstFrameAsAssetBarrier(
             BattleStartConfig.BattleHostMode hostMode)
         {
-            Assert.IsTrue(BattleSessionFeature.CompletesAssetBarrierOnFirstFrame(hostMode));
+            Assert.IsFalse(BattleSessionFeature.CompletesAssetBarrierOnFirstFrame(hostMode));
         }
 
         [Test]
@@ -1330,6 +1333,50 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(121, SessionSimRuntimeTuning.ResolveInputSubmitFrame(120, in localPlan));
             Assert.AreEqual(123, SessionSimRuntimeTuning.ResolveInputSubmitFrame(120, in minimumLeadGatewayPlan));
             Assert.AreEqual(126, SessionSimRuntimeTuning.ResolveInputSubmitFrame(120, in configuredLeadGatewayPlan));
+            Assert.IsTrue(SessionSimRuntimeTuning.ShouldUseFrameSyncInput(BattleSyncMode.Lockstep));
+            Assert.IsTrue(SessionSimRuntimeTuning.ShouldUseFrameSyncInput(BattleSyncMode.HybridPredictReconcile));
+            Assert.IsFalse(SessionSimRuntimeTuning.ShouldUseFrameSyncInput(BattleSyncMode.SnapshotAuthority));
+        }
+
+        [Test]
+        public void BattleMoveInputState_SubmitsContinuousMoveAtMostOncePerTargetFrame()
+        {
+            var state = new BattleMoveInputState();
+
+            Assert.IsTrue(state.TryGetMoveToSubmit(10, 1f, 0.25f, out var dx, out var dz));
+            Assert.AreEqual(1f, dx);
+            Assert.AreEqual(0.25f, dz);
+            Assert.IsFalse(state.TryGetMoveToSubmit(10, 1f, 0.25f, out _, out _));
+            Assert.IsTrue(state.TryGetMoveToSubmit(11, 1f, 0.25f, out dx, out dz));
+            Assert.AreEqual(1f, dx);
+            Assert.AreEqual(0.25f, dz);
+        }
+
+        [Test]
+        public void BattleMoveInputState_SubmitsInitialNeutralInputOnce()
+        {
+            var state = new BattleMoveInputState();
+
+            Assert.IsTrue(state.TryGetMoveToSubmit(10, 0f, 0f, out var dx, out var dz));
+            Assert.AreEqual(0f, dx);
+            Assert.AreEqual(0f, dz);
+            Assert.IsFalse(state.TryGetMoveToSubmit(10, 0f, 0f, out _, out _));
+            Assert.IsFalse(state.TryGetMoveToSubmit(11, 0f, 0f, out _, out _));
+        }
+
+        [Test]
+        public void BattleMoveInputState_DefersSameFrameStopAndRepeatsItAcrossFrames()
+        {
+            var state = new BattleMoveInputState();
+
+            Assert.IsTrue(state.TryGetMoveToSubmit(20, 1f, 0f, out _, out _));
+            Assert.IsFalse(state.TryGetMoveToSubmit(20, 0f, 0f, out _, out _));
+            Assert.IsTrue(state.TryGetMoveToSubmit(21, 0f, 0f, out var dx, out var dz));
+            Assert.AreEqual(0f, dx);
+            Assert.AreEqual(0f, dz);
+            Assert.IsTrue(state.TryGetMoveToSubmit(22, 0f, 0f, out _, out _));
+            Assert.IsTrue(state.TryGetMoveToSubmit(23, 0f, 0f, out _, out _));
+            Assert.IsFalse(state.TryGetMoveToSubmit(24, 0f, 0f, out _, out _));
         }
 
         [Test]
@@ -1504,12 +1551,14 @@ namespace AbilityKit.Game.Test.UnitTest
                 "room-public-id",
                 "battle-authoritative-id",
                 9001UL,
-                7001UL);
+                7001UL,
+                42u);
 
             var plan = bootstrapper.Build();
 
             Assert.AreEqual(BattleStartConfig.BattleHostMode.GatewayRemote, plan.HostMode);
             Assert.AreEqual("7001", plan.World.WorldId);
+            Assert.AreEqual("42", plan.World.PlayerId);
             Assert.AreEqual(9001UL, plan.Gateway.NumericRoomId);
             Assert.AreEqual("room-public-id", plan.Gateway.JoinRoomId);
             Assert.AreEqual("battle-authoritative-id", plan.Gateway.BattleId);
@@ -1517,6 +1566,96 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(plan.Gateway.UseGatewayTransport);
             Assert.IsFalse(plan.Gateway.AutoCreateRoom);
             Assert.IsFalse(plan.Gateway.AutoJoinRoom);
+        }
+
+        [Test]
+        public void ExistingGatewayRoomBattleBootstrapper_RebindsPresetLoadoutsToAuthoritativePlayerIds()
+        {
+            var configuredPlayers = new[]
+            {
+                new MobaPlayerLoadout(
+                    new PlayerId("p1"), 1, 1001, 2001, 3, 3001, new[] { 4001 }, 0,
+                    hasSpawnPosition: 1, spawnX: 10f, spawnZ: 20f),
+                new MobaPlayerLoadout(
+                    new PlayerId("p2"), 2, 1002, 2002, 4, 3002, new[] { 4002 }, 1,
+                    hasSpawnPosition: 1, spawnX: -10f, spawnZ: -20f)
+            };
+            var sourceLaunchSpec = new MobaBattleLaunchSpec(
+                battleId: "preset-battle",
+                matchId: "preset-match",
+                worldId: "preset-world",
+                worldType: "battle",
+                clientId: "client_1",
+                localPlayerId: new PlayerId("p1"),
+                mapId: 1,
+                gameplayId: 101,
+                ruleSetId: 201,
+                configVersion: 301,
+                protocolVersion: 401,
+                randomSeed: 501,
+                tickRate: 30,
+                inputDelayFrames: 2,
+                launchMode: MobaBattleLaunchMode.RoomFlow,
+                syncMode: MobaBattleLaunchSyncMode.StateSync,
+                authorityMode: MobaBattleLaunchAuthorityMode.ServerAuthority,
+                players: configuredPlayers);
+            var sourcePlan = BattleStartPlanBuilder
+                .ForWorld("preset-world", "battle", "client_1", "p1", 30, 2)
+                .WithLaunchSpec(in sourceLaunchSpec)
+                .Build();
+            var roomPlayers = new[]
+            {
+                new MultiplayerRoomPlayerSnapshot
+                {
+                    PlayerId = 41u,
+                    TeamId = 2,
+                    HeroId = 1101,
+                    AttributeTemplateId = 2101,
+                    Level = 5,
+                    BasicAttackSkillId = 3101,
+                    SkillIds = new[] { 4101, 4102 }
+                },
+                new MultiplayerRoomPlayerSnapshot
+                {
+                    PlayerId = 42u,
+                    TeamId = 1,
+                    HeroId = 1102,
+                    AttributeTemplateId = 2102,
+                    Level = 6,
+                    BasicAttackSkillId = 3102,
+                    SkillIds = new[] { 4201 }
+                }
+            };
+            var bootstrapper = new ExistingGatewayRoomBattleBootstrapper(
+                new FixedBattleBootstrapper(sourcePlan),
+                "token",
+                "room-id",
+                "battle-id",
+                9001UL,
+                7001UL,
+                42u,
+                players: roomPlayers);
+
+            var plan = bootstrapper.Build();
+
+            Assert.AreEqual("battle-id", plan.LaunchSpec.BattleId);
+            Assert.AreEqual("battle-id", plan.LaunchSpec.MatchId);
+            Assert.AreEqual("7001", plan.LaunchSpec.WorldId);
+            Assert.AreEqual("42", plan.LaunchSpec.LocalPlayerId.Value);
+            Assert.AreEqual("41", plan.LaunchSpec.Players[0].PlayerId.Value);
+            Assert.AreEqual("42", plan.LaunchSpec.Players[1].PlayerId.Value);
+            Assert.AreEqual(1101, plan.LaunchSpec.Players[0].HeroId);
+            Assert.AreEqual(2102, plan.LaunchSpec.Players[1].AttributeTemplateId);
+            Assert.AreEqual(10f, plan.LaunchSpec.Players[0].SpawnX);
+            Assert.AreEqual(-20f, plan.LaunchSpec.Players[1].SpawnZ);
+            CollectionAssert.AreEqual(new[] { 4101, 4102 }, plan.LaunchSpec.Players[0].SkillIds);
+            Assert.IsTrue(MobaCreateWorldInitCodec.TryDeserialize(
+                plan.CreateWorld.Payload,
+                out var createWorldInit,
+                out var createWorldError), createWorldError);
+            Assert.AreEqual("42", createWorldInit.LocalPlayerId.Value);
+            Assert.AreEqual("41", createWorldInit.Spec.Players[0].PlayerId.Value);
+            Assert.AreEqual("42", createWorldInit.Spec.Players[1].PlayerId.Value);
         }
 
         [Test]
@@ -2073,6 +2212,15 @@ namespace AbilityKit.Game.Test.UnitTest
                 int manifestVersion,
                 string manifestHash,
                 int progress,
+                TimeSpan? timeout = null,
+                CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public Task<GatewayRoomOperationResult> LeaveRoomAsync(
+                string sessionToken,
+                string roomId,
+                long? expectedRevision,
+                string commandId,
                 TimeSpan? timeout = null,
                 CancellationToken cancellationToken = default)
                 => throw new NotSupportedException();

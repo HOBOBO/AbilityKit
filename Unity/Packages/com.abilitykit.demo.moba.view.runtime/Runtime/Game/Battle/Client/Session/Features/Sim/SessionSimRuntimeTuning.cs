@@ -32,5 +32,10 @@ namespace AbilityKit.Game.Flow
                 : configuredDelay;
             return lastObservedFrame + 1 + leadFrames;
         }
+
+        public static bool ShouldUseFrameSyncInput(BattleSyncMode syncMode)
+        {
+            return syncMode != BattleSyncMode.SnapshotAuthority;
+        }
     }
 }

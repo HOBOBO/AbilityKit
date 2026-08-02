@@ -16,19 +16,7 @@ namespace AbilityKit.Game.Flow
             }
 
             _lastFrame = packet.Frame.Value;
-
-            if (!_firstFrameReceived)
-            {
-                _firstFrameReceived = true;
-                _eventsCtrl.NotifyFirstFrameReceived(this);
-
-                // Local WorldInit and GatewayRemote room loading both complete their asset barriers
-                // before the first frame is published. Bridge that completed barrier into the client HFSM.
-                if (CompletesAssetBarrierOnFirstFrame(_plan.HostMode))
-                {
-                    NotifyAssetsLoadCompleted();
-                }
-            }
+            NotifyFirstFrameReceivedOnce();
 
             SessionContextBinder.BindLastFrame(_ctx, _state);
 
@@ -39,10 +27,17 @@ namespace AbilityKit.Game.Flow
             }
         }
 
+        private void NotifyFirstFrameReceivedOnce()
+        {
+            if (_firstFrameReceived) return;
+
+            _firstFrameReceived = true;
+            _eventsCtrl.NotifyFirstFrameReceived(this);
+        }
+
         internal static bool CompletesAssetBarrierOnFirstFrame(BattleStartConfig.BattleHostMode hostMode)
         {
-            return hostMode == BattleStartConfig.BattleHostMode.Local ||
-                   hostMode == BattleStartConfig.BattleHostMode.GatewayRemote;
+            return false;
         }
     }
 }

@@ -1,6 +1,6 @@
 # SyncAdapter（同步策略适配器）
 
-源文件：`Runtime/Adapters/ISyncAdapter.cs` + `LocalSyncAdapter.cs` + `RemoteSyncAdapter.cs` + `HybridSyncAdapter.cs` + `SyncAdapterFactory.cs`
+源文件：`Runtime/Adapters/ISyncAdapter.cs` + `LocalSyncAdapter.cs` + `RemoteSyncAdapter.cs` + `HybridSyncAdapter.cs`（⚠ `[Obsolete]`, D2 已决） + `SyncAdapterFactory.cs`。coordinator 版本 `0.1.0`（Beta，`AbilityKitStable=true`）。
 
 ## ISyncAdapter 基础接口
 
@@ -37,7 +37,7 @@ public interface ISyncAdapter {
 - 收远端快照 → 经 `SessionCoordinator.NotifyEnterGameSnapshot / NotifyActorTransformSnapshot / NotifyDamageSnapshot` 推给 `IViewEventSink`
 - 客户端提交本地输入 → 经 transport 上行
 
-### HybridSyncAdapter（Hybrid 客户端预测，**当前未完成且不在 demo 主路径**）
+### HybridSyncAdapter（📛 `[Obsolete]`，0.1.0 排除，D2 已决）
 
 `SyncMode.Hybrid`。客户端预测 + 服务端权威对账。
 
@@ -47,7 +47,7 @@ public interface ISyncAdapter {
 - MOBA 走 `com.abilitykit.host.extension/Runtime/FrameSync/ClientPredictionDriverModule`（框架级 IHostRuntimeModule）+ view.runtime 的 `RemoteDrivenRollbackRegistryFactory` / `RemoteDrivenStateHashFactory` / `RemoteDrivenPredictionContextBinder`
 - Shooter 走 `ShooterClientPredictionRuntimeAdapter`
 
-也就是说 coordinator 的整套 `ISyncAdapter` 体系（Local/Remote/Hybrid）目前是**自闭环通用框架**，没有 demo 实际接入。补全 HybridSyncAdapter 是通用框架未来工作，**不阻塞演示级联机**。补全前应先确认 coordinator 通用会话框架有实际接入方。
+HybridSyncAdapter 已标记 `[Obsolete]`，0.1.0 承诺的同步模式为 Local/Remote only。如需客户端预测，请走 host.extension/ClientPredictionDriverModule (MOBA) 或 ShooterClientPredictionRuntimeAdapter (Shooter)。
 
 ## SyncAdapterFactory
 
@@ -71,6 +71,22 @@ public sealed class DefaultSyncAdapterFactory : ISyncAdapterFactory { ... }
 | Lockstep | LocalSyncAdapter（典型） | LocalSyncAdapter | 不典型 |
 | SnapshotAuthority | 不用 | RemoteSyncAdapter（Host 侧） | RemoteSyncAdapter（Client 侧） |
 | StateSync | 不用 | RemoteSyncAdapter（Host 侧） | RemoteSyncAdapter（Client 侧） |
-| Hybrid | 不用 | 不用 | HybridSyncAdapter（**TODO 未完成**） |
+| Hybrid | 不用 | 不用 | HybridSyncAdapter（**`[Obsolete]`，排除**） |
 
 注：`SessionRuntimePolicy` 的规则是 `HostMode.Local` 强制 `EffectiveSyncMode = Lockstep`，所以本地场景实际只走 LocalSyncAdapter。
+
+## Architecture Decision: MOBA 远程路径绕过 Coordinator（2026-08-01）
+
+MOBA demo 的 `BattleLogicMode.Remote` 路径**刻意绕过** `SessionCoordinator` + `RemoteSyncAdapter`，直接使用 `host.extension` 的 `FrameSyncDriverModule` + `ClientPredictionDriverModule` + `FramePacketNetAdapter`。理由：
+
+1. **双世界架构**：帧同步需要 `RemoteDrivenWorld`（客户端预测）和 `ConfirmedAuthorityWorld`（确认权威）两套并行世界，各自有独立的 `FrameJitterBuffer`。Coordinator 的 `ISyncAdapter.Tick(deltaTime)` 单世界模型无法表达双世界。
+2. **Jitter Buffer 集成**：帧输入经过 `FrameJitterBuffer`（FillDefault 模式）而不是 Coordinator 的 `SubmitInput` → `AdvanceFrame` 同步模型。
+3. **性能路径**：绕过 Coordinator 额外抽象层减少每帧的虚调用和分配。
+
+**Coordinator 适用场景**：
+- 本地单机 / LAN 联机 → `LocalSyncAdapter`
+- 简单状态同步（SnapshotAuthority / StateSync）→ `RemoteSyncAdapter` + `IRemoteBattleSyncTransport`
+- Shooter demo 的 demo harness 模式 → `ShooterDemoHarnessCarrier`（Coordinator 适配层）
+
+**待 v0.2.0**：若 Coordinator 支持多世界适配 + jitter buffer 抽象，MOBA 可迁回 Coordinator 体系。
+`HybridSyncAdapter` 已在 v0.1.0 设为 `[Obsolete(error: true)]`，计划 v0.2.0 移除。

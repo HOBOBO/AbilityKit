@@ -18,7 +18,10 @@ namespace AbilityKit.Game.Flow
 
             // Acquire the shared battle-scene hierarchy root. Predicted and confirmed
             // view features release independent leases during teardown.
-            _hierarchyRoot = BattleViewHierarchyRoot.Acquire();
+            var hierarchyName = "[Battle:" +
+                                (_ctx != null ? _ctx.RuntimeWorldId.ToString() : "unknown") +
+                                ":Primary]";
+            _hierarchyRoot = BattleViewHierarchyRoot.Acquire(hierarchyName);
             var hierarchy = _hierarchyRoot.Manager;
 
             IViewFeatureRuntime runtime = this;
@@ -60,9 +63,7 @@ namespace AbilityKit.Game.Flow
 
         private static GameObject CreateFallbackShell(int modelId)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = $"ShellFallback_{modelId}";
-            return go;
+            return new BattleViewPrimitiveFactory().CreateActorFallback(actorId: 0, modelId);
         }
 
         private void OnAllSubFeaturesAttached(in GamePhaseContext ctx)

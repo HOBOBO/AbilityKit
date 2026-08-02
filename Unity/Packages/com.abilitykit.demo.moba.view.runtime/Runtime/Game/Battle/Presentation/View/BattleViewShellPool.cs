@@ -20,6 +20,7 @@ namespace AbilityKit.Game.Flow
         private readonly int _defaultCapacity;
         private readonly int _maxSize;
         private readonly Dictionary<int, ObjectPool<GameObject>> _pools = new Dictionary<int, ObjectPool<GameObject>>(32);
+        private readonly HashSet<int> _failedModelIds = new HashSet<int>();
 
         /// <summary>
         /// Optional hierarchy manager. When set, pool bucket instances are parented
@@ -61,10 +62,20 @@ namespace AbilityKit.Game.Flow
         {
             instance = null;
             if (modelId <= 0) return false;
+            if (_failedModelIds.Contains(modelId)) return false;
 
-            var pool = GetOrCreateBucket(modelId);
-            instance = pool.Get();
-            return true;
+            try
+            {
+                var pool = GetOrCreateBucket(modelId);
+                instance = pool.Get();
+                return instance != null;
+            }
+            catch (InvalidOperationException ex)
+            {
+                _failedModelIds.Add(modelId);
+                Debug.LogException(ex);
+                return false;
+            }
         }
 
         /// <summary>
@@ -113,6 +124,7 @@ namespace AbilityKit.Game.Flow
                 kvp.Value.Clear(destroy: true);
             }
             _pools.Clear();
+            _failedModelIds.Clear();
         }
 
         private ObjectPool<GameObject> CreateBucket(int modelId)

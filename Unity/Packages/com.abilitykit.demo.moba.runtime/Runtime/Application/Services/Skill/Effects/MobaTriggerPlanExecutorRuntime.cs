@@ -189,27 +189,22 @@ namespace AbilityKit.Demo.Moba.Services
             var ok = planned.Evaluate(args, execCtx);
             if (control.StopPropagation || control.Cancel)
             {
-                Log.Warning($"[MobaTriggerPlanExecutionRunner] stopped before execution. stopPropagation={control.StopPropagation} cancel={control.Cancel} predicateOk={ok}");
                 return ok;
             }
 
             if (!ok)
             {
-                Log.Warning($"[MobaTriggerPlanExecutionRunner] predicate miss. predicateMissIsSuccess={predicateMissIsSuccess} hasExecutionRoot={hasExecutionRoot} executionRootType={executionRoot?.GetType().Name ?? "<null>"} actionCount={plan.Actions?.Length ?? 0}");
                 return predicateMissIsSuccess;
             }
 
             if (hasExecutionRoot && executionRoot != null)
             {
-                Log.Warning($"[MobaTriggerPlanExecutionRunner] executing compiled root type={executionRoot.GetType().Name} actionCount={plan.Actions?.Length ?? 0} argsType={args?.GetType().Name ?? "<null>"}");
                 var result = executionRoot.Execute(args, in execCtx);
-                Log.Warning($"[MobaTriggerPlanExecutionRunner] compiled root result success={result.IsSuccess} executedCount={result.ExecutedCount}");
-                return result.IsSuccess;
+                return result.IsSuccess && !control.IsActionRejected;
             }
 
-            Log.Warning($"[MobaTriggerPlanExecutionRunner] fallback planned.Execute actionCount={plan.Actions?.Length ?? 0} hasExecutionRoot={hasExecutionRoot} executionRootType={executionRoot?.GetType().Name ?? "<null>"} argsType={args?.GetType().Name ?? "<null>"}");
             planned.Execute(args, execCtx);
-            return true;
+            return !control.IsActionRejected;
         }
     }
 }

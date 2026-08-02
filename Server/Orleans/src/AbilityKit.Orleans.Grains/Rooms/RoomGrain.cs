@@ -523,17 +523,42 @@ public sealed class RoomGrain : Grain, IRoomGrain
         var next = transition.State;
         if (transition.Applied)
         {
-            next = next with { CommandDedupEntries = RoomCommandDedup.Record(next.CommandDedupEntries, request.AccountId, request.CommandId, "ReportAssetsLoaded", transition.Result, nowUnixMs) };
             await PersistAndRestoreAsync(next);
             await NotifyRoomChangedAsync();
         }
 
+        var result = transition.Result;
         if (next.Phase == RoomPhase.Starting && next.BattleCommit.Status == RoomBattleCommitStatus.Pending)
         {
             await CommitBattleAsync(next);
+            result = ResolveReportAssetsLoadedCommitResult(RequirePersistentState());
         }
 
-        return transition.Result;
+        await RecordDedupAsync(
+            RequirePersistentState(),
+            request.AccountId,
+            request.CommandId,
+            "ReportAssetsLoaded",
+            result,
+            NowUnixMs());
+        return result;
+    }
+
+    internal static RoomOperationResult ResolveReportAssetsLoadedCommitResult(RoomPersistentState state)
+    {
+        if (state.Phase == RoomPhase.InBattle &&
+            state.BattleCommit.Status == RoomBattleCommitStatus.Committed)
+        {
+            return RoomOperationResult.AppliedAt(state.Revision);
+        }
+
+        var detail = string.IsNullOrWhiteSpace(state.BattleCommit.LastError)
+            ? "Battle commit did not reach InBattle."
+            : state.BattleCommit.LastError;
+        return RoomOperationResult.Rejected(
+            RoomOperationErrorCode.InvalidOperation,
+            $"Battle commit failed: {detail}",
+            state.Revision);
     }
 
     public async Task<RoomOperationResult> ReportLoadingProgressWithResultAsync(ReportLoadingProgressRequest request)
@@ -780,12 +805,12 @@ public sealed class RoomGrain : Grain, IRoomGrain
         var tags = summary.Tags;
         return new StartRoomBattleRequest(
             summary.OwnerAccountId,
-            ReadIntTag(tags, "gameplayId", 0),
-            ReadIntTag(tags, "ruleSetId", 0),
-            ReadIntTag(tags, "configVersion", 0),
-            ReadIntTag(tags, "protocolVersion", 0),
-            ReadTag(tags, "worldType"),
-            ReadTag(tags, "clientId"));
+            ReadIntTag(tags, RoomTagKeys.GameplayId, 0),
+            ReadIntTag(tags, RoomTagKeys.RuleSetId, 0),
+            ReadIntTag(tags, RoomTagKeys.ConfigVersion, 0),
+            ReadIntTag(tags, RoomTagKeys.ProtocolVersion, 0),
+            ReadTag(tags, RoomTagKeys.WorldType),
+            ReadTag(tags, RoomTagKeys.ClientId));
     }
 
     private static string? ReadTag(Dictionary<string, string>? tags, string key)

@@ -37,11 +37,7 @@ namespace AbilityKit.Game.UI
                     var uiComp = e.Prefab.GetComponent<UIBase>();
                     if (uiComp == null) continue;
 
-                    var method = typeof(UIManager).GetMethod("RegisterPrefab");
-                    if (method == null) continue;
-
-                    var generic = method.MakeGenericMethod(uiComp.GetType());
-                    generic.Invoke(ui, new object[] { e.Key, e.Prefab, e.Layer });
+                    ui.RegisterPrefab(e.Key, e.Prefab, uiComp.GetType(), e.Layer);
 
                     if (e.OpenOnStart)
                     {

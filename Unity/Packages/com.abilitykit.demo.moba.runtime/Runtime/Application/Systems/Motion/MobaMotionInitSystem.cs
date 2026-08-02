@@ -113,7 +113,8 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                 obstacleMask: MobaCollisionLayers.WorldMask,
                 ignoreMask: 0,
                 slideAlongWalls: true,
-                maxSlideIterations: 2);
+                maxSlideIterations: 2,
+                wallSlideSpeedRecovery: 1f);
 
             return new MotionConstraints(collision, MotionLeashConstraints.Disabled);
         }

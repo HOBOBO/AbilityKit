@@ -104,7 +104,18 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             return StartAsync(ShooterRemoteStateSyncLaunchOptions.RestoreFirst(options, endpoint, sessionToken, region, serverId));
         }
 
-        public static async Task<ShooterClientNetworkLaunchResult> StartAsync(ShooterRemoteStateSyncLaunchOptions launchOptions)
+        public static Task<ShooterClientNetworkLaunchResult> StartAsync(ShooterRemoteStateSyncLaunchOptions launchOptions)
+        {
+            return StartAsync(launchOptions, launcher: null);
+        }
+
+        /// <summary>
+        /// Starts the battle by adopting an already connected launcher from the formal room flow.
+        /// Ownership transfers to the host as soon as this method is called.
+        /// </summary>
+        public static async Task<ShooterClientNetworkLaunchResult> StartAsync(
+            ShooterRemoteStateSyncLaunchOptions launchOptions,
+            ShooterClientNetworkLauncher? launcher)
         {
             Install();
             var generation = AdvanceLifecycleGeneration();
@@ -123,7 +134,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
             try
             {
-                var state = await StartSessionAsync(launchOptions, generation).ConfigureAwait(false);
+                var state = await StartSessionAsync(launchOptions, generation, launcher).ConfigureAwait(false);
                 if (!IsCurrentLifecycle(generation))
                 {
                     state.Dispose();
@@ -247,12 +258,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             Application.quitting += OnApplicationQuitting;
         }
 
-        private static async Task<ShooterRemoteStateSyncRuntimeState> StartSessionAsync(ShooterRemoteStateSyncLaunchOptions launchOptions, long generation)
+        private static async Task<ShooterRemoteStateSyncRuntimeState> StartSessionAsync(
+            ShooterRemoteStateSyncLaunchOptions launchOptions,
+            long generation,
+            ShooterClientNetworkLauncher? existingLauncher = null)
         {
             var runtimeWorld = ShooterBattleWorldSession.Create(
                 $"remote-{launchOptions.SessionToken}-client",
                 ShooterGameplayScenarioWorldHostFactory.Create(launchOptions.SessionOptions.GameplayScenario));
-            var launcher = ShooterClientNetworkLauncher.Create(ShooterClientConnectionFactory.Tcp());
+            var launcher = existingLauncher ?? ShooterClientNetworkLauncher.Create(ShooterClientConnectionFactory.Tcp());
 
             try
             {

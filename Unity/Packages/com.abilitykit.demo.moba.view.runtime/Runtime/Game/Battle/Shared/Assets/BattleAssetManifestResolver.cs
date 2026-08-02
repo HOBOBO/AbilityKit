@@ -26,13 +26,27 @@ namespace AbilityKit.Game.Battle.Shared.Assets
         {
             new BattleAssetEntry("moba/skills", "config:skills", BattleAssetKind.Config),
             new BattleAssetEntry("moba/characters", "config:characters", BattleAssetKind.Config),
-            new BattleAssetEntry("moba/projectiles", "config:projectiles", BattleAssetKind.Config)
+            new BattleAssetEntry("moba/projectiles", "config:projectiles", BattleAssetKind.Config),
+            new BattleAssetEntry("moba/models", "presentation:models", BattleAssetKind.Config),
+            new BattleAssetEntry("vfx/vfx", "presentation:vfx", BattleAssetKind.Config),
+            new BattleAssetEntry("moba/presentation_templates", "presentation:templates", BattleAssetKind.Config),
+            new BattleAssetEntry("moba/skill_button_templates", "presentation:skill-buttons", BattleAssetKind.Config)
         };
 
         /// <summary>
         /// 从 source 解析出确定性资源清单。
         /// </summary>
         public static BattleAssetManifest Resolve(IBattleAssetManifestSource source)
+        {
+            return Resolve(source, dependencyProvider: null);
+        }
+
+        /// <summary>
+        /// Resolves the launch manifest and expands concrete presentation dependencies.
+        /// </summary>
+        public static BattleAssetManifest Resolve(
+            IBattleAssetManifestSource source,
+            IBattleAssetDependencyProvider dependencyProvider)
         {
             if (source == null)
             {
@@ -65,7 +79,7 @@ namespace AbilityKit.Game.Battle.Shared.Assets
                     if (heroId > 0 && seenHero.Add(heroId))
                     {
                         entries.Add(new BattleAssetEntry(
-                            "moba/characters/characters_" + heroId,
+                            "moba/characters",
                             "character:" + heroId,
                             BattleAssetKind.Character));
                     }
@@ -103,10 +117,25 @@ namespace AbilityKit.Game.Battle.Shared.Assets
                 "map:" + mapKey,
                 BattleAssetKind.Map));
 
-            // 5. 确定性排序：按 AssetKey 稳定排序，相同 key 按 AssetPath 二级排序
+            // 5. 展开聚合配置引用的具体表现资源（prefab/VFX 等）。
+            if (dependencyProvider != null)
+            {
+                var dependencies = dependencyProvider.ResolveDependencies(source);
+                if (dependencies != null)
+                {
+                    for (var i = 0; i < dependencies.Count; i++)
+                    {
+                        entries.Add(dependencies[i]);
+                    }
+                }
+            }
+
+            ValidateEntries(entries);
+
+            // 6. 确定性排序：按 AssetKey 稳定排序，相同 key 按 AssetPath 二级排序
             entries.Sort(EntryComparer.Instance);
 
-            // 6. 去重（按 AssetKey），保留首个
+            // 7. 去重。相同 key 的冲突项会被拒绝，不再静默选择任意路径。
             var deduped = DedupByKey(entries);
 
             return new BattleAssetManifest(
@@ -121,7 +150,7 @@ namespace AbilityKit.Game.Battle.Shared.Assets
             if (skillId > 0 && seen.Add(skillId))
             {
                 entries.Add(new BattleAssetEntry(
-                    "moba/skills/skills_" + skillId,
+                    "moba/skills",
                     "skill:" + skillId,
                     BattleAssetKind.Config));
             }
@@ -148,6 +177,13 @@ namespace AbilityKit.Game.Battle.Shared.Assets
                 var entry = sorted[i];
                 if (lastKey != null && entry.AssetKey == lastKey)
                 {
+                    var previous = result[result.Count - 1];
+                    if (!entry.Equals(previous))
+                    {
+                        throw new InvalidOperationException(
+                            "Conflicting battle asset entries use the same key: " + entry.AssetKey);
+                    }
+
                     continue;
                 }
 
@@ -156,6 +192,24 @@ namespace AbilityKit.Game.Battle.Shared.Assets
             }
 
             return result;
+        }
+
+        private static void ValidateEntries(IReadOnlyList<BattleAssetEntry> entries)
+        {
+            for (var i = 0; i < entries.Count; i++)
+            {
+                var entry = entries[i];
+                if (string.IsNullOrWhiteSpace(entry.AssetKey))
+                {
+                    throw new InvalidOperationException("Battle asset entry key must not be empty.");
+                }
+
+                if (string.IsNullOrWhiteSpace(entry.AssetPath))
+                {
+                    throw new InvalidOperationException(
+                        "Battle asset path must not be empty: " + entry.AssetKey);
+                }
+            }
         }
 
         private sealed class EntryComparer : IComparer<BattleAssetEntry>

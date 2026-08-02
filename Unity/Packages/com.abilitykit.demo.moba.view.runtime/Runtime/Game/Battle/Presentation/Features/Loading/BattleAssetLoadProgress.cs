@@ -36,8 +36,8 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Loading
     }
 
     /// <summary>
-    /// 战斗加载进度观察者。Loading Screen Feature 注册自身，
-    /// 任意加载源（coordinator、未来可能多步加载）更新进度后通知 UI。
+    /// 战斗加载进度观察者。由当前加载 Feature 实例直接接收 scoped load 的状态更新，
+    /// 不通过静态全局事件分发。
     /// </summary>
     public interface IBattleAssetLoadProgressObserver
     {
@@ -47,47 +47,4 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Loading
         void OnLoadCancelled(BattleAssetLoadProgressSnapshot snapshot);
     }
 
-    /// <summary>
-    /// 静态注册表：Loading Screen 在 OnAttach 注册，Coordinator 或其他加载驱动方在加载过程中触发。
-    /// 允许没有完整 DI 链路的情况下也能驱动 UI 进度。
-    /// </summary>
-    public static class BattleAssetLoadProgressHub
-    {
-        private static IBattleAssetLoadProgressObserver _observer;
-
-        public static void Register(IBattleAssetLoadProgressObserver observer)
-        {
-            _observer = observer;
-        }
-
-        public static void Unregister(IBattleAssetLoadProgressObserver observer)
-        {
-            if (ReferenceEquals(_observer, observer))
-            {
-                _observer = null;
-            }
-        }
-
-        public static bool HasObserver => _observer != null;
-
-        public static void NotifyStarted(BattleAssetLoadProgressSnapshot snapshot)
-        {
-            _observer?.OnLoadStarted(snapshot);
-        }
-
-        public static void NotifyProgressed(BattleAssetLoadProgressSnapshot snapshot)
-        {
-            _observer?.OnLoadProgressed(snapshot);
-        }
-
-        public static void NotifyCompleted(BattleAssetLoadProgressSnapshot snapshot)
-        {
-            _observer?.OnLoadCompleted(snapshot);
-        }
-
-        public static void NotifyCancelled(BattleAssetLoadProgressSnapshot snapshot)
-        {
-            _observer?.OnLoadCancelled(snapshot);
-        }
-    }
 }

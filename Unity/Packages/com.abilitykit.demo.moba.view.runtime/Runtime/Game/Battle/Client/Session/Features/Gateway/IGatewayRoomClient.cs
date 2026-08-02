@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Demo.Common.Rooms;
 
 namespace AbilityKit.Game.Flow
 {
@@ -77,6 +78,14 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
 
+        Task<GatewayRoomOperationResult> LeaveRoomAsync(
+            string sessionToken,
+            string roomId,
+            long? expectedRevision,
+            string commandId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+
         Task<GatewayRoomOperationResult> ReportLoadingProgressAsync(
             string sessionToken,
             string roomId,
@@ -127,6 +136,7 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         bool IsRoomStateChangedPush(uint opCode);
     }
+
 
     /// <summary>
     /// Room 操作统一结果（BeginLoading / ReportAssetsLoaded / CancelLoading 共用）。

@@ -65,6 +65,8 @@ namespace AbilityKit.Game.Battle.Vfx
                 go = _gameObjects.CreatePlaceholder(vfxId);
             }
 
+            if (go == null) return false;
+
             if (durationMsOverride > 0)
             {
                 durationMs = durationMsOverride;

@@ -176,6 +176,29 @@ namespace AbilityKit.World.ECS
             SetComponentInternal(id.Index, typeId, component);
         }
 
+        public void SetComponentRef(IEntityId id, Type componentType, object component)
+        {
+            if (componentType == null) throw new ArgumentNullException(nameof(componentType));
+            if (componentType.IsValueType) throw new ArgumentException("Reference component type must be a class or interface.", nameof(componentType));
+            if (!TryValidateId(id)) return;
+
+            var typeId = _componentRegistry.GetId(componentType);
+            if (component == null)
+            {
+                RemoveComponentById(id.Index, typeId);
+                return;
+            }
+
+            if (!componentType.IsInstanceOfType(component))
+            {
+                throw new ArgumentException(
+                    $"Component instance type '{component.GetType().FullName}' is not assignable to '{componentType.FullName}'.",
+                    nameof(component));
+            }
+
+            SetComponentInternal(id.Index, typeId, component);
+        }
+
         public T GetComponent<T>(IEntityId id) where T : struct
         {
             if (!TryGetComponent<T>(id, out T result))
@@ -237,6 +260,13 @@ namespace AbilityKit.World.ECS
         {
             if (!TryValidateId(id)) return false;
             return RemoveComponentById(id.Index, _componentRegistry.GetId<T>());
+        }
+
+        public bool RemoveComponent(IEntityId id, Type componentType)
+        {
+            if (componentType == null) throw new ArgumentNullException(nameof(componentType));
+            if (!TryValidateId(id)) return false;
+            return RemoveComponentById(id.Index, _componentRegistry.GetId(componentType));
         }
 
         #endregion

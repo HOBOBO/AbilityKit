@@ -1,6 +1,6 @@
 {
   "name": "com.abilitykit.pipeline",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit Pipeline",
   "unity": "2022.3",
   "description": "AbilityKit pipeline graph asset and runtime debugging infrastructure.",

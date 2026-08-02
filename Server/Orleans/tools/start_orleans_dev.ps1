@@ -235,24 +235,39 @@ $gatewayWindow = Start-Process powershell -ArgumentList $gatewayArgs -WorkingDir
 Write-Host "  Gateway window PID: $($gatewayWindow.Id)" -ForegroundColor Gray
 
 $gatewayHealthStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-if (Wait-AbilityKitHttpEndpoint -Uri $healthUri -TimeoutSeconds 30) {
-    $gatewayHealthStopwatch.Stop()
-    Write-Host ("Gateway Health: OK after {0:n1}s ($healthUri)" -f $gatewayHealthStopwatch.Elapsed.TotalSeconds) -ForegroundColor Green
+$httpReady = Wait-AbilityKitHttpEndpoint -Uri $healthUri -TimeoutSeconds 30
+if (-not $httpReady) {
+    $httpReady = Wait-AbilityKitHttpEndpoint -Uri $healthLiveUri -TimeoutSeconds 5
 }
-elseif (Wait-AbilityKitHttpEndpoint -Uri $healthLiveUri -TimeoutSeconds 5) {
-    $gatewayHealthStopwatch.Stop()
-    Write-Host "Gateway Health: live but not ready ($healthLiveUri)" -ForegroundColor Yellow
+
+$tcpReady = $false
+$tcpDeadline = (Get-Date).AddSeconds(30)
+while ((Get-Date) -lt $tcpDeadline) {
+    if (Test-AbilityKitTcpPort -HostName '127.0.0.1' -Port $TcpPort -TimeoutMilliseconds 1000) {
+        $tcpReady = $true
+        break
+    }
+
+    Start-Sleep -Milliseconds 500
+}
+
+$gatewayHealthStopwatch.Stop()
+if ($httpReady -and $tcpReady) {
+    Write-Host ("Gateway HTTP and TCP: OK after {0:n1}s ($healthUri; 127.0.0.1:$TcpPort)" -f $gatewayHealthStopwatch.Elapsed.TotalSeconds) -ForegroundColor Green
 }
 else {
-    $gatewayHealthStopwatch.Stop()
-    Write-Host ("Gateway Health: not ready after {0:n1}s ($healthUri)" -f $gatewayHealthStopwatch.Elapsed.TotalSeconds) -ForegroundColor Yellow
+    Write-Host ("Gateway startup incomplete after {0:n1}s." -f $gatewayHealthStopwatch.Elapsed.TotalSeconds) -ForegroundColor Yellow
+    if (-not $httpReady) {
+        Write-Host "  HTTP health endpoint is not reachable: $healthUri" -ForegroundColor Yellow
+    }
+    if (-not $tcpReady) {
+        Write-Host "  Game TCP gateway is not reachable: 127.0.0.1:$TcpPort" -ForegroundColor Yellow
+    }
     if (-not (Test-AbilityKitTcpPort -HostName '127.0.0.1' -Port $clientGatewayPort -TimeoutMilliseconds 1000)) {
         Write-Host "  Orleans client gateway is not reachable: 127.0.0.1:$clientGatewayPort" -ForegroundColor Yellow
     }
-    if (-not (Test-AbilityKitTcpPort -HostName '127.0.0.1' -Port $GatewayPort -TimeoutMilliseconds 1000)) {
-        Write-Host "  HTTP Gateway port is not reachable: 127.0.0.1:$GatewayPort" -ForegroundColor Yellow
-    }
     Write-Host "  Please inspect logs under: $instanceLogs" -ForegroundColor Yellow
+    exit 1
 }
 
 $startupStopwatch.Stop()

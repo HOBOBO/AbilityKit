@@ -118,7 +118,7 @@ namespace AbilityKit.Demo.Shooter.View
             {
                 [RoomTagKeys.Gameplay] = ShooterGameplay.RoomType,
                 [RoomTagKeys.WorldType] = ShooterGameplay.WorldType,
-                [ShooterRoomLaunchTagKeys.MinPlayers] = "2",
+                [ShooterRoomLaunchTagKeys.MinPlayers] = "1",
                 [RoomTagKeys.TickRate] = ShooterGameplay.DefaultTickRate.ToString(),
                 [RoomTagKeys.OfflineTimeoutSeconds] = DefaultOfflineTimeoutSeconds.ToString()
             };

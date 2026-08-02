@@ -146,7 +146,8 @@ namespace AbilityKit.Game.Editor
 
         private static void EnsureMultiplayerEntryMarker(string scenePath, int gameplay)
         {
-            var markerType = Type.GetType("AbilityKit.Starter.MultiplayerSceneEntryMarker, Assembly-CSharp");
+            var markerType = Type.GetType(
+                "AbilityKit.Starter.MultiplayerSceneEntryMarker, AbilityKit.Demo.Multiplayer.Starter");
             if (markerType == null)
             {
                 throw new InvalidOperationException("MultiplayerSceneEntryMarker type is unavailable.");
@@ -201,7 +202,8 @@ namespace AbilityKit.Game.Editor
 
         private static Component FindMultiplayerEntryMarker(string scenePath)
         {
-            var markerType = Type.GetType("AbilityKit.Starter.MultiplayerSceneEntryMarker, Assembly-CSharp");
+            var markerType = Type.GetType(
+                "AbilityKit.Starter.MultiplayerSceneEntryMarker, AbilityKit.Demo.Multiplayer.Starter");
             if (markerType == null)
             {
                 throw new InvalidOperationException("MultiplayerSceneEntryMarker type is unavailable.");

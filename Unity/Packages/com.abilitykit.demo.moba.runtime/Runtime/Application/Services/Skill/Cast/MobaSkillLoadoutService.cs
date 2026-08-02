@@ -23,6 +23,11 @@ namespace AbilityKit.Demo.Moba.Services
             _skillIdsByActorId[actorId] = skillIds ?? Array.Empty<int>();
         }
 
+        public bool RemoveActor(int actorId)
+        {
+            return actorId > 0 && _skillIdsByActorId.Remove(actorId);
+        }
+
         public bool TryGetSkillId(int actorId, int slot, out int skillId)
         {
             skillId = 0;

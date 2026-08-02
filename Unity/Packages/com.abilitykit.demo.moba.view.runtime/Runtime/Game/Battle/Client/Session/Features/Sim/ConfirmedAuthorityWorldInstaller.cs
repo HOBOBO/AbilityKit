@@ -57,7 +57,7 @@ namespace AbilityKit.Game.Flow
                 options.Flow,
                 handles,
                 authWorldId,
-                options.Plan.Authority.EnableConfirmedAuthorityWorld);
+                ConfirmedViewSideInstaller.ShouldRenderConfirmedView(options.Plan));
         }
 
         private static WorldId CreateWorldRuntime(

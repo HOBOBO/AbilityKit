@@ -14,15 +14,58 @@ namespace AbilityKit.Game.Battle.Agent
 
     public readonly struct GatewayJoinRoomResult
     {
+        public readonly bool Success;
+        public readonly string RoomId;
         public readonly ulong NumericRoomId;
         public readonly string SnapshotJson;
         public readonly GatewayWorldStartAnchor WorldStartAnchor;
+        public readonly string Message;
+        public readonly string BattleId;
+        public readonly bool CanStart;
+        public readonly long ServerNowTicks;
+        public readonly ulong WorldId;
+        public readonly uint CurrentPlayerId;
 
         public GatewayJoinRoomResult(ulong numericRoomId, string snapshotJson, in GatewayWorldStartAnchor worldStartAnchor)
+            : this(
+                success: true,
+                roomId: string.Empty,
+                numericRoomId,
+                snapshotJson,
+                in worldStartAnchor,
+                message: string.Empty,
+                battleId: string.Empty,
+                canStart: false,
+                serverNowTicks: 0L,
+                worldId: 0UL,
+                currentPlayerId: 0u)
         {
+        }
+
+        public GatewayJoinRoomResult(
+            bool success,
+            string roomId,
+            ulong numericRoomId,
+            string snapshotJson,
+            in GatewayWorldStartAnchor worldStartAnchor,
+            string message,
+            string battleId,
+            bool canStart,
+            long serverNowTicks,
+            ulong worldId,
+            uint currentPlayerId)
+        {
+            Success = success;
+            RoomId = roomId ?? string.Empty;
             NumericRoomId = numericRoomId;
-            SnapshotJson = snapshotJson;
+            SnapshotJson = snapshotJson ?? string.Empty;
             WorldStartAnchor = worldStartAnchor;
+            Message = message ?? string.Empty;
+            BattleId = battleId ?? string.Empty;
+            CanStart = canStart;
+            ServerNowTicks = serverNowTicks;
+            WorldId = worldId;
+            CurrentPlayerId = currentPlayerId;
         }
     }
 

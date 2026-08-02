@@ -1,18 +1,34 @@
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.Battle.Vfx;
 
 namespace AbilityKit.Game.Flow
 {
     internal interface IBattlePresentationSessionFactory
     {
-        BattlePresentationSessionContext Create();
+        BattlePresentationSessionContext Create(in GamePhaseContext ctx);
     }
 
     internal sealed class BattlePresentationSessionFactory : IBattlePresentationSessionFactory
     {
-        public BattlePresentationSessionContext Create()
+        public BattlePresentationSessionContext Create(in GamePhaseContext ctx)
         {
-            return BattlePresentationSessionContext.CreateFromDefaultResources();
+            MobaConfigDatabase configs = null;
+            if (ctx.Features.TryGet(out BattleContext battleContext) &&
+                battleContext != null &&
+                battleContext.TryGetRuntimeWorld(out var runtimeWorld) &&
+                runtimeWorld?.Services != null)
+            {
+                runtimeWorld.Services.TryResolve(out configs);
+            }
+
+            IBattleAssetLookup assets = null;
+            if (ctx.Features.TryGet(out BattleSessionFeature battleSession))
+            {
+                assets = battleSession?.AssetLease as IBattleAssetLookup;
+            }
+
+            return BattlePresentationSessionContext.CreateDefault(configs, null, assets);
         }
     }
 
@@ -44,16 +60,16 @@ namespace AbilityKit.Game.Flow
 
         public static BattlePresentationSessionContext CreateDefault(
             MobaConfigDatabase configs = null,
-            VfxDatabase vfxDb = null)
+            VfxDatabase vfxDb = null,
+            IBattleAssetLookup assets = null)
         {
-            return new BattlePresentationSessionContext(new BattleViewResourceProvider(configs, vfxDb));
+            return new BattlePresentationSessionContext(
+                new BattleViewResourceProvider(configs, vfxDb, assets));
         }
 
         internal static BattlePresentationSessionContext CreateFromDefaultResources()
         {
-            return CreateDefault(
-                BattleViewResourceProvider.Default.Configs,
-                BattleViewResourceProvider.Default.VfxDb);
+            return CreateDefault();
         }
     }
 }

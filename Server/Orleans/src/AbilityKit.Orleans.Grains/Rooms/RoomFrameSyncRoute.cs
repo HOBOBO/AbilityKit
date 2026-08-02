@@ -2,6 +2,7 @@ using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.FrameSync;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Gameplay;
+using AbilityKit.Orleans.Grains.Gameplay;
 
 namespace AbilityKit.Orleans.Grains.Rooms;
 
@@ -29,7 +30,8 @@ internal static class RoomFrameSyncRoute
             initParams.WorldId,
             initParams.TickRate > 0 ? initParams.TickRate : 30,
             battleId,
-            syncTemplate.TemplateId);
+            syncTemplate.TemplateId,
+            (int)syncTemplate.RuntimeMode);
 
         return new RoomBattleStartRoute(syncTemplate.RequiresBattleRuntime, frameSyncOptions, syncTemplate.TemplateId, false);
     }

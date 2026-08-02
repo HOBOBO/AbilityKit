@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Behavior;
+using AbilityKit.Ability.Config;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Behavior.BTree;
@@ -71,11 +72,11 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             }
         }
 
-        public static MobaBrainDecisionDriverRegistry CreateDefault()
+        public static MobaBrainDecisionDriverRegistry CreateDefault(ITextAssetLoader textAssetLoader = null)
         {
             return new MobaBrainDecisionDriverRegistry(new IMobaBrainDecisionDriver[]
             {
-                new MobaBTreeBrainDecisionDriver(),
+                new MobaBTreeBrainDecisionDriver(textAssetLoader),
             });
         }
 
@@ -104,6 +105,13 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     /// </summary>
     public sealed class MobaBTreeBrainDecisionDriver : IMobaBrainDecisionDriver
     {
+        private readonly ITextAssetLoader _textAssetLoader;
+
+        public MobaBTreeBrainDecisionDriver(ITextAssetLoader textAssetLoader = null)
+        {
+            _textAssetLoader = textAssetLoader;
+        }
+
         public MobaBrainDriverKind Kind => MobaBrainDriverKind.BTree;
 
         public bool TryCreate(in MobaBrainDecisionCreateContext context, out IBehaviorDecision decision)
@@ -111,7 +119,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             decision = null;
             var treeName = context.Definition.DecisionName;
             if (string.IsNullOrWhiteSpace(treeName)
-                || !MobaBTreeAssetLoader.TryLoad(treeName, out var json))
+                || !MobaBTreeAssetLoader.TryLoad(_textAssetLoader, treeName, out var json))
             {
                 return false;
             }

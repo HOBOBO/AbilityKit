@@ -3,9 +3,28 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AbilityKitStable>true</AbilityKitStable>
     <RootNamespace>AbilityKit.Core</RootNamespace>
     <AssemblyName>AbilityKit.Core</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!--
+    0.1.0 Beta 发版时，可空性标注未全覆盖，以下 CS8xxx 按核心包范围单独列为 NoWarn。
+    每条注释为当前剩余数量；随对应代码依次修复后，从本列表移除对应条目。
+    本列表解决后，根 Directory.Build.props 的 WarningsNotAsErrors 即可移除对应 CS8xxx。
+  -->
+  <PropertyGroup>
+    <!-- CS8625: ~38 处 null 字面量/默认值传给非空类型 -->
+    <NoWarn>$(NoWarn);CS8625</NoWarn>
+    <NoWarn>$(NoWarn);CS8604</NoWarn>  <!-- ~10 处 可能 null 实参 -->
+    <NoWarn>$(NoWarn);CS8618</NoWarn>  <!-- ~24 处 非空字段未初始化 -->
+    <NoWarn>$(NoWarn);CS8603</NoWarn>  <!-- ~24 处 可能 null 返回 -->
+    <NoWarn>$(NoWarn);CS8765</NoWarn>  <!-- ~20 处 override 可空性不匹配 -->
+    <NoWarn>$(NoWarn);CS8601</NoWarn>  <!-- ~20 处 可能 null 赋值 -->
+    <NoWarn>$(NoWarn);CS8600</NoWarn>  <!-- ~6 处 null→非空 -->
+    <NoWarn>$(NoWarn);CS8714</NoWarn>  <!-- ~4 处 泛型可空不匹配 -->
+    <NoWarn>$(NoWarn);CS8619</NoWarn>  <!-- ~4 处 可空性不匹配 -->
   </PropertyGroup>
 
   <!-- 引用 Unity Package 中的纯运行时源码，Unity 专属桥接代码由 UPM asmdef 编译。 -->

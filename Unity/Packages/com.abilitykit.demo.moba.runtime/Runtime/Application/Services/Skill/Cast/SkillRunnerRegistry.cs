@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Mathematics;
 
@@ -8,15 +9,18 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class SkillRunnerRegistry
     {
         private readonly Dictionary<int, SkillPipelineRunner> _runners = new();
+        private readonly IWorldClock _clock;
         private readonly IMobaBattleDiagnosticsService _diagnostics;
         private readonly IMobaBattleExceptionPolicy _exceptions;
         private readonly ISkillLogger _skillLogger;
 
         public SkillRunnerRegistry(
+            IWorldClock clock,
             IMobaBattleDiagnosticsService diagnostics,
             IMobaBattleExceptionPolicy exceptions,
             ISkillLogger skillLogger)
         {
+            _clock = clock ?? throw new ArgumentNullException(nameof(clock));
             _diagnostics = diagnostics;
             _exceptions = exceptions;
             _skillLogger = skillLogger;
@@ -98,6 +102,24 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        public void CancelAll(int actorId)
+        {
+            if (actorId <= 0) return;
+            if (_runners.TryGetValue(actorId, out var runner) && runner != null)
+            {
+                runner.CancelAll();
+            }
+        }
+
+        public bool CancelAndRemove(int actorId, MobaSkillRuntimeEndReason reason)
+        {
+            if (actorId <= 0) return false;
+            if (!_runners.TryGetValue(actorId, out var runner)) return false;
+
+            runner?.CancelAll(reason);
+            return _runners.Remove(actorId);
+        }
+
         public void Step(int actorId)
         {
             if (actorId <= 0)
@@ -110,7 +132,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return;
             }
 
-            var dt = 1f / 30f;
+            var dt = _clock.DeltaTime;
             if (dt <= 0f)
             {
                 if (_diagnostics != null)

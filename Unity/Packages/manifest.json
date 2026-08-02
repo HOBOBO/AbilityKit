@@ -9,6 +9,7 @@
     }
   ],
   "dependencies": {
+    "com.abilitykit.demo.multiplayer.starter": "file:com.abilitykit.demo.multiplayer.starter",
     "com.unity.collab-proxy": "2.11.2",
     "com.unity.feature.development": "1.0.1",
     "com.unity.ide.visualstudio": "2.0.22",

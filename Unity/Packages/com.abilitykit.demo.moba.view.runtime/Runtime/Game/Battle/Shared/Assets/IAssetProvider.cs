@@ -12,4 +12,9 @@ namespace AbilityKit.Game.Battle.Shared.Assets
 
         T[] LoadAll<T>(string path) where T : Object;
     }
+
+    public interface IAssetReleaseProvider
+    {
+        void Release(Object asset);
+    }
 }

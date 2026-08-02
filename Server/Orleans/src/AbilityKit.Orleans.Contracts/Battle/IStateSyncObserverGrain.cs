@@ -7,6 +7,19 @@ namespace AbilityKit.Orleans.Contracts.Battle;
 public interface IStateSyncObserverGrain : IGrainWithStringKey
 {
     /// <summary>
+    /// 绑定当前 Gateway 进程中的推送观察者。
+    /// 后续绑定会替换旧绑定，bindingId 用于防止旧连接清理新连接的观察者。
+    /// </summary>
+    Task BindGatewayPushObserverAsync(
+        string bindingId,
+        IStateSyncGatewayPushObserver observer);
+
+    /// <summary>
+    /// 仅当 bindingId 仍是当前绑定时解除 Gateway 推送观察者。
+    /// </summary>
+    Task UnbindGatewayPushObserverAsync(string bindingId);
+
+    /// <summary>
     /// 订阅战斗状态同步，并从客户端可靠事件累计确认位置恢复。
     /// </summary>
     Task SubscribeAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor);
@@ -35,6 +48,14 @@ public interface IStateSyncObserverGrain : IGrainWithStringKey
     /// 获取本观察者的累计投递指标与实时队列状态。
     /// </summary>
     Task<StateSyncDeliveryMetrics> GetDeliveryMetricsAsync();
+}
+
+/// <summary>
+/// Gateway 进程内的状态同步推送观察者，通过 Orleans object reference 暴露给 Silo。
+/// </summary>
+public interface IStateSyncGatewayPushObserver : IGrainObserver
+{
+    void OnPush(uint opCode, byte[] payload);
 }
 
 /// <summary>

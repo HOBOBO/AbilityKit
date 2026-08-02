@@ -1,6 +1,6 @@
 {
   "name": "com.abilitykit.ability",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit Ability",
   "unity": "2022.3",
   "description": "Ability triggering, pipeline, effects runtime and editor tools.",

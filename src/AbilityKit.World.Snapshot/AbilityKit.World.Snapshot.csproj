@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AbilityKitStable>true</AbilityKitStable>
     <RootNamespace>AbilityKit</RootNamespace>
     <AssemblyName>AbilityKit.World.Snapshot</AssemblyName>
     <LangVersion>latest</LangVersion>

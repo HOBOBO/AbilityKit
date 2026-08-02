@@ -15,15 +15,18 @@ public sealed partial class SubscribeStateSyncHandler : GatewayRequestHandlerBas
 {
     private readonly IClusterClient _clusterClient;
     private readonly IGatewaySessionRegistry _sessionRegistry;
+    private readonly Core.GatewayStateSyncPushSubscriptionManager _pushSubscriptions;
     private readonly ILogger<SubscribeStateSyncHandler> _logger;
 
     public SubscribeStateSyncHandler(
         IClusterClient clusterClient,
         IGatewaySessionRegistry sessionRegistry,
+        Core.GatewayStateSyncPushSubscriptionManager pushSubscriptions,
         ILogger<SubscribeStateSyncHandler> logger)
     {
         _clusterClient = clusterClient;
         _sessionRegistry = sessionRegistry;
+        _pushSubscriptions = pushSubscriptions;
         _logger = logger;
     }
 
@@ -62,6 +65,7 @@ public sealed partial class SubscribeStateSyncHandler : GatewayRequestHandlerBas
             var observerKey = $"{accountId}:{roomKey}";
             var observerGrain = _clusterClient.GetGrain<IStateSyncObserverGrain>(observerKey);
 
+            await _pushSubscriptions.EnsureBoundAsync(context.ConnectionId, observerKey);
             await observerGrain.SubscribeAsync(req.BattleId, new ReliableBattleEventSubscribeCursor
             {
                 Epoch = req.EventEpoch ?? string.Empty,

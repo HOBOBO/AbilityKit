@@ -20,8 +20,17 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 return NamedArgsDict.Empty;
             }
 
-            var parsed = ActionSchemaRegistry.GetParsedArgs<TArgs, TCtx>(call.Id, arguments.NamedArgs, ctx);
-            return ConvertToNamedArgsDict(parsed, arguments.NamedArgs);
+            var resolvedArgs = new Dictionary<string, ActionArgValue>(arguments.NamedArgs.Count);
+            foreach (var pair in arguments.NamedArgs)
+            {
+                var argument = pair.Value;
+                var numericRef = argument.Ref;
+                var value = ResolveNumeric(in args, in numericRef, in ctx);
+                resolvedArgs[pair.Key] = ActionArgValue.OfConst(value, argument.Name);
+            }
+
+            var parsed = ActionSchemaRegistry.GetParsedArgs<TArgs, TCtx>(call.Id, resolvedArgs, ctx);
+            return ConvertToNamedArgsDict(parsed, resolvedArgs);
         }
 
         public static NamedArgsDict CreatePositionalArgs(double v0)

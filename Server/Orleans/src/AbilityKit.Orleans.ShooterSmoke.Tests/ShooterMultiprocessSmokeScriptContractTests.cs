@@ -285,6 +285,8 @@ public sealed class ShooterMultiprocessSmokeScriptContractTests
         Assert.Equal(0, scenario.GetProperty("recoverableFailureCount").GetInt32());
         Assert.Contains("-ClientReconnectCount $(if ($i -eq 1) { $ReconnectCount } else { 0 })", Script, StringComparison.Ordinal);
         Assert.Contains("--state-sync-payload-mode', $PayloadMode", Script, StringComparison.Ordinal);
+        Assert.Contains("options.Mode != ShooterSmokeClientProcessMode.Join && options.ReconnectCount > 0", ClientRunnerSource, StringComparison.Ordinal);
+        Assert.Contains("reconnectCount is supported only for join client mode.", ClientRunnerSource, StringComparison.Ordinal);
         Assert.Contains("for (var cycle = 1; cycle <= options.ReconnectCount; cycle++)", ClientRunnerSource, StringComparison.Ordinal);
         Assert.Contains("connection.Close();", ClientRunnerSource, StringComparison.Ordinal);
         Assert.Contains("reconnected.Flow.EntryKind != ShooterRoomGatewayEntryKind.Reconnect", ClientRunnerSource, StringComparison.Ordinal);

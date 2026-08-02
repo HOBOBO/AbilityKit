@@ -1,112 +1,212 @@
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using AbilityKit.Game.Battle.Shared.Assets;
 
 namespace AbilityKit.Game.Flow
 {
-    /// <summary>
-    /// 默认 <see cref="IBattleAssetLoadCoordinator"/> 实现。
-    /// 桥接 <see cref="IBattleAssetLoadService"/>（阶段 6 已实现）：
-    /// 在 Flow LoadAssets 阶段按 manifest 异步加载全部必需资源，
-    /// 全部成功（manifest barrier 通过）才回调 onSuccess=true。
-    /// 首帧不再代表资源加载完成——只有真实 manifest barrier 通过才推进。
-    /// </summary>
     internal sealed class BattleAssetLoadCoordinator : IBattleAssetLoadCoordinator
     {
         private readonly IBattleAssetLoadService _loadService;
         private readonly Func<BattleAssetManifest> _manifestProvider;
+        private readonly IProgress<BattleAssetLoadProgress> _progress;
+        private readonly object _gate = new object();
 
         private IBattleAssetLease _currentLease;
-        private Action<bool> _pendingCallback;
-        private CancellationTokenSource _cts;
-
-        public bool IsLoading => _pendingCallback != null;
+        private BattleAssetLoadResult _lastResult;
+        private LoadOperation _activeOperation;
 
         public BattleAssetLoadCoordinator(
             IBattleAssetLoadService loadService,
-            Func<BattleAssetManifest> manifestProvider)
+            Func<BattleAssetManifest> manifestProvider,
+            IProgress<BattleAssetLoadProgress> progress = null)
         {
             _loadService = loadService ?? throw new ArgumentNullException(nameof(loadService));
             _manifestProvider = manifestProvider ?? throw new ArgumentNullException(nameof(manifestProvider));
+            _progress = progress;
+        }
+
+        public bool IsLoading
+        {
+            get
+            {
+                lock (_gate) return _activeOperation != null;
+            }
+        }
+
+        public BattleAssetLoadResult LastResult
+        {
+            get
+            {
+                lock (_gate) return _lastResult;
+            }
         }
 
         public void StartLoading(Action<bool> onComplete)
         {
-            if (_pendingCallback != null)
+            if (onComplete == null) throw new ArgumentNullException(nameof(onComplete));
+
+            LoadOperation operation;
+            lock (_gate)
             {
-                throw new InvalidOperationException("资源加载已在进行中。");
+                if (_activeOperation != null)
+                {
+                    throw new InvalidOperationException("Battle asset loading is already in progress.");
+                }
+
+                operation = new LoadOperation(
+                    new CancellationTokenSource(),
+                    onComplete);
+                _activeOperation = operation;
+                _lastResult = null;
             }
 
-            _pendingCallback = onComplete ?? throw new ArgumentNullException(nameof(onComplete));
-            var manifest = _manifestProvider()
-                ?? throw new InvalidOperationException("资源清单（manifest）为 null。");
-
-            _cts = new CancellationTokenSource();
-            LoadAsyncCore(manifest, _cts.Token);
-        }
-
-        private async void LoadAsyncCore(BattleAssetManifest manifest, CancellationToken cancellationToken)
-        {
-            bool success;
+            BattleAssetManifest manifest;
             try
             {
-                var result = await _loadService
-                    .LoadAsync(manifest, progress: null, cancellationToken)
-                    .ConfigureAwait(true);
+                manifest = _manifestProvider()
+                    ?? throw new InvalidOperationException("Battle asset manifest must not be null.");
+            }
+            catch
+            {
+                lock (_gate)
+                {
+                    if (ReferenceEquals(_activeOperation, operation))
+                    {
+                        _activeOperation = null;
+                    }
+                }
 
-                if (result != null && result.Success && result.Lease != null && result.Lease.IsActive)
-                {
-                    _currentLease = result.Lease;
-                    success = true;
-                }
-                else
-                {
-                    _currentLease = null;
-                    success = false;
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                _currentLease = null;
-                success = false;
-            }
-            catch (Exception)
-            {
-                _currentLease = null;
-                success = false;
+                operation.Dispose();
+                throw;
             }
 
-            var cb = _pendingCallback;
-            _pendingCallback = null;
-            _cts?.Dispose();
-            _cts = null;
-            cb?.Invoke(success);
+            _ = LoadAsyncCore(operation, manifest);
         }
 
         public void Cancel()
         {
+            LoadOperation operation;
+            lock (_gate)
+            {
+                operation = _activeOperation;
+                _activeOperation = null;
+            }
+
+            if (operation == null) return;
+
             try
             {
-                _cts?.Cancel();
+                operation.Cancellation.Cancel();
             }
             catch (ObjectDisposedException)
             {
-                // 已释放，忽略。
+                // A racing completion already owns cleanup.
             }
 
-            var cb = _pendingCallback;
-            _pendingCallback = null;
-            _cts?.Dispose();
-            _cts = null;
-            _currentLease = null;
-            cb?.Invoke(false);
+            operation.Callback(false);
         }
 
-        /// <summary>释放当前持有的资源租约（战斗结束时调用）。</summary>
         public void ReleaseLease()
         {
-            _currentLease?.Dispose();
-            _currentLease = null;
+            TakeLease()?.Dispose();
+        }
+
+        public IBattleAssetLease TakeLease()
+        {
+            lock (_gate)
+            {
+                var lease = _currentLease;
+                _currentLease = null;
+                return lease;
+            }
+        }
+
+        private async Task LoadAsyncCore(LoadOperation operation, BattleAssetManifest manifest)
+        {
+            var success = false;
+            IBattleAssetLease loadedLease = null;
+            BattleAssetLoadResult loadResult = null;
+            try
+            {
+                loadResult = await _loadService
+                    .LoadAsync(manifest, _progress, operation.Cancellation.Token)
+                    .ConfigureAwait(true);
+                loadedLease = loadResult?.Lease;
+                if (loadResult != null && loadResult.Success && loadedLease != null && loadedLease.IsActive)
+                {
+                    success = true;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                success = false;
+            }
+            catch (Exception ex)
+            {
+                success = false;
+                loadResult = BuildExceptionResult(manifest, ex);
+            }
+
+            Action<bool> callback = null;
+            IBattleAssetLease previousLease = null;
+            lock (_gate)
+            {
+                if (ReferenceEquals(_activeOperation, operation))
+                {
+                    _activeOperation = null;
+                    _lastResult = loadResult;
+                    callback = operation.Callback;
+                    if (success)
+                    {
+                        previousLease = _currentLease;
+                        _currentLease = loadedLease;
+                        loadedLease = null;
+                    }
+                }
+            }
+
+            operation.Dispose();
+            loadedLease?.Dispose();
+            previousLease?.Dispose();
+            callback?.Invoke(success);
+        }
+
+        private static BattleAssetLoadResult BuildExceptionResult(
+            BattleAssetManifest manifest,
+            Exception exception)
+        {
+            var reason = "Exception: " + exception.GetType().Name + ": " + exception.Message;
+            return new BattleAssetLoadResult(
+                false,
+                manifest.LaunchGeneration,
+                manifest.ManifestVersion,
+                manifest.ManifestHash,
+                new[] { new BattleAssetLoadError(string.Empty, string.Empty, reason) });
+        }
+
+        private sealed class LoadOperation : IDisposable
+        {
+            public LoadOperation(
+                CancellationTokenSource cancellation,
+                Action<bool> callback)
+            {
+                Cancellation = cancellation;
+                Callback = callback;
+            }
+
+            public CancellationTokenSource Cancellation { get; }
+            public Action<bool> Callback { get; }
+
+            private int _disposed;
+
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref _disposed, 1) == 0)
+                {
+                    Cancellation.Dispose();
+                }
+            }
         }
     }
 }

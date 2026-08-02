@@ -2,6 +2,7 @@ using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Hierarchy;
+using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.Battle.Vfx;
 using UnityEngine;
 
@@ -29,7 +30,15 @@ namespace AbilityKit.Game.Flow
         }
 
         public BattleViewResourceProvider(MobaConfigDatabase configs, VfxDatabase vfxDb)
-            : this(configs, vfxDb, null, null, null, null)
+            : this(configs, vfxDb, null)
+        {
+        }
+
+        public BattleViewResourceProvider(
+            MobaConfigDatabase configs,
+            VfxDatabase vfxDb,
+            IBattleAssetLookup assets)
+            : this(configs, vfxDb, null, null, null, null, null, assets)
         {
         }
 
@@ -40,18 +49,19 @@ namespace AbilityKit.Game.Flow
             BattleViewConfigLookup configLookup,
             BattleViewModelFactory models,
             BattleViewVfxFactory vfx,
-            BattleViewResourceProviderComponentFactory components = null)
+            BattleViewResourceProviderComponentFactory components = null,
+            IBattleAssetLookup assets = null)
         {
             components ??= new BattleViewResourceProviderComponentFactory();
 
             _configs = configs;
             _vfxDb = vfxDb;
-            _cache = cache ?? components.CreateCache();
+            _cache = cache ?? components.CreateCache(assets);
             _configLookup = configLookup ?? components.CreateConfigLookup();
 
             var primitives = components.CreatePrimitives();
-            _models = models ?? components.CreateModels(primitives);
-            _vfx = vfx ?? components.CreateVfx(primitives);
+            _models = models ?? components.CreateModels(primitives, assets);
+            _vfx = vfx ?? components.CreateVfx(primitives, assets);
         }
 
         /// <summary>
@@ -164,9 +174,9 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class BattleViewResourceProviderComponentFactory
     {
-        public BattleViewResourceCache CreateCache()
+        public BattleViewResourceCache CreateCache(IBattleAssetLookup assets = null)
         {
-            return new BattleViewResourceCache();
+            return new BattleViewResourceCache(assets);
         }
 
         public BattleViewConfigLookup CreateConfigLookup()
@@ -179,14 +189,22 @@ namespace AbilityKit.Game.Flow
             return new BattleViewPrimitiveFactory();
         }
 
-        public BattleViewModelFactory CreateModels(BattleViewPrimitiveFactory primitives)
+        public BattleViewModelFactory CreateModels(
+            BattleViewPrimitiveFactory primitives,
+            IBattleAssetLookup assets = null)
         {
-            return new BattleViewModelFactory(primitives);
+            var prefabs = assets != null
+                ? new BattleViewModelPrefabResolver(new BattleAssetViewModelPrefabLoader(assets))
+                : null;
+            return new BattleViewModelFactory(primitives, prefabs);
         }
 
-        public BattleViewVfxFactory CreateVfx(BattleViewPrimitiveFactory primitives)
+        public BattleViewVfxFactory CreateVfx(
+            BattleViewPrimitiveFactory primitives,
+            IBattleAssetLookup assets = null)
         {
-            return new BattleViewVfxFactory(primitives);
+            var loader = assets != null ? new BattleAssetViewVfxPrefabLoader(assets) : null;
+            return new BattleViewVfxFactory(primitives, loader);
         }
     }
 }

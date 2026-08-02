@@ -40,7 +40,12 @@ namespace AbilityKit.Game.Flow
 
             if (handle.ActorId != actorId)
             {
-                if (handle.ActorId > 0) _actorIdToEntityId.Remove(handle.ActorId);
+                if (handle.ActorId > 0 &&
+                    _actorIdToEntityId.TryGetValue(handle.ActorId, out var mappedEntityId) &&
+                    Equals(mappedEntityId, entityId))
+                {
+                    _actorIdToEntityId.Remove(handle.ActorId);
+                }
                 handle.ActorId = actorId;
             }
 
@@ -51,7 +56,11 @@ namespace AbilityKit.Game.Flow
         {
             if (_handles.TryGetValue(entityId, out var handle) && handle != null && handle.ActorId > 0)
             {
-                _actorIdToEntityId.Remove(handle.ActorId);
+                if (_actorIdToEntityId.TryGetValue(handle.ActorId, out var mappedEntityId) &&
+                    Equals(mappedEntityId, entityId))
+                {
+                    _actorIdToEntityId.Remove(handle.ActorId);
+                }
             }
 
             _handles.Remove(entityId);

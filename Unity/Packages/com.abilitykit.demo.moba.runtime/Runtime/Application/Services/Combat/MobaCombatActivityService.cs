@@ -41,6 +41,11 @@ namespace AbilityKit.Demo.Moba.Services
             return _lastCombatTimeByActorId.TryGetValue(actorId, out time);
         }
 
+        public bool RemoveActor(int actorId)
+        {
+            return actorId > 0 && _lastCombatTimeByActorId.Remove(actorId);
+        }
+
         private float CurrentTime => _clock != null ? _clock.Time : 0f;
 
         public void Dispose()

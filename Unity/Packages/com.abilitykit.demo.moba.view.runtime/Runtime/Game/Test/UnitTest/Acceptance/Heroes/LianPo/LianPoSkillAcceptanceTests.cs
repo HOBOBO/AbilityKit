@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
@@ -51,7 +53,7 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void Skill10010101_ShouldMoveCasterForwardDuringDash()
         {
-            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1, attributeTemplateId: 1001))
+            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1001, attributeTemplateId: 1001))
             {
                 harness.EnterGameAndWarmup(reason: "lian po skill 1 dash movement contract");
 
@@ -99,6 +101,77 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 Assert.Greater(planarDelta.Magnitude, 1f, $"Lian Po skill 1 dash should move the caster on the XZ plane. start={start}, end={end}, delta={planarDelta}");
                 Assert.Greater(end.X - start.X, 1f, $"Lian Po skill 1 dash should follow the supplied +X aim direction. start={start}, end={end}");
+            }
+        }
+
+        [Test]
+        public void Skill10010101_ShouldPassThroughWorldWallDuringDash()
+        {
+            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1001, attributeTemplateId: 1001))
+            {
+                harness.EnterGameAndWarmup(reason: "lian po skill 1 wall pass-through contract");
+
+                var actorId = harness.AssertPlayerActorBound();
+                var start = harness.AssertActorEntity(actorId).transform.Value.Position;
+                var collisionWorld = harness.World.Services.Resolve<ICollisionService>().World;
+                var wallCenter = new Vec3(start.X + 3.5f, start.Y, start.Z);
+                var wallTransform = new Transform3(wallCenter, Quat.Identity, Vec3.One);
+                var wallHalfExtents = new Vec3(0.75f, 2f, 3f);
+                var wallShape = ColliderShape.CreateAabb(-wallHalfExtents, wallHalfExtents);
+                collisionWorld.Add(in wallTransform, in wallShape, MobaCollisionLayers.WorldId);
+
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                var castResult = skills.TryCastBySlot(actorId, slot: 1, aimPos: default, aimDir: Vec3.Right, targetActorId: 0);
+                Assert.IsTrue(castResult.Success, $"Lian Po skill 1 cast should succeed before wall pass-through validation. failReason={castResult.FailReason}");
+
+                harness.Tick(24);
+
+                var end = harness.AssertActorEntity(actorId).transform.Value.Position;
+                var endSphere = new Sphere(end, 0.5f);
+                var worldFilter = new LayerFilter(MobaCollisionLayers.WorldMask);
+                var overlaps = new List<ColliderId>(1);
+                Assert.Greater(end.X, wallCenter.X + wallHalfExtents.X + 0.5f, $"Lian Po skill 1 should finish beyond the wall. start={start}, wallCenter={wallCenter}, end={end}");
+                Assert.AreEqual(0, collisionWorld.OverlapSphere(in endSphere, in worldFilter, overlaps), $"Lian Po skill 1 should not finish overlapping the wall. end={end}");
+            }
+        }
+
+        [Test]
+        public void Skill10010101_ShouldProjectInsideFinalEndpointToNearestWallEdge()
+        {
+            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1001, attributeTemplateId: 1001))
+            {
+                harness.EnterGameAndWarmup(reason: "lian po skill 1 inside endpoint projection contract");
+
+                var actorId = harness.AssertPlayerActorBound();
+                var start = harness.AssertActorEntity(actorId).transform.Value.Position;
+                var collisionWorld = harness.World.Services.Resolve<ICollisionService>().World;
+                var wallCenter = new Vec3(start.X + 7.8f, start.Y, start.Z);
+                var wallTransform = new Transform3(wallCenter, Quat.Identity, Vec3.One);
+                var wallHalfExtents = new Vec3(0.75f, 2f, 3f);
+                var wallShape = ColliderShape.CreateAabb(-wallHalfExtents, wallHalfExtents);
+                collisionWorld.Add(in wallTransform, in wallShape, MobaCollisionLayers.WorldId);
+
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                var castResult = skills.TryCastBySlot(actorId, slot: 1, aimPos: default, aimDir: Vec3.Right, targetActorId: 0);
+                Assert.IsTrue(castResult.Success, $"Lian Po skill 1 cast should succeed before endpoint projection validation. failReason={castResult.FailReason}");
+
+                harness.Tick(24);
+
+                var entity = harness.AssertActorEntity(actorId);
+                var end = entity.transform.Value.Position;
+                var motionPosition = entity.motion.State.Position;
+                var expectedNearestEdgeX = wallCenter.X + wallHalfExtents.X + 0.5f;
+                var entranceSideEdgeX = wallCenter.X - wallHalfExtents.X - 0.5f;
+                var rawEndpointX = start.X + 12.3f * 0.65f;
+                var endSphere = new Sphere(end, 0.5f);
+                var worldFilter = new LayerFilter(MobaCollisionLayers.WorldMask);
+                var overlaps = new List<ColliderId>(1);
+
+                Assert.AreEqual(expectedNearestEdgeX, end.X, 0.02f, $"Lian Po skill 1 should project its inside final endpoint to the nearest wall edge. start={start}, rawEndpointX={rawEndpointX}, wallCenter={wallCenter}, end={end}");
+                Assert.Less(System.Math.Abs(end.X - expectedNearestEdgeX), System.Math.Abs(end.X - entranceSideEdgeX), $"Lian Po skill 1 endpoint projection should choose the edge nearest to the raw endpoint instead of returning to the entrance side. rawEndpointX={rawEndpointX}, entranceSideEdgeX={entranceSideEdgeX}, expectedNearestEdgeX={expectedNearestEdgeX}, end={end}");
+                Assert.AreEqual(end.X, motionPosition.X, 0.001f, $"Lian Po transform and motion state should agree after endpoint projection. transform={end}, motion={motionPosition}");
+                Assert.AreEqual(end.Z, motionPosition.Z, 0.001f, $"Lian Po transform and motion state should agree after endpoint projection. transform={end}, motion={motionPosition}");
+                Assert.AreEqual(0, collisionWorld.OverlapSphere(in endSphere, in worldFilter, overlaps), $"Lian Po skill 1 should not finish overlapping the wall after endpoint projection. end={end}");
             }
         }
 
@@ -173,7 +246,7 @@ namespace AbilityKit.Game.Test.UnitTest
         [TestCase(3, 10010301)]
         public void LianPoActiveSkills_ShouldCarrySuperArmorTagDuringCastPipeline(int slot, int expectedSkillId)
         {
-            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1, attributeTemplateId: 1001))
+            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1001, attributeTemplateId: 1001))
             {
                 harness.EnterGameAndWarmup(reason: "lian po skill pipeline super armor tag contract");
 
@@ -198,7 +271,7 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void Skill10010000_PassiveRage_ShouldScaleStatsAndHealOutOfCombat()
         {
-            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1, attributeTemplateId: 1001))
+            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1001, attributeTemplateId: 1001))
             {
                 harness.EnterGameAndWarmup(reason: "lian po passive rage contract");
 
@@ -235,7 +308,7 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void Skill10010000_PassiveRage_ShouldGainOnDamageDealtAndClampAtMax()
         {
-            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1, attributeTemplateId: 1001))
+            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1001, attributeTemplateId: 1001))
             {
                 harness.EnterGameAndWarmup(reason: "lian po passive rage damage dealt contract");
 

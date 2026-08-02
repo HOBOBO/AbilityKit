@@ -4,20 +4,16 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <LangVersion>12</LangVersion>
-    <RootNamespace>AbilityKit.Ability.Host.Extensions.Moba</RootNamespace>
+    <AbilityKitStable>true</AbilityKitStable>
+    <RootNamespace>AbilityKit.Ability.Host.Extensions</RootNamespace>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DefineConstants>DOTNET</DefineConstants>
   </PropertyGroup>
 
-  <!-- 引用 Unity/Packages 的 host.extension 核心文件 -->
+  <!-- 通用 host.extension 运行时文件（Moba 专属 host adapter 已提取至 com.abilitykit.demo.moba.host）。 -->
   <ItemGroup>
-    <!-- Room 核心（排除已存在于 AbilityKit.Protocol.Moba 中的文件） -->
-    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\Room\*.cs"
-        Exclude="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\Room\MobaRoomCommandResult.cs" />
-    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Server\Room\MobaRoomOrchestrator.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Server\BattleHost\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Client\FrameSync\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\FrameSync\*.cs" />
@@ -25,19 +21,13 @@
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Session\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Time\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\WorldStart\*.cs" />
-    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\Struct\*.cs" />
-    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\CreateWorld\*.cs" />
-    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\StartSources\*.cs" />
-    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\Snapshot\*.cs" />
-    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\Runtime\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
     <ProjectReference Include="..\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.World.NetworkFragments\AbilityKit.World.NetworkFragments.csproj" />
-    <ProjectReference Include="..\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />
-    <ProjectReference Include="..\AbilityKit.Demo.Moba.Share\AbilityKit.Demo.Moba.Share.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.Snapshot\AbilityKit.World.Snapshot.csproj" />
   </ItemGroup>
 
 </Project>

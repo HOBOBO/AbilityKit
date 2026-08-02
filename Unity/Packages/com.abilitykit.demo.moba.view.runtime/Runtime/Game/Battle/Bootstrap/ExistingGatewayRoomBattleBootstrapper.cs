@@ -1,5 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Demo.Common.Rooms;
+using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.CreateWorld;
+using ProtocolPlayerId = AbilityKit.Ability.Host.PlayerId;
 
 namespace AbilityKit.Game.Flow
 {
@@ -13,7 +20,10 @@ namespace AbilityKit.Game.Flow
         private readonly string _battleId;
         private readonly ulong _numericRoomId;
         private readonly ulong _worldId;
+        private readonly uint _localPlayerId;
         private readonly IMobaReliableBattleEventCheckpointStore _checkpointStore;
+        private readonly DemoMultiplayerLaunchRequest _launchRequest;
+        private readonly IReadOnlyList<MultiplayerRoomPlayerSnapshot> _players;
 
         public ExistingGatewayRoomBattleBootstrapper(
             IBattleBootstrapper inner,
@@ -22,7 +32,10 @@ namespace AbilityKit.Game.Flow
             string battleId,
             ulong numericRoomId,
             ulong worldId,
-            IMobaReliableBattleEventCheckpointStore checkpointStore = null)
+            uint localPlayerId,
+            IMobaReliableBattleEventCheckpointStore checkpointStore = null,
+            DemoMultiplayerLaunchRequest launchRequest = null,
+            IReadOnlyList<MultiplayerRoomPlayerSnapshot> players = null)
         {
             _inner = inner ?? throw new ArgumentNullException(nameof(inner));
             _sessionToken = sessionToken ?? string.Empty;
@@ -30,7 +43,10 @@ namespace AbilityKit.Game.Flow
             _battleId = battleId ?? string.Empty;
             _numericRoomId = numericRoomId;
             _worldId = worldId;
+            _localPlayerId = localPlayerId;
             _checkpointStore = checkpointStore;
+            _launchRequest = launchRequest;
+            _players = players;
         }
 
         public BattleStartPlan Build()
@@ -43,10 +59,11 @@ namespace AbilityKit.Game.Flow
             if (string.IsNullOrWhiteSpace(_roomId) ||
                 string.IsNullOrWhiteSpace(_battleId) ||
                 _numericRoomId == 0UL ||
-                _worldId == 0UL)
+                _worldId == 0UL ||
+                _localPlayerId == 0u)
             {
                 throw new InvalidOperationException(
-                    "Authoritative Gateway room, battle, numeric room, and world ids are required.");
+                    "Authoritative Gateway room, battle, numeric room, world, and local player ids are required.");
             }
 
             var plan = _inner.Build();
@@ -58,22 +75,24 @@ namespace AbilityKit.Game.Flow
             var timeSync = plan.TimeSync;
             var checkpoint = default(MobaReliableBattleEventCheckpoint);
             _checkpointStore?.TryLoad(_battleId, out checkpoint);
+            var launchSpec = BuildAuthoritativeLaunchSpec(in plan.LaunchSpec);
+            var createWorldPayload = launchSpec.ToCreateWorldInitPayload();
 
             return new BattleStartPlan(
                 worldId: _worldId.ToString(),
                 worldType: world.WorldType,
                 clientId: world.ClientId,
-                playerId: world.PlayerId,
+                playerId: _localPlayerId.ToString(CultureInfo.InvariantCulture),
                 tickRate: world.TickRate,
                 inputDelayFrames: world.InputDelayFrames,
                 hostMode: BattleStartConfig.BattleHostMode.GatewayRemote,
                 useGatewayTransport: true,
-                gatewayHost: gateway.Host,
-                gatewayPort: gateway.Port,
+                gatewayHost: !string.IsNullOrWhiteSpace(_launchRequest?.Host) ? _launchRequest.Host : gateway.Host,
+                gatewayPort: _launchRequest != null && _launchRequest.Port > 0 ? _launchRequest.Port : gateway.Port,
                 numericRoomId: _numericRoomId,
                 gatewaySessionToken: _sessionToken,
-                gatewayRegion: gateway.Region,
-                gatewayServerId: gateway.ServerId,
+                gatewayRegion: !string.IsNullOrWhiteSpace(_launchRequest?.Region) ? _launchRequest.Region : gateway.Region,
+                gatewayServerId: !string.IsNullOrWhiteSpace(_launchRequest?.ServerId) ? _launchRequest.ServerId : gateway.ServerId,
                 gatewayAutoCreateRoom: false,
                 gatewayAutoJoinRoom: false,
                 gatewayJoinRoomId: _roomId,
@@ -93,7 +112,7 @@ namespace AbilityKit.Game.Flow
                 inputReplayPath: runMode.InputReplayPath,
                 runMode: runMode.RunMode,
                 createWorldOpCode: createWorld.OpCode,
-                createWorldPayload: createWorld.Payload,
+                createWorldPayload: MobaCreateWorldInitCodec.Serialize(in createWorldPayload),
                 timeSyncOpCode: timeSync.OpCode,
                 timeSyncIntervalMs: timeSync.IntervalMs,
                 timeSyncAlpha: timeSync.Alpha,
@@ -103,9 +122,84 @@ namespace AbilityKit.Game.Flow
                 idealFrameSafetyMinMarginFrames: timeSync.IdealFrameSafetyMinMarginFrames,
                 idealFrameSafetyMaxMarginFrames: timeSync.IdealFrameSafetyMaxMarginFrames,
                 enabledSnapshotRegistryIds: plan.Sync.EnabledSnapshotRegistryIds,
-                launchSpec: plan.LaunchSpec,
+                launchSpec: launchSpec,
                 gatewayBattleId: _battleId,
                 reliableEventCheckpoint: checkpoint);
+        }
+
+        private MobaBattleLaunchSpec BuildAuthoritativeLaunchSpec(in MobaBattleLaunchSpec source)
+        {
+            var localPlayerId = new ProtocolPlayerId(_localPlayerId.ToString(CultureInfo.InvariantCulture));
+            var players = BuildAuthoritativePlayerLoadouts(source.Players);
+            return new MobaBattleLaunchSpec(
+                battleId: _battleId,
+                matchId: _battleId,
+                worldId: _worldId.ToString(CultureInfo.InvariantCulture),
+                worldType: source.WorldType,
+                clientId: source.ClientId,
+                localPlayerId: localPlayerId,
+                mapId: source.MapId,
+                gameplayId: source.GameplayId,
+                ruleSetId: source.RuleSetId,
+                configVersion: source.ConfigVersion,
+                protocolVersion: source.ProtocolVersion,
+                randomSeed: source.RandomSeed,
+                tickRate: source.TickRate,
+                inputDelayFrames: source.InputDelayFrames,
+                launchMode: source.LaunchMode,
+                syncMode: source.SyncMode,
+                authorityMode: source.AuthorityMode,
+                players: players,
+                enterGameOpCode: source.EnterGameOpCode,
+                enterGamePayload: source.EnterGamePayload);
+        }
+
+        private MobaPlayerLoadout[] BuildAuthoritativePlayerLoadouts(MobaPlayerLoadout[] configuredPlayers)
+        {
+            if (_players == null || _players.Count == 0)
+            {
+                return configuredPlayers;
+            }
+
+            var result = new MobaPlayerLoadout[_players.Count];
+            for (var i = 0; i < _players.Count; i++)
+            {
+                var player = _players[i] ?? throw new InvalidOperationException($"Room player snapshot is null at index {i}.");
+                if (player.PlayerId == 0u)
+                {
+                    throw new InvalidOperationException($"Room player id is missing at index {i}.");
+                }
+
+                var hasConfigured = configuredPlayers != null && i < configuredPlayers.Length;
+                var configured = hasConfigured ? configuredPlayers[i] : default;
+                result[i] = new MobaPlayerLoadout(
+                    playerId: new ProtocolPlayerId(player.PlayerId.ToString(CultureInfo.InvariantCulture)),
+                    teamId: player.TeamId,
+                    heroId: player.HeroId,
+                    attributeTemplateId: player.AttributeTemplateId,
+                    level: player.Level,
+                    basicAttackSkillId: player.BasicAttackSkillId,
+                    skillIds: CopySkillIds(player.SkillIds),
+                    spawnIndex: hasConfigured ? configured.SpawnIndex : i,
+                    unitSubType: configured.UnitSubType > 0 ? configured.UnitSubType : 1,
+                    mainType: configured.MainType > 0 ? configured.MainType : 1,
+                    hasSpawnPosition: configured.HasSpawnPosition,
+                    spawnX: configured.SpawnX,
+                    spawnY: configured.SpawnY,
+                    spawnZ: configured.SpawnZ,
+                    brainId: configured.BrainId,
+                    enableBrainOnSpawn: !hasConfigured || configured.EnableBrainOnSpawn);
+            }
+
+            return result;
+        }
+
+        private static int[] CopySkillIds(IReadOnlyList<int> skillIds)
+        {
+            if (skillIds == null || skillIds.Count == 0) return Array.Empty<int>();
+            var result = new int[skillIds.Count];
+            for (var i = 0; i < result.Length; i++) result[i] = skillIds[i];
+            return result;
         }
 
         public bool TryLoad(

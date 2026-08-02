@@ -1,5 +1,8 @@
 # Moba Room 域
 
+> ⚠ **MIGRATION (2026-07-31)**：本文档描述的代码已从 `com.abilitykit.host.extension/Runtime/Moba/` 提取至 `com.abilitykit.demo.moba.host/Runtime/Moba/`（version 0.1.0）。所有 API 命名空间和 asmdef 名称未变，仅物理位置与企业级依赖声明变更。
+
+
 源文件：`Runtime/Moba/Shared/Room/*.cs` + `Runtime/Moba/Server/Room/MobaRoomOrchestrator.cs`
 
 ## MobaRoomState（核心房间状态）

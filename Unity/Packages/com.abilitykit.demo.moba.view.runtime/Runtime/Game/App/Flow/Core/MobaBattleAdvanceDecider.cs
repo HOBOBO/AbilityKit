@@ -62,12 +62,17 @@ namespace AbilityKit.Game.Flow
         /// 阶段 7a：LoadAssets 不再因 firstFrameReceived 自动推进——资源加载完成由
         /// <see cref="OnAssetsLoadCompleted"/> 驱动（真实 manifest barrier）。
         /// </summary>
-        public MobaBattleEvent? OnStateEntered(MobaBattleState current, bool sessionStarted, bool firstFrameReceived)
+        public MobaBattleEvent? OnStateEntered(
+            MobaBattleState current,
+            bool sessionStarted,
+            bool firstFrameReceived,
+            bool assetsLoadCompleted = false)
         {
             return current switch
             {
                 MobaBattleState.Connect when sessionStarted || firstFrameReceived => MobaBattleEvent.Connected,
                 MobaBattleState.CreateOrJoinWorld when firstFrameReceived => MobaBattleEvent.JoinedWorld,
+                MobaBattleState.LoadAssets when assetsLoadCompleted => MobaBattleEvent.AssetsLoadCompleted,
                 _ => null
             };
         }

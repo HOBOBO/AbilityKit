@@ -84,9 +84,24 @@ namespace AbilityKit.Triggering.Runtime
         public bool Cancel;
 
         /// <summary>
+        /// 当前计划中的动作是否因业务前置条件不满足而拒绝执行。
+        /// </summary>
+        public bool IsActionRejected { get; private set; }
+
+        /// <summary>
+        /// 首个动作拒绝原因，用于向计划调用方传播稳定的失败信息。
+        /// </summary>
+        public string ActionRejectReason { get; private set; }
+
+        /// <summary>
         /// 是否已经请求硬停止。硬停止会终止事件通道和 runner 的后续分发。
         /// </summary>
         public bool IsHardStopped => StopPropagation || Cancel || InterruptMode == EInterruptMode.All;
+
+        /// <summary>
+        /// 是否应停止当前计划的后续动作。动作拒绝仅短路当前计划，不影响事件通道。
+        /// </summary>
+        public bool IsPlanStopped => IsHardStopped || IsActionRejected;
 
         /// <summary>
         /// 是否存在按优先级过滤的软中断。软中断只跳过命中的后续触发器，不终止整个分发。
@@ -102,6 +117,19 @@ namespace AbilityKit.Triggering.Runtime
             InterruptSourceName = null;
             StopPropagation = false;
             Cancel = false;
+            IsActionRejected = false;
+            ActionRejectReason = null;
+        }
+
+        /// <summary>
+        /// 拒绝当前动作并停止当前计划中的后续动作。重复拒绝时保留首个原因。
+        /// </summary>
+        public void RejectAction(string reason)
+        {
+            if (IsActionRejected) return;
+
+            IsActionRejected = true;
+            ActionRejectReason = reason;
         }
 
         /// <summary>

@@ -16,7 +16,7 @@ namespace AbilityKit.Network.Runtime.Conditioning
     ///
     /// 投递由时间驱动且具备确定性：未被丢弃的包会按计划投递时间进入缓冲，
     /// 只有在使用达到或超过该时间的时钟值调用 <see cref="Advance"/> 时，才会释放到下一阶段。
-    /// 固定的 <paramref name="seed"/> 与可注入时钟让“同步模型 x 网络配置”的对比能在测试中完全重放，
+    /// 固定的 <c>seed</c> 与可注入时钟让“同步模型 x 网络配置”的对比能在测试中完全重放，
     /// 且不需要真实等待。
     /// </summary>
     public sealed class NetworkConditioningMiddleware : INetworkMiddleware

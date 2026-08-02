@@ -39,7 +39,8 @@ namespace AbilityKit.Game.Flow
                 roomId: roomId,
                 sessionToken: gateway.SessionToken,
                 battleId: gateway.BattleId,
-                publicRoomId: gateway.JoinRoomId);
+                publicRoomId: gateway.JoinRoomId,
+                useFrameSyncInput: SessionSimRuntimeTuning.ShouldUseFrameSyncInput(plan.Sync.SyncMode));
 
             return new NetworkTransport(gatewayOptions, callbackDispatcher, ioDispatcher);
         }

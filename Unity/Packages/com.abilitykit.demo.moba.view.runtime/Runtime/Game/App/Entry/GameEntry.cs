@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using AbilityKit.World.ECS;
+using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Game.EntityCreation;
 using AbilityKit.Game.Flow;
 using AbilityKit.Game.View.Modules;
@@ -44,6 +45,7 @@ namespace AbilityKit.Game
         private ModuleHost<GameEntryModuleContext, IGameEntryModule> _entryModules;
         private GameEntryModuleContext _entryModuleContext;
         private GameEntryRuntimeGuiBridge _runtimeGuiBridge;
+        private DemoMultiplayerLaunchRequest _multiplayerLaunchRequest;
 
         private void Awake()
         {
@@ -71,10 +73,12 @@ namespace AbilityKit.Game
             {
                 var flow = new GameFlowDomain(this, Root, new GamePresentationSink());
                 Root.WithRef(flow);
+                Root.WithRef<IFlowCommandSink>(flow);
                 Root.WithRef<IGameFlowFeatureInstaller>(flow);
             }
             else
             {
+                Root.WithRef<IFlowCommandSink>(existingFlow);
                 Root.WithRef<IGameFlowFeatureInstaller>(existingFlow);
             }
 
@@ -157,15 +161,55 @@ namespace AbilityKit.Game
 
         private void OnDestroy()
         {
-            if (_entryModules != null && _entryModules.IsAttached)
+            try
             {
-                _entryModules.Detach(in _entryModuleContext);
+                if (Root.IsValid && Root.TryGetRef<GameFlowDomain>(out var flow))
+                {
+                    try
+                    {
+                        flow.Shutdown();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogException(ex);
+                    }
+                }
+
+                if (_entryModules != null && _entryModules.IsAttached)
+                {
+                    try
+                    {
+                        _entryModules.Detach(in _entryModuleContext);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogException(ex);
+                    }
+                }
             }
+            finally
+            {
+                _entryModules = null;
+                _entryModuleContext = default;
 
-            _entryModules = null;
-            _entryModuleContext = default;
-
-            if (_instance == this) _instance = null;
+                try
+                {
+                    if (Root.IsValid)
+                    {
+                        World?.DestroyRecursive(Root.Id);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogException(ex);
+                }
+                finally
+                {
+                    Root = default;
+                    World = null;
+                    if (_instance == this) _instance = null;
+                }
+            }
         }
 
         private ModuleHost<GameEntryModuleContext, IGameEntryModule> CreateEntryModules()
@@ -176,7 +220,9 @@ namespace AbilityKit.Game
             };
             if (_multiplayerGatewayConfig != null)
             {
-                modules.Add(new MultiplayerGatewayEntryModule(_multiplayerGatewayConfig));
+                modules.Add(new MultiplayerGatewayEntryModule(
+                    _multiplayerGatewayConfig,
+                    _multiplayerLaunchRequest));
             }
 
             return new ModuleHost<GameEntryModuleContext, IGameEntryModule>(
@@ -186,7 +232,9 @@ namespace AbilityKit.Game
 
         private void ApplyPendingLaunchIntent(LobbyBattleEntrySelection selection)
         {
-            if (!MobaMultiplayerLaunchContext.ConsumeRequest())
+            if (!DemoMultiplayerLaunchIntent.TryConsume(
+                    DemoMultiplayerGameplay.Moba,
+                    out _multiplayerLaunchRequest))
             {
                 return;
             }

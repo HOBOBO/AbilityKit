@@ -44,6 +44,7 @@ namespace AbilityKit.Game.Battle.Vfx
                 go = CreatePlaceholder(vfxId);
             }
 
+            if (go == null) return null;
             BattleVfxPoolableTag.Attach(go).VfxId = vfxId;
             go.name = $"Vfx_{vfxId}";
             return go;
@@ -54,6 +55,7 @@ namespace AbilityKit.Game.Battle.Vfx
             var go = IsProjectileFallback(vfxId)
                 ? _primitives.CreateProjectileFallback(vfxId)
                 : _primitives.CreateVfxFallback(vfxId);
+            if (go == null) return null;
             BattleVfxPoolableTag.Attach(go).VfxId = vfxId;
             go.name = $"VfxPlaceholder_{vfxId}";
             return go;

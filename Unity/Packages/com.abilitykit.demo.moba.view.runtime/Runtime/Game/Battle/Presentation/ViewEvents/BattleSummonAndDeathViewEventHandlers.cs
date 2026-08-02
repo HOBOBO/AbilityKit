@@ -113,26 +113,32 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
     internal sealed class BattleSummonVfxResolver
     {
         // Placeholder VFX IDs for summon events. Wire to configs when available.
-        private const int DefaultSpawnVfx = BattleViewPlaceholderIds.ProjectileSpawnVfx;
-        private const int DefaultDeathVfx = BattleViewPlaceholderIds.ProjectileHitVfx;
-        private const int DefaultDespawnVfx = BattleViewPlaceholderIds.ProjectileExpireVfx;
+        private const int DefaultSpawnVfx = BattleViewPlaceholderIds.SummonSpawnVfx;
+        private const int DefaultDeathVfx = BattleViewPlaceholderIds.ActorDeathVfx;
+        private const int DefaultDespawnVfx = BattleViewPlaceholderIds.SummonDespawnVfx;
 
         public int ResolveSpawnVfxId(int summonId)
         {
             // TODO: resolve from summon config: configs.TryGetSummon(summonId, out var s) → s.SpawnVfxId
-            return summonId > 0 ? DefaultSpawnVfx : 0;
+            return summonId > 0
+                ? BattleViewFallbackPolicy.DevelopmentOnly(DefaultSpawnVfx, "summon.spawn:" + summonId)
+                : 0;
         }
 
         public int ResolveDeathVfxId(int summonId)
         {
             // TODO: resolve from summon config
-            return summonId > 0 ? DefaultDeathVfx : 0;
+            return summonId > 0
+                ? BattleViewFallbackPolicy.DevelopmentOnly(DefaultDeathVfx, "summon.death:" + summonId)
+                : 0;
         }
 
         public int ResolveDespawnVfxId(int summonId)
         {
             // TODO: resolve from summon config
-            return summonId > 0 ? DefaultDespawnVfx : 0;
+            return summonId > 0
+                ? BattleViewFallbackPolicy.DevelopmentOnly(DefaultDespawnVfx, "summon.despawn:" + summonId)
+                : 0;
         }
     }
 
@@ -174,7 +180,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             var vfxId = ResolveDeathVfxId(entityCode);
             if (vfxId <= 0)
             {
-                vfxId = BattleViewPlaceholderIds.ProjectileExpireVfx; // fallback
+                vfxId = BattleViewFallbackPolicy.DevelopmentOnly(
+                    BattleViewPlaceholderIds.ActorDeathVfx,
+                    "actor.death:" + entityCode);
             }
 
             _vfx.TryCreateAoeVfx(in _vfxNode, vfxId, in position, Quaternion.identity, durationMsOverride: 2000);
@@ -199,7 +207,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             // TODO: resolve from character / entity config
             // configs.TryGetCharacter(entityCode, out var c) → c.DeathVfxId
-            return entityCode > 0 ? BattleViewPlaceholderIds.ProjectileExpireVfx : 0;
+            return entityCode > 0
+                ? BattleViewFallbackPolicy.DevelopmentOnly(
+                    BattleViewPlaceholderIds.ActorDeathVfx,
+                    "actor.death:" + entityCode)
+                : 0;
         }
     }
 
@@ -239,7 +251,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             var vfxId = ResolveRespawnVfxId(entityCode);
             if (vfxId <= 0)
             {
-                vfxId = BattleViewPlaceholderIds.ProjectileSpawnVfx; // fallback
+                vfxId = BattleViewFallbackPolicy.DevelopmentOnly(
+                    BattleViewPlaceholderIds.ActorRespawnVfx,
+                    "actor.respawn:" + entityCode);
             }
 
             _vfx.TryCreateAoeVfx(in _vfxNode, vfxId, in position, Quaternion.identity, durationMsOverride: 1500);
@@ -263,7 +277,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private int ResolveRespawnVfxId(int entityCode)
         {
             // TODO: resolve from character config
-            return entityCode > 0 ? BattleViewPlaceholderIds.ProjectileSpawnVfx : 0;
+            return entityCode > 0
+                ? BattleViewFallbackPolicy.DevelopmentOnly(
+                    BattleViewPlaceholderIds.ActorRespawnVfx,
+                    "actor.respawn:" + entityCode)
+                : 0;
         }
     }
 }

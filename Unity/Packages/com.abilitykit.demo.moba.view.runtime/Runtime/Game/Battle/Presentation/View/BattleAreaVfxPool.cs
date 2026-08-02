@@ -31,6 +31,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleViewHierarchyManager _hierarchy;
         private readonly Dictionary<(int, PoolKind), ObjectPool<GameObject>> _pools =
             new Dictionary<(int, PoolKind), ObjectPool<GameObject>>(32);
+        private readonly HashSet<(int, PoolKind)> _failedKeys = new HashSet<(int, PoolKind)>();
 
         private BattleAreaVfxPool(Func<int, PoolKind, GameObject> factory, int capacityPerKindPerTemplate, BattleViewHierarchyManager hierarchy)
         {
@@ -79,10 +80,21 @@ namespace AbilityKit.Game.Flow
         {
             instance = null;
             if (templateId <= 0) return false;
+            var key = (templateId, kind);
+            if (_failedKeys.Contains(key)) return false;
 
-            var pool = GetOrCreateBucket(templateId, kind);
-            instance = pool.Get();
-            return true;
+            try
+            {
+                var pool = GetOrCreateBucket(templateId, kind);
+                instance = pool.Get();
+                return instance != null;
+            }
+            catch (InvalidOperationException ex)
+            {
+                _failedKeys.Add(key);
+                Debug.LogException(ex);
+                return false;
+            }
         }
 
         /// <summary>
@@ -131,6 +143,7 @@ namespace AbilityKit.Game.Flow
                 kvp.Value.Clear(destroy: true);
             }
             _pools.Clear();
+            _failedKeys.Clear();
         }
 
         private ObjectPool<GameObject> CreateBucket(int templateId, PoolKind kind)
@@ -138,7 +151,8 @@ namespace AbilityKit.Game.Flow
             Func<GameObject> safeCreate = () =>
             {
                 var go = _factory(templateId, kind);
-                if (go == null)
+                if (go == null && BattleViewFallbackPolicy.AllowFallback(
+                        "area." + kind + ":" + templateId))
                 {
                     go = CreateFallbackAreaInstance(templateId, kind);
                 }

@@ -29,7 +29,9 @@ namespace AbilityKit.Game.Flow
         /// <summary>已进入战斗。</summary>
         InBattle = 7,
         /// <summary>失败。</summary>
-        Failed = 8
+        Failed = 8,
+        /// <summary>Waiting for the authoritative room leave command.</summary>
+        LeavingRoom = 9
     }
 
     /// <summary>
@@ -246,6 +248,20 @@ namespace AbilityKit.Game.Flow
              ErrorCode == MultiplayerRoomRestoreErrorCode.InternalError);
     }
 
+    public readonly struct MultiplayerRoomJoinResult
+    {
+        public readonly string RoomId;
+        public readonly ulong NumericRoomId;
+        public readonly uint PlayerId;
+
+        public MultiplayerRoomJoinResult(string roomId, ulong numericRoomId, uint playerId)
+        {
+            RoomId = roomId ?? string.Empty;
+            NumericRoomId = numericRoomId;
+            PlayerId = playerId;
+        }
+    }
+
     /// <summary>
     /// 选英雄/配置出战的参数。
     /// </summary>
@@ -289,6 +305,12 @@ namespace AbilityKit.Game.Flow
         public string RoomType { get; set; } = "default";
         public string RoomTitle { get; set; } = string.Empty;
         public int MaxPlayers { get; set; } = 2;
+        public int GameplayId { get; set; } = 1;
+        public int RuleSetId { get; set; } = 1;
+        public int ConfigVersion { get; set; } = 1;
+        public int ProtocolVersion { get; set; } = 1;
+        public string WorldType { get; set; } = "moba";
+        public string ClientId { get; set; } = "moba-client";
     }
 
     /// <summary>
@@ -306,7 +328,13 @@ namespace AbilityKit.Game.Flow
         Task<string> CreateRoomAsync(MultiplayerRoomLaunchSpec spec, CancellationToken cancellationToken);
 
         /// <summary>阶段 2：加入房间。</summary>
-        Task JoinRoomAsync(MultiplayerRoomLaunchSpec spec, string roomId, CancellationToken cancellationToken);
+        Task<MultiplayerRoomJoinResult> JoinRoomAsync(
+            MultiplayerRoomLaunchSpec spec,
+            string roomId,
+            CancellationToken cancellationToken);
+
+        /// <summary>Leaves the authoritative room membership.</summary>
+        Task LeaveRoomAsync(string roomId, CancellationToken cancellationToken);
 
         /// <summary>阶段 3：配置出战（PickHero）。</summary>
         Task ConfigureLoadoutAsync(string roomId, MultiplayerLoadoutSpec loadout, CancellationToken cancellationToken);
@@ -435,6 +463,17 @@ namespace AbilityKit.Game.Flow
             }
         }
 
+        public bool CanLeaveCurrentRoom
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(CurrentRoomId)) return false;
+                var phase = CurrentSnapshot?.Phase;
+                return phase == MultiplayerRoomPhase.Lobby ||
+                       phase == MultiplayerRoomPhase.Loading;
+            }
+        }
+
         public MultiplayerRoomRestoreResult? LastRestoreResult { get; private set; }
 
         public MultiplayerRoomLaunchSpec? CurrentLaunchSpec { get; private set; }
@@ -481,8 +520,8 @@ namespace AbilityKit.Game.Flow
                         throw new InvalidOperationException("创建房间成功但未返回 roomId。");
                     }
 
-                    CurrentRoomId = roomId;
-                    await _session.JoinRoomAsync(spec, roomId, ct).ConfigureAwait(false);
+                    var joined = await _session.JoinRoomAsync(spec, roomId, ct).ConfigureAwait(false);
+                    ApplyJoinResult(roomId, in joined);
                     Transition(MultiplayerRoomFlowState.InLobby);
                 },
                 cancellationToken).ConfigureAwait(false);
@@ -503,8 +542,8 @@ namespace AbilityKit.Game.Flow
                 {
                     Transition(MultiplayerRoomFlowState.LoggingIn);
                     Transition(MultiplayerRoomFlowState.JoiningRoom);
-                    await _session.JoinRoomAsync(spec, roomId, ct).ConfigureAwait(false);
-                    CurrentRoomId = roomId;
+                    var joined = await _session.JoinRoomAsync(spec, roomId, ct).ConfigureAwait(false);
+                    ApplyJoinResult(roomId, in joined);
                     Transition(MultiplayerRoomFlowState.InLobby);
                 },
                 cancellationToken).ConfigureAwait(false);
@@ -530,11 +569,11 @@ namespace AbilityKit.Game.Flow
                     cancellationToken).ConfigureAwait(false);
                 LastRestoreResult = restored;
                 _createdRoomOwner = false;
-                LocalPlayerId = restored.PlayerId;
 
                 if (!restored.HasActiveRoom)
                 {
                     CurrentRoomId = string.Empty;
+                    LocalPlayerId = 0u;
                     CurrentSnapshot = null;
                     if (restored.Status == MultiplayerRoomRestoreStatus.NoActiveRoom)
                     {
@@ -550,7 +589,14 @@ namespace AbilityKit.Game.Flow
                     return restored;
                 }
 
+                if (restored.PlayerId == 0u)
+                {
+                    throw new InvalidOperationException(
+                        "Room restore succeeded without an authoritative player id.");
+                }
+
                 CurrentRoomId = restored.RoomId;
+                LocalPlayerId = restored.PlayerId;
                 var nextState = MapRestoreNextStepToState(restored.NextStep);
                 if (nextState == MultiplayerRoomFlowState.Failed)
                 {
@@ -670,6 +716,44 @@ namespace AbilityKit.Game.Flow
                 cancellationToken);
         }
 
+        public async Task LeaveRoomAsync(CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!CanLeaveCurrentRoom)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot leave the room while flow is {CurrentState} and phase is {CurrentSnapshot?.Phase}.");
+            }
+
+            var previousState = CurrentState;
+            LastError = string.Empty;
+            Transition(MultiplayerRoomFlowState.LeavingRoom);
+            try
+            {
+                await _session.LeaveRoomAsync(CurrentRoomId, cancellationToken).ConfigureAwait(false);
+                CancelPendingStage(releaseAssets: true);
+                CurrentSnapshot = null;
+                CurrentRoomId = string.Empty;
+                LocalPlayerId = 0u;
+                _createdRoomOwner = false;
+                LastRestoreResult = null;
+                CurrentLaunchSpec = null;
+                Transition(MultiplayerRoomFlowState.Idle);
+            }
+            catch (OperationCanceledException)
+            {
+                Transition(previousState);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                LastError = ex.Message ?? string.Empty;
+                Transition(previousState);
+                throw;
+            }
+        }
+
         /// <summary>
         /// 等待服务端开战：WaitingForBattle → InBattle。
         /// </summary>
@@ -691,7 +775,10 @@ namespace AbilityKit.Game.Flow
         public void Cancel()
         {
             CancelPendingStage(releaseAssets: true);
+            CurrentSnapshot = null;
             CurrentRoomId = string.Empty;
+            LocalPlayerId = 0u;
+            _createdRoomOwner = false;
             LastError = string.Empty;
             LastRestoreResult = null;
             CurrentLaunchSpec = null;
@@ -943,6 +1030,29 @@ namespace AbilityKit.Game.Flow
         private void ThrowIfDisposed()
         {
             if (_disposed) throw new ObjectDisposedException(nameof(MultiplayerRoomFlowController));
+        }
+
+        private void ApplyJoinResult(
+            string requestedRoomId,
+            in MultiplayerRoomJoinResult result)
+        {
+            if (result.PlayerId == 0u)
+            {
+                throw new InvalidOperationException(
+                    "Room join succeeded without an authoritative player id.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.RoomId) &&
+                !string.Equals(result.RoomId, requestedRoomId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Room join returned unexpected room id '{result.RoomId}' for '{requestedRoomId}'.");
+            }
+
+            CurrentRoomId = string.IsNullOrWhiteSpace(result.RoomId)
+                ? requestedRoomId
+                : result.RoomId;
+            LocalPlayerId = result.PlayerId;
         }
 
         /// <summary>

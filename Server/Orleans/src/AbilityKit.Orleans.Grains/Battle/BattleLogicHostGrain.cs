@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using AbilityKit.Ability.Host.Extensions.Server.BattleHost;
 using AbilityKit.Orleans.Contracts.Battle;
+using AbilityKit.Orleans.Contracts.FrameSync;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Battle.Gameplay;
 using AbilityKit.Orleans.Grains.Gameplay;
@@ -28,7 +29,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private readonly IBattleTickDriver<BattleInputItem> _tickDriver;
     private readonly BattleObserverRegistry<IStateSyncObserverGrain> _observerRegistry = new();
     private readonly Dictionary<IStateSyncObserverGrain, BattleStateSyncObserverContext> _observerContexts = new();
-    private readonly BattleSnapshotSyncPolicy _snapshotSyncPolicy = new();
+    private BattleSnapshotSyncPolicy _snapshotSyncPolicy = new();
     private readonly BattleSnapshotPublisher<IStateSyncObserverGrain, StateSyncPush> _snapshotPublisher;
     private readonly Dictionary<IStateSyncObserverGrain, SnapshotDeliveryInFlight> _snapshotDeliveries = new();
     private readonly Dictionary<uint, ulong> _consumedCommandSequences = new();
@@ -46,6 +47,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private ServerBattleSyncProfile? _syncProfile;
     private string _syncTemplateId = string.Empty;
     private string? _initSpecHash;
+    private bool _externalTickMode;
 
     public BattleLogicHostGrain(
         ILogger<BattleLogicHostGrain> logger,
@@ -142,6 +144,9 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
         var syncOptions = initParams.SyncOptions;
         _syncTemplateId = syncTemplate.TemplateId;
+        _snapshotSyncPolicy = new BattleSnapshotSyncPolicy(
+            syncTemplate.SnapshotIntervalFrames,
+            syncTemplate.FullSnapshotIntervalFrames);
         initParams.SyncOptions = new BattleSyncStartOptions(
             _syncTemplateId,
             syncOptions?.SyncModel ?? 0,
@@ -188,7 +193,16 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _initSpecHash = initSpecHash;
         _initialized = true;
         PublishInitialSnapshot();
-        StartBattleTimer();
+        if (syncTemplate.RuntimeMode == ServerBattleRuntimeMode.BattleWorldWithFrameSync)
+        {
+            _externalTickMode = true;
+            _logger.LogInformation("[BattleLogicHost] External tick mode — BattleFrameSyncGrain drives clock. BattleId: {BattleId}", _battleId);
+        }
+        else
+        {
+            StartBattleTimer();
+        }
+
         _logger.LogInformation("[BattleLogicHost] Battle initialized successfully");
         return BattleInitResult.FromInitialized(_initSpecHash, _worldStartAnchor);
     }
@@ -556,8 +570,83 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         return Task.CompletedTask;
     }
 
+    public Task<BattleTickFrameResult> TickFrameAsync(ulong worldId, int frame, float deltaTime,
+        IReadOnlyList<FrameInputItem> frameInputs)
+    {
+        if (!_initialized || _runtimeSession is null)
+        {
+            return Task.FromResult(new BattleTickFrameResult(frame, false, 0));
+        }
+
+        if (_worldId != worldId)
+        {
+            _logger.LogWarning("[BattleLogicHost] TickFrameAsync worldId mismatch. Expected: {Expected}, Received: {Received}", _worldId, worldId);
+            return Task.FromResult(new BattleTickFrameResult(frame, false, 0));
+        }
+
+        try
+        {
+            // 1. 将帧同步输入转换为 BattleInputItem 并提交给运行时
+            var battleInputs = new BattleInputItem[frameInputs?.Count ?? 0];
+            if (frameInputs is { Count: > 0 })
+            {
+                for (var i = 0; i < frameInputs.Count; i++)
+                {
+                    var fi = frameInputs[i];
+                    battleInputs[i] = new BattleInputItem
+                    {
+                        PlayerId = fi.PlayerId,
+                        OpCode = fi.OpCode,
+                        Payload = fi.Payload
+                    };
+                }
+            }
+
+            _runtimeSession.SubmitInputs(frame, battleInputs);
+
+            // 2. Tick 世界
+            var worldTicked = _runtimeSession.Tick(frame, _tickRate, deltaTime);
+
+            // 3. 推进帧计数器
+            _battleHostState.AdvanceFrame();
+
+            // 4. 捕获并发布可靠事件
+            if (worldTicked)
+            {
+                // 可靠事件捕获（fire-and-forget，不阻塞帧时钟）
+                _ = CaptureAndPublishReliableEventsAsync(frame);
+            }
+
+            // 5. 发布快照
+            if (_snapshotSyncPolicy.ShouldPublish(frame, _observerRegistry.Count, worldTicked))
+            {
+                PushSnapshot(frame, _snapshotSyncPolicy.ShouldCreateFullSnapshot(frame));
+            }
+
+            // 6. 刷新快照投递（fire-and-forget）
+            _ = FlushSnapshotDeliveriesAsync();
+
+            // 7. 获取状态 hash（从诊断接口读取，若无则从 BattleHostState 计算近似值）
+            var diagnostics = _runtimeSession.GetWorldDiagnostics(_worldId, frame);
+            var stateHash = diagnostics?.StateHash ?? (uint)_battleHostState.Frame;
+
+            return Task.FromResult(new BattleTickFrameResult(frame, worldTicked, stateHash));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[BattleLogicHost] Error in TickFrameAsync. Frame: {Frame}", frame);
+            return Task.FromResult(new BattleTickFrameResult(frame, false, 0));
+        }
+    }
+
     private async Task OnTickAsync()
     {
+        if (_externalTickMode)
+        {
+            // 外部时钟模式 —— BattleFrameSyncGrain 通过 TickFrameAsync 驱动
+            return;
+        }
+
         try
         {
             var tickResult = _tickDriver.Tick(_battleHostState, _inputBuffer);
@@ -571,7 +660,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
                 await CaptureAndPublishReliableEventsAsync(tickResult.Frame);
             }
 
-            if (_snapshotSyncPolicy.ShouldPublish(_observerRegistry.Count, tickResult.WorldTicked))
+            if (_snapshotSyncPolicy.ShouldPublish(tickResult.Frame, _observerRegistry.Count, tickResult.WorldTicked))
             {
                 PushSnapshot(tickResult.Frame, _snapshotSyncPolicy.ShouldCreateFullSnapshot(tickResult.Frame));
             }
@@ -922,6 +1011,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _worldStartAnchor = null;
         _syncProfile = null;
         _syncTemplateId = string.Empty;
+        _snapshotSyncPolicy = new BattleSnapshotSyncPolicy();
         _initSpecHash = null;
         _inputBuffer.Clear();
         _inputAdmissionGuard.Clear();

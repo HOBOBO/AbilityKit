@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Network.Abstractions;
@@ -81,7 +82,9 @@ namespace AbilityKit.Network.Runtime
                 var decoded = TcpGatewayResponseCodec.Decode(result);
                 if (decoded.StatusCode != TcpGatewayStatusCode.Ok)
                 {
-                    tcs.TrySetException(new InvalidOperationException($"Gateway response error. statusCode={decoded.StatusCode} opCode={opCode} seq={seq}"));
+                    var message = DecodeErrorMessage(decoded.Payload);
+                    var detail = string.IsNullOrWhiteSpace(message) ? string.Empty : $" message={message}";
+                    tcs.TrySetException(new InvalidOperationException($"Gateway response error. statusCode={decoded.StatusCode} opCode={opCode} seq={seq}{detail}"));
                     return;
                 }
 
@@ -136,6 +139,16 @@ namespace AbilityKit.Network.Runtime
             var bytes = new byte[src.Count];
             Buffer.BlockCopy(src.Array, src.Offset, bytes, 0, src.Count);
             return new ArraySegment<byte>(bytes);
+        }
+
+        private static string DecodeErrorMessage(ArraySegment<byte> payload)
+        {
+            if (payload.Array == null || payload.Count <= 0) return string.Empty;
+
+            const int maxMessageBytes = 1024;
+            var count = Math.Min(payload.Count, maxMessageBytes);
+            var message = Encoding.UTF8.GetString(payload.Array, payload.Offset, count);
+            return message.Replace('\r', ' ').Replace('\n', ' ').Trim();
         }
 
         private void ThrowIfDisposed()

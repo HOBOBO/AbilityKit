@@ -32,6 +32,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int CastFlowId { get; private set; }
         public int SkillSlot { get; private set; }
         public int SkillLevel { get; private set; }
+        public ResolvedSkillCastConfiguration ResolvedConfiguration { get; private set; }
         public int CastSequence { get; private set; }
         public int TimelineNextEventIndex { get; private set; }
         public bool InputReleased { get; private set; }
@@ -165,6 +166,8 @@ namespace AbilityKit.Demo.Moba.Services
             SharedData.Clear();
             FailReason = null;
             SkillLevel = triggerContext?.SkillLevel ?? 0;
+            ResolvedConfiguration = triggerContext?.ResolvedConfiguration ?? default;
+            SkillCooldownMs = ResolvedConfiguration.CooldownMs;
             CastSequence = triggerContext?.Sequence ?? 0;
             TimelineNextEventIndex = 0;
             InputReleased = false;
@@ -344,6 +347,8 @@ namespace AbilityKit.Demo.Moba.Services
             SkillId = 0;
             SkillSlot = 0;
             SkillLevel = 0;
+            ResolvedConfiguration = default;
+            SkillCooldownMs = 0;
             CastSequence = 0;
             TimelineNextEventIndex = 0;
             InputReleased = false;

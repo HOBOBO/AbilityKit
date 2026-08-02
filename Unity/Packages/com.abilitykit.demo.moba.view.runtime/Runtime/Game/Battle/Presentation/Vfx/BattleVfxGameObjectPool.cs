@@ -28,6 +28,7 @@ namespace AbilityKit.Game.Battle.Vfx
         private readonly int _maxSize;
         private readonly BattleViewHierarchyManager _hierarchy;
         private readonly Dictionary<int, ObjectPool<GameObject>> _pools = new Dictionary<int, ObjectPool<GameObject>>(64);
+        private readonly HashSet<int> _failedVfxIds = new HashSet<int>();
 
         public BattleVfxGameObjectPool(Func<int, GameObject> factory, int capacityPerVfxId = 16, BattleViewHierarchyManager hierarchy = null)
         {
@@ -66,10 +67,20 @@ namespace AbilityKit.Game.Battle.Vfx
         {
             instance = null;
             if (vfxId <= 0) return false;
+            if (_failedVfxIds.Contains(vfxId)) return false;
 
-            var pool = GetOrCreateBucket(vfxId);
-            instance = pool.Get();
-            return instance != null;
+            try
+            {
+                var pool = GetOrCreateBucket(vfxId);
+                instance = pool.Get();
+                return instance != null;
+            }
+            catch (InvalidOperationException ex)
+            {
+                _failedVfxIds.Add(vfxId);
+                Debug.LogException(ex);
+                return false;
+            }
         }
 
         /// <summary>
@@ -105,6 +116,7 @@ namespace AbilityKit.Game.Battle.Vfx
                 kvp.Value.Clear(destroy: true);
             }
             _pools.Clear();
+            _failedVfxIds.Clear();
         }
 
         private ObjectPool<GameObject> GetOrCreateBucket(int vfxId)

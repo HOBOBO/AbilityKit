@@ -98,7 +98,7 @@ namespace AbilityKit.ProtocolEditor.Generator
                     case ProtocolDefinition.ChannelKind.SnapshotDecoder:
                         sb.AppendLine($"        static partial void TryDecode_{methodName}(in WorldStateSnapshot snap, ref bool handled, ref {payloadType} value)");
                         sb.AppendLine("        {");
-                        sb.AppendLine("            // TODO: decode snap.Payload and set handled/value");
+                        sb.AppendLine("            throw new System.NotSupportedException(\"CustomBinary snapshot decode not implemented for " + methodName + " (" + payloadType + "); fill in the decoder.\");");
                         sb.AppendLine("        }");
                         sb.AppendLine();
                         break;
@@ -106,7 +106,7 @@ namespace AbilityKit.ProtocolEditor.Generator
                     case ProtocolDefinition.ChannelKind.SnapshotCmdHandler:
                         sb.AppendLine($"        static partial void Handle_{methodName}(object owner, FramePacket packet, {payloadType} value, ref bool handled)");
                         sb.AppendLine("        {");
-                        sb.AppendLine("            // TODO: handle command");
+                        sb.AppendLine("            throw new System.NotSupportedException(\"CustomBinary snapshot command handler not implemented for " + methodName + ".\");");
                         sb.AppendLine("        }");
                         sb.AppendLine();
                         break;
@@ -114,7 +114,7 @@ namespace AbilityKit.ProtocolEditor.Generator
                     case ProtocolDefinition.ChannelKind.SnapshotPipelineStage:
                         sb.AppendLine($"        static partial void Stage_{methodName}(object owner, FramePacket packet, {payloadType} value, ref bool handled)");
                         sb.AppendLine("        {");
-                        sb.AppendLine("            // TODO: pipeline stage");
+                        sb.AppendLine("            throw new System.NotSupportedException(\"CustomBinary snapshot pipeline stage not implemented for " + methodName + ".\");");
                         sb.AppendLine("        }");
                         sb.AppendLine();
                         break;

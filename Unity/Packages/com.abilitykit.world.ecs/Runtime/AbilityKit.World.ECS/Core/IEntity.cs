@@ -45,6 +45,12 @@ namespace AbilityKit.World.ECS
             return this;
         }
 
+        public IEntity WithRef(Type componentType, object component)
+        {
+            _world.SetComponentRef(_id, componentType, component);
+            return this;
+        }
+
         /// <summary>获取值类型组件。</summary>
         public T Get<T>() where T : struct => _world.GetComponent<T>(_id);
 

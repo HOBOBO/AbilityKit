@@ -91,15 +91,28 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
             var group = MobaMotionGroupConfigResolver.Resolve(ctx.Context, args.MotionGroupId, MotionGroups.Ability, args.Priority, 10);
 
-            // 穿墙 dash：行进忽略墙体，终点落障碍物内沿方向投影到边界。否则沿用 actor 默认（block + 墙滑）。
+            // Dash is resolved over multiple simulation frames. Intermediate endpoints may be inside a wall,
+            // so projecting every frame would pin the actor to the entry boundary instead of passing through.
             MotionCollisionConstraints collisionPolicy = default;
+            MotionCollisionConstraints completionCollisionPolicy = default;
             var hasCollisionPolicy = false;
+            var hasCompletionCollisionPolicy = false;
             if (args.PassThroughWalls)
             {
                 collisionPolicy = new MotionCollisionConstraints(
                     enable: true,
                     allowPassThrough: true,
-                    endOverlapPolicy: MotionEndOverlapPolicy.ProjectAlongDirection,
+                    endOverlapPolicy: MotionEndOverlapPolicy.AllowInside,
+                    radius: DashCollisionRadius,
+                    skin: 0f,
+                    obstacleMask: MobaCollisionLayers.WorldMask,
+                    ignoreMask: 0,
+                    slideAlongWalls: false,
+                    maxSlideIterations: 1);
+                completionCollisionPolicy = new MotionCollisionConstraints(
+                    enable: true,
+                    allowPassThrough: true,
+                    endOverlapPolicy: MotionEndOverlapPolicy.ProjectToNearestFree,
                     radius: DashCollisionRadius,
                     skin: 0f,
                     obstacleMask: MobaCollisionLayers.WorldMask,
@@ -107,9 +120,19 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     slideAlongWalls: false,
                     maxSlideIterations: 1);
                 hasCollisionPolicy = true;
+                hasCompletionCollisionPolicy = true;
             }
 
-            var source = new FixedDeltaMotionSource(velocity, duration, group.Priority, group.GroupId, group.Stacking, collisionPolicy, hasCollisionPolicy);
+            var source = new FixedDeltaMotionSource(
+                velocity,
+                duration,
+                group.Priority,
+                group.GroupId,
+                group.Stacking,
+                collisionPolicy,
+                hasCollisionPolicy,
+                completionCollisionPolicy,
+                hasCompletionCollisionPolicy);
 
             Log.Info($"[DashPlanActionModule] activate request actorId={actorId}, caster={input.CasterActorId}, directionMode={args.DirectionMode}, moveToAimPosition={args.MoveToAimPosition}, fallbackToForward={fallbackToForward}, dir=({dir.X:F3},{dir.Y:F3},{dir.Z:F3}), aimDelta=({aimDelta.X:F3},{aimDelta.Y:F3},{aimDelta.Z:F3}), speed={args.Speed:F3}, velocity=({velocity.X:F3},{velocity.Y:F3},{velocity.Z:F3}), duration={duration:F3}, groupId={group.GroupId}, priority={group.Priority}, stacking={group.Stacking}, hitTrigger={args.HitTriggerPlanId}");
 

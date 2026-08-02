@@ -157,21 +157,14 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (fieldId == SkillCostId || fieldId == SkillCostLegacyId)
             {
-                if (!TryGetSkillLevel(args, out var level)) return false;
-                value = level.Cost;
-                return true;
+                value = args.ResolvedConfiguration.ResourceCost;
+                return args.ResolvedConfiguration.IsValid;
             }
 
             if (fieldId == SkillCooldownMsId || fieldId == SkillCooldownMsLegacyId)
             {
-                if (TryGetSkillLevel(args, out var level))
-                {
-                    value = level.CooldownMs;
-                    return true;
-                }
-
-                value = args.SkillCooldownMs;
-                return true;
+                value = args.ResolvedConfiguration.CooldownMs;
+                return args.ResolvedConfiguration.IsValid;
             }
 
             if (fieldId == SkillCooldownRemainingMsId || fieldId == SkillCooldownRemainingMsLegacyId)
@@ -228,29 +221,6 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             return false;
-        }
-
-        private bool TryGetSkillLevel(SkillPipelineContext context, out SkillLevelDTO level)
-        {
-            level = null;
-            var configs = ResolveConfigs(context);
-            if (context == null || configs == null || context.SkillId <= 0) return false;
-            if (!configs.TryGetSkill(context.SkillId, out var skill) || skill == null || skill.LevelTableId <= 0) return false;
-            if (!configs.TryGetSkillLevelTable(skill.LevelTableId, out var table) || table == null) return false;
-
-            var skillLevel = context.GetSkillLevel();
-            if (skillLevel <= 0) skillLevel = 1;
-
-            try
-            {
-                level = table.GetLevel(skillLevel);
-                return level != null;
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, $"[SkillPipelineContextPayloadAccessor] GetLevel failed (skillId={context.SkillId}, skillLevel={skillLevel})");
-                return false;
-            }
         }
 
         private bool TryGetResource(SkillPipelineContext context, int actorId, ResourceType resourceType, out double current, out double max)

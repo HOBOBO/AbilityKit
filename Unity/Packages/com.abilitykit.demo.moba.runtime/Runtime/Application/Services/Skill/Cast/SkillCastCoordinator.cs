@@ -49,7 +49,6 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private readonly IWorldResolver _services;
         private readonly IWorldClock _clock;
-        private readonly IFrameTime _time;
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly IUnitResolver _units;
         private readonly MobaSkillLoadoutService _loadout;
@@ -93,7 +92,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _services = services ?? throw new ArgumentNullException(nameof(services));
             _clock = clock ?? throw new ArgumentNullException(nameof(clock));
-            _time = time ?? throw new ArgumentNullException(nameof(time));
+            _ = time ?? throw new ArgumentNullException(nameof(time));
             _eventBus = eventBus;
             _units = units ?? throw new ArgumentNullException(nameof(units));
             _loadout = loadout ?? throw new ArgumentNullException(nameof(loadout));
@@ -101,7 +100,7 @@ namespace AbilityKit.Demo.Moba.Services
             _library = library ?? throw new ArgumentNullException(nameof(library));
             _preparation = new SkillCastPreparationService(_services, _eventBus, _units, _actors, _library);
             _policyResolver = new SkillCastPolicyResolver(_services);
-            _runnerRegistry = new SkillRunnerRegistry(diagnostics, exceptions, skillLogger ?? SkillLogger.Instance);
+            _runnerRegistry = new SkillRunnerRegistry(_clock, diagnostics, exceptions, skillLogger ?? SkillLogger.Instance);
         }
 
         public bool CastBySlot(int actorId, int slot)
@@ -323,6 +322,13 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaSkillCastResult CastSkillInternal(int actorId, int skillId, int slot, in Vec3 aimPos, in Vec3 aimDir, bool hasAim, int targetActorId = 0)
         {
             var resolvedSkillId = ResolveModifiedSkillId(actorId, skillId);
+            if (!TryValidateCombatRules(actorId, out var combatFailure, out var combatMessage))
+            {
+                var rejected = MobaSkillCastResult.Failed(combatMessage, in combatFailure);
+                CollectSkillFailure(actorId, resolvedSkillId, slot, targetActorId, in rejected);
+                return rejected;
+            }
+
             var input = new SkillCastPreparationInput(actorId, resolvedSkillId, slot, in aimPos, in aimDir, hasAim, targetActorId);
             var prepared = _preparation.Prepare(in input);
             MobaSkillCastResult result;
@@ -433,22 +439,12 @@ namespace AbilityKit.Demo.Moba.Services
         {
             var ctx = prepared.Context;
 
-            // Combat rules gate: reject cast if caster is dead/stunned/silenced.
-            // Previously CanCastSkill was defined in MobaCombatRulesService but never called
-            // — dead/stunned/silenced actors could still start skill pipelines.
-            // This check closes that gap. See ability-kit skill invariants for background.
-            if (_services != null && _services.TryResolve<MobaCombatRulesService>(out var combatRules) && combatRules != null)
+            // Keep a post-preparation gate as a race-safe fallback. Any rejection after
+            // preparation must release the formal runtime, which owns the root trace.
+            if (!TryValidateCombatRules(actorId, out var combatFailure, out var combatMessage))
             {
-                var ruleResult = combatRules.CanCastSkill(actorId);
-                if (!ruleResult.Passed)
-                {
-                    var combatFailure = new MobaSkillCastFailure(
-                        "CombatRules",
-                        "StartPreparedCast",
-                        $"combat.{ruleResult.Failure}",
-                        ruleResult.Message);
-                    return new MobaSkillCastResult(false, ruleResult.Message, in ctx.RuntimeHandle, in combatFailure);
-                }
+                prepared.Runtimes.ForceTerminate(in ctx.RuntimeHandle, MobaSkillRuntimeEndReason.RollbackCleanup);
+                return new MobaSkillCastResult(false, combatMessage, in ctx.RuntimeHandle, in combatFailure);
             }
 
             var req = prepared.Request;
@@ -465,11 +461,7 @@ namespace AbilityKit.Demo.Moba.Services
                 out var failReason,
                 policy: policy);
             var failure = MobaSkillCastFailure.None;
-            if (success)
-            {
-                ApplyConfiguredCooldown(actorId, skillId, in prepared);
-            }
-            else
+            if (!success)
             {
                 failure = SkillResultFactory.StartReject(runner, failReason);
                 if (!failure.HasValue)
@@ -488,56 +480,30 @@ namespace AbilityKit.Demo.Moba.Services
             return MobaSkillCastResult.From(success, failReason, in ctx.RuntimeHandle, in failure);
         }
 
-        // CD Refund 策略（2026-07-20 确定）：
-        //
-        // 当前行为已经是竞技级 MOBA 的合理默认——CD 只在 pipeline 成功启动后扣（success==true），
-        // 失败/被拦截时不扣。具体场景：
-        //
-        // 1. 起手被状态拦截（CanCastSkill 返回 Dead/Stunned/Silenced）：
-        //    → 不进入 runner.Start → 不扣 CD。玩家无成本重试。✅ 已由 CanCastSkill 检查保证。
-        //
-        // 2. pipeline 启动失败（runner.Start 返回 false）：
-        //    → ApplyConfiguredCooldown 不被调用 → 不扣 CD。✅ 已由 success 分支保证。
-        //
-        // 3. 运行中被硬控打断（stun/silence 中断正在飞的施法）：
-        //    → CD 已扣，**不退**。竞技级惯例：惩罚被打断的位置差，避免"无成本试探"。
-        //
-        // 4. 主动切换技能打断（玩家施放另一个技能取消当前施法）：
-        //    → CD 已扣，**不退**。避免频繁切换无成本。
-        //
-        // 如果未来游戏设计需要不同的 refund 策略（如"被硬控打断退 50% CD"），
-        // 在 ForceTerminate 的 RollbackCleanup 分支或 SkillPipelineRunner.Interrupt
-        // 路径加 MobaSkillRuntimeAccess.TryResetSkillCooldown 调用即可。
-        private void ApplyConfiguredCooldown(int actorId, int skillId, in SkillCastPreparationResult prepared)
+        private bool TryValidateCombatRules(
+            int actorId,
+            out MobaSkillCastFailure failure,
+            out string message)
         {
-            var slot = prepared.Request.SkillSlot;
-            if (slot <= 0) return;
-
-            var cooldownMs = ResolveConfiguredCooldownMs(skillId, prepared.Context?.SkillLevel ?? 0);
-            if (cooldownMs <= 0) return;
-
-            var now = MobaSkillRuntimeAccess.GetCurrentTimeMs(_time);
-            if (!MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(_actors, actorId, slot, skillId, now + cooldownMs, cooldownMs))
+            failure = MobaSkillCastFailure.None;
+            message = null;
+            if (_services == null ||
+                !_services.TryResolve<MobaCombatRulesService>(out var combatRules) ||
+                combatRules == null)
             {
-                Log.Warning($"[SkillCastCoordinator] Failed to apply configured cooldown. actor={actorId}, slot={slot}, skillId={skillId}, cooldownMs={cooldownMs}.");
+                return true;
             }
-        }
 
-        private int ResolveConfiguredCooldownMs(int skillId, int skillLevel)
-        {
-            if (skillId <= 0) return 0;
-            if (_services == null || !_services.TryResolve<MobaConfigDatabase>(out var configs) || configs == null) return 0;
-            if (!configs.TryGetSkill(skillId, out var skill) || skill == null) return 0;
+            var result = combatRules.CanCastSkill(actorId);
+            if (result.Passed) return true;
 
-            var cooldownMs = Math.Max(0, skill.CooldownMs);
-            if (skill.LevelTableId <= 0 || skillLevel <= 0) return cooldownMs;
-            if (!configs.TryGetSkillLevelTable(skill.LevelTableId, out var table) || table == null) return cooldownMs;
-
-            var levels = table.Levels;
-            var index = skillLevel - 1;
-            if (levels == null || index < 0 || index >= levels.Count || levels[index] == null) return cooldownMs;
-
-            return levels[index].CooldownMs > 0 ? levels[index].CooldownMs : cooldownMs;
+            message = result.Message;
+            failure = new MobaSkillCastFailure(
+                "CombatRules",
+                "CastGate",
+                $"combat.{result.Failure}",
+                result.Message);
+            return false;
         }
 
         public bool TryGetRunningBySlot(int actorId, int slot, out SkillPipelineRunner.RunningSnapshot snapshot)
@@ -552,7 +518,13 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void CancelAll(int actorId)
         {
-            _runnerRegistry.GetOrCreate(actorId).CancelAll();
+            _runnerRegistry.CancelAll(actorId);
+        }
+
+        public void RemoveActor(int actorId)
+        {
+            _runnerRegistry.CancelAndRemove(actorId, MobaSkillRuntimeEndReason.OwnerRemoved);
+            _preparation.RemoveActor(actorId);
         }
 
         public bool CancelBySlot(int actorId, int slot)

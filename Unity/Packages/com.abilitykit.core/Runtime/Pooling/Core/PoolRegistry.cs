@@ -39,7 +39,7 @@ namespace AbilityKit.Core.Pooling
         /// <param name="source">配置来源。</param>
         /// <param name="priority">配置优先级；数值越大越优先。</param>
         /// <returns>用于注销该提供者的注册句柄。</returns>
-        public static PoolConfigRegistration RegisterConfigProvider(IPoolConfigProvider provider, string name, string source = null, int priority = 0)
+        public static PoolConfigRegistration RegisterConfigProvider(IPoolConfigProvider provider, string name, string? source = null, int priority = 0)
         {
             return PoolConfigCenter.RegisterProvider(provider, name, source, priority);
         }
@@ -55,9 +55,9 @@ namespace AbilityKit.Core.Pooling
         /// <returns>已注册的配置模块。</returns>
         public static PoolConfigModule RegisterConfigModule(
             Action<PoolConfigBuilder> configure,
-            string defaultScopeName = null,
-            string moduleName = null,
-            string source = null,
+            string? defaultScopeName = null,
+            string? moduleName = null,
+            string? source = null,
             int priority = 0)
         {
             if (configure == null) throw new ArgumentNullException(nameof(configure));

@@ -172,6 +172,31 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
             CreateStagedSnapshot(request.RoomId, phase: 1, battleId: string.Empty, worldId: 0ul)));
     }
 
+    public Task<ShooterGatewayRoomOperationResult> CancelLoadingAsync(ShooterGatewayCancelLoadingRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        Calls.Add("cancel-loading:" + request.RoomId);
+        _assetsReported = false;
+        return Task.FromResult(new ShooterGatewayRoomOperationResult(
+            true,
+            true,
+            0,
+            "cancelled",
+            (request.ExpectedRevision ?? 0L) + 1L,
+            CreateStagedSnapshot(request.RoomId, phase: 0, battleId: string.Empty, worldId: 0ul)));
+    }
+
+    public Task<ShooterGatewayRoomOperationResult> LeaveRoomAsync(ShooterGatewayLeaveRoomRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        Calls.Add("leave:" + request.RoomId);
+        return Task.FromResult(new ShooterGatewayRoomOperationResult(
+            true,
+            true,
+            0,
+            "left",
+            (request.ExpectedRevision ?? 0L) + 1L,
+            null));
+    }
+
     public Task<ShooterGatewayGetRoomSnapshotResult> GetSnapshotAsync(ShooterGatewayGetRoomSnapshotRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         Calls.Add("get-snapshot:" + request.RoomId);

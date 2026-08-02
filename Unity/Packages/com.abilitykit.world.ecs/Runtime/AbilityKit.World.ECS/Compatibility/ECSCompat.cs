@@ -331,30 +331,8 @@ namespace AbilityKit.World.ECS
         {
             if (entity.World != null && componentType != null)
             {
-                // Only handle value types (structs) via reflection
-                // Reference types and interfaces cannot satisfy the 'where T : struct' constraint
-                if (componentType.IsValueType && !IsNullableType(componentType))
-                {
-                    var method = typeof(IEntityExtensions).GetMethod("RemoveComponentGeneric",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                    if (method != null)
-                    {
-                        var generic = method.MakeGenericMethod(componentType);
-                        generic.Invoke(null, new object[] { entity });
-                    }
-                }
+                entity.World.RemoveComponent(entity.Id, componentType);
             }
-        }
-
-        private static bool IsNullableType(Type type)
-        {
-            return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
-        }
-
-        private static void RemoveComponentGeneric<T>(this IEntity entity) where T : struct
-        {
-            if (entity.World != null)
-                entity.World.RemoveComponent<T>(entity.Id);
         }
 
         public static int ChildCount(this IEntity entity)

@@ -166,7 +166,17 @@ namespace AbilityKit.Combat.MotionSystem.Core
                 if (bestIdx < 0 || bestIdx >= _sources.Count) continue;
                 if (IsSuppressed(gid)) continue;
 
-                if (_sources[bestIdx] is IMotionCollisionPolicySource policySource && policySource.HasCollisionPolicy)
+                var source = _sources[bestIdx];
+                if (!source.IsActive &&
+                    source is IMotionCompletionCollisionPolicySource completionPolicySource &&
+                    completionPolicySource.HasCompletionCollisionPolicy)
+                {
+                    output.DominantCollisionPolicy = completionPolicySource.CompletionCollisionPolicy;
+                    output.HasDominantCollisionPolicy = true;
+                    break;
+                }
+
+                if (source is IMotionCollisionPolicySource policySource && policySource.HasCollisionPolicy)
                 {
                     output.DominantCollisionPolicy = policySource.CollisionPolicy;
                     output.HasDominantCollisionPolicy = true;

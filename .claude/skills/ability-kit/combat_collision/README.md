@@ -1,4 +1,5 @@
 # combat.collision.abstractions — 碰撞世界接口与数学实现
+> v0.1.0 Beta -- AbilityKitStable=true, has direct src tests, zero hard errors.
 
 包 `com.abilitykit.combat.collision.abstractions`。纯 math 碰撞：形状、查询、OBB sweep、网格广相（GridBroadphase）、工厂。
 

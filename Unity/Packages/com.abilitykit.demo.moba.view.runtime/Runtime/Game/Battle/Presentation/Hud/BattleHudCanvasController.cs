@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Game.UI;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -8,6 +9,7 @@ namespace AbilityKit.Game.Flow
     internal sealed class BattleHudCanvasController : IDisposable
     {
         private readonly BattleHudEventSystemController _eventSystem;
+        private bool _ownsCanvas;
 
         public BattleHudCanvasController(BattleHudEventSystemController eventSystem = null)
         {
@@ -21,12 +23,25 @@ namespace AbilityKit.Game.Flow
         {
             Destroy();
 
+            var uiRoot = UnityEngine.Object.FindFirstObjectByType<UIRoot>();
+            if (uiRoot != null &&
+                uiRoot.TryGetLayerRoot(UILayer.Main, out var layerRoot) &&
+                layerRoot is RectTransform sharedRoot)
+            {
+                Canvas = uiRoot.Canvas;
+                Root = sharedRoot;
+                _ownsCanvas = false;
+                _eventSystem.Ensure();
+                return;
+            }
+
             var go = new GameObject(name);
             Canvas = go.AddComponent<Canvas>();
             Canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             go.AddComponent<CanvasScaler>();
             go.AddComponent<GraphicRaycaster>();
             Root = Canvas.GetComponent<RectTransform>();
+            _ownsCanvas = true;
 
             _eventSystem.Ensure();
         }
@@ -38,13 +53,14 @@ namespace AbilityKit.Game.Flow
 
         private void Destroy()
         {
-            if (Canvas != null)
+            if (_ownsCanvas && Canvas != null)
             {
                 UnityEngine.Object.Destroy(Canvas.gameObject);
             }
 
             Canvas = null;
             Root = null;
+            _ownsCanvas = false;
         }
 
     }

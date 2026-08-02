@@ -1,6 +1,6 @@
 ﻿{
   "name": "com.abilitykit.combat.targeting",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit Combat Targeting",
   "unity": "2022.3",
   "description": "Target search/selection utilities.",

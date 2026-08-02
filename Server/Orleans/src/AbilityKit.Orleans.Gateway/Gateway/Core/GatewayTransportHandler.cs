@@ -1,9 +1,7 @@
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
-using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using Microsoft.Extensions.Logging;
-using Orleans;
 
 namespace AbilityKit.Orleans.Gateway.Core;
 
@@ -14,8 +12,9 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
 {
     private readonly IGatewaySessionRegistry _sessionRegistry;
     private readonly IGatewayRequestRouter _router;
-    private readonly IClusterClient _clusterClient;
+    private readonly GatewayRoomMembershipService _roomMembership;
     private readonly GatewayFrameSyncSubscriptionManager _frameSyncSubscriptions;
+    private readonly GatewayStateSyncPushSubscriptionManager _stateSyncPushSubscriptions;
     private readonly ConcurrentDictionary<long, ConnectionState> _sessions = new();
 
     private readonly GatewayBackgroundTaskQueue _backgroundTasks;
@@ -24,16 +23,18 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
     public GatewayTransportHandler(
         IGatewaySessionRegistry sessionRegistry,
         IGatewayRequestRouter router,
-        IClusterClient clusterClient,
+        GatewayRoomMembershipService roomMembership,
         GatewayBackgroundTaskQueue backgroundTasks,
         GatewayFrameSyncSubscriptionManager frameSyncSubscriptions,
+        GatewayStateSyncPushSubscriptionManager stateSyncPushSubscriptions,
         ILogger<GatewayTransportHandler> logger)
     {
         _sessionRegistry = sessionRegistry;
         _router = router;
-        _clusterClient = clusterClient;
+        _roomMembership = roomMembership;
         _backgroundTasks = backgroundTasks;
         _frameSyncSubscriptions = frameSyncSubscriptions;
+        _stateSyncPushSubscriptions = stateSyncPushSubscriptions;
         _logger = logger;
     }
 
@@ -108,14 +109,15 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
         if (_sessions.TryRemove(connectionId, out var connection))
         {
             connection.Cancel();
-            MarkRoomMemberOffline(connection.Session.Context);
+            CleanupRoomMembership(connection.Session.Context, connectionId);
         }
 
         _sessionRegistry.Unregister(connectionId);
         _frameSyncSubscriptions.OnConnectionClosed(connectionId);
+        _stateSyncPushSubscriptions.OnConnectionClosed(connectionId);
     }
 
-    private void MarkRoomMemberOffline(GatewaySessionContext context)
+    private void CleanupRoomMembership(GatewaySessionContext context, long connectionId)
     {
         var accountId = context.AccountId;
         var roomId = context.RoomId;
@@ -124,11 +126,17 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
             return;
         }
 
-        _backgroundTasks.TryQueue(async _ =>
+        if (_sessionRegistry.TryGetConnectionIdByAccount(accountId, out var currentConnectionId) &&
+            currentConnectionId != connectionId)
         {
-            var room = _clusterClient.GetGrain<IRoomGrain>(roomId);
-            await room.MarkOfflineAsync(accountId);
-        });
+            return;
+        }
+
+        _backgroundTasks.TryQueue(cancellationToken =>
+            _roomMembership.CleanupDisconnectedSessionAsync(
+                accountId,
+                roomId,
+                cancellationToken));
     }
 
     internal void RegisterSession(IGatewayTransportSession session)

@@ -84,6 +84,11 @@ namespace AbilityKit.Demo.Moba.Services
             return _containers.TryGetValue(targetActorId, out container) && container != null;
         }
 
+        public bool RemoveActor(int actorId)
+        {
+            return actorId > 0 && _containers.Remove(actorId);
+        }
+
         public bool RemoveShield(int targetActorId, int instanceId)
         {
             if (targetActorId <= 0 || instanceId <= 0) return false;

@@ -1,6 +1,6 @@
 {
     "name": "com.abilitykit.combat.damage",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "displayName": "AbilityKit Combat Damage",
     "unity": "2022.3",
     "description": "Combat damage calculation system using dataflow pipeline.",

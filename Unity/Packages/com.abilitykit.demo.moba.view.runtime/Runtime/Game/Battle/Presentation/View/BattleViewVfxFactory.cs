@@ -17,6 +17,21 @@ namespace AbilityKit.Game.Flow
         }
     }
 
+    internal sealed class BattleAssetViewVfxPrefabLoader : IBattleViewVfxPrefabLoader
+    {
+        private readonly IBattleAssetLookup _assets;
+
+        public BattleAssetViewVfxPrefabLoader(IBattleAssetLookup assets)
+        {
+            _assets = assets ?? throw new System.ArgumentNullException(nameof(assets));
+        }
+
+        public GameObject Load(string path)
+        {
+            return _assets.TryGetAsset(path, out var asset) ? asset as GameObject : null;
+        }
+    }
+
     internal sealed class BattleViewVfxFactory
     {
         private readonly BattleViewPrimitiveFactory _primitives;
@@ -39,10 +54,11 @@ namespace AbilityKit.Game.Flow
                 if (BattleViewPlaceholderIds.IsPlaceholderVfx(vfxId))
                 {
                     var fallback = _primitives.CreateVfxFallback(vfxId);
-                    fallback.name = $"AoeVfx_{vfxId}";
+                    if (fallback != null) fallback.name = $"AoeVfx_{vfxId}";
                     return fallback;
                 }
 
+                BattleViewFallbackPolicy.AllowFallback("vfx.config:" + vfxId);
                 return null;
             }
 
@@ -57,7 +73,7 @@ namespace AbilityKit.Game.Flow
                 go = _primitives.CreateVfxFallback(vfxId);
             }
 
-            go.name = $"AoeVfx_{vfxId}";
+            if (go != null) go.name = $"AoeVfx_{vfxId}";
             return go;
         }
     }

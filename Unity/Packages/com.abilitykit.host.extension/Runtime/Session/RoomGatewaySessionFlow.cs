@@ -21,6 +21,8 @@ namespace AbilityKit.Ability.Host.Extensions.Session
 
         Task<RoomGatewayJoinResult> JoinRoomAsync(RoomGatewayJoinRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
 
+        Task<RoomGatewayLeaveResult> LeaveRoomAsync(RoomGatewayLeaveRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
+
         Task<RoomGatewayReadyResult> SetReadyAsync(RoomGatewayReadyRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
 
         Task<RoomGatewayStartBattleResult> StartBattleAsync(RoomGatewayStartBattleRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
@@ -88,6 +90,16 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             ValidateSessionToken(sessionToken);
             if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
             return _client.JoinRoomAsync(new RoomGatewayJoinRequest(sessionToken, region, serverId, roomId), timeout, cancellationToken);
+        }
+
+        public Task<RoomGatewayLeaveResult> LeaveRoomAsync(
+            RoomGatewayLeaveRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(request.SessionToken);
+            if (string.IsNullOrWhiteSpace(request.RoomId)) throw new ArgumentException("roomId is required.", nameof(request));
+            return _client.LeaveRoomAsync(request, timeout, cancellationToken);
         }
 
         /// <summary>
@@ -1259,6 +1271,42 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         public readonly RoomGatewaySnapshot? Snapshot;
 
         public RoomGatewayReportAssetsLoadedResult(bool success, bool applied, int errorCode, string message, long roomRevision, RoomGatewaySnapshot? snapshot)
+        {
+            Success = success;
+            Applied = applied;
+            ErrorCode = errorCode;
+            Message = message ?? string.Empty;
+            RoomRevision = roomRevision;
+            Snapshot = snapshot;
+        }
+    }
+
+    public readonly struct RoomGatewayLeaveRequest
+    {
+        public readonly string SessionToken;
+        public readonly string RoomId;
+        public readonly long? ExpectedRevision;
+        public readonly string CommandId;
+
+        public RoomGatewayLeaveRequest(string sessionToken, string roomId, long? expectedRevision, string commandId)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+            ExpectedRevision = expectedRevision;
+            CommandId = commandId ?? string.Empty;
+        }
+    }
+
+    public readonly struct RoomGatewayLeaveResult
+    {
+        public readonly bool Success;
+        public readonly bool Applied;
+        public readonly int ErrorCode;
+        public readonly string Message;
+        public readonly long RoomRevision;
+        public readonly RoomGatewaySnapshot? Snapshot;
+
+        public RoomGatewayLeaveResult(bool success, bool applied, int errorCode, string message, long roomRevision, RoomGatewaySnapshot? snapshot)
         {
             Success = success;
             Applied = applied;

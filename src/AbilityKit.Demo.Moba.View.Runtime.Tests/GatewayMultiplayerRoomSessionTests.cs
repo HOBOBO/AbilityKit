@@ -4,12 +4,36 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Flow;
+using AbilityKit.Protocol.Room;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.View.Runtime.Tests;
 
 public sealed class GatewayMultiplayerRoomSessionTests
 {
+    [Fact]
+    public async Task CreateRoom_ForwardsFormalBattleMetadataAsRoomTags()
+    {
+        var client = new StubGatewayRoomClient();
+        var session = NewSession(client, new ClientRoomStore());
+        var spec = NewSpec();
+        spec.GameplayId = 11;
+        spec.RuleSetId = 12;
+        spec.ConfigVersion = 13;
+        spec.ProtocolVersion = 14;
+        spec.WorldType = "moba-test";
+        spec.ClientId = "client-test";
+
+        await session.CreateRoomAsync(spec, CancellationToken.None);
+
+        Assert.Equal("11", client.CreateTags[RoomTagKeys.GameplayId]);
+        Assert.Equal("12", client.CreateTags[RoomTagKeys.RuleSetId]);
+        Assert.Equal("13", client.CreateTags[RoomTagKeys.ConfigVersion]);
+        Assert.Equal("14", client.CreateTags[RoomTagKeys.ProtocolVersion]);
+        Assert.Equal("moba-test", client.CreateTags[RoomTagKeys.WorldType]);
+        Assert.Equal("client-test", client.CreateTags[RoomTagKeys.ClientId]);
+    }
+
     [Fact]
     public void SnapshotProvider_FirstStoreApply_PublishesProjectedSnapshot()
     {
@@ -154,6 +178,47 @@ public sealed class GatewayMultiplayerRoomSessionTests
         Assert.Equal(9, client.CancelExpectedRevision);
         Assert.StartsWith("cancel-loading:", client.CancelCommandId);
         Assert.Equal(ClientRoomPhase.Lobby, store.Current.Phase);
+    }
+
+    [Fact]
+    public async Task LeaveRoom_SuccessClearsAuthoritativeMembershipAndStore()
+    {
+        var client = new StubGatewayRoomClient();
+        client.Snapshots.Enqueue(Snapshot(ClientRoomPhase.Lobby, revision: 6, sequence: 1));
+        var store = new ClientRoomStore();
+        var session = NewSession(client, store);
+        await session.JoinRoomAsync(NewSpec(), "room-1", CancellationToken.None);
+
+        await session.LeaveRoomAsync("room-1", CancellationToken.None);
+
+        Assert.Equal(6, client.LeaveExpectedRevision);
+        Assert.StartsWith("leave-room:", client.LeaveCommandId);
+        Assert.Equal(string.Empty, session.CurrentRoomId);
+        Assert.Equal(0UL, session.CurrentNumericRoomId);
+        Assert.Equal(0U, session.CurrentPlayerId);
+        Assert.Null(store.Current);
+    }
+
+    [Fact]
+    public async Task LeaveRoom_FailurePreservesAuthoritativeMembershipAndStore()
+    {
+        var client = new StubGatewayRoomClient
+        {
+            LeaveResult = new GatewayRoomOperationResult(
+                false, false, 3, "leave rejected", 6, null!)
+        };
+        client.Snapshots.Enqueue(Snapshot(ClientRoomPhase.Lobby, revision: 6, sequence: 1));
+        var store = new ClientRoomStore();
+        var session = NewSession(client, store);
+        await session.JoinRoomAsync(NewSpec(), "room-1", CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => session.LeaveRoomAsync("room-1", CancellationToken.None));
+
+        Assert.Equal("room-1", session.CurrentRoomId);
+        Assert.Equal(1UL, session.CurrentNumericRoomId);
+        Assert.Equal(7U, session.CurrentPlayerId);
+        Assert.NotNull(store.Current);
     }
 
     [Fact]
@@ -425,6 +490,8 @@ public sealed class GatewayMultiplayerRoomSessionTests
         public readonly Queue<ClientRoomSnapshot> Snapshots = new();
         public readonly Queue<ClientRoomSnapshot> PushSnapshots = new();
         public int GetSnapshotCalls { get; private set; }
+        public IReadOnlyDictionary<string, string> CreateTags { get; private set; } =
+            new Dictionary<string, string>();
         public TaskCompletionSource<bool> StartingSnapshotRead { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int RestoreCalls { get; private set; }
@@ -437,6 +504,10 @@ public sealed class GatewayMultiplayerRoomSessionTests
         public string ReportCommandId { get; private set; } = string.Empty;
         public long? CancelExpectedRevision { get; private set; }
         public string CancelCommandId { get; private set; } = string.Empty;
+        public long? LeaveExpectedRevision { get; private set; }
+        public string LeaveCommandId { get; private set; } = string.Empty;
+        public GatewayRoomOperationResult LeaveResult { get; set; } =
+            new GatewayRoomOperationResult(true, true, 0, string.Empty, 7, null!);
         public Exception? RestoreException { get; set; }
         public GatewayRestoreRoomResult RestoreResult { get; set; }
         public GatewayRoomSnapshotResult PickHeroResult { get; set; } =
@@ -449,10 +520,25 @@ public sealed class GatewayMultiplayerRoomSessionTests
             => Task.FromResult("guest-token");
 
         public Task<GatewayCreateRoomResult> CreateRoomAsync(string sessionToken, string region, string serverId, string roomType, string title, bool isPublic, int maxPlayers, IReadOnlyDictionary<string, string> tags, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-            => Task.FromResult(new GatewayCreateRoomResult("room-1", 1));
+        {
+            CreateTags = tags;
+            return Task.FromResult(new GatewayCreateRoomResult("room-1", 1));
+        }
 
         public Task<GatewayJoinRoomResult> JoinRoomAsync(string sessionToken, string region, string serverId, string roomId, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-            => Task.FromResult(new GatewayJoinRoomResult(1, string.Empty, default));
+        {
+            var anchor = default(GatewayWorldStartAnchor);
+            return Task.FromResult(new GatewayJoinRoomResult(
+                true, roomId, 1, string.Empty, in anchor, string.Empty,
+                string.Empty, false, 0L, 0UL, 7U));
+        }
+
+        public Task<GatewayRoomOperationResult> LeaveRoomAsync(string sessionToken, string roomId, long? expectedRevision, string commandId, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+        {
+            LeaveExpectedRevision = expectedRevision;
+            LeaveCommandId = commandId;
+            return Task.FromResult(LeaveResult);
+        }
 
         public Task<GatewayRoomSnapshotResult> SetReadyAsync(string sessionToken, string roomId, bool ready, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
         {

@@ -1,6 +1,6 @@
 # 6 个包依赖图与职责
 
-## 包清单（全部 version 0.0.1，Unity 2022.3）
+## 包清单（Shooter demo 自身均为 0.0.1；其依赖的 abilitykit core/world.*/combat.*/host.*/coordinator 等 25 个框架包已 0.1.0 Beta。Unity 2022.3）
 
 | 包 | 文件数 | 职责 |
 |----|-------|------|

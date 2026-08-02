@@ -95,4 +95,40 @@ public sealed class StateSyncObserverSubscriptionStateTests
             subscribe.GetParameters().Select(parameter => parameter.ParameterType).ToArray());
         Assert.Null(typeof(IStateSyncObserverGrain).GetMethod("GetObserverInfoAsync"));
     }
+
+    [Fact]
+    public void GatewayPushBinding_StaleUnbindDoesNotClearReplacementObserver()
+    {
+        var binding = new StateSyncObserverGrain.StateSyncGatewayPushBinding();
+        var oldObserver = new RecordingGatewayPushObserver();
+        var newObserver = new RecordingGatewayPushObserver();
+        var payload = new byte[] { 1, 2, 3 };
+
+        binding.Bind("old-binding", oldObserver);
+        binding.Bind("new-binding", newObserver);
+        binding.Unbind("old-binding");
+
+        Assert.True(binding.UsesGatewayPushObserver);
+        Assert.True(binding.TryPush(42, payload));
+        Assert.Empty(oldObserver.Pushes);
+        var push = Assert.Single(newObserver.Pushes);
+        Assert.Equal(42u, push.OpCode);
+        Assert.Same(payload, push.Payload);
+
+        binding.Unbind("new-binding");
+
+        Assert.True(binding.UsesGatewayPushObserver);
+        Assert.False(binding.TryPush(43, payload));
+        Assert.Single(newObserver.Pushes);
+    }
+
+    private sealed class RecordingGatewayPushObserver : IStateSyncGatewayPushObserver
+    {
+        public List<(uint OpCode, byte[] Payload)> Pushes { get; } = new();
+
+        public void OnPush(uint opCode, byte[] payload)
+        {
+            Pushes.Add((opCode, payload));
+        }
+    }
 }

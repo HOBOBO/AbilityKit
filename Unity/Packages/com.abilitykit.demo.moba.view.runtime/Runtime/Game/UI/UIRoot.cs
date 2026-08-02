@@ -14,6 +14,15 @@ namespace AbilityKit.Game.UI
 
         public UIManager UI => _ui;
 
+        public Canvas Canvas => GetComponentInChildren<Canvas>();
+
+        public bool TryGetLayerRoot(UILayer layer, out Transform root)
+        {
+            if (_ui != null) return _ui.TryGetLayerRoot(layer, out root);
+            root = null;
+            return false;
+        }
+
         private void Awake()
         {
             EnsureCanvas();

@@ -70,16 +70,17 @@ namespace AbilityKit.Game.Flow
                 timeout,
                 cancellationToken).ConfigureAwait(false);
             return new RoomGatewayJoinResult(
-                success: true,
-                request.RoomId,
+                result.Success,
+                string.IsNullOrWhiteSpace(result.RoomId) ? request.RoomId : result.RoomId,
                 result.NumericRoomId,
                 ToRoomAnchor(in result.WorldStartAnchor),
-                string.Empty,
-                string.Empty,
-                canStart: false,
+                result.Message,
+                result.BattleId,
+                result.CanStart,
                 RoomGatewaySessionEntryKind.TeamLobby,
-                serverNowTicks: 0L,
-                worldId: 0UL);
+                result.ServerNowTicks,
+                result.WorldId,
+                result.CurrentPlayerId);
         }
 
         public async Task<RoomGatewayReadyResult> SetReadyAsync(
@@ -89,6 +90,27 @@ namespace AbilityKit.Game.Flow
         {
             await _client.SetReadyAsync(request.SessionToken, request.RoomId, request.Ready, timeout, cancellationToken).ConfigureAwait(false);
             return new RoomGatewayReadyResult(true, string.Empty, false, string.Empty);
+        }
+
+        public async Task<RoomGatewayLeaveResult> LeaveRoomAsync(
+            RoomGatewayLeaveRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _client.LeaveRoomAsync(
+                request.SessionToken,
+                request.RoomId,
+                request.ExpectedRevision,
+                request.CommandId,
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            return new RoomGatewayLeaveResult(
+                result.Success,
+                result.Applied,
+                result.ErrorCode,
+                result.Message,
+                result.RoomRevision,
+                ToRoomSnapshot(result.Snapshot));
         }
 
         public Task<RoomGatewayStartBattleResult> StartBattleAsync(

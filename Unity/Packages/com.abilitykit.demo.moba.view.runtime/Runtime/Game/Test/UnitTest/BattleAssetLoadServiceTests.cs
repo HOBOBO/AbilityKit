@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Shared.Assets;
+using AbilityKit.Game.Flow;
 using NUnit.Framework;
 
 namespace AbilityKit.Game.Test.UnitTest
@@ -95,13 +96,71 @@ namespace AbilityKit.Game.Test.UnitTest
             var characterCount = manifest.Entries.Count(e => e.AssetKey == "character:1001");
             Assert.AreEqual(1, characterCount);
         }
+
+        [Test]
+        public void DependencyProvider_EntriesAreMergedAndSorted()
+        {
+            var provider = new FixedDependencyProvider(
+                new BattleAssetEntry("effect/b", "presentation:vfx-prefab:2", BattleAssetKind.Presentation),
+                new BattleAssetEntry("character/a", "presentation:model-prefab:1", BattleAssetKind.Presentation));
+
+            var manifest = BattleAssetManifestResolver.Resolve(NewSnapshot(), provider);
+            var keys = manifest.Entries.Select(entry => entry.AssetKey).ToArray();
+
+            CollectionAssert.Contains(keys, "presentation:model-prefab:1");
+            CollectionAssert.Contains(keys, "presentation:vfx-prefab:2");
+            CollectionAssert.AreEqual(keys.OrderBy(key => key, StringComparer.Ordinal), keys);
+        }
+
+        [Test]
+        public void DependencyProvider_ConflictingKeysAreRejected()
+        {
+            var provider = new FixedDependencyProvider(
+                new BattleAssetEntry("effect/a", "presentation:vfx-prefab:1", BattleAssetKind.Presentation),
+                new BattleAssetEntry("effect/b", "presentation:vfx-prefab:1", BattleAssetKind.Presentation));
+
+            Assert.Throws<InvalidOperationException>(
+                () => BattleAssetManifestResolver.Resolve(NewSnapshot(), provider));
+        }
+
+        [Test]
+        public void ResourcesDependencyProvider_ResolvesExistingConcreteAssets()
+        {
+            var dependencies = ResourcesBattleAssetDependencyProvider.Default.ResolveDependencies(NewSnapshot());
+
+            Assert.AreEqual(9, dependencies.Count(entry =>
+                entry.AssetKey.StartsWith("presentation:model-prefab:", StringComparison.Ordinal)));
+            Assert.AreEqual(23, dependencies.Count(entry =>
+                entry.AssetKey.StartsWith("presentation:vfx-prefab:", StringComparison.Ordinal)));
+            Assert.IsTrue(dependencies.Any(entry => entry.AssetPath == "character/character1"));
+            Assert.IsTrue(dependencies.Any(entry => entry.AssetPath == "effect/bullet_1"));
+            Assert.IsTrue(dependencies.All(entry =>
+                UnityEngine.Resources.Load<UnityEngine.Object>(entry.AssetPath) != null),
+                "Every expanded presentation dependency must resolve from Resources.");
+        }
+
+        private sealed class FixedDependencyProvider : IBattleAssetDependencyProvider
+        {
+            private readonly IReadOnlyList<BattleAssetEntry> _entries;
+
+            public FixedDependencyProvider(params BattleAssetEntry[] entries)
+            {
+                _entries = entries;
+            }
+
+            public IReadOnlyList<BattleAssetEntry> ResolveDependencies(IBattleAssetManifestSource source)
+            {
+                return _entries;
+            }
+        }
     }
 
     public sealed class BattleAssetLoadServiceTests
     {
-        private sealed class MockAssetSource : IBattleAssetSource
+        private sealed class MockAssetSource : IBattleAssetSource, IBattleAssetReleaseSource
         {
             private readonly HashSet<string> _existing;
+            public readonly List<object> Released = new List<object>();
 
             public MockAssetSource(params string[] existing)
             {
@@ -118,6 +177,11 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 asset = null;
                 return false;
+            }
+
+            public void Release(object asset)
+            {
+                Released.Add(asset);
             }
         }
 
@@ -175,6 +239,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual("b", result.Errors[0].AssetPath);
             Assert.AreEqual("AssetNotFound", result.Errors[0].Reason);
             Assert.IsNull(result.Lease);
+            Assert.AreEqual(2, source.Released.Count);
         }
 
         [Test]
@@ -224,6 +289,40 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(3, last.TotalCount);
             Assert.AreEqual(1f, last.Progress01, 0.0001f);
         }
+
+        [Test]
+        public void LeaseDispose_ReleasesEveryLoadedAssetExactlyOnce()
+        {
+            var source = new MockAssetSource("a", "b");
+            var service = new BattleAssetLoadService(source);
+            var result = service.LoadAsync(NewManifest(Entry("k1", "a"), Entry("k2", "b")))
+                .GetAwaiter().GetResult();
+
+            result.Lease.Dispose();
+            result.Lease.Dispose();
+
+            Assert.AreEqual(2, source.Released.Count);
+            Assert.IsFalse(result.Lease.IsActive);
+        }
+
+        [Test]
+        public void SuccessfulLease_ExposesLoadedAssetsByPathUntilDisposed()
+        {
+            var source = new MockAssetSource("a");
+            var service = new BattleAssetLoadService(source);
+            var result = service.LoadAsync(NewManifest(Entry("k1", "a")))
+                .GetAwaiter().GetResult();
+            var lookup = result.Lease as IBattleAssetLookup;
+
+            Assert.IsNotNull(lookup);
+            Assert.IsTrue(lookup.TryGetAsset("a", out var loaded));
+            Assert.IsNotNull(loaded);
+            Assert.IsFalse(lookup.TryGetAsset("missing", out _));
+
+            result.Lease.Dispose();
+
+            Assert.IsFalse(lookup.TryGetAsset("a", out _));
+        }
     }
 
     public sealed class BattleAssetLeaseTests
@@ -239,6 +338,211 @@ namespace AbilityKit.Game.Test.UnitTest
             lease.Dispose();
 
             Assert.IsFalse(lease.IsActive);
+        }
+    }
+
+    public sealed class BattleAssetLoadCoordinatorTests
+    {
+        [Test]
+        public async Task CancelThenRetry_StaleCompletionCannotConsumeRetryCallbackOrLease()
+        {
+            var service = new DeferredLoadService();
+            var coordinator = new BattleAssetLoadCoordinator(service, CreateManifest);
+            var firstCallbackCount = 0;
+            var secondCompletion = new TaskCompletionSource<bool>();
+
+            coordinator.StartLoading(success =>
+            {
+                firstCallbackCount++;
+                Assert.IsFalse(success);
+            });
+            coordinator.Cancel();
+            coordinator.StartLoading(success => secondCompletion.TrySetResult(success));
+
+            var staleLease = new BattleAssetLease(1, new[] { "stale" });
+            service.Complete(0, Success(staleLease));
+            await Task.Yield();
+
+            Assert.AreEqual(1, firstCallbackCount);
+            Assert.IsTrue(coordinator.IsLoading);
+            Assert.IsFalse(staleLease.IsActive);
+            Assert.IsFalse(secondCompletion.Task.IsCompleted);
+
+            var currentLease = new BattleAssetLease(1, new[] { "current" });
+            service.Complete(1, Success(currentLease));
+            Assert.IsTrue(await secondCompletion.Task);
+            Assert.IsFalse(coordinator.IsLoading);
+            Assert.IsTrue(currentLease.IsActive);
+
+            coordinator.ReleaseLease();
+            Assert.IsFalse(currentLease.IsActive);
+        }
+
+        [Test]
+        public void ManifestProviderFailure_DoesNotLeaveCoordinatorLoading()
+        {
+            var coordinator = new BattleAssetLoadCoordinator(
+                new DeferredLoadService(),
+                () => throw new InvalidOperationException("manifest failed"));
+
+            Assert.Throws<InvalidOperationException>(() => coordinator.StartLoading(_ => { }));
+            Assert.IsFalse(coordinator.IsLoading);
+        }
+
+        [Test]
+        public void ManifestProviderCannotBeReenteredBySecondStart()
+        {
+            BattleAssetLoadCoordinator coordinator = null;
+            var nestedRejected = false;
+            var service = new DeferredLoadService();
+            coordinator = new BattleAssetLoadCoordinator(
+                service,
+                () =>
+                {
+                    nestedRejected = Assert.Throws<InvalidOperationException>(
+                        () => coordinator.StartLoading(_ => { })) != null;
+                    return CreateManifest();
+                });
+
+            coordinator.StartLoading(_ => { });
+
+            Assert.IsTrue(nestedRejected);
+            Assert.IsTrue(coordinator.IsLoading);
+            coordinator.Cancel();
+            service.Complete(0, Failure());
+        }
+
+        [Test]
+        public async Task CancelledOperationKeepsTokenSourceAliveUntilLoadCompletes()
+        {
+            var service = new DeferredLoadService();
+            var coordinator = new BattleAssetLoadCoordinator(service, CreateManifest);
+            coordinator.StartLoading(_ => { });
+
+            coordinator.Cancel();
+
+            Assert.DoesNotThrow(() => service.RegisterCancellation(0));
+            service.Complete(0, Failure());
+            await Task.Yield();
+        }
+
+        [Test]
+        public async Task FailedResultLease_IsDisposedInsteadOfLeaked()
+        {
+            var service = new DeferredLoadService();
+            var coordinator = new BattleAssetLoadCoordinator(service, CreateManifest);
+            var completion = new TaskCompletionSource<bool>();
+            coordinator.StartLoading(success => completion.TrySetResult(success));
+            var invalidLease = new BattleAssetLease(1, new[] { "invalid" });
+
+            service.Complete(0, new BattleAssetLoadResult(
+                false,
+                1,
+                1,
+                "hash",
+                Array.Empty<BattleAssetLoadError>(),
+                invalidLease));
+
+            Assert.IsFalse(await completion.Task);
+            Assert.IsFalse(invalidLease.IsActive);
+        }
+
+        [Test]
+        public async Task FailedResult_IsRetainedForStructuredDiagnostics()
+        {
+            var service = new DeferredLoadService();
+            var coordinator = new BattleAssetLoadCoordinator(service, CreateManifest);
+            var completion = new TaskCompletionSource<bool>();
+            coordinator.StartLoading(success => completion.TrySetResult(success));
+            var error = new BattleAssetLoadError("missing/path", "missing:key", "AssetNotFound");
+
+            service.Complete(0, new BattleAssetLoadResult(
+                false,
+                1,
+                1,
+                "hash",
+                new[] { error }));
+
+            Assert.IsFalse(await completion.Task);
+            Assert.IsNotNull(coordinator.LastResult);
+            Assert.AreEqual(1, coordinator.LastResult.Errors.Count);
+            Assert.AreEqual("missing:key", coordinator.LastResult.Errors[0].AssetKey);
+        }
+
+        [Test]
+        public async Task TakeLease_TransfersSuccessfulLeaseOwnership()
+        {
+            var service = new DeferredLoadService();
+            var coordinator = new BattleAssetLoadCoordinator(service, CreateManifest);
+            var completion = new TaskCompletionSource<bool>();
+            coordinator.StartLoading(success => completion.TrySetResult(success));
+            var lease = new BattleAssetLease(1, new[] { "battle" });
+
+            service.Complete(0, Success(lease));
+
+            Assert.IsTrue(await completion.Task);
+            Assert.AreSame(lease, coordinator.TakeLease());
+            Assert.IsNull(coordinator.TakeLease());
+            coordinator.ReleaseLease();
+            Assert.IsTrue(lease.IsActive);
+
+            lease.Dispose();
+            Assert.IsFalse(lease.IsActive);
+        }
+
+        private static BattleAssetManifest CreateManifest()
+        {
+            return new BattleAssetManifest(1, "hash", 1, Array.Empty<BattleAssetEntry>());
+        }
+
+        private static BattleAssetLoadResult Success(IBattleAssetLease lease)
+        {
+            return new BattleAssetLoadResult(
+                true,
+                1,
+                1,
+                "hash",
+                Array.Empty<BattleAssetLoadError>(),
+                lease);
+        }
+
+        private static BattleAssetLoadResult Failure()
+        {
+            return new BattleAssetLoadResult(
+                false,
+                1,
+                1,
+                "hash",
+                Array.Empty<BattleAssetLoadError>(),
+                null);
+        }
+
+        private sealed class DeferredLoadService : IBattleAssetLoadService
+        {
+            private readonly List<TaskCompletionSource<BattleAssetLoadResult>> _loads =
+                new List<TaskCompletionSource<BattleAssetLoadResult>>();
+            private readonly List<CancellationToken> _tokens = new List<CancellationToken>();
+
+            public Task<BattleAssetLoadResult> LoadAsync(
+                BattleAssetManifest manifest,
+                IProgress<BattleAssetLoadProgress> progress = null,
+                CancellationToken cancellationToken = default)
+            {
+                var completion = new TaskCompletionSource<BattleAssetLoadResult>();
+                _loads.Add(completion);
+                _tokens.Add(cancellationToken);
+                return completion.Task;
+            }
+
+            public void Complete(int index, BattleAssetLoadResult result)
+            {
+                _loads[index].SetResult(result);
+            }
+
+            public void RegisterCancellation(int index)
+            {
+                _tokens[index].Register(() => { }).Dispose();
+            }
         }
     }
 }

@@ -29,7 +29,8 @@ namespace AbilityKit.Game.Battle
             ulong roomId,
             string sessionToken,
             string battleId = "",
-            string publicRoomId = "")
+            string publicRoomId = "",
+            bool useFrameSyncInput = false)
         {
             if (string.IsNullOrWhiteSpace(host)) throw new ArgumentException("Host is required.", nameof(host));
             if (port <= 0) throw new ArgumentOutOfRangeException(nameof(port));
@@ -96,7 +97,9 @@ namespace AbilityKit.Game.Battle
                             return WireRoomGatewayBinary.Serialize(in wire);
                         },
 
-                OpSubmitInput = RoomGatewayOpCodes.SubmitBattleInput,
+                OpSubmitInput = useFrameSyncInput
+                    ? OpCodes.SubmitFrameInput
+                    : RoomGatewayOpCodes.SubmitBattleInput,
                 SubmitInputRetryFrameLead = 2,
                 PrepareSubmitInput = requestObj =>
                 {
@@ -179,12 +182,27 @@ namespace AbilityKit.Game.Battle
                 },
                 DeserializeSubmitInputResponse = payload =>
                 {
+                    if (useFrameSyncInput)
+                    {
+                        var frameWire = WireCustomBinary.DeserializeSubmitFrameInputRes(payload);
+                        var retryAtAuthoritativeFrame = !frameWire.Accepted &&
+                            (frameWire.ReasonCode == 3 || frameWire.ReasonCode == 4);
+                        return new NetworkSubmitInputResponse(
+                            frameWire.Accepted,
+                            frameWire.ServerFrame,
+                            frameWire.ReasonCode,
+                            retryAtAuthoritativeFrame,
+                            $"FrameInputReason({frameWire.ReasonCode})");
+                    }
+
                     var wire = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputRes>(payload);
                     return new NetworkSubmitInputResponse(
                         wire.Success,
                         wire.CurrentFrame,
                         wire.Success ? 0 : 1,
-                        wire.ShouldResync);
+                        wire.ShouldResync,
+                        wire.Status,
+                        wire.Message);
                 },
 
                 // 尚未接线，后续由 room flow 持有这些操作。
@@ -199,6 +217,18 @@ namespace AbilityKit.Game.Battle
                     var req = sequenced.Request;
                     var pid = playerIdToUInt(req.Input.Player);
                     var wid = worldIdToUlong(req.WorldId);
+
+                    if (useFrameSyncInput)
+                    {
+                        var frameWire = new WireSubmitFrameInputReq(
+                            roomId,
+                            wid,
+                            pid,
+                            req.Input.Frame.Value,
+                            req.Input.OpCode,
+                            req.Input.Payload ?? Array.Empty<byte>());
+                        return WireCustomBinary.Serialize(in frameWire);
+                    }
 
                     var wire = new WireSubmitBattleInputReq
                     {

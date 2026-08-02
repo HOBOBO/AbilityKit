@@ -1,4 +1,5 @@
 # combat.navigation — 导航网格与确定性寻路
+> v0.1.0 Beta -- AbilityKitStable=true, has direct src tests, zero hard errors.
 
 包 `com.abilitykit.combat.navigation`。均匀方格导航网格 + 确定性整数 A\* + `INavigationWorld`/`INavigationService`。镜像 `collision.abstractions` 的 package.json/asmdef/命名空间拆分。依赖仅 `core` + `world.di`。
 

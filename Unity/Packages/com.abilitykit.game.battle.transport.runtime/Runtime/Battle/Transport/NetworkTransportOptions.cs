@@ -58,17 +58,23 @@ namespace AbilityKit.Game.Battle.Transport
         public readonly int ServerFrame;
         public readonly int ReasonCode;
         public readonly bool RetryAtAuthoritativeFrame;
+        public readonly string Status;
+        public readonly string Message;
 
         public NetworkSubmitInputResponse(
             bool accepted,
             int serverFrame,
             int reasonCode,
-            bool retryAtAuthoritativeFrame)
+            bool retryAtAuthoritativeFrame,
+            string status = null,
+            string message = null)
         {
             Accepted = accepted;
             ServerFrame = serverFrame;
             ReasonCode = reasonCode;
             RetryAtAuthoritativeFrame = retryAtAuthoritativeFrame;
+            Status = status ?? string.Empty;
+            Message = message ?? string.Empty;
         }
     }
 }

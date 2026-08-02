@@ -69,14 +69,12 @@ namespace AbilityKit.Demo.Moba.Systems
                 var actorId = e.actorId.Value;
                 try
                 {
-                    // 持续施法拦截：如果 actor 被眩晕/沉默，取消其运行中的施法。
-                    // Dead 不在此处取消（由死亡处理逻辑负责）。CanCastSkill 起手检查在
-                    // SkillCastCoordinator.StartPreparedCast 里；此处是 tick 级检查，
-                    // 覆盖"施法运行中新挂的眩晕/沉默"场景。
+                    // Tick-level gate covers status changes after the cast has started,
+                    // including death. Actor despawn later performs the stronger remove path.
                     if (_combatRules != null)
                     {
                         var ruleResult = _combatRules.CanCastSkill(actorId);
-                        if (!ruleResult.Passed && ruleResult.Failure != MobaCombatRuleFailure.Dead)
+                        if (!ruleResult.Passed)
                         {
                             _skills.CancelAll(actorId);
                         }

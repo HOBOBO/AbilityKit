@@ -37,8 +37,26 @@
         "Name": "廉颇-爆裂冲撞",
         "PipelineContinuousTagTemplateId": 10010001,
         "Phases": [
-            {
-                "Type": 2,
+          {
+            "Type": 4,
+            "PhaseId": "skill_10010101_release",
+            "RulePlan": {
+              "TriggerIds": [900101011],
+              "AbortOnFailure": true,
+              "FailReason": "skill_release_failed"
+            }
+          },
+          {
+            "Type": 4,
+            "PhaseId": "skill_10010101_commit",
+            "RulePlan": {
+              "TriggerIds": [900101012],
+              "AbortOnFailure": true,
+              "FailReason": "skill_commit_failed"
+            }
+          },
+          {
+            "Type": 2,
                 "Timeline": {
                     "DurationMs": 650,
                     "Events": [
@@ -64,8 +82,26 @@
         "Name": "廉颇-熔岩重击",
         "PipelineContinuousTagTemplateId": 10010001,
         "Phases": [
-            {
-                "Type": 2,
+          {
+            "Type": 4,
+            "PhaseId": "skill_10010201_release",
+            "RulePlan": {
+              "TriggerIds": [900101011],
+              "AbortOnFailure": true,
+              "FailReason": "skill_release_failed"
+            }
+          },
+          {
+            "Type": 4,
+            "PhaseId": "skill_10010201_commit",
+            "RulePlan": {
+              "TriggerIds": [900101012],
+              "AbortOnFailure": true,
+              "FailReason": "skill_commit_failed"
+            }
+          },
+          {
+            "Type": 2,
                 "Timeline": {
                     "DurationMs": 700,
                     "Events": [
@@ -221,6 +257,24 @@
         "Name": "小乔-绽放之舞",
         "Phases": [
             {
+                "Type": 4,
+                "PhaseId": "skill_10020101_release",
+                "RulePlan": {
+                    "TriggerIds": [900101011],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_release_failed"
+                }
+            },
+            {
+                "Type": 4,
+                "PhaseId": "skill_10020101_commit",
+                "RulePlan": {
+                    "TriggerIds": [900101012],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_commit_failed"
+                }
+            },
+            {
                 "Type": 2,
                 "Timeline": {
                     "DurationMs": 600,
@@ -241,6 +295,24 @@
         "Name": "小乔-甜蜜恋风",
         "Phases": [
             {
+                "Type": 4,
+                "PhaseId": "skill_10020201_release",
+                "RulePlan": {
+                    "TriggerIds": [900101011],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_release_failed"
+                }
+            },
+            {
+                "Type": 4,
+                "PhaseId": "skill_10020201_commit",
+                "RulePlan": {
+                    "TriggerIds": [900101012],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_commit_failed"
+                }
+            },
+            {
                 "Type": 2,
                 "Timeline": {
                     "DurationMs": 700,
@@ -260,6 +332,24 @@
         "Id": 10020301,
         "Name": "小乔-星华缭乱",
         "Phases": [
+            {
+                "Type": 4,
+                "PhaseId": "skill_10020301_release",
+                "RulePlan": {
+                    "TriggerIds": [900101011],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_release_failed"
+                }
+            },
+            {
+                "Type": 4,
+                "PhaseId": "skill_10020301_commit",
+                "RulePlan": {
+                    "TriggerIds": [900101012],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_commit_failed"
+                }
+            },
             {
                 "Type": 2,
                 "Timeline": {
@@ -301,6 +391,24 @@
         "Name": "赵云-惊雷之龙",
         "Phases": [
             {
+                "Type": 4,
+                "PhaseId": "skill_10030101_release",
+                "RulePlan": {
+                    "TriggerIds": [900101011],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_release_failed"
+                }
+            },
+            {
+                "Type": 4,
+                "PhaseId": "skill_10030101_commit",
+                "RulePlan": {
+                    "TriggerIds": [900101012],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_commit_failed"
+                }
+            },
+            {
                 "Type": 2,
                 "Timeline": {
                     "DurationMs": 500,
@@ -321,6 +429,24 @@
         "Name": "赵云-破云之龙",
         "Phases": [
             {
+                "Type": 4,
+                "PhaseId": "skill_10030201_release",
+                "RulePlan": {
+                    "TriggerIds": [900101011],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_release_failed"
+                }
+            },
+            {
+                "Type": 4,
+                "PhaseId": "skill_10030201_commit",
+                "RulePlan": {
+                    "TriggerIds": [900101012],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_commit_failed"
+                }
+            },
+            {
                 "Type": 2,
                 "Timeline": {
                     "DurationMs": 600,
@@ -340,6 +466,24 @@
         "Id": 10030301,
         "Name": "赵云-天翔之龙",
         "Phases": [
+            {
+                "Type": 4,
+                "PhaseId": "skill_10030301_release",
+                "RulePlan": {
+                    "TriggerIds": [900101011],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_release_failed"
+                }
+            },
+            {
+                "Type": 4,
+                "PhaseId": "skill_10030301_commit",
+                "RulePlan": {
+                    "TriggerIds": [900101012],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_commit_failed"
+                }
+            },
             {
                 "Type": 2,
                 "Timeline": {
@@ -381,6 +525,24 @@
         "Name": "墨子-和平漫步",
         "Phases": [
             {
+                "Type": 4,
+                "PhaseId": "skill_10040101_release",
+                "RulePlan": {
+                    "TriggerIds": [900101011],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_release_failed"
+                }
+            },
+            {
+                "Type": 4,
+                "PhaseId": "skill_10040101_commit",
+                "RulePlan": {
+                    "TriggerIds": [900101012],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_commit_failed"
+                }
+            },
+            {
                 "Type": 2,
                 "Timeline": {
                     "DurationMs": 600,
@@ -421,6 +583,24 @@
         "Name": "墨子-机关重炮",
         "Phases": [
             {
+                "Type": 4,
+                "PhaseId": "skill_10040201_release",
+                "RulePlan": {
+                    "TriggerIds": [900101011],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_release_failed"
+                }
+            },
+            {
+                "Type": 4,
+                "PhaseId": "skill_10040201_commit",
+                "RulePlan": {
+                    "TriggerIds": [900101012],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_commit_failed"
+                }
+            },
+            {
                 "Type": 2,
                 "Timeline": {
                     "DurationMs": 500,
@@ -440,6 +620,24 @@
         "Id": 10040301,
         "Name": "墨子-墨守成规",
         "Phases": [
+            {
+                "Type": 4,
+                "PhaseId": "skill_10040301_release",
+                "RulePlan": {
+                    "TriggerIds": [900101011],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_release_failed"
+                }
+            },
+            {
+                "Type": 4,
+                "PhaseId": "skill_10040301_commit",
+                "RulePlan": {
+                    "TriggerIds": [900101012],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_commit_failed"
+                }
+            },
             {
                 "Type": 2,
                 "Timeline": {
@@ -481,6 +679,24 @@
         "Name": "妲己-灵魂冲击",
         "Phases": [
             {
+                "Type": 4,
+                "PhaseId": "skill_10050101_release",
+                "RulePlan": {
+                    "TriggerIds": [900101011],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_release_failed"
+                }
+            },
+            {
+                "Type": 4,
+                "PhaseId": "skill_10050101_commit",
+                "RulePlan": {
+                    "TriggerIds": [900101012],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_commit_failed"
+                }
+            },
+            {
                 "Type": 2,
                 "Timeline": {
                     "DurationMs": 500,
@@ -501,6 +717,24 @@
         "Name": "妲己-偶像魅力",
         "Phases": [
             {
+                "Type": 4,
+                "PhaseId": "skill_10050201_release",
+                "RulePlan": {
+                    "TriggerIds": [900101011],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_release_failed"
+                }
+            },
+            {
+                "Type": 4,
+                "PhaseId": "skill_10050201_commit",
+                "RulePlan": {
+                    "TriggerIds": [900101012],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_commit_failed"
+                }
+            },
+            {
                 "Type": 2,
                 "Timeline": {
                     "DurationMs": 500,
@@ -520,6 +754,24 @@
         "Id": 10050301,
         "Name": "妲己-女王崇拜",
         "Phases": [
+            {
+                "Type": 4,
+                "PhaseId": "skill_10050301_release",
+                "RulePlan": {
+                    "TriggerIds": [900101011],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_release_failed"
+                }
+            },
+            {
+                "Type": 4,
+                "PhaseId": "skill_10050301_commit",
+                "RulePlan": {
+                    "TriggerIds": [900101012],
+                    "AbortOnFailure": true,
+                    "FailReason": "skill_commit_failed"
+                }
+            },
             {
                 "Type": 2,
                 "Timeline": {

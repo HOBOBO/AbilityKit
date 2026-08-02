@@ -10,9 +10,10 @@ using AbilityKit.Game.View.Loading;
 
 namespace AbilityKit.Demo.Shooter.View
 {
-    public sealed class ShooterRoomGatewayFlow
+    public sealed class ShooterRoomGatewayFlow : IDisposable
     {
         private readonly RoomGatewaySessionFlow _flow;
+        private readonly ShooterRoomGatewaySessionClient _sessionClient;
         private readonly ClientLoadingPipelineDefinition _loadingDefinition;
         private readonly IShooterClientLoadingStepProvider _loadingStepProvider;
 
@@ -22,10 +23,13 @@ namespace AbilityKit.Demo.Shooter.View
             IShooterClientLoadingStepProvider? loadingStepProvider = null)
         {
             if (roomClient == null) throw new ArgumentNullException(nameof(roomClient));
-            _flow = new RoomGatewaySessionFlow(new ShooterRoomGatewaySessionClient(roomClient));
+            _sessionClient = new ShooterRoomGatewaySessionClient(roomClient);
+            _flow = new RoomGatewaySessionFlow(_sessionClient);
             _loadingDefinition = loadingDefinition ?? ShooterClientLoadingPipelineDefaults.CreateDefinition();
             _loadingStepProvider = loadingStepProvider ?? new DefaultShooterClientLoadingStepProvider();
         }
+
+        internal RoomGatewaySessionFlow StagedFlow => _flow;
 
         public async Task<ShooterRoomGatewayFlowResult> CreateReadyStartAndSubscribeAsync(
             string sessionToken,
@@ -301,6 +305,70 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout,
             CancellationToken cancellationToken)
         {
+            await PrepareAndReportAssetsLoadedAsync(
+                metadata.SessionToken,
+                metadata.RoomId,
+                metadata.PlayerId,
+                loadingSnapshot,
+                eventEpoch,
+                lastEventAck,
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+
+            return await WaitAndSubscribeAsync(
+                metadata,
+                eventEpoch,
+                lastEventAck,
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        internal Task<RoomGatewayReportAssetsLoadedResult> PrepareAndReportAssetsLoadedAsync(
+            string sessionToken,
+            string roomId,
+            uint playerId,
+            ShooterRoomSessionSnapshot loadingSnapshot,
+            TimeSpan? timeout,
+            CancellationToken cancellationToken)
+        {
+            if (loadingSnapshot == null) throw new ArgumentNullException(nameof(loadingSnapshot));
+            var anchor = loadingSnapshot.WorldStartAnchor;
+            var roomSnapshot = new RoomGatewaySnapshot
+            {
+                RoomId = loadingSnapshot.RoomId,
+                OwnerAccountId = loadingSnapshot.OwnerAccountId,
+                Phase = (RoomGatewaySessionPhase)loadingSnapshot.Phase,
+                PhaseReason = loadingSnapshot.PhaseReason,
+                LaunchGeneration = loadingSnapshot.LaunchGeneration,
+                LaunchManifestHash = loadingSnapshot.LaunchManifestHash,
+                LaunchManifestVersion = loadingSnapshot.LaunchManifestVersion,
+                RoomRevision = loadingSnapshot.RoomRevision,
+                CanStart = loadingSnapshot.CanStart,
+                BattleId = loadingSnapshot.BattleId,
+                WorldId = loadingSnapshot.WorldId,
+                WorldStartAnchor = ToRoomAnchor(in anchor)
+            };
+            return PrepareAndReportAssetsLoadedAsync(
+                sessionToken,
+                roomId,
+                playerId,
+                roomSnapshot,
+                string.Empty,
+                0L,
+                timeout,
+                cancellationToken);
+        }
+
+        private async Task<RoomGatewayReportAssetsLoadedResult> PrepareAndReportAssetsLoadedAsync(
+            string sessionToken,
+            string roomId,
+            uint playerId,
+            RoomGatewaySnapshot loadingSnapshot,
+            string eventEpoch,
+            long lastEventAck,
+            TimeSpan? timeout,
+            CancellationToken cancellationToken)
+        {
             if (loadingSnapshot.LaunchGeneration <= 0)
             {
                 throw new InvalidOperationException("Shooter loading snapshot has no launch generation.");
@@ -308,9 +376,9 @@ namespace AbilityKit.Demo.Shooter.View
 
             ShooterMultiplayerLoadingStatus.Begin(loadingSnapshot, "Preparing client loading pipeline");
             var loadingContext = new ShooterClientLoadingContext(
-                metadata.SessionToken,
-                metadata.RoomId,
-                metadata.PlayerId,
+                sessionToken,
+                roomId,
+                playerId,
                 loadingSnapshot,
                 eventEpoch,
                 lastEventAck);
@@ -323,8 +391,8 @@ namespace AbilityKit.Demo.Shooter.View
                 {
                     var result = await _flow.ReportLoadingProgressAsync(
                         new RoomGatewayReportLoadingProgressRequest(
-                            metadata.SessionToken,
-                            metadata.RoomId,
+                            sessionToken,
+                            roomId,
                             loadingSnapshot.LaunchGeneration,
                             loadingSnapshot.LaunchManifestVersion,
                             loadingSnapshot.LaunchManifestHash,
@@ -365,17 +433,14 @@ namespace AbilityKit.Demo.Shooter.View
                 {
                 }
 
-                ShooterMultiplayerLoadingStatus.Fail(
-                    metadata.RoomId,
-                    loadingSnapshot.LaunchGeneration,
-                    "Client loading failed");
+                ShooterMultiplayerLoadingStatus.Fail(roomId, loadingSnapshot.LaunchGeneration, "Client loading failed");
                 throw;
             }
 
             var report = await _flow.ReportAssetsLoadedAsync(
                 new RoomGatewayReportAssetsLoadedRequest(
-                    metadata.SessionToken,
-                    metadata.RoomId,
+                    sessionToken,
+                    roomId,
                     loadingSnapshot.LaunchGeneration,
                     loadingSnapshot.LaunchManifestVersion,
                     loadingSnapshot.LaunchManifestHash,
@@ -384,13 +449,7 @@ namespace AbilityKit.Demo.Shooter.View
                 cancellationToken).ConfigureAwait(false);
             EnsureSuccess(report.Success, report.Message, "report assets loaded");
             ShooterMultiplayerLoadingStatus.Update(100, "Waiting for all players", report.Snapshot);
-
-            return await WaitAndSubscribeAsync(
-                metadata,
-                eventEpoch,
-                lastEventAck,
-                timeout,
-                cancellationToken).ConfigureAwait(false);
+            return report;
         }
 
         private async Task<RoomGatewaySessionFlowResult> WaitAndSubscribeAsync(
@@ -670,7 +729,7 @@ namespace AbilityKit.Demo.Shooter.View
             }
         }
 
-        private static RoomGatewayLaunchSpec ToLaunchSpec(in ShooterRoomLaunchSpec launchSpec)
+        internal static RoomGatewayLaunchSpec ToLaunchSpec(in ShooterRoomLaunchSpec launchSpec)
         {
             return new RoomGatewayLaunchSpec(
                 launchSpec.Region,
@@ -819,7 +878,8 @@ namespace AbilityKit.Demo.Shooter.View
 
         private sealed class ShooterRoomGatewaySessionClient :
             IRoomGatewaySessionClient,
-            IRoomGatewaySnapshotFeed
+            IRoomGatewaySnapshotFeed,
+            IDisposable
         {
             private readonly IShooterRoomGatewayRoomClient _roomClient;
             private readonly IShooterRoomGatewaySnapshotFeed? _snapshotFeed;
@@ -1006,9 +1066,42 @@ namespace AbilityKit.Demo.Shooter.View
                     ToRoomSnapshot(result.Snapshot));
             }
 
-            public Task<RoomGatewayCancelLoadingResult> CancelLoadingAsync(RoomGatewayCancelLoadingRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+            public async Task<RoomGatewayLeaveResult> LeaveRoomAsync(RoomGatewayLeaveRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
             {
-                throw new NotSupportedException("Shooter gateway does not expose loading cancellation yet.");
+                var result = await _roomClient.LeaveRoomAsync(
+                    new ShooterGatewayLeaveRoomRequest(
+                        request.SessionToken,
+                        request.RoomId,
+                        request.ExpectedRevision,
+                        request.CommandId),
+                    timeout,
+                    cancellationToken).ConfigureAwait(false);
+                return new RoomGatewayLeaveResult(
+                    result.Success,
+                    result.Applied,
+                    result.ErrorCode,
+                    result.Message,
+                    result.RoomRevision,
+                    ToRoomSnapshot(result.Snapshot));
+            }
+
+            public async Task<RoomGatewayCancelLoadingResult> CancelLoadingAsync(RoomGatewayCancelLoadingRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+            {
+                var result = await _roomClient.CancelLoadingAsync(
+                    new ShooterGatewayCancelLoadingRequest(
+                        request.SessionToken,
+                        request.RoomId,
+                        request.ExpectedRevision,
+                        request.CommandId),
+                    timeout,
+                    cancellationToken).ConfigureAwait(false);
+                return new RoomGatewayCancelLoadingResult(
+                    result.Success,
+                    result.Applied,
+                    result.ErrorCode,
+                    result.Message,
+                    result.RoomRevision,
+                    ToRoomSnapshot(result.Snapshot));
             }
 
             public async Task<RoomGatewayGetSnapshotResult> GetSnapshotAsync(RoomGatewayGetSnapshotRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
@@ -1080,6 +1173,21 @@ namespace AbilityKit.Demo.Shooter.View
 
                 return result;
             }
+
+            public void Dispose()
+            {
+                if (_snapshotFeed != null)
+                {
+                    _snapshotFeed.SnapshotChanged -= HandleSnapshotChanged;
+                }
+
+                SnapshotChanged = null;
+            }
+        }
+
+        public void Dispose()
+        {
+            _sessionClient.Dispose();
         }
     }
 

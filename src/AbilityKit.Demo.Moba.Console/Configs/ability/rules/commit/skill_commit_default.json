@@ -7,5 +7,19 @@
   "allowExternal": false,
   "priority": 0,
   "conditions": [],
-  "actions": []
+  "actions": [
+    {
+      "type": "consume_resource",
+      "resource_type": 2,
+      "amount": {
+        "payload": "skill.cost"
+      }
+    },
+    {
+      "type": "start_cooldown",
+      "cooldown_ms": {
+        "payload": "skill.cooldown_ms"
+      }
+    }
+  ]
 }

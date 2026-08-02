@@ -1,12 +1,79 @@
 #nullable enable
 
 using AbilityKit.Demo.Common.Rooms;
+using AbilityKit.Demo.Shooter.View.PlayMode;
 using NUnit.Framework;
+using UnityEditor;
 
 namespace AbilityKit.Demo.Shooter.View.Tests
 {
     public sealed class DemoMultiplayerConnectionStateTests
     {
+        private const string FormalProfilePath =
+            "Packages/com.abilitykit.demo.shooter.view.runtime/Configs/ShooterMultiplayerProfile.asset";
+
+        [Test]
+        public void MultiplayerLaunchIntentTransfersAuthenticatedRequestToExpectedGameplay()
+        {
+            var expected = new DemoMultiplayerLaunchRequest(
+                "127.0.0.1",
+                4000,
+                "dev",
+                "local",
+                "account-1",
+                "session-1",
+                System.TimeSpan.FromSeconds(5));
+
+            DemoMultiplayerLaunchIntent.Request(DemoMultiplayerGameplay.Shooter, expected);
+
+            Assert.IsTrue(DemoMultiplayerLaunchIntent.TryConsume(
+                DemoMultiplayerGameplay.Shooter,
+                out var actual));
+            Assert.That(actual, Is.SameAs(expected));
+            Assert.IsTrue(actual.IsAuthenticated);
+            Assert.IsFalse(DemoMultiplayerLaunchIntent.TryConsume(
+                DemoMultiplayerGameplay.Shooter,
+                out _));
+        }
+
+        [Test]
+        public void MultiplayerLaunchIntentRejectsAndClearsMismatchedGameplay()
+        {
+            var request = new DemoMultiplayerLaunchRequest(
+                "127.0.0.1",
+                4000,
+                "dev",
+                "local",
+                "account-1",
+                "session-1",
+                System.TimeSpan.FromSeconds(5));
+            DemoMultiplayerLaunchIntent.Request(DemoMultiplayerGameplay.Moba, request);
+
+            Assert.IsFalse(DemoMultiplayerLaunchIntent.TryConsume(
+                DemoMultiplayerGameplay.Shooter,
+                out _));
+            Assert.IsFalse(DemoMultiplayerLaunchIntent.TryConsume(
+                DemoMultiplayerGameplay.Moba,
+                out _));
+        }
+
+        [Test]
+        public void FormalMultiplayerProfileBuildsProductionSessionOptions()
+        {
+            var profile = AssetDatabase.LoadAssetAtPath<ShooterMultiplayerProfileSO>(FormalProfilePath);
+
+            Assert.That(profile, Is.Not.Null, FormalProfilePath);
+            Assert.That(profile.RoomTitle, Is.EqualTo("Shooter Room"));
+            Assert.That(profile.MaxPlayers, Is.EqualTo(4));
+            Assert.That(profile.RoomListLimit, Is.EqualTo(10));
+            Assert.That(profile.StarterSceneName, Is.EqualTo("MultiplayerStarterScene"));
+
+            var options = profile.BuildSessionOptions();
+            Assert.That(options.SyncTemplateId, Is.EqualTo("predict-rollback-authority"));
+            Assert.That(options.PlayerCount, Is.EqualTo(2));
+            Assert.That(options.ControlledPlayerId, Is.EqualTo(1));
+        }
+
         [Test]
         public void AccountStateCreatesStableUniqueDefaultIdentities()
         {

@@ -40,7 +40,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             if (!_triggerInputs.TryResolve(in evt, out var input)) return false;
 
             var projectile = _resources.TryGetProjectile(input.TemplateId);
-            if (projectile == null) return false;
+            if (projectile == null)
+            {
+                BattleViewFallbackPolicy.AllowFallback("projectile.config:" + input.TemplateId);
+                return false;
+            }
 
             projectileId = input.ProjectileId;
 
@@ -48,7 +52,12 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             var vfxIds = ToVfxIds(projectile);
             if (!_resolver.TryResolveTriggerHit(in abstractInput, in vfxIds, out var abstractSpec)) return false;
 
-            vfxId = abstractSpec.VfxId > 0 ? abstractSpec.VfxId : BattleViewPlaceholderIds.ProjectileHitVfx;
+            vfxId = abstractSpec.VfxId > 0
+                ? abstractSpec.VfxId
+                : BattleViewFallbackPolicy.DevelopmentOnly(
+                    BattleViewPlaceholderIds.ProjectileHitVfx,
+                    "projectile.hit-vfx:" + input.TemplateId);
+            if (vfxId <= 0) return false;
             position = ToUnityVector3(abstractSpec.Position);
             return true;
         }
@@ -62,7 +71,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             if (vfxId > 0) return vfxId;
 
             return kind == (int)ProjectileEventKind.Spawn
-                ? BattleViewPlaceholderIds.ProjectileSpawnVfx
+                ? BattleViewFallbackPolicy.DevelopmentOnly(
+                    BattleViewPlaceholderIds.ProjectileSpawnVfx,
+                    "projectile.spawn-vfx:" + templateId)
                 : 0;
         }
 

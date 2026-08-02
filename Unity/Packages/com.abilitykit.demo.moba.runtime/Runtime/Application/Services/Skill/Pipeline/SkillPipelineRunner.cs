@@ -735,9 +735,14 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void CancelAll()
         {
+            CancelAll(MobaSkillRuntimeEndReason.Cancelled);
+        }
+
+        public void CancelAll(MobaSkillRuntimeEndReason runtimeEndReason)
+        {
             if (_running.Count == 0) return;
 
-            _logger.LogInfo($"CancelAll: ActorId={_actorId} Count={_running.Count}");
+            _logger.LogInfo($"CancelAll: ActorId={_actorId} Count={_running.Count} Reason={runtimeEndReason}");
 
             for (int i = 0; i < _running.Count; i++)
             {
@@ -759,8 +764,11 @@ namespace AbilityKit.Demo.Moba.Services
 
                 p?.Interrupt();
 
-                TryEndPhaseTrace(ref e, TraceLifecycleReason.Cancelled);
-                TryEndTraceContext(e, TraceLifecycleReason.Cancelled);
+                var traceReason = runtimeEndReason == MobaSkillRuntimeEndReason.OwnerRemoved
+                    ? TraceLifecycleReason.Dead
+                    : TraceLifecycleReason.Cancelled;
+                TryEndPhaseTrace(ref e, traceReason);
+                TryCancelSkillRuntime(in e, runtimeEndReason);
 
                 RunCleanups(e.Context, "cancelAll");
 

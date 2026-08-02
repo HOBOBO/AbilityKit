@@ -53,6 +53,19 @@ namespace AbilityKit.Game.View.Runtime.Tests
                 firstFrameReceived: true));
         }
 
+        [Fact]
+        public void OnStateEntered_LoadAssets_CompletedBarrier_ReturnsAssetsLoadCompleted()
+        {
+            var decider = new MobaBattleAdvanceDecider();
+            Assert.Equal(
+                MobaBattleEvent.AssetsLoadCompleted,
+                decider.OnStateEntered(
+                    MobaBattleState.LoadAssets,
+                    sessionStarted: true,
+                    firstFrameReceived: true,
+                    assetsLoadCompleted: true));
+        }
+
         // --------------------------------------------------------------------
         // MobaFlowConfiguration 转换验证
         // --------------------------------------------------------------------

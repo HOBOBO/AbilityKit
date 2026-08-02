@@ -1,18 +1,19 @@
 ---
 name: moba-demo
-description: AbilityKit MOBA Demo（com.abilitykit.demo.moba.*）——5 个包的总览与装配、Bootstrap 12 阶段机、39 个 Actor*Component ECS 状态、view.runtime 的 BattleSessionFeature 37 partial 与双 Sim 模式、Editor 14 个 BattleDebug 面板 + 寻路 Gizmo、Console Demo net10.0 入口、4 套测试体系（179/179 全部通过）、Configs/{moba,luban,ability,battle_maps} 配置、**导航/寻路/碰撞墙体/PathFollowing/地图运行时/AI BT 修复**。触发场景：定位 moba 包结构、修改 Bootstrap Stage、添加 Actor*Component、拆 BattleSessionFeature、加 BattleDebug 面板、加 Console Demo CLI 模式、跑 moba 自动测试、配 luban 表、查团队约定 Docs、修改寻路/碰撞/墙体策略、更新地图障碍物、调试 AI 行为树移动。
+description: AbilityKit MOBA Demo（com.abilitykit.demo.moba.*）——6 个包的总览与装配（含新增 `demo.moba.host`，从 host.extension 提取的 Moba host adapter）、Bootstrap 12 阶段机、39 个 Actor*Component ECS 状态、view.runtime 的 BattleSessionFeature 37 partial 与双 Sim 模式、Editor 14 个 BattleDebug 面板 + 寻路 Gizmo、Console Demo net10.0 入口、4 套测试体系（179/179 全部通过）、Configs/{moba,luban,ability,battle_maps} 配置、**导航/寻路/碰撞墙体/PathFollowing/地图运行时/AI BT 修复**。触发场景：定位 moba 包结构、修改 Bootstrap Stage、添加 Actor*Component、拆 BattleSessionFeature、加 BattleDebug 面板、加 Console Demo CLI 模式、跑 moba 自动测试、配 luban 表、查团队约定 Docs、修改寻路/碰撞/墙体策略、更新地图障碍物、调试 AI 行为树移动。
 ---
 
 # moba-demo skill
 
 基于源码核校（2026-07-29）。**覆盖 demo 装配/阶段机/ECS/视图/同步/网络/Editor/测试/配置 以及 导航/寻路/碰撞墙体/PathFollowing/map运行时/AI BT**——技能/触发器/BUFF/Passive 业务内容归 [ability-kit](../ability-kit/SKILL.md)。碰撞/移动/导航基础设施（`com.abilitykit.combat.{collision,motion,navigation}` 包）归 ability-kit 的 [combat_* 子目录](../ability-kit/SKILL.md)。
 
-## 5 个包总览
+## 6 个包总览
 
 | 包 | version | 职责 |
 |----|---------|------|
 | `com.abilitykit.demo.moba.share` | 0.0.1 | 平台无关共享接口/DTO/枚举/Flow 抽象 |
 | `com.abilitykit.demo.moba.view.abstractions` | **0.1.0** | view 与 logic 层之间的共享抽象（Hud/View/PresentationCue/插值契约） |
+| `com.abilitykit.demo.moba.host` | **0.1.0** 🆕 | **Moba host adapter**（BattleLaunchSpec/RoomOrchestrator/HostRuntimeBuilder），从 host.extension 提取 |
 | `com.abilitykit.demo.moba.runtime` | 0.0.1 | **逻辑运行时**（装配/Domain/Common/Infrastructure/Worlds/Bootstrap） |
 | `com.abilitykit.demo.moba.view.runtime` | 0.0.1 | **表现/会话运行时**（`BattleSessionFeature`、View、Net、Sim） |
 | `com.abilitykit.demo.moba.editor` | 0.0.1 | Editor 工具链（14 BattleDebug 面板、ConfigSync、SceneGizmos、HotReload） |
@@ -58,6 +59,7 @@ Host/Session → WorldTypeRegistry → MobaWorldBlueprintsRegistration
 - [collision_and_walls.md](collision_and_walls.md) — **NEW** 碰撞世界/移动碰撞/墙体系统：sync/adapter/墙滑/per-skill 策略
 - [map_runtime.md](map_runtime.md) — **NEW** 地图运行时服务：MobaMapRuntimeService + battle_maps.json
 - [ai_bt.md](ai_bt.md) — **NEW** AI 行为树修复：DefaultApproachRange 0.5 + CreateSummon WithMoveInput
+- [multiplayer_sync.md](multiplayer_sync.md) — 🆕 **v0.1.0** 多人同步完整度：BattleWorldWithFrameSync / CatchUp / Recording / Metrics / Spectator / BotAI / TickRate
 
 ## 相关 skill
 

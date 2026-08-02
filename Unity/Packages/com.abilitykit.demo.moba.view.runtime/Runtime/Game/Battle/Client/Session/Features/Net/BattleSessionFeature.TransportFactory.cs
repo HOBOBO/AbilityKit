@@ -154,6 +154,10 @@ namespace AbilityKit.Game.Flow
                 ApplyRemovedActorsToLogicWorld(in snapshot);
             }
 
+            // Snapshot-authority sessions do not necessarily receive legacy FramePacket pushes.
+            // A successfully imported authoritative snapshot satisfies the same first-frame barrier.
+            NotifyFirstFrameReceivedOnce();
+
             var materialized = _authoritativeSnapshotState?.Apply(in snapshot) ?? snapshot;
             var sample = new MobaRemoteSnapshotSample(
                 materialized.WorldId,

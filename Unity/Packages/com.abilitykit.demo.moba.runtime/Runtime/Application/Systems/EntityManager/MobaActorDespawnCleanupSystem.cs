@@ -23,6 +23,12 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         private MobaSkillCastRuntimeService _skillRuntimes;
         private MobaTraceRegistry _trace;
         private MobaSummonService _summons;
+        private SkillCastCoordinator _skills;
+        private MobaSkillLoadoutService _skillLoadouts;
+        private MobaSkillParamModifierService _skillModifiers;
+        private MobaEffectiveTagQueryService _effectiveTags;
+        private MobaCombatActivityService _combatActivity;
+        private MobaShieldService _shields;
 
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
@@ -42,6 +48,12 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             Services.TryResolve(out _skillRuntimes);
             Services.TryResolve(out _trace);
             Services.TryResolve(out _summons);
+            Services.TryResolve(out _skills);
+            Services.TryResolve(out _skillLoadouts);
+            Services.TryResolve(out _skillModifiers);
+            Services.TryResolve(out _effectiveTags);
+            Services.TryResolve(out _combatActivity);
+            Services.TryResolve(out _shields);
             _group = Contexts.Actor().GetGroup(ActorMatcher.ActorDespawnRequest);
         }
 
@@ -100,11 +112,22 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             }
 
             CleanupProjectile(actorId, request);
+            ReclaimActorState(actorId);
 
             _despawnSnapshots?.Enqueue(actorId, (byte)request.Reason);
             _registry?.Unregister(actorId);
             _entities?.Unregister(actorId);
             TryDestroy(entity, actorId, request.Reason);
+        }
+
+        private void ReclaimActorState(int actorId)
+        {
+            _skills?.RemoveActor(actorId);
+            _skillLoadouts?.RemoveActor(actorId);
+            _skillModifiers?.ClearActor(actorId);
+            _effectiveTags?.RemoveActor(actorId);
+            _combatActivity?.RemoveActor(actorId);
+            _shields?.RemoveActor(actorId);
         }
 
         private void CleanupProjectile(int actorId, ActorDespawnRequestComponent request)

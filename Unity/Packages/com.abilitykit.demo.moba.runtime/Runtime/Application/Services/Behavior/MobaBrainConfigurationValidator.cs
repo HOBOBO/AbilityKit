@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Services.Behavior.BTree;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using UnityHFSM.Extension;
@@ -12,7 +13,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             IMobaActorBrainCatalog brains,
             IMobaActorStateMachineProfileCatalog profiles,
             MobaActorStateMachineRuntimeRegistry runtimeRegistry,
-            MobaBrainDecisionDriverRegistry decisionDrivers)
+            MobaBrainDecisionDriverRegistry decisionDrivers,
+            ITextAssetLoader textAssetLoader = null)
         {
             if (brains == null) throw new ArgumentNullException(nameof(brains));
             if (profiles == null) throw new ArgumentNullException(nameof(profiles));
@@ -33,7 +35,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
                 switch (definition.DriverKind)
                 {
                     case MobaBrainDriverKind.BTree:
-                        ValidateBTreeBrain(in definition, decisionDrivers, errors);
+                        ValidateBTreeBrain(in definition, decisionDrivers, textAssetLoader, errors);
                         break;
                     case MobaBrainDriverKind.Hfsm:
                         if (!profiles.TryGet(definition.DecisionName, out _))
@@ -60,6 +62,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         private static void ValidateBTreeBrain(
             in MobaActorBrainDefinition definition,
             MobaBrainDecisionDriverRegistry decisionDrivers,
+            ITextAssetLoader textAssetLoader,
             List<string> errors)
         {
             if (!decisionDrivers.Contains(MobaBrainDriverKind.BTree))
@@ -68,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
                 return;
             }
 
-            if (!MobaBTreeAssetLoader.TryLoad(definition.DecisionName, out var json))
+            if (!MobaBTreeAssetLoader.TryLoad(textAssetLoader, definition.DecisionName, out var json))
             {
                 errors.Add(
                     $"Brain '{definition.BrainId}' references missing BTree resource '{definition.DecisionName}'.");

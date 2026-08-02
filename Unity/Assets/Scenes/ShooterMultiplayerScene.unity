@@ -269,36 +269,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 955321166}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 39e1b8cb39c94bf9a7af3e654048dc9a, type: 3}
+  m_Script: {fileID: 11500000, guid: b3333333333333333333333333333333, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  showMenu: 1
-  windowRect:
-    serializedVersion: 2
-    x: 12
-    y: 12
-    width: 440
-    height: 720
-  templateId: predict-rollback-authority
-  randomSeed: 12345
-  playerCount: 2
-  controlledPlayerId: 1
-  worldScale: 1
-  enemyBudget: 512
-  enableAuthorityComparison: 0
-  renderBackend: 1
-  host: 127.0.0.1
-  port: 41001
-  region: local
-  serverId: dev
-  sessionToken: unity-shooter-state-sync
-  guestId: unity-guest
-  accountId: unity-account
-  timeoutSeconds: 5
-  roomId: 
-  roomTitle: Unity Shooter Room
-  maxPlayers: 4
-  roomListLimit: 10
+  profile: {fileID: 11400000, guid: b2222222222222222222222222222222, type: 2}
 --- !u!1 &999122916
 GameObject:
   m_ObjectHideFlags: 0

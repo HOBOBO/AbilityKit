@@ -8,6 +8,7 @@
         "AbilityKit.World.DI",
         "AbilityKit.World.FrameSync",
         "AbilityKit.World.Snapshot",
+        "AbilityKit.World.NetworkFragments",
         "AbilityKit.Network.Runtime"
     ],
     "includePlatforms": [],

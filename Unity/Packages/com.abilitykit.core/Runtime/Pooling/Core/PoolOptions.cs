@@ -44,9 +44,9 @@ namespace AbilityKit.Core.Pooling
 
         public static ObjectPoolOptions<T> WithLifecycle<T>(
             this ObjectPoolOptions<T> options,
-            Action<T> onGet = null,
-            Action<T> onRelease = null,
-            Action<T> onDestroy = null) where T : class
+            Action<T>? onGet = null,
+            Action<T>? onRelease = null,
+            Action<T>? onDestroy = null) where T : class
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
             options.OnGet = onGet;

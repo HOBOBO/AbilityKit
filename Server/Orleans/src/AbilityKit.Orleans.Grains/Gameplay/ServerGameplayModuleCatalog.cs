@@ -25,17 +25,28 @@ internal enum ServerBattleSyncMode
 internal enum ServerBattleRuntimeMode
 {
     BattleWorld = 0,
-    FrameRelayOnly = 1
+    FrameRelayOnly = 1,
+    BattleWorldWithFrameSync = 2
 }
 
 internal sealed class ServerBattleSyncTemplate
 {
     public ServerBattleSyncTemplate(string templateId, ServerBattleSyncMode mode)
-        : this(templateId, mode, ServerBattleRuntimeMode.BattleWorld)
+        : this(templateId, mode, ServerBattleRuntimeMode.BattleWorld, 1, 30)
     {
     }
 
     public ServerBattleSyncTemplate(string templateId, ServerBattleSyncMode mode, ServerBattleRuntimeMode runtimeMode)
+        : this(templateId, mode, runtimeMode, 1, 30)
+    {
+    }
+
+    public ServerBattleSyncTemplate(
+        string templateId,
+        ServerBattleSyncMode mode,
+        ServerBattleRuntimeMode runtimeMode,
+        int snapshotIntervalFrames,
+        int fullSnapshotIntervalFrames)
     {
         if (string.IsNullOrWhiteSpace(templateId))
         {
@@ -45,6 +56,8 @@ internal sealed class ServerBattleSyncTemplate
         TemplateId = templateId;
         Mode = mode;
         RuntimeMode = runtimeMode;
+        SnapshotIntervalFrames = snapshotIntervalFrames > 0 ? snapshotIntervalFrames : 1;
+        FullSnapshotIntervalFrames = fullSnapshotIntervalFrames > 0 ? fullSnapshotIntervalFrames : 30;
     }
 
     public string TemplateId { get; }
@@ -53,11 +66,17 @@ internal sealed class ServerBattleSyncTemplate
 
     public ServerBattleRuntimeMode RuntimeMode { get; }
 
+    public int SnapshotIntervalFrames { get; }
+
+    public int FullSnapshotIntervalFrames { get; }
+
     public bool SupportsStateSyncPush => Mode == ServerBattleSyncMode.StateSync;
 
     public bool SupportsFrameSync => Mode == ServerBattleSyncMode.FrameSync;
 
-    public bool RequiresBattleRuntime => RuntimeMode == ServerBattleRuntimeMode.BattleWorld;
+    public bool RequiresBattleRuntime =>
+        RuntimeMode == ServerBattleRuntimeMode.BattleWorld ||
+        RuntimeMode == ServerBattleRuntimeMode.BattleWorldWithFrameSync;
 }
 
 internal sealed class ServerBattleSyncProfile
@@ -74,6 +93,20 @@ internal sealed class ServerBattleSyncProfile
         return new ServerBattleSyncProfile(
             new ServerBattleSyncTemplate(defaultTemplateId, ServerBattleSyncMode.FrameSync, ServerBattleRuntimeMode.FrameRelayOnly),
             CreateTemplates(ServerBattleSyncMode.StateSync, stateSyncTemplateIds));
+    }
+
+    public static ServerBattleSyncProfile FrameSync(string defaultTemplateId, string[] stateSyncTemplateIds, ServerBattleRuntimeMode runtimeMode)
+    {
+        return new ServerBattleSyncProfile(
+            new ServerBattleSyncTemplate(defaultTemplateId, ServerBattleSyncMode.FrameSync, runtimeMode),
+            CreateTemplates(ServerBattleSyncMode.StateSync, stateSyncTemplateIds));
+    }
+
+    public static ServerBattleSyncProfile FromTemplates(
+        ServerBattleSyncTemplate defaultTemplate,
+        params ServerBattleSyncTemplate[] additionalTemplates)
+    {
+        return new ServerBattleSyncProfile(defaultTemplate, additionalTemplates);
     }
 
     private ServerBattleSyncProfile(ServerBattleSyncTemplate defaultTemplate, IReadOnlyList<ServerBattleSyncTemplate> additionalTemplates)
@@ -281,7 +314,7 @@ internal sealed class ServerGameplayModuleCatalog
     {
         new ServerGameplayModule(
             ServerGameplayDescriptors.Moba,
-            ServerBattleSyncProfile.FrameSync("frame-sync-authority", "state-sync-authority"),
+            ServerBattleSyncProfile.FrameSync("frame-sync-authority", ["state-sync-authority"], ServerBattleRuntimeMode.BattleWorldWithFrameSync),
             static () => new MobaRoomGameplayAdapter(),
             static worldManager => new MobaBattleRuntimeAdapter(worldManager, DefaultOrleansBattleProtocolMapper.Instance),
             new Func<IWorldBlueprint>[]
@@ -291,15 +324,7 @@ internal sealed class ServerGameplayModuleCatalog
             }),
         new ServerGameplayModule(
             ServerGameplayDescriptors.Shooter,
-            ServerBattleSyncProfile.StateSync(
-                ShooterServerProtocol.PredictRollbackAuthorityTemplate,
-                ShooterServerProtocol.AuthoritativeInterpolationPresentationTemplate,
-                ShooterServerProtocol.BatchStateLowFrequencyTemplate,
-                ShooterServerProtocol.MassBattleLodAoiTemplate,
-                ShooterServerProtocol.HybridHeroPredictionTemplate,
-                ShooterServerProtocol.RuntimeSnapshotInterpolationTemplate,
-                ShooterServerProtocol.StateSyncAuthorityTemplate,
-                ShooterServerProtocol.PureStateAuthorityTemplate),
+            ShooterServerSyncTemplateCatalog.CreateSyncProfile(),
             static () => new ShooterRoomGameplayAdapter(),
             static worldManager => new ShooterBattleRuntimeAdapter(worldManager),
             new Func<IWorldBlueprint>[]

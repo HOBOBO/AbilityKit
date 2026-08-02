@@ -1,6 +1,6 @@
 ﻿{
     "name": "com.abilitykit.modifiers",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "displayName": "AbilityKit Modifiers",
     "description": "閫氱敤淇敼鍣ㄨ绠楁ā鍧楋紝瀵规爣 GAS 鐨?Attribute Modifiers",
     "unity": "2022.3",

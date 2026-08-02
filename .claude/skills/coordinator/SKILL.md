@@ -3,6 +3,7 @@ name: coordinator
 description: AbilityKit 会话协调器（com.abilitykit.coordinator）——位于 Host/World（下层）与 View/Network（上层）之间的会话层编排器。覆盖 SessionCoordinator 生命周期状态机、ISessionCoordinatorHost/ILogicWorldDriverBridge 应用端口、三种 SyncAdapter（Lockstep/SnapshotAuthority+StateSync/Hybrid）、IRemoteBattleSyncTransport、IViewEventSink、ViewTimeline、ISessionSubFeature 扩展点、CoordinatorInputSubmitBridge 异步输入桥。触发场景：会话初始化/启动/停止/销毁、SyncMode 选择、ExistingWorld 接管、moba/shooter 接入 coordinator、PlayerInput 提交、视图事件下沉、子功能挂接。
 ---
 
+> v0.1.0 Beta -- AbilityKitStable=true, has direct src tests (3), HybridSyncAdapter [Obsolete(error:true), 计划 v0.2.0 移除]。
 # coordinator skill
 
 基于源码核校（2026-07-20）。`com.abilitykit.coordinator` 包根：`Unity/Packages/com.abilitykit.coordinator/`。

@@ -4,10 +4,11 @@
 
 | 包 | version | 关键依赖 |
 |----|---------|---------|
-| `com.abilitykit.demo.moba.share` | 0.0.1 | core, host, world.framesync |
+| `com.abilitykit.demo.moba.share` | 0.0.1 | core(0.1.0), host(0.1.0), world.framesync(0.1.0) |
 | `com.abilitykit.demo.moba.view.abstractions` | **0.1.0** | world.networkfragments |
-| `com.abilitykit.demo.moba.runtime` | 0.0.1 | share + 20 个 abilitykit.* 模块（含 ability/triggering/pipeline/attributes/modifiers/combat.*/host.extension/coordinator） |
-| `com.abilitykit.demo.moba.view.runtime` | 0.0.1 | runtime + share + view.abstractions + game.battle.* + protocol.moba/room |
+| `com.abilitykit.demo.moba.host` | **0.1.0** (🆕) | host.extension(0.1.0), protocol.moba, core/world.*(0.1.0) — Moba host adapter 提取自 host.extension |
+| `com.abilitykit.demo.moba.runtime` | 0.0.1 | share + demo.moba.host + 19 个 abilitykit.* 0.1.0 模块（ability/triggering/pipeline/attributes/modifiers/combat.*/host.extension/coordinator） |
+| `com.abilitykit.demo.moba.view.runtime` | 0.0.1 | runtime + share + view.abstractions + demo.moba.host + game.battle.* + protocol.moba/room |
 | `com.abilitykit.demo.moba.editor` | 0.0.1 | runtime + view.runtime + hotreload |
 
 ## 依赖图
@@ -21,10 +22,10 @@ share ◄── runtime ◄── view.runtime ◄── editor
 
 注意：
 
-- `view.abstractions` 版本号 0.1.0（唯一一个不是 0.0.1）
-- `view.runtime` 用 `"0.1.0"` 锁定 `view.abstractions`
+- 框架包稳定化（2026-07-31）已将 25 个 abilitykit 核心包推到 0.1.0 Beta；moba demo 自身的多数包仍为 0.0.1
+- `demo.moba.host`（🆕）是从 `host.extension` 提取出来的 Moba host adapter（38 文件 + 3 asmdef），含 MobaBattleLaunchSpec/MobaRoomOrchestrator/MobaHostRuntimeBuilder 等
 - `view.editor` 不存在
-- `runtime` 的 package.json 没有显式列 coordinator 依赖，但 asmdef references 含 `AbilityKit.Coordinator`（Unity 允许 asmdef 引用未在 manifest 声明的本地包程序集）
+- `runtime` 的 package.json 没有显式列 coordinator 依赖，但 asmdef references 含 `AbilityKit.Coordinator`
 
 ## 各包职责（一句话）
 

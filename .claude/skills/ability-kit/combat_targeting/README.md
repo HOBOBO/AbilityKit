@@ -1,4 +1,5 @@
 # combat.targeting — 目标搜索与选择
+> v0.1.0 Beta -- AbilityKitStable=true, has direct src tests, zero hard errors.
 
 包 `com.abilitykit.combat.targeting`。可组合搜索管道，用于 BT 节点和技能目标选择。22 个 .cs 文件。
 

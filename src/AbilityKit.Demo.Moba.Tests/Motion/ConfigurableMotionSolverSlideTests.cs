@@ -32,11 +32,45 @@ public sealed class ConfigurableMotionSolverSlideTests
         var result = solver.Solve(0, in state, in output, 0.016f);
 
         Assert.InRange(result.AppliedDelta.X, 3.9f, 4.1f);
-        // 开启滑动：消去指向墙的法向分量后，沿墙的 Z 分量几乎完整保留。
+        // 默认恢复率为 0：保持原有投影语义，沿墙的 Z 分量几乎完整保留。
         Assert.InRange(result.AppliedDelta.Z, 1.9f, 2.1f);
     }
 
-    private static ConfigurableMotionSolver MakeSolver(bool slide)
+    [Fact]
+    public void Full_speed_recovery_redirects_remaining_horizontal_distance_along_wall()
+    {
+        var solver = MakeSolver(slide: true, wallSlideSpeedRecovery: 1f);
+        var state = new MotionState(Vec3.Zero);
+        var output = new MotionOutput { DesiredDelta = new Vec3(5f, 0f, 5f) };
+
+        var result = solver.Solve(0, in state, in output, 0.016f);
+
+        Assert.InRange(result.AppliedDelta.X, 3.9f, 4.1f);
+        // 碰撞前进 (4,4)，剩余 (1,1) 的长度 sqrt(2) 被重定向到墙切线。
+        Assert.InRange(result.AppliedDelta.Z, 5.40f, 5.43f);
+    }
+
+    [Fact]
+    public void Pass_through_ignores_wall_slide_speed_recovery_and_keeps_full_delta()
+    {
+        var solver = MakeSolver(
+            slide: true,
+            wallSlideSpeedRecovery: 1f,
+            allowPassThrough: true);
+        var state = new MotionState(Vec3.Zero);
+        var output = new MotionOutput { DesiredDelta = new Vec3(10f, 0f, 2f) };
+
+        var result = solver.Solve(0, in state, in output, 0.016f);
+
+        Assert.Equal(10f, result.AppliedDelta.X);
+        Assert.Equal(2f, result.AppliedDelta.Z);
+        Assert.False(result.Hit.Hit);
+    }
+
+    private static ConfigurableMotionSolver MakeSolver(
+        bool slide,
+        float wallSlideSpeedRecovery = 0f,
+        bool allowPassThrough = false)
     {
         var world = new MockSlideMotionWorld();
         return new ConfigurableMotionSolver(
@@ -44,14 +78,15 @@ public sealed class ConfigurableMotionSolverSlideTests
             (moverId, in state, in input, dt) => new MotionConstraints(
                 new MotionCollisionConstraints(
                     enable: true,
-                    allowPassThrough: false,
+                    allowPassThrough: allowPassThrough,
                     endOverlapPolicy: MotionEndOverlapPolicy.AllowInside,
                     radius: 0.5f,
                     skin: 0f,
                     obstacleMask: 1,
                     ignoreMask: 0,
                     slideAlongWalls: slide,
-                    maxSlideIterations: 2),
+                    maxSlideIterations: 2,
+                    wallSlideSpeedRecovery: wallSlideSpeedRecovery),
                 MotionLeashConstraints.Disabled));
     }
 

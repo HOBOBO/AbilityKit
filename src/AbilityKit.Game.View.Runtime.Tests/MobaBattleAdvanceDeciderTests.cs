@@ -97,6 +97,18 @@ namespace AbilityKit.Game.View.Runtime.Tests
                 _decider.OnStateEntered((MobaBattleState)current, sessionStarted, firstFrameReceived));
         }
 
+        [Fact]
+        public void OnStateEntered_LoadAssets_AdvancesWhenCompletionArrivedEarly()
+        {
+            Assert.Equal(
+                MobaBattleEvent.AssetsLoadCompleted,
+                _decider.OnStateEntered(
+                    MobaBattleState.LoadAssets,
+                    sessionStarted: true,
+                    firstFrameReceived: true,
+                    assetsLoadCompleted: true));
+        }
+
         [Theory]
         // 标志均未满足
         [InlineData((int)MobaBattleState.Connect, false, false)]

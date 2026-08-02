@@ -1,4 +1,5 @@
 # 触发器引擎（Triggering）
+> v0.1.0 Beta -- AbilityKitStable=true, has direct src tests, zero hard errors.
 
 > 本目录覆盖 AbilityKit 的两套触发器实现。理解两套差异是定位"事件收不到"类问题的前提。
 

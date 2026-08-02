@@ -31,10 +31,10 @@ namespace AbilityKit.Combat.MotionSystem.Collision
                 desiredDelta = ApplyLeash(in state.Position, in desiredDelta, constraints.Leash);
             }
 
-            if (!constraints.Collision.Enable) return MotionSolveResult.NoHit(desiredDelta);
+            var collision = input.HasDominantCollisionPolicy ? input.DominantCollisionPolicy : constraints.Collision;
+            if (!collision.Enable) return MotionSolveResult.NoHit(desiredDelta);
             if (_world == null) return MotionSolveResult.NoHit(desiredDelta);
 
-            var collision = input.HasDominantCollisionPolicy ? input.DominantCollisionPolicy : constraints.Collision;
             return Resolve(id, in state.Position, in desiredDelta, in collision);
         }
 
@@ -109,6 +109,8 @@ namespace AbilityKit.Combat.MotionSystem.Collision
                 remaining -= stepApplied;
 
                 // 切向滑动：消除剩余位移里指向墙法向（XZ）的分量，保留沿墙分量。
+                var horizontalLengthBeforeProjection =
+                    (float)Math.Sqrt(remaining.X * remaining.X + remaining.Z * remaining.Z);
                 var normal = stepHit.Normal;
                 var normalSqr = normal.X * normal.X + normal.Z * normal.Z;
                 if (normalSqr <= 1e-8f) break;
@@ -119,6 +121,20 @@ namespace AbilityKit.Combat.MotionSystem.Collision
                 if (intoWall < 0f)
                 {
                     remaining = new Vec3(remaining.X - nx * intoWall, remaining.Y, remaining.Z - nz * intoWall);
+
+                    var projectedHorizontalLength =
+                        (float)Math.Sqrt(remaining.X * remaining.X + remaining.Z * remaining.Z);
+                    if (constraints.WallSlideSpeedRecovery > 0f && projectedHorizontalLength > 1e-6f)
+                    {
+                        var targetHorizontalLength = projectedHorizontalLength +
+                            (horizontalLengthBeforeProjection - projectedHorizontalLength) *
+                            constraints.WallSlideSpeedRecovery;
+                        var horizontalScale = targetHorizontalLength / projectedHorizontalLength;
+                        remaining = new Vec3(
+                            remaining.X * horizontalScale,
+                            remaining.Y,
+                            remaining.Z * horizontalScale);
+                    }
                 }
 
                 currentPos = start + totalApplied;

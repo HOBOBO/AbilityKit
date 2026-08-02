@@ -508,6 +508,19 @@ namespace AbilityKit.Protocol.Room
     }
 
     /// <summary>
+    /// Leaves the authoritative room membership. The operation result is returned
+    /// using <see cref="WireRoomOperationRes"/>.
+    /// </summary>
+    [MemoryPackable]
+    public partial struct WireLeaveRoomReq
+    {
+        [MemoryPackOrder(0)] public string SessionToken { get; set; }
+        [MemoryPackOrder(1)] public string RoomId { get; set; }
+        [MemoryPackOrder(2)] public long? ExpectedRevision { get; set; }
+        [MemoryPackOrder(3)] public string CommandId { get; set; }
+    }
+
+    /// <summary>
     /// 查询 Room 当前快照。
     /// </summary>
     [MemoryPackable]

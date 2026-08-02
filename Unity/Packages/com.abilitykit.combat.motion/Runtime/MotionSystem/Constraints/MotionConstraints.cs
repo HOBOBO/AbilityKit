@@ -30,6 +30,11 @@ namespace AbilityKit.Combat.MotionSystem.Constraints
         /// <summary>滑动迭代上限（每次迭代消去一个被阻挡的法向分量）。</summary>
         public readonly int MaxSlideIterations;
 
+        /// <summary>
+        /// 墙滑切向速度恢复率。0 保留投影后的切向速度，1 将未消耗的水平位移长度恢复到墙切线方向。
+        /// </summary>
+        public readonly float WallSlideSpeedRecovery;
+
         public MotionCollisionConstraints(
             bool enable,
             bool allowPassThrough,
@@ -39,7 +44,8 @@ namespace AbilityKit.Combat.MotionSystem.Constraints
             int obstacleMask,
             int ignoreMask,
             bool slideAlongWalls = false,
-            int maxSlideIterations = 2)
+            int maxSlideIterations = 2,
+            float wallSlideSpeedRecovery = 0f)
         {
             Enable = enable;
             AllowPassThrough = allowPassThrough;
@@ -50,6 +56,11 @@ namespace AbilityKit.Combat.MotionSystem.Constraints
             IgnoreMask = ignoreMask;
             SlideAlongWalls = slideAlongWalls;
             MaxSlideIterations = maxSlideIterations < 1 ? 1 : maxSlideIterations;
+            WallSlideSpeedRecovery = wallSlideSpeedRecovery < 0f
+                ? 0f
+                : wallSlideSpeedRecovery > 1f
+                    ? 1f
+                    : wallSlideSpeedRecovery;
         }
 
         public static MotionCollisionConstraints Disabled => new MotionCollisionConstraints(

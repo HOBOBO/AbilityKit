@@ -67,7 +67,9 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private void Awake()
         {
-            _multiplayerEntry = ShooterMultiplayerLaunchContext.ConsumeRequest();
+            _multiplayerEntry = DemoMultiplayerLaunchIntent.TryConsume(
+                DemoMultiplayerGameplay.Shooter,
+                out _);
             EnsureUniqueDefaultIdentity();
         }
 

@@ -33,7 +33,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             builder.TryRegister<IMobaConfigLoadProfile>(WorldLifetime.Singleton, _ => ResourcesJsonMobaConfigLoadProfile.Default);
             builder.TryRegister<MobaBrainDecisionDriverRegistry>(
                 WorldLifetime.Singleton,
-                _ => MobaBrainDecisionDriverRegistry.CreateDefault());
+                _ => MobaBrainDecisionDriverRegistry.CreateDefault(_.Resolve<ITextAssetLoader>()));
             builder.TryRegister<IMobaActorBrainCatalog>(WorldLifetime.Singleton, _ =>
             {
                 var catalog = new MobaActorBrainCatalog();
@@ -88,7 +88,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 services.Resolve<IMobaActorBrainCatalog>(),
                 services.Resolve<IMobaActorStateMachineProfileCatalog>(),
                 services.Resolve<MobaActorStateMachineRuntimeRegistry>(),
-                services.Resolve<MobaBrainDecisionDriverRegistry>());
+                services.Resolve<MobaBrainDecisionDriverRegistry>(),
+                services.Resolve<ITextAssetLoader>());
         }
     }
 }

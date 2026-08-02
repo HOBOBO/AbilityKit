@@ -1,6 +1,6 @@
 ﻿{
   "name": "com.abilitykit.combat.projectile",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit Combat Projectile",
   "unity": "2022.3",
   "description": "Projectile and area worlds, schedules, events, and services.",

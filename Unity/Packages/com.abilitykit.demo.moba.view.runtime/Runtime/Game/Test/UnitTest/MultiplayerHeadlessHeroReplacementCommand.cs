@@ -14,7 +14,6 @@ using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Flow;
 using AbilityKit.Network.Abstractions;
-using RoomGatewayOpCodes = AbilityKit.Protocol.Room.RoomGatewayOpCodes;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -90,8 +89,6 @@ namespace AbilityKit.Game.Test.UnitTest
                 }
 
                 var gateway = LoadAsset<BattleGatewayConfigSO>(GatewayConfigPath);
-                gateway.CreateRoomOpCode = RoomGatewayOpCodes.CreateRoom;
-                gateway.JoinRoomOpCode = RoomGatewayOpCodes.JoinRoom;
                 EditorApplication.EnterPlaymode();
             }
             catch (Exception exception)
@@ -537,8 +534,6 @@ namespace AbilityKit.Game.Test.UnitTest
             gateway.Port = GetIntArgValue("-gatewayPort", 41101);
             gateway.Region = GetArgValue("-gatewayRegion") ?? "local";
             gateway.ServerId = GetArgValue("-gatewayServerId") ?? "moba-smoke";
-            gateway.CreateRoomOpCode = RoomGatewayOpCodes.CreateRoom;
-            gateway.JoinRoomOpCode = RoomGatewayOpCodes.JoinRoom;
             gateway.UseGatewayTransport = true;
 
             _runtimePlayers = ScriptableObject.CreateInstance<BattlePlayersConfigSO>();

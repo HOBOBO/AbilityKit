@@ -30,7 +30,7 @@ namespace AbilityKit.Coordinator
             Register(Core.SyncMode.Lockstep, (IWorld world, in SessionConfig config) => new LocalSyncAdapter(world, config));
             Register(Core.SyncMode.SnapshotAuthority, (IWorld world, in SessionConfig config) => new RemoteSyncAdapter(world, config));
             Register(Core.SyncMode.StateSync, (IWorld world, in SessionConfig config) => new RemoteSyncAdapter(world, config));
-            Register(Core.SyncMode.Hybrid, (IWorld world, in SessionConfig config) => new HybridSyncAdapter(world, config));
+            Register(Core.SyncMode.Hybrid, (IWorld world, in SessionConfig config) => new RemoteSyncAdapter(world, config));
         }
 
         public DefaultSyncAdapterFactory Register(Core.SyncMode mode, SyncAdapterCreator creator)
@@ -102,11 +102,15 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// 创建混合同步适配器（客户端预测模式）。
+        /// Coordinator 不再提供混合预测适配器；预测由玩法专用运行时模块负责。
         /// </summary>
+        [Obsolete("Use ClientPredictionDriverModule for MOBA framesync or ShooterClientPredictionRuntimeAdapter for Shooter statesync.")]
         public static IPredictionSyncAdapter CreateHybridSyncAdapter(IWorld world, in SessionConfig config)
         {
-            return new HybridSyncAdapter(world, config);
+            throw new NotSupportedException(
+                "Coordinator no longer provides a hybrid prediction adapter. " +
+                "Use ClientPredictionDriverModule for MOBA framesync or " +
+                "ShooterClientPredictionRuntimeAdapter for Shooter statesync.");
         }
 
         // ============== 工具方法 ==============
@@ -121,7 +125,7 @@ namespace AbilityKit.Coordinator
                 Core.SyncMode.Lockstep => nameof(LocalSyncAdapter),
                 Core.SyncMode.SnapshotAuthority => nameof(RemoteSyncAdapter),
                 Core.SyncMode.StateSync => nameof(RemoteSyncAdapter),
-                Core.SyncMode.Hybrid => nameof(HybridSyncAdapter),
+                Core.SyncMode.Hybrid => nameof(RemoteSyncAdapter),
                 _ => nameof(LocalSyncAdapter)
             };
         }
@@ -142,11 +146,11 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// 检查同步适配器是否支持客户端预测。
+        /// Coordinator 适配器本身不提供客户端预测。
         /// </summary>
         public static bool SupportsPrediction(Core.SyncMode mode)
         {
-            return mode == Core.SyncMode.Hybrid;
+            return false;
         }
     }
 }

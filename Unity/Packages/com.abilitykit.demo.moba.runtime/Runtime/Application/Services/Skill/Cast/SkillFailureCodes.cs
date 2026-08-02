@@ -20,6 +20,7 @@ namespace AbilityKit.Demo.Moba.Services
             public const string InvalidSkill = "skill.cast.invalidSkill";
             public const string CasterMissing = "skill.cast.casterMissing";
             public const string TargetMissing = "skill.cast.targetMissing";
+            public const string ConfigurationInvalid = "skill.cast.configurationInvalid";
             public const string PipelineMissing = "skill.cast.pipelineMissing";
             public const string TraceRegistryMissing = "skill.cast.traceRegistryMissing";
             public const string TraceRootCreateFailed = "skill.cast.traceRootCreateFailed";

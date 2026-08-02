@@ -143,6 +143,7 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         internal void OnBattleAssetsLoadCompleted()
         {
+            _battleWorldScope.Resolve<IBattleRuntimeState>().AssetsLoadCompleted = true;
             _log.Info($"[BattleScopeManager] AssetsLoadCompleted, activeBattle={_callbacks.GetActiveBattle()}");
             var next = _advanceDecider.OnAssetsLoadCompleted(_callbacks.GetActiveBattle());
             if (next.HasValue) _callbacks.TriggerBattleFsm(next.Value);
@@ -176,7 +177,11 @@ namespace AbilityKit.Game.Flow
         internal void TryAdvanceOnLoadAssetsEnter()
         {
             var state = _battleWorldScope.Resolve<IBattleRuntimeState>();
-            var next = _advanceDecider.OnStateEntered(MobaBattleState.LoadAssets, state.SessionStarted, state.FirstFrameReceived);
+            var next = _advanceDecider.OnStateEntered(
+                MobaBattleState.LoadAssets,
+                state.SessionStarted,
+                state.FirstFrameReceived,
+                state.AssetsLoadCompleted);
             if (next.HasValue) _callbacks.TriggerBattleFsm(next.Value);
         }
 

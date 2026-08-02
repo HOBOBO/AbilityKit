@@ -34,7 +34,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         protected static bool ShouldStop<TCtx>(in ExecCtx<TCtx> ctx)
             where TCtx : class
         {
-            return ctx.Control != null && ctx.Control.IsHardStopped;
+            return ctx.Control != null && ctx.Control.IsPlanStopped;
         }
 
         private bool CanExecute<TCtx>(object args, in ExecCtx<TCtx> ctx)

@@ -36,6 +36,7 @@ namespace AbilityKit.Coordinator
     /// - 降低感知延迟。
     /// - 服务端仍保持权威。
     /// </summary>
+    [Obsolete("HybridSyncAdapter has no consumer and is not in coordinator's 0.1.0 scope. Use host.extension/ClientPredictionDriverModule (MOBA framesync) or ShooterClientPredictionRuntimeAdapter (Shooter statesync) for client prediction. Will be removed in v0.2.0.", true)]
     public sealed class HybridSyncAdapter : IPredictionSyncAdapter
     {
         private readonly IWorld _world;

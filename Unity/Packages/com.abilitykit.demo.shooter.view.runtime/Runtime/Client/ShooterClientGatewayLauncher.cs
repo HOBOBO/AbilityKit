@@ -312,7 +312,7 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             var roomClient = new ShooterRoomGatewayRoomClient(_transport);
-            var flow = new ShooterRoomGatewayFlow(roomClient);
+            using var flow = new ShooterRoomGatewayFlow(roomClient);
             var flowResult = restoreRegion == null
                 ? (joinRoomId == null
                     ? await flow.CreateReadyStartAndSubscribeAsync(sessionToken, launchSpec, playerId, timeout, cancellationToken).ConfigureAwait(false)

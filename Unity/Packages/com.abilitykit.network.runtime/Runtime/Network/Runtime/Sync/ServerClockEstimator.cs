@@ -11,7 +11,7 @@ namespace AbilityKit.Network.Runtime.Sync
     /// <c>clientReceiveTicks</c>，估算器会折叠每个样本。
     ///
     /// 与真实 NTP 客户端类似，RTT 最低（排队/抖动最少）的样本通常最准确，因此估算器保留目前观测到的
-    /// 最低 RTT 样本对应偏移，而不是对噪声样本求平均。这样 <see cref="ServerTicksNow"/> 在抖动下保持稳定，
+    /// 最低 RTT 样本对应偏移，而不是对噪声样本求平均。这样 <c>ServerTicksNow</c> 在抖动下保持稳定，
     /// 同时在更好（更低 RTT）样本到来时仍能快速收敛。
     /// </summary>
     public sealed class ServerClockEstimator

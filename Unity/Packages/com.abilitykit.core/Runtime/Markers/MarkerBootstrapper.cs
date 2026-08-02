@@ -101,7 +101,11 @@ namespace AbilityKit.Core.Markers
         where TAttr : MarkerAttribute
         where TRegistry : class, IMarkerRegistry
     {
+        // 字段值本身不读取；保留它是为了配合 static 构造里的注册副作用（Register 在 static ctor 中完成），
+        // 并作为“已注册”的静态标记。故在此显式抑制 CS0414。
+#pragma warning disable CS0414
         private static readonly bool _registered;
+#pragma warning restore CS0414
 
         static StaticMarkerBootstrapper()
         {

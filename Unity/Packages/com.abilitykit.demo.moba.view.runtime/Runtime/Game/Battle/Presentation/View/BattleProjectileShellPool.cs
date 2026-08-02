@@ -18,6 +18,7 @@ namespace AbilityKit.Game.Flow
         private readonly Func<int, GameObject> _factory;
         private readonly int _maxSize;
         private readonly Dictionary<int, ObjectPool<GameObject>> _pools = new Dictionary<int, ObjectPool<GameObject>>(32);
+        private readonly HashSet<int> _failedTemplateIds = new HashSet<int>();
         private readonly BattleViewHierarchyManager _hierarchy;
 
         /// <param name="factory">Creates a fresh projectile shell GameObject for the given projectileTemplateId.</param>
@@ -50,10 +51,20 @@ namespace AbilityKit.Game.Flow
         {
             instance = null;
             if (projectileTemplateId <= 0) return false;
+            if (_failedTemplateIds.Contains(projectileTemplateId)) return false;
 
-            var pool = GetOrCreateBucket(projectileTemplateId);
-            instance = pool.Get();
-            return true;
+            try
+            {
+                var pool = GetOrCreateBucket(projectileTemplateId);
+                instance = pool.Get();
+                return instance != null;
+            }
+            catch (InvalidOperationException ex)
+            {
+                _failedTemplateIds.Add(projectileTemplateId);
+                Debug.LogException(ex);
+                return false;
+            }
         }
 
         /// <summary>
@@ -95,6 +106,7 @@ namespace AbilityKit.Game.Flow
                 kvp.Value.Clear(destroy: true);
             }
             _pools.Clear();
+            _failedTemplateIds.Clear();
         }
 
         private ObjectPool<GameObject> CreateBucket(int projectileTemplateId)

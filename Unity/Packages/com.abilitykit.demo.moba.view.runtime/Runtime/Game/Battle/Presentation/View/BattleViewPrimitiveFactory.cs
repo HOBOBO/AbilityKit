@@ -1,4 +1,5 @@
 using UnityEngine;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Game.Flow
 {
@@ -11,6 +12,7 @@ namespace AbilityKit.Game.Flow
 
         public GameObject CreateActorFallback(int actorId, int modelId)
         {
+            if (!BattleViewFallbackPolicy.AllowFallback("actor.model:" + modelId)) return null;
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.transform.localScale = new Vector3(1f, 2f, 1f);
             ApplyColor(go, PickColor(actorId + modelId, 1f));
@@ -20,6 +22,7 @@ namespace AbilityKit.Game.Flow
         /// <summary>Creates a fallback shell for Summon / Clone entities.</summary>
         public GameObject CreateSummonFallback(int actorId, int modelId)
         {
+            if (!BattleViewFallbackPolicy.AllowFallback("summon.model:" + modelId)) return null;
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.transform.localScale = new Vector3(0.8f, 1.5f, 0.8f);
             ApplyColor(go, PickColor(actorId + modelId + 100, 0.9f));
@@ -29,6 +32,7 @@ namespace AbilityKit.Game.Flow
         /// <summary>Creates a fallback shell for Turret entities.</summary>
         public GameObject CreateTurretFallback(int actorId, int modelId)
         {
+            if (!BattleViewFallbackPolicy.AllowFallback("turret.model:" + modelId)) return null;
             var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             go.transform.localScale = new Vector3(1.5f, 3f, 1.5f);
             ApplyColor(go, PickColor(actorId + modelId + 200, 1f));
@@ -38,6 +42,7 @@ namespace AbilityKit.Game.Flow
         /// <summary>Creates a fallback shell for Monster entities.</summary>
         public GameObject CreateMonsterFallback(int actorId, int modelId)
         {
+            if (!BattleViewFallbackPolicy.AllowFallback("monster.model:" + modelId)) return null;
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.transform.localScale = new Vector3(1f, 1f, 1f);
             ApplyColor(go, PickColor(actorId + modelId + 300, 0.85f));
@@ -47,6 +52,7 @@ namespace AbilityKit.Game.Flow
         /// <summary>Creates a fallback shell for Building entities.</summary>
         public GameObject CreateBuildingFallback(int actorId, int modelId)
         {
+            if (!BattleViewFallbackPolicy.AllowFallback("building.model:" + modelId)) return null;
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.transform.localScale = new Vector3(3f, 4f, 3f);
             ApplyColor(go, PickColor(actorId + modelId + 400, 0.7f));
@@ -60,6 +66,7 @@ namespace AbilityKit.Game.Flow
 
         public GameObject CreateAoeModelFallback(int modelId)
         {
+            if (!BattleViewFallbackPolicy.AllowFallback("aoe.model:" + modelId)) return null;
             if (modelId == BattleViewPlaceholderIds.AoeSectorModel)
             {
                 return CreateSectorFallback(modelId, degrees: 90f);
@@ -91,6 +98,7 @@ namespace AbilityKit.Game.Flow
 
         public GameObject CreateVfxFallback(int vfxId)
         {
+            if (!BattleViewFallbackPolicy.AllowFallback("vfx:" + vfxId)) return null;
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.transform.localScale = Vector3.one * 0.5f;
             ApplyColor(go, ResolveVfxColor(vfxId));
@@ -99,6 +107,7 @@ namespace AbilityKit.Game.Flow
 
         public GameObject CreateProjectileFallback(int vfxId)
         {
+            if (!BattleViewFallbackPolicy.AllowFallback("projectile.vfx:" + vfxId)) return null;
             var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             go.transform.localScale = new Vector3(0.35f, 0.35f, 0.8f);
             ApplyColor(go, ResolveProjectileColor(vfxId));
@@ -237,6 +246,24 @@ namespace AbilityKit.Game.Flow
         public static bool IsPlaceholderVfx(int vfxId)
         {
             return vfxId >= ProjectileVfx && vfxId <= SummonDespawnVfx;
+        }
+    }
+
+    internal static class BattleViewFallbackPolicy
+    {
+        public static bool AllowFallback(string missingDependency)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            return true;
+#else
+            Log.Error("[BattleView] Missing required presentation config: " + missingDependency);
+            return false;
+#endif
+        }
+
+        public static int DevelopmentOnly(int placeholderId, string missingDependency)
+        {
+            return AllowFallback(missingDependency) ? placeholderId : 0;
         }
     }
 }

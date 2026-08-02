@@ -20,12 +20,18 @@ public sealed class GatewayTransportHandlerConcurrencyTests
             registry,
             backgroundTasks,
             NullLogger<GatewayFrameSyncSubscriptionManager>.Instance);
+        var stateSyncPushSubscriptions = new GatewayStateSyncPushSubscriptionManager(
+            clusterClient: null!,
+            registry,
+            backgroundTasks,
+            NullLogger<GatewayStateSyncPushSubscriptionManager>.Instance);
         var handler = new GatewayTransportHandler(
             registry,
             router,
-            clusterClient: null!,
+            roomMembership: null!,
             backgroundTasks,
             frameSyncSubscriptions,
+            stateSyncPushSubscriptions,
             NullLogger<GatewayTransportHandler>.Instance);
         var slowSession = new RecordingTransportSession(1);
         var fastSession = new RecordingTransportSession(2);
@@ -58,12 +64,18 @@ public sealed class GatewayTransportHandlerConcurrencyTests
             registry,
             backgroundTasks,
             NullLogger<GatewayFrameSyncSubscriptionManager>.Instance);
+        var stateSyncPushSubscriptions = new GatewayStateSyncPushSubscriptionManager(
+            clusterClient: null!,
+            registry,
+            backgroundTasks,
+            NullLogger<GatewayStateSyncPushSubscriptionManager>.Instance);
         var handler = new GatewayTransportHandler(
             registry,
             router,
-            clusterClient: null!,
+            roomMembership: null!,
             backgroundTasks,
             frameSyncSubscriptions,
+            stateSyncPushSubscriptions,
             NullLogger<GatewayTransportHandler>.Instance);
         var session = new RecordingTransportSession(1, expectedResponseCount: 2);
         handler.RegisterSession(session);

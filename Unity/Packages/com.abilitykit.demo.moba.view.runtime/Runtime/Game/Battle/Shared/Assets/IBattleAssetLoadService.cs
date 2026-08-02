@@ -91,6 +91,15 @@ namespace AbilityKit.Game.Battle.Shared.Assets
     }
 
     /// <summary>
+    /// Optional release contract for asset sources whose loads create retained handles.
+    /// Sources that do not implement this contract still benefit from lease-held references.
+    /// </summary>
+    public interface IBattleAssetReleaseSource
+    {
+        void Release(object asset);
+    }
+
+    /// <summary>
     /// 战斗资源加载服务。按 manifest 确定性加载全部必需资源，
     /// 提供 cancellable async load、进度回调、hash/version 校验。
     /// 全部成功才返回 loaded result；任一失败返回 failure（不部分成功）。

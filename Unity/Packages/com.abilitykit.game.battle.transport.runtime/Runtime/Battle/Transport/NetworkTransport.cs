@@ -132,7 +132,7 @@ namespace AbilityKit.Game.Battle.Transport
                     {
                         Log.Warning(
                             $"[NetworkTransport] Input rejected. serverFrame={response.ServerFrame} " +
-                            $"reasonCode={response.ReasonCode}");
+                            $"reasonCode={response.ReasonCode} status={response.Status} message={response.Message}");
                         return;
                     }
 

@@ -10,6 +10,13 @@ namespace AbilityKit.Game.Flow
         private BattleContext _ctx;
         private float _inputDiagCooldown;
 
+        public int TickCount { get; private set; }
+        public int MoveReadCount { get; private set; }
+        public int MoveSubmitAttemptCount { get; private set; }
+        public int MoveSubmitSuccessCount { get; private set; }
+        public bool HasContext => _ctx != null;
+        public bool CanSubmitGameplayInput => _ctx?.CanSubmitGameplayInput == true;
+
         public BattleInputFeature()
         {
             _moveInputState = new BattleMoveInputState();
@@ -24,12 +31,16 @@ namespace AbilityKit.Game.Flow
         public void OnDetach(in GamePhaseContext ctx)
         {
             _ctx = null;
+            _moveInputState.Reset();
+            _secondaryMoveInputState.Reset();
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
         {
+            TickCount++;
             if (_ctx == null || _ctx.Session == null) return;
             if (_ctx.Plan.RunModeOptions.EnableInputReplay) return;
+            if (!_ctx.CanSubmitGameplayInput) return;
 
             var plan = _ctx.Plan;
             var playerId = BattleInputSessionIdentity.ResolvePlayerId(_ctx);
@@ -43,11 +54,16 @@ namespace AbilityKit.Game.Flow
             {
                 BattleKeyboardInputSource.ReadMove(out dx, out dz);
             }
+            else
+            {
+                MoveReadCount++;
+            }
 
-            if (_moveInputState.TryGetMoveToSubmit(dx, dz, out var submitDx, out var submitDz))
+            if (_moveInputState.TryGetMoveToSubmit(nextFrame, dx, dz, out var submitDx, out var submitDz))
             {
                 var moveCmd = BattleInputCommandFactory.CreateMove(nextFrame, playerId, submitDx, submitDz);
-                submitter.Submit(in moveCmd);
+                MoveSubmitAttemptCount++;
+                if (submitter.Submit(in moveCmd)) MoveSubmitSuccessCount++;
             }
             else
             {
@@ -97,7 +113,7 @@ namespace AbilityKit.Game.Flow
             }
 
             BattleKeyboardInputSource.ReadSecondaryMove(out var dx, out var dz);
-            if (!_secondaryMoveInputState.TryGetMoveToSubmit(dx, dz, out var submitDx, out var submitDz))
+            if (!_secondaryMoveInputState.TryGetMoveToSubmit(nextFrame, dx, dz, out var submitDx, out var submitDz))
             {
                 return;
             }

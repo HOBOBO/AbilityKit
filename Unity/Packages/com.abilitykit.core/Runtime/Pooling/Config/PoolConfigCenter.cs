@@ -48,7 +48,7 @@ namespace AbilityKit.Core.Pooling
         /// <param name="source">配置来源，通常使用程序集名、包名或资源路径。</param>
         /// <param name="priority">配置优先级；数值越大越优先。</param>
         /// <returns>用于注销该提供者的注册句柄。</returns>
-        public static PoolConfigRegistration RegisterProvider(IPoolConfigProvider provider, string name, string source = null, int priority = 0)
+        public static PoolConfigRegistration RegisterProvider(IPoolConfigProvider provider, string name, string? source = null, int priority = 0)
         {
             if (provider == null) throw new ArgumentNullException(nameof(provider));
 

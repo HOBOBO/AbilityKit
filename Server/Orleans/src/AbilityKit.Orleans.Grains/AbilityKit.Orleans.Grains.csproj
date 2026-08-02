@@ -10,6 +10,7 @@
     <ProjectReference Include="..\AbilityKit.Orleans.Contracts\AbilityKit.Orleans.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Host.Extension\AbilityKit.Host.Extension.csproj" />
+    <ProjectReference Include="../../../../src/AbilityKit.Demo.Moba.Host/AbilityKit.Demo.Moba.Host.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Coordinator\AbilityKit.Coordinator.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Demo.Shooter.Runtime\AbilityKit.Demo.Shooter.Runtime.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Demo.Shooter.Share\AbilityKit.Demo.Shooter.Share.csproj" />

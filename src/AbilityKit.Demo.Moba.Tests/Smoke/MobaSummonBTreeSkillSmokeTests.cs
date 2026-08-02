@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Services;
@@ -24,6 +25,7 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 public sealed class MobaSummonBTreeSkillSmokeTests
 {
     private const int TestSkillId = 9900001;
+    private const int TestSkillSlot = 4;
     private const int WardenSummonId = 2;
 
     [Fact]
@@ -84,8 +86,28 @@ public sealed class MobaSummonBTreeSkillSmokeTests
             var casterMaxHp = caster.attributeGroup.Group.GetValue(MobaAttributeIds.MAX_HP);
             var enemyPos = enemy.transform.Value.Position;
 
-            // 施放测试技能（任意 slot——释放校验走 release/commit RulePlan）
-            var castOk = castCoordinator.CastSkill(casterId, TestSkillId, slot: 4, out var failReason);
+            var activeSkills = caster.skillLoadout.ActiveSkills?.ToArray() ??
+                               Array.Empty<ActiveSkillRuntime>();
+            if (activeSkills.Length < TestSkillSlot)
+            {
+                Array.Resize(ref activeSkills, TestSkillSlot);
+            }
+
+            activeSkills[TestSkillSlot - 1] = new ActiveSkillRuntime
+            {
+                SkillId = TestSkillId,
+                Level = 1,
+            };
+            caster.ReplaceSkillLoadout(
+                activeSkills,
+                caster.skillLoadout.PassiveSkills);
+
+            // Commit requires the requested slot to own the same active skill.
+            var castOk = castCoordinator.CastSkill(
+                casterId,
+                TestSkillId,
+                TestSkillSlot,
+                out var failReason);
             Assert.True(castOk, $"CastSkill failed: {failReason}");
 
             // 推进到 Timeline 100ms 的召唤事件（30fps，500ms 窗口给足）

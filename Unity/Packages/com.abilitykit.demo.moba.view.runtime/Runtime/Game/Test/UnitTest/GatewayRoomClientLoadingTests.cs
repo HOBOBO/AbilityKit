@@ -2,6 +2,7 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.TcpGateway;
@@ -71,6 +72,123 @@ namespace AbilityKit.Game.Test.UnitTest
         private static GatewayRoomClient CreateClient(MockConnection conn)
         {
             return new GatewayRoomClient(conn, GatewayRoomOpCodes.Default);
+        }
+
+        [Test]
+        public void CommonAccountLoginClient_UsesCanonicalGatewayProtocol()
+        {
+            var conn = new MockConnection();
+            var response = new WireRoomAccountLoginRes
+            {
+                Success = true,
+                SessionToken = "session-1",
+                AccountId = "account-1",
+                ExpireAtUnixMs = 1234,
+                Message = "ok"
+            };
+            conn.Responder = _ => WireRoomGatewayBinary.Serialize(in response);
+
+            DemoAccountLoginResult result;
+            using (var client = new DemoRoomGatewayAccountClient(conn))
+            {
+                result = client.AccountLoginAsync("account-1").Result;
+            }
+
+            Assert.AreEqual(RoomGatewayOpCodes.AccountLogin, conn.LastOpCode);
+            var request = WireRoomGatewayBinary.Deserialize<WireRoomAccountLoginReq>(conn.LastPayload);
+            Assert.AreEqual("account-1", request.AccountId);
+            Assert.IsTrue(request.KickExisting);
+            Assert.IsTrue(result.Success);
+            Assert.AreEqual("session-1", result.SessionToken);
+            Assert.AreEqual("account-1", result.AccountId);
+        }
+
+        [Test]
+        public void ListRoomsAsync_UsesCanonicalDirectoryProtocol()
+        {
+            var conn = new MockConnection();
+            var client = CreateClient(conn);
+            var response = new WireListRoomsRes
+            {
+                Success = true,
+                Rooms = new List<WireRoomSummary>
+                {
+                    new WireRoomSummary
+                    {
+                        RoomId = "room-1",
+                        RoomType = "moba",
+                        Title = "Ranked Room",
+                        PlayerCount = 1,
+                        MaxPlayers = 2
+                    }
+                },
+                NextOffset = 5,
+                Message = "ok"
+            };
+            conn.Responder = _ => WireRoomGatewayBinary.Serialize(in response);
+
+            var result = client.ListRoomsAsync(
+                new DemoRoomDirectoryQuery(
+                    "token-1",
+                    "dev",
+                    "local",
+                    "moba",
+                    offset: 0,
+                    limit: 10)).Result;
+
+            Assert.AreEqual(RoomGatewayOpCodes.ListRooms, conn.LastOpCode);
+            var request = WireRoomGatewayBinary.Deserialize<WireListRoomsReq>(conn.LastPayload);
+            Assert.AreEqual("token-1", request.SessionToken);
+            Assert.AreEqual("dev", request.Region);
+            Assert.AreEqual("local", request.ServerId);
+            Assert.AreEqual("moba", request.RoomType);
+            Assert.AreEqual(10, request.Limit);
+            Assert.IsTrue(result.Success);
+            Assert.AreEqual(1, result.Rooms.Count);
+            Assert.AreEqual("room-1", result.Rooms[0].RoomId);
+            Assert.AreEqual("Ranked Room", result.Rooms[0].DisplayName);
+            Assert.IsTrue(result.Rooms[0].HasOpenSlot);
+            Assert.AreEqual(5, result.NextOffset);
+        }
+
+        [Test]
+        public void JoinRoomAsync_PreservesAuthoritativePlayerIdentity()
+        {
+            var conn = new MockConnection();
+            var client = CreateClient(conn);
+            var response = new WireJoinRoomRes
+            {
+                Success = true,
+                RoomId = "room-1",
+                NumericRoomId = 101UL,
+                CurrentPlayerId = 17u,
+                ServerNowTicks = 500L,
+                Snapshot = new WireRoomSnapshot
+                {
+                    BattleId = "battle-1",
+                    WorldId = 201UL,
+                    CanStart = true
+                },
+                Message = "ok"
+            };
+            conn.Responder = _ => WireRoomGatewayBinary.Serialize(in response);
+
+            var result = client.JoinRoomAsync(
+                "token-1",
+                "dev",
+                "local",
+                "room-1").Result;
+
+            Assert.AreEqual(RoomGatewayOpCodes.JoinRoom, conn.LastOpCode);
+            var request = WireRoomGatewayBinary.Deserialize<WireJoinRoomReq>(conn.LastPayload);
+            Assert.AreEqual("token-1", request.SessionToken);
+            Assert.AreEqual("room-1", request.RoomId);
+            Assert.IsTrue(result.Success);
+            Assert.AreEqual("room-1", result.RoomId);
+            Assert.AreEqual(17u, result.CurrentPlayerId);
+            Assert.AreEqual("battle-1", result.BattleId);
+            Assert.AreEqual(201UL, result.WorldId);
+            Assert.IsTrue(result.CanStart);
         }
 
         [Test]
@@ -144,6 +262,38 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.IsTrue(result.Success);
             Assert.AreEqual(12L, result.RoomRevision);
+        }
+
+        [Test]
+        public void LeaveRoomAsync_SerializesAndDeserializes()
+        {
+            var conn = new MockConnection();
+            var client = CreateClient(conn);
+            var opRes = new WireRoomOperationRes
+            {
+                Success = true,
+                Applied = true,
+                RoomRevision = 13L,
+                Message = "left"
+            };
+            conn.Responder = _ => WireRoomGatewayBinary.Serialize(in opRes);
+
+            var result = client.LeaveRoomAsync(
+                "token-leave",
+                "room-leave",
+                12L,
+                "cmd-leave").Result;
+
+            Assert.AreEqual(RoomGatewayOpCodes.LeaveRoom, conn.LastOpCode);
+            var req = WireRoomGatewayBinary.Deserialize<WireLeaveRoomReq>(conn.LastPayload);
+            Assert.AreEqual("token-leave", req.SessionToken);
+            Assert.AreEqual("room-leave", req.RoomId);
+            Assert.AreEqual(12L, req.ExpectedRevision);
+            Assert.AreEqual("cmd-leave", req.CommandId);
+            Assert.IsTrue(result.Success);
+            Assert.IsTrue(result.Applied);
+            Assert.AreEqual(13L, result.RoomRevision);
+            Assert.AreEqual("left", result.Message);
         }
 
         [Test]

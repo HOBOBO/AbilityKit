@@ -1,7 +1,6 @@
 using System;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Game.Flow;
-using AbilityKit.Protocol.Room;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share.Config;
@@ -51,10 +50,37 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(gateway.UseGatewayTransport, Is.True);
             Assert.That(gateway.Host, Is.EqualTo("127.0.0.1"));
             Assert.That(gateway.Port, Is.EqualTo(4000));
-            Assert.That(gateway.CreateRoomOpCode, Is.EqualTo(RoomGatewayOpCodes.CreateRoom));
-            Assert.That(gateway.JoinRoomOpCode, Is.EqualTo(RoomGatewayOpCodes.JoinRoom));
+            Assert.That(gateway.RoomType, Is.EqualTo("moba"));
+            Assert.That(gateway.RoomTitle, Is.EqualTo("MOBA Room"));
+            Assert.That(gateway.MaxPlayers, Is.EqualTo(2));
+            Assert.That(gateway.RoomListLimit, Is.EqualTo(10));
+            Assert.That(gateway.RestoreRoomOnEntry, Is.True);
+            Assert.That(gateway.AutoReadyDefaultLoadout, Is.True);
+            Assert.That(gateway.DefaultHeroId, Is.EqualTo(1001));
+            Assert.That(gateway.DefaultAttributeTemplateId, Is.EqualTo(1001));
+            Assert.That(gateway.DefaultBasicAttackSkillId, Is.EqualTo(10010001));
+            Assert.That(gateway.DefaultSkillIds, Is.EqualTo(new[] { 10010101, 10010201, 10010301 }));
+            Assert.That(gateway.StarterSceneName, Is.EqualTo("MultiplayerStarterScene"));
             Assert.That(preset.HostMode, Is.EqualTo(BattleStartConfig.BattleHostMode.GatewayRemote));
             Assert.That(preset.GatewaySO, Is.SameAs(gateway));
+            Assert.That(gateway.TryValidateFormalLobby(out var validationError), Is.True, validationError);
+
+            var launchSpec = gateway.BuildRoomLaunchSpec("session", "release", "server-a");
+            Assert.That(launchSpec.SessionToken, Is.EqualTo("session"));
+            Assert.That(launchSpec.Region, Is.EqualTo("release"));
+            Assert.That(launchSpec.ServerId, Is.EqualTo("server-a"));
+            Assert.That(launchSpec.RoomType, Is.EqualTo("moba"));
+            Assert.That(launchSpec.RoomTitle, Is.EqualTo("MOBA Room"));
+            Assert.That(launchSpec.MaxPlayers, Is.EqualTo(2));
+
+            var loadout = gateway.BuildDefaultLoadout();
+            Assert.That(loadout.HeroId, Is.EqualTo(1001));
+            Assert.That(loadout.TeamId, Is.EqualTo(1));
+            Assert.That(loadout.SpawnPointId, Is.EqualTo(0));
+            Assert.That(loadout.Level, Is.EqualTo(1));
+            Assert.That(loadout.AttributeTemplateId, Is.EqualTo(1001));
+            Assert.That(loadout.BasicAttackSkillId, Is.EqualTo(10010001));
+            Assert.That(loadout.SkillIds, Is.EqualTo(new[] { 10010101, 10010201, 10010301 }));
         }
 
         [Test]

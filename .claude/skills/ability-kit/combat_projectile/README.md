@@ -1,4 +1,5 @@
 # combat.projectile — 弹丸系统
+> v0.1.0 Beta -- AbilityKitStable=true, has direct src tests, zero hard errors.
 
 包 `com.abilitykit.combat.projectile`。33 个 .cs 文件——最大的战斗基础设施包之一。
 

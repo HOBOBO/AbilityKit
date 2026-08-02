@@ -43,6 +43,8 @@ namespace AbilityKit.Game.Battle.Shared.Assets
             var entries = manifest.Entries ?? Array.Empty<BattleAssetEntry>();
             var total = entries.Count;
             var loadedPaths = new List<string>(total);
+            var loadedAssets = new List<object>(total);
+            var loadedByPath = new Dictionary<string, object>(StringComparer.Ordinal);
             var errors = new List<BattleAssetLoadError>();
 
             for (var i = 0; i < total; i++)
@@ -55,6 +57,7 @@ namespace AbilityKit.Game.Battle.Shared.Assets
                         entries[i].AssetPath,
                         entries[i].AssetKey,
                         CancelledReason));
+                    ReleaseLoadedAssets(loadedAssets);
                     return BuildFailure(manifest, errors);
                 }
 
@@ -63,25 +66,35 @@ namespace AbilityKit.Game.Battle.Shared.Assets
                 // 报告"正在加载该项"的进度（LoadedCount = i，当前 key = entry）。
                 progress?.Report(new BattleAssetLoadProgress(i, total, entry.AssetKey));
                 await Task.Yield();
-                cancellationToken.ThrowIfCancellationRequested();
-
-                bool ok;
-                try
-                {
-                    ok = _source.TryLoad(entry.AssetPath, out var asset);
-                    // 资源不存在（返回 null）视为失败，绝不假完成。
-                    if (ok && asset == null)
-                    {
-                        ok = false;
-                    }
-                }
-                catch (Exception ex)
+                if (cancellationToken.IsCancellationRequested)
                 {
                     errors.Add(new BattleAssetLoadError(
                         entry.AssetPath,
                         entry.AssetKey,
-                        "Exception: " + ex.GetType().Name + ": " + ex.Message));
-                    continue;
+                        CancelledReason));
+                    ReleaseLoadedAssets(loadedAssets);
+                    return BuildFailure(manifest, errors);
+                }
+
+                var ok = loadedByPath.TryGetValue(entry.AssetPath, out var asset);
+                if (!ok)
+                {
+                    try
+                    {
+                        ok = _source.TryLoad(entry.AssetPath, out asset);
+                        if (ok && asset == null)
+                        {
+                            ok = false;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add(new BattleAssetLoadError(
+                            entry.AssetPath,
+                            entry.AssetKey,
+                            "Exception: " + ex.GetType().Name + ": " + ex.Message));
+                        continue;
+                    }
                 }
 
                 if (!ok)
@@ -100,7 +113,12 @@ namespace AbilityKit.Game.Battle.Shared.Assets
                     // 当前阶段无计算能力，跳过（不因无法校验而失败）。
                 }
 
-                loadedPaths.Add(entry.AssetPath);
+                if (!loadedByPath.ContainsKey(entry.AssetPath))
+                {
+                    loadedByPath.Add(entry.AssetPath, asset);
+                    loadedPaths.Add(entry.AssetPath);
+                    loadedAssets.Add(asset);
+                }
             }
 
             // 最终进度（全部完成）。
@@ -108,10 +126,15 @@ namespace AbilityKit.Game.Battle.Shared.Assets
 
             if (errors.Count > 0)
             {
+                ReleaseLoadedAssets(loadedAssets);
                 return BuildFailure(manifest, errors);
             }
 
-            var lease = new BattleAssetLease(manifest.LaunchGeneration, loadedPaths);
+            var lease = new BattleAssetLease(
+                manifest.LaunchGeneration,
+                loadedPaths,
+                loadedAssets,
+                ReleaseAsset);
             return new BattleAssetLoadResult(
                 success: true,
                 launchGeneration: manifest.LaunchGeneration,
@@ -132,6 +155,22 @@ namespace AbilityKit.Game.Battle.Shared.Assets
                 manifestHash: manifest.ManifestHash,
                 errors: errors,
                 lease: null);
+        }
+
+        private void ReleaseLoadedAssets(IReadOnlyList<object> assets)
+        {
+            for (var i = assets.Count - 1; i >= 0; i--)
+            {
+                ReleaseAsset(assets[i]);
+            }
+        }
+
+        private void ReleaseAsset(object asset)
+        {
+            if (asset != null && _source is IBattleAssetReleaseSource releasable)
+            {
+                releasable.Release(asset);
+            }
         }
     }
 }

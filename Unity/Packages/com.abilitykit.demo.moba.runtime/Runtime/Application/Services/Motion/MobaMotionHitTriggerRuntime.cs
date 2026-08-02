@@ -133,6 +133,11 @@ namespace AbilityKit.Demo.Moba.Services.Motion
 
     public sealed class MobaMotionCollisionWorldAdapter : IMotionCollisionWorld
     {
+        private const int ProjectionDirectionCount = 64;
+        private const int ProjectionBinarySearchSteps = 16;
+        private const float ProjectionSearchStep = 0.25f;
+        private const float ProjectionMaxDistance = 64f;
+
         private readonly ICollisionWorld _world;
         private readonly MobaActorRegistry _actors;
         private readonly List<ColliderId> _candidates = new List<ColliderId>(16);
@@ -284,7 +289,37 @@ namespace AbilityKit.Demo.Moba.Services.Motion
         public bool TryProjectToFree(int moverId, in Vec3 position, float radius, int obstacleMask, int ignoreMask, out Vec3 projectedPosition)
         {
             projectedPosition = position;
-            return !Overlap(moverId, in position, radius, obstacleMask, ignoreMask);
+            if (!Overlap(moverId, in position, radius, obstacleMask, ignoreMask))
+            {
+                return true;
+            }
+
+            var found = false;
+            var bestDistance = float.PositiveInfinity;
+            for (var i = 0; i < ProjectionDirectionCount; i++)
+            {
+                var angle = (float)(Math.PI * 2.0 * i / ProjectionDirectionCount);
+                var direction = new Vec3((float)Math.Cos(angle), 0f, (float)Math.Sin(angle));
+                if (!TryFindFreeAlongDirection(
+                        moverId,
+                        in position,
+                        in direction,
+                        radius,
+                        obstacleMask,
+                        ignoreMask,
+                        out var candidate,
+                        out var distance))
+                {
+                    continue;
+                }
+
+                if (found && distance >= bestDistance) continue;
+                found = true;
+                bestDistance = distance;
+                projectedPosition = candidate;
+            }
+
+            return found;
         }
 
         public bool TryProjectToFreeDirectional(int moverId, in Vec3 from, in Vec3 to, float radius, int obstacleMask, int ignoreMask, out Vec3 projectedPosition)
@@ -329,6 +364,52 @@ namespace AbilityKit.Demo.Moba.Services.Motion
                 to.Y + (from.Y - to.Y) * hi,
                 to.Z + (from.Z - to.Z) * hi);
             return true;
+        }
+
+        private bool TryFindFreeAlongDirection(
+            int moverId,
+            in Vec3 origin,
+            in Vec3 direction,
+            float radius,
+            int obstacleMask,
+            int ignoreMask,
+            out Vec3 projectedPosition,
+            out float projectedDistance)
+        {
+            projectedPosition = origin;
+            projectedDistance = 0f;
+
+            var insideDistance = 0f;
+            var outsideDistance = ProjectionSearchStep;
+            while (outsideDistance <= ProjectionMaxDistance)
+            {
+                var sample = origin + direction * outsideDistance;
+                if (!Overlap(moverId, in sample, radius, obstacleMask, ignoreMask))
+                {
+                    for (var i = 0; i < ProjectionBinarySearchSteps; i++)
+                    {
+                        var middleDistance = (insideDistance + outsideDistance) * 0.5f;
+                        var middle = origin + direction * middleDistance;
+                        if (Overlap(moverId, in middle, radius, obstacleMask, ignoreMask))
+                        {
+                            insideDistance = middleDistance;
+                        }
+                        else
+                        {
+                            outsideDistance = middleDistance;
+                        }
+                    }
+
+                    projectedDistance = outsideDistance;
+                    projectedPosition = origin + direction * outsideDistance;
+                    return true;
+                }
+
+                insideDistance = outsideDistance;
+                outsideDistance += ProjectionSearchStep;
+            }
+
+            return false;
         }
 
         private bool TryResolveHitTime(

@@ -170,6 +170,7 @@ public sealed class RoomProtocolCompatibilityTests
         Assert.Equal(115U, RoomGatewayOpCodes.GetSnapshot);
         Assert.Equal(116U, RoomGatewayOpCodes.AckReliableBattleEvents);
         Assert.Equal(117U, RoomGatewayOpCodes.GetStateSyncDeliveryMetrics);
+        Assert.Equal(119U, RoomGatewayOpCodes.LeaveRoom);
         Assert.Equal(9004U, RoomGatewayOpCodes.RoomStateChanged);
     }
 
@@ -404,6 +405,26 @@ public sealed class RoomProtocolCompatibilityTests
         Assert.Equal("room-4", restored.RoomId);
         Assert.Equal(3, restored.Snapshot.Phase);
         Assert.Equal(9999L, restored.ServerNowTicks);
+    }
+
+    [Fact]
+    public void WireLeaveRoomRequestRoundTripPreservesLifecycleIdentity()
+    {
+        var request = new WireLeaveRoomReq
+        {
+            SessionToken = "session-leave",
+            RoomId = "room-leave",
+            ExpectedRevision = 42L,
+            CommandId = "leave-command"
+        };
+
+        var bytes = WireRoomGatewayBinary.Serialize(in request);
+        var restored = WireRoomGatewayBinary.Deserialize<WireLeaveRoomReq>(bytes);
+
+        Assert.Equal("session-leave", restored.SessionToken);
+        Assert.Equal("room-leave", restored.RoomId);
+        Assert.Equal(42L, restored.ExpectedRevision);
+        Assert.Equal("leave-command", restored.CommandId);
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 # combat.motion — 运动组合与约束求解内核
+> v0.1.0 Beta -- AbilityKitStable=true, has direct src tests, zero hard errors.
 
 包 `com.abilitykit.combat.motion`。运动管线 + 碰撞约束求解 + 轨迹/路径跟随源。**不依赖 Entitas、不依赖 Unity Physics**——纯逻辑 math 包。
 

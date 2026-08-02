@@ -23,3 +23,12 @@ sample-output/
 
 # Local-only workspace for iterative drafts and generated material.
 /local/
+
+# Stray test-result / layout-batch XML dumped into Unity/ by ad-hoc runs,
+# and editor logs. (Real gate output goes under artifacts/ which is ignored above.)
+/Unity/*-results.xml
+/Unity/*-final-results.xml
+/Unity/*-batch.xml
+/Unity/*-next-batch.xml
+/Logs/
+

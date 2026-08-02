@@ -5,10 +5,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.View.Loading;
+using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Game.Flow
 {
-    internal sealed class MultiplayerBattleAssetLoader : IMultiplayerBattleAssetLoader
+    internal sealed class MultiplayerBattleAssetLoader :
+        IMultiplayerBattleAssetLoader,
+        IBattleAssetLeaseTransferSource
     {
         private const string ValidateStepType = "moba.manifest.validate";
         private const string AssetsStepType = "moba.assets.load";
@@ -21,25 +24,77 @@ namespace AbilityKit.Game.Flow
             });
 
         private readonly IBattleAssetLoadService _loadService;
+        private readonly IBattleAssetDependencyProvider _dependencyProvider;
         private readonly ClientLoadingPipelineDefinition _pipelineDefinition;
+        private readonly IDispatcher? _mainThreadDispatcher;
         private readonly object _gate = new object();
         private IBattleAssetLease? _lease;
         private long _loadVersion;
 
+        internal bool HasLease
+        {
+            get
+            {
+                lock (_gate) return _lease?.IsActive == true;
+            }
+        }
+
         public MultiplayerBattleAssetLoader(
             IBattleAssetLoadService loadService,
-            ClientLoadingPipelineDefinition pipelineDefinition = null)
+            ClientLoadingPipelineDefinition pipelineDefinition = null,
+            IBattleAssetDependencyProvider dependencyProvider = null,
+            IDispatcher mainThreadDispatcher = null)
         {
             _loadService = loadService ?? throw new ArgumentNullException(nameof(loadService));
             _pipelineDefinition = pipelineDefinition ?? DefaultPipeline;
+            _dependencyProvider = dependencyProvider;
+            _mainThreadDispatcher = mainThreadDispatcher;
         }
 
-        public async Task LoadAsync(
+        public Task LoadAsync(
             MultiplayerRoomSnapshot snapshot,
             IProgress<MultiplayerAssetLoadProgress> progress,
             CancellationToken cancellationToken)
         {
             if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
+
+            return _mainThreadDispatcher == null
+                ? LoadCoreAsync(snapshot, progress, cancellationToken)
+                : DispatchLoadAsync(snapshot, progress, cancellationToken);
+        }
+
+        private Task DispatchLoadAsync(
+            MultiplayerRoomSnapshot snapshot,
+            IProgress<MultiplayerAssetLoadProgress> progress,
+            CancellationToken cancellationToken)
+        {
+            var completion = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            _mainThreadDispatcher!.Post(async () =>
+            {
+                try
+                {
+                    await LoadCoreAsync(snapshot, progress, cancellationToken);
+                    completion.TrySetResult(true);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    completion.TrySetCanceled(cancellationToken);
+                }
+                catch (Exception exception)
+                {
+                    completion.TrySetException(exception);
+                }
+            });
+            return completion.Task;
+        }
+
+        private async Task LoadCoreAsync(
+            MultiplayerRoomSnapshot snapshot,
+            IProgress<MultiplayerAssetLoadProgress> progress,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
 
             long loadVersion;
             lock (_gate)
@@ -47,7 +102,9 @@ namespace AbilityKit.Game.Flow
                 loadVersion = ++_loadVersion;
             }
 
-            var manifest = BattleAssetManifestResolver.Resolve(new SnapshotAssetSource(snapshot));
+            var manifest = BattleAssetManifestResolver.Resolve(
+                new SnapshotAssetSource(snapshot),
+                _dependencyProvider);
             BattleAssetLoadResult result = null;
             var registry = new ClientLoadingStepRegistry()
                 .Register(ValidateStepType, _ => new DelegateClientLoadingStep((stepProgress, ct) =>
@@ -62,12 +119,12 @@ namespace AbilityKit.Game.Flow
                     result = await _loadService.LoadAsync(
                         manifest,
                         new AssetStepProgressAdapter(stepProgress, progress),
-                        ct).ConfigureAwait(false);
+                        ct);
                 }));
             var pipeline = new ClientLoadingPipeline(_pipelineDefinition, registry);
             await pipeline.ExecuteAsync(
                 progress == null ? null : new PipelineProgressAdapter(progress),
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
 
             if (result == null || !result.Success || result.Lease == null || !result.Lease.IsActive)
             {
@@ -117,6 +174,16 @@ namespace AbilityKit.Game.Flow
             }
 
             lease?.Dispose();
+        }
+
+        public IBattleAssetLease? TakeLease()
+        {
+            lock (_gate)
+            {
+                var lease = _lease;
+                _lease = null;
+                return lease;
+            }
         }
 
         private static string BuildFailureMessage(BattleAssetLoadResult? result)

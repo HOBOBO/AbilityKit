@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AbilityKitStable>true</AbilityKitStable>
+    <RootNamespace>AbilityKit.Demo.Moba.Host</RootNamespace>
+    <AssemblyName>AbilityKit.Demo.Moba.Host</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Shared\Room\*.cs"
+             Exclude="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Shared\Room\MobaRoomCommandResult.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Shared\Struct\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Shared\CreateWorld\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Shared\StartSources\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Shared\Snapshot\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Shared\Runtime\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Server\Room\MobaRoomOrchestrator.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Client\RoomSync\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Server\RoomSync\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Server\StartGame\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
+    <ProjectReference Include="..\AbilityKit.Host.Extension\AbilityKit.Host.Extension.csproj" />
+    <ProjectReference Include="..\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.NetworkFragments\AbilityKit.World.NetworkFragments.csproj" />
+    <ProjectReference Include="..\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />
+  </ItemGroup>
+
+</Project>

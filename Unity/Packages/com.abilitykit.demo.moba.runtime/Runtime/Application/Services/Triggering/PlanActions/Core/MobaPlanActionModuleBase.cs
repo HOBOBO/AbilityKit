@@ -31,6 +31,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         protected void LogRejected(ExecCtx<IWorldResolver> ctx, string reason)
         {
+            ctx.Control?.RejectAction(reason);
             MobaPlanActionDiagnostics.Rejected(ctx.Context, ActionName ?? typeof(TModule).Name, reason);
         }
 

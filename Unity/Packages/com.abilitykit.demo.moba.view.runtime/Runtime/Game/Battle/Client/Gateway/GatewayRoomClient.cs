@@ -10,6 +10,7 @@ using AbilityKit.Protocol.Room;
 using RoomSubscribeStateSyncReq = AbilityKit.Protocol.Room.WireSubscribeStateSyncReq;
 using RoomSubscribeStateSyncRes = AbilityKit.Protocol.Room.WireSubscribeStateSyncRes;
 using AbilityKit.Game.Flow;
+using AbilityKit.Demo.Common.Rooms;
 using WireRoomOperationRes = AbilityKit.Protocol.Room.WireRoomOperationRes;
 using WireBeginLoadingReq = AbilityKit.Protocol.Room.WireBeginLoadingReq;
 using WireReportAssetsLoadedReq = AbilityKit.Protocol.Room.WireReportAssetsLoadedReq;
@@ -23,7 +24,7 @@ using WireRoomJoinKind = AbilityKit.Protocol.Room.WireRoomJoinKind;
 
 namespace AbilityKit.Game.Battle.Agent
 {
-    public sealed class GatewayRoomClient : IGatewayRoomClient
+    public sealed class GatewayRoomClient : IGatewayRoomClient, IDemoRoomDirectoryClient
     {
         private readonly IConnection _connection;
         private readonly RequestClient _request;
@@ -61,6 +62,20 @@ namespace AbilityKit.Game.Battle.Agent
             var resp = await _request.SendRequestAsync(guestLoginOpCode, payload, timeout, cancellationToken);
             var wire = WireRoomGatewayBinary.Deserialize<WireRoomGuestLoginRes>(resp);
             return wire.Success ? wire.SessionToken ?? string.Empty : string.Empty;
+        }
+
+        public async Task<DemoRoomDirectoryResult> ListRoomsAsync(
+            DemoRoomDirectoryQuery query,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            var payload = DemoRoomGatewayDirectoryCodec.SerializeQuery(in query);
+            var resp = await _request.SendRequestAsync(
+                RoomGatewayOpCodes.ListRooms,
+                payload,
+                timeout,
+                cancellationToken);
+            return DemoRoomGatewayDirectoryCodec.DeserializeResult(resp);
         }
 
         public async Task<GatewayCreateRoomResult> CreateRoomAsync(
@@ -122,7 +137,18 @@ namespace AbilityKit.Game.Battle.Agent
             var respPayload = await _request.SendRequestAsync(_opCodes.JoinRoom, payload, timeout, cancellationToken);
             var wire = WireRoomGatewayBinary.Deserialize<WireJoinRoomRes>(respPayload);
             var anchor = ToGatewayAnchor(wire.WorldStartAnchor);
-            return new GatewayJoinRoomResult(wire.NumericRoomId, string.Empty, in anchor);
+            return new GatewayJoinRoomResult(
+                wire.Success,
+                wire.RoomId,
+                wire.NumericRoomId,
+                string.Empty,
+                in anchor,
+                wire.Message,
+                wire.Snapshot.BattleId,
+                wire.Snapshot.CanStart,
+                wire.ServerNowTicks,
+                wire.Snapshot.WorldId,
+                wire.CurrentPlayerId);
         }
 
         public async Task<GatewayRoomSnapshotResult> SetReadyAsync(
@@ -411,6 +437,30 @@ namespace AbilityKit.Game.Battle.Agent
             };
             var payload = WireRoomGatewayBinary.Serialize(in req);
             var respPayload = await _request.SendRequestAsync(_opCodes.CancelLoading, payload, timeout, cancellationToken);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
+            return ToOperationResult(wire);
+        }
+
+        public async Task<GatewayRoomOperationResult> LeaveRoomAsync(
+            string sessionToken,
+            string roomId,
+            long? expectedRevision,
+            string commandId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(sessionToken)) throw new ArgumentException("sessionToken is required.", nameof(sessionToken));
+            if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
+
+            var req = new WireLeaveRoomReq
+            {
+                SessionToken = sessionToken,
+                RoomId = roomId,
+                ExpectedRevision = expectedRevision,
+                CommandId = commandId ?? string.Empty
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _request.SendRequestAsync(_opCodes.LeaveRoom, payload, timeout, cancellationToken);
             var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
             return ToOperationResult(wire);
         }

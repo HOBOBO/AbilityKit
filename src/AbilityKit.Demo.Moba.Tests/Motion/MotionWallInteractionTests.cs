@@ -3,6 +3,7 @@ using AbilityKit.Combat.Collision;
 using AbilityKit.Combat.MotionSystem.Collision;
 using AbilityKit.Combat.MotionSystem.Constraints;
 using AbilityKit.Combat.MotionSystem.Core;
+using AbilityKit.Combat.MotionSystem.Generic;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services.Motion;
@@ -42,6 +43,79 @@ public sealed class MotionWallInteractionTests
 
         // 终点空闲：不投影，全位移保留。
         Assert.InRange(result.AppliedDelta.X, 9.99f, 10.01f);
+    }
+
+    [Fact]
+    public void Continuous_dash_passes_through_wall_over_multiple_frames()
+    {
+        var world = new GridCollisionWorld(cellSize: 2f, initialCapacity: 16);
+        AddBox(world, new Vec3(4f, 0f, 0f), new Vec3(0.5f, 2f, 2f), MobaCollisionLayers.WorldId);
+        var adapter = new MobaMotionCollisionWorldAdapter(world, null);
+        var solver = new ConfigurableMotionSolver(adapter, (_, in _, in _, _) => MotionConstraints.Disabled);
+        var pipeline = new MotionPipeline { Solver = solver };
+        var source = CreateContinuousPassSource(new Vec3(10f, 0f, 0f), 0.8f);
+        pipeline.AddSource(source);
+
+        var state = new MotionState(Vec3.Zero);
+        var output = new MotionOutput();
+        for (var i = 0; i < 8; i++)
+        {
+            pipeline.Tick(1, ref state, 0.1f, ref output);
+        }
+
+        Assert.InRange(state.Position.X, 7.99f, 8.01f);
+        Assert.False(adapter.Overlap(1, in state.Position, 0.5f, MobaCollisionLayers.WorldMask, 0));
+    }
+
+    [Fact]
+    public void Continuous_dash_projects_inside_final_endpoint_to_nearest_wall_edge_only_when_completed()
+    {
+        var world = new GridCollisionWorld(cellSize: 2f, initialCapacity: 16);
+        AddBox(world, new Vec3(4.5f, 0f, 0f), new Vec3(1f, 2f, 2f), MobaCollisionLayers.WorldId);
+        var adapter = new MobaMotionCollisionWorldAdapter(world, null);
+        var solver = new ConfigurableMotionSolver(adapter, (_, in _, in _, _) => MotionConstraints.Disabled);
+        var pipeline = new MotionPipeline { Solver = solver };
+        var source = CreateContinuousPassSource(new Vec3(8f, 0f, 0f), 0.6f);
+        pipeline.AddSource(source);
+
+        var state = new MotionState(Vec3.Zero);
+        var output = new MotionOutput();
+        for (var i = 0; i < 5; i++)
+        {
+            pipeline.Tick(1, ref state, 0.1f, ref output);
+        }
+
+        Assert.True(source.IsActive);
+        Assert.InRange(state.Position.X, 3.99f, 4.01f);
+        Assert.True(adapter.Overlap(1, in state.Position, 0.5f, MobaCollisionLayers.WorldMask, 0));
+
+        pipeline.Tick(1, ref state, 0.1f, ref output);
+
+        Assert.False(source.IsActive);
+        Assert.InRange(state.Position.X, 5.99f, 6.01f);
+        Assert.False(adapter.Overlap(1, in state.Position, 0.5f, MobaCollisionLayers.WorldMask, 0));
+    }
+
+    [Fact]
+    public void Adapter_nearest_projection_accounts_for_mover_radius()
+    {
+        var world = new GridCollisionWorld(cellSize: 2f, initialCapacity: 16);
+        AddBox(world, new Vec3(4.5f, 0f, 0f), new Vec3(1f, 2f, 2f), MobaCollisionLayers.WorldId);
+        var adapter = new MobaMotionCollisionWorldAdapter(world, null);
+        var inside = new Vec3(4.8f, 0f, 0f);
+
+        var ok = adapter.TryProjectToFree(
+            1,
+            in inside,
+            0.5f,
+            MobaCollisionLayers.WorldMask,
+            0,
+            out var projected);
+
+        Assert.True(ok);
+        Assert.InRange(projected.X, 5.99f, 6.01f);
+        Assert.InRange(projected.Z, -0.01f, 0.01f);
+        Assert.False(adapter.Overlap(1, in projected, 0.5f, MobaCollisionLayers.WorldMask, 0));
     }
 
     [Fact]
@@ -291,6 +365,32 @@ public sealed class MotionWallInteractionTests
         radius: 0.5f, skin: 0f,
         obstacleMask: MobaCollisionLayers.WorldMask, ignoreMask: 0,
         slideAlongWalls: false, maxSlideIterations: 1);
+
+    private static MotionCollisionConstraints ContinuousPassPolicy() => new MotionCollisionConstraints(
+        enable: true, allowPassThrough: true,
+        endOverlapPolicy: MotionEndOverlapPolicy.AllowInside,
+        radius: 0.5f, skin: 0f,
+        obstacleMask: MobaCollisionLayers.WorldMask, ignoreMask: 0,
+        slideAlongWalls: false, maxSlideIterations: 1);
+
+    private static MotionCollisionConstraints ContinuousPassCompletionPolicy() => new MotionCollisionConstraints(
+        enable: true, allowPassThrough: true,
+        endOverlapPolicy: MotionEndOverlapPolicy.ProjectToNearestFree,
+        radius: 0.5f, skin: 0f,
+        obstacleMask: MobaCollisionLayers.WorldMask, ignoreMask: 0,
+        slideAlongWalls: false, maxSlideIterations: 1);
+
+    private static FixedDeltaMotionSource CreateContinuousPassSource(in Vec3 velocity, float duration) =>
+        new FixedDeltaMotionSource(
+            velocity,
+            duration,
+            priority: 20,
+            groupId: MotionGroups.Ability,
+            stacking: MotionStacking.ExclusiveHighestPriority,
+            collisionPolicy: ContinuousPassPolicy(),
+            hasCollisionPolicy: true,
+            completionCollisionPolicy: ContinuousPassCompletionPolicy(),
+            hasCompletionCollisionPolicy: true);
 
     private static ColliderId AddBox(ICollisionWorld world, in Vec3 center, in Vec3 halfExtents, int layerId)
     {

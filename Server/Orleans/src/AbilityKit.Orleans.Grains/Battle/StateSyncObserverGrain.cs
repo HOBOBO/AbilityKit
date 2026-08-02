@@ -19,6 +19,7 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
     private readonly StateSyncObserverRuntimeSettings _runtimeSettings;
     private readonly StateSyncObserverSubscriptionState _subscriptionState = new();
     private readonly StateSyncBaselineRefreshState _baselineRefresh = new();
+    private readonly StateSyncGatewayPushBinding _gatewayPushBinding = new();
     private readonly Queue<OutboundReliableEvents> _reliableEventQueue = new();
     private SnapshotSendQueue<OutboundSnapshot>? _sendQueue;
     private IDisposable? _drainTimer;
@@ -61,6 +62,20 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
             _roomId = parts[1];
         }
 
+        return Task.CompletedTask;
+    }
+
+    public Task BindGatewayPushObserverAsync(
+        string bindingId,
+        IStateSyncGatewayPushObserver observer)
+    {
+        _gatewayPushBinding.Bind(bindingId, observer);
+        return Task.CompletedTask;
+    }
+
+    public Task UnbindGatewayPushObserverAsync(string bindingId)
+    {
+        _gatewayPushBinding.Unbind(bindingId);
         return Task.CompletedTask;
     }
 
@@ -247,13 +262,11 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
 
     private async Task DrainQueueAsync()
     {
-        var gatewayPush = GrainFactory.GetGrain<IGatewayPushTargetGrain>(_accountId);
         if (TryPeekReliableEvent(_reliableEventQueue, out var reliable))
         {
             try
             {
-                var success = await gatewayPush.PushToAccountAsync(
-                    _accountId,
+                var success = await PushToGatewayAsync(
                     ReliableBattleEventGatewayOpCodes.EventsPushed,
                     reliable.Payload);
                 if (success)
@@ -314,8 +327,7 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
 
         try
         {
-            var success = await gatewayPush.PushToAccountAsync(
-                _accountId,
+            var success = await PushToGatewayAsync(
                 item.Value.OpCode,
                 item.Value.Payload);
             if (success)
@@ -342,6 +354,22 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
                 _accountId,
                 item.Frame);
         }
+    }
+
+    private Task<bool> PushToGatewayAsync(uint opCode, byte[] payload)
+    {
+        if (_gatewayPushBinding.TryPush(opCode, payload))
+        {
+            return Task.FromResult(true);
+        }
+
+        if (_gatewayPushBinding.UsesGatewayPushObserver)
+        {
+            return Task.FromResult(false);
+        }
+
+        var gatewayPush = GrainFactory.GetGrain<IGatewayPushTargetGrain>(_accountId);
+        return gatewayPush.PushToAccountAsync(_accountId, opCode, payload);
     }
 
     internal static void EnqueueBoundedReliableEvent<T>(
@@ -550,6 +578,47 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
             DroppedBytes = result.DroppedBytes,
             BaselineInvalidated = result.BaselineInvalidated
         };
+    }
+
+    internal sealed class StateSyncGatewayPushBinding
+    {
+        private string _bindingId = string.Empty;
+        private IStateSyncGatewayPushObserver? _observer;
+
+        public bool UsesGatewayPushObserver { get; private set; }
+
+        public void Bind(string bindingId, IStateSyncGatewayPushObserver observer)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(bindingId);
+            ArgumentNullException.ThrowIfNull(observer);
+
+            _bindingId = bindingId;
+            _observer = observer;
+            UsesGatewayPushObserver = true;
+        }
+
+        public void Unbind(string bindingId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(bindingId);
+            if (!string.Equals(_bindingId, bindingId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _bindingId = string.Empty;
+            _observer = null;
+        }
+
+        public bool TryPush(uint opCode, byte[] payload)
+        {
+            if (_observer == null)
+            {
+                return false;
+            }
+
+            _observer.OnPush(opCode, payload);
+            return true;
+        }
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)

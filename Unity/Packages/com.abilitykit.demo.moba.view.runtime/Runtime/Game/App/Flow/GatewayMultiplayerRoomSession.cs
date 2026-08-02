@@ -1,10 +1,12 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Ability.Host.Extensions.Session;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Flow
 {
@@ -131,9 +133,6 @@ namespace AbilityKit.Game.Flow
         IMultiplayerRoomSession,
         IMobaReliableBattleEventCheckpointStore
     {
-        private static readonly IReadOnlyDictionary<string, string> EmptyTags =
-            new Dictionary<string, string>();
-
         private readonly IGatewayRoomClient _client;
         private readonly RoomGatewaySessionFlow _flow;
         private readonly ClientRoomStore _store;
@@ -143,9 +142,15 @@ namespace AbilityKit.Game.Flow
         private readonly TimeSpan _battleStartTimeout;
         private readonly object _checkpointGate = new object();
         private string _sessionToken = string.Empty;
+        private string _currentRoomId = string.Empty;
+        private ulong _currentNumericRoomId;
+        private uint _currentPlayerId;
         private MobaReliableBattleEventCheckpoint _reliableEventCheckpoint;
 
         public string SessionToken => _sessionToken;
+        public string CurrentRoomId => _currentRoomId;
+        public ulong CurrentNumericRoomId => _currentNumericRoomId;
+        public uint CurrentPlayerId => _currentPlayerId;
 
         public bool TryLoad(
             string battleId,
@@ -216,12 +221,14 @@ namespace AbilityKit.Game.Flow
                 var result = ToRestoreResult(in restored);
                 if (!result.HasActiveRoom)
                 {
+                    ClearMembership();
                     _store.Reset();
                     return result;
                 }
 
                 if (restored.Snapshot == null)
                 {
+                    ClearMembership();
                     _store.Reset();
                     return new MultiplayerRoomRestoreResult(
                         restored.RoomId,
@@ -243,6 +250,7 @@ namespace AbilityKit.Game.Flow
                     _store.Reset();
                 }
 
+                ApplyMembership(result.RoomId, result.NumericRoomId, result.PlayerId);
                 ApplyAuthoritativeSnapshot(
                     ToClientSnapshot(restored.Snapshot, restored.NumericRoomId),
                     restored.NumericRoomId);
@@ -283,7 +291,7 @@ namespace AbilityKit.Game.Flow
                 cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task JoinRoomAsync(
+        public async Task<MultiplayerRoomJoinResult> JoinRoomAsync(
             MultiplayerRoomLaunchSpec spec,
             string roomId,
             CancellationToken cancellationToken)
@@ -299,7 +307,63 @@ namespace AbilityKit.Game.Flow
                 _requestTimeout,
                 cancellationToken).ConfigureAwait(false);
             EnsureSucceeded(result.Success, result.Message, "join room");
+            if (result.CurrentPlayerId == 0u)
+            {
+                throw new InvalidOperationException(
+                    "Gateway join room did not return an authoritative player id.");
+            }
             await RefreshSnapshotAsync(roomId, cancellationToken).ConfigureAwait(false);
+            var joinedRoomId = string.IsNullOrWhiteSpace(result.RoomId) ? roomId : result.RoomId;
+            ApplyMembership(joinedRoomId, result.NumericRoomId, result.CurrentPlayerId);
+            return new MultiplayerRoomJoinResult(
+                joinedRoomId,
+                result.NumericRoomId,
+                result.CurrentPlayerId);
+        }
+
+        private void ApplyMembership(string roomId, ulong numericRoomId, uint playerId)
+        {
+            if (string.IsNullOrWhiteSpace(roomId))
+            {
+                throw new InvalidOperationException("Authoritative room membership has no room id.");
+            }
+            if (numericRoomId == 0UL)
+            {
+                throw new InvalidOperationException("Authoritative room membership has no numeric room id.");
+            }
+            if (playerId == 0u)
+            {
+                throw new InvalidOperationException("Authoritative room membership has no player id.");
+            }
+
+            _currentRoomId = roomId;
+            _currentNumericRoomId = numericRoomId;
+            _currentPlayerId = playerId;
+        }
+
+        private void ClearMembership()
+        {
+            _currentRoomId = string.Empty;
+            _currentNumericRoomId = 0UL;
+            _currentPlayerId = 0u;
+        }
+
+        public async Task LeaveRoomAsync(string roomId, CancellationToken cancellationToken)
+        {
+            ValidateActiveSession(roomId);
+            var current = RequireCurrentSnapshot(roomId);
+            var result = await _flow.LeaveRoomAsync(
+                new RoomGatewayLeaveRequest(
+                    _sessionToken,
+                    roomId,
+                    current.RoomRevision,
+                    NewCommandId("leave-room")),
+                _requestTimeout,
+                cancellationToken).ConfigureAwait(false);
+            EnsureSucceeded(result.Success, result.Message, "leave room", result.ErrorCode);
+
+            ClearMembership();
+            _store.Reset();
         }
 
         public async Task ConfigureLoadoutAsync(
@@ -573,13 +637,28 @@ namespace AbilityKit.Game.Flow
                 spec.RoomType,
                 spec.RoomTitle,
                 spec.MaxPlayers,
-                gameplayId: 0,
-                ruleSetId: 0,
-                configVersion: 0,
-                protocolVersion: 0,
-                worldType: "moba",
-                clientId: string.Empty,
-                tags: EmptyTags);
+                spec.GameplayId,
+                spec.RuleSetId,
+                spec.ConfigVersion,
+                spec.ProtocolVersion,
+                spec.WorldType,
+                spec.ClientId,
+                tags: BuildLaunchTags(spec));
+        }
+
+        private static IReadOnlyDictionary<string, string> BuildLaunchTags(
+            MultiplayerRoomLaunchSpec spec)
+        {
+            return new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [RoomTagKeys.Gameplay] = spec.RoomType,
+                [RoomTagKeys.GameplayId] = spec.GameplayId.ToString(CultureInfo.InvariantCulture),
+                [RoomTagKeys.RuleSetId] = spec.RuleSetId.ToString(CultureInfo.InvariantCulture),
+                [RoomTagKeys.ConfigVersion] = spec.ConfigVersion.ToString(CultureInfo.InvariantCulture),
+                [RoomTagKeys.ProtocolVersion] = spec.ProtocolVersion.ToString(CultureInfo.InvariantCulture),
+                [RoomTagKeys.WorldType] = spec.WorldType,
+                [RoomTagKeys.ClientId] = spec.ClientId
+            };
         }
 
         private static MultiplayerRoomRestoreResult ToRestoreResult(
@@ -775,6 +854,8 @@ namespace AbilityKit.Game.Flow
             if (string.IsNullOrWhiteSpace(spec.Region)) throw new ArgumentException("Region is required.", nameof(spec));
             if (string.IsNullOrWhiteSpace(spec.ServerId)) throw new ArgumentException("ServerId is required.", nameof(spec));
             if (spec.MaxPlayers <= 0) throw new ArgumentOutOfRangeException(nameof(spec));
+            if (spec.GameplayId <= 0) throw new ArgumentOutOfRangeException(nameof(spec), "GameplayId must be positive.");
+            if (string.IsNullOrWhiteSpace(spec.WorldType)) throw new ArgumentException("WorldType is required.", nameof(spec));
         }
 
         private static void ValidateRoomId(string roomId)

@@ -19,6 +19,7 @@
         "AbilityKit.HFSM.Unity",
         "AbilityKit.Host",
         "AbilityKit.Host.Extensions",
+        "AbilityKit.Host.Extensions.Client",
         "AbilityKit.Host.Extensions.Moba",
         "AbilityKit.World.DI",
         "AbilityKit.World.Entitas",

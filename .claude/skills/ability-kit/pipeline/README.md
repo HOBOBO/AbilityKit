@@ -1,4 +1,5 @@
 # Pipeline 模块（com.abilitykit.pipeline 独立包）
+> v0.1.0 Beta -- AbilityKitStable=true, has direct src tests, zero hard errors.
 
 > Pipeline 已从 `Runtime/Ability/Share/Pipeline/` 独立成单独的 UPM 包 `com.abilitykit.pipeline`。命名空间 `AbilityKit.Pipeline`（运行时）/ `AbilityKit.Pipeline.Editor`（编辑器）。
 

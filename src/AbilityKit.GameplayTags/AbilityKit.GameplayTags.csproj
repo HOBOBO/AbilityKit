@@ -2,6 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
+    <AbilityKitStable>true</AbilityKitStable>
     <Nullable>enable</Nullable>
     <RootNamespace>AbilityKit.GameplayTags</RootNamespace>
     <AssemblyName>AbilityKit.GameplayTags</AssemblyName>

@@ -6,6 +6,7 @@ using System.Threading;
 using AbilityKit.Ability.Host.Extensions.Client.FrameSync;
 using System.Threading.Tasks;
 using AbilityKit.Protocol.Room;
+using AbilityKit.Demo.Common.Rooms;
 
 namespace AbilityKit.Demo.Shooter.View
 {
@@ -61,6 +62,16 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
 
+        Task<ShooterGatewayRoomOperationResult> CancelLoadingAsync(
+            ShooterGatewayCancelLoadingRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+
+        Task<ShooterGatewayRoomOperationResult> LeaveRoomAsync(
+            ShooterGatewayLeaveRoomRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+
         Task<ShooterGatewayGetRoomSnapshotResult> GetSnapshotAsync(
             ShooterGatewayGetRoomSnapshotRequest request,
             TimeSpan? timeout = null,
@@ -96,7 +107,9 @@ namespace AbilityKit.Demo.Shooter.View
 
     public sealed class ShooterRoomGatewayRoomClient :
         IShooterRoomGatewayRoomClient,
-        IShooterRoomGatewaySnapshotFeed
+        IShooterRoomGatewaySnapshotFeed,
+        IDemoRoomDirectoryClient,
+        IDisposable
     {
         private readonly IShooterRoomGatewayRequestTransport _transport;
         private readonly ShooterRoomGatewayRoomOpCodes _opCodes;
@@ -187,6 +200,20 @@ namespace AbilityKit.Demo.Shooter.View
             var respPayload = await _transport.SendRequestAsync(_opCodes.ListRooms, payload, timeout, cancellationToken).ConfigureAwait(false);
             var wire = WireRoomGatewayBinary.Deserialize<WireListRoomsRes>(respPayload);
             return new ShooterGatewayListRoomsResult(wire.Success, ToRoomSummaries(wire.Rooms), wire.NextOffset, wire.Message ?? string.Empty);
+        }
+
+        async Task<DemoRoomDirectoryResult> IDemoRoomDirectoryClient.ListRoomsAsync(
+            DemoRoomDirectoryQuery query,
+            TimeSpan? timeout,
+            CancellationToken cancellationToken)
+        {
+            var payload = DemoRoomGatewayDirectoryCodec.SerializeQuery(in query);
+            var response = await _transport.SendRequestAsync(
+                _opCodes.ListRooms,
+                payload,
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            return DemoRoomGatewayDirectoryCodec.DeserializeResult(response);
         }
 
         public async Task<ShooterGatewayCreateRoomResult> CreateRoomAsync(
@@ -365,6 +392,48 @@ namespace AbilityKit.Demo.Shooter.View
             };
             var payload = WireRoomGatewayBinary.Serialize(in req);
             var respPayload = await _transport.SendRequestAsync(_opCodes.ReportLoadingProgress, payload, timeout, cancellationToken).ConfigureAwait(false);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
+            return ToRoomOperationResult(in wire);
+        }
+
+        public async Task<ShooterGatewayRoomOperationResult> CancelLoadingAsync(
+            ShooterGatewayCancelLoadingRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateRoomOperation(request.SessionToken, request.RoomId);
+            var req = new WireCancelLoadingReq
+            {
+                SessionToken = request.SessionToken,
+                RoomId = request.RoomId,
+                ExpectedRevision = request.ExpectedRevision,
+                CommandId = request.CommandId
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _transport.SendRequestAsync(
+                _opCodes.CancelLoading,
+                payload,
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
+            return ToRoomOperationResult(in wire);
+        }
+
+        public async Task<ShooterGatewayRoomOperationResult> LeaveRoomAsync(
+            ShooterGatewayLeaveRoomRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateRoomOperation(request.SessionToken, request.RoomId);
+            var req = new WireLeaveRoomReq
+            {
+                SessionToken = request.SessionToken,
+                RoomId = request.RoomId,
+                ExpectedRevision = request.ExpectedRevision,
+                CommandId = request.CommandId
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _transport.SendRequestAsync(_opCodes.LeaveRoom, payload, timeout, cancellationToken).ConfigureAwait(false);
             var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
             return ToRoomOperationResult(in wire);
         }
@@ -791,6 +860,16 @@ namespace AbilityKit.Demo.Shooter.View
         {
             return new ShooterGatewayWorldStartAnchor(anchor.StartServerTicks, anchor.ServerTickFrequency, anchor.StartFrame, anchor.FixedDeltaSeconds);
         }
+
+        public void Dispose()
+        {
+            if (_transport is IShooterRoomGatewayPushTransport pushTransport)
+            {
+                pushTransport.ServerPushReceived -= HandleServerPush;
+            }
+
+            SnapshotChanged = null;
+        }
     }
 
     public readonly struct ShooterRoomGatewayRoomOpCodes
@@ -823,6 +902,8 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly uint ReportAssetsLoaded;
         public readonly uint ReportLoadingProgress;
         public readonly uint GetSnapshot;
+        public readonly uint LeaveRoom;
+        public readonly uint CancelLoading;
 
         public ShooterRoomGatewayRoomOpCodes(uint createRoom, uint joinRoom, uint subscribeStateSync, uint setReady, uint startBattle)
             : this(RoomGatewayOpCodes.GuestLogin, RoomGatewayOpCodes.ListRooms, createRoom, joinRoom, subscribeStateSync, setReady, startBattle, RoomGatewayOpCodes.RequestFullStateSync, RoomGatewayOpCodes.RestoreRoom)
@@ -866,6 +947,8 @@ namespace AbilityKit.Demo.Shooter.View
             ReportAssetsLoaded = RoomGatewayOpCodes.ReportAssetsLoaded;
             ReportLoadingProgress = RoomGatewayOpCodes.ReportLoadingProgress;
             GetSnapshot = RoomGatewayOpCodes.GetSnapshot;
+            LeaveRoom = RoomGatewayOpCodes.LeaveRoom;
+            CancelLoading = RoomGatewayOpCodes.CancelLoading;
         }
     }
 
@@ -1093,6 +1176,38 @@ namespace AbilityKit.Demo.Shooter.View
             ManifestVersion = manifestVersion;
             ManifestHash = manifestHash ?? string.Empty;
             Progress = progress;
+        }
+    }
+
+    public readonly struct ShooterGatewayLeaveRoomRequest
+    {
+        public readonly string SessionToken;
+        public readonly string RoomId;
+        public readonly long? ExpectedRevision;
+        public readonly string CommandId;
+
+        public ShooterGatewayLeaveRoomRequest(string sessionToken, string roomId, long? expectedRevision, string commandId)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+            ExpectedRevision = expectedRevision;
+            CommandId = commandId ?? string.Empty;
+        }
+    }
+
+    public readonly struct ShooterGatewayCancelLoadingRequest
+    {
+        public readonly string SessionToken;
+        public readonly string RoomId;
+        public readonly long? ExpectedRevision;
+        public readonly string CommandId;
+
+        public ShooterGatewayCancelLoadingRequest(string sessionToken, string roomId, long? expectedRevision, string commandId)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+            ExpectedRevision = expectedRevision;
+            CommandId = commandId ?? string.Empty;
         }
     }
 

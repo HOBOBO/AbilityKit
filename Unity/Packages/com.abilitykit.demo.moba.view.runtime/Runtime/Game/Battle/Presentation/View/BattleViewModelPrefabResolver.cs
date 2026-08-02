@@ -18,6 +18,21 @@ namespace AbilityKit.Game.Flow
         }
     }
 
+    internal sealed class BattleAssetViewModelPrefabLoader : IBattleViewModelPrefabLoader
+    {
+        private readonly IBattleAssetLookup _assets;
+
+        public BattleAssetViewModelPrefabLoader(IBattleAssetLookup assets)
+        {
+            _assets = assets ?? throw new System.ArgumentNullException(nameof(assets));
+        }
+
+        public GameObject Load(string path)
+        {
+            return _assets.TryGetAsset(path, out var asset) ? asset as GameObject : null;
+        }
+    }
+
     internal sealed class BattleViewModelPrefabResolver
     {
         private readonly IBattleViewModelPrefabLoader _loader;

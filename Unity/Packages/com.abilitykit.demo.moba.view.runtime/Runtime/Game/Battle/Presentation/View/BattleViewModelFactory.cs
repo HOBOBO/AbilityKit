@@ -54,6 +54,7 @@ namespace AbilityKit.Game.Flow
         public GameObject CreateActorShell(MobaConfigDatabase configs, int actorId, int modelId)
         {
             var go = InstantiateOrFallback(configs, modelId, () => _primitives.CreateActorFallback(actorId, modelId));
+            if (go == null) return null;
             go.name = $"Actor_{actorId}";
             _attachRoots.Ensure(go);
             ParentUnderActive(go, BattleEntityKind.Character);
@@ -63,6 +64,7 @@ namespace AbilityKit.Game.Flow
         public GameObject CreateSummonShell(MobaConfigDatabase configs, int actorId, int modelId)
         {
             var go = InstantiateOrFallback(configs, modelId, () => _primitives.CreateSummonFallback(actorId, modelId));
+            if (go == null) return null;
             go.name = $"Summon_{actorId}";
             _attachRoots.Ensure(go);
             ParentUnderActive(go, BattleEntityKind.Summon);
@@ -72,6 +74,7 @@ namespace AbilityKit.Game.Flow
         public GameObject CreateTurretShell(MobaConfigDatabase configs, int actorId, int modelId)
         {
             var go = InstantiateOrFallback(configs, modelId, () => _primitives.CreateTurretFallback(actorId, modelId));
+            if (go == null) return null;
             go.name = $"Turret_{actorId}";
             _attachRoots.Ensure(go);
             ParentUnderActive(go, BattleEntityKind.Turret);
@@ -81,6 +84,7 @@ namespace AbilityKit.Game.Flow
         public GameObject CreateMonsterShell(MobaConfigDatabase configs, int actorId, int modelId)
         {
             var go = InstantiateOrFallback(configs, modelId, () => _primitives.CreateMonsterFallback(actorId, modelId));
+            if (go == null) return null;
             go.name = $"Monster_{actorId}";
             _attachRoots.Ensure(go);
             ParentUnderActive(go, BattleEntityKind.Monster);
@@ -90,6 +94,7 @@ namespace AbilityKit.Game.Flow
         public GameObject CreateBuildingShell(MobaConfigDatabase configs, int actorId, int modelId)
         {
             var go = InstantiateOrFallback(configs, modelId, () => _primitives.CreateBuildingFallback(actorId, modelId));
+            if (go == null) return null;
             go.name = $"Building_{actorId}";
             _attachRoots.Ensure(go);
             ParentUnderActive(go, BattleEntityKind.Building);
@@ -119,7 +124,7 @@ namespace AbilityKit.Game.Flow
                 go = _primitives.CreateAoeModelFallback(aoeTemplateId);
             }
 
-            go.name = $"AoeModel_{aoeTemplateId}";
+            if (go != null) go.name = $"AoeModel_{aoeTemplateId}";
             return go;
         }
 
@@ -153,6 +158,7 @@ namespace AbilityKit.Game.Flow
                 go = _primitives.CreateProjectileFallback(projectileTemplateId);
             }
 
+            if (go == null) return null;
             go.name = $"Projectile_{actorId}";
             _attachRoots.Ensure(go);
             return go;

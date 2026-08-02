@@ -90,5 +90,19 @@ namespace AbilityKit.Game.Flow
             Set(Capacity - 1, in sample);
             Count = Capacity;
         }
+
+        public void RemoveFirstAndInsertAt(int index, in BattleViewPositionSample sample)
+        {
+            if (Count < Capacity || index <= 0) return;
+
+            var adjustedIndex = index - 1;
+            for (var i = 0; i < adjustedIndex; i++)
+            {
+                var next = Get(i + 1);
+                Set(i, in next);
+            }
+
+            Set(adjustedIndex, in sample);
+        }
     }
 }
