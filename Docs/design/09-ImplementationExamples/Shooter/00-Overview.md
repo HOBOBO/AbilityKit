@@ -41,7 +41,11 @@ flowchart TB
         Session[ShooterClientSession]
         Input[ShooterClientInputCoordinator]
         Factory[ShooterClientSyncControllerFactory]
-        PackedCtrl[ShooterPackedSnapshotSyncController]
+        PredictCtrl[ShooterClientPredictRollbackSyncController]
+        InterpCtrl[ShooterClientAuthoritativeInterpolationSyncController]
+        HybridCtrl[ShooterClientHybridHeroPredictionSyncController]
+        ApplyCoordinator[ShooterClientSnapshotApplyCoordinator]
+        SnapshotPipeline[ShooterFrameworkSnapshotPipeline]
         PureCtrl[ShooterPureStateSnapshotSyncController]
         RoomFlow[ShooterRoomGatewayFlow]
         Net[Network / Reconnect / FrameSync]
@@ -50,8 +54,6 @@ flowchart TB
         ViewStream[ShooterSnapshotStream]
         ViewProjection[ShooterSnapshotViewProjection]
         ViewBinder[ShooterSnapshotViewBinder]
-        InterpCtrl[ShooterClientAuthoritativeInterpolationSyncController]
-        HybridCtrl[ShooterClientHybridHeroPredictionSyncController]
         DotsBinder[ShooterDotsSnapshotViewBinder]
     end
 
@@ -72,8 +74,15 @@ flowchart TB
     Port --> Lag
     Port --> Bench
     Session --> Factory
-    Factory --> PackedCtrl
-    Factory --> PureCtrl
+    Factory --> PredictCtrl
+    Factory --> InterpCtrl
+    Factory --> HybridCtrl
+    PredictCtrl --> ApplyCoordinator
+    InterpCtrl --> ApplyCoordinator
+    HybridCtrl --> ApplyCoordinator
+    ApplyCoordinator --> SnapshotPipeline
+    SnapshotPipeline --> Presentation
+    Presentation --> PureCtrl
     Session --> RoomFlow
     RoomFlow --> Gateway --> Room
     Room --> RoomAdapter
@@ -87,8 +96,6 @@ flowchart TB
     PresentationSession --> ViewStream
     ViewStream --> ViewProjection
     ViewProjection --> ViewBinder
-    Factory --> InterpCtrl
-    Factory --> HybridCtrl
     InterpCtrl --> Presentation
     HybridCtrl --> Presentation
     ViewProjection --> DotsBinder
@@ -164,6 +171,9 @@ Shooter 示例适合作为以下能力的参考实现：
 | View Projection | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Presentation/View/ShooterSnapshotViewProjection.cs` |
 | View Binder | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Presentation/View/ShooterSnapshotViewBinder.cs` |
 | Fast Reconnect Driver | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterFastReconnectDriver.cs` |
+| Snapshot Apply Coordinator | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientSnapshotApplyCoordinator.cs` |
+| Framework Snapshot Pipeline | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterFrameworkSnapshotPipeline.cs` |
+| Pure-State Controller | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterPureStateSnapshotSyncController.cs` |
 | Authoritative Comparison | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAuthoritativeComparisonDriver.cs` |
 | Authoritative Interpolation | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientAuthoritativeInterpolationSyncController.cs` |
 | Hybrid Hero Prediction | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientHybridHeroPredictionSyncController.cs` |

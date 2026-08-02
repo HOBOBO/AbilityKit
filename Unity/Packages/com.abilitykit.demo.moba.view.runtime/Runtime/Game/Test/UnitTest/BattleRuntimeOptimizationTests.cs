@@ -1,10 +1,12 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Ability.Host.Extensions.Time;
 using AbilityKit.Ability.World.Abstractions;
@@ -33,6 +35,7 @@ using AbilityKit.World.ECS;
 using EC = AbilityKit.World.ECS;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace AbilityKit.Game.Test.UnitTest
 {
@@ -1248,6 +1251,24 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void ClientPredictionBaseline_AlignsClockToImportedSnapshotFrame()
+        {
+            const float fixedDelta = 1f / 30f;
+            var frameTime = new FrameTime();
+            frameTime.Reset(new FrameIndex(12), 12 * fixedDelta, fixedDelta);
+            var method = typeof(ClientPredictionDriverModule).GetMethod(
+                "AlignFrameTimeToBaseline",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(method);
+
+            method.Invoke(null, new object[] { frameTime, new FrameIndex(152) });
+
+            Assert.AreEqual(152, frameTime.Frame.Value);
+            Assert.AreEqual(152 * fixedDelta, frameTime.Time, 0.00001f);
+            Assert.AreEqual(0f, frameTime.DeltaTime, 0.000001f);
+        }
+
+        [Test]
         public void ServerFrameTimeModule_CanDisableHostTickFallback()
         {
             var module = new ServerFrameTimeModule(
@@ -1286,6 +1307,51 @@ namespace AbilityKit.Game.Test.UnitTest
         public void RemoteDrivenRuntimeModuleFactory_RetainsSixHundredPredictionFrames()
         {
             Assert.AreEqual(600, RemoteDrivenRuntimeModuleFactory.PredictionRollbackHistoryFrames);
+        }
+
+        [Test]
+        public void RemoteDrivenWorldTickDriver_UsesActualPredictionFrameWhenLoopCounterIsAhead()
+        {
+            Assert.AreEqual(
+                171,
+                RemoteDrivenWorldTickDriver.ResolveCatchUpFrame(
+                    fallbackFrame: 385,
+                    hasPredictionFrame: true,
+                    predictionFrame: 171));
+            Assert.AreEqual(
+                385,
+                RemoteDrivenWorldTickDriver.ResolveCatchUpFrame(
+                    fallbackFrame: 385,
+                    hasPredictionFrame: false,
+                    predictionFrame: 0));
+        }
+
+        [Test]
+        public void RemoteDrivenWorldTickDriver_WhenDynamicPredictionTargetIsReached_DoesNotTickRuntime()
+        {
+            var driveTargetFrame = RemoteDrivenWorldTickDriver.ResolveDriveTargetFrame(
+                inputTargetFrame: 325,
+                predictionEnabled: true,
+                hasPredictionWindow: true,
+                predictionWindow: 8);
+
+            Assert.AreEqual(333, driveTargetFrame);
+            Assert.IsFalse(RemoteDrivenWorldTickDriver.ShouldDriveRuntime(
+                currentFrame: 333,
+                driveTargetFrame: driveTargetFrame,
+                remainingSteps: 5));
+            Assert.IsTrue(RemoteDrivenWorldTickDriver.ShouldDriveRuntime(
+                currentFrame: 332,
+                driveTargetFrame: driveTargetFrame,
+                remainingSteps: 5));
+        }
+
+        [Test]
+        public void RemoteDrivenWorldTickDriver_WhenPredictionDoesNotAdvance_StopsCatchUpLoop()
+        {
+            Assert.IsFalse(RemoteDrivenWorldTickDriver.DidAdvancePredictionFrame(333, 333));
+            Assert.IsFalse(RemoteDrivenWorldTickDriver.DidAdvancePredictionFrame(333, 329));
+            Assert.IsTrue(RemoteDrivenWorldTickDriver.DidAdvancePredictionFrame(333, 334));
         }
 
         [Test]
@@ -1377,6 +1443,49 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(state.TryGetMoveToSubmit(22, 0f, 0f, out _, out _));
             Assert.IsTrue(state.TryGetMoveToSubmit(23, 0f, 0f, out _, out _));
             Assert.IsFalse(state.TryGetMoveToSubmit(24, 0f, 0f, out _, out _));
+        }
+
+        [Test]
+        public void BattleLocalInputQueue_PreservesAuthoritativeTargetFrame()
+        {
+            var queue = new BattleLocalInputQueue();
+            var expectedFrame = new FrameIndex(37);
+            queue.Enqueue(new LocalPlayerInputEvent(
+                expectedFrame,
+                new PlayerId("player-1"),
+                MobaOpCodes.Input.Move,
+                new byte[] { 1, 2, 3 }));
+
+            queue.Flush();
+
+            Assert.IsTrue(queue.TryDequeue(out var batch));
+            Assert.AreEqual(1, batch.Length);
+            Assert.AreEqual(expectedFrame.Value, batch[0].Frame.Value);
+            Assert.AreEqual("player-1", batch[0].PlayerId.Value);
+        }
+
+        [Test]
+        public void BattleLocalInputQueue_EmptyRenderFrames_DoNotDelayGameplayInput()
+        {
+            var queue = new BattleLocalInputQueue();
+            for (var i = 0; i < 500; i++)
+            {
+                queue.Flush();
+            }
+
+            var expectedFrame = new FrameIndex(73);
+            queue.Enqueue(new LocalPlayerInputEvent(
+                expectedFrame,
+                new PlayerId("player-1"),
+                MobaOpCodes.Input.Move,
+                new byte[] { 4, 5, 6 }));
+            queue.Flush();
+
+            Assert.AreEqual(501, queue.LocalFrame);
+            Assert.IsTrue(queue.TryDequeue(out var batch));
+            Assert.AreEqual(1, batch.Length);
+            Assert.AreEqual(expectedFrame.Value, batch[0].Frame.Value);
+            Assert.IsFalse(queue.TryDequeue(out _));
         }
 
         [Test]
@@ -1526,6 +1635,136 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void BattleScopeManager_RejectsQueuedSessionCallbackFromPreviousScope()
+        {
+            using var host = new BattleWorldScopeHost();
+            var triggered = new List<MobaBattleEvent>();
+            var sessions = new List<TestBattleSessionFeature>();
+            var manager = new BattleScopeManager(
+                new BattleScopeManager.Callbacks
+                {
+                    SetBattleRequested = _ => { },
+                    EnqueueRootEvent = _ => { },
+                    TriggerBattleFsm = triggered.Add,
+                    GetActiveBattle = () => MobaBattleState.Prepare,
+                    ClearGatewayConnectionFactory = () => { },
+                    GetGatewayConnectionFactory = () => null,
+                    CreateBattleSessionFeature = (_, __) =>
+                    {
+                        var session = new TestBattleSessionFeature();
+                        sessions.Add(session);
+                        return session;
+                    },
+                },
+                host,
+                new MobaBattleAdvanceDecider(),
+                new TestLogSink());
+
+            manager.EnterBattle(null);
+            manager.CreateBattleSessionFeature();
+            var queuedFromFirstBattle = sessions[0].CaptureSessionStarted();
+
+            manager.EnterBattle(null);
+            manager.CreateBattleSessionFeature();
+            var currentState = host.Resolve<IBattleRuntimeState>();
+
+            queuedFromFirstBattle?.Invoke();
+
+            Assert.IsFalse(currentState.SessionStarted);
+            Assert.IsEmpty(triggered);
+
+            sessions[1].RaiseSessionStarted();
+
+            Assert.IsTrue(currentState.SessionStarted);
+            CollectionAssert.AreEqual(new[] { MobaBattleEvent.PrepareDone }, triggered);
+        }
+
+        [Test]
+        public void BattleScopeManager_ClearSessionEvents_UnsubscribesCapturedHandlers()
+        {
+            using var host = new BattleWorldScopeHost();
+            var triggered = new List<MobaBattleEvent>();
+            TestBattleSessionFeature session = null;
+            var manager = new BattleScopeManager(
+                new BattleScopeManager.Callbacks
+                {
+                    SetBattleRequested = _ => { },
+                    EnqueueRootEvent = _ => { },
+                    TriggerBattleFsm = triggered.Add,
+                    GetActiveBattle = () => MobaBattleState.Prepare,
+                    ClearGatewayConnectionFactory = () => { },
+                    GetGatewayConnectionFactory = () => null,
+                    CreateBattleSessionFeature = (_, __) =>
+                        session = new TestBattleSessionFeature(),
+                },
+                host,
+                new MobaBattleAdvanceDecider(),
+                new TestLogSink());
+
+            manager.EnterBattle(null);
+            manager.CreateBattleSessionFeature();
+            Assert.AreEqual(4, session.SubscriberCount);
+
+            manager.ClearBattleSessionEvents();
+            session.RaiseAll();
+
+            Assert.AreEqual(0, session.SubscriberCount);
+            Assert.IsEmpty(triggered);
+            Assert.IsFalse(host.Resolve<IBattleRuntimeState>().SessionStarted);
+        }
+
+        [UnityTest]
+        public IEnumerator FormalLobbyFeature_DetachReattach_RejectsPreviousOperationCompletion()
+        {
+            var feature = new FormalLobbyFeature();
+            var firstCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var firstExited = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var ctx = default(AbilityKit.Game.Flow.GamePhaseContext);
+
+            feature.OnAttach(in ctx);
+            feature.StartControlledOperationForTesting("first", async () =>
+            {
+                try
+                {
+                    await firstCompletion.Task;
+                }
+                finally
+                {
+                    firstExited.TrySetResult(true);
+                }
+            });
+            Assert.IsTrue(feature.OperationBusyForTesting);
+            Assert.AreEqual("first", feature.OperationLabelForTesting);
+
+            feature.OnDetach(in ctx);
+            feature.OnAttach(in ctx);
+            feature.StartControlledOperationForTesting("second", () => secondCompletion.Task);
+
+            firstCompletion.SetException(new InvalidOperationException("stale failure"));
+            for (var i = 0; i < 20 && !firstExited.Task.IsCompleted; i++)
+            {
+                yield return null;
+            }
+            Assert.IsTrue(firstExited.Task.IsCompleted, "The detached operation did not exit in time.");
+            yield return null;
+
+            Assert.IsTrue(feature.OperationBusyForTesting);
+            Assert.AreEqual("second", feature.OperationLabelForTesting);
+            Assert.IsEmpty(feature.OperationErrorForTesting);
+
+            secondCompletion.SetResult(true);
+            for (var i = 0; i < 20 && feature.OperationBusyForTesting; i++)
+            {
+                yield return null;
+            }
+
+            Assert.IsFalse(feature.OperationBusyForTesting);
+            Assert.IsEmpty(feature.OperationLabelForTesting);
+            feature.OnDetach(in ctx);
+        }
+
+        [Test]
         public void ExistingGatewayRoomBattleBootstrapper_UsesAuthoritativeRoomIdentifiersWithoutPreparingRoomAgain()
         {
             var sourcePlan = BattleStartPlanBuilder
@@ -1556,6 +1795,12 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var plan = bootstrapper.Build();
 
+            Assert.IsTrue(bootstrapper.IsAuthenticated);
+            Assert.IsTrue(bootstrapper.IsRoomReady);
+            Assert.IsTrue(
+                bootstrapper.IsConnectivityReady,
+                "Connectivity gate must use the configured plan endpoint when no launch request override exists.");
+            Assert.IsTrue(bootstrapper.IsAssetsReady);
             Assert.AreEqual(BattleStartConfig.BattleHostMode.GatewayRemote, plan.HostMode);
             Assert.AreEqual("7001", plan.World.WorldId);
             Assert.AreEqual("42", plan.World.PlayerId);
@@ -1646,8 +1891,10 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual("42", plan.LaunchSpec.Players[1].PlayerId.Value);
             Assert.AreEqual(1101, plan.LaunchSpec.Players[0].HeroId);
             Assert.AreEqual(2102, plan.LaunchSpec.Players[1].AttributeTemplateId);
-            Assert.AreEqual(10f, plan.LaunchSpec.Players[0].SpawnX);
-            Assert.AreEqual(-20f, plan.LaunchSpec.Players[1].SpawnZ);
+            Assert.AreEqual(0, plan.LaunchSpec.Players[0].HasSpawnPosition);
+            Assert.AreEqual(0, plan.LaunchSpec.Players[1].HasSpawnPosition);
+            Assert.AreEqual(roomPlayers[0].SpawnPointId, plan.LaunchSpec.Players[0].SpawnIndex);
+            Assert.AreEqual(roomPlayers[1].SpawnPointId, plan.LaunchSpec.Players[1].SpawnIndex);
             CollectionAssert.AreEqual(new[] { 4101, 4102 }, plan.LaunchSpec.Players[0].SkillIds);
             Assert.IsTrue(MobaCreateWorldInitCodec.TryDeserialize(
                 plan.CreateWorld.Payload,
@@ -2345,9 +2592,28 @@ namespace AbilityKit.Game.Test.UnitTest
             public event Action<Exception> SessionFailed;
             public event Action AssetsLoadCompleted;
 
+            public int SubscriberCount =>
+                (SessionStarted?.GetInvocationList().Length ?? 0) +
+                (FirstFrameReceived?.GetInvocationList().Length ?? 0) +
+                (SessionFailed?.GetInvocationList().Length ?? 0) +
+                (AssetsLoadCompleted?.GetInvocationList().Length ?? 0);
+
             public string Name => "test_session";
             public int Priority => 0;
             public bool IsEnabled { get; set; } = true;
+
+            public Action CaptureSessionStarted() => SessionStarted;
+
+            public void RaiseSessionStarted() => SessionStarted?.Invoke();
+
+            public void RaiseAll()
+            {
+                SessionStarted?.Invoke();
+                FirstFrameReceived?.Invoke();
+                SessionFailed?.Invoke(new InvalidOperationException("test"));
+                AssetsLoadCompleted?.Invoke();
+            }
+
             public void OnAttach(in AbilityKit.Game.Flow.GamePhaseContext ctx) { }
             public void OnDetach(in AbilityKit.Game.Flow.GamePhaseContext ctx) { }
             public void Tick(in AbilityKit.Game.Flow.GamePhaseContext ctx, float deltaTime) { }

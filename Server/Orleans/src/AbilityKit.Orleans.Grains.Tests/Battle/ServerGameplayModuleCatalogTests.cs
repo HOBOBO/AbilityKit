@@ -10,6 +10,7 @@ using AbilityKit.Orleans.Contracts.Shooter;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Battle;
+using AbilityKit.Orleans.Grains.Battle.Gameplay;
 using AbilityKit.Orleans.Grains.Gameplay;
 using AbilityKit.Orleans.Grains.Gameplays.Moba.Battle;
 using AbilityKit.Orleans.Grains.Gameplays.Moba.Protocol;
@@ -56,13 +57,13 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.Equal(ServerBattleSyncMode.FrameSync, mobaProfile.DefaultMode);
         Assert.Equal("frame-sync-authority", mobaProfile.DefaultTemplateId);
         Assert.True(mobaProfile.SupportsFrameSync);
-        Assert.False(mobaProfile.SupportsStateSyncPush);
+        Assert.True(mobaProfile.SupportsStateSyncPush);
         Assert.True(mobaProfile.SupportsTemplate("state-sync-authority"));
         Assert.Equal(ServerBattleSyncMode.FrameSync, mobaProfile.ResolveTemplate(null).Mode);
-        Assert.Equal(ServerBattleRuntimeMode.FrameRelayOnly, mobaProfile.ResolveTemplate(null).RuntimeMode);
-        Assert.False(mobaProfile.ResolveTemplate(null).RequiresBattleRuntime);
+        Assert.Equal(ServerBattleRuntimeMode.BattleWorldWithFrameSync, mobaProfile.ResolveTemplate(null).RuntimeMode);
+        Assert.True(mobaProfile.ResolveTemplate(null).RequiresBattleRuntime);
         Assert.Equal(ServerBattleSyncMode.FrameSync, mobaProfile.ResolveTemplate("frame-sync-authority").Mode);
-        Assert.Equal(ServerBattleRuntimeMode.FrameRelayOnly, mobaProfile.ResolveTemplate("frame-sync-authority").RuntimeMode);
+        Assert.Equal(ServerBattleRuntimeMode.BattleWorldWithFrameSync, mobaProfile.ResolveTemplate("frame-sync-authority").RuntimeMode);
         Assert.Equal(ServerBattleSyncMode.StateSync, mobaProfile.ResolveTemplate("state-sync-authority").Mode);
         Assert.True(mobaProfile.ResolveTemplate("state-sync-authority").RequiresBattleRuntime);
         Assert.Equal("frame-sync-authority", moduleCatalog.GameplayCatalog.Resolve(GameplayRoomTypes.Moba).DefaultSyncTemplateId);
@@ -113,7 +114,7 @@ public sealed class ServerGameplayModuleCatalogTests
         var shooterStartRoute = RoomFrameSyncRoute.ResolveStartRoute(shooterSummary, "battle-2", CreateInitParams(syncTemplateId: null));
 
         Assert.NotNull(mobaFrameRoute);
-        Assert.False(mobaFrameStartRoute.RequiresBattleRuntime);
+        Assert.True(mobaFrameStartRoute.RequiresBattleRuntime);
         Assert.False(mobaFrameStartRoute.IsUnsupportedTemplate);
         Assert.Equal("frame-sync-authority", mobaFrameStartRoute.SyncTemplateId);
         Assert.Equal(123UL, mobaFrameRoute!.RoomId);
@@ -141,6 +142,7 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.Equal(GameplayRoomTypes.Moba, moba.RoomType);
         Assert.True(moba.RequiresPlayerLoadout);
         Assert.True(moba.SupportsFrameSync);
+        Assert.True(moba.SupportsStateSyncPush);
         Assert.Contains("state-sync-authority", moba.SupportedSyncTemplateIds);
         Assert.Equal(ShooterGameplay.RoomType, shooter.RoomType);
         Assert.False(shooter.RequiresPlayerLoadout);
@@ -195,7 +197,41 @@ public sealed class ServerGameplayModuleCatalogTests
 
         Assert.True(result.Succeeded, result.Error);
         Assert.Null(result.Error);
+        var initialState = session.CreateStateSyncPush(1UL, frame: 0, isFullSnapshot: true);
+        var actor = Assert.Single(initialState.Actors);
+        Assert.Equal(-12f, actor.X, 3);
+        Assert.Equal(0f, actor.Z, 3);
         Assert.True(session.Tick(1, 30, 1f / 30f));
+    }
+
+    [Fact]
+    public void MobaBattleRuntimeSession_WhenInputIsRejected_ExposesRuntimeDiagnostic()
+    {
+        const string battleId = "moba-runtime-input-diagnostic";
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new MobaBattleRuntimeAdapter(
+            worldManager,
+            DefaultOrleansBattleProtocolMapper.Instance);
+        using var session = adapter.CreateSession(battleId);
+
+        var start = session.Start(CreateMobaWorldInitParams());
+        Assert.True(start.Succeeded, start.Error);
+
+        var submitted = session.SubmitInputs(
+            0,
+            new[]
+            {
+                new BattleInputItem
+                {
+                    PlayerId = 1,
+                    OpCode = int.MaxValue,
+                    Payload = Array.Empty<byte>()
+                }
+            });
+
+        Assert.Equal(0, submitted);
+        var diagnostics = Assert.IsAssignableFrom<IBattleRuntimeInputDiagnostics>(session);
+        Assert.Contains("NoCommandHandled", diagnostics.LastInputSubmitDiagnostic);
     }
 
     private static RoomSummary CreateSummary(string roomType)

@@ -22,8 +22,9 @@
     - [9.1 DefaultWorldFactory](#91-defaultworldfactory)
     - [9.2 WorldBlueprintWorldFactory](#92-worldblueprintworldfactory)
   - [10. 设计意图与解决的问题](#10-设计意图与解决的问题)
-  - [11. 边界判断](#11-边界判断)
-  - [12. 源码阅读路径](#12-源码阅读路径)
+  - [11. 验证入口与证据状态](#11-验证入口与证据状态)
+  - [12. 边界判断](#12-边界判断)
+  - [13. 源码阅读路径](#13-源码阅读路径)
 
 ---
 
@@ -69,6 +70,7 @@ flowchart TB
 | `Unity/Packages/com.abilitykit.host/Runtime/Host/Framework/HostRuntime.cs` | Host 外层调用 `WorldManager` 并补充 Hook/广播 |
 | `Unity/Packages/com.abilitykit.host/Runtime/Host/Builder/DefaultWorldFactory.cs` | Host 默认工厂包装入口 |
 | `Unity/Packages/com.abilitykit.host/Runtime/Host/WorldBlueprints/WorldBlueprintWorldFactory.cs` | Blueprint 介入世界创建选项的包装工厂 |
+| `src/AbilityKit.Demo.Shooter.Runtime.Tests/Worlds/ShooterWorldModuleTests.cs` | Shooter Blueprint 与 Host 多世界链路的跨包集成测试 |
 
 ---
 
@@ -323,29 +325,57 @@ sequenceDiagram
 
 ---
 
-## 11. 边界判断
+## 11. 验证入口与证据状态
+
+当前仓库审计未发现面向 `WorldManager` 的独立测试工程或测试类。Shooter Runtime Tests 中有两个相邻用例经过真实管理器或 Host 链路，可作为跨包集成证据：
+
+```powershell
+dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj --filter "BlueprintRegistrationCreatedWorldResolvesShooterSveltoServices|ShooterWorldHostCreatesAndDrivesBattleWorldRuntime"
+```
+
+| 用例 | 已证明 | 没有证明 |
+|------|--------|----------|
+| `BlueprintRegistrationCreatedWorldResolvesShooterSveltoServices` | 注册 Shooter Blueprint 后，`RegistryWorldFactory + WorldManager.Create` 能创建世界；世界类型和四类 Shooter/Svelto 服务可解析；业务运行时可启动；`DisposeAll` 调用可完成 | `DisposeAll` 的逐世界释放顺序、异常续处理、字典最终状态和服务实际释放次数 |
+| `ShooterWorldHostCreatesAndDrivesBattleWorldRuntime` | Shooter Host 能创建并查回世界；一次 Host Tick 推进业务帧；销毁后无法再查到世界 | 底层 `WorldManager.Tick` 的多世界异常隔离、Host Hook/广播顺序和 `Dispose` 异常行为 |
+
+这些测试证明真实 Shooter 装配可以经过管理器运行，但不能替代 `WorldManager` 的单元契约测试。优先补测项：
+
+1. 空 options、空 id、空 world type 和重复 `WorldId` 的异常类型与工厂调用次数。
+2. 工厂返回世界后，`Initialize` 成功才入表；初始化抛异常时不入表，并明确失败实例由谁释放。
+3. 多世界 Tick 的遍历次数和单世界异常隔离，确认后续世界继续执行。
+4. `Destroy` 先移除再 `Dispose`，缺失 id 返回 false，重复销毁不再调用 Dispose。
+5. `DisposeAll` 的全部释放、字典清空和单个 Dispose 抛异常时的剩余世界处理语义。
+6. Tick 回调中创建或销毁世界时的当前失败行为，或后续引入命令队列/快照后的目标契约。
+
+其中第 5 项需要先做设计决策：当前源码如果某个 `Dispose` 抛异常，循环和最终 `_worlds.Clear()` 都可能被中断。文档不能把“全部释放”扩写为已经具备故障隔离。
+
+---
+
+## 12. 边界判断
 
 | 容易混淆的判断 | 设计边界 |
 |----------------|----------|
 | `WorldManager` 是 Host | `WorldManager` 只管理世界；HostRuntime 才处理连接、Hook 和广播 |
 | `WorldManager` 有 `GetAll()` | 当前接口暴露 `Worlds` 只读字典 |
 | `Destroy` 会广播世界销毁消息 | 广播是 `HostRuntime.DestroyWorld` 的职责 |
-| `DisposeAll` 等同于逐个 `DestroyWorld` | `DisposeAll` 不触发 HostRuntime Hook 或消息广播 |
+| `DisposeAll` 等同于逐个 `DestroyWorld` | `DisposeAll` 不触发 HostRuntime Hook 或消息广播，也没有逐世界 Dispose 异常隔离 |
 | 可以在世界 Tick 中随意创建/销毁世界 | 当前遍历没有快照和锁，创建/销毁应放在明确调度点 |
 | 默认工厂能直接创建业务世界 | 默认 fallback 会抛异常，项目需要注册真实工厂或 Blueprint |
+| Shooter 世界测试等于管理器契约已完整覆盖 | 当前只证明两条真实集成链路，底层校验、异常和释放顺序仍无独立断言 |
 
 ---
 
-## 12. 源码阅读路径
+## 13. 源码阅读路径
 
 1. `IWorldManager`：当前真实接口。
 2. `WorldManager.Create`：校验、工厂创建和 Initialize 顺序。
 3. `WorldManager.Tick`：多世界 Tick 的异常隔离。
-4. `WorldManager.Destroy` 与 `DisposeAll`：释放边界。
+4. `WorldManager.Destroy` 与 `DisposeAll`：释放边界和未隔离的 Dispose 异常。
 5. `HostRuntime.CreateWorld` 与 `DestroyWorld`：Host 对管理器的包装。
 6. `DefaultWorldFactory` 与 `WorldBlueprintWorldFactory`：Host Builder 如何注入世界创建策略。
-7. [Host 运行时](./01-HostRuntime.md) 与 [Host 模块系统](./02-HostModules.md)：完整 Host 层设计。
+7. `ShooterWorldModuleTests.cs`：真实 Blueprint、Host 与 Shooter 世界的集成证据。
+8. [Host 运行时](./01-HostRuntime.md) 与 [Host 模块系统](./02-HostModules.md)：完整 Host 层设计。
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-07-03*
+*文档版本：v2.1 | 最后更新：2026-08-02*

@@ -250,8 +250,8 @@ MOBA blueprint 在启用 EntitasContexts feature 时设置 [MobaEntitasContextsF
 ## 10. 关联文档
 
 - [ECS 核心概念](./01-ECSCoreConcepts.md) - Entity/Component/System 的统一抽象
-- [Svelto 实现](./03-SveltoImplementation.md) - Svelto 上下文与模块适配
-- [查询与遍历](./04-QueryAndTraversal.md) - Query、Group、Matcher 策略
+- [Svelto 实现](./04-SveltoImplementation.md) - Svelto 上下文与模块适配
+- [查询与遍历](./05-QueryAndTraversal.md) - Query、Group、Matcher 策略
 
 ---
 

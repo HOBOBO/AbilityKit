@@ -258,7 +258,18 @@ sequenceDiagram
 
 这部分让后台不只是“点按钮发请求”，而是能把 MOBA 技能链路、trace、验收产物和运行态事件组织成可分析的页面。
 
-## 9. 设计约束与治理边界
+## 9. 可执行验证与当前缺口
+
+| 验证 | 命令或入口 | 当前能证明什么 | 未覆盖边界 |
+|------|------------|----------------|------------|
+| 前端类型检查与构建 | 在 `Server/AdminConsole` 执行 `npm run build` | `vue-tsc --noEmit` 通过，Vite 能生成 Gateway 的 `wwwroot/admin` 静态产物 | 不验证浏览器交互、接口联调、权限和目标浏览器兼容性 |
+| Gateway 后台测试 | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj -c Release --filter FullyQualifiedName~GatewayAdminConsoleTests` | 前端工程结构、关键 API/组件源码、构建产物、Gateway 静态托管和后台 endpoint 约束 | 多数断言读取源码或产物文本，不是浏览器 DOM/E2E 测试 |
+| Gateway 全量测试 | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj -c Release` | 后台依赖的会话、房间、错误映射、部署配置及部分 Orleans TestingHost 链路 | 不启动 Vite dev server，也不执行人工操作流程 |
+| 人工联调 | 启动 Gateway 后访问 `/admin/`，或运行 `npm run dev` 连接 `ABILITYKIT_GATEWAY_URL` | 页面、代理、真实 API 和静态托管的组合行为 | 当前没有仓库内自动化报告证明本步骤已执行 |
+
+`Server/AdminConsole/package.json` 当前没有 `test`、`lint` 或浏览器 E2E script，也没有前端测试依赖。现阶段自动门禁以 TypeScript/Vite 构建和后端 xUnit 源码/产物契约为主；不能据此宣称后台已具备 UI 回归、可访问性、安全或跨浏览器认证。
+
+## 10. 设计约束与治理边界
 
 | 约束 | 源码边界 | 治理要求 |
 |------|----------|----------|
@@ -270,7 +281,7 @@ sequenceDiagram
 | UI 组件 | 页面和样式由 Admin Console 自研，未绑定第三方组件库 | 表格、图表、筛选器和权限控件复杂度超过本地组件能力后再局部引入组件库 |
 | 安全 | `/api/admin` 是后台路径边界，部署层鉴权仍需外部配置配合 | Gateway middleware、反向代理鉴权、CSRF、审计和速率限制构成正式安全边界 |
 
-## 10. 源码阅读路径
+## 11. 源码阅读路径
 
 1. `Server/AdminConsole/README.md`：开发、构建和 Gateway 托管关系。
 2. `Server/AdminConsole/vite.config.ts`：`/admin/` base、开发代理和构建输出位置。
@@ -279,7 +290,7 @@ sequenceDiagram
 5. `Server/AdminConsole/src/services/domainApi.ts` 与 `adminApiBoundaries.ts`：领域 API 分组和路径责任边界。
 6. `Server/Orleans/src/AbilityKit.Orleans.Gateway/HttpApi/GatewayHttpApi.cs` 的 `MapGatewayAdminEndpoints`：前端领域 API 到 Gateway 与 Orleans Grain 主链路的映射。
 
-## 11. 与其他服务端文档的关系
+## 12. 与其他服务端文档的关系
 
 | 文档 | 关系 |
 |------|------|

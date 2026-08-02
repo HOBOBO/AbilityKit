@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Threading.Channels;
 using AbilityKit.Orleans.Contracts.FrameSync;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
@@ -46,7 +47,11 @@ public sealed class GatewayFrameSyncSubscriptionManager
                 await RemoveSubscriptionAsync(connectionId, current).ConfigureAwait(false);
             }
 
-            var observer = new ConnectionFrameSyncObserver(connectionId, this);
+            var pushPump = new ConnectionFramePushPump(
+                connectionId,
+                _sessionRegistry,
+                _logger);
+            var observer = new ConnectionFrameSyncObserver(pushPump);
             var observerReference = _clusterClient.CreateObjectReference<IFrameSyncObserver>(observer);
             var grain = _clusterClient.GetGrain<IBattleFrameSyncGrain>(roomId.ToString());
             try
@@ -56,10 +61,12 @@ public sealed class GatewayFrameSyncSubscriptionManager
                     roomId,
                     grain,
                     observer,
-                    observerReference);
+                    observerReference,
+                    pushPump);
             }
             catch
             {
+                await pushPump.DisposeAsync().ConfigureAwait(false);
                 _clusterClient.DeleteObjectReference<IFrameSyncObserver>(observerReference);
                 throw;
             }
@@ -89,34 +96,6 @@ public sealed class GatewayFrameSyncSubscriptionManager
         });
     }
 
-    private void OnFramePushed(long connectionId, FramePushedEvent evt)
-    {
-        var payload = SerializeFrame(evt);
-        _backgroundTasks.TryQueue(async cancellationToken =>
-        {
-            if (!_sessionRegistry.TryGetSession(connectionId, out var session)
-                || session == null
-                || !session.IsConnected)
-            {
-                return;
-            }
-
-            if (evt.Inputs is { Count: > 0 })
-            {
-                _logger.LogInformation(
-                    "Sending authoritative input frame. ConnectionId={ConnectionId} RoomId={RoomId} WorldId={WorldId} Frame={Frame} InputCount={InputCount} PayloadBytes={PayloadBytes}",
-                    connectionId,
-                    evt.RoomId,
-                    evt.WorldId,
-                    evt.Frame,
-                    evt.Inputs.Count,
-                    payload.Length);
-            }
-
-            await session.SendServerPushAsync(OpCodes.FramePushed, payload, cancellationToken).ConfigureAwait(false);
-        });
-    }
-
     private async Task RemoveSubscriptionAsync(long connectionId, Subscription subscription)
     {
         _subscriptions.TryRemove(new KeyValuePair<long, Subscription>(connectionId, subscription));
@@ -135,6 +114,7 @@ public sealed class GatewayFrameSyncSubscriptionManager
         finally
         {
             _clusterClient.DeleteObjectReference<IFrameSyncObserver>(subscription.ObserverReference);
+            await subscription.PushPump.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -156,24 +136,136 @@ public sealed class GatewayFrameSyncSubscriptionManager
         ulong RoomId,
         IBattleFrameSyncGrain Grain,
         ConnectionFrameSyncObserver Observer,
-        IFrameSyncObserver ObserverReference);
+        IFrameSyncObserver ObserverReference,
+        ConnectionFramePushPump PushPump);
 
     private sealed class ConnectionFrameSyncObserver : IFrameSyncObserver
     {
-        private readonly long _connectionId;
-        private readonly GatewayFrameSyncSubscriptionManager _owner;
+        private readonly ConnectionFramePushPump _pushPump;
 
-        public ConnectionFrameSyncObserver(
-            long connectionId,
-            GatewayFrameSyncSubscriptionManager owner)
+        public ConnectionFrameSyncObserver(ConnectionFramePushPump pushPump)
         {
-            _connectionId = connectionId;
-            _owner = owner;
+            _pushPump = pushPump;
         }
 
         public void OnFramePushed(FramePushedEvent evt)
         {
-            _owner.OnFramePushed(_connectionId, evt);
+            _pushPump.TryEnqueue(evt);
+        }
+    }
+
+    private sealed class ConnectionFramePushPump : IAsyncDisposable
+    {
+        private const int ReorderWindowFrames = 8;
+
+        private readonly long _connectionId;
+        private readonly IGatewaySessionRegistry _sessionRegistry;
+        private readonly ILogger _logger;
+        private readonly Channel<FramePushedEvent> _queue;
+        private readonly CancellationTokenSource _lifetime = new();
+        private readonly Task _worker;
+
+        public ConnectionFramePushPump(
+            long connectionId,
+            IGatewaySessionRegistry sessionRegistry,
+            ILogger logger)
+        {
+            _connectionId = connectionId;
+            _sessionRegistry = sessionRegistry;
+            _logger = logger;
+            _queue = Channel.CreateUnbounded<FramePushedEvent>(new UnboundedChannelOptions
+            {
+                SingleReader = true,
+                SingleWriter = false
+            });
+            _worker = Task.Run(ProcessAsync);
+        }
+
+        public bool TryEnqueue(FramePushedEvent evt)
+        {
+            return evt != null && _queue.Writer.TryWrite(evt);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            _queue.Writer.TryComplete();
+            _lifetime.Cancel();
+            try
+            {
+                await _worker.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            finally
+            {
+                _lifetime.Dispose();
+            }
+        }
+
+        private async Task ProcessAsync()
+        {
+            var pending = new SortedDictionary<int, FramePushedEvent>();
+            var lastSentFrame = -1;
+            await foreach (var evt in _queue.Reader.ReadAllAsync(_lifetime.Token))
+            {
+                if (evt.Frame <= lastSentFrame) continue;
+                pending[evt.Frame] = evt;
+
+                while (pending.Count > 1)
+                {
+                    var first = pending.First();
+                    if (lastSentFrame >= 0 &&
+                        first.Key > lastSentFrame + 1 &&
+                        pending.Count <= ReorderWindowFrames)
+                    {
+                        break;
+                    }
+
+                    pending.Remove(first.Key);
+                    await SendAsync(first.Value, _lifetime.Token).ConfigureAwait(false);
+                    lastSentFrame = first.Key;
+                }
+            }
+        }
+
+        private async Task SendAsync(FramePushedEvent evt, CancellationToken cancellationToken)
+        {
+            if (!_sessionRegistry.TryGetSession(_connectionId, out var session)
+                || session == null
+                || !session.IsConnected)
+            {
+                return;
+            }
+
+            var payload = SerializeFrame(evt);
+            if (evt.Inputs is { Count: > 0 })
+            {
+                _logger.LogInformation(
+                    "Sending authoritative input frame. ConnectionId={ConnectionId} RoomId={RoomId} WorldId={WorldId} Frame={Frame} InputCount={InputCount} PayloadBytes={PayloadBytes}",
+                    _connectionId,
+                    evt.RoomId,
+                    evt.WorldId,
+                    evt.Frame,
+                    evt.Inputs.Count,
+                    payload.Length);
+            }
+
+            try
+            {
+                await session.SendServerPushAsync(OpCodes.FramePushed, payload, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+            {
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(
+                    exception,
+                    "Failed to send frame sync push. ConnectionId={ConnectionId} Frame={Frame}",
+                    _connectionId,
+                    evt.Frame);
+            }
         }
     }
 }

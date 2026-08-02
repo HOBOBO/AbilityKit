@@ -1,6 +1,7 @@
 using AbilityKit.Game.View.Flow;
 using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using AbilityKit.Ability.Flow;
 using AbilityKit.Core.Logging;
 
@@ -79,14 +80,62 @@ namespace AbilityKit.Game.Flow
 
         private void AttachFeatureCore(IGamePhaseFeature feature, in GamePhaseContext ctx)
         {
-            _callbacks.FeatureBinderAttach(feature);
             feature.OnAttach(ctx);
+            try
+            {
+                _callbacks.FeatureBinderAttach(feature);
+            }
+            catch (Exception attachException)
+            {
+                try
+                {
+                    feature.OnDetach(ctx);
+                }
+                catch (Exception rollbackException)
+                {
+                    throw new AggregateException(
+                        "Feature binder attach failed and feature rollback encountered an error.",
+                        attachException,
+                        rollbackException);
+                }
+
+                throw;
+            }
         }
 
         private void DetachFeatureCore(IGamePhaseFeature feature, in GamePhaseContext ctx)
         {
-            feature.OnDetach(ctx);
-            _callbacks.FeatureBinderDetach(feature);
+            Exception featureException = null;
+            try
+            {
+                feature.OnDetach(ctx);
+            }
+            catch (Exception exception)
+            {
+                featureException = exception;
+            }
+
+            try
+            {
+                _callbacks.FeatureBinderDetach(feature);
+            }
+            catch (Exception binderException)
+            {
+                if (featureException != null)
+                {
+                    throw new AggregateException(
+                        "Feature and binder detach both failed.",
+                        featureException,
+                        binderException);
+                }
+
+                throw;
+            }
+
+            if (featureException != null)
+            {
+                ExceptionDispatchInfo.Capture(featureException).Throw();
+            }
         }
 
         private void TickFeatureCore(IGamePhaseFeature feature, in GamePhaseContext ctx, float deltaTime)

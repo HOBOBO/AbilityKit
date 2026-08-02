@@ -284,20 +284,28 @@ snapshot emitter 只在 `InGame` 阶段工作，同一帧最多导出一次；�
 
 这种组合允许无伤害控制弹、命中加 Buff、穿透递减伤害等配置，但也要求任何新入口都完整传播 source context、reason 和 target。
 
-## 14. 验证清单
+## 14. 自动测试证据与补测边界
 
-当前目录检索未发现以 `MobaProjectile` 或 `DamagePipeline` 命名的直接专项测试，以下场景应作为补测优先级：
+测试覆盖分散在通用 Projectile 运行时、MOBA Smoke、Unity 单局验收、Trace 和 Editor 诊断中。判断覆盖时需要核对被测类型、调用和业务断言，不能只按测试类名或文件名检索。
 
-1. 直接 Shoot 的无效参数、方向回退、Actor spawn、link/source/retain 建立。
-2. 配置化 Launch 的毫秒转帧、持续次数、散射顺序和随机源确定性。
-3. sequence 创建或启动失败后 launcher 被请求回收。
-4. self、same-team、neutral、registry/collider 无法解析时的过滤结果。
-5. 命中只执行配置 effect/trigger，不隐式造成伤害。
-6. source context 从技能经 launcher/projectile 传递到 `ProjectileHitArgs`。
-7. standard damage stage 顺序、减伤、护盾和最终实际值。
-8. 过量伤害与过量治疗 clamp，零实际变化不产生事件。
-9. damage/heal snapshot 的 reason、HP、帧内批处理和 InGame 门禁。
-10. projectile exit 后 link、source、retain 与临时实体计数全部释放。
+| 证据层 | 当前直接证据 | 已覆盖行为 | 不能据此推断 |
+|--------|--------------|------------|----------------|
+| 通用 Projectile 运行时 | `DajiRectangularProjectileTests.RectangularSweep_ShouldHitOffsetTargetThatPointRayMisses`、`RectangularSweep_ShouldSkipIgnoredColliderAndHitTargetBehindIt`、`RectangularSweep_BlockerShouldExitPiercingProjectileWithoutHitEvent`、`ManualDespawn_ShouldQueueExitWithoutHitEvent`、`Rollback_ShouldRetainRectangularCollisionHalfExtents` | 矩形 sweep、Ignore/Block 响应、手动退出事件、ActiveCount 清理和碰撞几何回滚 | MOBA Actor spawn、launcher sequence、source/retain、配置转译和命中 Trigger |
+| MOBA Trace 单测 | `MobaTraceRegistrySmokeTests.Projectile_source_snapshot_survives_link_cleanup_while_trace_remains_until_purge` | link 清理后来源快照仍可用于 trace，trace 按独立保留策略清理 | 实际 projectile 退出是否同时释放 Actor、retain 与临时实体计数 |
+| Console 生命周期 Smoke | `MobaCompleteBattleLifecycleSmokeTests.ConsoleWorldCompletesDeathRespawnRedeathAndSettlement`，以及 `MobaSkillCastLifecycleSmokeTests` 中死亡相关用例 | 正式 World 可解析并调用 `DamagePipelineService`，致死结果可驱动死亡、复活和施法取消规则 | damage stage 顺序、减伤、护盾、clamp、heal 或 snapshot 的逐项正确性 |
+| Unity 单局 journey/英雄验收 | `DajiBattleJourney_ShouldCoverCombatDeathRespawnAndSettlement`、`Skill10050101_ShouldLaunchRectangularWaveAndDamageOffsetTarget`、`Skill10050201_ShouldAutoLockEnemyLaunchHomingCharmAndApplyControlOnHit`、`Skill10050301_ShouldLaunchExactlyFiveFoxfiresFromOneCast`、`Skill10040201_ShouldLaunchCannonAndSpawnEndpointCrater` | 具体配置可执行 ShootProjectile，产生 projectile spawn，推进运动，并在部分英雄路径中命中、伤害、控制或生成后续区域 | 任意 projectile 配置均正确，也不覆盖所有失败分支、阵营过滤、随机确定性或多人复制 |
+| Unity 配置契约 | `RangedBasicAttack_LoadoutAndConfigUseProjectileHitDamage` | 指定远程普攻的发射 Trigger 与 ProjectileHit GiveDamage 配置引用闭合 | 运行时一定发射、命中或扣血 |
+| Editor 诊断测试 | `MobaProjectileDiagnosticProducerTests`、`MobaProjectileHitDiagnosticProducerTests`、`MobaProjectileEndedDiagnosticProducerTests`、`MobaProjectileLinkServiceDiagnosticsTests`、`MobaHealAndDirectDamageDiagnosticProducerTests` | 诊断 draft 字段映射、collector 接入、sequence、channel 门禁和 link diagnostics 投影 | Projectile 或 Damage 运行时生命周期正确；这些测试不替代业务运行时测试 |
+
+当前仍应优先补以下专项测试：
+
+1. `MobaProjectileService.Shoot` 的无效参数、方向回退、Actor spawn，以及 link/source/retain 的原子建立和失败清理。
+2. 配置化 `Launch` 的毫秒转帧、持续次数、散射顺序、随机源确定性，以及 sequence 创建或启动失败后的 launcher 回收。
+3. `MobaTeamProjectileHitFilter` 对 self、same-team、neutral、registry 缺失和 collider 无法解析分支的直接断言。
+4. `MobaStageTriggerService` 对“命中只执行配置 effect/trigger，不隐式造成伤害”和 source context 进入 `ProjectileHitArgs` 的专项测试。
+5. `DamagePipelineService` 的 stage 顺序、减伤、护盾、最终实际值和事件时序；现有致死 Smoke 只证明一条组合路径可执行。
+6. damage/heal 的过量 clamp、零实际变化、reason、HP、帧内批处理与 `InGame` snapshot 门禁。
+7. projectile exit 后 Actor、link、source、retain 与临时实体计数的端到端清理。
 
 ## 15. 源码索引
 
@@ -313,3 +321,7 @@ snapshot emitter 只在 `InGame` 阶段工作，同一帧最多导出一次；�
 | HP 落地与 Heal | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/MobaDamageService.cs` |
 | 战斗效果门面 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/MobaCombatEffectService.cs` |
 | Damage/Heal 事件快照 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaDamageEventSnapshotService.cs` |
+
+---
+
+*文档版本：v1.1 | 状态：Projectile 与 Damage 实现及分层测试证据 | 最后更新：2026-08-02 | 验证基线：已核对 .NET、Unity EditMode 与 Editor 测试入口；本轮未重新执行测试*

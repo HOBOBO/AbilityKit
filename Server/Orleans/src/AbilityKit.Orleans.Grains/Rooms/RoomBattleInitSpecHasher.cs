@@ -62,6 +62,8 @@ internal static class RoomBattleInitSpecHasher
             AppendField(builder, prefix + ".PosX", player.PosX.ToString("R", CultureInfo.InvariantCulture));
             AppendField(builder, prefix + ".PosY", player.PosY.ToString("R", CultureInfo.InvariantCulture));
             AppendField(builder, prefix + ".PosZ", player.PosZ.ToString("R", CultureInfo.InvariantCulture));
+            AppendField(builder, prefix + ".HasSpawnPosition", player.HasSpawnPosition);
+            AppendField(builder, prefix + ".SpawnIndex", player.SpawnIndex);
             AppendField(builder, prefix + ".SkillIds", player.SkillIds is null
                 ? string.Empty
                 : string.Join(",", player.SkillIds.OrderBy(id => id).Select(id => id.ToString(CultureInfo.InvariantCulture))));

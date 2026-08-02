@@ -119,7 +119,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var position = actor.transform.Value.Position;
             delta = new Vec3(ActionInput.AimPosition.X - position.X, 0f, ActionInput.AimPosition.Z - position.Z);
-            return delta.SqrMagnitude > 0f;
+            return true;
         }
 
         public Vec3 ResolveDashOrBlinkDirection(int directionMode, int selfActorId)

@@ -128,7 +128,14 @@ namespace AbilityKit.Game.Flow
                 _presentationSink,
                 new FlowStateMachineBuilder.FlowStateMachineCallbacks
                 {
-                    OnRootStateEntered = state => _activeRoot = state,
+                    OnRootStateEntered = state =>
+                    {
+                        _activeRoot = state;
+                        if (state != MobaRootState.Battle)
+                        {
+                            _battleScopeManager.EndBattleScope();
+                        }
+                    },
                     OnBattleStateEntered = state => _log.Info($"[MobaFlowDomainCore] MobaBattleState.{state} entered"),
                     OnBattleStateChanged = state => _activeBattle = state,
                     EnterRootBindings = state => _featureScheduler.RootStateBindings.Enter(state, in _ctx),
@@ -212,6 +219,10 @@ namespace AbilityKit.Game.Flow
             catch (Exception ex)
             {
                 _log.Exception(ex, "[MobaFlowDomainCore] Feature shutdown failed");
+            }
+            finally
+            {
+                _battleScopeManager.EndBattleScope();
             }
         }
 

@@ -614,9 +614,9 @@ flowchart TB
 
 | 文档 | 关系 |
 |---|---|
-| [11-PlanActions DSL 与 Continuous Runtime 深潜](./11-PlanActionsAndContinuousRuntimeDeepDive.md) | 深入理解 PlanAction 如何驱动 Continuous Runtime |
-| [13-持续行为能力组合设计](./13-ContinuousCapabilityCompositionDesign.md) | 五种 runtime model 的能力组合边界 |
-| [16-领域连续运行时与临时实体生命周期](./16-DomainContinuousRuntimeAndTemporaryEntityLifecycle.md) | Motion source、Summon 与 Continuous 的生命周期协作 |
+| [11-PlanActions DSL 与 Continuous Runtime 深潜](../09-ImplementationExamples/MOBA/11-PlanActionsAndContinuousRuntimeDeepDive.md) | 深入理解 PlanAction 如何驱动 Continuous Runtime |
+| [13-持续行为能力组合设计](../09-ImplementationExamples/MOBA/13-ContinuousCapabilityCompositionDesign.md) | 五种 runtime model 的能力组合边界 |
+| [16-领域连续运行时与临时实体生命周期](../09-ImplementationExamples/MOBA/16-DomainContinuousRuntimeAndTemporaryEntityLifecycle.md) | Motion source、Summon 与 Continuous 的生命周期协作 |
 | [13-FrameworkCore/02-BehaviorTreeIntegrationDesign.md](../13-FrameworkCore/02-BehaviorTreeIntegrationDesign.md) | BehaviorRuntime 与 IContinuous 的集成 |
 
 ---

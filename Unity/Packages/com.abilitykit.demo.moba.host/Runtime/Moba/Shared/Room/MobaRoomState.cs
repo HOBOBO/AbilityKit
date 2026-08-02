@@ -216,7 +216,6 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
             }
 
             var loadouts = new List<MobaPlayerLoadout>(_players.Count);
-            var spawnIndex = 0;
             foreach (var kv in _players)
             {
                 var s = kv.Value;
@@ -228,7 +227,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
                     level: s.Level,
                     basicAttackSkillId: s.BasicAttackSkillId,
                     skillIds: s.SkillIds,
-                    spawnIndex: spawnIndex++));
+                    spawnIndex: Math.Max(0, s.SpawnPointId)));
             }
 
             var req = new EnterMobaGameReq(

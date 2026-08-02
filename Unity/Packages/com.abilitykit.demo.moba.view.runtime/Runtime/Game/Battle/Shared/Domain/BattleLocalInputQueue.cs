@@ -40,8 +40,10 @@ namespace AbilityKit.Game.Flow
 
         public void Flush()
         {
-            var arr = _buffer.Count == 0 ? Array.Empty<LocalPlayerInputEvent>() : _buffer.ToArray();
-            _queue.Enqueue(arr);
+            if (_buffer.Count > 0)
+            {
+                _queue.Enqueue(_buffer.ToArray());
+            }
             _buffer.Clear();
             _localFrame++;
         }

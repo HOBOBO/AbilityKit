@@ -34,7 +34,7 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
         return new MobaBattleRuntimeSession(battleId, _worldManager, _protocolMapper);
     }
 
-    private sealed class MobaBattleRuntimeSession : IBattleRuntimeSession
+    private sealed class MobaBattleRuntimeSession : IBattleRuntimeSession, IBattleRuntimeInputDiagnostics
     {
         private readonly string _battleId;
         private readonly ServerBattleWorldManager _worldManager;
@@ -47,6 +47,8 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
         private Dictionary<int, ActorProjectionData>? _lastProjectionData;
         private readonly Dictionary<uint, MobaBotState> _bots = new();
         private readonly Random _botRandom = new();
+
+        public string LastInputSubmitDiagnostic { get; private set; } = string.Empty;
 
         public MobaBattleRuntimeSession(string battleId, ServerBattleWorldManager worldManager, IOrleansBattleProtocolMapper protocolMapper)
         {
@@ -162,17 +164,22 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
         {
             if (inputs.Count == 0 || _runtimePort == null)
             {
+                LastInputSubmitDiagnostic = _runtimePort == null
+                    ? "MOBA runtime port is unavailable."
+                    : string.Empty;
                 return 0;
             }
 
             var commands = _protocolMapper.CreatePlayerInputCommands(frame, inputs);
             if (commands.Count == 0)
             {
+                LastInputSubmitDiagnostic = $"Protocol mapper produced no commands. frame={frame}, inputs={inputs.Count}.";
                 return 0;
             }
 
             var result = _runtimePort.Submit(new FrameIndex(frame), commands);
-            return result.Succeeded ? commands.Count : 0;
+            LastInputSubmitDiagnostic = result.Succeeded ? string.Empty : result.ToString();
+            return result.Succeeded ? result.CommandCount : 0;
         }
 
         public bool Tick(int frame, int tickRate, float deltaTime)

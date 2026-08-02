@@ -103,6 +103,26 @@ namespace AbilityKit.Combat.MotionSystem.Tests
         }
 
         [Test]
+        public void TrajectorySource_CanOverrideActorCollisionForVerticalMotion()
+        {
+            var trajectory = new LinearTrajectory3D(Vec3.Zero, Vec3.Up, 1f);
+            var source = new TrajectoryMotionSource(
+                trajectory,
+                collisionPolicy: MotionCollisionConstraints.Disabled,
+                hasCollisionPolicy: true);
+            var pipeline = new MotionPipeline();
+            var state = new MotionState(Vec3.Zero);
+            var output = new MotionOutput();
+            pipeline.AddSource(source);
+
+            pipeline.Tick(1, ref state, 0.5f, ref output);
+
+            Assert.That(output.HasDominantCollisionPolicy, Is.True);
+            Assert.That(output.DominantCollisionPolicy.Enable, Is.False);
+            Assert.That(state.Position.Y, Is.EqualTo(0.5f).Within(0.0001f));
+        }
+
+        [Test]
         public void PathFollower_CopiesInputPoints()
         {
             var points = new[] { Vec3.Zero, new Vec3(10f, 0f, 0f) };

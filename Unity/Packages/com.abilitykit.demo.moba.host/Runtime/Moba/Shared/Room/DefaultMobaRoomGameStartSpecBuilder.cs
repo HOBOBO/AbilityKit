@@ -16,7 +16,6 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
             }
 
             var slots = new List<MobaRoomPlayerSlot>(state.Players.Count);
-            var spawnFallback = 0;
             foreach (var kv in state.Players)
             {
                 var s = kv.Value;
@@ -30,10 +29,8 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
                     playerId: s.PlayerId,
                     teamId: s.TeamId,
                     heroId: s.HeroId,
-                    spawnPointId: s.SpawnPointId > 0 ? s.SpawnPointId : spawnFallback,
+                    spawnPointId: Math.Max(0, s.SpawnPointId),
                     overrides: in ov));
-
-                spawnFallback++;
             }
 
             spec = new MobaRoomGameStartSpec(

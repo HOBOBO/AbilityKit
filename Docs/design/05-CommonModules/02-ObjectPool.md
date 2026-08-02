@@ -36,6 +36,8 @@
 | `Unity/Packages/com.abilitykit.core/Runtime/Pooling/Config/PoolConfigModule.cs` | 字典式配置模块和 `PoolConfigBuilder` 构建器 |
 | `Unity/Packages/com.abilitykit.core/Runtime/Pooling/Config/PoolItemConfig.cs` | 单个池的 enabled、capacity、prewarm、trim、neverTrim 配置 |
 | `Unity/Packages/com.abilitykit.core/Runtime/Pooling/Config/PoolConfigRequest.cs` | 配置查询键：scopeName + elementType + PoolKey |
+| `src/AbilityKit.Core/AbilityKit.Core.csproj` | `.NET` 工程直接编译 package 的非 Unity Runtime 源码，可验证对象池在纯 `.NET` 目标中的编译闭合 |
+| `src/AbilityKit.Core.Tests/AbilityKit.Core.Tests.csproj` | 现有 xUnit 工程壳；当前目录没有测试源文件，不能作为对象池契约证据 |
 
 ---
 
@@ -484,11 +486,12 @@ manager 映射被移除不代表旧 weak-table release handle 被撤销。旧租
 
 | 证据 | 当前结论 |
 |------|----------|
+| `.NET` 编译 | `dotnet build src/AbilityKit.Core/AbilityKit.Core.csproj -c Release` 可验证 package 非 Unity Runtime 源码和对象池依赖在 `net10.0` 下编译闭合；不验证生命周期、并发或 Unity Player 条件编译行为 |
 | Flow、Pipeline、FrameSync rollback | 多个运行时直接用 Core 池复用流程节点、阶段执行器和回滚临时对象，证明池是共享生产基础设施 |
 | Combat 与 Demo | Targeting、Projectile、Motion、MOBA runtime、Shooter view 等存在直接池化调用，覆盖全局池、显式 `ObjectPool<T>` 和生命周期委托 |
 | `FoundationStarter.cs` | 提供 Core 对象池的可执行最小样例 |
 | `PoolConfigSample.cs` | 覆盖配置 module、override provider、snapshot/report 和命名 scope，可作为配置链样例证据 |
-| 独立测试 | 当前未找到以 Core `ObjectPool`、`PoolManager` 或 `PoolConfigCenter` 命名的独立契约测试；上层模块测试只能证明特定使用路径 |
+| 独立测试 | 仓库有 `src/AbilityKit.Core.Tests/AbilityKit.Core.Tests.csproj`，但目录没有任何测试源文件；当前没有 `ObjectPool`、`PoolManager` 或 `PoolConfigCenter` 契约测试，上层模块测试只能证明特定使用路径 |
 
 优先补测：生命周期顺序、回调异常后的统计/对象位置、Player 重复归还、`PooledObject<T>` 副本、并发 GetOrCreate/Remove/Register、scope 销毁后的旧 release handle、同 key 配置首次创建固化，以及 provider 异常与同优先级后注册覆盖。
 
@@ -513,4 +516,4 @@ manager 映射被移除不代表旧 weak-table release handle 被撤销。旧租
 
 ---
 
-*文档版本：v2.2 | 最后更新：2026-07-15*
+*文档版本：v2.3 | 最后更新：2026-08-02*

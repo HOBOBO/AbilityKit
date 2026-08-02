@@ -122,31 +122,39 @@ flowchart LR
 
 ## 7. 客户端同步控制器选择
 
-`ShooterClientSyncControllerFactory` 根据 `NetworkSyncModel` 创建控制器。
+`ShooterClientSyncControllerFactory` 根据 `NetworkSyncModel` 创建策略控制器。packed 与 pure-state 是载荷类型，不是工厂中的独立同步策略。
 
-| 模式 | 控制器方向 | 适用场景 |
+| 模式 | 当前控制器 | 适用场景 |
 |------|------------|----------|
-| PredictRollback | 本地预测 + 权威校正 | 操作响应优先 |
-| AuthoritativeInterpolation | 权威快照插值 | 状态一致性优先 |
-| BatchStateSync | 批量状态同步 | 多实体低频更新 |
-| MassBattleLodSync | 大规模 LOD 同步 | 大量实体、兴趣裁剪 |
-| HybridHeroPrediction | 主控英雄预测 + 其他实体插值 | MOBA/Shooter 混合体验 |
+| PredictRollback | `ShooterClientPredictRollbackSyncController` | 本地预测 + 权威校正，操作响应优先 |
+| AuthoritativeInterpolation | `ShooterClientAuthoritativeInterpolationSyncController` | 延迟播放权威状态，一致性优先 |
+| BatchStateSync | `ShooterClientAuthoritativeInterpolationSyncController` | 当前复用权威插值控制器，载荷可采用批量状态同步 |
+| MassBattleLodSync | `ShooterClientAuthoritativeInterpolationSyncController` | 当前复用权威插值控制器，实体范围由 pure-state 预算和兴趣裁剪决定 |
+| HybridHeroPrediction | `ShooterClientHybridHeroPredictionSyncController` | 主控英雄预测 + 其他实体插值 |
+
+BatchStateSync 与 MassBattleLodSync 已有独立同步模型和配置语义，但当前没有专属客户端控制器。后续若两者需要不同的调度、缓存或恢复协议，应通过工厂注册新的策略控制器，而不是把差异塞进 packed 载荷解析。
 
 ## 8. packed snapshot 应用流程
+
+策略控制器通过 `ShooterClientSnapshotApplyCoordinator` 提交 Gateway 快照。`ShooterFrameworkSnapshotPipeline` 将协议 payload 路由为 packed 或 pure-state 类型；packed stage 的应用上下文负责版本兼容、过期帧判定、runtime 导入和表现投影。
 
 ```mermaid
 sequenceDiagram
     participant Gateway as Gateway Push
-    participant Ctrl as ShooterPackedSnapshotSyncController
+    participant Coordinator as ShooterClientSnapshotApplyCoordinator
+    participant Pipeline as ShooterFrameworkSnapshotPipeline
     participant Runtime as ShooterBattleRuntimePort
     participant Presentation as ShooterPresentationFacade
 
-    Gateway->>Ctrl: ApplyGatewaySnapshot(snapshot)
-    Ctrl->>Ctrl: 检查 pure-state / stale frame
-    Ctrl->>Runtime: ImportPackedSnapshot(packed)
-    Runtime-->>Ctrl: success/fail
-    Ctrl->>Ctrl: 记录 LastAppliedFrame/Hash/Flags
-    Ctrl->>Presentation: ApplyInterpolatedGatewaySnapshot
+    Gateway->>Coordinator: ApplyGatewaySnapshot(snapshot)
+    Coordinator->>Pipeline: ApplyGatewaySnapshot(snapshot)
+    Pipeline->>Pipeline: 解码 payload 并路由 packed stage
+    Pipeline->>Pipeline: 检查协议版本与 stale frame
+    Pipeline->>Runtime: ImportPackedSnapshot(packed)
+    Runtime-->>Pipeline: success/fail
+    Pipeline->>Pipeline: 记录 LastAppliedFrame/Hash/Flags
+    Pipeline->>Presentation: ApplyInterpolatedGatewaySnapshot
+    Pipeline-->>Coordinator: ShooterSnapshotApplyResult
 ```
 
 ## 9. pure-state 应用流程
@@ -182,5 +190,6 @@ sequenceDiagram
 | 客户端 session | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientSession.cs` |
 | 输入协调 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Session/ShooterClientInputCoordinator.cs` |
 | 同步控制器工厂 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientSyncControllerFactory.cs` |
-| packed 控制器 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterPackedSnapshotSyncController.cs` |
-| pure-state 控制器 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterPureStateSnapshotSyncController.cs` |
+| 快照应用协调 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientSnapshotApplyCoordinator.cs` |
+| packed/pure-state 路由与应用管线 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterFrameworkSnapshotPipeline.cs` |
+| pure-state baseline/delta 控制器 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterPureStateSnapshotSyncController.cs` |

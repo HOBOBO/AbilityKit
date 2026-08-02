@@ -29,8 +29,22 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         public void EnsureContainers(global::ActorEntity entity)
         {
             if (entity == null) return;
-            EnsureAttributeGroup(entity);
-            EnsureResourceContainer(entity);
+            var group = EnsureAttributeGroup(entity);
+            var resources = EnsureResourceContainer(entity);
+
+            EnsureResourceIfMissing(
+                resources,
+                ResourceType.Hp,
+                MobaAttributeIds.MAX_HP,
+                group.GetValue(MobaAttributeIds.HP),
+                group.GetValue(MobaAttributeIds.MAX_HP));
+            EnsureResourceIfMissing(
+                resources,
+                ResourceType.Mana,
+                MobaAttributeIds.MAX_MANA,
+                group.GetValue(MobaAttributeIds.MANA),
+                group.GetValue(MobaAttributeIds.MAX_MANA));
+            EnsureResourceIfMissing(resources, ResourceType.Rage, default, 0f, 100f);
         }
 
         public void ApplyTemplate(global::ActorEntity entity, MO.BattleAttributeTemplateMO template)
@@ -201,6 +215,31 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             state.MaxAttribute = maxAttr;
             state.Current = current;
             state.LastMax = lastMax;
+        }
+
+        private static void EnsureResourceIfMissing(
+            ResourceContainer container,
+            ResourceType type,
+            AttributeId maxAttr,
+            float current,
+            float lastMax)
+        {
+            if (container.Map == null)
+            {
+                container.Map = new Dictionary<ResourceType, ResourceState>();
+            }
+
+            if (container.Map.TryGetValue(type, out var state) && state != null)
+            {
+                return;
+            }
+
+            container.Map[type] = new ResourceState
+            {
+                MaxAttribute = maxAttr,
+                Current = current,
+                LastMax = lastMax
+            };
         }
     }
 }

@@ -168,15 +168,27 @@ flowchart TB
     BattleSilo --> Contracts
 ```
 
-当前成熟度最高的是本地开发与 Smoke。Shared/Split 目前主要体现为配置模型和 route registry 边界，真实部署需要覆盖以下基础设施：
+当前成熟度最高的是本地开发与仓库内 Smoke。Shared/Split 目前主要体现为配置模型、启动脚本参数和 route registry 边界；`PreferredSiloRoles`、容量参数与逻辑 RouteGroup 不等于 Orleans 已按这些字段完成 placement。真实部署还需要覆盖：
 
 1. 外部存储 provider 和迁移策略。
 2. Silo membership 后端。
 3. Gateway 水平扩展和会话粘性策略。
-4. Room/Battle placement 策略。
+4. Room/Battle placement policy 及跨角色故障转移。
 5. 指标、追踪、告警和压测门禁。
 
-## 9. 设计约束
+## 9. 可执行验证与证据边界
+
+| 验证目标 | 入口 | 当前覆盖 | 证据边界 |
+|----------|------|----------|----------|
+| Hosting 配置契约 | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj -c Release` | `AbilityKitDeploymentOptionsTests`、`AbilityKitGrainRouteRegistryTests`、Gateway health report 等 | 验证默认值、逻辑分组和报告模型，不启动真实多角色集群 |
+| Grain 存储计划 | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/AbilityKit.Orleans.Grains.Tests.csproj -c Release` | provider plan、Session/Room 内存存储和生命周期相关契约 | 内存 fallback 不是外部数据库、迁移或高可用验证 |
+| 单进程自托管 | `powershell -File Server/Orleans/tools/run_moba_smoke.ps1 -Configuration Release`、`run_shooter_smoke.ps1` | Smoke 进程内装配本地 Silo 与 Gateway，经过 TCP 主链路 | 不覆盖独立 Host/Gateway 进程退出、跨节点网络或 placement |
+| Host/场景进程隔离 | `powershell -File Server/Orleans/tools/run_moba_multiprocess_smoke.ps1`、`run_shooter_multiprocess_smoke.ps1` | 独立 Silo 与场景进程、端口和启动时序；Shooter 还提供故障矩阵 profile | 仍是 localhost 验收，不包含外部 membership/storage 或跨机器认证 |
+| 部署脚本静态契约 | `GatewayAdminConsoleTests` 对 `start_abilitykit.ps1`、`start_orleans_silo.ps1`、launch profile 做源码断言 | 保护脚本参数和角色名称不被无意移除 | 静态文本断言不证明脚本已在目标生产环境成功部署 |
+
+仓库当前没有一条命令能够证明 Split 多角色生产拓扑已经闭合。发布说明应写明实际执行的 profile、进程拓扑和 artifact 路径，不能只记录“Orleans Smoke 通过”。
+
+## 10. 设计约束
 
 | 约束 | 说明 |
 |------|------|
@@ -186,7 +198,7 @@ flowchart TB
 | 部署角色先逻辑化 | 即使本地单 Silo，也按 Session/Room/Battle 分组理解 |
 | Smoke 使用同构链路 | Smoke 应尽量走真实 Gateway/Grain/Runtime，而不是绕开服务器主链路 |
 
-## 10. 演进边界
+## 11. 演进边界
 
 1. 将 deployment profile 与 Orleans placement policy 更紧密绑定。
 2. 为 Room/Battle 增加更明确的容量指标和健康诊断。

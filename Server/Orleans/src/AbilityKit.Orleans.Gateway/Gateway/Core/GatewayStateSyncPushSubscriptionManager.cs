@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Threading.Channels;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using Microsoft.Extensions.Logging;
@@ -47,7 +48,11 @@ public sealed class GatewayStateSyncPushSubscriptionManager
 
             var observerGrain = _clusterClient.GetGrain<IStateSyncObserverGrain>(observerKey);
             var bindingId = Guid.NewGuid().ToString("N");
-            var observer = new ConnectionStateSyncPushObserver(connectionId, this);
+            var pushPump = new ConnectionStateSyncPushPump(
+                connectionId,
+                _sessionRegistry,
+                _logger);
+            var observer = new ConnectionStateSyncPushObserver(pushPump);
             var observerReference = _clusterClient.CreateObjectReference<IStateSyncGatewayPushObserver>(observer);
             try
             {
@@ -57,10 +62,12 @@ public sealed class GatewayStateSyncPushSubscriptionManager
                     bindingId,
                     observerGrain,
                     observer,
-                    observerReference);
+                    observerReference,
+                    pushPump);
             }
             catch
             {
+                await pushPump.DisposeAsync().ConfigureAwait(false);
                 _clusterClient.DeleteObjectReference<IStateSyncGatewayPushObserver>(observerReference);
                 throw;
             }
@@ -90,21 +97,6 @@ public sealed class GatewayStateSyncPushSubscriptionManager
         });
     }
 
-    private void OnPush(long connectionId, uint opCode, byte[] payload)
-    {
-        _backgroundTasks.TryQueue(async cancellationToken =>
-        {
-            if (!_sessionRegistry.TryGetSession(connectionId, out var session)
-                || session == null
-                || !session.IsConnected)
-            {
-                return;
-            }
-
-            await session.SendServerPushAsync(opCode, payload, cancellationToken).ConfigureAwait(false);
-        });
-    }
-
     private async Task RemoveSubscriptionAsync(long connectionId, Subscription subscription)
     {
         _subscriptions.TryRemove(new KeyValuePair<long, Subscription>(connectionId, subscription));
@@ -125,6 +117,7 @@ public sealed class GatewayStateSyncPushSubscriptionManager
         finally
         {
             _clusterClient.DeleteObjectReference<IStateSyncGatewayPushObserver>(subscription.ObserverReference);
+            await subscription.PushPump.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -133,24 +126,104 @@ public sealed class GatewayStateSyncPushSubscriptionManager
         string BindingId,
         IStateSyncObserverGrain ObserverGrain,
         ConnectionStateSyncPushObserver Observer,
-        IStateSyncGatewayPushObserver ObserverReference);
+        IStateSyncGatewayPushObserver ObserverReference,
+        ConnectionStateSyncPushPump PushPump);
 
     private sealed class ConnectionStateSyncPushObserver : IStateSyncGatewayPushObserver
     {
-        private readonly long _connectionId;
-        private readonly GatewayStateSyncPushSubscriptionManager _owner;
+        private readonly ConnectionStateSyncPushPump _pushPump;
 
-        public ConnectionStateSyncPushObserver(
-            long connectionId,
-            GatewayStateSyncPushSubscriptionManager owner)
+        public ConnectionStateSyncPushObserver(ConnectionStateSyncPushPump pushPump)
         {
-            _connectionId = connectionId;
-            _owner = owner;
+            _pushPump = pushPump;
         }
 
         public void OnPush(uint opCode, byte[] payload)
         {
-            _owner.OnPush(_connectionId, opCode, payload);
+            _pushPump.TryEnqueue(opCode, payload);
         }
+    }
+
+    private sealed class ConnectionStateSyncPushPump : IAsyncDisposable
+    {
+        private readonly long _connectionId;
+        private readonly IGatewaySessionRegistry _sessionRegistry;
+        private readonly ILogger _logger;
+        private readonly Channel<PushItem> _queue;
+        private readonly CancellationTokenSource _lifetime = new();
+        private readonly Task _worker;
+
+        public ConnectionStateSyncPushPump(
+            long connectionId,
+            IGatewaySessionRegistry sessionRegistry,
+            ILogger logger)
+        {
+            _connectionId = connectionId;
+            _sessionRegistry = sessionRegistry;
+            _logger = logger;
+            _queue = Channel.CreateUnbounded<PushItem>(new UnboundedChannelOptions
+            {
+                SingleReader = true,
+                SingleWriter = false
+            });
+            _worker = Task.Run(ProcessAsync);
+        }
+
+        public bool TryEnqueue(uint opCode, byte[] payload)
+        {
+            return payload != null && _queue.Writer.TryWrite(new PushItem(opCode, payload));
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            _queue.Writer.TryComplete();
+            _lifetime.Cancel();
+            try
+            {
+                await _worker.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            finally
+            {
+                _lifetime.Dispose();
+            }
+        }
+
+        private async Task ProcessAsync()
+        {
+            await foreach (var item in _queue.Reader.ReadAllAsync(_lifetime.Token))
+            {
+                if (!_sessionRegistry.TryGetSession(_connectionId, out var session)
+                    || session == null
+                    || !session.IsConnected)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    await session.SendServerPushAsync(
+                        item.OpCode,
+                        item.Payload,
+                        _lifetime.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception exception)
+                {
+                    _logger.LogWarning(
+                        exception,
+                        "Failed to send state sync push. ConnectionId={ConnectionId} OpCode={OpCode}",
+                        _connectionId,
+                        item.OpCode);
+                }
+            }
+        }
+
+        private readonly record struct PushItem(uint OpCode, byte[] Payload);
     }
 }

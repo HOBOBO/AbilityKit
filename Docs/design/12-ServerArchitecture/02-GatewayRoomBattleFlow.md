@@ -21,7 +21,8 @@
 | 房间 Grain | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs` | Join/Ready/Command/BeginLoading/ReportAssetsLoaded/CancelLoading/Tick/LateJoin/Close |
 | 房间状态机 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomStateMachine.cs` | BeginLoading/ReportAssetsLoaded/CancelLoading/PrepareCommit/CommitBattleStarted/RollbackBattleCommit 纯函数转换 |
 | 房间生命周期 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomLifecyclePolicy.cs` | Lobby/Loading/Starting/InBattle/Closing/Closed/Expired |
-| 房间持久状态 | `Server/Orleans/src/AbilityKit.Orleans.Contracts/Rooms/RoomModels.cs` | RoomPersistentState、RoomLaunchPersistentState、RoomBattleCommitPersistentState、RoomPhase |
+| 房间线协议模型 | `Server/Orleans/src/AbilityKit.Orleans.Contracts/Rooms/RoomModels.cs` | RoomSummary、RoomSnapshot、RoomMemberState、RoomPhase 与请求/响应模型 |
+| 房间持久状态 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Persistence/RoomPersistentState.cs` | Grain 内部持久化成员、玩法状态、启动代次、Battle commit 与命令去重记录 |
 | 加载请求模型 | `Server/Orleans/src/AbilityKit.Orleans.Contracts/Rooms/RoomLoadingModels.cs` | BeginLoadingRequest、ReportAssetsLoadedRequest、CancelLoadingRequest |
 | InitSpec 哈希 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomBattleInitSpecHasher.cs` | BattleInitParams 稳定哈希计算 |
 | RoomStateChanged 推送 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomStatePushBuilder.cs` | 构建 RoomStateChanged push payload（Grains 内联映射，不依赖 Gateway mapper） |
@@ -299,12 +300,13 @@ ServerGameplayModuleCatalog 让 MOBA 和 Shooter 共享服务器主链路，但�
 
 ## 12. 验收路径
 
-| 验收 | 覆盖内容 |
-|------|----------|
-| Gateway tests | Handler 注册、错误映射、HTTP endpoint、Admin API 边界 |
-| Grains tests | Room lifecycle、Room to Battle、ServerGameplayModuleCatalog、State storage provider plan |
-| ShooterSmoke | Guest login、room launch、snapshot push、input submit、late join、reconnect、cleanup |
-| Replay validation | Smoke 记录与回放一致性 |
-| Mermaid/docs validation | 服务端设计文档中的流程图可解析 |
+| 验收 | 可执行入口 | 覆盖内容 | 粒度限制 |
+|------|------------|----------|----------|
+| Gateway tests | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj -c Release` | Handler 注册、错误映射、协议兼容、加载 Handler、TestingHost 房间成员集成、Admin API 边界 | 并非每个测试都经过 TCP；部分是 DTO、源码文本或纯映射断言 |
+| Grains tests | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/AbilityKit.Orleans.Grains.Tests.csproj -c Release` | Room 状态机、Battle commit、故障矩阵、玩法适配、同步状态和存储计划 | `RoomMultiplayerE2EFlowTests` 通过纯函数模拟完整流程，不是多进程 E2E |
+| Shooter Smoke tests | `dotnet test Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests/AbilityKit.Orleans.ShooterSmoke.Tests.csproj -c Release` | 重试策略、脚本契约、诊断 artifact、Replay summary 和 soak telemetry | 保护 Smoke harness 自身，不替代实际运行 Smoke |
+| MOBA 单/多进程 Smoke | `run_moba_smoke.ps1`、`run_moba_multiprocess_smoke.ps1` | 两客户端 TCP、房间启动、权威实体、状态恢复、可靠事件；多进程脚本隔离 Silo 与场景进程 | owner/member 仍是同一场景进程内两条连接 |
+| Shooter 单/多进程 Smoke | `run_shooter_smoke.ps1`、`run_shooter_multiprocess_smoke.ps1` | Guest login、room launch、snapshot、input、late join、reconnect、cleanup、Replay 与故障 profile | localhost 验收不等于跨机器生产集群 |
+| Mermaid/docs validation | 文档静态检查工具 | 服务端设计文档中的流程图可解析 | 不验证运行时行为 |
 
-服务端运行面的验收治理要求是：Smoke 输出、Gateway/Grain 测试和回放校验应进入同一组测试门禁，使服务器设计不只停留在接口描述层，而能被 CI 与验收报告持续验证。
+服务端运行面的验收治理要求是：Smoke 输出、Gateway/Grain/Smoke Harness 测试和回放校验进入同一组门禁，并在报告中记录实际 profile、拓扑与 artifact。单项构建成功或某个测试类名包含 `E2E`，都不能替代端到端运行证据。

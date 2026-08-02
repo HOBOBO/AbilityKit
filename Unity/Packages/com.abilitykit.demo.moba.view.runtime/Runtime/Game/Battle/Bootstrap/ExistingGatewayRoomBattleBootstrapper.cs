@@ -12,6 +12,7 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class ExistingGatewayRoomBattleBootstrapper :
         IBattleBootstrapper,
+        IFlowGateProvider,
         IMobaReliableBattleEventCheckpointStore
     {
         private readonly IBattleBootstrapper _inner;
@@ -49,6 +50,27 @@ namespace AbilityKit.Game.Flow
             _players = players;
         }
 
+        public bool IsAuthenticated => !string.IsNullOrWhiteSpace(_sessionToken);
+
+        public bool IsRoomReady =>
+            !string.IsNullOrWhiteSpace(_roomId) &&
+            !string.IsNullOrWhiteSpace(_battleId) &&
+            _numericRoomId != 0UL &&
+            _worldId != 0UL &&
+            _localPlayerId != 0u;
+
+        public bool IsConnectivityReady
+        {
+            get
+            {
+                var plan = _inner.Build();
+                return !string.IsNullOrWhiteSpace(ResolveGatewayHost(in plan)) &&
+                       ResolveGatewayPort(in plan) > 0;
+            }
+        }
+
+        public bool IsAssetsReady => _inner != null;
+
         public BattleStartPlan Build()
         {
             if (string.IsNullOrWhiteSpace(_sessionToken))
@@ -77,6 +99,8 @@ namespace AbilityKit.Game.Flow
             _checkpointStore?.TryLoad(_battleId, out checkpoint);
             var launchSpec = BuildAuthoritativeLaunchSpec(in plan.LaunchSpec);
             var createWorldPayload = launchSpec.ToCreateWorldInitPayload();
+            var gatewayHost = ResolveGatewayHost(in plan);
+            var gatewayPort = ResolveGatewayPort(in plan);
 
             return new BattleStartPlan(
                 worldId: _worldId.ToString(),
@@ -87,8 +111,8 @@ namespace AbilityKit.Game.Flow
                 inputDelayFrames: world.InputDelayFrames,
                 hostMode: BattleStartConfig.BattleHostMode.GatewayRemote,
                 useGatewayTransport: true,
-                gatewayHost: !string.IsNullOrWhiteSpace(_launchRequest?.Host) ? _launchRequest.Host : gateway.Host,
-                gatewayPort: _launchRequest != null && _launchRequest.Port > 0 ? _launchRequest.Port : gateway.Port,
+                gatewayHost: gatewayHost,
+                gatewayPort: gatewayPort,
                 numericRoomId: _numericRoomId,
                 gatewaySessionToken: _sessionToken,
                 gatewayRegion: !string.IsNullOrWhiteSpace(_launchRequest?.Region) ? _launchRequest.Region : gateway.Region,
@@ -125,6 +149,20 @@ namespace AbilityKit.Game.Flow
                 launchSpec: launchSpec,
                 gatewayBattleId: _battleId,
                 reliableEventCheckpoint: checkpoint);
+        }
+
+        private string ResolveGatewayHost(in BattleStartPlan plan)
+        {
+            return !string.IsNullOrWhiteSpace(_launchRequest?.Host)
+                ? _launchRequest.Host
+                : plan.Gateway.Host;
+        }
+
+        private int ResolveGatewayPort(in BattleStartPlan plan)
+        {
+            return _launchRequest != null && _launchRequest.Port > 0
+                ? _launchRequest.Port
+                : plan.Gateway.Port;
         }
 
         private MobaBattleLaunchSpec BuildAuthoritativeLaunchSpec(in MobaBattleLaunchSpec source)
@@ -180,13 +218,13 @@ namespace AbilityKit.Game.Flow
                     level: player.Level,
                     basicAttackSkillId: player.BasicAttackSkillId,
                     skillIds: CopySkillIds(player.SkillIds),
-                    spawnIndex: hasConfigured ? configured.SpawnIndex : i,
+                    spawnIndex: Math.Max(0, player.SpawnPointId),
                     unitSubType: configured.UnitSubType > 0 ? configured.UnitSubType : 1,
                     mainType: configured.MainType > 0 ? configured.MainType : 1,
-                    hasSpawnPosition: configured.HasSpawnPosition,
-                    spawnX: configured.SpawnX,
-                    spawnY: configured.SpawnY,
-                    spawnZ: configured.SpawnZ,
+                    hasSpawnPosition: 0,
+                    spawnX: 0f,
+                    spawnY: 0f,
+                    spawnZ: 0f,
                     brainId: configured.BrainId,
                     enableBrainOnSpawn: !hasConfigured || configured.EnableBrainOnSpawn);
             }

@@ -1,10 +1,11 @@
+using AbilityKit.Combat.MotionSystem.Constraints;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Core.Pooling;
 
 namespace AbilityKit.Combat.MotionSystem.Trajectory
 {
-    public sealed class TrajectoryMotionSource : IMotionSource, IMotionFinishEventSource, IMotionSnapshotSource
+    public sealed class TrajectoryMotionSource : IMotionSource, IMotionFinishEventSource, IMotionSnapshotSource, IMotionCollisionPolicySource
     {
         private static readonly ObjectPool<TrajectoryMotionSource> Pool = Pools.GetPool(
             createFunc: () => new TrajectoryMotionSource(),
@@ -19,21 +20,35 @@ namespace AbilityKit.Combat.MotionSystem.Trajectory
         private MotionStacking _stacking;
         private float _time;
         private bool _active;
+        private MotionCollisionConstraints _collisionPolicy;
+        private bool _hasCollisionPolicy;
 
         private TrajectoryMotionSource()
         {
             Reset();
         }
 
-        public TrajectoryMotionSource(ITrajectory3D trajectory, int priority = 10, int groupId = MotionGroups.Ability, MotionStacking stacking = MotionStacking.ExclusiveHighestPriority)
+        public TrajectoryMotionSource(
+            ITrajectory3D trajectory,
+            int priority = 10,
+            int groupId = MotionGroups.Ability,
+            MotionStacking stacking = MotionStacking.ExclusiveHighestPriority,
+            MotionCollisionConstraints collisionPolicy = default,
+            bool hasCollisionPolicy = false)
         {
-            Configure(trajectory, priority, groupId, stacking);
+            Configure(trajectory, priority, groupId, stacking, collisionPolicy, hasCollisionPolicy);
         }
 
-        public static TrajectoryMotionSource Rent(ITrajectory3D trajectory, int priority = 10, int groupId = MotionGroups.Ability, MotionStacking stacking = MotionStacking.ExclusiveHighestPriority)
+        public static TrajectoryMotionSource Rent(
+            ITrajectory3D trajectory,
+            int priority = 10,
+            int groupId = MotionGroups.Ability,
+            MotionStacking stacking = MotionStacking.ExclusiveHighestPriority,
+            MotionCollisionConstraints collisionPolicy = default,
+            bool hasCollisionPolicy = false)
         {
             var source = Pool.Get();
-            source.Configure(trajectory, priority, groupId, stacking);
+            source.Configure(trajectory, priority, groupId, stacking, collisionPolicy, hasCollisionPolicy);
             return source;
         }
 
@@ -43,7 +58,13 @@ namespace AbilityKit.Combat.MotionSystem.Trajectory
             Pool.Release(source);
         }
 
-        public void Configure(ITrajectory3D trajectory, int priority = 10, int groupId = MotionGroups.Ability, MotionStacking stacking = MotionStacking.ExclusiveHighestPriority)
+        public void Configure(
+            ITrajectory3D trajectory,
+            int priority = 10,
+            int groupId = MotionGroups.Ability,
+            MotionStacking stacking = MotionStacking.ExclusiveHighestPriority,
+            MotionCollisionConstraints collisionPolicy = default,
+            bool hasCollisionPolicy = false)
         {
             _trajectory = trajectory;
             _priority = priority;
@@ -51,6 +72,8 @@ namespace AbilityKit.Combat.MotionSystem.Trajectory
             _stacking = stacking;
             _time = 0f;
             _active = trajectory != null && trajectory.Duration > 0f;
+            _collisionPolicy = collisionPolicy;
+            _hasCollisionPolicy = hasCollisionPolicy;
         }
 
         public void Reset()
@@ -61,6 +84,8 @@ namespace AbilityKit.Combat.MotionSystem.Trajectory
             _stacking = MotionStacking.ExclusiveHighestPriority;
             _time = 0f;
             _active = false;
+            _collisionPolicy = default;
+            _hasCollisionPolicy = false;
         }
 
         public int GroupId => _groupId;
@@ -71,6 +96,8 @@ namespace AbilityKit.Combat.MotionSystem.Trajectory
 
         public int Priority => _priority;
         public bool IsActive => _active;
+        public bool HasCollisionPolicy => _hasCollisionPolicy;
+        public MotionCollisionConstraints CollisionPolicy => _collisionPolicy;
 
         public float Time => _time;
 

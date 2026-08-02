@@ -53,7 +53,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                     var e = kv.Value;
                     if (e == null) continue;
                     if (!e.hasTransform) continue;
-                    entries.Add(new MobaActorTransformRollbackEntry(actorId, e.transform.Value));
+                    entries.Add(CreateEntry(actorId, e));
                 }
 
                 entries.Sort((a, b) => a.ActorId.CompareTo(b.ActorId));
@@ -83,12 +83,12 @@ namespace AbilityKit.Demo.Moba.Rollback
                     var e = kv.Value;
                     if (e == null) continue;
                     if (!e.hasTransform) continue;
-                    entries.Add(new MobaActorTransformRollbackEntry(actorId, e.transform.Value));
+                    entries.Add(CreateEntry(actorId, e));
                 }
 
                 entries.Sort((a, b) => a.ActorId.CompareTo(b.ActorId));
                 var payloadEntries = entries.Count == 0 ? Array.Empty<MobaActorTransformRollbackEntry>() : entries.ToArray();
-                return MemoryPackSerializer.Serialize(new MobaActorTransformRollbackPayload(1, payloadEntries));
+                return MemoryPackSerializer.Serialize(new MobaActorTransformRollbackPayload(2, payloadEntries));
             }
             finally
             {
@@ -110,11 +110,47 @@ namespace AbilityKit.Demo.Moba.Rollback
                 {
                     e.ReplaceTransform(it.Transform);
                     SyncMotionState(e, it.Transform);
+                    if (p.Version >= 2)
+                    {
+                        SyncMoveInput(e, in it);
+                    }
                 }
             }
         }
 
-        private static void SyncMotionState(global::ActorEntity e, in Transform3 transform)
+        private static MobaActorTransformRollbackEntry CreateEntry(int actorId, global::ActorEntity entity)
+        {
+            var hasMoveInput = entity.hasMoveInput;
+            return new MobaActorTransformRollbackEntry(
+                actorId,
+                entity.transform.Value,
+                hasMoveInput,
+                hasMoveInput ? entity.moveInput.Dx : 0f,
+                hasMoveInput ? entity.moveInput.Dz : 0f);
+        }
+
+        private static void SyncMoveInput(
+            global::ActorEntity entity,
+            in MobaActorTransformRollbackEntry entry)
+        {
+            if (entry.HasMoveInput)
+            {
+                if (entity.hasMoveInput)
+                {
+                    entity.ReplaceMoveInput(entry.MoveDx, entry.MoveDz);
+                }
+                else
+                {
+                    entity.AddMoveInput(entry.MoveDx, entry.MoveDz);
+                }
+            }
+            else if (entity.hasMoveInput)
+            {
+                entity.RemoveMoveInput();
+            }
+        }
+
+        internal static void SyncMotionState(global::ActorEntity e, in Transform3 transform)
         {
             if (e == null || !e.hasMotion) return;
 
@@ -165,11 +201,27 @@ namespace AbilityKit.Demo.Moba.Rollback
     {
         [MemoryPackOrder(0)] public readonly int ActorId;
         [MemoryPackOrder(1)] public readonly Transform3 Transform;
+        [MemoryPackOrder(2)] public readonly bool HasMoveInput;
+        [MemoryPackOrder(3)] public readonly float MoveDx;
+        [MemoryPackOrder(4)] public readonly float MoveDz;
 
-        public MobaActorTransformRollbackEntry(int actorId, Transform3 transform)
+        public MobaActorTransformRollbackEntry(
+            int actorId,
+            Transform3 transform,
+            bool hasMoveInput,
+            float moveDx,
+            float moveDz)
         {
             ActorId = actorId;
             Transform = transform;
+            HasMoveInput = hasMoveInput;
+            MoveDx = moveDx;
+            MoveDz = moveDz;
+        }
+
+        public MobaActorTransformRollbackEntry(int actorId, Transform3 transform)
+            : this(actorId, transform, false, 0f, 0f)
+        {
         }
     }
 }

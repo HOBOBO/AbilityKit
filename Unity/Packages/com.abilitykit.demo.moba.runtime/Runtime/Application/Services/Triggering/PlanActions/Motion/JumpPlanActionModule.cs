@@ -1,4 +1,5 @@
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Combat.MotionSystem.Constraints;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Combat.MotionSystem.Trajectory;
 using AbilityKit.Core.Logging;
@@ -56,7 +57,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var duration = args.DurationMs / 1000f;
             var group = MobaMotionGroupConfigResolver.Resolve(ctx.Context, args.MotionGroupId, MotionGroups.Ability, args.Priority, 10);
             var trajectory = new JumpTrajectory(args.Height, duration);
-            var source = new TrajectoryMotionSource(trajectory, group.Priority, group.GroupId, group.Stacking);
+            var source = new TrajectoryMotionSource(
+                trajectory,
+                group.Priority,
+                group.GroupId,
+                group.Stacking,
+                MotionCollisionConstraints.Disabled,
+                hasCollisionPolicy: true);
             var landingRuntime = default(MobaMotionLandingTriggerRuntime);
 
             if (args.LandingTriggerIds != null && args.LandingTriggerIds.Count > 0)

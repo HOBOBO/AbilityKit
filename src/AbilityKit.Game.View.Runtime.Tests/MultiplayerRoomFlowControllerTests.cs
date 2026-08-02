@@ -647,9 +647,17 @@ namespace AbilityKit.Game.View.Runtime.Tests
                 return Task.FromResult(CreatedRoomId);
             }
 
-            public Task JoinRoomAsync(MultiplayerRoomLaunchSpec spec, string roomId, CancellationToken cancellationToken)
+            public Task<MultiplayerRoomJoinResult> JoinRoomAsync(
+                MultiplayerRoomLaunchSpec spec,
+                string roomId,
+                CancellationToken cancellationToken)
             {
                 if (JoinRoomException != null) throw JoinRoomException;
+                return Task.FromResult(new MultiplayerRoomJoinResult(roomId, 42UL, 9u));
+            }
+
+            public Task LeaveRoomAsync(string roomId, CancellationToken cancellationToken)
+            {
                 return Task.CompletedTask;
             }
 

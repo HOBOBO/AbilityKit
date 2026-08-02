@@ -119,8 +119,9 @@ flowchart TB
 6. [帧同步机制](07-NetworkSynchronization/01-FrameSync.md)
 7. [状态同步](07-NetworkSynchronization/02-StateSync.md)
 8. [回滚预测](07-NetworkSynchronization/03-RollbackPrediction.md)
-9. [回放系统](07-NetworkSynchronization/04-ReplaySystem.md)
-10. [会话协调](07-NetworkSynchronization/05-SessionCoordination.md)
+9. [预测与表现重整](07-NetworkSynchronization/03.1-PredictionReconciliationDesign.md)
+10. [回放系统](07-NetworkSynchronization/04-ReplaySystem.md)
+11. [会话协调](07-NetworkSynchronization/05-SessionCoordination.md)
 
 ---
 
@@ -193,8 +194,8 @@ flowchart TB
 | [01-ECS 核心概念](06-ECSArchitecture/01-ECSCoreConcepts.md) | ECS 模型 | EntityWorld、IECWorld、IEntity、IEntityId、ComponentRegistry、EntityQuery、组件索引、父子层级与世界事件 |
 | [02-Entitas 实现](06-ECSArchitecture/02-EntitasImplementation.md) | Entitas 适配 | 构造期 contexts 所有权、模块治理、自动安装排序、Reactive 解绑、MOBA generated contexts 与失败回滚缺口 |
 | [03-查询与遍历源码深潜](06-ECSArchitecture/03-QueryAndIteration.md) | 查询深潜 | EntityWorld.Query、QueryImpl、组件索引、snapshot、存活版本校验、Entitas/Svelto 查询差异 |
-| [04-Svelto 实现](06-ECSArchitecture/03-SveltoImplementation.md) | Svelto 适配 | World.DI 注册与替换边界、EntitiesDB 来源、Shooter 实体布局和结构批处理、稳定快照/hash 与集成测试证据 |
-| [05-查询与遍历总览](06-ECSArchitecture/04-QueryAndTraversal.md) | 查询总览 | EntityQuery 候选索引/实时状态/分配边界、Entitas Group 二级索引、Svelto 结构修改与确定性策略 |
+| [04-Svelto 实现](06-ECSArchitecture/04-SveltoImplementation.md) | Svelto 适配 | World.DI 注册与替换边界、EntitiesDB 来源、Shooter 实体布局和结构批处理、稳定快照/hash 与集成测试证据 |
+| [05-查询与遍历总览](06-ECSArchitecture/05-QueryAndTraversal.md) | 查询总览 | EntityQuery 候选索引/实时状态/分配边界、Entitas Group 二级索引、Svelto 结构修改与确定性策略 |
 
 ### 07 网络同步
 
@@ -204,8 +205,10 @@ flowchart TB
 | [01-帧同步机制](07-NetworkSynchronization/01-FrameSync.md) | 帧同步 | FrameIndex、PlayerInputCommand、IWorldInputSink、FrameSyncDriverModule、FramePacket、FramePacketNetAdapter、ServerFrameTimeModule 与 Orleans BattleFrameSyncGrain |
 | [02-状态同步](07-NetworkSynchronization/02-StateSync.md) | 状态同步 | WorldStateSnapshot、SnapshotBuffer、PredictionCoordinator、快照打包、Shooter packed/pure-state 同步 |
 | [03-回滚预测](07-NetworkSynchronization/03-RollbackPrediction.md) | 预测回滚 | IRollbackStateProvider、RollbackCoordinator、环形快照、客户端预测、哈希对账与 Host 回滚重演 |
+| [03.1-预测与表现重整](07-NetworkSynchronization/03.1-PredictionReconciliationDesign.md) | 预测表现 | 客户端预测分级、逻辑对账、视图重绑、插值失效、Cue 去重与恢复失败边界 |
 | [04-回放系统](07-NetworkSynchronization/04-ReplaySystem.md) | 回放记录 | RecordContainer、RecordSession、FrameRecordFile、BasicReplayController、Console akrec 录制与回放格式 |
 | [05-会话协调](07-NetworkSynchronization/05-SessionCoordination.md) | 会话协调 | SessionCoordinator、ExistingWorldSessionCoordinatorHost、RemoteSyncAdapter、RoomGatewaySessionFlow、RoomGrain、BattleLogicHostGrain 与端侧帧包适配 |
+| [06-FrameRecord 编码与 Smoke 证据链](07-NetworkSynchronization/06-FrameRecordCodecAndSmokeEvidence.md) | 编码与运行证据 | FrameRecord codec 身份、基础/优化格式边界、StateHash 版本、Smoke 录制回放、artifact manifest 与差异验证 |
 
 ### 08 玩法模块
 
@@ -223,6 +226,7 @@ flowchart TB
 | [09-EntityManager 与 SkillLibrary 索引基础设施](08-GameplayModules/09-EntityAndSkillIndexing.md) | 战斗索引 | 实体显式键、技能派生键、主存储通知顺序、非事务一致性、比较器边界与成熟度证据 |
 | [10-Motion Pipeline 与约束求解](08-GameplayModules/10-MotionPipeline.md) | 移动组合内核 | source 组内选择、跨组抑制、solver/leash/collision、事件时序、source 快照、池化所有权与确定性边界 |
 | [11-Continuous 框架接口设计](08-GameplayModules/11-ContinuousFrameworkDesign.md) | Continuous 接口设计 | IContinuous、IContinuousManager、最小配置+可选扩展、Stack/Periodic/Cue/Tag/Modifier 五种运行时模型、与 Triggering/Behavior/Buff 的协作边界 |
+| [12-GameplayTags 层级语义与工程边界](08-GameplayModules/12-GameplayTagsHierarchyAndEngineeringBoundaries.md) | 标签目录与状态契约 | 层级匹配方向、显式集合、Query/Requirements、Owner 来源引用、编辑器生产链、持久化同步身份与测试门禁 |
 
 ### 09 示例与验收
 
@@ -238,7 +242,7 @@ flowchart TB
 | [03.5-MOBA 快照、表现层与预测回滚](09-ImplementationExamples/MOBA/04-SnapshotPresentationPrediction.md) | 同步表现 | Emitter/Router 输出契约、同名 Dispatcher 边界、双路 decoder/Pipeline、远程驱动、预测回滚与表现去重 |
 | [03.6-MOBA 技能执行深潜](09-ImplementationExamples/MOBA/05-SkillExecutionDeepDive.md) | 技能执行 | 权威输入门禁、Press/Hold/Release/Cancel、释放准备、策略/runner、冷却、结构化失败与回放约束 |
 | [03.7-MOBA 配置、实体索引与生成深潜](09-ImplementationExamples/MOBA/06-ConfigEntitySpawnDeepDive.md) | 生成链路 | 配置加载/reload 约束、Actor 生成顺序与非事务边界、多维实体索引及 Pre/PostExecute 调和 |
-| [03.8-MOBA Buff 生命周期深潜](09-ImplementationExamples/MOBA/07-BuffLifecycleDeepDive.md) | Buff 深潜 | 即时/队列命令、生命周期执行器、实例标识、持续运行时调和、拒绝诊断、重入与清理边界 |
+| [03.8-MOBA Buff 命令执行与生命周期收敛深潜](09-ImplementationExamples/MOBA/07-BuffLifecycleDeepDive.md) | Buff 执行深潜 | Immediate 入队语义、命令预算与重入、生命周期拒绝、结束顺序、持续运行时调和及专项测试缺口 |
 | [03.9-MOBA Projectile 与 Damage 深潜](09-ImplementationExamples/MOBA/08-ProjectileDamageDeepDive.md) | Projectile 深潜 | Shoot/Launch 双入口、Launcher 与 Projectile 身份、命中过滤、Trigger/Effect 转译、Damage Pipeline、HP 应用与事件快照 |
 | [03.10-MOBA Trace、Context 与 Effect 执行深潜](09-ImplementationExamples/MOBA/09-TraceContextEffectDeepDive.md) | Trace 与上下文 | TraceTreeRegistry、MobaTraceRegistry、LineageInput、CombatExecutionContext、EffectInvoker 与验收 trace |
 | [03.11-MOBA Trigger、Validation 与 Presentation Cue 深潜](09-ImplementationExamples/MOBA/10-TriggerValidationPresentationDeepDive.md) | Trigger 与表现 | TriggerExecutionGateway、Owner-bound Subscription、RuntimeValidation、StageTrigger、PresentationCue |
@@ -251,7 +255,7 @@ flowchart TB
 | [03.18-MOBA 主动、被动、Buff、Projectile 与 AOE 触发效果设计](09-ImplementationExamples/MOBA/17-ActivePassiveBuffProjectileAoeTriggerEffects.md) | 触发效果链路 | 主动技能、被动 owner-bound、Buff 生命周期、Projectile stage、AOE stage 到 TriggerPlan 与领域服务的完整链路 |
 | [03.19-MOBA 技能 Flow 与 Pipeline 配置设计](09-ImplementationExamples/MOBA/18-SkillFlowPipelineConfigDesign.md) | 技能 Flow 配置 | skills.json、skill_flows.json、Phase Type、Timeline、RulePlan、Sequence、WaitUntil 与 Pipeline 持续标签模板 |
 | [03.20-MOBA Runtime 战斗逻辑层深潜](09-ImplementationExamples/MOBA/19-MobaRuntimeLogicLayerDeepDive.md) | 战斗逻辑层设计 | 职责边界、输入→ECS Component 链路、快照路由、System/Service 分工、DI 注册体系与单元测试 |
-| [03.21-MOBA Runtime 战斗逻辑层实战指南](../../../AbilityKit战斗逻辑层设计草稿.md) | 实战指南（与 19 号互补） | 框架能力组合全景图、6 种扩展模式（0 代码到 50 行代码）、11 个实战反模式 + 修复路径、7 步上手流程 + 接入里程碑 |
+| [03.21-MOBA Runtime 战斗逻辑层实战指南](../../local/Docs/AbilityKit战斗逻辑层设计草稿.md) | 实战指南（与 19 号互补） | 框架能力组合全景图、6 种扩展模式（0 代码到 50 行代码）、11 个实战反模式 + 修复路径、7 步上手流程 + 接入里程碑 |
 | [03.22-Console Demo Bootstrap 与 FeatureHost 装配链路深潜](09-ImplementationExamples/MOBA/20-ConsoleDemoBootstrapAndFeatureDeepDive.md) | Console Demo 装配 | ConsoleBattleBootstrapper 完整初始化顺序、FeatureHost attach/tick/detach 生命周期、三种 SyncAdapter 边界、AutoTestInputFeature 替换链路、.akrec 录制回放格式 |
 | [04-Shooter Demo 与 Orleans Smoke](09-ImplementationExamples/04-Shooter%20Demo%20与%20Orleans%20Smoke.md) | Shooter 总览 | Shooter Runtime/Svelto、packed/pure-state snapshot、客户端同步控制器、Unity PlayMode 远程宿主、连接恢复、Gateway/Orleans 与 Smoke/replay 验收 |
 | [04.1-Shooter 专题总览](09-ImplementationExamples/Shooter/00-Overview.md) | Shooter 导航 | Shooter 示例拆分阅读入口 |
@@ -279,12 +283,16 @@ flowchart TB
 | [03-MOBA 与 Shooter 示例工业化流程](10-EngineeringQuality/03-MobaShooterIndustrializationFlow.md) | 示例工业化 | MOBA/Shooter 单元测试、Console/Orleans smoke、DSL/配置环境测试、trace/replay artifact 与 CI 分层放大路径 |
 | [04-公司级采用与模块治理规范](10-EngineeringQuality/04-CompanyAdoptionAndModuleGovernance.md) | 采用治理 | 资产分类、成熟度、准入证据、所有权、版本、试点、升级、回滚、弃用与能力声明规则 |
 | [05-跨模块性能与热路径治理](10-EngineeringQuality/05-CrossModulePerformanceAndHotPathGovernance.md) | 性能治理 | 热路径分类、测量环境、指标、artifact、基线、预算、噪声控制与门禁晋升规则 |
+| [06-Beta 稳定化与发布检查清单](10-EngineeringQuality/06-BetaStabilizationAndReleaseChecklist.md) | 发布门禁 | Beta 范围、阻断级缺陷、兼容性、性能、运行证据、回滚准备与发布签核清单 |
+| [07-Analysis Artifact 与运行证据](10-EngineeringQuality/07-AnalysisArtifactAndRuntimeEvidence.md) | 分析产物契约 | artifact 身份、schema 与完整性、运行元数据、证据分级、发布门禁、保留策略和隐私边界 |
+| [08-AI 模型产物运行时策略](10-EngineeringQuality/08-AiModelArtifactRuntimePolicy.md) | 模型发布策略 | 训练产物、metadata/hash、候选验证、原子发布、加载失败策略、推理回退、观测与版本治理 |
 
 ### 11 文档工程计划
 
 | 文档 | 定位 | 说明 |
 |------|------|------|
 | [01-文档治理路线图](11-DocumentationCompletionPlan.md) | 文档治理 | 文档覆盖范围、源码验证重点、专题优先级、测试/CI 文档边界和验收顺序 |
+| [02-飞书离线导出与同步指南](FeishuOfflineExportGuide.md) | 文档发布工具 | Markdown/Mermaid 导出、飞书 Board 转换、增量同步、权限、检查点和失败恢复流程 |
 
 ### 12 服务端架构
 
@@ -294,6 +302,17 @@ flowchart TB
 | [01-Orleans 运行时与部署设计](12-ServerArchitecture/01-OrleansRuntimeAndDeployment.md) | 运行时部署 | Host/Gateway 进程拓扑、Local Silo/Client 装配、部署角色、运行 profile、存储策略和生产化演进边界 |
 | [02-Gateway、Room 与 Battle 主链路设计](12-ServerArchitecture/02-GatewayRoomBattleFlow.md) | 主链路设计 | GatewayRequestRouter、RoomDirectoryGrain、RoomGrain、RoomFrameSyncRoute、BattleLogicHostGrain 和 ServerGameplayModuleCatalog 的主流程 |
 | [03-Web 后台：Admin Console 技术选型与职责边界](12-ServerArchitecture/03-WebAdminConsoleDesign.md) | 后台控制面 | Vite + Vue 3 + TypeScript 后台工程、Hash Router、组合式状态、/api/admin 聚合门面、Gateway 静态托管与运维诊断边界 |
+
+### 13 FrameworkCore
+
+| 文档 | 定位 | 说明 |
+|------|------|------|
+| [01-碰撞系统设计](13-FrameworkCore/01-CollisionSystemDesign.md) | 碰撞基础设施 | Broadphase 接口、Grid/Dynamic AABB Tree、Job 友好数据布局、帧同步兼容与实现计划 |
+| [02-行为树集成设计](13-FrameworkCore/02-BehaviorTreeIntegrationDesign.md) | 行为系统桥接 | 自研 Behavior 与 BTree 的决策、结果事件、黑板同步、外部节点工厂和集成边界 |
+| [03-Trace 生命周期与导出协议](13-FrameworkCore/03-TraceLifecycleAndExportProtocol.md) | 可观测生命周期 | Trace scope 所有权、retain/release、树结构、快照、导出协议、失败处理与测试门禁 |
+| [04-Context 流程实体、快照与 Trace 桥接](13-FrameworkCore/04-ContextFlowSnapshotAndTraceBridge.md) | 上下文传递 | Context 身份和来源链、可变运行态与只读快照、跨异步边界传播、Trace 关联与回放证据 |
+| [05-确定性网格导航](13-FrameworkCore/05-DeterministicGridNavigation.md) | 导航内核 | 网格身份、固定邻居顺序、寻路 tie-break、阻挡变更、路径结果协议、hash 与回放验证 |
+| [06-Shooter RVO 与 Jobs 加速](13-FrameworkCore/06-ShooterRvoAndJobsAcceleration.md) | 避障与性能后端 | Managed RVO 语义基线、Jobs 邻居收集、同帧回退、Native 生命周期、状态同步与性能证据 |
 
 ---
 
@@ -388,6 +407,7 @@ flowchart TB
 | 2026-07-15 | 2.47 | 第十二批既有 canonical 周期复核：纠正 Event 退订/Global API、snapshot/once 重入、异常与字符串释放缺陷；补齐 ObjectPool 锁内回调、失败非事务、manager 线程边界、旧 release handle、PooledObject 重复归还、配置固化及成熟度证据 |
 | 2026-07-22 | 2.48 | 第十三批新增 canonical：MOBA Runtime 战斗逻辑层（职责边界、输入输出、System/Service 分工、DI、单元测试）、Console Demo Bootstrap 与 FeatureHost 链路深潜、Continuous 框架接口设计（IContinuous 五种运行时模型）；新增 03.20/03.21 专题 |
 | 2026-07-22 | 2.49 | 第十四批新增 canonical：Continuous 框架接口设计（11-ContinuousFrameworkDesign.md）移入 08-GameplayModules 目录，完善 IContinuous/Manager/Policy/Binder 体系；新增 08.11 专题 |
+| 2026-08-02 | 2.50 | P0-P1 canonical 专题补全：新增 Trace 生命周期、Analysis Artifact、FrameRecord/Smoke 证据、AI 模型产物、Context 快照桥接、确定性网格导航、Shooter RVO/Jobs 与 GameplayTags 工程边界；补齐 FrameworkCore 章节索引 |
 
 ---
 

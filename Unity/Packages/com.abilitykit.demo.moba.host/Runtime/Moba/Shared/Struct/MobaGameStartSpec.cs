@@ -89,7 +89,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
                 level: ov.Level,
                 basicAttackSkillId: ov.BasicAttackSkillId,
                 skillIds: ov.SkillIds,
-                spawnIndex: SpawnPointId > 0 ? SpawnPointId : spawnIndexFallback,
+                spawnIndex: SpawnPointId >= 0 ? SpawnPointId : spawnIndexFallback,
                 brainId: ov.BrainId,
                 enableBrainOnSpawn: ov.EnableBrainOnSpawn);
 

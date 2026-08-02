@@ -38,6 +38,7 @@
 | `Unity/Packages/com.abilitykit.timer/Runtime/Core/Tasks/ContinuousTask.cs` | 持续任务 |
 | `Unity/Packages/com.abilitykit.world.di/Runtime/World/Services/IWorldClock.cs` | 世界时间服务接口，记录 `DeltaTime` 和累计 `Time` |
 | `Unity/Packages/com.abilitykit.host/Runtime/Host/Framework/HostRuntime.cs` | Host Tick 入口，驱动世界 Tick |
+| `src/AbilityKit.Timer/AbilityKit.Timer.csproj` | `.NET` 工程直接编译 package Runtime 源码，是无 Unity 构建入口 |
 
 ---
 
@@ -446,9 +447,10 @@ scheduler 初始化时创建容量 16 的数组。Schedule 创建新的 class �
 | 证据面 | 当前事实 | 结论 |
 |--------|----------|------|
 | 包源码 | 有完整的 timer、scheduler 和三种任务实现 | 可作为基础工具审阅和接入 |
+| `.NET` 编译 | `dotnet build src/AbilityKit.Timer/AbilityKit.Timer.csproj -c Release` 直接编译 package Runtime 源码 | 证明 `net10.0` 编译闭合，不证明任务时序和失败语义正确 |
 | 自动 Host/World 接入 | 未发现默认模块自动 Tick scheduler | 所有权和 Tick 时机由接入方负责 |
 | 生产调用 | 当前仓库搜索未发现 `DefaultScheduler` 的生产运行时调用 | 尚不能声明为生产验证能力 |
-| 自动测试 | package 中没有 Tests 目录或独立测试工程 | 参数、补执行、异常和终态缺少回归保护 |
+| 自动测试 | package 中没有 Tests 目录，仓库也没有引用 `AbilityKit.Timer` 的测试工程 | 参数、补执行、异常和终态缺少回归保护 |
 | 示例 | package 注释和 Samples 中有示例字符串 | 只说明预期用法，不等于可执行验收 |
 
 优先补充 `PeriodicTask` 非正 period、duration 截止、回调异常重试、外部 Complete/onComplete、取消移除时机、尾部覆盖顺序和扩容分配测试。周期 duration 缺陷修复前，不应把该参数用于关键玩法终止保证。
@@ -504,4 +506,4 @@ scheduler 初始化时创建容量 16 的数组。Schedule 创建新的 class �
 
 ---
 
-*文档版本：v2.1 | 最后更新：2026-07-15*
+*文档版本：v2.2 | 最后更新：2026-08-02*

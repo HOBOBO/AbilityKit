@@ -35,10 +35,10 @@ Buff 系统承担的是“持续玩法状态”的统一承载能力。它覆盖
 
 - 将技能、触发器、投射物、召唤物等来源产生的状态统一收敛为 Buff 运行时。
 - 通过命令队列统一处理 apply/remove，降低重入和生命周期交叉修改风险。
-- 通过配置驱动 OnAdd、OnRemove、OnInterval、持续 TriggerPlan、标签门禁和连续修饰。
+- 通过配置驱动 OnAdd、OnRemove、OnInterval、OwnerBound TriggerPlan、标签门禁和连续修饰。
 - 通过 `MobaContinuousManager` 接入持续 Tick、剩余时间、间隔效果和 Modifier 投影。
 - 通过 `MobaTraceRegistry`、`MobaRuntimeLifecycleHookService`、`MobaSkillCastRuntimeService` 保持可追踪、可诊断、可归因。
-- 通过 `OngoingTriggerPlansComponent` 把 Buff 持续触发计划交给 Triggering 的调和链路。
+- 通过 `MobaContinuousOwnerBoundTriggerLifecycleBinder` 将 Buff 的持续 TriggerPlan 绑定到 Continuous 生命周期，统一建立和解除 owner-bound 订阅。
 
 从设计上看，Buff 系统更像“持续上下文容器 + 生命周期编排器”，而不是属性系统或 Triggering 系统的替代品。
 
@@ -60,7 +60,7 @@ Buff 系统承担的是“持续玩法状态”的统一承载能力。它覆盖
 | 阶段 Trigger 执行 | `BuffStageEffectExecutor`, `BuffTriggerContext` | [`BuffStageEffectExecutor.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/BuffStageEffectExecutor.cs:16) |
 | 生命周期通知 | `BuffLifecycleNotifier` | [`BuffLifecycleNotifier.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffLifecycleNotifier.cs:12) |
 | Buff 事件发布 | `BuffEventPublisher` | [`BuffEventPublisher.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/BuffEventPublisher.cs:20) |
-| 持续 Trigger 绑定 | `BuffTriggerPlanCoordinator` | [`BuffTriggerPlanCoordinator.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffTriggerPlanCoordinator.cs:11) |
+| OwnerBound Trigger 绑定 | `MobaContinuousOwnerBoundTriggerLifecycleBinder` | [`MobaContinuousOwnerBoundTriggerLifecycleBinder.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousOwnerBoundTriggerLifecycleBinder.cs:15) |
 | 命令队列系统 | `MobaBuffCommandDrainSystem` | [`MobaBuffCommandDrainSystem.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffCommandDrainSystem.cs:9) |
 | 生命周期调和系统 | `MobaBuffLifecycleReconcileSystem` | [`MobaBuffLifecycleReconcileSystem.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffLifecycleReconcileSystem.cs:10) |
 | 系统顺序约束 | `MobaSystemOrder` | [`MobaSystemOrder.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs:62) |
@@ -74,7 +74,7 @@ Buff 系统分成五层：
 1. **入口层**：`MobaBuffService` 接收 apply/remove 请求，并统一进入命令队列。
 2. **生命周期层**：`BuffLifecycleExecutor` 调度 `BuffApplyFlow`、`BuffEndFlow`、叠层策略、上下文、通知、绑定与清理。
 3. **持续行为层**：`BuffContinuousRuntime` 接入 `IContinuousManager`，处理持续时间、间隔、标签和 Modifier 投影。
-4. **领域协作层**：通过 `BuffStageEffectExecutor`、`BuffEventPublisher`、`BuffTriggerPlanCoordinator` 连接 Triggering、Effect、Presentation、Skill Runtime。
+4. **领域协作层**：通过 `BuffStageEffectExecutor`、`BuffEventPublisher` 和 `MobaContinuousOwnerBoundTriggerLifecycleBinder` 连接 Triggering、Effect、Presentation、Skill Runtime。
 5. **系统调和层**：`MobaBuffCommandDrainSystem` 与 `MobaBuffLifecycleReconcileSystem` 在固定 WorldSystem 顺序中推进命令和生命周期。
 
 ```mermaid
@@ -100,8 +100,9 @@ flowchart TD
     Notifier --> Cues[MobaBuffPresentationCueReporter]
 
     StageEffects --> TriggerGateway[MobaTriggerExecutionGateway]
-    Apply --> Ongoing[BuffTriggerPlanCoordinator]
-    Ongoing --> OngoingComponent[OngoingTriggerPlansComponent]
+    Runtime --> TriggerBinder[MobaContinuousOwnerBoundTriggerLifecycleBinder]
+    TriggerBinder --> OwnerGateway[MobaOwnerBoundTriggerExecutionGateway]
+    OwnerGateway --> Subscriptions[MobaTriggerPlanSubscriptionService]
 ```
 
 关键设计点：
@@ -203,7 +204,7 @@ flowchart TD
 
 ## 6. Apply 生命周期主线
 
-[`BuffApplyFlow`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffApplyFlow.cs:16) 负责应用阶段的核心逻辑：配置校验、目标解析、标签门禁、查找已有运行时、执行叠层策略、创建上下文、绑定 continuous、注册持续 TriggerPlan、发送通知。
+[`BuffApplyFlow`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffApplyFlow.cs:16) 负责应用阶段的核心逻辑：配置校验、目标解析、标签门禁、查找已有运行时、执行叠层策略、创建上下文、绑定 continuous 和发送通知。持续 TriggerPlan 不由 Apply 流程直接注册，而是在 Continuous 激活后由通用生命周期 Binder 接管。
 
 ```mermaid
 flowchart TD
@@ -227,8 +228,9 @@ flowchart TD
     M --> N[BindSkillRuntime]
     N --> O[EnsureContinuousRuntime]
     O -- 失败 --> R
-    O -- 成功 --> P[BuffTriggerPlanCoordinator.Upsert]
-    P --> Q[BuffLifecycleNotifier]
+    O -- 成功 --> P[Continuous activated]
+    P --> T[OwnerBound Trigger Binder]
+    T --> Q[BuffLifecycleNotifier]
 ```
 
 `ApplyToExisting` 中如果策略是 Replace，会先结束旧 continuous、清理 continuous、取消上下文、移除 owner bindings、释放技能运行时，再应用新的叠层状态。这样能避免旧运行时残留的 interval、modifier、trigger plan 继续生效。
@@ -354,11 +356,12 @@ sequenceDiagram
     Gateway->>Trigger: Execute trigger plan
 ```
 
-持续 TriggerPlan 由 [`BuffTriggerPlanCoordinator`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffTriggerPlanCoordinator.cs:11) 维护：
+Buff 没有专属的 TriggerPlan 协调器。`BuffContinuousRuntime.RuntimeModel` 暴露 `BuffMO.TriggerIds`，通用的 [`MobaContinuousOwnerBoundTriggerLifecycleBinder`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousOwnerBoundTriggerLifecycleBinder.cs:15) 监听 Continuous 生命周期，并以 continuous runtime 的 owner key 管理 OwnerBound Trigger：
 
-- Apply 成功后，如果 `BuffMO.TriggerIds` 非空，就按 `SourceContextId` upsert `OngoingTriggerPlanEntry`。
-- 如果配置没有持续触发计划，则移除对应 owner key。
-- Buff 结束时，`BuffEndFlow.CleanupOwnerBindings` 会调用 `BuffTriggerPlanCoordinator.Remove`。
+- Continuous 激活时，Binder 复制 TriggerId 列表并通过 `MobaOwnerBoundTriggerExecutionGateway.ApplyOwnerBoundTriggers` 建立订阅。
+- Continuous 结束或解绑时，Binder 通过同一 Gateway 停止 owner key 对应的订阅并清理来源快照。
+- [`MobaTriggerPlanSubscriptionService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs:18) 负责 TriggerId 到强类型事件订阅的转换、重复注册抑制和过期注册移除。
+- `BuffEndFlow.CleanupOwnerBindings` 当前只移除目标实体上属于该 `SourceContextId` 的 effect listener；TriggerPlan 订阅由 Continuous 生命周期收口，不由 Buff 结束流程重复维护。
 
 ---
 
@@ -385,7 +388,7 @@ flowchart TD
 
 - Remove 阶段触发器和事件需要读取 runtime/source 快照，因此不能先回收对象。
 - Continuous 需要先结束，避免下一帧继续投影 Modifier 或 interval。
-- `OngoingTriggerPlansComponent` 需要按 owner key 移除，避免 Triggering 继续保留 Buff 来源的订阅。
+- Continuous 结束会同步解除 owner-bound TriggerPlan；Buff 结束流程只需额外清理实体上的 effect listener，避免同一订阅被两套生命周期重复拥有。
 - 技能 runtime retain 必须释放，否则技能释放实例会等待已结束的 Buff 子运行时。
 
 ---

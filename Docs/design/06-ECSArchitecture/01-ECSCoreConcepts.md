@@ -458,7 +458,7 @@ actor.Destroy();
 5. `EntityWorld` 的 `Create`、`SetComponent`、`QueryImpl`、`Destroy`：轻量 ECS 的核心读写路径。
 6. `EntityQuery`：查询 API 的外壳边界。
 7. `WorldEvents` 与 `WorldEventBus`：实体和组件变化的观察点。
-8. `02-EntitasImplementation.md`、`03-QueryAndIteration.md`、`03-SveltoImplementation.md`：不同 ECS 适配的差异。
+8. `02-EntitasImplementation.md`、`03-QueryAndIteration.md`、`04-SveltoImplementation.md`：不同 ECS 适配的差异。
 
 ---
 
@@ -468,8 +468,8 @@ actor.Destroy();
 |------|------|
 | `02-EntitasImplementation.md` | 解释 Entitas adapter 如何把系统生命周期、contexts 和 DI 接入 AbilityKit |
 | `03-QueryAndIteration.md` | 深入展开 `EntityWorld.QueryImpl`、snapshot、存活校验、Entitas/Svelto 查询差异 |
-| `03-SveltoImplementation.md` | 解释 Svelto adapter 的 `EnginesRoot`、`EntitiesDB` 和提交调度器 |
-| `04-QueryAndTraversal.md` | 从总览角度比较 EntityQuery、Entitas Group、Svelto 查询策略 |
+| `04-SveltoImplementation.md` | 解释 Svelto adapter 的 `EnginesRoot`、`EntitiesDB` 和提交调度器 |
+| `05-QueryAndTraversal.md` | 从总览角度比较 EntityQuery、Entitas Group、Svelto 查询策略 |
 | `../02-LogicalWorldDesign/02-EntityDesign.md` | 从逻辑世界角度解释实体生命周期、父子关系和事件 |
 | `../02-LogicalWorldDesign/03-ComponentDesign.md` | 从组件注册、组件索引和存储角度进一步拆解实现 |
 | `../02-LogicalWorldDesign/04-SystemDesign.md` | 解释 AbilityKit 的系统安装、阶段排序和 World DI 集成 |

@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle;
@@ -417,7 +419,19 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            // Frame alignment and recovery completion only follow a successful import.
+            var runtime = _handles.RemoteDriven.Runtime;
+            if (runtime == null ||
+                !runtime.Features.TryGetFeature<IClientPredictionBaselineControl>(out var baseline) ||
+                baseline == null ||
+                !baseline.TryRebase(world.Id, new FrameIndex(snapshot.Frame)))
+            {
+                Log.Warning(
+                    $"[BattleSessionFeature] State import could not rebase prediction history. " +
+                    $"frame={snapshot.Frame} worldId={world.Id.Value}");
+                return false;
+            }
+
+            // Frame alignment and recovery completion only follow a successful import and rebase.
             _remoteDrivenLastTickedFrame = snapshot.Frame;
             if (!CompleteReliableEventRecovery(in snapshot))
             {

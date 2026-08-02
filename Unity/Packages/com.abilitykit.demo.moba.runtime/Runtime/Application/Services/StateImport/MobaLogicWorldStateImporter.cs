@@ -7,6 +7,7 @@ using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 
 namespace AbilityKit.Demo.Moba.Services.StateImport
@@ -170,10 +171,12 @@ namespace AbilityKit.Demo.Moba.Services.StateImport
         {
             if (entity.hasTransform)
             {
-                entity.ReplaceTransform(new Transform3(
+                var transform = new Transform3(
                     new Vec3(a.PosX, a.PosY, a.PosZ),
                     Quat.FromAxisAngle(Vec3.Up, a.Yaw),
-                    Vec3.One));
+                    Vec3.One);
+                entity.ReplaceTransform(transform);
+                MobaActorTransformRollbackProvider.SyncMotionState(entity, in transform);
             }
 
             if (entity.hasAttributeGroup && entity.attributeGroup.Group != null)

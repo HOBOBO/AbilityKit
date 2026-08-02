@@ -26,7 +26,11 @@
   - [11. 自定义模块写法](#11-自定义模块写法)
   - [12. 设计意图与解决的问题](#12-设计意图与解决的问题)
   - [13. 边界判断](#13-边界判断)
-  - [14. 源码阅读路径](#14-源码阅读路径)
+  - [14. 验证入口与证据状态](#14-验证入口与证据状态)
+    - [14.1 当前测试入口](#141-当前测试入口)
+    - [14.2 FrameSyncDriverModule 的现有证据](#142-framesyncdrivermodule-的现有证据)
+    - [14.3 模块系统的覆盖缺口](#143-模块系统的覆盖缺口)
+  - [15. 源码阅读路径](#15-源码阅读路径)
 
 ---
 
@@ -74,6 +78,8 @@ flowchart TB
 | `Unity/Packages/com.abilitykit.host.extension/Runtime/Time/ServerFrameTimeModule.cs` | 世界帧时间模块，演示模块依赖另一个模块 Feature |
 | `Unity/Packages/com.abilitykit.host.extension/Runtime/WorldStart/WorldAutoStartModule.cs` | 自动开局模块，演示 PostTick 扫描世界服务 |
 | `Unity/Packages/com.abilitykit.host.extension/Runtime/Rollback/ServerRollbackModule.cs` | 服务端回滚模块，演示依赖帧同步事件能力 |
+| `src/AbilityKit.Host.Tests/WorldHostBuilderTests.cs` | 当前 Host 独立测试，只覆盖 Builder 的少量参数边界 |
+| `src/AbilityKit.Demo.Shooter.Runtime.Tests/HostExtension/FrameSyncDriverModuleHeadlessTests.cs` | `FrameSyncDriverModule` 的 headless 与 world-backed 集成测试 |
 
 ---
 
@@ -340,7 +346,7 @@ flowchart TD
 
 ## 11. 自定义模块写法
 
-下面是符合当前源码模型的模块骨架：
+下面是符合当前源码模型的模块骨架。它用于说明接入约束，不是仓库中已编译或已执行的测试样例：
 
 ```csharp
 public sealed class DiagnosticsHostModule : IHostRuntimeModule
@@ -419,16 +425,61 @@ public sealed class DiagnosticsHostModule : IHostRuntimeModule
 
 ---
 
-## 14. 源码阅读路径
+## 14. 验证入口与证据状态
+
+### 14.1 当前测试入口
+
+Host 独立测试和 Shooter 模块集成测试分别通过以下命令执行：
+
+```powershell
+dotnet test src/AbilityKit.Host.Tests/AbilityKit.Host.Tests.csproj
+
+dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj --filter FrameSyncDriverModuleHeadlessTests
+```
+
+两组测试的责任不同：`AbilityKit.Host.Tests` 应承载 Host/模块底座契约，但当前只有 Builder 参数测试；Shooter Runtime Tests 验证具体示例装配，不应被解释为所有内置模块已经有独立测试。
+
+### 14.2 FrameSyncDriverModule 的现有证据
+
+`FrameSyncDriverModuleHeadlessTests` 当前覆盖三个场景：
+
+| 场景 | 对模块设计的证明范围 |
+|------|----------------------|
+| headless session Tick | 安装后的 InputHub 可接收输入，PreTick/PostTick 路径能 flush 并广播帧消息 |
+| 注销 session 后提交输入 | session 生命周期结束后输入被拒绝 |
+| world-backed session Tick | 有真实 World 时仍能沿现有 InputHub 路径提交并广播 |
+
+这些测试提供了 Hook、Feature、session 和广播的协作证据。它们没有直接断言每一个 Hook 的注册次数、模块 `Uninstall` 后的残留回调、Feature 注销、多个模块的相对顺序，也没有覆盖 `ServerFrameTimeModule`、`WorldAutoStartModule` 和 `ServerRollbackModule` 的完整生命周期。
+
+### 14.3 模块系统的覆盖缺口
+
+建议按底座契约补充以下独立测试：
+
+1. `WorldHostBuilder` 按添加顺序调用模块 `Install`，安装失败时已安装模块和 Host 的处置策略明确。
+2. `HostRuntimeModuleHost` 按安装逆序调用 `Uninstall`，重复卸载不会重复释放资源。
+3. `Hook.Add(order)` 的排序稳定性、`Remove` 的同一委托引用要求，以及回调期间增删 handler 的行为。
+4. `HostRuntimeFeatures` 对空值、类型不兼容、同类型覆盖、注销和重复注销的返回值契约。
+5. `FrameSyncDriverModule.Uninstall` 后 Hook 与 Feature 都被移除，旧 session 和输入入口不再工作。
+6. `ServerFrameTimeModule` 在存在/不存在 `IFrameSyncDriverEvents` 时分别选择 PostStep/PostTick，且世界销毁后清除时间缓存。
+7. `WorldAutoStartModule` 只在 handler 返回成功后标记完成，世界销毁或 id 复用时不残留完成状态。
+8. `ServerRollbackModule` 缺少前置 Feature 时的失败方式，以及卸载后取消事件订阅的行为。
+
+其中 1 至 4 属于 Host 模块底座，应放在 Host 独立测试工程；5 至 8 属于扩展模块，可放在 Host Extension 对应测试工程或现有跨包测试工程，但测试命名和文档应明确其归属。
+
+---
+
+## 15. 源码阅读路径
 
 1. `IHostRuntimeModule`：真实模块接口。
 2. `HostRuntimeOptions` 与 `Hook`：模块如何挂入生命周期。
 3. `HostRuntimeFeatures`：模块间能力发现。
 4. `WorldHostBuilder.BuildWithOptions`：模块安装顺序。
-5. `FrameSyncDriverModule`：完整模块实现。
-6. `ServerFrameTimeModule`：依赖 Feature 的模块实现。
-7. `WorldAutoStartModule`：通过世界服务扩展 Host 行为。
+5. `HostRuntimeModuleHost`：独立宿主的逆序卸载。
+6. `FrameSyncDriverModule`：完整模块实现。
+7. `FrameSyncDriverModuleHeadlessTests`：当前已有的集成证据和覆盖边界。
+8. `ServerFrameTimeModule`：依赖 Feature 的模块实现。
+9. `WorldAutoStartModule`：通过世界服务扩展 Host 行为。
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-07-03*
+*文档版本：v2.1 | 最后更新：2026-08-02*

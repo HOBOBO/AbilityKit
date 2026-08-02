@@ -22,9 +22,6 @@ namespace AbilityKit.Game.Flow
         private readonly BattleWorldScopeHost _battleWorldScope;
         private readonly MobaFlowConditionResolver _conditionResolver;
 
-        // 准入 gate 的兜底来源：scope 尚未建立时（Boot/Lobby 阶段求值）用它，四项全 true。
-        private static readonly IFlowGateProvider DefaultGates = new DefaultFlowGateProvider();
-
         internal FlowConditionContextBuilder(
             Callbacks callbacks,
             BattleWorldScopeHost battleWorldScope,
@@ -43,12 +40,15 @@ namespace AbilityKit.Game.Flow
 
         internal MobaFlowConditionContext BuildFlowConditionContext()
         {
-            // 四个准入 gate 从 per-battle scope 的 IFlowGateProvider 取（Step 3）。
-            // 转移求值可能发生在 scope 尚未建立时（如 Boot/Lobby 阶段轮询），此时取回落空。
-            // 用 DefaultFlowGateProvider 兜底——四项全 true，与迁移前四个硬编码 return true 行为等价。
-            var gates = _battleWorldScope.TryResolve<IFlowGateProvider>(out var provider)
-                ? provider
-                : DefaultGates;
+            if (!_battleWorldScope.TryResolve<IFlowGateProvider>(out var gates))
+            {
+                return new MobaFlowConditionContext(
+                    battleRequested: _callbacks.GetBattleRequested(),
+                    authenticated: false,
+                    roomReady: false,
+                    connectivityReady: false,
+                    assetsReady: false);
+            }
 
             return new MobaFlowConditionContext(
                 battleRequested: _callbacks.GetBattleRequested(),

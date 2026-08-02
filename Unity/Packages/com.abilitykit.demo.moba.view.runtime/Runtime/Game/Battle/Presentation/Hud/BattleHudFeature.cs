@@ -20,6 +20,7 @@ namespace AbilityKit.Game.Flow
         private BattleHudCanvasController _canvasController;
         private BattleHudInputController _inputController;
         private BattleHudSnapshotController _snapshotController;
+        private BattleHudSkillFailurePresenter _skillFailurePresenter;
         private BattleHudEntityLifecycleBinding _entityLifecycle;
         private BattlePresentationSessionContext _presentation;
         private readonly BattlePresentationSessionResolver _presentationSessions = new BattlePresentationSessionResolver();
@@ -46,6 +47,8 @@ namespace AbilityKit.Game.Flow
             _canvasController.Create("BattleHudCanvas");
 
             _binder = _controllers.CreateBinder(_config, _canvasController.Root, _camera, _ctx);
+            _skillFailurePresenter = _controllers.CreateSkillFailures();
+            _skillFailurePresenter.Bind(_ctx, _canvasController.Root);
             CreateInputController();
             ApplyLaunchSpecSkillTemplates();
             SubscribeEntityLifecycle();
@@ -62,6 +65,9 @@ namespace AbilityKit.Game.Flow
 
             _binder?.Clear();
             _binder = null;
+
+            _skillFailurePresenter?.Dispose();
+            _skillFailurePresenter = null;
 
             _inputController?.Dispose();
             _inputController = null;
@@ -87,6 +93,7 @@ namespace AbilityKit.Game.Flow
 
             EnsureSnapshotSubscription();
             EnsureLocalControlSkillTemplates();
+            _skillFailurePresenter?.Tick(deltaTime);
             _binder.Tick(deltaTime);
             _aimPreview ??= _controllers.CreateAimPreview();
             _aimPreview.SetSkillSpecs(_inputController?.SkillSpecs);
@@ -305,6 +312,11 @@ namespace AbilityKit.Game.Flow
         public BattleHudAimPreview CreateAimPreview()
         {
             return new BattleHudAimPreview();
+        }
+
+        public BattleHudSkillFailurePresenter CreateSkillFailures()
+        {
+            return new BattleHudSkillFailurePresenter();
         }
     }
 }

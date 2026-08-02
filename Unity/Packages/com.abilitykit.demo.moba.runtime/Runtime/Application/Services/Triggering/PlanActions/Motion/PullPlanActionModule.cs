@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Combat.MotionSystem.Constraints;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Combat.MotionSystem.Generic;
 using AbilityKit.Combat.MotionSystem.Trajectory;
@@ -111,7 +112,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 var height = args.Speed * duration;
                 var trajectory = new KnockupTrajectory(height, duration);
                 sourceDuration = trajectory.Duration + (1f / 30f);
-                source = new TrajectoryMotionSource(trajectory, group.Priority, group.GroupId, group.Stacking);
+                source = new TrajectoryMotionSource(
+                    trajectory,
+                    group.Priority,
+                    group.GroupId,
+                    group.Stacking,
+                    MotionCollisionConstraints.Disabled,
+                    hasCollisionPolicy: true);
                 motionKind = "KnockupMotion";
             }
             else

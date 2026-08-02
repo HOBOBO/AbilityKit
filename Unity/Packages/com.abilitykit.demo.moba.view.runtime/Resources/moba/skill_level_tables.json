@@ -13,7 +13,7 @@
         "Levels":  [
                        {
                            "CooldownMs":  9000,
-                           "Cost":  40,
+                           "Cost":  0,
                            "Params":  [
                                           160.0,
                                           8.0,
@@ -26,7 +26,7 @@
                        },
                        {
                            "CooldownMs":  8600,
-                           "Cost":  45,
+                           "Cost":  0,
                            "Params":  [
                                           200.0,
                                           8.0,
@@ -39,7 +39,7 @@
                        },
                        {
                            "CooldownMs":  8200,
-                           "Cost":  50,
+                           "Cost":  0,
                            "Params":  [
                                           240.0,
                                           8.0,
@@ -52,7 +52,7 @@
                        },
                        {
                            "CooldownMs":  7800,
-                           "Cost":  55,
+                           "Cost":  0,
                            "Params":  [
                                           280.0,
                                           8.0,
@@ -65,7 +65,7 @@
                        },
                        {
                            "CooldownMs":  7400,
-                           "Cost":  60,
+                           "Cost":  0,
                            "Params":  [
                                           320.0,
                                           8.0,
@@ -93,7 +93,7 @@
         "Levels":  [
                        {
                            "CooldownMs":  11000,
-                           "Cost":  50,
+                           "Cost":  0,
                            "Params":  [
                                           180.0,
                                           3.5,
@@ -107,7 +107,7 @@
                        },
                        {
                            "CooldownMs":  10600,
-                           "Cost":  55,
+                           "Cost":  0,
                            "Params":  [
                                           230.0,
                                           3.5,
@@ -121,7 +121,7 @@
                        },
                        {
                            "CooldownMs":  10200,
-                           "Cost":  60,
+                           "Cost":  0,
                            "Params":  [
                                           280.0,
                                           3.5,
@@ -135,7 +135,7 @@
                        },
                        {
                            "CooldownMs":  9800,
-                           "Cost":  65,
+                           "Cost":  0,
                            "Params":  [
                                           330.0,
                                           3.5,
@@ -149,7 +149,7 @@
                        },
                        {
                            "CooldownMs":  9400,
-                           "Cost":  70,
+                           "Cost":  0,
                            "Params":  [
                                           380.0,
                                           3.5,
@@ -177,7 +177,7 @@
         "Levels":  [
                        {
                            "CooldownMs":  40000,
-                           "Cost":  100,
+                           "Cost":  0,
                            "Params":  [
                                           150.0,
                                           4.5,
@@ -190,7 +190,7 @@
                        },
                        {
                            "CooldownMs":  37000,
-                           "Cost":  110,
+                           "Cost":  0,
                            "Params":  [
                                           225.0,
                                           4.5,
@@ -203,7 +203,7 @@
                        },
                        {
                            "CooldownMs":  34000,
-                           "Cost":  120,
+                           "Cost":  0,
                            "Params":  [
                                           300.0,
                                           4.5,

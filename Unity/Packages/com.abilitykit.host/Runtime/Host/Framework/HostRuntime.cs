@@ -93,9 +93,16 @@ namespace AbilityKit.Ability.Host.Framework
                     _options.OnPreTick?.Invoke(deltaTime);
                 }
 
-                _worlds.Tick(deltaTime);
+                var shouldRunWorldTick =
+                    !_features.TryGetFeature<IHostRuntimeTickGate>(out var tickGate) ||
+                    tickGate == null ||
+                    tickGate.ShouldRunWorldTick;
+                if (shouldRunWorldTick)
+                {
+                    _worlds.Tick(deltaTime);
+                }
 
-                if (_options != null)
+                if (shouldRunWorldTick && _options != null)
                 {
                     _options.PostTick.Invoke(deltaTime);
                     _options.OnPostTick?.Invoke(deltaTime);

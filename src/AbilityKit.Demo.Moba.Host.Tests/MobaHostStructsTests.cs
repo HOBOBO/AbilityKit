@@ -1,4 +1,5 @@
 using AbilityKit.Ability.Host.Extensions.Moba.Struct;
+using AbilityKit.Ability.Host;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Host.Tests;
@@ -48,5 +49,26 @@ public sealed class MobaHostStructsTests
     {
         var ov = new MobaRoomLoadoutOverrides(0, 0, 0, new[] { 5001, 5002 });
         Assert.True(ov.HasAnyOverride);
+    }
+
+    [Fact]
+    public void MobaRoomPlayerSlot_preserves_zero_based_map_spawn_index()
+    {
+        var overrides = new MobaRoomLoadoutOverrides(
+            level: 1,
+            attributeTemplateId: 1001,
+            basicAttackSkillId: 1,
+            skillIds: new[] { 3001 });
+        var slot = new MobaRoomPlayerSlot(
+            new PlayerId("1"),
+            teamId: 1,
+            heroId: 1001,
+            spawnPointId: 0,
+            in overrides);
+
+        var loadout = slot.ToPlayerLoadout(spawnIndexFallback: 7);
+
+        Assert.Equal(0, loadout.SpawnIndex);
+        Assert.Equal(0, loadout.HasSpawnPosition);
     }
 }

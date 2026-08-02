@@ -602,7 +602,18 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
                 }
             }
 
-            _runtimeSession.SubmitInputs(frame, battleInputs);
+            var submittedInputCount = _runtimeSession.SubmitInputs(frame, battleInputs);
+            if (battleInputs.Length > 0 && submittedInputCount != battleInputs.Length)
+            {
+                var diagnostic = (_runtimeSession as IBattleRuntimeInputDiagnostics)?.LastInputSubmitDiagnostic;
+                _logger.LogWarning(
+                    "[BattleLogicHost] Runtime input batch was not fully accepted. BattleId: {BattleId}, Frame: {Frame}, Received: {Received}, Submitted: {Submitted}, Diagnostic: {Diagnostic}",
+                    _battleId,
+                    frame,
+                    battleInputs.Length,
+                    submittedInputCount,
+                    string.IsNullOrWhiteSpace(diagnostic) ? "unavailable" : diagnostic);
+            }
 
             // 2. Tick 世界
             var worldTicked = _runtimeSession.Tick(frame, _tickRate, deltaTime);

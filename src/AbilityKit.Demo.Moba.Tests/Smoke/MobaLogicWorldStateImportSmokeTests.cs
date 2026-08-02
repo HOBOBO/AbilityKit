@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
+using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateImport;
 using Xunit;
@@ -50,6 +52,23 @@ public sealed class MobaLogicWorldStateImportSmokeTests
             var originals = CaptureStates(registry);
             Assert.NotEmpty(originals);
 
+            var moveActor = registry.Entries
+                .Select(pair => pair.Value)
+                .First(e => e != null && e.hasTransform && e.hasMoveInput);
+            var originalMoveDx = moveActor.moveInput.Dx;
+            var originalMoveDz = moveActor.moveInput.Dz;
+            moveActor.ReplaceMoveInput(0.75f, -0.25f);
+            var rollbackProvider = new MobaActorTransformRollbackProvider(registry);
+            var rollbackFrame = new FrameIndex(bootstrapper.Context.LastFrame);
+            var rollbackPayload = rollbackProvider.Export(rollbackFrame);
+            moveActor.ReplaceMoveInput(0f, 0f);
+
+            rollbackProvider.Import(rollbackFrame, rollbackPayload);
+
+            Assert.Equal(0.75f, moveActor.moveInput.Dx, 3);
+            Assert.Equal(-0.25f, moveActor.moveInput.Dz, 3);
+            moveActor.ReplaceMoveInput(originalMoveDx, originalMoveDz);
+
             // 扰动：所有 actor 平移 + HP 打到 1（模拟断线期间的状态漂移）
             foreach (var kv in originals)
             {
@@ -81,6 +100,13 @@ public sealed class MobaLogicWorldStateImportSmokeTests
                 Assert.True(
                     Math.Abs(pos.X - s.PosX) < 0.001f && Math.Abs(pos.Z - s.PosZ) < 0.001f,
                     $"actor {kv.Key} position not restored: expected ({s.PosX},{s.PosZ}) actual ({pos.X},{pos.Z})");
+                if (e.hasMotion)
+                {
+                    var motionPos = e.motion.State.Position;
+                    Assert.True(
+                        Math.Abs(motionPos.X - s.PosX) < 0.001f && Math.Abs(motionPos.Z - s.PosZ) < 0.001f,
+                        $"actor {kv.Key} motion state not rebased: expected ({s.PosX},{s.PosZ}) actual ({motionPos.X},{motionPos.Z})");
+                }
                 if (e.hasAttributeGroup && e.attributeGroup.Group != null && s.HpMax > 0f)
                 {
                     Assert.Equal(s.Hp, e.attributeGroup.Group.GetValue(MobaAttributeIds.HP), 3);

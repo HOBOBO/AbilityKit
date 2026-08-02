@@ -355,8 +355,8 @@ flowchart TD
 |----------|------|
 | [ECS 核心概念](./01-ECSCoreConcepts.md) | 回到 Entity/Component/System 的基本概念 |
 | [Entitas 实现](./02-EntitasImplementation.md) | 深入 EntitasWorld 和系统组合方式 |
-| [Svelto 实现](./03-SveltoImplementation.md) | 深入 SveltoWorldContext、EnginesRoot、EntitiesDB |
-| [查询与遍历总览](./04-QueryAndTraversal.md) | 更短的总览版本，适合快速复习 |
+| [Svelto 实现](./04-SveltoImplementation.md) | 深入 SveltoWorldContext、EnginesRoot、EntitiesDB |
+| [查询与遍历总览](./05-QueryAndTraversal.md) | 更短的总览版本，适合快速复习 |
 | [项目结构](../01-OverviewAndGettingStarted/04-ProjectStructure.md) | 确认 Unity Package 与 .NET 工程关系 |
 
 ---

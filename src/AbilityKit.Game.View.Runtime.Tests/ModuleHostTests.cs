@@ -69,6 +69,68 @@ public sealed class ModuleHostTests
         Assert.Contains(failures, message => message.Contains("missing module 'missing'"));
     }
 
+    [Fact]
+    public void Attach_WhenModuleFails_RollsBackAttachedModulesAndCanRetry()
+    {
+        var events = new List<string>();
+        var first = new TestModule("first", events);
+        var second = new TestModule("second", events) { ThrowOnAttach = true };
+        var host = new ModuleHost<TestContext, TestModule>(new List<TestModule> { first, second });
+        var ctx = new TestContext(7);
+
+        Assert.Throws<InvalidOperationException>(() => host.Attach(in ctx));
+
+        Assert.False(host.IsAttached);
+        Assert.Equal(new[] { "attach:first:7", "attach:second:7", "detach:first:7" }, events);
+
+        second.ThrowOnAttach = false;
+        host.Attach(in ctx);
+
+        Assert.True(host.IsAttached);
+        Assert.Equal(
+            new[]
+            {
+                "attach:first:7", "attach:second:7", "detach:first:7",
+                "attach:first:7", "attach:second:7"
+            },
+            events);
+    }
+
+    [Fact]
+    public void Attach_WhenRollbackFails_AggregatesAttachAndRollbackErrors()
+    {
+        var events = new List<string>();
+        var first = new TestModule("first", events) { ThrowOnDetach = true };
+        var second = new TestModule("second", events) { ThrowOnAttach = true };
+        var host = new ModuleHost<TestContext, TestModule>(new List<TestModule> { first, second });
+        var ctx = new TestContext(7);
+
+        var exception = Assert.Throws<AggregateException>(() => host.Attach(in ctx));
+
+        Assert.False(host.IsAttached);
+        Assert.Equal(2, exception.InnerExceptions.Count);
+        Assert.Equal(new[] { "attach:first:7", "attach:second:7", "detach:first:7" }, events);
+    }
+
+    [Fact]
+    public void Detach_WhenModulesFail_ContinuesCleanupAndResetsState()
+    {
+        var events = new List<string>();
+        var first = new TestModule("first", events) { ThrowOnDetach = true };
+        var second = new TestModule("second", events) { ThrowOnDetach = true };
+        var third = new TestModule("third", events);
+        var host = new ModuleHost<TestContext, TestModule>(new List<TestModule> { first, second, third });
+        var ctx = new TestContext(7);
+        host.Attach(in ctx);
+        events.Clear();
+
+        var exception = Assert.Throws<AggregateException>(() => host.Detach(in ctx));
+
+        Assert.False(host.IsAttached);
+        Assert.Equal(2, exception.InnerExceptions.Count);
+        Assert.Equal(new[] { "detach:third:7", "detach:second:7", "detach:first:7" }, events);
+    }
+
     private readonly record struct TestContext(int Value);
 
     private sealed class TestModule : IGameModule<TestContext>, IGameModuleTick<TestContext>, IGameModuleRebind<TestContext>, IGameModuleId, IGameModuleDependencies
@@ -85,15 +147,19 @@ public sealed class ModuleHostTests
 
         public string Id { get; }
         public IEnumerable<string> Dependencies => _dependencies;
+        public bool ThrowOnAttach { get; set; }
+        public bool ThrowOnDetach { get; set; }
 
         public void OnAttach(in TestContext ctx)
         {
             _events.Add($"attach:{Id}:{ctx.Value}");
+            if (ThrowOnAttach) throw new InvalidOperationException($"attach:{Id}");
         }
 
         public void OnDetach(in TestContext ctx)
         {
             _events.Add($"detach:{Id}:{ctx.Value}");
+            if (ThrowOnDetach) throw new InvalidOperationException($"detach:{Id}");
         }
 
         public void Tick(in TestContext ctx, float deltaTime)

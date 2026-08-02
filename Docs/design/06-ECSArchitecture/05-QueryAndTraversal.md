@@ -1,4 +1,4 @@
-# 6.4 查询与遍历
+# 6.5 查询与遍历
 
 > 本文说明 AbilityKit 在 ECS 层如何做类型安全、低分配、按组/按组件的查询与遍历，并解释 Entitas、Svelto 与自研 `EntityWorld` 的性能和确定性边界。
 
@@ -134,7 +134,7 @@ Svelto 的重点是：
 3. 使用多组枚举器减少重复样板代码。
 4. 通过 `QueryMappedEntities` 和 `QueryNativeMappedEntities` 支持跨组映射。
 
-Shooter 生产实现使用固定 ExclusiveGroup 和 mapped component 查询，但 collection/group 的原始枚举顺序不等于跨运行确定性。需要稳定快照或 hash 时，应先按业务稳定键排序，再量化浮点值；详见 [Svelto 实现](./03-SveltoImplementation.md)。
+Shooter 生产实现使用固定 ExclusiveGroup 和 mapped component 查询，但 collection/group 的原始枚举顺序不等于跨运行确定性。需要稳定快照或 hash 时，应先按业务稳定键排序，再量化浮点值；详见 [Svelto 实现](./04-SveltoImplementation.md)。
 
 ```mermaid
 flowchart LR
@@ -200,7 +200,7 @@ flowchart LR
 - [ECS 核心概念](./01-ECSCoreConcepts.md)
 - [Entitas 实现](./02-EntitasImplementation.md)
 - [查询与遍历源码深潜](./03-QueryAndIteration.md)
-- [Svelto 实现](./03-SveltoImplementation.md)
+- [Svelto 实现](./04-SveltoImplementation.md)
 
 ---
 

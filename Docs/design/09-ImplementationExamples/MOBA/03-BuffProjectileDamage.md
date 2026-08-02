@@ -1,6 +1,6 @@
 # MOBA Buff、Projectile 与 Damage 管线
 
-> 本文给出 MOBA 战斗效果主链路的源码级总览，说明技能 Pipeline 如何通过 Buff、Projectile、Trigger/Effect 与 Damage 服务改变权威状态。Buff 与 Projectile 的完整生命周期分别见 [07-Buff 生命周期深潜](07-BuffLifecycleDeepDive.md) 和 [08-Projectile 与 Damage 深潜](08-ProjectileDamageDeepDive.md)。
+> 本文给出 MOBA 战斗效果主链路的源码级总览，说明技能 Pipeline 如何通过 Buff、Projectile、Trigger/Effect 与 Damage 服务改变权威状态。Buff 命令执行与 Projectile 生命周期的实现细节分别见 [07-Buff 命令执行与生命周期收敛深潜](07-BuffLifecycleDeepDive.md) 和 [08-Projectile 与 Damage 深潜](08-ProjectileDamageDeepDive.md)。
 
 ## 1. 边界与结论
 
@@ -19,7 +19,7 @@
 
 - Projectile 命中不会无条件调用 `MobaDamageService`，而是先执行 `OnHitEffectId` 和 `OnHitTriggerIds`；
 - `DamagePipelineService` 产生最终伤害，`MobaDamageService` 只落地数值；
-- Buff 既有立即执行入口，也有排队入口，不能把所有 apply/remove 都描述成延迟命令；
+- Buff 的公开 Immediate API 仍会先入队再主动 drain；返回成功只确认入队，不确认生命周期已经接受；
 - 当前 projectile 命中过滤只明确拒绝无效 collider、自身和同队目标，不负责存活、可见、无敌或任意技能目标规则。
 
 ## 2. 组合关系
@@ -46,27 +46,25 @@ flowchart LR
 
 箭头表达允许的调用方向，不表示每个技能必须经过全部节点。例如纯控制技能可以只施加 Buff，治疗 Effect 可以直接进入 heal 落地，而无 `OnHitEffectId`/`OnHitTriggerIds` 的 projectile 命中不会自动产生伤害。
 
-## 3. Buff：即时入口与命令队列
+## 3. Buff：Immediate API 与命令队列
 
-`MobaBuffService` 提供两类入口：
+`MobaBuffService` 的 `ApplyBuffImmediate()`、`ApplyBuffInstanceImmediate()`、`RemoveBuffImmediate()` 等公开入口都先调用内部 Enqueue，再主动调用 `DrainPending(maxCommands)`。系统 Tick 也会通过 `MobaBuffCommandDrainSystem` 消费尚未处理的命令。
 
-- `ApplyBuffImmediate()`、`ApplyBuffInstanceImmediate()`、`RemoveBuffImmediate()` 等立即执行入口；
-- 内部排队的 apply/remove 命令，由 `DrainPending(maxCommands)` 按入队顺序消费。
-
-排队用于隔离回调中的重入修改，立即入口则用于调用方已经处在安全边界、需要同步获得成功结果的场景。两者最终都会进入 `BuffLifecycleExecutor`，因此生命周期校验和结束语义不会分叉。
+这里的 Immediate 表示“入队后立即尝试 drain”，不是绕过队列直接执行。入口返回 `true` 只确认参数通过并成功入队；生命周期拒绝、重入期间内层 drain 返回或预算耗尽，都可能使调用方拿不到同步的最终成功结果。
 
 ```mermaid
 flowchart TD
-    A[Buff 请求] --> B{立即还是排队}
-    B -->|立即| C[ExecuteApply / ExecuteRemove]
-    B -->|排队| D[Pending Queue]
+    A[Immediate Buff 请求] --> B{入口参数有效}
+    B -->|否| R[返回 false]
+    B -->|是| D[Pending Queue]
     D --> E[DrainPending maxCommands]
-    E --> C
+    E --> C[ExecuteApply / ExecuteRemove]
     C --> F[BuffLifecycleExecutor]
-    F --> G{校验通过}
+    F --> G{生命周期接受}
     G -->|否| H[Reject code / metric / log]
     G -->|是| I[BuffApplyFlow / BuffEndFlow]
     I --> J[Actor Buff Runtime]
+    B -->|成功入队| T[入口最终返回 true]
 ```
 
 ### 3.1 实例身份
@@ -79,7 +77,7 @@ flowchart TD
 
 ### 3.3 队列边界
 
-`DrainPending(maxCommands)` 的上限是防止同帧回调持续生成新命令导致无界执行。达到上限意味着剩余命令留待后续调度，不应被解释为申请失败。需要观察拒绝码、队列积压和每帧 drain 数量来区分业务拒绝与调度背压。
+`DrainPending(maxCommands)` 的上限是防止同帧回调持续生成新命令导致无界执行。效果回调中的 Immediate 调用仍会追加命令；其内层 drain 因重入保护返回后，外层游标通常会继续消费新增命令。达到上限时，剩余尾部留待后续 drain，不应被解释为生命周期拒绝。需要观察拒绝码、队列积压和每轮 drain 数量来区分业务拒绝与调度背压。
 
 ## 4. Projectile：发射、身份与来源
 
@@ -205,16 +203,25 @@ actual = oldHp - newHp
 
 确定性要求主要包括：同帧 Buff 命令按稳定顺序排空、技能和 projectile 来源上下文可追踪、Damage Pipeline 阶段顺序固定、HP 只由权威世界写回。表现层只消费快照/cue，不参与规则判定。
 
-## 9. 验证清单
+## 9. 验证证据与剩余缺口
 
-- 同一帧排入多个 Buff 命令，确认执行顺序稳定且达到 drain 上限后不会丢失；
-- 对同 buffId 创建多个 `sourceContextId` 实例，验证精确移除只结束目标实例；
-- 分别验证 direct `Shoot`、单发 Launch、扇形多发和持续 Launch 的 Actor/link 清理；
-- 命中自身、同队和敌方，确认过滤结果与当前实现一致；
-- 配置无 OnHit effect/trigger 的 projectile，确认命中不会自动扣血；
-- 构造基础伤害、减伤、护盾和 HP 下限场景，区分 pipeline 输出与实际落地值；
-- 验证 damage/heal snapshot 的 value 是实际 HP 变化量；
-- 回放同一输入序列，比较 Buff 实例、projectile 来源、DamageResult 和最终 HP。
+本文是三类能力的组合总览，直接证据以对应深潜文档为准：
+
+| 链路 | 当前证据 | 证据边界 |
+|------|----------|----------|
+| Buff 叠层与 Continuous | `BuffStackingPolicyApplierTests`、`MobaContinuousLifecycleTests` | 覆盖叠层策略与公共 Continuous 状态；未直接覆盖命令预算、Immediate 返回、End Flow、调和与恢复后行为重建 |
+| Projectile 底层运动 | `DajiRectangularProjectileTests` | 覆盖矩形 sweep、Ignore/Block、手动退出和碰撞几何回滚；不覆盖 MOBA launcher、source/retain 和命中 Trigger |
+| Projectile 业务路径 | Daji、Mozi 英雄 acceptance 与 `MobaCompleteBattleJourneyAcceptanceTests` | 覆盖指定配置的发射、移动，以及部分命中、伤害、控制和后续区域；不能推广到所有配置、失败分支或多人复制 |
+| Damage 组合路径 | `MobaCompleteBattleLifecycleSmokeTests`、`MobaSkillCastLifecycleSmokeTests` | 证明正式 World 中的 `DamagePipelineService` 可产生致死结果并驱动生命周期；未逐项验证 stage 顺序、减伤、护盾、heal 和 snapshot |
+| 配置与诊断 | `RangedBasicAttack_LoadoutAndConfigUseProjectileHitDamage` 及 Projectile/Damage Editor producer tests | 分别覆盖指定配置引用、诊断字段和采集协议；不替代运行时生命周期测试 |
+
+仍需补齐的组合契约包括：
+
+1. Buff 命令顺序、预算尾部保留、实例精确移除，以及 checkpoint 恢复后的 Continuous、Modifier、Tag 和 retain 重建。
+2. direct `Shoot`、配置化 Launch、散射与持续序列的 MOBA Actor/link/source/retain 建立及失败清理。
+3. `MobaTeamProjectileHitFilter` 全分支，以及无 OnHit 配置时不隐式伤害的专项断言。
+4. Damage stage 顺序、减伤、护盾、HP clamp 和 damage/heal snapshot 的实际变化量、批处理与 `InGame` 门禁。
+5. 同一输入序列重放后的 Buff 身份、projectile 来源、`DamageResult` 与最终 HP 对比；目前不能从局部 rollback provider 或单局 acceptance 推断完整回放一致性。
 
 ## 10. 源码索引
 
@@ -230,3 +237,7 @@ actual = oldHp - newHp
 | Damage Pipeline | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineService.cs` |
 | HP 落地与 Heal | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/MobaDamageService.cs` |
 | Damage/Heal 快照 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaDamageEventSnapshotService.cs` |
+
+---
+
+*文档版本：v1.1 | 状态：Buff、Projectile 与 Damage 组合总览及证据边界 | 最后更新：2026-08-02 | 验证基线：沿用 2026-08-02 MOBA .NET Release tests 232/232（有警告）；本轮仅核对测试入口，未重新执行测试*

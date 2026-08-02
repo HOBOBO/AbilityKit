@@ -13,7 +13,7 @@ MOBA 技能释放不是在代码里为每个英雄手写 Pipeline，而是由技
 | `trigger_plans.json` | TriggerPlan actions / conditions | RulePlan phase 和 Timeline effect 最终执行的计划 | `MobaTriggerPlanExecutor`、`MobaEffectExecutionService` |
 | `continuous_tag_templates.json` | tag requirements | Pipeline 运行期间持续占用/打断/门禁标签 | `MobaSkillPipelineConfig`、`SkillPipelineRunner` |
 
-当前配置中所有主动技能都通过 `CastFlowId` 指向同 ID 的技能 Flow，`PreCastFlowId` 暂未启用。这意味着当前示例主要展示 cast pipeline，而 precast pipeline 的机制由源码保留。
+截至 2026-08-02，`skills.json` 有 26 个技能条目，全部配置了可解析的 `CastFlowId`，且当前值与 skillId 相同；26 个 `PreCastFlowId` 均为 0。这个配置快照说明示例正在使用 cast pipeline，而 precast pipeline 目前只有 DTO、构建分支和引用校验，不能视为已有配置场景验证。
 
 ## 2. 从技能表到 Pipeline
 
@@ -50,7 +50,7 @@ flowchart TB
 
 ## 3. Phase 类型映射
 
-`SkillPhaseType` 的数字不是随意约定，而是 DTO 枚举定义。当前源码支持以下类型：
+`SkillPhaseType` 的数字由 DTO 枚举定义。下表先列出构建器可识别的类型；“源码有分支”与“当前配置正在使用”是两个不同结论：
 
 | Type | 名称 | 配置节点 | 运行时 Phase | 说明 |
 |------|------|----------|--------------|------|
@@ -64,10 +64,11 @@ flowchart TB
 | 13 | Delay | `Delay` | `AbilityDelayPhase` | 等待固定毫秒数 |
 | 14 | WaitUntil | `WaitUntil` | `AbilityWaitUntilPhase` | 等待运行时条件成立或超时 |
 
-配置治理上要注意两点：
+截至 2026-08-02，递归统计 `skill_flows.json` 的阶段树，实际配置为 Timeline 28 个、RulePlan 36 个、Sequence 1 个、WaitUntil 2 个；没有 Checks、Handlers、Parallel、Repeat 或 Delay 节点。配置治理上要注意：
 
-- `Checks` 和 `Handlers` 仍保留在 DTO 中，是为了兼容旧配置结构，但 `TableDrivenMobaSkillPipelineLibrary` 会直接抛异常，`MobaBattleConfigReferenceValidator` 也会报错。
-- 新配置应优先使用 `RulePlan` 表达释放条件、资源扣除、提交检查和失败原因，用 `Timeline` 触发正式效果。
+- `Checks` 和 `Handlers` 仍保留在 DTO 中，只用于识别旧结构；`TableDrivenMobaSkillPipelineLibrary` 遇到它们会抛异常，`MobaBattleConfigReferenceValidator` 也会报错。
+- Parallel、Repeat 和 Delay 已有构建与校验分支，但当前权威 JSON 没有对应样例，类型存在不能替代配置加载和运行时验收。
+- 新配置应使用 `RulePlan` 表达释放条件、资源扣除、提交检查和失败原因，用 `Timeline` 触发按时间编排的效果。
 
 ### 3.1 Unity Editor 树形创作
 
@@ -189,7 +190,7 @@ sequenceDiagram
 
 设计上它解决的是技能 Pipeline 级别的占用、霸体、不可打断、施法状态等持续状态，不适合塞到单个 Timeline event 里临时处理。单个效果触发仍应由 Timeline/RulePlan 进入 TriggerPlan。
 
-## 8. 配置校验与当前风险
+## 8. 配置校验与当前边界
 
 `MobaBattleConfigReferenceValidator` 对 skill flow 做了静态引用和结构校验：
 
@@ -203,17 +204,27 @@ sequenceDiagram
 | `Checks` / `Handlers` | 明确报错，提示迁移到 RulePlan |
 | `Repeat` / `Delay` / `WaitUntil` | 校验必需字段和非负时间 |
 
-当前 `skill_flows.json` 中赵云和墨子的多个技能仍保留 `Type: 1` Checks phase。按源码，这类 phase 已经是废弃结构：
+赵云和墨子曾使用的 `Type: 1` Checks 已迁移；当前 `skill_flows.json` 中没有 Checks 或 Handlers。废弃门禁仍应保留，防止旧资产或手工 JSON 再次进入运行时：
 
-- 校验器会报错：`checks skill phase is deprecated; use RulePlan trigger conditions instead.`
-- Pipeline 构建器会抛异常：`Skill Checks phase is deprecated. Use RulePlan trigger conditions instead.`
+- 校验器对 Checks 报告 `checks skill phase is deprecated; use RulePlan trigger conditions instead.`；
+- Pipeline 构建器遇到 Checks 直接抛出 `Skill Checks phase is deprecated. Use RulePlan trigger conditions instead.`；
+- Handlers 具有对应的校验错误和构建异常。
 
-因此后续配置治理建议是：
+当前仍有三项需要独立验证：
 
-1. 把 `Type: 1` Checks 迁移为 `Type: 4` RulePlan。
-2. 在对应 TriggerPlan 中表达 cooldown、casting state、required/blocked tags 等条件。
-3. 用 `AbortOnFailure` 和 `FailReason` 替代旧 Checks phase 的隐式失败。
-4. 迁移后运行配置校验，确保所有 `EffectId` / `TriggerIds` 都能解析。
+1. PreCast 构建分支没有权威配置样例，不能只根据 `PreCastFlowId` 字段和源码分支认定可用。
+2. Parallel、Repeat 和 Delay 没有进入当前 `skill_flows.json`，新增配置时应补充加载、构建、推进和失败语义测试。
+3. `MobaBattleConfigReferenceValidator` 能检查引用与基础结构，但不能替代技能时序、资源提交原子性和领域效果结果的场景验收。
+
+### 8.1 自动测试证据
+
+| 测试 | 直接覆盖 | 未覆盖 |
+|---|---|---|
+| `MobaSkillConfigurationContractTests` | 技能资源契约、负消耗门禁、非零消耗技能的 release/commit 要求、冻结配置快照 | 当前 26 个 Flow 的逐项时序和效果结果 |
+| `MobaSkillPipelinePrewarmTests` | 已加载技能的 Pipeline 预热、缺失技能诊断、缓存读取 | PreCast 以及 Parallel、Repeat、Delay 的运行语义 |
+| `SkillCommitAtomicityTests` | commit 失败时资源、冷却回滚 | 任意 TriggerPlan action 的通用事务回滚 |
+
+这些测试类存在于 .NET 测试工程中。本次文档治理只核对了源码、JSON 结构和已有测试入口，没有重新运行完整 MOBA 测试集。
 
 ## 9. 与其他文档的关系
 
@@ -236,3 +247,5 @@ sequenceDiagram
 7. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Phases/SkillRulePlanPhase.cs`：RulePlan phase 如何执行和中断。
 8. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleConfigReferenceValidator.cs`：配置引用与废弃 phase 校验。
 9. `Unity/Packages/com.abilitykit.demo.moba.editor/Editor/BattleDebug/Configuration/BattleDebugConfigSourceIndex.cs`：运行时配置引用到权威 JSON 条目与行号的编辑器索引。
+
+*文档版本：v1.1 | 状态：配置与运行时实现映射 | 最后更新：2026-08-02 | 验证基线：结构化核对 26 个 Skill/Flow；未重新运行 MOBA 全量测试*

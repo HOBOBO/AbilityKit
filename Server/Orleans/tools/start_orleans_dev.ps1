@@ -13,6 +13,7 @@ param(
     [switch]$NoCleanup,
     [switch]$CleanAll,
     [switch]$ForceStartGateway,
+    [switch]$HiddenWindows,
     [int]$SiloGatewayWaitSeconds = 120
 )
 
@@ -177,6 +178,9 @@ foreach ($silo in $siloSpecs) {
     if ($silo.IsExclusive) {
         $siloParams.IsExclusive = $true
     }
+    if ($HiddenWindows) {
+        $siloParams.HiddenWindows = $true
+    }
 
     & $siloScript @siloParams
 }
@@ -231,7 +235,8 @@ Write-Host 'Starting Orleans Gateway...' -ForegroundColor Cyan
 $gatewayLog = Join-Path $instanceLogs 'gateway.log'
 $gatewayCommand = "`$Host.UI.RawUI.WindowTitle = 'AbilityKit $InstanceName Gateway'; dotnet run --project `"$gatewayProj`" -c $Configuration $noBuildArg -- $gatewayConfigLine 2>&1 | Tee-Object -FilePath `"$gatewayLog`" -Append"
 $gatewayArgs = @('-NoExit', '-NoProfile', '-Command', $gatewayCommand)
-$gatewayWindow = Start-Process powershell -ArgumentList $gatewayArgs -WorkingDirectory $gatewayWorkingDirectory -PassThru -WindowStyle Normal
+$gatewayWindowStyle = if ($HiddenWindows) { 'Hidden' } else { 'Normal' }
+$gatewayWindow = Start-Process powershell -ArgumentList $gatewayArgs -WorkingDirectory $gatewayWorkingDirectory -PassThru -WindowStyle $gatewayWindowStyle
 Write-Host "  Gateway window PID: $($gatewayWindow.Id)" -ForegroundColor Gray
 
 $gatewayHealthStopwatch = [System.Diagnostics.Stopwatch]::StartNew()

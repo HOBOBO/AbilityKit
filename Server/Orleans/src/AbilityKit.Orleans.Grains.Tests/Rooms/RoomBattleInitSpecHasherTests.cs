@@ -70,6 +70,19 @@ public sealed class RoomBattleInitSpecHasherTests
     }
 
     [Fact]
+    public void Compute_ReturnsDifferentHash_WhenSpawnContractChanges()
+    {
+        var playerA = CreatePlayer(1, "acc-1");
+        var playerB = CreatePlayer(1, "acc-1");
+        playerB.SpawnIndex = 1;
+
+        var a = CreateParams(players: new List<PlayerInitInfo> { playerA });
+        var b = CreateParams(players: new List<PlayerInitInfo> { playerB });
+
+        Assert.NotEqual(RoomBattleInitSpecHasher.Compute(a), RoomBattleInitSpecHasher.Compute(b));
+    }
+
+    [Fact]
     public void Compute_ReturnsEmpty_ForNullParams()
     {
         Assert.Equal(string.Empty, RoomBattleInitSpecHasher.Compute(null!));

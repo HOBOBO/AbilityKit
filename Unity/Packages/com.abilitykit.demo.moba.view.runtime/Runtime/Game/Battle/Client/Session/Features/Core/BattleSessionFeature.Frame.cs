@@ -15,7 +15,10 @@ namespace AbilityKit.Game.Flow
                 _subFeatureHost.ForEach<ISessionFramePacketTransformSubFeature<BattleSessionFeature>>(m => packet = m.TransformFramePacket(fctx, packet));
             }
 
-            _lastFrame = packet.Frame.Value;
+            if (packet.Frame.Value > _lastFrame)
+            {
+                _lastFrame = packet.Frame.Value;
+            }
             NotifyFirstFrameReceivedOnce();
 
             SessionContextBinder.BindLastFrame(_ctx, _state);

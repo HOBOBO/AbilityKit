@@ -4,6 +4,14 @@ using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Ability.Host.Extensions.FrameSync
 {
+    /// <summary>
+    /// Replaces prediction history with an externally imported authoritative world baseline.
+    /// </summary>
+    public interface IClientPredictionBaselineControl
+    {
+        bool TryRebase(WorldId worldId, FrameIndex baselineFrame);
+    }
+
     public interface IClientPredictionDriverStats
     {
         int InputDelayFrames { get; }

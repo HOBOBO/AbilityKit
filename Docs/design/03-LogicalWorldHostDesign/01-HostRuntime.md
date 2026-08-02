@@ -21,7 +21,11 @@
   - [9. Features 与模块协作](#9-features-与模块协作)
   - [10. 设计意图与解决的问题](#10-设计意图与解决的问题)
   - [11. 边界判断](#11-边界判断)
-  - [12. 源码阅读路径](#12-源码阅读路径)
+  - [12. 验证入口与证据状态](#12-验证入口与证据状态)
+    - [12.1 独立 Host 测试](#121-独立-host-测试)
+    - [12.2 示例集成证据](#122-示例集成证据)
+    - [12.3 尚未形成回归保护的契约](#123-尚未形成回归保护的契约)
+  - [13. 源码阅读路径](#13-源码阅读路径)
 
 ---
 
@@ -66,6 +70,8 @@ flowchart TB
 | `Unity/Packages/com.abilitykit.host/Runtime/Host/Framework/HostRuntimeFeatures.cs` | 模块之间共享能力的 Type -> object 注册表 |
 | `Unity/Packages/com.abilitykit.host/Runtime/Host/Builder/WorldHostBuilder.cs` | Host 构建器，装配 WorldFactory、驱动、快照提供器和模块 |
 | `Unity/Packages/com.abilitykit.host/Runtime/Host/Transport/ServerMessage.cs` | Host 内置世界创建/销毁消息 |
+| `src/AbilityKit.Host.Tests/WorldHostBuilderTests.cs` | 当前独立 Host 测试，覆盖 Builder 的少量参数边界 |
+| `src/AbilityKit.Demo.Shooter.Runtime.Tests/HostExtension/FrameSyncDriverModuleHeadlessTests.cs` | Shooter 侧 Host/帧同步集成测试 |
 | `Unity/Packages/com.abilitykit.world.di/Runtime/World/Management/WorldManager.cs` | 多世界容器和 Tick/Dispose 管理 |
 
 ---
@@ -356,16 +362,73 @@ flowchart LR
 
 ---
 
-## 12. 源码阅读路径
+## 12. 验证入口与证据状态
+
+### 12.1 独立 Host 测试
+
+Host 测试工程可通过以下命令运行：
+
+```powershell
+dotnet test src/AbilityKit.Host.Tests/AbilityKit.Host.Tests.csproj
+```
+
+当前 `WorldHostBuilderTests.cs` 只有四个测试，验证范围是：
+
+| 测试契约 | 当前结论 |
+|----------|----------|
+| `WorldHostBuilder.Create()` | 返回非空 Builder |
+| `SetWorldFactory(null)` | 抛出参数异常 |
+| `AddModule(null)` | 容忍空值并返回原 Builder |
+| `AddModules(null)` | 容忍空集合并返回原 Builder |
+
+这些测试刻意不创建真实 `IWorldFactory` 和运行时依赖，因此不能证明 `BuildWithOptions` 的完整装配顺序，也不能证明 `HostRuntime` 的世界生命周期、Tick、连接广播或模块卸载行为。
+
+### 12.2 示例集成证据
+
+Shooter Runtime 测试可通过以下命令运行：
+
+```powershell
+dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj --filter FrameSyncDriverModuleHeadlessTests
+```
+
+`FrameSyncDriverModuleHeadlessTests` 提供了三类跨包证据：
+
+| 场景 | 已验证行为 |
+|------|------------|
+| 无 World 的 headless session | Tick 能 flush 输入并广播帧消息 |
+| session 注销后再次提交输入 | 输入被拒绝 |
+| 已创建 World 的 session | 仍可经现有 InputHub 路径提交并广播 |
+
+它证明 Host Hook、Feature、输入 session 和广播在 Shooter 装配中能够协作，但测试目标是 `FrameSyncDriverModule`，不是 HostRuntime 全契约。示例测试通过不能替代 Host 包自己的生命周期和故障隔离测试。
+
+### 12.3 尚未形成回归保护的契约
+
+以下行为在本文中依据源码描述，当前没有发现对应的独立 Host 自动测试：
+
+1. `CreateWorld` 的 Before/Created Hook、旧式 delegate、`WorldManager.Create` 和广播之间的精确顺序。
+2. `DestroyWorld` 成功与失败时是否触发 Hook 和广播，以及世界 `Dispose` 只执行一次的约束。
+3. `Tick` 中 PreTick、世界 Tick、PostTick 的顺序，以及异常发生后哪些后续阶段仍会执行。
+4. 单个世界 Tick 失败不阻断其他世界，单个连接发送失败不阻断广播给其他连接。
+5. 重复 ClientId 的连接覆盖、断连后不再接收消息，以及发送前后 Hook 的异常语义。
+6. `BuildWithOptions` 中工厂包装、驱动 Attach、快照 Feature 注册和模块安装的完整顺序。
+7. HostRuntime 与模块宿主的释放入口及重复释放行为。
+
+补测时应分别使用最小 fake world、fake connection 和记录顺序的 Hook handler，避免依赖 Shooter 玩法对象；这样才能把 Host 自身契约与示例装配问题分开定位。
+
+---
+
+## 13. 源码阅读路径
 
 1. `IWorldHost`：Host 对外边界。
 2. `HostRuntime`：创建世界、Tick、连接广播三条主路径。
 3. `HostRuntimeOptions` 与 `Hook`：模块接入点。
 4. `HostRuntimeFeatures`：模块间共享能力。
 5. `WorldHostBuilder`：推荐装配顺序。
-6. [Host 模块系统](./02-HostModules.md)：扩展模块如何使用 Hook 和 Features。
-7. [World 管理器](./03-WorldManager.md)：Host 外层与世界生命周期底座的关系。
+6. `WorldHostBuilderTests`：当前独立测试实际覆盖到的参数边界。
+7. `FrameSyncDriverModuleHeadlessTests`：Host 与帧同步扩展的示例集成证据。
+8. [Host 模块系统](./02-HostModules.md)：扩展模块如何使用 Hook 和 Features。
+9. [World 管理器](./03-WorldManager.md)：Host 外层与世界生命周期底座的关系。
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-07-03*
+*文档版本：v2.1 | 最后更新：2026-08-02*

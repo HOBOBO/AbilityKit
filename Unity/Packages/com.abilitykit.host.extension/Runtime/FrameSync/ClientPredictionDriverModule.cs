@@ -10,7 +10,7 @@ using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Ability.Host.Extensions.FrameSync
 {
-    public sealed class ClientPredictionDriverModule : IHostRuntimeModule, IClientPredictionDriverStats, IClientPredictionTuningControl, IClientPredictionReconcileTarget, IClientPredictionReconcileControl
+    public sealed class ClientPredictionDriverModule : IHostRuntimeModule, IHostRuntimeTickGate, IClientPredictionDriverStats, IClientPredictionTuningControl, IClientPredictionReconcileTarget, IClientPredictionReconcileControl, IClientPredictionBaselineControl
     {
         private const int ReplayWaitTimeoutTicks = 120;
 
@@ -47,6 +47,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             ctx.ReplayTo = ctx.PredictedFrame;
             ctx.LastRollbackFrame = new FrameIndex(-1);
             ctx.ReplayWaitTicks = 0;
+            ctx.LastReplayWaitTargetFrame = -1;
 
             _isReplaying = false;
             _replayToFrame = default;
@@ -67,7 +68,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             public FrameIndex ConfirmedFrame;
             public FrameIndex PredictedFrame;
 
-            public Queue<LocalPlayerInputEvent[]> LocalDelayQueue;
+            public SortedDictionary<int, List<LocalPlayerInputEvent>> PendingLocalInputs;
 
             public RollbackCoordinator Rollback;
             public int CaptureCounter;
@@ -84,6 +85,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             public bool ReconcileEnabled;
 
             public int ReplayWaitTicks;
+            public int LastReplayWaitTargetFrame;
 
             public bool HasBacklogEwma;
             public float BacklogEwma;
@@ -172,6 +174,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         private bool _isReplaying;
         private FrameIndex _replayToFrame;
         private FrameIndex _lastRollbackFrame;
+        private bool _shouldRunWorldTick;
 
         private readonly Action<IWorld> _onWorldCreated;
         private readonly Action<WorldId> _onWorldDestroyed;
@@ -346,11 +349,17 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         public long TotalLocalDelayQueueDroppedBatches => _totalLocalDelayQueueDroppedBatches;
 
+        public bool ShouldRunWorldTick => _shouldRunWorldTick;
+
         public bool TryGetLocalDelayQueueDepth(WorldId worldId, out int depth)
         {
-            if (_contexts.TryGetValue(worldId, out var ctx) && ctx != null && ctx.LocalDelayQueue != null)
+            if (_contexts.TryGetValue(worldId, out var ctx) && ctx?.PendingLocalInputs != null)
             {
-                depth = ctx.LocalDelayQueue.Count;
+                depth = 0;
+                foreach (var pending in ctx.PendingLocalInputs)
+                {
+                    depth += pending.Value?.Count ?? 0;
+                }
                 return true;
             }
 
@@ -410,6 +419,58 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             return false;
         }
 
+        public bool TryRebase(WorldId worldId, FrameIndex baselineFrame)
+        {
+            if (baselineFrame.Value < 0 ||
+                !_contexts.TryGetValue(worldId, out var ctx) ||
+                ctx == null)
+            {
+                return false;
+            }
+
+            ctx.PendingLocalInputs?.Clear();
+            ctx.AppliedInputs?.Clear();
+            ctx.AuthoritativeInputs?.Clear();
+            ctx.PredictedHashes?.Clear();
+            ctx.AuthoritativeHashes?.Clear();
+            ctx.Reconciler?.Clear();
+
+            ctx.Rollback?.ClearHistory();
+            ctx.ConfirmedFrame = baselineFrame;
+            ctx.PredictedFrame = baselineFrame;
+            ctx.LastProcessedRollbackFrame = baselineFrame;
+            ctx.CaptureCounter = 0;
+            ctx.LastMissingAppliedHistoryFrame = new FrameIndex(-1);
+
+            ctx.HasBacklogEwma = false;
+            ctx.BacklogEwma = 0f;
+            ctx.BacklogRaw = 0;
+            ctx.PredictionWindow = 0;
+            ctx.PredictionStalled = false;
+            ctx.IdealFrameStalled = false;
+            ctx.IdealFrameCappedWindow = false;
+
+            ResetReconcileInternal(ctx);
+            AlignFrameTimeToBaseline(ctx.FrameTime, baselineFrame);
+
+            if (ctx.Rollback != null && !ctx.Rollback.CaptureAndStore(baselineFrame))
+            {
+                Log.Warning(
+                    $"[ClientPredictionDriverModule] Failed to capture imported prediction baseline. " +
+                    $"worldId={worldId.Value}, frame={baselineFrame.Value}");
+                return false;
+            }
+
+            _lastConsumedConfirmedFrames = 0;
+            _lastConsumedPredictedFrames = 0;
+            _currentBacklogRaw = 0;
+            _currentBacklogEwma = 0f;
+            _currentPredictionWindow = 0;
+            _isPredictionStalledByWindow = false;
+            _isPredictionStalledByIdealFrame = false;
+            return true;
+        }
+
         public void Install(HostRuntime runtime, HostRuntimeOptions options)
         {
             if (runtime == null) throw new ArgumentNullException(nameof(runtime));
@@ -427,6 +488,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             runtime.Features.RegisterFeature<IClientPredictionTuningControl>(this);
             runtime.Features.RegisterFeature<IClientPredictionReconcileTarget>(this);
             runtime.Features.RegisterFeature<IClientPredictionReconcileControl>(this);
+            runtime.Features.RegisterFeature<IClientPredictionBaselineControl>(this);
+            runtime.Features.RegisterFeature<IHostRuntimeTickGate>(this);
         }
 
         public void Uninstall(HostRuntime runtime, HostRuntimeOptions options)
@@ -443,6 +506,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             runtime.Features.UnregisterFeature<IClientPredictionTuningControl>();
             runtime.Features.UnregisterFeature<IClientPredictionReconcileTarget>();
             runtime.Features.UnregisterFeature<IClientPredictionReconcileControl>();
+            runtime.Features.UnregisterFeature<IClientPredictionBaselineControl>();
+            runtime.Features.UnregisterFeature<IHostRuntimeTickGate>();
 
             _contexts.Clear();
             _lastConsumedConfirmedFrames = 0;
@@ -515,7 +580,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 FrameTime = frameTime,
                 ConfirmedFrame = new FrameIndex(0),
                 PredictedFrame = new FrameIndex(0),
-                LocalDelayQueue = new Queue<LocalPlayerInputEvent[]>(_inputDelayFrames + 2),
+                PendingLocalInputs = new SortedDictionary<int, List<LocalPlayerInputEvent>>(),
                 Rollback = rollback,
                 CaptureCounter = 0,
                 LastProcessedRollbackFrame = new FrameIndex(0),
@@ -531,6 +596,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 ReplayTo = new FrameIndex(0),
                 LastRollbackFrame = new FrameIndex(-1),
                 LastMissingAppliedHistoryFrame = new FrameIndex(-1),
+                LastReplayWaitTargetFrame = -1,
             };
         }
 
@@ -625,6 +691,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             ctx.PredictedFrame = rollbackFrame;
             ctx.LastRollbackFrame = rollbackFrame;
             ctx.LastProcessedRollbackFrame = rollbackFrame;
+            ctx.LastReplayWaitTargetFrame = -1;
 
             _isReplaying = true;
             _replayToFrame = ctx.ReplayTo;
@@ -654,6 +721,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             if (_runtime == null) return;
 
+            _shouldRunWorldTick = false;
             _lastConsumedConfirmedFrames = 0;
             _lastConsumedPredictedFrames = 0;
 
@@ -679,8 +747,6 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
                 var remote = _resolveRemoteInputs != null ? _resolveRemoteInputs(worldId) : null;
                 var local = _resolveLocalInputs != null ? _resolveLocalInputs(worldId) : null;
-
-                var localBatch = Array.Empty<LocalPlayerInputEvent>();
 
                 // 每次 HostRuntime.Tick 只提交一次。
 
@@ -755,16 +821,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                         evts = dequeued;
                     }
 
-                    localBatch = evts;
-
-                    ctx.LocalDelayQueue ??= new Queue<LocalPlayerInputEvent[]>(_inputDelayFrames + 2);
-                    ctx.LocalDelayQueue.Enqueue(evts);
-
-                    while (ctx.LocalDelayQueue.Count > _maxLocalDelayQueueDepth)
-                    {
-                        ctx.LocalDelayQueue.Dequeue();
-                        _totalLocalDelayQueueDroppedBatches++;
-                    }
+                    ScheduleLocalInputs(ctx, evts);
                 }
 
                 // 步骤 1（优先）：如果下一确认帧有权威输入，则应用它。
@@ -782,6 +839,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                             authInputs = Array.Empty<PlayerInputCommand>();
                         }
 
+                        var confirmsAlreadyPredictedFrame = false;
                         if (_enableRollback && ctx.Rollback != null && ctx.PredictedFrame.Value >= frame.Value)
                         {
                             if (!ctx.AppliedInputs.TryGet(frame, out var appliedAtFrame) || appliedAtFrame == null)
@@ -812,6 +870,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                                     ctx.PredictedFrame = rollbackFrame;
                                     ctx.LastRollbackFrame = rollbackFrame;
                                     ctx.LastProcessedRollbackFrame = rollbackFrame;
+                                    ctx.LastReplayWaitTargetFrame = -1;
 
                                     _isReplaying = true;
                                     _replayToFrame = ctx.ReplayTo;
@@ -821,6 +880,10 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                                 {
                                     _totalRollbackRestoreFailed++;
                                 }
+                            }
+                            else
+                            {
+                                confirmsAlreadyPredictedFrame = true;
                             }
                         }
 
@@ -840,21 +903,31 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                                 Log.Info($"[ClientPredictionDriverModule] Consuming authoritative inputs. worldId={worldId.Value}, frame={nextConfirmed}, count={consumed.Length}, firstOpCode={consumed[0].OpCode}");
                             }
 
-                            AlignFrameTime(ctx.FrameTime, frame, deltaTime);
-                            ctx.InputSink.Submit(frame, consumed);
                             ctx.AuthoritativeInputs.Store(frame, consumed);
-                            ctx.AppliedInputs.Store(frame, consumed);
 
                             ctx.ConfirmedFrame = frame;
                             _lastConsumedConfirmedFrames = 1;
                             _totalConsumedConfirmedFrames++;
 
-                            if (ctx.PredictedFrame.Value < frame.Value)
+                            if (confirmsAlreadyPredictedFrame)
                             {
-                                ctx.PredictedFrame = frame;
+                                // The world has already simulated this exact input. Use this host tick
+                                // to prepare the next predicted frame instead of executing it twice.
                             }
+                            else
+                            {
+                                AlignFrameTime(ctx.FrameTime, frame, deltaTime);
+                                ctx.InputSink.Submit(frame, consumed);
+                                _shouldRunWorldTick = true;
+                                ctx.AppliedInputs.Store(frame, consumed);
 
-                            continue;
+                                if (ctx.PredictedFrame.Value < frame.Value)
+                                {
+                                    ctx.PredictedFrame = frame;
+                                }
+
+                                continue;
+                            }
                         }
                     }
                 }
@@ -872,6 +945,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     {
                         ctx.Mode = ReplayMode.Normal;
                         ctx.ReplayWaitTicks = 0;
+                        ctx.LastReplayWaitTargetFrame = -1;
+                        _isReplaying = false;
                         continue;
                     }
 
@@ -881,6 +956,10 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     if (ctx.AuthoritativeInputs.TryGet(next, out var auth) && auth != null)
                     {
                         inputs = auth;
+                        if (ctx.ConfirmedFrame.Value < next.Value)
+                        {
+                            ctx.ConfirmedFrame = next;
+                        }
                     }
                     else if (remote != null && next.Value <= remote.TargetFrame)
                     {
@@ -902,7 +981,12 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     else
                     {
                         // 该帧尚无权威输入，暂停回放（不提交预测输入）。
-                        ctx.ReplayWaitTicks++;
+                        var replayWaitTargetFrame = remote != null ? remote.TargetFrame : -1;
+                        if (ctx.LastReplayWaitTargetFrame != replayWaitTargetFrame)
+                        {
+                            ctx.LastReplayWaitTargetFrame = replayWaitTargetFrame;
+                            ctx.ReplayWaitTicks++;
+                        }
                         if (ctx.ReplayWaitTicks >= ReplayWaitTimeoutTicks)
                         {
                             Log.Warning($"[ClientPredictionDriverModule] Replay wait timeout. worldId={worldId} rollbackFrame={ctx.LastRollbackFrame.Value} predicted={ctx.PredictedFrame.Value} replayTo={ctx.ReplayTo.Value} targetFrame={(remote != null ? remote.TargetFrame : -1)}. Disabling reconcile and exiting replay.");
@@ -913,14 +997,17 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                             ctx.ReconcileEnabled = false;
                             ctx.Mode = ReplayMode.Normal;
                             ctx.ReplayWaitTicks = 0;
+                            ctx.LastReplayWaitTargetFrame = -1;
                         }
                         continue;
                     }
 
                     ctx.ReplayWaitTicks = 0;
+                    ctx.LastReplayWaitTargetFrame = -1;
 
                     AlignFrameTime(ctx.FrameTime, next, deltaTime);
                     ctx.InputSink.Submit(next, inputs);
+                    _shouldRunWorldTick = true;
                     ctx.AppliedInputs.Store(next, inputs);
                     ctx.PredictedFrame = next;
                     _lastConsumedPredictedFrames = 1;
@@ -961,6 +1048,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                         continue;
                     }
 
+                    var localBatch = TakeLocalInputs(ctx, next);
                     PlayerInputCommand[] predictedInputs;
                     if (localBatch.Length == 0)
                     {
@@ -978,12 +1066,100 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
                     AlignFrameTime(ctx.FrameTime, next, deltaTime);
                     ctx.InputSink.Submit(next, predictedInputs);
+                    _shouldRunWorldTick = true;
                     ctx.PredictedFrame = next;
                     ctx.AppliedInputs.Store(next, predictedInputs);
                     _lastConsumedPredictedFrames = 1;
                     _totalPredictedFrames++;
                 }
             }
+        }
+
+        private void ScheduleLocalInputs(WorldContext ctx, LocalPlayerInputEvent[] events)
+        {
+            if (ctx == null || events == null || events.Length == 0) return;
+            ctx.PendingLocalInputs ??= new SortedDictionary<int, List<LocalPlayerInputEvent>>();
+
+            var droppedStaleInput = false;
+            for (var i = 0; i < events.Length; i++)
+            {
+                var input = events[i];
+                var targetFrame = input.Frame.Value > 0
+                    ? input.Frame.Value
+                    : ctx.PredictedFrame.Value + 1;
+                if (targetFrame <= ctx.PredictedFrame.Value)
+                {
+                    if (input.CanRetargetIfStale)
+                    {
+                        targetFrame = ctx.PredictedFrame.Value + 1;
+                    }
+                    else
+                    {
+                        droppedStaleInput = true;
+                        continue;
+                    }
+                }
+
+                if (!ctx.PendingLocalInputs.TryGetValue(targetFrame, out var frameInputs))
+                {
+                    frameInputs = new List<LocalPlayerInputEvent>(2);
+                    ctx.PendingLocalInputs[targetFrame] = frameInputs;
+                }
+
+                var replaced = false;
+                if (input.CanRetargetIfStale)
+                {
+                    for (var pendingIndex = 0; pendingIndex < frameInputs.Count; pendingIndex++)
+                    {
+                        var pending = frameInputs[pendingIndex];
+                        if (pending.CanRetargetIfStale &&
+                            pending.OpCode == input.OpCode &&
+                            pending.PlayerId.Value == input.PlayerId.Value)
+                        {
+                            frameInputs[pendingIndex] = input;
+                            replaced = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!replaced)
+                {
+                    frameInputs.Add(input);
+                }
+            }
+
+            if (droppedStaleInput)
+            {
+                _totalLocalDelayQueueDroppedBatches++;
+            }
+
+            while (ctx.PendingLocalInputs.Count > _maxLocalDelayQueueDepth)
+            {
+                var firstKey = int.MaxValue;
+                foreach (var pending in ctx.PendingLocalInputs)
+                {
+                    firstKey = pending.Key;
+                    break;
+                }
+                if (firstKey == int.MaxValue) break;
+                ctx.PendingLocalInputs.Remove(firstKey);
+                _totalLocalDelayQueueDroppedBatches++;
+            }
+        }
+
+        private static LocalPlayerInputEvent[] TakeLocalInputs(WorldContext ctx, FrameIndex frame)
+        {
+            if (ctx?.PendingLocalInputs == null ||
+                !ctx.PendingLocalInputs.TryGetValue(frame.Value, out var inputs) ||
+                inputs == null ||
+                inputs.Count == 0)
+            {
+                return Array.Empty<LocalPlayerInputEvent>();
+            }
+
+            ctx.PendingLocalInputs.Remove(frame.Value);
+            return inputs.ToArray();
         }
 
         private static void AlignFrameTime(
@@ -1006,6 +1182,19 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 previousFrame.Value * fixedDelta,
                 fixedDelta);
             frameTime.StepTo(targetFrame, fixedDelta);
+        }
+
+        private static void AlignFrameTimeToBaseline(FrameTime frameTime, FrameIndex baselineFrame)
+        {
+            if (frameTime == null) return;
+
+            var fixedDelta = frameTime.FrameToTime(new FrameIndex(1));
+            if (fixedDelta <= 0f) return;
+
+            frameTime.Reset(
+                baselineFrame,
+                baselineFrame.Value * fixedDelta,
+                fixedDelta);
         }
 
         private static bool InputsEqual(PlayerInputCommand[] a, PlayerInputCommand[] b)
@@ -1036,7 +1225,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         private void OnPostTick(float deltaTime)
         {
-            if (_runtime == null) return;
+            if (_runtime == null || !_shouldRunWorldTick) return;
 
             foreach (var kv in _contexts)
             {

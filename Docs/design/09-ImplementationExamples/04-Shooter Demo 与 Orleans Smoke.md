@@ -248,16 +248,16 @@ packed snapshot 更适合：
 
 ### 7.3 packed snapshot 应用
 
-[`ShooterPackedSnapshotSyncController`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterPackedSnapshotSyncController.cs) 处理服务端推送的 packed 载荷。
+[`ShooterFrameworkSnapshotPipeline`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterFrameworkSnapshotPipeline.cs) 是 packed 与 pure-state 载荷的统一解码、分派和应用入口。它按 opcode 注册 `PackedState`、`PackedStateDelta`、`PureState` 与 `PureStateDelta` 路由，避免每种载荷各自维护一套入口控制器。
 
-其关键流程是：
+packed 载荷进入 `SnapshotApplyContext.ApplyPacked` 后依次执行：
 
-1. 优先处理 pure-state baseline；
-2. 忽略过期帧；
-3. 若没有 packed snapshot，则走插值表现路径；
-4. 若有 packed snapshot，调用 runtime 导入；
-5. 成功后更新已应用帧、hash 与 flags；
-6. 再把插值 snapshot 交给 presentation。
+1. 使用 `ShooterStateSyncCompatibilityPolicy` 检查协议版本；
+2. 忽略不晚于 `LastAppliedFrame` 的过期快照；
+3. 调用 `IShooterBattleRuntimePort.ImportPackedSnapshot` 导入权威状态；
+4. 成功后更新已应用帧、hash 与 flags；
+5. 将当前网关快照交给 presentation 生成表现投影；
+6. 返回 `AppliedPackedSnapshot`，让会话和恢复策略识别本次应用结果。
 
 因此，**同步状态**与**表现状态**是两条并行路径：
 
@@ -521,7 +521,7 @@ flowchart TB
 | 状态哈希 | [`ShooterStateHasher`](../../../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Synchronization/ShooterStateHasher.cs) |
 | 客户端会话 | [`ShooterClientSession`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientSession.cs) |
 | 同步控制器工厂 | [`ShooterClientSyncControllerFactory`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientSyncControllerFactory.cs) |
-| packed 同步控制器 | [`ShooterPackedSnapshotSyncController`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterPackedSnapshotSyncController.cs) |
+| 快照解码与应用管线 | [`ShooterFrameworkSnapshotPipeline`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterFrameworkSnapshotPipeline.cs) |
 | pure-state 同步控制器 | [`ShooterPureStateSnapshotSyncController`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterPureStateSnapshotSyncController.cs) |
 | 房间流程 | [`ShooterRoomGatewayFlow`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Gateway/ShooterRoomGatewayFlow.cs) |
 | Unity 远程状态同步宿主 | [`ShooterRemoteStateSyncPlayModeHost`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Unity/PlayMode/ShooterRemoteStateSyncPlayModeHost.cs) |

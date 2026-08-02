@@ -36,11 +36,12 @@ namespace AbilityKit.Game.View.Flow
         public void Add(TFeature feature, in TContext ctx)
         {
             if (feature == null) throw new ArgumentNullException(nameof(feature));
-            _features.Add(feature);
             if (_isAttached)
             {
                 _attachFeature(feature, in ctx);
             }
+
+            _features.Add(feature);
         }
 
         public bool Remove(TFeature feature, in TContext ctx)
@@ -66,13 +67,37 @@ namespace AbilityKit.Game.View.Flow
                 return;
             }
 
-            _isAttached = true;
-            for (var i = 0; i < _features.Count; i++)
+            var attachedCount = 0;
+            try
             {
-                if (_features[i] != null)
+                for (; attachedCount < _features.Count; attachedCount++)
                 {
-                    _attachFeature(_features[i], in ctx);
+                    if (_features[attachedCount] != null)
+                    {
+                        _attachFeature(_features[attachedCount], in ctx);
+                    }
                 }
+
+                _isAttached = true;
+            }
+            catch (Exception attachException)
+            {
+                var exceptions = new List<Exception> { attachException };
+                for (var i = attachedCount - 1; i >= 0; i--)
+                {
+                    if (_features[i] == null) continue;
+                    try
+                    {
+                        _detachFeature(_features[i], in ctx);
+                    }
+                    catch (Exception rollbackException)
+                    {
+                        exceptions.Add(rollbackException);
+                    }
+                }
+
+                if (exceptions.Count == 1) throw;
+                throw new AggregateException("Feature attach failed and rollback encountered errors.", exceptions);
             }
         }
 
@@ -84,25 +109,46 @@ namespace AbilityKit.Game.View.Flow
                 return;
             }
 
-            for (var i = _features.Count - 1; i >= 0; i--)
+            List<Exception>? exceptions = null;
+            try
             {
-                if (_features[i] != null)
+                for (var i = _features.Count - 1; i >= 0; i--)
                 {
-                    _detachFeature(_features[i], in ctx);
+                    if (_features[i] == null) continue;
+                    try
+                    {
+                        _detachFeature(_features[i], in ctx);
+                    }
+                    catch (Exception exception)
+                    {
+                        (exceptions ??= new List<Exception>()).Add(exception);
+                    }
                 }
             }
+            finally
+            {
+                _isAttached = false;
+            }
 
-            _isAttached = false;
+            if (exceptions != null)
+            {
+                throw new AggregateException("One or more features failed to detach.", exceptions);
+            }
         }
 
         public void Clear(in TContext ctx)
         {
-            if (_isAttached)
+            try
             {
-                DetachAll(ctx);
+                if (_isAttached)
+                {
+                    DetachAll(ctx);
+                }
             }
-
-            _features.Clear();
+            finally
+            {
+                _features.Clear();
+            }
         }
 
         public void Tick(in TContext ctx, float deltaTime)

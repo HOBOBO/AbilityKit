@@ -1,648 +1,492 @@
-# Behavior Tree Integration Design
+# 行为树集成设计
 
-## 一、现状分�?
+本文说明 AbilityKit 当前行为运行时、BTCore 树执行器与 MOBA 领域接入之间的关系。文中的“当前实现”以仓库中的代码和测试为准；未接入业务链路的适配器、尚未关闭的生命周期风险和后续优化分别说明，不作为已经交付的统一方案。
 
-### 1.1 现有两套系统
+## 一、系统定位
 
-#### 系统 A：`com.abilitykit.thirdparty.behaviortreeeditor`（第三方行为树）
+AbilityKit 没有把行为树直接做成战斗世界的主循环。当前实现由三层组成：
 
-**作者：Saroce，来源：独立开发的行为树编辑器**
+1. `com.abilitykit.behavior` 提供持续行为的生命周期、决策接口、执行接口、状态和输出。
+2. BTCore 提供树拓扑、节点生命周期、组合节点、条件重评估和黑板。
+3. MOBA 运行时负责加载树配置、绑定领域服务、刷新每帧事实，并把树输出转换成移动、施法或保持意图。
 
-| 组件 | 状�?| 说明 |
-|---|---|---|
-| **Runtime（BTRuntime.asmdef�?* | �?完整实现 | 86 个文件，完整�?BT 运行�?|
-| **Editor（BTEditor.asmdef�?* | �?完整实现 | 36 个文件，完整 Unity Editor UI |
-| **Runtime.Unity（BTRuntime.Unity.asmdef�?* | �?完整实现 | Unity 特定运行�?|
-
-**已实现的节点类型**�?
-
-| 类别 | 节点 |
-|---|---|
-| **Composites（组合）** | Sequence, Selector, RandomSequence, RandomSelector, Parallel |
-| **Decorators（装饰器�?* | Repeater, Inverter, UntilSuccess, UntilFailure, Failure, Success |
-| **Conditions（条件）** | RandomProbability, IsKeyDown（Unity），支持扩展 |
-| **Actions（行为）** | Wait, Log（示例），支�?ExternalNode 扩展 |
-| **Other** | EntryNode, StickNoteNode, GroupNode（编辑器注释/分组�?|
-
-**核心运行时能�?*�?
-
-| 能力 | 实现 |
-|---|---|
-| **Conditional Reevaluation** | �?支持 AbortType（Self / LowerPriority / Both�?|
-| **并行节点** | �?Parallel 节点支持多分支并发执�?|
-| **运行时栈管理** | �?多层 Stack 支持节点中断/恢复 |
-| **Blackboard** | �?类型化黑板（BlackboardValue<T>�?|
-| **外部节点扩展** | �?IExternalNode 接口，游戏可自定�?|
-| **序列�?* | �?JSON（Newtonsoft.Json�?|
-
-#### 系统 B：`com.abilitykit.behavior`（AbilityKit 自研行为系统�?
-
-| 组件 | 状�?| 说明 |
-|---|---|---|
-| **BehaviorRuntime** | �?完整实现 | 生命周期 + Tick + IContinuous 集成 |
-| **BehaviorManager** | �?完整实现 | 行为管理器（创建/中断/优先级） |
-| **Decision/Executor 模式** | �?完整实现 | IBehaviorDecision + IBehaviorExecutor |
-| **Pipeline 集成** | �?完整实现 | AbilityBehaviorPhase |
-| **行为树节�?* | �?**无实�?* | 只有 SelectorDecision / SequenceDecision 委托包装 |
-| **编辑�?* | �?�?| 无可视化编辑�?|
-
-### 1.2 核心问题
-
-```
-┌──────────────────────────────────────────────────────────────────────────�?
-�?                          现状问题                                       �?
-├──────────────────────────────────────────────────────────────────────────�?
-�?                                                                         �?
-�? com.abilitykit.behavior（自研）                                        �?
-�? ┌─────────────────�?                                                   �?
-�? �?BehaviorRuntime �?�?有生命周期管理（好）                             �?
-�? �?BehaviorManager �?�?有优先级管理（好�?                              �?
-�? �?Decision/       �?�?�?Decision/Executor 抽象（好�?                  �?
-�? �?Executor       �?                                                   �?
-�? �?                �?                                                   �?
-�? �?�?Selector/    �?�?只有委托包装，无真实 BT 节点                     �?
-�? �?   SequenceDecision �?                                               �?
-�? �?�?编辑�?      �?�?无可视化编辑�?                                 �?
-�? └─────────────────�?                                                   �?
-�?          �?                                                             �?
-�?          �?缺节点实�?+ 缺编辑器                                        �?
-�?          �?                                                             �?
-�? 业务层：                                                                 �?
-�? 只能写代码创�?DelegateDecision，无法可视化编辑 BT �?                  �?
-�?                                                                         �?
-└──────────────────────────────────────────────────────────────────────────�?
+```mermaid
+flowchart LR
+    Host[World / MobaBrainService] --> Manager[BehaviorManager]
+    Manager --> Runtime[BehaviorRuntime]
+    Runtime --> Decision[IBehaviorDecision]
+    Runtime --> Executor[IBehaviorExecutor]
+    Decision --> BT[BTCore BTree]
+    BT --> Blackboard[BTCore Blackboard]
+    Moba[MobaBTreeDecision] --> BT
+    Moba --> Context[MobaBTreeRuntimeContext]
+    Context --> Services[Registry / Config / Search / Clock]
+    Executor --> Output[IBehaviorOutput]
+    Output --> Gameplay[MoveInput / SkillCast]
 ```
 
-### 1.3 设计目标
+这三层解决的是不同问题：
 
-| 目标 | 说明 |
-|---|---|
-| **复用第三方编辑器和节�?* | Saroce �?BTEditor 是完整的 Unity Editor 工具，直接复�?|
-| **接入 AbilityKit 行为系统** | 第三方运行时 �?AbilityKit BehaviorRuntime �?Pipeline |
-| **统一黑板系统** | 黑板数据来源 AbilityKit �?IWorldQuery，不另外维护独立黑板 |
-| **外部节点对接 AbilityKit** | AI Action/Condition 通过 IBehaviorDecision / IBehaviorExecutor 调用 |
-| **编辑器扩展能�?* | 支持项目自定义节点类型（通过 Attribute 注册�?|
+| 层级 | 主要职责 | 不负责的内容 |
+| --- | --- | --- |
+| `BehaviorRuntime` | 行为启动、暂停、恢复、完成、中断、持续时间和每帧输出 | 树拓扑和领域感知 |
+| BTCore | 节点执行、父子关系、运行栈、条件中断和树黑板 | Actor 生命周期和技能规则 |
+| MOBA 接入 | Brain 配置、树资源、领域节点、事实刷新和意图落地 | 通用行为生命周期 |
 
----
+行为树只是 `IBehaviorDecision` 的一种实现。代码决策或其他状态机只要遵守相同 Decision/Executor 契约，也可以由 `BehaviorRuntime` 驱动。MOBA 的 HFSM 当前走独立状态机所有权分支，不是通过通用行为树桥接器运行。
 
-## 二、目标架�?
+## 二、通用行为运行时
 
-### 2.1 整体架构
+### 2.1 Decision 与 Executor 分离
 
-```
-┌────────────────────────────────────────────────────────────────────────────�?
-�?                          整体集成架构                                    �?
-├────────────────────────────────────────────────────────────────────────────�?
-�?                                                                           �?
-�? ┌──────────────────────────────────────────────────────────────────────�?�?
-�? �?             Unity Editor（BTEditor.asmdef�?                         �?�?
-�? �?                                                                      �?�?
-�? �? ┌──────────────�? ┌──────────────────────�? ┌──────────────────────┐│ �?
-�? �? �? BTEditor    �? �? BehaviorTreeConfig  �? �? CustomNodeInspector││ �?
-�? �? �? Window      │──▶│  Object (SO)        │──▶│  (项目自定�?       ││ �?
-�? �? �? (图形编辑�? �? �? JSON 序列化数�?    �? �?                     ││ �?
-�? �? └──────────────�? └──────────────────────�? └──────────────────────┘│ �?
-�? �?          �?                                                              �?�?
-�? �?          �?保存/加载                                                   �?�?
-�? �?          �?                                                              �?�?
-�? �? ┌────────────────────────────────────────────────────────────────────┐│ �?
-�? �? �? BTree.ConfigObject（ScriptableObject�?                           ││ �?
-�? �? �? - BTData: Nodes[]（序列化的节点树�?                              ││ �?
-�? �? �? - Blackboard: 黑板定义                                             ││ �?
-�? �? �? - IBehaviorDefinition 接口（桥接点�?                             ││ �?
-�? �? └────────────────────────────────────────────────────────────────────┘│ �?
-�? └──────────────────────────────────────────────────────────────────────�?�?
-�?                                 �?                                         �?
-�?                                 �?Runtime 时反序列�?                      �?
-�?                                 �?                                         �?
-�? ┌──────────────────────────────────────────────────────────────────────�?�?
-�? �?             BTRuntime.asmdef（第三方运行时）                         �?�?
-�? �?                                                                      �?�?
-�? �? ┌──────────────────────────────────────────────────────�?           �?�?
-�? �? �? BTree（运行时树）                                    �?           �?�?
-�? �? �? ├── BTree.Update() �?Tick                           �?           �?�?
-�? �? �? ├── ExternalNode �?IExternalNode                     �?           �?�?
-�? �? �? �?               └── IBehaviorBridge                �?           �?�?
-�? �? �? └── Blackboard ←→ IWorldQuery                       �?           �?�?
-�? �? └──────────────────────────────────────────────────────�?           �?�?
-�? └──────────────────────────────────────────────────────────────────────�?�?
-�?                                 �?                                         �?
-�?                                 �?IBehaviorBridge 适配                    �?
-�?                                 �?                                         �?
-�? ┌──────────────────────────────────────────────────────────────────────�?�?
-�? �?        com.abilitykit.behavior（AbilityKit 行为系统�?               �?�?
-�? �?                                                                      �?�?
-�? �? ┌─────────────────────�? ┌─────────────────────�?                  �?�?
-�? �? �? BTreeToDecision    �? �? BehaviorExecutor    �?                  �?�?
-�? �? �? Adapter            �? �? Adapter            �?                  �?�?
-�? �? �? (BTree �?IDecision)�? �? (IBehaviorOutput �?�?                  �?�?
-�? �? �?                    �? �?  BTree.OnEvent)   �?                  �?�?
-�? �? └──────────┬──────────�? └──────────┬──────────�?                  �?�?
-�? �?            �?                        �?                              �?�?
-�? �?            └──────────┬──────────────�?                              �?�?
-�? �?                       �?                                             �?�?
-�? �?            ┌─────────────────────�?                                 �?�?
-�? �?            �? BehaviorRuntime    �?                                 �?�?
-�? �?            �? (统一生命周期)     �?                                 �?�?
-�? �?            └──────────┬──────────�?                                 �?�?
-�? └────────────────────────┼──────────────────────────────────────────────�?�?
-�?                          �?                                              �?
-�?                          �?IContinuous                                   �?
-�?                          �?                                              �?
-�? ┌──────────────────────────────────────────────────────────────────────�?�?
-�? �?        AbilityKit Pipeline（技�?Buff 执行管线�?                   �?�?
-�? �?                                                                      �?�?
-�? �? AbilityBehaviorPhase ───�?ExecuteSkill / ApplyBuff / ...            �?�?
-�? �?                                                                      �?�?
-�? └──────────────────────────────────────────────────────────────────────�?�?
-�?                                                                           �?
-└────────────────────────────────────────────────────────────────────────────�?
+`BehaviorRuntime` 的每帧主链路是：
+
+```text
+Tick
+-> Decision.Decide(context, world)
+-> Executor.Execute(result, context, output)
+-> Complete / Interrupt / Duration check
 ```
 
-### 2.2 关键桥接设计
+`IBehaviorDecision` 负责判断本帧要做什么，`IBehaviorExecutor` 负责把 `DecisionResult` 写入 `IBehaviorOutput`。这种拆分让决策实现不必直接依赖移动输入、技能协调器或表现对象。
 
-#### 桥接 1：BTree �?IBehaviorDecision（将 BT 嵌入 AbilityKit�?
+运行时向 Decision 暴露的上下文包括：
+
+- Behavior Instance、Kind、Source Context、Owner 和可选 Target。
+- 当前 Frame、累计 ElapsedSeconds 和可选 Duration。
+- 可持久保存的 `IBehaviorState`。
+- 创建时传入的只读 Config。
+- `IWorldQuery` 领域查询入口。
+
+`BehaviorOutput` 是帧级输出。每次 Tick 开始时会清空完成请求、中断请求、事件、效果和移动信息，因此 Decision 必须在需要持续输出时每帧重新发布，而不能依赖上帧值继续生效。
+
+### 2.2 生命周期
+
+```mermaid
+stateDiagram-v2
+    [*] --> Created
+    Created --> Running: Start
+    Running --> Paused: Pause
+    Paused --> Running: Resume
+    Running --> Completed: Complete / Duration
+    Running --> Interrupted: Interrupt / Exception
+    Paused --> Completed: Complete
+    Paused --> Interrupted: Interrupt
+    Completed --> [*]
+    Interrupted --> [*]
+```
+
+`BehaviorRuntime` 同时实现 `IContinuous`，并按以下方式映射状态：
+
+| Behavior Phase | Continuous State |
+| --- | --- |
+| Created | Inactive |
+| Running | Active |
+| Paused | Paused |
+| Completed | Expired |
+| Interrupted | Aborted |
+
+它还通过内部配置暴露 Mutex Group、Priority 和 Duration。Mutex Group 当前直接使用 `BehaviorKind`，但 `BehaviorManager` 本身没有执行互斥仲裁；是否交给 `ContinuousManager` 管理以及如何处理同组优先级，需要由宿主明确选择。
+
+Duration 在每帧 Decision 和 Executor 执行之后检查。因此某个 Tick 即使已经达到时限，仍会先产生一次本帧决策，再完成行为。需要严格截止时间的业务不能假设超时帧完全不执行。
+
+### 2.3 完成、中断与异常
+
+Decision 可以通过以下方式结束行为：
+
+- 返回 Complete 或 Interrupt，并由 Executor 写入 Output。
+- 通过 Context 请求完成或中断。
+- 达到 Duration。
+- 在 Decision 或 Executor 中抛出异常。
+
+运行时捕获 Decision/Executor 的异常并转成 `Interrupt("Exception: " + ex.Message)`。这能阻止异常穿透主循环，但公开的中断状态只保留消息，不保留异常类型、堆栈和结构化上下文。生产诊断不能只依赖该字符串，宿主应在异常边界记录完整异常和 Behavior 身份。
+
+## 三、BehaviorManager 的所有权
+
+`BehaviorManager` 为每个行为分配单调递增的 InstanceId，并维护三类索引：
+
+- 全局 InstanceId 到 Runtime。
+- OwnerId 到 Runtime 列表。
+- InstanceId 到可选 `BehaviorBinding`。
+
+创建时，Manager 注册完成和中断事件、启动 Runtime，再发布创建事件。结束时执行以下清理：
+
+1. 解除 Runtime 事件订阅。
+2. 若 Decision 实现 `IDisposable`，调用一次 `Dispose()`。
+3. 从 Binding、Owner 列表和全局表移除。
+4. 发布 `OnBehaviorEnded`。
+
+`InterruptAll` 和 Binding 的 `EndAllBehaviors` 都先复制 ID 或 Runtime 列表，避免在批量中断过程中修改正在遍历的集合。
+
+### 3.1 Tick 内同步删除风险
+
+当前 `BehaviorManager.Tick` 直接遍历 `_behaviors.Values`。与此同时，`BehaviorRuntime.Tick` 在完成或中断时会同步触发事件，事件处理立即从 `_behaviors` 删除当前项。
+
+```text
+BehaviorManager foreach Dictionary.Values
+-> BehaviorRuntime.Tick
+-> Complete / Interrupt
+-> BehaviorManager.Cleanup
+-> Dictionary.Remove
+```
+
+在 .NET Dictionary 的枚举语义下，这条路径可能使后续 `MoveNext` 抛出集合已修改异常。现有生命周期测试只覆盖从 Manager 外部 Interrupt，或直接调用 Runtime Complete 后的释放次数，没有覆盖 Manager Tick 中 Decision 完成的场景。
+
+因此这不是已经由测试关闭的风险。修复时应采用 Tick 快照、延迟回收队列或稳定调度列表，并增加“一个行为在 Tick 中结束且其他行为继续执行”的回归测试。
+
+### 3.2 Manager 释放边界
+
+`BehaviorManager` 当前没有实现 `IDisposable`，也没有批量关闭所有存量行为的统一方法。MOBA 的 `MobaBrainService.Dispose()` 只清空失败创建缓存，不会中断 `_behaviors` 中仍然存活的 Runtime。
+
+现有战局销毁顺序可能通过 Actor/World 生命周期提前释放行为，但该假设没有固化在 Manager 契约中。后续应提供明确的 Shutdown/Dispose，并定义结束原因、Decision Dispose 和结束事件是否仍需发布。
+
+## 四、BTCore 树执行器
+
+### 4.1 树构建
+
+BTCore 的树配置由 `BTData`、Node 列表、Entry Node、Blackboard 和 Settings 组成。运行前需要执行：
+
+```text
+RebuildTree
+-> 重建 GUID 索引
+-> 清空并重新绑定父子关系
+-> 把 Blackboard 注入节点
+-> Node.Init
+
+Enable
+-> 清空运行时索引和栈
+-> 构建执行拓扑
+-> 将根节点压入主运行栈
+```
+
+`RebuildTree()` 可以重复调用。现有测试验证重复重建不会把同一 Child 重复加入 Parent，也验证连续两次 Enable 后只运行一套拓扑。
+
+节点生命周期是 `Init -> Start -> Update -> Stop`。SharedValue 属性由节点初始化阶段通过反射绑定到 Blackboard，因此序列化键名、值类型和运行前的 Blackboard 完整性会直接影响节点执行。
+
+### 4.2 执行与条件重评估
+
+BTCore 使用运行栈推进节点。节点结束时先 Stop，再把 Success 或 Failure 传播给父 ParentNode；Decorator 可以转换子节点结果，Composite 根据 AbortType 管理条件重评估。
+
+`RestartWhenComplete` 可以在主栈清空时自动 Restart。MOBA 接入没有依赖这个设置，而是在读取根节点状态后对 Success 或 Failure 显式调用 `Restart()`。这样每个 Brain 实例都按 MOBA 的响应式帧语义重新进入下一轮决策。
+
+MOBA 还对根节点长期返回 Running 给出一次警告。Running 节点不会天然刷新它使用的事实，也不会天然重新发布意图，因此领域节点必须明确实现每帧更新语义。
+
+### 4.3 随机节点与确定性
+
+BTCore 的 RandomSelector 和 RandomSequence 提供 `UseSeed` 与 `Seed`：
+
+- `UseSeed == true` 时创建 `new Random(Seed)`。
+- 未启用 Seed 时创建 `new Random()`。
+
+RandomProbability 每次 Start 都创建 `new Random()`，目前没有 Seed 注入入口。由此可见，BTCore 默认不是确定性执行器。要用于帧同步、回放或跨端复现，至少需要：
+
+- 禁止未注入随机源的随机节点，或在装载校验时拒绝它们。
+- 由战局 Seed、Actor ID 和节点 GUID 派生稳定子流。
+- 把随机调用次数和节点重启语义纳入回放协议。
+- 增加相同输入和 Seed 下的逐帧状态/意图一致性测试。
+
+只给部分 Composite 配置 Seed 不能解决 RandomProbability，也不能保证新增领域节点不私自使用系统时间随机数。
+
+## 五、通用 BTCore 适配能力
+
+`com.abilitykit.behavior` 中存在一组通用桥接器，但当前 MOBA BTree 没有引用它们。文档必须把“可复用能力”和“业务实际链路”分开。
+
+### 5.1 节点与 Decision 的结果转换
+
+`BTreeResultConverter` 的映射是：
+
+| BTCore NodeState | DecisionKind |
+| --- | --- |
+| Success | Complete |
+| Failure | Interrupt |
+| Running | Continue |
+| Inactive 或其他值 | Continue |
+
+反向映射把 Complete 变为 Success、Interrupt 变为 Failure，ChangeState 和 Continue 都变为 Running。
+
+`BTreeActionAdapter` 和 `BTreeConditionAdapter` 同时继承 BTCore Node 并实现 `IBehaviorDecision`。它们适合把单个节点当成一个 Behavior Decision，而不是把完整 BTree 自动嵌入 BehaviorRuntime。
+
+Action Adapter 的 `Decide` 直接调用节点的 OnUpdate 路径；Condition Adapter 直接调用 Validate。它们没有驱动完整树的运行栈，也没有替代 `BTree.Update()`。
+
+### 5.2 Executor Adapter
+
+`BTreeExecutorAdapter` 在处理 DecisionResult 前，先把 `IBehaviorState` 同步到 Blackboard，再把 Complete、Interrupt 或移动参数写入 `IBehaviorOutput`。
+
+当前实现只调用 `SyncStateToBlackboard`，不会在执行后自动调用 `SyncBlackboardToState`。需要双向同步的调用方必须自行安排时机，否则“已注册双向映射”不代表每帧会自动双向复制。
+
+### 5.3 Blackboard Bridge
+
+`BTreeBlackboardBridge` 通过显式映射连接 `IBehaviorState` 与通用 `IBlackboard`：
 
 ```csharp
-// AbilityKit.Behavior 命名空间
-// 将第三方 BTree 适配�?AbilityKit �?IBehaviorDecision
-
-/// <summary>
-/// BTree �?IBehaviorDecision 的适配�?
-/// �?BTree 的每�?Update() 映射�?AbilityKit �?Decide()
-/// </summary>
-public sealed class BTreeDecisionAdapter : IBehaviorDecision
-{
-    private readonly BTree _btree;
-    private readonly BTreeBlackboardBridge _blackboardBridge;
-    private readonly Dictionary<string, Func<IBehaviorContext, IWorldQuery, bool>> _conditionCache;
-    private readonly Dictionary<string, Action<IBehaviorContext, IWorldQuery, IBehaviorOutput>> _actionCache;
-
-    public string DecisionType => "BTree";
-    public string CurrentState { get; private set; } = "Root";
-
-    public BTreeDecisionAdapter(
-        BTree btree,
-        BTreeBlackboardBridge blackboardBridge,
-        Dictionary<string, Func<IBehaviorContext, IWorldQuery, bool>> conditionCache,
-        Dictionary<string, Action<IBehaviorContext, IWorldQuery, IBehaviorOutput>> actionCache)
-    {
-        _btree = btree;
-        _blackboardBridge = blackboardBridge;
-        _conditionCache = conditionCache;
-        _actionCache = actionCache;
-    }
-
-    public DecisionResult Decide(IBehaviorContext context, IWorldQuery world)
-    {
-        // 1. 同步黑板（AbilityKit World �?BTCore Blackboard�?
-        _blackboardBridge.SyncFromWorld(context, world);
-
-        // 2. 运行 BTree 一�?
-        _btree.Update();
-
-        // 3. �?BTree 状态转换为 AbilityKit DecisionResult
-        var nodeState = _btree.TreeState;
-        return nodeState switch
-        {
-            NodeState.Success => DecisionResult.Complete(),
-            NodeState.Failure => DecisionResult.Interrupt("BTFailure"),
-            NodeState.Running => DecisionResult.Continue(CurrentState),
-            _ => DecisionResult.Continue(CurrentState)
-        };
-    }
-}
+bridge.RegisterMapping<float>("move.speed", "self.speed");
+bridge.SyncStateToBlackboard(state);
+bridge.SyncBlackboardToState(state);
 ```
 
-#### 桥接 2：IBehaviorOutput �?BTree 事件（将 AbilityKit 执行结果写回 BT�?
+这是一套数据复制协议，不是零拷贝共享状态。它的当前边界包括：
 
-```csharp
-/// <summary>
-/// IBehaviorExecutor �?BTree 适配�?
-/// �?AbilityKit 的移�?事件/效果指令转换�?BTree 期望的事�?
-/// </summary>
-public sealed class BTreeExecutorAdapter : ABehaviorExecutor
-{
-    private readonly BTree _btree;
-    private readonly BTreeBlackboardBridge _blackboardBridge;
+- 未设置 Blackboard 时，多数读写和同步方法静默返回；直接读取 `Blackboard` 属性则抛异常。
+- 运行时 Type 访问通过反射调用泛型方法。
+- 反射异常被捕获后退回 object 读写，原始类型错误和调用异常不会保留诊断信息。
+- `BTCoreBlackboardAdapter.HasKey` 使用 `Find<object>` 判断，具体行为依赖 BTCore Blackboard 的泛型查找语义。
+- 当前没有发现通用 Bridge、Action Adapter 或 Executor Adapter 的专项测试，也没有发现 MOBA 对它们的引用。
 
-    public override void Execute(DecisionResult decision, IBehaviorContext context, IBehaviorOutput output)
-    {
-        // 处理 Complete / Interrupt
-        base.Execute(decision, context, output);
+因此，通用桥接器可以作为后续统一适配的基础，但不能描述成已经支撑 MOBA 行为树的运行主链路。
 
-        // 处理移动指令
-        if (output.Movement.HasValue)
-        {
-            var mv = output.Movement.Value;
-            if (mv.TargetPosition.HasValue)
-                _blackboardBridge.SetBlackboardValue("MoveTarget", mv.TargetPosition.Value);
-            if (mv.TargetEntity.HasValue)
-                _blackboardBridge.SetBlackboardValue("MoveTargetEntity", mv.TargetEntity.Value);
-            _blackboardBridge.SetBlackboardValue("MoveSpeed", mv.Speed);
-        }
+## 六、MOBA Brain 接入
 
-        // 处理待触发效果（映射�?BTree 事件�?
-        foreach (var effect in output.PendingEffects)
-        {
-            _btree.OnEvent(effect.EffectId); // BTree 原生支持事件系统
-        }
+### 6.1 Brain 配置与 Driver
 
-        // 处理待触发事�?
-        foreach (var evt in output.PendingEvents)
-        {
-            _btree.OnEvent(evt.EventId);
-        }
-    }
-}
+MOBA Actor 的 Brain Component 保存 BrainId、来源和 Behavior InstanceId。`MobaBrainService` 只通过战斗模板中的 Brain Catalog 解析定义，不会按 BrainId 隐式回退到硬编码决策。
+
+```mermaid
+sequenceDiagram
+    participant ActorRuntime as Actor
+    participant Brain as MobaBrainService
+    participant Catalog as Brain Catalog
+    participant Drivers as Driver Registry
+    participant Loader as BTree Asset Loader
+    participant Behavior as BehaviorManager
+
+    ActorRuntime->>Brain: ActivateBrain / EnsureBehavior
+    Brain->>Catalog: TryGet(BrainId)
+    Catalog-->>Brain: DriverKind + DecisionName + Policy
+    Brain->>Drivers: TryCreate(context)
+    Drivers->>Loader: Load tree JSON
+    Loader-->>Drivers: cached JSON text
+    Drivers-->>Brain: MobaBTreeDecision
+    Brain->>Behavior: CreateBehavior
+    Behavior-->>ActorRuntime: BehaviorInstanceId
 ```
 
-#### 桥接 3：黑板双向同�?
+默认 Driver Registry 只注册 BTree Driver。注册表允许项目增加新的 `IMobaBrainDecisionDriver`，同一 Kind 的后注册实例会覆盖前一个实例。
 
-```csharp
-/// <summary>
-/// 黑板桥接�?
-/// 职责：保�?BTCore Blackboard �?AbilityKit IWorldQuery 同步
-/// 设计原则：BT 树读取黑板数据时，实际从 IWorldQuery 获取
-///           AbilityKit 系统写入输出时，更新黑板�?BT 树下一帧读�?
-/// </summary>
-public sealed class BTreeBlackboardBridge
-{
-    // BT 定义的标准数据键
-    private static readonly HashSet<string> StandardKeys = new()
-    {
-        "TargetId", "TargetPosition", "TargetDistance",
-        "SelfPosition", "SelfHp", "SelfMp",
-        "MoveTarget", "MoveSpeed", "IsMoving"
-    };
+HFSM 类型在 `MobaBrainService` 中走独立分支：激活时校验 State Machine Profile、清理旧 Behavior，并由 Actor State Machine 系统拥有运行时。`MobaHfsmBrainDecisionDriver` 虽然存在，但默认注册表没有注册它，当前 Brain Service 的 HFSM 分支也不会通过它创建 `IBehaviorDecision`。
 
-    private readonly Blackboard _blackboard;
-    private readonly IWorldQuery _worldQuery;
-    private readonly BehaviorEntityId _ownerId;
+### 6.2 创建失败和替换
 
-    // 键名映射：BT 黑板�?�?IWorldQuery 数据�?
-    private readonly Dictionary<string, string> _keyMapping;
+树资源缺失、JSON 反序列化失败、结构校验失败或 Driver 返回 null 时，不创建 BehaviorRuntime。Brain Service 记录失败身份，并对相同 Actor、Brain 来源和定义的重复失败进行抑制，避免每帧重复创建与刷日志。
 
-    public BTreeBlackboardBridge(
-        Blackboard blackboard,
-        IWorldQuery worldQuery,
-        BehaviorEntityId ownerId,
-        Dictionary<string, string> keyMapping)
-    {
-        _blackboard = blackboard;
-        _worldQuery = worldQuery;
-        _ownerId = ownerId;
-        _keyMapping = keyMapping;
-    }
+Brain 定义或来源变化后，失败身份变化，可以重新尝试创建。新 Runtime 创建成功后，Actor 先绑定新 InstanceId，再中断旧 Runtime，避免替换过程留下无绑定的新决策。
 
-    /// <summary>
-    /// 每帧同步：从 AbilityKit World �?BTCore Blackboard
-    /// �?BTree.Update() 之前调用
-    /// </summary>
-    public void SyncFromWorld(IBehaviorContext context, IWorldQuery world)
-    {
-        // 同步位置
-        var pos = world.GetPosition(_ownerId);
-        _blackboard.SetValue("SelfPosition", pos);
+关闭 Brain 时会：
 
-        // 同步目标位置（如果有�?
-        if (context.TargetId.HasValue)
-        {
-            var targetPos = world.GetPosition(context.TargetId.Value);
-            _blackboard.SetValue("TargetPosition", targetPos);
-            var dist = world.GetDistance(_ownerId, context.TargetId.Value);
-            _blackboard.SetValue("TargetDistance", dist);
-        }
+- 移除 ActorBrain。
+- 中断对应 BehaviorRuntime。
+- 清除失败创建记录。
+- 把已有 MoveInput 归零。
 
-        // 同步自定义键（通过映射表）
-        foreach (var kv in _keyMapping)
-        {
-            var btKey = kv.Key;
-            var akKey = kv.Value;
-            if (_blackboard.HasKey(btKey)) // 只同�?BT 树中实际用到的键
-            {
-                var value = world.GetData(_ownerId, akKey, defaultValue: 0);
-                // 类型转换（根据黑板定义的类型�?
-                _blackboard.SetValue(btKey, value);
-            }
-        }
-    }
+现有冒烟测试覆盖关闭 AI 后角色不再继续移动。
 
-    /// <summary>
-    /// 同步�?World：从 BTCore Blackboard �?AbilityKit World
-    /// �?IBehaviorExecutor 执行后调�?
-    /// </summary>
-    public void SyncToWorld(IWorldQuery world)
-    {
-        // 读取 BT 树写入的移动目标
-        var moveTarget = _blackboard.GetValue<Vec3?>("MoveTarget");
-        if (moveTarget.HasValue)
-        {
-            world.SetData(_ownerId, "MoveTarget", moveTarget.Value);
-        }
-    }
-}
+## 七、树资源和结构校验
+
+### 7.1 加载顺序与缓存
+
+`MobaBTreeAssetLoader` 按树名加载 JSON，当前顺序是：
+
+1. 已注入的 `ITextAssetLoader`，路径为 `moba/bt/<treeName>`。
+2. Unity Resources 中的 `moba/bt/<treeName>`。
+3. 当前工作目录的 `Configs/moba/bt/<treeName>.json`。
+
+JSON 文本按 treeName 存入进程内静态 Dictionary。每棵树只加载一次文本，但每个 Brain 实例会独立反序列化，因此节点状态和 Blackboard 不在 Actor 间共享。
+
+缓存没有版本、时间戳、容量限制或清空接口。进程内修改资源后，已有缓存不会自动失效；当前能力不能描述为热重载。需要热重载时应先定义版本身份、原子替换、旧 Runtime 迁移或重建策略，再增加缓存失效入口。
+
+### 7.2 类型归一化
+
+MOBA 导出 JSON 中的类型会在反序列化前归一化：
+
+- `BTEXT:<NodeName>` 按 MOBA BTree 命名空间中发现的非抽象 BTNode 类型解析。
+- 序列化中的 `BTRuntime` 程序集名替换为当前 BTCore 程序集名。
+- 未知 `BTEXT` 节点抛出 JsonSerializationException。
+
+节点类型表由反射发现并按类型名建立 Dictionary。当前协议要求同一命名空间中的节点类名唯一；若出现重名，类型表初始化会失败。
+
+### 7.3 结构与黑板门禁
+
+反序列化后会检查：
+
+- BTData 和 Blackboard 不为空。
+- Node 列表非空且不存在 null Node。
+- 每个 Node GUID 非空且唯一。
+- 恰好存在一个 Entry Node。
+- Entry Child 和所有 Child GUID 都能解析。
+- Blackboard 已声明 Key 名非空且不重复。
+- MOBA 标准 Key 的已有类型与协议一致。
+
+缺失的标准 Blackboard Key 会按目标类型补齐。该校验能阻止常见的序列化结构错误进入运行时，但当前没有检查不可达节点、父子环、多个父节点、装饰器子节点数量、领域节点参数范围或随机节点的确定性约束。
+
+## 八、MOBA 每帧数据协议
+
+MOBA 没有使用通用 `BTreeBlackboardBridge`。`MobaBTreeDecision` 直接维护 BTCore Blackboard，并通过 `MobaBTreeRuntimeContext` 向领域节点注入 Registry、Config、SearchTargetService、时间源、Behavior Context 和 World Query。
+
+### 8.1 Key 命名空间
+
+当前 Key 按职责分组：
+
+| 前缀 | 含义 | 生命周期 |
+| --- | --- | --- |
+| `self.*` | Owner 身份、位置、速度、能力和评估帧 | 每帧刷新 |
+| `target.*` | 当前目标事实 | 感知节点更新 |
+| `candidateSkill.*` | 当前候选技能 | 技能选择节点更新 |
+| `aim.*` | 本帧瞄准结果 | 每帧清空后重建 |
+| `intent.*` | 节点发布的候选意图和优先级 | 每帧清空后重建 |
+| `out.*` | 仲裁后的 Move/Cast/Hold | 每帧清空后重建 |
+| `memory.*` | 约定的持久节点状态 | 不由帧清理逻辑清除 |
+
+`memory.*` 是设计约定，不是由独立类型系统或访问控制强制执行。领域节点仍可能误把跨帧状态写入 transient key，因此新增节点需要代码评审和测试。
+
+### 8.2 单帧评估顺序
+
+```mermaid
+flowchart TD
+    Tick[BehaviorRuntime.Tick] --> Begin[BeginEvaluation]
+    Begin --> Facts[刷新 self.* facts]
+    Facts --> Clear[清空 aim / intent / out]
+    Clear --> Tree[BTree.Update]
+    Tree --> Sense[感知与条件节点]
+    Sense --> Intent[节点发布 intent.*]
+    Intent --> Arbitrate[仲裁写入 out.*]
+    Arbitrate --> Convert[转为 DecisionResult params]
+    Convert --> Execute[MobaBrainExecutor]
+    Execute --> Move[MoveInput]
+    Execute --> Cast[SkillCastCoordinator]
+    Execute --> Hold[保持/停止]
 ```
 
-### 2.3 包结�?
+每帧先刷新 Owner Facts，再清空瞬时意图，然后执行树。Move 输出转成 `MoveTarget` 和当前移动速度；Cast 输出转成 SkillId、Slot、Target、Aim Position 和 Aim Direction；没有有效输出时状态为 Holding。
 
-```
-com.abilitykit.behavior/
-├── Runtime/
-�?  ├── Core/
-�?  �?  ├── BehaviorTypes.cs              �?已有
-�?  �?  ├── IBehaviorDecision.cs          �?已有
-�?  �?  ├── IBehaviorExecutor.cs          �?已有
-�?  �?  ├── IWorldQuery.cs                �?已有
-�?  �?  └── BehaviorManager.cs            �?已有
-�?  �?
-�?  ├── Runtime/
-�?  �?  ├── BehaviorRuntime.cs            �?已有
-�?  �?  ├── BehaviorState.cs              �?已有
-�?  �?  ├── BehaviorOutput.cs             �?已有
-�?  �?  ├── DefaultExecutor.cs            �?已有
-�?  �?  └── DefaultWorldQuery.cs          �?已有
-�?  �?
-�?  ├── Pipeline/
-�?  �?  ├── AbilityBehaviorPhase.cs       �?已有
-�?  �?  └── BehaviorPhaseFactory.cs       �?已有
-�?  �?
-�?  ├── Decision/                      �?新增：决策节点实�?
-�?  �?  ├── BTreeDecisionAdapter.cs      �?BTree �?IBehaviorDecision 适配�?
-�?  �?  ├── BTreeExecutorAdapter.cs      �?IBehaviorExecutor �?BTree 适配�?
-�?  �?  ├── BTreeBlackboardBridge.cs     �?黑板双向同步
-�?  �?  ├── Composite/
-�?  �?  �?  ├── SelectorDecision.cs      �?已有（委托包装）
-�?  �?  �?  └── SequenceDecision.cs      �?已有（委托包装）
-�?  �?  └── Decorators/
-�?  �?      ├── RepeatDecision.cs        �?新增：重复执行装饰器
-�?  �?      └── LimitDecision.cs         �?新增：限制执行次数装饰器
-�?  �?
-�?  ├── Editor/                        �?新增：编辑器扩展
-�?  �?  ├── BTConfigObjectEditor.cs      �?ScriptableObject 编辑�?
-�?  �?  ├── AbilityNodeAttribute.cs      �?自定义节点注�?Attribute
-�?  �?  ├── AbilityExternalNodeInspector.cs �?自定义节点属性面�?
-�?  �?  └── com.abilitykit.behavior.editor.asmdef
-�?  �?
-�?  ├── Attribute/
-�?  �?  ├── AbilityBTActionAttribute.cs  �?Action 节点注册
-�?  �?  ├── AbilityBTConditionAttribute.cs �?Condition 节点注册
-�?  �?  └── BTActionRegistry.cs          �?节点注册�?
-�?  �?
-�?  └── com.abilitykit.behavior.asmdef
+`MobaBTreeDecision` 始终返回 Continue，并把树的 Success/Failure 解释为“本轮决策完成，重启后继续下一帧”，而不是结束整个 BehaviorRuntime。这与通用 `BTreeResultConverter` 把 Success 映射为 Complete 的语义不同，两者不能混用。
 
-// 第三方包（直接使用，不修改源码）
-com.abilitykit.thirdparty.behaviortreeeditor/
-├── BehaviorTreeEditor/BTCore/
-�?  ├── Runtime/                        �?直接使用
-�?  �?  ├── BTree.cs                   �?核心运行�?
-�?  �?  ├── Composites/                 �?组合节点
-�?  �?  ├── Decorators/                �?装饰节点
-�?  �?  ├── Conditions/                 �?条件节点
-�?  �?  ├── Blackboards/                �?黑板
-�?  �?  ├── Externals/                 �?外部节点（扩展点�?
-�?  �?  ├── BTRuntime.asmdef           �?Runtime 程序�?
-�?  �?  └── Runtime.Unity/              �?Unity Runtime
-�?  �?
-�?  └── Editor/                         �?直接使用
-�?      ├── BTEditor.asmdef             �?Editor 程序�?
-�?      └── ...                         �?编辑�?UI
-```
+### 8.3 响应式节点约束
 
----
+MOBA 树按响应式决策循环使用。节点若返回 Running，必须遵守两条规则：
 
-## 三、核心设计决�?
+1. 每帧重新读取会变化的事实，不能永久缓存 Target、技能可用性或位置。
+2. 每帧重新发布需要维持的意图，因为 transient intent 在树执行前已清空。
 
-### 3.1 黑板数据来源
+持久记忆应写入 `memory.*`，并明确重置时机。把 Move 或 Cast 请求留在 `intent.*` 中等待下一帧不会生效。
 
-**关键设计决策：黑板数据从 AbilityKit 世界获取，不维护独立数据副本�?*
+## 九、测试证据
 
-```
-错误设计（数据冗余）�?
-┌──────────────────�?    ┌──────────────────�?
-�?BTCore Blackboard �?←── �?IWorldQuery       �?
-�?(独立副本)       �?    �?                  �?
-�?SelfHp = 100     �?    �?GetHp(SelfId) = 100 �?
-└──────────────────�?    └──────────────────�?
-问题：两处数据需要手动同步，容易不一�?
+当前测试能证明的范围如下：
 
-正确设计（统一数据源）�?
-┌──────────────────�?
-�?BTCore Blackboard │──�?每次 SyncFromWorld 时从 IWorldQuery 实时读取
-�?(临时视图)       �?    不存�?当前"值，只做键名映射
-�?SelfHp = ?       �?
-└──────────────────�?
-优点：无数据副本，零同步成本，始终一�?
-```
+| 能力 | 已有证据 |
+| --- | --- |
+| Behavior 清理 | 外部 Interrupt 和直接 Complete 后，Disposable Decision 只释放一次并从 Manager 移除 |
+| BTCore 重建 | 无序列化回调时可重建 Node 索引；重复 Rebuild 不重复挂 Child |
+| BTCore 启用 | 连续 Enable 两次后只执行一套拓扑 |
+| 技能选择 | FirstReady 和 HighestRange 的稳定排序与 Slot tie-break |
+| Blackboard 事实 | 选择策略结果写入 candidateSkill Keys |
+| Hero AI | Brain 创建、追击、施法、冷却约束和关闭后停止移动 |
+| Summon AI | 召唤物按 Brain Catalog 创建 BTree Runtime，并通过树追击目标 |
 
-### 3.2 外部节点扩展机制
+仍缺少的关键门禁：
 
-```csharp
-// 游戏层定�?Action 节点（通过 Attribute 注册�?
-[AbilityBTAction("Attack", "对目标发起攻�?, Category = "Combat")]
-public class AttackBTAction : IExternalNode
-{
-    public string TypeName { get; set; } = "Attack";
-    public Dictionary<string, string> Properties { get; set; } = new();
+1. Behavior 在 Manager Tick 中完成或中断时，不得使集合枚举失效，且同帧其他行为仍能按协议执行。
+2. Manager/Brain Service Shutdown 后所有 Decision 必须释放，索引和 Binding 必须清空。
+3. Behavior Pause/Resume 对 BTCore Running Node 的 Start/Stop 与时间语义。
+4. 通用 Action、Condition、Executor 和 Blackboard Bridge 的专项测试。
+5. JSON 的重复 GUID、缺失 Child、未知 BTEXT、Blackboard 类型冲突等负向测试。
+6. 树环、不可达节点、非法父子数量和重复父节点的结构测试。
+7. 相同输入与 Seed 下 Random 节点和 MOBA Intent 的逐帧一致性测试。
+8. 资产缓存失效、版本替换和多战局进程复用测试。
+9. Running 节点是否每帧刷新事实和重发意图的契约测试。
 
-    // 属性通过 Properties 传递（JSON 序列化）
-    // 配置值如 "Damage:100", "Range:5" 在这里读�?
+## 十、已知边界
 
-    public NodeState Update()
-    {
-        // 从黑板获取实际参�?
-        var targetId = GetBlackboardValue<long>("TargetId");
-        var damage = GetPropertyInt("Damage", 100);
+### 10.1 两套状态存储没有统一所有权
 
-        // 调用 AbilityKit 系统执行
-        var context = GetBehaviorContext();
-        context.GetService<IDamageService>()?.Execute(targetId, damage);
+Behavior Runtime 有 `IBehaviorState`，BTCore 有 Blackboard，MOBA 又在 Blackboard 中定义 facts、intent 和 memory。当前通用 Bridge 只在调用方显式执行时复制，MOBA 则完全绕过 Bridge。
 
-        return NodeState.Success;
-    }
-}
+项目应先决定哪一类数据由哪一层拥有：
 
-// Attribute 自动完成�?
-// 1. 注册节点类型�?BTActionRegistry
-// 2. 生成对应�?Inspector（序列化 Properties 面板�?
-// 3. �?BTEditor 的节点搜索窗口中显示
-```
+- Behavior 生命周期数据放在 Runtime/Context。
+- 树节点共享数据放在 Blackboard。
+- 帧事实由宿主刷新。
+- 持久业务记忆需有明确清理和序列化协议。
 
-### 3.3 �?Triggering / HFSM 的关�?
+不应把相同可变值同时长期保存在 State 和 Blackboard，再依赖不明确的同步顺序解决冲突。
 
-| 系统 | 定位 | �?Behavior Tree 关系 |
-|---|---|---|
-| **Triggering** | 事件驱动（当 X 发生时，执行 Y�?| 正交：BT 内部可调�?Triggering 服务 |
-| **HFSM** | 状态机（当前状�?= X 时，转换�?Y�?| 重叠：AI 可�?HFSM �?BT，HFSM 适合简�?AI，BT 适合复杂决策�?|
-| **Behavior Tree** | 层次任务网络（评估条件，选择行为�?| 主要使用场景：AI 决策 |
+### 10.2 暂停不会通知树节点
 
-**选型指南**�?
+`BehaviorRuntime.Pause()` 只改变 Phase，暂停期间不调用 Decision。它不会对 BTCore 当前 Running Node 调用 Stop，也不会冻结节点内部使用的外部时钟。
 
-| AI 复杂�?| 推荐 |
-|---|---|
-| < 5 种状态，状态转换简�?| HFSM |
-| 5-20 种行为，优先级明�?| Behavior Tree |
-| 复杂任务分解，多条件组合 | Behavior Tree |
-| 需要可视化调试 | Behavior Tree（HFSM �?Unity Graph�?|
+恢复后树从原运行栈继续。若节点根据 Behavior ElapsedSeconds 计时，该时间在暂停期间不会增加；若节点读取注入的战局绝对时间，暂停期间的时间可能继续流逝。领域节点必须选择一种时间来源，文档不能笼统宣称暂停会冻结所有行为时间。
 
----
+### 10.3 配置安全边界
 
-## 四、实现计�?
+MOBA 使用 Json.NET 的 TypeNameHandling 相关序列化设置，并在归一化阶段写入程序集限定类型。虽然 `BTEXT` 节点受白名单式发现约束，普通 `$type` 的允许范围仍取决于 BTCore Serializer Settings。
 
-### 4.1 阶段划分
+行为树 JSON 应视为可信构建产物，不应直接接受不受信任的远程输入。若未来需要在线下发，应增加严格 SerializationBinder、Schema 校验、签名和版本门禁。
 
-```
-阶段 1：桥接层�? 周）
-├── 实现 BTreeDecisionAdapter（BTree �?IBehaviorDecision�?
-├── 实现 BTreeExecutorAdapter（IBehaviorOutput �?BTree 事件�?
-├── 实现 BTreeBlackboardBridge（黑板同步）
-├── 实现 BTreeLoader（从 ScriptableObject 反序列化 BTree�?
-└── 单元测试（Adapter 正确性）
+### 10.4 诊断能力不完整
 
-阶段 2：编辑器集成�?.5 周）
-├── 扩展 BTEditor �?ExternalNode 系统
-├── 实现 AbilityBTActionAttribute + BTActionRegistry
-├── 实现 AbilityBTConditionAttribute + BTConditionRegistry
-├── 生成自定义节�?Inspector（属性面板）
-└── �?BTEditor 节点搜索窗口中注册自定义节点
+当前可以读取 DecisionType、CurrentState 和 MOBA Blackboard，也有部分警告和异常日志，但还缺少统一的：
 
-阶段 3：游戏层集成�?.5 周）
-├── Demo 层实现示�?Action/Condition 节点
-├── 实现 DemoAIBehaviorComponent（从 BTreeConfig 创建行为�?
-├── �?AbilityBehaviorPhase 集成
-├── �?MobaDemo 中验�?AI 行为（巡�?追击/攻击�?
-└── 可视化调试工具（运行�?BT 状态高亮）
+- 当前运行节点路径。
+- 本帧读取的事实和发布的意图。
+- 条件中断原因。
+- 树版本和资源哈希。
+- Decision/Executor 耗时与节点调用计数。
+- Runtime 结束时的完整异常结构。
 
-阶段 4：优化（1 周）
-├── 节点缓存优化（避免每帧反射查找节点类型）
-├── 条件评估批处�?
-├── BT 重启优化（避免每�?Complete 后重建树�?
-└── 性能基准测试�?000 �?AI 单位同时运行 BT�?
+没有这些信息时，复杂 AI 问题仍需要人工拼接 Brain、Behavior、树和技能日志。
 
-总计：约 6 �?
-```
+## 十一、演进顺序
 
-### 4.2 验收标准
+后续工作应先关闭生命周期和确定性风险，再扩大编辑器与热重载能力。
 
-```
-�?BTEditor 可视化编�?BT 树，保存�?ScriptableObject
-�?AbilityKit Pipeline 能通过 AbilityBehaviorPhase 执行 BT
-�?黑板数据�?IWorldQuery 实时读取，无数据副本
-�?自定�?Action/Condition 节点通过 Attribute 注册，自动出现在编辑�?
-�?100 �?AI 单位同时运行 BT，Tick < 5ms
-�?BT 运行时状态可在编辑器中可视化（节点高亮）
-�?�?HFSM 对比文档（选型指南�?
-```
+### P0：关闭生命周期缺口
 
----
+- 修复 Manager Tick 中同步删除 Dictionary 的问题。
+- 为 Manager 和 Brain Service 增加明确 Shutdown/Dispose。
+- 定义 Pause/Resume 对 Running Node 和时间源的语义。
+- 增加完成、中断、异常、替换和战局销毁的生命周期测试矩阵。
 
-## 五、关键技术点
+### P1：收紧配置和确定性协议
 
-| 技术点 | 难度 | 说明 |
-|---|---|---|
-| BTree �?IBehaviorDecision 语义映射 | �?| BTree �?NodeState �?DecisionKind 需要仔细设�?|
-| 黑板零副本设�?| �?| 每次 SyncFromWorld 实时查询 IWorldQuery，需要键名映射表 |
-| Attribute 注册 + Inspector 生成 | �?| 需要扩展现�?BTEditor 的节点注册系�?|
-| 条件评估优化 | �?| 避免每帧对所有条件节点重复评�?|
-| 确定性（帧同�?AI�?| �?| BT 树执行必须确定性（黑板值来源必须一致） |
+- 补全树环、不可达节点、父子约束和领域参数校验。
+- 给全部随机节点注入可追踪 Seed/Random Source，禁止隐式 `new Random()`。
+- 记录 Tree Version、资源哈希和随机流身份。
+- 使用严格 SerializationBinder 限制可反序列化类型。
 
----
+### P2：统一适配边界
 
-## 六、风险与备选方�?
+- 决定通用 Blackboard Bridge 是否保留；若保留，明确双向同步时机和错误策略。
+- 为通用 Adapter 建立契约测试，避免把单节点 Adapter 误当完整树 Driver。
+- 抽取可复用的 Tree Decision Driver 生命周期，同时保留 MOBA facts/intent 协议在领域包内。
+- 明确 HFSM 是独立 Runtime，还是也通过 `IBehaviorDecision` 接入同一 Manager。
 
-| 风险 | 影响 | 备选方�?|
-|---|---|---|
-| 第三�?BTree 运行时无法直接嵌�?| �?| 完全自研简�?BT 节点（Selector/Sequence + Decorator），放弃第三方编辑器 |
-| BTEditor 扩展困难 | �?| 保持第三方编辑器独立，通过 JSON 配置间接集成 |
-| 黑板实时查询性能�?| �?| 引入脏标记机制（只同步变化的键） |
-| 帧同�?AI 确定�?| �?| AI 决策结果不参与帧同步（客户端预测），�?AI 只在服务器跑 |
+### P3：可观测性与配置演进
 
----
+- 输出运行节点路径、条件结果、事实快照和最终意图。
+- 建立按节点和树版本统计的耗时、分配和异常指标。
+- 为资源缓存增加显式版本与失效 API。
+- 定义树热替换时重建、状态迁移和失败回滚策略。
 
-## �ߡ�ʵ�ָ��¼�¼
+## 十二、源码入口
 
-### 7.1 2026-07-16 ����
-
-#### IBlackboard �ӿڳ���
-
-**����**��BTreeBlackboardBridge ֱ������ BTCore.Runtime.Blackboards.Blackboard��Υ����������ԭ��
-
-**�������**������ IBlackboard �ӿڣ�ʹ�ŽӲ�ɲ����ҿ���չ��
-
-`csharp
-// IBlackboard �ӿ�
-public interface IBlackboard
-{
-    T GetValue<T>(string key);
-    void SetValue<T>(string key, T value);
-    bool HasKey(string key);
-    string BlackboardType { get; }
-}
-`
-
-ͬʱ�ṩ���Ͱ�ȫ��صĸ������ͣ�
-
-| ���� | ˵�� |
-|-----|-----|
-| BlackboardTypeMismatchException | ���Ͳ�ƥ���쳣 |
-| BlackboardValue<T> | ����ֵ��װ�� |
-
-#### IExternalNodeFactory �ⲿ�ڵ㹤��
-
-**����**��BTCore �� ExternalAction �� ExternalCondition ȱ��ͳһ��ע��ʹ������ơ�
-
-**�������**��ʵ�� IExternalNodeFactory �ӿڣ�֧�����Ͱ�ȫ�Ľڵ�ע��ʹ�����
-
-`csharp
-public interface IExternalNodeFactory
-{
-    void RegisterAction<T>(string typeName) where T : BTCoreAction, new();
-    void RegisterCondition<T>(string typeName) where T : BTCoreCondition, new();
-    BTCoreAction CreateAction(string typeName, Dictionary<string, string> properties);
-    BTCoreCondition CreateCondition(string typeName, Dictionary<string, string> properties);
-}
-`
-
-ͬʱ�ṩ��
-
-| ���� | ˵�� |
-|-----|-----|
-| DefaultExternalNodeFactory | Ĭ�Ϲ���ʵ�� |
-| BTreeNodeAttribute | �Զ�ע������ |
-| ExternalNodeFactoryExtensions | ����ɨ����չ���� |
-
-#### BTreeBlackboardBridge �Ľ�
-
-���º���Ž���֧�֣�
-
-- **��ע��ĺڰ�ʵ��**��Blackboard ���Կ�����
-- **���Ͱ�ȫ��ӳ��ע��**��RegisterMapping<T>(stateKey, bbKey)
-- **�ڲ�������**��BTCoreBlackboardAdapter ʵ�� IBlackboard
-
-`csharp
-var bridge = new BTreeBlackboardBridge();
-bridge.SetDefaultBlackboard();  // ʹ�� BTCore �ڰ�
-bridge.RegisterMapping<Vec3>("position", "SelfPosition");
-bridge.RegisterMapping<float>("hp", "SelfHp");
-
-bridge.SyncStateToBlackboard(context.State);
-`
-
-### 7.2 ��ʵ�ֹ���
-
-| ���� | ״̬ | �ļ� |
-|-----|------|-----|
-| IBlackboard �ӿ� | ? ��ʵ�� | IBlackboard.cs |
-| IExternalNodeFactory �ӿ� | ? ��ʵ�� | IExternalNodeFactory.cs |
-| BTreeBlackboardBridge �Ľ� | ? ��ʵ�� | BTreeBlackboardBridge.cs |
-| BTreeResultConverter | ? ��ʵ�� | BTreeDecisionAdapter.cs |
-| BTreeActionAdapter | ? ��ʵ�� | BTreeDecisionAdapter.cs |
-
-### 7.3 ��ʵ�ֹ���
-
-| ���� | ���ȼ� | ˵�� |
-|-----|--------|-----|
-| BTreeDecisionAdapter ����ʵ�� | �� | BTree �� IBehaviorDecision ���� |
-| BTreeExecutorAdapter ����ʵ�� | �� | IBehaviorOutput �� BTree �¼����� |
-| BTreeLoader �����л� | �� | �� ScriptableObject ���� BTree |
-| �༭������ | �� | ��չ BTEditor ע���Զ���ڵ� |
+- 行为运行时：`Unity/Packages/com.abilitykit.behavior/Runtime/Runtime/BehaviorRuntime.cs`
+- 行为管理器：`Unity/Packages/com.abilitykit.behavior/Runtime/Runtime/BehaviorManager.cs`
+- 行为 Decision 接口：`Unity/Packages/com.abilitykit.behavior/Runtime/Interface/IBehaviorDecision.cs`
+- 行为 Executor 与 Output 接口：`Unity/Packages/com.abilitykit.behavior/Runtime/Interface/IBehaviorExecutor.cs`
+- 通用 BTCore Decision 适配：`Unity/Packages/com.abilitykit.behavior/Runtime/BTree/BTreeDecisionAdapter.cs`
+- 通用 Blackboard Bridge：`Unity/Packages/com.abilitykit.behavior/Runtime/BTree/BTreeBlackboardBridge.cs`
+- 通用 Blackboard 接口：`Unity/Packages/com.abilitykit.behavior/Runtime/BTree/IBlackboard.cs`
+- BTCore 树执行器：`Unity/Packages/com.abilitykit.thirdparty.behaviortreeeditor/BehaviorTreeEditor/BTCore/Runtime/BTree.cs`
+- BTCore 节点基类：`Unity/Packages/com.abilitykit.thirdparty.behaviortreeeditor/BehaviorTreeEditor/BTCore/Runtime/BTNode.cs`
+- BTCore 随机 Selector：`Unity/Packages/com.abilitykit.thirdparty.behaviortreeeditor/BehaviorTreeEditor/BTCore/Runtime/Composites/RandomSelector.cs`
+- BTCore 随机 Sequence：`Unity/Packages/com.abilitykit.thirdparty.behaviortreeeditor/BehaviorTreeEditor/BTCore/Runtime/Composites/RandomSequence.cs`
+- BTCore 随机条件：`Unity/Packages/com.abilitykit.thirdparty.behaviortreeeditor/BehaviorTreeEditor/BTCore/Runtime/Conditions/RandomProbability.cs`
+- MOBA Brain 服务：`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Behavior/MobaBrainService.cs`
+- MOBA Driver Registry：`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Behavior/MobaBrainDecisionDrivers.cs`
+- MOBA 树资源加载：`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Behavior/BTree/MobaBTreeAssetLoader.cs`
+- MOBA 树 Decision：`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Behavior/BTree/MobaBTreeDecision.cs`
+- MOBA Blackboard 协议：`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Behavior/BTree/MobaBTreeRuntimeContext.cs`
+- Behavior 生命周期测试：`src/AbilityKit.Demo.Moba.Tests/Behavior/BehaviorManagerLifecycleTests.cs`
+- BTCore 生命周期测试：`src/AbilityKit.BTCore.Tests/BTreeLifecycleTests.cs`
+- MOBA 技能选择测试：`src/AbilityKit.Demo.Moba.Tests/Behavior/MobaBrainSkillSelectionPolicyTests.cs`
+- MOBA Hero AI 冒烟：`src/AbilityKit.Demo.Moba.Tests/Smoke/MobaGenericHeroAiSmokeTests.cs`
+- MOBA Summon BTree 冒烟：`src/AbilityKit.Demo.Moba.Tests/Smoke/MobaSummonBTreeSkillSmokeTests.cs`

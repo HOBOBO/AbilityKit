@@ -44,7 +44,7 @@ PPT 中每个技术阶段至少提供一个“深入阅读”入口。链接优�
 | Targeting | [Targeting 系统](08-GameplayModules/07-TargetingSystem.md) | [实体与技能索引](08-GameplayModules/09-EntityAndSkillIndexing.md) |
 | Projectile / Damage | [投射物系统](08-GameplayModules/04-ProjectileSystem.md) | [伤害计算](08-GameplayModules/06-DamageCalculation.md)、[MOBA Projectile 与 Damage 深潜](09-ImplementationExamples/MOBA/08-ProjectileDamageDeepDive.md) |
 | Snapshot / StateSync | [状态同步](07-NetworkSynchronization/02-StateSync.md) | [快照分发](04-PresentationLayerDesign/02-SnapshotDispatch.md) |
-| Prediction / Replay | [回滚预测](07-NetworkSynchronization/03-RollbackPrediction.md) | [预测重整](07-NetworkSynchronization/04-PredictionReconciliationDesign.md)、[回放系统](07-NetworkSynchronization/04-ReplaySystem.md) |
+| Prediction / Replay | [回滚预测](07-NetworkSynchronization/03-RollbackPrediction.md) | [预测重整](07-NetworkSynchronization/03.1-PredictionReconciliationDesign.md)、[回放系统](07-NetworkSynchronization/04-ReplaySystem.md) |
 | Orleans | [Orleans 运行时与部署](12-ServerArchitecture/01-OrleansRuntimeAndDeployment.md) | [Gateway、Room 与 Battle](12-ServerArchitecture/02-GatewayRoomBattleFlow.md) |
 
 ---

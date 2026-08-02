@@ -4,11 +4,13 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Ability.Host.Extensions.Moba.Snapshot;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.EntityManager;
+using AbilityKit.Demo.Moba.Services.Map;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -35,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private IWorldResolver _services = null;
         [WorldInject(required: false)] private MobaLogicWorldRunGateService _phase = null;
         [WorldInject(required: false)] private MobaGameplayService _gameplay = null;
+        [WorldInject(required: false)] private IMobaMapRuntimeService _maps = null;
 
         private bool _started;
 
@@ -118,6 +121,11 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             effectiveReq = spec.EnterReq;
+            if (!TryResolveSpawnPositions(in effectiveReq, out effectiveReq, out var spawnError))
+            {
+                return Fail(MobaGameStartFailureCode.ActorBuildFailed, spawnError);
+            }
+
             var requestValidation = MobaProtocolValidation.ValidateEnterGameReq(in effectiveReq);
             if (!requestValidation.IsValid)
             {
@@ -125,6 +133,81 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             return MobaGameStartResult.Success;
+        }
+
+        private bool TryResolveSpawnPositions(
+            in EnterMobaGameReq request,
+            out EnterMobaGameReq resolved,
+            out string error)
+        {
+            resolved = request;
+            error = null;
+
+            var players = request.Players;
+            if (players == null || players.Length == 0) return true;
+
+            MobaPlayerLoadout[] normalized = null;
+            for (var i = 0; i < players.Length; i++)
+            {
+                var loadout = players[i];
+                if (loadout.HasSpawnPosition != 0) continue;
+
+                if (_maps == null || _maps.CurrentMap == null)
+                {
+                    error = $"Map runtime is unavailable while resolving player spawn. playerId={loadout.PlayerId.Value}";
+                    return false;
+                }
+
+                MapSpawnPointMO spawnPoint = null;
+                var found = loadout.SpawnIndex > 0 &&
+                    _maps.TryGetSpawnPointById(loadout.SpawnIndex, out spawnPoint) &&
+                    spawnPoint.TeamId == loadout.TeamId;
+                if (!found)
+                {
+                    found = _maps.TryGetTeamSpawnPoint(loadout.TeamId, loadout.SpawnIndex, out spawnPoint);
+                }
+
+                if (!found || spawnPoint == null)
+                {
+                    error = $"Map spawn point was not found. playerId={loadout.PlayerId.Value}, " +
+                            $"teamId={loadout.TeamId}, spawnIndex={loadout.SpawnIndex}";
+                    return false;
+                }
+
+                normalized ??= (MobaPlayerLoadout[])players.Clone();
+                normalized[i] = new MobaPlayerLoadout(
+                    loadout.PlayerId,
+                    loadout.TeamId,
+                    loadout.HeroId,
+                    loadout.AttributeTemplateId,
+                    loadout.Level,
+                    loadout.BasicAttackSkillId,
+                    loadout.SkillIds,
+                    loadout.SpawnIndex,
+                    loadout.UnitSubType,
+                    loadout.MainType,
+                    hasSpawnPosition: 1,
+                    spawnX: spawnPoint.Position.X,
+                    spawnY: spawnPoint.Position.Y,
+                    spawnZ: spawnPoint.Position.Z,
+                    brainId: loadout.BrainId,
+                    enableBrainOnSpawn: loadout.EnableBrainOnSpawn);
+            }
+
+            if (normalized == null) return true;
+
+            resolved = new EnterMobaGameReq(
+                request.PlayerId,
+                request.MatchId,
+                request.MapId,
+                request.RandomSeed,
+                request.TickRate,
+                request.InputDelayFrames,
+                request.OpCode,
+                request.Payload,
+                normalized,
+                request.GameplayId);
+            return true;
         }
 
         private MobaGameStartResult BuildEnterGameActors(

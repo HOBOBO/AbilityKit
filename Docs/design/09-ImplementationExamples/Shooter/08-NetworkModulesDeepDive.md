@@ -14,11 +14,12 @@ flowchart TB
         Input[ShooterClientInputCoordinator]
         FrameSync[ShooterClientFrameSyncController]
         Factory[ShooterClientSyncControllerFactory]
-        PackedCtrl[ShooterPackedSnapshotSyncController]
-        PureCtrl[ShooterPureStateSnapshotSyncController]
         Predict[ShooterClientPredictRollbackSyncController]
         Interp[ShooterClientAuthoritativeInterpolationSyncController]
         Hybrid[ShooterClientHybridHeroPredictionSyncController]
+        ApplyCoordinator[ShooterClientSnapshotApplyCoordinator]
+        SnapshotPipeline[ShooterFrameworkSnapshotPipeline]
+        PureCtrl[ShooterPureStateSnapshotSyncController]
         Reconnect[ShooterFastReconnectDriver]
     end
 
@@ -43,11 +44,14 @@ flowchart TB
     Launcher --> Session --> Input
     Session --> FrameSync
     Session --> Factory
-    Factory --> PackedCtrl
-    Factory --> PureCtrl
     Factory --> Predict
     Factory --> Interp
     Factory --> Hybrid
+    Predict --> ApplyCoordinator
+    Interp --> ApplyCoordinator
+    Hybrid --> ApplyCoordinator
+    ApplyCoordinator --> SnapshotPipeline
+    SnapshotPipeline --> PureCtrl
     Session --> Flow --> GatewayClient --> RoomClient --> Router --> Room
     Room --> Battle --> RuntimePort
     RuntimePort --> Packed
@@ -55,8 +59,6 @@ flowchart TB
     RuntimePort --> Hash
     RuntimePort --> Lag
     Room --> FrameGrain
-    PackedCtrl --> Session
-    PureCtrl --> Session
     Reconnect --> Flow
 ```
 
@@ -124,17 +126,20 @@ flowchart LR
     Sample --> Command --> Frame --> Gateway --> Grain --> Battle --> Snapshot
 ```
 
-## 5. 同步控制器矩阵
+## 5. 同步控制器与快照应用组件
 
-`ShooterClientSyncControllerFactory` 的核心价值是按策略选择控制器，而不是把所有同步策略塞进一个大类。
+`ShooterClientSyncControllerFactory` 的核心价值是按策略选择控制器，而不是把所有同步策略塞进一个大类。载荷解码和导入由下游快照组件承担，不是第四类策略控制器。
 
-| 控制器 | 适用模式 | 关键行为 |
-|--------|----------|----------|
-| `ShooterPackedSnapshotSyncController` | packed snapshot 状态同步 | 反序列化 packed payload，按帧应用，忽略 stale snapshot |
-| `ShooterPureStateSnapshotSyncController` | 大规模 pure-state 同步 | 应用 baseline/delta、预算、兴趣范围、插值延迟 |
-| `ShooterClientPredictRollbackSyncController` | 客户端预测回滚 | 本地预测、权威快照对账、漂移恢复 |
-| `ShooterClientAuthoritativeInterpolationSyncController` | 完全权威插值 | 延迟播放服务端快照，减少抖动 |
-| `ShooterClientHybridHeroPredictionSyncController` | 主角预测 + 其他实体插值 | 主控角色低延迟，非主控实体权威插值 |
+| 组件 | 适用范围 | 关键行为 |
+|------|----------|----------|
+| `ShooterClientPredictRollbackSyncController` | PredictRollback | 本地预测、权威快照对账、漂移恢复 |
+| `ShooterClientAuthoritativeInterpolationSyncController` | AuthoritativeInterpolation、BatchStateSync、MassBattleLodSync | 延迟播放服务端快照；后三种模型中的批量与 LOD 差异当前由同步配置和载荷内容表达 |
+| `ShooterClientHybridHeroPredictionSyncController` | HybridHeroPrediction | 主控角色预测，其他实体权威插值 |
+| `ShooterClientSnapshotApplyCoordinator` | 所有策略控制器的快照应用入口 | 解码 Gateway 包装，调用框架快照管线并记录导入证据 |
+| `ShooterFrameworkSnapshotPipeline` | packed 与 pure-state 协议载荷 | 聚合 FramePacket、按 opcode 解码和路由、执行对应应用 stage |
+| `ShooterPureStateSnapshotSyncController` | pure-state baseline/delta | 在表现门面中校验 baseline、delta、stale 和重同步需求 |
+
+当前不存在独立的 packed snapshot 策略控制器。packed payload 进入 `ShooterFrameworkSnapshotPipeline` 后，由应用上下文完成版本兼容检查、stale frame 判定、runtime 导入和表现投影。
 
 ## 6. Packed Snapshot 网络路径
 
@@ -146,16 +151,18 @@ sequenceDiagram
     participant Exporter as ShooterPackedSnapshotExporter
     participant Codec as ShooterPackedSnapshotCodec
     participant Gateway as StateSyncPush
-    participant Client as ShooterPackedSnapshotSyncController
-    participant Importer as ShooterPackedSnapshotImporter
+    participant Coordinator as ShooterClientSnapshotApplyCoordinator
+    participant Pipeline as ShooterFrameworkSnapshotPipeline
 
     Runtime->>Exporter: ExportPackedSnapshot(worldId, full/delta)
     Exporter->>Codec: Serialize chunks
     Codec-->>Gateway: byte[] / protocol payload
-    Gateway-->>Client: push frame snapshot
-    Client->>Codec: Deserialize
-    Client->>Importer: ImportPackedSnapshot
-    Importer-->>Client: 更新本地 state/entities
+    Gateway-->>Coordinator: push frame snapshot
+    Coordinator->>Pipeline: ApplyGatewaySnapshot
+    Pipeline->>Codec: Deserialize by payload opcode
+    Pipeline->>Pipeline: version/stale checks
+    Pipeline->>Runtime: ImportPackedSnapshot
+    Runtime-->>Pipeline: 更新本地 state/entities
 ```
 
 packed snapshot 的特点：
@@ -243,7 +250,8 @@ sequenceDiagram
 |------|----------|--------|
 | Gateway Flow | 不解释 snapshot 内容 | 负责登录、房间、订阅、请求顺序 |
 | ClientSession | 不实现具体同步算法 | 聚合同步控制器、输入、表现回调 |
-| SyncController | 不创建房间 | 应用快照、预测/插值/回滚、处理 stale |
+| Strategy SyncController | 不解析每种 payload 的协议细节 | 负责预测、插值、回滚和策略级恢复 |
+| Snapshot Apply/Pipeline | 不创建房间或选择同步策略 | 解码、路由、兼容性检查、stale 处理与 runtime 导入 |
 | RuntimePort | 不关心网络连接 | 导出 snapshot/hash、执行 tick、导入权威状态 |
 | SnapshotExporter | 不做客户端表现 | 量化、排序、预算、baseline/delta |
 | LagCompensation | 不推进战斗帧 | 捕获历史帧并评估 rewind 命中 |
@@ -259,8 +267,9 @@ sequenceDiagram
 | 输入协调 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Session/ShooterClientInputCoordinator.cs` |
 | 帧同步控制 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientFrameSyncController.cs` |
 | 同步控制器工厂 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientSyncControllerFactory.cs` |
-| packed 控制器 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterPackedSnapshotSyncController.cs` |
-| pure-state 控制器 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterPureStateSnapshotSyncController.cs` |
+| 快照应用协调 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientSnapshotApplyCoordinator.cs` |
+| packed/pure-state 路由管线 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterFrameworkSnapshotPipeline.cs` |
+| pure-state baseline/delta 控制器 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterPureStateSnapshotSyncController.cs` |
 | pure-state exporter | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Synchronization/ShooterPureStateSnapshotExporter.cs` |
 | packed exporter | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Synchronization/ShooterPackedSnapshotExporter.cs` |
 | lag compensation | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Synchronization/ShooterLagCompensationService.cs` |

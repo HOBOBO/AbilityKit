@@ -112,6 +112,53 @@ namespace AbilityKit.Game.View.Runtime.Tests
             Assert.False(ctx.BattleEntryReady);
         }
 
+        [Fact]
+        public void ConditionBuilder_WithoutBattleScope_FailsClosed()
+        {
+            using var host = new BattleWorldScopeHost();
+            var builder = CreateConditionBuilder(host, battleRequested: true);
+
+            var ctx = builder.BuildFlowConditionContext();
+
+            Assert.True(ctx.BattleRequested);
+            Assert.False(ctx.Authenticated);
+            Assert.False(ctx.RoomReady);
+            Assert.False(ctx.ConnectivityReady);
+            Assert.False(ctx.AssetsReady);
+            Assert.False(ctx.BattleEntryReady);
+        }
+
+        [Fact]
+        public void ConditionBuilder_UsesSeededPerBattleGateProvider()
+        {
+            using var host = new BattleWorldScopeHost();
+            var seeded = new StubGateProvider { IsRoomReady = false };
+            host.BeginBattle(seeder => seeder.Seed<IFlowGateProvider>(seeded));
+            var builder = CreateConditionBuilder(host, battleRequested: true);
+
+            var ctx = builder.BuildFlowConditionContext();
+
+            Assert.True(ctx.Authenticated);
+            Assert.False(ctx.RoomReady);
+            Assert.True(ctx.ConnectivityReady);
+            Assert.True(ctx.AssetsReady);
+            Assert.False(ctx.BattleEntryReady);
+            Assert.Same(seeded, host.Resolve<IFlowGateProvider>());
+        }
+
+        private static FlowConditionContextBuilder CreateConditionBuilder(
+            BattleWorldScopeHost host,
+            bool battleRequested)
+        {
+            return new FlowConditionContextBuilder(
+                new FlowConditionContextBuilder.Callbacks
+                {
+                    GetBattleRequested = () => battleRequested,
+                },
+                host,
+                new MobaFlowConditionResolver());
+        }
+
         private sealed class StubGateProvider : IFlowGateProvider
         {
             public bool IsAuthenticated { get; set; } = true;

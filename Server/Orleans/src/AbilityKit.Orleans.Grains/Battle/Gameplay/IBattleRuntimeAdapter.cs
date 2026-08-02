@@ -35,6 +35,11 @@ internal interface IBattleRuntimeSession : IDisposable
     StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot);
 }
 
+internal interface IBattleRuntimeInputDiagnostics
+{
+    string LastInputSubmitDiagnostic { get; }
+}
+
 internal interface IObserverAwareBattleRuntimeSession
 {
     StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot, in BattleStateSyncObserverContext observerContext);

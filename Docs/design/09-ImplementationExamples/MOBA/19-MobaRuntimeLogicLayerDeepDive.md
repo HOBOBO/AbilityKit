@@ -14,7 +14,7 @@ moba.runtime 包是 AbilityKit 中游戏逻辑最集中的层。接入方看到�
 
 | 维度 | 核心问题 | moba.runtime 的答案 |
 |---|---|---|
-| **L1 职责边界** | 逻辑层和表现层的边界在哪里 | 逻辑层管所有游戏规则，表现层管渲染和反馈 |
+| **L1 职责边界** | 逻辑层和表现层的边界在哪里 | 逻辑层执行当前示例已接入的游戏规则，表现层消费逻辑事实并负责渲染和反馈 |
 | **L2 输入管理** | 玩家输入怎么流入 ECS 世界 | `IWorldInputSink` → `MobaInputCoordinator` → Entitas Component |
 | **L3 输出管理** | 游戏状态怎么流出到表现层 | `MobaSnapshotRouter` → 多个 `MobaSnapshotEmitter` → 回调 |
 | **L4 System vs Service** | 哪些逻辑放 System，哪些放 Service | System 管帧驱动（Tick），Service 管跨帧状态和单次操作 |
@@ -27,13 +27,15 @@ moba.runtime 包是 AbilityKit 中游戏逻辑最集中的层。接入方看到�
 
 ### 2.1 moba.runtime 负责什么
 
-逻辑层的职责是**完整的游戏规则执行**。它拥有所有游戏状态的权威副本，负责：
+moba.runtime 是当前 MOBA 示例的规则执行层。对于已经接入该 World 的 Actor、技能、Buff、Projectile、Damage、Gameplay 和 Snapshot 状态，它持有逻辑侧事实并负责：
 
-- 接受输入，计算结果，修改状态
-- 维护所有实体的生命周期（创建、移动、销毁）
-- 执行技能、Buff、投射物、伤害计算
-- 发布游戏事件（伤害、死亡、技能开始等）
-- 管理帧同步时钟和快照
+- 接受输入，计算结果，修改逻辑状态
+- 维护已接入实体的创建、移动和销毁流程
+- 执行当前配置和领域服务支持的技能、Buff、投射物与伤害规则
+- 发布伤害、死亡、技能开始等逻辑事件
+- 推进逻辑时钟并生成快照
+
+这里的“逻辑侧事实”不等于全局服务端权威。World 可以运行在 Console、Unity 客户端或服务端宿主中；最终 authority、输入确认、复制和故障恢复由 Host、Coordinator 与具体网络模式共同决定。新增玩法规则也不会自动进入 runtime，仍需完成配置、Service/System 装配、校验和测试。
 
 ### 2.2 moba.runtime 不负责什么
 
@@ -847,42 +849,32 @@ public BattleTestScriptRunResult Run(BattleTestScript script, IBattleTestScriptD
 }
 ```
 
-### 9.5 Mock Service 的策略
+### 9.5 测试环境的实际边界
 
-对于需要 mock 的 Service（如时钟、网络回调），通过 DI 替换：
+`MobaRuntimeTestEnvironment<TCtx>` 当前聚合四项能力：`MobaTestConfigBuilder`、`MobaConfigDatabase`、`TriggeringTestHarness<TCtx>` 和 `BattleTestScriptRunner`。它可以替换 context、构建配置数据库，并把 `BattleTestScript` 交给调用方提供的 `IBattleTestScriptDriver`；它不是通用 DI 容器，也没有 Service override 或可控时钟 API。
 
-```csharp
-// 手动注册 mock 时钟
-var mockClock = new MockMobaClockService();
-env.WithServiceOverride<IMobaClockService>(mockClock);
-
-// 手动推进时钟
-mockClock.SetTime(100f); // 100ms
-env.StepFrame(new FrameIndex(3));
-```
+需要隔离时间、网络或宿主回调时，应在具体测试夹具中实现端口或 driver，并通过被测对象已有构造参数注入。若运行时 Service 只能从正式容器解析，则应使用 Console Smoke 或真实 World 测试，而不是在文档中假设存在统一 mock 注册接口。
 
 ### 9.6 典型测试场景
 
-| 测试场景 | 工具 | 说明 |
+| 测试场景 | 当前工具或入口 | 说明 |
 |---|---|---|
-| 配置数据查询 | `MobaTestConfigBuilder` | 验证 HeroDto / SkillDto 反序列化 |
-| 技能施放流程 | `BattleTestScript` | 验证 Press → Hold → Release 完整流程 |
-| 伤害计算 | `MobaRuntimeTestEnvironment` + Mock | 验证护盾减免、伤害上限 |
-| Buff 叠加 | `BattleTestScript` | 验证同 Buff 叠加层数、时长刷新 |
-| 移动碰撞 | Mock 物理 + `BattleTestScript` | 验证移动命中触发 |
+| 配置与 Trigger 契约 | `MobaRuntimeTestEnvironment<TCtx>` | 聚合配置构建和 `TriggeringTestHarness<TCtx>`，适合快速验证纯数据与 Trigger 行为 |
+| 脚本执行器协议 | `BattleTestScriptRunnerTests` | 使用记录型和抛错型 `IBattleTestScriptDriver`，验证步骤持续时间、完成结果与异常转换 |
+| Console 输入与技能链路 | `ConsoleMobaSmokeFlowTests` | 经过正式 Console bootstrap、运行时输入端口、技能与 Effect trace，不只是脚本对象测试 |
+| 死亡、复活与终局 | `MobaCompleteBattleLifecycleSmokeTests` | 创建真实 `ConsoleBattleBootstrapper` 和 World，验证伤害、两轮死亡/复活与结算 |
+| Unity 单局 journey acceptance | `MobaCompleteBattleJourneyAcceptanceTests` | 由 Unity 测试入口覆盖进场、移动、技能、战斗生命周期和表现事件链；不能由普通 `dotnet test` 替代，也不代表多人网络或正式表现闭环 |
 
-### 9.7 测试金字塔
+### 9.7 验证层级
 
-```mermaid
-flowchart TD
-    T1["端到端测试（真实 World）<br/>完整启动链路，覆盖全路径<br/>覆盖：10%"] --> T2
-    T2["单元测试（MobaRuntimeTestEnvironment + Mock）<br/>单 Service 逻辑：DamagePipeline、BuffApply<br/>覆盖：20%"] --> T3
-    T3["集成测试（BattleTestScript + World）<br/>多 Service 交互：技能 + Buff + 伤害<br/>覆盖：70%"]
+| 层级 | 代表入口 | 能证明什么 | 不能据此推导什么 |
+|---|---|---|---|
+| 纯契约测试 | `BattleTestScriptRunnerTests`、配置与 Trigger 测试 | builder、runner、driver 和纯数据协议按预期工作 | 正式 World 已装配或技能已实际生效 |
+| Console World Smoke | `ConsoleMobaSmokeFlowTests`、`MobaCompleteBattleLifecycleSmokeTests` | Console bootstrap、输入、Tick、技能 trace、伤害、复活与终局链路 | Unity 表现、远端 Gateway 和多进程行为 |
+| Unity Acceptance | `MobaCompleteBattleJourneyAcceptanceTests` | Unity 宿主中的单局测试旅程与表现事件侧接入 | 多客户端联机、自动复活规则、正式死亡/复活表现、服务端集群、网络故障和生产容量 |
+| Orleans Smoke | `AbilityKit.Orleans.MobaSmoke` 与对应脚本 | TCP Gateway、房间和服务端权威运行链路 | Console/Unity 的全部玩法断言或生产集群 |
 
-    style T1 fill:#ffcdd2
-    style T2 fill:#fff9c4
-    style T3 fill:#c8e6c9
-```
+仓库当前没有按上述层级发布统一覆盖率报告，因此不应使用 10%、20%、70% 之类的比例描述测试分布。若后续引入覆盖率门禁，应同时记录统计工具、程序集范围、排除规则和基线日期。
 
 ---
 
@@ -943,14 +935,16 @@ flowchart LR
 5. `MobaEnterGameFlowService.TryApplyGameStartSpec()` → `ActorSpawnPipeline` → 实体创建
 6. `MobaRuntimeTestEnvironment` → `BattleTestScriptRunner` → 测试入口
 
-### 11.2 证据状态
+### 11.2 可执行证据与边界
 
-| 证据类型 | 状态 | 说明 |
-|---|---|---|
-| 源码事实 | ✅ 已验证 | 所有类名、方法名、常量与源码一致 |
-| 运行验证 | ✅ 已验证 | Console Demo 可完整运行输入→技能→快照流程 |
-| 单元测试 | ⚠️ 需加强 | `MobaRuntimeTestEnvironment` 已建立，测试覆盖需扩展 |
-| 集成测试 | ⚠️ 需加强 | `BattleTestScript` 模式已建立，覆盖场景有限 |
+| 证据类型 | 可执行入口 | 当前覆盖 | 边界 |
+|---|---|---|---|
+| MOBA .NET tests | `dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj -c Release` | 2026-08-02 在 Windows 11、.NET 10 Release 下通过 232/232；覆盖 Console bootstrap、共享脚本、输入、技能 trace、战斗生命周期及其他 MOBA 测试 | 不包含 Unity Test Runner；构建仍有依赖漏洞、Entitas 兼容性、可空性与 xUnit Analyzer 警告 |
+| Console Smoke 筛选 | 同一工程使用 `--filter FullyQualifiedName~ConsoleMobaSmokeFlowTests` 或 `FullyQualifiedName~MobaCompleteBattleLifecycleSmokeTests` | 聚焦 Console 正式 World 主链路 | 不是 Gateway、多进程或 Unity 表现验收 |
+| Unity Acceptance | Unity Test Runner 中执行 `MobaCompleteBattleJourneyAcceptanceTests` | Unity 宿主中的单局 journey acceptance | 需要独立保存 Unity 测试报告；类存在不等于本轮已运行，也不能证明多人网络或正式表现闭环 |
+| 测试辅助骨架 | `MobaRuntimeTestEnvironment<TCtx>`、`BattleTestScriptRunnerTests` | 配置、Trigger 和脚本 driver 契约 | 辅助类型存在不代表伤害、Buff、移动等业务场景已全部覆盖 |
+
+文档中的类名和调用链仍应在每次源码演进后复核，不能以一次审计永久标记为“全部已验证”。Console Smoke 已提供输入、技能、Effect trace、World 生命周期等自动断言；它能证明这些测试路径存在，实际通过状态应以对应命令的当次报告为准。
 
 ---
 
@@ -959,14 +953,14 @@ flowchart LR
 | 文档 | 关系 |
 |---|---|
 | [12-DI 与 System/Service 协作深潜](./12-DIAndSystemServiceCollaborationDeepDive.md) | 互补：侧重 DI 机制和协作模式 |
-| [21-MOBA 战斗逻辑层实战指南](../../../AbilityKit战斗逻辑层设计草稿.md) | 互补：侧重实战指南（能力组合、扩展模式、错误清单、7 步上手） |
+| [21-MOBA 战斗逻辑层实战指南](../../../../local/Docs/AbilityKit战斗逻辑层设计草稿.md) | 互补：侧重实战指南（能力组合、扩展模式、错误清单、7 步上手） |
 | [01-世界启动与运行时装配](./01-WorldAndBootstrap.md) | 深入理解 World 创建和 Bootstrap Stage |
 | [05-技能执行深潜](./05-SkillExecutionDeepDive.md) | 深入理解技能施放的四阶段处理 |
 | [03-Buff、Projectile 与 Damage 管线](./03-BuffProjectileDamage.md) | 深入理解 Buff 命令链路和伤害计算 |
 | [04-快照、表现层与预测回滚](./04-SnapshotPresentationPrediction.md) | 深入理解快照路由和表现层去重 |
 | [06-配置、实体索引与生成深潜](./06-ConfigEntitySpawnDeepDive.md) | 深入理解 ActorSpawnPipeline 和实体生成 |
-| [08-玩法能力地图](../08-GameplayModules/00-GameplayCapabilityMap.md) | 横向看 Triggering、Ability、Combat 等能力组合 |
+| [08-玩法能力地图](../../08-GameplayModules/00-GameplayCapabilityMap.md) | 横向看 Triggering、Ability、Combat 等能力组合 |
 
 ---
 
-*文档版本：v1.0 | 状态：canonical | 最后更新：2026-07-22 | 基于 AbilityKit moba.runtime 源码 v2026-Q3*
+*文档版本：v1.1 | 状态：Runtime 逻辑层实现与验收边界 | 最后更新：2026-08-02 | 验证基线：MOBA .NET tests 232/232 已通过；Unity acceptance 本轮仅核对测试入口，未重新执行*

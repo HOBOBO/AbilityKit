@@ -1,488 +1,381 @@
-# Collision System Design
+# 碰撞查询系统设计
 
-## 一、现状分�?
+本文说明 AbilityKit 当前碰撞包的代码结构、设计目的和使用边界。文中的“当前实现”以仓库中的接口、实现和测试为准；尚未接入运行时的能力单独列在演进章节，不作为现有契约。
 
-### 1.1 现有实现
+## 一、系统定位
 
-```
-com.abilitykit.combat.collision.abstractions/
-├── Runtime/Math/
-�?  ├── CollisionWorld.cs       �?NaiveCollisionWorld (O(n) 遍历，无空间分区)
-�?  ├── CollisionShapes.cs       �?Sphere / Aabb / Capsule + ColliderShape
-�?  ├── CollisionQueries.cs      �?纯数学射�?Overlap 检测（数学正确�?
-�?  ├── ICollisionService.cs    �?IService 接口
-�?  └── CollisionService.cs     �?包装 NaiveCollisionWorld
-```
+`com.abilitykit.combat.collision.abstractions` 提供一套与 Unity Physics 解耦的几何查询能力。它管理碰撞体的几何状态，执行射线、重叠和扫掠查询，但不拥有 Actor、移动规则、技能目标选择或表现对象。
 
-**优点**�?
-- 抽象层设计合理（ICollisionWorld / IOrientedBoxSweepCollisionWorld�?
-- ColliderShape 类型系统完整（Sphere / Aabb / Capsule�?
-- CollisionQueries 数学实现正确（Slab 算法Raycast / SphereOverlap 等）
-- �?C#，无 Unity 依赖
+这层拆分主要解决三个问题：
 
-**严重问题**�?
+1. 战斗逻辑可以在纯 .NET 测试、控制台示例和服务端进程中复用同一套查询语义。
+2. 碰撞体数据与业务实体解耦，ECS 或其他宿主只需维护 `ColliderId` 映射。
+3. 广相筛选和窄相计算可以分别演进，不要求上层调用方感知具体空间索引。
 
-| 问题 | 影响 |
-|---|---|
-| **NaiveCollisionWorld �?O(n) 遍历** | 100 个单位每帧做 SphereOverlap 就是 10000 次比较，500 单位就是 250000 �?|
-| **�?Broadphase �?* | 无法�?LayerMask 过滤、无视窗裁剪 |
-| **无空间分�?* | �?QuadTree / Grid / Dynamic AABB Tree |
-| **�?Job/Burst 支持设计** | 无法多线程，帧同步高 TickRate�?0fps）下碰撞查询成为性能瓶颈 |
-| **无连续碰撞检测（CCD�?* | 高速弹道会穿�?|
-| **�?Sweep 查询完整实现** | SweepOrientedBox 只有粗糙�?AABB 包裹�?|
+当前模块不是通用物理引擎。它不负责刚体积分、碰撞约束求解、反弹、摩擦或 Unity Collider 同步，也没有完整的连续碰撞检测框架。
 
-### 1.2 设计目标
+## 二、职责与所有权
 
-| 目标 | 说明 |
-|---|---|
-| **纯逻辑，无 Unity 依赖** | 核心层使�?Vec3 / Transform3，与 AbilityKit 数学库一�?|
-| **Job/Burst 友好** | 供多线程查询，所有数据布局连续内存 |
-| **Broadphase + Narrowphase 分离** | Broadphase 做粗筛，Narrowphase 做精确检�?|
-| **可插拔空间分�?* | 支持 Grid（小�?/ 固定地图）、Dynamic AABB Tree（中�?/ 动态实体） |
-| **完整查询类型** | Raycast / SphereOverlap / BoxOverlap / CapsuleOverlap / Sweep（移动预测） |
-| **Layer/LayerMask 系统** | 碰撞层定义、组间过�?|
-| **帧同步安�?* | 支持确定性快照，回滚兼容 |
+碰撞系统的调用关系如下。
 
----
-
-## 二、目标架�?
-
-### 2.1 包结�?
-
-```
-com.abilitykit.combat.collision/
-├── Runtime/
-�?  ├── Abstractions/                    �?抽象层（接口 + 数据类型�?
-�?  �?  ├── ICollisionWorld.cs
-�?  �?  ├── IBroadphase.cs
-�?  �?  ├── INarrowphase.cs
-�?  �?  ├── CollisionLayers.cs           �?Layer 定义 + LayerMask 工具
-�?  �?  ├── CollisionFilter.cs           �?过滤器（IncludeMask / ExcludeMask�?
-�?  �?  ├── CollisionQueryInput.cs      �?查询输入参数
-�?  �?  ├── CollisionQueryOutput.cs     �?查询输出参数
-�?  �?  └── com.abilitykit.combat.collision.asmdef
-�?  �?
-�?  ├── Broadphase/                     �?Broadphase 实现
-�?  �?  ├── NaiveBroadphase.cs          �?O(n) 遍历（保守，最小依赖）
-�?  �?  ├── GridBroadphase.cs           �?格子分区（固定地图，2D/3D�?
-�?  �?  ├── DynamicAabbTreeBroadphase.cs �?松弛 AABB Tree（动态实体）
-�?  �?  └── BroadphaseFactory.cs        �?根据场景类型创建
-�?  �?
-�?  ├── Narrowphase/                    �?Narrowphase 实现
-�?  �?  ├── NarrowphaseQueries.cs        �?所有精确碰撞检测数�?
-�?  �?  └── ContinuousCollision.cs       �?CCD 连续碰撞（时间戳法）
-�?  �?
-�?  └── CollisionWorld.cs               �?组合 Broadphase + Narrowphase
-
-com.abilitykit.combat.collision.unity/  �?Unity 平台适配
-├── Runtime/
-�?  ├── UnityCollisionWorld.cs           �?桥接 Unity Physics（可选加速层�?
-�?  └── BurstJobBridge.cs               �?Burst Job 调用封装
-└── package.json
+```mermaid
+flowchart LR
+    Actor[Actor / Map / Projectile] --> Sync[宿主同步与注册]
+    Sync --> World[ICollisionWorld]
+    Motion[运动与导航适配器] --> World
+    Skill[技能与区域查询] --> World
+    World --> Filter[LayerFilter]
+    World --> Broadphase[广相候选]
+    Broadphase --> Narrowphase[几何窄相]
+    Narrowphase --> Result[ColliderId / RaycastHit]
 ```
 
-**注意**：`com.abilitykit.combat.collision.abstractions` 现有文件将合�?迁移到新�?`com.abilitykit.combat.collision` 包中，旧�?abstractions 包废弃�?
+各层所有权需要保持清晰：
 
-### 2.2 核心接口设计
+| 层级 | 拥有内容 | 不拥有内容 |
+| --- | --- | --- |
+| 业务宿主 | Actor 与 `ColliderId` 的映射、注册时机、销毁清理、层定义 | 几何相交算法 |
+| `ICollisionWorld` | 碰撞体局部形状、世界变换、层 ID、查询入口 | Actor 生命周期和阵营规则 |
+| 广相 | 世界 AABB 和候选 ID | 精确命中结论 |
+| 窄相 | 形状相交、命中距离、法线 | 空间索引和业务过滤 |
+| 运动适配器 | 移动体半径、障碍掩码、能力回退 | 碰撞体数据源 |
 
-#### ICollisionWorld（核心世界接口）
+MOBA 示例中的 `CollisionWorldSyncSystem` 每帧把 Entitas Actor 的 Transform、Collider 和 CollisionLayer 同步到碰撞世界。它只回收自己创建的 Actor Collider，地图服务注册的静态 Collider 由地图服务管理。该规则避免某个同步系统通过全局扫描误删其他模块拥有的碰撞体。
+
+## 三、公共契约
+
+### 3.1 碰撞体生命周期
+
+`ICollisionWorld` 的当前管理接口是：
 
 ```csharp
-public interface ICollisionWorld
-{
-    // ============ 实体管理 ============
-    ColliderId Add(in Transform3 transform, in ColliderShape localShape, int layerId);
-    bool Remove(ColliderId id);
-    bool UpdateTransform(ColliderId id, in Transform3 transform);
-    bool UpdateShape(ColliderId id, in ColliderShape localShape);
-    bool UpdateLayer(ColliderId id, int layerId);
-
-    // ============ 批量管理 ============
-    void AddBatch(Span<ColliderData> entries);    // 批量添加（Init 时用�?
-    void RemoveBatch(Span<ColliderId> ids);
-    void UpdateBatch(Span<ColliderUpdate> updates); // 批量更新（移动同步后用）
-
-    // ============ 查询 ============
-    bool Raycast(in Ray3 ray, in CollisionQueryInput input, out RaycastHit hit);
-    int RaycastAll(in Ray3 ray, in CollisionQueryInput input, Span<RaycastHit> results);
-
-    int OverlapSphere(in Sphere sphere, in CollisionQueryInput input, Span<ColliderId> results);
-    int OverlapBox(in OBB obb, in CollisionQueryInput input, Span<ColliderId> results);
-    int OverlapCapsule(in CapsuleShape capsule, in CollisionQueryInput input, Span<ColliderId> results);
-
-    bool SweepSphere(in SphereGeometry sphere, in Vec3 direction, float maxDistance,
-        in CollisionQueryInput input, Span<ColliderId> ignoredIds, out SweepHit hit);
-    bool SweepBox(in OBB box, in Vec3 direction, float maxDistance,
-        in CollisionQueryInput input, Span<ColliderId> ignoredIds, out SweepHit hit);
-
-    // ============ 层管�?============
-    void SetLayerRelation(int layerA, int layerB, CollisionResponse response);
-    CollisionResponse GetLayerRelation(int layerA, int layerB);
-
-    // ============ 调试 ============
-    int CopyActiveColliders(Span<ColliderId> results);
-}
-
-public readonly struct ColliderData
-{
-    public ColliderId Id;
-    public Transform3 Transform;
-    public ColliderShape LocalShape;
-    public int LayerId;
-    public long Version; // 用于 Broadphase AABB 更新判断
-}
-
-public readonly struct ColliderUpdate
-{
-    public ColliderId Id;
-    public Transform3? Transform;
-    public ColliderShape? LocalShape;
-    public int? LayerId;
-}
+ColliderId Add(in Transform3 transform, in ColliderShape localShape, int layerId);
+bool Remove(ColliderId id);
+bool UpdateTransform(ColliderId id, in Transform3 transform);
+bool UpdateShape(ColliderId id, in ColliderShape localShape);
+bool UpdateLayer(ColliderId id, int layerId);
+bool Update(ColliderId id, in Transform3 transform, in ColliderShape localShape);
 ```
 
-#### IBroadphase（Broadphase 接口�?
+`Add` 接收局部形状和世界变换。世界实现负责在查询时构造世界形状，并在需要广相时生成保守世界 AABB。上层不应提前把形状烘焙成世界坐标后又传入非单位 Transform，否则会重复变换。
+
+`ColliderId` 当前从 1 单调递增。Naive 和 Grid 后端在 `Remove` 时都只标记失效，不复用 ID。这个行为便于在单局运行时保持引用稳定，但不等于 ID 可以跨世界、跨战局或跨存档使用。
+
+更新方法在 ID 无效或碰撞体已移除时返回 `false`。调用方应把返回值视为同步状态异常信号，而不是默认忽略。
+
+### 3.2 基础查询
+
+基础接口提供两类查询：
 
 ```csharp
-public interface IBroadphase
-{
-    // ============ 生命周期 ============
-    void Initialize(int initialCapacity);
-    void Dispose();
+bool Raycast(
+    in Ray3 ray,
+    float maxDistance,
+    in LayerFilter filter,
+    out RaycastHit hit);
 
-    // ============ 索引管理 ============
-    void Add(ColliderId id, in Aabb worldAabb, int layerId);
-    void Remove(ColliderId id);
-    void Update(ColliderId id, in Aabb worldAabb);
-    void UpdateBatch(Span<ColliderId> ids, Span<Aabb> aabbs);
-
-    // ============ 查询 ============
-    // 返回可能�?Shape 相交�?ColliderId（粗筛）
-    int Query(in Aabb aabb, int layerMask, Span<ColliderId> results);
-    int Query(in Sphere sphere, int layerMask, Span<ColliderId> results);
-    int Query(in OBB obb, int layerMask, Span<ColliderId> results);
-
-    // ============ 射线查询（Broadphase 层做 AABB 包裹�?============
-    int QueryRay(in Ray3 ray, float maxDistance, int layerMask, Span<RaycastCandidate> results);
-
-    // ============ 统计 ============
-    int ActiveColliderCount { get; }
-    float BuildTimeMs { get; }  // 用于性能分析
-}
+int OverlapSphere(
+    in Sphere sphere,
+    in LayerFilter filter,
+    List<ColliderId> results);
 ```
 
-### 2.3 数据结构设计（Job 友好�?
+`Raycast` 返回最近命中的 Collider、距离、命中点和法线。`OverlapSphere` 把结果追加到调用方传入的列表，不会主动清空列表；调用方需要在复用列表时自行 `Clear()`。
+
+基础接口没有 Box Overlap、Capsule Overlap、批量 Raycast 或 `Span<T>` 版本。文档和业务代码不能把这些候选能力当成当前 API。
+
+### 3.3 可选扫掠能力
+
+扫掠没有继续扩大 `ICollisionWorld`，而是通过能力接口表达：
 
 ```csharp
-// ============ 连续内存布局，支�?Burst ============
-
-// AABB 存储（结构体数组，Cache Line 对齐�?
-[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-public struct NativeAabb
+public interface IOrientedBoxSweepCollisionWorld
 {
-    public Vec3 Min;
-    public Vec3 Max;
-    public float Margin; // 碰撞体膨胀量（Broadphase 抗抖动）
+    bool SweepOrientedBox(
+        in OrientedBoxSweep box,
+        in Vec3 direction,
+        float maxDistance,
+        in LayerFilter filter,
+        out RaycastHit hit);
 }
 
-// Collider 核心数据（结构体数组，无 GC�?
-public struct CollisionCollider
+public interface ISphereSweepCollisionWorld
 {
-    public ColliderId Id;
-    public ColliderShapeType ShapeType;
-    public int LayerId;
-    public long Version;
-
-    // Shape 数据（Union 风格，通过 ShapeType 解析�?
-    public Vec3 Center;     // Sphere.Center �?AABB.Center �?Capsule.Center
-    public Vec3 Extent;     // Sphere.Radius / AABB.HalfExtents / Capsule.Radius
-    public Vec3 B;          // Capsule.B（第三个点）
-}
-
-// 查询候选结�?
-public struct RaycastCandidate
-{
-    public ColliderId Id;
-    public float TMin;   // 光线进入时间
-    public float TMax;   // 光线退出时�?
-    public Vec3 Normal; // 退出面法线（用于排序）
+    bool SweepSphere(
+        in Vec3 start,
+        in Vec3 direction,
+        float maxDistance,
+        float radius,
+        in LayerFilter filter,
+        out RaycastHit hit);
 }
 ```
 
-### 2.4 Broadphase 实现策略
+Naive 和 Grid 当前都实现这两个接口。能力接口的目的不是表示实现可有可无，而是允许业务适配器在面对第三方或精简世界实现时显式降级。
 
-#### GridBroadphase（固定格子分区）
+MOBA 运动适配器的顺序是：
 
-```
-适用场景：MOBA 地图（固定尺寸，实体数量中等 10-500�?
-
-设计�?
-- 将地图划分为固定格子（可配置大小，如 10x10 单位�?
-- 每个格子维护内部 ColliderId 列表
-- 查询时只检测射�?形状覆盖的格�?
-- 移动时从旧格子移除，加入新格�?
-
-优点：实现简单，确定性，Cache 友好
-缺点：格子大小固定，大地图内存占用固�?
-```
-
-#### DynamicAabbTree（松�?AABB Tree�?
-
-```
-适用场景：开放世�?/ 实体数量大（100-5000�?
-
-设计�?
-- 使用松驰（松弛系�?0.05-0.1）的 AABB 包裹实体
-- 自底向上构建二叉树，动态增删节�?
-- 增删后触发局部重平衡（不重建整树�?
-- 查询使用递归遍历 + 子树 AABB 粗筛
-
-优点：查询效�?O(log n)，适合动态场�?
-缺点：实现复杂，需要仔细调�?
+```mermaid
+flowchart TD
+    Start[运动 Sweep 请求] --> Sphere{支持 Sphere Sweep?}
+    Sphere -->|是| SphereQuery[执行球扫掠]
+    Sphere -->|否| OBB{支持 OBB Sweep?}
+    OBB -->|是| OBBQuery[用轴对齐盒近似移动球]
+    OBB -->|否| Fallback[Overlap 采样 + Raycast 回退]
+    SphereQuery --> Hit[返回最近命中与 appliedDelta]
+    OBBQuery --> Hit
+    Fallback --> Hit
 ```
 
-#### NaiveBroadphase（保底）
+该回退属于 MOBA 领域适配策略，不是碰撞包的公共协议。球扫掠对 Sphere、AABB 和 OBB 使用 Minkowski 膨胀后的查询；Capsule 沿用现有近似，不能扩写为对所有形状都精确的通用 CCD。
 
-```
-适用场景：实体数�?<= 50 / 测试场景
+## 四、形状和空间变换
 
-设计：O(n) 遍历所�?Collider，返回匹�?LayerMask �?
-优点：无额外内存开销，无初始化延�?
-缺点：实体多了性能急剧下降
-```
+当前 `ColliderShape` 支持：
 
-### 2.5 Narrowphase 查询类型
+- Sphere
+- AABB
+- Capsule
+- OBB
 
-| 查询类型 | 输入 | 输出 | 用�?|
-|---|---|---|---|
-| `Raycast` | Ray + MaxDist | 最近命�?Hit | 瞄准、视线、技能指�?|
-| `RaycastAll` | Ray + MaxDist | 所有命中列�?| 穿透弹、激光技�?|
-| `OverlapSphere` | 球心 + 半径 | 球内所�?ColliderId | AOE 范围检�?|
-| `OverlapBox` | OBB | Box 内所�?ColliderId | 矩形技能范�?|
-| `OverlapCapsule` | Capsule | Capsule 内所�?ColliderId | 角色碰撞�?|
-| `SweepSphere` | �?+ 方向 + 距离 | 沿方向第一个命�?| 移动预测（防止穿透） |
-| `SweepBox` | OBB + 方向 + 距离 | 沿方向第一个命�?| 角色移动预测 |
-| `ContinuousRay` | Ray + MaxDist | 时间�?+ Hit | 高速弹道（CCD�?|
+碰撞体保存局部形状。查询前按 Transform 转换为世界形状：
 
-### 2.6 Layer 系统
+- Sphere 中心使用 `TransformPoint`，半径使用缩放绝对值的最大分量。
+- Capsule 两端点使用 `TransformPoint`，半径使用最大缩放分量。
+- AABB 的八个角点变换到世界空间，再重建保守世界 AABB。
+- OBB 合并实体旋转与局部旋转，HalfExtents 使用最大缩放分量。
 
-```csharp
-// 默认层（可扩展）
-public static class CollisionLayers
-{
-    public const int Default = 0;
-    public const int Player = 1;
-    public const int Monster = 2;
-    public const int Projectile = 3;
-    public const int Building = 4;
-    public const int Terrain = 5;  // 地形阻挡
-    public const int Destructible = 6;
-    public const int Count = 7;    // 最大层数（64 位掩码）
-}
+最大分量缩放对非均匀缩放是保守处理。它避免缩小半径造成漏检，但会牺牲一部分精度。若业务需要非均匀缩放后的精确椭球或胶囊查询，应新增明确形状语义，而不是在现有 Sphere/Capsule 名义下改变结果。
 
-// 过滤规则
-public enum CollisionResponse
-{
-    Ignore,     // 完全忽略（不检测）
-    Block,       // 阻挡（射线返回命中）
-    Overlap,     // 重叠（Overlap 查询返回，但�?raycast�?
-}
+Grid 广相中的 OBB 必须转换成世界 AABB。当前实现通过三个旋转轴在世界 XYZ 轴上的绝对投影之和计算包围范围。相关回归测试用于防止旋转 OBB 因错误的零尺寸 AABB 从广相中消失。
 
-// 层关系矩阵（对称矩阵，层�?x 层数�?
-// 默认：同�?Block，自己对自己 Ignore
-// 可配置：Projectile vs Terrain = Block
-//         Projectile vs Player = Block
-//         Monster vs Monster = Overlap（不互卡�?
+## 五、查询流水线
+
+Grid 后端的典型查询分为四步。
+
+```mermaid
+sequenceDiagram
+    participant Caller as 调用方
+    participant World as GridCollisionWorld
+    participant Grid as GridBroadphase
+    participant Math as Narrowphase Queries
+
+    Caller->>World: Raycast / Overlap / Sweep
+    World->>World: 构造查询路径的保守 AABB
+    World->>Grid: Query(queryAabb, buffer, capacity)
+    Grid-->>World: 候选 ColliderId
+    loop 每个候选
+        World->>World: Alive + LayerFilter + Ignore IDs
+        World->>Math: 对世界形状执行精确查询
+        Math-->>World: 命中、距离、法线
+    end
+    World-->>Caller: 最近命中或结果列表
 ```
 
-### 2.7 帧同步兼容�?
+广相返回的是候选集，不是命中集。即使候选 AABB 与查询 AABB 位于同一个 Cell，也仍需窄相确认。这个边界使 `IBroadphase` 可以只维护 AABB，不依赖 `ColliderShape`。
 
-```
-┌────────────────────────────────────────────────────────────────────────────�?
-�?帧同步要求：同一帧输�?�?同一帧碰撞结果（确定性）                         �?
-├────────────────────────────────────────────────────────────────────────────�?
-�?                                                                           �?
-�? �?确定性保证：                                                          �?
-�? ├── 所有浮点运算使�?Vec3（一致性数学）                                   �?
-�? ├── Broadphase 增删顺序不影响查询结果（通过 ColliderId 去重�?             �?
-�? ├── DynamicAabbTree 重平衡使用确定性伪随机（固定种子）                    �?
-�? ├── Layer 关系矩阵�?World 创建时固定，运行时不修改                       �?
-�? └── 批量更新（UpdateBatch）保证同帧内只执行一次树更新                    �?
-�?                                                                           �?
-�? �?快照兼容�?                                                           �?
-�? ├── CollisionWorld 提供 CopyActiveColliders() 导出当前状�?              �?
-�? ├── 用于帧同步快照序列化（位�?+ Shape + Layer�?                        �?
-�? └── 支持从快照重�?CollisionWorld（热重连 / 回放�?                       �?
-�?                                                                           �?
-�? �?Job 安全�?                                                           �?
-�? ├── 所有查询接口无 GC（Span<T> 替代数组�?                               �?
-�? ├── 不在查询路径上分配新对象                                             �?
-�? └── ParallelFor 遍历时使�?NativeParallelHashMap                        �?
-�?                                                                           �?
-└────────────────────────────────────────────────────────────────────────────�?
-```
+查询过滤顺序为：
 
----
+1. Collider 存活且 ID 有效。
+2. `LayerFilter.IsLayerIncluded` 通过。
+3. `LayerFilter.ShouldIgnore` 不命中。
+4. 窄相几何查询通过。
+5. 单命中查询选择距离最小的结果。
 
-## 三、实现计�?
+同距离命中只在新距离严格小于当前最佳距离时替换。Naive 的平局顺序通常由 Collider 注册顺序决定；Grid 的平局顺序来自 Cell 遍历与 Cell 内插入顺序。当前契约没有声明跨后端一致的同距离 tie-break。依赖确定结果的调用方应避免构造完全等距的歧义场景，或在未来协议中增加显式 ColliderId 次级排序。
 
-### 3.1 阶段划分
+## 六、层过滤与层关系
 
-```
-阶段 1：核心抽�?+ Naive 实现�? 周）
-├── 定义 ICollisionWorld / IBroadphase / INarrowphase 接口
-├── 迁移并扩�?CollisionShapes（增�?OBB 类型�?
-├── 扩展 CollisionQueries（Narrowphase 数学完整实现�?
-├── 实现 Layer/LayerMask 系统
-└── NaiveBroadphase（O(n)，供保底和基准测试）
+### 6.1 LayerFilter 是查询过滤器
 
-阶段 2：Grid Broadphase�?.5 周）
-├── GridBroadphase 实现�?D / 3D 模式�?
-├── 格子大小配置�?
-├── �?CollisionWorld 集成
-└── 单元测试（确定性验证）
+`LayerFilter` 包含：
 
-阶段 3：Dynamic AABB Tree�? 周）
-├── 松弛 AABB Tree 实现
-├── 增删节点 + 局部重平衡
-├── 射线快速查�?
-└── 性能基准对比（vs Grid�?
+- `IncludeMask`：非零时只包含命中的层。
+- `ExcludeMask`：优先排除命中的层。
+- `IgnoredColliders`：按 Collider ID 排除具体对象。
 
-阶段 4：连续碰撞检�?+ Sweep�?.5 周）
-├── Time-of-Impact (TOI) 算法
-├── SweepSphere / SweepBox 完整实现
-├── 替换现有的粗�?SweepOrientedBox
-└── 高速弹道场景测�?
+`IncludeMask == 0` 表示不限制层，不表示空集合。`LayerFilter.None` 才表示排除全部层。
 
-阶段 5：Job/Burst 准备�? 周）
-├── NativeArray 数据结构封装
-├── Burst 兼容接口设计
-├── Unity 平台适配�?
-└── 性能测试
+当前掩码字段是 32 位 `int`，但代码接受 0 到 63 的 layer ID，并通过 `1 << layer` 计算位。C# 对 `int` 位移会截取低 5 位，因此 32 到 63 会与 0 到 31 发生位冲突。层矩阵虽然是 64×64，查询掩码实际不能无歧义表示 64 层。现阶段项目应把可查询层限制在 0 到 31；若确需 64 层，应把过滤掩码升级为 `ulong` 并补兼容迁移和测试。
 
-总计：约 8 周（不含 Unity 平台适配�?
-```
+`IgnoredColliders` 使用数组线性搜索，且结构体相等比较比较的是数组引用，不是内容。它适合忽略自身或少量对象，不适合作为大型排除集合或稳定值键。
 
-### 3.2 关键技术点
+### 6.2 CollisionLayerMatrix 是独立关系表
 
-| 技术点 | 难度 | 说明 |
-|---|---|---|
-| 松弛 AABB Tree 增删 | �?| 需要保持树平衡同时保证确定�?|
-| TOI 连续碰撞 | �?| 对胶囊体 + OBB �?Sweep 算法复杂 |
-| 确定性随�?| �?| 固定种子伪随机保证多端一�?|
-| Burst NativeArray 封装 | �?| 需要手�?Dispose 安全检�?|
-| Layer 关系矩阵 | �?| 64x64 位矩阵，O(1) 查询 |
+`CollisionLayerMatrix` 保存 64×64 对称关系，关系值包括 Ignore、Block 和 Overlap。默认同层 Ignore、异层 Block，并对 Layer 2 同层设置 Overlap。
 
-### 3.3 验收标准
+`ShouldCollide`、`ShouldDetect` 和 `ICollisionLayerRelation` 可以查询或配置这张表，但当前 Raycast、OverlapSphere 和两个 Sweep 实现不会自动读取矩阵。查询是否包含某个目标层只由 `LayerFilter` 决定。
 
-```
-�?Naive / Grid / DynamicAabbTree 三种 Broadphase 都可替换
-�?同一输入（相�?Collider 集合 + 相同查询）→ 相同输出（多端一致性）
-�?500 个实体，30 Tick/s �?CollisionWorld.Tick < 2ms
-�?�?GC 分配（Profiler 验证�?
-�?SweepSphere 能正确检测出高速弹道穿�?
-�?Layer 关系可配置，运行时生�?
-�?帧同步快照可导出/重建
-```
+因此，下面两种概念不能混写：
 
----
+- “本次查询想检测哪些层”使用 `LayerFilter`。
+- “两个业务层之间的默认响应关系”使用 `CollisionLayerMatrix`。
 
-## 四、与现有代码的关�?
+如果未来要让查询自动应用 source layer 与矩阵，接口必须显式携带 source layer 或 query context，并定义 Block/Overlap 对每类查询的影响。不能在现有签名下隐式推断。
 
-### 4.1 废弃旧包
+## 七、后端设计
 
-```
-旧包（废弃）                        �? 新包
-com.abilitykit.combat.collision.abstractions  �? com.abilitykit.combat.collision/Runtime/Abstractions/
-```
+### 7.1 NaiveCollisionWorld
 
-迁移清单�?
+Naive 后端线性遍历全部 Entry，然后执行过滤和窄相。
 
-| 旧文�?| 新位�?| 变更 |
-|---|---|---|
-| `CollisionWorld.cs` | 拆分�?`Abstractions/` + `CollisionWorld.cs` | IBroadphase 注入 |
-| `CollisionShapes.cs` | �?`Abstractions/` | 增加 OBB |
-| `CollisionQueries.cs` | �?`Narrowphase/NarrowphaseQueries.cs` | 增加 TOI |
-| `CollisionService.cs` | �?`CollisionWorld.cs` | 组合 Broadphase + Narrowphase |
+它的价值不只是在少量对象时省去索引开销，还包括：
 
-### 4.2 �?Combat 其他模块的关�?
+- 结构简单，适合作为几何正确性的参考实现。
+- 候选不会因广相容量截断而丢失。
+- 测试可以将 Grid 结果与 Naive 结果对照。
+- 调试时更容易定位问题属于空间索引还是窄相数学。
 
-```
-┌────────────────────────────────────────────────────────────────────�?
-�?                       combat 模块关系                              �?
-├────────────────────────────────────────────────────────────────────�?
-�?                                                                   �?
-�? combat.targeting ──queries──�?ICollisionWorld                   �?
-�? combat.projectile ──queries──�?ICollisionWorld                  �?
-�? combat.motion ──queries──�?ICollisionWorld                       �?
-�?                                                                   �?
-�? 所有依赖通过 ICollisionWorld 接口，不直接依赖实现                  �?
-�?                                                                   �?
-└────────────────────────────────────────────────────────────────────�?
+它的查询复杂度随存活与历史 Entry 数量线性增长。由于移除后槽位不回收，长生命周期世界中即使活跃 Collider 不多，历史注册量仍会增加遍历成本。
+
+### 7.2 GridCollisionWorld
+
+Grid 后端使用 `GridBroadphase` 将世界 AABB 登记到覆盖的所有 Cell。Collider 移动到不同 Cell 范围时，会先从旧范围移除，再写入新范围；跨多个 Cell 的对象会出现在多个列表中，查询时执行去重。
+
+适用场景是对象空间分布相对均匀、查询范围相对局部，并且 Cell Size 能与对象和查询尺度匹配。Cell 太小会让大对象写入大量 Cell；Cell 太大会让候选集退化为接近全量扫描。
+
+当前实现有几项需要明确的容量和复杂度边界：
+
+- `_entries` 会按需扩容，但 `_queryResults` 只按构造时的 `initialCapacity` 分配，之后不会随 Entry 扩容。
+- 候选数超过缓冲区时，`IBroadphase.Query` 只返回前 `maxResults` 个，世界查询没有溢出标志，因此可能静默漏检。
+- Grid 去重使用 `List<int>.Contains`，候选较多时去重成本会接近平方级。
+- 构造参数 `cellSize` 没有显式校验。零或负值不属于有效配置，调用方当前必须自行保证大于零。
+- Cell Key 通过三段位移拼接坐标，没有显式范围校验；超出可表示区间的坐标可能发生键冲突。
+
+在这些问题修复前，`initialCapacity` 不只是预分配提示，也决定单次查询候选上限。生产配置必须按最坏局部密度留出余量，并用压力测试验证没有候选截断。
+
+### 7.3 DynamicAabbTree 的当前状态
+
+仓库中已有实现 `IBroadphase` 的 `DynamicAabbTree` 数据结构，包含 Fat AABB、基于表面积代价的兄弟节点选择和树查询。但目前没有使用它的 `ICollisionWorld`：
+
+- `BroadphaseType.DynamicAabbTree` 在工厂中返回 `GridCollisionWorld`。
+- `CreateWithDynamicTree` 同样返回 Grid。
+- 名为 Dynamic Tree 的示例实际创建的也是 Grid。
+- 当前测试目录没有发现动态树的专项正确性测试。
+
+因此，动态树只能视为未完成接入的数据结构，不能作为已交付后端。其现实现还需要处理或验证：
+
+- 查询遍历栈固定为 64，超深节点会被静默跳过。
+- Node 只增加不复用，频繁 Remove/Update 会持续扩容。
+- `Clear` 固定重置为 64，而不是恢复构造容量。
+- Fat AABB 更新的位移判断基于旧 `OriginalAabb`，轻微连续移动的累计语义需要专项测试。
+- 树没有旋转或平衡步骤，长期更新后的高度和最坏查询成本未验证。
+
+接入顺序应是先补 `IBroadphase` 契约测试和动态树压力测试，再让世界实现注入任意 Broadphase，最后修改工厂。只改变枚举分支会把未验证的数据结构直接带入所有窄相查询。
+
+## 八、业务接入
+
+### 8.1 服务注册
+
+`CollisionService` 只负责按 `CollisionWorldOptions` 创建并暴露一个 `ICollisionWorld`。它不驱动更新，也不在 `Dispose` 中清理外部业务对象。
+
+默认配置选择 Naive。需要 Grid 时应显式配置 BroadphaseType、Cell Size 和 Initial Capacity。当前 DynamicAabbTree 配置等价 Grid，调用方不应根据枚举名推断实际类型。
+
+### 8.2 Actor 同步
+
+MOBA Actor 同步链路是：
+
+```text
+Entitas Transform + Collider + CollisionLayer
+-> CollisionWorldSyncSystem
+-> Add / Update / UpdateLayer / Remove
+-> Actor CollisionId Component
 ```
 
----
+CollisionLayer Component 使用单 bit mask。同步系统会把该 bit 转换成 layer ID；多 bit mask 会抛出异常。这里的单层归属与查询时可组合的 LayerFilter 是两种不同数据。
 
-## 五、风险与备选方�?
+### 8.3 Projectile、Area、Navigation 和 Motion
 
-| 风险 | 影响 | 备选方�?|
-|---|---|---|
-| DynamicAabbTree 确定性实现复�?| 时间超期 | 阶段 3 降级为更简化的 Sort-and-Sweep |
-| Burst Job 集成导致接口变形 | 核心接口不干净 | 先做�?C# 版本，Burst 作为可选优化层 |
-| OBB Sweep 实现困难 | 阶段 4 延期 | 先用 AABB Sweep 保底，OBB 降级为保�?AABB |
-| 层关系矩阵配置复�?| 业务接入成本�?| 提供 JSON 配置 + 默认规则 |
+ProjectileWorld 与 AreaWorld 直接依赖 `ICollisionWorld` 执行命中和范围查询。Navigation Bake 使用 OverlapSphere 复用窄相，形成地图可走性条件的一部分。Motion 使用领域适配器把 ColliderId 转换为 mover/actor 语义，并负责忽略自身、障碍掩码和无 Sweep 能力时的回退。
 
-## ����ʵ�ָ��¼�¼
+这些模块都不应反向修改碰撞包的实体模型。需要阵营、技能来源或运动状态时，应在查询结果返回后通过业务注册表解析 ColliderId。
 
-### 6.1 2026-07-16 ����
+## 九、确定性与性能边界
 
-#### GridBroadphase �߽������޸�
+当前查询不使用 Unity Physics，也没有内部随机数；在相同注册、更新和查询顺序下，Naive 与 Grid 的几何结果具备可重复基础。但“可重复”仍受以下条件约束：
 
-**����**��GridBroadphase.Update ʹ�� CellX = 0 ��Ϊ"������"���ڱ�ֵ�����µ� collider ʵ��λ�� CellX = 0 ʱ������������¡�
+- 浮点运算平台和编译环境一致。
+- Collider 注册与更新顺序一致。
+- 不依赖未定义的同距离命中顺序。
+- Grid 候选没有被容量截断。
+- 业务层不会用 Dictionary 枚举顺序生成注册顺序。
 
-**�������**������ CellEntry.IsValid �ֶ���ʽ�����Ŀ�Ƿ���Ч��
+仓库中的示例包含简单 Stopwatch 对比，但它不是正式 Benchmark，也没有稳定硬件、预热、GC 和分布模型控制。设计文档不承诺固定实体数下的毫秒指标，也不宣称 Grid 在所有规模下必然快于 Naive。
 
-#### DynamicAabbTree ʵ��
+性能验收应至少记录：
 
-���� DynamicAabbTree.cs��ʵ�ָ�Ч�Ķ�̬�ռ��ѯ��
+- 活跃 Collider 数和历史注册数。
+- 形状占比与平均覆盖 Cell 数。
+- 查询类型、范围和每帧次数。
+- 候选数、窄相次数和候选截断次数。
+- Update/Remove 频率。
+- 分配量与 GC。
 
-| ���� | ˵�� |
-|-----|-----|
-| **���ݽṹ** | Binary AABB Tree |
-| **���»���** | Fat AABB������ϵ�� 1.1������Ƶ���ؽ� |
-| **��ѯЧ��** | ƽ�� O(log n)��� O(n) |
-| **���ó���** | ��̬����ࡢ�Ǿ��ȷֲ� |
+## 十、测试证据
 
-#### IBroadphase �ĵ���ǿ
+当前测试已覆盖以下行为：
 
-���½ӿ��ĵ���������ϸ���˵����
+| 能力 | 已有证据 |
+| --- | --- |
+| 基础原语 | AABB Contains/Intersects、OBB 轴、Sphere 半径钳制、ColliderShape 构造 |
+| Naive/Grid 等价 | Raycast、OverlapSphere、OBB Sweep、Sphere Sweep |
+| 查询过滤 | LayerFilter 和 ignored collider |
+| 旋转形状 | 旋转 OBB 世界 AABB与 Sweep 回归 |
+| Grid 更新 | 多 Cell 对象移动与移除后无旧 ID 残留 |
+| 业务适配 | MOBA Motion Adapter 的扫掠与忽略逻辑 |
 
-- ��ȷ˵������ֻʹ�� AABB��OBB ����״��Ҫ��ת��Ϊ���� AABB��
-- ����ʹ��ʾ������
-- ���� BroadphaseType ö��
+仍缺少的关键门禁：
 
-#### CollisionWorldFactory ��չ
+1. Grid 候选数超过 Initial Capacity 时必须报告或扩容，不能静默漏检。
+2. 0、负数和极端 Cell Size 的配置校验。
+3. 32 到 63 层的掩码冲突测试与协议修正。
+4. 同距离命中的稳定 tie-break。
+5. DynamicAabbTree 的插入、移动、移除、深树、节点复用和平衡测试。
+6. 长时间 Add/Remove 后 Naive 与 Grid 的内存和查询退化测试。
+7. 不同形状和非均匀缩放组合的查询矩阵。
 
-���¹�����֧���µĹ������͡�
+## 十一、演进顺序
 
-### 6.2 ��ʵ�ֹ���
+后续优化应按正确性优先于后端扩展的顺序推进。
 
-| ���� | ״̬ | �ļ� |
-|-----|------|-----|
-| IBroadphase �ӿ� | ? ��ʵ�� | IBroadphase.cs |
-| GridBroadphase | ? ��ʵ�� | GridBroadphase.cs |
-| DynamicAabbTree | ? ��ʵ�� | DynamicAabbTree.cs |
-| NaiveCollisionWorld | ? ��ʵ�� | NaiveCollisionWorld.cs |
-| GridCollisionWorld | ? ��ʵ�� | GridCollisionWorld.cs |
-| CollisionWorldFactory | ? ��ʵ�� | CollisionWorldFactory.cs |
-| LayerFilter | ? ��ʵ�� | LayerFilter.cs |
-| ���λ�Ԫ��Sphere/Aabb/Capsule/OBB�� | ? ��ʵ�� | CollisionPrimitives.cs |
+### P0：关闭静默漏检
 
-### 6.3 ��ʵ�ֹ���
+- 让 Grid 查询缓冲区随 Entry 容量扩展，或改为可检测溢出的池化结果容器。
+- 为 Broadphase Query 增加溢出语义，调用方能区分“没有更多候选”和“缓冲区已满”。
+- 校验 Cell Size、Initial Capacity 和坐标范围。
+- 统一查询同距离时按 ColliderId 排序。
 
-| ���� | ���ȼ� | ˵�� |
-|-----|--------|-----|
-| Sweep ��ѯ��CCD�� | �� | ���ٵ�����͸���� |
-| Job/Burst ֧�� | �� | ���߳��Ż� |
-| OBB ��ȷ��ײ | �� | ��ǰֻ֧�ֱ��� AABB |
-| ���߿��ٲ�ѯ�Ż� | �� | DynamicAabbTree ���߱��� |
+### P1：统一层协议
+
+- 在 32 层与 64 层中选择一套真实协议。
+- 若保留 64 层，将 Include/Exclude Mask 升级为 `ulong`。
+- 决定 CollisionLayerMatrix 是只供业务查询，还是进入带 source layer 的查询上下文。
+- 补全 Block、Overlap 和 Ignore 对各类调用方的解释。
+
+### P2：广相可替换化
+
+- 建立所有 `IBroadphase` 必须通过的候选完整性契约测试。
+- 让 GridCollisionWorld 的查询与存储逻辑依赖可注入 Broadphase，而不是具体 Grid 类型。
+- 修复并验证 DynamicAabbTree 的节点复用、遍历栈、平衡和更新策略。
+- 接入工厂后再修正示例名称和运行输出。
+
+### P3：性能工程
+
+- 建立 BenchmarkDotNet 或等价稳定基准。
+- 记录候选数、窄相数、Cell 覆盖和溢出指标。
+- 根据真实场景决定是否需要池化缓冲区、无分配查询、批量 API 或 Jobs/Burst 后端。
+
+## 十二、源码入口
+
+- 公共世界契约：`Unity/Packages/com.abilitykit.combat.collision.abstractions/Runtime/Math/CollisionWorld.cs`
+- 查询过滤：`Unity/Packages/com.abilitykit.combat.collision.abstractions/Runtime/Collision/LayerFilter.cs`
+- 广相契约：`Unity/Packages/com.abilitykit.combat.collision.abstractions/Runtime/Collision/IBroadphase.cs`
+- Grid 广相：`Unity/Packages/com.abilitykit.combat.collision.abstractions/Runtime/Collision/GridBroadphase.cs`
+- Grid 世界：`Unity/Packages/com.abilitykit.combat.collision.abstractions/Runtime/Collision/GridCollisionWorld.cs`
+- 动态树数据结构：`Unity/Packages/com.abilitykit.combat.collision.abstractions/Runtime/Collision/DynamicAabbTree.cs`
+- 世界工厂：`Unity/Packages/com.abilitykit.combat.collision.abstractions/Runtime/Collision/CollisionWorldFactory.cs`
+- 层关系矩阵：`Unity/Packages/com.abilitykit.combat.collision.abstractions/Runtime/Collision/CollisionLayerMatrix.cs`
+- MOBA Actor 同步：`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Collision/CollisionWorldSyncSystem.cs`
+- MOBA 运动适配：`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Motion/MobaMotionHitTriggerRuntime.cs`
+- Grid 正确性测试：`src/AbilityKit.Demo.Moba.Tests/Collision/GridCollisionWorldTests.cs`
+- 碰撞修复回归：`src/AbilityKit.Demo.Moba.Tests/Collision/CollisionCorrectnessFixTests.cs`

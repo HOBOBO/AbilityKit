@@ -1,6 +1,6 @@
 # 2.3 组件设计：ComponentRegistry、TypeId 与组件读写路径
 
-> 本文基于 `Unity/Packages/com.abilitykit.world.ecs` 的真实源码，解释 AbilityKit 基础 ECS 中组件如何定义、注册、存储、索引、查询和释放。当前源码没有 `IECComponent` 标记接口要求，组件类型由 `ComponentRegistry` 映射成整数 type id。
+> 本文基于 `Unity/Packages/com.abilitykit.world.ecs` 与 `src/AbilityKit.World.ECS` 的真实源码，解释 AbilityKit 基础 ECS 中组件如何定义、注册、存储、索引、查询和释放。当前源码没有 `IECComponent` 标记接口要求，组件类型由 `ComponentRegistry` 映射成整数 type id。
 
 ---
 
@@ -23,7 +23,12 @@
     - [9.4 组件事件不直接驱动业务](#94-组件事件不直接驱动业务)
     - [9.5 引用组件和确定性状态分层](#95-引用组件和确定性状态分层)
   - [10. 边界判断](#10-边界判断)
-  - [11. 源码阅读路径](#11-源码阅读路径)
+  - [11. 跨 Unity 与 .NET 的实现边界](#11-跨-unity-与-net-的实现边界)
+  - [12. 验证入口与证据状态](#12-验证入口与证据状态)
+    - [12.1 当前可以执行的验证](#121-当前可以执行的验证)
+    - [12.2 当前证据能证明什么](#122-当前证据能证明什么)
+    - [12.3 优先补测契约](#123-优先补测契约)
+  - [13. 源码阅读路径](#13-源码阅读路径)
 
 ---
 
@@ -51,7 +56,9 @@
 | `Unity/Packages/com.abilitykit.world.ecs/Runtime/AbilityKit.World.ECS/Core/IComponentRegistry.cs` | 组件注册表接口 |
 | `Unity/Packages/com.abilitykit.world.ecs/Runtime/AbilityKit.World.ECS/Core/IECWorld.cs` | 组件读写和查询 API |
 | `Unity/Packages/com.abilitykit.world.ecs/Runtime/AbilityKit.World.ECS/Core/IEntity.cs` | 实体句柄上的链式组件 API |
-| `Unity/Packages/com.abilitykit.world.ecs/Runtime/AbilityKit.World.ECS/Impl/EntityWorld.cs` | 组件存储、索引、事件和查询实现 |
+| `Unity/Packages/com.abilitykit.world.ecs/Runtime/AbilityKit.World.ECS/Impl/EntityWorld.cs` | Unity 包中的组件存储、索引、事件和查询实现 |
+| `src/AbilityKit.World.ECS/Impl/EntityWorld.cs` | .NET 工程使用的 `EntityWorld` 镜像实现 |
+| `src/AbilityKit.World.ECS/AbilityKit.World.ECS.csproj` | .NET 编译边界：复用 Unity 包源码，但排除包内 `EntityWorld.cs` |
 | `Unity/Packages/com.abilitykit.world.ecs/Runtime/AbilityKit.World.ECS/Core/EntityQuery.cs` | 查询结果封装 |
 
 ---
@@ -239,7 +246,7 @@ flowchart TD
     Next --> Release[release snapshot list]
 ```
 
-这里使用 snapshot 列表是为了避免遍历过程中组件集合变化导致集合枚举异常，也让查询行为更稳定。
+这里使用从对象池租借的 snapshot 列表，是为了避免遍历过程中组件集合变化导致集合枚举异常，也让查询行为更稳定。查询会执行 `snapshot.AddRange(set)`，因此“池化”减少的是列表对象反复创建，并不表示候选索引复制没有成本；文档和性能评估不应把该路径概括为严格零分配或零复制查询。
 
 ---
 
@@ -308,14 +315,70 @@ if (actor.TryGet<HealthComponent>(out var health))
 
 ---
 
-## 11. 源码阅读路径
+## 11. 跨 Unity 与 .NET 的实现边界
 
-1. `ComponentRegistry.cs`：类型到 type id 的映射。
-2. `IECWorld.cs` 的组件 API：值类型和引用类型两条路径。
-3. `EntityWorld.cs` 的 `SetComponentInternal` 与 `RemoveComponentById`：组件写入和移除流程。
-4. `EntityQuery.cs` 与 `EntityWorld.QueryImpl`：组件索引如何驱动查询。
-5. [查询与遍历源码深潜](../06-ECSArchitecture/03-QueryAndIteration.md)：查询成本、snapshot 和存活校验细节。
+仓库当前维护两份 `EntityWorld.cs`。Unity 包直接编译包内实现；`src/AbilityKit.World.ECS/AbilityKit.World.ECS.csproj` 复用包内其余源码，但显式排除包内 `EntityWorld.cs`，再编译 `src/AbilityKit.World.ECS/Impl/EntityWorld.cs`。
+
+两份实现当前的组件存储、索引、查询、父子关系和销毁逻辑一致，已观察到的差异集中在平台编译条件：
+
+| 差异 | Unity 包实现 | .NET 实现 |
+|------|--------------|-----------|
+| 平台引用 | 引用 `UnityEngine` | 不引用 Unity |
+| 调试名称数组 | `UNITY_EDITOR || DEBUG` 时编译 | `DEBUG` 时编译 |
+| 编译入口 | Unity asmdef/package | `AbilityKit.World.ECS.csproj` 本地文件 |
+
+这种镜像关系不是自动生成关系。修改组件语义时必须同时核对两份文件，或者补充自动同步/差异门禁；只验证其中一份不能证明另一运行面的行为没有漂移。
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-07-03*
+## 12. 验证入口与证据状态
+
+### 12.1 当前可以执行的验证
+
+.NET 工程可先执行编译验证：
+
+```powershell
+dotnet build src/AbilityKit.World.ECS/AbilityKit.World.ECS.csproj
+```
+
+该命令能验证共享源码与 .NET 镜像实现可以一起编译，但不会执行组件行为断言。Unity 包当前未发现独立 `Tests` 目录，仓库也没有与该 package 一一对应的基础 ECS 测试工程，因此不能把构建成功写成组件生命周期、查询和事件契约已经通过自动测试。
+
+### 12.2 当前证据能证明什么
+
+| 契约 | 当前证据 | 证据状态 |
+|------|----------|----------|
+| 类型经 `ComponentRegistry` 分配 id | 两端共享注册表源码 | 源码确认，缺独立行为测试 |
+| struct/class 组件走不同 API | `IECWorld`、`IEntity` 与两份 `EntityWorld` | 源码确认，缺独立行为测试 |
+| 新增/移除组件同步维护 `_componentIndex` | 两份 `EntityWorld` 实现 | 源码确认，缺回归测试 |
+| 查询复制第一个组件候选集后逐项校验 | `EntityQuery` 与 `QueryImpl` | 源码确认，缺查询期间修改组件的测试 |
+| 销毁实体会清组件索引并递增版本 | `InternalDestroy` | 源码确认，缺旧句柄与索引清理测试 |
+| Unity 与 .NET 实现语义一致 | 当前文件人工对照 | 当前快照一致，缺自动差异门禁 |
+
+这里的“源码确认”只表示文档与当前实现一致，不表示异常路径、容量边界或长期演进已有回归保护。
+
+### 12.3 优先补测契约
+
+建议基础 ECS 的独立测试优先覆盖以下行为：
+
+1. 同一实体的设置、覆盖、读取、移除，以及对应 `ComponentSet`/`ComponentRemoved` 事件次数。
+2. 销毁后旧 `IEntityId` 失效，复用 index 后 version 不同，查询索引不残留旧实体。
+3. 查询回调中新增或移除组件时，snapshot 遍历不抛集合修改异常，且本次/下次查询边界明确。
+4. `Destroy` 与 `DestroyRecursive` 对父子关系、逻辑 child id 映射和子实体存活状态的不同影响。
+5. `SetComponentRef(id, null)` 的移除语义，以及非泛型引用组件 API 的类型校验。
+6. `IEntity.Has<T>()` 当前转发到世界级 `HasComponent<T>()` 的行为。该行为容易被调用方误解为实体级检查，应先用测试固定现状，再决定是否调整 API。
+7. 对 Unity 与 .NET 两份 `EntityWorld.cs` 增加结构差异检查，防止仅一端修复组件索引或生命周期问题。
+
+---
+
+## 13. 源码阅读路径
+
+1. `ComponentRegistry.cs`：类型到 type id 的映射。
+2. `IECWorld.cs` 的组件 API：值类型和引用类型两条路径。
+3. Unity 与 .NET 两份 `EntityWorld.cs` 的 `SetComponentInternal` 与 `RemoveComponentById`：组件写入和移除流程。
+4. `AbilityKit.World.ECS.csproj`：共享源码和 .NET 镜像的编译边界。
+5. `EntityQuery.cs` 与 `EntityWorld.QueryImpl`：组件索引如何驱动查询。
+6. [查询与遍历源码深潜](../06-ECSArchitecture/03-QueryAndIteration.md)：查询成本、snapshot 和存活校验细节。
+
+---
+
+*文档版本：v2.1 | 最后更新：2026-08-02*

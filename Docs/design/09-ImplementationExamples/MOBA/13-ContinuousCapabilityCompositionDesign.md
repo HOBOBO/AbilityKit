@@ -70,6 +70,7 @@ GAS 的 GameplayEffect 很强，因为它把 duration、stack、modifier、perio
 | Buff interval handler | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousIntervalHandler.cs` |
 | Buff cue reporter | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Presentation/MobaBuffPresentationCueReporter.cs` |
 | Presentation cue snapshot | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaPresentationCueSnapshotService.cs` |
+| Buff timer rollback | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaBuffTimerRollbackProvider.cs` |
 | Projectile launch continuous | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/Launch/MobaProjectileLaunchContinuous.cs` |
 | Projectile service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileService.cs` |
 | ShootProjectile action | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/ShootProjectilePlanActionModule.cs` |
@@ -185,19 +186,19 @@ stateDiagram-v2
 
 ## 7. stack、periodic、cue 的组合方式
 
-当前框架已经具备 GAS 类似能力，但组合方式不同。
+在持续生命周期这一限定范围内，当前 MOBA 实现分别提供 duration、Buff stack、periodic、tag rule、modifier projection、presentation cue 和 owner-bound trigger 接点。其中部分职责与 GAS GameplayEffect 重叠，但这些分散实现不能替代 GameplayEffect、Ability System Component、Replication、Prediction 或编辑器工具链对应的系统能力。
 
-| 能力 | 当前落点 | 组合方式 |
-|------|----------|----------|
-| Duration | `IDurationConfig`、`MobaContinuousConfigBase.DurationSeconds` | 公共 continuous 生命周期能力 |
-| Stack | `IStackConfig`、`BuffStackingPolicyApplier`、`BuffContinuousRuntime.Refresh` | Buff 领域强使用，其他 runtime 可按需暴露 stack view |
-| Periodic | `IMobaContinuousPeriodicConfig`、`MobaContinuousTickProcessor`、interval handler | 公共 tick 能力，handler 可按领域分派 |
-| Tags | `IMobaContinuousTagConfig`、`MobaContinuousTagRuleService` | 公共生命周期门控能力 |
-| Modifiers | `IMobaContinuousModifierConfig`、`MobaContinuousLifecycleBinder` | 公共投射能力，按 projector 类型落到 attribute 或 skill param |
-| Cue | `MobaPresentationCueSnapshotService`、`MobaBuffPresentationCueReporter`、trigger cue | 表现快照能力，按领域报告不同阶段 |
-| Owner-bound trigger | `MobaTriggerExecutionGateway`、`MobaTriggerPlanSubscriptionService` | 可绑定到 Buff、被动、持续过程或 owner 生命周期 |
+| 能力 | 当前实现落点 | 直接证据 | 领域与能力边界 |
+|------|--------------|----------|----------------|
+| Duration | `IDurationConfig`、`MobaContinuousConfigBase.DurationSeconds`、`DefaultContinuousManager` | `MobaContinuousLifecycleTests` 覆盖激活、暂停、恢复和结束 | 证明公共生命周期推进，不证明所有领域 runtime 都有完整恢复与网络语义 |
+| Stack | `IStackConfig`、`BuffStackingPolicyApplier`、`BuffContinuousRuntime.Refresh` | `BuffStackingPolicyApplierTests` 覆盖 Replace、AddStack、RefreshDuration、IgnoreIfExists 和新建 runtime | 当前直接证据集中在 Buff；不能据此推断任意 continuous 都有统一叠层协议 |
+| Periodic | `IMobaContinuousPeriodicConfig`、`MobaContinuousTickProcessor`、领域 interval handler | Buff、Projectile、Motion 和 TriggerInterval runtime 提供 interval 状态或处理入口 | 处理分支存在不等于所有组合都经过配置加载、重入和失败语义验收 |
+| Tags | `IMobaContinuousTagConfig`、`MobaContinuousTagRuleService` | `MobaContinuousLifecycleTests` 覆盖 owner active tag 冲突；`MobaPassiveSkillLifecycleServiceTests` 覆盖脱战过程被战斗状态中断 | 当前证据针对生命周期门控，不等于 GAS tag replication 或 prediction contract |
+| Modifiers | `IMobaContinuousModifierConfig`、`MobaContinuousLifecycleBinder`、Attribute/SkillParameter projector | Binder 在激活和恢复时投射，在暂停、结束和移除时清理；配置校验区分两类 target | 源码链路存在，但没有一个专项测试同时覆盖配置加载、叠层重投射、清理、恢复和网络状态 |
+| Cue | `MobaPresentationCueSnapshotService`、`MobaBuffPresentationCueReporter`、trigger cue | `MobaPresentationCueRuntimeTests` 覆盖 active store、生命周期 helper、codec、复制/预测元数据和 trigger cue | 验证的是 Cue 快照协议与本地运行时；不证明正式 VFX 接线或多客户端一致性 |
+| Owner-bound trigger | `MobaTriggerExecutionGateway`、`MobaTriggerPlanSubscriptionService`、被动技能生命周期服务 | `MobaPassiveSkillLifecycleServiceTests` 覆盖独立绑定、移除和冷却门控 | 当前覆盖集中在被动技能场景，不代表所有领域 runtime 已接入同一订阅模板 |
 
-这意味着 stack、periodic、cue 并不是缺失能力，而是没有被强制打包成一张固定表。项目可以决定某类持续行为需要哪些能力：
+因此，准确结论是这些能力已有独立实现和局部测试证据，但没有被强制打包成一张固定表。项目仍需为每类持续行为明确选择、配置并验收所需能力：
 
 | 领域行为 | 推荐组合 |
 |----------|----------|
@@ -210,17 +211,36 @@ stateDiagram-v2
 
 ## 8. 和 GAS GameplayEffect 的差异
 
+这里比较的是持续效果的建模方式，不比较两套框架的整体成熟度或功能数量。
+
 | 维度 | GAS GameplayEffect | MOBA continuous capability composition |
 |------|--------------------|----------------------------------------|
-| 标准化 | 高，所有能力集中在 GE 资产 | 中高，生命周期统一，领域配置分散 |
-| 配置入口 | 单体效果资产为核心 | continuous process + domain config + trigger plan |
-| 接入路径 | 学会 GE 后路径统一 | 需要理解领域 runtime 与公共能力边界 |
-| 领域清晰度 | 容易把不同语义压成 GE 字段 | Buff、Projectile、Motion、Skill Pipeline 语义保留 |
-| 扩展方式 | 扩 GE、Execution、MMC、Cue、ASC 等标准点 | 扩领域 runtime、handler、projector、validator、cue reporter |
-| 强定制能力 | 强，但会受 GAS 模型影响 | 更贴近项目战斗模型，但治理成本更高 |
-| 工具一致性 | 天然集中 | 需要项目建立模板、校验和 debug view |
+| 生命周期聚合点 | GameplayEffect 与 Ability System Component 提供标准承载 | `IContinuousManager` 统一生命周期，领域 runtime 保留状态 |
+| 配置入口 | GameplayEffect 资产及其标准扩展点 | continuous process、领域配置和 trigger plan 共同组成 |
+| 领域行为 | 通过 GE、Execution、MMC、Cue 等标准扩展点表达 | 通过领域 runtime、handler、projector、validator 和 cue reporter 表达 |
+| 叠层范围 | GE 提供统一的 stacking 模型 | 当前直接实现和测试集中在 Buff stacking policy |
+| Modifier 目标 | Attribute 等能力进入 GAS 标准模型 | 当前 projector 明确支持 Attribute 与 SkillParameter 两类目标 |
+| 网络与预测 | 由 GAS/ASC 的复制和预测模型共同约束 | 本文涉及的 continuous 接口本身没有定义整体复制、预测或校正协议 |
+| 工具链 | Unreal 资产编辑、调试和网络工具围绕 GAS 集成 | 当前依赖 JSON、validator、runtime view、diagnostic 和项目级模板，覆盖范围需分别核对 |
 
-因此这不是 GAS 的简化复制，而是 AbilityKit/MOBA 的项目化能力组合模型。
+因此这不是 GAS 的简化复制，也不能按本文列出的局部能力推断两者等价。MOBA 示例采用的是项目级组合模型：公共层统一持续生命周期，各领域自行拥有业务状态和接入验收。
+
+### 8.1 当前自动测试证据
+
+| 测试入口 | 直接覆盖范围 | 本文不据此声明的范围 |
+|----------|--------------|----------------------|
+| `src/AbilityKit.Demo.Moba.Tests/Continuous/MobaContinuousLifecycleTests.cs` | runtime 和 manager 的激活、暂停、恢复、结束、激活拒绝与 owner tag 冲突 | 领域配置、周期效果、Modifier、Cue 的完整组合 |
+| `src/AbilityKit.Demo.Moba.Tests/Buff/BuffStackingPolicyApplierTests.cs` | Buff 叠层策略、持续时间与 interval 初始值 | 非 Buff runtime 的统一 stack 语义 |
+| `src/AbilityKit.Demo.Moba.Tests/Triggering/MobaPresentationCueRuntimeTests.cs` | Cue registry、active store、快照、codec、生命周期 helper 与 trigger cue | 正式表现资源、多客户端播放一致性 |
+| `src/AbilityKit.Demo.Moba.Tests/Passive/MobaPassiveSkillLifecycleServiceTests.cs` | 被动技能独立绑定、冷却、移除、持续过程激活与脱战中断 | 任意 owner-bound trigger 的通用组合验收 |
+
+这些测试按职责分散，没有一个专项测试同时覆盖 duration、stack、periodic、tags、modifier、cue 和 owner-bound trigger。本文据此确认的是各接点及其局部行为，不是整套组合已完成端到端验收。本次文档治理核对了源码和测试入口，没有重新运行 MOBA 全量测试集。
+
+### 8.2 恢复、回滚与网络边界
+
+`MobaBuffStateRecoveryProvider` 提供 Buff 状态恢复入口，但预测回滚使用的 `MobaBuffTimerRollbackProvider` 只导出和恢复已有 Buff 的 `Remaining`、`IntervalRemainingSeconds` 与 `StackCount`。它不会重建 Buff 列表，也不恢复 `Continuous`、`ModifierBindings`、`TagRequirements`、`SkillRuntimeHandle` 或 Cue active store。
+
+因此，计时器回滚不能作为完整 Continuous 状态回滚的证据。Presentation Cue 快照带有复制和预测元数据，也不能单独证明持续行为的 authoritative replication、客户端预测、误差校正和重模拟已经形成统一协议；这些能力必须在同步与预测专题中按具体状态提供者和验收入口分别确认。
 
 ## 9. 设计意图与取舍
 
@@ -292,7 +312,7 @@ stateDiagram-v2
 |----------------|----------|
 | continuous 与 Buff 等价 | Buff 只是 continuous 的一种领域 runtime |
 | 所有持续行为都进入 Buff 表 | 只有状态型效果适合 Buff 表，位移、投射物和召唤物应保留领域配置 |
-| 能力没有集中到 GAS 形态就是不完整 | stack、periodic、cue、tag、modifier 都存在，只是按能力组合 |
+| 能力没有集中到 GAS 形态就是缺失 | 需要逐项核对实现、配置和测试；已有接点按能力组合，但局部存在不代表整体等价或端到端完成 |
 | tag 打断属于 motion 私有代码 | motion 行为携带 tag requirements，由 continuous tag rule 统一判定 |
 | periodic 只属于 Buff | periodic 是公共 continuous 能力，Buff 只是有自己的 interval handler |
 | cue 由逻辑系统直接播放特效 | cue 输出 snapshot，由表现层消费 |
@@ -326,3 +346,5 @@ stateDiagram-v2
 | 测试 | 覆盖 tag rule pause/resume/remove、periodic trigger、modifier cleanup、cue snapshot 的验收用例 |
 
 最终目标不是把 AbilityKit 变成 GAS 的形状，而是保留 AbilityKit 的组合式能力边界：框架提供统一生命周期和通用玩法能力，MOBA 项目按自己的战斗模型决定如何组合。
+
+*文档版本：v1.1 | 状态：持续能力实现与证据边界 | 最后更新：2026-08-02 | 验证基线：已核对 Continuous、Buff stacking、Cue、Passive 测试入口；未重新运行 MOBA 全量测试*

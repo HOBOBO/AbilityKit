@@ -179,10 +179,34 @@ namespace AbilityKit.Game.View.Modules
                 return;
             }
 
-            _isAttached = true;
-            for (var i = 0; i < _modules.Count; i++)
+            var attachedCount = 0;
+            try
             {
-                _modules[i]?.OnAttach(ctx);
+                for (; attachedCount < _modules.Count; attachedCount++)
+                {
+                    _modules[attachedCount]?.OnAttach(ctx);
+                }
+
+                _isAttached = true;
+            }
+            catch (Exception attachException)
+            {
+                var exceptions = new List<Exception> { attachException };
+                for (var i = attachedCount - 1; i >= 0; i--)
+                {
+                    if (_modules[i] == null) continue;
+                    try
+                    {
+                        _modules[i].OnDetach(ctx);
+                    }
+                    catch (Exception rollbackException)
+                    {
+                        exceptions.Add(rollbackException);
+                    }
+                }
+
+                if (exceptions.Count == 1) throw;
+                throw new AggregateException("Module attach failed and rollback encountered errors.", exceptions);
             }
         }
 
@@ -194,12 +218,31 @@ namespace AbilityKit.Game.View.Modules
                 return;
             }
 
-            for (var i = _modules.Count - 1; i >= 0; i--)
+            List<Exception>? exceptions = null;
+            try
             {
-                _modules[i]?.OnDetach(ctx);
+                for (var i = _modules.Count - 1; i >= 0; i--)
+                {
+                    if (_modules[i] == null) continue;
+                    try
+                    {
+                        _modules[i].OnDetach(ctx);
+                    }
+                    catch (Exception exception)
+                    {
+                        (exceptions ??= new List<Exception>()).Add(exception);
+                    }
+                }
+            }
+            finally
+            {
+                _isAttached = false;
             }
 
-            _isAttached = false;
+            if (exceptions != null)
+            {
+                throw new AggregateException("One or more modules failed to detach.", exceptions);
+            }
         }
 
         public void Tick(in TContext ctx, float deltaTime)

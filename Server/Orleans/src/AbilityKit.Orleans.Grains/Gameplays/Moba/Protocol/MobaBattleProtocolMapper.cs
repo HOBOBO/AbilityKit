@@ -136,10 +136,10 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
                 level: player.Level,
                 basicAttackSkillId: player.BasicAttackSkillId,
                 skillIds: skillIds,
-                spawnIndex: i,
+                spawnIndex: player.SpawnIndex >= 0 ? player.SpawnIndex : i,
                 unitSubType: 1,
                 mainType: 1,
-                hasSpawnPosition: 1,
+                hasSpawnPosition: player.HasSpawnPosition,
                 spawnX: player.PosX,
                 spawnY: player.PosY,
                 spawnZ: player.PosZ);

@@ -91,8 +91,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
             var group = MobaMotionGroupConfigResolver.Resolve(ctx.Context, args.MotionGroupId, MotionGroups.Ability, args.Priority, 10);
 
-            // Dash is resolved over multiple simulation frames. Intermediate endpoints may be inside a wall,
-            // so projecting every frame would pin the actor to the entry boundary instead of passing through.
+            // A wall-piercing dash must still sweep units so motion-hit triggers can fire. World geometry is
+            // ignored during travel and is consulted only once when projecting an invalid final endpoint.
             MotionCollisionConstraints collisionPolicy = default;
             MotionCollisionConstraints completionCollisionPolicy = default;
             var hasCollisionPolicy = false;
@@ -101,11 +101,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 collisionPolicy = new MotionCollisionConstraints(
                     enable: true,
-                    allowPassThrough: true,
+                    allowPassThrough: false,
                     endOverlapPolicy: MotionEndOverlapPolicy.AllowInside,
                     radius: DashCollisionRadius,
                     skin: 0f,
-                    obstacleMask: MobaCollisionLayers.WorldMask,
+                    obstacleMask: MobaCollisionLayers.UnitMask,
                     ignoreMask: 0,
                     slideAlongWalls: false,
                     maxSlideIterations: 1);

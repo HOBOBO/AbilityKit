@@ -19,6 +19,29 @@ namespace AbilityKit.Game.Test.UnitTest
         private const string Skill10010401ExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10010401.expected.json";
 
         [Test]
+        public void LianPoActiveSkills_ShouldNotConsumeMana()
+        {
+            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(
+                       new[] { 10010101, 10010201, 10010301 },
+                       heroId: 1001,
+                       attributeTemplateId: 1001))
+            {
+                foreach (var skillId in new[] { 10010101, 10010201, 10010301 })
+                {
+                    Assert.That(harness.Config.TryGetSkillLevelTable(skillId, out var table), Is.True,
+                        $"Missing Lian Po skill level table. skillId={skillId}");
+                    Assert.That(table.Levels, Is.Not.Empty, $"Lian Po skill level table must contain levels. skillId={skillId}");
+
+                    foreach (var level in table.Levels)
+                    {
+                        Assert.That(level.Cost, Is.Zero,
+                            $"Lian Po is manaless, so active skill cost must be zero. skillId={skillId}");
+                    }
+                }
+            }
+        }
+
+        [Test]
         public void Skill10010101_ExportsTraceAndMatchesGoldenExpectation()
         {
             var summary = RunExpectationFile(Skill10010101ExpectationPath);

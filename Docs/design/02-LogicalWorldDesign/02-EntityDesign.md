@@ -1,6 +1,6 @@
 # 2.2 实体设计：IEntity、IEntityId 与 EntityWorld 生命周期
 
-> 本文基于 `Unity/Packages/com.abilitykit.world.ecs` 的真实源码，解释 AbilityKit 基础 ECS 中实体的身份、句柄、创建、销毁、父子关系和事件输出。这里的实体不是逻辑世界 `IWorld` 本身，而是 ECS 适配层提供的数据载体入口。
+> 本文基于 `Unity/Packages/com.abilitykit.world.ecs` 与 `.NET` 工程中的真实源码，解释 AbilityKit 基础 ECS 中实体的身份、句柄、创建、销毁、父子关系和事件输出。这里的实体不是逻辑世界 `IWorld` 本身，而是 ECS 适配层提供的数据载体入口。
 
 ---
 
@@ -22,8 +22,10 @@
     - [9.3 销毁时清理组件索引](#93-销毁时清理组件索引)
     - [9.4 非递归销毁和递归销毁分开](#94-非递归销毁和递归销毁分开)
     - [9.5 事件让表现层和调试工具解耦](#95-事件让表现层和调试工具解耦)
-  - [10. 边界判断](#10-边界判断)
-  - [11. 源码阅读路径](#11-源码阅读路径)
+  - [10. Unity 与 .NET 实现边界](#10-unity-与-net-实现边界)
+  - [11. 验证入口与证据状态](#11-验证入口与证据状态)
+  - [12. 边界判断](#12-边界判断)
+  - [13. 源码阅读路径](#13-源码阅读路径)
 
 ---
 
@@ -48,7 +50,9 @@
 | `Unity/Packages/com.abilitykit.world.ecs/Runtime/AbilityKit.World.ECS/Core/IECWorld.cs` | 基础 ECS 世界接口 |
 | `Unity/Packages/com.abilitykit.world.ecs/Runtime/AbilityKit.World.ECS/Core/IEntity.cs` | 实体句柄和值类型链式 API |
 | `Unity/Packages/com.abilitykit.world.ecs/Runtime/AbilityKit.World.ECS/Core/IEntityId.cs` | 实体 ID，包含 index 和 version |
-| `Unity/Packages/com.abilitykit.world.ecs/Runtime/AbilityKit.World.ECS/Impl/EntityWorld.cs` | 实体世界默认实现 |
+| `Unity/Packages/com.abilitykit.world.ecs/Runtime/AbilityKit.World.ECS/Impl/EntityWorld.cs` | Unity package 使用的实体世界实现 |
+| `src/AbilityKit.World.ECS/Impl/EntityWorld.cs` | `.NET` 工程使用的实体世界镜像实现 |
+| `src/AbilityKit.World.ECS/AbilityKit.World.ECS.csproj` | `.NET` 编译入口，排除 package 中的 Unity 实现并纳入本地镜像 |
 | `Unity/Packages/com.abilitykit.world.ecs/Runtime/AbilityKit.World.ECS/Events/WorldEvents.cs` | 实体创建、销毁、组件变更和父子关系事件 |
 | `Docs/design/06-ECSArchitecture/03-QueryAndIteration.md` | 查询与遍历源码深潜 |
 
@@ -300,7 +304,40 @@ private string[] _names = Array.Empty<string>();
 
 ---
 
-## 10. 边界判断
+## 10. Unity 与 .NET 实现边界
+
+仓库当前保留两份 `EntityWorld.cs`。Unity package 直接编译 package 内实现；`src/AbilityKit.World.ECS/AbilityKit.World.ECS.csproj` 复用 package 中的接口和其余实现，但显式排除 package 内的 `EntityWorld.cs`，再编译 `src/AbilityKit.World.ECS/Impl/EntityWorld.cs`。
+
+两份实现当前的槽位分配、版本校验、组件索引、父子关系和销毁流程一致。可见差异集中在平台引用和调试名称编译条件：Unity 版本引用 `UnityEngine`，名称字段在 `UNITY_EDITOR || DEBUG` 下存在；`.NET` 版本不引用 Unity，名称字段只在 `DEBUG` 下存在。
+
+这不是代码生成关系，也没有发现自动比较两份实现的门禁。因此“当前语义一致”是本次源码核对结论，不是由构建系统持续保证的契约。修改实体生命周期时，需要同时评审两份文件，或后续收敛为共享实现与平台适配层。
+
+---
+
+## 11. 验证入口与证据状态
+
+当前可执行的独立入口是 `.NET` ECS 工程构建：
+
+```powershell
+dotnet build src/AbilityKit.World.ECS/AbilityKit.World.ECS.csproj
+```
+
+该命令能证明 package 公共源码与 `.NET` 镜像可以共同编译，不能证明实体运行语义。当前仓库审计未发现 `AbilityKit.World.ECS.Tests` 工程或 package 内独立 `Tests` 目录，因此以下结论仍主要来自源码检查：
+
+| 契约 | 当前证据 | 仍需补充 |
+|------|----------|----------|
+| `Index + Version` 使旧句柄失效 | 两份 `EntityWorld` 的 `TryValidateId`、销毁递增版本和槽位复用实现 | 销毁后复用同一 index、旧 ID 不可访问新实体的回归测试 |
+| 普通销毁保留子实体 | `InternalDestroy(id, recursive: false)` 的解除父子关系分支 | 父实体销毁后子实体存活且 parent 为空的测试 |
+| 递归销毁整个层级 | `DestroyRecursive` 与子列表 snapshot | 多层级、重复 child id 和部分子级已销毁场景 |
+| 销毁同步清理组件索引 | 销毁路径遍历组件并移除 `_componentIndex` | 销毁后多组件查询不再返回该槽位的测试 |
+| 生命周期事件在状态变更后发布 | `Create`、`InternalDestroy` 和父子关系源码顺序 | 事件顺序、事件载荷和回调重入边界测试 |
+| Unity/.NET 实现一致 | 本次人工逐段核对 | 自动源码差异检查或共享契约测试 |
+
+优先级最高的是槽位复用、普通/递归销毁和组件索引清理。这三组测试直接保护实体身份与查询正确性，比只验证创建成功更有价值。
+
+---
+
+## 12. 边界判断
 
 | 容易混淆的判断 | 设计边界 |
 |----------------|----------|
@@ -310,17 +347,19 @@ private string[] _names = Array.Empty<string>();
 | 销毁父实体一定销毁子实体 | `Destroy` 不递归，`DestroyRecursive` 才递归 |
 | Release 环境可以依赖实体名称 | 名称只在 Debug 或 Unity Editor 下保存 |
 | 组件移除只清实体本地数组 | 还必须同步 `_componentIndex`，源码已在 `RemoveComponentById` 中处理 |
+| `.NET` 构建成功等于实体契约已有测试 | 构建只证明编译闭合，当前实体身份和销毁语义仍缺独立自动化测试 |
 
 ---
 
-## 11. 源码阅读路径
+## 13. 源码阅读路径
 
 1. `IEntityId.cs`：index 和 version。
 2. `IEntity.cs`：实体句柄只是 `IECWorld + IEntityId` 的封装。
 3. `IECWorld.cs`：实体、组件、查询、父子关系的完整 API。
-4. `EntityWorld.cs` 的 `Create`、`AllocateEntity`、`Destroy`、`InternalDestroy`：实体生命周期主路径。
-5. `WorldEvents.cs` 与 [查询与遍历源码深潜](../06-ECSArchitecture/03-QueryAndIteration.md)：实体生命周期和系统查询关系。
+4. Unity 与 `.NET` 两份 `EntityWorld.cs` 的 `Create`、`AllocateEntity`、`Destroy`、`InternalDestroy`：实体生命周期主路径和平台边界。
+5. `AbilityKit.World.ECS.csproj`：`.NET` 实现的实际编译选择。
+6. `WorldEvents.cs` 与 [查询与遍历源码深潜](../06-ECSArchitecture/03-QueryAndIteration.md)：实体生命周期和系统查询关系。
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-07-03*
+*文档版本：v2.1 | 最后更新：2026-08-02*

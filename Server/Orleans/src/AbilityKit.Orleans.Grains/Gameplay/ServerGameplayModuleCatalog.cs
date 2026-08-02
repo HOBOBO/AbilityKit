@@ -70,7 +70,9 @@ internal sealed class ServerBattleSyncTemplate
 
     public int FullSnapshotIntervalFrames { get; }
 
-    public bool SupportsStateSyncPush => Mode == ServerBattleSyncMode.StateSync;
+    public bool SupportsStateSyncPush =>
+        Mode == ServerBattleSyncMode.StateSync ||
+        RuntimeMode == ServerBattleRuntimeMode.BattleWorldWithFrameSync;
 
     public bool SupportsFrameSync => Mode == ServerBattleSyncMode.FrameSync;
 

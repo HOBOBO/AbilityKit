@@ -8,10 +8,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Game.Battle.Component;
+using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Presentation.Features.Loading;
 using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.Flow;
@@ -20,6 +24,7 @@ using Newtonsoft.Json;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using AbilityKit.World.ECS;
 using Object = UnityEngine.Object;
 
 namespace AbilityKit.Game.Test.UnitTest
@@ -56,6 +61,10 @@ namespace AbilityKit.Game.Test.UnitTest
         private static bool _hasOwnerBaseline;
         private static bool _movementStopped;
         private static bool _movementValidated;
+        private static bool _hasMovementProgress;
+        private static float _lastMovementProgress;
+        private static float _maxBackwardMovement;
+        private static int _movementSampleCount;
 
         static MobaMultiplayerHeadlessClientCommand()
         {
@@ -163,6 +172,11 @@ namespace AbilityKit.Game.Test.UnitTest
             _gatewayConfig ??= entry.Get<BattleGatewayConfigSO>();
             _flow ??= entry.Get<GameFlowDomain>();
             var gateway = entry.Get<IMultiplayerGatewayRuntime>();
+
+            if (_movementStartedUtc != default && entry.TryGet(out BattleContext trajectoryContext))
+            {
+                ObserveMovementTrajectory(trajectoryContext);
+            }
 
             switch (_stage)
             {
@@ -291,9 +305,9 @@ namespace AbilityKit.Game.Test.UnitTest
                     _movementStartedUtc = DateTime.UtcNow;
                     if (_options.Role == ClientRole.Owner)
                     {
-                        var movementContext = RequireBattleContext(entry);
-                        movementContext.BeginHudMove();
-                        movementContext.SetHudMove(1f, 0.25f);
+                        var ownerMovementContext = RequireBattleContext(entry);
+                        ownerMovementContext.BeginHudMove();
+                        ownerMovementContext.SetHudMove(1f, 0.25f);
                         SetStage(ClientStage.MovingOwner, "submitting owner movement input");
                     }
                     else
@@ -464,6 +478,28 @@ namespace AbilityKit.Game.Test.UnitTest
                 throw new InvalidOperationException(
                     $"Owner movement was not observed. displacement={displacement.ToString("F3", CultureInfo.InvariantCulture)}.");
             }
+            if (_maxBackwardMovement > 0.15f)
+            {
+                throw new InvalidOperationException(
+                    $"Owner movement repeatedly regressed during synchronization. maxBackward={_maxBackwardMovement.ToString("F3", CultureInfo.InvariantCulture)}.");
+            }
+        }
+
+        private static void ObserveMovementTrajectory(BattleContext context)
+        {
+            if (!_hasOwnerBaseline || !TryGetOwnerPosition(context, out var current, out _)) return;
+
+            var direction = new Vector3(1f, 0f, 0.25f).normalized;
+            var progress = Vector3.Dot(current - _ownerBaselinePosition, direction);
+            if (_hasMovementProgress)
+            {
+                var backward = _lastMovementProgress - progress;
+                if (backward > _maxBackwardMovement) _maxBackwardMovement = backward;
+            }
+
+            _lastMovementProgress = progress;
+            _hasMovementProgress = true;
+            _movementSampleCount++;
         }
 
         private static string GetOwnObservationSignalPath()
@@ -506,12 +542,38 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 actorCount++;
                 if (!string.Equals(player.AccountId, snapshot.OwnerAccountId, StringComparison.Ordinal)) continue;
-                var value = actor.transform.Value.Position;
-                position = new Vector3(value.X, value.Y, value.Z);
+                if (_options?.Role == ClientRole.Member)
+                {
+                    if (!TryGetViewPosition(context, actorId, out position)) return false;
+                }
+                else
+                {
+                    var value = actor.transform.Value.Position;
+                    position = new Vector3(value.X, value.Y, value.Z);
+                }
                 foundOwner = true;
             }
 
             return foundOwner;
+        }
+
+        private static bool TryGetViewPosition(BattleContext context, int actorId, out Vector3 position)
+        {
+            position = default;
+            if (context?.EntityWorld == null ||
+                context.EntityLookup == null ||
+                !context.EntityLookup.TryResolve(
+                    context.EntityWorld,
+                    new BattleNetId(actorId),
+                    out var entity) ||
+                !entity.TryGetRef(out BattleTransformComponent transform) ||
+                transform == null)
+            {
+                return false;
+            }
+
+            position = transform.Position;
+            return true;
         }
 
         private static void WriteRoomCoordination(string roomId)
@@ -621,6 +683,24 @@ namespace AbilityKit.Game.Test.UnitTest
                 state.frame = context.LastFrame;
                 state.localActorId = context.LocalActorId;
                 state.localPlayerId = context.ResolveLocalControlPlayerId();
+                var prediction = context.PredictionStats;
+                if (prediction != null)
+                {
+                    state.predictionRollbackCount = prediction.TotalRollbackCount;
+                    state.predictionRollbackRestoreFailed = prediction.TotalRollbackRestoreFailed;
+                    state.predictionReplayTimeoutCount = prediction.TotalReplayTimeout;
+                    state.predictionMismatchCount = prediction.TotalReconcileMismatch;
+                    state.predictionDroppedLocalInputBatches = prediction.TotalLocalDelayQueueDroppedBatches;
+                    state.predictionReplaying = prediction.IsReplaying;
+                    if (prediction.TryGetFrames(
+                            new WorldId(context.Plan.World.WorldId),
+                            out var confirmed,
+                            out var predicted))
+                    {
+                        state.confirmedFrame = confirmed.Value;
+                        state.predictedFrame = predicted.Value;
+                    }
+                }
             }
             if (GameEntry.IsInitialized && GameEntry.Instance.TryGet(out BattleInputFeature inputFeature))
             {
@@ -633,9 +713,11 @@ namespace AbilityKit.Game.Test.UnitTest
                 state.moveSubmitSuccessCount = inputFeature.MoveSubmitSuccessCount;
             }
             state.actors = CaptureActors(context, snapshot);
+            state.movementSampleCount = _movementSampleCount;
+            state.maxBackwardMovement = _maxBackwardMovement;
 
             var authority = BattleFlowDebugProvider.ConfirmedAuthorityWorldStats;
-            if (authority != null)
+            if (authority != null && context?.PredictionStats == null)
             {
                 state.confirmedFrame = authority.ConfirmedFrame;
                 state.predictedFrame = authority.PredictedFrame;
@@ -682,6 +764,21 @@ namespace AbilityKit.Game.Test.UnitTest
                         actorState.x = value.X;
                         actorState.y = value.Y;
                         actorState.z = value.Z;
+                        actorState.runtimeX = value.X;
+                        actorState.runtimeY = value.Y;
+                        actorState.runtimeZ = value.Z;
+                        if (actor.hasMoveInput)
+                        {
+                            actorState.moveDx = actor.moveInput.Dx;
+                            actorState.moveDz = actor.moveInput.Dz;
+                        }
+                        if (actorId != context.LocalActorId &&
+                            TryGetViewPosition(context, actorId, out var viewPosition))
+                        {
+                            actorState.x = viewPosition.x;
+                            actorState.y = viewPosition.y;
+                            actorState.z = viewPosition.z;
+                        }
                     }
                 }
                 result.Add(actorState);
@@ -806,6 +903,10 @@ namespace AbilityKit.Game.Test.UnitTest
             _hasOwnerBaseline = false;
             _movementStopped = false;
             _movementValidated = false;
+            _hasMovementProgress = false;
+            _lastMovementProgress = 0f;
+            _maxBackwardMovement = 0f;
+            _movementSampleCount = 0;
         }
 
         private enum ClientStage
@@ -966,6 +1067,14 @@ namespace AbilityKit.Game.Test.UnitTest
             public int moveReadCount;
             public int moveSubmitAttemptCount;
             public int moveSubmitSuccessCount;
+            public long predictionRollbackCount;
+            public long predictionRollbackRestoreFailed;
+            public long predictionReplayTimeoutCount;
+            public long predictionMismatchCount;
+            public long predictionDroppedLocalInputBatches;
+            public bool predictionReplaying;
+            public int movementSampleCount;
+            public float maxBackwardMovement;
             public List<ActorState> actors = new List<ActorState>();
         }
 
@@ -981,6 +1090,11 @@ namespace AbilityKit.Game.Test.UnitTest
             public float x;
             public float y;
             public float z;
+            public float runtimeX;
+            public float runtimeY;
+            public float runtimeZ;
+            public float moveDx;
+            public float moveDz;
         }
     }
 }

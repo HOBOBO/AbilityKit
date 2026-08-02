@@ -2,6 +2,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Requests;
+using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Game.Flow
 {
@@ -28,7 +29,12 @@ namespace AbilityKit.Game.Flow
             _ctx.InputRecordWriter?.Append(in cmd);
             _ctx.Session.SubmitInput(new SubmitInputRequest(_worldId, cmd));
             (_ctx.LocalInputQueue ??= new BattleLocalInputQueue())
-                .Enqueue(new LocalPlayerInputEvent(_playerId, cmd.OpCode, cmd.Payload));
+                .Enqueue(new LocalPlayerInputEvent(
+                    cmd.Frame,
+                    _playerId,
+                    cmd.OpCode,
+                    cmd.Payload,
+                    canRetargetIfStale: cmd.OpCode == MobaOpCodes.Input.Move));
             return true;
         }
     }

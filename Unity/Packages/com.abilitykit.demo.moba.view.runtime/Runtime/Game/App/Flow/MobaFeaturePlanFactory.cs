@@ -24,10 +24,10 @@ namespace AbilityKit.Game.Flow
         {
             return new PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature>(capacity)
                 .Add("context", (in GamePhaseContext ctx) => _featureFactories.Create("context", in ctx))
+                .Add("input", (in GamePhaseContext ctx) => _featureFactories.Create("input", in ctx))
                 .Add("session", (in GamePhaseContext ctx) => _featureFactories.Create("session", in ctx))
                 .Add("entity", (in GamePhaseContext ctx) => _featureFactories.Create("entity", in ctx))
                 .Add("sync", (in GamePhaseContext ctx) => _featureFactories.Create("sync", in ctx))
-                .Add("input", (in GamePhaseContext ctx) => _featureFactories.Create("input", in ctx))
                 .Add("view", (in GamePhaseContext ctx) => _featureFactories.Create("view", in ctx))
                 .Add("hud", (in GamePhaseContext ctx) => _featureFactories.Create("hud", in ctx))
                 .Add("loading_screen", (in GamePhaseContext ctx) => _featureFactories.Create("loading_screen", in ctx))

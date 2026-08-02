@@ -7,4 +7,9 @@ namespace AbilityKit.Ability.Host.Framework
         void Install(HostRuntime runtime, HostRuntimeOptions options);
         void Uninstall(HostRuntime runtime, HostRuntimeOptions options);
     }
+
+    public interface IHostRuntimeTickGate
+    {
+        bool ShouldRunWorldTick { get; }
+    }
 }

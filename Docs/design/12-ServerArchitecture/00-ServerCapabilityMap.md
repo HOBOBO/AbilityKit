@@ -24,7 +24,12 @@
 | Grain 运行时 | `Server/Orleans/src/AbilityKit.Orleans.Grains` | Session、Room、Battle、FrameSync、StateSync、Automation Grain |
 | Hosting 抽象 | `Server/Orleans/src/AbilityKit.Orleans.Hosting` | Orleans client/silo 装配、部署角色、运行 profile、日志和配置 |
 | Standalone Host | `Server/Orleans/src/AbilityKit.Orleans.Host` | 本地 silo 进程入口 |
-| Smoke 验收 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke` | 自托管 Shooter Gateway + Orleans 端到端冒烟 |
+| MOBA Smoke | `Server/Orleans/src/AbilityKit.Orleans.MobaSmoke` | 两条 TCP 连接的房间、权威实体、状态恢复和可靠事件验收 |
+| Shooter Smoke | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke` | Gateway、权威世界、状态推送、故障场景和 Replay 验收 |
+| Gateway 测试 | `Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests` | 路由、协议、Handler、房间成员关系、后台与部署配置测试 |
+| Grain 测试 | `Server/Orleans/src/AbilityKit.Orleans.Grains.Tests` | Room 状态机、Battle commit、玩法适配器、同步和持久化测试 |
+| Shooter Smoke 测试 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests` | Smoke 重试、脚本契约、Replay summary、诊断 artifact 和 soak telemetry 测试 |
+| 运行脚本 | `Server/Orleans/tools` | 单进程/多进程 Smoke、Gateway E2E、启动、停止和端口清理 |
 | 服务器分析器 | `Server/Orleans/src/AbilityKit.Server.Analyzers` | Gateway Handler、Endpoint、Gameplay Manifest 的生成与约束 |
 
 ## 3. 总体分层
@@ -143,9 +148,28 @@ Gateway Handler 和服务端 Gameplay Manifest 有 Analyzer/Generator 支撑。�
 | 战斗 | 权威世界启动、输入缓冲、Tick、快照、诊断 | 客户端表现、镜头、动画、UI |
 | 同步 | FrameSync relay、StateSync push、full snapshot request | 网络运营商级 QoS、全球加速 |
 | 部署 | 本地 silo/client、角色/profile 配置、route registry | 生产 Kubernetes、数据库 HA、灰度发布全流程 |
-| 验收 | Shooter Smoke、Replay validation、Gateway/Grain tests | 压测平台、生产可观测闭环 |
+| 验收 | MOBA/Shooter Smoke、Replay validation、Gateway/Grain tests | 压测平台、生产可观测闭环 |
 
-## 6. 源码阅读路径
+## 6. 当前验证层级
+
+| 层级 | 可执行入口 | 当前能证明什么 | 不能据此推导什么 |
+|------|------------|----------------|--------------------|
+| Gateway 自动测试 | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj -c Release` | Gateway Handler、协议兼容、房间成员关系、Admin Console 源码/产物边界及部分部署配置契约 | 外部网络、真实多节点集群和浏览器交互正确 |
+| Grain 自动测试 | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/AbilityKit.Orleans.Grains.Tests.csproj -c Release` | Room 状态机、Battle commit、玩法适配、同步状态和持久化计划的代码契约 | 进程崩溃、网络抖动、外部存储故障和长期容量 |
+| Shooter Smoke Harness 测试 | `dotnet test Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests/AbilityKit.Orleans.ShooterSmoke.Tests.csproj -c Release` | 重试、脚本契约、诊断 artifact、Replay summary 和 soak telemetry | 不启动完整 Smoke 场景，不能替代端到端运行 |
+| 单进程 Smoke | `Server/Orleans/tools/run_moba_smoke.ps1`、`run_shooter_smoke.ps1` | 自托管 Silo/Gateway 下的真实 TCP 主链路；Shooter 额外校验 Replay 文件生成 | 独立进程边界、集群 placement 和生产基础设施 |
+| 多进程 Smoke | `run_moba_multiprocess_smoke.ps1`、`run_shooter_multiprocess_smoke.ps1` | Host 与场景进程隔离；Shooter 还覆盖故障矩阵、重连、慢消费者和 soak profile | Kubernetes、跨机器网络、外部 membership/storage 和商业容量目标 |
+| 生产运行 | 当前没有仓库内等价证据 | 尚未形成生产部署证明 | 不能将 profile、route registry 或 Smoke 直接称为生产就绪 |
+
+MOBA 多进程脚本当前是一个 host-only Silo 进程加一个 client-only 场景进程；owner/member 是场景进程内的两条 TCP 连接，不是两个独立客户端进程。Shooter 多进程脚本的覆盖更广，但各 profile 仍是仓库验收场景，不代表已完成跨机器集群认证。
+
+### 6.1 2026-08-02 本地验证基线
+
+在 Windows 11、.NET 10 Release 配置下执行上述三个测试工程，结果分别为 Gateway 151/151、Grains 218/218、Shooter Smoke Harness 33/33；在 `Server/AdminConsole` 执行 `npm run build`，`vue-tsc --noEmit` 与 Vite 生产构建通过。该记录证明当前工作区在这四个入口上可执行，不代表 Smoke 场景或生产部署已经运行。
+
+构建输出仍包含 Entitas 依赖版本回退与旧目标框架兼容性警告、C# 可空性警告，以及服务端 `AKS0001`/`AKS0002` Analyzer 警告。因此本次基线应表述为“测试和构建通过但存在警告”，不能表述为零警告构建。
+
+## 7. 源码阅读路径
 
 1. `00-ServerCapabilityMap.md`：建立 Server Runtime 的总体能力地图。
 2. `01-OrleansRuntimeAndDeployment.md`：理解 Host、Gateway、Hosting、部署角色和存储配置。
@@ -153,7 +177,7 @@ Gateway Handler 和服务端 Gameplay Manifest 有 Analyzer/Generator 支撑。�
 4. `07-NetworkSynchronization` 专题：深入 FrameSync、StateSync、Rollback、Replay 的同步机制。
 5. `09-ImplementationExamples` 专题：观察 Shooter/MOBA 玩法如何通过 ServerGameplayModuleCatalog 接入。
 
-## 7. 和其他文档的关系
+## 8. 和其他文档的关系
 
 | 文档 | 关系 |
 |------|------|

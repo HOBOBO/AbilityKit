@@ -143,10 +143,8 @@ namespace AbilityKit.Game.Flow
                 .AddTransition(MobaBattleEvent.PrepareDone, MobaBattleState.Prepare, MobaBattleState.Connect)
                 .AddTransition(MobaBattleEvent.Connected, MobaBattleState.Connect, MobaBattleState.CreateOrJoinWorld)
                 .AddTransition(MobaBattleEvent.JoinedWorld, MobaBattleState.CreateOrJoinWorld, MobaBattleState.LoadAssets)
-                // 阶段 7a：真实资源加载完成（manifest barrier）驱动 LoadAssets → InMatch。
+                // 真实资源加载完成（manifest barrier）驱动 LoadAssets → InMatch。
                 .AddTransition(MobaBattleEvent.AssetsLoadCompleted, MobaBattleState.LoadAssets, MobaBattleState.InMatch)
-                // 旧 LoadingDone 转换保留以向后兼容（阶段 7a 后不再被触发）。
-                .AddTransition(MobaBattleEvent.LoadingDone, MobaBattleState.LoadAssets, MobaBattleState.InMatch)
                 .AddTransition(MobaBattleEvent.Ended, MobaBattleState.Prepare, MobaBattleState.End)
                 .AddTransition(MobaBattleEvent.Ended, MobaBattleState.Connect, MobaBattleState.End)
                 .AddTransition(MobaBattleEvent.Ended, MobaBattleState.CreateOrJoinWorld, MobaBattleState.End)

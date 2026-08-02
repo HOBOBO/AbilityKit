@@ -37,7 +37,13 @@ ActionTimeline 把编辑器资产压缩为纯 C# 数据协议，使 Unity 编辑
 | View 直接播放示例 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/TimelineLogicRunner.cs` |
 | View Pipeline 示例 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/SkillPipelineDemoRunner.cs` |
 
-`.NET` 工程直接链接 package Runtime 源码，是公共协议的无 Unity 构建入口。ActionEditor、MOBA Runtime 和 View Runner 是 Unity 侧真实生产与消费证据。
+`.NET` 工程直接链接 package Runtime 源码，是公共协议的无 Unity 构建入口：
+
+```powershell
+dotnet build src/AbilityKit.ActionSchema/AbilityKit.ActionSchema.csproj -c Release
+```
+
+该命令只证明共享 DTO、JSON loader、公共播放器及其 Core/Newtonsoft.Json 依赖可以在 `net10.0` 下编译，不执行播放语义测试。ActionEditor、MOBA Runtime 和 View Runner 是 Unity 侧真实生产与消费证据。
 
 ## 3. 数据协议与所有权
 
@@ -164,7 +170,7 @@ asset length 的完成语义属于 Ability phase，不属于公共播放器。�
 | 未知 clip | 静默跳过并标记 fired |
 | phase error | Pipeline error 路径处理，但已产生副作用不回滚 |
 
-截至 2026-07-15，ActionSchema package 内没有 NUnit `[Test]` 或 `[UnityTest]`。已有证据是 `.NET` 镜像工程、ActionEditor 导出器、两个 View Runner 和 MOBA Ability Pipeline 的真实调用。它证明模块已被接入，不等同于边界行为已有自动回归保护。
+截至 2026-08-02，ActionSchema package 内没有 Tests 目录或 NUnit `[Test]`、`[UnityTest]`，仓库也没有引用 `AbilityKit.ActionSchema` 的独立测试工程。已有证据是 `.NET` 镜像工程、ActionEditor 导出器、两个 View Runner 和 MOBA Ability Pipeline 的真实调用。构建证明协议可编译，调用点证明模块已被接入；两者都不等同于边界行为已有自动回归保护。
 
 优先补充：
 

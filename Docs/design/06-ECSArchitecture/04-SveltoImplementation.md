@@ -1,4 +1,4 @@
-# 6.3 Svelto 实现
+# 6.4 Svelto 实现
 
 > 本文说明 AbilityKit 如何通过 `SveltoWorldModule` 与 `SveltoWorldContext` 将 Svelto ECS 接入 World.DI，并为 Shooter 等高性能示例提供实体数据库、工厂、函数和提交调度器。
 
@@ -6,7 +6,7 @@
 
 ## 目录
 
-- [6.3 Svelto 实现](#63-svelto-实现)
+- [6.4 Svelto 实现](#64-svelto-实现)
   - [目录](#目录)
   - [1. 能力定位](#1-能力定位)
   - [2. 源码入口](#2-源码入口)
@@ -246,7 +246,7 @@ flowchart LR
 
 - [ECS 核心概念](./01-ECSCoreConcepts.md) - ECS 抽象基础
 - [Entitas 实现](./02-EntitasImplementation.md) - Entitas 版世界生命周期
-- [查询与遍历](./04-QueryAndTraversal.md) - 多 ECS 查询策略对比
+- [查询与遍历](./05-QueryAndTraversal.md) - 多 ECS 查询策略对比
 - [Shooter Runtime、Svelto 装配与恢复边界](../09-ImplementationExamples/Shooter/01-RuntimeSveltoSimulation.md) - Shooter 运行时装配与结构提交
 - [Shooter Snapshot、Hash 与同步模型](../09-ImplementationExamples/Shooter/02-SnapshotHashSync.md) - 确定性排序、hash 和同步消费
 

@@ -174,6 +174,8 @@ public class PlayerInitInfo
     [Id(9)] public int BasicAttackSkillId { get; set; }
     [Id(10)] public List<int>? SkillIds { get; set; }
     [Id(11)] public string? AccountId { get; set; }
+    [Id(12)] public int HasSpawnPosition { get; set; }
+    [Id(13)] public int SpawnIndex { get; set; }
 }
 
 [GenerateSerializer]

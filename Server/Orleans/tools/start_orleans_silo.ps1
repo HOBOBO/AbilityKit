@@ -15,6 +15,7 @@ param(
     [switch]$NoBuild,
     [switch]$NoCleanup,
     [switch]$CleanAll,
+    [switch]$HiddenWindows,
     [int]$SiloGatewayWaitSeconds = 120
 )
 
@@ -140,7 +141,8 @@ Write-Host "  Silo:             127.0.0.1:$SiloPort" -ForegroundColor Gray
 Write-Host "  Orleans Gateway:  127.0.0.1:$SiloGatewayPort" -ForegroundColor Gray
 Write-Host "  Log:              $hostLog" -ForegroundColor Gray
 
-$hostWindow = Start-Process powershell -ArgumentList $hostArgs -WorkingDirectory $hostWorkingDirectory -PassThru -WindowStyle Normal
+$hostWindowStyle = if ($HiddenWindows) { 'Hidden' } else { 'Normal' }
+$hostWindow = Start-Process powershell -ArgumentList $hostArgs -WorkingDirectory $hostWorkingDirectory -PassThru -WindowStyle $hostWindowStyle
 Write-Host "  Host window PID: $($hostWindow.Id)" -ForegroundColor Gray
 
 Write-Host "Waiting for Orleans Silo Gateway TCP endpoint 127.0.0.1:$SiloGatewayPort ..." -ForegroundColor Cyan

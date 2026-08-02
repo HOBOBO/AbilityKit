@@ -23,6 +23,23 @@ namespace AbilityKit.Game.Flow
         private readonly MultiplayerBattleEntryGate _battleEntryGate = new MultiplayerBattleEntryGate();
         private readonly List<DemoRoomSummary> _rooms = new List<DemoRoomSummary>();
 
+        private readonly struct LobbyOperationContext
+        {
+            public LobbyOperationContext(
+                int attachGeneration,
+                int operationGeneration,
+                CancellationToken cancellationToken)
+            {
+                AttachGeneration = attachGeneration;
+                OperationGeneration = operationGeneration;
+                CancellationToken = cancellationToken;
+            }
+
+            public int AttachGeneration { get; }
+            public int OperationGeneration { get; }
+            public CancellationToken CancellationToken { get; }
+        }
+
         private MultiplayerRoomFlowController _controller;
         private GatewayMultiplayerRoomSession _session;
         private LobbyBattleEntrySelection _selection;
@@ -33,6 +50,8 @@ namespace AbilityKit.Game.Flow
         private ClientRoomStore _roomStore;
         private CancellationTokenSource _lifetime;
         private Task _operationTask = Task.CompletedTask;
+        private int _attachGeneration;
+        private int _operationGeneration;
         private string _operationLabel = string.Empty;
         private string _operationError = string.Empty;
         private string _configurationError = string.Empty;
@@ -47,8 +66,43 @@ namespace AbilityKit.Game.Flow
 
         private bool IsOperationBusy => _operationTask != null && !_operationTask.IsCompleted;
 
+        internal bool OperationBusyForTesting => IsOperationBusy;
+        internal string OperationLabelForTesting => _operationLabel;
+        internal string OperationErrorForTesting => _operationError;
+
+        internal void StartControlledOperationForTesting(string label, Func<Task> operation)
+        {
+            StartOperation(
+                label,
+                _ => operation != null ? operation() : Task.CompletedTask);
+        }
+
         public void OnAttach(in GamePhaseContext ctx)
         {
+            _attachGeneration++;
+            _operationGeneration = 0;
+            _operationTask = Task.CompletedTask;
+            _operationLabel = string.Empty;
+            _operationError = string.Empty;
+            _configurationError = string.Empty;
+            _preparedRoomId = string.Empty;
+            _automaticStartRoomId = string.Empty;
+            _initializationStarted = false;
+            _roomListLoaded = false;
+            _roomListBusy = false;
+            _rooms.Clear();
+            _roomScroll = default;
+            _roomNotice = string.Empty;
+            _roomNoticeExpiresAtUnixMs = 0L;
+            _battleEntryGate.Reset();
+
+            _gatewayConfig = null;
+            _session = null;
+            _selection = null;
+            _gatewayRuntime = null;
+            _roomDirectory = null;
+            _launchRequest = null;
+            _roomStore = null;
             _lifetime = new CancellationTokenSource();
             _controller = ResolveController(ctx);
             if (ctx.Entry != null)
@@ -96,11 +150,19 @@ namespace AbilityKit.Game.Flow
                 _roomStore = null;
             }
 
-            _lifetime?.Cancel();
-            _lifetime?.Dispose();
+            _attachGeneration++;
+            _operationGeneration++;
+            var lifetime = _lifetime;
             _lifetime = null;
+            lifetime?.Cancel();
+            lifetime?.Dispose();
+            _operationTask = Task.CompletedTask;
+            _operationLabel = string.Empty;
+            _operationError = string.Empty;
+            _roomListBusy = false;
             _roomNotice = string.Empty;
             _roomNoticeExpiresAtUnixMs = 0L;
+            _preparedRoomId = string.Empty;
             _automaticStartRoomId = string.Empty;
             _battleEntryGate.Reset();
         }
@@ -312,15 +374,18 @@ namespace AbilityKit.Game.Flow
                 : null;
         }
 
-        private async Task InitializeLobbyAsync(CancellationToken cancellationToken)
+        private async Task InitializeLobbyAsync(LobbyOperationContext operationContext)
         {
+            if (!IsCurrentOperation(operationContext)) return;
+
             var spec = RequireLaunchSpec();
             if (_gatewayConfig.RestoreRoomOnEntry)
             {
                 var restored = await _controller.RestoreAsync(
                     spec,
                     _gatewayConfig.RestoreFallbackPlayerId,
-                    cancellationToken);
+                    operationContext.CancellationToken);
+                if (!IsCurrentOperation(operationContext)) return;
                 if (restored.HasActiveRoom) return;
                 if (_controller.CurrentState == MultiplayerRoomFlowState.Failed)
                 {
@@ -331,7 +396,7 @@ namespace AbilityKit.Game.Flow
                 }
             }
 
-            await RefreshRoomsCoreAsync(cancellationToken);
+            await RefreshRoomsCoreAsync(operationContext);
         }
 
         private void TryStartAutomaticPreparation()
@@ -384,20 +449,23 @@ namespace AbilityKit.Game.Flow
             StartOperation("Starting match", BeginAutomaticLoadingAsync);
         }
 
-        private async Task BeginAutomaticLoadingAsync(CancellationToken cancellationToken)
+        private async Task BeginAutomaticLoadingAsync(LobbyOperationContext operationContext)
         {
             try
             {
-                await _controller.BeginLoadingAsync(cancellationToken);
+                await _controller.BeginLoadingAsync(operationContext.CancellationToken);
             }
             catch
             {
-                _automaticStartRoomId = string.Empty;
+                if (IsCurrentOperation(operationContext))
+                {
+                    _automaticStartRoomId = string.Empty;
+                }
                 throw;
             }
         }
 
-        private async Task PrepareDefaultLoadoutAsync(CancellationToken cancellationToken)
+        private async Task PrepareDefaultLoadoutAsync(LobbyOperationContext operationContext)
         {
             try
             {
@@ -406,12 +474,16 @@ namespace AbilityKit.Game.Flow
                         _gatewayConfig.BuildDefaultLoadout(),
                         _controller.CurrentSnapshot,
                         _controller.LocalPlayerId),
-                    cancellationToken);
-                await _controller.SetReadyAsync(true, cancellationToken);
+                    operationContext.CancellationToken);
+                if (!IsCurrentOperation(operationContext)) return;
+                await _controller.SetReadyAsync(true, operationContext.CancellationToken);
             }
             catch
             {
-                _preparedRoomId = string.Empty;
+                if (IsCurrentOperation(operationContext))
+                {
+                    _preparedRoomId = string.Empty;
+                }
                 throw;
             }
         }
@@ -451,28 +523,32 @@ namespace AbilityKit.Game.Flow
                 configured.SkillIds);
         }
 
-        private async Task CreateRoomAsync(CancellationToken cancellationToken)
+        private async Task CreateRoomAsync(LobbyOperationContext operationContext)
         {
+            if (!IsCurrentOperation(operationContext)) return;
             _preparedRoomId = string.Empty;
             _automaticStartRoomId = string.Empty;
             await _controller.StartCreateRoomAsync(
                 RequireLaunchSpec(),
-                cancellationToken);
+                operationContext.CancellationToken);
         }
 
-        private async Task JoinRoomAsync(string roomId, CancellationToken cancellationToken)
+        private async Task JoinRoomAsync(
+            string roomId,
+            LobbyOperationContext operationContext)
         {
+            if (!IsCurrentOperation(operationContext)) return;
             _preparedRoomId = string.Empty;
             _automaticStartRoomId = string.Empty;
             await _controller.StartJoinRoomAsync(
                 RequireLaunchSpec(),
                 roomId,
-                cancellationToken);
+                operationContext.CancellationToken);
         }
 
-        private async Task RefreshRoomsCoreAsync(CancellationToken cancellationToken)
+        private async Task RefreshRoomsCoreAsync(LobbyOperationContext operationContext)
         {
-            if (_roomListBusy) return;
+            if (!IsCurrentOperation(operationContext) || _roomListBusy) return;
 
             _roomListBusy = true;
             try
@@ -487,7 +563,8 @@ namespace AbilityKit.Game.Flow
                         offset: 0,
                         limit: _gatewayConfig.RoomListLimit),
                     timeout: _launchRequest?.Timeout,
-                    cancellationToken: cancellationToken);
+                    cancellationToken: operationContext.CancellationToken);
+                if (!IsCurrentOperation(operationContext)) return;
                 if (!result.Success)
                 {
                     throw new InvalidOperationException(
@@ -496,16 +573,23 @@ namespace AbilityKit.Game.Flow
                             : result.Message);
                 }
 
-                _rooms.Clear();
+                var openRooms = new List<DemoRoomSummary>();
                 for (var i = 0; i < result.Rooms.Count; i++)
                 {
-                    if (result.Rooms[i].HasOpenSlot) _rooms.Add(result.Rooms[i]);
+                    if (result.Rooms[i].HasOpenSlot) openRooms.Add(result.Rooms[i]);
                 }
+
+                if (!IsCurrentOperation(operationContext)) return;
+                _rooms.Clear();
+                _rooms.AddRange(openRooms);
                 _roomListLoaded = true;
             }
             finally
             {
-                _roomListBusy = false;
+                if (IsCurrentOperation(operationContext))
+                {
+                    _roomListBusy = false;
+                }
             }
         }
 
@@ -526,34 +610,53 @@ namespace AbilityKit.Game.Flow
 
         private void StartOperation(
             string label,
-            Func<CancellationToken, Task> operation)
+            Func<LobbyOperationContext, Task> operation)
         {
-            if (IsOperationBusy || operation == null || _lifetime == null) return;
-            _operationTask = RunOperationAsync(label, operation, _lifetime.Token);
+            var lifetime = _lifetime;
+            if (IsOperationBusy || operation == null || lifetime == null) return;
+
+            var operationContext = new LobbyOperationContext(
+                _attachGeneration,
+                ++_operationGeneration,
+                lifetime.Token);
+            _operationLabel = label ?? string.Empty;
+            _operationError = string.Empty;
+            _operationTask = RunOperationAsync(operation, operationContext);
         }
 
         private async Task RunOperationAsync(
-            string label,
-            Func<CancellationToken, Task> operation,
-            CancellationToken cancellationToken)
+            Func<LobbyOperationContext, Task> operation,
+            LobbyOperationContext operationContext)
         {
-            _operationLabel = label ?? string.Empty;
-            _operationError = string.Empty;
             try
             {
-                await operation(cancellationToken);
+                await operation(operationContext);
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException)
+                when (operationContext.CancellationToken.IsCancellationRequested)
             {
             }
             catch (Exception ex)
             {
-                _operationError = ex.Message;
+                if (IsCurrentOperation(operationContext))
+                {
+                    _operationError = ex.Message;
+                }
             }
             finally
             {
-                _operationLabel = string.Empty;
+                if (IsCurrentOperation(operationContext))
+                {
+                    _operationLabel = string.Empty;
+                }
             }
+        }
+
+        private bool IsCurrentOperation(LobbyOperationContext operationContext)
+        {
+            return _lifetime != null &&
+                   _attachGeneration == operationContext.AttachGeneration &&
+                   _operationGeneration == operationContext.OperationGeneration;
         }
 
         private void DrawHeader()
@@ -724,7 +827,7 @@ namespace AbilityKit.Game.Flow
                     var roomId = room.RoomId;
                     StartOperation(
                         "Joining room",
-                        cancellationToken => JoinRoomAsync(roomId, cancellationToken));
+                        operationContext => JoinRoomAsync(roomId, operationContext));
                 }
                 GUI.enabled = previousEnabled;
                 GUILayout.EndHorizontal();
@@ -777,7 +880,8 @@ namespace AbilityKit.Game.Flow
                 {
                     StartOperation(
                         "Starting match",
-                        cancellationToken => _controller.BeginLoadingAsync(cancellationToken));
+                        operationContext => _controller.BeginLoadingAsync(
+                            operationContext.CancellationToken));
                 }
                 GUI.enabled = previousEnabled;
                 if (!snapshot.CanStart)
@@ -840,7 +944,8 @@ namespace AbilityKit.Game.Flow
             {
                 StartOperation(
                     "Cancelling match start",
-                    cancellationToken => _controller.CancelLoadingAsync(cancellationToken));
+                    operationContext => _controller.CancelLoadingAsync(
+                        operationContext.CancellationToken));
             }
             GUI.enabled = previousEnabled;
 
@@ -886,16 +991,18 @@ namespace AbilityKit.Game.Flow
             GUILayout.Label($"Time remaining: {Math.Max(0L, remainingMs) / 1000L}s");
         }
 
-        private async Task LeaveRoomAndRefreshAsync(CancellationToken cancellationToken)
+        private async Task LeaveRoomAndRefreshAsync(LobbyOperationContext operationContext)
         {
-            await _controller.LeaveRoomAsync(cancellationToken);
+            await _controller.LeaveRoomAsync(operationContext.CancellationToken);
+            if (!IsCurrentOperation(operationContext)) return;
             _preparedRoomId = string.Empty;
             _automaticStartRoomId = string.Empty;
-            await RefreshRoomsCoreAsync(cancellationToken);
+            await RefreshRoomsCoreAsync(operationContext);
         }
 
-        private async Task ReturnToRoomsAsync(CancellationToken cancellationToken)
+        private async Task ReturnToRoomsAsync(LobbyOperationContext operationContext)
         {
+            if (!IsCurrentOperation(operationContext)) return;
             if (!string.IsNullOrWhiteSpace(_controller.CurrentRoomId))
             {
                 if (!_controller.CanLeaveCurrentRoom)
@@ -904,7 +1011,8 @@ namespace AbilityKit.Game.Flow
                         $"The room cannot be left during phase {_controller.CurrentSnapshot?.Phase}.");
                 }
 
-                await _controller.LeaveRoomAsync(cancellationToken);
+                await _controller.LeaveRoomAsync(operationContext.CancellationToken);
+                if (!IsCurrentOperation(operationContext)) return;
             }
             else
             {
@@ -913,11 +1021,12 @@ namespace AbilityKit.Game.Flow
 
             _preparedRoomId = string.Empty;
             _automaticStartRoomId = string.Empty;
-            await RefreshRoomsCoreAsync(cancellationToken);
+            await RefreshRoomsCoreAsync(operationContext);
         }
 
-        private async Task ExitToStarterAsync(CancellationToken cancellationToken)
+        private async Task ExitToStarterAsync(LobbyOperationContext operationContext)
         {
+            if (!IsCurrentOperation(operationContext)) return;
             if (_controller != null && !string.IsNullOrWhiteSpace(_controller.CurrentRoomId))
             {
                 if (!_controller.CanLeaveCurrentRoom)
@@ -926,7 +1035,8 @@ namespace AbilityKit.Game.Flow
                         $"The room cannot be left during phase {_controller.CurrentSnapshot?.Phase}.");
                 }
 
-                await _controller.LeaveRoomAsync(cancellationToken);
+                await _controller.LeaveRoomAsync(operationContext.CancellationToken);
+                if (!IsCurrentOperation(operationContext)) return;
             }
 
             _lifetime?.Cancel();

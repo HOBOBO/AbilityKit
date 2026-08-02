@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   FeatureIds:
   - context
+  - input
   - session
   - entity
   - sync
-  - input
   - view
   - hud
   - debug_ongui

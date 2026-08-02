@@ -3,6 +3,7 @@ using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 using Microsoft.Extensions.Logging;
+using MemoryPack;
 using Orleans;
 
 namespace AbilityKit.Orleans.Gateway.Handlers;
@@ -83,8 +84,8 @@ public sealed partial class SpectatorSubscribeHandler : GatewayRequestHandlerBas
                 metrics.TickRate,
                 metrics.CurrentFrame);
 
-            var responsePayload = WireCustomBinary.Serialize(responseWire);
-            return GatewayResponse.Ok(request.Seq, responsePayload.Array ?? Array.Empty<byte>());
+            var responsePayload = MemoryPackSerializer.Serialize(responseWire);
+            return GatewayResponse.Ok(request.Seq, responsePayload);
         }
         catch (Exception ex)
         {

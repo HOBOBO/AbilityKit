@@ -1,6 +1,6 @@
 # Console Demo 源码级装配链路：Bootstrapper、FeatureHost、SyncAdapter 与自动测试
 
-> 本文在 [01-ConsoleDemoAnalysis.md](./01-ConsoleDemoAnalysis.md) 的基础上，以真实源码为准，补充 Console Demo 的装配链路细节：ConsoleBattleBootstrapper 的完整初始化顺序、FeatureHost 的阶段生命周期管理、三种 SyncAdapter 的职责边界和切换方式、AutoTestInputFeature 如何替换输入链路，以及录制回放的二进制格式与索引结构。
+> 本文在 [01-ConsoleDemoAnalysis.md](../01-ConsoleDemoAnalysis.md) 的基础上，说明 Console Demo 当前的组合根、阶段内 Feature 生命周期、同步适配器、自动测试输入和录制回放入口。文中的“存在”只表示源码入口已闭合；联机、预测校正和回放能力是否可用，按各节列出的验证证据和未完成项判断。
 
 ---
 
@@ -15,8 +15,9 @@
 | 特征组件 | `Battle/Flow/FeatureHost.cs` | 拓扑排序 attach/tick/detach |
 | 同步适配器工厂 | `Battle/Sync/SyncAdapterFactory.cs` | 按 SyncMode 创建三种适配器 |
 | 输入特征 | `Battle/Input/ConsoleInputFeature.cs` | HUD → PlayerInputCommand → IWorldInputSink |
-| 自动测试 | `AutoTest/AutoTestRunner.cs` | 测试脚本驱动和验收断言 |
-| 录制/回放 | `Replay/ConsoleRecordWriter.cs`、`ConsoleReplayDriver.cs` | .akrec 格式与索引 |
+| 自动测试 | `AutoTest/AutoTestRunner.cs`、`AutoTest/ConsoleBattleTestScriptDriver.cs` | 共享脚本调度、Console 输入映射和基础验收 |
+| CLI 录制/回放 | `Replay/ConsoleRecordWriter.cs`、`Replay/ConsoleReplayDriver.cs`、`Replay/RecordTypes.cs` | `.akrec` 输入记录格式与按帧索引 |
+| 共享快照录制 | `Replay/ShareReplayController.cs` | Bootstrapper 暴露的另一套共享快照录制入口 |
 
 ---
 
@@ -47,33 +48,33 @@ flowchart TB
 
 ### 2.1 `Initialize()` 做了什么
 
+`Initialize()` 当前只有三项职责：构建运行时 World 和服务容器、注册共享快照分发订阅、输出战斗配置。运行时 World 通过 `WorldManager`、`RegistryWorldFactory` 和 `MobaWorldBootstrapModule` 创建；`IMobaBattleInputPort` 是否可解析，要到 `Start()` 中创建 Battle Session 时才能确定。
+
 ```csharp
-void Initialize()
+public void Initialize()
 {
-    // 1. Bootstrap Flow：_flow.Configure(_context)
-    _flow.Configure(new FlowConfigureContext(_modules, _options));
-
-    // 2. 初始化 Share 订阅：_snapshotDispatcher.Subscribe(OpCode → OnXxx)
+    ConfigureWorld();
     InitializeShareSubscriptions();
-
-    // 3. 初始化 View 订阅：_battleViewEventSink.Subscribe(...)
-    InitializeViewSubscriptions();
-
-    // 4. 设置初始阶段
-    _flow.SetInitialPhase("Prepare");
+    LogBattleConfig();
 }
 ```
 
-### 2.2 `SetupBattle()` 做了什么
+这里不会调用不存在的 Flow Configure 或 View Subscription，也不会设置初始阶段。`BattleFlow` 的上下文、InMatch Feature 和输入 Sink 都在 `Start()` 中装配。
+
+### 2.2 `Start()` 与 `SetupBattle()` 的边界
+
+`Start()` 负责把 `ConsoleBattleContext` 交给 `BattleFlow`，向 `InMatchPhase` 注册 View、Sync、Input、HUD 四个 SubFeature，并优先把输入 Sink 接到运行时 `IMobaBattleInputPort`。只有 `SnapshotAuthority` 模式会在这里调用 `StateSyncAdapter.Connect()`。
+
+`SetupBattle()` 依次触发 Connect、CreateOrJoinWorld、LoadAssets 和 InMatch。当前调用是同步连续切换，主要用于 Console Demo 和测试装配；它不能单独证明这些阶段已经完成真实异步网络或资源加载。
 
 ```csharp
-void SetupBattle()
+public void SetupBattle()
 {
-    // 直接跳转到 InMatch，跳过网络连接等阶段
-    _flow.TransitionTo("Connect");
-    _flow.TransitionTo("CreateOrJoinWorld");
-    _flow.TransitionTo("LoadAssets");
-    _flow.TransitionTo("InMatch");
+    TransitionTo("Connect");
+    TransitionTo("CreateOrJoinWorld");
+    TransitionTo("LoadAssets");
+    TransitionTo("InMatch");
+    _hudFeature.RenderHud();
 }
 ```
 
@@ -83,110 +84,74 @@ void SetupBattle()
 
 ### 3.1 Feature 接口体系
 
-```csharp
-// 特征标识
-public interface IFeatureId { string FeatureId { get; } }
+当前 Feature 使用 `Id` 标识，通过 `IModuleDependencies.Dependencies` 声明依赖；逐帧更新是可选接口，不要求所有 Feature 实现。
 
-// 依赖声明
-public interface IFeatureDependencies
+```csharp
+public interface IFeatureId
 {
-    IEnumerable<string> GetDependencies();
+    string Id { get; }
 }
 
-// 生命周期
-public interface IFeature : IFeatureId, IFeatureDependencies
+public interface IModuleDependencies
+{
+    string[]? Dependencies { get; }
+}
+
+public interface IFeature : IFeatureId, IModuleDependencies
 {
     void OnAttach(IFeatureContext ctx);
     void OnDetach(IFeatureContext ctx);
 }
 
-// 帧更新
-public interface IFeatureTick { void Tick(IFeatureContext ctx, float deltaTime); }
+public interface IFeatureTick
+{
+    void Tick(IFeatureContext ctx, float deltaTime);
+}
 ```
 
 ### 3.2 FeatureHost 生命周期
 
-```csharp
-// 附加（依赖拓扑序）
-void Attach(IFeatureContext context)
-{
-    if (!TrySort()) return; // 拓扑排序
-    foreach (var feature in _sorted)
-    {
-        feature.OnAttach(context);
-    }
-}
+`FeatureHost` 在第一次 Attach 前按依赖深度优先排序，Attach 和 Tick 都遍历 `_sortedFeatures`，Detach 使用反向排序。重复 ID 会被忽略；缺失依赖或依赖环会让排序失败。
 
-// 帧更新（注册顺序）
-void Tick(float deltaTime)
-{
-    foreach (var feature in _features)
-    {
-        if (feature is IFeatureTick ft)
-            ft.Tick(_context, deltaTime);
-    }
-}
-
-// 分离（反向顺序）
-void Detach()
-{
-    for (int i = _sorted.Count - 1; i >= 0; i--)
-    {
-        _sorted[i].OnDetach(_context);
-    }
-}
-```
+当前失败语义需要单独注意：单个 Feature 的 Attach、Tick 或 Detach 异常会被记录后继续处理其他 Feature；即使某个 Attach 失败，Host 最后仍会把 `_attached` 设为 `true`。因此它目前提供的是 Demo 级生命周期隔离，不是“全有或全无”的事务式装配，也不会自动回滚已经 Attach 的 Feature。
 
 ### 3.3 Console SubFeature 包装
 
+`IConsoleSubFeature` 保留强类型的 `ConsoleBattleContext` 生命周期。`AddConsoleFeature()` 使用 `SubFeatureAdapter` 将它转换为 `IFeature` 和 `IFeatureTick`；`ConsoleSubFeatureBase` 则保存当前 Context，并通过 `GetSubFeatureId()`、`GetSubFeatureDependencies()` 让子类声明身份和依赖。
+
 ```csharp
-// ConsoleSubFeatureBase 实现了 IFeature，把 Console 组件适配到 FeatureHost
-public abstract class ConsoleSubFeatureBase : IFeature, IFeatureDependencies
+public interface IConsoleSubFeature
 {
-    protected IConsoleBattleView? _battleView;
-    protected ConsoleBattleContext? _ctx;
-
-    public virtual void OnAttach(ConsoleBattleContext ctx) { _ctx = ctx; }
-    public virtual void OnDetach(ConsoleBattleContext ctx) { }
-    public virtual void Tick(ConsoleBattleContext ctx, float deltaTime) { }
-
-    // 子类通过 IFeatureDependencies 声明依赖
-    public virtual IEnumerable<string> GetDependencies() => Enumerable.Empty<string>();
+    string Id { get; }
+    string[] Dependencies { get; }
+    void OnAttach(ConsoleBattleContext ctx);
+    void Tick(ConsoleBattleContext ctx, float deltaTime);
+    void OnDetach(ConsoleBattleContext ctx);
 }
 ```
 
 ### 3.4 InMatch 的四步初始化
 
-InMatchPhase.OnEnter 中分 4 步推进，每步由 FeatureHost 执行：
+`InMatchPhase.OnEnter()` 只重置步骤状态并 Attach Feature。四个初始化步骤由后续 `OnTick()` 每帧推进一个；它们属于 `InMatchPhase`，不是由 `FeatureHost` 分派执行：
 
 ```mermaid
 flowchart TB
     A["InMatchPhase.OnEnter"] --> B["FeatureHost.Attach(ctx)"]
-    B --> C["Attach 顺序（拓扑排序）"]
-    C --> C1["1. BattleEntityFeature<br/>(依赖为空)"]
-    C1 --> C2["2. ConsoleViewFeature<br/>(依赖空)"]
-    C2 --> C3["3. ConsoleSyncFeature<br/>(依赖空)"]
-    C3 --> C4["4. ConsoleInputFeature<br/>(依赖 console_sync_feature)"]
-    C4 --> C5["5. ConsoleHudFeature<br/>(依赖空)"]
+    B --> C["Attach 顺序（依赖排序）"]
+    C --> C1["1. BattleEntityFeature<br/>创建本地 ECS World"]
+    C1 --> C2["2. ConsoleViewFeature"]
+    C2 --> C3["3. ConsoleSyncFeature<br/>依赖 View"]
+    C3 --> C4["4. ConsoleInputFeature<br/>依赖 Sync"]
+    C4 --> C5["5. ConsoleHudFeature<br/>依赖 View"]
 
-    C5 --> D["4 步初始化推进"]
-    D --> D1["Step 0: RegisterPlayerEntities<br/>BattleEntityFeature 创建角色实体"]
-    D1 --> D2["Step 1: RegisterLocalPlayer<br/>ConsoleInputFeature.SetLocalActorId"]
-    D2 --> D3["Step 2: InitializeBattleState<br/>BattleFlow 设置 State=InMatch"]
-    D3 --> D4["Step 3: NotifyBattleStarted<br/>SessionHooks.BattleStarted 触发"]
+    C5 --> D["后续 Tick 每帧推进一步"]
+    D --> D1["Step 0: RegisterPlayerEntities<br/>EntityFactory 创建角色实体"]
+    D1 --> D2["Step 1: RegisterLocalPlayer<br/>写入 Context.LocalActorId"]
+    D2 --> D3["Step 2: InitializeBattleState<br/>State=InMatch + IsInitialized=true"]
+    D3 --> D4["Step 3: NotifyBattleStarted<br/>触发 BattleFlowEvents.BattleStarted"]
 ```
 
-**依赖声明示例：**
-
-```csharp
-// ConsoleInputFeature 需要 SyncFeature 先 attach
-public override IEnumerable<string> GetDependencies() =>
-    new[] { "console_sync_feature" };
-
-// BattleEntityFeature 必须最先（无依赖）
-public override IEnumerable<string> GetDependencies() =>
-    Enumerable.Empty<string>();
-```
+`BattleEntityFeature` 在 `InMatchPhase` 构造时最先加入且没有依赖；其余 Feature 在 `Start()` 中注册。当前依赖链为 View → Sync → Input，同时 HUD 依赖 View。`LocalActorId` 不是由 Input Feature 设置，而是第二个初始化步骤直接写入 Context。
 
 ---
 
@@ -228,7 +193,7 @@ public void Tick(float deltaTime)
 }
 ```
 
-**特点：** `SubmitInput()` 是空操作（直接写入 context 的 HUD），`GetAllActorStates()` 返回空（TODO）。
+**当前边界：** `SubmitInput()` 是空操作，因为正常本地输入由 `ConsoleInputFeature` 提交到运行时输入 Sink；`GetAllActorStates()` 的 ECS 查询仍是 TODO 并返回空数组。该 Adapter 是本地时钟镜像和事件适配，不是远程 Lockstep 客户端，`Connect()` 会抛出 `NotSupportedException`。
 
 ### 4.3 StateSyncAdapter（网络权威模式）
 
@@ -242,11 +207,14 @@ Connect(host, port, roomId, playerId)
  ├─ CreateOrJoinRoom(roomId) → 获取 numericRoomId
  └─ _connected = true
 
-// 帧循环
+// 本地 Tick 只推进逻辑时间
 Tick(deltaTime)
- ├─ _logicTimeSeconds += deltaTime
- ├─ OnFrameSync?.Invoke(_currentFrame, _logicTimeSeconds)
- └─ 服务端推送自动触发 OnServerPush() 回调
+ └─ _logicTimeSeconds += deltaTime
+
+// 网络事件由 TcpNetworkClient 推送处理触发
+OnServerPush(opCode, payload)
+ ├─ FramePushed → HandleFramePushed() → 更新帧与逻辑时间 → OnFrameSync
+ └─ SnapshotPushed → HandleSnapshotPushed() → 更新帧与逻辑时间 → OnFrameSync
 
 // 输入提交
 SubmitInput(PlayerInput input)
@@ -254,36 +222,20 @@ SubmitInput(PlayerInput input)
  ├─ NetworkPackage pkg = EncodePackage(OpCodes.SubmitFrameInput, roomId, commands)
  └─ _client.Send(pkg)
 
-// 服务端推送回调
-OnServerPush(int opCode, byte[] payload)
- ├─ OpCode=FramePushed → DecodeFramePushed() → UpdateFrame()
- └─ OpCode=SnapshotPushed → DecodeSnapshotPushed() → OnActorStateSnapshot?.Invoke()
+// SnapshotPushed 还会解析角色状态
+HandleSnapshotPushed(payload)
+ └─ DecodeActors() → OnActorStateSnapshot?.Invoke(actorStates)
 ```
 
-### 4.4 HybridSyncAdapter（预测回滚模式）
+`OnFrameSync` 不是本地 `Tick()` 事件。帧推送和快照推送处理函数在接受服务端时间后触发它；其中快照推送还会触发角色状态事件。若没有网络推送，`Tick()` 只会增加本地 `_logicTimeSeconds`。
 
-**职责：** 客户端本地预测 + 服务端快照校正。
+### 4.4 HybridSyncAdapter（本地预测实验适配器）
 
-```csharp
-// 构造时创建 PredictionCoordinator
-_predictionCoordinator = new PredictionCoordinator(
-    new MovementPredictionHandler(),
-    new CooldownPredictionHandler(),
-    new HealthPredictionHandler());
+`HybridSyncAdapter` 会按配置注册移动、冷却和生命值三个预测处理器，输入通过 `PredictionCoordinator.ProcessInput()` 进入本地预测。公开的 `OnServerSnapshot()` 可以把调用方提供的快照写入缓存，并交给 Coordinator 比较和应用。
 
-// 输入提交
-SubmitInput(PlayerInput input)
- ├─ _predictionCoordinator.SubmitInput(_localActorId, frame, input)
- ├─ _predictionCoordinator.Predict(frame) // 本地预测
- └─ Encode + _client.Send(OpCodes.SubmitFrameInput, ...)
+但它当前没有网络客户端：`Connect()` 明确抛出 `NotSupportedException("Hybrid network mode not yet implemented.")`，Bootstrapper 也只会为 `SnapshotAuthority` 发起连接。`SubmitInput()` 只解析移动 payload 并进入 Coordinator，不会把输入发送给服务器；`OnServerSnapshot()` 也没有被真实服务端推送链路调用。
 
-// 服务端校正
-OnServerPush(OpCodes.SnapshotPushed, payload)
- ├─ DecodeSnapshot(payload) → snapshots[]
- ├─ _predictionCoordinator.OnServerStateReceived(frame, snapshots)
- ├─ snapshots → OnActorStateSnapshot?.Invoke()
- └─ 检测到分歧 → _predictionCoordinator.Reconcile(frame)
-```
+因此当前证据支持“本地 PredictionCoordinator 集成入口”和“手动注入服务器快照的校正路径”，不支持把 Console Hybrid 描述成已经闭合的联机预测、权威校正、回滚重演和表现层重整方案。
 
 ---
 
@@ -337,21 +289,11 @@ _autoInput.Stop();
 bootstrapper.SetAutoTestInput(null);
 ```
 
-### 5.3 输入命令结构
+### 5.3 输入命令不要与录制 DTO 混淆
 
-```csharp
-public struct PlayerInputCommand
-{
-    public int ActorId;           // 玩家 ID
-    public int Frame;             // 帧号
-    public byte OpCode;          // 操作码：Move=1, SkillPress=2, SkillAim=3, SkillRelease=4
-    public byte[] Payload;        // 编码数据
-}
-```
+运行时输入使用 `AbilityKit.Ability.FrameSync.PlayerInputCommand`，包含 `FrameIndex`、`PlayerId`、业务 OpCode 和 payload。移动通过 `MobaMoveCodec` 编码，技能通过 `ConsoleSkillInputCodec` 编码后提交给 `IWorldInputSink`。
 
-| OpCode | 1 (Move) | 2 (SkillPress) | 3 (SkillAim) | 4 (SkillRelease) |
-|--------|----------|-----------------|--------------|-----------------|
-| Payload | `{"dx":f,"dz":f}` (JSON UTF8) | `slot` (二进制) | `slot+aimPos` (二进制) | `slot` (二进制) |
+`Replay/RecordTypes.cs` 另有同名的只读 `PlayerInputCommand`，字段是 `ActorId`、`Frame`、`InputCommandType`、`byte OpCode` 和 `byte[] Payload`，只用于 `.akrec`。两者属于不同命名空间和协议层，不能把录制 DTO 当作运行时帧输入契约。
 
 ---
 
@@ -383,11 +325,13 @@ ConsoleBattleViewEventSink
     ├─ ShowProjectileSpawn() ────▶ ConsoleBattleView.ProjectileDisplay.Add()
     └─ UpdateEntityHp() ─────────▶ ConsoleBattleView.EntityDisplay.UpdateHp()
 
-ConsoleBattleView.Tick() (FeatureHost 驱动，每帧)
+ConsoleBattleView.Tick()
     │
     ▼
 ConsoleBattleView.Render() → ASCII 打印到 Console
 ```
+
+当前实现有两个视图 Tick 入口：`ConsoleViewFeature.Tick()` 经 `FeatureHost` 调用一次，`ConsoleBattleBootstrapper.Tick()` 在 `_flow.Tick()` 后又直接调用一次 `_battleView.Tick()`。因此一次 Bootstrapper Tick 可能推进两次视图更新。这是尚待收敛的重复驱动风险，不能视为预期的双阶段渲染设计；后续应保留唯一所有者，并用调用计数或渲染节流测试固定该契约。
 
 ### 6.2 插值渲染
 
@@ -414,33 +358,42 @@ _viewBinder.TickRender((float)elapsed,
 
 ### 7.1 测试分层
 
-| 层次 | 工具 | 覆盖范围 |
+| 层次 | 工具 | 当前覆盖范围 |
 |---|---|---|
-| 初始化验收 | `AutoTestRunner.TestInitialization()` | Bootstrapper / Flow / Context / ECS / View 是否存在 |
-| 阶段切换验收 | `AutoTestRunner.TestPhaseTransition()` | TransitionTo("InMatch") 后阶段是否为 InMatch |
-| 脚本执行验收 | `BattleTestScriptRunner.Run()` | 多帧输入 → 帧推进 → 断言 |
-| 自定义验收 | `AutoTestScenario` | 业务场景（技能释放、移动、Buff 等） |
+| 共享脚本契约 | `BattleTestScriptRunnerTests` | 步骤持续 tick、driver 生命周期、异常结果和场景复用 |
+| Console World Smoke | `ConsoleMobaSmokeFlowTests` | 正式 Bootstrapper、运行时输入端口、移动/技能命令和 Trace |
+| 战斗生命周期 Smoke | `MobaCompleteBattleLifecycleSmokeTests` | 死亡、复活、再次死亡和终局结算 |
+| Runner 内置检查 | `AutoTestRunner.TestInitialization()`、`TestPhaseTransition()` | 对象存在、ECS World 已创建和阶段名；属于 Smoke 辅助断言，不是独立 E2E 套件 |
+
+`AutoTestRunner` 在线程中切换自动输入，调用共享 `BattleTestScriptRunner`，然后执行两项基础检查。它不会自动断言任意 Buff、伤害或网络校正；这些业务结果必须由具体 xUnit Smoke 或调用方读取 Runtime/Trace 后验证。
 
 ### 7.2 BattleTestScript 结构
 
 ```csharp
+public sealed class BattleTestStep
+{
+    public BattleTestStepKind Kind { get; }
+    public int DurationTicks { get; }
+    public float Dx { get; }
+    public float Dz { get; }
+    public int Slot { get; }
+
+    public static BattleTestStep Move(float dx, float dz, int durationTicks);
+    public static BattleTestStep Skill(int slot, int durationTicks = 1);
+    public static BattleTestStep Wait(int durationTicks);
+    public static BattleTestStep Idle(int durationTicks);
+}
+
 public sealed class BattleTestScript
 {
     public string Name { get; }
-    public List<BattleTestStep> Steps { get; }
-}
-
-public enum BattleTestStepKind { Move, Skill, Wait, Idle }
-
-public sealed class BattleTestStep
-{
-    public BattleTestStepKind Kind { get; set; }
-    public int Slot { get; set; }            // Skill
-    public float Dx { get; set; }             // Move
-    public float Dz { get; set; } }            // Move
-    public int DurationFrames { get; set; }     // Wait
+    public IReadOnlyList<BattleTestStep> Steps { get; }
+    public IReadOnlyList<string> RiskTags { get; }
+    public int TotalDurationTicks { get; }
 }
 ```
+
+步骤模型是平台无关且不可变的；Console、Unity 或其他宿主通过 `IBattleTestScriptDriver` 解释同一份脚本。持续时间统一使用 `DurationTicks`，不是 `DurationFrames`。
 
 ### 7.3 测试运行流程
 
@@ -462,22 +415,24 @@ sequenceDiagram
         Input->>Input: step.Kind == Move → ctx.HudMoveDx/Dz = Dx/Dz
         Input->>Input: step.Kind == Skill → ctx.HudSkillClickSlot = Slot
 
-        loop DurationFrames 次
+        loop DurationTicks 次
             Driver->>Bootstrapper: Tick(deltaTime)
             Bootstrapper->>Feature: Tick()
             Feature->>Sink: Submit(frame, commands)
         end
     end
 
-    Driver->>Input: EndScript()
-    Input->>Input: Stop()
+    Runner->>Driver: EndScript(script, result)
+    Driver->>Input: Stop()
 ```
 
 ---
 
 ## 8. 录制与回放
 
-### 8.1 .akrec 文件格式
+Console 当前有两套录制入口。CLI `--record/--replay` 使用 `ReplayController` 和 `.akrec` 输入记录；`ConsoleBattleBootstrapper.StartRecording()` 使用 `ShareReplayRecorder` 记录共享快照。两者的数据模型和文件协议不同，不应合并理解。
+
+### 8.1 CLI `.akrec` 文件格式
 
 ```
 AKRC (Magic: 0x414B5243)
@@ -486,28 +441,21 @@ AKRC (Magic: 0x414B5243)
 ├─ StartFrame / EndFrame: int
 ├─ TotalCommands: int
 ├─ MapName / PlayerName / GameMode: string
-├─ [PlayerInputCommand] commands (MemoryPack 序列化)
-└─ [FrameSnapshot] snapshots (MemoryPack 序列化)
+├─ MetadataLength + Metadata: byte[]
+├─ CommandCount
+│  └─ Length + PlayerInputCommand (MemoryPack)
+└─ SnapshotCount
+   └─ Length + FrameSnapshot (MemoryPack)
     ├─ Frame
     ├─ ActorCount
     └─ StateHash
 ```
 
-### 8.2 录制时机
+### 8.2 CLI 录制时机与快照边界
 
-```csharp
-// Program.RecordingGameLoop() 中：
-if (Math.Abs(ctx.HudMoveDx) > 0.01f)
-    _replayController.RecordCommand(actorId, frame, InputCommandType.Move, payload);
+`Program.RecordingGameLoop()` 在每次 Bootstrapper Tick 后读取 HUD 状态：非零移动被编码为 `Move`，技能点击被记录为 `SkillPress`；达到配置间隔时写入 `FrameSnapshot(frame, actorCount, stateHash)`。当前 `StateHash` 只由帧号和实体数量计算，是轻量校验值，不是完整 World 确定性哈希。
 
-// 快照每 N 帧记录一次
-if (frame % SnapshotIntervalFrames == 0)
-    _replayController.AddSnapshot(frame, actorCount);
-
-// Bootstrapper.Tick() 中也记录快照
-if (_replayRecorder?.IsRecording == true && _replayRecorder.ShouldRecordSnapshot())
-    RecordCurrentSnapshot();
-```
+Bootstrapper 内的 `ShareReplayRecorder` 是另一条路径。它按自己的间隔调用 `RecordCurrentSnapshot()`，但当前序列化内容仍是 `{ Frame, Actors = [] }` 的占位 JSON，不能据此恢复完整角色状态。文档和验收不得把这条路径描述成完整状态回放。
 
 ### 8.3 回放索引
 
@@ -536,35 +484,43 @@ while (running) {
 
 ---
 
-## 9. 设计意图与约束
+## 9. 当前验证证据
 
-### 9.1 为什么用 FeatureHost
+| 验证入口 | 2026-08-02 结果 | 能证明什么 | 不能证明什么 |
+|---|---|---|---|
+| `dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj -c Release` | 232/232 通过，但有依赖漏洞、Entitas 兼容性、可空性和 xUnit Analyzer 警告 | MOBA .NET 测试程序集中的 Console Smoke、共享脚本和战斗逻辑测试通过 | Unity Test Runner、Orleans TCP Smoke、真实 Hybrid 联机和 CLI 交互式录制回放未在本轮执行 |
+| `ConsoleMobaSmokeFlowTests` | 包含在上述 232 项中 | 正式 Bootstrapper 可创建 World，自动输入能经过运行时端口，技能和 Effect Trace 可观察 | 不等于键盘线程、远程 Gateway 或 `.akrec` 文件往返已验证 |
+| `BattleTestScriptRunnerTests` | 包含在上述 232 项中 | 共享步骤的 duration tick 和 driver 生命周期闭合 | 不负责判断具体战斗业务结果 |
+
+## 10. 设计意图与约束
+
+### 10.1 为什么用 FeatureHost
 
 如果入口代码直接持有所有系统，阶段切换、重启、自动测试替换输入都会变得混乱。FeatureHost 让 InMatch 阶段只关心"挂哪些能力"，具体能力自己处理 attach/tick/detach。
 
-### 9.2 为什么 SyncAdapter 有三种
+### 10.2 为什么 SyncAdapter 有三种
 
-| 模式 | 使用场景 | Console Demo 用途 |
+| 模式 | 当前实现 | Console Demo 用途与边界 |
 |---|---|---|
-| `FrameSyncAdapter` | 本地开发、无网络 | **默认**：CLI 测试、录制回放 |
-| `StateSyncAdapter` | 联机开发、服务端权威 | 与 Gateway 联调 |
-| `HybridSyncAdapter` | 客户端预测 | 预测回滚验证 |
+| `FrameSyncAdapter` | 本地镜像 Context 帧号和逻辑时间 | 默认本地测试入口；不支持远程 Lockstep，角色状态查询仍为空 |
+| `StateSyncAdapter` | TCP 登录、建房/加房、提交输入、消费帧和状态推送 | Gateway 状态同步联调入口；生产拓扑和异常恢复需由独立 Smoke 证明 |
+| `HybridSyncAdapter` | 本地 PredictionCoordinator、三类 Handler、手动快照注入 | 预测组件装配实验；网络 Connect 未实现，不能视为联机回滚闭环 |
 
-### 9.3 为什么 AutoTestInputFeature 不直接提交
+### 10.3 为什么 AutoTestInputFeature 不直接提交
 
 AutoTestInputFeature 只写入 `ctx.HudMoveDx/HudSkillClickSlot`，不直接调用 `_sink.Submit()`。这样 ConsoleInputFeature 的编码逻辑（MoveCodec / SkillInputCodec）仍然生效，保证测试和人工输入走同一条代码路径。
 
 ---
 
-## 10. 与其他文档的关系
+## 11. 与其他文档的关系
 
 | 文档 | 关系 |
 |---|---|
-| [01-ConsoleDemoAnalysis.md](./01-ConsoleDemoAnalysis.md) | 概览；本文补充源码级装配细节 |
-| [01-世界启动与运行时装配](./MOBA/01-WorldAndBootstrap.md) | 理解 MOBA runtime world 创建 |
-| [04-快照、表现层与预测回滚](./MOBA/04-SnapshotPresentationPrediction.md) | 理解快照路由和表现层去重 |
-| [07-帧同步机制](../07-NetworkSynchronization/01-FrameSync.md) | 理解 FrameIndex、PlayerInputCommand 和帧同步原理 |
+| [01-ConsoleDemoAnalysis.md](../01-ConsoleDemoAnalysis.md) | 概览；本文补充源码级装配细节 |
+| [01-世界启动与运行时装配](./01-WorldAndBootstrap.md) | 理解 MOBA runtime world 创建 |
+| [04-快照、表现层与预测回滚](./04-SnapshotPresentationPrediction.md) | 理解快照路由和表现层去重 |
+| [07-帧同步机制](../../07-NetworkSynchronization/01-FrameSync.md) | 理解 FrameIndex、PlayerInputCommand 和帧同步原理 |
 
 ---
 
-*文档版本：v1.0 | 状态：canonical | 最后更新：2026-07-22 | 基于 Console Demo 源码 v2026-Q3*
+*文档版本：v1.1 | 状态：canonical | 最后更新：2026-08-02 | 验证基线：MOBA .NET tests 232/232（有警告）*

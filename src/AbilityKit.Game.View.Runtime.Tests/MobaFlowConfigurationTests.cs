@@ -130,10 +130,9 @@ namespace AbilityKit.Game.View.Runtime.Tests
         }
 
         [Fact]
-        public void BattleMachine_Has10Transitions()
+        public void BattleMachine_Has9Transitions()
         {
-            // 阶段 7a：追加 AssetsLoadCompleted（LoadAssets→InMatch），保留旧 LoadingDone（向后兼容）。
-            Assert.Equal(10, _config.BattleMachine.Transitions.Count);
+            Assert.Equal(9, _config.BattleMachine.Transitions.Count);
         }
 
         [Fact]
@@ -178,20 +177,9 @@ namespace AbilityKit.Game.View.Runtime.Tests
         }
 
         [Fact]
-        public void BattleMachine_LoadingDone_LoadAssetsToInMatch_BackCompat()
-        {
-            // 阶段 7a：旧 LoadingDone 转换保留以向后兼容（不再被触发）。
-            var t = _config.BattleMachine.Transitions[4];
-            Assert.Equal(MobaBattleEvent.LoadingDone, t.Trigger);
-            Assert.Equal(MobaBattleState.LoadAssets, t.From);
-            Assert.Equal(MobaBattleState.InMatch, t.To);
-            Assert.Null(t.ConditionId);
-        }
-
-        [Fact]
         public void BattleMachine_Ended_InMatchToEnd()
         {
-            var t = _config.BattleMachine.Transitions[9];
+            var t = _config.BattleMachine.Transitions[8];
             Assert.Equal(MobaBattleEvent.Ended, t.Trigger);
             Assert.Equal(MobaBattleState.InMatch, t.From);
             Assert.Equal(MobaBattleState.End, t.To);
