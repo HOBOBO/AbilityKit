@@ -2,6 +2,7 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Game.Flow;
 using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
@@ -359,6 +360,87 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual("room-4", snapshot.RoomId);
             Assert.AreEqual(ClientRoomPhase.Starting, snapshot.Phase);
             Assert.AreEqual(20L, snapshot.RoomRevision);
+        }
+
+        [Test]
+        public void RoomStatePushSynchronizer_OwnerLeavePromotesRemainingMemberWithoutRefresh()
+        {
+            var conn = new MockConnection();
+            var client = CreateClient(conn);
+            var store = new ClientRoomStore();
+            var refreshCalls = 0;
+            ClientRoomMembershipChange membershipChange = null;
+            store.OnMembershipChanged += change => membershipChange = change;
+            var synchronizer = new ClientRoomPushSynchronizer(
+                client,
+                store,
+                _ =>
+                {
+                    refreshCalls++;
+                    return System.Threading.Tasks.Task.CompletedTask;
+                });
+
+            var initial = new WireRoomStateChangedPush
+            {
+                RoomId = "room-owner-transfer",
+                Snapshot = new WireRoomSnapshot
+                {
+                    Summary = new WireRoomSummary
+                    {
+                        RoomId = "room-owner-transfer",
+                        OwnerAccountId = "account-owner",
+                        PlayerCount = 2,
+                        MaxPlayers = 2
+                    },
+                    Members = new List<string> { "account-owner", "account-member" },
+                    RoomRevision = 20,
+                    LastEventSequence = 20,
+                    Phase = 0
+                }
+            };
+            var transferred = new WireRoomStateChangedPush
+            {
+                RoomId = "room-owner-transfer",
+                Snapshot = new WireRoomSnapshot
+                {
+                    Summary = new WireRoomSummary
+                    {
+                        RoomId = "room-owner-transfer",
+                        OwnerAccountId = "account-member",
+                        PlayerCount = 1,
+                        MaxPlayers = 2
+                    },
+                    Members = new List<string> { "account-member" },
+                    RoomRevision = 21,
+                    LastEventSequence = 21,
+                    Phase = 0
+                }
+            };
+
+            var initialHandled = synchronizer.HandleServerPushAsync(
+                    RoomGatewayOpCodes.RoomStateChanged,
+                    WireRoomGatewayBinary.Serialize(in initial))
+                .GetAwaiter()
+                .GetResult();
+            var transferHandled = synchronizer.HandleServerPushAsync(
+                    RoomGatewayOpCodes.RoomStateChanged,
+                    WireRoomGatewayBinary.Serialize(in transferred))
+                .GetAwaiter()
+                .GetResult();
+
+            Assert.IsTrue(initialHandled);
+            Assert.IsTrue(transferHandled);
+            Assert.AreEqual(0, refreshCalls);
+            Assert.IsFalse(store.IsStale);
+            Assert.AreEqual(21, store.Current.RoomRevision);
+            Assert.AreEqual("account-member", store.Current.OwnerAccountId);
+            CollectionAssert.AreEqual(new[] { "account-member" }, store.Current.Members);
+            Assert.IsNotNull(membershipChange);
+            CollectionAssert.AreEqual(
+                new[] { "account-owner" },
+                membershipChange.LeftAccountIds);
+            Assert.AreEqual("account-owner", membershipChange.PreviousOwnerAccountId);
+            Assert.AreEqual("account-member", membershipChange.CurrentOwnerAccountId);
         }
 
         [Test]

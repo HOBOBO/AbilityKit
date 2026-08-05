@@ -77,8 +77,8 @@
         "alias": "target",
         "property": "hp",
         "comparator": "eq",
-        "expectedFloat": 49840.0,
-        "note": "范围内目标应在前两个延迟落星命中后承受两次当前触发器配置伤害 80 点，最终剩余 49840 点生命值"
+        "expectedFloat": 49920.0,
+        "note": "范围内目标应在前两个延迟落星命中后承受同一技能 runtime 的重复命中衰减伤害，最终剩余 49920 点生命值"
       }
     ]
   },

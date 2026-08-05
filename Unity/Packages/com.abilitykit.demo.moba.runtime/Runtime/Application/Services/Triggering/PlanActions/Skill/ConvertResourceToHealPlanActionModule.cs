@@ -90,6 +90,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             state.Current -= consumed;
             if (state.Current < 0f) state.Current = 0f;
+            MobaResourceAttributeContextProjector.Refresh(entity);
             MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.ConvertResourceToHeal, $"healer={healerActorId}, target={targetActorId}, type={args.ResourceType}, consumed={consumed:0.###}, healed={healed:0.###}, current={state.Current:0.###}");
         }
     }

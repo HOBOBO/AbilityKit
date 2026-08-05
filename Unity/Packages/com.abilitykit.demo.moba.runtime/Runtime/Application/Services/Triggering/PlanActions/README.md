@@ -4,12 +4,13 @@
 
 ## 扩展入口
 
-触发动作模块通过 `PlanActionModuleRegistry` 自动发现：
+触发动作模块通过 `PlanActionModuleRegistry` 自动注册：
 
 - 模块类必须实现 `IPlanActionModule`。
 - 模块类必须带 `[PlanActionModule(order: n)]`。
 - 模块类必须有无参构造函数。
-- 注册表会扫描当前 runtime 程序集，按 `order` 和类型名稳定排序。
+- Source Generator 会生成当前 runtime 程序集的模块清单，按 `order` 和类型名稳定排序。
+- 反射扫描仅作为兼容 fallback；禁用 fallback 后，生成清单缺失会直接报错。
 
 优先使用 `NamedArgsPlanActionModuleBase<TArgs, IWorldResolver, TModule>`。它让动作保持三段式结构：
 
@@ -27,9 +28,7 @@
 
 `MobaTriggerPlanSubscriptionService` 会在构造时缓存 triggerId 到 payload type 的映射，运行时只在真实订阅时做一次泛型注册转换；如果没有映射，则回退到 object channel。
 
-`PlanActionModuleRegistry` 当前通过反射扫描当前 runtime 程序集中的 `[PlanActionModule]` 类型。这个方式保留了低样板代码和扩展便利性，适合作为现阶段的默认实现。
-
-后续如果要用代码生成优化，生成目标应是强类型 schema/module 模式：生成稳定排序的 module 列表或注册入口，替代运行时反射扫描；不建议直接复用旧 `AutoPlanAction` 路线作为正式方案，因为它和当前的 `IActionSchema<TArgs, IWorldResolver>`、`NamedArgsPlanActionModuleBase<TArgs, IWorldResolver, TModule>` 模型并不完全一致。
+`PlanActionModuleRegistry` 默认消费 `MobaGeneratedPlanActionManifest`，避免启动时扫描当前 runtime 程序集。生成器和对应的契约 Analyzer 由 `com.abilitykit.demo.moba.codegen` 统一维护；旧 `AutoPlanAction` 路线不参与该正式流程，因为它和当前的 `IActionSchema<TArgs, IWorldResolver>`、`NamedArgsPlanActionModuleBase<TArgs, IWorldResolver, TModule>` 模型并不完全一致。
 
 ## 新增动作步骤
 

@@ -177,31 +177,37 @@ namespace AbilityKit.Demo.Moba.Services
         public string Reason { get; }
     }
 
-    public static class MobaContinuousModifierCaptureStore
+    public class MobaContinuousModifierCaptureStore
     {
-        private static readonly Dictionary<Key, MobaContinuousModifierCaptureRecord> Records = new Dictionary<Key, MobaContinuousModifierCaptureRecord>();
+        /// <summary>
+        /// 当前作用域（战斗世界）的捕获存储实例。
+        /// 由 <see cref="MobaContinuousModifierQueryService"/> 在初始化时设置。
+        /// </summary>
+        public static MobaContinuousModifierCaptureStore Instance { get; set; } = new MobaContinuousModifierCaptureStore();
 
-        public static void Record(in MobaContinuousModifierCaptureRecord record)
+        private readonly Dictionary<Key, MobaContinuousModifierCaptureRecord> _records = new Dictionary<Key, MobaContinuousModifierCaptureRecord>();
+
+        public void Record(in MobaContinuousModifierCaptureRecord record)
         {
             if (record.Continuous == null || record.ModifierSourceId == 0) return;
-            Records[Key.From(record.Continuous, record.ModifierSourceId, record.TargetKind, record.TargetId, record.Op, record.Priority)] = record;
+            _records[Key.From(record.Continuous, record.ModifierSourceId, record.TargetKind, record.TargetId, record.Op, record.Priority)] = record;
         }
 
-        public static bool TryGet(IContinuous continuous, int sourceId, IMobaContinuousModifierSpec spec, out MobaContinuousModifierCaptureRecord record)
+        public bool TryGet(IContinuous continuous, int sourceId, IMobaContinuousModifierSpec spec, out MobaContinuousModifierCaptureRecord record)
         {
             if (continuous != null && spec != null && sourceId != 0)
-                return Records.TryGetValue(Key.From(continuous, sourceId, spec.TargetKind, spec.TargetId, spec.Op, spec.Priority), out record);
+                return _records.TryGetValue(Key.From(continuous, sourceId, spec.TargetKind, spec.TargetId, spec.Op, spec.Priority), out record);
 
             record = default;
             return false;
         }
 
-        public static void Clear(int sourceId)
+        public void Clear(int sourceId)
         {
-            if (sourceId == 0 || Records.Count == 0) return;
+            if (sourceId == 0 || _records.Count == 0) return;
 
             List<Key> remove = null;
-            foreach (var pair in Records)
+            foreach (var pair in _records)
             {
                 if (pair.Key.SourceId != sourceId) continue;
                 remove ??= new List<Key>();
@@ -210,7 +216,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (remove == null) return;
             for (int i = 0; i < remove.Count; i++)
-                Records.Remove(remove[i]);
+                _records.Remove(remove[i]);
         }
 
         private readonly struct Key : IEquatable<Key>
@@ -274,11 +280,13 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private IContinuousManager _continuous;
         private MobaActorLookupService _actors;
+        private readonly MobaContinuousModifierCaptureStore _captureStore = new MobaContinuousModifierCaptureStore();
 
         public void OnInit(IWorldResolver services)
         {
             services?.TryResolve(out _continuous);
             services?.TryResolve(out _actors);
+            MobaContinuousModifierCaptureStore.Instance = _captureStore;
         }
 
         public void Dispose()
@@ -362,7 +370,7 @@ namespace AbilityKit.Demo.Moba.Services
             var captureMode = spec.EvaluationPolicy == MobaContinuousModifierEvaluationPolicy.OnApplySnapshot ? "OnApplySnapshot" : "Realtime";
             var reason = "Runtime declaration";
 
-            if (MobaContinuousModifierCaptureStore.TryGet(entry.Continuous, sourceId, spec, out var record))
+            if (_captureStore.TryGet(entry.Continuous, sourceId, spec, out var record))
             {
                 projected = record.ProjectedMagnitude;
                 capturedValue = record.CapturedValue;

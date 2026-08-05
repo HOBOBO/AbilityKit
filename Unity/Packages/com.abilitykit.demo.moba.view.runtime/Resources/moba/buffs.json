@@ -97,30 +97,6 @@
                               "Op":  0,
                               "Value":  1.0,
                               "Priority":  30
-                          },
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  8,
-                              "TargetId":  8,
-                              "Op":  3,
-                              "Value":  0,
-                              "MagnitudeSourceType":  5,
-                              "MagnitudeBaseValue":  0,
-                              "MagnitudeCoefficient":  0.2,
-                              "MagnitudeContextKey":  "resource.rage.ratio",
-                              "Priority":  20
-                          },
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  9,
-                              "TargetId":  9,
-                              "Op":  3,
-                              "Value":  0,
-                              "MagnitudeSourceType":  5,
-                              "MagnitudeBaseValue":  0,
-                              "MagnitudeCoefficient":  0.2,
-                              "MagnitudeContextKey":  "resource.rage.ratio",
-                              "Priority":  20
                           }
                       ]
     },

@@ -12,6 +12,11 @@ using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
 {
+    // TODO(v1.0): Extract common IClientPredictionDriver interface shared with
+    // com.abilitykit.host.extension/ClientPredictionDriverModule and
+    // host.extension/Client/FrameSync/* Generic primitives.
+    // Currently three independent prediction stacks coexist:
+    //   world.framesync/Rollback  |  host.extension/Client/FrameSync  |  shooter (this adapter)
     internal sealed class ShooterClientPredictionRuntimeAdapter : IWorld, IWorldInputSink
     {
         private static readonly IWorldResolver EmptyResolver = new EmptyWorldResolver();

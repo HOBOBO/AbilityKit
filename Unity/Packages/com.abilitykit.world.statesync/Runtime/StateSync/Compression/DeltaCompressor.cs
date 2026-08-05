@@ -4,6 +4,12 @@ using System.IO.Compression;
 
 namespace AbilityKit.Ability.StateSync.Compression
 {
+    /// <summary>
+    /// 增量压缩器。当前仅实现 GZip 压缩（<see cref="CompressionLevel.Medium"/>）。
+    /// LZ4 / Zstd 压缩级别尚未实现——项目目前不依赖此类型（零消费者），
+    /// 在生产路径由 Shooter demo 的 packed/pure-state chunk 序列化承担压缩。
+    /// 待引入 K4os.Compression.LZ4 / ZstdNet NuGet 包后可补充实现。
+    /// </summary>
     public sealed class DeltaCompressor
     {
         public enum CompressionLevel
@@ -88,22 +94,30 @@ namespace AbilityKit.Ability.StateSync.Compression
 
         private static byte[] LZ4Compress(byte[] data)
         {
-            return GZipCompress(data);
+            throw new NotSupportedException(
+                "LZ4 compression is not yet implemented. " +
+                "Install the K4os.Compression.LZ4 NuGet package to enable LZ4 support.");
         }
 
         private static byte[] LZ4Decompress(byte[] data)
         {
-            return GZipDecompress(data);
+            throw new NotSupportedException(
+                "LZ4 decompression is not yet implemented. " +
+                "Install the K4os.Compression.LZ4 NuGet package to enable LZ4 support.");
         }
 
         private static byte[] ZstdCompress(byte[] data)
         {
-            return GZipCompress(data);
+            throw new NotSupportedException(
+                "Zstd compression is not yet implemented. " +
+                "Install the ZstdNet NuGet package to enable Zstd support.");
         }
 
         private static byte[] ZstdDecompress(byte[] data)
         {
-            return GZipDecompress(data);
+            throw new NotSupportedException(
+                "Zstd decompression is not yet implemented. " +
+                "Install the ZstdNet NuGet package to enable Zstd support.");
         }
 
         public int EstimateCompressedSize(int originalSize)

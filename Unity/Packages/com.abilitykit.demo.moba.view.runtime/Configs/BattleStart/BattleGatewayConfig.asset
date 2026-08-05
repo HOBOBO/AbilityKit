@@ -21,6 +21,7 @@ MonoBehaviour:
   RoomType: moba
   RoomTitle: MOBA Room
   MaxPlayers: 2
+  MinPlayers: 2
   RoomListLimit: 10
   GameplayId: 1
   RuleSetId: 1
@@ -30,7 +31,8 @@ MonoBehaviour:
   ClientId: moba-client
   RestoreRoomOnEntry: 1
   AutoReadyDefaultLoadout: 1
-  AutoStartWhenReady: 1
+  AutoStartWhenReady: 0
+  AutoCreateWhenEmpty: 1
   DefaultHeroId: 1001
   DefaultTeamId: 1
   DefaultSpawnPointId: 0

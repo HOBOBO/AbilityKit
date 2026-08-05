@@ -8,7 +8,44 @@
     "TriggerIds": [],
     "ContinuousTagTemplateId": 0,
     "Tags": [],
-    "Modifiers": [],
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 13,
+        "TargetId": 13,
+        "Op": 0,
+        "Value": 0,
+        "MagnitudeSourceType": 5,
+        "MagnitudeBaseValue": 0,
+        "MagnitudeCoefficient": 0.3,
+        "MagnitudeContextKey": "resource.rage.ratio",
+        "Priority": 20
+      },
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 8,
+        "TargetId": 8,
+        "Op": 3,
+        "Value": 0,
+        "MagnitudeSourceType": 5,
+        "MagnitudeBaseValue": 0,
+        "MagnitudeCoefficient": 0.2,
+        "MagnitudeContextKey": "resource.rage.ratio",
+        "Priority": 20
+      },
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 9,
+        "TargetId": 9,
+        "Op": 3,
+        "Value": 0,
+        "MagnitudeSourceType": 5,
+        "MagnitudeBaseValue": 0,
+        "MagnitudeCoefficient": 0.2,
+        "MagnitudeContextKey": "resource.rage.ratio",
+        "Priority": 20
+      }
+    ],
     "RequireOutOfCombat": true,
     "OutOfCombatSeconds": 5
   }

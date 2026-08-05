@@ -3,6 +3,16 @@ namespace AbilityKit.Network.Runtime
     /// <summary>
     /// 描述会话或玩法示例使用的网络同步策略。
     /// 该枚举保持玩法无关，便于不同示例共享同一套同步术语。
+    ///
+    /// <b>已实现：</b> <see cref="PredictRollback"/>、<see cref="AuthoritativeInterpolation"/>、
+    /// <see cref="ServerRewindLagCompensation"/>。
+    ///
+    /// <b>预留（尚未实现）：</b> <see cref="Lockstep"/>、<see cref="BatchStateSync"/>、
+    /// <see cref="MassBattleLodSync"/>、<see cref="HybridHeroPrediction"/>、
+    /// <see cref="FastReconnect"/>。
+    ///
+    /// 预留值的存在是为了让 Shooter demo 的 sync template catalog
+    /// 可以提前使用这些标签，无需等待完整实现。
     /// </summary>
     public enum NetworkSyncModel
     {

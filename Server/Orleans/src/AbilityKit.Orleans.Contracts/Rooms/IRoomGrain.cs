@@ -45,4 +45,19 @@ public interface IRoomGrain : IGrainWithStringKey
     Task<RoomOperationResult> CancelLoadingWithResultAsync(CancelLoadingRequest request);
 
     Task<RoomOperationResult> TickAsync(RoomTickRequest request);
+
+    Task BindStatePushObserverAsync(
+        string accountId,
+        string bindingId,
+        IRoomStateGatewayPushObserver observer);
+
+    Task UnbindStatePushObserverAsync(string accountId, string bindingId);
+}
+
+/// <summary>
+/// Gateway-local room state observer exposed to the Silo through an Orleans object reference.
+/// </summary>
+public interface IRoomStateGatewayPushObserver : IGrainObserver
+{
+    void OnPush(uint opCode, byte[] payload);
 }

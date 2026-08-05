@@ -84,7 +84,7 @@
         "property": "hp",
         "comparator": "eq",
         "expectedFloat": 857.5862,
-        "tolerance": 0.001
+        "tolerance": { "x": 0.001, "y": 0.001, "z": 0.001 }
       }
     ]
   },

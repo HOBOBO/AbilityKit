@@ -29,8 +29,11 @@ Buff 可以承载属性修改、周期效果、标签门禁、表现 Cue 和触�
 | 结束流程 | [`BuffEndFlow.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffEndFlow.cs:16) | 解绑、通知、移除和回收 |
 | 命令消费系统 | [`MobaBuffCommandDrainSystem.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffCommandDrainSystem.cs:9) | 每帧 256 条命令预算 |
 | 生命周期调和系统 | [`MobaBuffLifecycleReconcileSystem.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffLifecycleReconcileSystem.cs:10) | 遍历 Actor 并执行运行时对账 |
+| Continuous Tick 系统 | [`MobaContinuousTickSystem.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Continuous/MobaContinuousTickSystem.cs:9) | 读取 World Clock，推进 MOBA Continuous Manager |
+| 状态恢复 | [`MobaBuffStateRecoveryProvider.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffStateRecoveryProvider.cs:13) | 清空旧列表、按稳定排序重建运行时和 context |
+| 计时回滚 | [`MobaBuffTimerRollbackProvider.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaBuffTimerRollbackProvider.cs:26) | 只更新已有 Buff 的计时、周期剩余和层数 |
 
-`MobaBuffService` 是 World Service。`OnInit` 通过当前 World 的 `IWorldResolver` 构建生命周期执行器，确保配置、Actor 查询、事件总线、Trace、持续行为和表现快照都来自同一战斗作用域；`Dispose` 清空尚未消费的命令。
+`MobaBuffService` 是 World Service。`OnInit` 通过当前 World 的 `IWorldResolver` 构建生命周期执行器，确保配置、Actor 查询、事件总线、Trace、持续行为和表现快照都来自同一战斗作用域；`Dispose` 只清空尚未消费的命令，不负责重建或清理 Actor 上已有的 Buff 运行时。
 
 ```mermaid
 flowchart TB
@@ -170,39 +173,57 @@ stateDiagram-v2
 
 ## 9. 确定性、恢复与诊断
 
+### 9.1 执行顺序基线
+
+当前 MOBA `Execute/Normal` 阶段的关键顺序是：
+
+```text
+EffectsStep -> BuffCommandsDrain -> ContinuousTick -> BuffLifecycleReconcile
+                 -> OngoingTriggerPlansReconcile -> GameplayTick
+```
+
+这个顺序由 [`MobaSystemOrder.ValidateKeyDependencies()`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs:102) 做静态关系检查；具体系统分别以 [`MobaBuffCommandDrainSystem`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffCommandDrainSystem.cs:8)、[`MobaContinuousTickSystem`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Continuous/MobaContinuousTickSystem.cs:9) 和 [`MobaBuffLifecycleReconcileSystem`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffLifecycleReconcileSystem.cs:9) 声明顺序。它保证本轮已排队命令先于 Continuous 推进，Continuous 状态再被 Buff 调和读取；这仍是执行顺序契约，不等于完整的回放或跨 World 确定性证明。
+
+### 9.2 运行时确定性与诊断
+
 | 维度 | 当前实现与边界 |
 |------|----------------|
 | 顺序 | 同一 World 内按单线程追加顺序执行；`Seq` 未用于重排，也没有线程安全写入协议 |
 | 重入 | 内层 drain 返回，新增命令由外层游标继续处理，不形成递归调用栈 |
 | 预算 | 每轮有限命令数，剩余命令延后；预算变化可能改变派生命令的执行批次 |
 | GC | pending list 复用；成功结束的运行时由结束流程回收；诊断消息支持延迟工厂 |
-| 异常 | 单命令异常按可恢复域错误上报，不中断整个队列，也不回滚该命令异常前已产生的副作用 |
+| 异常 | 单命令异常按可恢复域错误上报，不中断整个队列，也不回滚该命令异常前已产生的副作用；诊断采集异常单独被吞掉，不影响主流程 |
 | Trace | Apply、Continuous 和 End 保存来源上下文，但本文没有把 Trace 存在性等同于所有链路都已通过回放验证 |
-| 状态恢复 | `MobaBuffStateRecoveryProvider` 会清空现有 Buff 列表，按载荷重建 `BuffRuntime`、仓储注册和 Buff runtime context；载荷包含身份、计时、叠层、origin 与 skill runtime handle，但导入后 `Continuous`、`TagRequirements`、`ModifierBindings` 和 retain handle 仍为空，pending 命令与订阅也不在载荷中 |
+| 状态恢复 | `MobaBuffStateRecoveryProvider` 导出排序后的身份、计时、叠层、origin、runtime context 和 skill runtime handle；导入先销毁并释放所有当前 Buff，再按载荷重建列表、仓储注册和 Buff context。`ApplyTo` 明确将 `Continuous`、`TagRequirements`、`ModifierBindings` 和 `SkillRuntimeRetainHandle` 置为空或默认值，因此导入后不会自动恢复 Continuous、Modifier、Tag requirement、owner-bound Trigger 或 retain 订阅 |
+| 计时回滚 | `MobaBuffTimerRollbackProvider` 不清空、不创建、不删除运行时，只按 ActorId + BuffId 找到首个已有实例并恢复 `Remaining`、`IntervalRemainingSeconds`、`StackCount`；同一 Actor 存在同 BuffId 多实例时，载荷不含 source/context，匹配具有歧义 |
 
 可观察指标包括 `moba.buff.drain.pending`、`moba.buff.drain.executed`、`moba.buff.pending`、`moba.buff.command.exceptions`、`moba.buff.command.rejected` 及按拒绝原因拆分的计数。排查“Buff 没生效”时，应先区分入口参数拒绝、生命周期拒绝、命令预算延后和执行异常四类原因。
 
 ## 10. 验证证据与缺口
 
-当前仓库可直接对应到本文的自动测试证据是：
+证据按“源码契约、直接单元测试、间接业务/诊断证据、补测责任”分层；测试类名或 Release 总数本身不扩大覆盖范围。
 
-| 测试或实现入口 | 已验证或可直接确认的内容 | 未覆盖内容 |
-|----------------|--------------------------|------------|
-| `BuffStackingPolicyApplierTests` | Replace、AddStack、RefreshDuration、IgnoreIfExists 和新运行时初值 | 命令排队、生命周期通知、结束清理 |
-| `MobaContinuousLifecycleTests` | Continuous 激活、暂停、恢复、结束和标签准入 | Buff Flow 与 Actor Active 列表调和 |
-| `MobaBuffStateRecoveryProvider` 源码 | 导出字段、清空旧列表、重建运行时列表和 context，以及导入后主动清空的行为关系 | 当前测试目录未检索到该 Provider 的直接专项测试；不能确认恢复前后行为等价 |
-| `MobaBuffTimerRollbackProvider` 源码 | 只对已有 Buff 恢复 `Remaining`、`IntervalRemainingSeconds` 和 `StackCount` | 不重建 Buff 列表，也不恢复 Continuous、Modifier、Tag、retain 或 Cue 状态 |
+| 证据层 | 入口 | 能证明什么 | 不能证明什么 |
+|----------|------|------------|--------------|
+| 源码契约 | [`MobaBuffService.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffService.cs:73)、[`BuffApplyFlow.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffApplyFlow.cs:56)、[`BuffEndFlow.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffEndFlow.cs:35) | 入队、预算、生命周期门禁、新实例提交时机、结束清理顺序 | 运行时在所有组合场景下都被专项测试覆盖 |
+| 源码契约 | [`MobaBuffStateRecoveryProvider.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffStateRecoveryProvider.cs:30)、[`MobaBuffTimerRollbackProvider.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaBuffTimerRollbackProvider.cs:47) | 两种恢复机制的字段、列表和绑定边界 | 恢复后行为等价、订阅自动重建或多实例回滚无歧义 |
+| 直接单元测试 | `BuffStackingPolicyApplierTests` | Replace、AddStack、RefreshDuration、IgnoreIfExists 和新运行时初值的策略对象行为 | 命令排队、Buff Flow、通知、Active 列表和回收顺序 |
+| 直接单元测试 | `MobaContinuousLifecycleTests` | 通用 Continuous runtime 的激活/拒绝、暂停/恢复、结束/注销和 owner tag 冲突 | Buff Flow 与 Actor Active 列表调和、BuffEndFlow 的补偿 |
+| 间接业务测试 | 英雄 Acceptance、`MobaSkillConfigTestHarness` | 具体技能路径可以调用 Buff 服务并观察业务结果 | 通用 Immediate 返回值、256 预算、异常继续消费和恢复契约 |
+| 间接诊断测试 | `MobaBuffDiagnosticProducerTests`、Actor Buff diagnostic store tests | Buff 诊断 draft、collector、snapshot 字段和实例键投影 | 真实 Apply/Remove/End 生命周期已经成功执行 |
+| 顺序源码/检查 | [`MobaSystemOrder.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs:102) | `EffectsStep < BuffCommandsDrain < ContinuousTick < BuffLifecycleReconcile < OngoingTriggerPlansReconcile < GameplayTick` 的关系检查 | 每个系统组合和多 World 调度都已运行时验证 |
 
-2026-08-02 已执行的 MOBA .NET Release 测试结果为 232/232，并伴随依赖漏洞、Entitas 兼容性、可空性和 xUnit Analyzer 警告。本轮只重新核对源码与测试入口，没有重新执行该测试集。当前测试目录也没有针对 `MobaBuffService.DrainPending`、256 条预算、Immediate 布尔返回语义、`BuffEndFlow` 清理顺序、`ReconcileActorBuffLifecycles` 或两个恢复 Provider 的直接测试。因此这些段落属于源码事实审计，不应描述成已由专项回归证明。
+2026-08-02 已执行的 MOBA .NET Release 测试结果为 232/232，并伴随依赖漏洞、Entitas 兼容性、可空性和 xUnit Analyzer 警告。本轮只重新核对源码与测试入口，没有重新执行该测试集。当前测试目录也没有针对 `MobaBuffService.DrainPending`、256 条预算、Immediate 布尔返回语义、`BuffEndFlow` 清理顺序、`ReconcileActorBuffLifecycles` 或两个恢复 Provider 的直接测试，因此这些段落属于源码事实审计，不应描述成已由专项回归证明。
 
 建议补充以下契约测试：
 
 1. 生命周期拒绝时 Immediate API 仍只报告入队成功；
 2. 重入申请由外层 drain 同轮消费，预算耗尽后尾部保留；
 3. 单命令异常不阻断后续命令，且不会伪造成功诊断事件；
-4. `Interrupted`、`Expired` 和 `Dispelled` 分别进入正确的通知与清理路径；
-5. `MobaBuffStateRecoveryProvider` 导入后重建 Continuous、Modifier、Tag requirement、retain 和 owner-bound Trigger 的责任归属与执行顺序；
-6. `MobaBuffTimerRollbackProvider` 在 Buff 列表发生增删时的显式拒绝或上层约束。
+4. `Interrupted`、`Expired` 和 `Dispelled` 分别进入正确的通知与清理路径，并验证订阅者异常时的清理责任；
+5. `MobaBuffStateRecoveryProvider` 导入后的空绑定状态，以及由哪个系统/服务负责重新装配 Continuous、Modifier、Tag requirement、retain 和 owner-bound Trigger；
+6. `MobaBuffTimerRollbackProvider` 在同 Actor 多个同 BuffId 实例和列表增删时的显式约束；
+7. `MobaSystemOrder.ValidateKeyDependencies()` 的 Buff/Continuous 顺序回归测试。
 
 ## 11. 设计结论
 
@@ -210,4 +231,4 @@ stateDiagram-v2
 
 ---
 
-*文档版本：v1.2 | 状态：Buff 命令、生命周期与恢复边界 | 最后更新：2026-08-02 | 验证基线：2026-08-02 MOBA .NET Release tests 232/232（有警告）；本轮仅核对恢复 Provider 与测试入口，未重新执行测试*
+*文档版本：v1.3 | 状态：Buff 命令、生命周期与恢复边界 | 最后更新：2026-08-03 | 验证基线：2026-08-02 MOBA .NET Release tests 232/232（有警告）；本轮核对 Buff 服务、生命周期 Flow、系统顺序、恢复/回滚 Provider 与测试入口，未重新执行测试*

@@ -8,6 +8,10 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync.CatchUp
     /// <summary>
     /// 客户端帧同步 CatchUp 模块。
     /// 提供服务端 CatchUp 请求/消费方法供重连流程使用。
+    ///
+    /// NOTE: This module is fully implemented but not yet wired into the client reconnect
+    /// flow. Activation planned for v0.2.0 when the reconnect path is finalized.
+    /// Until then, <see cref="TryCatchUp"/> is callable but has no upstream caller.
     /// </summary>
     public sealed class FrameSyncCatchUpClientModule : IHostRuntimeModule
     {

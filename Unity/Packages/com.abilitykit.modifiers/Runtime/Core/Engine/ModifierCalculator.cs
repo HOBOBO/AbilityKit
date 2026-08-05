@@ -45,8 +45,14 @@ namespace AbilityKit.Modifiers
 
         #region 构造函数
 
-        /// <summary>创建计算器</summary>
+        /// <summary>使用默认合成策略创建计算器</summary>
         public ModifierCalculator() { }
+
+        /// <summary>使用指定合成策略创建计算器</summary>
+        public ModifierCalculator(IComposerStrategy strategy)
+        {
+            _computeCore = new ModifierComputeCore(strategy);
+        }
 
         #endregion
 

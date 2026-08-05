@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using AbilityKit.Ability.Config;
-using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Config.Core
 {
@@ -18,30 +17,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             ConfigGroupNames.LegacyJson,
             MobaConfigPaths.DefaultResourcesDir,
             _legacyJsonDeserializer,
-            new ConfigTableDefinition(MobaConfigPaths.CharactersFile, typeof(CharacterDTO), typeof(BattleDemo.MO.CharacterMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.AttributeTemplatesFile, typeof(BattleAttributeTemplateDTO), typeof(BattleDemo.MO.BattleAttributeTemplateMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.BuffsFile, typeof(BuffDTO), typeof(BattleDemo.MO.BuffMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.ContinuousProcessesFile, typeof(ContinuousProcessDTO), typeof(BattleDemo.MO.ContinuousProcessMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.SkillsFile, typeof(SkillDTO), typeof(BattleDemo.MO.SkillMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.PassiveSkillsFile, typeof(PassiveSkillDTO), typeof(BattleDemo.MO.PassiveSkillMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.SkillFlowsFile, typeof(SkillFlowDTO), typeof(BattleDemo.MO.SkillFlowMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.SkillLevelTablesFile, typeof(SkillLevelTableDTO), typeof(BattleDemo.MO.SkillLevelTableMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.AttributeTypesFile, typeof(AttrTypeDTO), typeof(BattleDemo.MO.AttrTypeMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.ModelsFile, typeof(ModelDTO), typeof(BattleDemo.MO.ModelMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.ProjectileLaunchersFile, typeof(ProjectileLauncherDTO), typeof(BattleDemo.MO.ProjectileLauncherMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.ProjectilesFile, typeof(ProjectileDTO), typeof(BattleDemo.MO.ProjectileMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.AoesFile, typeof(AoeDTO), typeof(BattleDemo.MO.AoeMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.EmittersFile, typeof(EmitterDTO), typeof(BattleDemo.MO.EmitterMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.SummonsFile, typeof(SummonDTO), typeof(BattleDemo.MO.SummonMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.ComponentTemplatesFile, typeof(ComponentTemplateDTO), typeof(BattleDemo.MO.ComponentTemplateMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.SkillButtonTemplatesFile, typeof(SkillButtonTemplateDTO), typeof(BattleDemo.MO.SkillButtonTemplateMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.TagTemplatesFile, typeof(TagTemplateDTO), typeof(BattleDemo.MO.TagTemplateMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.ContinuousTagTemplatesFile, typeof(ContinuousTagTemplateDTO), typeof(BattleDemo.MO.ContinuousTagTemplateMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.SearchQueryTemplatesFile, typeof(SearchQueryTemplateDTO), typeof(BattleDemo.MO.SearchQueryTemplateMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.SpawnSummonActionTemplatesFile, typeof(SpawnSummonActionTemplateDTO), typeof(BattleDemo.MO.SpawnSummonActionTemplateMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.PresentationTemplatesFile, typeof(PresentationTemplateDTO), typeof(BattleDemo.MO.PresentationTemplateMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.GameplaysFile, typeof(GameplayDTO), typeof(BattleDemo.MO.GameplayMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.MotionGroupsFile, typeof(MotionGroupDTO), typeof(BattleDemo.MO.MotionGroupMO), ConfigGroupNames.LegacyJson)
+            MobaGeneratedConfigTableManifest.CreateGroupDefinitions(ConfigGroupNames.LegacyJson)
         );
 
         /// <summary>

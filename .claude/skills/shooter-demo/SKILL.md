@@ -1,11 +1,11 @@
 ---
 name: shooter-demo
-description: AbilityKit Shooter Demo（com.abilitykit.demo.shooter.*）——6 个包的服务端权威 StateSync + Svelto.ECS 演示示例。**刻意不复用 ability/combat 技能栈**，与 moba demo（Entitas + FrameSync + 全技能栈）形成对照。覆盖 ShooterBattleRuntimePort 9 端口、ShooterBattleSimulation 双 module 管线、三类快照（StateSnapshot/PackedSnapshot/PureStateSnapshot 含 AOI）、三种客户端同步策略（PredictRollback/AuthoritativeInterpolation/HybridHeroPrediction）、11 opcodes、6 种实体 Group、4 种 PlayMode、ShooterDemoWindow 三种 DriveMode、ShooterAcceptanceSpecs 纯 C# 验收基线。触发场景：StateSync 实现、Svelto ECS 适配、packed/pure-state 快照编码、AOI 兴趣裁剪、客户端预测回滚（不复用 ClientPredictionDriverModule）、Lag Compensation、Fast Reconnect、Drift Recovery、FrameRecordReplay、ML-Agents 训练环境。
+description: AbilityKit Shooter Demo（com.abilitykit.demo.shooter.*）——6 个包的服务端权威 StateSync + Svelto.ECS 演示示例。**刻意不复用 ability/combat 技能栈**，与 moba demo（Entitas + FrameSync + 全技能栈）形成对照。覆盖 ShooterBattleRuntimePort 9 端口、ShooterBattleSimulation 双 module 管线、三类快照（StateSnapshot/PackedSnapshot/PureStateSnapshot 含 AOI）、三种客户端同步策略（PredictRollback/AuthoritativeInterpolation/HybridHeroPrediction）、11 opcodes、6 种实体 Group、4 种 PlayMode、ShooterDemoWindow 三种 DriveMode、ShooterAcceptanceSpecs 纯 C# 验收基线。🆕 v0.1.0：多人烟雾测试通过、Unity 无头双实例脚本、暂停/恢复 GUI、IGatewayConnection 统一网关抽象。触发场景：StateSync 实现、Svelto ECS 适配、packed/pure-state 快照编码、AOI 兴趣裁剪、客户端预测回滚（不复用 ClientPredictionDriverModule）、Lag Compensation、Fast Reconnect、Drift Recovery、FrameRecordReplay、ML-Agents 训练环境。
 ---
 
 # shooter-demo skill
 
-基于源码核校（2026-07-20）。Shooter demo 实际存在，约 215 个 .cs 文件，分 6 个包。
+基于源码核校（2026-08-03）。Shooter demo 实际存在，约 215 个 .cs 文件，分 6 个包。
 
 ## 核心定位（必读）
 
@@ -49,6 +49,7 @@ description: AbilityKit Shooter Demo（com.abilitykit.demo.shooter.*）——6 �
 - [presentation.md](presentation.md) — PresentationSession + ViewProjection + DotsBinder + ViewEventSink
 - [playmode_editor.md](playmode_editor.md) — 4 种 PlayMode + 3 种 DriveMode + SceneView 渲染
 - [acceptance_testing.md](acceptance_testing.md) — ShooterAcceptanceSpecs 纯 C# 验收基线 + DeterminismSpecRunner + Benchmark
+- [multiplayer_verification.md](multiplayer_verification.md) — 🆕 **v0.1.0** 多人同步验证：烟雾测试结果 / Unity 无头双实例 / 暂停恢复 GUI
 
 ## 相关 skill
 

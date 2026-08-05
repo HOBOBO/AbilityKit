@@ -123,6 +123,44 @@ namespace AbilityKit.Combat.MotionSystem.Tests
         }
 
         [Test]
+        public void Pipeline_AdditivePassiveDisplacement_CanOverrideActorCollision()
+        {
+            var world = new StubWorld { SweepResult = true };
+            var defaultCollision = new MotionCollisionConstraints(
+                true,
+                false,
+                MotionEndOverlapPolicy.ProjectToNearestFree,
+                0.5f,
+                0f,
+                1,
+                0);
+            var pipeline = new MotionPipeline
+            {
+                Solver = new ConfigurableMotionSolver(
+                    world,
+                    (int moverId, in MotionState state, in MotionOutput input, float dt) =>
+                        new MotionConstraints(defaultCollision, MotionLeashConstraints.Disabled)),
+            };
+            var state = new MotionState(Vec3.Zero);
+            var output = new MotionOutput();
+            var source = new TrajectoryMotionSource(
+                new LinearTrajectory3D(Vec3.Zero, Vec3.Up, 1f),
+                priority: 100,
+                groupId: MotionGroups.PassiveDisplacement,
+                stacking: MotionStacking.Additive,
+                collisionPolicy: MotionCollisionConstraints.Disabled,
+                hasCollisionPolicy: true);
+            pipeline.AddSource(source);
+
+            var result = pipeline.Tick(1, ref state, 0.5f, ref output);
+
+            Assert.That(output.HasDominantCollisionPolicy, Is.True);
+            Assert.That(output.DominantCollisionPolicy.Enable, Is.False);
+            Assert.That(result.Hit.Hit, Is.False);
+            Assert.That(state.Position.Y, Is.EqualTo(0.5f).Within(0.0001f));
+        }
+
+        [Test]
         public void PathFollower_CopiesInputPoints()
         {
             var points = new[] { Vec3.Zero, new Vec3(10f, 0f, 0f) };

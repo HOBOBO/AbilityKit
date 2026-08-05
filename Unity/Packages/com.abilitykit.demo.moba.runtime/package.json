@@ -8,6 +8,7 @@
     "name": "AbilityKit"
   },
   "dependencies": {
+    "com.abilitykit.demo.moba.codegen": "0.0.1",
     "com.abilitykit.demo.moba.share": "0.0.1",
     "com.abilitykit.core": "0.0.1",
     "com.abilitykit.attributes": "0.0.1",

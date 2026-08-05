@@ -25,14 +25,14 @@
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/Room/ClientRoomStore.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/IBattleAssetManifestSource.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/BattleAssetManifestResolver.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Synchronization/MobaRemoteSnapshotSample.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Synchronization/MobaSnapshotAdmission.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Synchronization/MobaReliableBattleEventCursor.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Synchronization/MobaSynchronizationHealthEvaluator.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Synchronization/MobaRemoteInterpolationPlayback.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Synchronization/MobaClientAuthoritativeInterpolationSyncController.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Synchronization/MobaClientReplicationPipeline.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Synchronization/MobaDemoHarnessCarrier.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaRemoteSnapshotSample.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaSnapshotAdmission.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaReliableBattleEventCursor.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaSynchronizationHealthEvaluator.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaRemoteInterpolationPlayback.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaClientAuthoritativeInterpolationSyncController.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaClientReplicationPipeline.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Testing/MobaDemoHarnessCarrier.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Replay/BattleReplayManifest.cs" />
   </ItemGroup>
 

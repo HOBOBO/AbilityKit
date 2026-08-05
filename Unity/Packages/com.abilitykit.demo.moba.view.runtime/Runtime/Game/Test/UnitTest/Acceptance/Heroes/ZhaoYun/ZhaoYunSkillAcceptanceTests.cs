@@ -168,7 +168,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 harness.EnterGameAndWarmup(reason: "zhaoyun skill 3 landing control mark contract");
                 var actorId = harness.AssertPlayerActorBound();
-                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 5f);
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 5f, z: 2f);
                 var start = harness.AssertActorEntity(actorId).transform.Value.Position;
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 var cast = skills.TryCastBySlot(actorId, Skill3.Slot, aimPos: new Vec3(5f, 0f, 0f), aimDir: Vec3.Right, targetActorId: 0);

@@ -58,6 +58,58 @@ namespace AbilityKit.Game.Battle.Agent
             OwnerChanged;
     }
 
+    public sealed class ClientRoomPlayerStateChange
+    {
+        public ClientRoomPlayerStateChange(
+            string accountId,
+            bool previousOnline,
+            bool currentOnline,
+            bool previousReady,
+            bool currentReady,
+            int previousHeroId,
+            int currentHeroId)
+        {
+            AccountId = accountId ?? string.Empty;
+            PreviousOnline = previousOnline;
+            CurrentOnline = currentOnline;
+            PreviousReady = previousReady;
+            CurrentReady = currentReady;
+            PreviousHeroId = previousHeroId;
+            CurrentHeroId = currentHeroId;
+        }
+
+        public string AccountId { get; }
+        public bool PreviousOnline { get; }
+        public bool CurrentOnline { get; }
+        public bool PreviousReady { get; }
+        public bool CurrentReady { get; }
+        public int PreviousHeroId { get; }
+        public int CurrentHeroId { get; }
+        public bool OnlineChanged => PreviousOnline != CurrentOnline;
+        public bool ReadyChanged => PreviousReady != CurrentReady;
+        public bool LoadoutChanged => PreviousHeroId != CurrentHeroId;
+    }
+
+    public sealed class ClientRoomPlayerStateChanges
+    {
+        public ClientRoomPlayerStateChanges(
+            string roomId,
+            long previousRevision,
+            long currentRevision,
+            IReadOnlyList<ClientRoomPlayerStateChange> changes)
+        {
+            RoomId = roomId ?? string.Empty;
+            PreviousRevision = previousRevision;
+            CurrentRevision = currentRevision;
+            Changes = changes ?? Array.Empty<ClientRoomPlayerStateChange>();
+        }
+
+        public string RoomId { get; }
+        public long PreviousRevision { get; }
+        public long CurrentRevision { get; }
+        public IReadOnlyList<ClientRoomPlayerStateChange> Changes { get; }
+    }
+
     /// <summary>
     /// 单一权威客户端 Room 状态仓库。
     /// <para>
@@ -78,6 +130,8 @@ namespace AbilityKit.Game.Battle.Agent
         public event Action<ClientRoomSnapshot> OnSnapshotChanged;
 
         public event Action<ClientRoomMembershipChange> OnMembershipChanged;
+
+        public event Action<ClientRoomPlayerStateChanges> OnPlayerStateChanged;
 
         /// <summary>
         /// 当前最新快照（或 null）。
@@ -124,13 +178,16 @@ namespace AbilityKit.Game.Battle.Agent
 
             ClientRoomSnapshot toPublish = null;
             ClientRoomMembershipChange membershipChange = null;
+            ClientRoomPlayerStateChanges playerStateChanges = null;
 
             lock (_gate)
             {
                 if (_current == null)
                 {
                     // 首次应用：检测 EventSequence 缺口（>0 起点视为可能缺口）。
-                    _stale = snapshot.LastEventSequence > 1L;
+                    // A complete first snapshot establishes the local baseline regardless of
+                    // how many authoritative room events occurred before this client bound.
+                    _stale = false;
                     _current = snapshot;
                     toPublish = snapshot;
                 }
@@ -178,6 +235,10 @@ namespace AbilityKit.Game.Battle.Agent
                         {
                             membershipChange = BuildMembershipChange(previous, snapshot);
                         }
+                        if (sameRoom)
+                        {
+                            playerStateChanges = BuildPlayerStateChanges(previous, snapshot);
+                        }
                     }
                 }
             }
@@ -188,7 +249,72 @@ namespace AbilityKit.Game.Battle.Agent
             {
                 OnMembershipChanged?.Invoke(membershipChange);
             }
+            if (playerStateChanges?.Changes.Count > 0)
+            {
+                OnPlayerStateChanged?.Invoke(playerStateChanges);
+            }
             return ClientRoomSnapshotApplyResult.Applied;
+        }
+
+        private static ClientRoomPlayerStateChanges BuildPlayerStateChanges(
+            ClientRoomSnapshot previous,
+            ClientRoomSnapshot current)
+        {
+            var previousPlayers = previous.Players ?? Array.Empty<ClientRoomPlayer>();
+            var currentPlayers = current.Players ?? Array.Empty<ClientRoomPlayer>();
+            if (previousPlayers.Count == 0 || currentPlayers.Count == 0) return null;
+
+            var previousByAccount = new Dictionary<string, ClientRoomPlayer>(StringComparer.Ordinal);
+            for (var i = 0; i < previousPlayers.Count; i++)
+            {
+                var player = previousPlayers[i];
+                if (!string.IsNullOrWhiteSpace(player.AccountId))
+                {
+                    previousByAccount[player.AccountId] = player;
+                }
+            }
+
+            var changes = new List<ClientRoomPlayerStateChange>();
+            for (var i = 0; i < currentPlayers.Count; i++)
+            {
+                var currentPlayer = currentPlayers[i];
+                if (string.IsNullOrWhiteSpace(currentPlayer.AccountId) ||
+                    !previousByAccount.TryGetValue(currentPlayer.AccountId, out var previousPlayer))
+                {
+                    continue;
+                }
+
+                var previousReady = IsPrepared(previousPlayer);
+                var currentReady = IsPrepared(currentPlayer);
+                if (previousPlayer.IsOnline == currentPlayer.IsOnline &&
+                    previousReady == currentReady &&
+                    previousPlayer.HeroId == currentPlayer.HeroId)
+                {
+                    continue;
+                }
+
+                changes.Add(new ClientRoomPlayerStateChange(
+                    currentPlayer.AccountId,
+                    previousPlayer.IsOnline,
+                    currentPlayer.IsOnline,
+                    previousReady,
+                    currentReady,
+                    previousPlayer.HeroId,
+                    currentPlayer.HeroId));
+            }
+
+            return changes.Count == 0
+                ? null
+                : new ClientRoomPlayerStateChanges(
+                    current.RoomId,
+                    previous.RoomRevision,
+                    current.RoomRevision,
+                    changes);
+        }
+
+        private static bool IsPrepared(ClientRoomPlayer player)
+        {
+            return player != null && player.IsOnline && player.LobbyReady && player.HeroId > 0;
         }
 
         private static ClientRoomMembershipChange BuildMembershipChange(

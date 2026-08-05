@@ -9,7 +9,7 @@ MOBA 世界启动不是单个 Bootstrap 类完成的，而是由五层协作：
 | 层级 | 当前责任 | 不负责 |
 |------|----------|--------|
 | `WorldTypeRegistry` / `WorldBlueprintRegistry` | 注册 world type 与 Blueprint | 创建战斗服务实例 |
-| `MobaBattleWorldBlueprint` | 声明 battle profile、feature 位集和 Bootstrap Module | 解析战斗计划、安装客户端预测 |
+| `MobaBattleWorldBlueprint` | 声明 battle profile、feature 位集，并确保服务扫描与 Bootstrap 两个 Module | 解析战斗计划、安装客户端预测 |
 | `WorldContainerBuilder` | 注册按 Attribute 扫描出的服务、配置模块和会话实例 | 决定 Entitas system 执行顺序 |
 | `MobaWorldBootstrapModule` | 配置 Bootstrap Flow，扫描并安装 MOBA/Projectile systems | 创建 HostRuntime |
 | `RemoteDrivenWorldRuntimeFactory` | 组装 HostRuntime modules、world options、world 和 authority frame 绑定 | 管理整个 BattleSession 的所有表现资源 |
@@ -41,7 +41,8 @@ WorldBlueprintRegistry
 WorldType = "battle"
 Profile   = Battle
 Features  = EntitasContexts | BattleRuntime
-Module    = MobaWorldBootstrapModule
+Modules   = MobaServicesAutoModule
+            MobaWorldBootstrapModule
 ```
 
 其中 `BattleRuntime` 是组合位集：
@@ -92,7 +93,7 @@ flowchart LR
 - 子类或其他实现类型不视为同一个 module；
 - factory 和 options 为空时立即抛出参数异常。
 
-battle Blueprint 只确保存在一个 `MobaWorldBootstrapModule`，不直接列举全部战斗服务。
+battle Blueprint 分别确保存在一个 `MobaServicesAutoModule` 和一个 `MobaWorldBootstrapModule`。前者继续按 application services、systems services 和 infrastructure services 三组命名空间安装 Attribute service modules；后者配置 Bootstrap Flow 并参与 Entitas system 安装。Blueprint 仍不逐项列举全部战斗服务。
 
 ## 4. 会话侧服务容器
 
@@ -105,11 +106,12 @@ battle Blueprint 只确保存在一个 `MobaWorldBootstrapModule`，不直接列
 
 扫描命名空间前缀为 `AbilityKit`。随后显式执行：
 
-1. 添加 `MobaConfigWorldModule`；
-2. 可选注册 `WorldInitData`，内容来自启动计划的 create-world opcode/payload；
-3. 缺失时注册 singleton `IFrameTime -> FrameTime`；
-4. 缺失时注册 singleton `ICollisionService -> CollisionService`；
-5. authority frame source 非空时注册该实例。
+1. 将同一个 `ResourcesTextAssetLoader` 注册为 `ITextAssetLoader` 与 `ITextAssetDirectoryLoader`；
+2. 添加 `MobaConfigWorldModule`；
+3. 可选注册 `WorldInitData`，内容来自启动计划的 create-world opcode/payload；
+4. 缺失时注册 singleton `IFrameTime -> FrameTime`；
+5. 缺失时注册 singleton `ICollisionService -> CollisionService`；
+6. authority frame source 非空时注册该实例。
 
 `registerWorldInitData = false` 只跳过 `WorldInitData`，不会跳过配置、时间或碰撞服务。
 
@@ -188,7 +190,7 @@ WorldId 直接来自 `options.Plan.World.WorldId`，world type 则来自启动�
 | max prediction ahead | 30 | 0 |
 | min prediction window | 1 | 0 |
 | rollback | 开启 | 关闭 |
-| rollback history | 240 | 0 |
+| rollback history | 600 | 0 |
 | capture interval | 每帧 | 0 |
 | rollback registry | 调用方 builder | 新建空 registry |
 | state hash | 调用方 builder | null |
@@ -252,19 +254,40 @@ WorldId 直接来自 `options.Plan.World.WorldId`，world type 则来自启动�
 
 不要只向 feature 位集中增加枚举值并假设能力自动生效；必须同时提供实际服务、系统或 Flow stage，并补充 readiness 验证。
 
-## 11. 验证清单
+## 11. 自动测试证据与补测边界
 
-1. `battle` 同时注册在 world type registry 与 Blueprint registry。
-2. Blueprint options 的 profile 为 Battle，feature 包含完整 `BattleRuntime`。
-3. `MobaWorldBootstrapModule` 在 options 中只出现一次。
-4. world services 能解析配置、输入、快照、技能和 projectile 关键服务。
-5. Entitas contexts 使用 `MobaEntitasContextsFactory`。
-6. 自动系统安装范围包含 MOBA 与 Projectile assembly/namespace。
-7. 预测开启时可解析 driver stats、rollback registry 与 hash calculator。
-8. 预测关闭时没有本地输入和 rollback，但仍由远程 driver 推进。
-9. authority frame source/binding 的缺失能够通过 diagnostics 暴露。
-10. session teardown 分别释放远程 world、confirmed world、快照和表现订阅。
-11. 故意制造 world 创建异常时，上层不会遗留自身创建的外部资源。
+本节不把类型存在、测试 Harness 能创建 world 或其他示例的相似启动路径扩大为 MOBA view 生产装配证据。结论按当前能定位到的实际断言分层。
+
+### 11.1 已有直接证据
+
+| 证据 | 当前直接证明 | 不能据此证明 |
+|------|--------------|--------------|
+| `BattleRuntimeOptimizationTests.RemoteDrivenRuntimeModuleFactory_RetainsSixHundredPredictionFrames` | MOBA 工厂当前将预测回滚历史常量固定为 600 | 不证明运行时实际捕获 600 帧，也不覆盖 remote-only 参数组合 |
+| `SessionOrchestratorLifecycleTests.StartSession_FailureAtEveryHostPhase_CleansUpAndFaults` | orchestrator 在多个启动阶段注入失败时按预期执行清理并进入 Faulted，且不保留测试 Host 声明的活动资源 | 使用 `FailureInjectingHost`，不执行真实 `RemoteDrivenWorldRuntimeFactory`、world 容器或 Blueprint |
+| `SessionOrchestratorLifecycleTests.StopSession_WhenCleanupStepThrows_ContinuesAndResumesOnlyFailedWork` | 单个清理步骤失败后继续执行其余步骤；再次 Stop 只重试失败工作，成功后重复 Stop 幂等 | 不证明每个生产资源的 Dispose/Destroy 内部都已正确解除订阅 |
+| `SessionOrchestratorLifecycleTests.DestroyBattleWorlds_WhenRemoteDestroyFails_StillDestroysConfirmedAndPropagates` | remote world 销毁失败时仍尝试 confirmed world，并传播原异常 | 委托顺序测试不等于两个真实 world 已完整销毁 |
+| `SessionOrchestratorLifecycleTests.DestroyBattleWorlds_WhenBothDestroyOperationsFail_AggregatesBothFailures` | 两个 world 销毁都失败时按执行顺序聚合异常 | 不覆盖 HostRuntime 部分创建失败后的补偿清理 |
+| `BattleHudInputEventBridgeTests` 中 `CreateWorldOptions(..., registerWorldInitData: false)` 路径 | HUD 输入桥接测试实际使用会话工厂构造不含 `WorldInitData` 的 world options | 该测试目的不是审计 service builder，不能据此宣称配置、快照、技能和 projectile 服务全部可解析 |
+
+### 11.2 当前由源码固定的装配契约
+
+| 契约 | 源码事实 | 待固定的回归边界 |
+|------|----------|------------------|
+| world 与 Blueprint 注册 | 会话工厂为 lobby/battle 注册 Entitas world type，并向 Blueprint registry 注册对应 Blueprint | 直接创建两类 world，验证未知 world type 的失败语义和 registry 覆盖行为 |
+| battle Blueprint | profile 为 Battle，features 为 `EntitasContexts | BattleRuntime`；确保 `MobaServicesAutoModule` 与 `MobaWorldBootstrapModule` 各一个 | 预置同类型 Module 后验证精确类型去重；同时固定子类不参与去重的现有语义 |
+| Common 配置 | 缺失时创建 service builder，注册 Grid broadphase collision service，并写入 `MobaEntitasContextsFactory` | 调用方已有 builder、重复 collision 注册和非生成 `IContexts` warning 路径 |
+| 会话 service builder | 扫描四个程序集，显式注册 Resources loader、config module、可选 init data、frame time、collision 和可选 authority source | 分别解析关键服务并验证 `registerWorldInitData=false` 只影响 init data |
+| Bootstrap 安装 | 自动系统安装范围包含 MOBA runtime 与 Projectile assembly/namespace，随后安装 Bootstrap Flow | 安装顺序、重复安装、错误 `IContexts` 对具体系统的影响 |
+| remote-driven 创建 | 依次创建 manager/runtime、安装 modules、构造 authority source、创建 world 并 best-effort 绑定 authority service | module 安装、options 构造、`CreateWorld` 和 bind 各阶段失败时的真实资源状态 |
+| prediction/remote-only | prediction 使用 ahead=30、history=600、capture=1、rollback=true；remote-only 使用 null local input、ahead=0、history=0、rollback=false、hash=null | 两种工厂组合的直接构造测试，以及 driver feature、registry 和 hash calculator 的实际解析 |
+
+### 11.3 优先补测
+
+1. 为 `MobaBattleWorldBlueprint.Configure` 增加直接测试，固定 profile、feature、双 Module 和精确类型去重。
+2. 为 `SessionMobaWorldBootstrapFactory` 增加 service resolution 测试，分别覆盖 init data 开关和 authority source 可选注册。
+3. 为 `RemoteDrivenRuntimeModuleFactory` 增加 prediction 与 remote-only 参数组合测试，不再只固定 600 常量。
+4. 对 `RemoteDrivenWorldRuntimeFactory.Create` 注入 module 安装、world 创建和 authority bind 故障，验证调用方补偿清理责任。
+5. 使用真实 session resources 验证 teardown 后 remote world、confirmed world、snapshot routing 和表现订阅均不再活动；现有 `FailureInjectingHost` 只固定编排状态机。
 
 ## 12. 源码索引
 
@@ -273,6 +296,7 @@ WorldId 直接来自 `options.Plan.World.WorldId`，world type 则来自启动�
 | Blueprint 基类与 feature 位集 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Worlds/Blueprints/MobaLogicWorldBlueprintBase.cs` |
 | Battle Blueprint | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Worlds/Blueprints/MobaBattleWorldBlueprint.cs` |
 | Blueprint 注册 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Worlds/Blueprints/MobaWorldBlueprintsRegistration.cs` |
+| 服务自动注册 Module | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Bootstrap/MobaServicesAutoModule.cs` |
 | Bootstrap Module | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaWorldBootstrapModule.cs` |
 | 会话世界工厂与服务容器 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Controllers/SessionMobaWorldBootstrapFactory.cs` |
 | 远程 world runtime 工厂 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenWorldRuntimeFactory.cs` |
@@ -280,3 +304,13 @@ WorldId 直接来自 `options.Plan.World.WorldId`，world type 则来自启动�
 | 远程 world 安装 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenWorldInstaller.cs` |
 | 会话模拟释放 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/SessionSimRuntimeDisposer.cs` |
 | 远程 handles | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Core/BattleSessionHandles.RemoteDriven.cs` |
+| Session 生命周期测试 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/SessionOrchestratorLifecycleTests.cs` |
+| 预测历史常量测试 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/BattleRuntimeOptimizationTests.cs` |
+
+## 13. 版本与验证基线
+
+- 文档核对日期：2026-08-02。
+- 当前事实基线：battle Blueprint 同时安装服务扫描与 Bootstrap 两个 Module；MOBA prediction rollback history 为 600。本文不再沿用单 Module 和 240 帧的旧描述。
+- 历史执行记录：2026-08-02 的 MOBA .NET Release 测试记录为 232/232 通过，执行过程存在警告。该记录不代表本文引用的 Unity 测试已在本轮执行。
+- 本轮验证范围：重新核对生产源码、Unity 测试入口与具体断言，未重新运行 .NET 或 Unity 测试。因此表中的“直接证明”表示仓库已有对应自动测试，不表示本轮产生新的通过结果。
+- 证据使用原则：测试 Harness 能启动 world、类型可以解析、编译成功或单个 Smoke 均不推导为 Blueprint、服务容器、预测与 teardown 的完整生产验收。

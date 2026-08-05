@@ -300,11 +300,13 @@ namespace AbilityKit.Game.Flow
     public sealed class MultiplayerRoomLaunchSpec
     {
         public string SessionToken { get; set; } = string.Empty;
+        public string AccountId { get; set; } = string.Empty;
         public string Region { get; set; } = string.Empty;
         public string ServerId { get; set; } = string.Empty;
         public string RoomType { get; set; } = "default";
         public string RoomTitle { get; set; } = string.Empty;
         public int MaxPlayers { get; set; } = 2;
+        public int MinPlayers { get; set; } = 2;
         public int GameplayId { get; set; } = 1;
         public int RuleSetId { get; set; } = 1;
         public int ConfigVersion { get; set; } = 1;
@@ -436,16 +438,28 @@ namespace AbilityKit.Game.Flow
 
         public uint LocalPlayerId { get; private set; }
 
+        public string LocalAccountId { get; private set; } = string.Empty;
+
         public bool IsLocalRoomOwner
         {
             get
             {
                 var snapshot = CurrentSnapshot;
-                if (snapshot != null &&
-                    LocalPlayerId != 0u &&
-                    !string.IsNullOrWhiteSpace(snapshot.OwnerAccountId) &&
-                    snapshot.Players != null)
+                if (snapshot != null && !string.IsNullOrWhiteSpace(snapshot.OwnerAccountId))
                 {
+                    if (!string.IsNullOrWhiteSpace(LocalAccountId))
+                    {
+                        return string.Equals(
+                            LocalAccountId,
+                            snapshot.OwnerAccountId,
+                            StringComparison.Ordinal);
+                    }
+
+                    if (LocalPlayerId == 0u || snapshot.Players == null)
+                    {
+                        return _createdRoomOwner;
+                    }
+
                     for (var i = 0; i < snapshot.Players.Count; i++)
                     {
                         var player = snapshot.Players[i];
@@ -507,6 +521,7 @@ namespace AbilityKit.Game.Flow
         {
             if (spec == null) throw new ArgumentNullException(nameof(spec));
             CurrentLaunchSpec = spec;
+            LocalAccountId = spec.AccountId?.Trim() ?? string.Empty;
             _createdRoomOwner = true;
             LocalPlayerId = 0u;
             await RunAsync(
@@ -535,6 +550,7 @@ namespace AbilityKit.Game.Flow
             if (spec == null) throw new ArgumentNullException(nameof(spec));
             if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId 不能为空。", nameof(roomId));
             CurrentLaunchSpec = spec;
+            LocalAccountId = spec.AccountId?.Trim() ?? string.Empty;
             _createdRoomOwner = false;
             LocalPlayerId = 0u;
             await RunAsync(
@@ -557,6 +573,7 @@ namespace AbilityKit.Game.Flow
             if (spec == null) throw new ArgumentNullException(nameof(spec));
             if (fallbackPlayerId == 0u) throw new ArgumentOutOfRangeException(nameof(fallbackPlayerId));
             CurrentLaunchSpec = spec;
+            LocalAccountId = spec.AccountId?.Trim() ?? string.Empty;
 
             try
             {
@@ -736,6 +753,7 @@ namespace AbilityKit.Game.Flow
                 CurrentSnapshot = null;
                 CurrentRoomId = string.Empty;
                 LocalPlayerId = 0u;
+                LocalAccountId = string.Empty;
                 _createdRoomOwner = false;
                 LastRestoreResult = null;
                 CurrentLaunchSpec = null;
@@ -778,6 +796,7 @@ namespace AbilityKit.Game.Flow
             CurrentSnapshot = null;
             CurrentRoomId = string.Empty;
             LocalPlayerId = 0u;
+            LocalAccountId = string.Empty;
             _createdRoomOwner = false;
             LastError = string.Empty;
             LastRestoreResult = null;

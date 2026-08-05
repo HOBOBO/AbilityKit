@@ -41,35 +41,25 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
-    public sealed class SkillPipelineContextPayloadAccessor : IPayloadIntAccessor<SkillPipelineContext>, IPayloadDoubleAccessor<SkillPipelineContext>
+    [GeneratePayloadFieldIds(
+        typeof(SkillRulePayloadFields),
+        "SupportsField",
+        true,
+        nameof(SkillRulePayloadFields.SkillId),
+        nameof(SkillRulePayloadFields.SkillSlot),
+        nameof(SkillRulePayloadFields.SkillLevel),
+        nameof(SkillRulePayloadFields.SkillCost),
+        nameof(SkillRulePayloadFields.SkillCooldownMs),
+        nameof(SkillRulePayloadFields.SkillCooldownRemainingMs),
+        nameof(SkillRulePayloadFields.CasterActorId),
+        nameof(SkillRulePayloadFields.TargetActorId),
+        nameof(SkillRulePayloadFields.CasterMana),
+        nameof(SkillRulePayloadFields.CasterManaMax),
+        nameof(SkillRulePayloadFields.CasterManaPercent),
+        nameof(SkillRulePayloadFields.CasterResourceMana),
+        nameof(SkillRulePayloadFields.CasterResourceManaMax))]
+    public sealed partial class SkillPipelineContextPayloadAccessor : IPayloadIntAccessor<SkillPipelineContext>, IPayloadDoubleAccessor<SkillPipelineContext>
     {
-        private static readonly int SkillIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillId);
-        private static readonly int SkillIdLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillId);
-        private static readonly int SkillSlotId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillSlot);
-        private static readonly int SkillSlotLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillSlot);
-        private static readonly int SkillLevelId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillLevel);
-        private static readonly int SkillLevelLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillLevel);
-        private static readonly int SkillCostId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillCost);
-        private static readonly int SkillCostLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillCost);
-        private static readonly int SkillCooldownMsId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillCooldownMs);
-        private static readonly int SkillCooldownMsLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillCooldownMs);
-        private static readonly int SkillCooldownRemainingMsId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillCooldownRemainingMs);
-        private static readonly int SkillCooldownRemainingMsLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillCooldownRemainingMs);
-        private static readonly int CasterActorIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterActorId);
-        private static readonly int CasterActorIdLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterActorId);
-        private static readonly int TargetActorIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.TargetActorId);
-        private static readonly int TargetActorIdLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.TargetActorId);
-        private static readonly int CasterManaId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterMana);
-        private static readonly int CasterManaLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterMana);
-        private static readonly int CasterManaMaxId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterManaMax);
-        private static readonly int CasterManaMaxLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterManaMax);
-        private static readonly int CasterManaPercentId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterManaPercent);
-        private static readonly int CasterManaPercentLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterManaPercent);
-        private static readonly int CasterResourceManaId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterResourceMana);
-        private static readonly int CasterResourceManaLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterResourceMana);
-        private static readonly int CasterResourceManaMaxId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterResourceManaMax);
-        private static readonly int CasterResourceManaMaxLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterResourceManaMax);
-
         private readonly IWorldResolver _services;
         private MobaConfigDatabase _configs;
         private MobaActorLookupService _actors;
@@ -85,23 +75,6 @@ namespace AbilityKit.Demo.Moba.Services
         public SkillPipelineContextPayloadAccessor(IWorldResolver services)
         {
             _services = services;
-        }
-
-        public static bool SupportsField(int fieldId)
-        {
-            return fieldId == SkillIdId || fieldId == SkillIdLegacyId
-                || fieldId == SkillSlotId || fieldId == SkillSlotLegacyId
-                || fieldId == SkillLevelId || fieldId == SkillLevelLegacyId
-                || fieldId == SkillCostId || fieldId == SkillCostLegacyId
-                || fieldId == SkillCooldownMsId || fieldId == SkillCooldownMsLegacyId
-                || fieldId == SkillCooldownRemainingMsId || fieldId == SkillCooldownRemainingMsLegacyId
-                || fieldId == CasterActorIdId || fieldId == CasterActorIdLegacyId
-                || fieldId == TargetActorIdId || fieldId == TargetActorIdLegacyId
-                || fieldId == CasterManaId || fieldId == CasterManaLegacyId
-                || fieldId == CasterManaMaxId || fieldId == CasterManaMaxLegacyId
-                || fieldId == CasterManaPercentId || fieldId == CasterManaPercentLegacyId
-                || fieldId == CasterResourceManaId || fieldId == CasterResourceManaLegacyId
-                || fieldId == CasterResourceManaMaxId || fieldId == CasterResourceManaMaxLegacyId;
         }
 
         public bool TryGet(in SkillPipelineContext args, int fieldId, out int value)
@@ -314,28 +287,17 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
-    public sealed class SkillCastContextPayloadAccessor : IPayloadIntAccessor<SkillCastContext>, IPayloadDoubleAccessor<SkillCastContext>
+    [GeneratePayloadFieldIds(
+        typeof(SkillRulePayloadFields),
+        "SupportsField",
+        true,
+        nameof(SkillRulePayloadFields.SkillId),
+        nameof(SkillRulePayloadFields.SkillSlot),
+        nameof(SkillRulePayloadFields.SkillLevel),
+        nameof(SkillRulePayloadFields.CasterActorId),
+        nameof(SkillRulePayloadFields.TargetActorId))]
+    public sealed partial class SkillCastContextPayloadAccessor : IPayloadIntAccessor<SkillCastContext>, IPayloadDoubleAccessor<SkillCastContext>
     {
-        private static readonly int SkillIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillId);
-        private static readonly int SkillIdLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillId);
-        private static readonly int SkillSlotId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillSlot);
-        private static readonly int SkillSlotLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillSlot);
-        private static readonly int SkillLevelId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillLevel);
-        private static readonly int SkillLevelLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillLevel);
-        private static readonly int CasterActorIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterActorId);
-        private static readonly int CasterActorIdLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterActorId);
-        private static readonly int TargetActorIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.TargetActorId);
-        private static readonly int TargetActorIdLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.TargetActorId);
-
-        public static bool SupportsField(int fieldId)
-        {
-            return fieldId == SkillIdId || fieldId == SkillIdLegacyId
-                || fieldId == SkillSlotId || fieldId == SkillSlotLegacyId
-                || fieldId == SkillLevelId || fieldId == SkillLevelLegacyId
-                || fieldId == CasterActorIdId || fieldId == CasterActorIdLegacyId
-                || fieldId == TargetActorIdId || fieldId == TargetActorIdLegacyId;
-        }
-
         public bool TryGet(in SkillCastContext args, int fieldId, out int value)
         {
             value = 0;

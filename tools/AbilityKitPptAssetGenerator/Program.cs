@@ -299,12 +299,12 @@ SaveCanvas("11-moba-buff-lifecycle.png", g =>
     Header(g, "MOBA Buff 生命周期正式化", "Buff 的难点不是加状态，而是 apply、replace、remove、expire 的顺序和扩展点");
     var phases = new[]
     {
-        new Step("Apply", "申请 / 刷新\n叠层 / 替换", colors.Blue),
-        new Step("Runtime", "BuffRuntime\nkey / source", colors.Cyan),
+        new Step("Apply", "EnqueueApply\n叠层 / 替换", colors.Blue),
+        new Step("Runtime", "BuffRuntime\nkey / source / origin", colors.Cyan),
         new Step("Binding", "continuous\ntrigger owner\ntrace context", colors.Green),
         new Step("Notify", "事件 / 表现\nstage effect", colors.Amber),
-        new Step("End", "remove / expire\ninterrupt / replace", colors.Purple),
-        new Step("Verify", "配置校验\nsmoke / test", colors.Red)
+        new Step("End", "EndRuntime\n六步严格回收", colors.Purple),
+        new Step("Reconcile", "帧级对账\n过期 / 标签移除", colors.Red)
     };
     var x = 120f;
     const float y = 320f;
@@ -319,7 +319,7 @@ SaveCanvas("11-moba-buff-lifecycle.png", g =>
         x += 300;
     }
     RoundRect(g, new RectangleF(245, 645, 1430, 135), 16, Brushes.White, Pen("#CBD5E1", 2));
-    Text(g, "正式化方向：BuffApplyFlow / BuffEndFlow / BuffLifecycleNotifier / 策略接口，把主流程从膨胀总控类拆成稳定扩展点。", new RectangleF(285, 675, 1350, 64), bodyFont, Brush(colors.Text));
+    Text(g, "入口薄、生命周期厚：MobaBuffService 只 EnqueueApply / DrainPending + ReconcileActorBuffLifecycles 对账；BuffEndFlow 按 停 continuous → 结束 trace → 清 owner binding → 释放 skill runtime → 回收 顺序清理。", new RectangleF(245, 670, 1430, 80), bodyFont, Brush(colors.Text));
 });
 
 SaveCanvas("12-shooter-pure-csharp-projection.png", g =>
@@ -513,7 +513,7 @@ SaveCanvas("18-attributes-modifier-stack.png", g =>
         new Group("Base", colors.Blue, new[] { "等级 / 配置", "初始属性", "成长曲线" }),
         new Group("Add", colors.Cyan, new[] { "装备", "Buff flat", "临时加值" }),
         new Group("Multiply", colors.Green, new[] { "百分比", "乘区策略", "上下限" }),
-        new Group("Dirty", colors.Amber, new[] { "版本号", "延迟重算", "依赖传播" }),
+        new Group("Dirty", colors.Amber, new[] { "Dirty 标记", "Recompute", "依赖传播 + 缓存失效" }),
         new Group("Snapshot", colors.Purple, new[] { "表现", "同步", "测试断言" })
     };
     var x = 150f;
@@ -963,8 +963,8 @@ CodeVisualSpec[] CodeVisualSpecs()
         S("30-composable-adoption-model.png", CodeVisualKind.DataFlow, "按能力组合接入，而不是一次性重写", "项目可以从 Core/Pipeline 开始，再按风险接入 Triggering、Combat、Sync 和 Gates", "渐进接入更现实：每个阶段都能用具体代码和用例证明收益。", "代码依据：包拆分和模块边界", I("Core", "基础数学、事件、ID", "com.abilitykit.core"), I("Pipeline", "技能阶段和运行控制", "com.abilitykit.pipeline"), I("Triggering", "规则、条件、Action", "com.abilitykit.triggering"), I("Combat", "Targeting / Projectile / Damage", "combat.*"), I("Sync", "FrameSync / Snapshot / StateSync", "world.*"), I("Gates", "Smoke / DSL / Matrix", "Docs/test-gates")),
         S("31-module-boundary-collaboration.png", CodeVisualKind.Matrix, "模块边界如何帮助协作定位", "统一模块名和服务入口后，跨项目问题可以按链路分派，而不是靠熟人记忆", "边界的价值不是画目录，而是让问题能被定位、复盘和转成回归。", "代码依据：WorldService 和 PlanActionModule", I("Skill", "输入、准备、Pipeline", "SkillCastCoordinator", "技能负责人"), I("Trigger", "事件、条件、计划", "MobaTriggerExecutionGateway", "规则负责人"), I("Damage", "公式、护盾、事件", "DamagePipelineService", "战斗负责人"), I("Sync", "输入帧、快照、矩阵", "FramePacketNetAdapter", "网络负责人")) with { MatrixHeaders = new[] { "问题域", "模块职责", "代码入口", "责任边界" } },
         S("32-maintainability-handover.png", CodeVisualKind.Lifecycle, "换人后仍能维护的代码闭环", "新同事接手不靠口口相传，而是从入口、trace、示例、测试和文档形成闭环", "可维护来自结构和反馈，不只是注释。", "代码依据：Trace / DemoHarness / Docs", I("固定入口", "先找到服务和网关", "WorldService"), I("Trace 链", "能看到来源和子节点", "MobaTraceRegistry"), I("示例复现", "MOBA / Shooter 可运行", "demo.*"), I("测试保护", "改动后快速反馈", "smoke / matrix"), I("文档追溯", "设计意图保留", "Docs/*.md")) with { CenterLabel = "可追溯\n交接闭环" },
-        S("33-pipeline-phase-composition.png", CodeVisualKind.Sequence, "真实技能释放调用链", "从输入相位到 runtime 创建，每一步都有独立职责和失败原因", "这张图能替代泛化 Pipeline 说明，直接讲真实代码如何拆解一次 Cast。", "代码依据：SkillCastCoordinator.cs / SkillCastPreparationService.cs", I("输入相位", "Press / Hold / Release / Cancel", "DispatchSkillInputPhase"), I("槽位解析", "slot -> skillId", "TryCastBySlot"), I("准备输入", "caster / aim / target / level", "Prepare"), I("创建 Trace Root", "技能释放正式根节点", "CreateRootContext"), I("创建 Runtime", "handle / runtimeId / blackboard", "MobaSkillCastRuntimeService.Create"), I("Runner 执行", "PreCast / Cast phases", "SkillRunnerRegistry"), I("收尾", "PipelineEnded + children", "MarkPipelineEnded")),
-        S("34-triggering-rule-system.png", CodeVisualKind.Sequence, "触发计划执行链路", "直接触发和 owner-bound 触发最终进入同一套上下文、预算、条件和计划执行", "Triggering 的价值是统一反应链路，让规则扩展不再散落在业务 if/else。", "代码依据：MobaTriggerExecutionGateway.cs / MobaEffectExecutionService.cs", I("入口收敛", "Direct / OwnerBound", "MobaTriggerExecutionGateway"), I("执行请求", "TriggerId + typed payload", "ExecuteTrigger<TPayload>"), I("上下文创建", "payload / lineage / snapshot", "CreateCombatExecutionContext"), I("预算保护", "depth / frame / same trigger", "TryEnterExecutionBudget"), I("条件判断", "trigger conditions", "EvaluateTriggerConditions"), I("计划执行", "Action / Function / EventBus", "MobaTriggerPlanExecutor.Execute"), I("Trace 结束", "Completed / Failed", "session.Complete")),
+        S("33-pipeline-phase-composition.png", CodeVisualKind.Sequence, "真实技能释放调用链", "从输入相位到 runtime 创建，每一步都有独立职责和失败原因", "这张图能替代泛化 Pipeline 说明，直接讲真实代码如何拆解一次 Cast。", "代码依据：SkillCastCoordinator.cs / SkillCastPreparationService.cs", I("输入相位", "Press / Hold / Release / Cancel", "DispatchSkillInputPhase"), I("槽位解析", "slot -> skillId", "TryCastBySlot"), I("准备施法", "配置 / 索敌 / aim / pipeline", "SkillCastPreparationService.Prepare"), I("创建 Trace Root", "技能释放正式根节点", "CreateRootContext"), I("创建 Runtime", "handle / runtimeId / blackboard", "MobaSkillCastRuntimeService.Create"), I("Runner 执行", "PreCast / Cast phases", "SkillRunnerRegistry"), I("标记结束", "PipelineEnded + EndReason", "MarkPipelineEnded"), I("终结判定", "PendingChildren 大于 0 则 WaitingChildren 挂起，否则 Finalized", "TryFinalize")),
+        S("34-triggering-rule-system.png", CodeVisualKind.Sequence, "触发计划执行链路", "直接触发和 owner-bound 触发最终进入同一套上下文、预算、条件和计划执行", "Triggering 的价值是统一反应链路，让规则扩展不再散落在业务 if/else。", "代码依据：MobaTriggerExecutionGateway.cs / MobaEffectExecutionService.cs", I("入口收敛", "Direct / OwnerBound", "MobaTriggerExecutionGateway"), I("执行请求", "TriggerId + typed payload", "ExecuteTrigger<TPayload>"), I("上下文创建", "payload / lineage / snapshot", "CreateCombatExecutionContext"), I("预算保护", "depth / frame / same trigger", "TryEnterExecutionBudget"), I("开启会话", "using 保证 EndCurrentTrace", "BeginExecutionSession"), I("条件求值", "EvaluateTriggerConditions", "session 内"), I("计划执行", "TryExecutePlanByTriggerId / ExecuteRulePlan", "MobaTriggerPlanExecutor"), I("会话收尾", "session.Complete 关闭 Trace", "Trace 结束")),
         S("35-sync-risk-framework.png", CodeVisualKind.SplitFlow, "同步风险的代码级收敛点", "FramePacketNetAdapter 把输入帧和快照路由集中处理，DemoHarness 把同步模型放进矩阵验收", "同步框架化不是多写抽象，而是给高风险链路建立固定验证入口。", "代码依据：FramePacketNetAdapter.cs / DemoHarnessRunner.cs", I("FramePacket", "worldId / frame / inputs", "ProcessAndFeed"), I("RemoteDriven", "延迟输入 + jitter buffer", "RemoteDrivenSink.Add"), I("Confirmed", "权威输入 buffer", "ConfirmedSink.Add"), I("Snapshot", "envelope feed", "Snapshots.Feed"), I("Scenario", "sync profile + network + carrier", "DemoHarnessScenario"), I("Status", "Completed / Degraded / Failed", "DemoHarnessRunStatus")) with { LeftLabel = "运行时路由", RightLabel = "自动化验收" },
         S("36-sample-dual-validation.png", CodeVisualKind.Matrix, "MOBA / Shooter 分别验证什么", "两个示例覆盖的不是玩法展示，而是复杂战斗和同步边界两类公司级风险", "示例越接近真实复杂度，越能为框架升级提供信心。", "代码依据：demo.moba.runtime / demo.shooter.view.runtime", I("MOBA", "技能、触发、伤害、Buff", "MobaEffectExecutionService", "战斗治理"), I("Shooter", "预测、快照、网络矩阵", "ShooterAcceptanceLab", "同步治理"), I("Console", "纯逻辑 smoke 和 DSL", "Demo.Host.Console", "CI 友好"), I("Unity", "表现与运行时契约", "View.Runtime", "集成验证")) with { MatrixHeaders = new[] { "验证载体", "覆盖风险", "代码入口", "验证定位" } },
         S("37-shooter-validation-showcase.png", CodeVisualKind.SplitFlow, "Shooter 双层验收证据", "DemoHarness 枚举能力边界，真实 TCP / 多进程 smoke 验证传输、重连和回放闭环", "四态矩阵回答“组合是否支持”，进程级 smoke 回答“真实链路是否跑通”；两者不能互相替代。", "代码依据：DemoHarnessRunner.cs / run_shooter_multiprocess_smoke.ps1 / ShooterSmokeReplayValidation.cs", I("能力组合", "sync profile + network + carrier", "DemoHarnessScenario"), I("四态结果", "Completed / Unsupported / Degraded / Failed", "DemoHarnessRunStatus"), I("可比较指标", "reconcile / jitter / snapshot / health", "metrics + report"), I("真实 TCP", "client process -> gateway -> Orleans", "SmokeTcpGameFrameworkNetworkChannel"), I("重连与迟到加入", "disconnect / reconnect / full snapshot", "multiprocess smoke"), I("回放证据", "完整 + 最小 replay / hash 校验", "ShooterSmokeReplayValidation")) with { LeftLabel = "组合覆盖：DemoHarness", RightLabel = "传输闭环：Process Smoke" },

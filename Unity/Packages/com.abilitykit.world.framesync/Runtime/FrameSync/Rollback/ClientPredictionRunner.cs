@@ -5,11 +5,12 @@ using AbilityKit.Ability.World.Abstractions;
 namespace AbilityKit.Ability.FrameSync.Rollback
 {
     /// <summary>
-    /// 【已废弃】world.framesync 自带的客户端预测 runner。规范客户端预测栈为
-    /// <c>com.abilitykit.host.extension</c> 的 <c>ClientPredictionDriverModule</c>
-    /// （MOBA/Shooter 两个 demo 均使用它）。本类当前无 demo 消费者，保留仅为过渡，后续版本将移除。
+    /// world.framesync 自带的客户端预测 runner。由 Shooter demo
+    /// (<c>ShooterClientFrameSyncController</c>) 和 MOBA test harness
+    /// (<c>ClientPredictionTestHarness</c>) 使用。
+    /// 规范预测栈 <c>ClientPredictionDriverModule</c> 也间接依赖同包的
+    /// <c>ClientPredictionReconciler</c>。
     /// </summary>
-    [Obsolete("Use com.abilitykit.host.extension/ClientPredictionDriverModule instead. This world.framesync prediction runner has no consumer and will be removed in a future version.", false)]
     public sealed class ClientPredictionRunner
     {
         public Action<string> Log;

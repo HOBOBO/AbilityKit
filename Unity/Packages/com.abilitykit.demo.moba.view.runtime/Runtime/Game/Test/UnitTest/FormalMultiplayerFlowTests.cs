@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Flow;
+using AbilityKit.Network.Abstractions;
+using AbilityKit.Protocol.Room;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -13,6 +15,21 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class FormalMultiplayerFlowTests
     {
+        [Test]
+        public void FormalLobbyConfig_DefaultsToOwnerInitiatedMatchStart()
+        {
+            var config = ScriptableObject.CreateInstance<BattleGatewayConfigSO>();
+            try
+            {
+                Assert.That(config.AutoReadyDefaultLoadout, Is.True);
+                Assert.That(config.AutoStartWhenReady, Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(config);
+            }
+        }
+
         [Test]
         public void MembershipNotice_FormatsLeaveJoinAndOwnerTransfer()
         {
@@ -32,6 +49,271 @@ namespace AbilityKit.Game.Test.UnitTest
                 Is.EqualTo(
                     "account-b left the room. account-c joined the room. " +
                     "account-a is now room owner."));
+        }
+
+        [Test]
+        public void MembershipNotice_WhenOwnerLeaves_ReportsTransferToRemainingMember()
+        {
+            var notice = FormalLobbyFeature.FormatMembershipNotice(
+                new ClientRoomMembershipChange(
+                    "room-a",
+                    previousRevision: 20,
+                    currentRevision: 21,
+                    joinedAccountIds: Array.Empty<string>(),
+                    leftAccountIds: new[] { "account-owner" },
+                    previousOwnerAccountId: "account-owner",
+                    currentOwnerAccountId: "account-member"));
+
+            Assert.That(
+                notice,
+                Is.EqualTo(
+                    "account-owner left the room. " +
+                    "account-member is now room owner."));
+        }
+
+        [Test]
+        public void PlayerStateNotice_FormatsReadyOfflineAndReconnectStates()
+        {
+            var notice = FormalLobbyFeature.FormatPlayerStateNotice(
+                new ClientRoomPlayerStateChanges(
+                    "room-a",
+                    previousRevision: 1,
+                    currentRevision: 2,
+                    new[]
+                    {
+                        new ClientRoomPlayerStateChange(
+                            "account-a",
+                            previousOnline: true,
+                            currentOnline: false,
+                            previousReady: true,
+                            currentReady: false,
+                            previousHeroId: 1001,
+                            currentHeroId: 1001),
+                        new ClientRoomPlayerStateChange(
+                            "account-b",
+                            previousOnline: false,
+                            currentOnline: true,
+                            previousReady: false,
+                            currentReady: true,
+                            previousHeroId: 1002,
+                            currentHeroId: 1002)
+                    }));
+
+            Assert.That(
+                notice,
+                Is.EqualTo(
+                    "account-a went offline. account-a is no longer ready. " +
+                    "account-b reconnected. account-b is ready."));
+        }
+
+        [Test]
+        public void LobbyPresentation_LiveReadyOwnerCanStart()
+        {
+            var owner = new MultiplayerRoomPlayerSnapshot
+            {
+                AccountId = "account-owner",
+                PlayerId = 7,
+                HeroId = 1001,
+                LobbyReady = true,
+                IsOnline = true
+            };
+            var snapshot = new MultiplayerRoomSnapshot
+            {
+                RoomId = "room-a",
+                OwnerAccountId = owner.AccountId,
+                Phase = MultiplayerRoomPhase.Lobby,
+                RoomRevision = 12,
+                CanStart = true,
+                Players = new[]
+                {
+                    owner,
+                    new MultiplayerRoomPlayerSnapshot
+                    {
+                        AccountId = "account-member",
+                        PlayerId = 8,
+                        HeroId = 1002,
+                        LobbyReady = true,
+                        IsOnline = true
+                    }
+                }
+            };
+
+            var state = FormalLobbyFeature.BuildLobbyPresentation(
+                snapshot,
+                owner,
+                isLocalRoomOwner: true,
+                maxPlayers: 2,
+                minPlayers: 2,
+                ConnectionState.Connected,
+                snapshotIsStale: false,
+                lastSnapshotReceivedAtUnixMs: 1000,
+                nowUnixMs: 1500);
+
+            Assert.That(state.RoleLabel, Is.EqualTo("Owner"));
+            Assert.That(state.ReadyPlayerCount, Is.EqualTo(2));
+            Assert.That(state.OnlinePlayerCount, Is.EqualTo(2));
+            Assert.That(state.CanStart, Is.True);
+            Assert.That(state.ActionStatus, Is.EqualTo("All players are ready."));
+            StringAssert.Contains("Live | Revision 12 | just now", state.SyncStatus);
+        }
+
+        [Test]
+        public void LobbyPresentation_StaleSnapshotDisablesActionsUntilRefresh()
+        {
+            var owner = new MultiplayerRoomPlayerSnapshot
+            {
+                AccountId = "account-owner",
+                HeroId = 1001,
+                LobbyReady = true,
+                IsOnline = true
+            };
+            var snapshot = new MultiplayerRoomSnapshot
+            {
+                OwnerAccountId = owner.AccountId,
+                Phase = MultiplayerRoomPhase.Lobby,
+                RoomRevision = 20,
+                CanStart = true,
+                Players = new[]
+                {
+                    owner,
+                    new MultiplayerRoomPlayerSnapshot
+                    {
+                        AccountId = "account-member",
+                        HeroId = 1002,
+                        LobbyReady = true,
+                        IsOnline = true
+                    }
+                }
+            };
+
+            var state = FormalLobbyFeature.BuildLobbyPresentation(
+                snapshot,
+                owner,
+                isLocalRoomOwner: true,
+                maxPlayers: 2,
+                minPlayers: 2,
+                ConnectionState.Connected,
+                snapshotIsStale: true,
+                lastSnapshotReceivedAtUnixMs: 1000,
+                nowUnixMs: 2000);
+
+            Assert.That(state.CanStart, Is.False);
+            Assert.That(state.ActionStatus, Is.EqualTo("Synchronizing the latest room state."));
+            Assert.That(state.SyncStatus, Is.EqualTo("Room updates: Catching up | Revision 20"));
+        }
+
+        [Test]
+        public void LobbyPresentation_ReadyMemberWaitsForOwner()
+        {
+            var member = new MultiplayerRoomPlayerSnapshot
+            {
+                AccountId = "account-member",
+                HeroId = 1002,
+                LobbyReady = true,
+                IsOnline = true
+            };
+            var snapshot = new MultiplayerRoomSnapshot
+            {
+                OwnerAccountId = "account-owner",
+                Phase = MultiplayerRoomPhase.Lobby,
+                RoomRevision = 5,
+                CanStart = true,
+                Players = new[]
+                {
+                    new MultiplayerRoomPlayerSnapshot
+                    {
+                        AccountId = "account-owner",
+                        HeroId = 1001,
+                        LobbyReady = true,
+                        IsOnline = true
+                    },
+                    member
+                }
+            };
+
+            var state = FormalLobbyFeature.BuildLobbyPresentation(
+                snapshot,
+                member,
+                isLocalRoomOwner: false,
+                maxPlayers: 2,
+                minPlayers: 2,
+                ConnectionState.Connected,
+                snapshotIsStale: false,
+                lastSnapshotReceivedAtUnixMs: 1000,
+                nowUnixMs: 4000);
+
+            Assert.That(state.RoleLabel, Is.EqualTo("Member"));
+            Assert.That(state.CanStart, Is.False);
+            Assert.That(state.ActionStatus, Is.EqualTo("Waiting for room owner to start."));
+            StringAssert.Contains("3s ago", state.SyncStatus);
+        }
+
+        [Test]
+        public void LobbyPresentation_OwnerLeavePromotesLocalMemberAndRefreshesStartState()
+        {
+            var provider = new TestSnapshotProvider();
+            using var controller = new MultiplayerRoomFlowController(
+                new TestRoomSession(playerId: 8u),
+                provider);
+            var spec = CreateLaunchSpec();
+            spec.AccountId = "account-member";
+            controller.StartJoinRoomAsync(spec, "room-a").GetAwaiter().GetResult();
+
+            var localPlayer = new MultiplayerRoomPlayerSnapshot
+            {
+                AccountId = "account-member",
+                PlayerId = 8,
+                HeroId = 1002,
+                LobbyReady = true,
+                IsOnline = true
+            };
+            provider.Publish(new MultiplayerRoomSnapshot
+            {
+                RoomId = "room-a",
+                OwnerAccountId = "account-owner",
+                Phase = MultiplayerRoomPhase.Lobby,
+                RoomRevision = 20,
+                CanStart = true,
+                Players = new[]
+                {
+                    new MultiplayerRoomPlayerSnapshot
+                    {
+                        AccountId = "account-owner",
+                        PlayerId = 7,
+                        HeroId = 1001,
+                        LobbyReady = true,
+                        IsOnline = true
+                    },
+                    localPlayer
+                }
+            });
+
+            Assert.That(controller.IsLocalRoomOwner, Is.False);
+
+            provider.Publish(new MultiplayerRoomSnapshot
+            {
+                RoomId = "room-a",
+                OwnerAccountId = "account-member",
+                Phase = MultiplayerRoomPhase.Lobby,
+                RoomRevision = 21,
+                CanStart = false,
+                Players = new[] { localPlayer }
+            });
+            var state = FormalLobbyFeature.BuildLobbyPresentation(
+                controller.CurrentSnapshot!,
+                localPlayer,
+                controller.IsLocalRoomOwner,
+                maxPlayers: 2,
+                minPlayers: 2,
+                ConnectionState.Connected,
+                snapshotIsStale: false,
+                lastSnapshotReceivedAtUnixMs: 1000,
+                nowUnixMs: 1100);
+
+            Assert.That(controller.IsLocalRoomOwner, Is.True);
+            Assert.That(state.RoleLabel, Is.EqualTo("Owner"));
+            Assert.That(state.CanStart, Is.False);
+            Assert.That(state.ActionStatus, Is.EqualTo("Waiting for players (1/2)."));
         }
 
         [Test]
@@ -60,9 +342,11 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.That(built, Is.True, error);
                 Assert.That(spec, Is.Not.Null);
                 Assert.That(spec!.SessionToken, Is.EqualTo("session-a"));
+                Assert.That(spec.AccountId, Is.EqualTo("account-a"));
                 Assert.That(spec.Region, Is.EqualTo("release"));
                 Assert.That(spec.ServerId, Is.EqualTo("server-a"));
                 Assert.That(spec.RoomType, Is.EqualTo("moba"));
+                Assert.That(spec.MinPlayers, Is.EqualTo(2));
                 Assert.That(spec.GameplayId, Is.EqualTo(1));
                 Assert.That(spec.WorldType, Is.EqualTo("moba"));
 
@@ -118,13 +402,50 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
-        public void AutomaticStart_RequiresReadyOwnerAndRunsOncePerRoom()
+        public void LocalPlayerResolution_PrefersAuthenticatedAccountOverStalePlayerId()
+        {
+            var expected = new MultiplayerRoomPlayerSnapshot
+            {
+                AccountId = "account-owner",
+                PlayerId = 17,
+                HeroId = 1001,
+                LobbyReady = true
+            };
+            var snapshot = new MultiplayerRoomSnapshot
+            {
+                Players = new[]
+                {
+                    new MultiplayerRoomPlayerSnapshot
+                    {
+                        AccountId = "account-member",
+                        PlayerId = 7,
+                        HeroId = 1002,
+                        LobbyReady = true
+                    },
+                    expected
+                }
+            };
+
+            var resolved = FormalLobbyFeature.FindLocalPlayer(
+                snapshot,
+                localPlayerId: 7,
+                accountId: "account-owner");
+
+            Assert.That(resolved, Is.SameAs(expected));
+        }
+
+        [Test]
+        public void AutomaticStart_RequiresConfiguredPlayerCountAndRunsOncePerRoom()
         {
             var snapshot = new MultiplayerRoomSnapshot
             {
                 RoomId = "room-a",
                 Phase = MultiplayerRoomPhase.Lobby,
-                CanStart = true
+                CanStart = true,
+                Players = new[]
+                {
+                    new MultiplayerRoomPlayerSnapshot { PlayerId = 1, LobbyReady = true }
+                }
             };
 
             Assert.That(
@@ -133,6 +454,24 @@ namespace AbilityKit.Game.Test.UnitTest
                     MultiplayerRoomFlowState.InLobby,
                     isLocalRoomOwner: true,
                     snapshot,
+                    minPlayers: 2,
+                    attemptedRoomId: string.Empty,
+                    operationBusy: false),
+                Is.False,
+                "A stale CanStart=true response must not let a one-player room start.");
+
+            snapshot.Players = new[]
+            {
+                snapshot.Players[0],
+                new MultiplayerRoomPlayerSnapshot { PlayerId = 2, LobbyReady = true }
+            };
+            Assert.That(
+                FormalLobbyFeature.ShouldStartAutomatically(
+                    enabled: true,
+                    MultiplayerRoomFlowState.InLobby,
+                    isLocalRoomOwner: true,
+                    snapshot,
+                    minPlayers: 2,
                     attemptedRoomId: string.Empty,
                     operationBusy: false),
                 Is.True);
@@ -142,6 +481,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     MultiplayerRoomFlowState.InLobby,
                     isLocalRoomOwner: false,
                     snapshot,
+                    minPlayers: 2,
                     attemptedRoomId: string.Empty,
                     operationBusy: false),
                 Is.False);
@@ -151,6 +491,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     MultiplayerRoomFlowState.InLobby,
                     isLocalRoomOwner: true,
                     snapshot,
+                    minPlayers: 2,
                     attemptedRoomId: "room-a",
                     operationBusy: false),
                 Is.False);
@@ -162,9 +503,20 @@ namespace AbilityKit.Game.Test.UnitTest
                     MultiplayerRoomFlowState.InLobby,
                     isLocalRoomOwner: true,
                     snapshot,
+                    minPlayers: 2,
                     attemptedRoomId: string.Empty,
                     operationBusy: false),
                 Is.False);
+        }
+
+        [Test]
+        public void LaunchTags_IncludeConfiguredMinimumPlayers()
+        {
+            var spec = CreateLaunchSpec();
+
+            var tags = GatewayMultiplayerRoomSession.BuildLaunchTags(spec);
+
+            Assert.That(tags[RoomTagKeys.MinPlayers], Is.EqualTo("2"));
         }
 
         [Test]
@@ -216,7 +568,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 ServerId = "server-a",
                 RoomType = "moba",
                 RoomTitle = "MOBA Room",
-                MaxPlayers = 2
+                MaxPlayers = 2,
+                MinPlayers = 2
             };
             controller.StartJoinRoomAsync(spec, "room-a").GetAwaiter().GetResult();
 
@@ -252,6 +605,52 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(controller.CurrentRoomId, Is.Empty);
             Assert.That(controller.LocalPlayerId, Is.Zero);
             Assert.That(controller.IsLocalRoomOwner, Is.False);
+        }
+
+        [Test]
+        public void CreatedRoom_UsesAuthenticatedAccountWhenPlayerIdMappingIsStale()
+        {
+            var provider = new TestSnapshotProvider();
+            var session = new TestRoomSession(playerId: 7u);
+            using var controller = new MultiplayerRoomFlowController(session, provider);
+            var spec = CreateLaunchSpec();
+            spec.AccountId = "account-owner";
+
+            controller.StartCreateRoomAsync(spec).GetAwaiter().GetResult();
+            provider.Publish(new MultiplayerRoomSnapshot
+            {
+                RoomId = "room-a",
+                NumericRoomId = 10,
+                OwnerAccountId = "account-owner",
+                Phase = MultiplayerRoomPhase.Lobby,
+                CanStart = true,
+                Players = new[]
+                {
+                    new MultiplayerRoomPlayerSnapshot
+                    {
+                        AccountId = "account-member",
+                        PlayerId = 7,
+                        LobbyReady = true,
+                        HeroId = 1002
+                    },
+                    new MultiplayerRoomPlayerSnapshot
+                    {
+                        AccountId = "account-owner",
+                        PlayerId = 17,
+                        LobbyReady = true,
+                        HeroId = 1001
+                    }
+                }
+            });
+
+            Assert.That(controller.LocalPlayerId, Is.EqualTo(7u));
+            Assert.That(controller.LocalAccountId, Is.EqualTo("account-owner"));
+            Assert.That(controller.IsLocalRoomOwner, Is.True);
+
+            controller.BeginLoadingAsync().GetAwaiter().GetResult();
+
+            Assert.That(session.BeginLoadingCalls, Is.EqualTo(1));
+            Assert.That(controller.CurrentState, Is.EqualTo(MultiplayerRoomFlowState.LoadingAssets));
         }
 
         [Test]
@@ -324,6 +723,7 @@ namespace AbilityKit.Game.Test.UnitTest
             return new MultiplayerRoomLaunchSpec
             {
                 SessionToken = "session-a",
+                AccountId = "account-a",
                 Region = "release",
                 ServerId = "server-a",
                 RoomType = "moba",
@@ -355,6 +755,7 @@ namespace AbilityKit.Game.Test.UnitTest
             }
 
             public int LeaveCalls { get; private set; }
+            public int BeginLoadingCalls { get; private set; }
             public Exception? LeaveException { get; set; }
 
             public Task<MultiplayerRoomRestoreResult> RestoreAsync(
@@ -408,6 +809,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             public Task BeginLoadingAsync(string roomId, CancellationToken cancellationToken)
             {
+                BeginLoadingCalls++;
                 return Task.CompletedTask;
             }
 

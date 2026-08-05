@@ -119,7 +119,6 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         bool TryGetContentHash(string profileId, out string contentHash);
     }
 
-    [WorldService(typeof(IMobaActorStateMachineProfileCatalog))]
     public sealed class MobaActorStateMachineProfileCatalog : IMobaActorStateMachineProfileCatalog
     {
         private readonly Dictionary<string, HfsmHierarchicalRuntimeProfile<MobaHfsmActionSpec>> _profiles =

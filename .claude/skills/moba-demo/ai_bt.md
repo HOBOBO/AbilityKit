@@ -15,7 +15,7 @@
   - 与 `CreateHero()` 一致，MoveInput 组件创建即有，消除首次 BrainOutputApply 才 Add 的时序脆弱性
 
 ### 验证
-召唤烟雾测试 `MobaSummonBTreeSkillSmokeTests` 由 fail→pass（179/179）
+召唤烟雾测试 `MobaSummonBTreeSkillSmokeTests` 已覆盖该修复；不要在文档中固化易漂移的测试总数。
 
 ## BT 寻路接入（PathFollowing）
 

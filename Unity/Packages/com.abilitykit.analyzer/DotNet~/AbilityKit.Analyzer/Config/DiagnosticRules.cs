@@ -27,5 +27,13 @@ namespace AbilityKit.Analyzer
             category: "AbilityKit.Maintainability",
             defaultSeverity: DiagnosticSeverity.Warning,
             isEnabledByDefault: false);
+
+        public static readonly DiagnosticDescriptor PartialConfigTableFactoryRule = new DiagnosticDescriptor(
+            id: DiagnosticIds.PartialConfigTableFactoryRuleId,
+            title: "Incomplete config table factories",
+            messageFormat: "ConfigTableDefinition must provide both DTO and entry table factories, or neither",
+            category: "AbilityKit.Configuration",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
     }
 }

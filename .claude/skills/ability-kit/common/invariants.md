@@ -1,6 +1,6 @@
 # Project invariants / constraints
 
-> 本节所有约定均基于 2026-07-20 实际源码核校，标注判定与证据。
+> 本节所有约定均基于 2026-08-04 实际源码核校，标注判定与证据。
 
 ## 1. 中文注释（部分有效 — 事实约定，无强制）
 
@@ -59,12 +59,14 @@
 **约定**：Runtime/热路径手写 `for` 循环、预分配容量、`in` 传结构体、池化 args；LINQ / 反射 / `new List<>` 仅限 Editor / 序列化 / 构建期。允许必要分配（如 handler 快照），但需在注释里写明理由。
 
 **证据**：
-- `AbilityKit.Analyzer` 项目存在但只定义 3 条规则：`ForbiddenNamespaceRule`（Error）、`ForbiddenAssemblyRule`（Error）、`UnmatchedConstraintPackageRule`（Warning，默认禁用）。**没有 LINQ/分配/反射检测**。
+- `AbilityKit.Analyzer` 目前定义框架规则 `AK1001`（禁止命名空间）、`AK1002`（禁止程序集）、`AK1003`（约束包名不匹配）和 `AK1004`（配置表 DTO/MO factory 不成对）。`AK1001`-`AK1003` 仍由约束配置驱动，`AK1004` 负责在编译期拦截单侧 factory。
+- MOBA 专用声明规则（`AKSG1001`-`AKSG9005`、`AK2001`-`AK2006` 等）位于 `com.abilitykit.demo.moba.codegen`，不应回流到框架 Analyzer。
+- **仍没有 LINQ/分配/反射性能检测**；这些约束继续依靠代码风格、自测与 Code Review。
 - 高频路径代码风格：`com.abilitykit.triggering/Runtime/Events/EventBus.cs` `Publish<TArgs>(..., in TArgs)` + `for (int i=0; i<_flushables.Count; i++)` + 预容量；`EffectContainer.cs` 手写循环、无 LINQ；`TriggerRunner.ExecuteInternal` 手写循环。
 - LINQ 集中在 `Editor/CodeGen/TriggerCodegenMenu.cs` 与 `Runtime/Dsl/TriggerPlanDsl.cs:218`（构建期），Runtime 热路径无 LINQ。
 - 必要分配的反例：`TriggerRunner.cs:235` `new List<IEventHandler>(handlers)` 注释"创建快照，避免分发过程中处理器列表被修改"。
 
-**结论**：分析器只做命名空间约束；性能靠自律 + Code Review。
+**结论**：Analyzer 现在负责依赖边界、约束配置和配置 factory 配对；MOBA 声明合法性由 MOBA Analyzer 负责；性能仍靠自律 + Code Review。
 
 ## 6. asmdef 引用不传递（仍然有效 — 完整保留）
 

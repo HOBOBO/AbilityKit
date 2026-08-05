@@ -40,7 +40,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
             int delayFrames,
             long sourceContextId,
             long rootContextId,
-            long ownerContextId)
+            long ownerContextId,
+            MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
         {
             if (areaId.Value <= 0) return;
 
@@ -61,7 +62,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
                 delayFrames > 0 ? frame + delayFrames : frame,
                 sourceContextId,
                 rootContextId != 0L ? rootContextId : sourceContextId,
-                ownerContextId != 0L ? ownerContextId : sourceContextId);
+                ownerContextId != 0L ? ownerContextId : sourceContextId,
+                skillRuntimeHandle);
 
             if (_areas.TryGetValue(areaId.Value, out var oldInfo))
             {
@@ -297,6 +299,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
         public readonly long SourceContextId;
         public readonly long RootContextId;
         public readonly long OwnerContextId;
+        public readonly MobaSkillCastRuntimeHandle SkillRuntimeHandle;
 
         public MobaAreaRuntimeInfo(
             int areaId,
@@ -310,7 +313,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
             int delayTriggerFrame,
             long sourceContextId,
             long rootContextId,
-            long ownerContextId)
+            long ownerContextId,
+            MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
         {
             AreaId = areaId;
             TemplateId = templateId;
@@ -324,6 +328,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             SourceContextId = sourceContextId;
             RootContextId = rootContextId;
             OwnerContextId = ownerContextId;
+            SkillRuntimeHandle = skillRuntimeHandle;
         }
     }
 }

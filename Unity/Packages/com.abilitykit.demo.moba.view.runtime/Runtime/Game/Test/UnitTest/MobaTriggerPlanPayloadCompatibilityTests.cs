@@ -6,6 +6,7 @@ using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages;
 using AbilityKit.Triggering.Eventing;
@@ -96,6 +97,27 @@ namespace AbilityKit.Game.Test.UnitTest
                 loader.LoadDirectory("plans", "*.json", options));
 
             StringAssert.Contains("plans/missing.json", exception.Message);
+        }
+
+        [Test]
+        public void AreaEventArgs_PreservesSkillRuntimeAcrossOriginAndContextSource()
+        {
+            var handle = new MobaSkillCastRuntimeHandle(runtimeId: 41, generation: 2, rootTraceContextId: 1001);
+            var payload = new AreaEventArgs
+            {
+                EventId = "area.delay",
+                TemplateId = 40020301,
+                OwnerActorId = 7,
+                SourceContextId = 1002,
+                RootContextId = 1001,
+                OwnerContextId = 1002,
+                SkillRuntimeHandle = handle,
+            };
+
+            Assert.IsTrue(payload.TryGetOrigin(out var origin));
+            Assert.AreEqual(handle, origin.SkillRuntimeHandle);
+            Assert.IsTrue(payload.TryGetContextSource(out var source));
+            Assert.AreEqual(handle, source.SkillRuntimeHandle);
         }
 
         private static MobaRuntimeValidationReport ValidatePayloadField<TArgs>(

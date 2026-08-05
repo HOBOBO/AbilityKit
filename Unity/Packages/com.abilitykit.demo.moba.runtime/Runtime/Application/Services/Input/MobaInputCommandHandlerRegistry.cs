@@ -57,8 +57,42 @@ namespace AbilityKit.Demo.Moba.Services
         public static MobaInputCommandHandlerRegistry CreateScanned()
         {
             MobaInputCommandHandlerRegistry registry = new MobaInputCommandHandlerRegistry();
-            MarkerScanner<MobaInputCommandHandlerAttribute>.ScanAll(registry);
+            if (RegisterGeneratedAndExternalHandlers(registry) == 0)
+            {
+                if (AppContext.TryGetSwitch(
+                        "AbilityKit.Moba.DisableInputCommandHandlerReflectionFallback",
+                        out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
+                {
+                    throw new InvalidOperationException(
+                        "The generated MOBA input command handler manifest is empty and reflection fallback is disabled.");
+                }
+
+                MarkerScanner<MobaInputCommandHandlerAttribute>.Scan(
+                    new[] { typeof(MobaInputCommandHandlerRegistry).Assembly },
+                    registry);
+            }
+
             return registry;
+        }
+
+        private static int RegisterGeneratedAndExternalHandlers(MobaInputCommandHandlerRegistry registry)
+        {
+            var runtimeAssembly = typeof(MobaInputCommandHandlerRegistry).Assembly;
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            var generatedCount = 0;
+            for (int i = 0; i < assemblies.Length; i++)
+            {
+                var assembly = assemblies[i];
+                if (assembly == runtimeAssembly)
+                {
+                    generatedCount = MobaGeneratedInputCommandHandlerManifest.Register(registry);
+                    continue;
+                }
+
+                MarkerScanner<MobaInputCommandHandlerAttribute>.Scan(new[] { assembly }, registry);
+            }
+
+            return generatedCount;
         }
 
         /// <summary>

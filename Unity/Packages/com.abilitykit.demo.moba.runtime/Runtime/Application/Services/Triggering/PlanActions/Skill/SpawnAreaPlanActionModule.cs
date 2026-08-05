@@ -139,9 +139,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var sourceContextId = 0L;
             var rootContextId = 0L;
             var ownerContextId = 0L;
+            var skillRuntimeHandle = default(MobaSkillCastRuntimeHandle);
             if (areaRuntime != null)
             {
                 var origin = input.BuildOrigin(input.CasterActorId, targetActorId, MobaTraceKind.AreaSpawn, args.AreaId);
+                skillRuntimeHandle = origin.SkillRuntimeHandle;
                 LogInvestigation(ctx,
                     $"resolved origin immediate={origin.ImmediateContextId} parent={origin.EffectiveParentContextId} root={origin.EffectiveRootContextId} owner={origin.OwnerContextId} target={targetActorId}");
                 if (origin.EffectiveParentContextId == 0L)
@@ -206,7 +208,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     delayFrames,
                     sourceContextId,
                     rootContextId,
-                    ownerContextId);
+                    ownerContextId,
+                    skillRuntimeHandle);
             }
 
             LogApplied(ctx, $"templateId={args.AreaId} runtimeId={areaId.Value} caster={input.CasterActorId} target={targetActorId} radius={radius} lifetimeFrames={lifetimeFrames}");

@@ -50,7 +50,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 harness.EnterGameAndWarmup(reason: "daji skill 1 rectangular wave contract");
                 var actorId = harness.AssertPlayerActorBound();
-                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f, z: 0.8f);
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 1.5f, z: 0.8f);
                 var hpBefore = harness.GetActorHp(targetActorId);
                 var magicDefenseBefore = harness.GetActorAttribute(targetActorId, BattleAttributeType.MAGIC_DEFENSE);
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
@@ -492,6 +492,45 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(1, hits.Count, "Ignoring an overlapping friendly collider should not exhaust rectangular sweep attempts.");
             Assert.AreEqual(target, hits[0].HitCollider, "The rectangular projectile should continue to the valid target behind the ignored collider.");
             Assert.AreEqual(0, exits.Count, "A piercing projectile should remain active after the valid hit.");
+        }
+
+        [Test]
+        public void RectangularSweep_HitCooldownShouldNotTrapProjectileOnSameTarget()
+        {
+            var collision = new NaiveCollisionWorld();
+            AddSphere(collision, new Vec3(1.5f, 0f, 0.8f), 0.5f);
+            var world = new ProjectileWorld(collision);
+            var projectileId = world.Spawn(new ProjectileSpawnParams(
+                ownerId: 1,
+                templateId: 30050101,
+                launcherActorId: 1,
+                rootActorId: 1,
+                spawnFrame: 0,
+                position: Vec3.Zero,
+                direction: Vec3.Right,
+                speed: 22f,
+                returnAfterFrames: 0,
+                returnSpeed: 0f,
+                returnStopDistance: 0f,
+                lifetimeFrames: 30,
+                maxDistance: 12f,
+                collisionLayerMask: CollisionLayerMask,
+                ignoreCollider: default,
+                hitsRemaining: 6,
+                hitPolicyKind: ProjectileHitPolicyKind.Pierce,
+                hitPolicyParam: 6,
+                hitCooldownFrames: 6,
+                collisionHalfExtents: new Vec3(1f, 0.75f, 0.4f)));
+            var hits = new List<ProjectileHitEvent>();
+
+            for (var frame = 1; frame <= 8; frame++)
+            {
+                world.Tick(frame, 1f / 30f, hits, exitEvents: null, tickEvents: null);
+            }
+
+            Assert.AreEqual(1, hits.Count, "A fast piercing wave should not hit the same target again after its cooldown expires.");
+            Assert.IsTrue(world.TryGetRuntimeState(projectileId, out var state));
+            Assert.Greater(state.Position.X, 5f, "A collider under hit cooldown must be ignored for the rest of the frame so the projectile keeps moving.");
         }
 
         [Test]

@@ -64,7 +64,8 @@ namespace AbilityKit.Game.Flow
                 // 远端实体插值播放：Gateway 推送 SnapshotPushed → 统一复制管线 → 每帧投影。
                 if (transport is NetworkTransport networkTransport)
                 {
-                    _remoteInterpolationController = new MobaClientAuthoritativeInterpolationSyncController();
+                    _remoteInterpolationController = new MobaClientAuthoritativeInterpolationSyncController(
+                        MobaRemoteInterpolationPlayback.CreateFrameTimelineConfig(_plan.World.TickRate));
                     _remoteReplicationPipeline = new MobaClientReplicationPipeline(_remoteInterpolationController);
                     _synchronizationHealthEvaluator = new MobaSynchronizationHealthEvaluator();
                     _synchronizationHealth = default;

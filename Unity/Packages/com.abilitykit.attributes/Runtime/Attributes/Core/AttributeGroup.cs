@@ -171,6 +171,14 @@ namespace AbilityKit.Attributes.Core
             inst?.MarkDirtyByDependency();
         }
 
+        internal void MarkContextFloatDependentsDirty(string key)
+        {
+            foreach (var inst in _attrs.Values)
+            {
+                inst.MarkDirtyIfContextFloatDependent(key);
+            }
+        }
+
         internal ref AttributeSlot GetSlotRef(int rawId)
         {
             return ref _slots[rawId];

@@ -540,7 +540,11 @@ namespace AbilityKit.Modifiers
         /// <summary>
         /// 是否是时变来源（值会随时间变化）
         /// </summary>
-        public bool IsTimeVarying => Type == MagnitudeSourceType.TimeDecay || Type == MagnitudeSourceType.Pipeline;
+        public bool IsTimeVarying => Type == MagnitudeSourceType.TimeDecay
+            || Type == MagnitudeSourceType.Pipeline
+            || Type == MagnitudeSourceType.Scalable
+            || Type == MagnitudeSourceType.Attribute
+            || Type == MagnitudeSourceType.ContextFloat;
 
         #endregion
 
@@ -847,7 +851,8 @@ namespace AbilityKit.Modifiers
                     : new TimeDecayModifier(Param0, Param1, (DecayType)Param2, Param3),
                 2 => new LevelCurveModifier(Param0, Curve),
                 3 => new AttributeRefModifier(ModifierKey.FromPacked((uint)Param0), Param1),
-                4 => new ScaleModifier(Param0),
+                4 => new FixedModifier(),
+                5 => new ScaleModifier(Param0),
                 _ => new FixedModifier()
             };
         }

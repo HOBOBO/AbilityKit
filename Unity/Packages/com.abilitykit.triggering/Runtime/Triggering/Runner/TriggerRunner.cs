@@ -81,8 +81,9 @@ namespace AbilityKit.Triggering.Runtime
             {
                 triggers = new List<TriggerRunnerEntry<TArgs, TCtx>>(4);
                 list.Add(key, triggers);
-                EnsureSubscribed(key, list);
             }
+
+            if (triggers.Count == 0) EnsureSubscribed(key, list);
 
             var entry = new TriggerRunnerEntry<TArgs, TCtx>(phase, priority, _registrationOrder++, trigger);
             TriggerRunnerEntryList.InsertSorted(triggers, entry);

@@ -70,6 +70,30 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void ContextFloatChange_RecomputesDependentAttributeOnlyWhenValueChanges()
+        {
+            var id = CreateTempAttrId("context_float_attr");
+            var ctx = new AttributeContext();
+            var group = ctx.GetOrCreateGroup("Test");
+            const string contextKey = "resource.test.ratio";
+
+            group.SetBase(id, 10f);
+            group.AddModifier(
+                id,
+                ModifierData.Add(
+                    ModifierKey.AttackPower,
+                    MagnitudeSource.ContextFloat(contextKey, coefficient: 5f)));
+
+            Assert.AreEqual(10f, group.GetValue(id), 0.0001f);
+
+            ctx.SetFloat(contextKey, 0.5f);
+            Assert.AreEqual(12.5f, group.GetValue(id), 0.0001f);
+
+            ctx.SetInt(contextKey, 1);
+            Assert.AreEqual(15f, group.GetValue(id), 0.0001f);
+        }
+
+        [Test]
         public void Modifier_AddRemove_Stress_NoExceptions()
         {
             var id = CreateTempAttrId();

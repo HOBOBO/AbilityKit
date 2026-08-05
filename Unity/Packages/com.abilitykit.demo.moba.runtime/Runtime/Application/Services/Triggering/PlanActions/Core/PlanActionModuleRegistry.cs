@@ -30,6 +30,28 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         private static MobaPlanActionDescriptor[] CreateDescriptors()
         {
+            var generated = MobaGeneratedPlanActionManifest.CreateDescriptors();
+            if (generated.Length > 0)
+            {
+                ValidateDescriptors(generated, "generated manifest");
+                return generated;
+            }
+
+            if (AppContext.TryGetSwitch(
+                    "AbilityKit.Moba.DisablePlanActionReflectionFallback",
+                    out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
+            {
+                throw new InvalidOperationException(
+                    "The generated MOBA plan action manifest is empty and reflection fallback is disabled.");
+            }
+
+            var reflected = CreateDescriptorsByReflection();
+            ValidateDescriptors(reflected, "reflection fallback");
+            return reflected;
+        }
+
+        private static MobaPlanActionDescriptor[] CreateDescriptorsByReflection()
+        {
             var asm = typeof(PlanActionModuleRegistry).Assembly;
             var list = new List<(int order, string name, string actionName, IPlanActionModule module)>();
 
@@ -64,6 +86,32 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             return descriptors;
+        }
+
+        private static void ValidateDescriptors(MobaPlanActionDescriptor[] descriptors, string source)
+        {
+            var actionNames = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < descriptors.Length; i++)
+            {
+                var descriptor = descriptors[i];
+                if (descriptor.Module == null)
+                {
+                    throw new InvalidOperationException(
+                        $"MOBA plan action descriptor '{descriptor.ModuleName}' from {source} has no module instance.");
+                }
+
+                if (string.IsNullOrWhiteSpace(descriptor.ActionName))
+                {
+                    throw new InvalidOperationException(
+                        $"MOBA plan action module '{descriptor.ModuleName}' from {source} has an empty action name.");
+                }
+
+                if (!actionNames.Add(descriptor.ActionName))
+                {
+                    throw new InvalidOperationException(
+                        $"Duplicate MOBA plan action name '{descriptor.ActionName}' in {source}.");
+                }
+            }
         }
 
         private static MobaPlanActionDescriptor[] CreateDescriptors(IPlanActionModule[] modules)

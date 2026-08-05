@@ -5,7 +5,7 @@
 ## 工具文件
 
 - `tools/run_test_gate.ps1` — 主执行器（约 744 行）
-- `tools/test-gates.json` — gate 定义（v5 schema，17 个 gate）
+- `tools/test-gates.json` — gate 定义（v5 schema，24 个 gate：P0 3、P1 13、P2 8）
 - `tools/validate_shooter_test_gates.ps1` — shooter gate 契约验证器
 - `.github/workflows/abilitykit-test-gates.yml` — CI 工作流
 - `Docs/AbilityKit测试门禁与批量回归规范.md` — 团队约定文档
@@ -51,7 +51,7 @@ local/Logs/test-gates/{yyyyMMdd-HHmmss}-{Gate}/
 
 nested gate 路径嵌套：`local/Logs/test-gates/{ts}-regression/{ts}-moba-zhaoyun-unity/...`
 
-## 17 个 Gate 清单
+## 24 个 Gate 清单
 
 ### P0（Development Blocker）
 
@@ -59,11 +59,13 @@ nested gate 路径嵌套：`local/Logs/test-gates/{ts}-regression/{ts}-moba-zhao
 |------|------|
 | `precheck`（默认） | 本地快速验证：build moba console + smoke |
 | `moba-console-smoke` | moba console smoke gate（`Gate=MobaConsoleSmoke`）|
+| `shooter-multiprocess-soak` | 计划任务/手工 16/64 observer PureState soak、网络阶段、恢复与资源趋势 |
 
 ### P1（Contract Blocker）
 
 | Gate | 用途 |
 |------|------|
+| `moba-codegen` | 构建 framework/MOBA Generator 与 Analyzer，并运行 CodeGen 契约测试 |
 | `runtime-contracts` | 网络 runtime / World DI / GameView runtime 契约 |
 | `moba-content-contracts` | 资源所有权 / 业务 ID / 触发聚合 / 表现资源 / 生成时机 |
 | `moba-xiaoqiao-unity` | 小乔 Unity EditMode 验收（6 个 step）|
@@ -74,6 +76,8 @@ nested gate 路径嵌套：`local/Logs/test-gates/{ts}-regression/{ts}-moba-zhao
 | `shooter-multiprocess` | TEST-01B 多进程故障恢复（minimal profile）|
 | `shooter-multiprocess-ownership-cleanup` | TEST-01C 进程所有权清理探针 |
 | `shooter-performance` | AOI/LOD smoke + full 性能 profile |
+| `moba-complete-battle-journey` | World 生命周期与 Unity 技能、弹道、buff、伤害、死亡、重生、结算验收 |
+| `moba-smoke` | 双客户端 TCP Gateway 登录、房间、选将、开战与权威帧 smoke |
 
 ### P2（Regression Baseline）
 
@@ -85,6 +89,8 @@ nested gate 路径嵌套：`local/Logs/test-gates/{ts}-regression/{ts}-moba-zhao
 | `moba-daji-unity` | 妲己 Unity EditMode 验收（基线）|
 | `moba-yingzheng-unity` | 嬴政 Unity EditMode 验收（基线）|
 | `shooter-multiprocess-compatibility` | 兼容性矩阵（Packed/PureState × 1-2 client × fault/reconnect）|
+| `runtime-performance-measurement` | Pipeline/Triggering 性能契约与 JSON 测量产物 |
+| `moba-multiprocess` | MOBA host-only silo 生命周期与端口隔离 smoke |
 
 ## 6 种 Step Kind
 

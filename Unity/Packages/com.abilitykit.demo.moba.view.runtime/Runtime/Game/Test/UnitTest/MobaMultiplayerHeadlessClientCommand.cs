@@ -41,6 +41,10 @@ namespace AbilityKit.Game.Test.UnitTest
         private const string RunningKey = "AbilityKit.MobaMultiplayerHeadless.Running";
         private const string OptionsKey = "AbilityKit.MobaMultiplayerHeadless.Options";
         private static readonly TimeSpan StateWriteInterval = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan SoloLobbyObservationDuration = TimeSpan.FromSeconds(2);
+        private static readonly TimeSpan SkillObservationDuration = TimeSpan.FromSeconds(3);
+        private const int SkillSettleRequiredFrames = 30;
+        private const float SkillSettlePositionEpsilon = 0.02f;
 
         private static ClientOptions? _options;
         private static CancellationTokenSource? _lifetime;
@@ -53,7 +57,9 @@ namespace AbilityKit.Game.Test.UnitTest
         private static string _stageDetail = string.Empty;
         private static DateTime _deadlineUtc;
         private static DateTime _gatewayConnectedUtc;
+        private static DateTime _soloLobbyObservationStartedUtc;
         private static DateTime _movementStartedUtc;
+        private static DateTime _skillStartedUtc;
         private static DateTime _nextStateWriteUtc;
         private static DateTime _nextRoomRefreshUtc;
         private static int _battleBaselineFrame;
@@ -65,6 +71,15 @@ namespace AbilityKit.Game.Test.UnitTest
         private static float _lastMovementProgress;
         private static float _maxBackwardMovement;
         private static int _movementSampleCount;
+        private static bool _soloLobbyVerified;
+        private static Vector3 _skillBaselinePosition;
+        private static float _maxSkillDisplacement;
+        private static bool _skillValidated;
+        private static Vector3 _skillLastPosition;
+        private static Vector3 _skillLastRuntimePosition;
+        private static int _skillLastObservedFrame;
+        private static int _skillStableFrameCount;
+        private static bool _hasSkillLastPosition;
 
         static MobaMultiplayerHeadlessClientCommand()
         {
@@ -89,6 +104,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 Directory.CreateDirectory(Path.GetDirectoryName(options.ResultPath)!);
                 Directory.CreateDirectory(Path.GetDirectoryName(options.EventLogPath)!);
                 Directory.CreateDirectory(Path.GetDirectoryName(options.RoomPath)!);
+                Directory.CreateDirectory(Path.GetDirectoryName(options.SkillSignalPath)!);
 
                 var login = DemoRoomGatewayAccountClient.LoginTcpAsync(
                         options.Host,
@@ -177,6 +193,10 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 ObserveMovementTrajectory(trajectoryContext);
             }
+            if (_skillStartedUtc != default && entry.TryGet(out BattleContext skillTrajectoryContext))
+            {
+                ObserveSkillTrajectory(skillTrajectoryContext);
+            }
 
             switch (_stage)
             {
@@ -219,25 +239,19 @@ namespace AbilityKit.Game.Test.UnitTest
                     }
                     if (_options!.Role == ClientRole.Owner)
                     {
-                        WriteRoomCoordination(_controller.CurrentRoomId);
+                        _soloLobbyObservationStartedUtc = default;
+                        SetStage(
+                            ClientStage.ObservingSoloLobby,
+                            "verifying owner remains in a one-player lobby before room publication");
+                        return;
                     }
-                    StartOperation(
-                        _controller.PickHeroAsync(BuildRoleLoadout(), _lifetime!.Token),
-                        ClientStage.PreparingLoadout,
-                        "configuring authoritative player loadout");
+                    SetStage(
+                        ClientStage.WaitingAllReady,
+                        "joined room; formal lobby is preparing the default loadout");
                     return;
 
-                case ClientStage.PreparingLoadout:
-                    if (!CompleteOperation()) return;
-                    StartOperation(
-                        _controller!.SetReadyAsync(true, _lifetime!.Token),
-                        ClientStage.SettingReady,
-                        "setting authoritative ready state");
-                    return;
-
-                case ClientStage.SettingReady:
-                    if (!CompleteOperation()) return;
-                    SetStage(ClientStage.WaitingAllReady, "waiting for both authoritative players to be ready");
+                case ClientStage.ObservingSoloLobby:
+                    ObserveSoloLobbyBeforePublication();
                     return;
 
                 case ClientStage.WaitingAllReady:
@@ -268,13 +282,10 @@ namespace AbilityKit.Game.Test.UnitTest
                         RefreshCurrentRoomIfDue();
                         return;
                     }
-                    if (_controller.CurrentSnapshot?.CanStart == true)
-                    {
-                        StartOperation(
-                            _controller.BeginLoadingAsync(_lifetime!.Token),
-                            ClientStage.StartingMatch,
-                            "owner starting authoritative loading barrier");
-                    }
+                    StartOperation(
+                        _controller.BeginLoadingAsync(_lifetime!.Token),
+                        ClientStage.StartingMatch,
+                        "room owner starting the match");
                     return;
 
                 case ClientStage.StartingMatch:
@@ -348,7 +359,38 @@ namespace AbilityKit.Game.Test.UnitTest
                     {
                         return;
                     }
-                    Finish(true, "Formal two-client MOBA flow and synchronized movement passed.");
+                    SetStage(ClientStage.SkillReady, "movement synchronized; waiting for skill probe barrier");
+                    return;
+
+                case ClientStage.SkillReady:
+                    if (!File.Exists(_options!.SkillSignalPath)) return;
+                    var skillContext = RequireBattleContext(entry);
+                    if (!TryGetOwnerPosition(skillContext, out _skillBaselinePosition, out _))
+                    {
+                        throw new InvalidOperationException("Owner position is unavailable before skill probe.");
+                    }
+                    _skillStartedUtc = DateTime.UtcNow;
+                    if (_options.Role == ClientRole.Owner)
+                    {
+                        skillContext.SubmitHudSkillAim(slot: 1, aimDx: 1f, aimDz: 0f);
+                        SetStage(ClientStage.CastingSkill, "submitting owner skill 1 input");
+                    }
+                    else
+                    {
+                        SetStage(ClientStage.ObservingSkill, "observing owner skill 1 from member client");
+                    }
+                    return;
+
+                case ClientStage.CastingSkill:
+                case ClientStage.ObservingSkill:
+                    ValidateSynchronizedSkill(entry);
+                    return;
+
+                case ClientStage.WaitingForSkillSettle:
+                    if (!ObserveSkillSettle(RequireBattleContext(entry))) return;
+                    Finish(
+                        true,
+                        "Formal two-client MOBA flow, movement, skill synchronization, and final convergence passed.");
                     return;
 
                 case ClientStage.Passed:
@@ -381,28 +423,61 @@ namespace AbilityKit.Game.Test.UnitTest
                 throw new InvalidOperationException("Gateway configuration is unavailable.");
             }
 
-            return _gatewayConfig.BuildRoomLaunchSpec(
+            var spec = _gatewayConfig.BuildRoomLaunchSpec(
                 _options.SessionToken,
                 _options.Region,
                 _options.ServerId);
+            spec.AccountId = _options.AccountId;
+            return spec;
         }
 
-        private static MultiplayerLoadoutSpec BuildRoleLoadout()
+        private static void ObserveSoloLobbyBeforePublication()
         {
-            if (_gatewayConfig == null || _options == null)
+            var snapshot = _controller?.CurrentSnapshot;
+            if (_controller?.CurrentState == MultiplayerRoomFlowState.Failed)
             {
-                throw new InvalidOperationException("Gateway configuration is unavailable.");
+                throw new InvalidOperationException("Room flow failed: " + _controller.LastError);
+            }
+            if (_controller?.CurrentState != MultiplayerRoomFlowState.InLobby ||
+                snapshot == null ||
+                snapshot.Phase != MultiplayerRoomPhase.Lobby)
+            {
+                throw new InvalidOperationException(
+                    "Owner left the lobby before a second player joined. " + BuildDiagnostic());
+            }
+            if (snapshot.Players == null || snapshot.Players.Count != 1)
+            {
+                throw new InvalidOperationException(
+                    $"Expected exactly one player before room publication, got {snapshot.Players?.Count ?? 0}.");
+            }
+            if (snapshot.CanStart ||
+                !string.IsNullOrWhiteSpace(snapshot.BattleId) ||
+                snapshot.WorldId != 0UL)
+            {
+                throw new InvalidOperationException(
+                    "A one-player room became startable or acquired battle identity. " + BuildDiagnostic());
             }
 
-            var configured = _gatewayConfig.BuildDefaultLoadout();
-            return new MultiplayerLoadoutSpec(
-                configured.HeroId,
-                _options.Role == ClientRole.Owner ? 1 : 2,
-                configured.SpawnPointId,
-                configured.Level,
-                configured.AttributeTemplateId,
-                configured.BasicAttackSkillId,
-                configured.SkillIds);
+            if (_soloLobbyObservationStartedUtc == default)
+            {
+                _soloLobbyObservationStartedUtc = DateTime.UtcNow;
+                SetStage(
+                    ClientStage.ObservingSoloLobby,
+                    "one-player lobby is not startable; observing stability");
+                return;
+            }
+
+            if (DateTime.UtcNow - _soloLobbyObservationStartedUtc < SoloLobbyObservationDuration)
+            {
+                RefreshCurrentRoomIfDue();
+                return;
+            }
+
+            _soloLobbyVerified = true;
+            WriteRoomCoordination(snapshot.RoomId);
+            SetStage(
+                ClientStage.WaitingAllReady,
+                "single-player lobby verified; room published for second client");
         }
 
         private static void StartOperation(Task operation, ClientStage stage, string detail)
@@ -502,6 +577,81 @@ namespace AbilityKit.Game.Test.UnitTest
             _movementSampleCount++;
         }
 
+        private static void ObserveSkillTrajectory(BattleContext context)
+        {
+            if (!TryGetOwnerPosition(context, out var current, out _)) return;
+            var displacement = Vector3.Distance(current, _skillBaselinePosition);
+            if (displacement > _maxSkillDisplacement) _maxSkillDisplacement = displacement;
+        }
+
+        private static void ValidateSynchronizedSkill(GameEntry entry)
+        {
+            if (_skillStartedUtc == default || DateTime.UtcNow - _skillStartedUtc < SkillObservationDuration)
+            {
+                return;
+            }
+            if (_maxSkillDisplacement < 0.15f)
+            {
+                throw new InvalidOperationException(
+                    $"Owner skill 1 displacement was not observed. role={_options?.Role}, maxDisplacement={_maxSkillDisplacement:F3}.");
+            }
+            if (_options?.Role == ClientRole.Owner)
+            {
+                var inputFeature = entry.Get<BattleInputFeature>();
+                if (inputFeature.SkillSubmitAttemptCount <= 0 || inputFeature.SkillSubmitSuccessCount <= 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Owner skill input was not submitted. attempts={inputFeature.SkillSubmitAttemptCount}, successes={inputFeature.SkillSubmitSuccessCount}.");
+                }
+            }
+
+            _skillValidated = true;
+            _hasSkillLastPosition = false;
+            _skillLastObservedFrame = 0;
+            _skillStableFrameCount = 0;
+            SetStage(
+                ClientStage.WaitingForSkillSettle,
+                "skill synchronized; waiting for predicted and presented movement to settle");
+        }
+
+        private static bool ObserveSkillSettle(BattleContext context)
+        {
+            if (context == null || context.LastFrame <= _skillLastObservedFrame)
+            {
+                return false;
+            }
+            if (!TryGetOwnerPositions(
+                    context,
+                    out var currentRuntime,
+                    out var currentPresented,
+                    out _))
+            {
+                _hasSkillLastPosition = false;
+                _skillStableFrameCount = 0;
+                _skillLastObservedFrame = context.LastFrame;
+                return false;
+            }
+
+            if (_hasSkillLastPosition)
+            {
+                var presentedDisplacement = Vector3.Distance(_skillLastPosition, currentPresented);
+                var runtimeDisplacement = Vector3.Distance(_skillLastRuntimePosition, currentRuntime);
+                _skillStableFrameCount = presentedDisplacement <= SkillSettlePositionEpsilon &&
+                                         runtimeDisplacement <= SkillSettlePositionEpsilon
+                    ? _skillStableFrameCount + 1
+                    : 0;
+            }
+
+            _skillLastPosition = currentPresented;
+            _skillLastRuntimePosition = currentRuntime;
+            _skillLastObservedFrame = context.LastFrame;
+            _hasSkillLastPosition = true;
+
+            var prediction = context.PredictionStats;
+            return _skillStableFrameCount >= SkillSettleRequiredFrames &&
+                   prediction?.IsReplaying != true;
+        }
+
         private static string GetOwnObservationSignalPath()
         {
             if (_options == null)
@@ -516,7 +666,21 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private static bool TryGetOwnerPosition(BattleContext context, out Vector3 position, out int actorCount)
         {
-            position = default;
+            return TryGetOwnerPositions(
+                context,
+                out _,
+                out position,
+                out actorCount);
+        }
+
+        private static bool TryGetOwnerPositions(
+            BattleContext context,
+            out Vector3 runtimePosition,
+            out Vector3 presentedPosition,
+            out int actorCount)
+        {
+            runtimePosition = default;
+            presentedPosition = default;
             actorCount = 0;
             var snapshot = _controller?.CurrentSnapshot;
             if (context == null || snapshot?.Players == null || snapshot.Players.Count < 2 ||
@@ -542,14 +706,13 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 actorCount++;
                 if (!string.Equals(player.AccountId, snapshot.OwnerAccountId, StringComparison.Ordinal)) continue;
-                if (_options?.Role == ClientRole.Member)
+                var value = actor.transform.Value.Position;
+                runtimePosition = new Vector3(value.X, value.Y, value.Z);
+                presentedPosition = runtimePosition;
+                if (_options?.Role == ClientRole.Member &&
+                    !TryGetViewPosition(context, actorId, out presentedPosition))
                 {
-                    if (!TryGetViewPosition(context, actorId, out position)) return false;
-                }
-                else
-                {
-                    var value = actor.transform.Value.Position;
-                    position = new Vector3(value.X, value.Y, value.Z);
+                    return false;
                 }
                 foundOwner = true;
             }
@@ -672,7 +835,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 state.roomPhase = snapshot.Phase.ToString();
                 state.roomRevision = snapshot.RoomRevision;
                 state.playerCount = snapshot.Players?.Count ?? 0;
+                state.canStart = snapshot.CanStart;
             }
+            state.soloLobbyVerified = _soloLobbyVerified;
             state.battleEntryCanEnter = MultiplayerBattleEntryGate.CanEnter(
                 _controller?.CurrentState ?? MultiplayerRoomFlowState.Idle,
                 snapshot);
@@ -711,10 +876,15 @@ namespace AbilityKit.Game.Test.UnitTest
                 state.moveReadCount = inputFeature.MoveReadCount;
                 state.moveSubmitAttemptCount = inputFeature.MoveSubmitAttemptCount;
                 state.moveSubmitSuccessCount = inputFeature.MoveSubmitSuccessCount;
+                state.skillSubmitAttemptCount = inputFeature.SkillSubmitAttemptCount;
+                state.skillSubmitSuccessCount = inputFeature.SkillSubmitSuccessCount;
             }
             state.actors = CaptureActors(context, snapshot);
             state.movementSampleCount = _movementSampleCount;
             state.maxBackwardMovement = _maxBackwardMovement;
+            state.skillValidated = _skillValidated;
+            state.maxSkillDisplacement = _maxSkillDisplacement;
+            state.skillStableFrameCount = _skillStableFrameCount;
 
             var authority = BattleFlowDebugProvider.ConfirmedAuthorityWorldStats;
             if (authority != null && context?.PredictionStats == null)
@@ -878,7 +1048,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     _options.AccountId,
                     _options.SessionToken,
                     TimeSpan.FromSeconds(_options.RequestTimeoutSeconds),
-                    suppressAutomaticLobbyActions: true));
+                    suppressAutomaticLobbyActions: false));
         }
 
         private static void ResetRuntime(ClientOptions options)
@@ -895,7 +1065,9 @@ namespace AbilityKit.Game.Test.UnitTest
             _stageDetail = "launching multiplayer scene";
             _deadlineUtc = default;
             _gatewayConnectedUtc = default;
+            _soloLobbyObservationStartedUtc = default;
             _movementStartedUtc = default;
+            _skillStartedUtc = default;
             _nextStateWriteUtc = default;
             _nextRoomRefreshUtc = default;
             _battleBaselineFrame = 0;
@@ -907,6 +1079,15 @@ namespace AbilityKit.Game.Test.UnitTest
             _lastMovementProgress = 0f;
             _maxBackwardMovement = 0f;
             _movementSampleCount = 0;
+            _soloLobbyVerified = false;
+            _skillBaselinePosition = default;
+            _maxSkillDisplacement = 0f;
+            _skillValidated = false;
+            _skillLastPosition = default;
+            _skillLastRuntimePosition = default;
+            _skillLastObservedFrame = 0;
+            _skillStableFrameCount = 0;
+            _hasSkillLastPosition = false;
         }
 
         private enum ClientStage
@@ -916,17 +1097,20 @@ namespace AbilityKit.Game.Test.UnitTest
             WaitingForRoom = 2,
             CreatingRoom = 3,
             JoiningRoom = 4,
-            PreparingLoadout = 5,
-            SettingReady = 6,
-            WaitingAllReady = 7,
-            StartingMatch = 8,
-            WaitingForBattle = 9,
-            BattleReady = 10,
-            MovingOwner = 11,
-            ObservingMovement = 12,
-            WaitingForPeerObservation = 13,
-            Passed = 14,
-            Failed = 15
+            ObservingSoloLobby = 5,
+            WaitingAllReady = 6,
+            StartingMatch = 7,
+            WaitingForBattle = 8,
+            BattleReady = 9,
+            MovingOwner = 10,
+            ObservingMovement = 11,
+            WaitingForPeerObservation = 12,
+            SkillReady = 13,
+            CastingSkill = 14,
+            ObservingSkill = 15,
+            WaitingForSkillSettle = 16,
+            Passed = 17,
+            Failed = 18
         }
 
         private enum ClientRole
@@ -949,6 +1133,7 @@ namespace AbilityKit.Game.Test.UnitTest
             public string MovementSignalPath = string.Empty;
             public string OwnerObservedSignalPath = string.Empty;
             public string MemberObservedSignalPath = string.Empty;
+            public string SkillSignalPath = string.Empty;
             public string StatePath = string.Empty;
             public string EventLogPath = string.Empty;
             public string ResultPath = string.Empty;
@@ -975,6 +1160,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     MovementSignalPath = FullPath(Required(args, "-mobaHeadlessMovementSignal")),
                     OwnerObservedSignalPath = FullPath(Required(args, "-mobaHeadlessOwnerObservedSignal")),
                     MemberObservedSignalPath = FullPath(Required(args, "-mobaHeadlessMemberObservedSignal")),
+                    SkillSignalPath = FullPath(Required(args, "-mobaHeadlessSkillSignal")),
                     StatePath = FullPath(Required(args, "-mobaHeadlessState")),
                     EventLogPath = FullPath(Required(args, "-mobaHeadlessEvents")),
                     ResultPath = FullPath(Required(args, "-mobaHeadlessResult")),
@@ -1053,6 +1239,8 @@ namespace AbilityKit.Game.Test.UnitTest
             public string battleId = string.Empty;
             public ulong worldId;
             public int playerCount;
+            public bool canStart;
+            public bool soloLobbyVerified;
             public string rootPhase = string.Empty;
             public string battlePhase = string.Empty;
             public int frame;
@@ -1067,6 +1255,8 @@ namespace AbilityKit.Game.Test.UnitTest
             public int moveReadCount;
             public int moveSubmitAttemptCount;
             public int moveSubmitSuccessCount;
+            public int skillSubmitAttemptCount;
+            public int skillSubmitSuccessCount;
             public long predictionRollbackCount;
             public long predictionRollbackRestoreFailed;
             public long predictionReplayTimeoutCount;
@@ -1075,6 +1265,9 @@ namespace AbilityKit.Game.Test.UnitTest
             public bool predictionReplaying;
             public int movementSampleCount;
             public float maxBackwardMovement;
+            public bool skillValidated;
+            public float maxSkillDisplacement;
+            public int skillStableFrameCount;
             public List<ActorState> actors = new List<ActorState>();
         }
 

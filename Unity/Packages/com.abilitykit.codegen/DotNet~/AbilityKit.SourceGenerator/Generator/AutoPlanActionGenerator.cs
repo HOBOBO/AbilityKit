@@ -12,17 +12,17 @@ namespace AbilityKit.SourceGenerator
     /// AutoPlanAction 的 Source Generator
     /// 扫描所有继承 AutoPlanAction 的类，自动生成 Module 注册代码
     /// </summary>
-    [Generator]
+    [Obsolete("AutoPlanAction generation is retired. Use explicit module manifests instead.")]
     public class AutoPlanActionGenerator : ISourceGenerator
     {
         public void Initialize(GeneratorInitializationContext context)
         {
-            context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
+            context.RegisterForSyntaxNotifications(() => new AutoPlanActionSyntaxReceiver());
         }
 
         public void Execute(GeneratorExecutionContext context)
         {
-            var receiver = context.SyntaxContextReceiver as SyntaxReceiver;
+            var receiver = context.SyntaxContextReceiver as AutoPlanActionSyntaxReceiver;
             if (receiver == null) return;
 
             // 生成注册文件
@@ -172,7 +172,7 @@ namespace AbilityKit.SourceGenerator
         }
     }
 
-    internal class SyntaxReceiver : ISyntaxContextReceiver
+    internal class AutoPlanActionSyntaxReceiver : ISyntaxContextReceiver
     {
         public List<ActionTypeInfo> Actions { get; } = new List<ActionTypeInfo>();
 
@@ -219,7 +219,7 @@ namespace AbilityKit.SourceGenerator
                             var syntax = prop.DeclaringSyntaxReferences[0].GetSyntax();
                             if (syntax is PropertyDeclarationSyntax propDecl)
                             {
-                                var expr = propDecl.Expression as LiteralExpressionSyntax;
+                                var expr = propDecl.ExpressionBody?.Expression as LiteralExpressionSyntax;
                                 if (expr != null)
                                 {
                                     actionId = expr.Token.ValueText;
@@ -240,7 +240,7 @@ namespace AbilityKit.SourceGenerator
                         var syntax = prop.DeclaringSyntaxReferences[0].GetSyntax();
                         if (syntax is PropertyDeclarationSyntax propDecl)
                         {
-                            var expr = propDecl.Expression as LiteralExpressionSyntax;
+                            var expr = propDecl.ExpressionBody?.Expression as LiteralExpressionSyntax;
                             if (expr != null)
                             {
                                 order = Convert.ToInt32(expr.Token.Value);
@@ -262,9 +262,9 @@ namespace AbilityKit.SourceGenerator
 
     internal class ActionTypeInfo
     {
-        public string Name { get; set; }
-        public string Namespace { get; set; }
-        public string ActionId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Namespace { get; set; } = string.Empty;
+        public string ActionId { get; set; } = string.Empty;
         public int Order { get; set; }
         public string FullName => string.IsNullOrEmpty(Namespace) || Namespace == "GlobalNamespace"
             ? Name

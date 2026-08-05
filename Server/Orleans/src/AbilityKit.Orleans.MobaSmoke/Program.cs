@@ -24,6 +24,7 @@ var hostOnly = HasArgument(args, "--host-only");
 var clientOnly = HasArgument(args, "--client-only");
 var connectPort = ParseIntArgument(args, "--connect-port", tcpPort, 1, 65535);
 var hostTimeoutSeconds = ParseIntArgument(args, "--host-timeout-seconds", 180, 1, 3600);
+var syncTemplateId = ParseStringArgument(args, "--sync-template", MobaSmokeConstants.DefaultSyncTemplateId);
 
 // Client-only mode: skip local silo, connect directly to an external silo.
 // Used by run_moba_multiprocess_smoke.ps1 to run independent client processes.
@@ -31,8 +32,8 @@ if (clientOnly)
 {
     try
     {
-        Console.WriteLine($"MOBA_SMOKE_CLIENT_ONLY connecting to {MobaSmokeConstants.HostAddress}:{connectPort}");
-        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, connectPort, TimeSpan.FromSeconds(60));
+        Console.WriteLine($"MOBA_SMOKE_CLIENT_ONLY connecting to {MobaSmokeConstants.HostAddress}:{connectPort} syncTemplate={syncTemplateId}");
+        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, connectPort, TimeSpan.FromSeconds(60), syncTemplateId);
         Console.WriteLine(
             $"MOBA_SMOKE_PASSED RoomId={result.RoomId} NumericRoomId={result.NumericRoomId} " +
             $"BattleId={result.BattleId} WorldId={result.WorldId} Phase={result.Phase} " +
@@ -82,9 +83,9 @@ try
     }
     else
     {
-        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, tcpPort, TimeSpan.FromSeconds(60));
+        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, tcpPort, TimeSpan.FromSeconds(60), syncTemplateId);
         Console.WriteLine(
-            $"MOBA_SMOKE_PASSED RoomId={result.RoomId} NumericRoomId={result.NumericRoomId} " +
+            $"MOBA_SMOKE_PASSED SyncTemplate={syncTemplateId} RoomId={result.RoomId} NumericRoomId={result.NumericRoomId} " +
             $"BattleId={result.BattleId} WorldId={result.WorldId} Phase={result.Phase} " +
             $"Players={result.PlayerCount} Revision={result.RoomRevision}");
     }
@@ -117,7 +118,7 @@ finally
     await host.StopAsync();
 }
 
-static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeSpan timeout)
+static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeSpan timeout, string syncTemplateId)
 {
     using var timeoutCts = new CancellationTokenSource(timeout);
     using var owner = new MobaSmokeClient("owner", host, port);
@@ -135,8 +136,8 @@ static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeS
     Require(joined.Success, $"JoinRoom failed: {joined.Message}");
     Require(joined.NumericRoomId == created.NumericRoomId, "CreateRoom and JoinRoom numeric ids differ.");
 
-    await owner.PickHeroAsync(created.RoomId, heroId: 1001, teamId: 1, spawnPointId: 1, timeoutCts.Token);
-    await member.PickHeroAsync(created.RoomId, heroId: 1002, teamId: 2, spawnPointId: 2, timeoutCts.Token);
+    await owner.PickHeroAsync(created.RoomId, heroId: 1001, teamId: 1, spawnPointId: 101, timeoutCts.Token);
+    await member.PickHeroAsync(created.RoomId, heroId: 1002, teamId: 2, spawnPointId: 201, timeoutCts.Token);
     await owner.SetReadyAsync(created.RoomId, timeoutCts.Token);
     var readySnapshot = await member.SetReadyAsync(created.RoomId, timeoutCts.Token);
     Require(readySnapshot.Snapshot.CanStart, "Room did not become startable after both players configured loadouts and readied.");
@@ -331,6 +332,23 @@ static async Task WaitForTcpAsync(string host, int port, TimeSpan timeout)
     }
 
     throw new TimeoutException($"TCP Gateway did not listen on {host}:{port} in time.");
+}
+
+static string ParseStringArgument(
+    string[] arguments,
+    string name,
+    string fallback)
+{
+    for (var i = 0; i + 1 < arguments.Length; i++)
+    {
+        if (string.Equals(arguments[i], name, StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(arguments[i + 1]))
+        {
+            return arguments[i + 1];
+        }
+    }
+
+    return fallback;
 }
 
 static bool HasArgument(string[] arguments, string name)
@@ -626,7 +644,7 @@ internal sealed class MobaSmokeClient : IDisposable
                 ["gameplayId"] = "1",
                 ["minPlayers"] = "2",
                 ["tickRate"] = "30",
-                [ShooterRoomTagKeys.SyncTemplateId] = "state-sync-authority"
+                [ShooterRoomTagKeys.SyncTemplateId] = syncTemplateId
             }
         }, cancellationToken);
     }
@@ -852,6 +870,9 @@ internal static class MobaSmokeConstants
     public const string HostAddress = "127.0.0.1";
     public const string Region = "local";
     public const string ServerId = "moba-smoke";
+
+    /// <summary>默认同步模板 —— <c>"state-sync-authority"</c>，向后兼容旧脚本。</summary>
+    public const string DefaultSyncTemplateId = "state-sync-authority";
 }
 
 internal readonly record struct MobaSmokeHeroLoadout(

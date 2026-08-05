@@ -33,12 +33,66 @@ namespace AbilityKit.Ability.Config
         /// </summary>
         public string GroupName { get; }
 
+        /// <summary>
+        /// Optional generated factory for the strongly typed DTO table.
+        /// </summary>
+        public Func<Array, object> DtoTableFactory { get; }
+
+        /// <summary>
+        /// Optional generated factory for the strongly typed runtime entry table.
+        /// </summary>
+        public Func<Array, object> EntryTableFactory { get; }
+
+        /// <summary>
+        /// Optional generated collector for changed DTO keys.
+        /// </summary>
+        public Action<Array, ISet<int>> ChangedIdCollector { get; }
+
         public ConfigTableDefinition(string filePath, Type dtoType, Type entryType, string groupName = null)
+            : this(filePath, dtoType, entryType, groupName, null, null)
         {
+        }
+
+        public ConfigTableDefinition(
+            string filePath,
+            Type dtoType,
+            Type entryType,
+            string groupName,
+            Func<Array, object> dtoTableFactory,
+            Func<Array, object> entryTableFactory)
+            : this(
+                filePath,
+                dtoType,
+                entryType,
+                groupName,
+                dtoTableFactory,
+                entryTableFactory,
+                null)
+        {
+        }
+
+        public ConfigTableDefinition(
+            string filePath,
+            Type dtoType,
+            Type entryType,
+            string groupName,
+            Func<Array, object> dtoTableFactory,
+            Func<Array, object> entryTableFactory,
+            Action<Array, ISet<int>> changedIdCollector)
+        {
+            if ((dtoTableFactory == null) != (entryTableFactory == null))
+            {
+                throw new ArgumentException(
+                    "DTO and entry table factories must either both be provided or both be null.");
+            }
+
             FilePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
             DtoType = dtoType ?? throw new ArgumentNullException(nameof(dtoType));
             EntryType = entryType ?? throw new ArgumentNullException(nameof(entryType));
             GroupName = groupName;
+            DtoTableFactory = dtoTableFactory;
+            EntryTableFactory = entryTableFactory;
+            ChangedIdCollector = changedIdCollector;
         }
     }
 

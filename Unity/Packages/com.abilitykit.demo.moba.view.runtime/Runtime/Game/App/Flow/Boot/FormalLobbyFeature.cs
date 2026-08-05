@@ -10,6 +10,50 @@ using UnityEngine.SceneManagement;
 
 namespace AbilityKit.Game.Flow
 {
+    internal readonly struct FormalLobbyPresentationState
+    {
+        public FormalLobbyPresentationState(
+            string phaseLabel,
+            string roleLabel,
+            string syncStatus,
+            string actionStatus,
+            int playerCount,
+            int onlinePlayerCount,
+            int readyPlayerCount,
+            int maxPlayers,
+            int minPlayers,
+            bool localReady,
+            bool canReady,
+            bool canStart)
+        {
+            PhaseLabel = phaseLabel;
+            RoleLabel = roleLabel;
+            SyncStatus = syncStatus;
+            ActionStatus = actionStatus;
+            PlayerCount = playerCount;
+            OnlinePlayerCount = onlinePlayerCount;
+            ReadyPlayerCount = readyPlayerCount;
+            MaxPlayers = maxPlayers;
+            MinPlayers = minPlayers;
+            LocalReady = localReady;
+            CanReady = canReady;
+            CanStart = canStart;
+        }
+
+        public string PhaseLabel { get; }
+        public string RoleLabel { get; }
+        public string SyncStatus { get; }
+        public string ActionStatus { get; }
+        public int PlayerCount { get; }
+        public int OnlinePlayerCount { get; }
+        public int ReadyPlayerCount { get; }
+        public int MaxPlayers { get; }
+        public int MinPlayers { get; }
+        public bool LocalReady { get; }
+        public bool CanReady { get; }
+        public bool CanStart { get; }
+    }
+
     /// <summary>
     /// Production-style multiplayer lobby for the MOBA demo.
     /// The authoritative room controller owns state; this feature only coordinates entry and presentation.
@@ -19,6 +63,7 @@ namespace AbilityKit.Game.Flow
         private const float WindowWidth = 460f;
         private const float WindowHeight = 570f;
         private const long RoomNoticeDurationMilliseconds = 6000L;
+        private const long RoomListAutoRefreshIntervalMilliseconds = 3000L;
 
         private readonly MultiplayerBattleEntryGate _battleEntryGate = new MultiplayerBattleEntryGate();
         private readonly List<DemoRoomSummary> _rooms = new List<DemoRoomSummary>();
@@ -63,6 +108,9 @@ namespace AbilityKit.Game.Flow
         private Vector2 _roomScroll;
         private string _roomNotice = string.Empty;
         private long _roomNoticeExpiresAtUnixMs;
+        private long _lastSnapshotReceivedAtUnixMs;
+        private long _lastRoomListRefreshUnixMs;
+        private bool _automaticCreateAttempted;
 
         private bool IsOperationBusy => _operationTask != null && !_operationTask.IsCompleted;
 
@@ -94,6 +142,9 @@ namespace AbilityKit.Game.Flow
             _roomScroll = default;
             _roomNotice = string.Empty;
             _roomNoticeExpiresAtUnixMs = 0L;
+            _lastSnapshotReceivedAtUnixMs = 0L;
+            _lastRoomListRefreshUnixMs = 0L;
+            _automaticCreateAttempted = false;
             _battleEntryGate.Reset();
 
             _gatewayConfig = null;
@@ -114,7 +165,13 @@ namespace AbilityKit.Game.Flow
                 ctx.Entry.TryGet(out _launchRequest);
                 if (ctx.Entry.TryGet(out _roomStore))
                 {
+                    _roomStore.OnSnapshotChanged += HandleSnapshotChanged;
                     _roomStore.OnMembershipChanged += HandleMembershipChanged;
+                    _roomStore.OnPlayerStateChanged += HandlePlayerStateChanged;
+                    if (_roomStore.Current != null)
+                    {
+                        HandleSnapshotChanged(_roomStore.Current);
+                    }
                 }
                 if (ctx.Entry.TryGet(out IGatewayRoomClient roomClient))
                 {
@@ -146,7 +203,9 @@ namespace AbilityKit.Game.Flow
         {
             if (_roomStore != null)
             {
+                _roomStore.OnSnapshotChanged -= HandleSnapshotChanged;
                 _roomStore.OnMembershipChanged -= HandleMembershipChanged;
+                _roomStore.OnPlayerStateChanged -= HandlePlayerStateChanged;
                 _roomStore = null;
             }
 
@@ -162,6 +221,9 @@ namespace AbilityKit.Game.Flow
             _roomListBusy = false;
             _roomNotice = string.Empty;
             _roomNoticeExpiresAtUnixMs = 0L;
+            _lastSnapshotReceivedAtUnixMs = 0L;
+            _lastRoomListRefreshUnixMs = 0L;
+            _automaticCreateAttempted = false;
             _preparedRoomId = string.Empty;
             _automaticStartRoomId = string.Empty;
             _battleEntryGate.Reset();
@@ -181,6 +243,8 @@ namespace AbilityKit.Game.Flow
 
             TryStartAutomaticPreparation();
             TryStartAutomaticMatch();
+            TryRefreshRoomsAutomatically();
+            TryStartAutomaticCreate();
 
             if (!ShouldEnterBattle(_selection, _controller)) return;
 
@@ -296,6 +360,7 @@ namespace AbilityKit.Game.Flow
                 sessionToken,
                 launchRequest?.Region,
                 launchRequest?.ServerId);
+            spec.AccountId = launchRequest?.AccountId?.Trim() ?? string.Empty;
             error = string.Empty;
             return true;
         }
@@ -308,6 +373,17 @@ namespace AbilityKit.Game.Flow
             var players = snapshot?.Players;
             if (players == null) return null;
 
+            if (!string.IsNullOrWhiteSpace(accountId))
+            {
+                for (var i = 0; i < players.Count; i++)
+                {
+                    if (string.Equals(players[i].AccountId, accountId, StringComparison.Ordinal))
+                    {
+                        return players[i];
+                    }
+                }
+            }
+
             if (localPlayerId != 0u)
             {
                 for (var i = 0; i < players.Count; i++)
@@ -316,16 +392,29 @@ namespace AbilityKit.Game.Flow
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(accountId)) return null;
+            return null;
+        }
+
+        /// <summary>
+        /// 房间 Owner 是否"不在场"：能确认 Owner 身份时，若 Owner 不在成员列表中或已离线，则视为缺席。
+        /// 这种情况下非 Owner 玩家永远无法开战，需要引导其离开并自建房间。
+        /// </summary>
+        internal static bool IsOwnerAbsent(MultiplayerRoomSnapshot snapshot)
+        {
+            if (snapshot == null) return false;
+            var owner = snapshot.OwnerAccountId;
+            if (string.IsNullOrWhiteSpace(owner)) return false;
+            var players = snapshot.Players;
+            if (players == null) return false;
             for (var i = 0; i < players.Count; i++)
             {
-                if (string.Equals(players[i].AccountId, accountId, StringComparison.Ordinal))
+                if (string.Equals(players[i].AccountId, owner, StringComparison.Ordinal))
                 {
-                    return players[i];
+                    return !players[i].IsOnline;
                 }
             }
 
-            return null;
+            return true;
         }
 
         internal static string FormatMembershipNotice(ClientRoomMembershipChange change)
@@ -349,11 +438,188 @@ namespace AbilityKit.Game.Flow
             return string.Join(" ", messages);
         }
 
+        internal static string FormatPlayerStateNotice(ClientRoomPlayerStateChanges changes)
+        {
+            if (changes?.Changes == null || changes.Changes.Count == 0) return string.Empty;
+
+            var messages = new List<string>();
+            for (var i = 0; i < changes.Changes.Count; i++)
+            {
+                var change = changes.Changes[i];
+                if (change.OnlineChanged)
+                {
+                    messages.Add(change.CurrentOnline
+                        ? change.AccountId + " reconnected."
+                        : change.AccountId + " went offline.");
+                }
+
+                if (change.ReadyChanged)
+                {
+                    messages.Add(change.CurrentReady
+                        ? change.AccountId + " is ready."
+                        : change.AccountId + " is no longer ready.");
+                }
+                else if (change.LoadoutChanged && change.CurrentHeroId > 0)
+                {
+                    messages.Add(change.AccountId + " selected Hero " + change.CurrentHeroId + ".");
+                }
+            }
+
+            return string.Join(" ", messages);
+        }
+
+        internal static FormalLobbyPresentationState BuildLobbyPresentation(
+            MultiplayerRoomSnapshot snapshot,
+            MultiplayerRoomPlayerSnapshot localPlayer,
+            bool isLocalRoomOwner,
+            int maxPlayers,
+            int minPlayers,
+            ConnectionState connectionState,
+            bool snapshotIsStale,
+            long lastSnapshotReceivedAtUnixMs,
+            long nowUnixMs)
+        {
+            if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
+
+            var players = snapshot.Players ?? Array.Empty<MultiplayerRoomPlayerSnapshot>();
+            var onlinePlayerCount = 0;
+            var readyPlayerCount = 0;
+            for (var i = 0; i < players.Count; i++)
+            {
+                var player = players[i];
+                if (!player.IsOnline) continue;
+                onlinePlayerCount++;
+                if (player.LobbyReady && player.HeroId > 0) readyPlayerCount++;
+            }
+
+            maxPlayers = Math.Max(Math.Max(1, maxPlayers), players.Count);
+            minPlayers = Math.Max(1, Math.Min(minPlayers, maxPlayers));
+            var localReady = localPlayer?.LobbyReady == true && localPlayer.HeroId > 0;
+            var updatesCurrent = connectionState == ConnectionState.Connected && !snapshotIsStale;
+            var canReady = localPlayer != null && !localReady && updatesCurrent;
+            var canStart = isLocalRoomOwner &&
+                           localReady &&
+                           updatesCurrent &&
+                           onlinePlayerCount >= minPlayers &&
+                           readyPlayerCount == onlinePlayerCount &&
+                           snapshot.CanStart;
+
+            string actionStatus;
+            if (connectionState != ConnectionState.Connected)
+            {
+                actionStatus = "Waiting for the room connection.";
+            }
+            else if (snapshotIsStale)
+            {
+                actionStatus = "Synchronizing the latest room state.";
+            }
+            else if (localPlayer == null)
+            {
+                actionStatus = "Waiting for local player assignment.";
+            }
+            else if (!localReady)
+            {
+                actionStatus = "Ready up to join the match.";
+            }
+            else if (isLocalRoomOwner)
+            {
+                if (onlinePlayerCount < minPlayers)
+                {
+                    actionStatus = $"Waiting for players ({onlinePlayerCount}/{minPlayers}).";
+                }
+                else if (readyPlayerCount < onlinePlayerCount)
+                {
+                    var remaining = onlinePlayerCount - readyPlayerCount;
+                    actionStatus = remaining == 1
+                        ? "Waiting for 1 player to be ready."
+                        : $"Waiting for {remaining} players to be ready.";
+                }
+                else
+                {
+                    actionStatus = snapshot.CanStart
+                        ? "All players are ready."
+                        : "Waiting for server start confirmation.";
+                }
+            }
+            else
+            {
+                actionStatus = IsOwnerAbsent(snapshot)
+                    ? "Room owner is offline or absent."
+                    : "Waiting for room owner to start.";
+            }
+
+            return new FormalLobbyPresentationState(
+                FormatPhase(snapshot.Phase),
+                isLocalRoomOwner ? "Owner" : "Member",
+                FormatRoomSyncStatus(
+                    snapshot.RoomRevision,
+                    connectionState,
+                    snapshotIsStale,
+                    lastSnapshotReceivedAtUnixMs,
+                    nowUnixMs),
+                actionStatus,
+                players.Count,
+                onlinePlayerCount,
+                readyPlayerCount,
+                maxPlayers,
+                minPlayers,
+                localReady,
+                canReady,
+                canStart);
+        }
+
+        private static string FormatPhase(MultiplayerRoomPhase phase)
+        {
+            return phase switch
+            {
+                MultiplayerRoomPhase.Lobby => "Lobby",
+                MultiplayerRoomPhase.Loading => "Loading",
+                MultiplayerRoomPhase.Starting => "Starting",
+                MultiplayerRoomPhase.InBattle => "In Battle",
+                MultiplayerRoomPhase.Closing => "Closing",
+                MultiplayerRoomPhase.Closed => "Closed",
+                MultiplayerRoomPhase.Expired => "Expired",
+                _ => phase.ToString()
+            };
+        }
+
+        private static string FormatRoomSyncStatus(
+            long revision,
+            ConnectionState connectionState,
+            bool snapshotIsStale,
+            long receivedAtUnixMs,
+            long nowUnixMs)
+        {
+            if (connectionState != ConnectionState.Connected)
+            {
+                return $"Room updates: Paused | Revision {revision}";
+            }
+
+            if (snapshotIsStale)
+            {
+                return $"Room updates: Catching up | Revision {revision}";
+            }
+
+            if (receivedAtUnixMs <= 0L)
+            {
+                return $"Room updates: Synchronizing | Revision {revision}";
+            }
+
+            var ageSeconds = Math.Max(0L, nowUnixMs - receivedAtUnixMs) / 1000L;
+            var age = ageSeconds <= 1L
+                ? "just now"
+                : ageSeconds < 60L
+                    ? $"{ageSeconds}s ago"
+                    : $"{ageSeconds / 60L}m ago";
+            return $"Room updates: Live | Revision {revision} | {age}";
+        }
+
         internal static bool ShouldStartAutomatically(
             bool enabled,
             MultiplayerRoomFlowState state,
             bool isLocalRoomOwner,
             MultiplayerRoomSnapshot snapshot,
+            int minPlayers,
             string attemptedRoomId,
             bool operationBusy)
         {
@@ -361,6 +627,8 @@ namespace AbilityKit.Game.Flow
                    state == MultiplayerRoomFlowState.InLobby &&
                    isLocalRoomOwner &&
                    snapshot?.CanStart == true &&
+                   minPlayers > 0 &&
+                   snapshot.Players?.Count >= minPlayers &&
                    !string.IsNullOrWhiteSpace(snapshot.RoomId) &&
                    !string.Equals(snapshot.RoomId, attemptedRoomId, StringComparison.Ordinal) &&
                    !operationBusy;
@@ -419,7 +687,7 @@ namespace AbilityKit.Game.Flow
             var localPlayer = FindLocalPlayer(
                 _controller.CurrentSnapshot,
                 _controller.LocalPlayerId,
-                accountId: string.Empty);
+                _launchRequest?.AccountId);
             if (localPlayer?.LobbyReady == true && localPlayer.HeroId > 0)
             {
                 _preparedRoomId = roomId;
@@ -439,6 +707,7 @@ namespace AbilityKit.Game.Flow
                     _controller?.CurrentState ?? MultiplayerRoomFlowState.Idle,
                     _controller?.IsLocalRoomOwner == true,
                     snapshot,
+                    _gatewayConfig?.MinPlayers ?? 0,
                     _automaticStartRoomId,
                     IsOperationBusy))
             {
@@ -447,6 +716,33 @@ namespace AbilityKit.Game.Flow
 
             _automaticStartRoomId = snapshot.RoomId;
             StartOperation("Starting match", BeginAutomaticLoadingAsync);
+        }
+
+        private void TryRefreshRoomsAutomatically()
+        {
+            if (_controller?.CurrentState != MultiplayerRoomFlowState.Idle) return;
+            if (_gatewayRuntime?.ConnectionState != ConnectionState.Connected) return;
+            if (IsOperationBusy || _roomListBusy) return;
+            // Wait for the initial refresh (seeded inside RefreshRoomsCoreAsync) before polling.
+            if (_lastRoomListRefreshUnixMs <= 0L) return;
+            var nowUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (nowUnixMs - _lastRoomListRefreshUnixMs < RoomListAutoRefreshIntervalMilliseconds) return;
+
+            StartOperation("Refreshing rooms", RefreshRoomsCoreAsync);
+        }
+
+        private void TryStartAutomaticCreate()
+        {
+            if (_gatewayConfig?.AutoCreateWhenEmpty != true) return;
+            if (_controller?.CurrentState != MultiplayerRoomFlowState.Idle) return;
+            if (_gatewayRuntime?.ConnectionState != ConnectionState.Connected) return;
+            if (IsOperationBusy) return;
+            if (!_roomListLoaded) return;
+            if (_rooms.Count != 0) return;
+            if (_automaticCreateAttempted) return;
+
+            _automaticCreateAttempted = true;
+            StartOperation("Creating room", CreateRoomAsync);
         }
 
         private async Task BeginAutomaticLoadingAsync(LobbyOperationContext operationContext)
@@ -583,6 +879,7 @@ namespace AbilityKit.Game.Flow
                 _rooms.Clear();
                 _rooms.AddRange(openRooms);
                 _roomListLoaded = true;
+                _lastRoomListRefreshUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             }
             finally
             {
@@ -721,11 +1018,30 @@ namespace AbilityKit.Game.Flow
         private void HandleMembershipChanged(ClientRoomMembershipChange change)
         {
             var notice = FormatMembershipNotice(change);
+            AppendRoomNotice(notice);
+        }
+
+        private void HandlePlayerStateChanged(ClientRoomPlayerStateChanges changes)
+        {
+            AppendRoomNotice(FormatPlayerStateNotice(changes));
+        }
+
+        private void AppendRoomNotice(string notice)
+        {
             if (string.IsNullOrWhiteSpace(notice)) return;
 
-            _roomNotice = notice;
-            _roomNoticeExpiresAtUnixMs =
-                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + RoomNoticeDurationMilliseconds;
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            _roomNotice = !string.IsNullOrWhiteSpace(_roomNotice) &&
+                          now < _roomNoticeExpiresAtUnixMs
+                ? _roomNotice + " " + notice
+                : notice;
+            _roomNoticeExpiresAtUnixMs = now + RoomNoticeDurationMilliseconds;
+        }
+
+        private void HandleSnapshotChanged(ClientRoomSnapshot snapshot)
+        {
+            if (snapshot == null) return;
+            _lastSnapshotReceivedAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         }
 
         private void DrawRoomNotice()
@@ -809,7 +1125,9 @@ namespace AbilityKit.Game.Flow
 
             if (_roomListLoaded && _rooms.Count == 0 && !IsOperationBusy)
             {
-                GUILayout.Label("No open rooms.");
+                GUILayout.Label(_gatewayConfig?.AutoCreateWhenEmpty == true
+                    ? "No open rooms. Creating a new room to host..."
+                    : "No open rooms. Click \"Create Room\" to host.");
             }
 
             _roomScroll = GUILayout.BeginScrollView(_roomScroll, GUILayout.Height(300f));
@@ -844,23 +1162,43 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            GUILayout.Label(string.IsNullOrWhiteSpace(snapshot.RoomId)
-                ? "Room"
-                : $"Room {snapshot.RoomId}");
-            GUILayout.Label($"Players: {snapshot.Players?.Count ?? 0}/{_gatewayConfig.MaxPlayers}");
-            DrawPlayers(snapshot);
-
             var localPlayer = FindLocalPlayer(
                 snapshot,
                 _controller.LocalPlayerId,
-                accountId: string.Empty);
-            var localReady = localPlayer?.LobbyReady == true && localPlayer.HeroId > 0;
+                _launchRequest?.AccountId);
+            var configuredMaxPlayers = _gatewayConfig != null
+                ? _gatewayConfig.MaxPlayers
+                : snapshot.Players?.Count ?? 1;
+            var configuredMinPlayers = _gatewayConfig != null
+                ? _gatewayConfig.MinPlayers
+                : 1;
+            var presentation = BuildLobbyPresentation(
+                snapshot,
+                localPlayer,
+                _controller.IsLocalRoomOwner,
+                configuredMaxPlayers,
+                configuredMinPlayers,
+                _gatewayRuntime?.ConnectionState ?? ConnectionState.Disconnected,
+                _roomStore?.IsStale == true,
+                _lastSnapshotReceivedAtUnixMs,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+            GUILayout.Label(string.IsNullOrWhiteSpace(snapshot.RoomId)
+                ? "Room"
+                : $"Room {snapshot.RoomId}");
+            GUILayout.Label($"Status: {presentation.PhaseLabel}   You: {presentation.RoleLabel}");
+            GUILayout.Label(
+                $"Players: {presentation.PlayerCount}/{presentation.MaxPlayers}   " +
+                $"Ready: {presentation.ReadyPlayerCount}/{presentation.OnlinePlayerCount}");
+            GUILayout.Label(presentation.SyncStatus);
+            DrawPlayers(snapshot, localPlayer);
+
             var previousEnabled = GUI.enabled;
 
             GUILayout.Space(8f);
-            if (!localReady)
+            if (!presentation.LocalReady)
             {
-                GUI.enabled = previousEnabled && !IsOperationBusy;
+                GUI.enabled = previousEnabled && presentation.CanReady && !IsOperationBusy;
                 if (GUILayout.Button("Ready", GUILayout.Height(34f)))
                 {
                     _preparedRoomId = snapshot.RoomId;
@@ -875,7 +1213,7 @@ namespace AbilityKit.Game.Flow
 
             if (_controller.IsLocalRoomOwner)
             {
-                GUI.enabled = previousEnabled && snapshot.CanStart && !IsOperationBusy;
+                GUI.enabled = previousEnabled && presentation.CanStart && !IsOperationBusy;
                 if (GUILayout.Button("Start Match", GUILayout.Height(38f)))
                 {
                     StartOperation(
@@ -884,14 +1222,22 @@ namespace AbilityKit.Game.Flow
                             operationContext.CancellationToken));
                 }
                 GUI.enabled = previousEnabled;
-                if (!snapshot.CanStart)
+                GUILayout.Label(presentation.ActionStatus);
+            }
+            else if (IsOwnerAbsent(snapshot))
+            {
+                GUILayout.Label(presentation.ActionStatus);
+                GUILayout.Label("This room cannot be started.");
+                GUI.enabled = previousEnabled && _controller.CanLeaveCurrentRoom && !IsOperationBusy;
+                if (GUILayout.Button("Leave & Create Room", GUILayout.Height(34f)))
                 {
-                    GUILayout.Label("Waiting for all players to be ready.");
+                    StartOperation("Leaving and creating room", LeaveAndCreateRoomAsync);
                 }
+                GUI.enabled = previousEnabled;
             }
             else
             {
-                GUILayout.Label("Waiting for room owner to start.");
+                GUILayout.Label(presentation.ActionStatus);
             }
 
             GUI.enabled = previousEnabled && _controller.CanLeaveCurrentRoom && !IsOperationBusy;
@@ -902,7 +1248,9 @@ namespace AbilityKit.Game.Flow
             GUI.enabled = previousEnabled;
         }
 
-        private static void DrawPlayers(MultiplayerRoomSnapshot snapshot)
+        private static void DrawPlayers(
+            MultiplayerRoomSnapshot snapshot,
+            MultiplayerRoomPlayerSnapshot localPlayer)
         {
             var players = snapshot?.Players;
             if (players == null || players.Count == 0)
@@ -916,14 +1264,15 @@ namespace AbilityKit.Game.Flow
             {
                 var player = players[i];
                 var owner = string.Equals(player.AccountId, snapshot.OwnerAccountId, StringComparison.Ordinal)
-                    ? "  Owner"
+                    ? " | Owner"
                     : string.Empty;
+                var local = ReferenceEquals(player, localPlayer) ? " | You" : string.Empty;
                 var status = !player.IsOnline
                     ? "Offline"
                     : player.LobbyReady && player.HeroId > 0
                         ? "Ready"
                         : "Preparing";
-                GUILayout.Label($"{player.AccountId}{owner}   Hero {player.HeroId}   {status}");
+                GUILayout.Label($"{player.AccountId}{local}{owner}   Hero {player.HeroId}   {status}");
             }
         }
 
@@ -998,6 +1347,19 @@ namespace AbilityKit.Game.Flow
             _preparedRoomId = string.Empty;
             _automaticStartRoomId = string.Empty;
             await RefreshRoomsCoreAsync(operationContext);
+        }
+
+        private async Task LeaveAndCreateRoomAsync(LobbyOperationContext operationContext)
+        {
+            if (_controller.CanLeaveCurrentRoom)
+            {
+                await _controller.LeaveRoomAsync(operationContext.CancellationToken);
+                if (!IsCurrentOperation(operationContext)) return;
+            }
+
+            _preparedRoomId = string.Empty;
+            _automaticStartRoomId = string.Empty;
+            await CreateRoomAsync(operationContext);
         }
 
         private async Task ReturnToRoomsAsync(LobbyOperationContext operationContext)

@@ -12,10 +12,14 @@ namespace AbilityKit.Orleans.Gateway.Handlers;
 public sealed partial class JoinRoomHandler : GatewayRequestHandlerBase
 {
     private readonly IClusterClient _clusterClient;
+    private readonly Core.GatewayRoomStatePushSubscriptionManager? _roomStatePushSubscriptions;
 
-    public JoinRoomHandler(IClusterClient clusterClient)
+    public JoinRoomHandler(
+        IClusterClient clusterClient,
+        Core.GatewayRoomStatePushSubscriptionManager? roomStatePushSubscriptions = null)
     {
         _clusterClient = clusterClient;
+        _roomStatePushSubscriptions = roomStatePushSubscriptions;
     }
 
     public override async ValueTask<GatewayResponse> HandleAsync(
@@ -47,6 +51,13 @@ public sealed partial class JoinRoomHandler : GatewayRequestHandlerBase
 
             context.RoomId = req.RoomId;
             context.AccountId = accountId;
+            if (context.ConnectionId > 0 && _roomStatePushSubscriptions != null)
+            {
+                await _roomStatePushSubscriptions.EnsureBoundAsync(
+                    context.ConnectionId,
+                    req.RoomId,
+                    accountId);
+            }
 
             return GatewayResponse.Ok(request.Seq, responsePayload.ToArray());
         }

@@ -242,6 +242,20 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 
         private static IReadOnlyDictionary<string, Type> DiscoverNodeTypes()
         {
+            var generated = MobaGeneratedBTreeNodeManifest.CreateNodeTypes();
+            if (generated.Count > 0)
+            {
+                return generated;
+            }
+
+            if (AppContext.TryGetSwitch(
+                    "AbilityKit.Moba.DisableBTreeNodeReflectionFallback",
+                    out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
+            {
+                throw new InvalidOperationException(
+                    "The generated MOBA behavior-tree node manifest is empty and reflection fallback is disabled.");
+            }
+
             return typeof(MobaBTreeDecision).Assembly
                 .GetTypes()
                 .Where(type => !type.IsAbstract

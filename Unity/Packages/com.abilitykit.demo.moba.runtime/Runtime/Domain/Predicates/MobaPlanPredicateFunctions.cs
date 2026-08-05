@@ -25,10 +25,10 @@ namespace AbilityKit.Demo.Moba.Predicates
             functions.Register<Predicate2<object, IWorldResolver>>(HasBuffOwnerFunctionId, HasBuffOwner, isDeterministic: true);
             functions.Register<Predicate2<object, IWorldResolver>>(OwnerMatchesPayloadSourceFunctionId, OwnerMatchesPayloadSource, isDeterministic: true);
             functions.Register<Predicate2<object, IWorldResolver>>(OwnerMatchesPayloadTargetFunctionId, OwnerMatchesPayloadTarget, isDeterministic: true);
-            functions.Register<Predicate0<object, IWorldResolver>>(TargetIsFlyingProjectileFunctionId, TargetIsFlyingProjectile, isDeterministic: true);
+            functions.Register<Predicate2<object, IWorldResolver>>(TargetIsFlyingProjectileFunctionId, TargetIsFlyingProjectile, isDeterministic: true);
         }
 
-        private static bool TargetIsFlyingProjectile(object triggerArgs, ExecCtx<IWorldResolver> ctx)
+        private static bool TargetIsFlyingProjectile(object triggerArgs, NamedArgsDict args, ExecCtx<IWorldResolver> ctx)
         {
             if (ctx.Context == null
                 || !CombatPredicateRuntime.TryResolveTargetActorId(triggerArgs, ctx.Context, out var actorId))

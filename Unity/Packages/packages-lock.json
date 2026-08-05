@@ -228,6 +228,12 @@
         "com.abilitykit.protocol.room": "0.0.1"
       }
     },
+    "com.abilitykit.demo.moba.codegen": {
+      "version": "file:com.abilitykit.demo.moba.codegen",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.abilitykit.demo.moba.editor": {
       "version": "file:com.abilitykit.demo.moba.editor",
       "depth": 0,
@@ -262,6 +268,7 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
+        "com.abilitykit.demo.moba.codegen": "0.0.1",
         "com.abilitykit.demo.moba.share": "0.0.1",
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.attributes": "0.0.1",

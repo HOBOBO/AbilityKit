@@ -76,6 +76,47 @@ public sealed class RoomStateMachineTests
     }
 
     [Fact]
+    public void MarkOffline_OwnerDropsWithOnlineMember_PromotesEarliestOnlineMember()
+    {
+        var state = CreateState(ownerAccountId: string.Empty);
+        var afterOwner = RoomStateMachine.Join(state, "owner", false, NowTicks, NowUnixMs);
+        var afterGuest = RoomStateMachine.Join(afterOwner.State, "guest", false, NowTicks + 1, NowUnixMs + 1);
+        Assert.Equal("owner", afterGuest.State.Summary.OwnerAccountId);
+
+        var ownerOffline = RoomStateMachine.MarkOffline(afterGuest.State, "owner", NowTicks + 2, NowUnixMs + 2);
+
+        Assert.True(ownerOffline.Applied);
+        Assert.Equal("guest", ownerOffline.State.Summary.OwnerAccountId);
+    }
+
+    [Fact]
+    public void MarkOffline_OwnerDropsAlone_KeepsOwnerForReconnect()
+    {
+        var state = CreateState(ownerAccountId: string.Empty);
+        var afterOwner = RoomStateMachine.Join(state, "owner", false, NowTicks, NowUnixMs);
+
+        var ownerOffline = RoomStateMachine.MarkOffline(afterOwner.State, "owner", NowTicks + 1, NowUnixMs + 1);
+
+        Assert.True(ownerOffline.Applied);
+        Assert.Equal("owner", ownerOffline.State.Summary.OwnerAccountId);
+        Assert.False(ownerOffline.State.Members[0].State.IsOnline);
+    }
+
+    [Fact]
+    public void Join_IntoRoomWithOfflineOwner_PromotesOnlineJoiner()
+    {
+        var state = CreateState(ownerAccountId: string.Empty);
+        var afterOwner = RoomStateMachine.Join(state, "owner", false, NowTicks, NowUnixMs);
+        var ownerOffline = RoomStateMachine.MarkOffline(afterOwner.State, "owner", NowTicks + 1, NowUnixMs + 1);
+        Assert.Equal("owner", ownerOffline.State.Summary.OwnerAccountId);
+
+        var joiner = RoomStateMachine.Join(ownerOffline.State, "guest", false, NowTicks + 2, NowUnixMs + 2);
+
+        Assert.True(joiner.Applied);
+        Assert.Equal("guest", joiner.State.Summary.OwnerAccountId);
+    }
+
+    [Fact]
     public void Leave_LastMember_TransitionsToClosing()
     {
         var state = CreateState();

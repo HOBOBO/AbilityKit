@@ -30,6 +30,10 @@
 | 网络条件模拟 | ✅ 已有 | `NetworkConditionController` + 6 预设档案 |
 | 确定性随机数 | ✅ | `RollbackWorldRandom` (xorshift32) |
 | 确定性检查点 | ✅ | `MobaDeterministicCheckpoint` + `MobaStateHashBuilder` |
+| **🆕 房主在线保持 + 掉线迁移** | ✅ 2026-08-04 | `RoomStateMachine.ResolveOwner`：Join/MarkOffline 时若 Owner 是成员但离线，自动把 Owner 交给最早的在线成员（无在线成员则保留以便重连）。消除"孤儿房间"——加入无主房间者会成为房主 |
+| **🆕 客户端自动建房** | ✅ 2026-08-04 | `FormalLobbyFeature.TryStartAutomaticCreate` + `BattleGatewayConfigSO.AutoCreateWhenEmpty`(默认 true)：房间列表为空时首个客户端自动建房当房主 |
+| **🆕 房间列表自动刷新** | ✅ 2026-08-04 | `FormalLobbyFeature.TryRefreshRoomsAutomatically`：大厅浏览态每 3s 自动 Refresh，客人端可及时看到房主新建的房间 |
+| **🆕 无主房间逃生** | ✅ 2026-08-04 | `FormalLobbyFeature.IsOwnerAbsent` + `LeaveAndCreateRoomAsync`：房主离线/缺席时提示并提供"Leave & Create Room"，不再被"等待房主 start"卡死 |
 
 ## 同步模式切换
 
@@ -61,5 +65,27 @@ ServerBattleSyncProfile.FrameSync("frame-sync-authority", ["state-sync-authority
 | 项目 | 优先级 | 说明 |
 |------|--------|------|
 | 定点数学库 | P2 | 延后至框架稳定 (v1.0)，浮点 hash 对账可检测但无法修正 |
-| Host Migration | P2 | 依赖 Orleans 集群能力 |
+| Host Migration（战斗级） | P2 | 房间级 Owner 在线保持/掉线迁移已实现（见能力矩阵）；战斗运行时的 Host 迁移仍依赖 Orleans 集群能力 |
 | MOBA state hash 接入 GetWorldDiagnostics | P1 | 当前 `MobaBattleRuntimeAdapter` 返回 null，用帧号近似 |
+
+## E2E 验证（2026-08-03）
+
+| 测试 | 命令 | 结果 |
+|------|------|------|
+| MOBA 多人烟雾测试 | `run_moba_multiprocess_smoke.ps1 -Configuration Release` | ✅ **PASS** |
+| Shooter 多人烟雾测试 | `run_shooter_multiprocess_smoke.ps1 -Configuration Release` | ✅ **PASS** |
+
+**MOBA smoke 结果**：
+```
+MOBA_SMOKE_PASSED  Players=2  Phase=3  Revision=10
+AUTHORITATIVE_INPUT_VERIFIED: Owner moved (-12,0)→(-11.833,0), OwnerPushes=3, MemberPushes=3
+RECOVERY_VERIFIED: FullSnapshots=2, Actors=2, EventEpoch verified
+```
+
+**修复的阻塞 bug**：
+- `battle_maps.json` spawn point ID 不匹配：smoke 测试用 `spawnPointId: 1,2`，配置中实际 ID 为 `101,201`
+- `MagnitudeSource.cs:854` `StackingModifier(float)` 编译错误 → `FixedModifier()`
+
+## 统一网关抽象（v0.1.0 新增）
+
+`com.abilitykit.host.extension/Runtime/Gateway/` 新增 `IGatewayConnection` + `GatewayConnection` 统一请求/响应 + 推送注册接口，包装 `IConnection` + seq 匹配，供 MOBA 和 Shooter 两个示例共用。

@@ -163,7 +163,7 @@ SnapshotReceived
 
 Decoder 返回 false 时静默停止当前 route，不调用 handler；当前 dispatcher 不记录 decode failure 指标。
 
-## 8. `BattleSnapshotPipeline`
+## 8. 通用 `SnapshotPipeline`
 
 Pipeline 订阅 dispatcher 的 `SnapshotReceived`，维护自己的 opcode route、decoder 和有序 stages。
 
@@ -233,7 +233,7 @@ WorldAutoStartModule
 | input delay | 配置值，最小 0 | 0 |
 | prediction ahead | 30 | 0 |
 | rollback | true | false |
-| history | 240 frames | 0 |
+| history | 600 frames | 0 |
 | capture interval | 1 | 0 |
 | rollback registry | 调用方构造 | 空 registry |
 | compute hash | 调用方构造 | null |
@@ -263,7 +263,7 @@ WorldAutoStartModule
 | state hash | 只参与逻辑一致性，不驱动美术状态 |
 | HUD aggregate | 从确认投影重建或幂等更新 |
 
-具体 cue 去重由表现事件管线负责，不由 `BattleSnapshotPipeline` 自动完成。
+具体 cue 去重由表现事件管线负责，不由通用 `SnapshotPipeline` 自动完成。
 
 ## 12. Authority Frame 可用性
 
@@ -283,7 +283,7 @@ WorldAutoStartModule
 
 1. 停止继续接收/Feed 新 envelope；
 2. 释放 Pipeline stage 和 typed route subscriptions；
-3. Dispose `BattleSnapshotPipeline`，取消 `SnapshotReceived`；
+3. Dispose `SnapshotPipeline`，取消 `SnapshotReceived`；
 4. Dispose MOBA view dispatcher，取消 session `FrameReceived`；
 5. 销毁 remote-driven world；
 6. 释放 confirmed view/world 与其他 session resources。
@@ -305,33 +305,46 @@ WorldAutoStartModule
 | rollback 后特效重复 | 表现 cue 是否有稳定 key/context 去重 |
 | session 退出后仍收到回调 | dispatcher、pipeline 和 stage subscriptions 是否按序释放 |
 
-## 15. 验证清单
+## 15. 自动测试证据与补测边界
 
-### 逻辑输出
+本节只记录当前能定位到具体被测对象、调用和断言的证据。源码中存在某个分支、测试类名包含 Snapshot，或其他示例验证过相似能力，都不等同于 MOBA 生产链已经覆盖。
 
-1. emitter priority 与协议 opcode 对应正确。
-2. 必需 emitter 缺失能进入 Router health/readiness。
-3. 单读取和批量读取在同帧 guard 下的行为有测试。
-4. `maxSnapshots` 截断不会被误认为 emitter 永久缺失。
-5. Transform snapshot 的 InGame、空集合、缺 Transform 条件有覆盖。
-6. 不依赖 registry 枚举顺序生成确定性 hash。
+### 15.1 逻辑快照输出
 
-### 客户端路由
+| 证据 | 当前直接证明 | 不能据此证明 |
+|------|--------------|--------------|
+| `MobaRuntimeFirstFrameSnapshotAcceptanceTests.Runtime_start_can_collect_first_frame_enter_game_and_spawn_snapshots` | runtime 启动后首帧可批量取得 EnterGame 与 ActorSpawn；同帧再次读取为空 | 测试使用内部 `FirstFrameSnapshotOutputPort`，不经过 `MobaSnapshotRouter`，不能证明 Attribute 扫描、priority、health 或 `maxSnapshots` |
+| `MobaBattleRuntimePortAcceptanceTests.Collect_snapshots_uses_caller_buffer_and_returns_sink_count` | `MobaBattleRuntimePort.CollectSnapshots` 使用调用方 buffer，并返回 output port 的实际追加数量 | Fake output port 的截断行为不能替代 Router 本体测试 |
+| 大乔、小乔、嬴政、墨子技能验收中的移动 Projectile Transform 断言 | 指定业务路径创建的移动 Projectile 会进入 Actor Transform snapshot，供 view 查找 | 不覆盖 InGame=false、空 registry、缺 Transform、registry key 不一致或枚举顺序 |
+| `MobaSynchronizationCompositionTests.AuthoritativeStateHash_IsStableAndSharedBySnapshotService` | authority hash 不依赖 rollback provider 注册顺序；state hash snapshot service 与预测组合共享 calculator | Transform snapshot 自身没有稳定排序保证，不能作为确定性 hash 输入 |
 
-1. 测试使用的 dispatcher 命名空间与生产链一致。
-2. decoder 在正确的 dispatcher/Pipeline registry 分别注册。
-3. opcode payload type mismatch 在初始化阶段暴露。
-4. decoder false、handler exception、stage exception 的行为有覆盖。
-5. 顶层事件 handler 不向外抛异常。
-6. stage 相同 order 时注册顺序稳定。
+仍需补充 `MobaSnapshotRouter` 专项测试，直接覆盖 emitter priority、必需 emitter health、single/batch 同帧门禁、destination 保留语义和 `maxSnapshots` 截断后的续读；还需为 `MobaActorTransformSnapshotService` 覆盖 InGame、空 registry、缺 Transform 与有效实体采样。
 
-### 预测与恢复
+### 15.2 Dispatcher 与 Pipeline
 
-1. 预测模式解析到 rollback registry 和 hash calculator。
-2. remote-only 模式不采集 local input、不建立 rollback history。
-3. authority frame source 和 service binding 有 diagnostics。
-4. rollback 后表现投影覆盖和 cue 去重可重复执行。
-5. teardown 后 world、dispatcher、pipeline 均不再持有会话回调。
+| 证据 | 当前直接证明 | 不能据此证明 |
+|------|--------------|--------------|
+| `MobaViewSnapshotConsumptionContractTests` | view 侧公开接口保留 caller-buffer `CollectSnapshots`，`MobaTransformSnapshotDispatcher.TryDispatch` 的签名存在 | 主要断言是反射契约，没有执行生产 dispatcher、decoder、typed handler 或 Pipeline stage |
+| 通用 `FrameSnapshotDispatcher` 源码 | route payload type 冲突会抛异常；decoder false 时停止 route；typed handler 逐个隔离异常；顶层事件直接 Invoke | 这是实现分支核对，不是自动回归结果 |
+| 通用 `SnapshotPipeline` 源码 | stage 按 order 升序；同 order 保持注册顺序；stage 异常隔离；Dispose 解除 `SnapshotReceived` | 尚无专项测试固定 decoder false、类型冲突、同 order、异常继续和 Dispose 后不再接收 |
+| MOBA view `FrameSnapshotDispatcher` 源码 | session 自动订阅可关闭；Dispose 会解除 `BattleLogicSession.FrameReceived` | 尚无直接测试证明 teardown 后不再收到 session frame |
+
+这里不能引用 Shooter 的 snapshot 导入、恢复或表现测试作为 MOBA 证据。通用 package 的行为可以作为底层契约来源，但 MOBA 包装器的 session 绑定、warning 和生命周期仍需自己的测试。
+
+建议补测顺序：先固定通用 dispatcher/Pipeline 的类型冲突、decoder false、handler/stage exception 和同 order；再验证 MOBA view dispatcher 的自动订阅、显式 `Feed()` 与 Dispose；最后补一条真实 `CollectSnapshots -> Feed -> Pipeline stage` 的 MOBA 组合测试。
+
+### 15.3 预测、Hash 与恢复
+
+| 证据 | 当前直接证明 | 不能据此证明 |
+|------|--------------|--------------|
+| `BattleRuntimeOptimizationTests.RemoteDrivenRuntimeModuleFactory_RetainsSixHundredPredictionFrames` | 当前 MOBA 工厂保留 600 帧预测回滚历史 | 只固定常量，不证明运行中实际捕获 600 帧或内存预算 |
+| `MobaSynchronizationCompositionTests.RollbackRegistryBuilder_RegistersCompleteAvailableStateSet` | 当前 registry/factory 注册 Transform、HP、Buff timer、Skill cooldown、Random、Passive trigger log 与 FrameTime provider | “当前可用集合”不等于完整 world 恢复；Buff timer provider 不重建 Buff 行为关系 |
+| `MobaSynchronizationCompositionTests.AuthoritativeStateHash_IsStableAndSharedBySnapshotService` | run gate、Transform、HP 进入共享 hash；注册顺序变化不改变结果 | 不证明所有影响战斗结果的状态都已进入 hash 或 rollback registry |
+| `MobaSynchronizationCompositionTests` 中 reconciliation reporter 与 replication health 测试 | mismatch、replay completion、recovered 及 InputAccepted、SnapshotGap、SnapshotStale、RollbackStarted 等诊断投影 | 不执行完整 MOBA rollback/replay，也不验证表现覆盖和一次性 Cue 去重 |
+| `FrameSyncDriverModuleHeadlessTests` 的确认帧与 hash mismatch replay 用例 | 通用 `ClientPredictionDriverModule` 能避免已确认预测帧重复模拟，并能在 mismatch 后 replay | 属于通用 Host Extension 行为，不证明 MOBA 工厂参数、provider 组合或 authority frame 绑定 |
+| `RemoteDrivenRuntimeModuleFactory` 源码 | prediction 模式使用 ahead=30、history=600、capture interval=1、rollback=true；remote-only 使用 null local input、ahead=0、history=0、rollback=false、hash=null | remote-only 参数组合目前缺少直接构造测试；源码核对不能代替回归测试 |
+
+优先补充 remote-only 与 prediction 两种工厂组合测试、authority frame source/service best-effort 绑定诊断、真实 MOBA hash mismatch 回滚，以及 rollback 后状态投影覆盖与一次性 Cue 稳定去重。teardown 测试还应同时确认 world、dispatcher、Pipeline 和 stage subscription 不再持有会话回调。
 
 ## 16. 源码索引
 
@@ -345,7 +358,8 @@ WorldAutoStartModule
 | Transform emitter | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Actor/MobaActorTransformSnapshotService.cs` |
 | 通用 Dispatcher | `Unity/Packages/com.abilitykit.world.snapshot/Runtime/SnapshotRouting/FrameSnapshotDispatcher.cs` |
 | MOBA view Dispatcher | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/SnapshotRouting/FrameSnapshotDispatcher.cs` |
-| MOBA view Pipeline | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/SnapshotRouting/BattleSnapshotPipeline.cs` |
+| 通用 Snapshot Pipeline | `Unity/Packages/com.abilitykit.world.snapshot/Runtime/SnapshotRouting/SnapshotPipeline.cs` |
+| MOBA confirmed-view 快照装配 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/ConfirmedViewSnapshotRuntime.cs` |
 | Share 层 Dispatcher | `Unity/Packages/com.abilitykit.demo.moba.share/Runtime/Game/Flow/Battle/Snapshot/FrameSnapshotDispatcher.cs` |
 | 远程 world 工厂 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenWorldRuntimeFactory.cs` |
 | 预测/远程 modules | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenRuntimeModuleFactory.cs` |
@@ -353,3 +367,11 @@ WorldAutoStartModule
 | Transform snapshot 验收示例 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/XiaoQiao/XiaoQiaoSkillAcceptanceTests.cs` |
 | 回滚预测设计 | [Rollback 与预测](../../07-NetworkSynchronization/03-RollbackPrediction.md) |
 | 状态同步设计 | [状态同步](../../07-NetworkSynchronization/02-StateSync.md) |
+
+## 17. 版本与验证基线
+
+- 文档核对日期：2026-08-02。
+- 当前事实基线：MOBA prediction history 以 `RemoteDrivenRuntimeModuleFactory.PredictionRollbackHistoryFrames = 600` 及对应 Unity 单元测试为准；本文不再沿用旧的 240 帧描述。
+- 历史执行记录：2026-08-02 的 MOBA .NET Release 测试记录为 232/232 通过，执行过程存在警告。该记录只说明当时对应测试集的结果，不代表本文列出的 Unity 测试或待补边界已在本轮执行。
+- 本轮验证范围：重新核对上述生产源码、测试入口及断言，未重新运行 .NET 或 Unity 测试。因此“直接证明”表示仓库中已有对应自动测试，不表示本轮获得了新的通过结果。
+- 证据使用原则：Shooter 测试、类型存在、编译成功和单个 Smoke 不向上推导为 MOBA 快照、预测回滚或表现恢复的完整验收。

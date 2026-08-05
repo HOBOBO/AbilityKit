@@ -72,6 +72,7 @@ namespace AbilityKit.Demo.Moba.Services
                 case 4: return MobaSkillParamModifierKeys.Projectile.FanAngleDeg;
                 case 5: return MobaSkillParamModifierKeys.Projectile.DurationMs;
                 case 6: return MobaSkillParamModifierKeys.Skill.SkillId;
+                case 7: return MobaSkillParamModifierKeys.Summon.SummonId;
                 default: return ModifierKey.Create(ModifierKey.Categories.Projectile, ToByte(targetId));
             }
         }

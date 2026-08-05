@@ -197,6 +197,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         private static bool TryResolvePayloadField(int fieldId, ExecCtx<IWorldResolver> ctx, in TriggerActionParseContext parseContext, out double value)
         {
             var triggerArgs = parseContext.TriggerArgs;
+            if (triggerArgs is MobaTriggerConditionContext conditionContext)
+            {
+                triggerArgs = conditionContext.Payload;
+            }
+
             if (ctx.Payloads != null && triggerArgs != null)
             {
                 if (ctx.Payloads.TryGetDouble(in triggerArgs, fieldId, out value))

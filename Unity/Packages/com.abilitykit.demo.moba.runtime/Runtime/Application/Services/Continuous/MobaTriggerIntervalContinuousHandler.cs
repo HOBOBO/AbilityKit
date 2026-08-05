@@ -7,10 +7,12 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaTriggerIntervalContinuousHandler : IMobaContinuousIntervalHandler
     {
         private readonly MobaTriggerExecutionGateway _triggers;
+        private readonly MobaCombatActivityService _combatActivity;
 
-        public MobaTriggerIntervalContinuousHandler(MobaTriggerExecutionGateway triggers)
+        public MobaTriggerIntervalContinuousHandler(MobaTriggerExecutionGateway triggers, MobaCombatActivityService combatActivity = null)
         {
             _triggers = triggers;
+            _combatActivity = combatActivity;
         }
 
         public bool CanHandle(IContinuous continuous)
@@ -24,6 +26,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             var triggerIds = periodicConfig?.IntervalEffectIds;
             if (continuous == null || triggerIds == null || triggerIds.Count == 0) return;
+            if (!CanRunInterval(continuous)) return;
 
             var source = continuous is MobaTriggerIntervalContinuousRuntime
                 ? "continuous.trigger_interval.interval"
@@ -36,6 +39,14 @@ namespace AbilityKit.Demo.Moba.Services
                 var request = MobaTriggerExecutionRequest<IContinuous>.Create(triggerId, continuous, source);
                 _triggers?.ExecuteDirectTrigger(in request);
             }
+        }
+
+        private bool CanRunInterval(IContinuous continuous)
+        {
+            if (!(continuous.Config is IMobaContinuousPeriodicGateConfig gate) || !gate.RequireOutOfCombat) return true;
+            if (_combatActivity == null) return false;
+            if (!(continuous.Config is IMobaContinuousProjectionConfig projection) || projection.OwnerActorId <= 0) return false;
+            return _combatActivity.IsOutOfCombat(projection.OwnerActorId, gate.OutOfCombatSeconds);
         }
     }
 }

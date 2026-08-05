@@ -32,7 +32,7 @@ namespace AbilityKit.Modifiers
         #region 构造函数
 
         /// <summary>创建空缓存</summary>
-        public static ModifierCache Empty => default;
+        public static readonly ModifierCache Empty = new ModifierCache(-1, 0, 0f, 0f, default, false);
 
         /// <summary>是否为空</summary>
         public bool IsEmpty => _lastCount == -1;
@@ -78,17 +78,15 @@ namespace AbilityKit.Modifiers
             if (modifiers.Length != _lastCount || _lastBaseValue != baseValue)
                 return false;
 
-            // 时变修饰器：检查时间
+            // 始终检查哈希（数据标识变化一定是新输入）
+            int hash = ComputeHash(modifiers);
+            if (hash != _lastHash)
+                return false;
+
+            // 时变修饰器：额外检查时间
             if (_isTimeVarying)
             {
                 if (context != null && context.CurrentTime != _lastContextTime)
-                    return false;
-            }
-            else
-            {
-                // 非时变：检查哈希
-                int hash = ComputeHash(modifiers);
-                if (hash != _lastHash)
                     return false;
             }
 
@@ -122,7 +120,7 @@ namespace AbilityKit.Modifiers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ModifierCache Clear()
         {
-            return default;
+            return Empty;
         }
 
         #endregion
@@ -219,6 +217,16 @@ namespace AbilityKit.Modifiers
     /// </summary>
     public struct ModifierComputeCore
     {
+        private readonly IComposerStrategy _strategy;
+
+        /// <summary>使用默认合成策略创建计算核心</summary>
+        public static ModifierComputeCore Default => new ModifierComputeCore(null);
+
+        /// <summary>使用指定合成策略创建计算核心</summary>
+        public ModifierComputeCore(IComposerStrategy strategy)
+        {
+            _strategy = strategy;
+        }
         #region 核心计算
 
         /// <summary>
@@ -237,8 +245,8 @@ namespace AbilityKit.Modifiers
             if (count == 0)
                 return ModifierResult.Empty(baseValue);
 
-            // 使用 OperatorComposer 进行组合计算
-            var result = OperatorComposer.Compose(modifiers, baseValue, level, context);
+            // 使用 OperatorComposer 进行组合计算（传递策略）
+            var result = OperatorComposer.Compose(modifiers, baseValue, level, context, _strategy);
 
             // 来源追踪：计算每个修改器对最终值的贡献
             if (recorder != null)

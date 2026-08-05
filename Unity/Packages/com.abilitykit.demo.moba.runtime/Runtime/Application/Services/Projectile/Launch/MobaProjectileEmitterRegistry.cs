@@ -28,7 +28,27 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
         public static MobaProjectileEmitterRegistry CreateDefault(Assembly assembly = null)
         {
             var registry = new MobaProjectileEmitterRegistry();
-            registry.RegisterFromAssembly(assembly ?? typeof(MobaProjectileEmitterRegistry).Assembly);
+            var targetAssembly = assembly ?? typeof(MobaProjectileEmitterRegistry).Assembly;
+            if (targetAssembly != typeof(MobaProjectileEmitterRegistry).Assembly)
+            {
+                registry.RegisterFromAssembly(targetAssembly);
+                return registry;
+            }
+
+            if (MobaGeneratedProjectileEmitterManifest.Register(registry) > 0)
+            {
+                return registry;
+            }
+
+            if (AppContext.TryGetSwitch(
+                    "AbilityKit.Moba.DisableProjectileEmitterReflectionFallback",
+                    out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
+            {
+                throw new InvalidOperationException(
+                    "The generated MOBA projectile emitter manifest is empty and reflection fallback is disabled.");
+            }
+
+            registry.RegisterFromAssembly(targetAssembly);
             return registry;
         }
 
@@ -37,12 +57,26 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             if (factory == null) return;
 
             var entry = new Entry(emitterType, factory, priority);
-            if (!_entries.TryGetValue(emitterType, out var current) || priority >= current.Priority)
+            if (!_entries.TryGetValue(emitterType, out var current))
             {
-                _entries[emitterType] = entry;
+                _entries.Add(emitterType, entry);
+                return;
             }
 
+            if (priority > current.Priority)
+            {
+                _entries[emitterType] = entry;
+                return;
+            }
+
+            if (priority == current.Priority)
+            {
+                throw new InvalidOperationException(
+                    $"Ambiguous MOBA projectile emitter '{emitterType}' at priority '{priority}'.");
+            }
         }
+
+        internal int Count => _entries.Count;
 
         public bool TryCreate(ProjectileEmitterType emitterType, out IMobaProjectileLaunchSequence sequence)
         {

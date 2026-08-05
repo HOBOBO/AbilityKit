@@ -10,9 +10,38 @@
   "lastReviewedAt": "2026-06-25",
   "input": {
     "playerId": "p1",
-    "slot": 1,
+    "slot": 2,
     "phase": "Press",
     "position": { "x": 4.0, "y": 0.0, "z": 0.0 }
+  },
+  "scenario": {
+    "scenarioId": "skill_10020201_xiao_qiao_area_spawn",
+    "worldId": "skill_10020201_xiao_qiao_acceptance_world",
+    "tickRate": 30,
+    "accelerated": true,
+    "actors": [
+      {
+        "alias": "caster",
+        "playerId": "p1",
+        "teamId": 1,
+        "heroId": 1002,
+        "attributeTemplateId": 1002,
+        "skillIds": [10020101, 10020201, 10020301],
+        "spawnPosition": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": 1.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "timeline": [
+      {
+        "stepId": "press_skill_2",
+        "atMs": 0,
+        "action": "press",
+        "actorAlias": "caster",
+        "slot": 2,
+        "position": { "x": 4.0, "y": 0.0, "z": 0.0 }
+      },
+      { "stepId": "wait_for_area", "atMs": 1, "action": "wait", "durationMs": 100 }
+    ]
   },
   "config": {
     "skillId": 10020201,

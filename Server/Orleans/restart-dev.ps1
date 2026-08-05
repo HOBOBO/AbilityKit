@@ -4,31 +4,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-function Stop-DotNetByProject([string]$projectName)
-{
-    $procs = Get-CimInstance Win32_Process -Filter "Name='dotnet.exe'" |
-        Where-Object { $_.CommandLine -like "*AbilityKit.Orleans.$projectName*" }
-
-    foreach ($p in $procs)
-    {
-        Write-Host "Stopping dotnet PID=$($p.ProcessId) ($projectName)" -ForegroundColor Yellow
-        Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
-    }
-}
-
-Stop-DotNetByProject 'Host'
-Stop-DotNetByProject 'Gateway'
-
-if (-not $NoBuild)
-{
-    Write-Host 'Building solution...' -ForegroundColor Cyan
-    dotnet build .\AbilityKit.Orleans.sln -c Debug
-}
-
-Write-Host 'Starting Host...' -ForegroundColor Green
-Start-Process -FilePath 'dotnet' -ArgumentList 'run --project .\src\AbilityKit.Orleans.Host\AbilityKit.Orleans.Host.csproj' -WorkingDirectory $PSScriptRoot | Out-Null
-
-Write-Host 'Starting Gateway...' -ForegroundColor Green
-Start-Process -FilePath 'dotnet' -ArgumentList 'run --project .\src\AbilityKit.Orleans.Gateway\AbilityKit.Orleans.Gateway.csproj' -WorkingDirectory $PSScriptRoot | Out-Null
-
-Write-Host 'Done.' -ForegroundColor Green
+# restart-dev 是 start_orleans_dev 的便捷入口：直接委托给规范启动脚本。
+# 规范脚本负责：停止旧进程 → 构建 Host/Gateway → 先起 Silo 并等待 Orleans 客户端网关(30000)就绪
+# → 再起 HTTP/TCP Gateway → 健康检查。直接在这里 `dotnet run` 会因为缺 --AbilityKit:Orleans:*
+# 配置段导致 Host 启动即崩、Gateway 连不上 Silo，故统一走 tools/start_orleans_dev.ps1。
+& (Join-Path $PSScriptRoot 'tools\start_orleans_dev.ps1') -NoBuild:$NoBuild

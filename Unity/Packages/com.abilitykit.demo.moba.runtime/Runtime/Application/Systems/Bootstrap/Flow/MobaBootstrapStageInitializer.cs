@@ -21,6 +21,19 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
             if (_initialized) return;
             _initialized = true;
 
+            if (MobaGeneratedBootstrapStageManifest.RegisterAll() > 0)
+            {
+                return;
+            }
+
+            if (AppContext.TryGetSwitch(
+                    "AbilityKit.Moba.DisableBootstrapStageReflectionFallback",
+                    out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
+            {
+                throw new InvalidOperationException(
+                    "The generated MOBA bootstrap stage manifest is empty and reflection fallback is disabled.");
+            }
+
             var assembly = typeof(MobaBootstrapStageInitializer).Assembly;
             var stageTypes = assembly.GetTypes()
                 .Where(t =>

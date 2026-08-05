@@ -156,13 +156,6 @@ namespace AbilityKit.Demo.Moba.Services
             return _continuous;
         }
 
-        private bool CanKeepActive(ContinuousProcessMO process, int actorId)
-        {
-            if (process == null) return false;
-            if (!process.RequireOutOfCombat) return true;
-            return _combatActivity != null && _combatActivity.IsOutOfCombat(actorId, process.OutOfCombatSeconds);
-        }
-
         private static bool ContainsProcessId(IReadOnlyCollection<int> processIds, int processId)
         {
             if (processIds == null || processId <= 0) return false;
@@ -180,6 +173,13 @@ namespace AbilityKit.Demo.Moba.Services
             return _tagTemplates != null && _tagTemplates.TryGet(process.ContinuousTagTemplateId, out var requirements) && requirements != null
                 ? requirements
                 : new ContinuousTagRequirements();
+        }
+
+        private bool CanKeepActive(ContinuousProcessMO process, int actorId)
+        {
+            if (process == null) return false;
+            if (!process.RequireOutOfCombat) return true;
+            return _combatActivity != null && _combatActivity.IsOutOfCombat(actorId, process.OutOfCombatSeconds);
         }
 
         private void EndProcess(ProcessKey key, ContinuousEndReason reason)

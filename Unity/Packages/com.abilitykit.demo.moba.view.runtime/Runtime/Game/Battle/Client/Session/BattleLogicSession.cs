@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Battle
         private readonly BattleLogicSessionOptions _options;
         private readonly IBattleLogicClient _client;
         private readonly IBattleLogicTransport _transport;
-        private readonly RemoteFrameStreamHub _remoteFrameStreams = new RemoteFrameStreamHub();
+        private readonly IRemoteFrameStreams _remoteFrameStreams;
         private readonly IBattleLogicRuntimeFactory _runtimeFactory;
         private readonly BattleLogicSessionRuntime _runtime;
 
@@ -39,10 +39,21 @@ namespace AbilityKit.Game.Battle
             IBattleLogicTransport remoteTransport,
             IBattleRollbackRegistryFactory rollbackRegistryFactory,
             IBattleLogicRuntimeFactory runtimeFactory)
+            : this(options, remoteTransport, rollbackRegistryFactory, runtimeFactory, null)
+        {
+        }
+
+        internal BattleLogicSession(
+            BattleLogicSessionOptions options,
+            IBattleLogicTransport remoteTransport,
+            IBattleRollbackRegistryFactory rollbackRegistryFactory,
+            IBattleLogicRuntimeFactory runtimeFactory,
+            IRemoteFrameStreams remoteFrameStreams)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
             if (rollbackRegistryFactory == null) throw new ArgumentNullException(nameof(rollbackRegistryFactory));
             _runtimeFactory = runtimeFactory ?? throw new ArgumentNullException(nameof(runtimeFactory));
+            _remoteFrameStreams = remoteFrameStreams ?? RemoteFrameStreamsFactory.Create();
             _runtime = _runtimeFactory.CreateRuntime(_options, rollbackRegistryFactory);
 
             if (_options.Mode == BattleLogicMode.Remote)

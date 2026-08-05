@@ -12,6 +12,7 @@ namespace AbilityKit.Protocol.Room
         public const string ProtocolVersion = "protocolVersion";
         public const string WorldType = "worldType";
         public const string ClientId = "clientId";
+        public const string MinPlayers = "minPlayers";
         public const string TickRate = "tickRate";
         public const string OfflineTimeoutSeconds = "offlineTimeoutSeconds";
     }

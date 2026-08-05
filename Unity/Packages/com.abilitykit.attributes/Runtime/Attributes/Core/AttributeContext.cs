@@ -135,7 +135,13 @@ namespace AbilityKit.Attributes.Core
         public void SetFloat(string key, float value)
         {
             if (string.IsNullOrEmpty(key)) return;
+
+            var changed = !_dataSlots.TryGetValue(key, out _) || Math.Abs(GetFloat(key) - value) > 0.00001f;
             _dataSlots[key] = value;
+            if (changed)
+            {
+                MarkContextFloatDependentsDirty(key);
+            }
         }
 
         /// <summary>
@@ -144,7 +150,13 @@ namespace AbilityKit.Attributes.Core
         public void SetInt(string key, int value)
         {
             if (string.IsNullOrEmpty(key)) return;
+
+            var changed = !_dataSlots.TryGetValue(key, out _) || Math.Abs(GetFloat(key) - value) > 0.00001f;
             _dataSlots[key] = value;
+            if (changed)
+            {
+                MarkContextFloatDependentsDirty(key);
+            }
         }
 
         /// <summary>
@@ -217,6 +229,14 @@ namespace AbilityKit.Attributes.Core
                 if (!dep.IsValid) continue;
                 var g = GetGroupFor(dep);
                 g?.MarkDirty(dep);
+            }
+        }
+
+        private void MarkContextFloatDependentsDirty(string key)
+        {
+            foreach (var group in _groups.Values)
+            {
+                group.MarkContextFloatDependentsDirty(key);
             }
         }
 

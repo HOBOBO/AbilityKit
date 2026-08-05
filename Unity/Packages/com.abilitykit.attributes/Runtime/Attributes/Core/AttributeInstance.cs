@@ -203,12 +203,29 @@ namespace AbilityKit.Attributes.Core
         {
             ref var slot = ref _group.GetSlotRef(_rawId);
             slot.Dirty = true;
+            _calculator.Invalidate();
         }
 
         internal void MarkDirtyByDependency()
         {
             ref var slot = ref _group.GetSlotRef(_rawId);
             slot.Dirty = true;
+            _calculator.Invalidate();
+        }
+
+        internal void MarkDirtyIfContextFloatDependent(string key)
+        {
+            for (int i = 0; i < _modifierSlotCount; i++)
+            {
+                if (!_modifierSlots[i].Active) continue;
+
+                var magnitude = _modifierSlots[i].ModifierData.Magnitude;
+                if (magnitude.Type != MagnitudeSourceType.ContextFloat) continue;
+                if (!string.Equals(magnitude.ContextFloatKey, key, StringComparison.Ordinal)) continue;
+
+                MarkDirtyByDependency();
+                return;
+            }
         }
 
         private void Recompute()

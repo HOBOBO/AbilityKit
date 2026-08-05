@@ -35,10 +35,7 @@
     <!-- 构建后自动复制 DLL 到包根目录 -->
     <Target Name="CustomAfterBuild" AfterTargets="Build">
         <Copy SourceFiles="$(TargetDir)/$(TargetName).dll"
-              DestinationFiles="$(ProjectDir)/../../../AbilityKit.Analyzer.Plugin.dll"
-              ContinueOnError="false" />
-        <Copy SourceFiles="$(TargetDir)/Newtonsoft.Json.dll"
-              DestinationFiles="$(ProjectDir)/../../../Newtonsoft.Json.dll"
+              DestinationFiles="$(ProjectDir)/../../AbilityKit.Analyzer.Plugin.dll"
               ContinueOnError="false" />
     </Target>
 </Project>

@@ -101,9 +101,8 @@ com.abilitykit.demo.moba.view.runtime/Runtime/Game/
 ├── Battle/
 │   ├── Bootstrap/                 # BattlePhase 与启动装配
 │   ├── Client/                    # session / transport / gateway / replay
-│   ├── Presentation/              # view / HUD / VFX / view events
+│   ├── Presentation/              # entities / composition / view / HUD / VFX / view events
 │   ├── Input/                     # input sources / mapping / submission
-│   ├── EntityViewModel/           # 表现层实体与组件
 │   ├── Shared/                    # context / hooks / module host
 │   ├── Debug/                     # debug facade / OnGUI
 │   └── Legacy/                    # 待迁移兼容代码

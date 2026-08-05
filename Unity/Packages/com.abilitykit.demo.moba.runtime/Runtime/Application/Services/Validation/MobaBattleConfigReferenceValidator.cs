@@ -83,7 +83,37 @@ namespace AbilityKit.Demo.Moba.Services
 
                 ValidateRefs(Ref<SkillMO>(config.TryGetSkill), template.ActiveSkills, report, path + ".activeSkills", "skill", template.Id);
                 ValidateRefs(Ref<PassiveSkillMO>(config.TryGetPassiveSkill), template.PassiveSkills, report, path + ".passiveSkills", "passive skill", template.Id);
+
+                if (template.MaxMana <= 0 && HasPositiveSkillCost(config, template.ActiveSkills))
+                {
+                    report.Error(
+                        Source,
+                        path + ".maxMana",
+                        "battle attribute template has positive-cost active skills but no mana capacity.",
+                        template.Id.ToString(),
+                        code: "moba.skill.contract.attribute_template_missing_mana",
+                        category: MobaRuntimeValidationCategory.Config,
+                        businessNumericId: template.Id);
+                }
             }
+        }
+
+        private static bool HasPositiveSkillCost(MobaConfigDatabase config, IReadOnlyList<int> skillIds)
+        {
+            if (config == null || skillIds == null || skillIds.Count == 0) return false;
+
+            for (var i = 0; i < skillIds.Count; i++)
+            {
+                if (!config.TryGetSkill(skillIds[i], out var skill) || skill == null || skill.LevelTableId <= 0) continue;
+                if (!config.TryGetSkillLevelTable(skill.LevelTableId, out var table) || table?.Levels == null) continue;
+
+                for (var levelIndex = 0; levelIndex < table.Levels.Count; levelIndex++)
+                {
+                    if (table.Levels[levelIndex]?.Cost > 0) return true;
+                }
+            }
+
+            return false;
         }
 
         private static void ValidateCharacters(MobaConfigDatabase config, MobaRuntimeValidationReport report)

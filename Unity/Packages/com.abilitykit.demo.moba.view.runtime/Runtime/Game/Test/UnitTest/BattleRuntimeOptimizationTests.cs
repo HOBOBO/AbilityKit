@@ -1814,6 +1814,49 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void ExistingGatewayRoomBattleBootstrapper_SnapshotsSourcePlanForGateAndBuild()
+        {
+            var sourcePlan = BattleStartPlanBuilder
+                .ForWorld("preset-world", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
+                .WithGateway(
+                    useGatewayTransport: false,
+                    host: "configured.example",
+                    port: 4000,
+                    numericRoomId: 11UL,
+                    sessionToken: "preset-token",
+                    region: "configured-region",
+                    serverId: "configured-server",
+                    autoCreateRoom: true,
+                    autoJoinRoom: true,
+                    joinRoomId: "preset-room",
+                    createRoomOpCode: 110,
+                    joinRoomOpCode: 111)
+                .Build();
+            var inner = new SingleBuildBattleBootstrapper(sourcePlan);
+            var bootstrapper = new ExistingGatewayRoomBattleBootstrapper(
+                inner,
+                "authenticated-token",
+                "room-public-id",
+                "battle-authoritative-id",
+                9001UL,
+                7001UL,
+                42u);
+
+            Assert.AreEqual(1, inner.BuildCount);
+            Assert.IsTrue(bootstrapper.IsConnectivityReady);
+            Assert.IsTrue(bootstrapper.IsConnectivityReady);
+
+            var first = bootstrapper.Build();
+            var second = bootstrapper.Build();
+
+            Assert.AreEqual(1, inner.BuildCount);
+            Assert.AreEqual("configured.example", first.Gateway.Host);
+            Assert.AreEqual(4000, first.Gateway.Port);
+            Assert.AreEqual(first.Gateway.Host, second.Gateway.Host);
+            Assert.AreEqual(first.Gateway.Port, second.Gateway.Port);
+        }
+
+        [Test]
         public void ExistingGatewayRoomBattleBootstrapper_RebindsPresetLoadoutsToAuthoritativePlayerIds()
         {
             var configuredPlayers = new[]
@@ -2235,6 +2278,29 @@ namespace AbilityKit.Game.Test.UnitTest
 
             public BattleStartPlan Build()
             {
+                return _plan;
+            }
+        }
+
+        private sealed class SingleBuildBattleBootstrapper : IBattleBootstrapper
+        {
+            private readonly BattleStartPlan _plan;
+
+            public SingleBuildBattleBootstrapper(BattleStartPlan plan)
+            {
+                _plan = plan;
+            }
+
+            public int BuildCount { get; private set; }
+
+            public BattleStartPlan Build()
+            {
+                BuildCount++;
+                if (BuildCount > 1)
+                {
+                    throw new InvalidOperationException("Source plan must only be built once.");
+                }
+
                 return _plan;
             }
         }

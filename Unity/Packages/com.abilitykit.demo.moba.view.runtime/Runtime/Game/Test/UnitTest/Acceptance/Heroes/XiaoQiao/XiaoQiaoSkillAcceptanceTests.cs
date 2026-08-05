@@ -511,12 +511,12 @@ namespace AbilityKit.Game.Test.UnitTest
                     },
                     timeline = new[]
                     {
-                        new MobaAcceptanceTimelineStepExpectation { stepId = "first_cast", atMs = 0, action = "press", actorAlias = "caster", slot = 3, note = "第一次释放三技能" },
-                        new MobaAcceptanceTimelineStepExpectation { stepId = "wait_for_first_two_hits", atMs = 1, action = "wait", durationMs = 2200, note = "等待第一次 runtime 的前两段伤害" },
-                        new MobaAcceptanceTimelineStepExpectation { stepId = "reset_target_hp", atMs = 2300, action = "set_attr", actorAlias = "target", property = "hp", value = 180f, note = "复位目标生命值，准备验证下一次释放是否重新从满伤开始" },
-                        new MobaAcceptanceTimelineStepExpectation { stepId = "wait_for_first_runtime_end", atMs = 2301, action = "wait", durationMs = 3100, note = "等待第一次三技能持续结束，确保下一次释放使用新的 skill runtime" },
-                        new MobaAcceptanceTimelineStepExpectation { stepId = "second_cast", atMs = 5500, action = "press", actorAlias = "caster", slot = 3, note = "第二次释放三技能，衰减应从头开始" },
-                        new MobaAcceptanceTimelineStepExpectation { stepId = "wait_for_second_two_hits", atMs = 5501, action = "wait", durationMs = 2200, note = "等待第二次 runtime 的前两段伤害" }
+                        new MobaAcceptanceTimelineStepExpectation { stepId = "first_cast", atMs = 0, action = "press", actorAlias = "caster", slot = 3, note = "Cast the first skill 3 runtime." },
+                        new MobaAcceptanceTimelineStepExpectation { stepId = "leave_after_first_three_hits", atMs = 3500, action = "move_to", actorAlias = "target", position = new MobaAcceptanceVector3Expectation { x = 20f, y = 0f, z = 0f }, note = "Leave the search radius after three hits while the first runtime finishes." },
+                        new MobaAcceptanceTimelineStepExpectation { stepId = "return_after_cooldown", atMs = 10300, action = "move_to", actorAlias = "target", position = new MobaAcceptanceVector3Expectation { x = 4f, y = 0f, z = 0f }, note = "Return after the first runtime and the configured cooldown have ended." },
+                        new MobaAcceptanceTimelineStepExpectation { stepId = "reset_target_hp", atMs = 10301, action = "set_attr", actorAlias = "target", property = "hp", value = 180f, note = "Reset target HP before the second independent runtime." },
+                        new MobaAcceptanceTimelineStepExpectation { stepId = "second_cast", atMs = 10400, action = "press", actorAlias = "caster", slot = 3, note = "Cast skill 3 again; repeat-hit decay must restart." },
+                        new MobaAcceptanceTimelineStepExpectation { stepId = "wait_for_second_three_hits", atMs = 10401, action = "wait", durationMs = 3500, note = "Observe the first three hits from the second runtime." }
                     },
                     stateExpectations = new[]
                     {
@@ -525,8 +525,9 @@ namespace AbilityKit.Game.Test.UnitTest
                             alias = "target",
                             property = "hp",
                             comparator = "eq",
-                            expectedFloat = 60f,
-                            note = "目标生命值在复位到 180 后，应再次承受 80+40 伤害并剩余 60 点生命值。"
+                            expectedFloat = 86.67f,
+                            tolerance = new MobaAcceptanceVector3Expectation { x = 0.01f, y = 0.01f, z = 0.01f },
+                            note = "After reset, the second runtime should independently apply three decayed hits."
                         }
                     }
                 },
@@ -535,7 +536,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     new MobaAcceptanceTraceExpectation { kind = "SkillCast", configId = 10020301, minCount = 2, maxCount = 2 },
                     new MobaAcceptanceTraceExpectation { kind = "EffectExecution", configId = 10020301, minCount = 2, maxCount = 2 },
                     new MobaAcceptanceTraceExpectation { kind = "BuffApply", configId = 10020301, minCount = 2, maxCount = 2 },
-                    new MobaAcceptanceTraceExpectation { kind = "DamageApply", configId = 10020301, minCount = 4, maxCount = 4 }
+                    new MobaAcceptanceTraceExpectation { kind = "DamageApply", configId = 10020301, minCount = 6, maxCount = 6 }
                 },
                 relationships = new[]
                 {
@@ -555,8 +556,8 @@ namespace AbilityKit.Game.Test.UnitTest
             var records = LoadTraceRecords(summary);
             var effectRoots = MobaAcceptanceTraceAssert.CollectEffectRootIds(records, 10020301);
             Assert.AreEqual(2, effectRoots.Count, "the recast reset scenario should create exactly two Xiao Qiao skill 3 effect roots.");
-            MobaAcceptanceTraceAssert.AssertRepeatHitDamagePattern(records, effectRoots[0], 10020301, expectedHitCount: 2, "the first Xiao Qiao skill 3 runtime should apply exactly two ordered hits to the same target.");
-            MobaAcceptanceTraceAssert.AssertRepeatHitDamagePattern(records, effectRoots[1], 10020301, expectedHitCount: 2, "the second Xiao Qiao skill 3 runtime should restart repeat-hit decay with exactly two ordered hits to the same target.");
+            MobaAcceptanceTraceAssert.AssertRepeatHitDamagePattern(records, effectRoots[0], 10020301, expectedHitCount: 3, "the first Xiao Qiao skill 3 runtime should apply exactly three ordered hits before the target leaves range.");
+            MobaAcceptanceTraceAssert.AssertRepeatHitDamagePattern(records, effectRoots[1], 10020301, expectedHitCount: 3, "the second Xiao Qiao skill 3 runtime should restart repeat-hit decay with exactly three ordered hits.");
         }
     }
 

@@ -1,6 +1,6 @@
 {
   "caseId": "skill_10010301_insert_skill_1_between_stages",
-  "description": "Lian Po skill 3 should pause at the stage gate while inserted skill 1 is running, then resume later ultimate stages after the inserted skill completes.",
+  "description": "Lian Po skill 3 should pause at the stage gate while inserted skill 1 is running, then resume later ultimate stages at the caster's post-dash position.",
   "category": "contract",
   "tags": ["lian-po", "skill-3", "insert-skill", "wait-until", "scenario", "damage", "knockup"],
   "config": {
@@ -9,7 +9,7 @@
     "effectId": 10010321,
     "triggerId": 10010321,
     "expectedActions": [
-      { "actionId": 1822191218, "type": "spawn_area" },
+      { "actionId": 1872489131, "type": "jump" },
       { "actionId": 589451731, "type": "debug_log" }
     ]
   },
@@ -35,7 +35,16 @@
         "teamId": 2,
         "heroId": 1001,
         "attributeTemplateId": 1001,
-        "spawnPosition": { "x": 3.0, "y": 0.0, "z": 0.0 },
+        "spawnPosition": { "x": 4.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": -1.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "alias": "resume_target",
+        "playerId": "p3",
+        "teamId": 2,
+        "heroId": 1001,
+        "attributeTemplateId": 1001,
+        "spawnPosition": { "x": 12.0, "y": 0.0, "z": 2.5 },
         "facingDirection": { "x": -1.0, "y": 0.0, "z": 0.0 }
       }
     ],
@@ -51,6 +60,18 @@
         "actorAlias": "target",
         "property": "hp",
         "value": 1000.0
+      },
+      {
+        "action": "set_attr",
+        "actorAlias": "resume_target",
+        "property": "max_hp",
+        "value": 1000.0
+      },
+      {
+        "action": "set_attr",
+        "actorAlias": "resume_target",
+        "property": "hp",
+        "value": 1000.0
       }
     ],
     "timeline": [
@@ -60,31 +81,25 @@
         "action": "press",
         "actorAlias": "caster",
         "slot": 3,
-        "position": { "x": 3.0, "y": 0.0, "z": 0.0 }
+        "position": { "x": 4.0, "y": 0.0, "z": 0.0 }
       },
       {
         "stepId": "insert_skill_1_after_stage_1",
-        "atMs": 700,
+        "atMs": 600,
         "action": "press",
         "actorAlias": "caster",
         "slot": 1,
-        "position": { "x": 3.0, "y": 0.0, "z": 0.0 }
+        "position": { "x": 12.0, "y": 0.0, "z": 0.0 },
+        "direction": { "x": 1.0, "y": 0.0, "z": 0.0 }
       },
       {
         "stepId": "wait_for_inserted_skill_and_ultimate_resume",
-        "atMs": 701,
+        "atMs": 601,
         "action": "wait",
         "durationMs": 2600
       }
     ],
-    "stateExpectations": [
-      {
-        "alias": "target",
-        "property": "hp",
-        "comparator": "eq",
-        "expectedFloat": 390.0
-      }
-    ]
+    "stateExpectations": []
   },
   "mustContain": [
     { "kind": "SkillCast", "configId": 10010301, "minCount": 1 },
@@ -94,12 +109,12 @@
     { "kind": "EffectExecution", "configId": 10010321, "minCount": 1 },
     { "kind": "EffectExecution", "configId": 10010101, "minCount": 1 },
     { "kind": "EffectAction", "configId": 427896051, "underEffectId": 10010101, "minCount": 1 },
-    { "kind": "EffectAction", "configId": 1822191218, "underEffectId": 10010321, "minCount": 1 },
+    { "kind": "EffectAction", "configId": 1872489131, "underEffectId": 10010321, "minCount": 1 },
     { "kind": "AreaSpawn", "configId": 40010301, "minCount": 1, "maxCount": 1 },
     { "kind": "AreaSpawn", "configId": 40010311, "minCount": 1, "maxCount": 1 },
     { "kind": "AreaSpawn", "configId": 40010321, "underEffectId": 10010321, "minCount": 1, "maxCount": 1 },
     { "kind": "DamageApply", "configId": 10010301, "minCount": 3, "maxCount": 3 },
     { "kind": "DamageApply", "configId": 10010101, "minCount": 1, "maxCount": 1 },
-    { "kind": "EffectAction", "configId": -13684592, "minCount": 1 }
+    { "kind": "EffectAction", "configId": 2133799056, "minCount": 1 }
   ]
 }

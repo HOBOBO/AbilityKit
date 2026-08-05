@@ -17,6 +17,26 @@ namespace AbilityKit.Demo.Moba.Systems
 
         public MobaEventSubscriptionRegistry()
         {
+            if (MobaGeneratedEventMappingManifest.Register(this) > 0)
+            {
+                if (AppContext.TryGetSwitch(
+                        "AbilityKit.Moba.EnableDynamicEventMappingDiscovery",
+                        out var dynamicDiscoveryEnabled) && dynamicDiscoveryEnabled)
+                {
+                    DiscoverAndRegister();
+                }
+
+                return;
+            }
+
+            if (AppContext.TryGetSwitch(
+                    "AbilityKit.Moba.DisableEventMappingReflectionFallback",
+                    out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
+            {
+                throw new InvalidOperationException(
+                    "The generated MOBA event mapping manifest is empty and reflection fallback is disabled.");
+            }
+
             DiscoverAndRegister();
         }
 
@@ -46,7 +66,18 @@ namespace AbilityKit.Demo.Moba.Systems
         {
             if (string.IsNullOrEmpty(eventId)) throw new ArgumentException(nameof(eventId));
             if (argsType == null) throw new ArgumentNullException(nameof(argsType));
-            _exact[eventId] = argsType;
+            if (_exact.TryGetValue(eventId, out var existingType))
+            {
+                if (existingType != argsType)
+                {
+                    throw new InvalidOperationException(
+                        $"Duplicate MOBA event mapping '{eventId}' uses both '{existingType.FullName}' and '{argsType.FullName}'.");
+                }
+
+                return;
+            }
+
+            _exact.Add(eventId, argsType);
         }
 
         public void RegisterPrefix(string prefix, Type argsType)
@@ -59,7 +90,12 @@ namespace AbilityKit.Demo.Moba.Systems
                 var existing = _prefixes[i];
                 if (string.Equals(existing.Prefix, prefix, StringComparison.Ordinal))
                 {
-                    _prefixes[i] = new PrefixEntry(prefix, argsType);
+                    if (existing.ArgsType != argsType)
+                    {
+                        throw new InvalidOperationException(
+                            $"Duplicate MOBA event prefix '{prefix}' uses both '{existing.ArgsType.FullName}' and '{argsType.FullName}'.");
+                    }
+
                     return;
                 }
             }

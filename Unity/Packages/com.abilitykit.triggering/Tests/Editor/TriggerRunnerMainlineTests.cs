@@ -143,6 +143,32 @@ namespace AbilityKit.Triggering.Tests
         }
 
         [Test]
+        public void Register_AfterLastRegistrationDisposed_ResubscribesToEventBus()
+        {
+            var bus = new EventBus();
+            var runner = new TriggerRunner<TestContext>(
+                bus,
+                new FunctionRegistry(),
+                new ActionRegistry());
+            var key = new EventKey<Ping>(StableStringId.Get("test:trigger_runner:reregister_after_dispose"));
+            var executionCount = 0;
+
+            var first = runner.Register(
+                key,
+                new DelegateTrigger<Ping, TestContext>((evt, ctx) => true, (evt, ctx) => executionCount++));
+            bus.Publish(key, new Ping());
+            first.Dispose();
+            bus.Publish(key, new Ping());
+
+            runner.Register(
+                key,
+                new DelegateTrigger<Ping, TestContext>((evt, ctx) => true, (evt, ctx) => executionCount++));
+            bus.Publish(key, new Ping());
+
+            Assert.That(executionCount, Is.EqualTo(2));
+        }
+
+        [Test]
         public void PlannedTrigger_ImmediateNamedAction_PassesArgsAndContext()
         {
             var bus = new EventBus();

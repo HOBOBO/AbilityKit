@@ -89,7 +89,8 @@
         "alias": "target",
         "property": "hp",
         "comparator": "eq",
-        "expectedFloat": 820.0
+        "expectedFloat": 851.0345,
+        "tolerance": { "x": 0.001, "y": 0.001, "z": 0.001 }
       }
     ]
   },

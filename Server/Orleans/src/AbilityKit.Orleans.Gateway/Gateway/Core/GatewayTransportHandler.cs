@@ -15,6 +15,7 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
     private readonly GatewayRoomMembershipService _roomMembership;
     private readonly GatewayFrameSyncSubscriptionManager _frameSyncSubscriptions;
     private readonly GatewayStateSyncPushSubscriptionManager _stateSyncPushSubscriptions;
+    private readonly GatewayRoomStatePushSubscriptionManager? _roomStatePushSubscriptions;
     private readonly ConcurrentDictionary<long, ConnectionState> _sessions = new();
 
     private readonly GatewayBackgroundTaskQueue _backgroundTasks;
@@ -27,7 +28,8 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
         GatewayBackgroundTaskQueue backgroundTasks,
         GatewayFrameSyncSubscriptionManager frameSyncSubscriptions,
         GatewayStateSyncPushSubscriptionManager stateSyncPushSubscriptions,
-        ILogger<GatewayTransportHandler> logger)
+        ILogger<GatewayTransportHandler> logger,
+        GatewayRoomStatePushSubscriptionManager? roomStatePushSubscriptions = null)
     {
         _sessionRegistry = sessionRegistry;
         _router = router;
@@ -35,6 +37,7 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
         _backgroundTasks = backgroundTasks;
         _frameSyncSubscriptions = frameSyncSubscriptions;
         _stateSyncPushSubscriptions = stateSyncPushSubscriptions;
+        _roomStatePushSubscriptions = roomStatePushSubscriptions;
         _logger = logger;
     }
 
@@ -115,6 +118,7 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
         _sessionRegistry.Unregister(connectionId);
         _frameSyncSubscriptions.OnConnectionClosed(connectionId);
         _stateSyncPushSubscriptions.OnConnectionClosed(connectionId);
+        _roomStatePushSubscriptions?.OnConnectionClosed(connectionId);
     }
 
     private void CleanupRoomMembership(GatewaySessionContext context, long connectionId)

@@ -12,17 +12,17 @@ namespace AbilityKit.SourceGenerator
     /// AutoPredicate 的 Source Generator
     /// 扫描所有继承 AutoPredicate 的类，自动生成注册代码
     /// </summary>
-    [Generator]
+    [Obsolete("AutoPredicate generation is retired. Use an explicit predicate registry instead.")]
     public class AutoPredicateGenerator : ISourceGenerator
     {
         public void Initialize(GeneratorInitializationContext context)
         {
-            context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
+            context.RegisterForSyntaxNotifications(() => new AutoPredicateSyntaxReceiver());
         }
 
         public void Execute(GeneratorExecutionContext context)
         {
-            var receiver = context.SyntaxContextReceiver as SyntaxReceiver;
+            var receiver = context.SyntaxContextReceiver as AutoPredicateSyntaxReceiver;
             if (receiver == null) return;
 
             // 生成注册文件
@@ -104,7 +104,7 @@ namespace AbilityKit.SourceGenerator
         }
     }
 
-    internal class SyntaxReceiver : ISyntaxContextReceiver
+    internal class AutoPredicateSyntaxReceiver : ISyntaxContextReceiver
     {
         public List<PredicateTypeInfo> Predicates { get; } = new List<PredicateTypeInfo>();
 
@@ -150,7 +150,7 @@ namespace AbilityKit.SourceGenerator
                             var syntax = prop.DeclaringSyntaxReferences[0].GetSyntax();
                             if (syntax is PropertyDeclarationSyntax propDecl)
                             {
-                                var expr = propDecl.Expression as LiteralExpressionSyntax;
+                                var expr = propDecl.ExpressionBody?.Expression as LiteralExpressionSyntax;
                                 if (expr != null)
                                 {
                                     predicateType = expr.Token.ValueText;
@@ -165,7 +165,7 @@ namespace AbilityKit.SourceGenerator
                             var syntax = prop.DeclaringSyntaxReferences[0].GetSyntax();
                             if (syntax is PropertyDeclarationSyntax propDecl)
                             {
-                                var expr = propDecl.Expression as LiteralExpressionSyntax;
+                                var expr = propDecl.ExpressionBody?.Expression as LiteralExpressionSyntax;
                                 if (expr != null)
                                 {
                                     order = Convert.ToInt32(expr.Token.Value);
@@ -188,9 +188,9 @@ namespace AbilityKit.SourceGenerator
 
     internal class PredicateTypeInfo
     {
-        public string Name { get; set; }
-        public string Namespace { get; set; }
-        public string PredicateType { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Namespace { get; set; } = string.Empty;
+        public string PredicateType { get; set; } = string.Empty;
         public int Order { get; set; }
         public string FullName => string.IsNullOrEmpty(Namespace) || Namespace == "GlobalNamespace"
             ? Name

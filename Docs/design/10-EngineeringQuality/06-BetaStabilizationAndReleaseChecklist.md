@@ -32,7 +32,7 @@
 - 多个 `src/AbilityKit.*/*.csproj` 已声明 `AbilityKitStable=true`，但仓库根目录当前没有统一的 `Directory.Build.props` 定义该属性的具体警告策略。不能仅凭属性存在就写成“稳定构建零警告”。
 - `tools/test-gates.json` 定义 P0、P1、P2 门禁，`regression` 是发布候选的回归基线；门禁覆盖范围不等于全部 package 的发布验证。
 - `.github/workflows/abilitykit-test-gates.yml` 会运行主要测试门禁，但当前没有统一的 package 发布、CHANGELOG 完整性和全部 manifest 依赖闭包工作流。
-- `world.framesync` 中旧 `ClientPredictionRunner` 与 `ClientPredictionReconciler` 已废弃，规范预测驱动归 `host.extension`。
+- `world.framesync` 中 `ClientPredictionRunner` 与 `ClientPredictionReconciler` 曾标记废弃，现已恢复为活跃类型（Shooter demo、MOBA test harness、`ClientPredictionDriverModule` 均依赖它们）。规范预测驱动仍以 `host.extension/ClientPredictionDriverModule` 为主。
 - `coordinator` 的 Beta 范围只承诺 Local/Remote；`HybridSyncAdapter` 被禁止创建且保留未完成实现，不属于 `0.1.0` 承诺面。
 
 以上状态应在每次发布前重新从源码和 manifest 生成，不复制历史测试数量或阶段性 Batch 描述作为长期事实。
@@ -197,7 +197,26 @@ flowchart TD
 
 测试数量、环境和性能数据会变化，不应长期复制在多篇设计文档中。CHANGELOG 可以记录发布时证据，Canonical 文档负责解释长期边界，artifact 负责保存可复核结果。
 
+### v0.1.0 Known Issues Backlog (2026-08-03 帧同步/状态同步审计)
+
+以下条目已确认，不阻塞 v0.1.0 Beta，计划在后续版本处理：
+
+| # | 项目 | 严重度 | 计划版本 |
+|---|------|--------|----------|
+| 1 | 定点数学库 — 浮点 hash 仅检测不修正 | P2 | v1.0 |
+| 2 | `FrameCommandBuffer._latestFrame` 无并发保护 | P3 | v0.3.0 |
+| 3 | `OnPostTick` 在预测 stall 时跳过 snapshot capture | P3 | v0.3.0 |
+| 4 | `ShooterBattleRuntimePort` 13 个构造器应简化 | P3 | v0.3.0 |
+| 5 | `PlayerInputCommand` 每次创建分配 `byte[]` → 改用 `ArraySegment<byte>` | P3 | v0.2.0 |
+| 6 | `TrySpawnBotPlayer` 空实现 — 仅返回 `IsRunning` | P3 | v0.2.0 |
+| 7 | `NetworkSyncModel` 枚举 5 个预留值未实现 | P3 | v0.3.0 |
+| 8 | `SessionLifecycleHost` 18 委托参数 → Options 对象 | P3 | v0.3.0 |
+| 9 | `FrameSyncCatchUpClientModule` 已实现但未接入重连流程 | P2 | v0.2.0 |
+| 10 | `DeltaCompressor` LZ4/Zstd 方法 `NotSupportedException` | P3 | v1.0 |
+| 11 | 三套客户端预测栈待统一抽象 (`IClientPredictionDriver`) | P2 | v1.0 |
+
 ---
+
 
 ## 8. 失败、停止与回滚
 

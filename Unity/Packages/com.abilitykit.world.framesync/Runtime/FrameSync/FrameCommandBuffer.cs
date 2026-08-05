@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace AbilityKit.Ability.FrameSync
 {
@@ -31,13 +32,13 @@ namespace AbilityKit.Ability.FrameSync
 
         public int RetainedFrameWindow => _retainedFrameWindow;
 
-        public int LatestFrame => _latestFrame;
+        public int LatestFrame => Volatile.Read(ref _latestFrame);
 
         public void Clear()
         {
             _frames.Clear();
             _oldestRetainedFrame = 0;
-            _latestFrame = 0;
+            Volatile.Write(ref _latestFrame, 0);
         }
 
         public void SetRetainedFrameWindow(int frames, int anchorFrame = 0)
@@ -68,9 +69,15 @@ namespace AbilityKit.Ability.FrameSync
             }
 
             commands[key] = command;
-            if (frame > _latestFrame)
+
+            // Atomically advance _latestFrame. Uses CompareExchange loop to avoid the
+            // check-then-set race when multiple callers submit commands concurrently.
+            var current = Volatile.Read(ref _latestFrame);
+            while (frame > current)
             {
-                _latestFrame = frame;
+                var original = Interlocked.CompareExchange(ref _latestFrame, frame, current);
+                if (original == current) break;
+                current = original;
             }
         }
 

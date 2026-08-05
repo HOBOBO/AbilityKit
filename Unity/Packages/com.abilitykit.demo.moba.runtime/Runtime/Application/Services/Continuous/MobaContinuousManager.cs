@@ -43,6 +43,7 @@ namespace AbilityKit.Demo.Moba.Services
             services.TryResolve(out AbilityKit.Demo.Moba.Services.Triggering.MobaTriggerPlanSubscriptionService triggerSubscriptions);
             services.TryResolve(out AbilityKit.Demo.Moba.Services.Triggering.MobaOwnerBoundTriggerGateService ownerBoundTriggerGates);
             services.TryResolve(out MobaTriggerExecutionGateway triggerGateway);
+            services.TryResolve(out MobaCombatActivityService combatActivity);
             if (triggerGateway == null) triggerGateway = new MobaTriggerExecutionGateway(effects, triggerSubscriptions);
 
             _modifierProjectors = new MobaContinuousModifierProjectorRegistry();
@@ -61,7 +62,7 @@ namespace AbilityKit.Demo.Moba.Services
             var presentationCues = new MobaBuffPresentationCueReporter(configs, cueSnapshots);
             _buffIntervalHandler = new BuffContinuousIntervalHandler(configs, events, stageEffects, presentationCues, buffContextRegistry);
             _intervalHandlers.Add(_buffIntervalHandler);
-            _triggerIntervalHandler = new MobaTriggerIntervalContinuousHandler(triggerGateway);
+            _triggerIntervalHandler = new MobaTriggerIntervalContinuousHandler(triggerGateway, combatActivity);
             _intervalHandlers.Add(_triggerIntervalHandler);
             _tickProcessor = new MobaContinuousTickProcessor(_intervalHandlers);
         }

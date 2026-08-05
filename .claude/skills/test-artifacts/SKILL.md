@@ -1,11 +1,11 @@
 ---
 name: test-artifacts
-description: AbilityKit 测试产物管理规范——统一规划 moba headless / shooter StateSync multiprocess / dotnet test / Unity EditMode+PlayMode 四类测试的输出路径、命名、生命周期与清理。涵盖 tools/run_test_gate.ps1 + tools/test-gates.json 的 17 个 gate 体系、本地 local/Logs/ 与 CI 显式 artifacts/test-gates/ 目录约定、.gitignore 覆盖范围、绕过 gate 体系直接跑命令的注意事项。触发场景：跑测试、写新测试、加 test gate、排查测试产物位置、清理 TestResults、MultiplayerHeadlessHeroReplacement 产物、shooter multiprocess artifact、TRX 文件、NUnit XML、上传 CI artifact、CI workflow 上传测试产物。
+description: AbilityKit 测试产物管理规范——统一规划 moba headless / shooter StateSync multiprocess / dotnet test / Unity EditMode+PlayMode 四类测试的输出路径、命名、生命周期与清理。涵盖 tools/run_test_gate.ps1 + tools/test-gates.json 的 24 个 gate 体系、本地 local/Logs/ 与 CI 显式 artifacts/test-gates/ 目录约定、.gitignore 覆盖范围、绕过 gate 体系直接跑命令的注意事项。触发场景：跑测试、写新测试、加 test gate、排查测试产物位置、清理 TestResults、MultiplayerHeadlessHeroReplacement 产物、shooter multiprocess artifact、TRX 文件、NUnit XML、上传 CI artifact、CI workflow 上传测试产物。
 ---
 
 # test-artifacts skill
 
-基于源码核校（2026-07-20）。本 skill 规范 AbilityKit 所有测试产物的输出路径、命名、生命周期、清理与 gitignore 覆盖，覆盖 4 类测试：
+基于源码核校（2026-08-04）。本 skill 规范 AbilityKit 所有测试产物的输出路径、命名、生命周期、清理与 gitignore 覆盖，覆盖 4 类测试：
 
 1. **moba headless**（`MultiplayerHeadlessHeroReplacementCommand` 等 Unity executeMethod 无头测试）
 2. **shooter StateSync multiprocess**（`run_shooter_multiprocess_smoke.ps1` + Orleans 服务器）
@@ -56,7 +56,7 @@ local/Logs/
 ## Sections
 
 - [when_to_use.md](when_to_use.md) — 何时启用本 skill
-- [gate_runner.md](gate_runner.md) — `run_test_gate.ps1` + `test-gates.json` 17 gate 体系（推荐入口）
+- [gate_runner.md](gate_runner.md) — `run_test_gate.ps1` + `test-gates.json` 24 gate 体系（推荐入口）
 - [dotnet_test.md](dotnet_test.md) — dotnet test 直接跑的产物（TRX + local/Logs/dotnet/）
 - [unity_editmode_playmode.md](unity_editmode_playmode.md) — Unity EditMode/PlayMode 测试产物（NUnit XML + Editor Tests）
 - [moba_headless.md](moba_headless.md) — MultiplayerHeadlessHeroReplacementCommand 等无头测试
@@ -66,6 +66,6 @@ local/Logs/
 
 ## 相关 skill
 
-- moba demo 测试体系 → [moba-demo](../moba-demo/SKILL.md)（含 4 套测试清单）
+- moba demo 测试体系 → [moba-demo](../moba-demo/SKILL.md)（含 5 套测试清单）
 - shooter demo 测试体系 → [shooter-demo](../shooter-demo/SKILL.md)（含 AcceptanceSpecs / PlayMode）
 - 帧同步测试 → [framesync-prediction-rollback](../framesync-prediction-rollback/SKILL.md)

@@ -1,27 +1,31 @@
-# 4 套测试体系
+# 5 套测试体系
 
-## 1. .NET xUnit（`src/AbilityKit.Demo.Moba.Tests/`，179 个，全部通过 ✅）
+## 1. MOBA .NET xUnit（`src/AbilityKit.Demo.Moba.Tests/`）
 
 按业务分目录：
 
-- `AI/`（2）：AiTrainingEnvironment / AiTrainingRunnerOutput
-- `Buff/`（1）：BuffStackingPolicyApplier
-- **`Collision/`（8）**：`GridCollisionWorldTests`（4，grid/naive 等价）+ `CollisionCorrectnessFixTests`（3，OBB sweep+GridBroadphase）+ `MobaMotionCollisionWorldAdapterTests`（3）— NEW
-- `Context/`（2）：ContextBridge / ContinuousExecutionContext
-- `Continuous/`（1）：ContinuousLifecycle
-- **`Motion/`（9）**：`MotionWallInteractionTests`（5，穿墙投影/blink/block）+ `ConfigurableMotionSolverSlideTests`（2，墙滑）+ `MobaSummonBTreeSkillSmokeTests`（已修复）— NEW
-- **`Navigation/`（5）**：`GridPathfinderTests`（5，绕障/不可达/确定性/直线化简/walkable）— NEW
-- `Passive/`（1）：PassiveLifecycleService
-- `Skill/`（2）：SkillCastRuntimeService / SkillInputHandleResult
-- `Smoke/`（10）：ConsoleMobaSmokeFlowTests(+TestBase) / ConsoleSmokeTraceArtifactExporter / BattleTestScenarioLibrary / BattleTestScriptRunner / MobaRuntimeFirstFrameSnapshotAcceptance / MobaRuntimeLog / MobaRuntimeValidationReport / MobaSkillPipelinePrewarm / MobaSmokeEntryContract / MobaSnapshotBufferConsumption
-- `Trace/`（1）：TraceRegistrySmoke
-- `Triggering/`（4）：OwnerBoundTriggerGate / PresentationCueRuntime / TriggerExecutionGateway / ProjectileAreaTriggerConfig
+- `AI/`：AiTrainingEnvironment / AiTrainingRunnerOutput
+- `Buff/`：BuffStackingPolicyApplier
+- **`Collision/`**：Grid/naive 等价、OBB sweep、GridBroadphase、Moba motion adapter
+- `Context/`：ContextBridge / ContinuousExecutionContext
+- `Continuous/`：ContinuousLifecycle
+- **`Motion/`**：穿墙投影、blink/block、墙滑、召唤物行为树 smoke
+- **`Navigation/`**：绕障、不可达、确定性、直线化简、walkable
+- `Passive/`：PassiveLifecycleService
+- `Skill/`：SkillCastRuntimeService / SkillInputHandleResult
+- `Smoke/`：Console smoke、trace artifact、battle script、首帧快照、配置预热与 snapshot buffer
+- `Trace/`：TraceRegistrySmoke
+- `Triggering/`：OwnerBoundTriggerGate / PresentationCueRuntime / TriggerExecutionGateway / ProjectileAreaTriggerConfig
 
-## 2. .NET xUnit（`src/AbilityKit.Demo.Moba.NetworkCondition.Tests/`，1 个）
+## 2. MOBA 网络条件 .NET xUnit（`src/AbilityKit.Demo.Moba.NetworkCondition.Tests/`）
 
 `NetworkConditionControllerTests`（单文件引用 `view.runtime` 的 `NetworkConditionController.cs`）
 
-## 3. Unity Edit-mode（`com.abilitykit.demo.moba.editor/Tests/`，23 个）
+## 3. CodeGen / Analyzer .NET xUnit（`src/AbilityKit.CodeGen.Tests/`）
+
+验证框架 Source Generator、框架 Analyzer、MOBA Generator/Analyzer、生成 Manifest 契约和诊断稳定性。修改编译期逻辑时优先运行 `moba-codegen` P1 gate。
+
+## 4. Unity Edit-mode（`com.abilitykit.demo.moba.editor/Tests/`）
 
 asmdef `AbilityKit.Demo.Moba.Diagnostics.Core.Tests`，覆盖：
 
@@ -30,7 +34,7 @@ asmdef `AbilityKit.Demo.Moba.Diagnostics.Core.Tests`，覆盖：
 - Diagnostic State / Store / ViewModel
 - `MobaDiagnosticSystemOrderTests`
 
-## 4. Unity 内联测试（`view.runtime/Runtime/Game/Test/`）
+## 5. Unity 内联测试（`view.runtime/Runtime/Game/Test/`）
 
 asmdef `AbilityKit.Game.UnitTests`（`UNITY_INCLUDE_TESTS`）：
 
@@ -54,3 +58,13 @@ asmdef `AbilityKit.Game.UnitTests`（`UNITY_INCLUDE_TESTS`）：
 被 Console AutoTest 与 .NET Smoke 测试复用。
 
 注意：`com.abilitykit.demo.moba.runtime` 的 csproj（`AbilityKit.Demo.Moba.Core`）**排除 `Testing/` 目录**，测试脚本只在 Unity 侧与 Console 侧用。
+
+## 推荐验证入口
+
+```powershell
+# 修改 CodeGen/Analyzer/Manifest 时
+powershell -ExecutionPolicy Bypass -File tools/run_test_gate.ps1 -Gate moba-codegen
+
+# 修改 MOBA runtime 或 Console smoke 相关逻辑时
+powershell -ExecutionPolicy Bypass -File tools/run_test_gate.ps1 -Gate precheck
+```

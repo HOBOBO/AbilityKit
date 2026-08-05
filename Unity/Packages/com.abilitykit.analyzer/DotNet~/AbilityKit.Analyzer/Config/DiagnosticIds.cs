@@ -7,5 +7,7 @@ namespace AbilityKit.Analyzer
         public const string ForbiddenAssemblyAnalyzerRuleId = "AK1002";
 
         public const string UnmatchedConstraintPackageRuleId = "AK1003";
+
+        public const string PartialConfigTableFactoryRuleId = "AK1004";
     }
 }

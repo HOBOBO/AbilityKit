@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public long SourceContextId;
         public long RootContextId;
         public long OwnerContextId;
+        public MobaSkillCastRuntimeHandle SkillRuntimeHandle;
         public MobaTraceKind TraceKind;
 
         public Vec3 Center;
@@ -55,7 +56,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 sourceContextId,
                 parentContextId,
                 rootContextId,
-                ownerContextId);
+                ownerContextId,
+                SkillRuntimeHandle);
             return origin.IsValid;
         }
 
@@ -96,6 +98,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     in lineageContext,
                     MobaContextSourceResolveKind.DirectProvider,
                     MobaContextSourceBoundary.Snapshot,
+                    skillRuntimeHandle: SkillRuntimeHandle,
                     runtimeKind: MobaRuntimeKindNames.Area,
                     runtimeConfigId: TemplateId);
                 return source.IsValid;

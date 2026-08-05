@@ -15,13 +15,16 @@ public sealed partial class LeaveRoomHandler : GatewayRequestHandlerBase
 {
     private readonly IClusterClient _clusterClient;
     private readonly GatewayRoomMembershipService _roomMembership;
+    private readonly GatewayRoomStatePushSubscriptionManager? _roomStatePushSubscriptions;
 
     public LeaveRoomHandler(
         IClusterClient clusterClient,
-        GatewayRoomMembershipService roomMembership)
+        GatewayRoomMembershipService roomMembership,
+        GatewayRoomStatePushSubscriptionManager? roomStatePushSubscriptions = null)
     {
         _clusterClient = clusterClient;
         _roomMembership = roomMembership;
+        _roomStatePushSubscriptions = roomStatePushSubscriptions;
     }
 
     public override async ValueTask<GatewayResponse> HandleAsync(
@@ -51,7 +54,13 @@ public sealed partial class LeaveRoomHandler : GatewayRequestHandlerBase
 
             context.AccountId = accountId;
             if (result.Success)
+            {
                 context.RoomId = string.Empty;
+                if (context.ConnectionId > 0 && _roomStatePushSubscriptions != null)
+                {
+                    await _roomStatePushSubscriptions.UnbindAsync(context.ConnectionId);
+                }
+            }
             else
                 context.RoomId = leave.ActiveRoomId ?? roomId;
 

@@ -1394,16 +1394,21 @@ namespace AbilityKit.Game.Test.UnitTest
 
             if (players.Count == 0)
             {
-                var skillIds = expectation != null && expectation.config != null && expectation.config.skillId > 0
-                    ? new[] { expectation.config.skillId }
+                var configuredSkillId = expectation != null && expectation.config != null
+                    ? expectation.config.skillId
+                    : 0;
+                var heroId = configuredSkillId > 0 ? configuredSkillId / 10000 : 1;
+                var attributeTemplateId = heroId > 1 ? heroId : 1001;
+                var skillIds = configuredSkillId > 0
+                    ? new[] { configuredSkillId }
                     : Array.Empty<int>();
                 players.Add(new MobaPlayerLoadout(
                     fallbackPlayerId,
                     teamId: 1,
-                    heroId: 1,
-                    attributeTemplateId: 1001,
+                    heroId: heroId,
+                    attributeTemplateId: attributeTemplateId,
                     level: 1,
-                    basicAttackSkillId: 1,
+                    basicAttackSkillId: ResolveBasicAttackSkillId(heroId, attributeTemplateId),
                     skillIds: skillIds,
                     spawnIndex: 0,
                     unitSubType: (int)UnitSubType.Hero,

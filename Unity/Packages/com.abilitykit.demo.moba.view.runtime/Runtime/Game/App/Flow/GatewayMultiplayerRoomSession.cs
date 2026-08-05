@@ -128,6 +128,8 @@ namespace AbilityKit.Game.Flow
     /// <summary>
     /// 基于 MOBA 原生 Gateway API 的正式多人房间会话适配器。
     /// 每个写命令完成后补拉权威快照并写入 <see cref="ClientRoomStore"/>。
+    /// See also: <c>GatewayRoomPreparationController</c> (BattleSessionFeature auto-create
+    /// path) for headless/demo scenarios that skip the full formal lobby flow.
     /// </summary>
     public sealed class GatewayMultiplayerRoomSession :
         IMultiplayerRoomSession,
@@ -646,7 +648,7 @@ namespace AbilityKit.Game.Flow
                 tags: BuildLaunchTags(spec));
         }
 
-        private static IReadOnlyDictionary<string, string> BuildLaunchTags(
+        internal static IReadOnlyDictionary<string, string> BuildLaunchTags(
             MultiplayerRoomLaunchSpec spec)
         {
             return new Dictionary<string, string>(StringComparer.Ordinal)
@@ -657,7 +659,8 @@ namespace AbilityKit.Game.Flow
                 [RoomTagKeys.ConfigVersion] = spec.ConfigVersion.ToString(CultureInfo.InvariantCulture),
                 [RoomTagKeys.ProtocolVersion] = spec.ProtocolVersion.ToString(CultureInfo.InvariantCulture),
                 [RoomTagKeys.WorldType] = spec.WorldType,
-                [RoomTagKeys.ClientId] = spec.ClientId
+                [RoomTagKeys.ClientId] = spec.ClientId,
+                [RoomTagKeys.MinPlayers] = spec.MinPlayers.ToString(CultureInfo.InvariantCulture)
             };
         }
 
@@ -854,6 +857,12 @@ namespace AbilityKit.Game.Flow
             if (string.IsNullOrWhiteSpace(spec.Region)) throw new ArgumentException("Region is required.", nameof(spec));
             if (string.IsNullOrWhiteSpace(spec.ServerId)) throw new ArgumentException("ServerId is required.", nameof(spec));
             if (spec.MaxPlayers <= 0) throw new ArgumentOutOfRangeException(nameof(spec));
+            if (spec.MinPlayers <= 0 || spec.MinPlayers > spec.MaxPlayers)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(spec),
+                    "MinPlayers must be between 1 and MaxPlayers.");
+            }
             if (spec.GameplayId <= 0) throw new ArgumentOutOfRangeException(nameof(spec), "GameplayId must be positive.");
             if (string.IsNullOrWhiteSpace(spec.WorldType)) throw new ArgumentException("WorldType is required.", nameof(spec));
         }

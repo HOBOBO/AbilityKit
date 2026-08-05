@@ -28,6 +28,8 @@ public sealed class RoomGrain : Grain, IRoomGrain
     private IRoomGameplayAdapter? _gameplay;
     private object? _gameplayState;
     private readonly RoomMemberTracker _members = new();
+    private readonly Dictionary<string, RoomStatePushBinding> _statePushBindings =
+        new(StringComparer.Ordinal);
     private bool _closed;
     private string? _battleId;
     private ulong _worldId;
@@ -134,6 +136,43 @@ public sealed class RoomGrain : Grain, IRoomGrain
             state.Launch.ManifestHash,
             state.Launch.ManifestVersion,
             state.BattleCommit.LastError));
+    }
+
+    public async Task BindStatePushObserverAsync(
+        string accountId,
+        string bindingId,
+        IRoomStateGatewayPushObserver observer)
+    {
+        EnsureAccountId(accountId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingId);
+        ArgumentNullException.ThrowIfNull(observer);
+
+        var state = RequirePersistentState();
+        if (!state.Members.Any(member =>
+                string.Equals(member.AccountId, accountId, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("Only a room member can bind room state pushes.");
+        }
+
+        _statePushBindings[accountId] = new RoomStatePushBinding(bindingId, observer);
+        var snapshot = await GetSnapshotAsync();
+        var payload = RoomStatePushBuilder.BuildRoomStateChangedPayload(
+            snapshot,
+            DateTime.UtcNow.Ticks);
+        observer.OnPush(RoomGatewayOpCodes.RoomStateChanged, payload);
+    }
+
+    public Task UnbindStatePushObserverAsync(string accountId, string bindingId)
+    {
+        EnsureAccountId(accountId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingId);
+        if (_statePushBindings.TryGetValue(accountId, out var current) &&
+            string.Equals(current.BindingId, bindingId, StringComparison.Ordinal))
+        {
+            _statePushBindings.Remove(accountId);
+        }
+
+        return Task.CompletedTask;
     }
 
     public Task<RoomRuntimeState> GetRuntimeStateAsync()
@@ -1060,6 +1099,12 @@ public sealed class RoomGrain : Grain, IRoomGrain
             {
                 try
                 {
+                    if (_statePushBindings.TryGetValue(accountId, out var binding))
+                    {
+                        binding.Observer.OnPush(RoomGatewayOpCodes.RoomStateChanged, payload);
+                        continue;
+                    }
+
                     var pushTarget = GrainFactory.GetGrain<IGatewayPushTargetGrain>(accountId);
                     await pushTarget.PushToAccountAsync(accountId, RoomGatewayOpCodes.RoomStateChanged, payload);
                 }
@@ -1074,6 +1119,10 @@ public sealed class RoomGrain : Grain, IRoomGrain
             // push 整体失败不影响 Room 主流程。
         }
     }
+
+    private sealed record RoomStatePushBinding(
+        string BindingId,
+        IRoomStateGatewayPushObserver Observer);
 
     private async Task RemoveFromDirectoryAsync()
     {

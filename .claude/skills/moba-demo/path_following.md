@@ -42,4 +42,4 @@
 ## 相关
 - 导航基础设施 → [navigation.md](navigation.md)
 - 墙体系统 → [collision_and_walls.md](collision_and_walls.md)
-- 系统顺序 → [MobaSystemOrder.cs](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs)
+- 系统顺序 → [MobaSystemOrder.cs](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs)

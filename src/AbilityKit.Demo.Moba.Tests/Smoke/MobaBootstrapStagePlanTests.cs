@@ -1,12 +1,32 @@
 using System;
 using System.Linq;
 using AbilityKit.Demo.Moba.Systems.Bootstrap.Flow;
+using AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
 public sealed class MobaBootstrapStagePlanTests
 {
+    [Fact]
+    public void Initialize_UsesCompleteGeneratedManifest()
+    {
+        AppContext.SetSwitch("AbilityKit.Moba.DisableBootstrapStageReflectionFallback", true);
+        try
+        {
+            MobaBootstrapStageInitializer.Initialize();
+
+            var stages = MobaBootstrapStageRegistry.GetAllStages().ToArray();
+            Assert.Equal(10, stages.Length);
+            Assert.DoesNotContain(stages, stage => stage is TemplateFeatureStage);
+            Assert.Equal(10, MobaBootstrapStagePlan.Create(stages).OrderedStages.Count);
+        }
+        finally
+        {
+            AppContext.SetSwitch("AbilityKit.Moba.DisableBootstrapStageReflectionFallback", false);
+        }
+    }
+
     [Fact]
     public void Create_PreservesSourceOrderForIndependentStages()
     {

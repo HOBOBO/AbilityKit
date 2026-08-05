@@ -65,7 +65,12 @@ namespace AbilityKit.Game.Test.UnitTest
             var actorId = harness.AssertPlayerActorBound();
             var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
             var cast = skills.TryCastBySlot(actorId, skill.Slot, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
-            Assert.IsTrue(cast.Success, $"{reason} should cast skill {skill.SkillId} from slot {skill.Slot}. failReason={cast.FailReason}");
+            Assert.IsTrue(
+                cast.Success,
+                $"{reason} should cast skill {skill.SkillId} from slot {skill.Slot}. " +
+                $"failReason={cast.FailReason}, failure.source={cast.Failure.Source}, " +
+                $"failure.stage={cast.Failure.Stage}, failure.code={cast.Failure.Code}, " +
+                $"failure.message={cast.Failure.Message}");
 
             harness.AssertSkillCastTrace(skill.SkillId);
             return harness.TickUntilTraceNode(

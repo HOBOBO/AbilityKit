@@ -77,25 +77,27 @@ namespace AbilityKit.Game.Flow
             _gatewayConnectionFactory = gatewayRoomConnectionFactory ?? new DefaultBattleSessionGatewayConnectionFactory(gatewayConnectionFactory);
             _gatewayRoomClientFactory = gatewayRoomClientFactory ?? new DefaultBattleSessionGatewayRoomClientFactory();
             _sessionRegistry = sessionRegistry ?? new DefaultBattleLogicSessionRegistry();
-            _lifecycleHost = new SessionLifecycleHost(
-                () => _plan,
-                () => _ctx,
-                _handles,
-                () => OnFrame,
-                StartBattleLogicSession,
-                _sessionRegistry.Stop,
-                InvokeSessionStartingPipeline,
-                InvokeSessionStoppingPipeline,
-                InvokeReplaySetupPipeline,
-                StartRemoteDrivenLocalWorld,
-                StartConfirmedAuthorityWorld,
-                TryDestroyBattleWorlds,
-                DisposeSnapshotRouting,
-                DisposeConfirmedView,
-                DisposeRemoteDrivenWorld,
-                DisposeConfirmedWorld,
-                DisposeRemoteInterpolation,
-                ResetSessionHandles);
+            _lifecycleHost = new SessionLifecycleHost(new SessionLifecycleHostOptions
+            {
+                GetPlan = () => _plan,
+                GetContext = () => _ctx,
+                Handles = _handles,
+                GetFrameReceivedHandler = () => OnFrame,
+                StartBattleLogicSession = StartBattleLogicSession,
+                StopBattleLogicSession = _sessionRegistry.Stop,
+                InvokeSessionStartingPipeline = InvokeSessionStartingPipeline,
+                InvokeSessionStoppingPipeline = InvokeSessionStoppingPipeline,
+                InvokeReplaySetupPipeline = InvokeReplaySetupPipeline,
+                StartRemoteDrivenLocalWorld = StartRemoteDrivenLocalWorld,
+                StartConfirmedAuthorityWorld = StartConfirmedAuthorityWorld,
+                TryDestroyBattleWorlds = TryDestroyBattleWorlds,
+                DisposeSnapshotRouting = DisposeSnapshotRouting,
+                DisposeConfirmedView = DisposeConfirmedView,
+                DisposeRemoteDrivenWorld = DisposeRemoteDrivenWorld,
+                DisposeConfirmedWorld = DisposeConfirmedWorld,
+                DisposeRemoteInterpolation = DisposeRemoteInterpolation,
+                ResetSessionHandles = ResetSessionHandles,
+            });
             _orchestrator = new SessionOrchestrator(_state, _handles, _lifecycleHost);
             _dispatchers = new SessionDispatchersController();
             _net = new SessionNetAdapterController();

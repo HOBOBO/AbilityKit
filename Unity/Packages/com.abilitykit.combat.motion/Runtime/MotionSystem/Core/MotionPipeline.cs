@@ -21,6 +21,7 @@ namespace AbilityKit.Combat.MotionSystem.Core
             MotionGroups.Ability,
             MotionGroups.Path,
             MotionGroups.Locomotion,
+            MotionGroups.PassiveDisplacement,
         };
 
         public MotionPipeline()
@@ -162,26 +163,38 @@ namespace AbilityKit.Combat.MotionSystem.Core
             for (int pi = 0; pi < PolicyGroupPrecedence.Length; pi++)
             {
                 var gid = PolicyGroupPrecedence[pi];
-                if (!_bestIndexByGroup.TryGetValue(gid, out var bestIdx)) continue;
-                if (bestIdx < 0 || bestIdx >= _sources.Count) continue;
                 if (IsSuppressed(gid)) continue;
 
-                var source = _sources[bestIdx];
-                if (!source.IsActive &&
-                    source is IMotionCompletionCollisionPolicySource completionPolicySource &&
-                    completionPolicySource.HasCompletionCollisionPolicy)
+                for (int i = 0; i < _sources.Count; i++)
                 {
-                    output.DominantCollisionPolicy = completionPolicySource.CompletionCollisionPolicy;
-                    output.HasDominantCollisionPolicy = true;
-                    break;
+                    var source = _sources[i];
+                    if (source == null || source.GroupId != gid) continue;
+                    if (source.Stacking != MotionStacking.Additive &&
+                        (!_bestIndexByGroup.TryGetValue(gid, out var bestIdx) || bestIdx != i))
+                    {
+                        continue;
+                    }
+
+                    if (!source.IsActive &&
+                        source is IMotionCompletionCollisionPolicySource completionPolicySource &&
+                        completionPolicySource.HasCompletionCollisionPolicy)
+                    {
+                        output.DominantCollisionPolicy = completionPolicySource.CompletionCollisionPolicy;
+                        output.HasDominantCollisionPolicy = true;
+                        break;
+                    }
+
+                    if (source.IsActive &&
+                        source is IMotionCollisionPolicySource policySource &&
+                        policySource.HasCollisionPolicy)
+                    {
+                        output.DominantCollisionPolicy = policySource.CollisionPolicy;
+                        output.HasDominantCollisionPolicy = true;
+                        break;
+                    }
                 }
 
-                if (source is IMotionCollisionPolicySource policySource && policySource.HasCollisionPolicy)
-                {
-                    output.DominantCollisionPolicy = policySource.CollisionPolicy;
-                    output.HasDominantCollisionPolicy = true;
-                    break;
-                }
+                if (output.HasDominantCollisionPolicy) break;
             }
 
             output.DesiredDelta = desired;

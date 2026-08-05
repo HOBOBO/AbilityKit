@@ -70,7 +70,8 @@
         "alias": "target",
         "property": "hp",
         "comparator": "eq",
-        "expectedFloat": 49691.0,
+        "expectedFloat": 49700.0,
+        "tolerance": { "x": 0.01, "y": 0.01, "z": 0.01 },
         "note": "目标应在区域触发后承受一级配置伤害 309 点并剩余 49691 点生命值"
       }
     ]

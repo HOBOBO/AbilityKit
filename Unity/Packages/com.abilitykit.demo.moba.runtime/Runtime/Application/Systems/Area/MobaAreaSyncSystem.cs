@@ -91,6 +91,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             {
                 var evt = _enters[i];
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
+                if (hitActorId <= 0 || hitActorId == evt.OwnerId) continue;
                 var info = RequireAreaInfo(evt.Area);
                 WarnAreaSync("publish.enter", $"areaId={evt.Area.Value} templateId={info.TemplateId} owner={evt.OwnerId} target={hitActorId} frame={evt.Frame} sourceContextId={info.SourceContextId}");
                 PublishAreaEvent("area.enter", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaEnter, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
@@ -103,6 +104,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             {
                 var evt = _exits[i];
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
+                if (hitActorId <= 0 || hitActorId == evt.OwnerId) continue;
                 var info = RequireAreaInfo(evt.Area);
                 PublishAreaEvent("area.exit", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaExit, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
@@ -114,6 +116,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             {
                 var evt = _stays[i];
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
+                if (hitActorId <= 0 || hitActorId == evt.OwnerId) continue;
                 var info = RequireAreaInfo(evt.Area);
                 PublishAreaEvent("area.tick", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaStay, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
@@ -177,6 +180,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                     SourceContextId = info.SourceContextId,
                     RootContextId = info.RootContextId,
                     OwnerContextId = info.OwnerContextId,
+                    SkillRuntimeHandle = info.SkillRuntimeHandle,
                     Raw = raw,
                 };
 

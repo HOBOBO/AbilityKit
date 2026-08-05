@@ -5,6 +5,7 @@ using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Testing;
+using AbilityKit.Demo.Moba.View.Config;
 using NUnit.Framework;
 using UnityEditor;
 
@@ -16,6 +17,15 @@ namespace AbilityKit.Game.Test.UnitTest
             "Packages/com.abilitykit.demo.moba.view.runtime/Configs/BattleStart/BattleGatewayConfig.asset";
         private const string RemotePresetPath =
             "Packages/com.abilitykit.demo.moba.view.runtime/Configs/BattleStart/BattleStartPreset_远程.asset";
+
+        [Test]
+        public void PackageResources_DirectTextLoad_ShouldResolveActorStateMachineProfiles()
+        {
+            var loader = new ResourcesTextAssetLoader();
+
+            Assert.That(loader.TryLoadText("moba/actor_state_machines", out var json), Is.True);
+            StringAssert.Contains("ying_zheng_ultimate_projectile", json);
+        }
 
         [Test]
         public void DefaultProductionResources_ShouldPassCompleteRuntimeValidationContract()
@@ -53,6 +63,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(gateway.RoomType, Is.EqualTo("moba"));
             Assert.That(gateway.RoomTitle, Is.EqualTo("MOBA Room"));
             Assert.That(gateway.MaxPlayers, Is.EqualTo(2));
+            Assert.That(gateway.MinPlayers, Is.EqualTo(2));
             Assert.That(gateway.RoomListLimit, Is.EqualTo(10));
             Assert.That(gateway.RestoreRoomOnEntry, Is.True);
             Assert.That(gateway.AutoReadyDefaultLoadout, Is.True);
@@ -72,6 +83,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(launchSpec.RoomType, Is.EqualTo("moba"));
             Assert.That(launchSpec.RoomTitle, Is.EqualTo("MOBA Room"));
             Assert.That(launchSpec.MaxPlayers, Is.EqualTo(2));
+            Assert.That(launchSpec.MinPlayers, Is.EqualTo(2));
 
             var loadout = gateway.BuildDefaultLoadout();
             Assert.That(loadout.HeroId, Is.EqualTo(1001));

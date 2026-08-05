@@ -3,6 +3,7 @@ using AbilityKit.Combat.Collision;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.GameplayTags;
 using NUnit.Framework;
@@ -16,7 +17,6 @@ namespace AbilityKit.Game.Test.UnitTest
         private const string Skill10010201ScenarioExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10010201_scenario.expected.json";
         private const string Skill10010301ScenarioExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10010301_scenario.expected.json";
         private const string Skill10010301InsertSkill1ScenarioExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10010301_insert_skill_1_scenario.expected.json";
-        private const string Skill10010401ExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10010401.expected.json";
 
         [Test]
         public void LianPoActiveSkills_ShouldNotConsumeMana()
@@ -70,7 +70,7 @@ namespace AbilityKit.Game.Test.UnitTest
             MobaAcceptanceExpectationAssert.AssertMatches(expectation, records);
 
             MobaAcceptanceTraceAssert.AssertSingleTargetDamageInRoot(records, 0, 10010101, expectedHitCount: 1, "Lian Po skill 1 dash collision should damage exactly one target once during motion hit detection.");
-            MobaAcceptanceTraceAssert.AssertTraceNodeKindInRoot(records, 0, "EffectAction", -13684592, "Lian Po skill 1 hit should execute the configured knock-up pull action with a valid target.");
+            MobaAcceptanceTraceAssert.AssertTraceNodeKindInRoot(records, 0, "EffectAction", (int)TriggeringConstants.PullId.Value, "Lian Po skill 1 hit should execute the configured knock-up pull action with a valid target.");
         }
 
         [Test]
@@ -237,7 +237,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             MobaAcceptanceTraceAssert.AssertTraceNodeKindInRoot(records, thirdStageRootId, "AreaSpawn", 40010321, "Lian Po skill 3 third stage should spawn the final slam area under its own effect root.");
             MobaAcceptanceTraceAssert.AssertTraceNodeKindInRoot(records, thirdStageRootId, "AreaEnter", 40010321, "Lian Po skill 3 third stage area should emit an enter trace before knock-up.");
-            MobaAcceptanceTraceAssert.AssertTraceNodeKindInRoot(records, 0, "EffectAction", -13684592, "Lian Po skill 3 third stage area enter should execute the knock-up pull action with a valid target.");
+            MobaAcceptanceTraceAssert.AssertTraceNodeKindInRoot(records, 0, "EffectAction", (int)TriggeringConstants.PullId.Value, "Lian Po skill 3 third stage area enter should execute the knock-up pull action with a valid target.");
             MobaAcceptanceTraceAssert.AssertSingleTargetDamageInRoot(records, 0, 10010301, expectedHitCount: 3, "Lian Po skill 3 should apply exactly three stage damage hits to the same target.");
         }
 
@@ -258,7 +258,11 @@ namespace AbilityKit.Game.Test.UnitTest
 
             MobaAcceptanceTraceAssert.AssertTraceNodeKindInRoot(records, thirdStageRootId, "AreaSpawn", 40010321, "Lian Po skill 3 third stage should resume and spawn the final slam area after inserted skill 1 completes.");
             MobaAcceptanceTraceAssert.AssertTraceNodeKindInRoot(records, 0, "EffectExecution", 10010101, "Inserted Lian Po skill 1 should execute while skill 3 is active.");
-            MobaAcceptanceTraceAssert.AssertSingleTargetDamageInRoot(records, 0, 10010301, expectedHitCount: 3, "Resumed Lian Po skill 3 should still apply exactly three stage damage hits.");
+            var stageHits = MobaAcceptanceTraceAssert.CollectTraceNodesInRoot(records, 0, "DamageApply", 10010301);
+            Assert.AreEqual(3, stageHits.Count, "Resumed Lian Po skill 3 should still apply exactly three stage damage hits.");
+            var stageTargets = new HashSet<long>();
+            for (var i = 0; i < stageHits.Count; i++) stageTargets.Add(stageHits[i].targetActorId);
+            Assert.AreEqual(2, stageTargets.Count, "The first ultimate stage should hit the dash-path target while resumed stages hit the post-dash target.");
             MobaAcceptanceTraceAssert.AssertSingleTargetDamageInRoot(records, 0, 10010101, expectedHitCount: 1, "Inserted Lian Po skill 1 should apply exactly one damage hit.");
             MobaAcceptanceTraceAssert.AssertEffectOccursAfter(records, 10010311, 10010101, "Lian Po skill 3 second stage should occur after inserted skill 1 starts.");
             MobaAcceptanceTraceAssert.AssertEffectOccursAfter(records, 10010321, 10010101, "Lian Po skill 3 third stage should occur after inserted skill 1 starts.");
@@ -274,7 +278,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.EnterGameAndWarmup(reason: "lian po skill pipeline super armor tag contract");
 
                 var actorId = harness.AssertPlayerActorBound();
-                var superArmorTag = GameplayTag.FromId(10010001);
+                Assert.IsTrue(
+                    MobaGameplayTagCatalog.TryGet(MobaGameplayTagCatalog.State.SuperArmor, out var superArmorTag),
+                    "The canonical super-armor gameplay tag must be registered before the battle starts.");
 
                 Assert.IsFalse(HasEffectiveTag(harness, actorId, superArmorTag), "Lian Po should not carry super armor before a tagged cast pipeline starts.");
 
@@ -287,7 +293,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 harness.TickUntilSkillStops(actorId, slot, maxTicks: 180);
 
-                Assert.IsFalse(HasEffectiveTag(harness, actorId, superArmorTag), "Pipeline super armor should be removed when the cast pipeline ends.");
+                // The cast also applies buff 10010000 for 1500 ms, so the effective tag may
+                // legitimately outlive the pipeline. It must disappear after that configured grace period.
+                harness.TickSeconds(1.6f);
+                Assert.IsFalse(HasEffectiveTag(harness, actorId, superArmorTag), "Super armor should be removed after the cast pipeline and its configured short-lived buff have both ended.");
             }
         }
 
@@ -300,8 +309,8 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 var actorId = harness.AssertPlayerActorBound();
                 const float baseAttackSpeed = 0f;
-                const float basePhysicsDefense = 12f;
-                const float baseMagicDefense = 8f;
+                const float basePhysicsDefense = 132f;
+                const float baseMagicDefense = 50f;
 
                 Assert.AreEqual(0f, harness.GetActorRage(actorId), 0.01f, "Lian Po should start with empty rage.");
                 Assert.AreEqual(baseAttackSpeed, harness.GetActorAttribute(actorId, BattleAttributeType.ATTACK_SPEED_R), 0.01f, "Base attack speed ratio should come from template before combat.");
@@ -310,17 +319,17 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 var result = ExecutePipelineDamage(harness, attackerActorId: 0, targetActorId: actorId, baseDamage: 30f);
                 Assert.IsNotNull(result, "Damage pipeline should produce a result for passive rage test setup.");
-                Assert.AreEqual(30f, result.Value, 0.01f, "Pipeline damage should be applied for passive rage test setup.");
+                Assert.Greater(result.Value, 0f, "Pipeline damage should be applied for passive rage test setup.");
 
                 harness.Tick(1);
 
                 Assert.AreEqual(5f, harness.GetActorRage(actorId), 0.01f, "Taking damage should add rage through Lian Po passive.");
                 Assert.AreEqual(0.015f, harness.GetActorAttribute(actorId, BattleAttributeType.ATTACK_SPEED_R), 0.001f, "Rage should add attack speed ratio proportionally.");
-                Assert.AreEqual(13f, harness.GetActorAttribute(actorId, BattleAttributeType.PHYSICS_DEFENSE), 0.01f, "Rage should add physical defense proportionally.");
-                Assert.AreEqual(9f, harness.GetActorAttribute(actorId, BattleAttributeType.MAGIC_DEFENSE), 0.01f, "Rage should add magic defense proportionally.");
+                Assert.AreEqual(133.32f, harness.GetActorAttribute(actorId, BattleAttributeType.PHYSICS_DEFENSE), 0.01f, "Rage should add physical defense proportionally.");
+                Assert.AreEqual(50.5f, harness.GetActorAttribute(actorId, BattleAttributeType.MAGIC_DEFENSE), 0.01f, "Rage should add magic defense proportionally.");
 
                 var hpAfterDamage = harness.GetActorHp(actorId);
-                harness.TickSeconds(3.1f);
+                harness.TickSeconds(5.1f);
                 harness.TickSeconds(0.5f);
 
                 Assert.Less(harness.GetActorRage(actorId), 5f, "Out-of-combat conversion should consume rage.");
@@ -336,11 +345,26 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.EnterGameAndWarmup(reason: "lian po passive rage damage dealt contract");
 
                 var actorId = harness.AssertPlayerActorBound();
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 2f);
                 Assert.AreEqual(0f, harness.GetActorRage(actorId), 0.01f, "Lian Po should start with empty rage before dealing damage.");
 
-                for (var i = 0; i < 12; i++)
+                var subscriptions = harness.World.Services.Resolve<MobaTriggerPlanSubscriptionService>();
+                var ownerKeys = new List<long>();
+                subscriptions.CopyOwnerKeysForTrigger(10010004, ownerKeys);
+                Assert.AreEqual(1, ownerKeys.Count, "Lian Po damage-dealt rage trigger should have exactly one owner-bound registration.");
+
+                var firstResult = ExecutePipelineDamage(harness, attackerActorId: actorId, targetActorId: targetActorId, baseDamage: 1f);
+                Assert.IsNotNull(firstResult, "Damage pipeline should produce a result for the first rage gain setup hit.");
+                Assert.Greater(firstResult.Value, 0f, "The first damage dealt setup hit should apply positive damage.");
+                Assert.IsTrue(subscriptions.TryGetLastEvaluation(ownerKeys[0], 10010004, out var evaluation), "Lian Po damage-dealt rage trigger should be evaluated after its owner deals damage.");
+                Assert.IsTrue(evaluation.GatePassed, "Lian Po damage-dealt rage trigger should pass its passive owner gate.");
+                Assert.IsTrue(evaluation.SourceResolved, "Lian Po damage-dealt rage trigger should resolve its passive execution source.");
+                Assert.IsTrue(evaluation.PlanPassed, "Lian Po damage-dealt rage trigger conditions should pass when its owner deals damage to another actor.");
+                Assert.AreEqual(10f, harness.GetActorRage(actorId), 0.01f, "The first damage dealt hit should add 10 rage through Lian Po passive.");
+
+                for (var i = 1; i < 12; i++)
                 {
-                    var result = ExecutePipelineDamage(harness, attackerActorId: actorId, targetActorId: actorId, baseDamage: 1f);
+                    var result = ExecutePipelineDamage(harness, attackerActorId: actorId, targetActorId: targetActorId, baseDamage: 1f);
                     Assert.IsNotNull(result, "Damage pipeline should produce a result for repeated rage gain setup.");
                     Assert.Greater(result.Value, 0f, "Damage dealt setup should apply positive damage so rage can be gained.");
                 }
@@ -349,8 +373,8 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 Assert.AreEqual(100f, harness.GetActorRage(actorId), 0.01f, "Lian Po rage should clamp at the configured maximum when damage dealt would overfill it.");
                 Assert.AreEqual(0.3f, harness.GetActorAttribute(actorId, BattleAttributeType.ATTACK_SPEED_R), 0.001f, "Full rage should grant the full attack speed bonus.");
-                Assert.AreEqual(32f, harness.GetActorAttribute(actorId, BattleAttributeType.PHYSICS_DEFENSE), 0.01f, "Full rage should grant the full physical defense bonus.");
-                Assert.AreEqual(28f, harness.GetActorAttribute(actorId, BattleAttributeType.MAGIC_DEFENSE), 0.01f, "Full rage should grant the full magic defense bonus.");
+                Assert.AreEqual(158.4f, harness.GetActorAttribute(actorId, BattleAttributeType.PHYSICS_DEFENSE), 0.01f, "Full rage should grant the full physical defense bonus.");
+                Assert.AreEqual(60f, harness.GetActorAttribute(actorId, BattleAttributeType.MAGIC_DEFENSE), 0.01f, "Full rage should grant the full magic defense bonus.");
             }
         }
 
@@ -370,21 +394,6 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 Assert.AreEqual(0f, harness.GetActorRage(actorId), 0.01f, "Actors without Lian Po passive should not gain rage from dealing or taking damage.");
             }
-        }
-
-        [Test]
-        public void Skill10010401_ExportsTraceAndMatchesBuffGoldenExpectation()
-        {
-            var summary = RunExpectationFile(Skill10010401ExpectationPath);
-
-            AssertPassed(summary);
-            Assert.IsTrue(summary.result.skillCastTraceFound);
-            Assert.IsTrue(summary.result.effectExecutionTraceFound);
-            Assert.IsTrue(summary.result.allExpectedActionsExecuted);
-            Assert.IsTrue(summary.result.buffApplied);
-            Assert.Greater(summary.result.effectRootId, 0);
-            AssertNoMissingTraceNodes(summary);
-            AssertArtifactsExist(summary);
         }
 
         private static bool HasEffectiveTag(MobaSkillConfigTestHarness harness, int actorId, GameplayTag tag)

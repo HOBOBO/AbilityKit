@@ -3,6 +3,12 @@ using System.Threading.Tasks;
 
 namespace AbilityKit.Game.Flow
 {
+    /// <summary>
+    /// 自动创建/加入房间的快速编排器。用于 Demo/Headless 场景下的极简流程：
+    /// 连接 → GuestLogin → 创建或加入房间 → 开始 TimeSync。
+    /// See also: <see cref="AbilityKit.Game.Flow.GatewayMultiplayerRoomSession"/> for
+    /// the full formal lobby room lifecycle (PickHero, SetReady, BeginLoading, etc.).
+    /// </summary>
     internal static class GatewayRoomPreparationController
     {
         public static async Task RunAsync(

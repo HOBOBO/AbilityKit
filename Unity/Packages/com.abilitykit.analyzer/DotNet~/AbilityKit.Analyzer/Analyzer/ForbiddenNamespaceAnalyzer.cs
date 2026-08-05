@@ -83,25 +83,7 @@ namespace AbilityKit.Analyzer
                 }
             }
 
-            // [临时调试] 暂时跳过白名单，直接使用全局配置对所有包生效
-            PackageConstraint constraint = null;
-            if (_config?.GlobalDefaults != null)
-            {
-                var globalNs = _config.GlobalDefaults.ForbiddenNamespaces ?? new List<string>();
-                var globalAsm = _config.GlobalDefaults.ForbiddenAssemblies ?? new List<string>();
-                
-                constraint = new PackageConstraint
-                {
-                    PackageName = assemblyName,
-                    // 临时添加 UnityEngine 为禁止命名空间用于测试（如果没有配置的话）
-                    ForbiddenNamespaces = globalNs.Count > 0 ? globalNs : new List<string> { "UnityEngine" },
-                    ForbiddenAssemblies = globalAsm,
-                    IsEnabled = true, // 临时强制启用
-                    Severity = _config.GlobalDefaults.Severity,
-                    CheckUsingAliases = _config.GlobalDefaults.CheckUsingAliases
-                };
-            }
-            // else: 不创建约束，让分析器跳过
+            var constraint = _config?.GetEffectiveConstraint(assemblyName);
 
             if (constraint == null)
             {
@@ -119,8 +101,6 @@ namespace AbilityKit.Analyzer
             var forbiddenNamespaces = new HashSet<string>(
                 constraint.ForbiddenNamespaces ?? new List<string>(),
                 StringComparer.OrdinalIgnoreCase);
-
-            var violations = new List<(string ns, string file)>();
 
             compilationContext.RegisterSyntaxTreeAction(syntaxTreeContext =>
             {
@@ -143,7 +123,6 @@ namespace AbilityKit.Analyzer
                     if (IsForbiddenNamespace(name, forbiddenNamespaces))
                     {
                         violationCount++;
-                        violations.Add((name, filePath));
                         var location = usingDirective.Name.GetLocation();
                         var diagnostic = Diagnostic.Create(
                             DiagnosticRules.ForbiddenNamespaceRule, location,
@@ -158,45 +137,6 @@ namespace AbilityKit.Analyzer
                     WriteLog($"Tree {Path.GetFileName(filePath)}: {usingCount} using, {violationCount} violations");
             });
 
-            // 在编译结束时，如果存在违规则阻止编译
-            compilationContext.RegisterCompilationEndAction(endContext =>
-            {
-                if (violations.Count > 0)
-                {
-                    WriteLog($"COMPILATION ERROR: Found {violations.Count} violation(s) in {assemblyName}");
-                    foreach (var (ns, file) in violations)
-                    {
-                        WriteLog($"  - {ns} in {file}");
-                    }
-
-                    // 创建编译错误：使用无效的类型引用来强制编译失败
-                    // 这会创建一个真正的编译错误而不是分析器诊断
-                    var errorMessage = $"Forbidden namespace violation(s) found in assembly '{assemblyName}': {violations.Count} violation(s). See diagnostic messages for details.";
-                    
-                    // 方法1: 尝试抛出编译错误
-                    var errorDescriptor = new DiagnosticDescriptor(
-                        id: "AK_COMPILE_ERROR",
-                        title: "Namespace constraint violation - BUILD BLOCKED",
-                        messageFormat: errorMessage,
-                        category: "AbilityKit.Framework",
-                        defaultSeverity: DiagnosticSeverity.Error,
-                        isEnabledByDefault: true);
-
-                    // 注册一个永远无法编译的符号引用来强制编译失败
-                    var errorLocation = Location.Create(
-                        compilationContext.Compilation.AssemblyName + ".dll",
-                        new TextSpan(0, 1),
-                        new LinePositionSpan(new LinePosition(0, 0), new LinePosition(0, 1)));
-
-                    var compileError = Diagnostic.Create(
-                        errorDescriptor,
-                        errorLocation);
-
-                    endContext.ReportDiagnostic(compileError);
-                    
-                    WriteLog($"COMPILATION BLOCKED: {errorMessage}");
-                }
-            });
         }
 
         private static bool IsExcludedPath(string filePath)

@@ -1,4 +1,4 @@
-# 配置三套目录分工
+# 配置目录与 DTO/MO 加载
 
 位于 `src/AbilityKit.Demo.Moba.Console/Configs/`（csproj 复制到输出，Tests 也引用）。
 
@@ -6,30 +6,13 @@
 
 | 目录 | 职责 | 归属 skill |
 |------|------|----------|
-| `Configs/moba/` | MOBA 战局主配置（28 个 JSON）—— 角色技能/buff/属性等数据表 | moba-demo（本 skill） |
+| `Configs/moba/` | MOBA 战局主配置——角色、技能、buff、属性、地图、AI 等数据表 | moba-demo（本 skill） |
 | `Configs/luban/` | Luban 原始表（4 个）—— 供 `Runtime/Infrastructure/Config/BattleDemo/LubanGen/` 生成代码消费 | moba-demo（本 skill） |
 | `Configs/ability/` | AbilityKit 触发器/技能规则配置 | **ability-kit skill** |
 
-## Configs/moba/（28 个）
+## Configs/moba/
 
-```
-aoes.json                        ongoing_effects.json
-attr_types.json                  passive_skills.json
-attribute_templates.json         presentation_templates.json
-attributetemplates.json          projectile_launchers.json
-battle_start.json                projectiles.json
-buffs.json                       search_query_templates.json
-characters.json                  skill_button_templates.json
-component_templates.json         skill_flows.json
-continuous_processes.json        skill_level_tables.json
-continuous_tag_templates.json    skills.json
-demo_tbitem.json                 spawn_summon_action_templates.json
-dtbuff.json                      summons.json
-effect_plans.json                tag_templates.json
-effects.json                     gameplays.json
-emitters.json                    models.json
-motion_groups.json
-```
+主配置 JSON 的数量会随业务扩展变化，以目录实际内容和 `MobaConfigTableDeclarations.cs` 为准。当前覆盖角色、技能、被动、buff、continuous、弹射物、召唤、目标查询、表现、地图、玩法、状态机、AI brain 与 motion 等配置。
 
 ## Configs/luban/（4 个）
 
@@ -64,6 +47,33 @@ Infrastructure/Config/BattleDemo/LubanGen/Tables.cs 消费 Luban 表
     ↓
 TriggerPlansStage + PlanTriggeringStage 经 TriggerPlanJsonDatabase 加载 Configs/ability/
 ```
+
+## 配置表声明与生成
+
+正式注册入口是 `Runtime/Infrastructure/Config/Core/MobaConfigTableDeclarations.cs`。每张表只增加一条 assembly `MobaConfigTable` 声明：
+
+```csharp
+[assembly: MobaConfigTable(
+    MobaConfigPaths.SkillsFile,
+    typeof(SkillDTO),
+    typeof(SkillMO),
+    ConfigGroupNames.LegacyJson,
+    30)]
+```
+
+不要再同步手写 `MobaConfigRegistry` 或 `MobaConfigGroups` 条目。Generator 会生成共享 Manifest、强类型 DTO/MO table factory 和 changed-ID collector。
+
+DTO 与 MO 可以字段数量不同、字段类型不同，也可以包含业务规范化。所有特殊转换写在 `MO(DTO)` 构造器中：
+
+```csharp
+public SkillMO(SkillDTO dto)
+{
+    SkillType = (SkillType)dto.SkillType;
+    Tags = dto.Tags ?? Array.Empty<int>();
+}
+```
+
+Generator 只调用 `new SkillMO(dto)`，不推断或复制字段映射。新增表和排查 `AKSG1001`/`AKSG1002`/`AK1004` 时读取 [codegen_analyzer.md](codegen_analyzer.md)。
 
 ## 技能 ID 命名规则（仅 Configs/moba/characters.json 成立）
 

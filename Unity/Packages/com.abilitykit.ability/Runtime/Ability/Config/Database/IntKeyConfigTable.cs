@@ -3,11 +3,17 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Ability.Config
 {
+    internal interface IConfigTableContentReplacer
+    {
+        void ReplaceContentsFrom(object source);
+    }
+
     /// <summary>
     /// int 主键的配置表实现
     /// </summary>
     /// <typeparam name="TEntry">配置条目类型</typeparam>
-    public sealed class IntKeyConfigTable<TEntry> : IConfigTable<TEntry> where TEntry : class
+    public sealed class IntKeyConfigTable<TEntry> : IConfigTable<TEntry>, IConfigTableContentReplacer
+        where TEntry : class
     {
         private readonly Dictionary<int, TEntry> _byId = new Dictionary<int, TEntry>();
 
@@ -55,6 +61,23 @@ namespace AbilityKit.Ability.Config
             _byId.Clear();
         }
 
+        internal void ReplaceWith(IntKeyConfigTable<TEntry> source)
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            _byId.Clear();
+            foreach (var pair in source._byId)
+            {
+                _byId[pair.Key] = pair.Value;
+            }
+        }
+
+        void IConfigTableContentReplacer.ReplaceContentsFrom(object source)
+        {
+            if (!(source is IntKeyConfigTable<TEntry> typedSource))
+                throw new InvalidOperationException($"Unexpected replacement table type for {typeof(TEntry).FullName}.");
+            ReplaceWith(typedSource);
+        }
+
         public TEntry Get(int id)
         {
             return _byId.TryGetValue(id, out var entry) 
@@ -87,6 +110,73 @@ namespace AbilityKit.Ability.Config
             if (property != null && property.PropertyType == typeof(int)) return (int)property.GetValue(dto);
 
             throw new InvalidOperationException($"DTO must have int Id or Code field/property. type={type.FullName}");
+        }
+    }
+
+    /// <summary>
+    /// Reflection-free builders used by generated config table manifests.
+    /// </summary>
+    public static class ConfigTableFactory
+    {
+        /// <summary>
+        /// Builds a strongly typed DTO table without reflection.
+        /// </summary>
+        public static object CreateDtoTable<TDto>(Array dtos, Func<TDto, int> keySelector)
+            where TDto : class
+        {
+            if (keySelector == null) throw new ArgumentNullException(nameof(keySelector));
+            var table = new ConfigDatabase.DtoTable<TDto>(keySelector);
+            if (dtos == null) return table;
+
+            for (var i = 0; i < dtos.Length; i++)
+            {
+                if (dtos.GetValue(i) is TDto dto) table.Add(dto);
+            }
+
+            return table;
+        }
+
+        /// <summary>
+        /// Builds a strongly typed runtime entry table without reflection.
+        /// </summary>
+        public static object CreateEntryTable<TDto, TEntry>(
+            Array dtos,
+            Func<TDto, int> keySelector,
+            Func<TDto, TEntry> entryFactory)
+            where TDto : class
+            where TEntry : class
+        {
+            if (keySelector == null) throw new ArgumentNullException(nameof(keySelector));
+            if (entryFactory == null) throw new ArgumentNullException(nameof(entryFactory));
+            var table = new IntKeyConfigTable<TEntry>();
+            if (dtos == null) return table;
+
+            for (var i = 0; i < dtos.Length; i++)
+            {
+                if (!(dtos.GetValue(i) is TDto dto)) continue;
+                var entry = entryFactory(dto);
+                if (entry != null) table.Add(keySelector(dto), entry);
+            }
+
+            return table;
+        }
+
+        /// <summary>
+        /// Collects DTO keys without reflection.
+        /// </summary>
+        public static void CollectChangedIds<TDto>(
+            Array dtos,
+            ISet<int> changedIds,
+            Func<TDto, int> keySelector)
+            where TDto : class
+        {
+            if (changedIds == null || dtos == null) return;
+            if (keySelector == null) throw new ArgumentNullException(nameof(keySelector));
+
+            for (var i = 0; i < dtos.Length; i++)
+            {
+                if (dtos.GetValue(i) is TDto dto) changedIds.Add(keySelector(dto));
+            }
         }
     }
 }

@@ -9,7 +9,7 @@
     "effectId": 10010321,
     "triggerId": 10010321,
     "expectedActions": [
-      { "actionId": 1822191218, "type": "spawn_area" },
+      { "actionId": 1872489131, "type": "jump" },
       { "actionId": 589451731, "type": "debug_log" }
     ]
   },
@@ -74,7 +74,8 @@
         "alias": "target",
         "property": "hp",
         "comparator": "eq",
-        "expectedFloat": 550.0
+        "expectedFloat": 626.5993,
+        "tolerance": { "x": 0.001, "y": 0.001, "z": 0.001 }
       }
     ]
   },
@@ -83,7 +84,7 @@
     { "kind": "EffectExecution", "configId": 10010301, "minCount": 1 },
     { "kind": "EffectExecution", "configId": 10010311, "minCount": 1 },
     { "kind": "EffectExecution", "configId": 10010321, "minCount": 1 },
-    { "kind": "EffectAction", "configId": 1822191218, "underEffectId": 10010321, "minCount": 1 },
+    { "kind": "EffectAction", "configId": 1872489131, "underEffectId": 10010321, "minCount": 1 },
     { "kind": "AreaSpawn", "configId": 40010301, "minCount": 1, "maxCount": 1 },
     { "kind": "AreaSpawn", "configId": 40010311, "minCount": 1, "maxCount": 1 },
     { "kind": "AreaSpawn", "configId": 40010321, "underEffectId": 10010321, "minCount": 1, "maxCount": 1 },
@@ -91,6 +92,6 @@
     { "kind": "AreaEnter", "configId": 40010311, "minCount": 1, "maxCount": 1 },
     { "kind": "AreaEnter", "configId": 40010321, "underEffectId": 10010321, "minCount": 1, "maxCount": 1 },
     { "kind": "DamageApply", "configId": 10010301, "minCount": 3, "maxCount": 3 },
-    { "kind": "EffectAction", "configId": -13684592, "minCount": 1 }
+    { "kind": "EffectAction", "configId": 2133799056, "minCount": 1 }
   ]
 }

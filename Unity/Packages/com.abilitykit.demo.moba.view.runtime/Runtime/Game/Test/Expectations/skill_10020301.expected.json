@@ -10,8 +10,30 @@
   "lastReviewedAt": "2026-06-25",
   "input": {
     "playerId": "p1",
-    "slot": 1,
+    "slot": 3,
     "phase": "Press"
+  },
+  "scenario": {
+    "scenarioId": "skill_10020301_xiao_qiao_ultimate_buff",
+    "worldId": "skill_10020301_xiao_qiao_acceptance_world",
+    "tickRate": 30,
+    "accelerated": true,
+    "actors": [
+      {
+        "alias": "caster",
+        "playerId": "p1",
+        "teamId": 1,
+        "heroId": 1002,
+        "attributeTemplateId": 1002,
+        "skillIds": [10020101, 10020201, 10020301],
+        "spawnPosition": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": 1.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "timeline": [
+      { "stepId": "press_skill_3", "atMs": 0, "action": "press", "actorAlias": "caster", "slot": 3 },
+      { "stepId": "wait_for_buff", "atMs": 1, "action": "wait", "durationMs": 100 }
+    ]
   },
   "config": {
     "skillId": 10020301,
@@ -20,7 +42,7 @@
     "triggerId": 10020301,
     "expectedActions": [
       {
-        "actionId": -906340766,
+        "actionId": 1241142882,
         "type": "add_buff"
       },
       {
@@ -40,7 +62,7 @@
     },
     {
       "kind": "EffectAction",
-      "configId": -906340766,
+      "configId": 1241142882,
       "underEffectId": 10020301
     },
     {
@@ -60,7 +82,7 @@
       "parentKind": "EffectExecution",
       "parentConfigId": 10020301,
       "childKind": "EffectAction",
-      "childConfigId": -906340766
+      "childConfigId": 1241142882
     },
     {
       "parentKind": "EffectExecution",

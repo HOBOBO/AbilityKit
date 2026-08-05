@@ -14,6 +14,8 @@ namespace AbilityKit.Game.Flow
         public int MoveReadCount { get; private set; }
         public int MoveSubmitAttemptCount { get; private set; }
         public int MoveSubmitSuccessCount { get; private set; }
+        public int SkillSubmitAttemptCount { get; private set; }
+        public int SkillSubmitSuccessCount { get; private set; }
         public bool HasContext => _ctx != null;
         public bool CanSubmitGameplayInput => _ctx?.CanSubmitGameplayInput == true;
 
@@ -75,13 +77,13 @@ namespace AbilityKit.Game.Flow
             if (BattleKeyboardInputSource.TryReadSkillSlotDown(out var keyboardSlot))
             {
                 var skillCmd = BattleInputCommandFactory.CreateSkillSlot(nextFrame, playerId, keyboardSlot);
-                submitter.Submit(in skillCmd);
+                SubmitSkill(submitter, in skillCmd);
             }
 
             if (BattleHudInputSource.TryConsumeSkillClick(_ctx, out var hudSlot))
             {
                 var skillCmd = BattleInputCommandFactory.CreateSkillSlot(nextFrame, playerId, hudSlot);
-                submitter.Submit(in skillCmd);
+                SubmitSkill(submitter, in skillCmd);
             }
 
             if (BattleHudInputSource.TryConsumeSkillAimSubmit(_ctx, out var aimInput))
@@ -96,10 +98,16 @@ namespace AbilityKit.Game.Flow
                     aimInput.AimDirX,
                     aimInput.AimDirY,
                     aimInput.AimDirZ);
-                submitter.Submit(in aimCmd);
+                SubmitSkill(submitter, in aimCmd);
             }
 
             _ctx.LocalInputQueue.Flush();
+        }
+
+        private void SubmitSkill(BattleInputSubmitter submitter, in PlayerInputCommand command)
+        {
+            SkillSubmitAttemptCount++;
+            if (submitter.Submit(in command)) SkillSubmitSuccessCount++;
         }
 
         private void SubmitLocalTrainingOpponentMove(int nextFrame, PlayerId primaryPlayerId, WorldId worldId)

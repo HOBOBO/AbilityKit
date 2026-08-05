@@ -629,7 +629,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 WorldId = worldId,
                 Frame = pureState.Frame,
                 Timestamp = DateTime.UtcNow.Ticks,
-                Actors = null!,
+                Actors = new List<ActorSnapshot>(),
                 IsFullSnapshot = isFullSnapshot,
                 PayloadOpCode = isFullSnapshot ? ShooterOpCodes.Snapshot.PureState : ShooterOpCodes.Snapshot.PureStateDelta,
                 Payload = ShooterPureStateSyncCodec.Serialize(in pureState)

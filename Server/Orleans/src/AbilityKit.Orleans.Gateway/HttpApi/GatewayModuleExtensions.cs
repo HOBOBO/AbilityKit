@@ -39,6 +39,7 @@ public static class GatewayModuleExtensions
         services.AddSingleton<GatewayRoomMembershipService>();
         services.AddSingleton<GatewayFrameSyncSubscriptionManager>();
         services.AddSingleton<GatewayStateSyncPushSubscriptionManager>();
+        services.AddSingleton<GatewayRoomStatePushSubscriptionManager>();
 
         services.AddSingleton<GatewayHandlerRegistry>(serviceProvider =>
         {

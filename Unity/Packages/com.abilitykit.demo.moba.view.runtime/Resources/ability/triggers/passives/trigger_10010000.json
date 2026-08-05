@@ -28,11 +28,15 @@
       "id": 10010004,
       "name": "廉颇-勇士之魂-造成伤害获得怒气",
       "event": "damage.apply.after",
+      "scope": "owner",
       "enabled": true,
       "allowExternal": false,
       "phase": "immediate",
       "priority": 45,
       "conditions": [
+        {
+          "type": "owner_matches_payload_source"
+        },
         {
           "type": "arg_gt",
           "arg_name": "damage_value",
@@ -58,11 +62,15 @@
       "id": 10010002,
       "name": "廉颇-勇士之魂-承受伤害获得怒气",
       "event": "damage.apply.after",
+      "scope": "owner",
       "enabled": true,
       "allowExternal": false,
       "phase": "immediate",
       "priority": 44,
       "conditions": [
+        {
+          "type": "owner_matches_payload_target"
+        },
         {
           "type": "arg_gt",
           "arg_name": "damage_value",

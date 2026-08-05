@@ -106,10 +106,10 @@ namespace AbilityKit.Ability.Config
                     arr = Array.CreateInstance(definition.DtoType, 0);
                 }
 
-                var dtoTable = CreateDtoTableFromDtos(definition.DtoType, arr);
+                var dtoTable = CreateDtoTableFromDtos(definition, arr);
                 nextDtoTables[definition.DtoType] = dtoTable;
 
-                var table = CreateAndPopulateTable(definition.DtoType, definition.EntryType, arr);
+                var table = CreateAndPopulateTable(definition, arr);
                 nextTables[definition.EntryType] = table;
             }
 
@@ -169,10 +169,10 @@ namespace AbilityKit.Ability.Config
                     return fail;
                 }
 
-                var dtoTable = CreateDtoTableFromDtos(definition.DtoType, arr);
+                var dtoTable = CreateDtoTableFromDtos(definition, arr);
                 nextDtoTables[definition.DtoType] = dtoTable;
 
-                var table = CreateAndPopulateTable(definition.DtoType, definition.EntryType, arr);
+                var table = CreateAndPopulateTable(definition, arr);
                 nextTables[definition.EntryType] = table;
             }
 
@@ -233,8 +233,11 @@ namespace AbilityKit.Ability.Config
             return false;
         }
 
-        private object CreateAndPopulateTable(Type dtoType, Type entryType, Array dtos)
+        private object CreateAndPopulateTable(ConfigTableDefinition definition, Array dtos)
         {
+            if (definition.EntryTableFactory != null) return definition.EntryTableFactory(dtos);
+
+            var entryType = definition.EntryType;
             var tableType = typeof(IntKeyConfigTable<>).MakeGenericType(entryType);
             var table = Activator.CreateInstance(tableType);
 
@@ -350,10 +353,10 @@ namespace AbilityKit.Ability.Config
                     return fail;
                 }
 
-                var dtoTable = CreateDtoTableFromDtos(definition.DtoType, arr);
+                var dtoTable = CreateDtoTableFromDtos(definition, arr);
                 nextDtoTables[definition.DtoType] = dtoTable;
 
-                var table = CreateAndPopulateTable(definition.DtoType, definition.EntryType, arr);
+                var table = CreateAndPopulateTable(definition, arr);
                 nextTables[definition.EntryType] = table;
             }
 
@@ -434,10 +437,10 @@ namespace AbilityKit.Ability.Config
                         arr = Array.CreateInstance(definition.DtoType, 0);
                     }
 
-                    var dtoTable = CreateDtoTableFromDtos(definition.DtoType, arr);
+                    var dtoTable = CreateDtoTableFromDtos(definition, arr);
                     nextDtoTables[definition.DtoType] = dtoTable;
 
-                    var table = CreateAndPopulateTable(definition.DtoType, definition.EntryType, arr);
+                    var table = CreateAndPopulateTable(definition, arr);
                     nextTables[definition.EntryType] = table;
                 }
                 catch (Exception ex)
@@ -542,10 +545,10 @@ namespace AbilityKit.Ability.Config
                     }
 
                     // 创建配置表。
-                    var dtoTable = CreateDtoTableFromDtos(entry.DtoType, arr);
+                    var dtoTable = CreateDtoTableFromDtos(entry, arr);
                     nextDtoTables[entry.DtoType] = dtoTable;
 
-                    var table = CreateAndPopulateTable(entry.DtoType, entry.EntryType, arr);
+                    var table = CreateAndPopulateTable(entry, arr);
                     nextTables[entry.EntryType] = table;
                 }
             }
@@ -603,10 +606,10 @@ namespace AbilityKit.Ability.Config
 
                 try
                 {
-                    var dtoTable = CreateDtoTableFromDtos(definition.DtoType, arr);
+                    var dtoTable = CreateDtoTableFromDtos(definition, arr);
                     nextDtoTables[definition.DtoType] = dtoTable;
 
-                    var table = CreateAndPopulateTable(definition.DtoType, definition.EntryType, arr);
+                    var table = CreateAndPopulateTable(definition, arr);
                     nextTables[definition.EntryType] = table;
                 }
                 catch (Exception ex)
@@ -670,8 +673,11 @@ namespace AbilityKit.Ability.Config
             return false;
         }
 
-        private static object CreateDtoTableFromDtos(Type dtoType, Array dtos)
+        private static object CreateDtoTableFromDtos(ConfigTableDefinition definition, Array dtos)
         {
+            if (definition.DtoTableFactory != null) return definition.DtoTableFactory(dtos);
+
+            var dtoType = definition.DtoType;
             var tableType = typeof(DtoTable<>).MakeGenericType(dtoType);
             var table = Activator.CreateInstance(tableType);
             var addMethod = tableType.GetMethod("Add", BindingFlags.Instance | BindingFlags.Public);
@@ -752,6 +758,9 @@ namespace AbilityKit.Ability.Config
 
             var allChangedIds = new HashSet<int>();
             var tables = _registry.Tables;
+            var preparedUpdates = new List<PreparedIncrementalTableUpdate>();
+            var preparedByEntryType = new Dictionary<Type, PreparedIncrementalTableUpdate>(
+                TypeNameComparer.Instance);
 
             for (int changeIndex = 0; changeIndex < changes.Count; changeIndex++)
             {
@@ -779,53 +788,58 @@ namespace AbilityKit.Ability.Config
 
                 try
                 {
+                    if (change.IsDeleted)
+                    {
+                        if (preparedByEntryType.ContainsKey(definition.EntryType)
+                            || _tables.ContainsKey(definition.EntryType)
+                            || _dtoTables.ContainsKey(definition.DtoType))
+                        {
+                            var fail = ConfigReloadResult.Fail(DefaultKey, _version,
+                                $"Table deletion requires full reload: {change.TableName}");
+                            ConfigReloadBus.Publish(fail);
+                            return fail;
+                        }
+
+                        continue;
+                    }
+
                     Array arr = null;
-
-                    if (!change.IsDeleted)
+                    if (change.Bytes != null)
                     {
-                        if (change.Bytes != null)
-                        {
-                            arr = _deserializer.DeserializeBytes(change.Bytes, definition.DtoType);
-                        }
-                        else if (change.Text != null)
-                        {
-                            arr = _deserializer.DeserializeText(change.Text, definition.DtoType);
-                        }
+                        arr = _deserializer.DeserializeBytes(change.Bytes, definition.DtoType);
+                    }
+                    else if (change.Text != null)
+                    {
+                        arr = _deserializer.DeserializeText(change.Text, definition.DtoType);
                     }
 
-                    // 更新或移除配置表条目。
-                    if (_tables.TryGetValue(definition.EntryType, out var existingObj)
-                        && _dtoTables.TryGetValue(definition.DtoType, out var existingDtoObj))
-                    {
-                        if (change.IsDeleted)
-                        {
-                            // 移除条目。
-                            if (existingDtoObj is IDtoTable<object> dtoTable)
-                            {
-                                // 无法直接修改内部表，需要完整重建。
-                                var fail = ConfigReloadResult.Fail(DefaultKey, _version,
-                                    $"Table deletion requires full reload: {change.TableName}");
-                                ConfigReloadBus.Publish(fail);
-                                return fail;
-                            }
-                        }
-                        else
-                        {
-                            // 使用新数据更新条目。
-                            UpdateTableEntries(definition, arr, allChangedIds);
-                        }
-                    }
-                    else if (!change.IsDeleted)
-                    {
-                        // 创建新表。
-                        var dtoTable = CreateDtoTableFromDtos(definition.DtoType, arr);
-                        _dtoTables[definition.DtoType] = dtoTable;
+                    var nextDtoTable = CreateDtoTableFromDtos(definition, arr);
+                    var nextEntryTable = CreateAndPopulateTable(definition, arr);
+                    CollectChangedIds(definition, arr, allChangedIds);
 
-                        var table = CreateAndPopulateTable(definition.DtoType, definition.EntryType, arr);
-                        _tables[definition.EntryType] = table;
-
-                        CollectChangedIds(arr, allChangedIds);
+                    if (!preparedByEntryType.TryGetValue(definition.EntryType, out var prepared))
+                    {
+                        var replacesExisting = _tables.TryGetValue(
+                            definition.EntryType,
+                            out var existingEntryTable);
+                        object existingDtoTable = null;
+                        if (replacesExisting)
+                        {
+                            replacesExisting = _dtoTables.TryGetValue(
+                                definition.DtoType,
+                                out existingDtoTable);
+                        }
+                        prepared = new PreparedIncrementalTableUpdate(
+                            definition,
+                            replacesExisting,
+                            existingDtoTable,
+                            existingEntryTable);
+                        preparedByEntryType.Add(definition.EntryType, prepared);
+                        preparedUpdates.Add(prepared);
                     }
+
+                    prepared.NextDtoTable = nextDtoTable;
+                    prepared.NextEntryTable = nextEntryTable;
                 }
                 catch (Exception ex)
                 {
@@ -834,6 +848,26 @@ namespace AbilityKit.Ability.Config
                     ConfigReloadBus.Publish(fail);
                     return fail;
                 }
+            }
+
+            try
+            {
+                for (var i = 0; i < preparedUpdates.Count; i++)
+                {
+                    preparedUpdates[i].ValidateCommitTargets();
+                }
+            }
+            catch (Exception ex)
+            {
+                var fail = ConfigReloadResult.Fail(DefaultKey, _version,
+                    $"Failed to prepare incremental commit. {ex.Message}");
+                ConfigReloadBus.Publish(fail);
+                return fail;
+            }
+
+            for (var i = 0; i < preparedUpdates.Count; i++)
+            {
+                preparedUpdates[i].Commit(_tables, _dtoTables);
             }
 
             _version++;
@@ -864,41 +898,81 @@ namespace AbilityKit.Ability.Config
             // 这里是前置声明，实际实现取决于 registry。
         }
 
-        private void UpdateTableEntries(ConfigTableDefinition definition, Array newEntries, HashSet<int> changedIds)
+        private sealed class PreparedIncrementalTableUpdate
         {
-            if (_dtoTables.TryGetValue(definition.DtoType, out var dtoTableObj)
-                && _tables.TryGetValue(definition.EntryType, out var tableObj))
+            private readonly ConfigTableDefinition _definition;
+            private readonly bool _replacesExisting;
+            private readonly object _existingDtoTable;
+            private readonly object _existingEntryTable;
+            private IConfigTableContentReplacer _dtoReplacer;
+            private IConfigTableContentReplacer _entryReplacer;
+
+            public PreparedIncrementalTableUpdate(
+                ConfigTableDefinition definition,
+                bool replacesExisting,
+                object existingDtoTable,
+                object existingEntryTable)
             {
-                // 使用新条目重新填充配置表。
-                var dtoTableType = typeof(DtoTable<>).MakeGenericType(definition.DtoType);
-                var tableType = typeof(IntKeyConfigTable<>).MakeGenericType(definition.EntryType);
+                _definition = definition;
+                _replacesExisting = replacesExisting;
+                _existingDtoTable = existingDtoTable;
+                _existingEntryTable = existingEntryTable;
+            }
 
-                // 清空并重新填充 DTO 表。
-                var dtoClearMethod = dtoTableType.GetMethod("Clear", BindingFlags.Instance | BindingFlags.Public);
-                dtoClearMethod?.Invoke(dtoTableObj, null);
+            public object NextDtoTable { get; set; }
+            public object NextEntryTable { get; set; }
 
-                if (newEntries != null)
+            public void ValidateCommitTargets()
+            {
+                if (!_replacesExisting) return;
+
+                _dtoReplacer = GetTableContentReplacer(
+                    _existingDtoTable,
+                    NextDtoTable,
+                    _definition.DtoType);
+                _entryReplacer = GetTableContentReplacer(
+                    _existingEntryTable,
+                    NextEntryTable,
+                    _definition.EntryType);
+            }
+
+            public void Commit(
+                Dictionary<Type, object> tables,
+                Dictionary<Type, object> dtoTables)
+            {
+                if (_replacesExisting)
                 {
-                    var dtoAddMethod = dtoTableType.GetMethod("Add", BindingFlags.Instance | BindingFlags.Public);
-                    for (int i = 0; i < newEntries.Length; i++)
-                    {
-                        dtoAddMethod?.Invoke(dtoTableObj, new[] { newEntries.GetValue(i) });
-                    }
+                    _dtoReplacer.ReplaceContentsFrom(NextDtoTable);
+                    _entryReplacer.ReplaceContentsFrom(NextEntryTable);
+                    return;
                 }
 
-                // 重新填充条目表。
-                var clearMethod = tableType.GetMethod("Clear", BindingFlags.Instance | BindingFlags.Public);
-                clearMethod?.Invoke(tableObj, null);
-
-                if (newEntries != null)
-                {
-                    CollectChangedIds(newEntries, changedIds);
-                }
+                dtoTables[_definition.DtoType] = NextDtoTable;
+                tables[_definition.EntryType] = NextEntryTable;
             }
         }
 
-        private static void CollectChangedIds(Array entries, HashSet<int> changedIds)
+        private static IConfigTableContentReplacer GetTableContentReplacer(
+            object target,
+            object source,
+            Type valueType)
         {
+            if (!(target is IConfigTableContentReplacer replacer) || target.GetType() != source.GetType())
+                throw new InvalidOperationException($"Table replacement is not supported for {valueType.FullName}");
+            return replacer;
+        }
+
+        private static void CollectChangedIds(
+            ConfigTableDefinition definition,
+            Array entries,
+            HashSet<int> changedIds)
+        {
+            if (definition.ChangedIdCollector != null)
+            {
+                definition.ChangedIdCollector(entries, changedIds);
+                return;
+            }
+
             if (entries == null) return;
 
             for (int i = 0; i < entries.Length; i++)
@@ -919,17 +993,51 @@ namespace AbilityKit.Ability.Config
         /// <summary>
         /// DTO 表实现，存储原始 DTO 对象
         /// </summary>
-        internal sealed class DtoTable<TDto> : IDtoTable<TDto> where TDto : class
+        internal sealed class DtoTable<TDto> : IDtoTable<TDto>, IConfigTableContentReplacer
+            where TDto : class
         {
             private readonly Dictionary<int, TDto> _byId = new Dictionary<int, TDto>();
+            private readonly Func<TDto, int> _keySelector;
+
+            public DtoTable()
+            {
+            }
+
+            internal DtoTable(Func<TDto, int> keySelector)
+            {
+                _keySelector = keySelector ?? throw new ArgumentNullException(nameof(keySelector));
+            }
 
             public int Count => _byId.Count;
 
             public void Add(object dto)
             {
                 if (dto == null) return;
-                var id = ReadId(dto);
-                _byId[id] = (TDto)dto;
+                var typedDto = (TDto)dto;
+                var id = _keySelector != null ? _keySelector(typedDto) : ReadId(dto);
+                _byId[id] = typedDto;
+            }
+
+            public void Clear()
+            {
+                _byId.Clear();
+            }
+
+            internal void ReplaceWith(DtoTable<TDto> source)
+            {
+                if (source == null) throw new ArgumentNullException(nameof(source));
+                _byId.Clear();
+                foreach (var pair in source._byId)
+                {
+                    _byId[pair.Key] = pair.Value;
+                }
+            }
+
+            void IConfigTableContentReplacer.ReplaceContentsFrom(object source)
+            {
+                if (!(source is DtoTable<TDto> typedSource))
+                    throw new InvalidOperationException($"Unexpected replacement table type for {typeof(TDto).FullName}.");
+                ReplaceWith(typedSource);
             }
 
             public TDto Get(int id)

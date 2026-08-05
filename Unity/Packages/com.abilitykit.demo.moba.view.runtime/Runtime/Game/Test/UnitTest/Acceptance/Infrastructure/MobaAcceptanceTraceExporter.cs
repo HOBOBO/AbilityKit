@@ -21,9 +21,6 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var records = new List<MobaAcceptanceTraceRecord>(64);
             var seen = new HashSet<long>();
-            var frame = harness.FrameTime.Frame.Value;
-            var timeMs = (int)Math.Round(harness.FrameTime.Time * 1000d);
-
             foreach (MobaTraceKind kind in Enum.GetValues(typeof(MobaTraceKind)))
             {
                 if (kind == MobaTraceKind.None) continue;
@@ -35,8 +32,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     var record = new MobaAcceptanceTraceRecord
                     {
                         caseId = caseId,
-                        frame = frame,
-                        timeMs = timeMs,
+                        frame = node.CreatedFrame,
+                        timeMs = (int)Math.Round(harness.FrameTime.FrameToTime(new AbilityKit.Ability.FrameSync.FrameIndex(node.CreatedFrame)) * 1000d),
                         rootId = node.RootId,
                         parentId = node.ParentId,
                         nodeId = node.ContextId,

@@ -1,0 +1,11 @@
+{
+  "name": "com.abilitykit.demo.moba.codegen",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Demo MOBA CodeGen",
+  "unity": "2022.3",
+  "description": "MOBA-specific Roslyn source generators and analyzers for the AbilityKit demo runtime.",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {}
+}

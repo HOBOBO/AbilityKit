@@ -28,6 +28,21 @@ namespace AbilityKit.Game.Test.UnitTest
             return snapshot;
         }
 
+        private static ClientRoomPlayer NewPlayer(
+            string accountId,
+            bool online,
+            bool ready,
+            int heroId)
+        {
+            return new ClientRoomPlayer
+            {
+                AccountId = accountId,
+                IsOnline = online,
+                LobbyReady = ready,
+                HeroId = heroId
+            };
+        }
+
         [Test]
         public void FirstApply_SucceedsAndPublishes()
         {
@@ -42,6 +57,18 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(ClientRoomSnapshotApplyResult.Applied, result);
             Assert.AreSame(snapshot, store.Current);
             Assert.AreEqual(1, published.Count);
+            Assert.IsFalse(store.IsStale);
+        }
+
+        [Test]
+        public void FirstApply_HighEventSequenceEstablishesCompleteSnapshotBaseline()
+        {
+            var store = new ClientRoomStore();
+
+            var result = store.ApplySnapshot(NewSnapshot(20, 20));
+
+            Assert.AreEqual(ClientRoomSnapshotApplyResult.Applied, result);
+            Assert.AreEqual(20, store.Current.LastEventSequence);
             Assert.IsFalse(store.IsStale);
         }
 
@@ -191,6 +218,75 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual("account-a", published.PreviousOwnerAccountId);
             Assert.AreEqual("account-b", published.CurrentOwnerAccountId);
             Assert.IsTrue(published.OwnerChanged);
+        }
+
+        [Test]
+        public void ApplyNewRevision_WhenOwnerLeaves_PublishesLeaveAndOwnerTransfer()
+        {
+            var store = new ClientRoomStore();
+            ClientRoomMembershipChange published = null;
+            store.OnMembershipChanged += change => published = change;
+            store.ApplySnapshot(NewMembershipSnapshot(
+                10,
+                "account-owner",
+                "account-owner",
+                "account-member"));
+
+            store.ApplySnapshot(NewMembershipSnapshot(
+                11,
+                "account-member",
+                "account-member"));
+
+            Assert.IsNotNull(published);
+            CollectionAssert.AreEqual(new[] { "account-owner" }, published.LeftAccountIds);
+            Assert.AreEqual("account-owner", published.PreviousOwnerAccountId);
+            Assert.AreEqual("account-member", published.CurrentOwnerAccountId);
+            Assert.IsTrue(published.OwnerChanged);
+        }
+
+        [Test]
+        public void ApplyNewRevision_PublishesReadyOfflineAndReconnectChanges()
+        {
+            var store = new ClientRoomStore();
+            var published = new List<ClientRoomPlayerStateChanges>();
+            store.OnPlayerStateChanged += changes => published.Add(changes);
+            var initial = NewMembershipSnapshot(1, "account-owner", "account-owner", "account-member");
+            initial.Players = new[]
+            {
+                NewPlayer("account-owner", online: true, ready: true, heroId: 1001),
+                NewPlayer("account-member", online: true, ready: false, heroId: 1002)
+            };
+            store.ApplySnapshot(initial);
+
+            var ready = NewMembershipSnapshot(2, "account-owner", "account-owner", "account-member");
+            ready.Players = new[]
+            {
+                NewPlayer("account-owner", online: true, ready: true, heroId: 1001),
+                NewPlayer("account-member", online: true, ready: true, heroId: 1002)
+            };
+            store.ApplySnapshot(ready);
+
+            var offline = NewMembershipSnapshot(3, "account-owner", "account-owner", "account-member");
+            offline.Players = new[]
+            {
+                NewPlayer("account-owner", online: true, ready: true, heroId: 1001),
+                NewPlayer("account-member", online: false, ready: true, heroId: 1002)
+            };
+            store.ApplySnapshot(offline);
+
+            var reconnected = NewMembershipSnapshot(4, "account-owner", "account-owner", "account-member");
+            reconnected.Players = ready.Players;
+            store.ApplySnapshot(reconnected);
+
+            Assert.AreEqual(3, published.Count);
+            Assert.IsTrue(published[0].Changes[0].ReadyChanged);
+            Assert.IsTrue(published[0].Changes[0].CurrentReady);
+            Assert.IsTrue(published[1].Changes[0].OnlineChanged);
+            Assert.IsFalse(published[1].Changes[0].CurrentOnline);
+            Assert.IsTrue(published[1].Changes[0].ReadyChanged);
+            Assert.IsTrue(published[2].Changes[0].OnlineChanged);
+            Assert.IsTrue(published[2].Changes[0].CurrentOnline);
+            Assert.IsTrue(published[2].Changes[0].CurrentReady);
         }
 
         [Test]

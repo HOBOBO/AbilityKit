@@ -2,17 +2,18 @@
 
 全部 net10.0。源码通过 `<Compile Include="../../Unity/Packages/...">` 直接引用 Unity 包源码（共享源码，非编译产物）。
 
-## 8 个项目
+## 9 个项目
 
 | 项目 | 职责 | 关键 ProjectReference |
 |------|------|----------------------|
 | `AbilityKit.Demo.Moba.Share` | 编译 `com.abilitykit.demo.moba.share` 源码 | Core, Host, World.FrameSync, Protocol.Moba, Triggering, Game.Battle.Runtime, World.Snapshot, Network.Runtime, World.ECS |
 | `AbilityKit.Demo.Moba.Core` | 编译 `com.abilitykit.demo.moba.runtime` 源码（**逻辑核心**，排除 `Editor/`、`Impl/`、`Testing/`，`!UNITY`） | Share + 30 个 abilitykit.* (含 World.Entitas/FrameSync/StateSync, Combat.*, Combat.Navigation, Coordinator, Flow, Host.Extension, Protocol.Moba)；NuGet: Entitas 1.14.2, Newtonsoft.Json |
+| `AbilityKit.CodeGen.Tests` | Source Generator / Analyzer 契约与诊断测试 | framework CodeGen + Analyzer + `AbilityKit.Demo.Moba.CodeGen` |
 | `AbilityKit.Combat.Navigation` | 编译 `com.abilitykit.combat.navigation/Runtime/**/*.cs` | Core, World.DI | NEW
 | `AbilityKit.Demo.Moba.Infrastructure` | 配置基础设施扩展 | Core + Ability.Config；Newtonsoft.Json |
 | `AbilityKit.Demo.Moba.Console` | **net10.0 Console 可执行入口** | Share, Core, Infrastructure, World.ECS, Game.Battle.Transport.Runtime, World.StateSync, World.Snapshot, Protocol.Moba, Host, Host.Extension, Triggering, HFSM.Core, Flow, Combat.Collision.Abstractions；Newtonsoft.Json |
 | `AbilityKit.Demo.Moba.AI` | MOBA AI 训练/推理接入 | AI.Abstractions, Moba.Console, Host.Extension, Protocol.Moba |
-| `AbilityKit.Demo.Moba.Tests` | xUnit 测试（179/179 全绿） | AI.*, Moba.AI, Core, Share, Combat.Navigation, Infrastructure, Moba.Console, ET.Logic, Context, Trace |
+| `AbilityKit.Demo.Moba.Tests` | MOBA 功能与 smoke xUnit 测试 | AI.*, Moba.AI, Core, Share, Combat.Navigation, Infrastructure, Moba.Console, ET.Logic, Context, Trace |
 | `AbilityKit.Demo.Moba.NetworkCondition.Tests` | 网络条件控制器测试（1 个） | Network.Runtime |
 
 ## 依赖图
@@ -20,10 +21,12 @@
 ```
 Share ──► Core(逻辑) ──► Infrastructure
    │           │
-   │           └──► Console(Exe) ──► AI ──► Tests
+   │           └──► Console(Exe) ──► AI ──► Moba.Tests
    │                   ▲
    └───────────────────┘
 NetworkCondition.Tests ──► Network.Runtime (单文件引用 view.runtime)
+
+CodeGen.Tests ──► framework CodeGen / Analyzer + MOBA CodeGen
 ```
 
 ## 源码共享机制
@@ -38,7 +41,7 @@ Unity 包源码通过 `<Compile Include="../../Unity/Packages/.../*.cs" />` 直�
 
 ```bash
 # 编译整个 sln
-dotnet build src/AbilityKit.Demo.Moba.sln
+dotnet build src/AbilityKit.sln
 
 # 运行 Console Demo
 cd src/AbilityKit.Demo.Moba.Console
@@ -46,6 +49,9 @@ dotnet run
 
 # 跑测试
 dotnet test src/AbilityKit.Demo.Moba.Tests
+
+# 跑 CodeGen/Analyzer 契约测试
+dotnet test src/AbilityKit.CodeGen.Tests/AbilityKit.CodeGen.Tests.csproj -c Release --no-restore
 ```
 
 ## csproj 排除规则（典型）

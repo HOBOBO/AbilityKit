@@ -65,6 +65,6 @@
 `DashArgs`/`BlinkArgs` 增 `PassThroughWalls(bool)` 字段，Schema 读 `"pass_through_walls"` / `"passwalls"` 等 key。
 
 ## 相关
-- `com.abilitykit.combat.motion` 包 → [ability-kit combat_motion](../../ability-kit/combat_motion/README.md)
-- `com.abilitykit.combat.collision.abstractions` 包 → [ability-kit combat_collision](../../ability-kit/combat_collision/README.md)
+- `com.abilitykit.combat.motion` 包 → [ability-kit combat_motion](../ability-kit/combat_motion/README.md)
+- `com.abilitykit.combat.collision.abstractions` 包 → [ability-kit combat_collision](../ability-kit/combat_collision/README.md)
 - 寻路系统 → [path_following.md](path_following.md)

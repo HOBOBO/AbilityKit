@@ -168,7 +168,8 @@ namespace AbilityKit.Game.Test.UnitTest
                                 ServerId = _runtimePreset.GatewaySO.ServerId,
                                 RoomType = "moba",
                                 RoomTitle = "Unity single-client frame-sync acceptance",
-                                MaxPlayers = 1
+                                MaxPlayers = 1,
+                                MinPlayers = 1
                             },
                             _lifetime.Token),
                         HeadlessStage.CreatingRoom,

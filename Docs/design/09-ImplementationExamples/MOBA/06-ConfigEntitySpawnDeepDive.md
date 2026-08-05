@@ -12,7 +12,7 @@
 | Actor 生成 | `MobaActorSpawnRequest` | Entitas `ActorEntity` | 分配 ID、构造 archetype、回调和 post-setup |
 | 索引注册 | entity + identity fields | registry 与多维 index | actorId 查找、分类查询和 spawn/despawn 事件 |
 
-它们不是一个原子事务。配置加载失败不会创建 Actor；Actor 构造成功后注册失败，也不会由生成服务自动回收 entity。
+它们不是一个原子事务。配置加载失败不会进入 Actor 生成；Actor 生成失败时，当前实现会补偿框架掌握的 registry、entity manager 和已构造 entity，但不会撤销回调、事件订阅者或其他外部服务已经产生的副作用。
 
 ## 2. 配置门面结构
 
@@ -161,10 +161,17 @@ Create archetype
 - `Initializer` 不是“生成前修改 spec”，它拿到的 entity 已经创建；
 - `OnActorBuilt` 发生时 entity 尚未经过 post-setup，也未由 spawn service 注册；
 - 回调可以修改 entity，`RegisterEntityManagerFromEntity=true` 时这些组件值会成为索引键；
-- 回调抛异常时 `TrySpawn()` 返回 false，但已经创建的 Entitas entity 不会自动销毁；
-- post-setup 或注册抛异常时，也没有统一撤销 registry/index/回调副作用。
+- `Initializer` 或 `OnActorBuilt` 抛异常时，`BuildActor()` 会销毁刚创建的 entity，再把异常交给生成服务转换为失败结果；
+- post-setup 或注册抛异常时，生成服务依次尝试注销 entity manager、注销 actor registry，并销毁已经返回的 entity。
 
-因此 `TrySpawn()` 是异常转结果的边界，不是事务边界。回调应保持短小、可重复推理，避免执行不可撤销的外部操作。
+这些动作是失败补偿，不是具备隔离性的事务：
+
+- callback 和 post-setup 对其他服务、静态状态或外部资源造成的副作用不会自动撤销；
+- allocator 已经发出的 actorId 不会回退；
+- registry 与 entity manager 都允许相同 actorId 覆盖既有对象，失败清理按 actorId 注销，可能同时移除原有索引，不能把重复 ID 场景理解为隔离写入；
+- entity manager 的注销会在删除索引前同步发布 despawn。当前事件总线 immediate dispatch 不吞订阅者异常；若订阅者抛异常，后续 actor registry 注销、entity 销毁和失败结果转换都可能被中断。
+
+因此 `TrySpawn()` 是“异常转结果 + 框架内尽力补偿”的边界，不是事务边界。回调应保持短小、可重复推理，避免执行不可撤销的外部操作；调用方还应保证 actorId 唯一，并约束生命周期事件订阅者不得向发布链路传播异常。
 
 ## 8. 两类 Actor 索引
 
@@ -218,7 +225,7 @@ registerEntityManager
 - OwnerPlayerId；
 - actorId 大于 0。
 
-它抛异常时 registrar 记录日志，然后继续 fallback。需要注意，actor registry 已经可能写入；若 fallback `Register()` 再抛异常，生成服务只返回失败，不会撤销 actor registry。
+它抛异常时 registrar 记录日志，然后继续 fallback。若 fallback `Register()` 再抛异常，生成服务进入统一补偿并注销 entity manager、actor registry 与已建 entity。该补偿仍受第 7 节所述重复 actorId 和事件订阅者异常边界约束。
 
 ## 10. 每帧索引调和
 
@@ -253,15 +260,17 @@ CleanupSystem 复制当前注册 actorId，再移除：
 
 ## 11. 批量玩家生成边界
 
-`ActorSpawnPipeline` 还提供从 loadouts/specs 批量生成玩家 Actor 的旧式静态入口。它会：
+`ActorSpawnPipeline` 还提供从 loadouts/specs 批量生成玩家 Actor 的静态入口。它会：
 
 1. 要求每个 loadout 有出生点；
 2. 预先为所有 loadout 分配 actorId 和 spec；
-3. 逐个 build and register；
+3. 逐个 build and register，并记录本批次已完成结果；
 4. 记录 player 与 actor 映射；
 5. 确认 localPlayerId 出现在 loadouts 中。
 
-该批量方法同样不是事务：中途某个 Actor 构造失败，之前已经注册的 Actor 不会自动回滚；在全部 Actor 创建后才发现 localPlayerId 缺失时，也会抛异常并保留此前副作用。高层启动 Flow 必须负责失败清理。
+任一后续 Actor 构造失败，或全部构造后发现 localPlayerId 缺失时，方法会逆序处理本批次已完成结果：从 entity manager 和 actor registry 注销 actorId，再销毁 entity，最后重新抛出原异常。直接测试已覆盖“第二个 Actor initializer 失败”场景，并断言两个 actorId 均不在两类索引中且 ActorContext 不保留 entity。
+
+批量回滚仍只是框架内补偿：它不撤销 initializer 对外部状态的写入，不回收预分配 actorId，也受注销事件异常与重复 actorId 覆盖语义影响。高层启动 Flow 仍应把失败视为启动失败，并负责该 Pipeline 之外的资源释放。
 
 ## 12. Spawn、Despawn 与事件边界
 
@@ -286,33 +295,43 @@ Despawn 事件只由显式 `Unregister()` 发布，且 payload 从当时 entity 
 
 稳定 actorId 是这些链路的共同连接键，但 ActorEntity 引用是否仍有效需要按具体 registry 的语义再次判断。
 
-## 14. 验证清单
+## 14. 证据矩阵
 
-### 配置
+本节区分源码契约、直接自动测试和仍需补齐的回归责任。源码分支存在不等于已有自动回归；Harness 或英雄 Acceptance 经过真实生成服务，只能证明其覆盖场景中的成功业务路径。
 
-1. JSON 默认加载可用，bytes/mixed 在未注册 bytes deserializer 时明确失败。
-2. reload 成功和失败都发布 `moba.config` 事件并保留正确版本。
-3. DTO provider strict/non-strict 缺表行为有测试。
-4. JSON text strict 参数当前行为通过测试固化，避免只信任签名。
-5. 热重载与运行时读取在宿主层串行化。
+### 14.1 配置证据
 
-### 生成
+| 行为 | 当前源码契约 | 直接自动测试 | 结论与补测责任 |
+|------|--------------|--------------|----------------|
+| JSON/DTO 默认加载 | 默认注册 JSON DTO deserializer，typed table 由内部 `ConfigDatabase` 保存 | 本轮未发现以 `MobaConfigDatabase` 为入口的专项测试 | 当前只能记为源码能力；应覆盖成功加载、版本递增和 typed table 读取 |
+| Reload 通知 | 成功、失败均向 `ConfigReloadBus` 发布 `moba.config`，结果携带当前版本 | 本轮未发现直接订阅并断言 key、版本、full reload 和 error 的测试 | 静态事件还存在跨测试清理责任，应增加成对订阅/退订测试 |
+| DTO provider strict | strict 缺 type 失败，non-strict 注入对应 DTO type 的空数组 | 本轮未发现直接测试 | 应分别锁定缺失 type 的失败与空表行为 |
+| JSON text strict | `ReloadFromJsonTexts(..., strict)` 当前未把 `strict` 传给底层；底层 `ReloadFromTexts` 也没有 strict 参数 | 本轮未发现直接测试 | 这是签名与实现漂移，不能宣称 strict 生效；应修复签名/实现或用测试固定兼容语义 |
+| bytes/mixed | 未注入 `IMobaConfigDtoBytesDeserializer` 时，Reload 发布失败，Load 包装方法抛异常 | 本轮未发现直接测试 | 应覆盖缺依赖失败和注入实现后的成功路径 |
+| reload/read 调度 | 门面本身不提供线程同步 | 未发现并发或宿主串行化契约测试 | 宿主必须定义串行化点，不能把线程安全归因于配置门面 |
 
-1. request、ActorContext 和 actorId 缺失均返回结构化失败结果。
-2. 自动 actorId 只在显式开关开启时发生。
-3. callback、post-setup、registry 和 entity manager 的顺序符合预期。
-4. callback/post-setup/注册抛异常时测试并清理遗留 entity 与索引。
-5. 批量生成中途失败由上层清理已经创建的 Actor。
+### 14.2 生成证据
 
-### 索引
+| 行为 | 当前源码契约 | 直接自动测试 | 结论与补测责任 |
+|------|--------------|--------------|----------------|
+| 单 entity initializer 失败 | `BuildActor()` 销毁部分 entity 后重新抛异常 | `BuildActor_InitializerFailureDestroysPartialEntity` 断言 ActorContext entity 数量为 0 | 已有 Pipeline 级直接证据；尚未覆盖 `OnActorBuilt` 异常 |
+| 单 Actor 服务输入失败 | request、ActorContext、actorId 缺失返回结构化失败；actorId 仅在开关开启且 allocator 可用时分配 | 本轮未发现直接构造 `MobaActorSpawnService` 的专项测试 | 应覆盖错误文本、分配开关和 allocator 缺失 |
+| post-setup/注册失败补偿 | service catch 注销两类索引并销毁已建 entity | 本轮未发现生产服务级直接测试 | 应分别注入 post-setup、registrar、entity manager 失败，并检查索引与 entity；还需覆盖注销事件再次抛异常 |
+| 批量后项失败 | 逆序注销并销毁本批次已完成 Actor | `BuildActorsFromSpecs_LaterFailureRollsBackEarlierRegistrationsAndEntities` 断言 actorId 201/202 均不在两类索引，ActorContext entity 数量为 0 | 已有直接 Pipeline 回归；测试未证明外部 callback 副作用可撤销 |
+| local player 缺失 | 全部构造后进入同一 catch 并回滚 | 本轮未发现直接测试 | 应增加 localPlayerId 缺失回归 |
+| 业务成功生成 | Test Harness 通过真实 `IMobaActorSpawnService.TrySpawn()` 生成场景 Actor | Harness 及英雄 Acceptance 间接经过成功路径 | 属于场景证据，不替代失败补偿和调用顺序的专项测试 |
 
-1. actor registry 与 entity manager 对 disabled entity 的查询差异有调用方约束。
-2. 重复注册不会重复发 spawn event，但能刷新 team/type/owner index。
-3. PreExecute 能补注册组件完整的 entity。
-4. PostExecute 能移除 actorId 缺失或变化的条目。
-5. `Clear()` 不发 despawn 的 teardown 语义已被接受。
+### 14.3 索引证据
 
-## 15. 源码索引
+| 行为 | 当前源码契约 | 直接自动测试 | 结论与补测责任 |
+|------|--------------|--------------|----------------|
+| disabled entity 查询 | actor registry 拒绝 disabled entity；entity manager 仅按字典查询 | 本轮未发现直接对照测试 | 调用方必须选择正确入口；应增加 disabled/destroyed entity 测试 |
+| 首次与重复注册 | 首次进入主 Index 发布 spawn；重复注册刷新 entity 与四类 keyed index，不重复发布 spawn | 本轮未发现专项事件/index 测试 | 应断言事件次数及 team/type/subtype/owner 旧键移除、新键加入 |
+| PreExecute 调和 | SyncSystem 扫描五个身份组件完整的 entity 并调用 `TryRegisterFromEntity()` | 本轮未发现系统级直接测试 | 应覆盖补注册、分类键刷新和组件不完整时跳过 |
+| PostExecute 清理 | CleanupSystem 只处理 entity 缺失、ActorId 缺失或漂移 | 本轮未发现系统级直接测试 | 应覆盖三个清理分支，并固定“不检查 enabled/分类组件”的边界 |
+| Unregister/Clear | Unregister 先同步发布 despawn 再删除；Clear/Dispose 不逐项发布 despawn | 本轮未发现直接测试 | 应锁定事件 payload、异常传播顺序及 teardown 不发事件的语义 |
+
+## 15. 源码与测试索引
 
 | 主题 | 源码 |
 |------|------|
@@ -328,4 +347,18 @@ Despawn 事件只由显式 `Unregister()` 发布，且 payload 从当时 entity 
 | 多维 entity manager | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/EntityManager/MobaEntityManager.cs` |
 | PreExecute 索引同步 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/EntityManager/MobaEntityManagerSyncSystem.cs` |
 | PostExecute 索引清理 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/EntityManager/MobaEntityManagerCleanupSystem.cs` |
-| 场景生成验收入口 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/MobaSkillConfigTestHarness.cs` |
+| Pipeline 失败补偿直接测试 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/MobaHeroLoadoutResolverTests.cs` |
+| 成功业务场景 Harness | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/MobaSkillConfigTestHarness.cs` |
+| 通用事件总线异常传播 | `Unity/Packages/com.abilitykit.triggering/Runtime/Events/EventBus.cs` |
+
+## 16. 版本与验证基线
+
+| 项目 | 当前基线 |
+|------|----------|
+| 文档版本 | 2026-08-03 |
+| 审计范围 | MOBA 配置门面、Actor 构造/生成、两类索引及 Sync/Cleanup 系统 |
+| 证据来源 | 当前仓库源码；`MobaHeroLoadoutResolverTests` 中两项 Pipeline 失败补偿测试；Test Harness/Acceptance 的成功业务路径 |
+| 本轮实际执行 | 仅进行源码、测试引用、Markdown 结构与路径静态检查；未重新执行 Unity Test Runner |
+| 已确认缺口 | 配置门面、生产 spawn service、索引事件与 Sync/Cleanup 尚缺直接专项回归；JSON text strict 参数未下传 |
+
+后续修改这些链路时，应先更新第 14 节中对应证据行，再根据实际测试执行结果更新本节。历史测试名称或场景存在不能替代本轮执行记录。

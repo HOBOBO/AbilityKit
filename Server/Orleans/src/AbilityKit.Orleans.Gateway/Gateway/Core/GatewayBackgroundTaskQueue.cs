@@ -27,20 +27,27 @@ public sealed class GatewayBackgroundTaskQueue : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await foreach (var workItem in _queue.Reader.ReadAllAsync(stoppingToken))
+        try
         {
-            try
+            await foreach (var workItem in _queue.Reader.ReadAllAsync(stoppingToken))
             {
-                await workItem(stoppingToken).ConfigureAwait(false);
+                try
+                {
+                    await workItem(stoppingToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Gateway background task failed.");
+                }
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Gateway background task failed.");
-            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Channel completed or host shutting down — normal termination.
         }
     }
 }

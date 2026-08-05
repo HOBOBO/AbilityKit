@@ -188,11 +188,47 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private void DrawBattleStatus()
         {
-            GUILayout.BeginArea(new Rect(12f, 12f, 320f, 96f), "Shooter Multiplayer", GUI.skin.window);
+            var isPaused = ShooterRemoteStateSyncPlayModeHost.IsPaused;
+            var areaHeight = isPaused ? 140f : 120f;
+            GUILayout.BeginArea(new Rect(12f, 12f, 320f, areaHeight), "Shooter Multiplayer", GUI.skin.window);
             GUILayout.Label($"Room: {ShooterRemoteStateSyncPlayModeHost.Flow?.RoomId ?? string.Empty}");
-            GUILayout.Label("State: In battle");
-            if (GUILayout.Button("Disconnect and Return", GUILayout.Height(26f))) ReturnFromBattle();
+            GUILayout.Label(isPaused ? "State: Paused (simulating disconnect)" : "State: In battle");
+
+            GUI.enabled = !_busy;
+            if (isPaused)
+            {
+                if (GUILayout.Button("Resume (Reconnect)", GUILayout.Height(28f)))
+                {
+                    RunAsync("Resuming battle", () => ResumeBattleAsync());
+                }
+            }
+            else
+            {
+                if (GUILayout.Button("Pause (Simulate Disconnect)", GUILayout.Height(28f)))
+                {
+                    ShooterRemoteStateSyncPlayModeHost.PauseForReconnectValidation();
+                    _status = "Paused: connection closed";
+                }
+            }
+            GUI.enabled = true;
+
+            if (!isPaused && GUILayout.Button("Disconnect and Return", GUILayout.Height(26f))) ReturnFromBattle();
             GUILayout.EndArea();
+        }
+
+        private async Task ResumeBattleAsync()
+        {
+            try
+            {
+                _status = "Reconnecting...";
+                await ShooterRemoteStateSyncPlayModeHost.ResumeFromPauseAsync();
+                _status = "Battle resumed";
+            }
+            catch (Exception ex)
+            {
+                _status = "Resume failed";
+                _error = ex.Message;
+            }
         }
 
         private static void DrawLoadingStatus()

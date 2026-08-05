@@ -204,11 +204,66 @@ namespace AbilityKit.Demo.Moba.Services.Search
             return DefaultRegistry.Value;
         }
 
-        private static MobaTargetQueryFactoryRegistry BuildDefaultRegistry()
+        internal static MobaTargetQueryFactoryRegistry BuildDefaultRegistry()
         {
             var registry = new MobaTargetQueryFactoryRegistry();
+            if (MobaGeneratedTargetQueryFactoryManifest.Register(registry) > 0)
+            {
+                return registry;
+            }
+
+            if (AppContext.TryGetSwitch(
+                    "AbilityKit.Moba.DisableTargetQueryFactoryReflectionFallback",
+                    out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
+            {
+                throw new InvalidOperationException(
+                    "The generated MOBA target query factory manifest is empty and reflection fallback is disabled.");
+            }
+
             registry.ScanAssembly(typeof(MobaTargetQueryFactoryRegistry).Assembly);
             return registry;
+        }
+
+        internal int SourceCount => _sources.Count;
+        internal int FilterCount => _filters.Count;
+        internal int OrderCount => _orders.Count;
+        internal int SelectCount => _selects.Count;
+
+        internal void RegisterSource(int code, IMobaTargetSourceFactory factory)
+        {
+            RegisterUnique(_sources, code, factory, "source");
+        }
+
+        internal void RegisterFilter(int code, IMobaTargetFilterFactory factory)
+        {
+            RegisterUnique(_filters, code, factory, "filter");
+        }
+
+        internal void RegisterOrder(int code, IMobaTargetOrderFactory factory)
+        {
+            RegisterUnique(_orders, code, factory, "order");
+        }
+
+        internal void RegisterSelect(int code, IMobaTargetSelectFactory factory)
+        {
+            RegisterUnique(_selects, code, factory, "select");
+        }
+
+        private static void RegisterUnique<TFactory>(
+            Dictionary<int, TFactory> factories,
+            int code,
+            TFactory factory,
+            string kind)
+            where TFactory : class
+        {
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
+            if (factories.TryGetValue(code, out var existing))
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate MOBA target query {kind} code '{code}' uses both '{existing.GetType().FullName}' and '{factory.GetType().FullName}'.");
+            }
+
+            factories.Add(code, factory);
         }
 
         public ICandidateProvider CreateSource(SearchTargetProviderConfig config, in MobaTargetQueryBuildContext context)
@@ -321,7 +376,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
             var instance = (IMobaTargetSourceFactory)Activator.CreateInstance(type);
             foreach (var attr in attrs)
             {
-                _sources[attr.Code] = instance;
+                RegisterSource(attr.Code, instance);
             }
         }
 
@@ -337,7 +392,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
             var instance = (IMobaTargetFilterFactory)Activator.CreateInstance(type);
             foreach (var attr in attrs)
             {
-                _filters[attr.Code] = instance;
+                RegisterFilter(attr.Code, instance);
             }
         }
 
@@ -353,7 +408,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
             var instance = (IMobaTargetOrderFactory)Activator.CreateInstance(type);
             foreach (var attr in attrs)
             {
-                _orders[attr.Code] = instance;
+                RegisterOrder(attr.Code, instance);
             }
         }
 
@@ -369,7 +424,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
             var instance = (IMobaTargetSelectFactory)Activator.CreateInstance(type);
             foreach (var attr in attrs)
             {
-                _selects[attr.Code] = instance;
+                RegisterSelect(attr.Code, instance);
             }
         }
     }

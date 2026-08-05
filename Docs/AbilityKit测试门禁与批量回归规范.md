@@ -69,6 +69,7 @@ powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate regressio
 | --- | --- | --- | --- | --- |
 | `precheck` | P0 | Core/MOBA Runtime | 本地开发、MOBA console、战斗入口 | 继续功能开发、提交 runtime/console 相关改动前 |
 | `moba-console-smoke` | P0 | MOBA Runtime/Presentation | MOBA console、表现层可测试性、战斗 smoke、技能 trace | 继续 MOBA 表现层/runtime 后续开发前 |
+| `moba-codegen` | P1 | MOBA Runtime/Compile Time | MOBA Source Generator、Analyzer、Unity package 所有权 | 合并 MOBA 代码生成、静态分析或生成清单改动前 |
 | `runtime-contracts` | P1 | Runtime Platform | 网络 runtime、World DI、Game View Runtime | 合并 runtime contract 变化前 |
 | `moba-content-contracts` | P1 | MOBA Content Pipeline | 包资源所有权、TriggerPlan 聚合漂移、配置资源可加载性、跨表有效时序 | 发布 MOBA 内容或合并配置/资源改动前 |
 | `regression` | P2 | AbilityKit Engineering | MOBA、Shooter、runtime contracts 批量回归 | 大范围重构、候选发布、批量合并前 |
@@ -112,12 +113,13 @@ powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -List
 
 ### 4.3 Step 类型
 
-当前支持四类 step：
+当前支持以下 step：
 
 | kind | 用途 | 必要字段 |
 | --- | --- | --- |
 | `dotnet-build` | 构建指定项目 | `name`、`project` |
 | `dotnet-test` | 测试指定项目 | `name`、`project`，可选 `filter` |
+| `powershell-script` | 执行仓库内 PowerShell 契约或验收脚本 | `name`、`script`，可选 `arguments`、`timeoutSeconds` |
 | `unity-editmode-test` | 运行 Unity batchmode EditMode 测试并固定落盘 `command/log/xml` 产物 | `name`、`projectPath`，可选 `testPlatform`、`testFilter`、`editorPath`、`extraArgs` |
 | `gate` | 嵌套执行另一个门禁 | `name`、`gate` |
 
@@ -202,6 +204,7 @@ powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -List
 | CI 阶段 | 命令 | 目的 |
 | --- | --- | --- |
 | Pull Request quick check | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate precheck -CI -ResultsDirectory artifacts\test-gates\precheck` | 快速阻断明显回归 |
+| MOBA compile-time contract check | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate moba-codegen -CI -ResultsDirectory artifacts\test-gates\moba-codegen` | 校验 Roslyn 构建、生成/分析契约和 package 所有权 |
 | Runtime contract check | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate runtime-contracts -CI -ResultsDirectory artifacts\test-gates\runtime-contracts` | 校验核心运行时契约 |
 | Nightly regression | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate regression -CI -ResultsDirectory artifacts\test-gates\regression` | 批量回归 |
 

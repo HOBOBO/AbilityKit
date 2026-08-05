@@ -55,6 +55,7 @@ com.abilitykit.host.extension/
 - [session_flow.md](session_flow.md) — RoomGatewaySessionFlow 8 阶段 + FramePacketNetAdapter
 - [framesync_server.md](framesync_server.md) — 🆕 BattleFrameSyncGrain 完整能力：CatchUp / Recording / Metrics / BotAI / TickRate / BattleWorldWithFrameSync
 - [spectator.md](spectator.md) — 🆕 观战模式：SpectatorWorldDriver（框架层）+ BattleSessionFeature.Spectator（Demo 层集成）
+- [gateway_connection.md](gateway_connection.md) — 🆕 统一网关连接抽象：IGatewayConnection + GatewayConnection（请求/推送/seq匹配）
 - [moba_runtime.md](moba_runtime.md) — MobaHostRuntimeBuilder + IMobaBattleRuntimePort + MobaGameStartPort
 - [moba_startsource.md](moba_startsource.md) — GameStartSource 路由（3 Source + Router）
 - [moba_room.md](moba_room.md) — MobaRoomState + MobaRoomOrchestrator + 命令应用

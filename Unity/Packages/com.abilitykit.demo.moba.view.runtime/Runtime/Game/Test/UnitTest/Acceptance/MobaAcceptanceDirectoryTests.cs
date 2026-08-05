@@ -8,7 +8,7 @@ namespace AbilityKit.Game.Test.UnitTest
     public sealed class MobaAcceptanceDirectoryTests : MobaAcceptanceTestBase
     {
         private const string Skill10010101ExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10010101.expected.json";
-        private const string Skill10010401ExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10010401.expected.json";
+        private const string Skill10020301ExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10020301.expected.json";
 
         [Test]
         public void TimelineEffectSkills_WithConfiguredTriggers_HaveFormalAcceptanceContracts()
@@ -37,19 +37,19 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void ContractCategory_ShouldContainBuffAcceptanceContract()
         {
-            var expectation = LoadExpectation(Skill10010401ExpectationPath);
+            var expectation = LoadExpectation(Skill10020301ExpectationPath);
             Assert.AreEqual("contract", MobaAcceptanceRunner.ResolveCategory(expectation));
             Assert.IsFalse(MobaAcceptanceRunner.HasTag(expectation, "golden"));
             Assert.IsTrue(MobaAcceptanceRunner.HasTag(expectation, "buff"));
         }
 
         [Test]
-        public void GoldenCategory_ShouldContainProjectileGoldenSample()
+        public void GoldenCategory_ShouldContainRepresentativeGoldenSample()
         {
             var expectation = LoadExpectation(Skill10010101ExpectationPath);
             Assert.AreEqual("golden", MobaAcceptanceRunner.ResolveCategory(expectation));
             Assert.IsTrue(MobaAcceptanceRunner.HasTag(expectation, "golden"));
-            Assert.IsTrue(MobaAcceptanceRunner.HasTag(expectation, "projectile"));
+            Assert.IsTrue(MobaAcceptanceRunner.HasTag(expectation, "dash"));
         }
 
         [Test]

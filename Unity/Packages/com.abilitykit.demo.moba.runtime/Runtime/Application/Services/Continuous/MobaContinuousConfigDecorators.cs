@@ -29,6 +29,12 @@ namespace AbilityKit.Demo.Moba.Services
         IReadOnlyList<int> IntervalEffectIds { get; }
     }
 
+    public interface IMobaContinuousPeriodicGateConfig
+    {
+        bool RequireOutOfCombat { get; }
+        float OutOfCombatSeconds { get; }
+    }
+
     /// <summary>
     /// 用于在整个持续运行生命周期内绑定 owner-bound trigger 的配置装饰接口。
     /// </summary>

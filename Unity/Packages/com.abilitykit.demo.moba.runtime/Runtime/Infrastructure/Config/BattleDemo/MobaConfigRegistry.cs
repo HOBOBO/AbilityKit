@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo
 {
@@ -58,69 +57,42 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
                 : base(fileWithoutExt, dtoType, moType, groupName)
             {
             }
+
+            public Entry(
+                string fileWithoutExt,
+                Type dtoType,
+                Type moType,
+                Func<Array, object> dtoTableFactory,
+                Func<Array, object> entryTableFactory)
+                : this(
+                    fileWithoutExt,
+                    dtoType,
+                    moType,
+                    dtoTableFactory,
+                    entryTableFactory,
+                    null)
+            {
+            }
+
+            public Entry(
+                string fileWithoutExt,
+                Type dtoType,
+                Type moType,
+                Func<Array, object> dtoTableFactory,
+                Func<Array, object> entryTableFactory,
+                Action<Array, ISet<int>> changedIdCollector)
+                : base(
+                    fileWithoutExt,
+                    dtoType,
+                    moType,
+                    null,
+                    dtoTableFactory,
+                    entryTableFactory,
+                    changedIdCollector)
+            {
+            }
         }
 
-        public static readonly Entry[] Tables =
-        {
-            // Characters
-            new Entry(MobaConfigPaths.CharactersFile, typeof(CharacterDTO), typeof(MO.CharacterMO)),
-
-            // Attributes
-            new Entry(MobaConfigPaths.AttributeTemplatesFile, typeof(BattleAttributeTemplateDTO), typeof(MO.BattleAttributeTemplateMO)),
-            new Entry(MobaConfigPaths.AttributeTypesFile, typeof(AttrTypeDTO), typeof(MO.AttrTypeMO)),
-
-            // Skills
-            new Entry(MobaConfigPaths.SkillsFile, typeof(SkillDTO), typeof(MO.SkillMO)),
-            new Entry(MobaConfigPaths.PassiveSkillsFile, typeof(PassiveSkillDTO), typeof(MO.PassiveSkillMO)),
-            new Entry(MobaConfigPaths.SkillFlowsFile, typeof(SkillFlowDTO), typeof(MO.SkillFlowMO)),
-            new Entry(MobaConfigPaths.SkillLevelTablesFile, typeof(SkillLevelTableDTO), typeof(MO.SkillLevelTableMO)),
-
-            // Presentation models
-            new Entry(MobaConfigPaths.ModelsFile, typeof(ModelDTO), typeof(MO.ModelMO)),
-
-            // Buffs and generic continuous processes
-            new Entry(MobaConfigPaths.BuffsFile, typeof(BuffDTO), typeof(MO.BuffMO)),
-            new Entry(MobaConfigPaths.ContinuousProcessesFile, typeof(ContinuousProcessDTO), typeof(MO.ContinuousProcessMO)),
-
-            // Projectiles
-            new Entry(MobaConfigPaths.ProjectileLaunchersFile, typeof(ProjectileLauncherDTO), typeof(MO.ProjectileLauncherMO)),
-            new Entry(MobaConfigPaths.ProjectilesFile, typeof(ProjectileDTO), typeof(MO.ProjectileMO)),
-
-            // Areas and emitters
-            new Entry(MobaConfigPaths.AoesFile, typeof(AoeDTO), typeof(MO.AoeMO)),
-            new Entry(MobaConfigPaths.EmittersFile, typeof(EmitterDTO), typeof(MO.EmitterMO)),
-
-            // Summons
-            new Entry(MobaConfigPaths.SummonsFile, typeof(SummonDTO), typeof(MO.SummonMO)),
-            new Entry(MobaConfigPaths.SummonAttrInheritsFile, typeof(SummonAttrInheritDTO), typeof(MO.SummonAttrInheritMO)),
-
-            // Component templates
-            new Entry(MobaConfigPaths.ComponentTemplatesFile, typeof(ComponentTemplateDTO), typeof(MO.ComponentTemplateMO)),
-
-            // Skill button templates
-            new Entry(MobaConfigPaths.SkillButtonTemplatesFile, typeof(SkillButtonTemplateDTO), typeof(MO.SkillButtonTemplateMO)),
-
-            // Tag templates
-            new Entry(MobaConfigPaths.TagTemplatesFile, typeof(TagTemplateDTO), typeof(MO.TagTemplateMO)),
-            new Entry(MobaConfigPaths.ContinuousTagTemplatesFile, typeof(ContinuousTagTemplateDTO), typeof(MO.ContinuousTagTemplateMO)),
-
-            // Search query templates
-            new Entry(MobaConfigPaths.SearchQueryTemplatesFile, typeof(SearchQueryTemplateDTO), typeof(MO.SearchQueryTemplateMO)),
-
-            // Spawn summon action templates
-            new Entry(MobaConfigPaths.SpawnSummonActionTemplatesFile, typeof(SpawnSummonActionTemplateDTO), typeof(MO.SpawnSummonActionTemplateMO)),
-
-            // Presentation templates
-            new Entry(MobaConfigPaths.PresentationTemplatesFile, typeof(PresentationTemplateDTO), typeof(MO.PresentationTemplateMO)),
-
-            // Battle maps
-            new Entry(MobaConfigPaths.BattleMapsFile, typeof(BattleMapDTO), typeof(MO.BattleMapMO)),
-
-            // Gameplay modes
-            new Entry(MobaConfigPaths.GameplaysFile, typeof(GameplayDTO), typeof(MO.GameplayMO)),
-
-            // Motion groups
-            new Entry(MobaConfigPaths.MotionGroupsFile, typeof(MotionGroupDTO), typeof(MO.MotionGroupMO)),
-        };
+        public static readonly Entry[] Tables = MobaGeneratedConfigTableManifest.CreateRegistryEntries();
     }
 }

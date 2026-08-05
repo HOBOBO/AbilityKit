@@ -4,6 +4,7 @@ using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.StateSync;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Game.Battle.Transport.Projection;
 using AbilityKit.Orleans.Contracts.Battle;
@@ -43,6 +44,7 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
         private IWorldStateSnapshotProvider? _snapshotProvider;
         private IMobaBattleRuntimePort? _runtimePort;
         private ulong _worldId;
+        private MobaDeterministicCheckpointCoordinator? _checkpointCoordinator;
         private List<ActorProjectionData>? _projectionBuffer;
         private Dictionary<int, ActorProjectionData>? _lastProjectionData;
         private readonly Dictionary<uint, MobaBotState> _bots = new();
@@ -107,6 +109,10 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             {
                 return BattleRuntimeStartResult.Fail("IWorldStateSnapshotProvider not resolved.");
             }
+
+            // 解析确定性检查点协调器（用于每帧 hash 对账）。
+            // 如果 MOBA 世界装配未注册此服务（例如测试场景），优雅降级为 null。
+            _battleWorld.Services.TryResolve(out _checkpointCoordinator);
 
             return BattleRuntimeStartResult.Success();
         }
@@ -225,10 +231,25 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
 
         public BattleWorldDiagnostics? GetWorldDiagnostics(ulong worldId, int frame)
         {
-            // TODO(v0.2.0): 接入 MobaDeterministicCheckpointCoordinator 提取实体级状态哈希。
-            // 当前 MOBA 的 ComputeStateHash(FrameIndex) 需要 FrameIndex 参数且依赖 _providers 集合，
-            // 在此处调用需要额外适配。短期使用 BattleHostState.Frame 作为近似值。
-            return null;
+            var diagnostics = new BattleWorldDiagnostics
+            {
+                BattleId = _battleId,
+                WorldId = _worldId,
+                Frame = frame,
+                ServerNowTicks = DateTime.UtcNow.Ticks,
+            };
+
+            if (_checkpointCoordinator != null)
+            {
+                diagnostics.StateHash = _checkpointCoordinator.ComputeStateHash(new FrameIndex(frame));
+            }
+            else
+            {
+                // 无检查点协调器时使用帧号近似值（与 BattleLogicHostGrain 回退逻辑一致）。
+                diagnostics.StateHash = (uint)frame;
+            }
+
+            return diagnostics;
         }
 
         public StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot)
@@ -271,6 +292,7 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             _worldManager.DestroyBattleWorld(_battleId);
             _battleWorld = null;
             _snapshotProvider = null;
+            _checkpointCoordinator = null;
             _runtimePort = null;
         }
 
@@ -278,8 +300,13 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
         {
             try
             {
-                // 通过 gameplay service 或 world 级别的 spawn 入口创建 Bot 玩家实体
-                // 此处依赖 MOBA 世界已注册的实体工厂
+                // TODO(v0.2.0): Actually spawn the bot player entity via the MOBA world's
+                // entity factory. Currently this method only checks whether gameplay is running
+                // without creating any entity, so Bot AI input generation (GenerateBotCommand)
+                // delivers commands into a void. The spawn should mirror what
+                // IMobaBattleRuntimePort does for human players: create an actor entity with
+                // the correct HeroId, TeamId, SpawnPointId, and AttributeTemplateId from
+                // the PlayerInitInfo, then register it with MobaActorRegistry.
                 return gameplay.IsRunning;
             }
             catch

@@ -384,16 +384,17 @@ namespace AbilityKit.Combat.Projectile
                 // 防止同一帧内对同一个碰撞体重复触发命中回调。
                 // 这样可保留“返回过程可跨帧多次命中同一目标”的行为，
                 // 同时避免单帧内多段射线检测造成重复触发。
-                var hitCollidersThisTick = p.HitCollidersThisTick;
+                var hitColliderIdsThisTick = p.HitColliderIdsThisTick;
+                Array.Clear(hitColliderIdsThisTick, 0, hitColliderIdsThisTick.Length);
                 var hitColliderCount = 0;
                 if (p.IgnoreCollider.Value != 0)
                 {
-                    hitCollidersThisTick[hitColliderCount++] = p.IgnoreCollider;
+                    hitColliderIdsThisTick[hitColliderCount++] = p.IgnoreCollider.Value;
                 }
 
                 while (remaining > 0f)
                 {
-                    if (!TrySweepSkippingIgnored(origin, dir, remaining, p.CollisionLayerMask, hitCollidersThisTick, hitColliderCount, p.CollisionHalfExtents, out var hit))
+                    if (!TrySweepSkippingIgnored(origin, dir, remaining, p.CollisionLayerMask, hitColliderIdsThisTick, hitColliderCount, p.CollisionHalfExtents, out var hit))
                     {
                         // 剩余线段内没有命中。
                         origin = origin + dir * remaining;
@@ -415,9 +416,9 @@ namespace AbilityKit.Combat.Projectile
                     // 命中过滤和按碰撞体冷却。
                     if (collisionResponse == ProjectileCollisionResponse.Ignore)
                     {
-                        if (hitColliderCount < hitCollidersThisTick.Length)
+                        if (hitColliderCount < hitColliderIdsThisTick.Length)
                         {
-                            hitCollidersThisTick[hitColliderCount++] = hit.Collider;
+                            hitColliderIdsThisTick[hitColliderCount++] = hit.Collider.Value;
                         }
 
                         origin = hit.Point + dir * epsilonAdvance;
@@ -433,6 +434,11 @@ namespace AbilityKit.Combat.Projectile
 
                     if (p.HitCooldownFrames > 0 && hit.Collider.Equals(p.LastHitCollider) && frame < p.LastHitAllowedFrame)
                     {
+                        if (hitColliderCount < hitColliderIdsThisTick.Length)
+                        {
+                            hitColliderIdsThisTick[hitColliderCount++] = hit.Collider.Value;
+                        }
+
                         origin = hit.Point + dir * epsilonAdvance;
                         remaining -= hit.Distance + epsilonAdvance;
                         hitCount++;
@@ -447,7 +453,7 @@ namespace AbilityKit.Combat.Projectile
                     var alreadyHitThisTick = false;
                     for (int hc = 0; hc < hitColliderCount; hc++)
                     {
-                        if (hitCollidersThisTick[hc].Equals(hit.Collider))
+                        if (hitColliderIdsThisTick[hc] == hit.Collider.Value)
                         {
                             alreadyHitThisTick = true;
                             break;
@@ -467,9 +473,9 @@ namespace AbilityKit.Combat.Projectile
                         continue;
                     }
 
-                    if (hitColliderCount < hitCollidersThisTick.Length)
+                    if (hitColliderCount < hitColliderIdsThisTick.Length)
                     {
-                        hitCollidersThisTick[hitColliderCount++] = hit.Collider;
+                        hitColliderIdsThisTick[hitColliderCount++] = hit.Collider.Value;
                     }
 
                     p.TotalHitCount++;
@@ -579,7 +585,7 @@ namespace AbilityKit.Combat.Projectile
             }
         }
 
-        private bool TrySweepSkippingIgnored(in Vec3 origin, in Vec3 dir, float maxDistance, int layerMask, ColliderId[] ignoredColliders, int ignoredColliderCount, in Vec3 halfExtents, out RaycastHit hit)
+        private bool TrySweepSkippingIgnored(in Vec3 origin, in Vec3 dir, float maxDistance, int layerMask, int[] ignoredColliderIds, int ignoredColliderCount, in Vec3 halfExtents, out RaycastHit hit)
         {
             // 使用固定重试次数，保持确定性并避免无限循环。
             const int maxAttempts = 4;
@@ -590,13 +596,13 @@ namespace AbilityKit.Combat.Projectile
 
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                if (!TrySweep(o, dir, remaining, layerMask, ignoredColliders, ignoredColliderCount, halfExtents, out hit))
+                if (!TrySweep(o, dir, remaining, layerMask, ignoredColliderIds, ignoredColliderCount, halfExtents, out hit))
                 {
                     hit = default;
                     return false;
                 }
 
-                if (!ContainsCollider(ignoredColliders, ignoredColliderCount, hit.Collider))
+                if (!ContainsCollider(ignoredColliderIds, ignoredColliderCount, hit.Collider))
                 {
                     return true;
                 }
@@ -615,7 +621,7 @@ namespace AbilityKit.Combat.Projectile
             return false;
         }
 
-        private bool TrySweep(in Vec3 origin, in Vec3 dir, float maxDistance, int layerMask, ColliderId[] ignoredColliders, int ignoredColliderCount, in Vec3 halfExtents, out RaycastHit hit)
+        private bool TrySweep(in Vec3 origin, in Vec3 dir, float maxDistance, int layerMask, int[] ignoredColliderIds, int ignoredColliderCount, in Vec3 halfExtents, out RaycastHit hit)
         {
             if (halfExtents.SqrMagnitude > 0f && _collision is IOrientedBoxSweepCollisionWorld boxSweepWorld)
             {
@@ -624,22 +630,22 @@ namespace AbilityKit.Combat.Projectile
                 if (right.SqrMagnitude <= 0f) right = Vec3.Right;
                 var up = Vec3.Cross(forward, right).Normalized;
                 var box = new OrientedBoxSweep(origin, right, up, forward, halfExtents);
-                var filter = new LayerFilter(layerMask);
+                var filter = new LayerFilter(layerMask, ignoredColliderIds);
                 return boxSweepWorld.SweepOrientedBox(in box, in forward, maxDistance, in filter, out hit);
             }
 
             var ray = new Ray3(origin, dir);
-            var filter2 = new LayerFilter(layerMask);
+            var filter2 = new LayerFilter(layerMask, ignoredColliderIds);
             return _collision.Raycast(ray, maxDistance, in filter2, out hit);
         }
 
-        private static bool ContainsCollider(ColliderId[] colliders, int count, ColliderId collider)
+        private static bool ContainsCollider(int[] colliderIds, int count, ColliderId collider)
         {
-            if (colliders == null || count <= 0) return false;
-            var limit = count < colliders.Length ? count : colliders.Length;
+            if (colliderIds == null || count <= 0) return false;
+            var limit = count < colliderIds.Length ? count : colliderIds.Length;
             for (var i = 0; i < limit; i++)
             {
-                if (colliders[i].Equals(collider)) return true;
+                if (colliderIds[i] == collider.Value) return true;
             }
             return false;
         }

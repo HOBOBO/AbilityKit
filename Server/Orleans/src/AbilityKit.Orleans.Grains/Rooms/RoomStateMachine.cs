@@ -38,7 +38,12 @@ internal static class RoomStateMachine
                     IsBot = isBot
                 }
             };
-            return Apply(state with { Members = members }, nowUnixMs);
+            var reactivatedOwner = ResolveOwner(members, state.Summary.OwnerAccountId);
+            return Apply(state with
+            {
+                Members = members,
+                Summary = state.Summary with { OwnerAccountId = reactivatedOwner }
+            }, nowUnixMs);
         }
 
         if (state.Summary.MaxPlayers > 0 && state.Members.Count >= state.Summary.MaxPlayers)
@@ -51,9 +56,7 @@ internal static class RoomStateMachine
         joinedMembers.Add(new RoomPersistentMember(
             accountId,
             new RoomMemberState(true, nowTicks, 0, isBot, joinOrdinal)));
-        var ownerAccountId = string.IsNullOrWhiteSpace(state.Summary.OwnerAccountId)
-            ? accountId
-            : state.Summary.OwnerAccountId;
+        var ownerAccountId = ResolveOwner(joinedMembers, state.Summary.OwnerAccountId);
         var next = state with
         {
             Summary = state.Summary with { OwnerAccountId = ownerAccountId, PlayerCount = joinedMembers.Count },
@@ -110,7 +113,12 @@ internal static class RoomStateMachine
         {
             State = member.State with { IsOnline = false, LastSeenTicks = nowTicks, OfflineSinceTicks = nowTicks }
         };
-        return Apply(state with { Members = members }, nowUnixMs);
+        var offlineOwner = ResolveOwner(members, state.Summary.OwnerAccountId);
+        return Apply(state with
+        {
+            Members = members,
+            Summary = state.Summary with { OwnerAccountId = offlineOwner }
+        }, nowUnixMs);
     }
 
     public static RoomTransitionResult SetLobbyReady(RoomPersistentState state, string accountId, bool ready, long nowTicks, long nowUnixMs)
@@ -736,6 +744,43 @@ internal static class RoomStateMachine
             .ThenBy(member => member.AccountId, StringComparer.Ordinal)
             .Select(member => member.AccountId)
             .FirstOrDefault();
+
+    /// <summary>
+    /// 保证房间永远不会在“有在线成员”时持有一个离线的 Owner：
+    /// 当前 Owner 仍是在线成员则保留；若是成员但已离线，则把 Owner 交给最早的在线成员
+    /// （无在线成员时保留原 Owner，以便其断线重连后恢复）。
+    /// 若 Owner 不是成员（不应出现于生产，仅测试构造），则保持不变。
+    /// </summary>
+    private static string ResolveOwner(
+        IReadOnlyList<RoomPersistentMember> members,
+        string currentOwnerAccountId)
+    {
+        if (string.IsNullOrWhiteSpace(currentOwnerAccountId))
+        {
+            // Owner 尚未指定：交给最早的在线成员（首个加入者成为 Owner）。
+            return SelectOwner(members) ?? string.Empty;
+        }
+
+        var ownerIsMember = false;
+        for (var index = 0; index < members.Count; index++)
+        {
+            var member = members[index];
+            if (!string.Equals(member.AccountId, currentOwnerAccountId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            ownerIsMember = true;
+            if (member.State.IsOnline)
+            {
+                return currentOwnerAccountId;
+            }
+        }
+
+        return ownerIsMember
+            ? SelectOwner(members) ?? currentOwnerAccountId
+            : currentOwnerAccountId;
+    }
 
     private static RoomTransitionResult ResetToLobby(RoomPersistentState state, string phaseReason, long nowUnixMs)
     {

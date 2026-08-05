@@ -5,6 +5,7 @@ using AbilityKit.Orleans.Gateway.Core;
 using AbilityKit.Orleans.Gateway.Handlers;
 using AbilityKit.Orleans.Grains.Persistence;
 using AbilityKit.Protocol.Room;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Orleans;
@@ -173,6 +174,106 @@ public sealed class RoomMembershipIntegrationTests
     }
 
     [Fact]
+    public async Task OwnerLeave_PushesTransferredOwnerSnapshotToRemainingMember()
+    {
+        var ownerId = NewId("owner");
+        var peerId = NewId("peer");
+        var (_, roomId) = await CreateMappedRoomAsync(ownerId);
+        var room = _client.GetGrain<IRoomGrain>(roomId);
+        await room.JoinAsync(peerId);
+        await Mapping.BindAccountRoomAsync(peerId, roomId);
+
+        var observer = new RecordingRoomStateObserver();
+        var observerReference =
+            _client.CreateObjectReference<IRoomStateGatewayPushObserver>(observer);
+        var bindingId = NewId("binding");
+        try
+        {
+            await room.BindStatePushObserverAsync(peerId, bindingId, observerReference);
+            await room.LeaveWithResultAsync(ownerId);
+
+            await WaitUntilAsync(() => Task.FromResult(
+                observer.Pushes.Any(push =>
+                    string.Equals(
+                        push.Snapshot.Summary.OwnerAccountId,
+                        peerId,
+                        StringComparison.Ordinal) &&
+                    push.Snapshot.Members is { Count: 1 } &&
+                    string.Equals(push.Snapshot.Members[0], peerId, StringComparison.Ordinal))));
+
+            var transferred = observer.Pushes.Last(push =>
+                string.Equals(
+                    push.Snapshot.Summary.OwnerAccountId,
+                    peerId,
+                    StringComparison.Ordinal));
+            Assert.Equal(roomId, transferred.RoomId);
+            Assert.DoesNotContain(ownerId, transferred.Snapshot.Members!);
+            Assert.Equal(1, transferred.Snapshot.Summary.PlayerCount);
+        }
+        finally
+        {
+            await room.UnbindStatePushObserverAsync(peerId, bindingId);
+            _client.DeleteObjectReference<IRoomStateGatewayPushObserver>(observerReference);
+        }
+    }
+
+    [Fact]
+    public async Task OwnerLeave_GatewaySubscriptionForwardsTransferredOwnerSnapshotToTransport()
+    {
+        var ownerId = NewId("owner");
+        var peerId = NewId("peer");
+        var (_, roomId) = await CreateMappedRoomAsync(ownerId);
+        var room = _client.GetGrain<IRoomGrain>(roomId);
+        await room.JoinAsync(peerId);
+        await Mapping.BindAccountRoomAsync(peerId, roomId);
+
+        const long connectionId = 30;
+        var registry = new GatewaySessionRegistry();
+        var session = new TestTransportSession(connectionId, peerId, roomId);
+        registry.Register(connectionId, session);
+        registry.BindAccount(peerId, connectionId);
+        var backgroundTasks = new GatewayBackgroundTaskQueue(
+            NullLogger<GatewayBackgroundTaskQueue>.Instance);
+        await backgroundTasks.StartAsync(default);
+        var subscriptions = new GatewayRoomStatePushSubscriptionManager(
+            _client,
+            registry,
+            backgroundTasks,
+            NullLogger<GatewayRoomStatePushSubscriptionManager>.Instance);
+
+        try
+        {
+            await subscriptions.EnsureBoundAsync(connectionId, roomId, peerId);
+            await room.LeaveWithResultAsync(ownerId);
+
+            await WaitUntilAsync(() => Task.FromResult(
+                session.RoomStatePushes.Any(push =>
+                    string.Equals(
+                        push.Snapshot.Summary.OwnerAccountId,
+                        peerId,
+                        StringComparison.Ordinal) &&
+                    push.Snapshot.Members is { Count: 1 } &&
+                    string.Equals(push.Snapshot.Members[0], peerId, StringComparison.Ordinal))));
+
+            var transferred = session.RoomStatePushes.Last(push =>
+                string.Equals(
+                    push.Snapshot.Summary.OwnerAccountId,
+                    peerId,
+                    StringComparison.Ordinal));
+            Assert.Equal(roomId, transferred.RoomId);
+            Assert.Equal(1, transferred.Snapshot.Summary.PlayerCount);
+            Assert.DoesNotContain(ownerId, transferred.Snapshot.Members!);
+        }
+        finally
+        {
+            await subscriptions.UnbindAsync(connectionId);
+            registry.Unregister(connectionId);
+            await backgroundTasks.StopAsync(default);
+            backgroundTasks.Dispose();
+        }
+    }
+
+    [Fact]
     public async Task ConnectionClosed_WhenAccountAlreadyRebound_DoesNotRemoveCurrentMembership()
     {
         var accountId = NewId("owner");
@@ -307,6 +408,17 @@ public sealed class RoomMembershipIntegrationTests
         }
     }
 
+    private sealed class RecordingRoomStateObserver : IRoomStateGatewayPushObserver
+    {
+        public ConcurrentQueue<WireRoomStateChangedPush> Pushes { get; } = new();
+
+        public void OnPush(uint opCode, byte[] payload)
+        {
+            if (opCode != RoomGatewayOpCodes.RoomStateChanged) return;
+            Pushes.Enqueue(WireRoomGatewayBinary.Deserialize<WireRoomStateChangedPush>(payload));
+        }
+    }
+
     private static string NewId(string prefix) => $"{prefix}-{Guid.NewGuid():N}";
 
     private sealed record TransportHarness(
@@ -329,6 +441,7 @@ public sealed class RoomMembershipIntegrationTests
         public string TransportName => "IntegrationTest";
         public GatewaySessionContext Context { get; }
         public bool IsConnected => true;
+        public ConcurrentQueue<WireRoomStateChangedPush> RoomStatePushes { get; } = new();
 
         public Task SendResponseAsync(
             uint opCode,
@@ -339,6 +452,15 @@ public sealed class RoomMembershipIntegrationTests
         public Task SendServerPushAsync(
             uint opCode,
             byte[] payload,
-            CancellationToken cancellationToken = default) => Task.CompletedTask;
+            CancellationToken cancellationToken = default)
+        {
+            if (opCode == RoomGatewayOpCodes.RoomStateChanged)
+            {
+                RoomStatePushes.Enqueue(
+                    WireRoomGatewayBinary.Deserialize<WireRoomStateChangedPush>(payload));
+            }
+
+            return Task.CompletedTask;
+        }
     }
 }

@@ -7,6 +7,34 @@ using AbilityKit.Network.Abstractions;
 namespace AbilityKit.Game.Flow
 {
     // Isolates SessionOrchestrator from the feature's broader runtime and presentation interfaces.
+
+    /// <summary>
+    /// Options object consolidating the 18 delegate/property dependencies of
+    /// <see cref="SessionLifecycleHost"/>. Extracted from the constructor to keep
+    /// the signature readable and allow future additions without cascading changes.
+    /// </summary>
+    internal sealed class SessionLifecycleHostOptions
+    {
+        public Func<BattleStartPlan> GetPlan { get; set; }
+        public Func<BattleContext> GetContext { get; set; }
+        public BattleSessionHandles Handles { get; set; }
+        public Func<Action<FramePacket>> GetFrameReceivedHandler { get; set; }
+        public Func<BattleLogicSessionOptions, BattleLogicSession> StartBattleLogicSession { get; set; }
+        public Action StopBattleLogicSession { get; set; }
+        public Action InvokeSessionStartingPipeline { get; set; }
+        public Action InvokeSessionStoppingPipeline { get; set; }
+        public Action InvokeReplaySetupPipeline { get; set; }
+        public Action StartRemoteDrivenLocalWorld { get; set; }
+        public Action StartConfirmedAuthorityWorld { get; set; }
+        public Action TryDestroyBattleWorlds { get; set; }
+        public Action DisposeSnapshotRouting { get; set; }
+        public Action DisposeConfirmedView { get; set; }
+        public Action DisposeRemoteDrivenWorld { get; set; }
+        public Action DisposeConfirmedWorld { get; set; }
+        public Action DisposeRemoteInterpolation { get; set; }
+        public Action ResetSessionHandles { get; set; }
+    }
+
     internal sealed class SessionLifecycleHost : ISessionOrchestratorHost
     {
         private readonly Func<BattleStartPlan> _getPlan;
@@ -28,44 +56,28 @@ namespace AbilityKit.Game.Flow
         private readonly Action _disposeRemoteInterpolation;
         private readonly Action _resetSessionHandles;
 
-        public SessionLifecycleHost(
-            Func<BattleStartPlan> getPlan,
-            Func<BattleContext> getContext,
-            BattleSessionHandles handles,
-            Func<Action<FramePacket>> getFrameReceivedHandler,
-            Func<BattleLogicSessionOptions, BattleLogicSession> startBattleLogicSession,
-            Action stopBattleLogicSession,
-            Action invokeSessionStartingPipeline,
-            Action invokeSessionStoppingPipeline,
-            Action invokeReplaySetupPipeline,
-            Action startRemoteDrivenLocalWorld,
-            Action startConfirmedAuthorityWorld,
-            Action tryDestroyBattleWorlds,
-            Action disposeSnapshotRouting,
-            Action disposeConfirmedView,
-            Action disposeRemoteDrivenWorld,
-            Action disposeConfirmedWorld,
-            Action disposeRemoteInterpolation,
-            Action resetSessionHandles)
+        public SessionLifecycleHost(SessionLifecycleHostOptions options)
         {
-            _getPlan = getPlan;
-            _getContext = getContext;
-            _handles = handles ?? throw new ArgumentNullException(nameof(handles));
-            _getFrameReceivedHandler = getFrameReceivedHandler;
-            _startBattleLogicSession = startBattleLogicSession;
-            _stopBattleLogicSession = stopBattleLogicSession;
-            _invokeSessionStartingPipeline = invokeSessionStartingPipeline;
-            _invokeSessionStoppingPipeline = invokeSessionStoppingPipeline;
-            _invokeReplaySetupPipeline = invokeReplaySetupPipeline;
-            _startRemoteDrivenLocalWorld = startRemoteDrivenLocalWorld;
-            _startConfirmedAuthorityWorld = startConfirmedAuthorityWorld;
-            _tryDestroyBattleWorlds = tryDestroyBattleWorlds;
-            _disposeSnapshotRouting = disposeSnapshotRouting;
-            _disposeConfirmedView = disposeConfirmedView;
-            _disposeRemoteDrivenWorld = disposeRemoteDrivenWorld;
-            _disposeConfirmedWorld = disposeConfirmedWorld;
-            _disposeRemoteInterpolation = disposeRemoteInterpolation;
-            _resetSessionHandles = resetSessionHandles;
+            if (options == null) throw new ArgumentNullException(nameof(options));
+
+            _getPlan = options.GetPlan;
+            _getContext = options.GetContext;
+            _handles = options.Handles ?? throw new ArgumentNullException(nameof(options.Handles));
+            _getFrameReceivedHandler = options.GetFrameReceivedHandler;
+            _startBattleLogicSession = options.StartBattleLogicSession;
+            _stopBattleLogicSession = options.StopBattleLogicSession;
+            _invokeSessionStartingPipeline = options.InvokeSessionStartingPipeline;
+            _invokeSessionStoppingPipeline = options.InvokeSessionStoppingPipeline;
+            _invokeReplaySetupPipeline = options.InvokeReplaySetupPipeline;
+            _startRemoteDrivenLocalWorld = options.StartRemoteDrivenLocalWorld;
+            _startConfirmedAuthorityWorld = options.StartConfirmedAuthorityWorld;
+            _tryDestroyBattleWorlds = options.TryDestroyBattleWorlds;
+            _disposeSnapshotRouting = options.DisposeSnapshotRouting;
+            _disposeConfirmedView = options.DisposeConfirmedView;
+            _disposeRemoteDrivenWorld = options.DisposeRemoteDrivenWorld;
+            _disposeConfirmedWorld = options.DisposeConfirmedWorld;
+            _disposeRemoteInterpolation = options.DisposeRemoteInterpolation;
+            _resetSessionHandles = options.ResetSessionHandles;
         }
 
         public BattleStartPlan Plan => _getPlan();

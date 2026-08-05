@@ -115,6 +115,15 @@ namespace AbilityKit.Demo.Moba.Systems
 
         private void ReconcileAttachedStateMachine(global::ActorEntity actor)
         {
+            // Runtime-owned state machines, such as projectile HFSMs, are attached explicitly
+            // and do not use an ActorBrain catalog binding. Their owner controls removal.
+            if (actor == null) return;
+            if (!actor.hasActorBrain)
+            {
+                _failedBindings.Remove(actor);
+                return;
+            }
+
             if (!TryResolveHfsmBinding(actor, out var binding))
             {
                 _failedBindings.Remove(actor);

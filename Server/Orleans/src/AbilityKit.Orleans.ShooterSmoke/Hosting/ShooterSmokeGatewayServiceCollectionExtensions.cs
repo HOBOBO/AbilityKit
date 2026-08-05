@@ -57,6 +57,9 @@ internal static class ShooterSmokeGatewayServiceCollectionExtensions
         services.AddSingleton<GatewayCore.GatewayTransportHandler>();
         services.AddSingleton<GatewayNetworking.TcpTransportServer>();
 
+        services.AddSingleton<GatewayCore.GatewayRoomMembershipService>();
+        services.AddSingleton<GatewayCore.GatewayStateSyncPushSubscriptionManager>();
+        services.AddSingleton<GatewayCore.GatewayRoomStatePushSubscriptionManager>();
         services.AddSingleton<GatewayCore.GatewayPushTargetGrain>();
         services.AddSingleton<AbilityKit.Orleans.Contracts.Battle.IGatewayPushTargetGrain>(sp => sp.GetRequiredService<GatewayCore.GatewayPushTargetGrain>());
         return services;

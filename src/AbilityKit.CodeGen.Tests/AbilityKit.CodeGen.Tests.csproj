@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Unity\Packages\com.abilitykit.codegen\DotNet~\AbilityKit.SourceGenerator\AbilityKit.SourceGenerator.csproj" />
+    <ProjectReference Include="..\..\Unity\Packages\com.abilitykit.analyzer\DotNet~\AbilityKit.Analyzer\AbilityKit.Analyzer.csproj" />
+    <ProjectReference Include="..\..\Unity\Packages\com.abilitykit.demo.moba.codegen\DotNet~\AbilityKit.Demo.Moba.CodeGen\AbilityKit.Demo.Moba.CodeGen.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.0.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

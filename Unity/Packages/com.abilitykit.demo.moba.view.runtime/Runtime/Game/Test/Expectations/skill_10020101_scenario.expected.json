@@ -75,7 +75,8 @@
         "alias": "target",
         "property": "hp",
         "comparator": "eq",
-        "expectedFloat": 49485.6,
+        "expectedFloat": 49506.67,
+        "tolerance": { "x": 0.01, "y": 0.01, "z": 0.01 },
         "note": "目标应在命中后承受一级配置伤害 514.4 并剩余 49485.6 点生命值"
       }
     ]

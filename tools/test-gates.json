@@ -63,6 +63,56 @@
       ]
     },
     {
+      "name": "moba-codegen",
+      "level": "P1",
+      "owner": "MOBA Runtime/Compile Time",
+      "description": "Build the framework and MOBA Roslyn components, enforce package ownership, and run generator/analyzer contract tests.",
+      "scope": [
+        "moba-codegen",
+        "source-generators",
+        "analyzers",
+        "unity-package-ownership"
+      ],
+      "requiredBefore": [
+        "merge-moba-codegen-or-analyzer-change",
+        "change-generated-moba-runtime-manifest"
+      ],
+      "failurePolicy": "Block the change until all Roslyn projects build, ownership remains isolated, and compile-time contracts pass.",
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Build framework source generators",
+          "kind": "dotnet-build",
+          "project": "Unity/Packages/com.abilitykit.codegen/DotNet~/AbilityKit.SourceGenerator/AbilityKit.SourceGenerator.csproj"
+        },
+        {
+          "name": "Build framework analyzers",
+          "kind": "dotnet-build",
+          "project": "Unity/Packages/com.abilitykit.analyzer/DotNet~/AbilityKit.Analyzer/AbilityKit.Analyzer.csproj"
+        },
+        {
+          "name": "Build MOBA source generators and analyzers",
+          "kind": "dotnet-build",
+          "project": "Unity/Packages/com.abilitykit.demo.moba.codegen/DotNet~/AbilityKit.Demo.Moba.CodeGen/AbilityKit.Demo.Moba.CodeGen.csproj"
+        },
+        {
+          "name": "Validate MOBA CodeGen package ownership",
+          "kind": "powershell-script",
+          "script": "tools/validate_moba_codegen_ownership.ps1"
+        },
+        {
+          "name": "MOBA CodeGen and analyzer contract tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.CodeGen.Tests/AbilityKit.CodeGen.Tests.csproj"
+        }
+      ]
+    },
+    {
       "name": "moba-console-smoke",
       "level": "P0",
       "owner": "MOBA Runtime/Presentation",
@@ -158,6 +208,11 @@
         "artifactRequired": true
       },
       "steps": [
+        {
+          "name": "MOBA CodeGen contracts",
+          "kind": "gate",
+          "gate": "moba-codegen"
+        },
         {
           "name": "Moba console smoke gate",
           "kind": "dotnet-test",

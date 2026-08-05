@@ -1,11 +1,9 @@
-using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Attributes.Core;
 using AbilityKit.Core.Continuous;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
-using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -26,7 +24,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (continuous == null || projection == null || modifiers == null || modifiers.Count == 0) return;
             if (projection.ModifierSourceId == 0) return;
             if (!TryGetAttributeTarget(projection.OwnerActorId, out var ctx, out var group)) return;
-            RefreshResourceContext(projection.OwnerActorId, ctx);
+            MobaResourceAttributeContextProjector.Refresh(_actors, projection.OwnerActorId);
  
             var stack = GetStack(continuous.Config);
             for (int i = 0; i < modifiers.Count; i++)
@@ -49,42 +47,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (ctx != null) ctx.ClearModifiers(projection.ModifierSourceId);
             else group?.ClearModifiers(projection.ModifierSourceId);
-            MobaContinuousModifierCaptureStore.Clear(projection.ModifierSourceId);
-        }
-
-        private void RefreshResourceContext(int actorId, AttributeContext ctx)
-        {
-            if (ctx == null || _actors == null) return;
-            if (!_actors.TryGetActorEntity(actorId, out var entity) || entity == null) return;
-            if (!entity.hasResourceContainer || entity.resourceContainer.Value == null || entity.resourceContainer.Value.Map == null) return;
-
-            foreach (var pair in entity.resourceContainer.Value.Map)
-            {
-                var type = pair.Key;
-                var state = pair.Value;
-                if (type == ResourceType.None || state == null) continue;
-
-                var name = type.ToString().ToLowerInvariant();
-                var current = state.Current;
-                var max = ResolveResourceMax(ctx, state);
-                var ratio = max > 0f ? Math.Max(0f, Math.Min(1f, current / max)) : 0f;
-
-                ctx.SetFloat($"resource.{name}.current", current);
-                ctx.SetFloat($"resource.{name}.max", max);
-                ctx.SetFloat($"resource.{name}.ratio", ratio);
-            }
-        }
-
-        private static float ResolveResourceMax(AttributeContext ctx, ResourceState state)
-        {
-            if (state == null) return 0f;
-            if (ctx != null && state.MaxAttribute.IsValid)
-            {
-                var max = ctx.GetValue(state.MaxAttribute);
-                if (max > 0f) return max;
-            }
-
-            return state.LastMax;
+            MobaContinuousModifierCaptureStore.Instance.Clear(projection.ModifierSourceId);
         }
 
         private bool TryGetAttributeTarget(int actorId, out AttributeContext ctx, out AttributeGroup group)
@@ -107,7 +70,7 @@ namespace AbilityKit.Demo.Moba.Services
             var sourceId = projection?.ModifierSourceId ?? 0;
             var stacked = ApplyStack(spec.Magnitude, stack);
             var magnitude = ApplyEvaluationPolicy(stacked, spec.EvaluationPolicy, context, out var capturedValue, out var hasCapturedValue);
-            MobaContinuousModifierCaptureStore.Record(new MobaContinuousModifierCaptureRecord(
+            MobaContinuousModifierCaptureStore.Instance.Record(new MobaContinuousModifierCaptureRecord(
                 continuous,
                 projection?.OwnerActorId ?? 0,
                 spec.TargetKind,

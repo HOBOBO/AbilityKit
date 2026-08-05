@@ -67,8 +67,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                 return;
             }
 
-            var triggerIds = ResolveAreaTriggerIds(eventId, aoe);
-            if (triggerIds == null || triggerIds.Length == 0) return;
+            var triggerIds = ResolveAreaTriggerIds(eventId, aoe) ?? Array.Empty<int>();
 
             var traceKind = ResolveAreaTraceKind(eventId);
             var sourceContextId = info.SourceContextId;
@@ -104,6 +103,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                     SourceContextId = sourceContextId,
                     RootContextId = rootContextId,
                     OwnerContextId = ownerContextId,
+                    SkillRuntimeHandle = info.SkillRuntimeHandle,
                     TraceKind = traceKind,
                     Center = center,
                     Radius = radius,

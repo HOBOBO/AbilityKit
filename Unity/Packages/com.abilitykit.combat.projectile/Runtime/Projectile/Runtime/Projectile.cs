@@ -7,7 +7,7 @@ namespace AbilityKit.Combat.Projectile
     {
         internal const int HitColliderBufferCapacity = 9;
 
-        public readonly ColliderId[] HitCollidersThisTick = new ColliderId[HitColliderBufferCapacity];
+        public readonly int[] HitColliderIdsThisTick = new int[HitColliderBufferCapacity];
 
         public ProjectileId Id;
         public int OwnerId;

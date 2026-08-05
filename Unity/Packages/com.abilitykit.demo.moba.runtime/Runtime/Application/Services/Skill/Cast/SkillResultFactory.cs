@@ -45,14 +45,9 @@ namespace AbilityKit.Demo.Moba.Services
         internal static MobaSkillCastFailure StartReject(in SkillPipelineRunner runner, string failReason)
         {
             var startReject = runner?.LastStartReject;
-            if (startReject.HasValue)
+            if (startReject.HasValue && startReject.Value.HasValue)
             {
                 return new MobaSkillCastFailure("StartReject", null, startReject.Value.Code, startReject.Value.Message ?? failReason);
-            }
-
-            if (runner != null && !string.IsNullOrEmpty(runner.LastFailReason))
-            {
-                return new MobaSkillCastFailure("StartReject", null, SkillFailureCodes.Start.Rejected, runner.LastFailReason);
             }
 
             return MobaSkillCastFailure.None;
@@ -61,7 +56,7 @@ namespace AbilityKit.Demo.Moba.Services
         internal static MobaSkillCastFailure PipelineFailure(in SkillPipelineRunner runner, string failReason)
         {
             var pipelineFailure = runner?.LastPipelineFailure;
-            if (pipelineFailure.HasValue)
+            if (pipelineFailure.HasValue && pipelineFailure.Value.HasValue)
             {
                 return new MobaSkillCastFailure("Pipeline", pipelineFailure.Value.Stage, pipelineFailure.Value.Code, pipelineFailure.Value.Message ?? failReason);
             }

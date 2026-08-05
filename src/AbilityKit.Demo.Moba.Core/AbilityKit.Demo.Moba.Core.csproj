@@ -71,6 +71,15 @@
     <ProjectReference Include="..\AbilityKit.Flow\AbilityKit.Flow.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\Unity\Packages\com.abilitykit.demo.moba.codegen\DotNet~\AbilityKit.Demo.Moba.CodeGen\AbilityKit.Demo.Moba.CodeGen.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\Unity\Packages\com.abilitykit.analyzer\DotNet~\AbilityKit.Analyzer\AbilityKit.Analyzer.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
   <!-- NuGet Dependencies -->
   <ItemGroup>
     <PackageReference Include="Entitas" Version="1.14.2" />

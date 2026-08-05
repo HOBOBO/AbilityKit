@@ -10,6 +10,12 @@ using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Ability.Host.Extensions.FrameSync
 {
+    // TODO(v1.0): Extract IClientPredictionDriver interface from this module to unify the
+    // three parallel prediction stacks currently in the codebase:
+    //   1. This module (host.extension, used by MOBA demo)
+    //   2. host.extension/Client/FrameSync/* Generic primitives (used by ConfirmedAuthority path)
+    //   3. ShooterClientPredictionRuntimeAdapter + ShooterPackedSnapshotRollbackProvider (shooter demo)
+    // See: Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/
     public sealed class ClientPredictionDriverModule : IHostRuntimeModule, IHostRuntimeTickGate, IClientPredictionDriverStats, IClientPredictionTuningControl, IClientPredictionReconcileTarget, IClientPredictionReconcileControl, IClientPredictionBaselineControl
     {
         private const int ReplayWaitTimeoutTicks = 120;

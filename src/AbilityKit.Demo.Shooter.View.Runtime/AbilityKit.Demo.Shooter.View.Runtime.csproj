@@ -9,7 +9,7 @@
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.common/Runtime/Rooms/DemoRoomDirectory.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/**/*.cs"
-             Exclude="../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/**/*.asmdef;../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Unity/**/*.cs" />
+             Exclude="../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/**/*.asmdef;../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Unity/**/*.cs;../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Test/ShooterHeadlessClient.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Core/AbilityKit.Core.csproj" />

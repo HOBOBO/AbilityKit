@@ -35,6 +35,9 @@ namespace AbilityKit.Game.Flow
         [LabelText("Max Players")]
         public int MaxPlayers = 2;
 
+        [LabelText("Min Players")]
+        public int MinPlayers = 2;
+
         [LabelText("Room List Limit")]
         public int RoomListLimit = 10;
 
@@ -63,7 +66,10 @@ namespace AbilityKit.Game.Flow
         public bool AutoReadyDefaultLoadout = true;
 
         [LabelText("Auto Start When Ready")]
-        public bool AutoStartWhenReady = true;
+        public bool AutoStartWhenReady;
+
+        [LabelText("Auto Create When Empty")]
+        public bool AutoCreateWhenEmpty = true;
 
         [LabelText("Default Hero Id")]
         public int DefaultHeroId = 1001;
@@ -132,6 +138,7 @@ namespace AbilityKit.Game.Flow
                 RoomType = RoomType.Trim(),
                 RoomTitle = RoomTitle.Trim(),
                 MaxPlayers = MaxPlayers,
+                MinPlayers = MinPlayers,
                 GameplayId = GameplayId,
                 RuleSetId = RuleSetId,
                 ConfigVersion = ConfigVersion,
@@ -188,6 +195,11 @@ namespace AbilityKit.Game.Flow
             if (MaxPlayers <= 0)
             {
                 error = "Maximum players must be greater than zero.";
+                return false;
+            }
+            if (MinPlayers <= 0 || MinPlayers > MaxPlayers)
+            {
+                error = "Minimum players must be between 1 and maximum players.";
                 return false;
             }
             if (GameplayId <= 0)

@@ -13,6 +13,41 @@
     "slot": 1,
     "phase": "Press"
   },
+  "scenario": {
+    "scenarioId": "skill_10010101_golden_dash",
+    "worldId": "skill_10010101_acceptance_world",
+    "tickRate": 30,
+    "accelerated": true,
+    "actors": [
+      {
+        "alias": "caster",
+        "playerId": "p1",
+        "teamId": 1,
+        "heroId": 1001,
+        "attributeTemplateId": 1001,
+        "skillIds": [10010101, 10010201, 10010301],
+        "spawnPosition": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": 1.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "timeline": [
+      {
+        "stepId": "release_skill_1",
+        "atMs": 0,
+        "action": "release",
+        "actorAlias": "caster",
+        "slot": 1,
+        "position": { "x": 3.0, "y": 0.0, "z": 0.0 },
+        "direction": { "x": 1.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "stepId": "wait_for_dash_action",
+        "atMs": 1,
+        "action": "wait",
+        "durationMs": 100
+      }
+    ]
+  },
   "config": {
     "skillId": 10010101,
     "castFlowId": 10010101,

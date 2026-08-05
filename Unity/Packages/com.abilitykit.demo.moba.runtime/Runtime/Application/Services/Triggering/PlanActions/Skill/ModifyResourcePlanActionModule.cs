@@ -62,6 +62,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             else if (state.LastMax > 0f && next > state.LastMax) next = state.LastMax;
 
             state.Current = next;
+            MobaResourceAttributeContextProjector.Refresh(entity);
             MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.ModifyResource, $"actorId={actorId}, type={args.ResourceType}, amount={args.Amount:0.###}, current={state.Current:0.###}");
         }
     }
