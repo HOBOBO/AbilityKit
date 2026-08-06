@@ -14,7 +14,7 @@ public sealed class MobaTargetQueryFactoryRegistryTests
             var registry = MobaTargetQueryFactoryRegistry.BuildDefaultRegistry();
 
             Assert.Equal(8, registry.SourceCount);
-            Assert.Equal(8, registry.FilterCount);
+            Assert.Equal(10, registry.FilterCount);
             Assert.Equal(4, registry.OrderCount);
             Assert.Equal(2, registry.SelectCount);
         }

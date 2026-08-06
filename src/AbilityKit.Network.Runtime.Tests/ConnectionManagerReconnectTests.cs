@@ -8,6 +8,15 @@ namespace AbilityKit.Network.Runtime.Tests;
 public sealed class ConnectionManagerReconnectTests
 {
     [Fact]
+    public void ConnectionOptions_DoNotEnableBusinessKickProtocolByDefault()
+    {
+        var options = new ConnectionOptions();
+
+        Assert.False(options.EnableKickHandling);
+        Assert.Equal(0U, options.KickPushOpCode);
+    }
+
+    [Fact]
     public void ReconnectCadence_PreservesAttemptsAcrossTransportReplacementAndStopsAtLimit()
     {
         var transports = new List<TestTransport>();

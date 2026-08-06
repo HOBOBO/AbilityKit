@@ -133,13 +133,19 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
             "com.abilitykit.demo.shooter.view.runtime",
             "Runtime", "PlayMode", "ShooterRemoteStateSyncConnectionFlow.cs");
         var restoreFirstPolicy = ReadUnityPackageSource(
-            "com.abilitykit.host.extension",
+            "com.abilitykit.network.room",
+            "Runtime", "RoomGatewayRestoreFirstConnectionPolicy.cs");
+        var root = FindRepositoryRoot(AppContext.BaseDirectory);
+        var legacyPolicyPath = Path.Combine(
+            root,
+            "Unity", "Packages", "com.abilitykit.host.extension",
             "Runtime", "Session", "RoomGatewayRestoreFirstConnectionPolicy.cs");
 
         Assert.Contains("RoomGatewayRestoreFirstConnectionPolicy.ConnectAsync", connectionFlow);
         Assert.Contains("RestoreRoomAsLaunchAsync", connectionFlow);
         Assert.DoesNotContain("catch (Exception ex) when (launchOptions.LaunchMode == ShooterRemoteStateSyncLaunchMode.RestoreFirst)", connectionFlow);
         Assert.Contains("public static class RoomGatewayRestoreFirstConnectionPolicy", restoreFirstPolicy);
+        Assert.False(File.Exists(legacyPolicyPath));
         Assert.Contains("allowFallbackCreate", restoreFirstPolicy);
         Assert.Contains("UsedFallbackCreate", restoreFirstPolicy);
         Assert.Contains("RestoreFailure", restoreFirstPolicy);

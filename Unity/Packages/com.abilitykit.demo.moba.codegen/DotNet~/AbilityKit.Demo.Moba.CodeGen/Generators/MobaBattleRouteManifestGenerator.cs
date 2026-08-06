@@ -45,10 +45,9 @@ namespace AbilityKit.Demo.Moba.CodeGen
             {
                 if (!seenTypes.Add(type)) continue;
 
-                var attributes = type.GetAttributes();
-                var routeAttribute = attributes.FirstOrDefault(attribute =>
+                var attributes = type.GetAttributes().Where(attribute =>
                     MobaBattleRouteContract.IsOrDerivesFrom(attribute.AttributeClass, routeAttributeType));
-                if (routeAttribute != null)
+                foreach (var routeAttribute in attributes)
                 {
                     if (SymbolEqualityComparer.Default.Equals(routeAttribute.AttributeClass, routeAttributeType))
                     {
@@ -64,22 +63,6 @@ namespace AbilityKit.Demo.Moba.CodeGen
                             routes.Add(route);
                             inputs.Add(input);
                         }
-                    }
-                }
-
-                var separateInputAttribute = attributes.FirstOrDefault(attribute =>
-                    SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, inputAttributeType));
-                if (separateInputAttribute != null && !ReferenceEquals(separateInputAttribute, routeAttribute))
-                {
-                    if (TryCreateInputRoute(
-                            type,
-                            separateInputAttribute,
-                            inputHandlerType,
-                            out _,
-                            out var input,
-                            out var error))
-                    {
-                        inputs.Add(input);
                     }
                 }
             }
@@ -111,12 +94,23 @@ namespace AbilityKit.Demo.Moba.CodeGen
                 return false;
             }
 
+            var payloadType = MobaBattleRouteContract.GetNamedType(attribute, "PayloadType");
+            var handlerType = MobaBattleRouteContract.GetNamedType(attribute, "HandlerType");
+            if (!MobaBattleRouteContract.TryValidateGeneratedRouteTypes(
+                    ownerType,
+                    payloadType,
+                    handlerType,
+                    out error))
+            {
+                return false;
+            }
+
             route = new RouteMapping(
                 ownerType,
                 opCode,
                 kind,
-                MobaBattleRouteContract.GetNamedType(attribute, "PayloadType"),
-                MobaBattleRouteContract.GetNamedType(attribute, "HandlerType"),
+                payloadType,
+                handlerType,
                 MobaBattleRouteContract.GetNamedString(attribute, "Name"));
             return true;
         }
@@ -151,11 +145,21 @@ namespace AbilityKit.Demo.Moba.CodeGen
                 return false;
             }
 
+            var payloadType = MobaBattleRouteContract.GetNamedType(attribute, "PayloadType");
+            if (!MobaBattleRouteContract.TryValidateGeneratedRouteTypes(
+                    ownerType,
+                    payloadType,
+                    ownerType,
+                    out error))
+            {
+                return false;
+            }
+
             route = new RouteMapping(
                 ownerType,
                 opCode,
                 kind: MobaBattleRouteContract.RuntimeInputKind,
-                MobaBattleRouteContract.GetNamedType(attribute, "PayloadType"),
+                payloadType,
                 ownerType,
                 MobaBattleRouteContract.GetNamedString(attribute, "Name"));
             input = new InputMapping(ownerType, opCode);
@@ -164,30 +168,31 @@ namespace AbilityKit.Demo.Moba.CodeGen
 
         private static void RemoveDuplicateRoutes(List<RouteMapping> routes)
         {
-            var duplicateTypes = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+            var duplicateKeys = new HashSet<string>(StringComparer.Ordinal);
             foreach (var group in routes.GroupBy(
                          route => MobaBattleRouteContract.GetRouteKey(route.Kind, route.OpCode),
                          StringComparer.Ordinal))
             {
                 var entries = group.OrderBy(route => route.QualifiedOwnerTypeName, StringComparer.Ordinal).ToArray();
                 if (entries.Length <= 1) continue;
-                foreach (var entry in entries) duplicateTypes.Add(entry.OwnerType);
+                duplicateKeys.Add(MobaBattleRouteContract.GetRouteKey(entries[0].Kind, entries[0].OpCode));
             }
 
-            routes.RemoveAll(route => duplicateTypes.Contains(route.OwnerType));
+            routes.RemoveAll(route => duplicateKeys.Contains(
+                MobaBattleRouteContract.GetRouteKey(route.Kind, route.OpCode)));
         }
 
         private static void RemoveDuplicateInputs(List<InputMapping> inputs)
         {
-            var duplicateTypes = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+            var duplicateOpCodes = new HashSet<int>();
             foreach (var group in inputs.GroupBy(input => input.OpCode))
             {
                 var entries = group.OrderBy(input => input.QualifiedHandlerTypeName, StringComparer.Ordinal).ToArray();
                 if (entries.Length <= 1) continue;
-                foreach (var entry in entries) duplicateTypes.Add(entry.HandlerType);
+                duplicateOpCodes.Add(entries[0].OpCode);
             }
 
-            inputs.RemoveAll(input => duplicateTypes.Contains(input.HandlerType));
+            inputs.RemoveAll(input => duplicateOpCodes.Contains(input.OpCode));
         }
 
         private static int CompareRoutes(RouteMapping left, RouteMapping right)
@@ -222,13 +227,12 @@ namespace AbilityKit.Demo.Moba.CodeGen
             source.AppendLine("        {");
             foreach (var route in routes)
             {
-                source.Append("            registry.Register(new MobaBattleRouteDescriptor(")
+                source.Append("            if (registry.Register(new MobaBattleRouteDescriptor(")
                     .Append(route.OpCode).Append(", (MobaBattleRouteKind)").Append(route.Kind)
                     .Append(", typeof(").Append(route.QualifiedOwnerTypeName).Append("), ")
                     .Append(FormatType(route.PayloadType)).Append(", ")
                     .Append(FormatType(route.HandlerType)).Append(", ")
-                    .Append(FormatString(route.Name)).AppendLine("));");
-                source.AppendLine("            count++;");
+                    .Append(FormatString(route.Name)).AppendLine("))) count++;");
             }
 
             source.AppendLine("        }");
@@ -240,9 +244,8 @@ namespace AbilityKit.Demo.Moba.CodeGen
             source.AppendLine("        {");
             foreach (var input in inputs)
             {
-                source.Append("            registry.Register(").Append(input.OpCode)
-                    .Append(", typeof(").Append(input.QualifiedHandlerTypeName).AppendLine("));");
-                source.AppendLine("            count++;");
+                source.Append("            if (registry.TryRegisterGenerated(").Append(input.OpCode)
+                    .Append(", typeof(").Append(input.QualifiedHandlerTypeName).AppendLine("))) count++;");
             }
 
             source.AppendLine("        }");

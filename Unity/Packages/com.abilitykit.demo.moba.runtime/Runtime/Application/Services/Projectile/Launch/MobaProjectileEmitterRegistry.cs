@@ -9,12 +9,15 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
     public interface IMobaProjectileEmitterRegistry
     {
         void Register(ProjectileEmitterType emitterType, Func<IMobaProjectileLaunchSequence> factory, int priority = 0, bool isDefault = false);
+        bool TryRegister(ProjectileEmitterType emitterType, Func<IMobaProjectileLaunchSequence> factory, int priority = 0, bool isDefault = false);
         bool TryCreate(ProjectileEmitterType emitterType, out IMobaProjectileLaunchSequence sequence);
+        bool TryCreateDefault(out IMobaProjectileLaunchSequence sequence);
     }
 
     public sealed class MobaProjectileEmitterRegistry : IMobaProjectileEmitterRegistry
     {
         private readonly Dictionary<ProjectileEmitterType, Entry> _entries = new Dictionary<ProjectileEmitterType, Entry>();
+        private ProjectileEmitterType? _defaultEmitterType;
 
         public MobaProjectileEmitterRegistry()
         {
@@ -54,19 +57,32 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
 
         public void Register(ProjectileEmitterType emitterType, Func<IMobaProjectileLaunchSequence> factory, int priority = 0, bool isDefault = false)
         {
-            if (factory == null) return;
+            TryRegister(emitterType, factory, priority, isDefault);
+        }
+
+        public bool TryRegister(ProjectileEmitterType emitterType, Func<IMobaProjectileLaunchSequence> factory, int priority = 0, bool isDefault = false)
+        {
+            if (factory == null) return false;
+
+            if (isDefault && _defaultEmitterType.HasValue && _defaultEmitterType.Value != emitterType)
+            {
+                throw new InvalidOperationException(
+                    $"Ambiguous default MOBA projectile emitter types '{_defaultEmitterType.Value}' and '{emitterType}'.");
+            }
 
             var entry = new Entry(emitterType, factory, priority);
             if (!_entries.TryGetValue(emitterType, out var current))
             {
                 _entries.Add(emitterType, entry);
-                return;
+                if (isDefault) _defaultEmitterType = emitterType;
+                return true;
             }
 
             if (priority > current.Priority)
             {
                 _entries[emitterType] = entry;
-                return;
+                if (isDefault) _defaultEmitterType = emitterType;
+                return true;
             }
 
             if (priority == current.Priority)
@@ -74,6 +90,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
                 throw new InvalidOperationException(
                     $"Ambiguous MOBA projectile emitter '{emitterType}' at priority '{priority}'.");
             }
+
+            if (isDefault) _defaultEmitterType = emitterType;
+            return false;
         }
 
         internal int Count => _entries.Count;
@@ -89,6 +108,14 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             sequence = entry.Factory?.Invoke();
             return sequence != null;
         }
+
+        public bool TryCreateDefault(out IMobaProjectileLaunchSequence sequence)
+        {
+            sequence = null;
+            return _defaultEmitterType.HasValue && TryCreate(_defaultEmitterType.Value, out sequence);
+        }
+
+        internal ProjectileEmitterType? DefaultEmitterType => _defaultEmitterType;
 
         public void RegisterFromAssembly(Assembly assembly)
         {

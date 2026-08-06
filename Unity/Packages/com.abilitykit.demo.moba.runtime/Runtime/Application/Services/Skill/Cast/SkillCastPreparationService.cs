@@ -286,10 +286,13 @@ namespace AbilityKit.Demo.Moba.Services
                         center: (int)SearchTargetPointKind.Caster,
                         radius: range)
                 },
-                scorer: new SearchTargetScorerConfig(
-                    id: 0,
-                    kind: (int)SearchTargetScorerKind.DistanceToCaster,
-                    source: (int)SearchTargetPointKind.Caster),
+                scorers: new[]
+                {
+                    new SearchTargetScorerConfig(
+                        id: 0,
+                        kind: (int)SearchTargetScorerKind.DistanceToCaster,
+                        source: (int)SearchTargetPointKind.Caster)
+                },
                 selector: new SearchTargetSelectorConfig(
                     id: 0,
                     kind: (int)SearchTargetSelectorKind.TopKByScore));

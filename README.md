@@ -577,7 +577,7 @@ dotnet run
 
 ## 文档导航
 
-详细设计文档位于各模块的 `Document/` 目录下：
+详细设计文档位于各模块的 `Document/` 或 `Documentation~/` 目录下：
 
 
 | 模块                                                                                                | 文档                                         |
@@ -598,7 +598,7 @@ dotnet run
 | [Diagnostics](./Unity/Packages/com.abilitykit.diagnostics/Document/Diagnostics诊断与性能分析模块开发设计文档.md) | 诊断、Profiler 与可观测性工具                         |
 | [Behavior](./Unity/Packages/com.abilitykit.behavior/Document/Behavior行为执行模块开发设计文档.md)     | 行为运行时与 Pipeline 行为阶段                         |
 | [帧同步](./Unity/Packages/com.abilitykit.world.framesync/Document/)                                  | 帧同步与回滚                                     |
-| [Targeting](./Unity/Packages/com.abilitykit.combat.targeting/Document/)                           | 目标查找框架                                     |
+| [Targeting](./Unity/Packages/com.abilitykit.combat.targeting/Documentation~/)                     | 目标查找框架                                     |
 | [Projectile](./Unity/Packages/com.abilitykit.combat.projectile/Document/)                         | 投射物系统                                      |
 | [Motion](./Unity/Packages/com.abilitykit.combat.motion/Document/)                                  | 战斗移动、轨迹和碰撞求解                               |
 | [战斗传输层](./Unity/Packages/com.abilitykit.game.battle.runtime/Document/BattleTransportDesign.md)    | 战斗传输层架构、NetworkTransport                   |

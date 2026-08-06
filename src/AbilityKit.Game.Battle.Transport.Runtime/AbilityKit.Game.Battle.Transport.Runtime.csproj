@@ -17,10 +17,13 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/AbilityKit.Game.Battle.Runtime/AbilityKit.Game.Battle.Runtime.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Network.Battle/AbilityKit.Network.Battle.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Network.Sdk/AbilityKit.Network.Sdk.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.Snapshot/AbilityKit.World.Snapshot.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Protocol.Moba/AbilityKit.Protocol.Moba.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Protocol.Room/AbilityKit.Protocol.Room.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.StateSync/AbilityKit.World.StateSync.csproj" />
   </ItemGroup>
 

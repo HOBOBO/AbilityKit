@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using AbilityKit.Ability.Host.Extensions.Client.FrameSync;
+using AbilityKit.Network.Room;
 using System.Threading.Tasks;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Demo.Common.Rooms;
@@ -113,6 +114,7 @@ namespace AbilityKit.Demo.Shooter.View
     {
         private readonly IShooterRoomGatewayRequestTransport _transport;
         private readonly ShooterRoomGatewayRoomOpCodes _opCodes;
+        private readonly RoomGatewayWireSessionClient _roomSessionClient;
         private readonly object _snapshotGate = new object();
         private ShooterGatewayStagedRoomSnapshot? _current;
 
@@ -125,10 +127,11 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _opCodes = opCodes;
-            if (_transport is IShooterRoomGatewayPushTransport pushTransport)
-            {
-                pushTransport.ServerPushReceived += HandleServerPush;
-            }
+            _roomSessionClient = new RoomGatewayWireSessionClient(
+                _transport,
+                _transport as IShooterRoomGatewayPushTransport,
+                ToWireOpCodes(in opCodes));
+            _roomSessionClient.SnapshotChanged += HandleSharedSnapshotChanged;
         }
 
         public ShooterGatewayStagedRoomSnapshot? Current
@@ -222,22 +225,23 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ValidateCreateRoom(in request);
-
-            var req = new WireCreateRoomReq
-            {
-                SessionToken = request.SessionToken,
-                Region = request.Region,
-                ServerId = request.ServerId,
-                RoomType = request.RoomType,
-                Title = request.Title,
-                IsPublic = request.IsPublic,
-                MaxPlayers = request.MaxPlayers,
-                Tags = ToDictionary(request.Tags)
-            };
-            var payload = WireRoomGatewayBinary.Serialize(in req);
-            var respPayload = await _transport.SendRequestAsync(_opCodes.CreateRoom, payload, timeout, cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireCreateRoomRes>(respPayload);
-            return new ShooterGatewayCreateRoomResult(wire.Success, wire.RoomId ?? string.Empty, wire.NumericRoomId, wire.Message ?? string.Empty);
+            var result = await _roomSessionClient.CreateRoomAsync(
+                new RoomGatewayCreateRequest(
+                    request.SessionToken,
+                    request.Region,
+                    request.ServerId,
+                    request.RoomType,
+                    request.Title,
+                    request.IsPublic,
+                    request.MaxPlayers,
+                    request.Tags),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            return new ShooterGatewayCreateRoomResult(
+                result.Success,
+                result.RoomId,
+                result.NumericRoomId,
+                result.Message);
         }
 
         public async Task<ShooterGatewayJoinRoomResult> JoinRoomAsync(
@@ -246,31 +250,27 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ValidateJoinRoom(in request);
-
-            var req = new WireJoinRoomReq
-            {
-                SessionToken = request.SessionToken,
-                Region = request.Region,
-                ServerId = request.ServerId,
-                RoomId = request.RoomId
-            };
-            var payload = WireRoomGatewayBinary.Serialize(in req);
-            var respPayload = await _transport.SendRequestAsync(_opCodes.JoinRoom, payload, timeout, cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireJoinRoomRes>(respPayload);
-            var worldStartAnchor = wire.WorldStartAnchor;
-            var anchor = ToAnchor(in worldStartAnchor);
+            var result = await _roomSessionClient.JoinRoomAsync(
+                new RoomGatewayJoinRequest(
+                    request.SessionToken,
+                    request.Region,
+                    request.ServerId,
+                    request.RoomId),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            var anchor = ToAnchor(in result.WorldStartAnchor);
             return new ShooterGatewayJoinRoomResult(
-                wire.Success,
-                wire.RoomId ?? string.Empty,
-                wire.NumericRoomId,
+                result.Success,
+                result.RoomId,
+                result.NumericRoomId,
                 in anchor,
-                wire.Message ?? string.Empty,
-                wire.Snapshot.BattleId ?? string.Empty,
-                wire.Snapshot.CanStart,
-                ToJoinKind(wire.JoinKind),
-                wire.ServerNowTicks,
-                wire.Snapshot.WorldId,
-                wire.CurrentPlayerId);
+                result.Message,
+                result.BattleId,
+                result.CanStart,
+                ToJoinKind(result.JoinKind),
+                result.ServerNowTicks,
+                result.WorldId,
+                result.CurrentPlayerId);
         }
 
         public async Task<ShooterGatewayRoomSnapshotResult> SetReadyAsync(
@@ -279,17 +279,17 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ValidateReady(in request);
-
-            var req = new WireRoomReadyReq
-            {
-                SessionToken = request.SessionToken,
-                RoomId = request.RoomId,
-                Ready = request.Ready
-            };
-            var payload = WireRoomGatewayBinary.Serialize(in req);
-            var respPayload = await _transport.SendRequestAsync(_opCodes.SetReady, payload, timeout, cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireRoomSnapshotRes>(respPayload);
-            return new ShooterGatewayRoomSnapshotResult(wire.Success, wire.RoomId ?? string.Empty, wire.NumericRoomId, wire.Message ?? string.Empty, wire.Snapshot.BattleId ?? string.Empty, wire.Snapshot.CanStart);
+            var result = await _roomSessionClient.SetReadyAsync(
+                new RoomGatewayReadyRequest(request.SessionToken, request.RoomId, request.Ready),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            return new ShooterGatewayRoomSnapshotResult(
+                result.Success,
+                result.RoomId,
+                result.NumericRoomId,
+                result.Message,
+                result.BattleId,
+                result.CanStart);
         }
 
         public async Task<ShooterGatewayStartBattleResult> StartBattleAsync(
@@ -298,37 +298,34 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ValidateStartBattle(in request);
-
-            var req = new WireStartRoomBattleReq
-            {
-                SessionToken = request.SessionToken,
-                RoomId = request.RoomId,
-                GameplayId = request.GameplayId,
-                RuleSetId = request.RuleSetId,
-                ConfigVersion = request.ConfigVersion,
-                ProtocolVersion = request.ProtocolVersion,
-                WorldType = request.WorldType,
-                ClientId = request.ClientId,
-                SyncTemplateId = request.SyncTemplateId,
-                SyncModel = request.SyncModel,
-                NetworkEnvironmentId = request.NetworkEnvironmentId,
-                CarrierName = request.CarrierName,
-                EnableAuthoritativeWorld = request.EnableAuthoritativeWorld,
-                InterpolationEnabled = request.InterpolationEnabled,
-                InputDelayFrames = request.InputDelayFrames
-            };
-            var payload = WireRoomGatewayBinary.Serialize(in req);
-            var respPayload = await _transport.SendRequestAsync(_opCodes.StartBattle, payload, timeout, cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireStartRoomBattleRes>(respPayload);
-            var worldStartAnchor = wire.WorldStartAnchor;
+            var result = await _roomSessionClient.StartBattleAsync(
+                new RoomGatewayStartBattleRequest(
+                    request.SessionToken,
+                    request.RoomId,
+                    request.GameplayId,
+                    request.RuleSetId,
+                    request.ConfigVersion,
+                    request.ProtocolVersion,
+                    request.WorldType,
+                    request.ClientId,
+                    request.SyncTemplateId,
+                    request.SyncModel,
+                    request.NetworkEnvironmentId,
+                    request.CarrierName,
+                    request.EnableAuthoritativeWorld,
+                    request.InterpolationEnabled,
+                    request.InputDelayFrames),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            var anchor = ToAnchor(in result.WorldStartAnchor);
             return new ShooterGatewayStartBattleResult(
-                wire.Success,
-                wire.BattleId ?? string.Empty,
-                wire.WorldId,
-                wire.Started,
-                ToAnchor(in worldStartAnchor),
-                wire.ServerNowTicks,
-                wire.Message ?? string.Empty);
+                result.Success,
+                result.BattleId,
+                result.WorldId,
+                result.Started,
+                in anchor,
+                result.ServerNowTicks,
+                result.Message);
         }
 
         public async Task<ShooterGatewayRoomOperationResult> BeginLoadingAsync(
@@ -337,18 +334,21 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ValidateRoomOperation(request.SessionToken, request.RoomId);
-
-            var req = new WireBeginLoadingReq
-            {
-                SessionToken = request.SessionToken,
-                RoomId = request.RoomId,
-                ExpectedRevision = request.ExpectedRevision,
-                CommandId = request.CommandId
-            };
-            var payload = WireRoomGatewayBinary.Serialize(in req);
-            var respPayload = await _transport.SendRequestAsync(_opCodes.BeginLoading, payload, timeout, cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
-            return ToRoomOperationResult(in wire);
+            var result = await _roomSessionClient.BeginLoadingAsync(
+                new RoomGatewayBeginLoadingRequest(
+                    request.SessionToken,
+                    request.RoomId,
+                    request.ExpectedRevision,
+                    request.CommandId),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            return ToRoomOperationResult(
+                result.Success,
+                result.Applied,
+                result.ErrorCode,
+                result.Message,
+                result.RoomRevision,
+                result.Snapshot);
         }
 
         public async Task<ShooterGatewayRoomOperationResult> ReportAssetsLoadedAsync(
@@ -357,20 +357,23 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ValidateRoomOperation(request.SessionToken, request.RoomId);
-
-            var req = new WireReportAssetsLoadedReq
-            {
-                SessionToken = request.SessionToken,
-                RoomId = request.RoomId,
-                LaunchGeneration = request.LaunchGeneration,
-                ManifestVersion = request.ManifestVersion,
-                ManifestHash = request.ManifestHash,
-                CommandId = request.CommandId
-            };
-            var payload = WireRoomGatewayBinary.Serialize(in req);
-            var respPayload = await _transport.SendRequestAsync(_opCodes.ReportAssetsLoaded, payload, timeout, cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
-            return ToRoomOperationResult(in wire);
+            var result = await _roomSessionClient.ReportAssetsLoadedAsync(
+                new RoomGatewayReportAssetsLoadedRequest(
+                    request.SessionToken,
+                    request.RoomId,
+                    request.LaunchGeneration,
+                    request.ManifestVersion,
+                    request.ManifestHash,
+                    request.CommandId),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            return ToRoomOperationResult(
+                result.Success,
+                result.Applied,
+                result.ErrorCode,
+                result.Message,
+                result.RoomRevision,
+                result.Snapshot);
         }
 
         public async Task<ShooterGatewayRoomOperationResult> ReportLoadingProgressAsync(
@@ -380,20 +383,23 @@ namespace AbilityKit.Demo.Shooter.View
         {
             ValidateRoomOperation(request.SessionToken, request.RoomId);
             if (request.Progress < 0 || request.Progress > 100) throw new ArgumentOutOfRangeException(nameof(request));
-
-            var req = new WireReportLoadingProgressReq
-            {
-                SessionToken = request.SessionToken,
-                RoomId = request.RoomId,
-                LaunchGeneration = request.LaunchGeneration,
-                ManifestVersion = request.ManifestVersion,
-                ManifestHash = request.ManifestHash,
-                Progress = request.Progress
-            };
-            var payload = WireRoomGatewayBinary.Serialize(in req);
-            var respPayload = await _transport.SendRequestAsync(_opCodes.ReportLoadingProgress, payload, timeout, cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
-            return ToRoomOperationResult(in wire);
+            var result = await _roomSessionClient.ReportLoadingProgressAsync(
+                new RoomGatewayReportLoadingProgressRequest(
+                    request.SessionToken,
+                    request.RoomId,
+                    request.LaunchGeneration,
+                    request.ManifestVersion,
+                    request.ManifestHash,
+                    request.Progress),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            return ToRoomOperationResult(
+                result.Success,
+                result.Applied,
+                result.ErrorCode,
+                result.Message,
+                result.RoomRevision,
+                result.Snapshot);
         }
 
         public async Task<ShooterGatewayRoomOperationResult> CancelLoadingAsync(
@@ -402,21 +408,21 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ValidateRoomOperation(request.SessionToken, request.RoomId);
-            var req = new WireCancelLoadingReq
-            {
-                SessionToken = request.SessionToken,
-                RoomId = request.RoomId,
-                ExpectedRevision = request.ExpectedRevision,
-                CommandId = request.CommandId
-            };
-            var payload = WireRoomGatewayBinary.Serialize(in req);
-            var respPayload = await _transport.SendRequestAsync(
-                _opCodes.CancelLoading,
-                payload,
+            var result = await _roomSessionClient.CancelLoadingAsync(
+                new RoomGatewayCancelLoadingRequest(
+                    request.SessionToken,
+                    request.RoomId,
+                    request.ExpectedRevision,
+                    request.CommandId),
                 timeout,
                 cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
-            return ToRoomOperationResult(in wire);
+            return ToRoomOperationResult(
+                result.Success,
+                result.Applied,
+                result.ErrorCode,
+                result.Message,
+                result.RoomRevision,
+                result.Snapshot);
         }
 
         public async Task<ShooterGatewayRoomOperationResult> LeaveRoomAsync(
@@ -425,17 +431,21 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ValidateRoomOperation(request.SessionToken, request.RoomId);
-            var req = new WireLeaveRoomReq
-            {
-                SessionToken = request.SessionToken,
-                RoomId = request.RoomId,
-                ExpectedRevision = request.ExpectedRevision,
-                CommandId = request.CommandId
-            };
-            var payload = WireRoomGatewayBinary.Serialize(in req);
-            var respPayload = await _transport.SendRequestAsync(_opCodes.LeaveRoom, payload, timeout, cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
-            return ToRoomOperationResult(in wire);
+            var result = await _roomSessionClient.LeaveRoomAsync(
+                new RoomGatewayLeaveRequest(
+                    request.SessionToken,
+                    request.RoomId,
+                    request.ExpectedRevision,
+                    request.CommandId),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            return ToRoomOperationResult(
+                result.Success,
+                result.Applied,
+                result.ErrorCode,
+                result.Message,
+                result.RoomRevision,
+                result.Snapshot);
         }
 
         public async Task<ShooterGatewayGetRoomSnapshotResult> GetSnapshotAsync(
@@ -444,25 +454,18 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ValidateRoomOperation(request.SessionToken, request.RoomId);
-
-            var req = new WireGetSnapshotReq
-            {
-                SessionToken = request.SessionToken,
-                RoomId = request.RoomId
-            };
-            var payload = WireRoomGatewayBinary.Serialize(in req);
-            var respPayload = await _transport.SendRequestAsync(_opCodes.GetSnapshot, payload, timeout, cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireRoomSnapshotRes>(respPayload);
-            var wireSnapshot = wire.Snapshot;
-            var snapshot = ToStagedSnapshot(in wireSnapshot);
-            if (wire.Success) PublishSnapshot(snapshot);
+            var result = await _roomSessionClient.GetSnapshotAsync(
+                new RoomGatewayGetSnapshotRequest(request.SessionToken, request.RoomId),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            var snapshot = ToStagedSnapshot(result.Snapshot ?? new RoomGatewaySnapshot());
             return new ShooterGatewayGetRoomSnapshotResult(
-                wire.Success,
-                wire.RoomId ?? string.Empty,
-                wire.NumericRoomId,
+                result.Success,
+                result.RoomId,
+                result.NumericRoomId,
                 snapshot,
-                wire.Message ?? string.Empty,
-                wire.ServerNowTicks);
+                result.Message,
+                result.ServerNowTicks);
         }
 
         public async Task<ShooterGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(
@@ -471,19 +474,16 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ValidateStateSyncSubscription(in request);
-
-            var req = new WireSubscribeStateSyncReq
-            {
-                SessionToken = request.SessionToken,
-                BattleId = request.BattleId,
-                RoomId = request.RoomId,
-                EventEpoch = request.EventEpoch,
-                LastEventAck = request.LastEventAck
-            };
-            var payload = WireRoomGatewayBinary.Serialize(in req);
-            var respPayload = await _transport.SendRequestAsync(_opCodes.SubscribeStateSync, payload, timeout, cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireSubscribeStateSyncRes>(respPayload);
-            return new ShooterGatewayStateSyncSubscriptionResult(wire.Success, wire.Message ?? string.Empty);
+            var result = await _roomSessionClient.SubscribeStateSyncAsync(
+                new RoomGatewayStateSyncSubscriptionRequest(
+                    request.SessionToken,
+                    request.BattleId,
+                    request.RoomId,
+                    request.EventEpoch,
+                    request.LastEventAck),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            return new ShooterGatewayStateSyncSubscriptionResult(result.Success, result.Message);
         }
 
         public async Task<ShooterGatewayReliableBattleEventAckResult> AcknowledgeReliableBattleEventsAsync(
@@ -541,34 +541,30 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ValidateRestoreRoom(in request);
-
-            var req = new WireRestoreRoomReq
-            {
-                SessionToken = request.SessionToken,
-                Region = request.Region,
-                ServerId = request.ServerId
-            };
-            var payload = WireRoomGatewayBinary.Serialize(in req);
-            var respPayload = await _transport.SendRequestAsync(_opCodes.RestoreRoom, payload, timeout, cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireRestoreRoomRes>(respPayload);
-            var worldStartAnchor = wire.WorldStartAnchor;
-            var anchor = ToAnchor(in worldStartAnchor);
+            var result = await _roomSessionClient.RestoreRoomAsync(
+                new RoomGatewayRestoreRoomRequest(
+                    request.SessionToken,
+                    request.Region,
+                    request.ServerId),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            var anchor = ToAnchor(in result.WorldStartAnchor);
             return new ShooterGatewayRestoreRoomResult(
-                wire.Success,
-                wire.HasActiveRoom,
-                wire.IsInBattle,
-                wire.RoomId ?? string.Empty,
-                wire.NumericRoomId,
+                result.Success,
+                result.HasActiveRoom,
+                result.IsInBattle,
+                result.RoomId,
+                result.NumericRoomId,
                 in anchor,
-                wire.Message ?? string.Empty,
-                wire.Snapshot.BattleId ?? string.Empty,
-                wire.Snapshot.CanStart,
-                ToJoinKind(wire.JoinKind),
-                wire.ServerNowTicks,
-                wire.Snapshot.WorldId,
-                ToRestoreStatus(wire.Status),
-                ToRestoreErrorCode(wire.ErrorCode),
-                wire.CurrentPlayerId);
+                result.Message,
+                result.BattleId,
+                result.CanStart,
+                ToJoinKind(result.JoinKind),
+                result.ServerNowTicks,
+                result.WorldId,
+                ToRestoreStatus(result.Status),
+                ToRestoreErrorCode(result.ErrorCode),
+                result.CurrentPlayerId);
         }
 
         private static void ValidateGuestLogin(in ShooterGatewayGuestLoginRequest request)
@@ -703,88 +699,66 @@ namespace AbilityKit.Demo.Shooter.View
             return result;
         }
 
-        private static ShooterGatewayRoomJoinKind ToJoinKind(WireRoomJoinKind joinKind)
+        private static ShooterGatewayRoomJoinKind ToJoinKind(RoomGatewaySessionEntryKind joinKind)
         {
             return joinKind switch
             {
-                WireRoomJoinKind.Reconnect => ShooterGatewayRoomJoinKind.Reconnect,
-                WireRoomJoinKind.LateJoin => ShooterGatewayRoomJoinKind.LateJoin,
+                RoomGatewaySessionEntryKind.Reconnect => ShooterGatewayRoomJoinKind.Reconnect,
+                RoomGatewaySessionEntryKind.LateJoin => ShooterGatewayRoomJoinKind.LateJoin,
                 _ => ShooterGatewayRoomJoinKind.TeamLobby
             };
         }
 
-        private static ShooterGatewayRoomRestoreStatus ToRestoreStatus(WireRoomRestoreStatus status)
+        private static ShooterGatewayRoomRestoreStatus ToRestoreStatus(RoomGatewaySessionRestoreStatus status)
         {
-            switch (status)
+            return status switch
             {
-                case WireRoomRestoreStatus.NoActiveRoom:
-                    return ShooterGatewayRoomRestoreStatus.NoActiveRoom;
-                case WireRoomRestoreStatus.NotMember:
-                    return ShooterGatewayRoomRestoreStatus.NotMember;
-                case WireRoomRestoreStatus.RoomClosed:
-                    return ShooterGatewayRoomRestoreStatus.RoomClosed;
-                case WireRoomRestoreStatus.RoomExpired:
-                    return ShooterGatewayRoomRestoreStatus.RoomExpired;
-                case WireRoomRestoreStatus.InvalidSession:
-                    return ShooterGatewayRoomRestoreStatus.InvalidSession;
-                case WireRoomRestoreStatus.Failed:
-                    return ShooterGatewayRoomRestoreStatus.Failed;
-                default:
-                    return ShooterGatewayRoomRestoreStatus.Restored;
-            }
+                RoomGatewaySessionRestoreStatus.NoActiveRoom => ShooterGatewayRoomRestoreStatus.NoActiveRoom,
+                RoomGatewaySessionRestoreStatus.NotMember => ShooterGatewayRoomRestoreStatus.NotMember,
+                RoomGatewaySessionRestoreStatus.RoomClosed => ShooterGatewayRoomRestoreStatus.RoomClosed,
+                RoomGatewaySessionRestoreStatus.RoomExpired => ShooterGatewayRoomRestoreStatus.RoomExpired,
+                RoomGatewaySessionRestoreStatus.InvalidSession => ShooterGatewayRoomRestoreStatus.InvalidSession,
+                RoomGatewaySessionRestoreStatus.Timeout => ShooterGatewayRoomRestoreStatus.Timeout,
+                RoomGatewaySessionRestoreStatus.Failed => ShooterGatewayRoomRestoreStatus.Failed,
+                _ => ShooterGatewayRoomRestoreStatus.Restored
+            };
         }
 
-        private static ShooterGatewayRoomRestoreErrorCode ToRestoreErrorCode(WireRoomRestoreErrorCode errorCode)
+        private static ShooterGatewayRoomRestoreErrorCode ToRestoreErrorCode(RoomGatewaySessionRestoreErrorCode errorCode)
         {
-            switch (errorCode)
+            return errorCode switch
             {
-                case WireRoomRestoreErrorCode.NoAccountRoomMapping:
-                    return ShooterGatewayRoomRestoreErrorCode.NoAccountRoomMapping;
-                case WireRoomRestoreErrorCode.AccountNotInRoom:
-                    return ShooterGatewayRoomRestoreErrorCode.AccountNotInRoom;
-                case WireRoomRestoreErrorCode.RoomClosed:
-                    return ShooterGatewayRoomRestoreErrorCode.RoomClosed;
-                case WireRoomRestoreErrorCode.RoomExpired:
-                    return ShooterGatewayRoomRestoreErrorCode.RoomExpired;
-                case WireRoomRestoreErrorCode.InvalidSession:
-                    return ShooterGatewayRoomRestoreErrorCode.InvalidSession;
-                case WireRoomRestoreErrorCode.InternalError:
-                    return ShooterGatewayRoomRestoreErrorCode.InternalError;
-                default:
-                    return ShooterGatewayRoomRestoreErrorCode.None;
-            }
+                RoomGatewaySessionRestoreErrorCode.NoAccountRoomMapping => ShooterGatewayRoomRestoreErrorCode.NoAccountRoomMapping,
+                RoomGatewaySessionRestoreErrorCode.AccountNotInRoom => ShooterGatewayRoomRestoreErrorCode.AccountNotInRoom,
+                RoomGatewaySessionRestoreErrorCode.RoomClosed => ShooterGatewayRoomRestoreErrorCode.RoomClosed,
+                RoomGatewaySessionRestoreErrorCode.RoomExpired => ShooterGatewayRoomRestoreErrorCode.RoomExpired,
+                RoomGatewaySessionRestoreErrorCode.InvalidSession => ShooterGatewayRoomRestoreErrorCode.InvalidSession,
+                RoomGatewaySessionRestoreErrorCode.Timeout => ShooterGatewayRoomRestoreErrorCode.Timeout,
+                RoomGatewaySessionRestoreErrorCode.InternalError => ShooterGatewayRoomRestoreErrorCode.InternalError,
+                _ => ShooterGatewayRoomRestoreErrorCode.None
+            };
         }
 
-        private ShooterGatewayRoomOperationResult ToRoomOperationResult(in WireRoomOperationRes wire)
+        private static ShooterGatewayRoomOperationResult ToRoomOperationResult(
+            bool success,
+            bool applied,
+            int errorCode,
+            string message,
+            long roomRevision,
+            RoomGatewaySnapshot? snapshot)
         {
-            var wireSnapshot = wire.Snapshot;
-            var snapshot = string.IsNullOrWhiteSpace(wireSnapshot.Summary.RoomId)
-                ? null
-                : ToStagedSnapshot(in wireSnapshot);
-            if (wire.Success && snapshot != null) PublishSnapshot(snapshot);
             return new ShooterGatewayRoomOperationResult(
-                wire.Success,
-                wire.Applied,
-                wire.ErrorCode,
-                wire.Message ?? string.Empty,
-                wire.RoomRevision,
-                snapshot);
+                success,
+                applied,
+                errorCode,
+                message,
+                roomRevision,
+                snapshot == null ? null : ToStagedSnapshot(snapshot));
         }
 
-        private void HandleServerPush(uint opCode, ArraySegment<byte> payload)
+        private void HandleSharedSnapshotChanged(RoomGatewaySnapshot snapshot)
         {
-            if (opCode != RoomGatewayOpCodes.RoomStateChanged) return;
-
-            try
-            {
-                var push = WireRoomGatewayBinary.Deserialize<WireRoomStateChangedPush>(payload);
-                var wireSnapshot = push.Snapshot;
-                PublishSnapshot(ToStagedSnapshot(in wireSnapshot));
-            }
-            catch (Exception)
-            {
-                // A malformed or incompatible push must not break request/response traffic.
-            }
+            PublishSnapshot(ToStagedSnapshot(snapshot));
         }
 
         private void PublishSnapshot(ShooterGatewayStagedRoomSnapshot snapshot)
@@ -806,34 +780,31 @@ namespace AbilityKit.Demo.Shooter.View
             SnapshotChanged?.Invoke(snapshot);
         }
 
-        private static ShooterGatewayStagedRoomSnapshot ToStagedSnapshot(in WireRoomSnapshot wire)
+        private static ShooterGatewayStagedRoomSnapshot ToStagedSnapshot(RoomGatewaySnapshot source)
         {
-            var wireAnchor = wire.WorldStartAnchor;
-            var anchor = ToAnchor(in wireAnchor);
-            var snapshot = new ShooterGatewayStagedRoomSnapshot(
-                wire.Summary.RoomId ?? string.Empty,
-                wire.Phase,
-                wire.PhaseReason ?? string.Empty,
-                wire.LaunchGeneration,
-                wire.LoadingDeadlineUnixMs,
-                wire.LaunchManifestHash ?? string.Empty,
-                wire.LaunchManifestVersion,
-                wire.LastStartFailureCode ?? string.Empty,
-                wire.RoomRevision,
-                wire.LastEventSequence,
-                wire.CanStart,
-                wire.BattleId ?? string.Empty,
-                wire.WorldId,
-                in anchor)
-            {
-                OwnerAccountId = wire.Summary.OwnerAccountId ?? string.Empty,
-                Players = ToStagedPlayers(wire.Players)
-            };
-            return snapshot;
+            var worldStartAnchor = source.WorldStartAnchor;
+            var anchor = ToAnchor(in worldStartAnchor);
+            return new ShooterGatewayStagedRoomSnapshot(
+                source.RoomId,
+                (int)source.Phase,
+                source.PhaseReason,
+                source.LaunchGeneration,
+                source.LoadingDeadlineUnixMs,
+                source.LaunchManifestHash,
+                source.LaunchManifestVersion,
+                source.LastStartFailureCode,
+                source.RoomRevision,
+                source.LastEventSequence,
+                source.CanStart,
+                source.BattleId,
+                source.WorldId,
+                in anchor,
+                source.OwnerAccountId,
+                ToStagedPlayers(source.Players));
         }
 
         private static IReadOnlyList<ShooterGatewayStagedRoomPlayerSnapshot> ToStagedPlayers(
-            List<WireRoomPlayerSnapshot> players)
+            IReadOnlyList<RoomGatewayPlayerSnapshot>? players)
         {
             if (players == null || players.Count == 0)
             {
@@ -845,7 +816,7 @@ namespace AbilityKit.Demo.Shooter.View
             {
                 var player = players[i];
                 result[i] = new ShooterGatewayStagedRoomPlayerSnapshot(
-                    player.AccountId ?? string.Empty,
+                    player.AccountId,
                     player.PlayerId,
                     player.IsOnline,
                     player.LobbyReady,
@@ -856,18 +827,42 @@ namespace AbilityKit.Demo.Shooter.View
             return result;
         }
 
-        private static ShooterGatewayWorldStartAnchor ToAnchor(in WireWorldStartAnchor anchor)
+        private static ShooterGatewayWorldStartAnchor ToAnchor(in RoomGatewayWorldStartAnchor anchor)
         {
-            return new ShooterGatewayWorldStartAnchor(anchor.StartServerTicks, anchor.ServerTickFrequency, anchor.StartFrame, anchor.FixedDeltaSeconds);
+            return new ShooterGatewayWorldStartAnchor(
+                anchor.StartServerTicks,
+                anchor.ServerTickFrequency,
+                anchor.StartFrame,
+                anchor.FixedDeltaSeconds);
+        }
+
+        private static RoomGatewayWireOpCodes ToWireOpCodes(in ShooterRoomGatewayRoomOpCodes opCodes)
+        {
+            return new RoomGatewayWireOpCodes(
+                opCodes.CreateRoom,
+                opCodes.JoinRoom,
+                opCodes.LeaveRoom,
+                opCodes.SetReady,
+                opCodes.StartBattle,
+                opCodes.SubscribeStateSync,
+                opCodes.RestoreRoom,
+                RoomGatewayOpCodes.PickHero,
+                opCodes.BeginLoading,
+                opCodes.ReportLoadingProgress,
+                opCodes.ReportAssetsLoaded,
+                opCodes.CancelLoading,
+                opCodes.GetSnapshot,
+                RoomGatewayOpCodes.RoomStateChanged);
         }
 
         public void Dispose()
         {
-            if (_transport is IShooterRoomGatewayPushTransport pushTransport)
+            _roomSessionClient.SnapshotChanged -= HandleSharedSnapshotChanged;
+            _roomSessionClient.Dispose();
+            lock (_snapshotGate)
             {
-                pushTransport.ServerPushReceived -= HandleServerPush;
+                _current = null;
             }
-
             SnapshotChanged = null;
         }
     }

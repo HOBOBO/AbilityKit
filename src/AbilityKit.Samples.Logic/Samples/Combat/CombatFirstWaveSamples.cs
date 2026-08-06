@@ -101,9 +101,11 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
         {
             var world = SampleCombatWorld.CreateLane();
             var engine = new TargetSearchEngine();
-            var context = new SearchContext();
-            context.SetService<IPositionProvider>(world.Positions);
-            context.SetService<IEntityKeyProvider>(world.Positions);
+            var context = new SearchContext
+            {
+                PositionProvider = world.Positions,
+                EntityKeyProvider = world.Positions
+            };
 
             var candidateIds = world.ByFaction.Get(SampleFaction.Monsters);
             var query = SearchPipelineBuilder.Create()
@@ -114,7 +116,7 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
                 .Take(2)
                 .Build();
 
-            var results = new List<IEntityId>();
+            var results = new List<EntityId>();
             engine.SearchIds(in query, context, results);
 
             Section("候选来源");
@@ -129,7 +131,8 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
             KeyValue("CombatTargeting.Results", CombatSampleFormatting.FormatIds(results));
             foreach (var id in results)
             {
-                if (world.TryGet(id.ActorId, out var entity))
+                if (id.Value <= int.MaxValue &&
+                    world.TryGet((int)id.Value, out var entity))
                 {
                     KeyValue(entity.Label, CombatSampleFormatting.FormatVec3(entity.Position));
                 }

@@ -48,6 +48,43 @@ public sealed class MobaConfigTableAnalyzerTests
     }
 
     [Fact]
+    public async Task Analyze_RejectsValueTypeDtoAndMoBeforeGeneration()
+    {
+        var source = MobaConfigTableManifestGeneratorTests.SourceWithDeclarations("""
+            [assembly: AbilityKit.Demo.Moba.Config.Core.MobaConfigTable(
+                "structs", typeof(Invalid.Dto), typeof(Invalid.Mo), "LegacyJson", 10)]
+            """) + """
+            namespace Invalid
+            {
+                public struct Dto { public int Id; }
+                public struct Mo { public Mo(Dto dto) { } }
+            }
+            """;
+
+        Assert.Single(
+            await GetDiagnosticsAsync(source),
+            item => item.Id == MobaDiagnosticIds.InvalidConfigTableRuleId);
+    }
+
+    [Fact]
+    public async Task Analyze_AcceptsInheritedPublicDtoKey()
+    {
+        var source = MobaConfigTableManifestGeneratorTests.SourceWithDeclarations("""
+            [assembly: AbilityKit.Demo.Moba.Config.Core.MobaConfigTable(
+                "inherited", typeof(Valid.Dto), typeof(Valid.Mo), "LegacyJson", 10)]
+            """) + """
+            namespace Valid
+            {
+                public abstract class DtoBase { public int Id { get; set; } }
+                public sealed class Dto : DtoBase { }
+                public sealed class Mo { public Mo(Dto dto) { } }
+            }
+            """;
+
+        Assert.Empty(await GetDiagnosticsAsync(source));
+    }
+
+    [Fact]
     public async Task GeneratorAndAnalyzer_ReportInvalidDeclarationOnlyOnce()
     {
         var source = MobaConfigTableManifestGeneratorTests.SourceWithDeclarations("""

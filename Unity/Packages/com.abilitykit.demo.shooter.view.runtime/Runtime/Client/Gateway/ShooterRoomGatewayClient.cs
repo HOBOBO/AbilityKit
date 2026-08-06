@@ -3,18 +3,17 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using AbilityKit.Network.Room;
 using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Demo.Shooter.View
 {
-    public interface IShooterRoomGatewayRequestTransport
+    public interface IShooterRoomGatewayRequestTransport : IRoomGatewayRequestTransport
     {
-        Task<ArraySegment<byte>> SendRequestAsync(uint opCode, ArraySegment<byte> payload, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
     }
 
-    public interface IShooterRoomGatewayPushTransport
+    public interface IShooterRoomGatewayPushTransport : IRoomGatewayPushSource
     {
-        event Action<uint, ArraySegment<byte>>? ServerPushReceived;
     }
 
     public interface IShooterRoomGatewayClient

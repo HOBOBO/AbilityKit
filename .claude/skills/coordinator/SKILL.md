@@ -1,66 +1,78 @@
 ---
 name: coordinator
-description: AbilityKit 会话协调器（com.abilitykit.coordinator）——位于 Host/World（下层）与 View/Network（上层）之间的会话层编排器。覆盖 SessionCoordinator 生命周期状态机、ISessionCoordinatorHost/ILogicWorldDriverBridge 应用端口、三种 SyncAdapter（Lockstep/SnapshotAuthority+StateSync/Hybrid）、IRemoteBattleSyncTransport、IViewEventSink、ViewTimeline、ISessionSubFeature 扩展点、CoordinatorInputSubmitBridge 异步输入桥。触发场景：会话初始化/启动/停止/销毁、SyncMode 选择、ExistingWorld 接管、moba/shooter 接入 coordinator、PlayerInput 提交、视图事件下沉、子功能挂接。
+description: AbilityKit 会话契约包（com.abilitykit.coordinator）—— moba/shooter 实现的会话端口接口（ILogicWorldDriverBridge/ILogicWorldDriveGate/ISessionCoordinatorHost/ISessionCoordinatorConfigPolicy/ISpawnService）+ 它们使用的纯数据结构（PlayerInput/EntityState/SnapshotEntityState/FrameSnapshotData/SessionConfig/SessionId/PlayerSpawnData/NetworkEndpoint）。⚠ session 编排引擎（SessionCoordinator + SyncAdapter/SubFeature/Timeline/Transport 体系）已于 2026-08-06 移除（死代码，无 demo 使用）。触发场景：实现 ILogicWorldDriverBridge/ILogicWorldDriveGate、构造 PlayerInput/EntityState/SnapshotEntityState/FrameSnapshotData、SessionConfig/SyncMode/HostMode 配置、PlayerSpawnData/NetworkEndpoint。
 ---
 
-> v0.1.0 Beta -- AbilityKitStable=true, has direct src tests (3), HybridSyncAdapter [Obsolete(error:true), 计划 v0.2.0 移除]。
 # coordinator skill
 
-基于源码核校（2026-07-20）。`com.abilitykit.coordinator` 包根：`Unity/Packages/com.abilitykit.coordinator/`。
+基于源码核校（2026-08-06，清理后）。`com.abilitykit.coordinator` 包根：`Unity/Packages/com.abilitykit.coordinator/`。
 
-## 核心定位
+## ⚠ 重大变更：session 引擎已移除（2026-08-06）
 
-Coordinator 是"会话层编排器"，位于 Host/World（下层）与 View/Network（上层）之间。**不实现具体网络协议、不实现具体 World 逻辑、不创建 Unity 视图对象**。
+原 coordinator 定位是"会话层编排器"（SessionCoordinator 状态机 + 三种 SyncAdapter + SubFeature/Timeline/Transport 体系）。**但没有任何 demo/server 实例化过 `SessionCoordinator`** —— moba/shooter 都绕过它，各自实现端口接口 + 直接驱动自己的 runtime。该引擎是 moba/local 形状、不适配 statesync，属死代码，已整体移除。
 
-协调 4 类对象：
-1. **逻辑世界**（IWorld/IWorldHost/HostRuntime）—— 通过 `ISessionCoordinatorHost.CreateWorldHost`
-2. **同步策略**（ISyncAdapter）—— 由 `SyncAdapterFactory` 按 `SessionConfig.SyncMode` 创建
-3. **表现层**（IViewEventSink + Timeline.IViewTimeline）—— 通过 `SessionCoordinator.Notify*`
-4. **扩展点**（ISessionSubFeature + SessionHooks）—— 按 Priority 挂接
+**移除内容**（连同 `HybridSyncAdapter`[Obsolete]）：
+- `SessionCoordinator` + `ExistingWorldSessionCoordinatorHost` + `SessionConfigConfigurator`
+- 整个 `Adapters/`（ISyncAdapter + Local/Remote/HybridSyncAdapter + SyncAdapterFactory）
+- 整个 `SubFeatures/`（ISessionSubFeature 接口族 + ISessionHost + 3 内置 SubFeature）
+- 整个 `Timeline/`（IViewTimeline + ViewTimeline + SampleBuffer）
+- 整个 `Transport/`（IRemoteBattleSyncTransport + NullRemoteBattleSyncTransport + CoordinatorInputSubmitBridge）
+- `IViewEventSink` + `SessionHooks`（仅被已删的 ISessionCoordinator 成员引用）
+- `PlayerInput` 的内置 payload-codec 辅助（CreateMove/CreateSkill/CreateStop/TryGet* + MoveInputPayload/SkillInputPayload/InputOpCodes）
 
-## 包结构
+**保留内容**（demo 实际实现/使用）：见下"当前包结构"。
+
+> 现在只有 2 个 demo。等第三个 demo 落地、会话胶水重复明显时，再从真实用法提炼"会话模板"（见 `Docs/design/07-NetworkSynchronization/07-MultiplayerSdkIntegrationGuide.md` 的"会话装配配方"）—— 从真实提取，而非凭空设计（coordinator 当初凭空设计才被废弃）。
+
+## 当前定位：会话契约包
+
+coordinator 现在只承载**端口契约 + 纯数据结构** —— 不实现网络协议、不实现 World 逻辑、不做会话编排。各 demo 自己实现这些端口 + 用这些 struct，组装自己的 session（用 `network.sdk/room/battle` + `host.extension` 等可复用零件）。
+
+## 当前包结构（14 个 .cs）
 
 ```
 com.abilitykit.coordinator/Runtime/
-├── Core/           ISessionCoordinator/SessionCoordinator/ISessionCoordinatorHost/ExistingWorldSessionCoordinatorHost
-│                   ILogicWorldDriverBridge/ILogicWorldDriveGate/ISpawnService/IViewEventSink
-│                   SessionConfig/SessionId/SessionHooks/SessionEnums
-├── Adapters/       ISyncAdapter + LocalSyncAdapter/RemoteSyncAdapter/HybridSyncAdapter + SyncAdapterFactory
-├── SubFeatures/    ISessionSubFeature 接口族 + ISessionHost + 3 个内置 SubFeature
-├── Timeline/       IViewTimeline + ViewTimeline + ScalarSampleBuffer/VectorSampleBuffer
-├── Transport/      IRemoteBattleSyncTransport + NullRemoteBattleSyncTransport + CoordinatorInputSubmitBridge
-└── Data/           PlayerInput/EntityState/FrameSnapshotData/PlayerSpawnData/NetworkEndpoint/CoordinatorPayloadCodec
+├── Core/   端口接口 + 配置
+│   ├── ILogicWorldDriverBridge   逻辑世界驱动（shooter/moba 实现）
+│   ├── ILogicWorldDriveGate      玩法层闸门（moba 实现）
+│   ├── ISessionCoordinatorHost   宿主适配（moba 实现）
+│   ├── ISessionCoordinatorConfigPolicy  会话配置策略（moba 实现）
+│   ├── ISpawnService             出生服务（moba 实现）
+│   ├── ISessionCoordinator       ⚠ 仅 vestigial（无实现者；唯一外部引用是 MobaBattleDriverHost.Bind 的未用参数，待删）
+│   ├── SessionConfig / SessionId / SessionEnums(SyncMode/HostMode/SessionState)
+├── Data/   纯数据结构
+│   ├── PlayerInput / EntityState / SnapshotEntityState / FrameSnapshotData
+│   ├── PlayerSpawnData / NetworkEndpoint
+│   └── CoordinatorPayloadCodec   ⚠ 仅 EntityState.ToSnapshotEntityState 用（内部，alive）
 ```
 
-空目录：`PlayMode/`、`Events/`（仅 `.meta` 占位）。无 `Tests/`、无 `Editor/`。
+## 端口契约速查（demo 如何接入）
 
-## 最重要的注意（README 与源码偏差）
+- **实现 `ILogicWorldDriverBridge`**（SubmitInputs / AdvanceFrame / GetAllEntityStates → SnapshotEntityState[]）—— shooter `ShooterBattleDriverHost`、moba `MobaBattleDriverHost`。
+- **实现 `ILogicWorldDriveGate`**（CanDriveLogicWorld）—— moba `MobaLogicWorldDriveGate`（world-scoped service）。
+- **实现 `ISessionCoordinatorHost` + `ISessionCoordinatorConfigPolicy`** —— moba `MobaSessionCoordinatorHost`（注：moba 实现了这些 host 端口但**不**实例化 SessionCoordinator —— host 端口是契约，session 编排由 moba 自己做）。
+- **使用 struct**：`PlayerInput`(raw 4 参 ctor) / `EntityState` / `SnapshotEntityState` / `FrameSnapshotData` / `PlayerSpawnData` / `SessionConfig`(SyncMode/HostMode) / `NetworkEndpoint`。
 
-包内 `README.md` 与 `docs/ET-Integration-Guide.md` **已严重过时**。skill 内容全部基于源码，不以 README 为准。主要偏差：
+## 真实接入路径（不经 coordinator 的 session 引擎）
 
-- README 写的 `IBattleDriverHost` → 实际是 `ILogicWorldDriverBridge`（多了 `AdvanceFrame` / `Start/Stop`，返回 `SnapshotEntityState[]` 不是 `EntityState[]`）
-- README 的 `ISessionCoordinatorHost` 4 个方法 → 实际 5 个（多了 `ConfigureWorldCreateOptions`），另有 `ISessionCoordinatorConfigPolicy`
-- README 的 `SyncMode` 3 个值 → 实际 4 个（`Lockstep/SnapshotAuthority/StateSync/Hybrid`）
-- README 把 `SessionConfig` 写成 sealed class → 实际是 `struct`
-- README 的 `PlayerInput` 用 `InputType` 枚举 + 字典 → 实际是 `int OpCode + byte[] Payload`（MemoryPack）
+会话装配由各 demo 自己拼，见 `Docs/design/07-NetworkSynchronization/07-MultiplayerSdkIntegrationGuide.md` 的"**会话装配配方（statesync / framesync）**"。coordinator 只提供上面的端口 + struct。
 
-详见 [source_vs_readme.md](source_vs_readme.md)。
-
-## Sections
+## Sections（注意：部分描述已删除的代码，仅作历史参考）
 
 - [when_to_use.md](when_to_use.md) — 何时启用本 skill
-- [lifecycle.md](lifecycle.md) — SessionCoordinator 状态机 + SessionConfig 工厂方法 + SessionRuntimePolicy
-- [host_and_driver_ports.md](host_and_driver_ports.md) — ISessionCoordinatorHost + ExistingWorldSessionCoordinatorHost + ILogicWorldDriverBridge + ILogicWorldDriveGate + ISpawnService
-- [sync_adapters.md](sync_adapters.md) — 三种 adapter + HybridSyncAdapter 未完成 TODO
-- [transport_and_codec.md](transport_and_codec.md) — IRemoteBattleSyncTransport + CoordinatorInputSubmitBridge + CoordinatorPayloadCodec
-- [view_and_timeline.md](view_and_timeline.md) — IViewEventSink + ViewTimeline 采样插值
-- [subfeatures_and_hooks.md](subfeatures_and_hooks.md) — ISessionSubFeature 接口族 + 内置 3 个 + SessionHooks 全字段
-- [integration_recipes.md](integration_recipes.md) — moba 与 shooter 两种接入模式（含真实调用链）
-- [source_vs_readme.md](source_vs_readme.md) — README 9 处偏差对照
+- [host_and_driver_ports.md](host_and_driver_ports.md) — **保留**：ISessionCoordinatorHost + ILogicWorldDriverBridge + ILogicWorldDriveGate + ISpawnService（当前有效）
+- [integration_recipes.md](integration_recipes.md) — moba/shooter 接入（顶部有修正横幅：两 demo 都不经 coordinator session 引擎）
+- ⚠ 以下描述**已删除**的 session 引擎，仅历史参考：
+  - [lifecycle.md](lifecycle.md) — ~~SessionCoordinator 状态机~~（已删）
+  - [sync_adapters.md](sync_adapters.md) — ~~ISyncAdapter 体系~~（已删）
+  - [transport_and_codec.md](transport_and_codec.md) — ~~IRemoteBattleSyncTransport/CoordinatorInputSubmitBridge~~（已删；CoordinatorPayloadCodec 保留）
+  - [view_and_timeline.md](view_and_timeline.md) — ~~IViewEventSink/ViewTimeline~~（已删）
+  - [subfeatures_and_hooks.md](subfeatures_and_hooks.md) — ~~ISessionSubFeature/SessionHooks~~（已删）
+- [source_vs_readme.md](source_vs_readme.md) — 历史：README 与源码偏差（README 本就过时）
 
 ## 相关 skill
 
 - 完整技能/触发/BUFF 速查见 [ability-kit](../ability-kit/SKILL.md)
 - host.extension 的 BattleHost/FrameSync 见 [host-extension](../host-extension/SKILL.md)
-- moba demo 接入见 [moba-demo](../moba-demo/SKILL.md)
-- shooter demo 接入见 [shooter-demo](../shooter-demo/SKILL.md)
+- 战斗数据面引擎 → `com.abilitykit.network.battle`（contract-neutral：SendInputAsync + RawServerPushReceived）
+- moba/shooter demo 接入 → [moba-demo](../moba-demo/SKILL.md) / [shooter-demo](../shooter-demo/SKILL.md)

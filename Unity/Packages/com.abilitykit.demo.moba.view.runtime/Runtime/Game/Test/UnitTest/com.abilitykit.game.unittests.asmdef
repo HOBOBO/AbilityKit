@@ -21,6 +21,8 @@
         "AbilityKit.Game.Battle.Shared.Logging",
         "AbilityKit.Game.Battle.Shared.Time",
         "AbilityKit.Network.Runtime",
+        "AbilityKit.Network.Room",
+        "AbilityKit.Network.Sdk",
         "AbilityKit.World.NetworkFragments",
         "AbilityKit.Demo.Moba.View.Abstractions",
         "AbilityKit.Game.View.Runtime",

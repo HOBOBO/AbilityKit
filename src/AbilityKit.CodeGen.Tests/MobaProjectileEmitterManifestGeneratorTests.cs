@@ -28,7 +28,7 @@ public sealed class MobaProjectileEmitterManifestGeneratorTests
 
         var generated = Assert.Single(driver.GetRunResult().GeneratedTrees).GetText().ToString();
         Assert.Contains(
-            "registry.Register((global::AbilityKit.Demo.Moba.ProjectileEmitterType)1, () => new global::Game.LinearEmitter(), 7, true);",
+            "if (registry.TryRegister((global::AbilityKit.Demo.Moba.ProjectileEmitterType)1, () => new global::Game.LinearEmitter(), 7, true)) count++;",
             generated,
             StringComparison.Ordinal);
     }
@@ -109,6 +109,11 @@ public sealed class MobaProjectileEmitterManifestGeneratorTests
                     Func<IMobaProjectileLaunchSequence> factory,
                     int priority,
                     bool isDefault) { }
+                internal bool TryRegister(
+                    AbilityKit.Demo.Moba.ProjectileEmitterType emitterType,
+                    Func<IMobaProjectileLaunchSequence> factory,
+                    int priority,
+                    bool isDefault) => true;
             }
 
             internal static partial class MobaGeneratedProjectileEmitterManifest

@@ -387,7 +387,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private void EnsureRoomSession()
         {
             if (_roomController != null) return;
-            _roomLauncher = ShooterClientNetworkLauncher.Create(ShooterClientConnectionFactory.Tcp());
+            _roomLauncher = ShooterClientNetworkLauncher.Create(ShooterClientConnectionFactory.TcpForUnityMainThread());
             _roomLauncher.Open(new ShooterClientNetworkEndpoint(_request.Host, _request.Port));
             _roomClient = new ShooterRoomGatewayRoomClient(_roomLauncher.GatewayConnection);
             var store = new ShooterRoomSessionStore(_roomClient);
@@ -403,7 +403,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private async Task<T> WithRoomClient<T>(Func<IDemoRoomDirectoryClient, Task<T>> action)
         {
-            var launcher = ShooterClientNetworkLauncher.Create(ShooterClientConnectionFactory.Tcp());
+            var launcher = ShooterClientNetworkLauncher.Create(ShooterClientConnectionFactory.TcpForUnityMainThread());
             try
             {
                 launcher.Open(new ShooterClientNetworkEndpoint(_request.Host, _request.Port));

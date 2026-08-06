@@ -23,7 +23,7 @@ com.abilitykit.host.extension/
 │   ├── Rollback/                                      ServerRollbackModule
 │   ├── Time/                                          FixedStepTickRunner + ServerFrameTimeModule
 │   ├── WorldStart/                                    WorldAutoStartModule + IWorldAutoStartHandler
-│   ├── Session/                                       RoomGatewaySessionFlow（8 阶段）+ FramePacketNetAdapter
+│   ├── Session/                                       FramePacketNetAdapter（host.extension 唯一；RoomGatewaySessionFlow 已在 com.abilitykit.network.room）
 │   └── Moba/                                          三个 asmdef（Client/Server/Shared）
 │       ├── Shared/                                    [Host.Extensions.Moba]（依赖 Protocol.Moba）
 │       ├── Client/                                    [Host.Extensions.Moba.Client]
@@ -52,10 +52,10 @@ com.abilitykit.host.extension/
 - [catchup.md](catchup.md) — CatchUp 子系统 + WorldCatchUpDriver + BattleFrameSyncGrain 服务端集成（v0.1.0 新增）
 - [client_helpers.md](client_helpers.md) — ClientPredictionInputHistory / ReconciliationCoordinator / RemoteClientInputSubmitQueue / FramePacketNetAdapter
 - [time_worldstart.md](time_worldstart.md) — FixedStepTickRunner + ServerFrameTimeModule + WorldAutoStartModule
-- [session_flow.md](session_flow.md) — RoomGatewaySessionFlow 8 阶段 + FramePacketNetAdapter
+- [session_flow.md](session_flow.md) — RoomGatewaySessionFlow 8 阶段（⚠️ 实际在 `com.abilitykit.network.room`）+ FramePacketNetAdapter（host.extension）
 - [framesync_server.md](framesync_server.md) — 🆕 BattleFrameSyncGrain 完整能力：CatchUp / Recording / Metrics / BotAI / TickRate / BattleWorldWithFrameSync
 - [spectator.md](spectator.md) — 🆕 观战模式：SpectatorWorldDriver（框架层）+ BattleSessionFeature.Spectator（Demo 层集成）
-- [gateway_connection.md](gateway_connection.md) — 🆕 统一网关连接抽象：IGatewayConnection + GatewayConnection（请求/推送/seq匹配）
+- [gateway_connection.md](gateway_connection.md) — 🆕 统一网关连接抽象：IGatewayConnection + GatewayConnection（请求/推送/seq匹配）。⚠️ 实际位于 `com.abilitykit.network.runtime`，非 host.extension
 - [moba_runtime.md](moba_runtime.md) — MobaHostRuntimeBuilder + IMobaBattleRuntimePort + MobaGameStartPort
 - [moba_startsource.md](moba_startsource.md) — GameStartSource 路由（3 Source + Router）
 - [moba_room.md](moba_room.md) — MobaRoomState + MobaRoomOrchestrator + 命令应用

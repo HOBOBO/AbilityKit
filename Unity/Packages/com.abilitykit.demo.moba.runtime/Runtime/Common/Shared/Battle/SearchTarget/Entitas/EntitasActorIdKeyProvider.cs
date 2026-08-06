@@ -2,9 +2,9 @@ namespace AbilityKit.Battle.SearchTarget.Entitas
 {
     public sealed class EntitasActorIdKeyProvider : IEntityKeyProvider
     {
-        public ulong GetKey(Battle.SearchTarget.IEntityId id)
+        public ulong GetKey(Battle.SearchTarget.EntityId id)
         {
-            return (ulong)id.ActorId;
+            return id.Value;
         }
     }
 }

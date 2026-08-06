@@ -35,7 +35,7 @@ protocol.shooter
 
 - **runtime**：战斗内核 + Svelto 适配 + 三类快照导出 + 9 端口 facade + Rollback/Recovery/LagCompensation
 - **share**：`ShooterGameplay` 静态常量（RoomType/WorldType/GameplayId=2/TickRate=30/MaxPlayers=4/PlayerHp=1000）
-- **view.runtime**：Client 网络 + Synchronization（三策略）+ Presentation + PlayMode + Hosting（接入 coordinator）+ Replay + Acceptance
+- **view.runtime**：Client 网络（`NetworkSdkClient` + `ShooterRoomGatewayFlow`/`RoomGatewaySessionFlow`）+ Synchronization（三策略）+ Presentation + PlayMode + Replay + Acceptance。⚠️ **不经 coordinator**（view.runtime asmdef 不引用 `AbilityKit.Coordinator`）
 - **editor**：`Tools/AbilityKit/Shooter Demo` 菜单 + `ShooterDemoWindow`（3 DriveMode）+ SceneView 渲染
 - **ai**：`ShooterAiTrainingEnvironment : IAiEnvironment`（基于 `com.abilitykit.ai.abstractions`，ML-Agents 桥接）
 - **protocol.shooter**：MemoryPack 结构体 + Codec（11 opcodes）
@@ -56,5 +56,5 @@ view.runtime 根 `Runtime/`：
 - `Presentation/` — PresentationSession + Snapshot/View + EntityViewModel + ViewEvents
 - `PlayMode/` — PlaySessionRunner + LaunchOptions
 - `Unity/PlayMode/` — Unity PlayMode 启动器（RemoteStateSync / FrameRecordReplay）
-- `Hosting/` — coordinator 接入（ShooterCoordinatorSessionHost + InputBridge + GatewayCoordinatorInputTransport + HostPorts + Diagnostics）
+- ~~`Hosting/`~~ — ⚠️ **已删除**（原 coordinator 接入路径 `ShooterCoordinatorSessionHost` / `InputBridge` / `GatewayCoordinatorInputTransport` 均不存在；`ShooterRemoteCoordinatorInputContractTests` 断言其缺席）。网络接入在 `Client/`：`ShooterClientNetworkLauncher` / `ShooterClientConnectionFactory` / `ShooterRoomGatewayConnection` / `ShooterClientGatewayLauncher`。详见 [coordinator/integration_recipes.md](../coordinator/integration_recipes.md) 的"shooter 真实路径"
 - `Network/` — NetworkConditionProvider + PlayModeSessionRegistry

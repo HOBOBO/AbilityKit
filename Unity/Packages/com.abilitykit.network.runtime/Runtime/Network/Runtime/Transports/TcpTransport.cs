@@ -9,6 +9,7 @@ namespace AbilityKit.Network.Runtime
     public sealed class TcpTransport : ITransport
     {
         private readonly object _gate = new object();
+        private readonly object _sendGate = new object();
 
         private TcpClient _client;
         private NetworkStream _stream;
@@ -93,22 +94,26 @@ namespace AbilityKit.Network.Runtime
         {
             if (bytes.Array == null || bytes.Count <= 0) return;
 
-            NetworkStream stream;
-            lock (_gate)
+            lock (_sendGate)
             {
-                stream = _stream;
-            }
+                NetworkStream stream;
+                lock (_gate)
+                {
+                    stream = _stream;
+                }
 
-            if (stream == null) throw new InvalidOperationException("Not connected.");
+                if (stream == null) throw new InvalidOperationException("Not connected.");
 
-            try
-            {
-                stream.Write(bytes.Array, bytes.Offset, bytes.Count);
-            }
-            catch (Exception ex)
-            {
-                Error?.Invoke(ex);
-                Close();
+                try
+                {
+                    stream.Write(bytes.Array, bytes.Offset, bytes.Count);
+                }
+                catch (Exception ex)
+                {
+                    Error?.Invoke(ex);
+                    Close();
+                    throw;
+                }
             }
         }
 

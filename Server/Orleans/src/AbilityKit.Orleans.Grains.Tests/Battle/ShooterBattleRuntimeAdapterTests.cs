@@ -196,6 +196,51 @@ public sealed class ShooterBattleRuntimeAdapterTests
     }
 
     [Fact]
+    public void FullAuthoritySnapshots_RoundTripFromServerWorldDuringTwoPlayerCombat()
+    {
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new ShooterBattleRuntimeAdapter(worldManager);
+        using var session = adapter.CreateSession("shooter-server-full-snapshot-roundtrip-test");
+        var initParams = CreateInitParams();
+        initParams.RandomSeed = 3901;
+        initParams.Players![1].PosX = 4f;
+        initParams.DurationFrames = 18000;
+        initParams.VictoryTargetDefeats = int.MaxValue;
+        initParams.ContinueAfterAllPlayersDefeated = true;
+        var target = new ShooterBattleRuntimePort();
+
+        var start = session.Start(initParams);
+        Assert.True(start.Succeeded, start.Error);
+
+        for (var frame = 1; frame <= 300; frame++)
+        {
+            var fire = frame is 75 or 81 or 194 or 217 or 223 or 260 or 272;
+            var accepted = session.SubmitInputs(
+                frame - 1,
+                new[]
+                {
+                    CreateInput(1, ShooterOpCodes.Input.PlayerCommand,
+                        new ShooterPlayerCommand(1, frame < 145 ? 1f : 0f, 0f, 1f, 0f, fire)),
+                    CreateInput(2, ShooterOpCodes.Input.PlayerCommand,
+                        new ShooterPlayerCommand(2, frame < 145 ? -1f : 0f, 0f, -1f, 0f, fire))
+                });
+            Assert.Equal(2, accepted);
+            Assert.True(session.Tick(frame, initParams.TickRate, 1f / initParams.TickRate));
+
+            var push = session.CreateStateSyncPush(initParams.WorldId, frame, isFullSnapshot: true);
+            var packed = ShooterPackedSnapshotCodec.Deserialize(push.Payload!);
+            Assert.True(target.ImportPackedSnapshot(in packed));
+
+            var importedHash = target.ComputeStateHash();
+            Assert.True(
+                packed.StateHash == importedHash,
+                $"Server full snapshot hash mismatch at frame {packed.Frame}; " +
+                $"entities={packed.EntityCount}, chunks={DescribePackedChunks(in packed)}, " +
+                $"expected=0x{packed.StateHash:X8}, actual=0x{importedHash:X8}.");
+        }
+    }
+
+    [Fact]
     public void CreateStateSyncPush_WhenPureStateEnabled_EmitsPureStateFullAndDeltaPayloads()
     {
         using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
@@ -212,7 +257,7 @@ public sealed class ShooterBattleRuntimeAdapterTests
         var fullPayload = ShooterPureStateSyncCodec.Deserialize(full.Payload!);
         Assert.Equal(ShooterOpCodes.Snapshot.PureState, full.PayloadOpCode);
         Assert.True(full.IsFullSnapshot);
-        Assert.Null(full.Actors);
+        Assert.Empty(full.Actors);
         Assert.Equal(ShooterPureStateSnapshotKinds.FullBaseline, fullPayload.SnapshotKind);
         Assert.Equal(initParams.WorldId, fullPayload.WorldId);
         Assert.Equal(full.Frame, fullPayload.Frame);
@@ -239,7 +284,7 @@ public sealed class ShooterBattleRuntimeAdapterTests
         var deltaPayload = ShooterPureStateSyncCodec.Deserialize(delta.Payload!);
         Assert.Equal(ShooterOpCodes.Snapshot.PureStateDelta, delta.PayloadOpCode);
         Assert.False(delta.IsFullSnapshot);
-        Assert.Null(delta.Actors);
+        Assert.Empty(delta.Actors);
         Assert.Equal(ShooterPureStateSnapshotKinds.Delta, deltaPayload.SnapshotKind);
         Assert.Equal(fullPayload.Frame, deltaPayload.BaselineFrame);
         Assert.Equal(fullPayload.StateHash, deltaPayload.BaselineHash);
@@ -502,6 +547,13 @@ public sealed class ShooterBattleRuntimeAdapterTests
         }
 
         return null;
+    }
+
+    private static string DescribePackedChunks(in ShooterPackedSnapshotPayload packed)
+    {
+        return string.Join(
+            ",",
+            packed.ComponentChunks.Select(chunk => $"{chunk.ComponentKind}:{chunk.EntityKind}={chunk.Count}"));
     }
 
     private static IBattleRuntimeSession CreateSession(string battleId)

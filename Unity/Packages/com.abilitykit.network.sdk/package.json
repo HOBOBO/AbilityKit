@@ -1,0 +1,13 @@
+{
+  "name": "com.abilitykit.network.sdk",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Network SDK",
+  "unity": "2022.3",
+  "description": "Transport-independent AbilityKit network SDK composition root and lifecycle owner.",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.network.runtime": "0.1.0"
+  }
+}

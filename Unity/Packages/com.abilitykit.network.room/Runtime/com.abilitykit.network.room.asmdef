@@ -1,0 +1,19 @@
+{
+  "name": "AbilityKit.Network.Room",
+  "rootNamespace": "AbilityKit.Network.Room",
+  "references": [
+    "AbilityKit.Network.Runtime",
+    "AbilityKit.Network.Sdk",
+    "AbilityKit.Protocol",
+    "AbilityKit.Protocol.Room"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

@@ -6,7 +6,7 @@ using AbilityKit.Core.Logging;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Requests;
-using AbilityKit.Game.Battle.Transport;
+using AbilityKit.Network.Battle;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;

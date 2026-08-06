@@ -1,5 +1,12 @@
 # 接入 coordinator 的两种模式
 
+> ⚠️ **源码核校 2026-08-06（重大修正）**：本文档原描述的"两个 demo 经 coordinator 接入多人联网"路径**与当前源码不符**。
+>
+> - **Shooter 的 coordinator 接入路径已删除**。`ShooterCoordinatorSessionHost` / shooter 用的 `ExistingWorldSessionCoordinatorHost` / `ShooterGatewayCoordinatorInputTransport` / `ShooterCoordinatorInputBridge` 在源码中**均不存在**——`src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterRemoteCoordinatorInputContractTests.cs` 显式断言其缺席，设计文档 `Docs/design/07-NetworkSynchronization/05-SessionCoordination.md:748` 记录了有意移除；shooter `view.runtime` asmdef 不引用 `AbilityKit.Coordinator`。
+> - **MOBA 战斗路径不驱动 `SessionCoordinator`**。`MobaSessionCoordinatorHost` 仍实现 `ISessionCoordinatorHost` / `ISessionCoordinatorConfigPolicy`（见下文模式 A 的 host 实现，这部分真实存在），但 moba 战斗走 `com.abilitykit.host.extension` 的 `FrameSyncDriverModule` + `ClientPredictionDriverModule`，**不实例化 `SessionCoordinator`、不使用任何 `ISyncAdapter`**。
+> - 因此**两个 demo 的多人联网实际都不经过 coordinator**。真正的多人接入路径是 `com.abilitykit.network.sdk`（`NetworkSdkBuilder` → `NetworkSdkClient`）+ `com.abilitykit.network.room`（`sdk.CreateRoomClient()` → `RoomGatewaySessionFlow`）。权威接入清单见各包 README 与 `Docs/design/07-NetworkSynchronization/`。
+> - 下文模式 A 的 host 实现仍可作为"实现 coordinator host 端口"的参考；模式 B 已标注为已删除的历史路径。`CoordinatorInputSubmitBridge` 类存在于 coordinator 包，但**当前无任何 demo 使用**。
+
 ## 模式 A：直接实现 ISessionCoordinatorHost（moba demo）
 
 文件：`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Session/`
@@ -95,9 +102,11 @@ public sealed class MobaLogicWorldDriveGate : ILogicWorldDriveGate {
               └─ driverHost.AdvanceFrame → _hostRuntime.Tick（推进 moba 战斗）
 ```
 
-## 模式 B：用 ExistingWorldSessionCoordinatorHost 组合（shooter demo）
+## 模式 B（⚠️ 历史路径，源码中已删除）
 
-文件：`Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Hosting/`
+> 以下 `ShooterCoordinatorSessionHost` / `ShooterGatewayCoordinatorInputTransport` / `ShooterCoordinatorInputBridge.Create` 在源码中**均已不存在**（见本文档顶部修正说明）。shooter 真实的网络接入路径见本节末尾"shooter 真实路径"。保留下文仅作历史参考，**不要照此实现**。
+>
+> 原描述文件路径 `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Hosting/` 已不存在。
 
 ### ShooterCoordinatorSessionHost（包装 ExistingWorldSessionCoordinatorHost）
 
@@ -163,7 +172,29 @@ public static class ShooterCoordinatorInputBridge {
 }
 ```
 
-## CoordinatorInputSubmitBridge（shooter 异步路径的关键）
+## shooter 真实路径（不经 coordinator）
+
+源码核校 2026-08-06。文件均在 `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/`：
+
+```
+ShooterClientConnectionFactory          选 transport（Tcp/FromTransportFactory/FromGameFrameworkNetwork/...）→ IConnection
+  ↓
+ShooterClientNetworkLauncher            new NetworkSdkBuilder().UseConnectionFactory(...).Build() → NetworkSdkClient
+  ↓
+ShooterRoomGatewayConnection            实现 IRoomGatewayRequestTransport + IRoomGatewayPushSource，send 经 sdkClient.SendRawRequestAsync
+  ↓
+ShooterRoomGatewayFlow                  包装通用 RoomGatewaySessionFlow（8 阶段），内含 ShooterRoomGatewaySessionClient 适配 shooter DTO → 通用能力接口
+  ↓
+ShooterClientSession                    tick 本地预测 + 应用下推快照；输入上行 ShooterRoomGatewayClient.SubmitBattleInputAsync（opcode = RoomGatewayOpCodes.SubmitBattleInput）
+```
+
+- shooter 不引用 `AbilityKit.Coordinator`（view.runtime asmdef），不实现 `IRemoteBattleSyncTransport`，不创建 `SessionCoordinator`。
+- `ShooterBattleDriverHost : ILogicWorldDriverBridge`（runtime 包）存在，但**独立使用**（验收/AI 路径），未接到任何 coordinator。
+- 三种客户端同步策略由 `ShooterClientSyncControllerFactory` 按 `NetworkSyncModel` 选择：`PredictRollback` / `AuthoritativeInterpolation` / `HybridHeroPrediction`（注意这是 `com.abilitykit.network.runtime` 的枚举，**不是** coordinator 的 `SyncMode`）。
+
+moba 真实路径结构相同（`MultiplayerGatewayEntryModule` → `NetworkSdkBuilder` → `GatewayRoomClient`），战斗数据面改走 `host.extension` 的 framesync 模块。
+
+## CoordinatorInputSubmitBridge（⚠️ 存在于 coordinator 包，当前无 demo 使用）
 
 `Runtime/Transport/CoordinatorInputSubmitBridge.cs` 是泛型异步输入桥：
 

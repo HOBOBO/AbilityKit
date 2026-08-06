@@ -1,0 +1,17 @@
+{
+  "name": "com.abilitykit.network.battle",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Network Battle",
+  "unity": "2021.3",
+  "description": "Transport-independent AbilityKit battle data-plane engine (input uplink + snapshot/event downlink + reliable events + resync).",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.network.sdk": "0.1.0",
+    "com.abilitykit.network.runtime": "0.1.0",
+    "com.abilitykit.game.battle.runtime": "0.0.1",
+    "com.abilitykit.world.networkfragments": "0.0.1",
+    "com.abilitykit.world.snapshot": "0.1.0"
+  }
+}

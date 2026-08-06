@@ -1,8 +1,10 @@
 using System.Collections.Generic;
+using AbilityKit.Protocol;
 using MemoryPack;
 
 namespace AbilityKit.Protocol.Room
 {
+    [ProtocolOpCode(RoomGatewayOpCodes.GuestLogin, ProtocolDirection.ClientToServer, nameof(WireRoomGuestLoginReq))]
     [MemoryPackable]
     public partial struct WireRoomGuestLoginReq
     {
@@ -18,6 +20,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(3)] public string Message { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.AccountLogin, ProtocolDirection.ClientToServer, nameof(WireRoomAccountLoginReq))]
     [MemoryPackable]
     public partial struct WireRoomAccountLoginReq
     {
@@ -37,6 +40,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(5)] public string Message { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.RenewSession, ProtocolDirection.ClientToServer, nameof(WireRenewSessionReq))]
     [MemoryPackable]
     public partial struct WireRenewSessionReq
     {
@@ -55,6 +59,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(4)] public string Message { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.CreateRoom, ProtocolDirection.ClientToServer, nameof(WireCreateRoomReq))]
     [MemoryPackable]
     public partial struct WireCreateRoomReq
     {
@@ -77,6 +82,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(3)] public string Message { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.JoinRoom, ProtocolDirection.ClientToServer, nameof(WireJoinRoomReq))]
     [MemoryPackable]
     public partial struct WireJoinRoomReq
     {
@@ -129,6 +135,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(8)] public uint CurrentPlayerId { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.RestoreRoom, ProtocolDirection.ClientToServer, nameof(WireRestoreRoomReq))]
     [MemoryPackable]
     public partial struct WireRestoreRoomReq
     {
@@ -137,6 +144,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(2)] public string ServerId { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.ListRooms, ProtocolDirection.ClientToServer, nameof(WireListRoomsReq))]
     [MemoryPackable]
     public partial struct WireListRoomsReq
     {
@@ -175,6 +183,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(12)] public uint CurrentPlayerId { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.SetReady, ProtocolDirection.ClientToServer, nameof(WireRoomReadyReq))]
     [MemoryPackable]
     public partial struct WireRoomReadyReq
     {
@@ -196,6 +205,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(7)] public int ErrorCode { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.PickHero, ProtocolDirection.ClientToServer, nameof(WireRoomPickHeroReq))]
     [MemoryPackable]
     public partial struct WireRoomPickHeroReq
     {
@@ -210,6 +220,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(8)] public List<int>? SkillIds { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.StartBattle, ProtocolDirection.ClientToServer, nameof(WireStartRoomBattleReq))]
     [MemoryPackable]
     public partial struct WireStartRoomBattleReq
     {
@@ -242,6 +253,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(6)] public long ServerNowTicks { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.SubmitBattleInput, ProtocolDirection.ClientToServer, nameof(WireSubmitBattleInputReq))]
     [MemoryPackable]
     public partial struct WireSubmitBattleInputReq
     {
@@ -267,6 +279,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(6)] public long ServerTicks { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.SubscribeStateSync, ProtocolDirection.ClientToServer, nameof(WireSubscribeStateSyncReq))]
     [MemoryPackable]
     public partial struct WireSubscribeStateSyncReq
     {
@@ -284,6 +297,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(1)] public string Message { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.RequestFullStateSync, ProtocolDirection.ClientToServer, nameof(WireRequestFullStateSyncReq))]
     [MemoryPackable]
     public partial struct WireRequestFullStateSyncReq
     {
@@ -307,6 +321,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(3)] public long ServerTicks { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.GetStateSyncDeliveryMetrics, ProtocolDirection.ClientToServer, nameof(WireGetStateSyncDeliveryMetricsReq))]
     [MemoryPackable]
     public partial struct WireGetStateSyncDeliveryMetricsReq
     {
@@ -443,6 +458,7 @@ namespace AbilityKit.Protocol.Room
     /// <summary>
     /// Owner 发起资源加载阶段请求（Lobby -> Loading）。
     /// </summary>
+    [ProtocolOpCode(RoomGatewayOpCodes.BeginLoading, ProtocolDirection.ClientToServer, nameof(WireBeginLoadingReq))]
     [MemoryPackable]
     public partial struct WireBeginLoadingReq
     {
@@ -470,6 +486,7 @@ namespace AbilityKit.Protocol.Room
     /// <summary>
     /// 成员上报资源加载完成。
     /// </summary>
+    [ProtocolOpCode(RoomGatewayOpCodes.ReportAssetsLoaded, ProtocolDirection.ClientToServer, nameof(WireReportAssetsLoadedReq))]
     [MemoryPackable]
     public partial struct WireReportAssetsLoadedReq
     {
@@ -484,6 +501,7 @@ namespace AbilityKit.Protocol.Room
     /// <summary>
     /// Monotonic loading progress for the current launch generation.
     /// </summary>
+    [ProtocolOpCode(RoomGatewayOpCodes.ReportLoadingProgress, ProtocolDirection.ClientToServer, nameof(WireReportLoadingProgressReq))]
     [MemoryPackable]
     public partial struct WireReportLoadingProgressReq
     {
@@ -498,6 +516,7 @@ namespace AbilityKit.Protocol.Room
     /// <summary>
     /// Owner 取消加载阶段，回到 Lobby。
     /// </summary>
+    [ProtocolOpCode(RoomGatewayOpCodes.CancelLoading, ProtocolDirection.ClientToServer, nameof(WireCancelLoadingReq))]
     [MemoryPackable]
     public partial struct WireCancelLoadingReq
     {
@@ -511,6 +530,7 @@ namespace AbilityKit.Protocol.Room
     /// Leaves the authoritative room membership. The operation result is returned
     /// using <see cref="WireRoomOperationRes"/>.
     /// </summary>
+    [ProtocolOpCode(RoomGatewayOpCodes.LeaveRoom, ProtocolDirection.ClientToServer, nameof(WireLeaveRoomReq))]
     [MemoryPackable]
     public partial struct WireLeaveRoomReq
     {
@@ -523,6 +543,7 @@ namespace AbilityKit.Protocol.Room
     /// <summary>
     /// 查询 Room 当前快照。
     /// </summary>
+    [ProtocolOpCode(RoomGatewayOpCodes.GetSnapshot, ProtocolDirection.ClientToServer, nameof(WireGetSnapshotReq))]
     [MemoryPackable]
     public partial struct WireGetSnapshotReq
     {
@@ -533,6 +554,7 @@ namespace AbilityKit.Protocol.Room
     /// <summary>
     /// Room 状态变更推送（server -> client）。
     /// </summary>
+    [ProtocolOpCode(RoomGatewayOpCodes.RoomStateChanged, ProtocolDirection.ServerToClient, nameof(WireRoomStateChangedPush))]
     [MemoryPackable]
     public partial struct WireRoomStateChangedPush
     {

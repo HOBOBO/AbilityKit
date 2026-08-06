@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AbilityKit.Protocol;
 using MemoryPack;
 
 namespace AbilityKit.Protocol.Room
@@ -21,6 +22,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(6)] public byte[]? Payload { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.ReliableBattleEventsPushed, ProtocolDirection.ServerToClient, nameof(WireReliableBattleEventPush))]
     [MemoryPackable]
     public partial struct WireReliableBattleEventPush
     {
@@ -32,6 +34,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(5)] public List<WireReliableBattleEvent>? Events { get; set; }
     }
 
+    [ProtocolOpCode(RoomGatewayOpCodes.AckReliableBattleEvents, ProtocolDirection.ClientToServer, nameof(WireAckReliableBattleEventsReq))]
     [MemoryPackable]
     public partial struct WireAckReliableBattleEventsReq
     {

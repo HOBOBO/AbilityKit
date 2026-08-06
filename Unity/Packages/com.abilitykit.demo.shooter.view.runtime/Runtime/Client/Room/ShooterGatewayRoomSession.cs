@@ -3,7 +3,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using AbilityKit.Ability.Host.Extensions.Session;
+using AbilityKit.Network.Room;
 using AbilityKit.Game.View.Loading;
 
 namespace AbilityKit.Demo.Shooter.View

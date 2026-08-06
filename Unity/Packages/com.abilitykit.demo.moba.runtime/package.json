@@ -33,7 +33,7 @@
     "com.abilitykit.combat.navigation": "0.0.1",
     "com.abilitykit.diagnostics": "0.0.1",
     "com.abilitykit.game.battle.runtime": "0.0.1",
-    "com.abilitykit.game.battle.transport.runtime": "0.0.1",
+    "com.abilitykit.network.battle": "0.1.0",
     "com.abilitykit.gameplaytags": "0.0.1",
     "com.abilitykit.host.extension": "0.0.1",
     "com.abilitykit.demo.moba.host": "0.0.1",

@@ -78,18 +78,11 @@ namespace AbilityKit.Demo.Moba.Services
         private static int RegisterGeneratedAndExternalHandlers(MobaInputCommandHandlerRegistry registry)
         {
             var runtimeAssembly = typeof(MobaInputCommandHandlerRegistry).Assembly;
-            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-            var generatedCount = 0;
+            var generatedCount = MobaGeneratedInputCommandHandlerManifest.Register(registry);
+            var assemblies = MobaRegistryAssemblyDiscovery.GetExternalAssemblies(runtimeAssembly);
             for (int i = 0; i < assemblies.Length; i++)
             {
-                var assembly = assemblies[i];
-                if (assembly == runtimeAssembly)
-                {
-                    generatedCount = MobaGeneratedInputCommandHandlerManifest.Register(registry);
-                    continue;
-                }
-
-                MarkerScanner<MobaInputCommandHandlerAttribute>.Scan(new[] { assembly }, registry);
+                MarkerScanner<MobaInputCommandHandlerAttribute>.Scan(new[] { assemblies[i] }, registry);
             }
 
             return generatedCount;
@@ -100,13 +93,25 @@ namespace AbilityKit.Demo.Moba.Services
         /// </summary>
         public void Register(int opCode, Type implType)
         {
-            if (!TryRegister(key: opCode, implType)) return;
+            RegisterCore(opCode, implType);
+        }
+
+        internal bool TryRegisterGenerated(int opCode, Type implType)
+        {
+            return RegisterCore(opCode, implType);
+        }
+
+        private bool RegisterCore(int opCode, Type implType)
+        {
+            if (!TryRegisterUniqueKey(key: opCode, implType)) return false;
 
             _descriptors[opCode] = new MobaInputCommandHandlerDescriptor(opCode, implType);
             if (_services != null)
             {
                 TryBindHandler(opCode, implType, allowFallback: true);
             }
+
+            return true;
         }
 
         public void BindHandlers(IWorldResolver services)

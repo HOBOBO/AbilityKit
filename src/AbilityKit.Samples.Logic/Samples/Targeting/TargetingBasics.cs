@@ -44,7 +44,7 @@ namespace AbilityKit.Samples.Logic.Samples.Targeting
             Output.Bullet("ITargetScorer - 为候选实体打分");
             Output.Bullet("ITargetSelector - 从候选中选择最终结果");
             Output.Bullet("IPositionProvider - 提供实体位置（可选）");
-            Output.Bullet("SearchContext - 服务容器，注入 Provider/Scorer 等依赖");
+            Output.Bullet("SearchContext - 承载框架能力属性和包外强类型扩展数据");
         }
 
         private void DemonstrateBasicUsage()
@@ -63,7 +63,7 @@ namespace AbilityKit.Samples.Logic.Samples.Targeting
             positionProvider.SetPosition(3, 10f, 0f);
             positionProvider.SetPosition(4, 15f, 0f);
             positionProvider.SetPosition(5, 20f, 0f);
-            context.SetService<IPositionProvider>(positionProvider);
+            context.PositionProvider = positionProvider;
 
             Log("假设有以下实体:");
             Log("  Entity 1: 位置 (0, 0)");
@@ -74,7 +74,7 @@ namespace AbilityKit.Samples.Logic.Samples.Targeting
             Log("");
 
             Log("示例 1: 查找距离 Entity 1 最近的 3 个目标");
-            var results1 = new List<IEntityId>();
+            var results1 = new List<EntityId>();
             var query1 = SearchPipelineBuilder.Create()
                 .From(new AllEntitiesProvider(new[] { 1, 2, 3, 4, 5 }))
                 .Filter(new CircleShapeRule(new Vec2(0f, 0f), 100f))
@@ -87,7 +87,7 @@ namespace AbilityKit.Samples.Logic.Samples.Targeting
             Log("");
 
             Log("示例 2: 查找 Entity 1 周围 10 范围内的所有目标");
-            var results2 = new List<IEntityId>();
+            var results2 = new List<EntityId>();
             var query2 = SearchPipelineBuilder.Create()
                 .From(new AllEntitiesProvider(new[] { 1, 2, 3, 4, 5 }))
                 .Filter(new CircleShapeRule(new Vec2(0f, 0f), 10f))
@@ -99,7 +99,7 @@ namespace AbilityKit.Samples.Logic.Samples.Targeting
             Log("");
 
             Log("示例 3: 使用扇形选择器");
-            var results3 = new List<IEntityId>();
+            var results3 = new List<EntityId>();
             var query3 = SearchPipelineBuilder.Create()
                 .From(new AllEntitiesProvider(new[] { 1, 2, 3, 4, 5 }))
                 .Filter(new SectorShapeRule(new Vec2(0f, 0f), Vec2.Up, 15f, 60f))
@@ -111,12 +111,12 @@ namespace AbilityKit.Samples.Logic.Samples.Targeting
             Log($"  结果: {FormatIds(results3)} (前向 60 度扇形)");
         }
 
-        private static string FormatIds(List<IEntityId> ids)
+        private static string FormatIds(List<EntityId> ids)
         {
             if (ids.Count == 0) return "[]";
             var parts = new List<string>();
             foreach (var id in ids)
-                parts.Add($"Entity {id.ActorId}");
+                parts.Add($"Entity {id.Value}");
             return $"[{string.Join(", ", parts)}]";
         }
     }
@@ -133,9 +133,10 @@ namespace AbilityKit.Samples.Logic.Samples.Targeting
             _positions[actorId] = new Vec2(x, y);
         }
 
-        public bool TryGetPosition(IEntityId entity, out IVec2 position)
+        public bool TryGetPosition(EntityId entity, out Vec2 position)
         {
-            if (_positions.TryGetValue(entity.ActorId, out var pos))
+            if (entity.Value <= int.MaxValue &&
+                _positions.TryGetValue((int)entity.Value, out var pos))
             {
                 position = pos;
                 return true;
@@ -156,8 +157,6 @@ namespace AbilityKit.Samples.Logic.Samples.Targeting
         {
             _entityIds = entityIds;
         }
-
-        public bool RequiresPosition => false;
 
         public void ForEachCandidate<TConsumer>(in SearchQuery query, SearchContext context, ref TConsumer consumer)
             where TConsumer : struct, ICandidateConsumer

@@ -1,6 +1,8 @@
 # RoomGatewaySessionFlow（8 阶段会话流）
 
-源文件：`Runtime/Session/RoomGatewaySessionFlow.cs`（~1250 行单文件巨石）+ `RoomGatewayRestoreFirstConnectionPolicy.cs`
+> ⚠️ 源码核校 2026-08-06：`RoomGatewaySessionFlow` / `RoomGatewayRestoreFirstConnectionPolicy` 实际位于 **`com.abilitykit.network.room`** 包（`Runtime/RoomGatewaySessionFlow.cs`），**不在** `com.abilitykit.host.extension`。host.extension 的 `Runtime/Session/` 下只有 `FramePacketNetAdapter`（见文末）。本节保留在 host-extension skill 仅因历史编排；房间会话流程的权威文档应以 `com.abilitykit.network.room` 包为准。
+
+源文件（network.room）：`com.abilitykit.network.room/Runtime/RoomGatewaySessionFlow.cs` + `RoomGatewayRestoreFirstConnectionPolicy.cs`
 
 ## 核心接口 IRoomGatewaySessionClient
 

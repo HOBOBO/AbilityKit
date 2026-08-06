@@ -263,10 +263,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             long generation,
             ShooterClientNetworkLauncher? existingLauncher = null)
         {
-            var runtimeWorld = ShooterBattleWorldSession.Create(
+            var runtimeWorld = ShooterGameplayScenarioWorldHostFactory.CreateBattleWorld(
                 $"remote-{launchOptions.SessionToken}-client",
-                ShooterGameplayScenarioWorldHostFactory.Create(launchOptions.SessionOptions.GameplayScenario));
-            var launcher = existingLauncher ?? ShooterClientNetworkLauncher.Create(ShooterClientConnectionFactory.Tcp());
+                launchOptions.SessionOptions);
+            var launcher = existingLauncher ?? ShooterClientNetworkLauncher.Create(ShooterClientConnectionFactory.TcpForUnityMainThread());
 
             try
             {

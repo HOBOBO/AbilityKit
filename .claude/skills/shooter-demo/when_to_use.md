@@ -42,5 +42,5 @@
 
 - 技能/BUFF/触发器业务（**shooter 不复用**）→ [ability-kit](../ability-kit/SKILL.md)
 - 客户端预测 `ClientPredictionDriverModule`（**shooter 不复用**）→ [framesync-prediction-rollback](../framesync-prediction-rollback/SKILL.md)
-- 会话协调器接入 → [coordinator](../coordinator/SKILL.md)
+- 多人联网接入（`NetworkSdkBuilder` → `NetworkSdkClient` → `RoomGatewaySessionFlow`，shooter 真实路径，不经 coordinator）→ [coordinator/integration_recipes.md](../coordinator/integration_recipes.md)
 - Entitas ECS / 帧同步 demo → [moba-demo](../moba-demo/SKILL.md)

@@ -88,7 +88,7 @@
 
 - [能力管线模块](../com.abilitykit.pipeline/Document/能力管线模块开发设计文档.md) - 通用能力管线框架
 - [投射物系统](../com.abilitykit.combat.projectile/Document/投射物系统模块开发设计文档.md) - 投射物管理
-- [目标查找模块](../com.abilitykit.combat.targeting/Document/目标查找模块开发设计文档.md) - 目标选择
+- [目标查找模块](../../com.abilitykit.combat.targeting/Documentation~/Manual.md) - 目标选择
 
 ---
 

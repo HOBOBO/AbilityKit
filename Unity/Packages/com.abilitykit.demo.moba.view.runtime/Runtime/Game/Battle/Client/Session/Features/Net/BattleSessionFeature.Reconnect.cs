@@ -1,7 +1,7 @@
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle.Agent;
-using AbilityKit.Game.Battle.Transport;
+using AbilityKit.Network.Battle;
 
 namespace AbilityKit.Game.Flow
 {

@@ -1,4 +1,5 @@
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
+using AbilityKit.Protocol.Room;
 using StateSyncOpCodes = AbilityKit.Protocol.Moba.StateSync.OpCodes;
 
 namespace AbilityKit.Game.Battle.Transport.Moba
@@ -31,7 +32,7 @@ namespace AbilityKit.Game.Battle.Transport.Moba
 
         public const uint TimeSync = 1300;
 
-        public const uint KickPush = 9000;
+        public const uint KickPush = RoomGatewayOpCodes.SessionKicked;
 
         // ========== 帧同步/状态同步 OpCode (引用 Protocol.Moba) ==========
         public const uint SubmitFrameInput = OpCodes.SubmitFrameInput;

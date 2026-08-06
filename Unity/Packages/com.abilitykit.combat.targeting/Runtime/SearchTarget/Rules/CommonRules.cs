@@ -5,23 +5,22 @@ namespace AbilityKit.Battle.SearchTarget.Rules
     [TargetRule(0x0101, "CircleShape", 0)]
     public sealed class CircleShapeRule : ITargetRule
     {
-        private readonly IVec2 _origin;
+        private readonly Vec2 _origin;
         private readonly float _radius;
         private readonly float _radiusSqr;
 
-        public CircleShapeRule(IVec2 origin, float radius)
+        public CircleShapeRule(Vec2 origin, float radius)
         {
             _origin = origin;
             _radius = radius;
             _radiusSqr = radius * radius;
         }
 
-        public bool RequiresPosition => true;
-
-        public bool Test(in SearchQuery query, SearchContext context, IEntityId candidate)
+        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             if (_radius <= 0f) return false;
-            if (!context.TryGetService<IPositionProvider>(out var pos) || pos == null) return false;
+            var pos = context.PositionProvider;
+            if (pos == null) return false;
             if (!pos.TryGetPosition(candidate, out var p)) return false;
 
             var d = p.Subtract(_origin);
@@ -32,13 +31,13 @@ namespace AbilityKit.Battle.SearchTarget.Rules
     [TargetRule(0x0102, "SectorShape", 1)]
     public sealed class SectorShapeRule : ITargetRule
     {
-        private readonly IVec2 _origin;
-        private readonly IVec2 _forward;
+        private readonly Vec2 _origin;
+        private readonly Vec2 _forward;
         private readonly float _radius;
         private readonly float _radiusSqr;
         private readonly float _cosHalfAngle;
 
-        public SectorShapeRule(IVec2 origin, IVec2 forward, float radius, float halfAngleDegrees)
+        public SectorShapeRule(Vec2 origin, Vec2 forward, float radius, float halfAngleDegrees)
         {
             _origin = origin;
             _radius = radius;
@@ -59,12 +58,11 @@ namespace AbilityKit.Battle.SearchTarget.Rules
             _cosHalfAngle = (float)Math.Cos(halfAngleRad);
         }
 
-        public bool RequiresPosition => true;
-
-        public bool Test(in SearchQuery query, SearchContext context, IEntityId candidate)
+        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             if (_radius <= 0f) return false;
-            if (!context.TryGetService<IPositionProvider>(out var pos) || pos == null) return false;
+            var pos = context.PositionProvider;
+            if (pos == null) return false;
             if (!pos.TryGetPosition(candidate, out var p)) return false;
 
             var rel = p.Subtract(_origin);
@@ -81,54 +79,48 @@ namespace AbilityKit.Battle.SearchTarget.Rules
     [TargetRule(0x0201, "Whitelist", 100)]
     public sealed class WhitelistRule : ITargetRule
     {
-        private readonly IActorIdSet _set;
+        private readonly IEntityIdSet _set;
 
-        public WhitelistRule(IActorIdSet set)
+        public WhitelistRule(IEntityIdSet set)
         {
             _set = set;
         }
 
-        public bool RequiresPosition => false;
-
-        public bool Test(in SearchQuery query, SearchContext context, IEntityId candidate)
+        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
         {
-            return _set != null && _set.Contains(candidate.ActorId);
+            return _set != null && _set.Contains(candidate);
         }
     }
 
     [TargetRule(0x0202, "Blacklist", 100)]
     public sealed class BlacklistRule : ITargetRule
     {
-        private readonly IActorIdSet _set;
+        private readonly IEntityIdSet _set;
 
-        public BlacklistRule(IActorIdSet set)
+        public BlacklistRule(IEntityIdSet set)
         {
             _set = set;
         }
 
-        public bool RequiresPosition => false;
-
-        public bool Test(in SearchQuery query, SearchContext context, IEntityId candidate)
+        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
         {
-            return _set == null || !_set.Contains(candidate.ActorId);
+            return _set == null || !_set.Contains(candidate);
         }
     }
 
     [TargetRule(0x0203, "ExcludeEntity", 100)]
     public sealed class ExcludeEntityRule : ITargetRule
     {
-        private readonly IEntityId _excluded;
+        private readonly EntityId _excluded;
 
-        public ExcludeEntityRule(IEntityId excluded)
+        public ExcludeEntityRule(EntityId excluded)
         {
             _excluded = excluded;
         }
 
-        public bool RequiresPosition => false;
-
-        public bool Test(in SearchQuery query, SearchContext context, IEntityId candidate)
+        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
         {
-            return candidate.ActorId != _excluded.ActorId;
+            return candidate != _excluded;
         }
     }
 
@@ -139,9 +131,7 @@ namespace AbilityKit.Battle.SearchTarget.Rules
 
         public RequireValidIdRule() { }
 
-        public bool RequiresPosition => false;
-
-        public bool Test(in SearchQuery query, SearchContext context, IEntityId candidate)
+        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             return candidate.IsValid;
         }
@@ -154,12 +144,10 @@ namespace AbilityKit.Battle.SearchTarget.Rules
 
         private RequireHasPositionRule() { }
 
-        public bool RequiresPosition => true;
-
-        public bool Test(in SearchQuery query, SearchContext context, IEntityId candidate)
+        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
         {
-            if (!context.TryGetService<IPositionProvider>(out var pos) || pos == null) return false;
-            return pos.TryGetPosition(candidate, out _);
+            var pos = context.PositionProvider;
+            return pos != null && pos.TryGetPosition(candidate, out _);
         }
     }
 }

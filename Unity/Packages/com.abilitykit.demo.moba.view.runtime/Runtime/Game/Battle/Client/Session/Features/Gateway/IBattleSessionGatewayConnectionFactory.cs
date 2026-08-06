@@ -3,6 +3,7 @@ using AbilityKit.Game.Battle;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Flow
 {
@@ -42,7 +43,8 @@ namespace AbilityKit.Game.Flow
             var connOptions = new ConnectionOptions
             {
                 FrameCodec = LengthPrefixedFrameCodec.Instance,
-                KickPushOpCode = 9000
+                EnableKickHandling = true,
+                KickPushOpCode = RoomGatewayOpCodes.SessionKicked
             };
 
             return new ConnectionManager(() => new TcpTransport(), connOptions, callbackDispatcher, ioDispatcher);

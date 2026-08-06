@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
@@ -12,13 +13,17 @@ namespace AbilityKit.Demo.Shooter.View
     public sealed class ShooterClientNetworkLauncher : IDisposable
     {
         private readonly IConnection _connection;
+        private readonly NetworkSdkClient _sdkClient;
         private readonly ShooterRoomGatewayConnection _gatewayConnection;
         private bool _disposed;
 
         public ShooterClientNetworkLauncher(IConnection connection)
         {
             _connection = connection ?? throw new ArgumentNullException(nameof(connection));
-            _gatewayConnection = new ShooterRoomGatewayConnection(_connection);
+            _sdkClient = new NetworkSdkBuilder()
+                .UseConnectionFactory(() => _connection)
+                .Build();
+            _gatewayConnection = new ShooterRoomGatewayConnection(_sdkClient);
         }
 
         public static ShooterClientNetworkLauncher Create(IShooterClientConnectionFactory connectionFactory)
@@ -45,7 +50,7 @@ namespace AbilityKit.Demo.Shooter.View
         public void Open(string host, int port)
         {
             ThrowIfDisposed();
-            _connection.Open(host, port);
+            _sdkClient.Open(host, port);
         }
 
         public void Close()
@@ -55,13 +60,13 @@ namespace AbilityKit.Demo.Shooter.View
                 return;
             }
 
-            _connection.Close();
+            _sdkClient.Close();
         }
 
         public void Tick(float deltaTime)
         {
             ThrowIfDisposed();
-            _connection.Tick(deltaTime);
+            _sdkClient.Tick(deltaTime);
         }
 
         public Task<ShooterClientNetworkLaunchResult> CreateReadyStartAndSubscribeAsync(
@@ -609,9 +614,9 @@ namespace AbilityKit.Demo.Shooter.View
 
         private void OpenIfNeeded(string host, int port)
         {
-            if (!_connection.IsConnected)
+            if (!_sdkClient.IsConnected)
             {
-                _connection.Open(host, port);
+                _sdkClient.Open(host, port);
             }
         }
 
@@ -632,7 +637,7 @@ namespace AbilityKit.Demo.Shooter.View
 
             _disposed = true;
             _gatewayConnection.Dispose();
-            _connection.Dispose();
+            _sdkClient.Dispose();
         }
     }
 

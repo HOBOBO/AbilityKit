@@ -70,7 +70,15 @@ namespace AbilityKit.Demo.Moba.CodeGen
             }
 
             validMappings.Sort(CompareMappings);
-            context.AddSource("MobaGeneratedProjectileEmitterManifest.g.cs", GenerateSource(validMappings, emitterType));
+            var hasAmbiguousDefaults = validMappings
+                .Where(mapping => mapping.IsDefault)
+                .Select(mapping => mapping.EmitterValue)
+                .Distinct()
+                .Skip(1)
+                .Any();
+            context.AddSource(
+                "MobaGeneratedProjectileEmitterManifest.g.cs",
+                GenerateSource(validMappings, emitterType, hasAmbiguousDefaults));
         }
 
         private static int CompareMappings(
@@ -86,7 +94,8 @@ namespace AbilityKit.Demo.Moba.CodeGen
 
         private static string GenerateSource(
             IReadOnlyList<MobaProjectileEmitterMapping> mappings,
-            INamedTypeSymbol emitterType)
+            INamedTypeSymbol emitterType,
+            bool suppressDefaults)
         {
             var emitterTypeName = emitterType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             var source = new StringBuilder();
@@ -99,12 +108,11 @@ namespace AbilityKit.Demo.Moba.CodeGen
             source.AppendLine("        {");
             foreach (var mapping in mappings)
             {
-                source.Append("            registry.Register((")
+                source.Append("            if (registry.TryRegister((")
                     .Append(emitterTypeName).Append(')').Append(mapping.EmitterValue)
                     .Append(", () => new ").Append(mapping.QualifiedTypeName).Append("(), ")
                     .Append(mapping.Priority).Append(", ")
-                    .Append(mapping.IsDefault ? "true" : "false").AppendLine(");");
-                source.AppendLine("            count++;");
+                    .Append(mapping.IsDefault && !suppressDefaults ? "true" : "false").AppendLine(")) count++;");
             }
 
             source.AppendLine("        }");

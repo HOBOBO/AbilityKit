@@ -431,6 +431,11 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(initialHandled);
             Assert.IsTrue(transferHandled);
             Assert.AreEqual(0, refreshCalls);
+            Assert.AreEqual(2, synchronizer.HandledPushCount);
+            Assert.AreEqual(2, synchronizer.AppliedPushCount);
+            Assert.AreEqual(0, synchronizer.RefreshFallbackCount);
+            Assert.AreEqual(21, synchronizer.LastPushRevision);
+            Assert.IsNotNull(synchronizer.LastPushUtc);
             Assert.IsFalse(store.IsStale);
             Assert.AreEqual(21, store.Current.RoomRevision);
             Assert.AreEqual("account-member", store.Current.OwnerAccountId);

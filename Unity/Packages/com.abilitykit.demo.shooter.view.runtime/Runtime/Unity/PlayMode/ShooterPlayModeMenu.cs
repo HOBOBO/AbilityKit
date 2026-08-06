@@ -586,7 +586,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private async Task<T> WithRoomClient<T>(Func<ShooterRoomGatewayRoomClient, Task<T>> action)
         {
-            var launcher = ShooterClientNetworkLauncher.Create(ShooterClientConnectionFactory.Tcp());
+            var launcher = ShooterClientNetworkLauncher.Create(ShooterClientConnectionFactory.TcpForUnityMainThread());
             try
             {
                 launcher.Open(Endpoint());

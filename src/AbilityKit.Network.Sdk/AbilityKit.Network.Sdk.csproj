@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AbilityKitStable>true</AbilityKitStable>
+    <RootNamespace>AbilityKit.Network.Sdk</RootNamespace>
+    <AssemblyName>AbilityKit.Network.Sdk</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.network.sdk/Runtime/**/*.cs"
+             Exclude="../../Unity/Packages/com.abilitykit.network.sdk/Runtime/**/*.asmdef" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
+  </ItemGroup>
+</Project>

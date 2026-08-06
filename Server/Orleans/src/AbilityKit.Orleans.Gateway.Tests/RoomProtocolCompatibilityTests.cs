@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using AbilityKit.Protocol;
 using AbilityKit.Protocol.Room;
 using Xunit;
 
@@ -161,6 +163,7 @@ public sealed class RoomProtocolCompatibilityTests
         Assert.Equal(108U, RoomGatewayOpCodes.RequestFullStateSync);
         Assert.Equal(109U, RoomGatewayOpCodes.RestoreRoom);
         Assert.Equal(110U, RoomGatewayOpCodes.ListRooms);
+        Assert.Equal(9000U, RoomGatewayOpCodes.SessionKicked);
         Assert.Equal(9002U, RoomGatewayOpCodes.SnapshotPushed);
         Assert.Equal(9003U, RoomGatewayOpCodes.DeltaSnapshotPushed);
         // 阶段 4 append-only opcode
@@ -172,6 +175,77 @@ public sealed class RoomProtocolCompatibilityTests
         Assert.Equal(117U, RoomGatewayOpCodes.GetStateSyncDeliveryMetrics);
         Assert.Equal(119U, RoomGatewayOpCodes.LeaveRoom);
         Assert.Equal(9004U, RoomGatewayOpCodes.RoomStateChanged);
+    }
+
+    [Fact]
+    public void RoomRequestMetadataIsCompleteDirectionalAndUnique()
+    {
+        var requests = new (Type Type, uint OpCode)[]
+        {
+            (typeof(WireRoomGuestLoginReq), RoomGatewayOpCodes.GuestLogin),
+            (typeof(WireRoomAccountLoginReq), RoomGatewayOpCodes.AccountLogin),
+            (typeof(WireRenewSessionReq), RoomGatewayOpCodes.RenewSession),
+            (typeof(WireCreateRoomReq), RoomGatewayOpCodes.CreateRoom),
+            (typeof(WireJoinRoomReq), RoomGatewayOpCodes.JoinRoom),
+            (typeof(WireRestoreRoomReq), RoomGatewayOpCodes.RestoreRoom),
+            (typeof(WireListRoomsReq), RoomGatewayOpCodes.ListRooms),
+            (typeof(WireRoomReadyReq), RoomGatewayOpCodes.SetReady),
+            (typeof(WireRoomPickHeroReq), RoomGatewayOpCodes.PickHero),
+            (typeof(WireStartRoomBattleReq), RoomGatewayOpCodes.StartBattle),
+            (typeof(WireSubmitBattleInputReq), RoomGatewayOpCodes.SubmitBattleInput),
+            (typeof(WireSubscribeStateSyncReq), RoomGatewayOpCodes.SubscribeStateSync),
+            (typeof(WireRequestFullStateSyncReq), RoomGatewayOpCodes.RequestFullStateSync),
+            (typeof(WireGetStateSyncDeliveryMetricsReq), RoomGatewayOpCodes.GetStateSyncDeliveryMetrics),
+            (typeof(WireBeginLoadingReq), RoomGatewayOpCodes.BeginLoading),
+            (typeof(WireReportAssetsLoadedReq), RoomGatewayOpCodes.ReportAssetsLoaded),
+            (typeof(WireReportLoadingProgressReq), RoomGatewayOpCodes.ReportLoadingProgress),
+            (typeof(WireCancelLoadingReq), RoomGatewayOpCodes.CancelLoading),
+            (typeof(WireLeaveRoomReq), RoomGatewayOpCodes.LeaveRoom),
+            (typeof(WireGetSnapshotReq), RoomGatewayOpCodes.GetSnapshot),
+            (typeof(WireAckReliableBattleEventsReq), RoomGatewayOpCodes.AckReliableBattleEvents)
+        };
+
+        foreach (var request in requests)
+        {
+            var attribute = request.Type.GetCustomAttribute<ProtocolOpCodeAttribute>();
+            Assert.NotNull(attribute);
+            Assert.Equal(request.OpCode, attribute.OpCode);
+            Assert.Equal(ProtocolDirection.ClientToServer, attribute.Direction);
+            Assert.Equal(request.Type.Name, attribute.Name);
+        }
+
+        var duplicate = requests
+            .GroupBy(request => request.OpCode)
+            .FirstOrDefault(group => group.Count() > 1);
+        Assert.Null(duplicate);
+    }
+
+    [Fact]
+    public void RoomPushMetadataOnlyDescribesSingleOpcodePayloads()
+    {
+        AssertProtocolMetadata<WireRoomStateChangedPush>(
+            RoomGatewayOpCodes.RoomStateChanged,
+            ProtocolDirection.ServerToClient);
+        AssertProtocolMetadata<WireReliableBattleEventPush>(
+            RoomGatewayOpCodes.ReliableBattleEventsPushed,
+            ProtocolDirection.ServerToClient);
+
+        Assert.Null(typeof(WireStateSyncSnapshotPush).GetCustomAttribute<ProtocolOpCodeAttribute>());
+        Assert.Null(typeof(WireCreateRoomRes).GetCustomAttribute<ProtocolOpCodeAttribute>());
+    }
+
+    [Fact]
+    public void ProtocolMessageDescriptorRejectsMissingMetadataAndWrongDirection()
+    {
+        Assert.Equal(
+            RoomGatewayOpCodes.CreateRoom,
+            ProtocolMessageDescriptor<WireCreateRoomReq>.RequireOpCode(ProtocolDirection.ClientToServer));
+        Assert.Throws<InvalidOperationException>(() =>
+            ProtocolMessageDescriptor<WireCreateRoomReq>.RequireOpCode(ProtocolDirection.ServerToClient));
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            _ = ProtocolMessageDescriptor<WireCreateRoomRes>.OpCode;
+        });
     }
 
     [Fact]
@@ -459,6 +533,15 @@ public sealed class RoomProtocolCompatibilityTests
         Assert.Equal(0L, restored.LaunchGeneration);
         Assert.Equal(0L, restored.LoadingDeadlineUnixMs);
         Assert.Equal(0, restored.LaunchManifestVersion);
+    }
+
+    private static void AssertProtocolMetadata<T>(uint opCode, ProtocolDirection direction)
+    {
+        var attribute = typeof(T).GetCustomAttribute<ProtocolOpCodeAttribute>();
+        Assert.NotNull(attribute);
+        Assert.Equal(opCode, attribute.OpCode);
+        Assert.Equal(direction, attribute.Direction);
+        Assert.Equal(typeof(T).Name, attribute.Name);
     }
 
     [Fact]

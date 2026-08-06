@@ -1,3 +1,5 @@
+> ⚠ **2026-08-06 整体移除（session 引擎清理）**：整个 `SubFeatures/` 子树（ISessionSubFeature 接口族 + ISessionHost + 3 内置 SubFeature）+ `SessionHooks` 已删除（死代码，无 demo 使用；注意 demo 自有的同名 `AbilityKit.Game.Flow.ISessionSubFeature<T>` 是无关的独立类型）。本节仅作历史参考。
+
 # SubFeature 与 SessionHooks
 
 源文件：`Runtime/SubFeatures/ISessionSubFeature.cs` + `ISessionHost.cs` + `SessionEventsSubFeature.cs` + `SessionTickLoopSubFeature.cs` + `SessionSnapshotRoutingSubFeature.cs` + `Runtime/Core/SessionHooks.cs`

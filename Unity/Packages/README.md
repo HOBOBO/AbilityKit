@@ -132,11 +132,13 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 
 ---
 
-### 10. [目标查找模块](./com.abilitykit.combat.targeting/Document/)
+### 10. [目标查找模块](./com.abilitykit.combat.targeting/Documentation~/)
 
 | 文档 | 定位 |
 |------|------|
-| [开发设计文档](./com.abilitykit.combat.targeting/Document/目标查找模块开发设计文档.md) | 设计理念、管线模式、形状系统 |
+| [运行时手册](./com.abilitykit.combat.targeting/Documentation~/Manual.md) | 当前管线契约、性能边界与扩展方式 |
+| [组合示例](./com.abilitykit.combat.targeting/Documentation~/Examples.md) | 常见查询组合方式 |
+| [历史开发设计文档](./com.abilitykit.combat.targeting/Documentation~/Design/目标查找模块开发设计文档.md) | 早期设计理念与演进背景 |
 
 **核心内容**：通用目标查找框架，支持圆形/扇形/矩形范围、流式处理、零GC
 
@@ -229,7 +231,7 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 | 为什么用 Trigger | [触发器模块开发设计文档 - 设计理念](./com.abilitykit.triggering/Document/触发器模块开发设计文档.md#一设计理念为什么要做触发器模块) |
 | 为什么用修饰器 | [属性系统模块开发设计文档 - 设计理念](./com.abilitykit.attributes/Document/属性系统模块开发设计文档.md#一设计理念为什么要做属性系统模块) |
 | 为什么用轻量修饰器 | [数值系统模块开发设计文档 - 设计理念](./com.abilitykit.core/Documentation~/数值系统模块开发设计文档.md#一设计理念为什么要做数值系统) |
-| 为什么用管线模式 | [目标查找模块开发设计文档 - 设计理念](./com.abilitykit.combat.targeting/Document/目标查找模块开发设计文档.md#一设计理念为什么要做目标查找模块) |
+| 为什么用管线模式 | [目标查找模块开发设计文档 - 设计理念](./com.abilitykit.combat.targeting/Documentation~/Design/目标查找模块开发设计文档.md#一设计理念为什么要做目标查找模块) |
 | 为什么用来源组合 | [移动系统模块开发设计文档 - 设计理念](./com.abilitykit.world.motion/Document/移动系统模块开发设计文档.md#一设计理念为什么要做移动系统模块) |
 | 为什么用对象池 | [投射物系统模块开发设计文档 - 设计理念](./com.abilitykit.combat.projectile/Document/投射物系统模块开发设计文档.md#一设计理念为什么要做投射物系统模块) |
 | 为什么用阶段化 | [MOBA 技能管线开发设计文档 - 设计理念](./com.abilitykit.demo.moba.runtime/Document/MOBA技能管线模块开发设计文档.md#一设计理念为什么要做技能管线) |

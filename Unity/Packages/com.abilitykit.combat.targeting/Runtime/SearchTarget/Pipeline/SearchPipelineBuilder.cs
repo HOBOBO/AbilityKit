@@ -8,10 +8,12 @@ namespace AbilityKit.Battle.SearchTarget
         private ICandidateProvider _provider;
         private List<ITargetRule> _rules;
         private bool _ownsRules;
-        private ITargetScorer _scorer;
+        private List<SearchOrder> _orders;
+        private bool _ownsOrders;
         private ITargetSelector _selector;
         private int _maxCount;
-        private int _flags;
+        private SearchSortDirection _sortDirection;
+        private SearchDuplicatePolicy _duplicatePolicy;
 
         private static readonly List<ITargetRule> s_emptyRules = new List<ITargetRule>(0);
 
@@ -20,10 +22,12 @@ namespace AbilityKit.Battle.SearchTarget
             _provider = null;
             _rules = null;
             _ownsRules = false;
-            _scorer = null;
+            _orders = null;
+            _ownsOrders = false;
             _selector = null;
             _maxCount = 0;
-            _flags = 0;
+            _sortDirection = SearchSortDirection.ScoreDescending;
+            _duplicatePolicy = SearchDuplicatePolicy.Preserve;
         }
 
         public static SearchPipelineBuilder Create() => new SearchPipelineBuilder(true);
@@ -61,14 +65,45 @@ namespace AbilityKit.Battle.SearchTarget
 
         public SearchPipelineBuilder ScoreBy(ITargetScorer scorer)
         {
-            _scorer = scorer;
+            return ScoreBy(scorer, _sortDirection);
+        }
+
+        public SearchPipelineBuilder ScoreBy(ITargetScorer scorer, SearchSortDirection direction)
+        {
+            EnsureOrderList();
+            _orders.Clear();
+            if (scorer != null) _orders.Add(new SearchOrder(scorer, direction));
+            _sortDirection = direction;
             return this;
         }
 
         public SearchPipelineBuilder ScoreById(int scorerId)
         {
-            _scorer = TargetScorerRegistry.Instance.Create(scorerId);
+            var scorer = TargetScorerRegistry.Instance.Create(scorerId);
+            return scorer != null ? ScoreBy(scorer) : this;
+        }
+
+        public SearchPipelineBuilder ScoreById(int scorerId, SearchSortDirection direction)
+        {
+            var scorer = TargetScorerRegistry.Instance.Create(scorerId);
+            return scorer != null ? ScoreBy(scorer, direction) : this;
+        }
+
+        public SearchPipelineBuilder ThenScoreBy(
+            ITargetScorer scorer,
+            SearchSortDirection direction = SearchSortDirection.ScoreDescending)
+        {
+            if (scorer == null) return this;
+            EnsureOrderList();
+            _orders.Add(new SearchOrder(scorer, direction));
             return this;
+        }
+
+        public SearchPipelineBuilder ThenScoreById(
+            int scorerId,
+            SearchSortDirection direction = SearchSortDirection.ScoreDescending)
+        {
+            return ThenScoreBy(TargetScorerRegistry.Instance.Create(scorerId), direction);
         }
 
         public SearchPipelineBuilder Select(ITargetSelector selector)
@@ -79,43 +114,56 @@ namespace AbilityKit.Battle.SearchTarget
 
         public SearchPipelineBuilder SelectById(int selectorId)
         {
-            _selector = TargetSelectorRegistry.Instance.Create(selectorId);
+            var selector = TargetSelectorRegistry.Instance.Create(selectorId);
+            if (selector != null) _selector = selector;
             return this;
         }
 
         public SearchPipelineBuilder Take(int maxCount)
         {
+            if (maxCount < 0) throw new ArgumentOutOfRangeException(nameof(maxCount));
             _maxCount = maxCount;
+            return this;
+        }
+
+        public SearchPipelineBuilder PreserveDuplicateCandidates()
+        {
+            _duplicatePolicy = SearchDuplicatePolicy.Preserve;
+            return this;
+        }
+
+        public SearchPipelineBuilder DistinctCandidatesByEntityKey()
+        {
+            _duplicatePolicy = SearchDuplicatePolicy.DistinctByEntityKey;
             return this;
         }
 
         public SearchPipelineBuilder OrderByScoreDescending()
         {
-            _flags |= (int)PipelineFlags.OrderByScoreDesc;
-            return this;
+            return SetPrimaryDirection(SearchSortDirection.ScoreDescending);
         }
 
         public SearchPipelineBuilder OrderByScoreAscending()
         {
-            _flags |= (int)PipelineFlags.OrderByScoreAsc;
-            return this;
+            return SetPrimaryDirection(SearchSortDirection.ScoreAscending);
         }
 
         public SearchQuery Build()
         {
             var rules = _rules != null && _rules.Count > 0 ? _rules : s_emptyRules;
-            return new SearchQuery(_provider, rules, _scorer, _selector, _maxCount, _flags);
+            return new SearchQuery(
+                _provider,
+                rules,
+                _orders,
+                _selector,
+                _maxCount,
+                _duplicatePolicy);
         }
 
+        [Obsolete("Build already creates an owned rule snapshot. Use Build instead.")]
         public SearchQuery BuildCopy()
         {
-            if (_rules == null || _rules.Count == 0)
-            {
-                return new SearchQuery(_provider, s_emptyRules, _scorer, _selector, _maxCount, _flags);
-            }
-
-            var rules = _rules.ToArray();
-            return new SearchQuery(_provider, rules, _scorer, _selector, _maxCount, _flags);
+            return Build();
         }
 
         public SearchResult Execute(TargetSearchEngine engine, SearchContext context)
@@ -124,7 +172,7 @@ namespace AbilityKit.Battle.SearchTarget
             return engine.SearchIds(in query, context);
         }
 
-        public void Execute(TargetSearchEngine engine, SearchContext context, List<IEntityId> results)
+        public void Execute(TargetSearchEngine engine, SearchContext context, List<EntityId> results)
         {
             var query = Build();
             engine.SearchIds(in query, context, results);
@@ -136,14 +184,30 @@ namespace AbilityKit.Battle.SearchTarget
             {
                 TargetingPool.ReleaseRuleList(_rules);
             }
+            if (_ownsOrders)
+            {
+                TargetingPool.ReleaseOrderList(_orders);
+            }
 
             _provider = null;
             _rules = null;
             _ownsRules = false;
-            _scorer = null;
+            _orders = null;
+            _ownsOrders = false;
             _selector = null;
             _maxCount = 0;
-            _flags = 0;
+            _sortDirection = SearchSortDirection.ScoreDescending;
+            _duplicatePolicy = SearchDuplicatePolicy.Preserve;
+        }
+
+        private SearchPipelineBuilder SetPrimaryDirection(SearchSortDirection direction)
+        {
+            _sortDirection = direction;
+            if (_orders != null && _orders.Count > 0)
+            {
+                _orders[0] = new SearchOrder(_orders[0].Scorer, direction);
+            }
+            return this;
         }
 
         private void EnsureRuleList()
@@ -151,6 +215,13 @@ namespace AbilityKit.Battle.SearchTarget
             if (_rules != null) return;
             _rules = TargetingPool.RentRuleList();
             _ownsRules = true;
+        }
+
+        private void EnsureOrderList()
+        {
+            if (_orders != null) return;
+            _orders = TargetingPool.RentOrderList();
+            _ownsOrders = true;
         }
     }
 }

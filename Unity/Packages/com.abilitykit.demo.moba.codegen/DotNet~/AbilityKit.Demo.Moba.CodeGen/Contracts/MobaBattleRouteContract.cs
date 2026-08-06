@@ -34,9 +34,10 @@ namespace AbilityKit.Demo.Moba.CodeGen
         {
             if (type.TypeKind != TypeKind.Class || type.IsAbstract || type.IsGenericType ||
                 !type.AllInterfaces.Any(candidate =>
-                    SymbolEqualityComparer.Default.Equals(candidate, inputHandlerType)))
+                    SymbolEqualityComparer.Default.Equals(candidate, inputHandlerType)) ||
+                !GeneratedCodeSymbolRules.CanReferenceType(type))
             {
-                error = $"the type must be a concrete non-generic class implementing {inputHandlerType.Name}";
+                error = $"the type must be a concrete non-generic class accessible from generated code and implementing {inputHandlerType.Name}";
                 return false;
             }
 
@@ -111,6 +112,34 @@ namespace AbilityKit.Demo.Moba.CodeGen
         public static string GetRouteKey(int kind, int opCode)
         {
             return kind + ":" + opCode;
+        }
+
+        public static bool TryValidateGeneratedRouteTypes(
+            INamedTypeSymbol ownerType,
+            ITypeSymbol? payloadType,
+            ITypeSymbol? handlerType,
+            out string error)
+        {
+            if (!GeneratedCodeSymbolRules.CanReferenceType(ownerType))
+            {
+                error = $"owner type '{ownerType.Name}' must be accessible from generated code";
+                return false;
+            }
+
+            if (payloadType != null && !GeneratedCodeSymbolRules.CanReferenceType(payloadType))
+            {
+                error = $"payload type '{payloadType.Name}' must be a closed type accessible from generated code";
+                return false;
+            }
+
+            if (handlerType != null && !GeneratedCodeSymbolRules.CanReferenceType(handlerType))
+            {
+                error = $"handler type '{handlerType.Name}' must be a closed type accessible from generated code";
+                return false;
+            }
+
+            error = null!;
+            return true;
         }
     }
 }

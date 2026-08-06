@@ -10,7 +10,9 @@ using AbilityKit.Game.View.Modules;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Demo.Common.Rooms;
+using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game
 {
@@ -41,7 +43,7 @@ namespace AbilityKit.Game
     {
         private readonly BattleGatewayConfigSO _config;
         private readonly DemoMultiplayerLaunchRequest _launchRequest;
-        private ConnectionManager _connection;
+        private NetworkSdkClient _sdkClient;
         private DedicatedThreadDispatcher _ioDispatcher;
         private CancellationTokenSource _lifetime;
         private ClientRoomStore _store;
@@ -57,7 +59,7 @@ namespace AbilityKit.Game
 
         public bool IsRemoteActive => _selection?.IsRemoteSelected == true;
         public ConnectionState ConnectionState =>
-            _connection != null ? _connection.State : ConnectionState.Disconnected;
+            _sdkClient != null ? _sdkClient.State : ConnectionState.Disconnected;
         public MultiplayerRecoveryState RecoveryState { get; private set; }
 
         public MultiplayerGatewayEntryModule(
@@ -85,7 +87,8 @@ namespace AbilityKit.Game
             var options = new ConnectionOptions
             {
                 FrameCodec = LengthPrefixedFrameCodec.Instance,
-                KickPushOpCode = 9000,
+                EnableKickHandling = true,
+                KickPushOpCode = RoomGatewayOpCodes.SessionKicked,
                 EnableReconnect = true,
                 ReconnectInitialDelay = TimeSpan.FromSeconds(1),
                 ReconnectMaxDelay = TimeSpan.FromSeconds(15),
@@ -93,14 +96,17 @@ namespace AbilityKit.Game
                 ReconnectMaxAttempts = AbilityKit.Network.Runtime.Sync.ReconnectBackoffPolicy.MaxAttempts
             };
 
-            _connection = new ConnectionManager(
+            var connection = new ConnectionManager(
                 () => new TcpTransport(),
                 options,
                 callbackDispatcher,
                 _ioDispatcher);
+            _sdkClient = new NetworkSdkBuilder()
+                .UseConnectionFactory(() => connection)
+                .Build();
             _store = new ClientRoomStore();
             _client = new GatewayRoomClient(
-                _connection,
+                _sdkClient,
                 GatewayRoomOpCodes.Default);
             _session = new GatewayMultiplayerRoomSession(_client, _store);
             _snapshotProvider = new ClientRoomSnapshotProvider(_store);
@@ -114,12 +120,12 @@ namespace AbilityKit.Game
                 _store,
                 RefreshCurrentRoomAsync);
 
-            _connection.ServerPushReceived += HandleServerPush;
-            _connection.Connected += HandleConnected;
-            _connection.Disconnected += HandleDisconnected;
-            _connection.ReconnectScheduled += HandleReconnectScheduled;
-            _connection.ReconnectAttemptStarted += HandleReconnectAttemptStarted;
-            _connection.ReconnectExhausted += HandleReconnectExhausted;
+            _sdkClient.ServerPushReceived += HandleServerPush;
+            _sdkClient.Connected += HandleConnected;
+            _sdkClient.Disconnected += HandleDisconnected;
+            _sdkClient.ReconnectScheduled += HandleReconnectScheduled;
+            _sdkClient.ReconnectAttemptStarted += HandleReconnectAttemptStarted;
+            _sdkClient.ReconnectExhausted += HandleReconnectExhausted;
             _controller.StateChanged += HandleRoomFlowStateChanged;
             ctx.Root.TryGetRef(out _selection);
             if (_selection != null)
@@ -138,6 +144,7 @@ namespace AbilityKit.Game
             ctx.Root.WithRef(_session);
             ctx.Root.WithRef<IRoomSnapshotProvider>(_snapshotProvider);
             ctx.Root.WithRef(_controller);
+            ctx.Root.WithRef(_pushSynchronizer);
             ctx.Root.WithRef<IBattleAssetLeaseTransferSource>(_assetLoader);
             ctx.Root.WithRef<IMultiplayerGatewayRuntime>(this);
             ApplyEntrySelection();
@@ -145,7 +152,7 @@ namespace AbilityKit.Game
 
         public void Tick(in GameEntryModuleContext ctx, float deltaTime)
         {
-            _connection?.Tick(deltaTime);
+            _sdkClient?.Tick(deltaTime);
         }
 
         public void OnDetach(in GameEntryModuleContext ctx)
@@ -156,14 +163,14 @@ namespace AbilityKit.Game
                 _selection.Changed -= HandleEntrySelectionChanged;
             }
 
-            if (_connection != null)
+            if (_sdkClient != null)
             {
-                _connection.ServerPushReceived -= HandleServerPush;
-                _connection.Connected -= HandleConnected;
-                _connection.Disconnected -= HandleDisconnected;
-                _connection.ReconnectScheduled -= HandleReconnectScheduled;
-                _connection.ReconnectAttemptStarted -= HandleReconnectAttemptStarted;
-                _connection.ReconnectExhausted -= HandleReconnectExhausted;
+                _sdkClient.ServerPushReceived -= HandleServerPush;
+                _sdkClient.Connected -= HandleConnected;
+                _sdkClient.Disconnected -= HandleDisconnected;
+                _sdkClient.ReconnectScheduled -= HandleReconnectScheduled;
+                _sdkClient.ReconnectAttemptStarted -= HandleReconnectAttemptStarted;
+                _sdkClient.ReconnectExhausted -= HandleReconnectExhausted;
             }
 
             if (_controller != null)
@@ -175,6 +182,7 @@ namespace AbilityKit.Game
             {
                 ctx.Root.RemoveComponent(typeof(IMultiplayerGatewayRuntime));
                 ctx.Root.RemoveComponent(typeof(IBattleAssetLeaseTransferSource));
+                ctx.Root.RemoveComponent(typeof(ClientRoomPushSynchronizer));
                 ctx.Root.RemoveComponent(typeof(MultiplayerRoomFlowController));
                 ctx.Root.RemoveComponent(typeof(IRoomSnapshotProvider));
                 ctx.Root.RemoveComponent(typeof(GatewayMultiplayerRoomSession));
@@ -187,7 +195,9 @@ namespace AbilityKit.Game
 
             _controller?.Dispose();
             _snapshotProvider?.Dispose();
-            _connection?.Dispose();
+            _session?.Dispose();
+            _client?.Dispose();
+            _sdkClient?.Dispose();
             _ioDispatcher?.Dispose();
             _lifetime?.Dispose();
 
@@ -199,7 +209,7 @@ namespace AbilityKit.Game
             _session = null;
             _client = null;
             _store = null;
-            _connection = null;
+            _sdkClient = null;
             _ioDispatcher = null;
             _lifetime = null;
             _connectedOnce = false;
@@ -210,7 +220,7 @@ namespace AbilityKit.Game
         public void ResetReconnect()
         {
             RecoveryState = MultiplayerRecoveryState.None;
-            _connection?.ResetReconnect();
+            _sdkClient?.ResetReconnect();
         }
 
         private void HandleConnected()
@@ -321,16 +331,16 @@ namespace AbilityKit.Game
 
         private void ApplyEntrySelection()
         {
-            if (_connection == null)
+            if (_sdkClient == null)
             {
                 return;
             }
 
             if (IsRemoteActive)
             {
-                if (_connection.State == ConnectionState.Disconnected)
+                if (_sdkClient.State == ConnectionState.Disconnected)
                 {
-                    _connection.Open(EffectiveHost(), EffectivePort());
+                    _sdkClient.Open(EffectiveHost(), EffectivePort());
                 }
 
                 return;
@@ -338,9 +348,9 @@ namespace AbilityKit.Game
 
             _controller?.Cancel();
             _store?.Reset();
-            if (_connection.State != ConnectionState.Disconnected)
+            if (_sdkClient.State != ConnectionState.Disconnected)
             {
-                _connection.Close();
+                _sdkClient.Close();
             }
         }
 

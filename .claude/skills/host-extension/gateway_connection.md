@@ -1,6 +1,8 @@
 # 统一网关连接抽象（v0.1.0 新增）
 
-源文件：`Runtime/Gateway/IGatewayConnection.cs` + `Runtime/Gateway/GatewayConnection.cs`
+> ⚠️ 源码核校 2026-08-06：`IGatewayConnection` / `GatewayConnection` 实际位于 **`com.abilitykit.network.runtime`** 包（`Runtime/Network/Runtime/Gateway/`），**不在** `com.abilitykit.host.extension`。本节保留在 host-extension skill 仅因其与 host.extension 的会话/FramePacket 代码强相关；如需移动到 network skill 可后续调整。
+
+源文件：`com.abilitykit.network.runtime/Runtime/Network/Runtime/Gateway/IGatewayConnection.cs` + `GatewayConnection.cs`
 
 ## 用途
 

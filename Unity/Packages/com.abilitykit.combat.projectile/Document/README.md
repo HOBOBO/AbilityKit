@@ -78,7 +78,7 @@
 
 ## 🔗 相关文档
 
-- [目标查找模块](../com.abilitykit.combat.targeting/Document/) - 目标选择和查找
+- [目标查找模块](../../com.abilitykit.combat.targeting/Documentation~/) - 目标选择和查找
 - [移动系统模块](../com.abilitykit.world.motion/Document/) - 实体移动管理
 - [数值系统](../com.abilitykit.core/Documentation~/数值系统模块开发设计文档.md) - 伤害计算
 

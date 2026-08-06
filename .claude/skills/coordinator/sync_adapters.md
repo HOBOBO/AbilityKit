@@ -1,3 +1,5 @@
+> ⚠ **2026-08-06 整体移除（session 引擎清理）**：整个 `Adapters/` 子树（ISyncAdapter + Local/RemoteSyncAdapter + HybridSyncAdapter[Obsolete] + SyncAdapterFactory）已删除（死代码，无 demo 使用 —— demo 各自实现 `ILogicWorldDriverBridge` 直接驱动 runtime）。本节仅作历史参考。
+
 # SyncAdapter（同步策略适配器）
 
 源文件：`Runtime/Adapters/ISyncAdapter.cs` + `LocalSyncAdapter.cs` + `RemoteSyncAdapter.cs` + `HybridSyncAdapter.cs`（⚠ `[Obsolete]`, D2 已决） + `SyncAdapterFactory.cs`。coordinator 版本 `0.1.0`（Beta，`AbilityKitStable=true`）。

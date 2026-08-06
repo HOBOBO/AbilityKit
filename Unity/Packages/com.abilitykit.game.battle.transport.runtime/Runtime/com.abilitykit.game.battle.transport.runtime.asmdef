@@ -3,11 +3,14 @@
     "rootNamespace": "AbilityKit",
     "references": [
         "AbilityKit.Game.Battle.Runtime",
+        "AbilityKit.Network.Battle",
         "AbilityKit.Network.Runtime",
+        "AbilityKit.Network.Sdk",
         "AbilityKit.World.Snapshot",
         "AbilityKit.World.NetworkFragments",
         "AbilityKit.Core",
         "AbilityKit.Protocol.Moba",
+        "AbilityKit.Protocol.Room",
         "MemoryPack"
     ],
     "includePlatforms": [],

@@ -8,6 +8,20 @@ namespace AbilityKit.Demo.Shooter.Runtime.Tests;
 
 public sealed class ShooterPackedSnapshotRuntimeTests
 {
+    [Theory]
+    [InlineData(0x3F0570A4, 5213)]
+    [InlineData(0x3FFFEDFB, 19995)]
+    [InlineData(0x405445A1, 33167)]
+    [InlineData(unchecked((int)0xBF0570A4), -5213)]
+    public void SnapshotQuantizationDoesNotDependOnSinglePrecisionIntermediateRounding(
+        int floatBits,
+        int expected)
+    {
+        var value = BitConverter.Int32BitsToSingle(floatBits);
+
+        Assert.Equal(expected, ShooterRuntimeSnapshotUtility.Quantize(value));
+    }
+
     [Fact]
     public void PackedSnapshotRoundTripRestoresHashAndEntities()
     {
@@ -431,6 +445,104 @@ public sealed class ShooterPackedSnapshotRuntimeTests
     }
 
     [Fact]
+    public void FullSnapshotImportKeepsTwoEnemyComponentLayoutsAlignedAcrossTick()
+    {
+        var sourceContainer = new WorldContainerBuilder()
+            .AddModule(new ShooterWorldModule())
+            .Build();
+        var source = sourceContainer.Resolve<IShooterBattleRuntimePort>();
+        var sourceEntities = sourceContainer.Resolve<IShooterEntityManager>();
+        var start = new ShooterStartGamePayload(
+            "two-enemy-layout-import",
+            30,
+            4290,
+            new[]
+            {
+                new ShooterStartPlayer(1, "P1", -1f, 0f),
+                new ShooterStartPlayer(2, "P2", 1f, 0f)
+            });
+
+        Assert.True(source.StartGame(in start));
+        sourceEntities.BeginStructuralChanges();
+        try
+        {
+            sourceEntities.AddEnemy(
+                100,
+                new ShooterSveltoTransformComponent { X = 3f, Y = 1f, DirectionX = -1f },
+                new ShooterSveltoHealthComponent { Current = 3, Max = 3, Alive = 1 });
+            sourceEntities.AddEnemy(
+                101,
+                new ShooterSveltoTransformComponent { X = -3f, Y = -1f, DirectionX = 1f },
+                new ShooterSveltoHealthComponent { Current = 4, Max = 4, Alive = 1 });
+        }
+        finally
+        {
+            sourceEntities.EndStructuralChanges();
+        }
+
+        Assert.Equal(2, sourceEntities.EnemyCount);
+        AssertEnemyComponentCounts(sourceEntities, 2);
+
+        var snapshot = source.ExportPackedSnapshot(99ul, isFullSnapshot: true, authorityOverride: true);
+        var targetContainer = new WorldContainerBuilder()
+            .AddModule(new ShooterWorldModule())
+            .Build();
+        var target = targetContainer.Resolve<IShooterBattleRuntimePort>();
+        var targetEntities = targetContainer.Resolve<IShooterEntityManager>();
+
+        Assert.True(target.ImportPackedSnapshot(in snapshot));
+        AssertEnemyComponentCounts(targetEntities, 2);
+        Assert.Equal(source.ComputeStateHash(), target.ComputeStateHash());
+
+        for (var frame = 0; frame < 30; frame++)
+        {
+            Assert.True(source.Tick(1f / 30f));
+            var delta = source.ExportPackedSnapshot(99ul, isFullSnapshot: false, authorityOverride: true);
+            Assert.True(target.ImportPackedSnapshot(in delta));
+            AssertEnemyComponentCounts(targetEntities, targetEntities.EnemyCount);
+            Assert.Equal(source.ComputeStateHash(), target.ComputeStateHash());
+        }
+    }
+
+    [Fact]
+    public void RepeatedFullAuthoritySnapshotsRoundTripDuringTwoPlayerCombat()
+    {
+        var start = new ShooterStartGamePayload(
+            "full-authority-two-player-combat",
+            30,
+            3901,
+            new[]
+            {
+                new ShooterStartPlayer(1, "P1", 0f, 0f),
+                new ShooterStartPlayer(2, "P2", 2f, 0f)
+            });
+        var source = new ShooterBattleRuntimePort();
+        var target = new ShooterBattleRuntimePort();
+
+        Assert.True(source.StartGame(in start));
+        Assert.True(target.StartGame(in start));
+
+        for (var frame = 0; frame < 300; frame++)
+        {
+            var fire = frame == 75 || frame == 81 || frame == 194 || frame == 217 || frame == 223 || frame == 260 || frame == 272;
+            Assert.Equal(2, source.SubmitInput(frame, new[]
+            {
+                new ShooterPlayerCommand(1, frame < 145 ? 1f : 0f, 0f, 1f, 0f, fire),
+                new ShooterPlayerCommand(2, frame < 145 ? -1f : 0f, 0f, -1f, 0f, fire)
+            }));
+            Assert.True(source.Tick(1f / 30f));
+
+            var snapshot = source.ExportPackedSnapshot(3901ul, isFullSnapshot: true, authorityOverride: true);
+            var payload = ShooterPackedSnapshotCodec.Serialize(in snapshot);
+            var decoded = ShooterPackedSnapshotCodec.Deserialize(payload);
+            Assert.True(target.ImportPackedSnapshot(in decoded));
+            Assert.True(
+                decoded.StateHash == target.ComputeStateHash(),
+                $"Full authority snapshot hash mismatch at frame {decoded.Frame}; entities={decoded.EntityCount}, expected=0x{decoded.StateHash:X8}, actual=0x{target.ComputeStateHash():X8}.");
+        }
+    }
+
+    [Fact]
     public void DeltaSnapshotImportPreservesEntityCountAfterMultipleDeltas()
     {
         var source = new ShooterBattleRuntimePort();
@@ -505,6 +617,19 @@ public sealed class ShooterPackedSnapshotRuntimeTests
             snapshot.EntityCount,
             snapshot.ExtensionPayload,
             chunks);
+    }
+
+    private static void AssertEnemyComponentCounts(IShooterEntityManager entities, int expected)
+    {
+        var group = (Svelto.ECS.ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets;
+        Assert.Equal(
+            new[] { expected, expected, expected },
+            new[]
+            {
+                entities.SveltoContext.EntitiesDB.Count<ShooterSveltoTransformComponent>(group),
+                entities.SveltoContext.EntitiesDB.Count<ShooterSveltoHealthComponent>(group),
+                entities.SveltoContext.EntitiesDB.Count<ShooterSveltoNavigationComponent>(group)
+            });
     }
 
     private static ShooterPackedComponentChunk? FindPackedChunk(in ShooterPackedSnapshotPayload snapshot, int componentKind, int entityKind)

@@ -7,16 +7,23 @@ namespace AbilityKit.Battle.SearchTarget.Entitas
 {
     public sealed class EntitasUnitFacadeMapper : ITargetMapper<IUnitFacade>
     {
-        public bool TryMap(SearchContext context, ST.IEntityId id, out IUnitFacade value)
+        private readonly IUnitResolver _resolver;
+
+        public EntitasUnitFacadeMapper(IUnitResolver resolver)
         {
-            if (!context.TryGetService<IUnitResolver>(out var resolver) || resolver == null)
+            _resolver = resolver ?? throw new System.ArgumentNullException(nameof(resolver));
+        }
+
+        public bool TryMap(SearchContext context, ST.EntityId id, out IUnitFacade value)
+        {
+            if (!id.IsValid || id.Value > int.MaxValue)
             {
                 value = null;
                 return false;
             }
 
-            var ecsId = new EcsEntityId(id.ActorId);
-            return resolver.TryResolve(ecsId, out value);
+            var ecsId = new EcsEntityId((int)id.Value);
+            return _resolver.TryResolve(ecsId, out value);
         }
     }
 }

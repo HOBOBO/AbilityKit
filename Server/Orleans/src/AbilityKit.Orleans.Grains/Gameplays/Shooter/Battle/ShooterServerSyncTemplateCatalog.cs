@@ -98,7 +98,9 @@ internal static class ShooterServerSyncTemplateCatalog
 
     private static readonly IReadOnlyList<ShooterServerSyncTemplatePolicy> Policies = new[]
     {
-        Packed(ShooterServerProtocol.PredictRollbackAuthorityTemplate, 1, 30, NetworkConditionProfile.Ideal),
+        // Predicted clients replay from each authoritative snapshot. Packed deltas are relative
+        // to the server baseline and cannot be imported into a world already predicted ahead.
+        Packed(ShooterServerProtocol.PredictRollbackAuthorityTemplate, 1, 1, NetworkConditionProfile.Ideal),
         Packed(ShooterServerProtocol.AuthoritativeInterpolationPresentationTemplate, 1, 60, NetworkConditionProfile.Lan),
         PureState(ShooterServerProtocol.BatchStateLowFrequencyTemplate, 60, 300, NetworkConditionProfile.Mobile4G, BatchStateSettings),
         PureState(ShooterServerProtocol.MassBattleLodAoiTemplate, 90, 450, NetworkConditionProfile.LimitedBandwidth, MassBattleSettings, 48f, 60f, useObserverAoi: true),

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using AbilityKit.Ability.Host.Extensions.Session;
+using AbilityKit.Network.Room;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Protocol.Room;
 
@@ -133,10 +133,12 @@ namespace AbilityKit.Game.Flow
     /// </summary>
     public sealed class GatewayMultiplayerRoomSession :
         IMultiplayerRoomSession,
-        IMobaReliableBattleEventCheckpointStore
+        IMobaReliableBattleEventCheckpointStore,
+        IDisposable
     {
         private readonly IGatewayRoomClient _client;
         private readonly RoomGatewaySessionFlow _flow;
+        private readonly IDisposable _sessionClient;
         private readonly ClientRoomStore _store;
         private readonly uint _guestLoginOpCode;
         private readonly TimeSpan _requestTimeout;
@@ -192,7 +194,24 @@ namespace AbilityKit.Game.Flow
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _store = store ?? throw new ArgumentNullException(nameof(store));
-            _flow = new RoomGatewaySessionFlow(new MobaRoomGatewaySessionClient(_client, _store));
+
+            IRoomGatewaySessionClientBase sessionClient;
+            if (client is IRoomGatewayRequestTransport requestTransport)
+            {
+                var wireClient = new RoomGatewayWireSessionClient(
+                    requestTransport,
+                    client as IRoomGatewayPushSource);
+                sessionClient = wireClient;
+                _sessionClient = wireClient;
+            }
+            else
+            {
+                var compatibilityClient = new MobaRoomGatewaySessionClient(_client, _store);
+                sessionClient = compatibilityClient;
+                _sessionClient = compatibilityClient;
+            }
+
+            _flow = new RoomGatewaySessionFlow(sessionClient);
             _guestLoginOpCode = guestLoginOpCode;
             _requestTimeout = requestTimeout ?? TimeSpan.FromSeconds(10);
             _pollInterval = pollInterval ?? TimeSpan.FromMilliseconds(500);
@@ -453,7 +472,7 @@ namespace AbilityKit.Game.Flow
                     current.LaunchManifestVersion,
                     current.LaunchManifestHash,
                     NewCommandId("assets-loaded")),
-                _requestTimeout,
+                _battleStartTimeout,
                 cancellationToken).ConfigureAwait(false);
             EnsureSucceeded(result.Success, result.Message, "report assets loaded", result.ErrorCode);
             if (result.Snapshot != null && !string.IsNullOrWhiteSpace(result.Snapshot.RoomId))
@@ -551,7 +570,7 @@ namespace AbilityKit.Game.Flow
             string roomId,
             CancellationToken cancellationToken)
         {
-            var result = await _client.GetSnapshotAsync(
+            var result = await _flow.GetSnapshotAsync(
                 _sessionToken,
                 roomId,
                 _requestTimeout,
@@ -568,9 +587,9 @@ namespace AbilityKit.Game.Flow
                     $"Gateway get snapshot returned an invalid numeric room id for room {roomId}.");
             }
 
-            result.Snapshot.NumericRoomId = result.NumericRoomId;
-            ApplyAuthoritativeSnapshot(result.Snapshot, result.NumericRoomId);
-            return result.Snapshot;
+            var snapshot = ToClientSnapshot(result.Snapshot, result.NumericRoomId);
+            ApplyAuthoritativeSnapshot(snapshot, result.NumericRoomId);
+            return snapshot;
         }
 
         private void ApplyAuthoritativeSnapshot(ClientRoomSnapshot snapshot, ulong numericRoomId)
@@ -629,6 +648,11 @@ namespace AbilityKit.Game.Flow
             {
                 await RefreshSnapshotAsync(roomId, cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        public void Dispose()
+        {
+            _sessionClient.Dispose();
         }
 
         private static RoomGatewayLaunchSpec ToLaunchSpec(MultiplayerRoomLaunchSpec spec)

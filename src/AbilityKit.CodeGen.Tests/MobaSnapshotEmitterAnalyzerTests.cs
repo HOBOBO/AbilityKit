@@ -153,6 +153,7 @@ public sealed class MobaSnapshotEmitterAnalyzerTests
             internal sealed class MobaSnapshotEmitterRegistry
             {
                 internal void Register(int priority, System.Type emitterType) { }
+                internal bool TryRegisterGenerated(int priority, System.Type emitterType) => true;
             }
 
             internal static partial class MobaGeneratedSnapshotEmitterManifest

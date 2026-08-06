@@ -33,16 +33,32 @@ public sealed class ShooterRoomGatewayFlowTests
         Assert.Contains("_flow.SubscribeStateSyncAsync(", source, StringComparison.Ordinal);
         Assert.Contains("_flow.RestoreAsync(", source, StringComparison.Ordinal);
 
-        var frameworkSource = File.ReadAllText(FindRepositoryFile(
+        var frameworkSourcePath = FindRepositoryFile(
+            "Unity",
+            "Packages",
+            "com.abilitykit.network.room",
+            "Runtime",
+            "RoomGatewaySessionFlow.cs");
+        var frameworkSource = File.ReadAllText(frameworkSourcePath);
+        var repositoryRoot = Directory.GetParent(frameworkSourcePath)!
+            .Parent!
+            .Parent!
+            .Parent!
+            .Parent!
+            .FullName;
+        var legacyFrameworkPath = Path.Combine(
+            repositoryRoot,
             "Unity",
             "Packages",
             "com.abilitykit.host.extension",
             "Runtime",
             "Session",
-            "RoomGatewaySessionFlow.cs"));
+            "RoomGatewaySessionFlow.cs");
+
         Assert.DoesNotContain("CreateReadyStartAndSubscribeAsync(", frameworkSource, StringComparison.Ordinal);
         Assert.DoesNotContain("JoinReadyStartAndSubscribeAsync(", frameworkSource, StringComparison.Ordinal);
         Assert.DoesNotContain("Task<RoomGatewaySessionFlowResult> RestoreRoomAsync(", frameworkSource, StringComparison.Ordinal);
+        Assert.False(File.Exists(legacyFrameworkPath));
     }
 
     [Fact]

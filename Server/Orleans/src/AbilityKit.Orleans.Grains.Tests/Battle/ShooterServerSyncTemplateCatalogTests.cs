@@ -22,15 +22,20 @@ public sealed class ShooterServerSyncTemplateCatalogTests
     }
 
     [Fact]
-    public void Catalog_DefaultPredictRollback_PreservesRealtimePackedDelivery()
+    public void Catalog_DefaultPredictRollback_PublishesFullPackedAuthorityEveryFrame()
     {
         var policy = ShooterServerSyncTemplateCatalog.Resolve(null);
         var pushOptions = policy.CreatePushOptions("ideal");
+        var snapshotPolicy = new BattleSnapshotSyncPolicy(
+            policy.SnapshotIntervalFrames,
+            policy.FullSnapshotIntervalFrames);
 
         Assert.Equal(ShooterServerProtocol.PredictRollbackAuthorityTemplate, policy.TemplateId);
         Assert.Equal(1, policy.SnapshotIntervalFrames);
-        Assert.Equal(30, policy.FullSnapshotIntervalFrames);
+        Assert.Equal(1, policy.FullSnapshotIntervalFrames);
         Assert.Equal(ShooterStateSyncPushPayloadMode.Packed, pushOptions.PayloadMode);
+        Assert.True(snapshotPolicy.ShouldCreateFullSnapshot(1));
+        Assert.True(snapshotPolicy.ShouldCreateFullSnapshot(2));
     }
 
     [Fact]

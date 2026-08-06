@@ -49,6 +49,29 @@ public sealed class MobaEventMappingAnalyzerTests
     }
 
     [Fact]
+    public async Task Analyze_RejectsArgsTypeHiddenFromGeneratedManifest()
+    {
+        const string source = ContractSource + """
+            namespace Game
+            {
+                using AbilityKit.Demo.Moba.Systems;
+
+                internal static class Container
+                {
+                    private sealed class HiddenArgs { }
+
+                    [MobaTriggerEvent("hidden", typeof(HiddenArgs))]
+                    internal sealed class Mapping { }
+                }
+            }
+            """;
+
+        Assert.Single(
+            await GetDiagnosticsAsync(source),
+            item => item.Id == MobaDiagnosticIds.InvalidEventMappingRuleId);
+    }
+
+    [Fact]
     public async Task Analyze_AllowsSameTextForExactAndPrefixMappings()
     {
         const string source = ContractSource + """

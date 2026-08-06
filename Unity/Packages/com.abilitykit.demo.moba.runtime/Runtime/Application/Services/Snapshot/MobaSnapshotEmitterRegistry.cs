@@ -50,18 +50,11 @@ namespace AbilityKit.Demo.Moba.Services
         private static int RegisterGeneratedAndExternalEmitters(MobaSnapshotEmitterRegistry registry)
         {
             var runtimeAssembly = typeof(MobaSnapshotEmitterRegistry).Assembly;
-            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-            var generatedCount = 0;
+            var generatedCount = MobaGeneratedSnapshotEmitterManifest.Register(registry);
+            var assemblies = MobaRegistryAssemblyDiscovery.GetExternalAssemblies(runtimeAssembly);
             for (int i = 0; i < assemblies.Length; i++)
             {
-                var assembly = assemblies[i];
-                if (assembly == runtimeAssembly)
-                {
-                    generatedCount = MobaGeneratedSnapshotEmitterManifest.Register(registry);
-                    continue;
-                }
-
-                MarkerScanner<MobaSnapshotEmitterAttribute>.Scan(new[] { assembly }, registry);
+                MarkerScanner<MobaSnapshotEmitterAttribute>.Scan(new[] { assemblies[i] }, registry);
             }
 
             return generatedCount;
@@ -73,6 +66,11 @@ namespace AbilityKit.Demo.Moba.Services
         public void Register(int priority, Type implType)
         {
             TryRegister(key: priority, implType);
+        }
+
+        internal bool TryRegisterGenerated(int priority, Type implType)
+        {
+            return TryRegister(key: priority, implType);
         }
 
         internal bool ContainsRegistration(int priority, Type implType)

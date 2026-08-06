@@ -6,7 +6,7 @@ using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateSync;
 using AbilityKit.Demo.Moba.Systems;
-using AbilityKit.Game.Battle.Transport.Projection;
+using AbilityKit.Network.Battle.Projection;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Battle;

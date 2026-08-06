@@ -130,6 +130,28 @@ public sealed class MobaProjectileEmitterAnalyzerTests
     }
 
     [Fact]
+    public async Task Analyze_RejectsDifferentDefaultEmitterTypes()
+    {
+        const string source = ContractSource + """
+            namespace Game
+            {
+                using AbilityKit.Demo.Moba;
+                using AbilityKit.Demo.Moba.Services.Projectile.Launch;
+
+                [MobaProjectileEmitter(ProjectileEmitterType.Linear, IsDefault = true)]
+                internal sealed class Linear : IMobaProjectileLaunchSequence { }
+
+                [MobaProjectileEmitter((ProjectileEmitterType)2, IsDefault = true)]
+                internal sealed class Other : IMobaProjectileLaunchSequence { }
+            }
+            """;
+
+        Assert.Single(
+            await GetDiagnosticsAsync(source),
+            item => item.Id == MobaDiagnosticIds.AmbiguousDefaultProjectileEmitterRuleId);
+    }
+
+    [Fact]
     public async Task GeneratorAndAnalyzer_ReportAmbiguityOnlyOnce()
     {
         const string source = ContractSource + """
@@ -194,6 +216,11 @@ public sealed class MobaProjectileEmitterAnalyzerTests
                     Func<IMobaProjectileLaunchSequence> factory,
                     int priority,
                     bool isDefault) { }
+                internal bool TryRegister(
+                    AbilityKit.Demo.Moba.ProjectileEmitterType emitterType,
+                    Func<IMobaProjectileLaunchSequence> factory,
+                    int priority,
+                    bool isDefault) => true;
             }
 
             internal static partial class MobaGeneratedProjectileEmitterManifest

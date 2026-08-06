@@ -26,17 +26,56 @@ internal sealed class FakeGatewayConnection : IConnection
 
     public int TickCount { get; private set; }
 
-    public event Action? Connected;
+    public int CloseCount { get; private set; }
 
-    public event Action? Disconnected;
+    public int DisposeCount { get; private set; }
 
-    public event Action<Exception>? Error;
+    public int PacketReceivedSubscriberCount => _packetReceived?.GetInvocationList().Length ?? 0;
 
-    public event Action<uint, uint, ArraySegment<byte>>? PacketReceived;
+    public int ServerPushReceivedSubscriberCount => _serverPushReceived?.GetInvocationList().Length ?? 0;
 
-    public event Action<uint, ArraySegment<byte>>? ServerPushReceived;
+    private event Action? ConnectedHandlers;
+    private event Action? DisconnectedHandlers;
+    private event Action<Exception>? ErrorHandlers;
+    private event Action<uint, uint, ArraySegment<byte>>? _packetReceived;
+    private event Action<uint, ArraySegment<byte>>? _serverPushReceived;
+    private event Action<string, string>? KickedHandlers;
 
-    public event Action<string, string>? Kicked;
+    public event Action? Connected
+    {
+        add => ConnectedHandlers += value;
+        remove => ConnectedHandlers -= value;
+    }
+
+    public event Action? Disconnected
+    {
+        add => DisconnectedHandlers += value;
+        remove => DisconnectedHandlers -= value;
+    }
+
+    public event Action<Exception>? Error
+    {
+        add => ErrorHandlers += value;
+        remove => ErrorHandlers -= value;
+    }
+
+    public event Action<uint, uint, ArraySegment<byte>>? PacketReceived
+    {
+        add => _packetReceived += value;
+        remove => _packetReceived -= value;
+    }
+
+    public event Action<uint, ArraySegment<byte>>? ServerPushReceived
+    {
+        add => _serverPushReceived += value;
+        remove => _serverPushReceived -= value;
+    }
+
+    public event Action<string, string>? Kicked
+    {
+        add => KickedHandlers += value;
+        remove => KickedHandlers -= value;
+    }
 
     public uint LastSentOpCode { get; private set; }
 
@@ -51,13 +90,14 @@ internal sealed class FakeGatewayConnection : IConnection
         OpenHost = host ?? string.Empty;
         OpenPort = port;
         State = ConnectionState.Connected;
-        Connected?.Invoke();
+        ConnectedHandlers?.Invoke();
     }
 
     public void Close()
     {
+        CloseCount++;
         State = ConnectionState.Disconnected;
-        Disconnected?.Invoke();
+        DisconnectedHandlers?.Invoke();
     }
 
     public void Tick(float deltaTime)
@@ -82,7 +122,7 @@ internal sealed class FakeGatewayConnection : IConnection
     public void CompleteResponse(uint opCode, uint seq, in WireSubmitBattleInputRes response)
     {
         var payload = WireRoomGatewayBinary.Serialize(in response);
-        PacketReceived?.Invoke(opCode, seq, EncodeGatewayResponse(TcpGatewayStatusCode.Ok, payload));
+        _packetReceived?.Invoke(opCode, seq, EncodeGatewayResponse(TcpGatewayStatusCode.Ok, payload));
     }
 
     private void CompleteRoomGatewayResponse(uint opCode, uint seq)
@@ -269,30 +309,31 @@ internal sealed class FakeGatewayConnection : IConnection
         }
     }
 
-    private void CompleteResponse<T>(uint opCode, uint seq, in T response)
+    public void CompleteResponse<T>(uint opCode, uint seq, in T response)
     {
         var payload = WireRoomGatewayBinary.Serialize(in response);
-        PacketReceived?.Invoke(opCode, seq, EncodeGatewayResponse(TcpGatewayStatusCode.Ok, payload));
+        _packetReceived?.Invoke(opCode, seq, EncodeGatewayResponse(TcpGatewayStatusCode.Ok, payload));
     }
 
     public void Push(uint opCode, ArraySegment<byte> payload)
     {
-        ServerPushReceived?.Invoke(opCode, TestByteSegments.Copy(payload));
+        _serverPushReceived?.Invoke(opCode, TestByteSegments.Copy(payload));
     }
 
     public void Dispose()
     {
+        DisposeCount++;
         Close();
     }
 
     public void RaiseError(Exception exception)
     {
-        Error?.Invoke(exception);
+        ErrorHandlers?.Invoke(exception);
     }
 
     public void Kick(string code, string reason)
     {
-        Kicked?.Invoke(code, reason);
+        KickedHandlers?.Invoke(code, reason);
     }
 
     private static ArraySegment<byte> EncodeGatewayResponse(TcpGatewayStatusCode statusCode, ArraySegment<byte> payload)

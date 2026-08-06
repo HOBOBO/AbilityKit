@@ -1,4 +1,4 @@
-using AbilityKit.Game.Battle.Transport.Projection;
+using AbilityKit.Network.Battle.Projection;
 
 namespace AbilityKit.Game.Flow
 {

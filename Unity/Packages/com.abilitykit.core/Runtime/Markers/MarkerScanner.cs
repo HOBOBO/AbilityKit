@@ -53,19 +53,23 @@ namespace AbilityKit.Core.Markers
                     if (t.IsAbstract) continue;
                     if (t.IsInterface) continue;
 
-                    var attr = GetAttribute(t);
-                    if (attr == null) continue;
-
-                    attr.OnScanned(t, registry);
+                    var attrs = GetAttributes(t);
+                    for (var attributeIndex = 0; attributeIndex < attrs.Length; attributeIndex++)
+                    {
+                        attrs[attributeIndex]?.OnScanned(t, registry);
+                    }
                 }
             }
         }
 
-        private static TAttr? GetAttribute(Type type)
+        private static TAttr[] GetAttributes(Type type)
         {
             var attrs = type.GetCustomAttributes(typeof(TAttr), false);
-            if (attrs == null || attrs.Length == 0) return null;
-            return (TAttr)attrs[0];
+            if (attrs == null || attrs.Length == 0) return Array.Empty<TAttr>();
+
+            var result = new TAttr[attrs.Length];
+            for (var i = 0; i < attrs.Length; i++) result[i] = (TAttr)attrs[i];
+            return result;
         }
     }
 }

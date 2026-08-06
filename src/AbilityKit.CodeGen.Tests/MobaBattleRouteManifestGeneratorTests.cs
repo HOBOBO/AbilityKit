@@ -33,7 +33,7 @@ public sealed class MobaBattleRouteManifestGeneratorTests
             generated,
             StringComparison.Ordinal);
         Assert.Contains(
-            "registry.Register(7, typeof(global::Game.MoveHandler));",
+            "if (registry.TryRegisterGenerated(7, typeof(global::Game.MoveHandler))) count++;",
             generated,
             StringComparison.Ordinal);
     }
@@ -98,7 +98,7 @@ public sealed class MobaBattleRouteManifestGeneratorTests
 
         var generated = Assert.Single(driver.GetRunResult().GeneratedTrees).GetText().ToString();
         Assert.Contains(
-            "registry.Register(8, typeof(global::Game.DiOnlyHandler));",
+            "if (registry.TryRegisterGenerated(8, typeof(global::Game.DiOnlyHandler))) count++;",
             generated,
             StringComparison.Ordinal);
     }
@@ -170,6 +170,7 @@ public sealed class MobaBattleRouteManifestGeneratorTests
             internal sealed class MobaInputCommandHandlerRegistry
             {
                 internal void Register(int opCode, Type handlerType) { }
+                internal bool TryRegisterGenerated(int opCode, Type handlerType) => true;
             }
 
             internal static partial class MobaGeneratedBattleRouteManifest

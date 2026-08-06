@@ -289,43 +289,47 @@ Targeting 模块用于把“找目标”拆成可组合流水线：候选来源�
 
 | 类型 | 源码 | 职责 |
 |------|------|------|
-| TargetSearchEngine | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/TargetSearchEngine.cs` | 搜索主流程 |
-| SearchQuery | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/SearchQuery.cs` | 查询描述 |
-| SearchContext | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/SearchContext.cs` | 服务上下文 |
-| ICandidateProvider | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/ICandidateProvider.cs` | 候选目标来源 |
-| ITargetRule | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/ITargetRule.cs` | 过滤规则 |
-| ITargetScorer | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/ITargetScorer.cs` | 评分规则 |
-| ITargetSelector | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/ITargetSelector.cs` | 选择策略 |
+| TargetSearchEngine | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/Execution/TargetSearchEngine.cs` | 搜索主流程 |
+| SearchQuery | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/Queries/SearchQuery.cs` | 查询描述 |
+| SearchContext | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/Execution/SearchContext.cs` | 框架能力属性与包外强类型扩展数据租约 |
+| ICandidateProvider | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/Providers/ICandidateProvider.cs` | 候选目标来源 |
+| ITargetRule | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/Rules/ITargetRule.cs` | 过滤规则 |
+| ITargetScorer | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/Scorers/ITargetScorer.cs` | 评分规则 |
+| ITargetSelector | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/Selectors/ITargetSelector.cs` | 完整命中选择策略 |
+| IStreamingTopKByScoreSelector | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/Selectors/ITargetSelector.cs` | 声明接受引擎严格 Top-K 语义的融合能力接口 |
 
 ```mermaid
 flowchart TD
-    A["SearchIds(query, context)"] --> B["清空 results/hits/cache"]
+    A["SearchIds(query, context)"] --> B["清空 results 并获取 stats/keyProvider"]
     B --> C{Provider 是否存在?}
     C -- 否 --> X["返回空"]
-    C -- 是 --> D{是否需要位置服务?}
-    D -- 是 --> E{context 有 IPositionProvider?}
-    E -- 否 --> X
-    E -- 是 --> F["获取 stats/keyProvider"]
-    D -- 否 --> F
-    F --> G{Selector 支持 Streaming?}
-    G -- 是 --> H["Begin streaming selector"]
-    H --> I["Provider.ForEachCandidate"]
-    I --> J["候选过滤/评分/Offer"]
-    J --> K["End 输出结果"]
-    G -- 否 --> L["Provider.ForEachCandidate"]
-    L --> M["PassRules"]
-    M --> N["Score + Add SearchHit"]
-    N --> O{query.Selector 存在?}
-    O -- 是 --> P["Selector.Select"]
-    O -- 否 --> Q["按 score desc/key asc 排序"]
-    Q --> R["写入 MaxCount 或全部结果"]
+    C -- 是 --> D{Selector 实现 Streaming Top-K 能力且 MaxCount 大于 0?}
+    D -- 是 --> E["租借 K 个命中槽和评分缓冲"]
+    E --> F["Provider.ForEachCandidate"]
+    F --> G["规则与评分成功后提交去重键并 Offer"]
+    G --> H["直接写出最多 K 个结果"]
+    D -- 否 --> I["租借完整命中与评分缓冲"]
+    I --> J["Provider.ForEachCandidate"]
+    J --> K["规则与评分成功后提交去重键并 Collect"]
+    K --> L{query.Selector 存在?}
+    L -- 是 --> M["Selector.Select(完整 SearchHitView)"]
+    L -- 否 --> N["按多排序项和稳定键完整排序"]
+    M --> O["Writer 按 MaxCount 写出结果"]
+    N --> O
 ```
 
 设计要点：
 
-- `RequiresPosition` 会提前检查上下文服务，避免搜索过程中才失败。
-- Streaming selector 支持大规模候选时不保存完整 hit 列表。
-- 默认排序使用 score 降序、key 升序，确保同分时稳定。
+- 位置、稳定键和统计是 `SearchContext` 的显式强类型属性；位置由具体 Rule 或 Scorer 按需读取，引擎不做全局 `RequiresPosition` 预检。
+- 包外单次查询数据使用静态 `SearchContextKey<T>` 并由业务 facade 管理；上下文不提供通用服务定位器或整数键黑板。
+- `ClearData()` 只清扩展数据，完整清理和池化归还还会清空框架能力引用，避免跨租约残留。普通构造的 Context 在 Dispose 时只清理自身，池化 Context 才归还全局池。
+- 两条执行路径都只消费一次 Provider 最终推送的候选流。复合 Provider 仍可能为集合语义遍历多个来源。
+- Selector 实现 `IStreamingTopKByScoreSelector` 且 `MaxCount > 0` 时，Rule、Scorer 与固定 Top-K 维护融合在候选回调中，不保存完整命中。
+- 自定义 Selector 保留完整只读命中视图，用额外的 `O(H × M)` 评分存储换取加权随机、分组、采样等全局后处理能力；所有输出路径都由 Writer 强制 `MaxCount` 硬上限。
+- 查询级去重键只在规则通过且全部评分有效后提交，失败候选不会抑制后续同键候选。
+- 融合路径当前使用有序小数组插入，最坏约 `O(H × K × M)`，适合 K 远小于命中数的场景；并非堆式 `O(H log K)`。
+- 多个排序项按声明顺序严格字典序比较，每项独立升降序，全部同分时按稳定键升序决胜。
+- 池保留常规峰值容量，超阈值列表缩回初始容量，超阈值命中与评分数组释放底层存储。
 
 ---
 

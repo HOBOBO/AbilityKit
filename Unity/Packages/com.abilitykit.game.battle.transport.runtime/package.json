@@ -6,5 +6,10 @@
   "description": "Reusable battle transport implementations (gateway transport) for AbilityKit.",
   "author": {
     "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.network.sdk": "0.1.0",
+    "com.abilitykit.network.battle": "0.1.0",
+    "com.abilitykit.protocol.room": "0.0.1"
   }
 }

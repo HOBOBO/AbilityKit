@@ -27,7 +27,7 @@ public sealed class MobaSnapshotEmitterManifestGeneratorTests
 
         var generated = Assert.Single(driver.GetRunResult().GeneratedTrees).GetText().ToString();
         Assert.Contains(
-            "registry.Register(25, typeof(global::Game.ActorSnapshotEmitter));",
+            "if (registry.TryRegisterGenerated(25, typeof(global::Game.ActorSnapshotEmitter))) count++;",
             generated,
             StringComparison.Ordinal);
     }
@@ -96,6 +96,7 @@ public sealed class MobaSnapshotEmitterManifestGeneratorTests
             internal sealed class MobaSnapshotEmitterRegistry
             {
                 internal void Register(int priority, Type emitterType) { }
+                internal bool TryRegisterGenerated(int priority, Type emitterType) => true;
             }
 
             internal static partial class MobaGeneratedSnapshotEmitterManifest

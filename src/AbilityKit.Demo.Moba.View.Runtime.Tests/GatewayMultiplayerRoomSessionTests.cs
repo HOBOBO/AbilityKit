@@ -409,7 +409,7 @@ public sealed class GatewayMultiplayerRoomSessionTests
     }
 
     [Fact]
-    public async Task PushSynchronizer_CoalescesConcurrentStaleRefreshes()
+    public async Task PushSynchronizer_RevisionGapsUseCompletePushWithoutRefresh()
     {
         var client = new StubGatewayRoomClient();
         client.PushSnapshots.Enqueue(Snapshot(ClientRoomPhase.Lobby, 3, 3));
@@ -417,22 +417,22 @@ public sealed class GatewayMultiplayerRoomSessionTests
         var store = new ClientRoomStore();
         store.ApplySnapshot(Snapshot(ClientRoomPhase.Lobby, 1, 1));
         var refreshCalls = 0;
-        var refreshGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var synchronizer = new ClientRoomPushSynchronizer(
             client,
             store,
             _ =>
             {
                 refreshCalls++;
-                return refreshGate.Task;
+                return Task.CompletedTask;
             });
 
         var first = synchronizer.HandleServerPushAsync(StubGatewayRoomClient.RoomPushOpCode, default);
         var second = synchronizer.HandleServerPushAsync(StubGatewayRoomClient.RoomPushOpCode, default);
 
-        Assert.Equal(1, refreshCalls);
+        Assert.Equal(0, refreshCalls);
         Assert.Equal(5, store.Current.RoomRevision);
-        refreshGate.SetResult(true);
+        Assert.False(store.IsStale);
+        Assert.Equal(0, synchronizer.RefreshFallbackCount);
         Assert.True(await first);
         Assert.True(await second);
     }

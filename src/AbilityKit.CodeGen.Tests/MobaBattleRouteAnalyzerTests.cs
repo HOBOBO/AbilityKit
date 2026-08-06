@@ -98,6 +98,33 @@ public sealed class MobaBattleRouteAnalyzerTests
     }
 
     [Fact]
+    public async Task Analyze_RejectsRouteTypesHiddenFromGeneratedManifest()
+    {
+        const string source = ContractSource + """
+            namespace Game
+            {
+                using AbilityKit.Demo.Moba.Services;
+
+                internal static class Container
+                {
+                    private sealed class HiddenPayload { }
+
+                    [MobaBattleRoute(9, MobaBattleRouteKind.Protocol, PayloadType = typeof(HiddenPayload))]
+                    internal sealed class Route { }
+
+                    [MobaBattleRoute(10, MobaBattleRouteKind.Protocol)]
+                    private sealed class HiddenRoute { }
+                }
+            }
+            """;
+
+        Assert.Equal(
+            2,
+            (await GetDiagnosticsAsync(source)).Count(
+                item => item.Id == MobaDiagnosticIds.InvalidBattleRouteTypeRuleId));
+    }
+
+    [Fact]
     public async Task Analyze_ReportsUnsupportedDerivedRouteAttribute()
     {
         const string source = ContractSource + """

@@ -21,8 +21,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
     {
         private readonly MobaConfigDatabase _configs;
         private readonly TargetSearchEngine _engine = new TargetSearchEngine();
-        private readonly SearchContext _context = new SearchContext();
-        private readonly List<ST.IEntityId> _searchResults = new List<ST.IEntityId>(32);
+        private readonly IPositionProvider _positionProvider;
         private readonly AllActorsCandidateProvider _allActorsProvider;
         private readonly MobaSearchQueryBuilder _queryBuilder;
 
@@ -30,10 +29,9 @@ namespace AbilityKit.Demo.Moba.Services.Search
         {
             if (actors == null) throw new ArgumentNullException(nameof(actors));
             _configs = configs;
+            _positionProvider = new RegistryPositionProvider(actors);
             _allActorsProvider = new AllActorsCandidateProvider(actors);
             _queryBuilder = new MobaSearchQueryBuilder(actors, _allActorsProvider, combatRules);
-            _context.SetService<IPositionProvider>(new RegistryPositionProvider(actors));
-            _context.SetService<IEntityKeyProvider>(ActorIdKeyProvider.Instance);
         }
 
         /// <summary>
@@ -47,14 +45,26 @@ namespace AbilityKit.Demo.Moba.Services.Search
                 throw new ArgumentOutOfRangeException(nameof(queryTemplateId), queryTemplateId, "Search query template id must be positive.");
             }
 
-            var query = BuildQuery(queryTemplateId, casterActorId, in aimPos, explicitTargetActorId: 0, maxCountOverride: 1);
-
-            _searchResults.Clear();
-            _engine.SearchIds(in query, _context, _searchResults);
-            if (_searchResults.Count == 0) return false;
-
-            targetActorId = _searchResults[0].ActorId;
-            return targetActorId > 0;
+            var context = RentContext();
+            try
+            {
+                var query = BuildQuery(
+                    context,
+                    queryTemplateId,
+                    casterActorId,
+                    in aimPos,
+                    explicitTargetActorId: 0,
+                    maxCountOverride: 1);
+                using (var searchResult = _engine.SearchIds(in query, context))
+                {
+                    return searchResult.Count > 0 &&
+                        TryGetActorId(searchResult[0], out targetActorId);
+                }
+            }
+            finally
+            {
+                TargetingPool.Release(context);
+            }
         }
 
         /// <summary>
@@ -70,8 +80,22 @@ namespace AbilityKit.Demo.Moba.Services.Search
                 throw new ArgumentOutOfRangeException(nameof(queryTemplateId), queryTemplateId, "Search query template id must be positive.");
             }
 
-            var query = BuildQuery(queryTemplateId, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride: 0);
-            return ExecuteSearch(in query, results);
+            var context = RentContext();
+            try
+            {
+                var query = BuildQuery(
+                    context,
+                    queryTemplateId,
+                    casterActorId,
+                    in aimPos,
+                    explicitTargetActorId,
+                    maxCountOverride: 0);
+                return ExecuteSearch(in query, context, results);
+            }
+            finally
+            {
+                TargetingPool.Release(context);
+            }
         }
 
         public bool TrySearchActorIds(SearchQueryTemplateMO template, int casterActorId, in Vec3 aimPos, int explicitTargetActorId, List<int> results)
@@ -84,30 +108,40 @@ namespace AbilityKit.Demo.Moba.Services.Search
                 throw new ArgumentNullException(nameof(template));
             }
 
-            if (!_queryBuilder.TryBuild(template, _context, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride: 0, out var query))
+            var context = RentContext();
+            try
             {
-                throw new InvalidOperationException($"Search query builder failed without diagnostics. templateId={template.Id}");
-            }
+                if (!_queryBuilder.TryBuild(template, context, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride: 0, out var query))
+                {
+                    throw new InvalidOperationException($"Search query builder failed without diagnostics. templateId={template.Id}");
+                }
 
-            return ExecuteSearch(in query, results);
+                return ExecuteSearch(in query, context, results);
+            }
+            finally
+            {
+                TargetingPool.Release(context);
+            }
         }
 
-        private bool ExecuteSearch(in SearchQuery query, List<int> results)
+        private bool ExecuteSearch(in SearchQuery query, SearchContext context, List<int> results)
         {
-            _searchResults.Clear();
-            _engine.SearchIds(in query, _context, _searchResults);
-            if (_searchResults.Count == 0) return false;
-
-            for (int i = 0; i < _searchResults.Count; i++)
+            using (var searchResult = _engine.SearchIds(in query, context))
             {
-                var id = _searchResults[i].ActorId;
-                if (id > 0) results.Add(id);
+                for (int i = 0; i < searchResult.Count; i++)
+                {
+                    if (TryGetActorId(searchResult[i], out var actorId))
+                    {
+                        results.Add(actorId);
+                    }
+                }
             }
 
             return results.Count > 0;
         }
 
         private SearchQuery BuildQuery(
+            SearchContext context,
             int queryTemplateId,
             int casterActorId,
             in Vec3 aimPos,
@@ -115,12 +149,31 @@ namespace AbilityKit.Demo.Moba.Services.Search
             int maxCountOverride)
         {
             var template = GetTemplate(queryTemplateId);
-            if (!_queryBuilder.TryBuild(template, _context, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride, out var query))
+            if (!_queryBuilder.TryBuild(template, context, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride, out var query))
             {
                 throw new InvalidOperationException($"Search query builder failed without diagnostics. templateId={queryTemplateId}");
             }
 
             return query;
+        }
+
+        private SearchContext RentContext()
+        {
+            var context = TargetingPool.RentContext();
+            context.PositionProvider = _positionProvider;
+            return context;
+        }
+
+        private static bool TryGetActorId(ST.EntityId entity, out int actorId)
+        {
+            if (!entity.IsValid || entity.Value > int.MaxValue)
+            {
+                actorId = 0;
+                return false;
+            }
+
+            actorId = (int)entity.Value;
+            return true;
         }
 
         private SearchQueryTemplateMO GetTemplate(int queryTemplateId)
@@ -152,28 +205,17 @@ namespace AbilityKit.Demo.Moba.Services.Search
                 _actors = actors;
             }
 
-            public bool TryGetPosition(ST.IEntityId entity, out IVec2 position)
+            public bool TryGetPosition(ST.EntityId entity, out ST.Vec2 position)
             {
                 position = default;
-                if (!entity.IsValid) return false;
-                if (_actors == null) return false;
+                if (_actors == null || !TryGetActorId(entity, out var actorId)) return false;
 
-                if (!_actors.TryGet(entity.ActorId, out var e) || e == null) return false;
+                if (!_actors.TryGet(actorId, out var e) || e == null) return false;
                 if (!e.hasTransform) return false;
 
                 var p = e.transform.Value.Position;
                 position = new ST.Vec2(p.X, p.Z);
                 return true;
-            }
-        }
-
-        private sealed class ActorIdKeyProvider : IEntityKeyProvider
-        {
-            public static readonly ActorIdKeyProvider Instance = new ActorIdKeyProvider();
-
-            public ulong GetKey(ST.IEntityId id)
-            {
-                return (ulong)id.ActorId;
             }
         }
 
@@ -185,8 +227,6 @@ namespace AbilityKit.Demo.Moba.Services.Search
             {
                 _actors = actors;
             }
-
-            public bool RequiresPosition => false;
 
             public void ForEachCandidate<TConsumer>(in SearchQuery query, SearchContext context, ref TConsumer consumer)
                 where TConsumer : struct, ICandidateConsumer

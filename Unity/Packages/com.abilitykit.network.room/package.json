@@ -1,0 +1,16 @@
+{
+  "name": "com.abilitykit.network.room",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Network Room",
+  "unity": "2022.3",
+  "description": "Reusable room gateway session contracts, lifecycle orchestration, and wire client integration.",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.network.runtime": "0.1.0",
+    "com.abilitykit.network.sdk": "0.1.0",
+    "com.abilitykit.protocol": "0.0.1",
+    "com.abilitykit.protocol.room": "0.0.1"
+  }
+}

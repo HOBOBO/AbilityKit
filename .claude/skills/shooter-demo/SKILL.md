@@ -55,5 +55,5 @@ description: AbilityKit Shooter Demo（com.abilitykit.demo.shooter.*）——6 �
 
 - 完整技能/触发/BUFF（**shooter 不复用**，但可作对照）→ [ability-kit](../ability-kit/SKILL.md)
 - 客户端预测（**shooter 不复用** `ClientPredictionDriverModule`）→ [framesync-prediction-rollback](../framesync-prediction-rollback/SKILL.md)
-- shooter 接入 coordinator（`ShooterCoordinatorSessionHost` 用 `ExistingWorldSessionCoordinatorHost`）→ [coordinator](../coordinator/SKILL.md)
+- shooter 多人联网接入（`NetworkSdkBuilder` → `NetworkSdkClient` → `RoomGatewaySessionFlow`，**不经 coordinator**）→ 见 [coordinator/integration_recipes.md](../coordinator/integration_recipes.md) 的"shooter 真实路径"
 - moba demo 对照 → [moba-demo](../moba-demo/SKILL.md)

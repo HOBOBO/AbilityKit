@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Newtonsoft.Json;
 
 namespace AbilityKit.Analyzer.Config
 {
@@ -47,7 +46,7 @@ namespace AbilityKit.Analyzer.Config
             try
             {
                 var json = File.ReadAllText(_configPath);
-                _config = JsonConvert.DeserializeObject<PackageConstraintsConfig>(json);
+                _config = ConstraintJson.DeserializeConfig(json);
                 BuildCache();
                 _isLoaded = true;
             }
@@ -170,7 +169,7 @@ namespace AbilityKit.Analyzer.Config
             try
             {
                 var json = File.ReadAllText(_configPath);
-                _config = JsonConvert.DeserializeObject<PackageConstraintsConfig>(json);
+                _config = ConstraintJson.DeserializeConfig(json);
                 BuildCache();
             }
             catch (Exception)

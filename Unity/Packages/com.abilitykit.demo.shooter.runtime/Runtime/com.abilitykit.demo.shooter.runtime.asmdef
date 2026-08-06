@@ -6,7 +6,7 @@
     "AbilityKit.Coordinator",
     "AbilityKit.Network.Runtime",
     "AbilityKit.Game.Battle.Runtime",
-    "AbilityKit.Game.Battle.Transport.Runtime",
+    "AbilityKit.Network.Battle",
     "AbilityKit.Host",
     "AbilityKit.World.DI",
     "AbilityKit.World.FrameSync",

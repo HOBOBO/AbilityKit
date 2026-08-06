@@ -6,9 +6,11 @@
     "AbilityKit.Demo.Shooter.View.Runtime",
     "AbilityKit.Demo.Shooter.Share",
     "AbilityKit.Network.Runtime",
+    "AbilityKit.Network.Room",
     "AbilityKit.Core",
     "AbilityKit.Protocol.Shooter",
-    "AbilityKit.Game.View.Runtime"
+    "AbilityKit.Game.View.Runtime",
+    "AbilityKit.Host.Extensions"
   ],
   "includePlatforms": [
     "Editor"

@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Ability.Host.Extensions.Client.FrameSync;
-using AbilityKit.Ability.Host.Extensions.Session;
+using AbilityKit.Network.Room;
 using AbilityKit.Game.View.Loading;
 
 namespace AbilityKit.Demo.Shooter.View
@@ -13,7 +13,7 @@ namespace AbilityKit.Demo.Shooter.View
     public sealed class ShooterRoomGatewayFlow : IDisposable
     {
         private readonly RoomGatewaySessionFlow _flow;
-        private readonly ShooterRoomGatewaySessionClient _sessionClient;
+        private readonly IDisposable _sessionClient;
         private readonly ClientLoadingPipelineDefinition _loadingDefinition;
         private readonly IShooterClientLoadingStepProvider _loadingStepProvider;
 
@@ -23,8 +23,24 @@ namespace AbilityKit.Demo.Shooter.View
             IShooterClientLoadingStepProvider? loadingStepProvider = null)
         {
             if (roomClient == null) throw new ArgumentNullException(nameof(roomClient));
-            _sessionClient = new ShooterRoomGatewaySessionClient(roomClient);
-            _flow = new RoomGatewaySessionFlow(_sessionClient);
+            var sessionClient = new ShooterRoomGatewaySessionClient(roomClient);
+            _sessionClient = sessionClient;
+            _flow = new RoomGatewaySessionFlow(sessionClient);
+            _loadingDefinition = loadingDefinition ?? ShooterClientLoadingPipelineDefaults.CreateDefinition();
+            _loadingStepProvider = loadingStepProvider ?? new DefaultShooterClientLoadingStepProvider();
+        }
+
+        public ShooterRoomGatewayFlow(
+            IShooterRoomGatewayRequestTransport transport,
+            ClientLoadingPipelineDefinition? loadingDefinition = null,
+            IShooterClientLoadingStepProvider? loadingStepProvider = null)
+        {
+            if (transport == null) throw new ArgumentNullException(nameof(transport));
+            var sessionClient = new RoomGatewayWireSessionClient(
+                transport,
+                transport as IRoomGatewayPushSource);
+            _sessionClient = sessionClient;
+            _flow = new RoomGatewaySessionFlow(sessionClient);
             _loadingDefinition = loadingDefinition ?? ShooterClientLoadingPipelineDefaults.CreateDefinition();
             _loadingStepProvider = loadingStepProvider ?? new DefaultShooterClientLoadingStepProvider();
         }
@@ -877,7 +893,10 @@ namespace AbilityKit.Demo.Shooter.View
         }
 
         private sealed class ShooterRoomGatewaySessionClient :
-            IRoomGatewaySessionClient,
+            IRoomGatewaySessionClientBase,
+            IRoomGatewayStagedLoadingCapability,
+            IRoomGatewayDirectBattleStartCapability,
+            IRoomGatewayStateSyncSubscriptionCapability,
             IRoomGatewaySnapshotFeed,
             IDisposable
         {
@@ -1002,11 +1021,6 @@ namespace AbilityKit.Demo.Shooter.View
                     ToRoomRestoreStatus(result.Status),
                     ToRoomRestoreErrorCode(result.ErrorCode),
                     result.CurrentPlayerId);
-            }
-
-            public Task<RoomGatewayPickHeroResult> PickHeroAsync(RoomGatewayPickHeroRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-            {
-                throw new NotSupportedException("Shooter gateway does not support staged hero pick flow.");
             }
 
             public async Task<RoomGatewayBeginLoadingResult> BeginLoadingAsync(RoomGatewayBeginLoadingRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)

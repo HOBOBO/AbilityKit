@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Game.Battle.Transport.Projection;
+using AbilityKit.Network.Battle.Projection;
 using AbilityKit.World.Svelto;
 using Svelto.DataStructures;
 using Svelto.ECS;

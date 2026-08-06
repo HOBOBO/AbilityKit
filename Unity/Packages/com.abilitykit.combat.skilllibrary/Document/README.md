@@ -72,7 +72,7 @@
 
 - [实体管理模块](../com.abilitykit.combat.entitymanager/Document/) - 实体查询系统
 - [能力管线模块](../com.abilitykit.pipeline/Document/能力管线模块开发设计文档.md) - 技能执行管线
-- [目标系统模块](../com.abilitykit.combat.targeting/Document/) - 目标选择系统
+- [目标系统模块](../../com.abilitykit.combat.targeting/Documentation~/) - 目标选择系统
 
 ---
 

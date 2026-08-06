@@ -9,7 +9,7 @@ using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
-using AbilityKit.Game.Battle.Transport.Projection;
+using AbilityKit.Network.Battle.Projection;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 using PlayerId = AbilityKit.Ability.Host.PlayerId;

@@ -32,7 +32,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public static int Quantize(float value)
         {
-            return (int)Math.Round(value * 10000f);
+            // Promote the source float before scaling. Keeping the multiply in single
+            // precision lets different JITs retain or round the intermediate value at
+            // different points, which changes midpoint results across .NET and Mono.
+            return (int)Math.Round((double)value * 10000d, MidpointRounding.ToEven);
         }
     }
 }

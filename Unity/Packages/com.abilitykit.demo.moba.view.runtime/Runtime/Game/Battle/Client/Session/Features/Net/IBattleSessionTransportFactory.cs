@@ -1,7 +1,7 @@
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle;
-using AbilityKit.Game.Battle.Transport;
+using AbilityKit.Network.Battle;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;

@@ -4,7 +4,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Game.Battle.Transport.Projection;
+using AbilityKit.Network.Battle.Projection;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services.Projection

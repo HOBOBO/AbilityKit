@@ -11,6 +11,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
     public static class ShooterGameplayScenarioWorldHostFactory
     {
+        public static ShooterBattleWorldSession CreateBattleWorld(
+            string? worldId,
+            ShooterPlayModeSessionOptions sessionOptions)
+        {
+            return ShooterBattleWorldSession.Create(
+                worldId,
+                Create(sessionOptions.GameplayScenario));
+        }
+
         public static ShooterWorldHost Create(ShooterSveltoGameplayScenarioConfig? scenario)
         {
             return new ShooterWorldHost(options => ConfigureWorldOptions(options, scenario));

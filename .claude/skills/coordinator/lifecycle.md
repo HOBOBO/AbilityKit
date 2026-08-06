@@ -1,3 +1,5 @@
+> ⚠ **2026-08-06 移除（session 引擎清理）**：本节描述的 `SessionCoordinator` 状态机 + `SessionRuntimePolicy` 已从 `com.abilitykit.coordinator` 删除（死代码，无 demo 实例化）。保留的只有 `SessionConfig`/`SessionId`/`SessionEnums`（SyncMode/HostMode）数据结构。本节仅作历史参考。
+
 # SessionCoordinator 生命周期
 
 源文件：`Runtime/Core/SessionCoordinator.cs` + `ISessionCoordinator.cs` + `SessionConfig.cs` + `SessionEnums.cs` + `SessionId.cs`

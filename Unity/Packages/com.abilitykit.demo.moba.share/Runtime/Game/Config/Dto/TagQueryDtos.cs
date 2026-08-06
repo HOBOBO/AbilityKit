@@ -48,6 +48,8 @@ namespace AbilityKit.Demo.Moba.Share.Config
         RequireHasPosition = 0x0205,
         CircleShape = 0x0101,
         SectorShape = 0x0102,
+        RectangleShape = 0x0303,
+        CapsuleShape = 0x0304,
         ExcludeCaster = 0x0301,
         ExcludeExplicitTarget = 0x0302,
         Whitelist = 0x0201,
@@ -102,6 +104,10 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int Forward;
         public float Radius;
         public float HalfAngleDeg;
+        public float LocalOffsetForward;
+        public float LocalOffsetRight;
+        public float Width;
+        public float Length;
         public int[] ActorIds;
     }
 
@@ -110,6 +116,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
     {
         public int Source;
         public int RandomSeed;
+        public int Direction;
     }
 
     [Serializable]
@@ -128,7 +135,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
 
         public SearchTargetProviderDTO Provider;
         public SearchTargetRuleDTO[] Rules;
-        public SearchTargetScorerDTO Scorer;
+        public SearchTargetScorerDTO[] Scorers;
         public SearchTargetSelectorDTO Selector;
 
     }

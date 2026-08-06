@@ -262,7 +262,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 ExplicitTargetPolicy = obj["ExplicitTargetPolicy"]?.Value<int>() ?? 0,
                 Provider = DeserializeSearchTargetProvider(obj["Provider"]),
                 Rules = DeserializeSearchTargetRules(obj["Rules"]),
-                Scorer = DeserializeSearchTargetScorer(obj["Scorer"]),
+                Scorers = DeserializeSearchTargetScorers(obj["Scorers"]),
                 Selector = DeserializeSearchTargetSelector(obj["Selector"])
             };
             return dto;
@@ -298,6 +298,10 @@ namespace AbilityKit.Demo.Moba.Config.Core
                     Forward = obj["Forward"]?.Value<int>() ?? 0,
                     Radius = obj["Radius"]?.Value<float>() ?? 0,
                     HalfAngleDeg = obj["HalfAngleDeg"]?.Value<float>() ?? 0,
+                    LocalOffsetForward = obj["LocalOffsetForward"]?.Value<float>() ?? 0,
+                    LocalOffsetRight = obj["LocalOffsetRight"]?.Value<float>() ?? 0,
+                    Width = obj["Width"]?.Value<float>() ?? 0,
+                    Length = obj["Length"]?.Value<float>() ?? 0,
                     ActorIds = obj["ActorIds"]?.ToObject<int[]>() ?? Array.Empty<int>()
                 });
             }
@@ -314,8 +318,21 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 Id = obj["Id"]?.Value<int>() ?? 0,
                 Kind = obj["Kind"]?.Value<int>() ?? 0,
                 Source = obj["Source"]?.Value<int>() ?? 0,
-                RandomSeed = obj["RandomSeed"]?.Value<int>() ?? 0
+                RandomSeed = obj["RandomSeed"]?.Value<int>() ?? 0,
+                Direction = obj["Direction"]?.Value<int>() ?? 0
             };
+        }
+
+        private static SearchTargetScorerDTO[] DeserializeSearchTargetScorers(JToken token)
+        {
+            if (token == null || token.Type != JTokenType.Array) return Array.Empty<SearchTargetScorerDTO>();
+            var scorers = new List<SearchTargetScorerDTO>();
+            foreach (var item in token)
+            {
+                var scorer = DeserializeSearchTargetScorer(item);
+                if (scorer != null) scorers.Add(scorer);
+            }
+            return scorers.ToArray();
         }
 
         private static SearchTargetSelectorDTO DeserializeSearchTargetSelector(JToken token)

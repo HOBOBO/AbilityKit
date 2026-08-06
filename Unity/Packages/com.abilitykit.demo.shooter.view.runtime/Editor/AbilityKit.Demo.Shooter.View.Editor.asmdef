@@ -2,8 +2,15 @@
   "name": "AbilityKit.Demo.Shooter.View.Editor",
   "rootNamespace": "AbilityKit.Demo.Shooter.View.Editor",
   "references": [
+    "AbilityKit.Demo.Common",
+    "AbilityKit.Demo.Shooter.Runtime",
     "AbilityKit.Demo.Shooter.View.Runtime",
-    "AbilityKit.Network.Runtime"
+    "AbilityKit.Game.Battle.Runtime",
+    "AbilityKit.Game.View.Runtime",
+    "AbilityKit.Network.Room",
+    "AbilityKit.Network.Runtime",
+    "AbilityKit.Protocol.Room",
+    "AbilityKit.Protocol.Shooter"
   ],
   "includePlatforms": [
     "Editor"

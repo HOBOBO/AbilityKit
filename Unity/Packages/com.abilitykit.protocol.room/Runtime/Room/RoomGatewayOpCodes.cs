@@ -29,6 +29,7 @@ namespace AbilityKit.Protocol.Room
         public const uint ReportLoadingProgress = 118;
         public const uint LeaveRoom = 119;
 
+        public const uint SessionKicked = 9000;
         public const uint SnapshotPushed = 9002;
         public const uint DeltaSnapshotPushed = 9003;
         // 阶段 4：Room 状态变更推送（push）

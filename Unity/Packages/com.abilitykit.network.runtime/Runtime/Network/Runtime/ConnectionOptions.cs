@@ -20,7 +20,7 @@ namespace AbilityKit.Network.Runtime
 
         public uint HeartbeatOpCode = 0;
 
-        public bool EnableKickHandling = true;
-        public uint KickPushOpCode = 9000;
+        public bool EnableKickHandling;
+        public uint KickPushOpCode;
     }
 }

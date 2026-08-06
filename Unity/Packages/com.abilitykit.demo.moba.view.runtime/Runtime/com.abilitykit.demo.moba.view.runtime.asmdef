@@ -10,7 +10,7 @@
         "AbilityKit.Game.Flow.Core",
         "AbilityKit.Game.View.Runtime",
         "AbilityKit.Game.Battle.Runtime",
-        "AbilityKit.Game.Battle.Transport.Runtime",
+        "AbilityKit.Network.Battle",
         "AbilityKit.Game.Battle.Shared.Assets",
         "AbilityKit.Game.Battle.Shared.Logging",
         "AbilityKit.Game.Battle.Shared.Time",
@@ -36,6 +36,8 @@
         "AbilityKit.Demo.Common",
         "AbilityKit.Pipeline",
         "AbilityKit.Network.Runtime",
+        "AbilityKit.Network.Room",
+        "AbilityKit.Network.Sdk",
         "AbilityKit.Protocol.Moba",
         "AbilityKit.Protocol.Room"
     ],

@@ -38,18 +38,11 @@ namespace AbilityKit.Demo.Moba.Services
         private static int RegisterGeneratedAndExternalRoutes(MobaBattleRouteRegistry registry)
         {
             var runtimeAssembly = typeof(MobaBattleRouteRegistry).Assembly;
-            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-            var generatedCount = 0;
+            var generatedCount = MobaGeneratedBattleRouteManifest.Register(registry);
+            var assemblies = MobaRegistryAssemblyDiscovery.GetExternalAssemblies(runtimeAssembly);
             for (int i = 0; i < assemblies.Length; i++)
             {
-                var assembly = assemblies[i];
-                if (assembly == runtimeAssembly)
-                {
-                    generatedCount = MobaGeneratedBattleRouteManifest.Register(registry);
-                    continue;
-                }
-
-                MarkerScanner<MobaBattleRouteAttribute>.Scan(new[] { assembly }, registry);
+                MarkerScanner<MobaBattleRouteAttribute>.Scan(new[] { assemblies[i] }, registry);
             }
 
             return generatedCount;

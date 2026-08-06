@@ -6,7 +6,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync.CatchUp;
 using AbilityKit.Ability.Host.Extensions.FrameSync.Spectator;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Game.Battle.Transport;
+using AbilityKit.Network.Battle;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 using UnityEngine;
 

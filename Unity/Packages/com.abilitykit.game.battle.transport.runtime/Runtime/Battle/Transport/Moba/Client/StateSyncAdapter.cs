@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using AbilityKit.Game.Battle.Transport;
+using AbilityKit.Network.Battle;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 using StateSyncOpCodes = AbilityKit.Protocol.Moba.StateSync.OpCodes;
 

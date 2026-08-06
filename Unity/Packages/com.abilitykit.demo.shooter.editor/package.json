@@ -9,6 +9,7 @@
     "com.abilitykit.demo.shooter.runtime": "0.0.1",
     "com.abilitykit.demo.shooter.view.runtime": "0.0.1",
     "com.abilitykit.demo.shooter.share": "0.0.1",
-    "com.abilitykit.network.runtime": "0.0.1"
+    "com.abilitykit.network.runtime": "0.0.1",
+    "com.abilitykit.network.room": "0.1.0"
   }
 }

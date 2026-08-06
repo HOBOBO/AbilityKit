@@ -16,7 +16,8 @@ namespace AbilityKit.Demo.Moba.CodeGen
             MobaDiagnosticRules.DuplicateBattleRouteRule,
             MobaDiagnosticRules.UnsupportedBattleRouteAttributeRule,
             MobaDiagnosticRules.InvalidBattleRouteIdentityRule,
-            MobaDiagnosticRules.MissingInputHandlerFallbackConstructorRule);
+            MobaDiagnosticRules.MissingInputHandlerFallbackConstructorRule,
+            MobaDiagnosticRules.InvalidBattleRouteTypeRule);
 
         public override void Initialize(AnalysisContext context)
         {
@@ -61,10 +62,9 @@ namespace AbilityKit.Demo.Moba.CodeGen
                 return;
             }
 
-            var attributes = type.GetAttributes();
-            var routeAttribute = attributes.FirstOrDefault(attribute =>
+            var attributes = type.GetAttributes().Where(attribute =>
                 MobaBattleRouteContract.IsOrDerivesFrom(attribute.AttributeClass, routeAttributeType));
-            if (routeAttribute != null)
+            foreach (var routeAttribute in attributes)
             {
                 AnalyzeRouteAttribute(
                     context,
@@ -74,13 +74,6 @@ namespace AbilityKit.Demo.Moba.CodeGen
                     inputAttributeType,
                     inputHandlerType,
                     routes);
-            }
-
-            var separateInputAttribute = attributes.FirstOrDefault(attribute =>
-                SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, inputAttributeType));
-            if (separateInputAttribute != null && !ReferenceEquals(separateInputAttribute, routeAttribute))
-            {
-                AnalyzeInputHandler(context, type, separateInputAttribute, inputHandlerType, routes);
             }
         }
 
@@ -120,6 +113,20 @@ namespace AbilityKit.Demo.Moba.CodeGen
                     MobaDiagnosticRules.InvalidBattleRouteIdentityRule,
                     GetLocation(type),
                     type.Name));
+                return;
+            }
+
+            if (!MobaBattleRouteContract.TryValidateGeneratedRouteTypes(
+                    type,
+                    MobaBattleRouteContract.GetNamedType(attribute, "PayloadType"),
+                    MobaBattleRouteContract.GetNamedType(attribute, "HandlerType"),
+                    out var error))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MobaDiagnosticRules.InvalidBattleRouteTypeRule,
+                    GetLocation(type),
+                    type.Name,
+                    error));
                 return;
             }
 
@@ -164,6 +171,20 @@ namespace AbilityKit.Demo.Moba.CodeGen
                     MobaDiagnosticRules.InvalidBattleRouteIdentityRule,
                     GetLocation(type),
                     type.Name));
+                return;
+            }
+
+            if (!MobaBattleRouteContract.TryValidateGeneratedRouteTypes(
+                    type,
+                    MobaBattleRouteContract.GetNamedType(attribute, "PayloadType"),
+                    type,
+                    out error))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MobaDiagnosticRules.InvalidBattleRouteTypeRule,
+                    GetLocation(type),
+                    type.Name,
+                    error));
                 return;
             }
 

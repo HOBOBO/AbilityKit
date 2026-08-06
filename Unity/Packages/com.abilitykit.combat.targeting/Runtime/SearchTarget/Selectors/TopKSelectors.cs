@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 namespace AbilityKit.Battle.SearchTarget.Selectors
 {
@@ -9,11 +8,13 @@ namespace AbilityKit.Battle.SearchTarget.Selectors
     [TargetSelector(0x1001, "TopKByScore")]
     public sealed class TopKByScoreSelector : ITargetSelector
     {
-        public bool RequiresPosition => false;
-
-        public void Select(in SearchQuery query, SearchContext context, List<SearchHit> hits, List<IEntityId> results)
+        public void Select(
+            in SearchQuery query,
+            SearchContext context,
+            SearchHitView hits,
+            SearchResultWriter results)
         {
-            hits.Sort(DefaultHitComparer.Instance);
+            SearchOrdering.Sort(hits.MutableHits, in query);
 
             if (query.HasMaxCount)
             {
@@ -32,151 +33,83 @@ namespace AbilityKit.Battle.SearchTarget.Selectors
             }
         }
 
-        private sealed class DefaultHitComparer : IComparer<SearchHit>
-        {
-            public static readonly DefaultHitComparer Instance = new DefaultHitComparer();
-
-            public int Compare(SearchHit x, SearchHit y)
-            {
-                var s = y.Score.CompareTo(x.Score);
-                if (s != 0) return s;
-                return x.Key.CompareTo(y.Key);
-            }
-        }
     }
 
     /// <summary>
-    /// 流式前若干个评分结果选择器。
+    /// 使用查询内局部缓冲区计算前若干个评分结果，选择器实例本身不保存执行状态。
     /// </summary>
     [TargetSelector(0x1002, "StreamingTopKByScore")]
-    public sealed class StreamingTopKByScoreSelector : ITargetSelector, IStreamingHitSelector
+    public sealed class StreamingTopKByScoreSelector : IStreamingTopKByScoreSelector
     {
-        private SearchHitBuffer _buffer;
-        private int _count;
-        private int _k;
-
-        public bool RequiresPosition => false;
-
-        public bool CanStream(in SearchQuery query)
-        {
-            return query.HasMaxCount && query.MaxCount > 0;
-        }
-
-        public void Begin(in SearchQuery query, SearchContext context)
-        {
-            _count = 0;
-            _k = query.MaxCount;
-            if (_k <= 0)
-            {
-                _buffer = null;
-                return;
-            }
-            _buffer = TargetingPool.RentHitBuffer(_k);
-        }
-
-        public void Offer(in SearchHit hit)
-        {
-            if (_buffer == null) return;
-
-            if (_count == 0)
-            {
-                _buffer.Items[0] = hit;
-                _count = 1;
-                return;
-            }
-
-            if (_count < _k)
-            {
-                InsertSorted(_buffer.Items, ref _count, hit);
-                return;
-            }
-
-            if (BetterThan(hit, _buffer.Items[_count - 1]))
-            {
-                InsertAndTrim(_buffer.Items, _count, hit);
-            }
-        }
-
-        public void End(in SearchQuery query, SearchContext context, List<IEntityId> results)
-        {
-            if (_buffer == null) return;
-
-            var items = _buffer.Items;
-            for (int i = 0; i < _count; i++)
-            {
-                results.Add(items[i].Id);
-            }
-
-            TargetingPool.ReleaseHitBuffer(_buffer);
-            _buffer = null;
-            _count = 0;
-            _k = 0;
-        }
-
-        public void Select(in SearchQuery query, SearchContext context, List<SearchHit> hits, List<IEntityId> results)
+        public void Select(
+            in SearchQuery query,
+            SearchContext context,
+            SearchHitView hits,
+            SearchResultWriter results)
         {
             if (!query.HasMaxCount)
             {
-                hits.Sort(DefaultHitComparer.Instance);
-                for (int i = 0; i < hits.Count; i++)
-                {
-                    results.Add(hits[i].Id);
-                }
+                SearchOrdering.Sort(hits.MutableHits, in query);
+                AddAll(hits, results);
                 return;
             }
 
-            Begin(in query, context);
+            var count = Math.Min(query.MaxCount, hits.Count);
+            if (count == 0) return;
+
+            var buffer = TargetingPool.RentHitBuffer(count);
+            try
+            {
+                var selectedCount = 0;
+                var items = buffer.Items;
+                for (int i = 0; i < hits.Count; i++)
+                {
+                    Offer(in query, items, ref selectedCount, count, hits[i]);
+                }
+
+                for (int i = 0; i < selectedCount; i++)
+                {
+                    results.Add(items[i].Id);
+                }
+            }
+            finally
+            {
+                TargetingPool.ReleaseHitBuffer(buffer);
+            }
+        }
+
+        private static void AddAll(SearchHitView hits, SearchResultWriter results)
+        {
             for (int i = 0; i < hits.Count; i++)
             {
-                var hit = hits[i];
-                Offer(hit);
+                results.Add(hits[i].Id);
             }
-            End(in query, context, results);
         }
 
-        private static void InsertSorted(SearchHit[] buffer, ref int count, in SearchHit h)
+        private static void Offer(
+            in SearchQuery query,
+            SearchHit[] items,
+            ref int selectedCount,
+            int capacity,
+            in SearchHit hit)
         {
-            var idx = 0;
-            while (idx < count && BetterThan(buffer[idx], h)) idx++;
-
-            for (int j = count; j > idx; j--)
+            var insertIndex = 0;
+            while (insertIndex < selectedCount && SearchOrdering.IsBetter(in query, in items[insertIndex], in hit))
             {
-                buffer[j] = buffer[j - 1];
+                insertIndex++;
             }
-            buffer[idx] = h;
-            count++;
-        }
 
-        private static void InsertAndTrim(SearchHit[] buffer, int count, in SearchHit h)
-        {
-            var idx = 0;
-            while (idx < count && BetterThan(buffer[idx], h)) idx++;
-            if (idx >= count) return;
+            if (insertIndex >= capacity) return;
 
-            for (int j = count - 1; j > idx; j--)
+            var lastIndex = selectedCount < capacity ? selectedCount : capacity - 1;
+            for (int i = lastIndex; i > insertIndex; i--)
             {
-                buffer[j] = buffer[j - 1];
+                items[i] = items[i - 1];
             }
-            buffer[idx] = h;
+
+            items[insertIndex] = hit;
+            if (selectedCount < capacity) selectedCount++;
         }
 
-        private static bool BetterThan(in SearchHit a, in SearchHit b)
-        {
-            if (a.Score > b.Score) return true;
-            if (a.Score < b.Score) return false;
-            return a.Key < b.Key;
-        }
-
-        private sealed class DefaultHitComparer : IComparer<SearchHit>
-        {
-            public static readonly DefaultHitComparer Instance = new DefaultHitComparer();
-
-            public int Compare(SearchHit x, SearchHit y)
-            {
-                var s = y.Score.CompareTo(x.Score);
-                if (s != 0) return s;
-                return x.Key.CompareTo(y.Key);
-            }
-        }
     }
 }

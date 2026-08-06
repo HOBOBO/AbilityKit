@@ -14,12 +14,14 @@ namespace AbilityKit.Demo.Moba.CodeGen
         public const string UnsupportedBattleRouteAttributeRuleId = "AKSG9003";
         public const string InvalidBattleRouteIdentityRuleId = "AKSG9004";
         public const string MissingInputHandlerFallbackConstructorRuleId = "AKSG9005";
+        public const string InvalidBattleRouteTypeRuleId = "AKSG9006";
         public const string InvalidEventMappingRuleId = "AKSG3001";
         public const string DuplicateEventMappingRuleId = "AKSG3002";
         public const string InvalidTargetQueryFactoryRuleId = "AKSG4001";
         public const string DuplicateTargetQueryFactoryCodeRuleId = "AKSG4002";
         public const string InvalidProjectileEmitterRuleId = "AKSG5001";
         public const string AmbiguousProjectileEmitterRuleId = "AKSG5002";
+        public const string AmbiguousDefaultProjectileEmitterRuleId = "AKSG5003";
         public const string InvalidBootstrapStageRuleId = "AKSG6001";
         public const string DuplicateBootstrapStageNameRuleId = "AKSG6002";
         public const string InvalidBTreeNodeRuleId = "AKSG7001";

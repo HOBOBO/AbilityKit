@@ -11,7 +11,7 @@
     "com.abilitykit.core": "0.0.1",
     "com.abilitykit.coordinator": "0.0.1",
     "com.abilitykit.game.battle.runtime": "0.0.1",
-    "com.abilitykit.game.battle.transport.runtime": "0.0.1",
+    "com.abilitykit.network.battle": "0.1.0",
     "com.abilitykit.hfsm": "0.0.1",
     "com.abilitykit.host": "0.0.1",
     "com.abilitykit.network.runtime": "0.0.1",

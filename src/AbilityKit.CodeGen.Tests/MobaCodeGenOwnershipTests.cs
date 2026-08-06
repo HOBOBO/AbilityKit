@@ -47,9 +47,7 @@ public sealed class MobaCodeGenOwnershipTests
     [Fact]
     public void FrameworkRoslynAssemblies_DoNotContainMobaTypes()
     {
-#pragma warning disable CS0618
-        var sourceGeneratorAssembly = typeof(AutoPlanActionGenerator).Assembly;
-#pragma warning restore CS0618
+        var sourceGeneratorAssembly = typeof(SourceGeneratorAssemblyMarker).Assembly;
         var analyzerAssembly = typeof(ForbiddenNamespaceAnalyzer).Assembly;
 
         Assert.Equal("AbilityKit.SourceGenerator", sourceGeneratorAssembly.GetName().Name);
@@ -61,10 +59,8 @@ public sealed class MobaCodeGenOwnershipTests
     [Fact]
     public void PackageRootDlls_MatchCurrentBuildOutputs()
     {
-#pragma warning disable CS0618
-        AssertPackageDllMatches(typeof(AutoPlanActionGenerator).Assembly,
+        AssertPackageDllMatches(typeof(SourceGeneratorAssemblyMarker).Assembly,
             "Unity/Packages/com.abilitykit.codegen/AbilityKit.SourceGenerator.dll");
-#pragma warning restore CS0618
         AssertPackageDllMatches(typeof(ForbiddenNamespaceAnalyzer).Assembly,
             "Unity/Packages/com.abilitykit.analyzer/AbilityKit.Analyzer.Plugin.dll");
         AssertPackageDllMatches(typeof(MobaPlanActionManifestGenerator).Assembly,

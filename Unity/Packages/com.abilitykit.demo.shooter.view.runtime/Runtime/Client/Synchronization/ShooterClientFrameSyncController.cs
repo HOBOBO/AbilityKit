@@ -7,6 +7,7 @@ using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host.Extensions.Client.FrameSync;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
 using FrameworkPlayerInputCommand = AbilityKit.Ability.Host.PlayerInputCommand;
 
@@ -80,6 +81,9 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterSnapshotApplyResult LastSnapshotApplyResult { get; private set; } = ShooterSnapshotApplyResult.Ignored;
         public ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics => _snapshotApply.Diagnostics;
         public ShooterClientImportedSnapshotEvidence LastImportedSnapshotEvidence { get; private set; } = ShooterClientImportedSnapshotEvidence.None;
+        public uint LastFreshImportedStateHash { get; private set; }
+        public byte[]? LastMismatchPackedPayload { get; private set; }
+        public byte[]? LastFreshExportedPackedPayload { get; private set; }
         public ShooterClientReconciliationResult LastReconciliationResult { get; private set; } = ShooterClientReconciliationResult.None;
         public bool NeedsFullSnapshotResync => _recovery.NeedsFullSnapshotResync;
         public ShooterClientRecoveryState RecoveryState => _recovery.State;
@@ -219,6 +223,9 @@ namespace AbilityKit.Demo.Shooter.View
             var snapshotApply = _snapshotApply.ApplyGatewayPush(opCode, payload);
 
             LastSnapshotApplyResult = snapshotApply.ApplyResult;
+            LastFreshImportedStateHash = 0u;
+            LastMismatchPackedPayload = null;
+            LastFreshExportedPackedPayload = null;
             if (!snapshotApply.IsSnapshotPush)
             {
                 LastReconciliationResult = ShooterClientReconciliationResult.None;
@@ -230,6 +237,31 @@ namespace AbilityKit.Demo.Shooter.View
                 var authoritativeFrame = snapshotApply.AuthoritativeFrame;
                 var authoritativeStateHash = snapshotApply.AuthoritativeStateHash;
                 var importedStateHash = snapshotApply.ImportedStateHash;
+                if (authoritativeStateHash != 0u && authoritativeStateHash != importedStateHash)
+                {
+                    // Distinguish an importer/codec defect from stale state left in a predicted ECS world.
+                    // This diagnostic runs only on a mismatch and never participates in reconciliation.
+                    try
+                    {
+                        var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
+                        var packedPayload = wire.Payload ?? Array.Empty<byte>();
+                        LastMismatchPackedPayload = (byte[])packedPayload.Clone();
+                        var packed = ShooterPackedSnapshotCodec.Deserialize(packedPayload);
+                        var freshRuntime = new ShooterBattleRuntimePort();
+                        if (freshRuntime.ImportPackedSnapshot(in packed))
+                        {
+                            LastFreshImportedStateHash = freshRuntime.ComputeStateHash();
+                            LastFreshExportedPackedPayload = freshRuntime.ExportPackedSnapshotBytes(
+                                packed.WorldId,
+                                isFullSnapshot: true,
+                                authorityOverride: true);
+                        }
+                    }
+                    catch
+                    {
+                        LastFreshImportedStateHash = 0u;
+                    }
+                }
                 LastImportedSnapshotEvidence = new ShooterClientImportedSnapshotEvidence(
                     authoritativeFrame,
                     authoritativeStateHash,

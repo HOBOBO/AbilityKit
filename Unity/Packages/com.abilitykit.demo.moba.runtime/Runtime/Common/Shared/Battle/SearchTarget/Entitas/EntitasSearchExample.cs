@@ -15,19 +15,20 @@ namespace AbilityKit.Battle.SearchTarget.Entitas
             IReadOnlyList<ST.EntityId> ids,
             List<IUnitFacade> results)
         {
-            var ctx = new SearchContext();
-            ctx.SetService<IUnitResolver>(unitResolver);
-            ctx.SetService<IEntityKeyProvider>(new EntitasActorIdKeyProvider());
+            var ctx = new SearchContext
+            {
+                EntityKeyProvider = new EntitasActorIdKeyProvider()
+            };
 
             var query = new SearchQuery(
                 new ExplicitListCandidateProvider(ids),
                 rules: null,
-                scorer: new ZeroScorer(),
+                orders: new[] { new SearchOrder(new ZeroScorer()) },
                 selector: new TopKByScoreSelector(),
                 maxCount: 0);
 
             var engine = new TargetSearchEngine();
-            engine.Search(query, ctx, results, new EntitasUnitFacadeMapper());
+            engine.Search(query, ctx, results, new EntitasUnitFacadeMapper(unitResolver));
         }
     }
 
@@ -39,8 +40,6 @@ namespace AbilityKit.Battle.SearchTarget.Entitas
         {
             _ids = ids;
         }
-
-        public bool RequiresPosition => false;
 
         public void ForEachCandidate<TConsumer>(in SearchQuery query, SearchContext context, ref TConsumer consumer)
             where TConsumer : struct, ICandidateConsumer

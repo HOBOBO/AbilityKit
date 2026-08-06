@@ -38,7 +38,7 @@
     "AbilityKit.Diagnostics",
     "AbilityKit.Demo.Moba.Diagnostics.Core",
     "AbilityKit.Game.Battle.Runtime",
-    "AbilityKit.Game.Battle.Transport.Runtime",
+    "AbilityKit.Network.Battle",
     "MemoryPack",
     "BTRuntime"
   ],

@@ -7,14 +7,30 @@ using AbilityKit.Game.Battle.Agent;
 namespace AbilityKit.Game.Flow
 {
     /// <summary>
-    /// Applies Room state pushes and coalesces stale-store refreshes into one request.
+    /// Applies complete authoritative Room snapshots delivered by server push.
     /// </summary>
     public sealed class ClientRoomPushSynchronizer
     {
         private readonly IGatewayRoomClient _client;
         private readonly ClientRoomStore _store;
-        private readonly Func<CancellationToken, Task> _refreshSnapshotAsync;
-        private int _refreshing;
+        private long _handledPushCount;
+        private long _appliedPushCount;
+        private long _refreshFallbackCount;
+        private long _lastPushRevision;
+        private long _lastPushUtcTicks;
+
+        public long HandledPushCount => Interlocked.Read(ref _handledPushCount);
+        public long AppliedPushCount => Interlocked.Read(ref _appliedPushCount);
+        public long RefreshFallbackCount => Interlocked.Read(ref _refreshFallbackCount);
+        public long LastPushRevision => Interlocked.Read(ref _lastPushRevision);
+        public DateTime? LastPushUtc
+        {
+            get
+            {
+                var ticks = Interlocked.Read(ref _lastPushUtcTicks);
+                return ticks > 0 ? new DateTime(ticks, DateTimeKind.Utc) : null;
+            }
+        }
 
         public ClientRoomPushSynchronizer(
             IGatewayRoomClient client,
@@ -23,35 +39,39 @@ namespace AbilityKit.Game.Flow
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _store = store ?? throw new ArgumentNullException(nameof(store));
-            _refreshSnapshotAsync = refreshSnapshotAsync ?? throw new ArgumentNullException(nameof(refreshSnapshotAsync));
+            _ = refreshSnapshotAsync ?? throw new ArgumentNullException(nameof(refreshSnapshotAsync));
         }
 
-        public async Task<bool> HandleServerPushAsync(
+        public Task<bool> HandleServerPushAsync(
             uint opCode,
             ArraySegment<byte> payload,
             CancellationToken cancellationToken = default)
         {
             if (!_client.IsRoomStateChangedPush(opCode))
             {
-                return false;
+                return Task.FromResult(false);
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             var snapshot = _client.DeserializeRoomStateChangedPush(payload);
-            _store.ApplySnapshot(snapshot);
-
-            if (_store.IsStale && Interlocked.CompareExchange(ref _refreshing, 1, 0) == 0)
+            Interlocked.Increment(ref _handledPushCount);
+            Interlocked.Exchange(ref _lastPushRevision, snapshot.RoomRevision);
+            Interlocked.Exchange(ref _lastPushUtcTicks, DateTime.UtcNow.Ticks);
+            if (_store.ApplySnapshot(snapshot) == ClientRoomSnapshotApplyResult.Applied)
             {
-                try
-                {
-                    await _refreshSnapshotAsync(cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    Volatile.Write(ref _refreshing, 0);
-                }
+                Interlocked.Increment(ref _appliedPushCount);
             }
 
-            return true;
+            if (_store.IsStale)
+            {
+                // Every RoomStateChanged payload is a complete authoritative snapshot.
+                // Coalescing may skip revisions, but the newest snapshot is already the
+                // recovery baseline and must not start a request from the receive callback.
+                _store.MarkRefreshed();
+            }
+
+            return Task.FromResult(true);
         }
     }
 }

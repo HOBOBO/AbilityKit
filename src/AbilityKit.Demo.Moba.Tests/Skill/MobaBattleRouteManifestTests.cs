@@ -84,6 +84,31 @@ public sealed class MobaBattleRouteManifestTests
         }
     }
 
+    [Fact]
+    public void DefaultScans_KeepGeneratedRoutesWhenExternalAssemblyDeclaresSameKey()
+    {
+        var routes = MobaBattleRouteRegistry.CreateDefault();
+        var inputs = MobaInputCommandHandlerRegistry.CreateScanned();
+
+        Assert.True(routes.TryGet(MobaBattleRouteKind.RuntimeInput, MobaOpCodes.Input.Move, out var route));
+        Assert.NotEqual(typeof(ConflictingExternalInputCommandHandler), route.OwnerType);
+        Assert.True(inputs.TryGetHandlerDescriptor(MobaOpCodes.Input.Move, out var input));
+        Assert.NotEqual(typeof(ConflictingExternalInputCommandHandler), input.HandlerType);
+    }
+
+    [Fact]
+    public void ReflectionScanner_RegistersEveryDirectRouteAttribute()
+    {
+        var registry = new MobaBattleRouteRegistry();
+
+        MarkerScanner<MobaBattleRouteAttribute>.Scan(
+            new[] { typeof(MobaBattleRouteManifestTests).Assembly },
+            registry);
+
+        Assert.True(registry.TryGet(MobaBattleRouteKind.RuntimeSnapshot, 1001, out _));
+        Assert.True(registry.TryGet(MobaBattleRouteKind.RuntimeSnapshot, 1002, out _));
+    }
+
     [MobaInputCommandHandler(999)]
     private sealed class ExternalInputCommandHandler : IMobaInputCommandHandler
     {
@@ -96,5 +121,25 @@ public sealed class MobaBattleRouteManifestTests
             result = default;
             return false;
         }
+    }
+
+    [MobaInputCommandHandler(MobaOpCodes.Input.Move)]
+    private sealed class ConflictingExternalInputCommandHandler : IMobaInputCommandHandler
+    {
+        public bool Handle(
+            MobaInputCommandContext context,
+            FrameIndex frame,
+            PlayerInputCommand command,
+            out MobaInputCommandResult result)
+        {
+            result = default;
+            return false;
+        }
+    }
+
+    [MobaBattleRoute(1001, MobaBattleRouteKind.RuntimeSnapshot)]
+    [MobaBattleRoute(1002, MobaBattleRouteKind.RuntimeSnapshot)]
+    private sealed class ExternalMultiRoute
+    {
     }
 }

@@ -1,5 +1,6 @@
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.Demo.Moba.Share.Config;
@@ -21,8 +22,66 @@ public sealed class NormalAttackTargetQueryTests
         Assert.Equal((int)SearchTargetRuleKind.CircleShape, rule.Kind);
         Assert.Equal((int)SearchTargetPointKind.Caster, rule.Center);
         Assert.Equal(3f, rule.Radius);
-        Assert.Equal((int)SearchTargetScorerKind.DistanceToCaster, template.Scorer.Kind);
+        var scorer = Assert.Single(template.Scorers);
+        Assert.Equal((int)SearchTargetScorerKind.DistanceToCaster, scorer.Kind);
         Assert.Equal((int)SearchTargetSelectorKind.TopKByScore, template.Selector.Kind);
+    }
+
+    [Fact]
+    public void Template_preserves_ordered_scorers_and_each_direction()
+    {
+        var template = new SearchQueryTemplateMO(new SearchQueryTemplateDTO
+        {
+            Scorers = new[]
+            {
+                new SearchTargetScorerDTO
+                {
+                    Kind = (int)SearchTargetScorerKind.DistanceToCaster,
+                    Direction = 1
+                },
+                new SearchTargetScorerDTO
+                {
+                    Kind = (int)SearchTargetScorerKind.SeededHashRandom,
+                    RandomSeed = 17,
+                    Direction = 0
+                }
+            }
+        });
+
+        Assert.Equal(2, template.Scorers.Length);
+        Assert.Equal((int)SearchTargetScorerKind.DistanceToCaster, template.Scorers[0].Kind);
+        Assert.Equal(1, template.Scorers[0].Direction);
+        Assert.Equal((int)SearchTargetScorerKind.SeededHashRandom, template.Scorers[1].Kind);
+        Assert.Equal(17, template.Scorers[1].RandomSeed);
+        Assert.Equal(0, template.Scorers[1].Direction);
+    }
+
+    [Fact]
+    public void Deserializer_preserves_ordered_scorers()
+    {
+        const string json = """
+            [
+              {
+                "Id": 7,
+                "Scorers": [
+                  { "Kind": 8196, "Direction": 1 },
+                  { "Kind": 8194, "RandomSeed": 23, "Direction": 0 }
+                ]
+              }
+            ]
+            """;
+
+        var items = LubanConfigGroupDeserializer.Instance.DeserializeFromText(
+            json,
+            typeof(SearchQueryTemplateDTO));
+        var dto = Assert.IsType<SearchQueryTemplateDTO>(Assert.Single(items));
+
+        Assert.Equal(2, dto.Scorers.Length);
+        Assert.Equal((int)SearchTargetScorerKind.DistanceToCaster, dto.Scorers[0].Kind);
+        Assert.Equal(1, dto.Scorers[0].Direction);
+        Assert.Equal((int)SearchTargetScorerKind.SeededHashRandom, dto.Scorers[1].Kind);
+        Assert.Equal(23, dto.Scorers[1].RandomSeed);
+        Assert.Equal(0, dto.Scorers[1].Direction);
     }
 
     [Fact]

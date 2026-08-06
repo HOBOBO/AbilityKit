@@ -91,10 +91,13 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                 explicitTargetPolicy: (int)SearchQueryExplicitTargetPolicy.IgnoreExplicitTarget,
                 provider: new SearchTargetProviderConfig(0, (int)SearchTargetProviderKind.EnemyTeam),
                 rules: rules,
-                scorer: new SearchTargetScorerConfig(
-                    0,
-                    (int)SearchTargetScorerKind.DistanceToCaster,
-                    (int)SearchTargetPointKind.Caster),
+                scorers: new[]
+                {
+                    new SearchTargetScorerConfig(
+                        0,
+                        (int)SearchTargetScorerKind.DistanceToCaster,
+                        (int)SearchTargetPointKind.Caster)
+                },
                 selector: new SearchTargetSelectorConfig(0, (int)SearchTargetSelectorKind.TopKByScore));
         }
 

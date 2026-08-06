@@ -103,6 +103,39 @@ public sealed class ShooterClientNetworkLauncherTests
     }
 
     [Fact]
+    public void ClientNetworkLauncherUsesSingleSdkRequestOwnerAndDisposesConnectionOnce()
+    {
+        var connection = new FakeGatewayConnection();
+        var launcher = new ShooterClientNetworkLauncher(connection);
+
+        Assert.Same(connection, launcher.Connection);
+        Assert.Equal(1, connection.PacketReceivedSubscriberCount);
+        Assert.Equal(1, connection.ServerPushReceivedSubscriberCount);
+
+        launcher.Dispose();
+        launcher.Dispose();
+
+        Assert.Equal(0, connection.PacketReceivedSubscriberCount);
+        Assert.Equal(0, connection.ServerPushReceivedSubscriberCount);
+        Assert.Equal(1, connection.DisposeCount);
+        Assert.Equal(2, connection.CloseCount);
+    }
+
+    [Fact]
+    public void SdkBackedGatewayDisposeDoesNotOwnLauncherConnection()
+    {
+        var connection = new FakeGatewayConnection();
+        using var launcher = new ShooterClientNetworkLauncher(connection);
+
+        launcher.GatewayConnection.Dispose();
+
+        Assert.Equal(1, connection.PacketReceivedSubscriberCount);
+        Assert.Equal(1, connection.ServerPushReceivedSubscriberCount);
+        Assert.Equal(0, connection.DisposeCount);
+        Assert.True(connection.IsConnected);
+    }
+
+    [Fact]
     public async Task ClientNetworkLauncherCanBeCreatedFromConnectionFactoryAndEndpoint()
     {
         var connection = new FakeGatewayConnection { AutoRespondRoomGateway = true, JoinCurrentPlayerId = 61u };

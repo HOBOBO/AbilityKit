@@ -8,7 +8,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
-using AbilityKit.Game.Battle.Transport;
+using AbilityKit.Network.Battle;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Protocol.Room;
 

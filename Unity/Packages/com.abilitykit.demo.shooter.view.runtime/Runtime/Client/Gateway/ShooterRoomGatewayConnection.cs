@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Sdk;
 
 namespace AbilityKit.Demo.Shooter.View
 {
@@ -15,8 +16,9 @@ namespace AbilityKit.Demo.Shooter.View
     {
         private static readonly TimeSpan AutomaticFullStateSyncTimeout = TimeSpan.FromSeconds(10);
 
-        private readonly IConnection _connection;
-        private readonly RequestClient _requestClient;
+        private readonly Func<uint, ArraySegment<byte>, TimeSpan?, CancellationToken, Task<ArraySegment<byte>>> _sendRequestAsync;
+        private readonly Action<Action<uint, ArraySegment<byte>>> _unsubscribeServerPush;
+        private readonly IDisposable? _ownedRequestClient;
         private ShooterClientSession? _session;
         private ShooterClientBattleHandle? _battle;
         private long _lastReliableEventAckRequested;
@@ -29,10 +31,29 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterRoomGatewayConnection(IConnection connection, ShooterClientSession? session)
         {
-            _connection = connection ?? throw new ArgumentNullException(nameof(connection));
-            _requestClient = new RequestClient(_connection);
+            if (connection == null) throw new ArgumentNullException(nameof(connection));
+
+            var requestClient = new RequestClient(connection);
+            _sendRequestAsync = requestClient.SendRequestAsync;
+            _unsubscribeServerPush = handler => connection.ServerPushReceived -= handler;
+            _ownedRequestClient = requestClient;
             _session = session;
-            _connection.ServerPushReceived += OnServerPushReceived;
+            connection.ServerPushReceived += OnServerPushReceived;
+        }
+
+        public ShooterRoomGatewayConnection(NetworkSdkClient sdkClient)
+            : this(sdkClient, null)
+        {
+        }
+
+        public ShooterRoomGatewayConnection(NetworkSdkClient sdkClient, ShooterClientSession? session)
+        {
+            if (sdkClient == null) throw new ArgumentNullException(nameof(sdkClient));
+
+            _sendRequestAsync = sdkClient.SendRawRequestAsync;
+            _unsubscribeServerPush = handler => sdkClient.ServerPushReceived -= handler;
+            _session = session;
+            sdkClient.ServerPushReceived += OnServerPushReceived;
         }
 
         public event Action<uint, ArraySegment<byte>, ShooterSnapshotApplyResult>? SnapshotPushDispatched;
@@ -60,7 +81,7 @@ namespace AbilityKit.Demo.Shooter.View
         public Task<ArraySegment<byte>> SendRequestAsync(uint opCode, ArraySegment<byte> payload, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
-            return _requestClient.SendRequestAsync(opCode, payload, timeout, cancellationToken);
+            return _sendRequestAsync(opCode, payload, timeout, cancellationToken);
         }
 
         private void OnServerPushReceived(uint opCode, ArraySegment<byte> payload)
@@ -162,8 +183,8 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             _disposed = true;
-            _connection.ServerPushReceived -= OnServerPushReceived;
-            _requestClient.Dispose();
+            _unsubscribeServerPush(OnServerPushReceived);
+            _ownedRequestClient?.Dispose();
         }
     }
 }

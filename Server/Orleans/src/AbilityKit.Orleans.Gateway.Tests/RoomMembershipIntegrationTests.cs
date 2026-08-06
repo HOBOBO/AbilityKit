@@ -274,6 +274,79 @@ public sealed class RoomMembershipIntegrationTests
     }
 
     [Fact]
+    public async Task BeginLoading_AfterGarbageCollection_PushesLoadingSnapshotToBothGatewayConnections()
+    {
+        var ownerId = NewId("owner");
+        var memberId = NewId("member");
+        var (_, roomId) = await CreateMappedRoomAsync(
+            ownerId,
+            GameplayRoomTypes.Moba,
+            maxPlayers: 2,
+            tags: new Dictionary<string, string> { ["minPlayers"] = "2" });
+        var room = _client.GetGrain<IRoomGrain>(roomId);
+        await room.JoinAsync(memberId);
+        await Mapping.BindAccountRoomAsync(memberId, roomId);
+
+        var ownerLoadout = await room.SubmitGameplayCommandWithResultAsync(
+            CreateMobaLoadout(ownerId, heroId: 1001, teamId: 1));
+        var memberLoadout = await room.SubmitGameplayCommandWithResultAsync(
+            CreateMobaLoadout(memberId, heroId: 1002, teamId: 2));
+        Assert.True(ownerLoadout.Success);
+        Assert.True(memberLoadout.Success);
+
+        const long ownerConnectionId = 31;
+        const long memberConnectionId = 32;
+        var registry = new GatewaySessionRegistry();
+        var ownerSession = new TestTransportSession(ownerConnectionId, ownerId, roomId);
+        var memberSession = new TestTransportSession(memberConnectionId, memberId, roomId);
+        registry.Register(ownerConnectionId, ownerSession);
+        registry.Register(memberConnectionId, memberSession);
+        registry.BindAccount(ownerId, ownerConnectionId);
+        registry.BindAccount(memberId, memberConnectionId);
+        var backgroundTasks = new GatewayBackgroundTaskQueue(
+            NullLogger<GatewayBackgroundTaskQueue>.Instance);
+        await backgroundTasks.StartAsync(default);
+        var subscriptions = new GatewayRoomStatePushSubscriptionManager(
+            _client,
+            registry,
+            backgroundTasks,
+            NullLogger<GatewayRoomStatePushSubscriptionManager>.Instance);
+
+        try
+        {
+            await subscriptions.EnsureBoundAsync(ownerConnectionId, roomId, ownerId);
+            await subscriptions.EnsureBoundAsync(memberConnectionId, roomId, memberId);
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            await room.SetLobbyReadyWithResultAsync(new RoomReadyRequest(ownerId, true));
+            await room.SetLobbyReadyWithResultAsync(new RoomReadyRequest(memberId, true));
+            var readySnapshot = await room.GetSnapshotAsync();
+            Assert.True(readySnapshot.CanStart);
+
+            var beginLoading = await room.BeginLoadingWithResultAsync(
+                new BeginLoadingRequest(ownerId, readySnapshot.RoomRevision, NewId("begin-loading")));
+            Assert.True(beginLoading.Success);
+            Assert.True(beginLoading.Applied);
+
+            await WaitUntilAsync(() => Task.FromResult(
+                HasLoadingPushAfter(ownerSession, readySnapshot.RoomRevision) &&
+                HasLoadingPushAfter(memberSession, readySnapshot.RoomRevision)));
+        }
+        finally
+        {
+            await subscriptions.UnbindAsync(ownerConnectionId);
+            await subscriptions.UnbindAsync(memberConnectionId);
+            registry.Unregister(ownerConnectionId);
+            registry.Unregister(memberConnectionId);
+            await backgroundTasks.StopAsync(default);
+            backgroundTasks.Dispose();
+        }
+    }
+
+    [Fact]
     public async Task ConnectionClosed_WhenAccountAlreadyRebound_DoesNotRemoveCurrentMembership()
     {
         var accountId = NewId("owner");
@@ -314,7 +387,11 @@ public sealed class RoomMembershipIntegrationTests
         return new LeaveRoomHandler(_client, membership);
     }
 
-    private async Task<(string Token, string RoomId)> CreateMappedRoomAsync(string accountId)
+    private async Task<(string Token, string RoomId)> CreateMappedRoomAsync(
+        string accountId,
+        string roomType = GameplayRoomTypes.Default,
+        int maxPlayers = 4,
+        Dictionary<string, string>? tags = null)
     {
         var token = await CreateSessionAsync(accountId);
         var created = await Directory.CreateRoomAsync(
@@ -322,11 +399,11 @@ public sealed class RoomMembershipIntegrationTests
             accountId,
             "local",
             "integration",
-            GameplayRoomTypes.Default,
+            roomType,
             "Integration room",
             true,
-            4,
-            null));
+            maxPlayers,
+            tags));
         await Mapping.BindAccountRoomAsync(accountId, created.RoomId);
         return (token, created.RoomId);
     }
@@ -406,6 +483,29 @@ public sealed class RoomMembershipIntegrationTests
         {
             await Task.Delay(20, timeout.Token);
         }
+    }
+
+    private static bool HasLoadingPushAfter(TestTransportSession session, long revision)
+    {
+        return session.RoomStatePushes.Any(push =>
+            push.Snapshot.RoomRevision > revision &&
+            push.Snapshot.Phase == (int)RoomPhase.Loading);
+    }
+
+    private static RoomGameplayCommandRequest CreateMobaLoadout(
+        string accountId,
+        int heroId,
+        int teamId)
+    {
+        return RoomGameplayCommandRequest.CreateMobaLoadout(
+            accountId,
+            heroId,
+            teamId,
+            spawnPointId: teamId,
+            level: 1,
+            attributeTemplateId: 2000 + heroId,
+            basicAttackSkillId: 3001,
+            skillIds: new[] { 3002, 3003 });
     }
 
     private sealed class RecordingRoomStateObserver : IRoomStateGatewayPushObserver

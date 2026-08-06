@@ -1,3 +1,5 @@
+> ⚠ **2026-08-06 整体移除（session 引擎清理）**：`IViewEventSink` + 整个 `Timeline/`（IViewTimeline/ViewTimeline/SampleBuffer）已删除（死代码，无 demo 使用 —— demo 自带 `IBattleViewEventSink`/自己的 ViewTimeline）。本节仅作历史参考。
+
 # ViewEventSink 与 ViewTimeline
 
 源文件：`Runtime/Core/IViewEventSink.cs` + `Runtime/Timeline/IViewTimeline.cs` + `Timeline/ViewTimeline.cs` + `Timeline/ScalarSampleBuffer.cs` + `Timeline/VectorSampleBuffer.cs`

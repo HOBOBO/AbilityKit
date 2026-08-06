@@ -72,13 +72,14 @@ public sealed class GatewayRoomStatePushSubscriptionManager
                     accountId,
                     bindingId,
                     room,
+                    observer,
                     observerReference,
                     pump);
             }
             catch
             {
                 await pump.DisposeAsync().ConfigureAwait(false);
-                _clusterClient.DeleteObjectReference<IRoomStateGatewayPushObserver>(observerReference);
+                DeleteObserverReference(connectionId, roomId, observerReference);
                 throw;
             }
         }
@@ -136,9 +137,27 @@ public sealed class GatewayRoomStatePushSubscriptionManager
         }
         finally
         {
-            _clusterClient.DeleteObjectReference<IRoomStateGatewayPushObserver>(
-                subscription.ObserverReference);
+            DeleteObserverReference(connectionId, subscription.RoomId, subscription.ObserverReference);
             await subscription.Pump.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    private void DeleteObserverReference(
+        long connectionId,
+        string roomId,
+        IRoomStateGatewayPushObserver observerReference)
+    {
+        try
+        {
+            _clusterClient.DeleteObjectReference<IRoomStateGatewayPushObserver>(observerReference);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to delete local room state push observer reference. ConnectionId={ConnectionId} RoomId={RoomId}",
+                connectionId,
+                roomId);
         }
     }
 
@@ -147,6 +166,7 @@ public sealed class GatewayRoomStatePushSubscriptionManager
         string AccountId,
         string BindingId,
         IRoomGrain Room,
+        ConnectionRoomStatePushObserver Observer,
         IRoomStateGatewayPushObserver ObserverReference,
         ConnectionRoomStatePushPump Pump);
 

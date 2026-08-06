@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 
 namespace AbilityKit.Protocol
 {
@@ -59,6 +60,39 @@ namespace AbilityKit.Protocol
             OpCode = opCode;
             Direction = direction;
             Name = name;
+        }
+    }
+
+    /// <summary>
+    /// Caches the protocol metadata declared by a message type.
+    /// </summary>
+    public static class ProtocolMessageDescriptor<T>
+    {
+        private static readonly ProtocolOpCodeAttribute? Attribute =
+            typeof(T).GetTypeInfo().GetCustomAttribute<ProtocolOpCodeAttribute>();
+
+        public static uint OpCode => Require().OpCode;
+
+        public static ProtocolDirection Direction => Require().Direction;
+
+        public static uint RequireOpCode(ProtocolDirection expectedDirection)
+        {
+            var attribute = Require();
+            if (attribute.Direction != expectedDirection &&
+                attribute.Direction != ProtocolDirection.Bidirectional)
+            {
+                throw new InvalidOperationException(
+                    $"Protocol type {typeof(T).FullName} declares direction {attribute.Direction}, " +
+                    $"but {expectedDirection} was required.");
+            }
+
+            return attribute.OpCode;
+        }
+
+        private static ProtocolOpCodeAttribute Require()
+        {
+            return Attribute ?? throw new InvalidOperationException(
+                $"Protocol type {typeof(T).FullName} must declare {nameof(ProtocolOpCodeAttribute)}.");
         }
     }
 }

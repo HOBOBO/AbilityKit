@@ -22,6 +22,23 @@ namespace AbilityKit.Demo.Moba.Services
         protected bool TryRegister(int key, Type implType)
         {
             if (implType == null || !typeof(TService).IsAssignableFrom(implType)) return false;
+            for (var i = 0; i < _entries.Count; i++)
+            {
+                if (_entries[i].Key == key && _entries[i].ImplType == implType) return false;
+            }
+
+            _entries.Add(new Entry(key, implType));
+            return true;
+        }
+
+        protected bool TryRegisterUniqueKey(int key, Type implType)
+        {
+            if (implType == null || !typeof(TService).IsAssignableFrom(implType)) return false;
+            for (var i = 0; i < _entries.Count; i++)
+            {
+                if (_entries[i].Key == key) return false;
+            }
+
             _entries.Add(new Entry(key, implType));
             return true;
         }
@@ -31,7 +48,13 @@ namespace AbilityKit.Demo.Moba.Services
             List<Entry> entries = new List<Entry>(_entries);
             if (sortByKey)
             {
-                entries.Sort((a, b) => a.Key.CompareTo(b.Key));
+                entries.Sort((a, b) =>
+                {
+                    var key = a.Key.CompareTo(b.Key);
+                    return key != 0
+                        ? key
+                        : string.CompareOrdinal(a.ImplType.AssemblyQualifiedName, b.ImplType.AssemblyQualifiedName);
+                });
             }
 
             return entries;

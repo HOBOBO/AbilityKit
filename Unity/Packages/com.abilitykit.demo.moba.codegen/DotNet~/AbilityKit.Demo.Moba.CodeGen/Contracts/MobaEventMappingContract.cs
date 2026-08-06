@@ -24,6 +24,12 @@ namespace AbilityKit.Demo.Moba.CodeGen
                 return false;
             }
 
+            if (!GeneratedCodeSymbolRules.CanReferenceType(argsType))
+            {
+                error = $"args type '{argsType.Name}' must be a closed type accessible from generated code";
+                return false;
+            }
+
             mapping = new MobaEventMapping(ownerType, eventId, argsType, isPrefix);
             return true;
         }

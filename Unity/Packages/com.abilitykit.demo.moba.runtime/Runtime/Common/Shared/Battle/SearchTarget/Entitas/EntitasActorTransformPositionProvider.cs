@@ -12,14 +12,14 @@ namespace AbilityKit.Battle.SearchTarget.Entitas
             _lookup = lookup;
         }
 
-        public bool TryGetPosition(Battle.SearchTarget.IEntityId entity, out IVec2 position)
+        public bool TryGetPosition(Battle.SearchTarget.EntityId entity, out Vec2 position)
         {
             position = default;
 
-            if (!entity.IsValid) return false;
+            if (!entity.IsValid || entity.Value > int.MaxValue) return false;
             if (_lookup == null) return false;
 
-            if (!_lookup.TryGet(entity.ActorId, out var ent) || ent == null) return false;
+            if (!_lookup.TryGet((int)entity.Value, out var ent) || ent == null) return false;
             if (!ent.hasTransform) return false;
 
             var p = ent.transform.Value.Position;

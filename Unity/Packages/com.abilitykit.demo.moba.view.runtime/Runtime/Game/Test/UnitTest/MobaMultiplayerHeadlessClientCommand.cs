@@ -9,7 +9,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
@@ -49,9 +48,11 @@ namespace AbilityKit.Game.Test.UnitTest
         private static ClientOptions? _options;
         private static CancellationTokenSource? _lifetime;
         private static MultiplayerRoomFlowController? _controller;
-        private static GatewayMultiplayerRoomSession? _roomSession;
+        private static ClientRoomStore? _roomStore;
+        private static ClientRoomPushSynchronizer? _pushSynchronizer;
         private static BattleGatewayConfigSO? _gatewayConfig;
         private static GameFlowDomain? _flow;
+        private static IMultiplayerGatewayRuntime? _gatewayRuntime;
         private static Task? _operation;
         private static ClientStage _stage;
         private static string _stageDetail = string.Empty;
@@ -61,7 +62,6 @@ namespace AbilityKit.Game.Test.UnitTest
         private static DateTime _movementStartedUtc;
         private static DateTime _skillStartedUtc;
         private static DateTime _nextStateWriteUtc;
-        private static DateTime _nextRoomRefreshUtc;
         private static int _battleBaselineFrame;
         private static Vector3 _ownerBaselinePosition;
         private static bool _hasOwnerBaseline;
@@ -184,10 +184,12 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var entry = GameEntry.Instance;
             _controller ??= entry.Get<MultiplayerRoomFlowController>();
-            _roomSession ??= entry.Get<GatewayMultiplayerRoomSession>();
+            _roomStore ??= entry.Get<ClientRoomStore>();
+            _pushSynchronizer ??= entry.Get<ClientRoomPushSynchronizer>();
             _gatewayConfig ??= entry.Get<BattleGatewayConfigSO>();
             _flow ??= entry.Get<GameFlowDomain>();
-            var gateway = entry.Get<IMultiplayerGatewayRuntime>();
+            _gatewayRuntime ??= entry.Get<IMultiplayerGatewayRuntime>();
+            var gateway = _gatewayRuntime;
 
             if (_movementStartedUtc != default && entry.TryGet(out BattleContext trajectoryContext))
             {
@@ -271,7 +273,6 @@ namespace AbilityKit.Game.Test.UnitTest
                         SetStage(
                             ClientStage.WaitingAllReady,
                             $"waiting for two ready players ({players?.Count ?? 0}/2 joined)");
-                        RefreshCurrentRoomIfDue();
                         return;
                     }
                     if (_options!.Role == ClientRole.Member)
@@ -279,7 +280,6 @@ namespace AbilityKit.Game.Test.UnitTest
                         SetStage(
                             ClientStage.WaitingAllReady,
                             "both players ready; waiting for room owner to start loading");
-                        RefreshCurrentRoomIfDue();
                         return;
                     }
                     StartOperation(
@@ -469,7 +469,6 @@ namespace AbilityKit.Game.Test.UnitTest
 
             if (DateTime.UtcNow - _soloLobbyObservationStartedUtc < SoloLobbyObservationDuration)
             {
-                RefreshCurrentRoomIfDue();
                 return;
             }
 
@@ -484,23 +483,6 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             _operation = operation ?? throw new ArgumentNullException(nameof(operation));
             SetStage(stage, detail);
-        }
-
-        private static void RefreshCurrentRoomIfDue()
-        {
-            if (_operation != null ||
-                _roomSession == null ||
-                _controller == null ||
-                string.IsNullOrWhiteSpace(_controller.CurrentRoomId) ||
-                DateTime.UtcNow < _nextRoomRefreshUtc)
-            {
-                return;
-            }
-
-            _nextRoomRefreshUtc = DateTime.UtcNow + TimeSpan.FromMilliseconds(500);
-            _operation = _roomSession.RefreshSnapshotAsync(
-                _controller.CurrentRoomId,
-                _lifetime!.Token);
         }
 
         private static bool CompleteOperation()
@@ -838,6 +820,24 @@ namespace AbilityKit.Game.Test.UnitTest
                 state.canStart = snapshot.CanStart;
             }
             state.soloLobbyVerified = _soloLobbyVerified;
+            state.gatewayConnectionState = _gatewayRuntime?.ConnectionState.ToString() ?? "Unavailable";
+            state.roomOperationActive = _operation != null;
+            state.roomOperationStatus = _operation == null
+                ? "None"
+                : _operation.Status.ToString();
+            state.roomStoreStale = _roomStore?.IsStale == true;
+            if (_roomStore?.Current != null)
+            {
+                state.roomEventSequence = _roomStore.Current.LastEventSequence;
+            }
+            if (_pushSynchronizer != null)
+            {
+                state.roomPushCount = _pushSynchronizer.HandledPushCount;
+                state.roomPushAppliedCount = _pushSynchronizer.AppliedPushCount;
+                state.roomPushLastRevision = _pushSynchronizer.LastPushRevision;
+                state.roomPushLastUtc = _pushSynchronizer.LastPushUtc?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty;
+                state.roomRefreshFallbackCount = _pushSynchronizer.RefreshFallbackCount;
+            }
             state.battleEntryCanEnter = MultiplayerBattleEntryGate.CanEnter(
                 _controller?.CurrentState ?? MultiplayerRoomFlowState.Idle,
                 snapshot);
@@ -973,7 +973,11 @@ namespace AbilityKit.Game.Test.UnitTest
             var snapshot = _controller?.CurrentSnapshot;
             var context = BattleFlowDebugProvider.Current;
             return $"role={_options?.Role.ToString() ?? "n/a"},stage={_stage},detail={_stageDetail}," +
+                   $"gateway={_gatewayRuntime?.ConnectionState.ToString() ?? "n/a"},operation={_operation?.Status.ToString() ?? "none"}," +
                    $"roomState={_controller?.CurrentState.ToString() ?? "n/a"},roomId={snapshot?.RoomId ?? "n/a"}," +
+                   $"roomRevision={snapshot?.RoomRevision ?? 0L},eventSequence={_roomStore?.Current?.LastEventSequence ?? 0L}," +
+                   $"storeStale={_roomStore?.IsStale == true},pushes={_pushSynchronizer?.HandledPushCount ?? 0L}," +
+                   $"pushApplied={_pushSynchronizer?.AppliedPushCount ?? 0L},refreshFallbacks={_pushSynchronizer?.RefreshFallbackCount ?? 0L}," +
                    $"battleId={snapshot?.BattleId ?? "n/a"},worldId={snapshot?.WorldId ?? 0UL}," +
                    $"battlePhase={_flow?.CurrentBattlePhase.ToString() ?? "n/a"},frame={context?.LastFrame ?? 0}," +
                    $"roomError={_controller?.LastError ?? "n/a"}";
@@ -1057,9 +1061,11 @@ namespace AbilityKit.Game.Test.UnitTest
             _lifetime?.Dispose();
             _lifetime = new CancellationTokenSource(TimeSpan.FromSeconds(options.TimeoutSeconds));
             _controller = null;
-            _roomSession = null;
+            _roomStore = null;
+            _pushSynchronizer = null;
             _gatewayConfig = null;
             _flow = null;
+            _gatewayRuntime = null;
             _operation = null;
             _stage = ClientStage.WaitingForEntry;
             _stageDetail = "launching multiplayer scene";
@@ -1069,7 +1075,6 @@ namespace AbilityKit.Game.Test.UnitTest
             _movementStartedUtc = default;
             _skillStartedUtc = default;
             _nextStateWriteUtc = default;
-            _nextRoomRefreshUtc = default;
             _battleBaselineFrame = 0;
             _ownerBaselinePosition = default;
             _hasOwnerBaseline = false;
@@ -1218,6 +1223,9 @@ namespace AbilityKit.Game.Test.UnitTest
             public string stage = string.Empty;
             public string detail = string.Empty;
             public bool success;
+            public string gatewayConnectionState = string.Empty;
+            public bool roomOperationActive;
+            public string roomOperationStatus = string.Empty;
             public string roomFlowState = string.Empty;
             public string roomError = string.Empty;
             public bool flowFaulted;
@@ -1236,6 +1244,13 @@ namespace AbilityKit.Game.Test.UnitTest
             public ulong numericRoomId;
             public string roomPhase = string.Empty;
             public long roomRevision;
+            public long roomEventSequence;
+            public bool roomStoreStale;
+            public long roomPushCount;
+            public long roomPushAppliedCount;
+            public long roomPushLastRevision;
+            public string roomPushLastUtc = string.Empty;
+            public long roomRefreshFallbackCount;
             public string battleId = string.Empty;
             public ulong worldId;
             public int playerCount;

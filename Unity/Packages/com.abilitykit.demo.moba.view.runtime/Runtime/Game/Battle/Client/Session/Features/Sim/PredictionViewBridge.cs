@@ -1,6 +1,6 @@
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
-using AbilityKit.Game.Battle.Transport.Projection;
+using AbilityKit.Network.Battle.Projection;
 using AbilityKit.World.ECS;
 using UnityEngine;
 

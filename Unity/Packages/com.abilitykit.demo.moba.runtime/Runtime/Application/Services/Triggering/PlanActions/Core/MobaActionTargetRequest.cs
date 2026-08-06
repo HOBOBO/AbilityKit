@@ -214,7 +214,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         {
             var provider = new SearchTargetProviderConfig(0, (int)request.SourceCode, request.SourceParam);
             var rules = BuildRules(in request);
-            var scorer = BuildScorer(in request);
+            var scorers = new[] { BuildScorer(in request) };
             var selector = new SearchTargetSelectorConfig(0, (int)request.SelectCode);
             var explicitTargetPolicy = request.TargetPayloadActorId > 0 || request.TargetActorId > 0 || request.SourceCode == MobaActionTargetSourceCode.ExplicitActor
                 ? SearchQueryExplicitTargetPolicy.PreferExplicitTarget
@@ -227,7 +227,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 explicitTargetPolicy: (int)explicitTargetPolicy,
                 provider: provider,
                 rules: rules,
-                scorer: scorer,
+                scorers: scorers,
                 selector: selector);
         }
 

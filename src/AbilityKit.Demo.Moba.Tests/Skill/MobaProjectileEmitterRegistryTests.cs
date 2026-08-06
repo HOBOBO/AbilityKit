@@ -16,6 +16,9 @@ public sealed class MobaProjectileEmitterRegistryTests
             Assert.Equal(1, registry.Count);
             Assert.True(registry.TryCreate(ProjectileEmitterType.Linear, out var sequence));
             Assert.IsType<RepeatProjectileLaunchSequence>(sequence);
+            Assert.Equal(ProjectileEmitterType.Linear, registry.DefaultEmitterType);
+            Assert.True(registry.TryCreateDefault(out var defaultSequence));
+            Assert.IsType<RepeatProjectileLaunchSequence>(defaultSequence);
         }
         finally
         {
@@ -33,5 +36,23 @@ public sealed class MobaProjectileEmitterRegistryTests
             registry.Register(ProjectileEmitterType.Linear, () => new RepeatProjectileLaunchSequence(), priority: 5));
 
         Assert.Contains("Ambiguous MOBA projectile emitter", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Register_RejectsDifferentDefaultEmitterTypes()
+    {
+        var registry = new MobaProjectileEmitterRegistry();
+        registry.Register(
+            ProjectileEmitterType.Linear,
+            () => new RepeatProjectileLaunchSequence(),
+            isDefault: true);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            registry.Register(
+                (ProjectileEmitterType)999,
+                () => new RepeatProjectileLaunchSequence(),
+                isDefault: true));
+
+        Assert.Contains("Ambiguous default MOBA projectile emitter", exception.Message, StringComparison.Ordinal);
     }
 }

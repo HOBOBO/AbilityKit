@@ -1,3 +1,5 @@
+> ⚠ **2026-08-06 部分移除（session 引擎清理）**：`IRemoteBattleSyncTransport` + `NullRemoteBattleSyncTransport` + `CoordinatorInputSubmitBridge` 已删除（死代码）。**保留** `CoordinatorPayloadCodec` + `CoordinatorPayloadAttribute`（被 `EntityState.ToSnapshotEntityState` 使用，alive）。下文涉及已删除类型的部分仅作历史参考。
+
 # Transport 与 Codec
 
 源文件：`Runtime/Transport/IRemoteBattleSyncTransport.cs` + `CoordinatorInputSubmitBridge.cs` + `Runtime/Data/CoordinatorPayloadCodec.cs` + `Data/PlayerInput.cs` + `Data/EntityState.cs` + `Data/FrameSnapshotData.cs` + `Data/NetworkEndpoint.cs`
@@ -16,9 +18,9 @@ public interface IRemoteBattleSyncTransport : IService {
 public sealed class NullRemoteBattleSyncTransport : IRemoteBattleSyncTransport { ... }   // 空实现
 ```
 
-由应用层 / 项目侧实现（如 shooter 的 `ShooterGatewayCoordinatorInputTransport`）。
+由应用层 / 项目侧实现。⚠️ 源码核校 2026-08-06：目前**只有 `NullRemoteBattleSyncTransport` 空实现**；shooter/moba 两个 demo 的多人战斗同步**都不经 `IRemoteBattleSyncTransport`**（详见 [integration_recipes.md](integration_recipes.md) 顶部修正说明与"shooter 真实路径"）。
 
-## CoordinatorInputSubmitBridge（异步输入桥，shooter 关键）
+## CoordinatorInputSubmitBridge（异步输入桥，⚠️ 当前无 demo 使用）
 
 `Runtime/Transport/CoordinatorInputSubmitBridge.cs`，泛型 `<TLocalSubmitResult, TRemoteSubmitResult>`。
 

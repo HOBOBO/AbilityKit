@@ -8,7 +8,7 @@ using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Network.Runtime
 {
-    public sealed class ConnectionManager : IConnection
+    public sealed class ConnectionManager : IConnection, IReconnectableConnection
     {
         private readonly Func<ITransport> _transportFactory;
         private readonly ConnectionOptions _options;

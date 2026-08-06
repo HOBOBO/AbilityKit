@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using AbilityKit.Orleans.Gateway.Abstractions;
+using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Orleans.Gateway.Core;
 
@@ -69,7 +70,10 @@ public sealed class GatewaySessionRegistry : IGatewaySessionRegistry
 
         try
         {
-            await session.SendServerPushAsync(9000, System.Text.Encoding.UTF8.GetBytes(reason), cancellationToken);
+            await session.SendServerPushAsync(
+                RoomGatewayOpCodes.SessionKicked,
+                System.Text.Encoding.UTF8.GetBytes(reason),
+                cancellationToken);
             return true;
         }
         catch

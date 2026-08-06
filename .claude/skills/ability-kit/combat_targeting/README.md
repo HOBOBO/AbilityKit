@@ -34,7 +34,7 @@ SearchQuery(条件/范围/层)
 moba demo 的 `MobaSelectNearestEnemyAction`（BT 节点）内部调用 `TargetSearchEngine` 搜索最近敌人。
 
 ## 关键文件
-- `Runtime/SearchTarget/TargetSearchEngine.cs`
-- `Runtime/SearchTarget/SearchPipelineBuilder.cs`
-- `Runtime/SearchTarget/CommonRules.cs`
-- `Runtime/SearchTarget/CommonScorers.cs`
+- `Runtime/SearchTarget/Execution/TargetSearchEngine.cs`
+- `Runtime/SearchTarget/Pipeline/SearchPipelineBuilder.cs`
+- `Runtime/SearchTarget/Rules/CommonRules.cs`
+- `Runtime/SearchTarget/Scorers/CommonScorers.cs`

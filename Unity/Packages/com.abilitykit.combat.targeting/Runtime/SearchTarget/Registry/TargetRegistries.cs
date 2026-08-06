@@ -10,42 +10,92 @@ namespace AbilityKit.Battle.SearchTarget
 
         private readonly Dictionary<int, Type> _idToType = new Dictionary<int, Type>();
         private readonly Dictionary<Type, int> _typeToId = new Dictionary<Type, int>();
+        private readonly Dictionary<int, Func<ITargetRule>> _factories = new Dictionary<int, Func<ITargetRule>>();
+        private readonly object _syncRoot = new object();
         private bool _scanned;
 
         private TargetRuleRegistry() { }
 
         public void Scan(params System.Reflection.Assembly[] assemblies)
         {
-            if (_scanned) return;
-            _scanned = true;
-            MarkerScanner<TargetRuleAttribute>.Scan(assemblies, this);
+            lock (_syncRoot)
+            {
+                if (_scanned) return;
+                MarkerScanner<TargetRuleAttribute>.Scan(assemblies, this);
+                _scanned = true;
+            }
         }
 
         public void Register(Type implType)
         {
-            if (implType == null || implType.IsAbstract || implType.IsInterface) return;
-            if (!typeof(ITargetRule).IsAssignableFrom(implType)) return;
-            if (_typeToId.ContainsKey(implType)) return;
+            if (!IsValidType(implType)) return;
+            var attr = implType.GetCustomAttributes(typeof(TargetRuleAttribute), false);
+            if (attr.Length == 0) return;
+            RegisterByAttribute((TargetRuleAttribute)attr[0], implType);
         }
 
         internal void RegisterByAttribute(TargetRuleAttribute attr, Type implType)
         {
-            if (implType == null || !typeof(ITargetRule).IsAssignableFrom(implType)) return;
-            if (_idToType.ContainsKey(attr.Id)) return;
+            if (attr == null || !IsValidType(implType)) return;
+            lock (_syncRoot)
+            {
+                if (_idToType.ContainsKey(attr.Id) || _factories.ContainsKey(attr.Id) ||
+                    _typeToId.ContainsKey(implType)) return;
 
-            _idToType[attr.Id] = implType;
-            _typeToId[implType] = attr.Id;
+                _idToType[attr.Id] = implType;
+                _typeToId[implType] = attr.Id;
+            }
         }
 
-        public bool TryGet(int id, out Type type) => _idToType.TryGetValue(id, out type);
+        private static bool IsValidType(Type implType)
+        {
+            return implType != null && !implType.IsAbstract && !implType.IsInterface &&
+                   typeof(ITargetRule).IsAssignableFrom(implType);
+        }
+
+        public bool TryGet(int id, out Type type)
+        {
+            lock (_syncRoot) return _idToType.TryGetValue(id, out type);
+        }
+
+        public void RegisterFactory(int id, Func<ITargetRule> factory)
+        {
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
+            lock (_syncRoot)
+            {
+                if (!_idToType.ContainsKey(id) && !_factories.ContainsKey(id)) _factories[id] = factory;
+            }
+        }
 
         public ITargetRule Create(int id)
         {
-            if (!_idToType.TryGetValue(id, out var type)) return null;
-            return Activator.CreateInstance(type) as ITargetRule;
+            Func<ITargetRule> factory;
+            Type type;
+            lock (_syncRoot)
+            {
+                if (!_factories.TryGetValue(id, out factory))
+                {
+                    if (!_idToType.TryGetValue(id, out type) ||
+                        type.GetConstructor(Type.EmptyTypes) == null) return null;
+                }
+                else
+                {
+                    type = null;
+                }
+            }
+
+            return factory != null
+                ? factory()
+                : Activator.CreateInstance(type) as ITargetRule;
         }
 
-        public int Count => _idToType.Count;
+        public int Count
+        {
+            get
+            {
+                lock (_syncRoot) return _idToType.Count + _factories.Count;
+            }
+        }
     }
 
     public sealed class TargetScorerRegistry : IMarkerRegistry
@@ -53,40 +103,92 @@ namespace AbilityKit.Battle.SearchTarget
         public static TargetScorerRegistry Instance { get; } = new TargetScorerRegistry();
 
         private readonly Dictionary<int, Type> _idToType = new Dictionary<int, Type>();
+        private readonly Dictionary<Type, int> _typeToId = new Dictionary<Type, int>();
+        private readonly Dictionary<int, Func<ITargetScorer>> _factories = new Dictionary<int, Func<ITargetScorer>>();
+        private readonly object _syncRoot = new object();
         private bool _scanned;
 
         private TargetScorerRegistry() { }
 
         public void Scan(params System.Reflection.Assembly[] assemblies)
         {
-            if (_scanned) return;
-            _scanned = true;
-            MarkerScanner<TargetScorerAttribute>.Scan(assemblies, this);
+            lock (_syncRoot)
+            {
+                if (_scanned) return;
+                MarkerScanner<TargetScorerAttribute>.Scan(assemblies, this);
+                _scanned = true;
+            }
         }
 
         public void Register(Type implType)
         {
-            if (implType == null || implType.IsAbstract || implType.IsInterface) return;
-            if (!typeof(ITargetScorer).IsAssignableFrom(implType)) return;
+            if (!IsValidType(implType)) return;
+            var attr = implType.GetCustomAttributes(typeof(TargetScorerAttribute), false);
+            if (attr.Length == 0) return;
+            RegisterByAttribute((TargetScorerAttribute)attr[0], implType);
         }
 
         internal void RegisterByAttribute(TargetScorerAttribute attr, Type implType)
         {
-            if (implType == null || !typeof(ITargetScorer).IsAssignableFrom(implType)) return;
-            if (_idToType.ContainsKey(attr.Id)) return;
-
-            _idToType[attr.Id] = implType;
+            if (attr == null || !IsValidType(implType)) return;
+            lock (_syncRoot)
+            {
+                if (_idToType.ContainsKey(attr.Id) || _factories.ContainsKey(attr.Id) ||
+                    _typeToId.ContainsKey(implType)) return;
+                _idToType[attr.Id] = implType;
+                _typeToId[implType] = attr.Id;
+            }
         }
 
-        public bool TryGet(int id, out Type type) => _idToType.TryGetValue(id, out type);
+        private static bool IsValidType(Type implType)
+        {
+            return implType != null && !implType.IsAbstract && !implType.IsInterface &&
+                   typeof(ITargetScorer).IsAssignableFrom(implType);
+        }
+
+        public bool TryGet(int id, out Type type)
+        {
+            lock (_syncRoot) return _idToType.TryGetValue(id, out type);
+        }
+
+        public void RegisterFactory(int id, Func<ITargetScorer> factory)
+        {
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
+            lock (_syncRoot)
+            {
+                if (!_idToType.ContainsKey(id) && !_factories.ContainsKey(id)) _factories[id] = factory;
+            }
+        }
 
         public ITargetScorer Create(int id)
         {
-            if (!_idToType.TryGetValue(id, out var type)) return null;
-            return Activator.CreateInstance(type) as ITargetScorer;
+            Func<ITargetScorer> factory;
+            Type type;
+            lock (_syncRoot)
+            {
+                if (!_factories.TryGetValue(id, out factory))
+                {
+                    if (!_idToType.TryGetValue(id, out type) ||
+                        type.GetConstructor(Type.EmptyTypes) == null) return null;
+                }
+                else
+                {
+                    type = null;
+                }
+            }
+
+            return factory != null
+                ? factory()
+                : Activator.CreateInstance(type) as ITargetScorer;
         }
 
-        public int Count => _idToType.Count;
+        public int Count
+        {
+            get
+            {
+                lock (_syncRoot) return _idToType.Count + _factories.Count;
+            }
+        }
     }
 
     public sealed class TargetSelectorRegistry : IMarkerRegistry
@@ -94,39 +196,91 @@ namespace AbilityKit.Battle.SearchTarget
         public static TargetSelectorRegistry Instance { get; } = new TargetSelectorRegistry();
 
         private readonly Dictionary<int, Type> _idToType = new Dictionary<int, Type>();
+        private readonly Dictionary<Type, int> _typeToId = new Dictionary<Type, int>();
+        private readonly Dictionary<int, Func<ITargetSelector>> _factories = new Dictionary<int, Func<ITargetSelector>>();
+        private readonly object _syncRoot = new object();
         private bool _scanned;
 
         private TargetSelectorRegistry() { }
 
         public void Scan(params System.Reflection.Assembly[] assemblies)
         {
-            if (_scanned) return;
-            _scanned = true;
-            MarkerScanner<TargetSelectorAttribute>.Scan(assemblies, this);
+            lock (_syncRoot)
+            {
+                if (_scanned) return;
+                MarkerScanner<TargetSelectorAttribute>.Scan(assemblies, this);
+                _scanned = true;
+            }
         }
 
         public void Register(Type implType)
         {
-            if (implType == null || implType.IsAbstract || implType.IsInterface) return;
-            if (!typeof(ITargetSelector).IsAssignableFrom(implType)) return;
+            if (!IsValidType(implType)) return;
+            var attr = implType.GetCustomAttributes(typeof(TargetSelectorAttribute), false);
+            if (attr.Length == 0) return;
+            RegisterByAttribute((TargetSelectorAttribute)attr[0], implType);
         }
 
         internal void RegisterByAttribute(TargetSelectorAttribute attr, Type implType)
         {
-            if (implType == null || !typeof(ITargetSelector).IsAssignableFrom(implType)) return;
-            if (_idToType.ContainsKey(attr.Id)) return;
-
-            _idToType[attr.Id] = implType;
+            if (attr == null || !IsValidType(implType)) return;
+            lock (_syncRoot)
+            {
+                if (_idToType.ContainsKey(attr.Id) || _factories.ContainsKey(attr.Id) ||
+                    _typeToId.ContainsKey(implType)) return;
+                _idToType[attr.Id] = implType;
+                _typeToId[implType] = attr.Id;
+            }
         }
 
-        public bool TryGet(int id, out Type type) => _idToType.TryGetValue(id, out type);
+        private static bool IsValidType(Type implType)
+        {
+            return implType != null && !implType.IsAbstract && !implType.IsInterface &&
+                   typeof(ITargetSelector).IsAssignableFrom(implType);
+        }
+
+        public bool TryGet(int id, out Type type)
+        {
+            lock (_syncRoot) return _idToType.TryGetValue(id, out type);
+        }
+
+        public void RegisterFactory(int id, Func<ITargetSelector> factory)
+        {
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
+            lock (_syncRoot)
+            {
+                if (!_idToType.ContainsKey(id) && !_factories.ContainsKey(id)) _factories[id] = factory;
+            }
+        }
 
         public ITargetSelector Create(int id)
         {
-            if (!_idToType.TryGetValue(id, out var type)) return null;
-            return Activator.CreateInstance(type) as ITargetSelector;
+            Func<ITargetSelector> factory;
+            Type type;
+            lock (_syncRoot)
+            {
+                if (!_factories.TryGetValue(id, out factory))
+                {
+                    if (!_idToType.TryGetValue(id, out type) ||
+                        type.GetConstructor(Type.EmptyTypes) == null) return null;
+                }
+                else
+                {
+                    type = null;
+                }
+            }
+
+            return factory != null
+                ? factory()
+                : Activator.CreateInstance(type) as ITargetSelector;
         }
 
-        public int Count => _idToType.Count;
+        public int Count
+        {
+            get
+            {
+                lock (_syncRoot) return _idToType.Count + _factories.Count;
+            }
+        }
     }
 }

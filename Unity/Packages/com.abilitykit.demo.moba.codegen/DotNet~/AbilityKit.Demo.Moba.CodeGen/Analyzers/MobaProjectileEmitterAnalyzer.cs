@@ -13,7 +13,8 @@ namespace AbilityKit.Demo.Moba.CodeGen
     {
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(
             MobaDiagnosticRules.InvalidProjectileEmitterRule,
-            MobaDiagnosticRules.AmbiguousProjectileEmitterRule);
+            MobaDiagnosticRules.AmbiguousProjectileEmitterRule,
+            MobaDiagnosticRules.AmbiguousDefaultProjectileEmitterRule);
 
         public override void Initialize(AnalysisContext context)
         {
@@ -76,7 +77,8 @@ namespace AbilityKit.Demo.Moba.CodeGen
             CompilationAnalysisContext context,
             IEnumerable<MobaProjectileEmitterMapping> mappings)
         {
-            foreach (var group in mappings.GroupBy(
+            var entriesByMapping = mappings.ToArray();
+            foreach (var group in entriesByMapping.GroupBy(
                          MobaProjectileEmitterContract.GetAmbiguityKey,
                          StringComparer.Ordinal))
             {
@@ -92,6 +94,21 @@ namespace AbilityKit.Demo.Moba.CodeGen
                     entries[0].Priority,
                     entries[0].OwnerType.Name,
                     entries[1].OwnerType.Name));
+            }
+
+            var defaults = entriesByMapping
+                .Where(mapping => mapping.IsDefault)
+                .GroupBy(mapping => mapping.EmitterValue)
+                .Select(group => group.OrderBy(mapping => mapping.QualifiedTypeName, StringComparer.Ordinal).First())
+                .OrderBy(mapping => mapping.EmitterValue)
+                .ToArray();
+            if (defaults.Length > 1)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MobaDiagnosticRules.AmbiguousDefaultProjectileEmitterRule,
+                    GetLocation(defaults[1].OwnerType),
+                    defaults[0].EmitterValue,
+                    defaults[1].EmitterValue));
             }
         }
 

@@ -1,7 +1,7 @@
 #nullable enable
 
 using System;
-using AbilityKit.Ability.Host.Extensions.Session;
+using AbilityKit.Network.Room;
 
 namespace AbilityKit.Demo.Shooter.View
 {

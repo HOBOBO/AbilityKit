@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using AbilityKit.Ability.Host.Extensions.Session;
+using AbilityKit.Network.Room;
 using AbilityKit.Game.Battle.Agent;
 
 namespace AbilityKit.Game.Flow
@@ -14,8 +14,11 @@ namespace AbilityKit.Game.Flow
     /// Protocol serialization stays in GatewayRoomClient; lifecycle orchestration stays in RoomGatewaySessionFlow.
     /// </summary>
     internal sealed class MobaRoomGatewaySessionClient :
-        IRoomGatewaySessionClient,
-        IRoomGatewaySnapshotFeed
+        IRoomGatewaySessionClientBase,
+        IRoomGatewayHeroPickCapability,
+        IRoomGatewayStagedLoadingCapability,
+        IRoomGatewaySnapshotFeed,
+        IDisposable
     {
         private readonly IGatewayRoomClient _client;
         private readonly ClientRoomStore _store;
@@ -111,22 +114,6 @@ namespace AbilityKit.Game.Flow
                 result.Message,
                 result.RoomRevision,
                 ToRoomSnapshot(result.Snapshot));
-        }
-
-        public Task<RoomGatewayStartBattleResult> StartBattleAsync(
-            RoomGatewayStartBattleRequest request,
-            TimeSpan? timeout = null,
-            CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException("MOBA uses the staged loading flow instead of direct StartBattle.");
-        }
-
-        public Task<RoomGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(
-            RoomGatewayStateSyncSubscriptionRequest request,
-            TimeSpan? timeout = null,
-            CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException("State-sync subscription is owned by BattleSessionFeature.");
         }
 
         public async Task<RoomGatewayRestoreRoomResult> RestoreRoomAsync(
@@ -397,6 +384,12 @@ namespace AbilityKit.Game.Flow
             return result.HasActiveRoom
                 ? RoomGatewaySessionRestoreStatus.Restored
                 : RoomGatewaySessionRestoreStatus.NoActiveRoom;
+        }
+
+        public void Dispose()
+        {
+            _store.OnSnapshotChanged -= HandleSnapshotChanged;
+            SnapshotChanged = null;
         }
     }
 }

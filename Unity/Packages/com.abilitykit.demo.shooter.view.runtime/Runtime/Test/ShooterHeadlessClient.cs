@@ -52,7 +52,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Debug.Log($"[ShooterHeadless] role={role} account={account} host={host}:{port}");
 
             using var launcher = ShooterClientNetworkLauncher.Create(
-                ShooterClientConnectionFactory.Tcp());
+                ShooterClientConnectionFactory.TcpForUnityMainThread());
 
             try
             {

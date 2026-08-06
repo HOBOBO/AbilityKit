@@ -54,7 +54,7 @@
     <ProjectReference Include="..\AbilityKit.Pipeline\AbilityKit.Pipeline.csproj" />
     <ProjectReference Include="..\AbilityKit.Protocol\AbilityKit.Protocol.csproj" />
     <ProjectReference Include="..\AbilityKit.Game.Battle.Runtime\AbilityKit.Game.Battle.Runtime.csproj" />
-    <ProjectReference Include="..\AbilityKit.Game.Battle.Transport.Runtime\AbilityKit.Game.Battle.Transport.Runtime.csproj" />
+    <ProjectReference Include="..\AbilityKit.Network.Battle\AbilityKit.Network.Battle.csproj" />
     <ProjectReference Include="..\AbilityKit.Combat.Targeting\AbilityKit.Combat.Targeting.csproj" />
     <ProjectReference Include="..\AbilityKit.ThirdParty.Luban.Runtime\AbilityKit.ThirdParty.Luban.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.ActionSchema\AbilityKit.ActionSchema.csproj" />
@@ -72,6 +72,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AdditionalFiles Include="..\Config\PackageConstraints.json" />
     <ProjectReference Include="..\..\Unity\Packages\com.abilitykit.demo.moba.codegen\DotNet~\AbilityKit.Demo.Moba.CodeGen\AbilityKit.Demo.Moba.CodeGen.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />

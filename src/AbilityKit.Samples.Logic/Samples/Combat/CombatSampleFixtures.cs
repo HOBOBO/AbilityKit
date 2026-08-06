@@ -187,9 +187,10 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
             _positions[actorId] = new SearchVec2(x, z);
         }
 
-        public bool TryGetPosition(IEntityId entity, out IVec2 position)
+        public bool TryGetPosition(EntityId entity, out SearchVec2 position)
         {
-            if (_positions.TryGetValue(entity.ActorId, out var p))
+            if (entity.Value <= int.MaxValue &&
+                _positions.TryGetValue((int)entity.Value, out var p))
             {
                 position = p;
                 return true;
@@ -199,9 +200,9 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
             return false;
         }
 
-        public ulong GetKey(IEntityId id)
+        public ulong GetKey(EntityId id)
         {
-            return (ulong)id.ActorId;
+            return id.Value;
         }
     }
 
@@ -213,8 +214,6 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
         {
             _ids = ids ?? Array.Empty<int>();
         }
-
-        public bool RequiresPosition => false;
 
         public void ForEachCandidate<TConsumer>(in SearchQuery query, SearchContext context, ref TConsumer consumer)
             where TConsumer : struct, ICandidateConsumer
@@ -228,12 +227,12 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
 
     internal static class CombatSampleFormatting
     {
-        public static string FormatIds(IEnumerable<IEntityId> ids)
+        public static string FormatIds(IEnumerable<EntityId> ids)
         {
             var parts = new List<string>();
             foreach (var id in ids)
             {
-                parts.Add(id.ActorId.ToString());
+                parts.Add(id.Value.ToString());
             }
 
             return parts.Count == 0 ? "[]" : "[" + string.Join(", ", parts) + "]";

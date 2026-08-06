@@ -41,15 +41,17 @@ namespace AbilityKit.Demo.Moba.CodeGen
                 return false;
             }
 
-            if (dtoType.IsAbstract || dtoType.IsGenericType)
+            if (dtoType.TypeKind != TypeKind.Class || dtoType.IsAbstract || dtoType.IsGenericType ||
+                !GeneratedCodeSymbolRules.CanReferenceType(dtoType))
             {
-                error = $"DTO type '{dtoType.Name}' must be concrete and non-generic";
+                error = $"DTO type '{dtoType.Name}' must be a concrete, non-generic class accessible from generated code";
                 return false;
             }
 
-            if (moType.IsAbstract || moType.IsGenericType)
+            if (moType.TypeKind != TypeKind.Class || moType.IsAbstract || moType.IsGenericType ||
+                !GeneratedCodeSymbolRules.CanReferenceType(moType))
             {
-                error = $"MO type '{moType.Name}' must be concrete and non-generic";
+                error = $"MO type '{moType.Name}' must be a concrete, non-generic class accessible from generated code";
                 return false;
             }
 
@@ -85,24 +87,30 @@ namespace AbilityKit.Demo.Moba.CodeGen
         {
             foreach (var candidateName in new[] { "Id", "Code" })
             {
-                foreach (var member in dtoType.GetMembers(candidateName))
+                for (var current = dtoType; current != null; current = current.BaseType)
                 {
-                    if (member.DeclaredAccessibility != Accessibility.Public || member.IsStatic) continue;
-                    if (member is IFieldSymbol field &&
-                        field.Type.SpecialType == SpecialType.System_Int32)
+                    var members = current.GetMembers(candidateName);
+                    foreach (var member in members)
                     {
-                        keyMemberName = candidateName;
-                        return true;
+                        if (member.DeclaredAccessibility != Accessibility.Public || member.IsStatic) continue;
+                        if (member is IFieldSymbol field &&
+                            field.Type.SpecialType == SpecialType.System_Int32)
+                        {
+                            keyMemberName = candidateName;
+                            return true;
+                        }
+
+                        if (member is IPropertySymbol property &&
+                            property.Type.SpecialType == SpecialType.System_Int32 &&
+                            property.GetMethod != null &&
+                            property.GetMethod.DeclaredAccessibility == Accessibility.Public)
+                        {
+                            keyMemberName = candidateName;
+                            return true;
+                        }
                     }
 
-                    if (member is IPropertySymbol property &&
-                        property.Type.SpecialType == SpecialType.System_Int32 &&
-                        property.GetMethod != null &&
-                        property.GetMethod.DeclaredAccessibility == Accessibility.Public)
-                    {
-                        keyMemberName = candidateName;
-                        return true;
-                    }
+                    if (members.Length > 0) break;
                 }
             }
 

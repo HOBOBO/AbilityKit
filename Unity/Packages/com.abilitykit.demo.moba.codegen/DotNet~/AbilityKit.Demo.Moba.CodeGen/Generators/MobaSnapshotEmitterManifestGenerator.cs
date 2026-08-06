@@ -77,9 +77,8 @@ namespace AbilityKit.Demo.Moba.CodeGen
             source.AppendLine("        {");
             foreach (var emitter in emitters)
             {
-                source.Append("            registry.Register(").Append(emitter.Priority)
-                    .Append(", typeof(").Append(emitter.QualifiedTypeName).AppendLine("));");
-                source.AppendLine("            count++;");
+                source.Append("            if (registry.TryRegisterGenerated(").Append(emitter.Priority)
+                    .Append(", typeof(").Append(emitter.QualifiedTypeName).AppendLine("))) count++;");
             }
 
             source.AppendLine("        }");

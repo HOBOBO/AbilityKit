@@ -116,6 +116,14 @@ namespace AbilityKit.Demo.Moba.CodeGen
             defaultSeverity: DiagnosticSeverity.Warning,
             isEnabledByDefault: true);
 
+        public static readonly DiagnosticDescriptor InvalidBattleRouteTypeRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.InvalidBattleRouteTypeRuleId,
+            title: "Invalid MOBA battle route type",
+            messageFormat: "MOBA battle route on '{0}' is invalid: {1}",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
         public static readonly DiagnosticDescriptor InvalidEventMappingRule = new DiagnosticDescriptor(
             id: MobaDiagnosticIds.InvalidEventMappingRuleId,
             title: "Invalid MOBA event mapping",
@@ -160,6 +168,14 @@ namespace AbilityKit.Demo.Moba.CodeGen
             id: MobaDiagnosticIds.AmbiguousProjectileEmitterRuleId,
             title: "Ambiguous MOBA projectile emitter",
             messageFormat: "MOBA projectile emitter type '{0}' at priority '{1}' is declared by both '{2}' and '{3}'",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor AmbiguousDefaultProjectileEmitterRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.AmbiguousDefaultProjectileEmitterRuleId,
+            title: "Ambiguous default MOBA projectile emitter",
+            messageFormat: "MOBA projectile emitter types '{0}' and '{1}' are both declared as default",
             category: "AbilityKit.Moba",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);

@@ -27,6 +27,7 @@ namespace AbilityKit.Network.Runtime
         public Task<ArraySegment<byte>> SendRequestAsync(uint opCode, ArraySegment<byte> payload, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
+            cancellationToken.ThrowIfCancellationRequested();
 
             var seq = unchecked((uint)Interlocked.Increment(ref _nextSeq));
             if (seq == 0) seq = unchecked((uint)Interlocked.Increment(ref _nextSeq));
@@ -38,32 +39,58 @@ namespace AbilityKit.Network.Runtime
             }
 
             CancellationTokenSource? timeoutCts = null;
-            CancellationTokenRegistration ctr = default;
-            CancellationTokenRegistration ttr = default;
+            CancellationTokenRegistration cancellationRegistration = default;
+            CancellationTokenRegistration timeoutRegistration = default;
 
             try
             {
                 if (timeout.HasValue && timeout.Value > TimeSpan.Zero)
                 {
                     timeoutCts = new CancellationTokenSource(timeout.Value);
-                    ttr = timeoutCts.Token.Register(() => TryTimeout(opCode, seq), useSynchronizationContext: false);
+                    timeoutRegistration = timeoutCts.Token.Register(
+                        () => TryTimeout(opCode, seq),
+                        useSynchronizationContext: false);
                 }
 
                 if (cancellationToken.CanBeCanceled)
                 {
-                    ctr = cancellationToken.Register(() => TryCancel(seq), useSynchronizationContext: false);
+                    cancellationRegistration = cancellationToken.Register(
+                        () => TryCancel(seq, cancellationToken),
+                        useSynchronizationContext: false);
                 }
 
                 _connection.Send(opCode, payload, flags: (ushort)NetworkPacketFlags.Request, seq: seq);
-                return tcs.Task;
+                return AwaitAndReleaseAsync(
+                    tcs.Task,
+                    timeoutCts,
+                    timeoutRegistration,
+                    cancellationRegistration);
             }
             catch
             {
                 _pending.TryRemove(seq, out _);
-                ctr.Dispose();
-                ttr.Dispose();
+                cancellationRegistration.Dispose();
+                timeoutRegistration.Dispose();
                 timeoutCts?.Dispose();
                 throw;
+            }
+        }
+
+        private static async Task<ArraySegment<byte>> AwaitAndReleaseAsync(
+            Task<ArraySegment<byte>> requestTask,
+            CancellationTokenSource? timeoutCts,
+            CancellationTokenRegistration timeoutRegistration,
+            CancellationTokenRegistration cancellationRegistration)
+        {
+            try
+            {
+                return await requestTask.ConfigureAwait(false);
+            }
+            finally
+            {
+                cancellationRegistration.Dispose();
+                timeoutRegistration.Dispose();
+                timeoutCts?.Dispose();
             }
         }
 
@@ -114,11 +141,11 @@ namespace AbilityKit.Network.Runtime
             }
         }
 
-        private void TryCancel(uint seq)
+        private void TryCancel(uint seq, CancellationToken cancellationToken)
         {
             if (_pending.TryRemove(seq, out var tcs) && tcs != null)
             {
-                tcs.TrySetCanceled();
+                tcs.TrySetCanceled(cancellationToken);
             }
         }
 

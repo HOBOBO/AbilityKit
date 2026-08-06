@@ -6,9 +6,7 @@ namespace AbilityKit.Battle.SearchTarget.Scorers
     [TargetScorer(0x2001, "Zero")]
     public sealed class ZeroScorer : ITargetScorer
     {
-        public bool RequiresPosition => false;
-
-        public float Score(in SearchQuery query, SearchContext context, IEntityId candidate)
+        public float Score(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             return 0f;
         }
@@ -20,23 +18,33 @@ namespace AbilityKit.Battle.SearchTarget.Scorers
     [TargetScorer(0x2002, "SeededHashRandom")]
     public sealed class SeededHashRandomScorer : ITargetScorer
     {
-        private readonly int _seedKey;
+        private readonly SearchContextKey<int> _seedKey;
+        private readonly int _seed;
+        private readonly bool _usesContextSeed;
 
-        public SeededHashRandomScorer(int seedKey)
+        public SeededHashRandomScorer(int seed)
         {
-            _seedKey = seedKey;
+            _seed = seed;
         }
 
-        public bool RequiresPosition => false;
-
-        public float Score(in SearchQuery query, SearchContext context, IEntityId candidate)
+        public SeededHashRandomScorer(SearchContextKey<int> seedKey)
         {
-            if (context == null) return 0f;
-            if (!context.TryGetData<int>(_seedKey, out var seed)) seed = 0;
+            _seedKey = seedKey ?? throw new System.ArgumentNullException(nameof(seedKey));
+            _usesContextSeed = true;
+        }
+
+        public float Score(in SearchQuery query, SearchContext context, EntityId candidate)
+        {
+            var seed = _seed;
+            if (_usesContextSeed && (context == null || !context.TryGetData(_seedKey, out seed)))
+            {
+                seed = 0;
+            }
 
             unchecked
             {
-                uint x = (uint)(seed * 0x9E3779B9) ^ (uint)candidate.ActorId;
+                var value = candidate.Value;
+                uint x = (uint)(seed * 0x9E3779B9) ^ (uint)value ^ (uint)(value >> 32);
                 x ^= x >> 16;
                 x *= 0x7FEB352D;
                 x ^= x >> 15;
@@ -54,18 +62,17 @@ namespace AbilityKit.Battle.SearchTarget.Scorers
     [TargetScorer(0x2004, "DistanceToEntity")]
     public sealed class DistanceToEntityScorer : ITargetScorer
     {
-        private readonly IEntityId _source;
+        private readonly EntityId _source;
 
-        public DistanceToEntityScorer(IEntityId source)
+        public DistanceToEntityScorer(EntityId source)
         {
             _source = source;
         }
 
-        public bool RequiresPosition => true;
-
-        public float Score(in SearchQuery query, SearchContext context, IEntityId candidate)
+        public float Score(in SearchQuery query, SearchContext context, EntityId candidate)
         {
-            if (!context.TryGetService<IPositionProvider>(out var pos) || pos == null) return float.NegativeInfinity;
+            var pos = context.PositionProvider;
+            if (pos == null) return float.NegativeInfinity;
             if (!pos.TryGetPosition(_source, out var src)) return float.NegativeInfinity;
             if (!pos.TryGetPosition(candidate, out var p)) return float.NegativeInfinity;
 

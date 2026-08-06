@@ -3,11 +3,20 @@
   "version": "0.1.0",
   "displayName": "AbilityKit Combat Targeting",
   "unity": "2022.3",
-  "description": "Target search/selection utilities.",
-  "author": { "name": "AbilityKit" },
+  "description": "Composable, deterministic, low-allocation target search pipelines with pluggable candidate providers, rules, scorers, selectors, query registries, and pooled execution contexts.",
+  "keywords": [
+    "abilitykit",
+    "combat",
+    "targeting",
+    "target-search",
+    "runtime",
+    "deterministic",
+    "pooling"
+  ],
+  "author": {
+    "name": "AbilityKit"
+  },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1",
-    "com.abilitykit.world.ecs": "0.0.1",
-    "com.abilitykit.combat.entitymanager": "0.0.1"
+    "com.abilitykit.core": "0.0.1"
   }
 }

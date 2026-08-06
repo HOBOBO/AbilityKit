@@ -56,7 +56,7 @@
 
 `src/AbilityKit.Demo.Shooter.Runtime.Tests/`：
 
-- `Client/ShooterRemoteCoordinatorInputContractTests.cs` — coordinator 输入契约测试
+- `Client/ShooterRemoteCoordinatorInputContractTests.cs` — **断言 shooter 远程输入路径不经 coordinator**（断言 view.runtime asmdef 不引用 `AbilityKit.Coordinator`，且 `Hosting/ShooterCoordinator*` 文件不存在）
 
 ## 推荐工作流
 

@@ -11,6 +11,8 @@
     <ProjectReference Include="../AbilityKit.Game.View.Runtime/AbilityKit.Game.View.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.View.Runtime\AbilityKit.Demo.Moba.View.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />
+    <ProjectReference Include="..\AbilityKit.Network.Room\AbilityKit.Network.Room.csproj" />
+    <ProjectReference Include="..\AbilityKit.Network.Sdk\AbilityKit.Network.Sdk.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Host.Extension\AbilityKit.Host.Extension.csproj" />
     <ProjectReference Include="../AbilityKit.Demo.Moba.Host/AbilityKit.Demo.Moba.Host.csproj" />
