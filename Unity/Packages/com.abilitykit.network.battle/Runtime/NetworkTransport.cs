@@ -29,8 +29,8 @@ namespace AbilityKit.Network.Battle
         public NetworkTransport(NetworkTransportOptions options, IDispatcher callbackDispatcher, IDispatcher ioDispatcher)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
-            if (_options.TransportFactory == null) throw new ArgumentException("TransportFactory is required.", nameof(options));
-            if (_options.Port <= 0) throw new ArgumentException("Port must be set.", nameof(options));
+            if (_options.ConnectionFactory == null && _options.TransportFactory == null) throw new ArgumentException("TransportFactory or ConnectionFactory is required.", nameof(options));
+            if (_options.ConnectionFactory == null && _options.Port <= 0) throw new ArgumentException("Port must be set when using TransportFactory.", nameof(options));
 
             var connOptions = new ConnectionOptions
             {
@@ -46,8 +46,17 @@ namespace AbilityKit.Network.Battle
             var effectiveCallbackDispatcher = callbackDispatcher ?? InlineDispatcher.Instance;
             var effectiveIoDispatcher = ioDispatcher ?? effectiveCallbackDispatcher;
 
-            _sdkClient = new NetworkSdkBuilder()
-                .UseTransportFactory(_options.TransportFactory)
+            var builder = new NetworkSdkBuilder();
+            if (_options.ConnectionFactory != null)
+            {
+                builder.UseConnectionFactory(_options.ConnectionFactory);
+            }
+            else
+            {
+                builder.UseTransportFactory(_options.TransportFactory);
+            }
+
+            _sdkClient = builder
                 .ConfigureConnection(options =>
                 {
                     options.FrameCodec = connOptions.FrameCodec;

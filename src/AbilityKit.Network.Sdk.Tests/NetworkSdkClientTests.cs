@@ -117,7 +117,7 @@ public sealed class NetworkSdkClientTests
     {
         var connection = new ObservableConnection();
         using var client = new NetworkSdkBuilder()
-            .UseConnectionFactory(() => connection)
+            .UseOwnedConnectionFactory(() => connection)
             .Build();
 
         client.Open("gateway.example", 7100);
@@ -129,6 +129,22 @@ public sealed class NetworkSdkClientTests
         Assert.Equal(0.25f, connection.LastTickDelta);
         Assert.Equal(1, connection.OpenCount);
         Assert.Equal(1, connection.CloseCount);
+    }
+
+    [Fact]
+    public void OpenIfDisconnected_DoesNotRestartAnActiveConnection()
+    {
+        var connection = new ObservableConnection();
+        using var client = new NetworkSdkBuilder()
+            .UseOwnedConnectionFactory(() => connection)
+            .Build();
+
+        Assert.True(client.OpenIfDisconnected("gateway.example", 7100));
+        Assert.False(client.OpenIfDisconnected("other.example", 7200));
+
+        Assert.Equal("gateway.example", connection.OpenHost);
+        Assert.Equal(7100, connection.OpenPort);
+        Assert.Equal(1, connection.OpenCount);
     }
 
     [Fact]

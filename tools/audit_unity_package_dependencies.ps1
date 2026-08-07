@@ -10,6 +10,17 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$PackageNames = @(
+    $PackageNames |
+        ForEach-Object { $_ -split ',' } |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique
+)
+if ($PackageNames.Count -eq 0) {
+    throw 'At least one package name is required.'
+}
+
 if ([string]::IsNullOrWhiteSpace($PackagesRoot)) {
     $PackagesRoot = Join-Path $PSScriptRoot '..\Unity\Packages'
 }

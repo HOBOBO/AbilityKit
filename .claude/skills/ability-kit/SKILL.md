@@ -118,3 +118,7 @@ ability-kit/
 
 - 客户端预测/回滚/reconcile 见 [framesync-prediction-rollback](../framesync-prediction-rollback/SKILL.md)
 - Session/Flow 类代码重构（State/Handles/Controllers）见 [state-handles-controllers](../state-handles-controllers/SKILL.md)
+- 多人联网 SDK 架构（network.sdk/room/battle 分层、coordinator 契约包、传输可插拔、序列化统一模型）见 [coordinator](../coordinator/SKILL.md)
+- 多人联网接入指南（statesync/framesync 配方、逻辑层 sync-agnostic 边界、可选传输 + 配置）见 `Docs/design/07-NetworkSynchronization/07-MultiplayerSdkIntegrationGuide.md`
+- 网络包：`network.sdk`（组装根）→ `network.room`（房间会话）→ `network.battle`（战斗数据面引擎，契约中立）→ `network.battle.config`（高层 builder）
+- 可选传输：`network.transport.websocket`（WebSocket）、`network.transport.litenet`（LiteNetLib 可靠 UDP）、`network.transport.inmemory`（测试用进程内传输）

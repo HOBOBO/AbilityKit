@@ -6,6 +6,6 @@
   "description": "AbilityKit context registry and lifecycle management.",
   "author": { "name": "AbilityKit" },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1"
+    "com.abilitykit.core": "0.1.0"
   }
 }

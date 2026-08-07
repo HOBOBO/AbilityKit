@@ -1,0 +1,23 @@
+{
+    "name": "AbilityKit.Network.Battle.Config",
+    "rootNamespace": "AbilityKit",
+    "references": [
+        "AbilityKit.Network.Battle",
+        "AbilityKit.Network.Runtime",
+        "AbilityKit.Protocol.Room",
+        "AbilityKit.Game.Battle.Runtime",
+        "AbilityKit.World.NetworkFragments",
+        "AbilityKit.World.DI",
+        "AbilityKit.World.FrameSync",
+        "AbilityKit.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

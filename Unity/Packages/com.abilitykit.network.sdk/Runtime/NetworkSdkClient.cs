@@ -97,6 +97,32 @@ namespace AbilityKit.Network.Sdk
             _connection.Open(host, port);
         }
 
+        /// <summary>
+        /// Opens the connection only while it is disconnected.
+        /// Returns false while connecting, connected, or reconnecting.
+        /// </summary>
+        public bool OpenIfDisconnected(string host, int port)
+        {
+            ThrowIfDisposed();
+            if (string.IsNullOrWhiteSpace(host))
+            {
+                throw new ArgumentException("Host is required.", nameof(host));
+            }
+
+            if (port <= 0 || port > 65535)
+            {
+                throw new ArgumentOutOfRangeException(nameof(port));
+            }
+
+            if (_connection.State != ConnectionState.Disconnected)
+            {
+                return false;
+            }
+
+            _connection.Open(host, port);
+            return true;
+        }
+
         public void Close()
         {
             if (_disposed)

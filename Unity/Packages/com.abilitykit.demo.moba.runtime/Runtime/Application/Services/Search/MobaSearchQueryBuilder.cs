@@ -146,7 +146,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
             _casterActorId = casterActorId;
         }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             if (_rules == null)
             {

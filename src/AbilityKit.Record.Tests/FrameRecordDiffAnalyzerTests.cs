@@ -197,7 +197,11 @@ public sealed class FrameRecordToolsEndToEndTests
             var result = await RunToolAsync(
                 $"diff \"{leftPath}\" \"{rightPath}\" --context 1");
 
-            Assert.Equal(1, result.ExitCode);
+            Assert.True(
+                result.ExitCode == 1,
+                $"Expected exit code 1, but received {result.ExitCode}.{Environment.NewLine}" +
+                $"stdout: {result.StandardOutput}{Environment.NewLine}" +
+                $"stderr: {result.StandardError}");
             Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
             using var json = JsonDocument.Parse(result.StandardOutput);
             Assert.Equal(2, json.RootElement.GetProperty("schemaVersion").GetInt32());
@@ -249,8 +253,29 @@ public sealed class FrameRecordToolsEndToEndTests
 
     private static async Task<ToolResult> RunToolAsync(string arguments)
     {
+        const int WindowsDllInitializationFailed = unchecked((int)0xC0000142);
+        const int maxStartAttempts = 3;
+
         var toolPath = Path.Combine(AppContext.BaseDirectory, "AbilityKit.Record.Tools.dll");
         Assert.True(File.Exists(toolPath), $"Tool assembly was not copied to test output: {toolPath}");
+
+        ToolResult? result = null;
+        for (var attempt = 1; attempt <= maxStartAttempts; attempt++)
+        {
+            result = await RunToolOnceAsync(toolPath, arguments);
+            if (result.ExitCode != WindowsDllInitializationFailed || attempt == maxStartAttempts)
+            {
+                return result;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(100 * attempt));
+        }
+
+        return result!;
+    }
+
+    private static async Task<ToolResult> RunToolOnceAsync(string toolPath, string arguments)
+    {
         using var process = Process.Start(new ProcessStartInfo
         {
             FileName = "dotnet",
@@ -262,10 +287,13 @@ public sealed class FrameRecordToolsEndToEndTests
         });
         Assert.NotNull(process);
 
-        var standardOutput = await process.StandardOutput.ReadToEndAsync();
-        var standardError = await process.StandardError.ReadToEndAsync();
+        var standardOutputTask = process.StandardOutput.ReadToEndAsync();
+        var standardErrorTask = process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();
-        return new ToolResult(process.ExitCode, standardOutput, standardError);
+        return new ToolResult(
+            process.ExitCode,
+            await standardOutputTask,
+            await standardErrorTask);
     }
 
     private static void WriteRecord(string path, uint finalHash)

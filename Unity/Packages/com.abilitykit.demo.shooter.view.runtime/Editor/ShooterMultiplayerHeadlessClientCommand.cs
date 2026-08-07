@@ -68,6 +68,9 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         private static float _lastMovementProgress;
         private static float _maxMovementProgress;
         private static float _maxBackwardMovement;
+        private static float _maxReconciliationBackwardMovement;
+        private static float _maxUnexplainedBackwardMovement;
+        private static int _lastMovementAuthoritativeFrame;
         private static int _movementSampleCount;
         private static readonly List<AuthoritativeSample> Samples = new List<AuthoritativeSample>();
         private static readonly List<HashMismatchSample> HashMismatches = new List<HashMismatchSample>();
@@ -362,8 +365,12 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 throw new InvalidOperationException("Shooter movement inputs were not accepted.");
             if (state.maxMovementProgress < 0.2f)
                 throw new InvalidOperationException($"Shooter controlled player did not move far enough. progress={state.maxMovementProgress:F3}");
-            if (state.maxBackwardMovement > 0.5f)
-                throw new InvalidOperationException($"Shooter controlled player tugged backward too far. maxBackward={state.maxBackwardMovement:F3}");
+            if (state.maxUnexplainedBackwardMovement > 0.5f)
+                throw new InvalidOperationException(
+                    $"Shooter controlled player tugged backward without a new authoritative correction. " +
+                    $"maxUnexplained={state.maxUnexplainedBackwardMovement:F3}, " +
+                    $"maxReconciliation={state.maxReconciliationBackwardMovement:F3}, " +
+                    $"maxRaw={state.maxBackwardMovement:F3}");
             if (FindSample(finalize.frame, finalize.authoritativeHash) == null)
                 throw new InvalidOperationException("Shooter client lacks the coordinator-selected authoritative sample.");
         }
@@ -504,6 +511,10 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             _lastMovementProgress = 0f;
             _maxMovementProgress = 0f;
             _maxBackwardMovement = 0f;
+            _maxReconciliationBackwardMovement = 0f;
+            _maxUnexplainedBackwardMovement = 0f;
+            _lastMovementAuthoritativeFrame = _launcher?.GatewayConnection.CurrentSession
+                ?.FrameSync.LastImportedSnapshotEvidence.Frame ?? 0;
             _movementSampleCount = 0;
             _hasMovementBaseline = true;
             _movementActive = true;
@@ -518,9 +529,23 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             var direction = options.IsOwner ? 1f : -1f;
             var progress = (player.X - _movementBaselineX) * direction;
             var backward = _lastMovementProgress - progress;
+            var authoritativeFrame = _launcher?.GatewayConnection.CurrentSession
+                ?.FrameSync.LastImportedSnapshotEvidence.Frame ?? _lastMovementAuthoritativeFrame;
             if (backward > _maxBackwardMovement) _maxBackwardMovement = backward;
+            if (backward > 0f)
+            {
+                if (authoritativeFrame != _lastMovementAuthoritativeFrame)
+                {
+                    if (backward > _maxReconciliationBackwardMovement) _maxReconciliationBackwardMovement = backward;
+                }
+                else if (backward > _maxUnexplainedBackwardMovement)
+                {
+                    _maxUnexplainedBackwardMovement = backward;
+                }
+            }
             if (progress > _maxMovementProgress) _maxMovementProgress = progress;
             _lastMovementProgress = progress;
+            _lastMovementAuthoritativeFrame = authoritativeFrame;
             _movementSampleCount++;
         }
 
@@ -570,6 +595,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 movementSampleCount = _movementSampleCount,
                 maxMovementProgress = _maxMovementProgress,
                 maxBackwardMovement = _maxBackwardMovement,
+                maxReconciliationBackwardMovement = _maxReconciliationBackwardMovement,
+                maxUnexplainedBackwardMovement = _maxUnexplainedBackwardMovement,
                 frame = _battle?.Session.CurrentFrame ?? _runtime?.CurrentFrame ?? 0,
                 stateHash = _runtime == null ? "0x00000000" : FormatHash(_runtime.ComputeStateHash()),
                 samples = new List<AuthoritativeSample>(Samples)
@@ -843,6 +870,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             public int movementSampleCount;
             public float maxMovementProgress;
             public float maxBackwardMovement;
+            public float maxReconciliationBackwardMovement;
+            public float maxUnexplainedBackwardMovement;
             public int frame;
             public string stateHash = string.Empty;
             public int pipelinePacketCount;

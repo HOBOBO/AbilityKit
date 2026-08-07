@@ -16,12 +16,12 @@ namespace AbilityKit.Battle.SearchTarget.Rules
             _rules = Copy(rules);
         }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             for (int i = 0; i < _rules.Length; i++)
             {
                 var rule = _rules[i];
-                if (rule != null && !rule.Test(in query, context, candidate)) return false;
+                if (rule != null && !rule.IsMatch(in query, context, candidate)) return false;
             }
             return true;
         }
@@ -50,12 +50,12 @@ namespace AbilityKit.Battle.SearchTarget.Rules
             _rules = Copy(rules);
         }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             for (int i = 0; i < _rules.Length; i++)
             {
                 var rule = _rules[i];
-                if (rule != null && rule.Test(in query, context, candidate)) return true;
+                if (rule != null && rule.IsMatch(in query, context, candidate)) return true;
             }
             return false;
         }
@@ -82,9 +82,9 @@ namespace AbilityKit.Battle.SearchTarget.Rules
             _rule = rule ?? throw new ArgumentNullException(nameof(rule));
         }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
-            return !_rule.Test(in query, context, candidate);
+            return !_rule.IsMatch(in query, context, candidate);
         }
     }
 }

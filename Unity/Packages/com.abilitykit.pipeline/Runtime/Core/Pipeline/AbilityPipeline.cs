@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Logging;
 using AbilityKit.Pipeline.Pooling;
 
 namespace AbilityKit.Pipeline
@@ -313,19 +314,26 @@ namespace AbilityKit.Pipeline
                 if (State != EAbilityPipelineState.Executing) return;
                 State = EAbilityPipelineState.Failed;
                 Context.PipelineState = EAbilityPipelineState.Failed;
-                TrySetContextFailReason(phase, e);
+                Exception failure = e;
 
                 if (phase != null)
                 {
                     try { phase.HandleError(Context, e); }
-                    catch { }
-                    _owner.Events?.OnPhaseError?.Invoke(phase, Context, e);
+                    catch (Exception handlerException)
+                    {
+                        failure = new AggregateException(
+                            "The phase and its error handler both failed.",
+                            e,
+                            handlerException);
+                    }
+                    _owner.Events?.OnPhaseError?.Invoke(phase, Context, failure);
                 }
 
-                _owner.Events?.OnPipelineError?.Invoke(Context, e);
-                _owner.Events?.OnPipelineFailed?.Invoke(Context, e);
+                TrySetContextFailReason(phase, failure);
+                _owner.Events?.OnPipelineError?.Invoke(Context, failure);
+                _owner.Events?.OnPipelineFailed?.Invoke(Context, failure);
                 _owner.Events?.RecordTracePhase(_runtime, this, EPipelineTraceEventType.PhaseError, phase?.PhaseId ?? default, phase?.GetType().Name ?? string.Empty, State);
-                _owner.Events?.RecordTrace(_runtime, this, EPipelineTraceEventType.RunEnd, CurrentPhaseId, State, e.Message);
+                _owner.Events?.RecordTrace(_runtime, this, EPipelineTraceEventType.RunEnd, CurrentPhaseId, State, failure.Message);
 
                 Cleanup();
             }
@@ -347,8 +355,9 @@ namespace AbilityKit.Pipeline
                         failReasonProperty.SetValue(Context, message);
                     }
                 }
-                catch
+                catch (Exception cleanupException)
                 {
+                    Log.Exception(cleanupException, $"Pipeline context release failed. pipeline={_owner.GetType().Name} state={State}");
                 }
             }
 

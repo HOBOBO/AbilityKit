@@ -141,7 +141,7 @@ namespace AbilityKit.Ability.StateSync.Diff
                 if (current[i] != (previous != null ? previous[i] : 0))
                 {
                     writer.Write((byte)1);
-                    writer.Write((byte)i);
+                    writer.Write(i);
                     writer.Write(current[i]);
                 }
                 else
@@ -150,9 +150,10 @@ namespace AbilityKit.Ability.StateSync.Diff
                 }
             }
 
-            if (current.Length > minLength)
+            var extraLength = current.Length - minLength;
+            writer.Write(extraLength);
+            if (extraLength > 0)
             {
-                writer.Write(current.Length - minLength);
                 for (int i = minLength; i < current.Length; i++)
                 {
                     writer.Write(current[i]);
@@ -169,6 +170,12 @@ namespace AbilityKit.Ability.StateSync.Diff
 
             int currentLength = reader.ReadInt32();
             int previousLength = reader.ReadInt32();
+            if (currentLength < 0 || previousLength < 0)
+                throw new InvalidDataException("State diff contains a negative payload length.");
+            if (baseData != null && baseData.Length != previousLength)
+                throw new InvalidDataException(
+                    $"State diff base length mismatch. Expected {previousLength}, got {baseData.Length}.");
+
             var result = new byte[currentLength];
 
             if (baseData != null && baseData.Length > 0)
@@ -177,24 +184,37 @@ namespace AbilityKit.Ability.StateSync.Diff
             }
 
             int minLength = reader.ReadInt32();
+            if (minLength < 0 || minLength > currentLength || minLength > previousLength)
+                throw new InvalidDataException("State diff contains an invalid shared payload length.");
+
             for (int i = 0; i < minLength; i++)
             {
                 byte hasChange = reader.ReadByte();
                 if (hasChange == 1)
                 {
-                    byte index = reader.ReadByte();
+                    int index = reader.ReadInt32();
                     byte value = reader.ReadByte();
-                    if (index < result.Length)
-                        result[index] = value;
+                    if (index != i)
+                        throw new InvalidDataException($"State diff index mismatch. Expected {i}, got {index}.");
+                    result[index] = value;
+                }
+                else if (hasChange != 0)
+                {
+                    throw new InvalidDataException($"State diff contains an invalid change marker: {hasChange}.");
                 }
             }
 
             int extraLength = reader.ReadInt32();
+            if (extraLength != currentLength - minLength)
+                throw new InvalidDataException("State diff contains an invalid trailing payload length.");
+
             for (int i = 0; i < extraLength; i++)
             {
-                if (minLength + i < result.Length)
-                    result[minLength + i] = reader.ReadByte();
+                result[minLength + i] = reader.ReadByte();
             }
+
+            if (stream.Position != stream.Length)
+                throw new InvalidDataException("State diff contains trailing data.");
 
             return result;
         }

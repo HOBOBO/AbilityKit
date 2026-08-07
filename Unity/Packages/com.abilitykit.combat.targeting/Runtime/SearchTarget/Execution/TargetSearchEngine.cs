@@ -158,7 +158,7 @@ namespace AbilityKit.Battle.SearchTarget
             {
                 var r = rules[i];
                 if (r == null) continue;
-                if (!r.Test(in query, context, id)) return false;
+                if (!r.IsMatch(in query, context, id)) return false;
             }
             return true;
         }

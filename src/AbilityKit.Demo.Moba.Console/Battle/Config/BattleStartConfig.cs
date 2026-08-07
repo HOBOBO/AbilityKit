@@ -4,7 +4,6 @@ using System.ComponentModel;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Demo.Moba.Share;
-using AbilityKit.Game.Battle.Transport.Moba.Client;
 using AbilityKit.Protocol.Moba;
 using ShareSyncMode = AbilityKit.Demo.Moba.Share.SyncMode;
 using ShareRunMode = AbilityKit.Demo.Moba.Share.RunMode;
@@ -15,7 +14,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
     /// Console 战斗启动配置
     /// 对应 Unity 项目的 BattleStartConfig ScriptableObject
     /// </summary>
-    public sealed class BattleStartConfig : IBattleStartConfigProvider, IBattleStartConfig
+    public sealed class BattleStartConfig : IBattleStartConfigProvider
     {
         /// <summary>
         /// 配置名称
@@ -142,8 +141,6 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
         /// 获取配置（实现接口）
         /// </summary>
         BattleStartConfig IBattleStartConfigProvider.Config => this;
-
-        int IBattleStartConfig.LocalPlayerId => DeterministicHash.StringToActorId(PlayerId);
 
         /// <summary>
         /// 构建战斗启动计划

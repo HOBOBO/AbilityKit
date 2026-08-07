@@ -162,10 +162,32 @@ namespace AbilityKit.Modifiers
             }
 
             hash = hash * 31 + magnitude.PipelineData.Count;
-            hash = hash * 31 + magnitude.PipelineData.Modifier0.GetHashCode();
-            hash = hash * 31 + magnitude.PipelineData.Modifier1.GetHashCode();
-            hash = hash * 31 + magnitude.PipelineData.Modifier2.GetHashCode();
-            hash = hash * 31 + magnitude.PipelineData.Modifier3.GetHashCode();
+            hash = hash * 31 + ComputeSingleModifierHash(in magnitude.PipelineData.Modifier0);
+            hash = hash * 31 + ComputeSingleModifierHash(in magnitude.PipelineData.Modifier1);
+            hash = hash * 31 + ComputeSingleModifierHash(in magnitude.PipelineData.Modifier2);
+            hash = hash * 31 + ComputeSingleModifierHash(in magnitude.PipelineData.Modifier3);
+            return hash;
+        }
+
+        private static int ComputeSingleModifierHash(in SingleModifierData modifier)
+        {
+            int hash = 17;
+            hash = hash * 31 + modifier.TypeId;
+            hash = hash * 31 + modifier.Param0.GetHashCode();
+            hash = hash * 31 + modifier.Param1.GetHashCode();
+            hash = hash * 31 + modifier.Param2.GetHashCode();
+            hash = hash * 31 + modifier.Param3.GetHashCode();
+
+            var curve = modifier.Curve;
+            if (curve != null)
+            {
+                hash = hash * 31 + curve.Length;
+                for (int i = 0; i < curve.Length; i++)
+                {
+                    hash = hash * 31 + curve[i].GetHashCode();
+                }
+            }
+
             return hash;
         }
 

@@ -18,7 +18,7 @@ AbilityKit 当前同时包含 Unity UPM 包源码、纯 C# runtime、MOBA/Shoote
 | 层级 | 类型 | 典型门禁 | 触发时机 | 失败处理 |
 | --- | --- | --- | --- | --- |
 | P0 | Development Blocker | `precheck`、`moba-console-smoke` | 每次继续功能开发前、提交相关改动前 | 必须立即修复，不继续写新功能 |
-| P1 | Contract Blocker | `runtime-contracts`、`moba-content-contracts`、`moba-xiaoqiao-unity` | 网络、DI、表现运行时、内容配置或跨模块契约变化后，以及需要确认 Unity 权威技能结果时 | 修复契约破坏，或同步更新设计文档和测试预期 |
+| P1 | Contract Blocker | `core-stability`、`runtime-contracts`、`moba-content-contracts`、`moba-xiaoqiao-unity` | 核心包、网络、DI、表现运行时、内容配置或跨模块契约变化后，以及需要确认 Unity 权威技能结果时 | 修复契约破坏，或同步更新设计文档和测试预期 |
 | P2 | Regression Baseline | `regression` | 大范围重构、合并前、阶段性收口、候选发布前 | 作为合并/发布阻断项处理 |
 
 ### 2.1 P0：继续开发前置门禁
@@ -41,11 +41,19 @@ powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
 
 P1 关注跨模块契约是否被破坏，例如：
 
-- 网络 runtime 协议行为。
-- World DI 生命周期和服务解析。
-- 通用表现运行时 contract。
+- Record 协议兼容性、StateSync/FrameSync 状态与所有权契约。
+- Host、Triggering、Context 生命周期和失败语义。
+- Attributes/Modifiers 正确性，以及 Attributes 已预热 dirty recompute 的严格零分配契约。
+- 核心 UPM 包生产程序集引用与直接 `package.json` 依赖声明的一致性。
+- 网络 runtime 协议行为、World DI 生命周期和通用表现运行时 contract。
 
-推荐命令：
+核心包改动推荐运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate core-stability
+```
+
+网络、DI 或表现运行时边界改动推荐运行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate runtime-contracts
@@ -70,9 +78,10 @@ powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate regressio
 | `precheck` | P0 | Core/MOBA Runtime | 本地开发、MOBA console、战斗入口 | 继续功能开发、提交 runtime/console 相关改动前 |
 | `moba-console-smoke` | P0 | MOBA Runtime/Presentation | MOBA console、表现层可测试性、战斗 smoke、技能 trace | 继续 MOBA 表现层/runtime 后续开发前 |
 | `moba-codegen` | P1 | MOBA Runtime/Compile Time | MOBA Source Generator、Analyzer、Unity package 所有权 | 合并 MOBA 代码生成、静态分析或生成清单改动前 |
+| `core-stability` | P1 | Runtime Platform | Record、StateSync、FrameSync、Host、Triggering、Context、Attributes、Modifiers、核心 UPM 直接依赖与 Attributes 零分配契约 | 合并核心包、生命周期、同步或 Attributes/Modifiers 热路径改动前 |
 | `runtime-contracts` | P1 | Runtime Platform | 网络 runtime、World DI、Game View Runtime | 合并 runtime contract 变化前 |
 | `moba-content-contracts` | P1 | MOBA Content Pipeline | 包资源所有权、TriggerPlan 聚合漂移、配置资源可加载性、跨表有效时序 | 发布 MOBA 内容或合并配置/资源改动前 |
-| `regression` | P2 | AbilityKit Engineering | MOBA、Shooter、runtime contracts 批量回归 | 大范围重构、候选发布、批量合并前 |
+| `regression` | P2 | AbilityKit Engineering | 核心包、MOBA、Shooter、runtime contracts 批量回归 | 大范围重构、候选发布、批量合并前 |
 | `moba-xiaoqiao-unity` | P1 | MOBA Runtime/Unity Test | 小乔四个 Unity EditMode 权威用例及其落盘产物 | 宣称最新小乔 Unity 结论前 |
 
 查看完整门禁：
@@ -168,9 +177,10 @@ powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -List
 
 1. 普通小改动：至少运行 `precheck`。
 2. MOBA 表现层或 console 链路改动：运行 `moba-console-smoke`。
-3. runtime contract 改动：运行 `runtime-contracts`。
-4. 大范围重构或阶段收口：运行 `regression`。
-5. CI 定时检查失败后，必须先修复失败门禁，再继续合并或继续开发。
+3. 核心包、生命周期、同步或 Attributes/Modifiers 热路径改动：运行 `core-stability`。
+4. network/DI/view runtime contract 改动：运行 `runtime-contracts`。
+5. 大范围重构或阶段收口：运行 `regression`。
+6. CI 定时检查失败后，必须先修复失败门禁，再继续合并或继续开发。
 
 ## 7. 失败处理流程
 
@@ -205,8 +215,9 @@ powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -List
 | --- | --- | --- |
 | Pull Request quick check | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate precheck -CI -ResultsDirectory artifacts\test-gates\precheck` | 快速阻断明显回归 |
 | MOBA compile-time contract check | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate moba-codegen -CI -ResultsDirectory artifacts\test-gates\moba-codegen` | 校验 Roslyn 构建、生成/分析契约和 package 所有权 |
-| Runtime contract check | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate runtime-contracts -CI -ResultsDirectory artifacts\test-gates\runtime-contracts` | 校验核心运行时契约 |
-| Nightly regression | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate regression -CI -ResultsDirectory artifacts\test-gates\regression` | 批量回归 |
+| Core stability check | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate core-stability -CI -ResultsDirectory artifacts\test-gates\core-stability` | 校验八个核心包测试、Attributes 零分配契约和 UPM 直接依赖 |
+| Runtime contract check | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate runtime-contracts -CI -ResultsDirectory artifacts\test-gates\runtime-contracts` | 校验网络、DI 和表现运行时契约 |
+| Nightly regression | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate regression -CI -ResultsDirectory artifacts\test-gates\regression` | 批量回归，包含嵌套 `core-stability` |
 
 对应的 GitHub Actions 工作流位于 [`/.github/workflows/abilitykit-test-gates.yml`](../.github/workflows/abilitykit-test-gates.yml)。
 
@@ -216,6 +227,8 @@ powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -List
 
 - `0 18 * * *` UTC，每天触发一次。
 - 对应北京时间约为每天 02:00。
+- pull request 和 push 独立执行 `core-stability`，便于快速定位核心包失败。
+- 定时和手工任务由 `regression` 嵌套执行 `core-stability`，避免同一工作流重复运行核心测试。
 - 定时任务默认执行 `regression` 门禁，适合做夜间批量回归和失效检测。
 
 ### 8.2 CI 产物约定

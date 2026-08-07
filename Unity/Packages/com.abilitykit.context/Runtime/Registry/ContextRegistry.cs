@@ -20,6 +20,11 @@ namespace AbilityKit.Context
         private long _nextEntityId = 1;
         private long _nextFlowId = 1;
 
+        /// <summary>
+        /// Receives event observer failures without changing the result of the state operation.
+        /// </summary>
+        public Action<ContextEvent, Exception> EventHandlerException { get; set; }
+
         private sealed class EntityData
         {
             public long Id { get; }
@@ -452,14 +457,15 @@ namespace AbilityKit.Context
         private void RaiseEvent(ContextEvent evt)
         {
             List<ContextEventHandler> handlers;
+            Action<ContextEvent, Exception> exceptionHandler;
             lock (_lock)
             {
                 handlers = new List<ContextEventHandler>(_globalHandlers);
                 if (_idHandlers.TryGetValue(evt.EntityId, out var idList))
                     handlers.AddRange(idList);
+                exceptionHandler = EventHandlerException;
             }
 
-            List<Exception> exceptions = null;
             foreach (var handler in handlers)
             {
                 try
@@ -468,13 +474,19 @@ namespace AbilityKit.Context
                 }
                 catch (Exception ex)
                 {
-                    exceptions ??= new List<Exception>();
-                    exceptions.Add(ex);
+                    if (exceptionHandler == null)
+                        continue;
+
+                    try
+                    {
+                        exceptionHandler(evt, ex);
+                    }
+                    catch
+                    {
+                        // Diagnostics observers must not affect context state or lifecycle.
+                    }
                 }
             }
-
-            if (exceptions != null && exceptions.Count > 0)
-                throw new AggregateException("One or more event handlers threw exceptions", exceptions);
         }
     }
 

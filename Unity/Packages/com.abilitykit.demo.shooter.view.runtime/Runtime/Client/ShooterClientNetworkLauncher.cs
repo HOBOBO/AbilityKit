@@ -21,7 +21,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _connection = connection ?? throw new ArgumentNullException(nameof(connection));
             _sdkClient = new NetworkSdkBuilder()
-                .UseConnectionFactory(() => _connection)
+                .UseOwnedConnectionFactory(() => _connection)
                 .Build();
             _gatewayConnection = new ShooterRoomGatewayConnection(_sdkClient);
         }
@@ -40,7 +40,7 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterRoomGatewayConnection GatewayConnection => _gatewayConnection;
 
-        public bool IsConnected => _connection.IsConnected;
+        public bool IsConnected => _sdkClient.IsConnected;
 
         public void Open(ShooterClientNetworkEndpoint endpoint)
         {
@@ -614,10 +614,7 @@ namespace AbilityKit.Demo.Shooter.View
 
         private void OpenIfNeeded(string host, int port)
         {
-            if (!_sdkClient.IsConnected)
-            {
-                _sdkClient.Open(host, port);
-            }
+            _sdkClient.OpenIfDisconnected(host, port);
         }
 
         private void ThrowIfDisposed()

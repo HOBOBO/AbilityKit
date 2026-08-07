@@ -204,15 +204,19 @@ namespace AbilityKit.Attributes.Core
         {
             group ??= string.Empty;
             if (_groups.TryGetValue(group, out var g) && g != null) return g;
+            return CreateGroup(group);
+        }
 
-            g = new AttributeGroup(group, this);
-            g.AttributeChanged += (id, oldV, newV) =>
+        private AttributeGroup CreateGroup(string group)
+        {
+            var value = new AttributeGroup(group, this);
+            value.AttributeChanged += (id, oldV, newV) =>
             {
                 AttributeChanged?.Invoke(group, id, oldV, newV);
                 OnAttributeValueChanged(id);
             };
-            _groups[group] = g;
-            return g;
+            _groups[group] = value;
+            return value;
         }
 
         private void OnAttributeValueChanged(AttributeId id)

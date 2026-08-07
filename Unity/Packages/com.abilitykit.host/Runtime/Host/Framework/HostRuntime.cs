@@ -11,6 +11,7 @@ namespace AbilityKit.Ability.Host.Framework
     {
         private readonly IWorldManager _worlds;
         private readonly HostRuntimeOptions _options;
+        private readonly object _clientsSync = new object();
 
         private readonly HostRuntimeFeatures _features = new HostRuntimeFeatures();
 
@@ -34,12 +35,18 @@ namespace AbilityKit.Ability.Host.Framework
         public void Connect(IServerConnection connection)
         {
             if (connection == null) throw new ArgumentNullException(nameof(connection));
-            _clients[connection.ClientId] = connection;
+            lock (_clientsSync)
+            {
+                _clients[connection.ClientId] = connection;
+            }
         }
 
         public void Disconnect(ServerClientId clientId)
         {
-            _clients.Remove(clientId);
+            lock (_clientsSync)
+            {
+                _clients.Remove(clientId);
+            }
         }
 
         public bool TryGetWorld(WorldId id, out IWorld world)
@@ -61,8 +68,12 @@ namespace AbilityKit.Ability.Host.Framework
 
             if (_options != null)
             {
-                _options.WorldCreated.Invoke(world);
-                _options.OnWorldCreated?.Invoke(world);
+                PublishLifecycleNotification(
+                    () => _options.WorldCreated.Invoke(world),
+                    "[HostRuntime] WorldCreated hook failed");
+                PublishLifecycleNotification(
+                    () => _options.OnWorldCreated?.Invoke(world),
+                    "[HostRuntime] OnWorldCreated callback failed");
             }
 
             Broadcast(new WorldCreatedMessage(world.Id, world.WorldType));
@@ -75,8 +86,12 @@ namespace AbilityKit.Ability.Host.Framework
 
             if (_options != null)
             {
-                _options.WorldDestroyed.Invoke(id);
-                _options.OnWorldDestroyed?.Invoke(id);
+                PublishLifecycleNotification(
+                    () => _options.WorldDestroyed.Invoke(id),
+                    "[HostRuntime] WorldDestroyed hook failed");
+                PublishLifecycleNotification(
+                    () => _options.OnWorldDestroyed?.Invoke(id),
+                    "[HostRuntime] OnWorldDestroyed callback failed");
             }
 
             Broadcast(new WorldDestroyedMessage(id));
@@ -117,7 +132,15 @@ namespace AbilityKit.Ability.Host.Framework
         public void Broadcast(ServerMessage message)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
-            foreach (var c in _clients.Values)
+
+            IServerConnection[] clients;
+            lock (_clientsSync)
+            {
+                clients = new IServerConnection[_clients.Count];
+                _clients.Values.CopyTo(clients, 0);
+            }
+
+            foreach (var c in clients)
             {
                 try
                 {
@@ -148,12 +171,25 @@ namespace AbilityKit.Ability.Host.Framework
             catch (Exception ex)
             {
                 Log.Exception(ex, $"[HostRuntime] Connection.Send failed: clientId={connection.ClientId.Value} messageType={message.GetType().Name}");
+                return;
             }
 
             if (_options != null)
             {
                 _options.AfterSendMessage.Invoke(connection.ClientId, message);
                 _options.OnAfterSendMessage?.Invoke(connection.ClientId, message);
+            }
+        }
+
+        private static void PublishLifecycleNotification(Action notification, string failureMessage)
+        {
+            try
+            {
+                notification();
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, failureMessage);
             }
         }
     }

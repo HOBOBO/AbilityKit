@@ -1,0 +1,13 @@
+{
+  "name": "com.abilitykit.network.battle.config",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Network Battle Config",
+  "unity": "2021.3",
+  "description": "High-level fluent builder (NetworkBattleConfig) for NetworkTransportOptions with room-gateway protocol preset.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.network.battle": "0.1.0",
+    "com.abilitykit.network.runtime": "0.1.0",
+    "com.abilitykit.protocol.room": "0.0.1"
+  }
+}

@@ -107,14 +107,21 @@ namespace AbilityKit.Pipeline
                 }
                 catch (Exception ex)
                 {
+                    Exception failure = ex;
                     try { phase.HandleError(context, ex); }
-                    catch { }
+                    catch (Exception handlerException)
+                    {
+                        failure = new AggregateException(
+                            "The phase and its error handler both failed.",
+                            ex,
+                            handlerException);
+                    }
 
                     context.PipelineState = EAbilityPipelineState.Failed;
-                    Events?.OnPhaseError?.Invoke(phase, context, ex);
-                    Events?.OnPipelineError?.Invoke(context, ex);
-                    Events?.OnPipelineFailed?.Invoke(context, ex);
-                    return new PipelineExecutionResult(EAbilityPipelineState.Failed, lastPhaseId: phase.PhaseId, exception: ex);
+                    Events?.OnPhaseError?.Invoke(phase, context, failure);
+                    Events?.OnPipelineError?.Invoke(context, failure);
+                    Events?.OnPipelineFailed?.Invoke(context, failure);
+                    return new PipelineExecutionResult(EAbilityPipelineState.Failed, lastPhaseId: phase.PhaseId, exception: failure);
                 }
             }
 

@@ -9,7 +9,7 @@ foreach ($dir in $packageDirs) {
     }
 
     try {
-        Get-Content -LiteralPath $packagePath -Raw | ConvertFrom-Json | Out-Null
+        Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json | Out-Null
     }
     catch {
         $errors += "$packagePath :: $($_.Exception.Message)"

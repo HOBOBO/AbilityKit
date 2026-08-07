@@ -11,6 +11,7 @@ namespace AbilityKit.Ability.StateSync.Client
     {
         private readonly int _entityId;
         private readonly bool _isLocalPlayer;
+        private readonly IPredictableEntity _entity;
         private readonly List<IClientPredictionHandler> _handlers = new List<IClientPredictionHandler>();
         private readonly Dictionary<int, AbilityKit.Ability.StateSync.Prediction.StateSlots> _snapshots = new Dictionary<int, AbilityKit.Ability.StateSync.Prediction.StateSlots>();
         private readonly List<StateChangeEvent> _pendingChanges = new List<StateChangeEvent>();
@@ -37,6 +38,20 @@ namespace AbilityKit.Ability.StateSync.Client
             _currentSlots = new AbilityKit.Ability.StateSync.Prediction.StateSlots();
             _confirmedFrame = -1;
             _currentFrame = 0;
+        }
+
+        public EntityPredictionState(IPredictableEntity entity)
+            : this(
+                entity != null ? entity.EntityId : throw new ArgumentNullException(nameof(entity)),
+                entity.IsLocalPlayer)
+        {
+            _entity = entity;
+            var initialSlots = entity.GetStateSlots();
+            if (initialSlots != null)
+            {
+                _currentSlots.OverwriteFrom(initialSlots);
+                CaptureCurrentValues();
+            }
         }
 
         public void RegisterHandler(IClientPredictionHandler handler)
@@ -78,22 +93,37 @@ namespace AbilityKit.Ability.StateSync.Client
 
         public bool ApplyServerState(int serverFrame, ServerEntitySnapshot snapshot)
         {
-            // 首先检查是否需要回滚
-            if (serverFrame < _currentFrame)
+            if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
+            if (snapshot.EntityId != _entityId)
+                throw new ArgumentException("Snapshot entity does not match this prediction state.", nameof(snapshot));
+
+            var wasRollback = serverFrame < _currentFrame;
+            if (wasRollback)
             {
-                // 需要回滚
                 RollbackTo(serverFrame);
-                OnRollback?.Invoke(_currentFrame, serverFrame);
             }
 
-            // 应用服务器状态
-            // 注意：这里需要业务层提供反序列化逻辑
-            // 当前实现假设 ServerEntitySnapshot.Data 包含序列化后的 StateSlots
+            if (_entity == null)
+                throw new InvalidOperationException("A prediction state created without an entity cannot apply authoritative snapshots.");
+
+            _entity.ApplyServerState(snapshot);
+            var serverSlots = _entity.GetStateSlots();
+            if (serverSlots == null)
+                throw new InvalidOperationException("The predictable entity returned no state slots after applying a server snapshot.");
+
+            _currentSlots.OverwriteFrom(serverSlots);
+            for (int i = 0; i < _handlers.Count; i++)
+            {
+                _handlers[i].ApplyServerState(serverSlots, _currentSlots);
+            }
+
+            CollectStateChanges(serverFrame);
 
             _confirmedFrame = serverFrame;
+            _currentFrame = serverFrame;
             _isPredicted = false;
 
-            return true;
+            return wasRollback;
         }
 
         public void RollbackTo(int frame)
@@ -133,7 +163,7 @@ namespace AbilityKit.Ability.StateSync.Client
         {
             if (_snapshots.TryGetValue(frame, out var snapshot))
             {
-                return snapshot;
+                return snapshot.Clone();
             }
             return null;
         }
@@ -156,14 +186,15 @@ namespace AbilityKit.Ability.StateSync.Client
 
         private void CollectStateChanges(int frame, bool isPredicted = false, bool isRollback = false)
         {
-            foreach (var kvp in _currentSlots.Keys)
+            var currentKeys = _currentSlots.Keys;
+            var currentKeySet = new HashSet<string>(currentKeys);
+            foreach (var slotName in currentKeys)
             {
-                var slotName = kvp;
                 var newValue = GetSlotValue(slotName);
 
                 if (_previousValues.TryGetValue(slotName, out var oldValue))
                 {
-                    if (!Equals(oldValue, newValue))
+                    if (!ValuesEqual(oldValue, newValue))
                     {
                         var evt = new StateChangeEvent
                         {
@@ -196,24 +227,40 @@ namespace AbilityKit.Ability.StateSync.Client
 
                 _previousValues[slotName] = newValue;
             }
+
+            var previousKeys = new List<string>(_previousValues.Keys);
+            foreach (var slotName in previousKeys)
+            {
+                if (currentKeySet.Contains(slotName)) continue;
+
+                var oldValue = _previousValues[slotName];
+                var evt = new StateChangeEvent
+                {
+                    EntityId = _entityId,
+                    Frame = frame,
+                    SlotName = slotName,
+                    OldValue = oldValue,
+                    NewValue = null,
+                    IsPredicted = isPredicted
+                };
+                _pendingChanges.Add(evt);
+                OnSlotChanged?.Invoke(slotName, oldValue, null);
+                _previousValues.Remove(slotName);
+            }
         }
 
         private object GetSlotValue(string slotName)
         {
-            if (_currentSlots.Has(slotName))
+            return _currentSlots.TryGetValue(slotName, out var value) ? value : null;
+        }
+
+        private void CaptureCurrentValues()
+        {
+            _previousValues.Clear();
+            foreach (var slotName in _currentSlots.Keys)
             {
-                // 尝试获取常见类型
-                if (_currentSlots.Has(slotName + "_float"))
-                {
-                    return _currentSlots.GetFloat(slotName + "_float");
-                }
-                if (_currentSlots.Has(slotName + "_int"))
-                {
-                    return _currentSlots.GetInt(slotName + "_int");
-                }
-                return slotName; // 占位，实际应从 SlotValue 获取
+                _previousValues[slotName] = GetSlotValue(slotName);
             }
-            return null;
         }
 
         private void PruneOldSnapshots(int currentFrame)
@@ -234,7 +281,7 @@ namespace AbilityKit.Ability.StateSync.Client
             }
         }
 
-        private static bool Equals(object a, object b)
+        private static bool ValuesEqual(object a, object b)
         {
             if (a == null && b == null) return true;
             if (a == null || b == null) return false;

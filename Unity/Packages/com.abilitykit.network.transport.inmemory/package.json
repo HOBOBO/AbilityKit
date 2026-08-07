@@ -1,0 +1,11 @@
+{
+  "name": "com.abilitykit.network.transport.inmemory",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Network Transport In-Memory (Test)",
+  "unity": "2021.3",
+  "description": "In-process ITransport pair for fast integration testing of AbilityKit networking (client stack vs in-process server), no real socket.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.network.runtime": "0.1.0"
+  }
+}

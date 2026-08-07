@@ -75,7 +75,8 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.core": "0.0.1"
+        "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.modifiers": "0.1.0"
       }
     },
     "com.abilitykit.base.editor": {
@@ -95,15 +96,6 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.core": "0.0.1"
-      }
-    },
-    "com.abilitykit.codegen": {
-      "version": "file:com.abilitykit.codegen",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.abilitykit.analyzer": "0.0.1",
         "com.abilitykit.core": "0.0.1"
       }
     },
@@ -187,7 +179,7 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.core": "0.0.1"
+        "com.abilitykit.core": "0.1.0"
       }
     },
     "com.abilitykit.coordinator": {
@@ -494,16 +486,6 @@
       "source": "embedded",
       "dependencies": {}
     },
-    "com.abilitykit.game.battle.transport.runtime": {
-      "version": "file:com.abilitykit.game.battle.transport.runtime",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.abilitykit.network.sdk": "0.1.0",
-        "com.abilitykit.network.battle": "0.1.0",
-        "com.abilitykit.protocol.room": "0.0.1"
-      }
-    },
     "com.abilitykit.game.view.runtime": {
       "version": "file:com.abilitykit.game.view.runtime",
       "depth": 0,
@@ -547,7 +529,7 @@
       "dependencies": {
         "com.abilitykit.core": "0.1.0",
         "com.abilitykit.world.di": "0.1.0",
-        "com.abilitykit.world.framesync": "0.0.1",
+        "com.abilitykit.world.framesync": "0.1.0",
         "com.abilitykit.network.runtime": "0.1.0"
       }
     },
@@ -581,7 +563,7 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.core": "0.0.1",
+        "com.abilitykit.core": "0.1.0",
         "com.abilitykit.gameplaytags": "0.0.1"
       }
     },
@@ -595,6 +577,16 @@
         "com.abilitykit.game.battle.runtime": "0.0.1",
         "com.abilitykit.world.networkfragments": "0.0.1",
         "com.abilitykit.world.snapshot": "0.1.0"
+      }
+    },
+    "com.abilitykit.network.battle.config": {
+      "version": "file:com.abilitykit.network.battle.config",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.network.battle": "0.1.0",
+        "com.abilitykit.network.runtime": "0.1.0",
+        "com.abilitykit.protocol.room": "0.0.1"
       }
     },
     "com.abilitykit.network.room": {
@@ -622,12 +614,36 @@
         "com.abilitykit.network.runtime": "0.1.0"
       }
     },
+    "com.abilitykit.network.transport.inmemory": {
+      "version": "file:com.abilitykit.network.transport.inmemory",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.network.runtime": "0.1.0"
+      }
+    },
+    "com.abilitykit.network.transport.litenet": {
+      "version": "file:com.abilitykit.network.transport.litenet",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.network.runtime": "0.1.0"
+      }
+    },
+    "com.abilitykit.network.transport.websocket": {
+      "version": "file:com.abilitykit.network.transport.websocket",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.network.runtime": "0.1.0"
+      }
+    },
     "com.abilitykit.pipeline": {
       "version": "file:com.abilitykit.pipeline",
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.core": "0.0.1"
+        "com.abilitykit.core": "0.1.0"
       }
     },
     "com.abilitykit.protocol": {
@@ -686,9 +702,10 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.core": "0.1.0",
-        "com.abilitykit.world.framesync": "0.0.1",
-        "com.abilitykit.world.snapshot": "0.0.1",
-        "com.abilitykit.host": "0.0.1"
+        "com.abilitykit.world.framesync": "0.1.0",
+        "com.abilitykit.world.snapshot": "0.1.0",
+        "com.abilitykit.host": "0.1.0",
+        "com.cysharp.memorypack": "1.10.0"
       }
     },
     "com.abilitykit.record.memorypack": {
@@ -766,9 +783,10 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.core": "0.0.1",
-        "com.abilitykit.modifiers": "0.0.1",
-        "com.abilitykit.world.di": "0.0.1"
+        "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.modifiers": "0.1.0",
+        "com.abilitykit.world.di": "0.1.0",
+        "com.abilitykit.analyzer": "0.0.1"
       }
     },
     "com.abilitykit.unity.pool": {
@@ -811,7 +829,8 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.core": "0.1.0",
-        "com.abilitykit.world.di": "0.1.0"
+        "com.abilitykit.world.di": "0.1.0",
+        "com.cysharp.memorypack": "1.10.0"
       }
     },
     "com.abilitykit.world.networkfragments": {
@@ -840,9 +859,10 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.core": "0.0.1",
-        "com.abilitykit.world.framesync": "0.0.1",
-        "com.abilitykit.world.snapshot": "0.0.1"
+        "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.world.framesync": "0.1.0",
+        "com.abilitykit.world.snapshot": "0.1.0",
+        "com.cysharp.memorypack": "1.10.0"
       }
     },
     "com.abilitykit.world.svelto": {

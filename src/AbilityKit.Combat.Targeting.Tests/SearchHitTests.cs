@@ -1053,7 +1053,7 @@ public sealed class SearchHitTests
             _minimum = minimum;
         }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             return candidate.Value >= _minimum;
         }
@@ -1063,7 +1063,7 @@ public sealed class SearchHitTests
     {
         public static readonly OddActorIdRule Instance = new();
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             return (candidate.Value & 1UL) != 0UL;
         }
@@ -1072,7 +1072,7 @@ public sealed class SearchHitTests
     [TargetRule(0x7F01, "TargetingTests.RegistryRule")]
     private sealed class RegistryRule : ITargetRule
     {
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             return true;
         }

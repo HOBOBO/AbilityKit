@@ -5,6 +5,6 @@ namespace AbilityKit.Battle.SearchTarget
     /// </summary>
     public interface ITargetRule
     {
-        bool Test(in SearchQuery query, SearchContext context, EntityId candidate);
+        bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate);
     }
 }

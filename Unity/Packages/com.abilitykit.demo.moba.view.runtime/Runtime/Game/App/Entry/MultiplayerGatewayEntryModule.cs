@@ -84,25 +84,21 @@ namespace AbilityKit.Game
             _lifetime = new CancellationTokenSource();
             _ioDispatcher = new DedicatedThreadDispatcher("LobbyGatewayNetworkThread");
             var callbackDispatcher = UnityMainThreadDispatcher.CaptureCurrent();
-            var options = new ConnectionOptions
-            {
-                FrameCodec = LengthPrefixedFrameCodec.Instance,
-                EnableKickHandling = true,
-                KickPushOpCode = RoomGatewayOpCodes.SessionKicked,
-                EnableReconnect = true,
-                ReconnectInitialDelay = TimeSpan.FromSeconds(1),
-                ReconnectMaxDelay = TimeSpan.FromSeconds(15),
-                ReconnectBackoffMultiplier = 2d,
-                ReconnectMaxAttempts = AbilityKit.Network.Runtime.Sync.ReconnectBackoffPolicy.MaxAttempts
-            };
-
-            var connection = new ConnectionManager(
-                () => new TcpTransport(),
-                options,
-                callbackDispatcher,
-                _ioDispatcher);
             _sdkClient = new NetworkSdkBuilder()
-                .UseConnectionFactory(() => connection)
+                .UseTransportFactory(() => new TcpTransport())
+                .ConfigureConnection(options =>
+                {
+                    options.FrameCodec = LengthPrefixedFrameCodec.Instance;
+                    options.EnableKickHandling = true;
+                    options.KickPushOpCode = RoomGatewayOpCodes.SessionKicked;
+                    options.EnableReconnect = true;
+                    options.ReconnectInitialDelay = TimeSpan.FromSeconds(1);
+                    options.ReconnectMaxDelay = TimeSpan.FromSeconds(15);
+                    options.ReconnectBackoffMultiplier = 2d;
+                    options.ReconnectMaxAttempts =
+                        AbilityKit.Network.Runtime.Sync.ReconnectBackoffPolicy.MaxAttempts;
+                })
+                .UseDispatchers(callbackDispatcher, _ioDispatcher)
                 .Build();
             _store = new ClientRoomStore();
             _client = new GatewayRoomClient(

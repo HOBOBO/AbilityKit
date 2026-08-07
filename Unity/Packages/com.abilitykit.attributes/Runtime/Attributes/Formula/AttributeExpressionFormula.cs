@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using AbilityKit.Attributes.Core;
@@ -32,8 +33,9 @@ namespace AbilityKit.Attributes.Formula
         private readonly string _expr;
 
         private bool _parsed;
-        private Instruction[] _program;
-        private AttributeId[] _deps;
+        private Instruction[] _program = Array.Empty<Instruction>();
+        private AttributeId[] _deps = Array.Empty<AttributeId>();
+        private int _maxStackDepth;
 
         public AttributeExpressionFormula(string expr)
         {
@@ -56,122 +58,102 @@ namespace AbilityKit.Attributes.Formula
 
             EnsureParsed(self);
 
-            var stack = new float[32];
+            if (_maxStackDepth <= 128)
+            {
+                Span<float> stack = stackalloc float[_maxStackDepth];
+                return EvaluateProgram(ctx, baseValue, modifierResult, stack);
+            }
+
+            var rentedStack = ArrayPool<float>.Shared.Rent(_maxStackDepth);
+            try
+            {
+                return EvaluateProgram(
+                    ctx,
+                    baseValue,
+                    modifierResult,
+                    rentedStack.AsSpan(0, _maxStackDepth));
+            }
+            finally
+            {
+                ArrayPool<float>.Shared.Return(rentedStack);
+            }
+        }
+
+        private float EvaluateProgram(
+            AttributeContext ctx,
+            float baseValue,
+            ModifierResult modifierResult,
+            Span<float> stack)
+        {
             var sp = 0;
-
-            static void Push(ref float[] arr, ref int sp2, float v)
-            {
-                if (sp2 >= arr.Length)
-                {
-                    Array.Resize(ref arr, arr.Length * 2);
-                }
-                arr[sp2++] = v;
-            }
-
-            static float Pop(float[] arr, ref int sp2)
-            {
-                if (sp2 <= 0) throw new InvalidOperationException("Expression stack underflow");
-                return arr[--sp2];
-            }
-
             for (int i = 0; i < _program.Length; i++)
             {
                 var ins = _program[i];
                 switch (ins.Op)
                 {
                     case OpCode.Const:
-                        Push(ref stack, ref sp, ins.Const);
+                        stack[sp++] = ins.Const;
                         break;
 
                     case OpCode.VarBuiltin:
-                        Push(ref stack, ref sp, ResolveBuiltin(ins.Builtin, baseValue, modifierResult));
+                        stack[sp++] = ResolveBuiltin(ins.Builtin, baseValue, modifierResult);
                         break;
 
                     case OpCode.VarAttr:
-                        Push(ref stack, ref sp, ctx.GetValue(ins.Attr));
+                        stack[sp++] = ctx.GetValue(ins.Attr);
                         break;
 
                     case OpCode.Add:
-                    {
-                        var b = Pop(stack, ref sp);
-                        var a = Pop(stack, ref sp);
-                        Push(ref stack, ref sp, a + b);
+                        stack[sp - 2] += stack[sp - 1];
+                        sp--;
                         break;
-                    }
 
                     case OpCode.Sub:
-                    {
-                        var b = Pop(stack, ref sp);
-                        var a = Pop(stack, ref sp);
-                        Push(ref stack, ref sp, a - b);
+                        stack[sp - 2] -= stack[sp - 1];
+                        sp--;
                         break;
-                    }
 
                     case OpCode.Mul:
-                    {
-                        var b = Pop(stack, ref sp);
-                        var a = Pop(stack, ref sp);
-                        Push(ref stack, ref sp, a * b);
+                        stack[sp - 2] *= stack[sp - 1];
+                        sp--;
                         break;
-                    }
 
                     case OpCode.Div:
-                    {
-                        var b = Pop(stack, ref sp);
-                        var a = Pop(stack, ref sp);
-                        Push(ref stack, ref sp, a / b);
+                        stack[sp - 2] /= stack[sp - 1];
+                        sp--;
                         break;
-                    }
 
                     case OpCode.Neg:
-                    {
-                        var a = Pop(stack, ref sp);
-                        Push(ref stack, ref sp, -a);
+                        stack[sp - 1] = -stack[sp - 1];
                         break;
-                    }
 
                     case OpCode.FuncAbs:
-                    {
-                        var a = Pop(stack, ref sp);
-                        Push(ref stack, ref sp, System.Math.Abs(a));
+                        stack[sp - 1] = System.Math.Abs(stack[sp - 1]);
                         break;
-                    }
 
                     case OpCode.FuncMin:
-                    {
-                        var b = Pop(stack, ref sp);
-                        var a = Pop(stack, ref sp);
-                        Push(ref stack, ref sp, System.Math.Min(a, b));
+                        stack[sp - 2] = System.Math.Min(stack[sp - 2], stack[sp - 1]);
+                        sp--;
                         break;
-                    }
 
                     case OpCode.FuncMax:
-                    {
-                        var b = Pop(stack, ref sp);
-                        var a = Pop(stack, ref sp);
-                        Push(ref stack, ref sp, System.Math.Max(a, b));
+                        stack[sp - 2] = System.Math.Max(stack[sp - 2], stack[sp - 1]);
+                        sp--;
                         break;
-                    }
 
                     case OpCode.FuncClamp:
-                    {
-                        var hi = Pop(stack, ref sp);
-                        var lo = Pop(stack, ref sp);
-                        var x = Pop(stack, ref sp);
-                        Push(ref stack, ref sp, Clamp(x, lo, hi));
+                        stack[sp - 3] = Clamp(stack[sp - 3], stack[sp - 2], stack[sp - 1]);
+                        sp -= 2;
                         break;
-                    }
 
                     default:
                         throw new InvalidOperationException($"Unsupported opcode: {ins.Op}");
                 }
             }
 
-            if (sp != 1) throw new InvalidOperationException("Expression evaluation error: stack not balanced");
-
-            var v = stack[0];
-            if (float.IsNaN(v) || float.IsInfinity(v)) return 0f;
-            return v;
+            var value = stack[0];
+            if (float.IsNaN(value) || float.IsInfinity(value)) return 0f;
+            return value;
         }
 
         private void EnsureParsed(AttributeId self)
@@ -181,7 +163,52 @@ namespace AbilityKit.Attributes.Formula
             var parsed = Parser.Parse(_expr, self);
             _program = parsed.Program;
             _deps = parsed.Dependencies;
+            _maxStackDepth = GetMaxStackDepth(_program);
             _parsed = true;
+        }
+
+        private static int GetMaxStackDepth(Instruction[] program)
+        {
+            int depth = 0;
+            int maxDepth = 0;
+            for (int i = 0; i < program.Length; i++)
+            {
+                switch (program[i].Op)
+                {
+                    case OpCode.Const:
+                    case OpCode.VarBuiltin:
+                    case OpCode.VarAttr:
+                        depth++;
+                        if (depth > maxDepth) maxDepth = depth;
+                        break;
+
+                    case OpCode.Add:
+                    case OpCode.Sub:
+                    case OpCode.Mul:
+                    case OpCode.Div:
+                    case OpCode.FuncMin:
+                    case OpCode.FuncMax:
+                        if (depth < 2) throw new InvalidOperationException("Expression stack underflow");
+                        depth--;
+                        break;
+
+                    case OpCode.FuncClamp:
+                        if (depth < 3) throw new InvalidOperationException("Expression stack underflow");
+                        depth -= 2;
+                        break;
+
+                    case OpCode.Neg:
+                    case OpCode.FuncAbs:
+                        if (depth < 1) throw new InvalidOperationException("Expression stack underflow");
+                        break;
+
+                    default:
+                        throw new InvalidOperationException($"Unsupported opcode: {program[i].Op}");
+                }
+            }
+
+            if (depth != 1) throw new InvalidOperationException("Expression evaluation error: stack not balanced");
+            return maxDepth;
         }
 
         private static float Clamp(float x, float lo, float hi)

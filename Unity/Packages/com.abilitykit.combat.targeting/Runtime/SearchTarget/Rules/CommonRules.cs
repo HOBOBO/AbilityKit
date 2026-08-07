@@ -16,7 +16,7 @@ namespace AbilityKit.Battle.SearchTarget.Rules
             _radiusSqr = radius * radius;
         }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             if (_radius <= 0f) return false;
             var pos = context.PositionProvider;
@@ -58,7 +58,7 @@ namespace AbilityKit.Battle.SearchTarget.Rules
             _cosHalfAngle = (float)Math.Cos(halfAngleRad);
         }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             if (_radius <= 0f) return false;
             var pos = context.PositionProvider;
@@ -86,7 +86,7 @@ namespace AbilityKit.Battle.SearchTarget.Rules
             _set = set;
         }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             return _set != null && _set.Contains(candidate);
         }
@@ -102,7 +102,7 @@ namespace AbilityKit.Battle.SearchTarget.Rules
             _set = set;
         }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             return _set == null || !_set.Contains(candidate);
         }
@@ -118,7 +118,7 @@ namespace AbilityKit.Battle.SearchTarget.Rules
             _excluded = excluded;
         }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             return candidate != _excluded;
         }
@@ -131,7 +131,7 @@ namespace AbilityKit.Battle.SearchTarget.Rules
 
         public RequireValidIdRule() { }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             return candidate.IsValid;
         }
@@ -144,7 +144,7 @@ namespace AbilityKit.Battle.SearchTarget.Rules
 
         private RequireHasPositionRule() { }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             var pos = context.PositionProvider;
             return pos != null && pos.TryGetPosition(candidate, out _);

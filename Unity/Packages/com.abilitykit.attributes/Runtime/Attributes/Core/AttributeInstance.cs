@@ -36,6 +36,7 @@ namespace AbilityKit.Attributes.Core
         private int _modifierSlotCount;
         private int _modifierFreeHead;
         private int[] _handleToSlotIndex = new int[0];
+        private ModifierData[] _activeModifierScratch = new ModifierData[0];
 
         public AttributeInstance(AttributeGroup group, AttributeId id, AttributeContext ctx)
         {
@@ -233,8 +234,7 @@ namespace AbilityKit.Attributes.Core
             ref var slot = ref _group.GetSlotRef(_rawId);
             var old = slot.Cached;
 
-            // 获取活跃修改器数据
-            var modifierData = GetActiveModifierData();
+            var modifierData = GetActiveModifierDataForRecompute();
 
             // 使用完整 AttributeContext 计算，支持等级曲线、属性引用、时间衰减和管道来源。
             var modifierResult = _calculator.Calculate(modifierData, slot.BaseValue, _ctx);
@@ -257,6 +257,33 @@ namespace AbilityKit.Attributes.Core
             {
                 Changed?.Invoke(_id, old, v);
             }
+        }
+
+        private ReadOnlySpan<ModifierData> GetActiveModifierDataForRecompute()
+        {
+            int count = ActiveModifierCount;
+            if (count == 0) return ReadOnlySpan<ModifierData>.Empty;
+
+            if (_activeModifierScratch.Length < count)
+            {
+                int capacity = _activeModifierScratch.Length == 0 ? 4 : _activeModifierScratch.Length;
+                while (capacity < count)
+                {
+                    capacity *= 2;
+                }
+                Array.Resize(ref _activeModifierScratch, capacity);
+            }
+
+            int index = 0;
+            for (int i = 0; i < _modifierSlotCount; i++)
+            {
+                if (_modifierSlots[i].Active)
+                {
+                    _activeModifierScratch[index++] = _modifierSlots[i].ModifierData;
+                }
+            }
+
+            return _activeModifierScratch.AsSpan(0, count);
         }
 
         private bool HasAnyActiveModifiers()

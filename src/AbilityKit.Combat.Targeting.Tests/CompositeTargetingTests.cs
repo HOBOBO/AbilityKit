@@ -19,10 +19,10 @@ public sealed class CompositeTargetingTests
         var query = default(SearchQuery);
         var candidate = new EntityId(1);
 
-        Assert.True(and.Test(in query, context, candidate));
-        Assert.True(or.Test(in query, context, candidate));
-        Assert.True(new AndRule().Test(in query, context, candidate));
-        Assert.False(new OrRule().Test(in query, context, candidate));
+        Assert.True(and.IsMatch(in query, context, candidate));
+        Assert.True(or.IsMatch(in query, context, candidate));
+        Assert.True(new AndRule().IsMatch(in query, context, candidate));
+        Assert.False(new OrRule().IsMatch(in query, context, candidate));
         Assert.Throws<ArgumentNullException>(() => new AndRule(null!));
         Assert.Throws<ArgumentNullException>(() => new OrRule(null!));
         Assert.Throws<ArgumentNullException>(() => new NotRule(null!));
@@ -42,10 +42,10 @@ public sealed class CompositeTargetingTests
         using var context = new SearchContext();
         var query = default(SearchQuery);
 
-        Assert.True(nested.Test(in query, context, new EntityId(2)));
+        Assert.True(nested.IsMatch(in query, context, new EntityId(2)));
         Assert.Equal(0, orTail.CallCount);
-        Assert.False(nested.Test(in query, context, new EntityId(3)));
-        Assert.False(shortAnd.Test(in query, context, new EntityId(1)));
+        Assert.False(nested.IsMatch(in query, context, new EntityId(3)));
+        Assert.False(shortAnd.IsMatch(in query, context, new EntityId(1)));
         Assert.Equal(0, andTail.CallCount);
     }
 
@@ -247,7 +247,7 @@ public sealed class CompositeTargetingTests
             _actorId = actorId;
         }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             return candidate.Value == (ulong)_actorId;
         }
@@ -264,7 +264,7 @@ public sealed class CompositeTargetingTests
 
         public int CallCount { get; private set; }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             CallCount++;
             return _result;

@@ -32,6 +32,19 @@ AbilityKit 的多人联网**底层已经是一套玩法无关的 SDK**（`networ
 - **服务端网关骨架**：`TcpTransportServer` + `GatewayRequestRouter` + `GatewayHandlerRegistry` + `GatewaySessionRegistry/Binder` + Orleans grains（`RoomGrain` / `BattleLogicHostGrain` / `StateSyncObserverGrain`）
 - **登录**：`DemoRoomGatewayAccountClient.LoginTcpAsync`（返回 `SessionToken`，后续每个 room/battle RPC 携带）
 
+## 可选传输 + 配置（SDK 扩展包）
+
+| 包 | 类型 | 用途 |
+|---|---|---|
+| `network.transport.websocket` | `WebSocketTransport` | WebSocket 传输（桌面/移动/服务端；WebGL 需平台特化）|
+| `network.transport.litenet` | `LiteNetTransport` | 可靠 UDP 传输（LiteNetLib，快节奏/低延迟/丢包场景）|
+| `network.transport.inmemory` | `InMemoryTransport` | 进程内传输对（快速 in-process 测试，无需真实 socket）|
+| `network.battle.config` | `NetworkBattleConfig` | 高层配置 builder（封装标准 room-gateway 协议预设，~7 行替代 ~30 行 options）|
+
+注入方式：`NetworkSdkBuilder.UseTransportFactory(() => new YourTransport())`。上层无需改动。
+
+`NetworkBattleConfig` builder：`new NetworkBattleConfig().WithGateway(...).WithTcpTransport().WithSession(...).UseRoomGatewayProtocol(...).WithInputSerializer(...).WithSnapshotDeserializer(...).Build()` → 自动设置 8 个标准 opcodes + auth 握手 + reliable-event ack + full-state-sync + command-sequence wrapping。游戏只需提供 input serialize/deserialize + snapshot deserialize。
+
 ## 3. 必须自己写（这是"少量适配"的真正边界，共 4 块）
 
 ### 3.1 游戏专属 wire protocol（参考 `protocol.shooter` / `protocol.moba`）
@@ -139,12 +152,41 @@ coordinator 的 session 引擎已移除（它 moba/local 形状、不适配 stat
 - 两者共用同一套 连接/房间/战斗数据面，差别只在 `NetworkTransport` 契约形态（typed vs raw）+ 同步策略 + 是否双世界。
 - **现在只有 2 个 demo**。等第三个 demo 落地、会话胶水重复明显时，再把这两条配方提炼成可继承的「会话模板」（`statesync-session-template` / `framesync-session-template`）—— 从真实用法提取，而非凭空设计（coordinator 当初凭空设计才被废弃）。
 
+## 逻辑层 sync-agnostic 的边界（换 sync 模型时，逻辑层改什么 / 不改什么）
+
+coordinator 当初的设想是"逻辑层不关心帧同步/状态同步，宿主组合模块决定"。**这个设想在接口层成立，但有实现层边界。** 现在的落地方式：
+
+### 接口层：逻辑层确实 sync-agnostic
+逻辑世界实现 **`ILogicWorldDriverBridge`**（`SubmitInputs(PlayerInput[])` / `AdvanceFrame` / `GetAllEntityStates()`→`SnapshotEntityState[]`）—— 只暴露"按输入推进一帧 + 报告状态"。这些输入是来自 jitter-buffer（帧同步）还是服务端快照对账（状态同步），逻辑层不感知。**shooter 与 moba 的逻辑世界都实现这同一个端口**，被各自的同步机器驱动。这是 vision 的可达成核心。
+
+### 实现层硬约束：帧同步要求逻辑确定性
+"逻辑层完全不关心 sync 模型"在**接口层**对，但**实现层**有一个绕不开的约束：
+- **帧同步**（配方 B）要求逻辑世界**确定性**：定点运算、无堆分配、确定性迭代顺序（moba 的定点 A* 就是为此）—— 否则客户端预测/回滚会与服务端权威发散。
+- **状态同步**（配方 A）不要求：服务端权威，客户端可非确定预测。
+
+所以"宿主组合模块切 sync"对 **driving/network 侧**成立；**逻辑仿真自身**若非确定，注定只能走状态同步。确定性是逻辑层的**性质**，同步层抹不平 —— 这是 vision 的真实边界。
+
+### 换 sync 模型时，改什么 / 不改什么
+| | 帧同步 ↔ 状态同步 切换时 |
+|---|---|
+| **不改** | `ILogicWorldDriverBridge` 实现（同一端口：推进 + 报告） |
+| **改（逻辑层）** | 逻辑世界的**确定性**：上帧同步必须确定（定点 / 无堆分配 / 确定迭代序）；状态同步可松 |
+| **改（宿主组合）** | 同步机器：帧同步配方（`host.extension` 的 `FrameSyncDriverModule`/`ClientPredictionDriverModule` + `FramePacketNetAdapter` 双世界）↔ 状态同步配方（自写 / 复用 `ShooterClientSyncController` 类的预测/插值） |
+| **改（数据面）** | `NetworkTransport` 契约形态：帧同步用 typed / fire-and-forget（`SendInput` + `FramePushed`）；状态同步用 raw / awaitable（`SendInputAsync` + `RawServerPushReceived`）—— **同一引擎，两种形态** |
+
+### 结论
+- **逻辑层 sync-agnostic**：成立 —— 通过 `ILogicWorldDriverBridge` 端口（两 demo 共用）。
+- **宿主组合决定 sync 模型**：成立 —— 选 framesync 配方或 statesync 配方 + 对应 `NetworkTransport` 契约形态。
+- **唯一硬边界**：帧同步要求逻辑确定性。若逻辑天生非确定（浮点物理、非确定迭代等），只能走状态同步。
+- **不再有"一个 adapter 接口切 N 模式"的 monolithic session 引擎**（coordinator 的 `ISyncAdapter` 体系已删 —— 它过度统一、不适配 statesync）。共享的是**端口 + 配方 + 契约中立数据面**，不是 session engine。
+
 ## 7. 后续收敛（路线图）
 
-源码核校（2026-08-06）：通用战斗数据面引擎已迁至中立包 `com.abilitykit.network.battle`（命名空间 `AbilityKit.Network.Battle`，见其 README）；moba 在用、shooter 尚未迁移。`Moba/` 遗留子树仍留在 `com.abilitykit.game.battle.transport.runtime`。
+源码核校（2026-08-06）：通用战斗数据面引擎已迁至中立包 `com.abilitykit.network.battle`（命名空间 `AbilityKit.Network.Battle`，见其 README）；moba 在用、shooter 尚未迁移。`Moba/` 遗留子树已随 `game.battle.transport.runtime` 包整体删除（Console demo 已迁移到统一 SDK）。
 
 - **P2（已完成）**：把现有引擎文档化为 SDK 战斗层。
-- **P2.1（已完成）**：把通用引擎（`NetworkTransport`/`NetworkTransportOptions`/`INetworkClient`/`GenericNetworkClient`/`NullBattleLogicTransport`/`Projection`）从 `game.battle.transport.runtime` 搬到中立包 `com.abilitykit.network.battle`，命名空间改为 `AbilityKit.Network.Battle`；`Moba/` 遗留子树保留在原包（依赖新包拿 `INetworkClient`）。
+- **P2.1（已完成）**：把通用引擎（`NetworkTransport`/`NetworkTransportOptions`/`Projection`）从 `game.battle.transport.runtime` 搬到中立包 `com.abilitykit.network.battle`，命名空间改为 `AbilityKit.Network.Battle`。
+- **P2.1b（已完成）**：Console demo 迁移到统一 SDK（`NetworkSdkClient` + `WireRoomGatewayBinary` + `RoomGatewayOpCodes`），`game.battle.transport.runtime` 包**整体删除**。
 - **P2.2（后续）**：shooter 客户端数据面迁移到统一引擎，退役 `ShooterRoomGatewayClient`/`ShooterRoomGatewayConnection`/`ShooterClientSession.ApplyGatewayPush` 手写胶水。
 - **P3（后续）**：提供参考同步实现（如 shooter 的 `AuthoritativeInterpolation`）作为开箱默认。
 - **P4（后续）**：决策 coordinator 去留（收缩为本地/harness 专用，删远端死 adapter）。

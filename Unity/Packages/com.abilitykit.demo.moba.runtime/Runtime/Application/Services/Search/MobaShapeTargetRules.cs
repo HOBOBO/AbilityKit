@@ -23,7 +23,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
             _halfLength = length * 0.5f;
         }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             if (_halfWidth <= 0f || _halfLength <= 0f) return false;
             var positions = context.PositionProvider;
@@ -66,7 +66,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
             _radiusSqr = radius * radius;
         }
 
-        public bool Test(in SearchQuery query, SearchContext context, EntityId candidate)
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
         {
             if (_radius <= 0f || _halfSegmentLength <= 0f) return false;
             var positions = context.PositionProvider;

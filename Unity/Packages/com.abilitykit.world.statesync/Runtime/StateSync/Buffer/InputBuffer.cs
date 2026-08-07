@@ -21,6 +21,7 @@ public sealed class InputBuffer<TInput> where TInput : class, IInputCommand
 
     public InputBuffer(int localPlayerId, int maxBufferSize = 128)
     {
+        if (maxBufferSize <= 0) throw new ArgumentOutOfRangeException(nameof(maxBufferSize));
         _localPlayerId = localPlayerId;
         _maxBufferSize = maxBufferSize;
     }

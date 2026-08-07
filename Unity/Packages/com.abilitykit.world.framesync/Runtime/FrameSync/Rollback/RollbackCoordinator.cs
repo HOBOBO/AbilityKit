@@ -14,12 +14,23 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             maxSize: 256,
             collectionCheck: false);
 
+        private readonly object _operationSync = new object();
         private readonly RollbackRegistry _registry;
         private readonly RollbackSnapshotRingBuffer _buffer;
+        private RollbackOperationResult _lastOperationResult;
 
         public event Action<RollbackOperationResult> OperationCompleted;
 
-        public RollbackOperationResult LastOperationResult { get; private set; }
+        public RollbackOperationResult LastOperationResult
+        {
+            get
+            {
+                lock (_operationSync)
+                {
+                    return _lastOperationResult;
+                }
+            }
+        }
 
         public RollbackCoordinator(RollbackRegistry registry, RollbackSnapshotRingBuffer buffer)
         {
@@ -96,8 +107,7 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                     entries.Add(new WorldRollbackSnapshotEntry(p.Key, payload));
                 }
 
-                var arr = RollbackEntriesArrayPool.Rent(entries.Count);
-                entries.CopyTo(arr, 0);
+                var arr = entries.ToArray();
                 Publish(RollbackOperationResult.Success(
                     RollbackOperationKind.Capture,
                     frame,
@@ -134,82 +144,21 @@ namespace AbilityKit.Ability.FrameSync.Rollback
 
         public bool TryRestore(in WorldRollbackSnapshot snapshot, out RollbackOperationResult result)
         {
-            try
-            {
-                Restore(snapshot);
-                result = RollbackOperationResult.Success(
-                    RollbackOperationKind.Restore,
-                    snapshot.Frame,
-                    snapshot.Entries != null ? snapshot.Entries.Length : 0,
-                    CountPayloadBytes(snapshot.Entries));
-                Publish(result);
-                return true;
-            }
-            catch (InvalidOperationException ex) when (snapshot.Version != WorldRollbackSnapshotCodec.CurrentVersion)
-            {
-                result = RollbackOperationResult.Failure(
-                    RollbackOperationKind.Restore,
-                    RollbackOperationStatus.UnsupportedVersion,
-                    snapshot.Frame,
-                    ex.Message,
-                    exception: ex);
-                Publish(result);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                result = RollbackOperationResult.Failure(
-                    RollbackOperationKind.Restore,
-                    RollbackOperationStatus.Failed,
-                    snapshot.Frame,
-                    ex.Message,
-                    exception: ex);
-                Publish(result);
-                return false;
-            }
+            var restored = TryRestoreCore(snapshot, out result);
+            Publish(result);
+            return restored;
         }
 
         public void Restore(in WorldRollbackSnapshot snapshot)
         {
-            if (snapshot.Version != WorldRollbackSnapshotCodec.CurrentVersion)
+            if (TryRestoreCore(snapshot, out var result)) return;
+
+            if (result.Exception != null)
             {
-                throw new InvalidOperationException($"Unsupported rollback snapshot version: {snapshot.Version}");
+                throw new InvalidOperationException(result.Message, result.Exception);
             }
 
-            var entries = snapshot.Entries;
-            if (entries == null || entries.Length == 0) return;
-
-            for (int i = 0; i < entries.Length; i++)
-            {
-                var e = entries[i];
-                if (!_registry.TryGet(e.Key, out var provider) || provider == null)
-                {
-                    Publish(RollbackOperationResult.Failure(
-                        RollbackOperationKind.Restore,
-                        RollbackOperationStatus.ProviderMissing,
-                        snapshot.Frame,
-                        $"Rollback provider not found. key={e.Key} frame={snapshot.Frame.Value}",
-                        e.Key));
-                    continue;
-                }
-
-                try
-                {
-                    provider.Import(snapshot.Frame, e.Payload);
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, $"Rollback Import failed. key={e.Key} frame={snapshot.Frame.Value} payloadLen={(e.Payload != null ? e.Payload.Length : 0)}");
-                    Publish(RollbackOperationResult.Failure(
-                        RollbackOperationKind.Restore,
-                        RollbackOperationStatus.ProviderFailed,
-                        snapshot.Frame,
-                        ex.Message,
-                        e.Key,
-                        ex));
-                    throw;
-                }
-            }
+            throw new InvalidOperationException(result.Message);
         }
 
         public void ClearHistory()
@@ -218,10 +167,97 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             Publish(RollbackOperationResult.Success(RollbackOperationKind.Clear, default));
         }
 
+        private bool TryRestoreCore(
+            in WorldRollbackSnapshot snapshot,
+            out RollbackOperationResult result)
+        {
+            if (snapshot.Version != WorldRollbackSnapshotCodec.CurrentVersion)
+            {
+                result = RollbackOperationResult.Failure(
+                    RollbackOperationKind.Restore,
+                    RollbackOperationStatus.UnsupportedVersion,
+                    snapshot.Frame,
+                    $"Unsupported rollback snapshot version: {snapshot.Version}");
+                return false;
+            }
+
+            var entries = snapshot.Entries;
+            if (entries == null || entries.Length == 0)
+            {
+                result = RollbackOperationResult.Success(RollbackOperationKind.Restore, snapshot.Frame);
+                return true;
+            }
+
+            var providers = new IRollbackStateProvider[entries.Length];
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var key = entries[i].Key;
+                if (!_registry.TryGet(key, out var provider) || provider == null)
+                {
+                    result = RollbackOperationResult.Failure(
+                        RollbackOperationKind.Restore,
+                        RollbackOperationStatus.ProviderMissing,
+                        snapshot.Frame,
+                        $"Rollback provider not found. key={key} frame={snapshot.Frame.Value}",
+                        key);
+                    return false;
+                }
+
+                providers[i] = provider;
+            }
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                try
+                {
+                    providers[i].Import(snapshot.Frame, entry.Payload);
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, $"Rollback Import failed. key={entry.Key} frame={snapshot.Frame.Value} payloadLen={(entry.Payload != null ? entry.Payload.Length : 0)}");
+                    result = new RollbackOperationResult(
+                        RollbackOperationKind.Restore,
+                        RollbackOperationStatus.ProviderFailed,
+                        snapshot.Frame,
+                        providerKey: entry.Key,
+                        providerCount: i,
+                        payloadBytes: CountPayloadBytes(entries),
+                        message: $"Rollback provider import failed after {i} provider(s). The world may be partially restored. {ex.Message}",
+                        exception: ex);
+                    return false;
+                }
+            }
+
+            result = RollbackOperationResult.Success(
+                RollbackOperationKind.Restore,
+                snapshot.Frame,
+                entries.Length,
+                CountPayloadBytes(entries));
+            return true;
+        }
+
         private void Publish(in RollbackOperationResult result)
         {
-            LastOperationResult = result;
-            OperationCompleted?.Invoke(result);
+            lock (_operationSync)
+            {
+                _lastOperationResult = result;
+            }
+
+            var handlers = OperationCompleted;
+            if (handlers == null) return;
+
+            foreach (Action<RollbackOperationResult> handler in handlers.GetInvocationList())
+            {
+                try
+                {
+                    handler(result);
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, $"Rollback operation observer failed. kind={result.Kind} frame={result.Frame.Value}");
+                }
+            }
         }
 
         private static int CountPayloadBytes(WorldRollbackSnapshotEntry[] entries)

@@ -7,7 +7,7 @@
 - **依赖**：`com.abilitykit.network.sdk`、`com.abilitykit.network.runtime`、`com.abilitykit.game.battle.runtime`、`com.abilitykit.world.networkfragments`、`com.abilitykit.world.snapshot`
 - **状态**：MOBA demo 的 FrameSync 生产热路径在用；服务端（`MobaBattleProtocolMapper`/`MobaBattleRuntimeAdapter`）与 shooter（`ShooterActorProjectionProducer`）使用其中的 Projection 抽象。
 
-> 本包前身是 `com.abilitykit.game.battle.transport.runtime` 里的通用引擎层。2026-08-06 的 P2.1 把通用引擎（`NetworkTransport`/`NetworkTransportOptions`/`INetworkClient`/`GenericNetworkClient`/`NullBattleLogicTransport`/`NetworkSubmitInputResponse` + `Projection/*`）搬到这个中立包并改名命名空间；moba 专属/遗留的 `Moba/` 子树仍留在原包 `com.abilitykit.game.battle.transport.runtime`。
+> 本包前身是 `com.abilitykit.game.battle.transport.runtime` 里的通用引擎层。2026-08-06 的 P2.1 把通用引擎搬到这个中立包并改名命名空间；原 `game.battle.transport.runtime` 包（含遗留 `Moba/` 子树）已整体删除（Console demo 迁移到统一 SDK）。
 
 ## 在网络栈中的位置
 
@@ -121,5 +121,5 @@ transport.Connect();
 
 - 组装根/连接 → `com.abilitykit.network.sdk`
 - 房间会话 → `com.abilitykit.network.room`
-- 遗留 moba 传输子树（`TcpNetworkClient`/`NetworkProtocol` 等，仅 Console demo 用）→ `com.abilitykit.game.battle.transport.runtime`
+- 高层配置构建器 → `com.abilitykit.network.battle.config`（`NetworkBattleConfig`：协议预设 + 流式 builder）
 - 完整接入清单 → `Docs/design/07-NetworkSynchronization/07-MultiplayerSdkIntegrationGuide.md`

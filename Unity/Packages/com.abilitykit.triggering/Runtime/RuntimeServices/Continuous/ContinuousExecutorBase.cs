@@ -172,12 +172,14 @@ namespace AbilityKit.Triggering.Runtime.Continuous
     /// </summary>
     public static class ContinuousExecutorRegistry
     {
+        private static readonly object _sync = new object();
         private static readonly Dictionary<int, ContinuousExecutorEntry> _executors = new Dictionary<int, ContinuousExecutorEntry>();
         private static int _nextTriggerId = 1000;
 
         private abstract class ContinuousExecutorEntry
         {
             public abstract float IntervalMs { get; }
+            public abstract bool AcceptsContext(object ctx);
             public abstract void Start(object ctx);
             public abstract void Execute(float deltaTimeMs, IContinuousTriggerInstance instance, object ctx);
             public abstract void Terminate(EContinuousState reason, object ctx);
@@ -192,6 +194,11 @@ namespace AbilityKit.Triggering.Runtime.Continuous
             {
                 Executor = executor;
                 IntervalMs = intervalMs;
+            }
+
+            public override bool AcceptsContext(object ctx)
+            {
+                return ctx is TCtx;
             }
 
             public override void Start(object ctx)
@@ -215,9 +222,19 @@ namespace AbilityKit.Triggering.Runtime.Continuous
         /// </summary>
         public static int Register<TCtx>(ContinuousExecutorBase<TCtx> executor, float intervalMs = 0) where TCtx : class
         {
-            var triggerId = _nextTriggerId++;
-            _executors[triggerId] = new ContinuousExecutorEntry<TCtx>(executor, intervalMs);
-            return triggerId;
+            if (executor == null) throw new ArgumentNullException(nameof(executor));
+            if (float.IsNaN(intervalMs) || float.IsInfinity(intervalMs) || intervalMs < 0)
+                throw new ArgumentOutOfRangeException(nameof(intervalMs), "Execution interval must be finite and non-negative.");
+
+            lock (_sync)
+            {
+                if (_nextTriggerId == int.MaxValue)
+                    throw new InvalidOperationException("Continuous executor id space is exhausted.");
+
+                var triggerId = _nextTriggerId++;
+                _executors.Add(triggerId, new ContinuousExecutorEntry<TCtx>(executor, intervalMs));
+                return triggerId;
+            }
         }
 
         /// <summary>
@@ -225,12 +242,18 @@ namespace AbilityKit.Triggering.Runtime.Continuous
         /// </summary>
         internal static bool TryStart(int triggerId, object ctx)
         {
-            if (_executors.TryGetValue(triggerId, out var entry))
+            ContinuousExecutorEntry entry;
+            lock (_sync)
             {
-                entry.Start(ctx);
-                return true;
+                if (!_executors.TryGetValue(triggerId, out entry))
+                    return false;
             }
-            return false;
+
+            if (!entry.AcceptsContext(ctx))
+                return false;
+
+            entry.Start(ctx);
+            return true;
         }
 
         /// <summary>
@@ -238,12 +261,21 @@ namespace AbilityKit.Triggering.Runtime.Continuous
         /// </summary>
         internal static bool TryExecute(int triggerId, float deltaTimeMs, IContinuousTriggerInstance instance, object ctx)
         {
-            if (_executors.TryGetValue(triggerId, out var entry))
+            if (instance == null)
+                return false;
+
+            ContinuousExecutorEntry entry;
+            lock (_sync)
             {
-                entry.Execute(deltaTimeMs, instance, ctx);
-                return true;
+                if (!_executors.TryGetValue(triggerId, out entry))
+                    return false;
             }
-            return false;
+
+            if (!entry.AcceptsContext(ctx))
+                return false;
+
+            entry.Execute(deltaTimeMs, instance, ctx);
+            return true;
         }
 
         /// <summary>
@@ -251,12 +283,18 @@ namespace AbilityKit.Triggering.Runtime.Continuous
         /// </summary>
         internal static bool TryTerminate(int triggerId, EContinuousState reason, object ctx)
         {
-            if (_executors.TryGetValue(triggerId, out var entry))
+            ContinuousExecutorEntry entry;
+            lock (_sync)
             {
-                entry.Terminate(reason, ctx);
-                return true;
+                if (!_executors.TryGetValue(triggerId, out entry))
+                    return false;
             }
-            return false;
+
+            if (!entry.AcceptsContext(ctx))
+                return false;
+
+            entry.Terminate(reason, ctx);
+            return true;
         }
 
         /// <summary>
@@ -264,7 +302,10 @@ namespace AbilityKit.Triggering.Runtime.Continuous
         /// </summary>
         public static float GetInterval(int triggerId)
         {
-            return _executors.TryGetValue(triggerId, out var entry) ? entry.IntervalMs : 0;
+            lock (_sync)
+            {
+                return _executors.TryGetValue(triggerId, out var entry) ? entry.IntervalMs : 0;
+            }
         }
 
         /// <summary>
@@ -272,12 +313,24 @@ namespace AbilityKit.Triggering.Runtime.Continuous
         /// </summary>
         public static bool Unregister(int triggerId)
         {
-            return _executors.Remove(triggerId);
+            lock (_sync)
+            {
+                return _executors.Remove(triggerId);
+            }
         }
 
         /// <summary>
         /// 注册的触发器数量
         /// </summary>
-        public static int Count => _executors.Count;
+        public static int Count
+        {
+            get
+            {
+                lock (_sync)
+                {
+                    return _executors.Count;
+                }
+            }
+        }
     }
 }

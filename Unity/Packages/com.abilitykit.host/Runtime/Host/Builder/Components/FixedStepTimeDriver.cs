@@ -10,61 +10,108 @@ namespace AbilityKit.Ability.Host.Builder.Components
     /// </summary>
     public sealed class FixedStepTimeDriver : ITimeDriver
     {
+        private readonly object _lifecycleSync = new object();
         private HostRuntime _runtime;
         private HostRuntimeOptions _options;
         private Timer _timer;
         private int _frameRate = 30;
-        private bool _isRunning;
+        private int _isRunning;
+        private int _isTicking;
 
-        public bool IsRunning => _isRunning;
+        public bool IsRunning => Volatile.Read(ref _isRunning) != 0;
 
         public int FrameRate
         {
-            get => _frameRate;
-            set => _frameRate = Math.Max(1, value);
+            get => Volatile.Read(ref _frameRate);
+            set => Volatile.Write(ref _frameRate, Math.Max(1, value));
         }
 
         public void Attach(HostRuntime runtime, HostRuntimeOptions options)
         {
-            _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
-            _options = options ?? throw new ArgumentNullException(nameof(options));
+            if (runtime == null) throw new ArgumentNullException(nameof(runtime));
+            if (options == null) throw new ArgumentNullException(nameof(options));
+
+            lock (_lifecycleSync)
+            {
+                if (_isRunning != 0)
+                    throw new InvalidOperationException("Cannot attach a time driver while it is running.");
+
+                _runtime = runtime;
+                _options = options;
+            }
         }
 
         public void Detach()
         {
             Stop();
-            _runtime = null;
-            _options = null;
+            lock (_lifecycleSync)
+            {
+                _runtime = null;
+                _options = null;
+            }
         }
 
         public void Start()
         {
-            if (_isRunning) return;
-            if (_runtime == null) return;
+            lock (_lifecycleSync)
+            {
+                if (_isRunning != 0 || _runtime == null)
+                    return;
 
-            var interval = 1000.0 / _frameRate;
-            _timer = new Timer(Tick, null, (long)interval, (long)interval);
-            _isRunning = true;
+                var intervalMs = Math.Max(1, (int)Math.Round(1000.0 / _frameRate));
+                var timer = new Timer(Tick, null, Timeout.Infinite, Timeout.Infinite);
+                try
+                {
+                    Volatile.Write(ref _isRunning, 1);
+                    timer.Change(intervalMs, intervalMs);
+                    _timer = timer;
+                }
+                catch
+                {
+                    Volatile.Write(ref _isRunning, 0);
+                    timer.Dispose();
+                    throw;
+                }
+            }
         }
 
         public void Stop()
         {
-            _timer?.Dispose();
-            _timer = null;
-            _isRunning = false;
+            Timer timer;
+            lock (_lifecycleSync)
+            {
+                Volatile.Write(ref _isRunning, 0);
+                timer = _timer;
+                _timer = null;
+            }
+
+            timer?.Dispose();
         }
 
         private void Tick(object state)
         {
-            if (_runtime == null) return;
+            if (Volatile.Read(ref _isRunning) == 0 || Interlocked.CompareExchange(ref _isTicking, 1, 0) != 0)
+                return;
 
             try
             {
-                _runtime.Tick(1.0f / _frameRate);
+                HostRuntime runtime;
+                lock (_lifecycleSync)
+                {
+                    if (_isRunning == 0)
+                        return;
+                    runtime = _runtime;
+                }
+
+                runtime?.Tick(1.0f / Volatile.Read(ref _frameRate));
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[FixedStepTimeDriver] Tick exception: {ex}");
+            }
+            finally
+            {
+                Volatile.Write(ref _isTicking, 0);
             }
         }
     }

@@ -94,9 +94,10 @@ namespace AbilityKit.Core.Recording.FrameRecord
                 }
             }
 
+            var firstNewIndex = PlayerIdTable.Length;
             Array.Resize(ref PlayerIdTable, PlayerIdTable.Length * 2);
-            PlayerIdTable[PlayerIdTable.Length / 2 - 1] = playerId;
-            return PlayerIdTable.Length / 2 - 1;
+            PlayerIdTable[firstNewIndex] = playerId;
+            return firstNewIndex;
         }
     }
 
@@ -106,7 +107,7 @@ namespace AbilityKit.Core.Recording.FrameRecord
     public sealed class FrameRecordOptimizedBinaryWriter : IFrameRecordWriter
     {
         private const uint Magic = 0x52464B41; // 'AKFR'
-        private const int Version = 3; // 版本3，压缩 + 变长整数
+        private const int Version = 4; // 版本4，state hash track 保留真实 hash schema version
         private static readonly PoolKey DataPoolKey = new PoolKey("record.frame.optimized.binary.data");
 
         private readonly string _outputPath;
@@ -326,20 +327,24 @@ namespace AbilityKit.Core.Recording.FrameRecord
             bw.Write(data.StateHashCount);
 
             int prevFrame = 0;
+            int prevVersion = 0;
             uint prevHash = 0;
 
             for (int i = 0; i < data.StateHashCount; i++)
             {
                 int frame = data.StateHashFrames[i];
+                int version = data.StateHashVersions[i];
                 uint hash = data.StateHashValues[i];
 
                 WriteSignedVarInt(bw, frame - prevFrame);
+                WriteSignedVarInt(bw, version - prevVersion);
 
                 // 增量编码哈希值
                 int hashDelta = (int)(hash - prevHash);
                 WriteSignedVarInt(bw, hashDelta);
 
                 prevFrame = frame;
+                prevVersion = version;
                 prevHash = hash;
             }
         }
@@ -444,6 +449,11 @@ namespace AbilityKit.Core.Recording.FrameRecord
     public static class FrameRecordOptimizedBinaryReader
     {
         private const uint Magic = 0x52464B41; // 'AKFR'
+        private const int MinimumSupportedVersion = 1;
+        private const int MaximumSupportedVersion = 4;
+        private const int MaximumTrackEntryCount = 10_000_000;
+        private const int MaximumPlayerCount = 1_000_000;
+        private const int MaximumPayloadLength = 256 * 1024 * 1024;
 
         public static FrameRecordBinaryData Load(string path)
         {
@@ -459,6 +469,11 @@ namespace AbilityKit.Core.Recording.FrameRecord
                 }
 
                 var version = br.ReadInt32();
+                if (version < MinimumSupportedVersion || version > MaximumSupportedVersion)
+                {
+                    throw new InvalidDataException($"Unsupported optimized frame record version: {version}");
+                }
+
                 var useCompression = br.ReadBoolean();
 
                 var meta = ReadMeta(br);
@@ -495,11 +510,10 @@ namespace AbilityKit.Core.Recording.FrameRecord
 
         private static void ReadInputTrack(BinaryReader br, FrameRecordBinaryData data, int version)
         {
-            var count = br.ReadInt32();
-            if (count < 0) count = 0;
+            var count = ReadValidatedCount(br, "input");
 
             // 读取 PlayerId 表
-            var playerCount = br.ReadInt32();
+            var playerCount = ReadValidatedCount(br, "player", MaximumPlayerCount);
             var playerTable = new string[playerCount];
             for (int i = 0; i < playerCount; i++)
             {
@@ -516,6 +530,10 @@ namespace AbilityKit.Core.Recording.FrameRecord
                 frame += version >= 3 ? ReadSignedVarInt(br) : br.ReadInt32();
                 opCode += version >= 3 ? ReadSignedVarInt(br) : br.ReadInt32();
                 var playerIdx = version >= 3 ? (int)ReadUnsignedVarInt(br) : br.ReadInt32();
+                if ((uint)playerIdx >= (uint)playerTable.Length)
+                {
+                    throw new InvalidDataException($"Invalid player index {playerIdx} for player table size {playerTable.Length}.");
+                }
 
                 data.InputFrames[i] = frame;
                 data.InputOpCodes[i] = opCode;
@@ -526,8 +544,7 @@ namespace AbilityKit.Core.Recording.FrameRecord
 
         private static void ReadSnapshotTrack(BinaryReader br, FrameRecordBinaryData data, int version)
         {
-            var count = br.ReadInt32();
-            if (count < 0) count = 0;
+            var count = ReadValidatedCount(br, "snapshot");
 
             if (data.SnapshotPayloads == null || data.SnapshotPayloads.Length < count)
             {
@@ -552,8 +569,7 @@ namespace AbilityKit.Core.Recording.FrameRecord
 
         private static void ReadStateHashTrack(BinaryReader br, FrameRecordBinaryData data, int version)
         {
-            var count = br.ReadInt32();
-            if (count < 0) count = 0;
+            var count = ReadValidatedCount(br, "state hash");
 
             if (data.StateHashPayloads == null || data.StateHashPayloads.Length < count)
             {
@@ -570,6 +586,11 @@ namespace AbilityKit.Core.Recording.FrameRecord
             for (int i = 0; i < count; i++)
             {
                 frame += version >= 3 ? ReadSignedVarInt(br) : br.ReadInt32();
+                if (version >= 4)
+                {
+                    versionVal += ReadSignedVarInt(br);
+                }
+
                 int hashDelta = version >= 3 ? ReadSignedVarInt(br) : br.ReadInt32();
                 hash += (uint)hashDelta;
 
@@ -578,7 +599,8 @@ namespace AbilityKit.Core.Recording.FrameRecord
                 data.StateHashValues[i] = hash;
                 data.StateHashPayloads[i] = Array.Empty<byte>();
 
-                versionVal++;
+                // Versions 1-3 did not persist the schema version and exposed the ordinal instead.
+                if (version < 4) versionVal++;
             }
         }
 
@@ -599,7 +621,29 @@ namespace AbilityKit.Core.Recording.FrameRecord
         {
             var len = ReadUnsignedVarInt(br);
             if (len == 0u) return Array.Empty<byte>();
-            return br.ReadBytes((int)len);
+            if (len > MaximumPayloadLength)
+            {
+                throw new InvalidDataException($"Frame record payload length {len} exceeds the supported maximum {MaximumPayloadLength}.");
+            }
+
+            var bytes = br.ReadBytes((int)len);
+            if (bytes.Length != (int)len)
+            {
+                throw new EndOfStreamException($"Expected {len} payload bytes but read {bytes.Length}.");
+            }
+
+            return bytes;
+        }
+
+        private static int ReadValidatedCount(BinaryReader br, string trackName, int maximum = MaximumTrackEntryCount)
+        {
+            var count = br.ReadInt32();
+            if (count < 0 || count > maximum)
+            {
+                throw new InvalidDataException($"Invalid {trackName} count: {count}.");
+            }
+
+            return count;
         }
 
         private static int ReadSignedVarInt(BinaryReader br)

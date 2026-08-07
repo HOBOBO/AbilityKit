@@ -55,6 +55,18 @@ public sealed class StateSlots
 
     public bool Has(string slotName) => _slots.ContainsKey(slotName);
 
+    public bool TryGetValue(string slotName, out object value)
+    {
+        if (_slots.TryGetValue(slotName, out var slot))
+        {
+            value = slot.Value;
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
     public bool TryGet<T>(string slotName, out T value) where T : class
     {
         if (_slots.TryGetValue(slotName, out var slot))
@@ -165,6 +177,7 @@ public sealed class StateSlots
         {
             clone._slots[kvp.Key] = kvp.Value;
         }
+        clone._version = _version;
         return clone;
     }
 
@@ -173,6 +186,10 @@ public sealed class StateSlots
     /// </summary>
     public void OverwriteFrom(StateSlots other)
     {
+        if (other == null) throw new System.ArgumentNullException(nameof(other));
+        if (ReferenceEquals(this, other)) return;
+
+        _slots.Clear();
         foreach (var kvp in other._slots)
         {
             _slots[kvp.Key] = kvp.Value;

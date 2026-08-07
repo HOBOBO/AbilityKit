@@ -163,15 +163,25 @@ function Invoke-DotNetStep {
     Write-Host ("=== {0} ===" -f $DisplayName) -ForegroundColor Cyan
     Write-Host ("dotnet {0}" -f ($Arguments -join ' ')) -ForegroundColor DarkGray
 
-    if (-not [string]::IsNullOrWhiteSpace($LogFilePath)) {
-        $null = New-Item -ItemType Directory -Force -Path (Split-Path $LogFilePath)
-        & dotnet @Arguments 2>&1 | Tee-Object -FilePath $LogFilePath | ForEach-Object { Write-Host $_ }
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        # Windows PowerShell wraps native stderr as ErrorRecord objects. Preserve that output
+        # without allowing it to bypass exit-code and TRX result handling.
+        $ErrorActionPreference = 'Continue'
+        if (-not [string]::IsNullOrWhiteSpace($LogFilePath)) {
+            $null = New-Item -ItemType Directory -Force -Path (Split-Path $LogFilePath)
+            & dotnet @Arguments 2>&1 | Tee-Object -FilePath $LogFilePath | ForEach-Object { Write-Host $_ }
+        }
+        else {
+            & dotnet @Arguments
+        }
+
+        $exitCode = $LASTEXITCODE
     }
-    else {
-        & dotnet @Arguments
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
     }
 
-    $exitCode = $LASTEXITCODE
     $endedAt = Get-Date
 
     $record = [ordered]@{

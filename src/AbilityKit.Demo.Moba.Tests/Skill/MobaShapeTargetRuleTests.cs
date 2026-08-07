@@ -24,7 +24,7 @@ public sealed class MobaShapeTargetRuleTests
             length: 4f);
         var context = CreateContext(new ST.Vec2(x, y));
 
-        Assert.Equal(expected, rule.Test(in EmptyQuery, context, new EntityId(1)));
+        Assert.Equal(expected, rule.IsMatch(in EmptyQuery, context, new EntityId(1)));
     }
 
     [Theory]
@@ -41,7 +41,7 @@ public sealed class MobaShapeTargetRuleTests
             length: 4f);
         var context = CreateContext(new ST.Vec2(x, y));
 
-        Assert.Equal(expected, rule.Test(in EmptyQuery, context, new EntityId(1)));
+        Assert.Equal(expected, rule.IsMatch(in EmptyQuery, context, new EntityId(1)));
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public sealed class MobaShapeTargetRuleTests
 
         var rule = new RectangleShapeTargetFilterFactory().Create(in buildContext, config);
 
-        Assert.True(rule.Test(in EmptyQuery, searchContext, new EntityId(1)));
+        Assert.True(rule.IsMatch(in EmptyQuery, searchContext, new EntityId(1)));
     }
 
     private static SearchContext CreateContext(ST.Vec2 position)

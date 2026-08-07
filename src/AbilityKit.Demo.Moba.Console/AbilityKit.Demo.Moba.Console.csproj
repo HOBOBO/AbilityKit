@@ -21,7 +21,6 @@
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Infrastructure\AbilityKit.Demo.Moba.Infrastructure.csproj" />
     <ProjectReference Include="..\AbilityKit.World.ECS\AbilityKit.World.ECS.csproj" />
-    <ProjectReference Include="..\AbilityKit.Game.Battle.Transport.Runtime\AbilityKit.Game.Battle.Transport.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.World.StateSync\AbilityKit.World.StateSync.csproj" />
     <ProjectReference Include="..\AbilityKit.World.Snapshot\AbilityKit.World.Snapshot.csproj" />
     <ProjectReference Include="..\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />

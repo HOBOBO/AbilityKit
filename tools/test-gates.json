@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "owner": "AbilityKit Engineering",
   "defaultGate": "precheck",
   "documentation": "Docs/AbilityKit测试门禁与批量回归规范.md",
@@ -184,12 +184,95 @@
       ]
     },
     {
+      "name": "core-stability",
+      "level": "P1",
+      "owner": "Runtime Platform",
+      "description": "Core package correctness, lifecycle, synchronization, allocation, and Unity direct-dependency contracts.",
+      "scope": [
+        "record",
+        "state-sync",
+        "frame-sync",
+        "host",
+        "triggering",
+        "context",
+        "attributes",
+        "modifiers",
+        "unity-package-dependencies",
+        "allocation-contracts"
+      ],
+      "requiredBefore": [
+        "merge-core-package-change",
+        "change-runtime-lifecycle-or-synchronization-contract",
+        "change-attributes-or-modifiers-hot-path"
+      ],
+      "failurePolicy": "Block the change until core package tests, allocation contracts, and direct UPM dependency declarations pass.",
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Record tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Record.Tests/AbilityKit.Record.Tests.csproj"
+        },
+        {
+          "name": "World StateSync tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.World.StateSync.Tests/AbilityKit.World.StateSync.Tests.csproj"
+        },
+        {
+          "name": "World FrameSync tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.World.FrameSync.Tests/AbilityKit.World.FrameSync.Tests.csproj"
+        },
+        {
+          "name": "Host tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Host.Tests/AbilityKit.Host.Tests.csproj"
+        },
+        {
+          "name": "Triggering tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Triggering.Tests/AbilityKit.Triggering.Tests.csproj"
+        },
+        {
+          "name": "Context tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Context.Tests/AbilityKit.Context.Tests.csproj"
+        },
+        {
+          "name": "Modifiers tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Modifiers.Tests/AbilityKit.Modifiers.Tests.csproj"
+        },
+        {
+          "name": "Attributes correctness and allocation tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Attributes.Tests/AbilityKit.Attributes.Tests.csproj"
+        },
+        {
+          "name": "Core UPM direct dependency audit",
+          "kind": "powershell-script",
+          "script": "tools/audit_unity_package_dependencies.ps1",
+          "arguments": [
+            "-PackageNames",
+            "com.abilitykit.record,com.abilitykit.world.statesync,com.abilitykit.world.framesync,com.abilitykit.host,com.abilitykit.triggering,com.abilitykit.context,com.abilitykit.attributes,com.abilitykit.modifiers"
+          ],
+          "timeoutSeconds": 120
+        }
+      ]
+    },
+    {
       "name": "regression",
       "level": "P2",
       "owner": "AbilityKit Engineering",
-      "description": "Batch regression gate for the main pure-C# test projects used before broad refactors or merges.",
+      "description": "Batch regression gate for core packages and the main pure-C# test projects used before broad refactors or merges.",
       "scope": [
         "batch-regression",
+        "core-stability",
         "moba-runtime",
         "moba-view-runtime",
         "shooter-runtime",
@@ -208,6 +291,11 @@
         "artifactRequired": true
       },
       "steps": [
+        {
+          "name": "Core package stability",
+          "kind": "gate",
+          "gate": "core-stability"
+        },
         {
           "name": "MOBA CodeGen contracts",
           "kind": "gate",

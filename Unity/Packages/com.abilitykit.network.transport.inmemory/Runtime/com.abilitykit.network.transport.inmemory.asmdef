@@ -1,0 +1,16 @@
+{
+    "name": "AbilityKit.Network.Transport.InMemory",
+    "rootNamespace": "AbilityKit",
+    "references": [
+        "AbilityKit.Network.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

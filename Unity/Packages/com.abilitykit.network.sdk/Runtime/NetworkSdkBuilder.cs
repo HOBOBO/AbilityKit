@@ -19,6 +19,14 @@ namespace AbilityKit.Network.Sdk
 
         public NetworkSdkBuilder UseConnectionFactory(Func<IConnection> connectionFactory)
         {
+            return UseOwnedConnectionFactory(connectionFactory);
+        }
+
+        /// <summary>
+        /// Configures a connection factory whose returned connection is owned and disposed by the SDK client.
+        /// </summary>
+        public NetworkSdkBuilder UseOwnedConnectionFactory(Func<IConnection> connectionFactory)
+        {
             _connectionFactory = connectionFactory
                 ?? throw new ArgumentNullException(nameof(connectionFactory));
             _transportFactory = null;

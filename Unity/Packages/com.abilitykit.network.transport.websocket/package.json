@@ -1,0 +1,13 @@
+{
+  "name": "com.abilitykit.network.transport.websocket",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Network Transport WebSocket",
+  "unity": "2021.3",
+  "description": "Optional WebSocket ITransport for AbilityKit (desktop/mobile/server; WebGL needs a platform-specific variant). Drop-in alternative to TcpTransport.",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.network.runtime": "0.1.0"
+  }
+}
