@@ -20,7 +20,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         private const string GeneratedModuleDir = "Assets/Configs/Ability/Generated";
         private const string GeneratedModuleName = "ability_triggers.generated";
 
-        [MenuItem("AbilityKit/Ability/Import Trigger Json -> Generated Module")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/导入/Trigger Json -> Generated Module")]
         public static void ImportFromDefaultJson()
         {
             var jsonPath = Path.Combine(GetAbilityResourcesDirectory(), FileWithoutExt + ".json");

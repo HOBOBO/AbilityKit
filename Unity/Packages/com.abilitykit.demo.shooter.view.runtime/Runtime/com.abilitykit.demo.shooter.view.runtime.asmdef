@@ -13,6 +13,7 @@
     "AbilityKit.Network.Room",
     "AbilityKit.Network.Sdk",
     "AbilityKit.Network.Battle",
+    "AbilityKit.Network.Battle.Config",
     "AbilityKit.GameFramework",
     "AbilityKit.GameFramework.Network",
     "AbilityKit.Game.View.Runtime",

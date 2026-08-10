@@ -65,7 +65,7 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            runtime.StopGatewayRoomPreparation();
+            runtime.CompleteGatewayRoomPreparation();
 
             if (!_sessionRequested)
             {

@@ -6,7 +6,7 @@ namespace NBC.ActionEditor
 {
     public class ActionEditorWindow : EditorWindow
     {
-        [MenuItem("Tools/技能/时间轴编辑器", false, 0)]
+        [MenuItem("Window/AbilityKit/时间轴编辑器", false, 0)]
         public static void OpenDirectorWindow()
         {
             var window = GetWindow(typeof(ActionEditorWindow)) as ActionEditorWindow;

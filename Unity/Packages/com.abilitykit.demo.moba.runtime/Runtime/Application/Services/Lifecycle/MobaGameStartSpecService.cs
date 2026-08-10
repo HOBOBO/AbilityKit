@@ -82,21 +82,10 @@ namespace AbilityKit.Demo.Moba.Services
             return MobaGameStartSpecValidationResult.Success;
         }
 
-        public static MobaBattleStartPlanValidationResult ValidatePlan(in MobaBattleStartPlan plan)
+        public static MobaBattleStartPlanValidationResult ValidatePlan(
+            in MobaBattleStartPlan plan)
         {
-            var enterReq = plan.ToEnterReq();
-            var enterValidation = MobaProtocolValidation.ValidateEnterGameReq(in enterReq);
-            if (!enterValidation.IsValid)
-            {
-                return MobaBattleStartPlanValidationResult.Fail("battle start plan enter-game projection invalid. " + enterValidation);
-            }
-
-            if (plan.LocalPlayerId.Value != enterReq.PlayerId.Value)
-            {
-                return MobaBattleStartPlanValidationResult.Fail($"battle start plan local player mismatch. plan={plan.LocalPlayerId.Value}, enterReq={enterReq.PlayerId.Value}");
-            }
-
-            return MobaBattleStartPlanValidationResult.Success;
+            return MobaBattleStartPlanValidator.Validate(in plan);
         }
 
         public void Clear()

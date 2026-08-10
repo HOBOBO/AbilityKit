@@ -119,7 +119,9 @@ namespace AbilityKit.Demo.Shooter.View
                 SelectPlayerId(join.CurrentPlayerId, playerId),
                 join.WorldStartAnchor,
                 join.ServerNowTicks,
-                join.JoinKind,
+                // The room creator's entry is TeamLobby by definition; the server's JoinRoom returns
+                // Reconnect here only because CreateRoom already registered the creator as a member.
+                createdRoomOwner ? RoomGatewaySessionEntryKind.TeamLobby : join.JoinKind,
                 join.CanStart,
                 RoomGatewaySessionRestoreStatus.Restored,
                 RoomGatewaySessionRestoreErrorCode.None);

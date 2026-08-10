@@ -21,7 +21,7 @@ namespace AbilityKit.ExcelSync.Editor
 
         private readonly ITableReaderWriterFactory factory = new EpplusTableReaderWriterFactory();
 
-        [MenuItem("Tools/Excel/Excel <-> ScriptableObject 同步")]
+        [MenuItem("Tools/AbilityKit/Framework/Excel/Excel <-> ScriptableObject 同步")]
         public static void Open()
         {
             var w = GetWindow<ExcelSoSyncWindow>();

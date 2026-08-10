@@ -135,6 +135,7 @@ namespace AbilityKit.Demo.Moba
         public readonly NumberValue MitigatedDamage;
         public readonly NumberValue ShieldAbsorb;
         public readonly NumberValue HpDamage;
+        internal Services.ShieldAbsorbPlan ShieldPlan;
 
         public AttackCalcInfo(AttackInfo attack)
         {

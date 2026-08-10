@@ -13,7 +13,7 @@ namespace AbilityKit.Ability.Editor.CodeGen.SnapshotRouting
 {
     internal static class SnapshotRegistryCodeGenerator
     {
-        private const string MenuPath = "Tools/AbilityKit/CodeGen/Generate Snapshot Registries";
+        private const string MenuPath = "Tools/AbilityKit/Framework/CodeGen/Generate Snapshot Registries";
 
         [MenuItem(MenuPath)]
         private static void GenerateMenu()

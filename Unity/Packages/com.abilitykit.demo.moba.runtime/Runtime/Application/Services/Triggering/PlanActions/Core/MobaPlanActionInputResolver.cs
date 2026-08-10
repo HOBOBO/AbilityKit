@@ -32,18 +32,45 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return Create(triggerArgs, ctx, in executionContext);
         }
 
+        public static bool TryResolveEffect(
+            object triggerArgs,
+            ExecCtx<IWorldResolver> ctx,
+            out MobaEffectActionInput input)
+        {
+            if (!TryResolve(triggerArgs, ctx, out var core))
+            {
+                input = default;
+                return false;
+            }
+
+            input = MobaPlanActionInputAssembler.AssembleEffect(in core);
+            return true;
+        }
+
         public static MobaEffectActionInput ResolveEffect(object triggerArgs, ExecCtx<IWorldResolver> ctx)
         {
             var core = Resolve(triggerArgs, ctx);
             return MobaPlanActionInputAssembler.AssembleEffect(in core);
         }
- 
+
         public static MobaProjectileActionInput ResolveProjectile(object triggerArgs, ExecCtx<IWorldResolver> ctx)
         {
             var core = Resolve(triggerArgs, ctx);
             return MobaPlanActionInputAssembler.AssembleProjectile(in core);
         }
- 
+
+        public static bool TryResolveSummon(object triggerArgs, ExecCtx<IWorldResolver> ctx, out MobaSummonActionInput input)
+        {
+            if (!TryResolve(triggerArgs, ctx, out var core))
+            {
+                input = default;
+                return false;
+            }
+
+            input = MobaPlanActionInputAssembler.AssembleSummon(in core, ctx);
+            return true;
+        }
+
         public static MobaSummonActionInput ResolveSummon(object triggerArgs, ExecCtx<IWorldResolver> ctx)
         {
             var core = Resolve(triggerArgs, ctx);

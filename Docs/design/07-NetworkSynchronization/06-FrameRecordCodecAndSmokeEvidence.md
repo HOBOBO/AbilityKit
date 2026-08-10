@@ -6,7 +6,7 @@ FrameRecord 用统一内存模型保存按帧输入、状态哈希和快照。�
 
 本文聚焦 FrameRecord 的数据契约、编码实现和 Shooter Smoke 接入。回放系统的整体职责见 `07-NetworkSynchronization/04-ReplaySystem.md`；测试门禁和 Smoke 分层见 `10-EngineeringQuality/01-TestingWorkflow.md`。
 
-当前实现可以支持工程诊断，但 optimized binary 的 state-hash version 往返不保真，多个二进制格式也缺少统一的 codec 标识和严格兼容矩阵。在修复并补测前，不应把所有 `.bin` 文件视为同一种稳定格式。
+当前实现可以支持工程诊断。Optimized Binary v4 已保留 state-hash version，并对旧 v3 提供兼容读取，同时拒绝未来版本和多类损坏输入；但多个二进制格式仍缺少统一 codec 标识与全字段兼容矩阵。因此不能仅凭 `.bin` 扩展名或 `AKFR` magic 把文件视为同一种稳定格式。
 
 ## 二、统一内存模型
 
@@ -66,20 +66,20 @@ flowchart TB
 |---|---|---:|---|---|
 | JSON | 文件扩展名非 `.bin` | DTO 形态，无独立根版本 | 可读、便于样例与排障，payload 使用 Base64 | 是 |
 | 基础 Binary | magic `AKFR` | 1 | 逐字段写入，保留 StateHash Version | 否，需显式实例化 |
-| Optimized Binary | magic `AKFR` | writer 当前为 3 | Deflate、帧/OpCode/Hash delta、VarInt、PlayerId 表 | `.bin` 默认 |
+| Optimized Binary | magic `AKFR` | writer 当前为 4，reader 兼容 3 | Deflate、帧/OpCode/Hash/Version delta、VarInt、PlayerId 表 | `.bin` 默认 |
 | MemoryPack | magic `PMLR` | 1 | 整个 `FrameRecordFile` 交给 MemoryPack 序列化 | 否，需安装可选 package |
 
 基础 Binary 与 Optimized Binary 共用 `AKFR` magic，但头部布局不同：基础格式在版本后直接写 Meta，optimized 格式在版本后先写 compression bool、Meta 和帧区间。magic 本身不足以选择 reader。
 
 MemoryPack 通过反射查找 `MemoryPackSerializer`，依赖不可用时在首次序列化或反序列化抛出异常。`FrameRecordMemoryPackCodecInstaller.InstallAsCurrent()` 会替换全局 codec，此后扩展名不再参与选择。
 
-## 四、Optimized Binary v3
+## 四、Optimized Binary v4
 
 ### 4.1 文件布局
 
 ```mermaid
 flowchart LR
-    Header[AKFR magic + version 3] --> Compression[compression flag]
+    Header[AKFR magic + version 4] --> Compression[compression flag]
     Compression --> Meta[FrameRecordMeta]
     Meta --> Range[startFrame + endFrame]
     Range --> Payload{是否 Deflate}
@@ -97,32 +97,17 @@ Input track 先写数量和 PlayerId 字符串表，然后依次写：
 - PlayerId 表索引。
 - VarInt 长度和 payload。
 
-Snapshot track 对 frame 与 OpCode 做相同 delta 编码。StateHash track 写 frame delta 和相对上一 hash 的 delta。Signed VarInt 使用 ZigZag，payload 长度使用 unsigned VarInt。
+Snapshot track 对 frame 与 OpCode 做相同 delta 编码。StateHash track 写 frame delta、version delta 和相对上一 hash 的 delta，因此 v4 可以完整往返 `FrameRecordStateHashFrame.Version`。Signed VarInt 使用 ZigZag，payload 长度使用 unsigned VarInt。
 
 Writer 不排序轨道。若调用方乱序 Append，负 frame delta 仍能编码和还原，但回放器是否接受乱序取决于领域校验；Shooter validator 会拒绝帧回退。
 
-### 4.2 版本兼容边界
+### 4.2 版本兼容与拒绝边界
 
-Optimized reader 对 `version >= 3` 使用 VarInt，对更早版本使用 Int32，因此代码保留了读取旧 optimized 布局的分支。但是 reader 没有明确拒绝零、负数或未来版本，也没有上限校验。未来格式若改变头部或轨道布局，旧 reader 可能在错误位置继续读取，而不是稳定报告“版本不支持”。
+Optimized reader 接受当前 v4，并兼容读取未显式保存 StateHash Version 的旧 v3；读取 v3 时只能按旧协议重建版本值，不能恢复当时未写入文件的信息。reader 会拒绝未来 v5、非法版本、负 track count、越界 PlayerId index、截断 payload 和异常长度，避免在错误布局上继续解释数据。
 
-此外，基础 Binary v1 和旧 optimized 版本共享 magic 与版本空间，却不是同一头部协议。版本号必须结合具体 codec 才有意义。
+这些防护已有 `FrameRecordOptimizedBinaryCodecTests` 覆盖，包括 v4 Version 往返、v3 兼容、未来版本、负 count、越界索引和截断输入。它们证明 optimized reader 的已知格式边界，不等同于 JSON、基础 Binary、Optimized Binary、MemoryPack 四种 codec 的全字段参数化兼容矩阵。
 
-### 4.3 StateHash Version 丢失
-
-当前 optimized writer 在内存中保存传入的 `StateHashVersions`，但 `WriteStateHashTrack()` 实际只写 frame delta 和 hash delta。Reader 不从文件读取 version，而是从 `0` 开始，每读一条记录自增一次：
-
-```text
-写入版本: 1, 1, 1
-读取版本: 0, 1, 2
-```
-
-因此 optimized binary 不能完整往返 `FrameRecordStateHashFrame.Version`。这一问题会影响：
-
-- 依赖 Version 选择哈希算法的回放或迁移逻辑。
-- JSON、基础 Binary、MemoryPack 与 optimized binary 之间的等价比较。
-- `FrameRecordDiffAnalyzer`，因为它会同时比较 Version 和 Hash。
-
-两个 optimized 文件可能因相同的序号重建得到相同 Version，从而没有暴露问题。这不证明原始 Version 被保留。修复时需要提升 optimized 格式版本并显式写入 version 或 version delta，同时补充旧版本兼容测试。
+此外，基础 Binary v1 和 optimized v3/v4 共享 magic 与版本空间，却不是同一头部协议。版本号必须结合具体 codec 才有意义。
 
 ## 五、Diff 协议
 
@@ -269,10 +254,8 @@ Shooter Smoke 当前形成四层证据：
 
 | 优先级 | 问题或测试 |
 |---|---|
-| P0 | 修复 optimized binary 未写入 StateHash Version，并增加旧 v3 读取兼容策略 |
-| P0 | 为 JSON、基础 Binary、optimized Binary 和 MemoryPack 建立全字段 round-trip 参数化测试 |
-| P0 | 明确基础 Binary 与 optimized Binary 共用 `AKFR` 的探测规则，或分配不同 magic/format id |
-| P1 | Optimized reader 严格拒绝不支持的版本、负 count、越界 PlayerId index、截断 payload 和异常长度 |
+| P0 | 为 JSON、基础 Binary、Optimized Binary 和 MemoryPack 建立 Meta、Inputs、Snapshots、StateHashes 全字段 round-trip 参数化测试 |
+| P0 | 明确基础 Binary 与 Optimized Binary 共用 `AKFR` 的探测规则，或分配不同 magic/format id |
 | P1 | 增加崩溃写入、临时文件和原子提交策略，避免留下看似存在但不可读的记录 |
 | P1 | 锁定 Shooter minimized record 的轨道选择和 skipped 门禁语义 |
 | P1 | 增加 Shooter 回放 fixture，覆盖 packed、pure-state baseline/delta、帧回退和未知 OpCode |
@@ -282,7 +265,6 @@ Shooter Smoke 当前形成四层证据：
 还需注意：
 
 - JSON DTO 没有独立 SchemaVersion，字段兼容依赖序列化器行为。
-- optimized reader 当前会接受未来 version 并按 v3 读取，可能产生误解析。
 - MemoryPack 通过反射调用 serializer，API 版本变化可能在运行时才暴露。
 - 记录 payload 没有通用校验和；当前完整性主要依赖外层 artifact SHA-256。
 - StateHash 为零在 Shooter 中常被用作“不可比较”占位，不能当作真实状态值参与收敛结论。
@@ -296,6 +278,7 @@ Shooter Smoke 当前形成四层证据：
 | JSON codec | `Unity/Packages/com.abilitykit.record/Runtime/Record/FrameRecord/FrameRecordJsonCodec.cs` |
 | 基础 Binary reader/writer | `Unity/Packages/com.abilitykit.record/Runtime/Record/FrameRecord/FrameRecordBinaryReader.cs`、`FrameRecordBinaryWriter.cs` |
 | Optimized Binary | `Unity/Packages/com.abilitykit.record/Runtime/Record/FrameRecord/FrameRecordOptimizedBinaryDataCodec.cs` |
+| Optimized Binary 版本与损坏输入测试 | `src/AbilityKit.Record.Tests/FrameRecordOptimizedBinaryCodecTests.cs` |
 | Optimized DTO 适配 | `Unity/Packages/com.abilitykit.record/Runtime/Record/FrameRecord/FrameRecordOptimizedBinaryCodec.cs` |
 | MemoryPack 可选 codec | `Unity/Packages/com.abilitykit.record.memorypack/Runtime/FrameRecord/FrameRecordMemoryPackCodec.cs` |
 | Diff analyzer | `Unity/Packages/com.abilitykit.record/Runtime/Record/FrameRecord/Analysis/FrameRecordDiffAnalyzer.cs` |
@@ -309,4 +292,4 @@ Shooter Smoke 当前形成四层证据：
 
 FrameRecord 已提供统一轨道模型、多个 codec、状态哈希 diff 工具和 Shooter Smoke 的实际回放证据链。Shooter 的 InputState 与 InputLogic 最小记录分别服务状态消费和逻辑重放，诊断产物再用同帧 authoritative/client hash 生成可追溯 diff。
 
-当前主要协议风险不是缺少编码器，而是格式身份和往返语义不够严格。optimized binary 丢失 StateHash Version、两个 `AKFR` 布局并存、reader 版本拒绝不足，都会削弱跨 codec 和跨版本证据的可信度。完成 P0 修复与参数化 round-trip 测试后，才能把 `.bin` FrameRecord 提升为稳定的长期回归协议。
+Optimized Binary v4 已修复 StateHash Version 往返，并建立 v3 兼容及未来版本、负 count、越界索引、截断数据的拒绝测试。当前主要协议风险转为格式身份、跨 codec 全字段矩阵和写入原子性：两个 `AKFR` 布局仍并存，默认分派仍依赖扩展名，writer 仍在 Dispose 时一次性提交。完成这些 P0/P1 项后，才能把 `.bin` FrameRecord 提升为稳定的长期回归协议。

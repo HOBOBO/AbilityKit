@@ -1,4 +1,5 @@
 ﻿using System;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Ability.World.Services;
@@ -14,61 +15,112 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaDamageEventSnapshotService _snapshots;
         private readonly MobaCombatRulesService _rules;
         private readonly IMobaBattleDiagnosticEventSink _eventCollector;
+        private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
 
         public MobaDamageService(
             MobaActorLookupService actors,
             MobaDamageEventSnapshotService snapshots,
             MobaCombatRulesService rules = null,
-            IMobaBattleDiagnosticEventSink eventCollector = null)
+            IMobaBattleDiagnosticEventSink eventCollector = null,
+            AbilityKit.Triggering.Eventing.IEventBus eventBus = null)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _snapshots = snapshots ?? throw new ArgumentNullException(nameof(snapshots));
             _rules = rules;
             _eventCollector = eventCollector;
+            _eventBus = eventBus;
         }
 
         public float ApplyDamage(int attackerActorId, int targetActorId, int damageType, float value, int reasonKind = 0, int reasonParam = 0)
         {
-            if (targetActorId <= 0) return 0f;
-            if (value <= 0f) return 0f;
+            return CommitDamage(attackerActorId, targetActorId, damageType, value, reasonKind, reasonParam).AppliedValue;
+        }
 
-            if (_rules != null && !_rules.CanReceiveDamage(attackerActorId, targetActorId).Passed) return 0f;
-            if (!_actors.TryGetActorEntity(targetActorId, out var target) || target == null) return 0f;
+        public MobaHealthChangeResult CommitDamage(
+            int attackerActorId,
+            int targetActorId,
+            int damageType,
+            float value,
+            int reasonKind = 0,
+            int reasonParam = 0,
+            MobaGameplayOrigin origin = default)
+        {
+            if (targetActorId <= 0 || value <= 0f) return default;
+            if (_rules != null && !_rules.CanReceiveDamage(attackerActorId, targetActorId).Passed) return default;
+            if (!_actors.TryGetActorEntity(targetActorId, out var target) || target == null) return default;
 
             var attrs = target.GetMobaAttrs();
             var oldHp = attrs.Hp;
             var maxHp = attrs.MaxHp;
-
             var newHp = Clamp(oldHp - value, 0f, maxHp);
             var actual = oldHp - newHp;
-            if (actual <= 0f) return 0f;
+            if (actual <= 0f) return default;
 
             attrs.Hp = newHp;
+            var result = new MobaHealthChangeResult(
+                MobaHealthChangeKind.Damage,
+                attackerActorId,
+                targetActorId,
+                damageType,
+                reasonKind,
+                reasonParam,
+                value,
+                actual,
+                oldHp,
+                newHp,
+                maxHp,
+                in origin);
             _snapshots.ReportDamage(attackerActorId, targetActorId, damageType, actual, reasonKind, reasonParam, newHp, maxHp);
             CollectDirectDamage(attackerActorId, targetActorId, damageType, actual, reasonKind, reasonParam, newHp, maxHp);
-            return actual;
+            PublishCommitted(in result);
+            return result;
         }
 
         public float ApplyHeal(int healerActorId, int targetActorId, int healType, float value, int reasonKind = 0, int reasonParam = 0)
         {
-            if (targetActorId <= 0) return 0f;
-            if (value <= 0f) return 0f;
+            return CommitHeal(healerActorId, targetActorId, healType, value, reasonKind, reasonParam).AppliedValue;
+        }
 
-            if (_rules != null && (!_rules.TryGetActor(targetActorId, out _) || !_rules.IsAlive(targetActorId))) return 0f;
-            if (!_actors.TryGetActorEntity(targetActorId, out var target) || target == null) return 0f;
+        public MobaHealthChangeResult CommitHeal(
+            int healerActorId,
+            int targetActorId,
+            int healType,
+            float value,
+            int reasonKind = 0,
+            int reasonParam = 0,
+            MobaGameplayOrigin origin = default,
+            bool allowDeadTarget = false)
+        {
+            if (targetActorId <= 0 || value <= 0f) return default;
+            if (!allowDeadTarget && _rules != null && (!_rules.TryGetActor(targetActorId, out _) || !_rules.IsAlive(targetActorId))) return default;
+            if (!_actors.TryGetActorEntity(targetActorId, out var target) || target == null) return default;
 
             var attrs = target.GetMobaAttrs();
             var oldHp = attrs.Hp;
             var maxHp = attrs.MaxHp;
-
             var newHp = Clamp(oldHp + value, 0f, maxHp);
             var actual = newHp - oldHp;
-            if (actual <= 0f) return 0f;
+            if (actual <= 0f) return default;
 
             attrs.Hp = newHp;
+            var kind = allowDeadTarget ? MobaHealthChangeKind.Respawn : MobaHealthChangeKind.Heal;
+            var result = new MobaHealthChangeResult(
+                kind,
+                healerActorId,
+                targetActorId,
+                healType,
+                reasonKind,
+                reasonParam,
+                value,
+                actual,
+                oldHp,
+                newHp,
+                maxHp,
+                in origin);
             _snapshots.ReportHeal(healerActorId, targetActorId, healType, actual, reasonKind, reasonParam, newHp, maxHp);
             CollectHeal(healerActorId, targetActorId, healType, actual, reasonKind, reasonParam, newHp, maxHp);
-            return actual;
+            PublishCommitted(in result);
+            return result;
         }
 
         internal static MobaBattleDiagnosticEventDraft CreateDirectDamageDraft(
@@ -176,6 +228,19 @@ namespace AbilityKit.Demo.Moba.Services
             catch (Exception)
             {
                 // 诊断提交失败不应影响治疗流程，静默吞掉异常。
+            }
+        }
+
+        private void PublishCommitted(in MobaHealthChangeResult result)
+        {
+            if (_eventBus == null || !result.Succeeded) return;
+            var eid = TriggeringIdUtil.GetEventEid(DamagePipelineEvents.HealthCommitted);
+            _eventBus.Publish(new EventKey<MobaHealthChangeResult>(eid), in result);
+            var objectKey = new EventKey<object>(eid);
+            if (_eventBus.HasSubscribers(objectKey))
+            {
+                object boxed = result;
+                _eventBus.Publish(objectKey, in boxed);
             }
         }
 

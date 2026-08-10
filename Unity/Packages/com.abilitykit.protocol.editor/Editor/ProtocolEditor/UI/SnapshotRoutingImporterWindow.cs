@@ -21,7 +21,7 @@ namespace AbilityKit.ProtocolEditor.UI
             GetWindow<SnapshotRoutingImporterWindow>("Import SnapshotRouting");
         }
 
-        [MenuItem("AbilityKit/Protocol/Import SnapshotRouting Declarations")]
+        [MenuItem("Tools/AbilityKit/Framework/Protocol/Import SnapshotRouting Declarations")]
         private static void Open()
         {
             OpenWindow();

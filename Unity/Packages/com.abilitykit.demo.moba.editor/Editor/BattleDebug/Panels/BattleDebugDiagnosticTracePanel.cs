@@ -37,7 +37,13 @@ namespace AbilityKit.Game.Editor
 
             if (!session.SessionInfo.Supports(BattleDiagnosticCapabilities.Trace))
             {
-                EditorGUILayout.HelpBox("当前诊断会话不支持 Trace 查询。", MessageType.Info);
+                var unsupported = BattleDiagnosticQueryStatus.Unavailable(
+                    0,
+                    session.TraceStoreRevision,
+                    BattleDiagnosticDataAvailability.Unsupported);
+                DrawEmptyState(BattleDebugEmptyStateProjector.Project(
+                    in unsupported,
+                    subject: "Trace"));
                 return;
             }
 
@@ -51,9 +57,12 @@ namespace AbilityKit.Game.Editor
             DrawToolbar(in ctx, session);
             if (_viewModel.RootContextId == 0)
             {
-                EditorGUILayout.HelpBox(
-                    "输入事件中的 RootContextId，然后点击“加载”。",
-                    MessageType.Info);
+                DrawEmptyState(BattleDebugEmptyStateProjector.Project(
+                    default,
+                    requiresSelection: true,
+                    hasSelection: false,
+                    subject: "Trace 树",
+                    selectionSubject: "Root Context"));
                 return;
             }
 
@@ -68,9 +77,16 @@ namespace AbilityKit.Game.Editor
                 $"节点={_viewModel.Rows.Count}  可见={_viewModel.VisibleRows.Count}",
                 EditorStyles.miniLabel);
 
-            if (!string.IsNullOrEmpty(_viewModel.StatusMessage))
+            if (_viewModel.Rows.Count == 0)
             {
-                EditorGUILayout.HelpBox(_viewModel.StatusMessage, MessageType.None);
+                DrawEmptyState(BattleDebugEmptyStateProjector.Project(
+                    _viewModel.QueryStatus,
+                    hasActiveFilter: !string.IsNullOrEmpty(_viewModel.SearchText),
+                    subject: "Trace 节点"));
+            }
+            else if (!string.IsNullOrEmpty(_viewModel.StatusMessage))
+            {
+                EditorGUILayout.HelpBox(_viewModel.StatusMessage, MessageType.Warning);
             }
 
             DrawTree(in ctx);
@@ -199,11 +215,17 @@ namespace AbilityKit.Game.Editor
                 GUILayout.MaxHeight(360));
 
             var rows = _viewModel.VisibleRows;
-            if (rows.Count == 0)
+            if (rows.Count == 0 && _viewModel.Rows.Count > 0)
             {
-                EditorGUILayout.LabelField(
-                    string.IsNullOrEmpty(_viewModel.SearchText) ? "（无节点）" : "（无匹配节点）",
-                    EditorStyles.miniLabel);
+                var filteredEmpty = BattleDiagnosticQueryStatus.Ready(
+                    0,
+                    _viewModel.StoreRevision,
+                    0,
+                    false);
+                DrawEmptyState(BattleDebugEmptyStateProjector.Project(
+                    in filteredEmpty,
+                    hasActiveFilter: true,
+                    subject: "Trace 节点"));
             }
             else
             {
@@ -214,6 +236,21 @@ namespace AbilityKit.Game.Editor
             }
 
             EditorGUILayout.EndScrollView();
+        }
+
+        private static void DrawEmptyState(in BattleDebugEmptyStateProjection projection)
+        {
+            if (!projection.HasValue) return;
+
+            var message = string.IsNullOrEmpty(projection.Message)
+                ? projection.Title
+                : $"{projection.Title}\n{projection.Message}";
+            var messageType = projection.Severity == BattleDebugEmptyStateSeverity.Error
+                ? MessageType.Error
+                : projection.Severity == BattleDebugEmptyStateSeverity.Warning
+                    ? MessageType.Warning
+                    : MessageType.Info;
+            EditorGUILayout.HelpBox(message, messageType);
         }
 
         private void DrawTraceRow(
@@ -248,6 +285,15 @@ namespace AbilityKit.Game.Editor
             if (GUILayout.Button(label, style, GUILayout.Height(20)))
             {
                 _viewModel.SelectContext(node.ContextId);
+                var selectionKind = node.ContextId == node.RootContextId
+                    ? BattleDiagnosticSelectionKind.TraceRoot
+                    : BattleDiagnosticSelectionKind.TraceNode;
+                ctx.WorkspaceState?.Select(new BattleDiagnosticSelection(
+                    node.Scope,
+                    selectionKind,
+                    node.ContextId,
+                    node.StartFrame,
+                    node.RootContextId));
                 ctx.RequestRepaint?.Invoke();
             }
             GUI.color = oldColor;
@@ -272,6 +318,20 @@ namespace AbilityKit.Game.Editor
                     ? $"{selected.StartFrame} -> {selected.EndFrame}"
                     : $"{selected.StartFrame} -> active");
             EditorGUILayout.LabelField("Actor / Config", $"{selected.ActorId} / {selected.ConfigId}");
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginDisabledGroup(!BattleDiagnosticFrames.IsValid(selected.StartFrame));
+            if (GUILayout.Button("定位起始帧", GUILayout.Width(88)))
+            {
+                NavigateToFrame(in ctx, selected.StartFrame);
+            }
+            EditorGUI.EndDisabledGroup();
+            if (BattleDiagnosticFrames.IsValid(selected.EndFrame) &&
+                GUILayout.Button("定位结束帧", GUILayout.Width(88)))
+            {
+                NavigateToFrame(in ctx, selected.EndFrame);
+            }
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
             var hasConfigReference = BattleDebugConfigReferenceMapper.TryFromTraceNode(
                 in selected,
                 out var configReference);
@@ -299,6 +359,18 @@ namespace AbilityKit.Game.Editor
                 BuildPathText(path),
                 EditorStyles.textField,
                 GUILayout.Height(EditorGUIUtility.singleLineHeight));
+        }
+
+        private static void NavigateToFrame(in BattleDebugContext ctx, int frame)
+        {
+            if (!BattleDiagnosticFrames.IsValid(frame))
+            {
+                return;
+            }
+
+            ctx.WorkspaceState?.SetFrame(frame);
+            ctx.SeekReplayFrame?.Invoke(frame);
+            ctx.RequestRepaint?.Invoke();
         }
 
         public void OpenTrace(long rootContextId, long contextId)

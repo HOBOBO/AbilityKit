@@ -15,6 +15,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
         ApplyRuntimeListUnavailable = 105,
         ApplyExistingRuntimeMissing = 106,
         ApplyContinuousActivationFailed = 107,
+        ApplySkillRuntimeBindingFailed = 108,
+        ApplyReplacementCommitFailed = 109,
         RemoveInvalidRequest = 200,
         RemoveTargetNotFound = 201,
         RemoveBuffsComponentMissing = 202,
@@ -33,6 +35,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
         public const string ApplyRuntimeListUnavailable = "buff.apply.runtimeListUnavailable";
         public const string ApplyExistingRuntimeMissing = "buff.apply.existingRuntimeMissing";
         public const string ApplyContinuousActivationFailed = "buff.apply.continuousActivationFailed";
+        public const string ApplySkillRuntimeBindingFailed = "buff.apply.skillRuntimeBindingFailed";
+        public const string ApplyReplacementCommitFailed = "buff.apply.replacementCommitFailed";
         public const string RemoveInvalidRequest = "buff.remove.invalidRequest";
         public const string RemoveTargetNotFound = "buff.remove.targetNotFound";
         public const string RemoveBuffsComponentMissing = "buff.remove.buffsComponentMissing";
@@ -51,13 +55,15 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
                 case BuffLifecycleRejectCode.ApplyRuntimeListUnavailable: return ApplyRuntimeListUnavailable;
                 case BuffLifecycleRejectCode.ApplyExistingRuntimeMissing: return ApplyExistingRuntimeMissing;
                 case BuffLifecycleRejectCode.ApplyContinuousActivationFailed: return ApplyContinuousActivationFailed;
+                case BuffLifecycleRejectCode.ApplySkillRuntimeBindingFailed: return ApplySkillRuntimeBindingFailed;
+                case BuffLifecycleRejectCode.ApplyReplacementCommitFailed: return ApplyReplacementCommitFailed;
                 case BuffLifecycleRejectCode.RemoveInvalidRequest: return RemoveInvalidRequest;
                 case BuffLifecycleRejectCode.RemoveTargetNotFound: return RemoveTargetNotFound;
                 case BuffLifecycleRejectCode.RemoveBuffsComponentMissing: return RemoveBuffsComponentMissing;
                 case BuffLifecycleRejectCode.RemoveNoActiveRuntimes: return RemoveNoActiveRuntimes;
                 case BuffLifecycleRejectCode.RemoveRuntimeNotFound: return RemoveRuntimeNotFound;
+                case BuffLifecycleRejectCode.None: return null;
                 case BuffLifecycleRejectCode.LifecycleRejected:
-                case BuffLifecycleRejectCode.None:
                 default:
                     return LifecycleRejected;
             }

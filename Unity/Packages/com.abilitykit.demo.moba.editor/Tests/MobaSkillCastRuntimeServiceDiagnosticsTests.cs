@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Reflection;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Area;
 using NUnit.Framework;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
@@ -74,7 +76,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(detail.Runtime.Handle, Is.EqualTo(runtime.Handle));
             Assert.That(detail.AimPos, Is.EqualTo(aimPosition));
             Assert.That(detail.AimDir, Is.EqualTo(aimDirection));
-            Assert.That(detail.BlackboardEntries, Has.Count.EqualTo(3));
+            Assert.That(detail.BlackboardEntries.Count, Is.EqualTo(3));
 
             var scalar = FindEntry(detail.BlackboardEntries, scalarKey.Id);
             Assert.That(scalar.IsCollection, Is.False);
@@ -93,6 +95,104 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             Assert.That(service.MarkPipelineEnded(runtime.Handle.RuntimeId, MobaSkillRuntimeEndReason.PipelineCompleted), Is.True);
             Assert.That(service.TryGetDetailDiagnostics(in handle, out _), Is.False);
+        }
+
+        [Test]
+        public void AreaRuntime_Unregister_ReleasesSkillRuntimeChild()
+        {
+            var skillRuntimes = new MobaSkillCastRuntimeService();
+            var runtime = CreateRuntime(skillRuntimes, 404, 4001L);
+            var areaRuntime = CreateAreaRuntime(skillRuntimes);
+            var handle = runtime.Handle;
+            var areaId = new AbilityKit.Combat.Projectile.AreaId(901);
+
+            RegisterArea(areaRuntime, areaId, in handle, 8001L);
+
+            Assert.That(skillRuntimes.CountPendingChildren(in handle, MobaSkillRuntimeChildKind.Area), Is.EqualTo(1));
+            Assert.That(areaRuntime.Unregister(areaId), Is.True);
+            Assert.That(skillRuntimes.CountPendingChildren(in handle, MobaSkillRuntimeChildKind.Area), Is.Zero);
+        }
+
+        [Test]
+        public void AreaRuntime_Replacement_ReleasesPreviousSkillRuntimeChild()
+        {
+            var skillRuntimes = new MobaSkillCastRuntimeService();
+            var previousRuntime = CreateRuntime(skillRuntimes, 405, 4002L);
+            var replacementRuntime = CreateRuntime(skillRuntimes, 406, 4003L);
+            var areaRuntime = CreateAreaRuntime(skillRuntimes);
+            var previousHandle = previousRuntime.Handle;
+            var replacementHandle = replacementRuntime.Handle;
+            var areaId = new AbilityKit.Combat.Projectile.AreaId(902);
+
+            RegisterArea(areaRuntime, areaId, in previousHandle, 8101L);
+            RegisterArea(areaRuntime, areaId, in replacementHandle, 8102L);
+
+            Assert.That(skillRuntimes.CountPendingChildren(in previousHandle, MobaSkillRuntimeChildKind.Area), Is.Zero);
+            Assert.That(skillRuntimes.CountPendingChildren(in replacementHandle, MobaSkillRuntimeChildKind.Area), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AreaRuntime_Dispose_ReleasesAllSkillRuntimeChildren()
+        {
+            var skillRuntimes = new MobaSkillCastRuntimeService();
+            var runtime = CreateRuntime(skillRuntimes, 407, 4004L);
+            var areaRuntime = CreateAreaRuntime(skillRuntimes);
+            var handle = runtime.Handle;
+
+            RegisterArea(areaRuntime, new AbilityKit.Combat.Projectile.AreaId(903), in handle, 8201L);
+            RegisterArea(areaRuntime, new AbilityKit.Combat.Projectile.AreaId(904), in handle, 8202L);
+
+            Assert.That(skillRuntimes.CountPendingChildren(in handle, MobaSkillRuntimeChildKind.Area), Is.EqualTo(2));
+            areaRuntime.Dispose();
+            Assert.That(skillRuntimes.CountPendingChildren(in handle, MobaSkillRuntimeChildKind.Area), Is.Zero);
+        }
+
+        private static MobaSkillCastRuntime CreateRuntime(
+            MobaSkillCastRuntimeService skillRuntimes,
+            int skillId,
+            long rootContextId)
+        {
+            var aimPosition = Vec3.Zero;
+            var aimDirection = Vec3.Forward;
+            var request = new MobaSkillCastRuntimeCreateRequest(
+                skillId, 1, 1, 1, 10, 20, in aimPosition, in aimDirection, rootContextId);
+            return skillRuntimes.Create(in request);
+        }
+
+        private static MobaAreaRuntimeService CreateAreaRuntime(MobaSkillCastRuntimeService skillRuntimes)
+        {
+            var areaRuntime = new MobaAreaRuntimeService();
+            SetPrivateField(areaRuntime, "_skillRuntimes", skillRuntimes);
+            return areaRuntime;
+        }
+
+        private static void RegisterArea(
+            MobaAreaRuntimeService areaRuntime,
+            AbilityKit.Combat.Projectile.AreaId areaId,
+            in MobaSkillCastRuntimeHandle handle,
+            long sourceContextId)
+        {
+            areaRuntime.RegisterSpawn(
+                areaId,
+                701,
+                10,
+                center: default,
+                radius: 2f,
+                collisionLayerMask: 0,
+                maxTargets: 1,
+                frame: 1,
+                delayFrames: 0,
+                sourceContextId: sourceContextId,
+                rootContextId: 8000L,
+                ownerContextId: sourceContextId,
+                skillRuntimeHandle: handle);
+        }
+
+        private static void SetPrivateField<T>(object target, string fieldName, T value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, fieldName);
+            field.SetValue(target, value);
         }
 
         private static MobaSkillRuntimeBlackboardEntryDiagnostics FindEntry(

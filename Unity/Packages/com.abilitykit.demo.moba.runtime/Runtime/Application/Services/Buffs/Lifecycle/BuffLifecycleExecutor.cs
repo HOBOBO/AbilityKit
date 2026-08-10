@@ -120,8 +120,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
                 var runtime = list[i];
                 if (!key.Matches(runtime)) continue;
 
-                removed = true;
-                EndRuntime(target, list, i, runtime, request.SourceActorId > 0 ? request.SourceActorId : runtime.SourceId, normalizedReason);
+                removed |= EndRuntime(target, list, i, runtime, request.SourceActorId > 0 ? request.SourceActorId : runtime.SourceId, normalizedReason);
             }
 
             if (!removed) return Reject(BuffLifecycleRejectCode.RemoveRuntimeNotFound, $"buff runtime not found. target={request.TargetActorId} buffId={request.BuffId} source={request.SourceActorId} reason={request.Reason}.");
@@ -135,11 +134,11 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
         }
 
         /// <summary>
-        /// 结束单个 Buff 运行时。顺序必须保持：先停持续行为/清 owner 绑定/发布事件，再从列表移除并回收到对象池。
+        /// 结束单个 Buff 运行时。先从仓库提交移除，再清理绑定、发布提交后事件并回收到对象池。
         /// </summary>
-        public void EndRuntime(global::ActorEntity target, List<BuffRuntime> list, int index, BuffRuntime runtime, int sourceActorId, TraceLifecycleReason reason)
+        public bool EndRuntime(global::ActorEntity target, List<BuffRuntime> list, int index, BuffRuntime runtime, int sourceActorId, TraceLifecycleReason reason)
         {
-            _endFlow.EndRuntime(target, list, index, runtime, sourceActorId, reason);
+            return _endFlow.EndRuntime(target, list, index, runtime, sourceActorId, reason);
         }
 
         private bool TryGetTarget(int actorId, out global::ActorEntity target)

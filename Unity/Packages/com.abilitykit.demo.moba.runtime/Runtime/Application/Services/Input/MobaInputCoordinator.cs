@@ -53,6 +53,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         protected override bool Dispatch(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command, out MobaInputCommandResult result)
         {
+            if (!_contracts.TryValidateCommand(context, frame, command, out result))
+            {
+                return false;
+            }
+
             return _handlers.TryHandle(context, frame, command, out result);
         }
 

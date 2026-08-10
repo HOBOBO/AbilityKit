@@ -61,6 +61,7 @@ namespace AbilityKit.Game.Flow
         Task GatewayRoomPreparationTask { get; }
         bool ShouldPrepareGatewayRoom();
         void StartGatewayRoomPreparation();
+        void CompleteGatewayRoomPreparation();
         void StopGatewayRoomPreparation();
         void TickGatewayRoomConnection(float deltaTime);
         void OnStartSessionRequested();

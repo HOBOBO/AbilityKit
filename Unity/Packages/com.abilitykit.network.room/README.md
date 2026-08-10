@@ -102,6 +102,21 @@ var sub = await flow.SubscribeStateSyncAsync(...);
 var restore = await flow.RestoreAsync(...);   // 按 NextStep 续上
 ```
 
+## 🆕 GatewayMultiplayerSession（新项目快速接入）
+
+新项目用 **~10 行代码**完成"连接 → 登录 → 建房/加入 → 准备 → 开战 → 订阅状态同步"：
+
+```csharp
+var session = await GatewayMultiplayerSession.CreateAsync(
+    "127.0.0.1", 4000, "player-1",
+    RoomGatewayLaunchSpec.CreateDefault("yourgame", "yourgame-world"));
+// session.SdkClient — 战斗数据面；session.Result — roomId/battleId/playerId
+session.Tick(deltaTime);
+session.Dispose();
+```
+
+替代各 demo 各自实现的 ~200 行组装代码。可选：`transportFactory`（WebSocket/LiteNetLib）、`joinRoomId`（加入已有房间）、`configureRoomClient`（游戏专属推送）。
+
 ## 相关
 
 - 组装根/生命周期 → `com.abilitykit.network.sdk`

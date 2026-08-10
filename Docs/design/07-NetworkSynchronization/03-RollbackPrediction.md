@@ -258,10 +258,13 @@ flowchart TB
 
 ## 7. 客户端预测与重演
 
-AbilityKit 中有两个层级的客户端预测实现：
+AbilityKit 中存在三层不同职责的客户端预测实现，不能仅因都包含“prediction”或“rollback”命名就视为同一套完整能力：
 
-1. `ClientPredictionRunner`：轻量封装，适合测试或简单客户端。
-2. `ClientPredictionDriverModule`：Host Extension 的正式运行时模块，包含远端输入源、本地输入源、预测窗口、权威输入对账、哈希对账和 replay 超时保护。
+1. `PredictionCoordinator`：StateSync 包内的通用流程骨架，管理 `StateSlots`、输入历史和字典快照，但冲突分支会先清空输入历史再调用 replay。
+2. `ClientPredictionRunner`：轻量封装，适合测试或简单客户端；其恢复入口直接尝试恢复分歧帧，不能替代 Host 的完整对账模块。
+3. `ClientPredictionDriverModule`：Host Extension 的正式运行时模块，包含远端输入源、本地输入源、预测窗口、权威输入对账、哈希对账和 replay 超时保护。
+
+正式业务接入应优先选择第 3 层或业务专用控制器，并单独核验输入保留、状态导入、回滚帧选择、重演终点和表现层刷新，而不能把通用 Coordinator 的 API 存在误写成完整 reconciliation。
 
 ### 7.1 轻量 Runner
 
@@ -312,7 +315,9 @@ sequenceDiagram
     end
 ```
 
-需要注意一个源码事实：轻量 `ClientPredictionRunner.HandleRollbackRequested` 当前直接 `TryRestore(rollbackFrame)`，其中 `rollbackFrame` 是 `ClientPredictionReconciler` 触发的哈希不一致帧。Host Extension 的完整模块则会回滚到 `mismatchFrame - 1`，再从分歧帧开始重演。正式游戏接入更应该参考 `ClientPredictionDriverModule` 的逻辑。
+需要注意两个源码事实：轻量 `ClientPredictionRunner.HandleRollbackRequested` 当前直接 `TryRestore(rollbackFrame)`，其中 `rollbackFrame` 是 `ClientPredictionReconciler` 触发的哈希不一致帧；Host Extension 的完整模块则会回滚到 `mismatchFrame - 1`，再从分歧帧开始重演。正式游戏接入更应该参考 `ClientPredictionDriverModule` 的逻辑。
+
+此外，StateSync 通用 `PredictionCoordinator.Reset()` 的实现是将当前帧设为 0、确认帧设为 `Frame.Invalid`、清空输入历史，并调用 `_snapshotStore.PruneBefore(Frame.Invalid)`。由于 `Frame.Invalid.Value == -1`，该裁剪只删除小于 -1 的帧，通常不会清理从 0 开始的已有预测快照。文档、测试和业务调用方应把它视为“重置游标与输入”，而不是“完整清空预测历史”。
 
 ### 7.2 哈希对账
 
@@ -484,15 +489,24 @@ flowchart LR
 2. 注册 `ShooterPackedSnapshotRollbackProvider`。
 3. 创建 `RollbackCoordinator(registry, new RollbackSnapshotRingBuffer(rollbackBufferFrames))`。
 
-它还提供 `TryRestorePredictedSnapshot(frame)`，用于恢复客户端预测快照并刷新表现层。
+它还提供 `TryRestorePredictedSnapshot(frame)`，用于恢复客户端预测快照并刷新表现层。收到 packed 权威快照后，控制器会记录预测帧/hash、权威帧/hash、导入后 runtime hash、重演 tick 数和 pending input 数量；发生 hash mismatch、导入失败、世界不匹配或帧距离超限时进入 `CatchUp`/`AwaitingFullSnapshot` 等恢复状态。`Full` 或 `AuthorityOverride` 标记的快照属于强恢复快照，不能与普通增量校正混为一谈。
 
-这种设计复用了状态同步文档中描述的 packed/pure-state 快照能力：状态同步负责“接收权威状态”，回滚负责“保存本地历史状态并恢复”。
+这种设计复用了状态同步文档中描述的 packed/pure-state 快照能力：状态同步负责“接收权威状态”，回滚负责“保存本地历史状态并恢复”。但 Shooter 的 recovery/full snapshot 请求、重连触发和 reliable event baseline 恢复属于客户端同步与会话链路，不是 `RollbackCoordinator` 单独提供的能力。
 
 ---
 
 ## 10. 设计约束与查漏补缺
 
-### 10.1 已落地设计
+### 10.1 证据成熟度
+
+| 能力 | 当前证据 | 结论 |
+|------|----------|------|
+| `RollbackCoordinator`、Provider registry、ring buffer | E0 源码与局部 E3 单元/契约测试 | 基础设施可复用，但不自动代表业务状态覆盖完整 |
+| `ClientPredictionDriverModule` | E0 实现、MOBA 运行时工厂调用、Host 生命周期接线 | 已有 E2 采用；仍需按具体玩法验证 Provider 完整性和预算 |
+| Shooter packed rollback/reconciliation | E2 Shooter 客户端运行链、状态 hash 与 rollback provider | 具备专用 recovery 逻辑；不能外推为通用 Coordinator 已完成 |
+| Smoke、回放与 CI 发布门禁 | 由 Shooter smoke artifact、FrameRecord 测试和 `tools/test-gates.json` 分层提供 | E3/E4/E5 必须分开记录，局部测试不等于每次 PR 都执行的 gate |
+
+### 10.2 已落地设计
 
 - `IRollbackStateProvider` 让框架与业务状态结构解耦。
 - `RollbackRegistry` 通过 Key 排序和 Seal 保证 Provider 集合稳定。
@@ -503,7 +517,7 @@ flowchart LR
 - `ServerRollbackModule` 提供服务端按历史输入重演的基础能力。
 - Shooter 和 MOBA 分别展示了“packed snapshot provider”和“细粒度业务 provider”的两种落地方式。
 
-### 10.2 使用约束
+### 10.3 使用约束
 
 | 约束 | 原因 | 建议 |
 |------|------|------|
@@ -515,7 +529,7 @@ flowchart LR
 | 输入比较只比较 OpCode、Player、Payload | 当前 `InputsEqual` 不比较其他外部状态 | 输入命令 payload 应包含决定模拟结果的全部参数 |
 | 恢复后表现层需要刷新 | 逻辑世界恢复不会自动重建所有 View 状态 | Shooter 在恢复后调用 `PublishRuntimeSnapshot()` |
 
-### 10.3 相关专题边界
+### 10.4 相关专题边界
 
 | 专题 | 与回滚预测的关系 | 源码锚点 |
 |------|------------------|----------|
@@ -526,4 +540,4 @@ flowchart LR
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-06-23*
+*文档版本：v2.1 | 最后更新：2026-08-09*

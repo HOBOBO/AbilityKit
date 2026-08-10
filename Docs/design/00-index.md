@@ -122,6 +122,7 @@ flowchart TB
 9. [预测与表现重整](07-NetworkSynchronization/03.1-PredictionReconciliationDesign.md)
 10. [回放系统](07-NetworkSynchronization/04-ReplaySystem.md)
 11. [会话协调](07-NetworkSynchronization/05-SessionCoordination.md)
+12. [多人联网 SDK 新示例接入指南](07-NetworkSynchronization/07-MultiplayerSdkIntegrationGuide.md)
 
 ---
 
@@ -186,6 +187,9 @@ flowchart TB
 | [07-CodeGen 与 Luban 生产链路](05-CommonModules/07-CodeGenAndLubanProductionPipeline.md) | 生成与发布供应链 | 生成资产所有权、Roslyn/runtime CodeGen 双运行面、Luban 候选晋升、package 权威源、Console 副本、失败传播与自动化缺口 |
 | [08-ActionTimeline 数据协议与播放边界](05-CommonModules/08-ActionTimelineDataAndPlayback.md) | 时间线数据协议 | ActionEditor DTO/logic JSON、公共与 MOBA 播放器、Ability phase、clip identity、reset/异常/确定性边界 |
 | [09-Excel 与 ScriptableObject 编辑器同步](05-CommonModules/09-ExcelScriptableObjectSync.md) | Editor 数据同步 | 表头/schema/codec、导入提交边界、baseline 三方导出、代码生成、批处理和成熟度缺口 |
+| [Dataflow 处理器链与执行边界](../../Unity/Packages/com.abilitykit.dataflow/Document/Dataflow数据流处理模块开发设计文档.md) | 包内 canonical | 类型兼容回灌、Damage 异形 Context 协议、slot 字符串键、Abort/Failure、Clone/Processor 所有权、E1 采用与测试缺口 |
+| [HotReload Entitas 系统热替换设计](../../Unity/Packages/com.abilitykit.hotreload/Document/HotReload热更新运行时模块开发设计文档.md) | 包内 canonical | Entry/Proxy/Overlay、Editor DLL 装载、Apply 非事务语义、世界状态所有权、静态重置、失败矩阵与 E1 成熟度 |
+| [Threading 线程与并发工具](../../Unity/Packages/com.abilitykit.threading/Document/Threading线程与并发工具模块开发设计文档.md) | 包内 canonical | 动态线程池、优先级队列、Fiber、轮询与关闭限制、E0 独立/实验性基础设施及生产采用门槛 |
 
 ### 06 ECS 架构
 
@@ -201,14 +205,17 @@ flowchart TB
 
 | 文档 | 定位 | 说明 |
 |------|------|------|
-| [00-网络同步能力地图](07-NetworkSynchronization/00-SynchronizationCapabilityMap.md) | 同步地图 | FramePacket、RemoteFrameAggregator、SessionCoordinator、RemoteSyncAdapter、Gateway Flow、Room/Battle Grain、回放与 Demo 接入总览 |
+| [Network SDK 组装、生命周期与 Transport 边界](../../Unity/Packages/com.abilitykit.network.sdk/README.md) | 包内 canonical | Builder factory 互斥与 owned connection、transport 延迟创建、Tick/Dispose、dispatcher、池化 payload、失败矩阵及 TCP/InMemory/LiteNet/WebSocket 证据分层 |
+| [00-网络同步能力地图](07-NetworkSynchronization/00-SynchronizationCapabilityMap.md) | 同步地图 | FramePacket、RemoteFrameAggregator、Coordinator 契约与配置、阶段化 Room Gateway Flow、业务自有数据面、Room/Battle Grain、回放与 Demo 接入总览 |
 | [01-帧同步机制](07-NetworkSynchronization/01-FrameSync.md) | 帧同步 | FrameIndex、PlayerInputCommand、IWorldInputSink、FrameSyncDriverModule、FramePacket、FramePacketNetAdapter、ServerFrameTimeModule 与 Orleans BattleFrameSyncGrain |
-| [02-状态同步](07-NetworkSynchronization/02-StateSync.md) | 状态同步 | WorldStateSnapshot、SnapshotBuffer、PredictionCoordinator、快照打包、Shooter packed/pure-state 同步 |
-| [03-回滚预测](07-NetworkSynchronization/03-RollbackPrediction.md) | 预测回滚 | IRollbackStateProvider、RollbackCoordinator、环形快照、客户端预测、哈希对账与 Host 回滚重演 |
-| [03.1-预测与表现重整](07-NetworkSynchronization/03.1-PredictionReconciliationDesign.md) | 预测表现 | 客户端预测分级、逻辑对账、视图重绑、插值失效、Cue 去重与恢复失败边界 |
-| [04-回放系统](07-NetworkSynchronization/04-ReplaySystem.md) | 回放记录 | RecordContainer、RecordSession、FrameRecordFile、BasicReplayController、Console akrec 录制与回放格式 |
-| [05-会话协调](07-NetworkSynchronization/05-SessionCoordination.md) | 会话协调 | SessionCoordinator、ExistingWorldSessionCoordinatorHost、RemoteSyncAdapter、RoomGatewaySessionFlow、RoomGrain、BattleLogicHostGrain 与端侧帧包适配 |
+| [02-状态同步](07-NetworkSynchronization/02-StateSync.md) | 状态同步 | 元信息快照与实体 rollback bytes 双轨、SnapshotBuffer clone/锁边界、通用 hash/diff 字段限制、PredictionCoordinator 骨架及 Shooter packed/pure-state 采用 |
+| [03-回滚预测](07-NetworkSynchronization/03-RollbackPrediction.md) | 预测回滚 | RollbackCoordinator/环形快照、Coordinator/Runner/Host Driver 分层、通用 replay/Reset 缺口、Shooter packed recovery 与 E0-E5 证据 |
+| [03.1-预测与表现重整](07-NetworkSynchronization/03.1-PredictionReconciliationDesign.md) | 预测表现 | 通用预测分级、Shooter 本地校正与远端插值、Hybrid packed 双路与 pure-state 例外、full snapshot/reliable event 恢复 |
+| [04-回放系统](07-NetworkSynchronization/04-ReplaySystem.md) | 回放记录 | RecordContainer/Session、FrameRecord optimized facade 与 v4 writer/v1-v4 reader、Shooter minimized replay、Smoke 和 CI gate 分层 |
+| [05-会话协调](07-NetworkSynchronization/05-SessionCoordination.md) | 会话协调 | Coordinator 当前契约/配置/DTO 基线、阶段化 RoomGatewaySessionFlow、Shooter Room 控制面与独立 battle 数据面、Room/Battle Grain 及既有 world 所有权边界 |
 | [06-FrameRecord 编码与 Smoke 证据链](07-NetworkSynchronization/06-FrameRecordCodecAndSmokeEvidence.md) | 编码与运行证据 | FrameRecord codec 身份、基础/优化格式边界、StateHash 版本、Smoke 录制回放、artifact manifest 与差异验证 |
+| [07-多人联网 SDK 新示例接入指南](07-NetworkSynchronization/07-MultiplayerSdkIntegrationGuide.md) | SDK 接入配方 | GatewayMultiplayerSession、StateSync/FrameSync 装配、协议与房间适配、TCP 默认入口及 InMemory/LiteNet/WebSocket 扩展传输边界 |
+| [08-多人联网模块优化计划](07-NetworkSynchronization/08-NetworkOptimizationPlan.md) | 优化路线 | 本轮完成状态（P2.2/WIP 稳定化）+ 剩余优化项（GatewayMultiplayerSession 接入 / 热路径 GC / Console 合并 / 正确性收尾 / UDP-WS 服务端 / DemoHarness 迁出 / 预测栈统一）按价值-成本-阻塞排序、前置依赖与测试安全网、推荐推进序 |
 
 ### 08 玩法模块
 
@@ -226,7 +233,9 @@ flowchart TB
 | [09-EntityManager 与 SkillLibrary 索引基础设施](08-GameplayModules/09-EntityAndSkillIndexing.md) | 战斗索引 | 实体显式键、技能派生键、主存储通知顺序、非事务一致性、比较器边界与成熟度证据 |
 | [10-Motion Pipeline 与约束求解](08-GameplayModules/10-MotionPipeline.md) | 移动组合内核 | source 组内选择、跨组抑制、solver/leash/collision、事件时序、source 快照、池化所有权与确定性边界 |
 | [11-Continuous 框架接口设计](08-GameplayModules/11-ContinuousFrameworkDesign.md) | Continuous 接口设计 | IContinuous、IContinuousManager、最小配置+可选扩展、Stack/Periodic/Cue/Tag/Modifier 五种运行时模型、与 Triggering/Behavior/Buff 的协作边界 |
-| [12-GameplayTags 层级语义与工程边界](08-GameplayModules/12-GameplayTagsHierarchyAndEngineeringBoundaries.md) | 标签目录与状态契约 | 层级匹配方向、显式集合、Query/Requirements、Owner 来源引用、编辑器生产链、持久化同步身份与测试门禁 |
+| [GameplayTags 快速接入](../../Unity/Packages/com.abilitykit.gameplaytags/README.md) | 包内入口 | 标签目录注册、层级匹配、NetIndex 反查、Ability 服务装配、模板与 Editor 资产边界 |
+| [GameplayTags 标签系统模块](../../Unity/Packages/com.abilitykit.gameplaytags/Document/GameplayTags标签系统模块开发设计文档.md) | 包内 canonical | Core/Template/Ability Service 分层、Query/Requirements、owner/source 引用、序列化与协议身份风险、E0-E3 证据边界 |
+| [12-GameplayTags 层级语义与工程边界](08-GameplayModules/12-GameplayTagsHierarchyAndEngineeringBoundaries.md) | 跨模块 canonical | 层级匹配方向、显式集合、Query/Requirements、Owner 来源引用、编辑器生产链、持久化同步身份与测试门禁 |
 
 ### 09 示例与验收
 
@@ -262,17 +271,17 @@ flowchart TB
 | [04.2-Shooter Runtime、Svelto 装配与恢复边界](09-ImplementationExamples/Shooter/01-RuntimeSveltoSimulation.md) | Shooter 运行时 | Blueprint/WorldModule 装配、RuntimePort 生命周期、完整 Tick 边界、Svelto 结构提交、实体容量与 packed full/delta 恢复语义 |
 | [04.3-Shooter Snapshot、Hash 与同步模型](09-ImplementationExamples/Shooter/02-SnapshotHashSync.md) | Shooter 同步 | packed/pure-state snapshot、状态 hash、客户端同步控制器 |
 | [04.4-Shooter Gateway、Orleans 与 Smoke 验收](09-ImplementationExamples/Shooter/03-GatewayOrleansSmoke.md) | Shooter 服务端 | RoomFlow、RoomGrain、BattleRuntimeAdapter、FrameSyncGrain、烟测 |
-| [04.5-Shooter 客户端同步策略](09-ImplementationExamples/Shooter/04-ClientSyncStrategies.md) | 客户端同步 | Session 门面、profile/工厂真实映射、输入健康、packed runtime 校正、pure-state baseline 与远端插值/恢复边界 |
+| [04.5-Shooter 客户端同步策略](09-ImplementationExamples/Shooter/04-ClientSyncStrategies.md) | 客户端同步 | profile/工厂映射、pending input 确认与有限重演、Hybrid packed 双路、pure-state baseline、full snapshot 去重及重连/reliable event 恢复 |
 | [04.6-Shooter 服务端适配与 Smoke 证据深潜](09-ImplementationExamples/Shooter/05-ServerFlowAndSmokeDeepDive.md) | 服务端流程 | 同步模板启动路线、稳定玩家槽位与 worldId、Room 启动/late join 事务边界、packed/pure-state observer baseline、单双进程 Smoke 与 replay/cleanup 证据 |
 | [04.7-Shooter 纯状态预算与兴趣范围深潜](09-ImplementationExamples/Shooter/06-PureStateBudgetAndInterest.md) | 状态预算 | Baseline/Active 双预算、优先级与距离排序、AOI Enter/Stay/Leave、量化、客户端基线校验与重同步边界 |
 | [04.8-Shooter Smoke 验证用例深潜](09-ImplementationExamples/Shooter/07-SmokeValidationCases.md) | Smoke 验证 | 单进程拓扑、packed 协议锚点、stale 保护、差异化投影恢复、玩法终局、replay 证据与清理风险 |
-| [04.9-Shooter 网络模块深潜](09-ImplementationExamples/Shooter/08-NetworkModulesDeepDive.md) | 网络模块 | Gateway Flow、FrameSyncCoordinator、Snapshot Controller、Lag Compensation、Reconnect |
+| [04.9-Shooter 网络模块深潜](09-ImplementationExamples/Shooter/08-NetworkModulesDeepDive.md) | 网络模块 | Room 控制连接、独立 battle transport、battle handle、输入 single-flight 队列、receive-thread enqueue/main-thread Drain、ack 与 baseline/resync |
 | [04.10-Shooter Svelto 性能模式深潜](09-ImplementationExamples/Shooter/09-SveltoPerformanceModeDeepDive.md) | 性能模式 | struct component、ExclusiveGroup、ScenarioRunner、Benchmark 与大规模预算诊断 |
 | [04.11-Shooter 表现会话与视图管线深潜](09-ImplementationExamples/Shooter/10-PresentationSessionAndViewDeepDive.md) | 表现会话 | PresentationFacade、Session、Stream、Projection、Binder、Reconnect 驱动 |
-| [04.12-Shooter 插值、混合预测与诊断深潜](09-ImplementationExamples/Shooter/11-InterpolationAndPredictionDeepDive.md) | 插值与预测 | AuthoritativeInterpolation、HybridHeroPrediction、Diagnostics、DOTS Binder、TimeAnchor |
-| [04.13-Shooter 逻辑层流程与单机/多人模式](09-ImplementationExamples/Shooter/12-LogicLayerFlowSingleAndMultiplayer.md) | 逻辑层流程 | 输入、逻辑处理、输出、单机本地闭环、多人 Coordinator/服务端权威闭环 |
+| [04.12-Shooter 插值、混合预测与诊断深潜](09-ImplementationExamples/Shooter/11-InterpolationAndPredictionDeepDive.md) | 插值与预测 | 本地主控局部校正/有限重演、远端插值、Hybrid packed/pure-state 路由、full snapshot recovery、Diagnostics 与 TimeAnchor |
+| [04.13-Shooter 逻辑层流程与单机/多人模式](09-ImplementationExamples/Shooter/12-LogicLayerFlowSingleAndMultiplayer.md) | 逻辑层流程 | 输入、逻辑处理、输出、单机本地闭环、多人 Room 控制面与 battle 数据面、主线程 Session 应用和服务端权威闭环 |
 | [04.14-Shooter 战斗玩法内核深潜](09-ImplementationExamples/Shooter/13-BattleGameplayKernelDeepDive.md) | 战斗内核 | 有序 fixed tick、Twin 五次穿透、敌人波次、空间索引、Bot 输入、终局边界与 checkpoint 确定性续跑 |
-| [04.15-Shooter 多进程故障矩阵与收敛证据](09-ImplementationExamples/Shooter/14-MultiprocessFaultMatrixAndConvergenceEvidence.md) | 故障矩阵 | recoverable retry、Gateway offline、slow consumer、三轮周期断线、版本化 manifest、PureState/reliable/FrameRecord diff/replay 收敛及进程端口治理 |
+| [04.15-Shooter 多进程故障矩阵与收敛证据](09-ImplementationExamples/Shooter/14-MultiprocessFaultMatrixAndConvergenceEvidence.md) | 故障矩阵 | 双连接故障、recoverable retry、Gateway offline、slow consumer、周期断线、manifest/diagnostic/replay/diff 收敛、进程端口治理及 E3 契约/E4 artifact/E5 CI 触发边界 |
 
 ### 10 工程质量与测试
 
@@ -286,6 +295,16 @@ flowchart TB
 | [06-Beta 稳定化与发布检查清单](10-EngineeringQuality/06-BetaStabilizationAndReleaseChecklist.md) | 发布门禁 | Beta 范围、阻断级缺陷、兼容性、性能、运行证据、回滚准备与发布签核清单 |
 | [07-Analysis Artifact 与运行证据](10-EngineeringQuality/07-AnalysisArtifactAndRuntimeEvidence.md) | 分析产物契约 | artifact 身份、schema 与完整性、运行元数据、证据分级、发布门禁、保留策略和隐私边界 |
 | [08-AI 模型产物运行时策略](10-EngineeringQuality/08-AiModelArtifactRuntimePolicy.md) | 模型发布策略 | 训练产物、metadata/hash、候选验证、原子发布、加载失败策略、推理回退、观测与版本治理 |
+| [09-帧同步与状态同步审计记录（2026-08-03）](10-EngineeringQuality/09-FrameSyncStateSyncAuditRecord-20260803.md) | 历史审计 | 保留 2026-08-03 阶段审计、2026-08-09 复核矩阵和历史决策；当前稳定契约以 FrameSync、Session、FrameRecord、测试与发布 canonical 为准 |
+| [Ability Explain 快速接入](../../Unity/Packages/com.abilitykit.ability.explain/README.md) | Editor 可解释化入口 | 最小接入、八类扩展、Forest/Diff/Relation/Details 和已知实现边界 |
+| [Ability Explain 设计](../../Unity/Packages/com.abilitykit.ability.explain/Document/AbilityExplainDesign.md) | 包内 canonical | Registry 仲裁、Presenter 生命周期、Discovery、Diff/Relation 真实语义、失败矩阵与 E0-E1 证据 |
+| [Ability Explain Mock Sample](../../Unity/Packages/com.abilitykit.ability.explain/Samples~/MockIntegration/MockIntegration.md) | Editor Sample | 六类主扩展、Timeline Details 演示、操作入口和非生产边界 |
+| [Ability TestKit 设计](../../Unity/Packages/com.abilitykit.ability.testkit/Document/AbilityTestKit能力测试工具模块开发设计文档.md) | 包内 canonical | Trigger World Harness 所有权、Tick/Dispose、测试动作、内存 Loader 与 Moba E3 局部测试 |
+| [Analyzer 设计](../../Unity/Packages/com.abilitykit.analyzer/Document/Analyzer静态约束分析模块开发设计文档.md) | 包内 canonical | Runtime、Unity Build Checker、Roslyn 三运行面，配置 fail-open、构建阻断和 DLL 同步责任 |
+| [BaseEditor 设计](../../Unity/Packages/com.abilitykit.base.editor/Document/BaseEditor基础编辑器工具模块开发设计文档.md) | 包内 canonical | 可插拔窗口、Builder 断链、Pool Monitor、Action 预览和 legacy GameplayTag 所有权 |
+| [ActionEditorImpl 设计](../../Unity/Packages/com.abilitykit.actioneditor.impl/Document/ActionEditorImpl动作编辑器运行实现模块开发设计文档.md) | 包内 canonical | Authoring 类型、logic 导出、DTO、基础播放器与 MOBA 执行链分工 |
+
+> 帧同步与状态同步的阶段性材料已归档为 [09-FrameSyncStateSyncAuditRecord-20260803.md](10-EngineeringQuality/09-FrameSyncStateSyncAuditRecord-20260803.md)。它只保留历史审计和复核记录，不替代稳定的 FrameSync、Session、FrameRecord、Smoke 或 Analysis Artifact canonical。
 
 ### 11 文档工程计划
 
@@ -308,7 +327,8 @@ flowchart TB
 | 文档 | 定位 | 说明 |
 |------|------|------|
 | [01-碰撞系统设计](13-FrameworkCore/01-CollisionSystemDesign.md) | 碰撞基础设施 | Broadphase 接口、Grid/Dynamic AABB Tree、Job 友好数据布局、帧同步兼容与实现计划 |
-| [02-行为树集成设计](13-FrameworkCore/02-BehaviorTreeIntegrationDesign.md) | 行为系统桥接 | 自研 Behavior 与 BTree 的决策、结果事件、黑板同步、外部节点工厂和集成边界 |
+| [Behavior 行为执行模块](../../Unity/Packages/com.abilitykit.behavior/Document/Behavior行为执行模块开发设计文档.md) | 包内 canonical | Decision/Executor、帧级 Output、生命周期、Manager 所有权、异常边界与 E0-E2 采用证据 |
+| [02-行为树集成设计](13-FrameworkCore/02-BehaviorTreeIntegrationDesign.md) | 跨模块集成 | Behavior、BTCore 与 MOBA Brain 的决策、结果事件、黑板同步、外部节点工厂和集成边界 |
 | [03-Trace 生命周期与导出协议](13-FrameworkCore/03-TraceLifecycleAndExportProtocol.md) | 可观测生命周期 | Trace scope 所有权、retain/release、树结构、快照、导出协议、失败处理与测试门禁 |
 | [04-Context 流程实体、快照与 Trace 桥接](13-FrameworkCore/04-ContextFlowSnapshotAndTraceBridge.md) | 上下文传递 | Context 身份和来源链、可变运行态与只读快照、跨异步边界传播、Trace 关联与回放证据 |
 | [05-确定性网格导航](13-FrameworkCore/05-DeterministicGridNavigation.md) | 导航内核 | 网格身份、固定邻居顺序、寻路 tie-break、阻挡变更、路径结果协议、hash 与回放验证 |
@@ -323,13 +343,21 @@ flowchart TB
 | Core | `Unity/Packages/com.abilitykit.core/Runtime` | `src/AbilityKit.Core` | - |
 | World DI | `Unity/Packages/com.abilitykit.world.di/Runtime` | `src/AbilityKit.World.DI` | - |
 | Host | `Unity/Packages/com.abilitykit.host/Runtime` | `src/AbilityKit.Host` | - |
-| Host Extension | `Unity/Packages/com.abilitykit.host.extension/Runtime` | `src/AbilityKit.Host.Extension` | - |
+| Host Extension | `Unity/Packages/com.abilitykit.host.extension/Runtime` | `src/AbilityKit.Host.Extension` | 客户端帧包适配与输入 single-flight 队列；不拥有 Room 或 battle 连接生命周期 |
+| Coordinator | `Unity/Packages/com.abilitykit.coordinator/Runtime` | package-linked build entry | 当前仅配置、契约、DTO 与 codec；旧 SessionCoordinator、Local/Remote/Hybrid adapter 和 remote transport 实现不在当前 Package |
+| Network Room | `Unity/Packages/com.abilitykit.network.room/Runtime` | package-linked build entry | `RoomGatewaySessionFlow` 是阶段化控制面；`GatewayMultiplayerSession` 仅 E0 且未发现真实消费者，不拥有持续 battle 数据面 |
+| Shooter Client Network | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client` | `src/AbilityKit.Demo.Shooter.Runtime.Tests` | E2 双连接业务链：Room 控制连接与独立 battle transport；push 经 receive-thread enqueue 后由主线程 Drain，E3 契约测试与 E4/E5 另行分层 |
 | FrameSync | `Unity/Packages/com.abilitykit.world.framesync/Runtime` | `src/AbilityKit.World.FrameSync` | `Server/Orleans/src/AbilityKit.Orleans.Contracts/FrameSync` |
 | Snapshot | `Unity/Packages/com.abilitykit.world.snapshot/Runtime` | `src/AbilityKit.World.Snapshot` | `Server/Orleans/src/AbilityKit.Orleans.Contracts/Battle` |
 | StateSync | `Unity/Packages/com.abilitykit.world.statesync/Runtime` | `src/AbilityKit.World.StateSync` | Gateway state sync handlers |
 | Triggering | `Unity/Packages/com.abilitykit.triggering/Runtime` | `src/AbilityKit.Triggering` | - |
 | Pipeline | `Unity/Packages/com.abilitykit.pipeline/Runtime` | package-linked build entry | Demo skill runner composes phases |
+| Dataflow | `Unity/Packages/com.abilitykit.dataflow/Runtime` | `src/AbilityKit.Dataflow` | DamageCalculationPipeline 与 Samples.Logic 为 E1；Dataflow 无专项测试，Damage 测试不覆盖 Pipeline |
 | Ability | `Unity/Packages/com.abilitykit.ability/Runtime` | `src/AbilityKit.Ability` | Demo battle host loads runtime assemblies |
+| Behavior | `Unity/Packages/com.abilitykit.behavior/Runtime` | `src/AbilityKit.Behavior` | Samples.Logic、BTCore 与 MOBA 有 E1/E2 调用；Manager Tick 清理风险和专项生命周期测试仍待补 |
+| GameplayTags | `Unity/Packages/com.abilitykit.gameplaytags/Runtime` | `src/AbilityKit.GameplayTags`、`src/AbilityKit.GameplayTags.Tests` | Ability 服务与 MOBA 有 E1/E2 消费；独立测试目前仅覆盖 `GameplayTag.None` 默认值和零值 |
+| HotReload | `Unity/Packages/com.abilitykit.hotreload/Runtime` | `src/AbilityKit.HotReload` | MOBA Editor 加载 HotUpdate DLL；当前无专项测试工程 |
+| Threading | `Unity/Packages/com.abilitykit.threading/Runtime` | `src/AbilityKit.Threading` | E0 独立/实验性基础设施；未发现框架外稳定生产消费者或专项测试，关闭与 Fiber 契约待治理 |
 | Targeting | `Unity/Packages/com.abilitykit.combat.targeting/Runtime` | package-linked build entry | Demo battle logic composes query adapters |
 | Entity / Skill Indexing | `Unity/Packages/com.abilitykit.combat.entitymanager/Runtime`、`Unity/Packages/com.abilitykit.combat.skilllibrary/Runtime` | `src/AbilityKit.Combat.EntityManager`、`src/AbilityKit.Combat.SkillLibrary` | MOBA entity indexing; SkillLibrary currently package example only |
 | Motion | `Unity/Packages/com.abilitykit.combat.motion/Runtime` | `src/AbilityKit.Combat.Motion` | MOBA motion component, init system and PlanActions |
@@ -338,10 +366,16 @@ flowchart TB
 | Client Game Flow Runtime | `Unity/Packages/com.abilitykit.game.view.runtime/Runtime/Flow` 与 MOBA App Flow | `src/AbilityKit.Game.View.Runtime.Tests` | Client phase feature binding、HFSM adapter、异步协调与 battle scope tests |
 | HFSM | `Unity/Packages/com.abilitykit.hfsm/Runtime` | `src/AbilityKit.HFSM.Core`、`Unity/AbilityKit.HFSM.Tests.csproj` | Shooter Bot AI、MOBA View Flow 与 Unity Action/Graph tests |
 | CodeGen / Luban | `Unity/Packages/com.abilitykit.codegen`、MOBA package Resources/LubanGen | `Unity/Packages/com.abilitykit.codegen/DotNet~/AbilityKit.SourceGenerator`、`LubanConfig/Moba`、`tools/sync_moba_json_configs.ps1` | ET config validation and Console publication replica |
-| ActionTimeline | `Unity/Packages/com.abilitykit.actionschema/Runtime`、ActionEditor exporter、MOBA timeline runtime | `src/AbilityKit.ActionSchema` | MOBA Ability Timeline phase and View runners |
+| Ability Explain | `Unity/Packages/com.abilitykit.ability.explain/Editor`、`Samples~/MockIntegration` | Unity Editor-only; no standalone .NET mirror | E0-E1；Mock Sample 可交互，未确认生产消费者、专项测试或门禁 |
+| Ability TestKit | `Unity/Packages/com.abilitykit.ability.testkit/Editor/UnitTest` | Unity Editor test helper; no standalone .NET mirror | Moba TriggerRunnerSmokeTests 提供 E3 局部消费者，不是完整集成环境 |
+| Analyzer | `Unity/Packages/com.abilitykit.analyzer/Runtime`、`Editor`、`DotNet~`、根目录插件 DLL | `src/AbilityKit.Demo.Moba.Core` 通过 AdditionalFiles 消费 | Unity 构建前置阻断与 Roslyn 诊断并存；配置 fail-open、跨平台日志和 DLL 同步仍待治理 |
+| BaseEditor | `Unity/Packages/com.abilitykit.base.editor/Editor` | Unity Editor-only; no standalone .NET mirror | PlugableWindow 与 Pool Monitor 可用；Builder、Action Preview 和 legacy GameplayTag 仍有实现/所有权缺口 |
+| ActionTimeline | `Unity/Packages/com.abilitykit.actioneditor.impl/Runtime`、third-party ActionEditor exporter、`com.abilitykit.actionschema/Runtime`、MOBA timeline runtime | `src/AbilityKit.ActionSchema` | ActionEditorImpl 负责 authoring；导出、DTO、基础 Player 和 MOBA Handler 分属相邻包，执行覆盖为局部 E2 |
 | Excel / ScriptableObject Sync | `Unity/Packages/com.abilitykit.excel-sync/Editor` | Unity Editor-only; no standalone .NET mirror | Editor authoring tool, not a server/runtime loader |
 | Combat | `Unity/Packages/com.abilitykit.combat.*` | `src/AbilityKit.Combat.*` | Demo battle logic host |
 | Record | `Unity/Packages/com.abilitykit.record/Runtime` | `src/AbilityKit.Record` | Smoke/replay tools |
+| Network SDK | `Unity/Packages/com.abilitykit.network.sdk/Runtime` | `src/AbilityKit.Network.Sdk.Tests` | Room/Battle/Moba/Shooter 有 E2 消费者，SDK 生命周期与请求契约有 E3 测试；生产入口主要使用 TCP |
+| Network Transports | `Unity/Packages/com.abilitykit.network.runtime/Runtime/Network/Runtime/Transports`、`Unity/Packages/com.abilitykit.network.transport.*/Runtime` | `src/AbilityKit.Network.Transport.*` | TCP 是 E2/E4 主链；InMemory/LiteNet/WebSocket 为 E0 实现 + E3 局部回环，不代表生产默认、真实弱网或完整跨平台验证 |
 | Orleans Contracts | - | - | `Server/Orleans/src/AbilityKit.Orleans.Contracts` |
 | Orleans Gateway | - | - | `Server/Orleans/src/AbilityKit.Orleans.Gateway` |
 | Orleans Grains | - | - | `Server/Orleans/src/AbilityKit.Orleans.Grains` |
@@ -408,6 +442,15 @@ flowchart TB
 | 2026-07-22 | 2.48 | 第十三批新增 canonical：MOBA Runtime 战斗逻辑层（职责边界、输入输出、System/Service 分工、DI、单元测试）、Console Demo Bootstrap 与 FeatureHost 链路深潜、Continuous 框架接口设计（IContinuous 五种运行时模型）；新增 03.20/03.21 专题 |
 | 2026-07-22 | 2.49 | 第十四批新增 canonical：Continuous 框架接口设计（11-ContinuousFrameworkDesign.md）移入 08-GameplayModules 目录，完善 IContinuous/Manager/Policy/Binder 体系；新增 08.11 专题 |
 | 2026-08-02 | 2.50 | P0-P1 canonical 专题补全：新增 Trace 生命周期、Analysis Artifact、FrameRecord/Smoke 证据、AI 模型产物、Context 快照桥接、确定性网格导航、Shooter RVO/Jobs 与 GameplayTags 工程边界；补齐 FrameworkCore 章节索引 |
+| 2026-08-09 | 2.51 | 117 篇设计文档与源码能力面审计：建立 E0-E5 证据等级和 P0-P2 优化矩阵，补录多人 SDK 指南及 Dataflow、HotReload、Threading、Network SDK/transport 源码入口，记录工程质量重复编号治理决策 |
+| 2026-08-09 | 2.52 | HotReload 包内 canonical 重写：补齐 MOBA Editor DLL 装载、Entry 发现、Apply/Swap 生命周期、overlay/static 所有权、非事务失败矩阵、线程与世界隔离风险、E1 证据状态和测试演进门槛 |
+| 2026-08-09 | 2.53 | Dataflow 包内 canonical 重写：修正兼容类型回灌，补齐 Damage 异形 Context 协议、slot 字符串键、Abort/Failure 部分输出、Clone/Processor 并发所有权、E1 Samples 采用和专项测试缺口 |
+| 2026-08-09 | 2.54 | Network SDK package canonical 重写：补齐 Builder/Client 所有权、延迟 transport、Tick/Dispose、dispatcher 与缓冲区边界；修正 InMemory/LiteNet/WebSocket 的测试、平台、服务端和生产采用证据 |
+| 2026-08-09 | 2.55 | Batch D 文档基线：重写 Behavior、GameplayTags 包内设计与快速接入，补齐 Threading 限制和证据边界，完善 BehaviorTree/GameplayTags 跨模块 canonical 导航、源码入口与成熟度说明；实现、专项测试、性能预算和发布门禁缺口仍保留 |
+| 2026-08-09 | 2.56 | Batch E1 Editor 可解释化与质量工具链文档基线：重写 Ability Explain README/Design/Mock Sample，以及 Ability TestKit、Analyzer、BaseEditor、ActionEditorImpl 包内 canonical；补齐静态注册、生命周期、失败矩阵、跨包消费者、测试入口和 E0-E5 边界，保留工程质量重复编号治理为后续 Batch E2 |
+| 2026-08-09 | 2.57 | Batch E2 源码化复核与编号治理：将阶段性帧同步/状态同步计划归档为带日期审计记录；修订 FrameSync、Session、FrameRecord、测试流程、MOBA/Shooter 工业化、Beta 发布和 Analysis Artifact 七篇 canonical，并同步历史入口与 E0-E5/Smoke/CI 证据边界；未改源码、测试、脚本、CI 或 artifact |
+| 2026-08-09 | 2.58 | Batch E3 StateSync/Prediction/Replay/Shooter 客户端源码化复核：修正元信息/实体状态双轨、hash/diff 与通用 replay/Reset 边界、FrameRecord v4 writer/v1-v4 reader、本地有限校正、Hybrid packed 双路、full snapshot/reconnect/reliable event 和 CI gate 分层；共修订 6 篇主体 canonical、总索引与治理路线图，仅修改 Markdown |
+| 2026-08-09 | 2.59 | Batch E4 会话协调与 Shooter 双连接网络链复核：修正 coordinator 当前仅保留契约/配置/DTO、阶段化 Room flow、业务自有 adapter/data plane、独立 battle transport、输入与 push 线程边界，以及多进程 E3 契约/E4 artifact/E5 CI 触发分层；共修订 5 篇主体 canonical、总索引与治理路线图，仅修改 Markdown |
 
 ---
 

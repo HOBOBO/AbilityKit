@@ -112,7 +112,20 @@ artifact 保留策略由环境变量控制：
 
 summary 的稳定字段包括 `caseId`、`worldId`、`tickRate`、`scenario.name`、`scenario.stepCount`、`scenario.tickCount`、`result.passed`、`result.skillCastTraceFound`、`result.effectExecutionTraceFound`、`result.projectileLaunched`、`result.traceNodeCount`、`traceCounts`、`retention.policy`、`traceJsonlPath` 和 `summaryJsonPath`。这些字段是前端诊断、CI 汇总和失败复盘的契约。
 
-### 3.5 完整战局生命周期门禁
+### 3.5 MOBA 网络 Smoke 与进程边界
+
+Console smoke 和完整战局 acceptance 仍不等于真实多人网络闭环。当前网络层有两个独立 gate：
+
+| Gate | CI policy | 当前能证明什么 |
+|---|---|---|
+| P1 `moba-smoke` | pull request、push、schedule；要求 artifact | owner/member 两客户端经 TCP Gateway 完成登录、房间阶段、战斗启动和输入提交，权威聚合帧包含双方输入 |
+| P2 `moba-multiprocess` | schedule-only；要求 artifact | host-only Orleans silo 与标准 smoke client 场景处于独立 OS 进程，端口隔离和进程生命周期可复核 |
+
+`moba-multiprocess` 当前不是“一客户端一进程”。拓扑是一个 host-only silo 进程加一个 client-only 场景进程，owner/member 两条 TCP 连接仍由后者共同持有。文档和发布证据必须按该拓扑表述，不能扩张成多客户端进程隔离。
+
+MOBA gameplay catalog 同时声明 `frame-sync-authority` 和 `state-sync-authority`，默认 gameplay profile 使用 FrameSync；MobaSmoke Program 也支持 `--sync-template`。但两个 smoke 脚本和 `tools/test-gates.json` 当前均未透传该参数，Program 默认仍是 StateSync。现有网络 gate 因此只证明默认 smoke 模板链路，不证明 FrameSync 模板已具备 E4/E5 覆盖。
+
+### 3.6 完整战局生命周期门禁
 
 `FullBattleScenario` 只证明输入脚本可以运行，不能单独证明技能、Projectile、Buff、死亡、复活和终局通过正式服务协作。完整战局因此使用两个互补入口：
 
@@ -170,7 +183,7 @@ Shooter 的同步测试不只验证 snapshot codec，还验证客户端如何消
 
 这些测试把“网络同步策略”从视觉表现中拆出来，让 snapshot/hash/prediction/reconnect 的错误可以在纯 C# 层定位。
 
-### 4.4 Orleans smoke 与 replay artifact
+### 4.4 Orleans smoke、Multiprocess 与 replay artifact
 
 Shooter 端到端 smoke 由 `Server/Orleans/tools/run_shooter_smoke.ps1` 启动。脚本定位 `AbilityKit.Orleans.ShooterSmoke.csproj`，输出目录为 `artifacts/shooter_smoke`，并强制检查 replay 文件存在且非空：
 
@@ -192,6 +205,17 @@ smoke 结果应至少覆盖以下机器可读字段：
 | late join/reconnect | `LateJoinEntryKind`、`ReconnectEntryKind`、`LateJoinProjectionFinalPlayerCount` | 晚加入和重连可获得有效投影 |
 | gameplay loop | `GameplayMoved`、`GameplayFired`、`GameplayDefeatedEnemy`、`GameplayFinalMatchState` | smoke 跑过真实战斗行为 |
 | replay artifact | `InputLogicReplayPath`、`MinimizedInputLogicReplayPath`、`InputLogicReplayValidation` | 输入逻辑可录制、可回放、可最小化 |
+
+单进程 smoke 之外，Shooter gate 继续按风险放大：
+
+| Gate | 触发策略 | 证据边界 |
+|---|---|---|
+| `shooter-multiprocess` | push + schedule | 独立进程、故障恢复、完整 run root |
+| `shooter-multiprocess-compatibility` | schedule-only | Packed/PureState、客户端数量、重连与确定性网络条件矩阵 |
+| `shooter-multiprocess-soak` | schedule-only | 16/64 observer、动态网络阶段、恢复分位数、公平性和资源趋势 |
+| `shooter-multiprocess-ownership-cleanup` | 以 gate policy 为准 | 超时后只清理 manifest 所有进程、释放端口并保护无关进程 |
+
+这些 gate 都要求 artifact。Replay 文件存在只是结构证据；只有完成 FrameRecord 回读、领域 payload 消费、同帧 hash 比较及 gate 场景断言后，才能形成更高层运行证据。具体 FrameRecord 轨道、v4 codec 和最小记录边界见 [FrameRecord 编码与 Smoke 证据链](../07-NetworkSynchronization/06-FrameRecordCodecAndSmokeEvidence.md)。
 
 ### 4.5 PlayMode 长局与密度契约
 
@@ -219,15 +243,17 @@ MOBA 与 Shooter 的工业化流程都依赖 Triggering、PlanAction、JSON 配�
 
 ## 6. 推荐执行层级
 
-| 层级 | 触发条件 | 命令/入口 |
+| 改动面 | 最小入口 | 放大入口 |
 |------|----------|-----------|
-| P0 targeted | 改动单个领域服务、DTO、validator、codec | `dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj` 或 `dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj` 的 targeted filter |
-| P1 example acceptance | 改动 MOBA 技能/Trigger/Trace/死亡复活，或 Shooter snapshot/sync/client | `moba-complete-battle-journey`、MOBA smoke tests、Shooter acceptance/spec/sync tests |
-| P1 DSL environment | 改动 TriggerPlan、ActionCall、ExecutionRoot、PlanAction schema | Unity Triggering Editor NUnit / generated csproj test entry |
-| P2 runtime smoke | 改动 Gateway/Room/BattleAdapter、runtime port、端到端同步、artifact/replay | `powershell -ExecutionPolicy Bypass -File Server/Orleans/tools/run_shooter_smoke.ps1` |
-| P2 artifact review | 改动 smoke 输出、诊断前端、replay/trace 消费 | 检查 MOBA trace/summary/batch summary 或 Shooter replay artifact |
+| 单个领域服务、DTO、validator、codec | MOBA 或 Shooter targeted xUnit | 对应 `runtime-contracts`、`shooter-fast` 或完整工程测试 |
+| MOBA 技能/Trigger/Trace/死亡复活 | 领域测试与 Console smoke | `moba-complete-battle-journey` |
+| MOBA Gateway/Room/BattleAdapter | Gateway/Grains focused tests | P1 `moba-smoke`；发布前再看 P2 `moba-multiprocess` |
+| Shooter snapshot/sync/client | acceptance/spec/sync tests | `shooter-integration`、`shooter-unity-playmode`、`shooter-multiprocess` |
+| TriggerPlan、ActionCall、ExecutionRoot、PlanAction schema | Unity Triggering Editor NUnit | 受影响示例的完整配置与 acceptance gate |
+| artifact/replay/trace 消费 | codec、schema 和字段级测试 | 对应 smoke/multiprocess gate，并保留完整 artifact |
+| 长稳、兼容和性能 | targeted benchmark 或故障场景 | schedule-only compatibility/soak/performance gate |
 
-在 CI 中，这些层级可以独立失败并产出不同诊断：P0 负责精准源码定位，P1 负责示例级行为契约，P2 负责跨进程和真实运行面闭环。
+P0/P1/P2 是 `tools/test-gates.json` 的 gate level，不应直接等同于本地、PR 或 nightly。实际准入以每个 gate 的 `requiredBefore`、`failurePolicy` 和 `ciPolicy` 为准；artifact 存在也不能替代场景断言和领域回读。
 
 ---
 
@@ -236,7 +262,7 @@ MOBA 与 Shooter 的工业化流程都依赖 Triggering、PlanAction、JSON 配�
 1. 新增 MOBA 技能、Buff、Projectile、Summon、Motion 行为时，至少补齐领域单测和一条 trace/context 断言；如果配置通过 TriggerPlan 或 PlanAction 表达，还要覆盖 DSL/配置校验。
 2. 新增 Shooter 战斗规则、敌人波次、Bot AI 或 projectile 行为时，先补 runtime/acceptance 测试，再按是否影响同步决定是否补 sync smoke。
 3. 改动 snapshot/hash/replay/artifact schema 时，必须使用字段级断言，不能只依赖人工日志检查。
-4. 改动 Gateway/Room/Grain 或端侧同步控制器时，应跑 Shooter Orleans smoke，并保留 replay artifact 作为失败复盘入口。
+4. 改动 Gateway/Room/Grain 或端侧同步控制器时，应按玩法运行 MOBA 或 Shooter Orleans smoke，并保留 replay、summary 和进程日志作为失败复盘入口。
 5. 改动 Triggering validator、ExecutionRoot 或 ActionCall DSL 时，应保证稳定错误码不被无意修改，并同步检查 MOBA 示例是否仍能通过 PlanAction/Triggering 测试。
 6. 文档更新后必须运行 Mermaid 校验和 `git diff --check`，防止流程图或 Markdown 空白破坏后续同步。
 7. 改动 MOBA 死亡、复活或结算状态时，必须运行 `moba-complete-battle-journey`；在网络事件和 View handler 接线完成前，不得把逻辑 acceptance 作为多人复活表现完成的证据。
@@ -256,6 +282,8 @@ MOBA 与 Shooter 的工业化流程都依赖 Triggering、PlanAction、JSON 配�
 8. `src/AbilityKit.Demo.Shooter.Runtime.Tests/Worlds/ShooterWorldModuleTests.cs`：Shooter runtime DI、Svelto、movement/projectile、enemy wave 和事件断言。
 9. `src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterAcceptanceSpecRunnerTests.cs`：Shooter acceptance spec 的 deterministic frame/hash/events 断言。
 10. `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/PlayMode/ShooterPlayModeSessionOptions.cs`：Shooter 长局、增援和密度配置契约。
-11. `Server/Orleans/tools/run_shooter_smoke.ps1`：Shooter Orleans smoke 启动参数、artifact 目录和 replay 文件断言。
-12. `Unity/Packages/com.abilitykit.triggering/Tests/Editor/TriggerPlanExecutableTests.cs`：TriggerPlan 可执行 DSL 与 metadata validator。
-13. `Unity/Packages/com.abilitykit.triggering/Tests/Editor/ValidatingTriggerPlanJsonDatabaseExecutionRootTests.cs`：JSON ExecutionRoot 校验和稳定错误码。
+11. `Server/Orleans/tools/run_moba_smoke.ps1` 与 `run_moba_multiprocess_smoke.ps1`：MOBA 两客户端 Gateway smoke 和当前进程隔离拓扑。
+12. `Server/Orleans/tools/run_shooter_smoke.ps1` 与 `run_shooter_multiprocess_smoke.ps1`：Shooter Orleans smoke、multiprocess profile 和 artifact 入口。
+13. `tools/test-gates.json`：MOBA/Shooter gate level、触发策略、失败策略和 artifact 要求。
+14. `Unity/Packages/com.abilitykit.triggering/Tests/Editor/TriggerPlanExecutableTests.cs`：TriggerPlan 可执行 DSL 与 metadata validator。
+15. `Unity/Packages/com.abilitykit.triggering/Tests/Editor/ValidatingTriggerPlanJsonDatabaseExecutionRootTests.cs`：JSON ExecutionRoot 校验和稳定错误码。

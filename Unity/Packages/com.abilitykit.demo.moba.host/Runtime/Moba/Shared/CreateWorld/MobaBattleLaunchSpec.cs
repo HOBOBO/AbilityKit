@@ -337,9 +337,10 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.CreateWorld
             MobaBattleLaunchSyncMode syncMode = MobaBattleLaunchSyncMode.Unspecified,
             MobaBattleLaunchAuthorityMode authorityMode = MobaBattleLaunchAuthorityMode.Unspecified)
         {
+            var createWorldSpec = startPlan.CreateWorldSpec;
             return MobaBattleLaunchSpec.FromCreateWorldSpec(
                 startPlan.LocalPlayerId,
-                in startPlan.CreateWorldSpec,
+                in createWorldSpec,
                 worldId,
                 worldType,
                 clientId,

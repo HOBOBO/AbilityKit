@@ -184,6 +184,65 @@
       ]
     },
     {
+      "name": "network-sdk",
+      "level": "P1",
+      "owner": "Network SDK Platform",
+      "description": "Network SDK layer contracts: control plane (sdk/room), battle data-plane engine + config builder, and transport implementations (InMemory/LiteNet/WebSocket) loopback.",
+      "scope": [
+        "network-runtime",
+        "network-sdk",
+        "network-battle",
+        "network-transports"
+      ],
+      "requiredBefore": [
+        "merge-network-sdk-or-transport-change"
+      ],
+      "failurePolicy": "Block the change until the network SDK, battle data-plane, and transport loopback contracts pass.",
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Network SDK tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Network.Sdk.Tests/AbilityKit.Network.Sdk.Tests.csproj"
+        },
+        {
+          "name": "Network room tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Network.Room.Tests/AbilityKit.Network.Room.Tests.csproj"
+        },
+        {
+          "name": "Network battle engine tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Network.Battle.Tests/AbilityKit.Network.Battle.Tests.csproj"
+        },
+        {
+          "name": "InMemory transport loopback",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Network.Transport.InMemory.Tests/AbilityKit.Network.Transport.InMemory.Tests.csproj"
+        },
+        {
+          "name": "LiteNet transport loopback",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Network.Transport.LiteNet.Tests/AbilityKit.Network.Transport.LiteNet.Tests.csproj"
+        },
+        {
+          "name": "WebSocket transport loopback",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Network.Transport.WebSocket.Tests/AbilityKit.Network.Transport.WebSocket.Tests.csproj"
+        },
+        {
+          "name": "Network battle config tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Network.Battle.Config.Tests/AbilityKit.Network.Battle.Config.Tests.csproj"
+        }
+      ]
+    },
+    {
       "name": "core-stability",
       "level": "P1",
       "owner": "Runtime Platform",
@@ -295,6 +354,11 @@
           "name": "Core package stability",
           "kind": "gate",
           "gate": "core-stability"
+        },
+        {
+          "name": "Network SDK layer",
+          "kind": "gate",
+          "gate": "network-sdk"
         },
         {
           "name": "MOBA CodeGen contracts",

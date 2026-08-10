@@ -22,7 +22,7 @@ namespace AbilityKit.Editor.GamplayTag
         private GameplayTagTreeView _tree;
         private SearchField _search;
 
-        [MenuItem("Tools/Gameplay Tags/Manager")]
+        // [MenuItem removed — canonical entry is in com.abilitykit.gameplaytags to avoid duplicate menu]
         public static void Open()
         {
             var w = GetWindow<GameplayTagManagerWindow>();

@@ -101,6 +101,16 @@ namespace AbilityKit.Network.Battle
             _sdkClient.Close();
         }
 
+        /// <summary>
+        /// Pumps the underlying SDK client (heartbeat / reconnect middleware). For single-threaded hosts
+        /// that drive the transport via a main-thread tick loop (alongside a queued callback dispatcher);
+        /// dispatcher-driven hosts (dedicated IO + main-thread-callback) do not need to call this.
+        /// </summary>
+        public void Tick(float deltaTime)
+        {
+            _sdkClient.Tick(deltaTime);
+        }
+
         public void SendCreateWorld(CreateWorldRequest request)
         {
             if (_options.SerializeCreateWorld == null) throw new InvalidOperationException("SerializeCreateWorld is not configured.");

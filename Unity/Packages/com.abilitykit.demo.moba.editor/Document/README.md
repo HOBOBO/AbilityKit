@@ -111,7 +111,7 @@
 ## 文档导航
 
 - [当前能力与限制](CURRENT-CAPABILITIES.md)：查询、能力位、面板、Producer 及未实现范围的当前快照。
-- [Battle Debug 可用性优化计划](BATTLE-DEBUG-USABILITY-PLAN.md)：从诊断链路自检到技能、Actor、Replay 工作流的分阶段优化基线。
+- [Battle Debug 产品优化与功能完善路线图](BATTLE-DEBUG-USABILITY-PLAN.md)：围绕发现、定位、解释、验证和证据沉淀的产品目标、阶段依赖与验收基线。
 - [故障排查](TROUBLESHOOTING.md)：Session、Capability、查询状态、刷新和 Unity 工程问题。
 - [扩展开发指南](EXTENDING.md)：新增 DTO、Store、Session Query、ViewModel 和 Panel 的标准步骤。
 - [测试与验证](TESTING.md)：构建、EditMode 测试、元数据和提交前检查。

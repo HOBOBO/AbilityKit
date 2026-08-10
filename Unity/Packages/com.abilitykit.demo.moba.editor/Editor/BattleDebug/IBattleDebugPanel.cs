@@ -33,5 +33,6 @@ namespace AbilityKit.Game.Editor
     internal interface IBattleDebugEventsTarget
     {
         void OpenForActor(long actorId);
+        void OpenRecentFailures();
     }
 }

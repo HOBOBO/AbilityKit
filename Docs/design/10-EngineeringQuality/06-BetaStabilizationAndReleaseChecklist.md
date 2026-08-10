@@ -197,23 +197,22 @@ flowchart TD
 
 测试数量、环境和性能数据会变化，不应长期复制在多篇设计文档中。CHANGELOG 可以记录发布时证据，Canonical 文档负责解释长期边界，artifact 负责保存可复核结果。
 
-### v0.1.0 Known Issues Backlog (2026-08-03 帧同步/状态同步审计)
+### 当前复核风险（2026-08-09）
 
-以下条目已确认，不阻塞 v0.1.0 Beta，计划在后续版本处理：
+下表是发布时必须重新评估的当前实现风险，不表示它们默认允许随任意 Beta 发布。严重度、接受人和目标版本应在具体候选版本的签核记录中确定。
 
-| # | 项目 | 严重度 | 计划版本 |
-|---|------|--------|----------|
-| 1 | 定点数学库 — 浮点 hash 仅检测不修正 | P2 | v1.0 |
-| 2 | `FrameCommandBuffer._latestFrame` 无并发保护 | P3 | v0.3.0 |
-| 3 | `OnPostTick` 在预测 stall 时跳过 snapshot capture | P3 | v0.3.0 |
-| 4 | `ShooterBattleRuntimePort` 13 个构造器应简化 | P3 | v0.3.0 |
-| 5 | `PlayerInputCommand` 每次创建分配 `byte[]` → 改用 `ArraySegment<byte>` | P3 | v0.2.0 |
-| 6 | `TrySpawnBotPlayer` 空实现 — 仅返回 `IsRunning` | P3 | v0.2.0 |
-| 7 | `NetworkSyncModel` 枚举 5 个预留值未实现 | P3 | v0.3.0 |
-| 8 | `SessionLifecycleHost` 18 委托参数 → Options 对象 | P3 | v0.3.0 |
-| 9 | `FrameSyncCatchUpClientModule` 已实现但未接入重连流程 | P2 | v0.2.0 |
-| 10 | `DeltaCompressor` LZ4/Zstd 方法 `NotSupportedException` | P3 | v1.0 |
-| 11 | 三套客户端预测栈待统一抽象 (`IClientPredictionDriver`) | P2 | v1.0 |
+| 风险 | 当前事实 | 发布检查 |
+|---|---|---|
+| 浮点状态 hash 只检测分歧 | 尚未建立全框架定点数学与自动修正策略 | 声明 hash 算法、Version 和分歧后的停止或恢复动作 |
+| 预测 stall 时的 snapshot capture 边界 | `OnPostTick` 的 stall 行为仍需按目标同步模式验证 | 覆盖 stall、恢复和首个可用快照 |
+| MOBA bot 实体创建未闭环 | `TrySpawnBotPlayer` 仍未通过实体工厂真正创建 bot entity | 不得把 server bot 能力声明为完整采用 |
+| CatchUp reconnect 未接线 | `WorldCatchUpDriver` 有消费者，但 `FrameSyncCatchUpClientModule` 尚未安装到客户端 reconnect 主链 | 区分 CatchUp 算法存在与断线恢复 E2 采用 |
+| LZ4/Zstd 不可用 | `DeltaCompressor` 的 Light/Heavy 路径明确抛出 `NotSupportedException` | 配置只能选择已实现压缩方式，失败必须可诊断 |
+| 三套客户端预测栈并存 | 通用 FrameSync、Host extension 与 Shooter adapter 尚未统一 | 分别锁定所有权、对账语义和适用模板 |
+| 同步模型存在预留值 | 枚举声明不等于实现、测试或发布支持 | 只发布 catalog、消费者和 gate 均有证据的模板 |
+| 分配与构造器复杂度 | `PlayerInputCommand` payload 分配和部分 runtime port 构造复杂度仍是性能/维护风险 | 以目标负载数据决定是否阻断，不使用静态条目替代测量 |
+
+2026-08-03 的完整发现、当时计划版本和已完成项保存在 [帧同步与状态同步审计记录](09-FrameSyncStateSyncAuditRecord-20260803.md)。其中 `FrameCommandBuffer._latestFrame` 并发保护和 `SessionLifecycleHostOptions` 重构已完成，不再作为当前 Known Issue；历史“已完成”也不自动构成当前发布证据。
 
 ---
 

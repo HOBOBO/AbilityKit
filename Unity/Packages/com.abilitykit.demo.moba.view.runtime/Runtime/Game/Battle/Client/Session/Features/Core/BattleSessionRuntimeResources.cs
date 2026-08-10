@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World.Abstractions;
@@ -110,38 +108,15 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class BattleSessionGatewayRoomRuntime
     {
+        internal object ConnectionOwner;
         internal IConnection Conn;
         internal IGatewayRoomClient Client;
-        internal Task Task;
-        internal readonly Dictionary<WorldId, GatewayWorldStartAnchor> WorldStartAnchors = new Dictionary<WorldId, GatewayWorldStartAnchor>();
-        internal CancellationTokenSource TimeSyncCts;
-        internal Task TimeSyncTask;
 
         public void Reset()
         {
-            TimeSyncTask = null;
-            if (TimeSyncCts != null)
-            {
-                var cts = TimeSyncCts;
-                TimeSyncCts = null;
-                try
-                {
-                    if (!cts.IsCancellationRequested) cts.Cancel();
-                }
-                catch (Exception ex) { Log.Exception(ex); }
-                DisposeUtils.TryDispose(ref cts, ex => Log.Exception(ex));
-            }
-
-            if (Conn != null)
-            {
-                IDisposable conn = Conn;
-                Conn = null;
-                DisposeUtils.TryDispose(ref conn, ex => Log.Exception(ex));
-            }
-
+            ConnectionOwner = null;
+            Conn = null;
             Client = null;
-            Task = null;
-            WorldStartAnchors.Clear();
         }
     }
 

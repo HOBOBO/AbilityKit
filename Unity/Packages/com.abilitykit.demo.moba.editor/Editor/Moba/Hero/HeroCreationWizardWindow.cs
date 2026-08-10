@@ -57,7 +57,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor.Hero
         private readonly List<string> _report = new List<string>();
         private bool _autoProposed;
 
-        [MenuItem("AbilityKit/Moba/Hero/Create New Hero…")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Hero/Create New Hero…")]
         public static void Open()
         {
             var window = GetWindow<HeroCreationWizardWindow>(true, "Hero Creation Wizard", true);

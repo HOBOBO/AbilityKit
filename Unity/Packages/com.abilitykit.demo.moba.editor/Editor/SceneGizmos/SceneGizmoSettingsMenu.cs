@@ -3,14 +3,14 @@ using UnityEditor;
 namespace AbilityKit.Game.Editor.Gizmos
 {
     /// <summary>
-    /// Scene Gizmo 切换菜单（"Moba/Gizmos/"）。
+    /// Scene Gizmo 切换菜单（"Tools/AbilityKit/Demos/Moba/Gizmos/"）。
     /// - 三个独立 Toggle 控制 Attack / Buff / Spawn 可视化
     /// - "Reset" 把所有位恢复为默认
     /// - "Clear Spawn Cache" 强制清空出生点缓存（用于切换战斗后重新捕获）
     /// </summary>
     internal static class SceneGizmoSettingsMenu
     {
-        private const string MenuRoot = "Moba/Gizmos/";
+        private const string MenuRoot = "Tools/AbilityKit/Demos/Moba/Gizmos/";
 
         [MenuItem(MenuRoot + "Attack Range", priority = 100)]
         private static void ToggleAttack()

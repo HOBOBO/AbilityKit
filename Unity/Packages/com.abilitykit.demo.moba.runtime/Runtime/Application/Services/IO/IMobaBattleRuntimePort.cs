@@ -81,6 +81,7 @@ namespace AbilityKit.Demo.Moba.Services
                 throw new InvalidOperationException("MobaBattleRuntimePort requires IMobaBattleOutputPort for snapshot output.");
             }
 
+            ValidateSnapshotFrame(frame);
             return _output.TryGetSnapshot(frame, out snapshot);
         }
 
@@ -94,12 +95,27 @@ namespace AbilityKit.Demo.Moba.Services
                 throw new InvalidOperationException("MobaBattleRuntimePort requires IMobaBattleOutputPort for snapshot output.");
             }
 
+            ValidateSnapshotFrame(frame);
+
             if (snapshots == null)
             {
                 throw new ArgumentNullException(nameof(snapshots));
             }
 
+            if (maxSnapshots <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxSnapshots), maxSnapshots, "maxSnapshots must be positive.");
+            }
+
             return _output.CollectSnapshots(frame, snapshots, maxSnapshots);
+        }
+
+        private static void ValidateSnapshotFrame(FrameIndex frame)
+        {
+            if (frame.Value < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(frame), frame.Value, "frame must be non-negative.");
+            }
         }
 
         /// <summary>

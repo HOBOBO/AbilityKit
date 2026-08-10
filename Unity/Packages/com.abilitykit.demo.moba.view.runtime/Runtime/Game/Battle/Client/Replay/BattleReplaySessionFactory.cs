@@ -69,7 +69,8 @@ namespace AbilityKit.Game.Flow.Battle.Replay
                 var options = SessionMobaWorldBootstrapFactory.CreateWorldOptions(
                     plan,
                     new WorldId(world.WorldId),
-                    registerWorldInitData: false);
+                    registerWorldInitData: false,
+                    replayInputValidated: true);
                 session.CreateWorld(new CreateWorldRequest(options, create.OpCode, create.Payload));
                 session.Join(new JoinWorldRequest(new WorldId(world.WorldId), new PlayerId(world.PlayerId)));
 

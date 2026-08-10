@@ -30,6 +30,34 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void FrameCursor_RestoreFollowLive_JumpsToLatestCompleteFrame()
+        {
+            var cursor = BattleDiagnosticFrameCursor.CreateFollowingLive(100)
+                .SelectFrame(80);
+
+            cursor = cursor.SetFollowLive(true, 125);
+
+            Assert.That(cursor.Frame, Is.EqualTo(125));
+            Assert.That(cursor.FollowsLive, Is.True);
+            Assert.That(cursor.ChangeReason, Is.EqualTo(BattleDiagnosticFrameCursorChangeReason.FollowLiveAdvanced));
+        }
+
+        [Test]
+        public void FrameCursor_AdvanceLive_OnlyMovesFollowingCursor()
+        {
+            var following = BattleDiagnosticFrameCursor.CreateFollowingLive(100)
+                .AdvanceLive(101);
+            var fixedFrame = BattleDiagnosticFrameCursor.CreateFollowingLive(100)
+                .SelectFrame(80)
+                .AdvanceLive(101);
+
+            Assert.That(following.Frame, Is.EqualTo(101));
+            Assert.That(following.ChangeReason, Is.EqualTo(BattleDiagnosticFrameCursorChangeReason.FollowLiveAdvanced));
+            Assert.That(fixedFrame.Frame, Is.EqualTo(80));
+            Assert.That(fixedFrame.FollowsLive, Is.False);
+        }
+
+        [Test]
         public void FrameCursor_ConstrainToRetainedRange_MovesEvictedFrameToFirstAvailable()
         {
             var cursor = BattleDiagnosticFrameCursor.CreateFollowingLive(100).SelectFrame(20);
@@ -131,6 +159,37 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void Workspace_HistoryBackAndForward_RestoreSelectionFrame()
+        {
+            var scope = new BattleDiagnosticSessionScope("session", "world", 1);
+            var workspace = new BattleDiagnosticWorkspaceState();
+            workspace.AttachSession(scope, 50);
+            var first = new BattleDiagnosticSelection(
+                scope,
+                BattleDiagnosticSelectionKind.Event,
+                1,
+                20);
+            var second = new BattleDiagnosticSelection(
+                scope,
+                BattleDiagnosticSelectionKind.TraceNode,
+                2,
+                35,
+                900);
+
+            workspace.Select(first);
+            workspace.Select(second);
+            Assert.That(workspace.GoBack(), Is.True);
+            Assert.That(workspace.Selection, Is.EqualTo(first));
+            Assert.That(workspace.FrameCursor.Frame, Is.EqualTo(20));
+            Assert.That(workspace.FrameCursor.ChangeReason, Is.EqualTo(BattleDiagnosticFrameCursorChangeReason.SelectionNavigation));
+
+            Assert.That(workspace.GoForward(), Is.True);
+            Assert.That(workspace.Selection, Is.EqualTo(second));
+            Assert.That(workspace.FrameCursor.Frame, Is.EqualTo(35));
+            Assert.That(workspace.FrameCursor.ChangeReason, Is.EqualTo(BattleDiagnosticFrameCursorChangeReason.SelectionNavigation));
+        }
+
+        [Test]
         public void Filter_Default_IsUnboundedAndHasNoActiveDimensions()
         {
             var filter = BattleDiagnosticFilter.Default;
@@ -171,6 +230,90 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(next.StoreRevision, Is.EqualTo(123));
             Assert.That(next.Offset, Is.EqualTo(100));
             Assert.That(next.Limit, Is.EqualTo(100));
+        }
+
+        [Test]
+        public void HealthSnapshot_ValidProducedTracksAndErrors_AreDerivedFromCapturedValues()
+        {
+            var health = Health(
+                eventRevision: 3,
+                stateRevision: 2,
+                lastStateFrame: 120,
+                lastEventSequence: 99,
+                stateError: "sample failed");
+
+            Assert.That(health.IsValid, Is.True);
+            Assert.That(health.HasProducedState, Is.True);
+            Assert.That(health.HasProducedEvents, Is.True);
+            Assert.That(health.HasErrors, Is.True);
+        }
+
+        [Test]
+        public void HealthSnapshot_RequiresRevisionAndIdentityToReportProducedTracks()
+        {
+            var health = Health(
+                eventRevision: 0,
+                stateRevision: 1,
+                lastStateFrame: BattleDiagnosticFrames.Invalid,
+                lastEventSequence: 99);
+
+            Assert.That(health.HasProducedState, Is.False);
+            Assert.That(health.HasProducedEvents, Is.False);
+            Assert.That(health.HasErrors, Is.False);
+        }
+
+        [Test]
+        public void HealthSnapshot_TruncatesErrorsAndPreservesValueEquality()
+        {
+            var longError = new string('x', 600);
+            var first = Health(stateError: longError, eventError: longError);
+            var second = Health(stateError: longError, eventError: longError);
+
+            Assert.That(first.LastStateSampleError.Length, Is.EqualTo(512));
+            Assert.That(first.LastEventCollectError.Length, Is.EqualTo(512));
+            Assert.That(first, Is.EqualTo(second));
+            Assert.That(first.GetHashCode(), Is.EqualTo(second.GetHashCode()));
+        }
+
+        private static BattleDiagnosticHealthSnapshot Health(
+            long eventRevision = 0,
+            long stateRevision = 0,
+            int lastStateFrame = BattleDiagnosticFrames.Invalid,
+            long lastEventSequence = 0,
+            string stateError = "",
+            string eventError = "")
+        {
+            var sessionInfo = new BattleDiagnosticSessionInfo(
+                new BattleDiagnosticSessionScope("session", "world", 1),
+                "test",
+                "build",
+                1,
+                1000,
+                BattleDiagnosticCapabilities.AllLocal,
+                BattleDiagnosticConnectionState.Connected,
+                BattleDiagnosticCaptureState.Capturing);
+            var metrics = new BattleDiagnosticStoreMetrics(
+                100,
+                3,
+                eventRevision,
+                3,
+                0,
+                0,
+                false);
+            return new BattleDiagnosticHealthSnapshot(
+                sessionInfo,
+                eventRevision,
+                stateRevision,
+                4,
+                lastStateFrame,
+                lastEventSequence,
+                BattleDiagnosticEventChannel.All,
+                false,
+                metrics,
+                string.IsNullOrEmpty(stateError) ? 0 : 1,
+                string.IsNullOrEmpty(eventError) ? 0 : 1,
+                stateError,
+                eventError);
         }
 
         private static BattleDiagnosticSelection Actor(

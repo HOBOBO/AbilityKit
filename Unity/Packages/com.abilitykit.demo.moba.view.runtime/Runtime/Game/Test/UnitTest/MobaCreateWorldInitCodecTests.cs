@@ -1,7 +1,7 @@
 using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Protocol.MemoryPack;
+using AbilityKit.Protocol.Serialization;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.CreateWorld;
 using AbilityKit.Protocol.Moba.StateSync;

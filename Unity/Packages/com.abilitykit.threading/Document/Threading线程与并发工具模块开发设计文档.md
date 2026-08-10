@@ -90,11 +90,15 @@ Threading 模块是服务端逻辑、模拟运行时和工具链侧的并发基�
 
 线程池会记录 pending、active、completed、average latency，并通过 `GetMetrics()` 输出 `LoadMetrics`。
 
-当前实现会根据平均耗时和排队数量创建新 worker；缩容逻辑保留了判断，但尚未真正停止多余线程。
+当前实现会根据平均耗时和排队数量创建新 worker；缩容逻辑保留了判断，但尚未真正停止多余线程。`ProcessWork()` 使用 `_taskAvailable.Wait(100)`，因此空闲 worker 以 100ms 超时轮询方式检查任务，不是完全由入队事件驱动。
+
+`ShutdownAndWait()` 的默认参数是 `Timeout.Infinite`。它先调用 `Shutdown()` 将 `_isRunning` 设为 false，再等待 pending/active 计数归零；但 worker 在关闭后停止消费尚未开始的 pending task，因此只要关闭时队列仍有未消费任务，默认调用可能永久等待。调用方必须在关闭前自行 drain、取消或保证队列为空，并使用有限超时保护宿主生命周期。
 
 ### 4.2 PriorityWorkQueue
 
-优先级队列为动态线程池提供任务排序。标准优先级通常包括 Low、Normal、High、Critical，也支持 int 优先级。它适合表达“关键逻辑先跑，后台整理后跑”的服务端执行策略。
+优先级队列为动态线程池提供任务排序。标准优先级通常包括 Low、Normal、High、Critical，也支持 int 优先级。数值越大的优先级越先出队；同一优先级内按毫秒级 Timestamp 选择更早任务。
+
+当前 `PrioritizedWork<T>` 虽保存 `SequenceNumber`，但出队比较未将它用于同一毫秒任务的最终稳定排序。因此同优先级、同毫秒入队的任务不应被文档或业务当作严格 FIFO；需要确定性顺序时应在调用方提供更细粒度排序或补齐比较器与测试。
 
 ### 4.3 并发集合
 
@@ -162,6 +166,8 @@ sequenceDiagram
     Fiber-->>Scheduler: Completed/Faulted
 ```
 
+需要补充一个实现细节：`FiberScheduler.Update()` 当前使用 `var completed = !fiber.Step()` 判断是否完成，而 `Fiber.Step()` 在 Action 成功返回后返回 `true`，通常会导致本轮不立即移出运行列表，下一次 Update 才清理。若 Action 内调用 `Yield()`、`Await()`、`WaitUntil()` 或 `Sleep()`，Action 返回时 `Step()` 仍会把状态覆盖为 Completed；这些 API 不能把一个普通 Action 变成可从中途恢复的语言级 coroutine。
+
 ---
 
 ## 六、扩展点
@@ -209,16 +215,27 @@ Console.WriteLine(fiber.State);
 
 ## 八、注意事项与当前限制
 
-- `DynamicThreadPool.ShutdownAndWait()` 当前先设置 `_isRunning = false`，worker 循环会停止，队列中尚未开始的任务可能不会继续被消费；如果需要 drain 语义，后续应调整关闭流程。
+- `DynamicThreadPool.ShutdownAndWait()` 当前先设置 `_isRunning = false`，worker 循环会停止，队列中尚未开始的任务可能不会继续被消费；默认 `Timeout.Infinite` 下，pending 计数无法归零时可能永久等待。需要 drain 语义时必须先停止生产、处理队列，再执行关闭，并优先传入有限超时。
+- `DynamicThreadPool.ProcessWork()` 使用 100ms 超时等待；`ThreadPoolManager.ThreadWorker` 的空闲路径使用 `Thread.Sleep(1)`，后者是 1ms 轮询而不是对 `_wakeEvent` 的阻塞等待。
 - `WorkerThread` 构造参数中的 `wakeEvent` 当前没有被内部等待逻辑使用，内部创建的是独立 `ManualResetEvent`；这部分可以进一步清理。
 - 线程池缩容分支目前只保留注释，没有真正减少线程。
 - 不要在后台线程访问 Unity 主线程限定对象。
-- Fiber 当前不是可挂起恢复的语言级协程，文档和示例中应避免把它描述为完整 coroutine。
+- Fiber 当前不是可挂起恢复的语言级协程；其 Action 返回后状态可能覆盖 Yield/等待状态，且完成清理存在一轮 Update 延迟。文档和示例中应避免把它描述为完整 coroutine。
 - 对象池归还前必须重置对象，否则下次租借会看到旧状态。
 
 ---
 
-## 九、后续演进
+## 九、证据等级与采用门槛
+
+- E0：`Runtime/Threading`、`Runtime/Fiber`、`Runtime/Collections` 等源码证明类型和当前实现语义。
+- E1：当前主要可见证据为包内示例/调用路径；未发现框架外业务主链对 Threading 的稳定依赖。
+- E2：未发现可据此确认的服务端或 Unity 生产消费者。
+- E3：未发现本包专项测试覆盖关闭、扩缩容、优先级稳定顺序和 Fiber 等待状态。
+- E4/E5：未发现专项 Smoke、性能预算、CI 发布阻断或回滚责任证据。
+
+因此 Threading 当前应标记为 E0 的独立/实验性基础设施，而不是通用生产线程池或完整协程方案。新的生产消费者至少需要补充：关闭 drain/取消契约、worker 唤醒与轮询预算、扩缩容指标、同毫秒排序测试、Fiber 状态机测试，以及 Unity 主线程边界验证。
+
+## 十、后续演进
 
 - 修正线程池关闭语义，区分立即停止与 drain 后停止。
 - 完善缩容策略和 worker 唤醒/等待模型。
@@ -228,5 +245,5 @@ Console.WriteLine(fiber.State);
 
 ---
 
-*文档版本：1.0*  
-*最后更新：2026-06-05*
+*文档版本：1.1*
+*最后更新：2026-08-09*

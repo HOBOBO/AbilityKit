@@ -16,10 +16,46 @@ namespace AbilityKit.Game.Editor
         public IBattleDiagnosticReadOnlySession Session => _offlineSession;
         public IReadOnlyList<BattleDiagnosticActorSummary> Actors =>
             _offlineSnapshot?.State.Actors ?? Array.Empty<BattleDiagnosticActorSummary>();
+        public int LatestCompleteFrame =>
+            _offlineSnapshot?.State.Frame ?? BattleDiagnosticFrames.Invalid;
+        public BattleDiagnosticHealthSnapshot? HealthSnapshot =>
+            _offlineSnapshot == null
+                ? (BattleDiagnosticHealthSnapshot?)null
+                : new BattleDiagnosticHealthSnapshot(
+                    _offlineSnapshot.SessionInfo,
+                    _offlineSnapshot.Events.Revision,
+                    _offlineSnapshot.State.Revision,
+                    _offlineSnapshot.Trace.Revision,
+                    _offlineSnapshot.State.Frame,
+                    _offlineSnapshot.Events.LastSequence,
+                    ResolveCapturedChannels(_offlineSnapshot.Events.Events),
+                    false,
+                    _offlineSnapshot.Events.Metrics,
+                    0L,
+                    0L,
+                    string.Empty,
+                    string.Empty);
         public string FilePath => _offlineFilePath ?? string.Empty;
         public string DisplayName => string.IsNullOrEmpty(_offlineFilePath)
             ? string.Empty
             : Path.GetFileName(_offlineFilePath);
+
+        private static BattleDiagnosticEventChannel ResolveCapturedChannels(
+            IReadOnlyList<BattleDiagnosticEvent> events)
+        {
+            var channels = BattleDiagnosticEventChannel.None;
+            if (events == null)
+            {
+                return channels;
+            }
+
+            for (var i = 0; i < events.Count; i++)
+            {
+                channels |= events[i].Channel;
+            }
+
+            return channels;
+        }
 
         public void Open(string json, string filePath)
         {

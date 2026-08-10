@@ -10,7 +10,7 @@ namespace AbilityKit.Game.PoolExtension.Editor
 {
     public sealed class PoolMonitorWindow : EditorWindow
     {
-        private const string MenuPath = "Tools/AbilityKit/Debug/Pool Monitor";
+        private const string MenuPath = "Window/AbilityKit/Debug/Pool Monitor";
 
         private readonly List<PoolDebugSnapshot> _rows = new List<PoolDebugSnapshot>(128);
 

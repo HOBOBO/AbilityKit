@@ -1,8 +1,10 @@
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Coordinator;
+using AbilityKit.Demo.Moba.Gameplay;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -15,6 +17,85 @@ namespace AbilityKit.Demo.Moba.Services
         MissingRuntimePort = 4,
         RuntimePortNotReady = 5,
         RuntimeValidationBlocked = 6,
+        MissingDriveState = 7,
+        Paused = 8,
+        SettlementReached = 9,
+        ReplayNotReady = 10,
+        AuthorityDoesNotOwnSimulation = 11,
+    }
+
+    [WorldService(typeof(MobaLogicWorldDriveStateService), WorldLifetime.Scoped)]
+    public sealed class MobaLogicWorldDriveStateService : IService
+    {
+        public bool IsPaused { get; private set; }
+        public bool IsReplayMode { get; private set; }
+        public bool IsReplayReady { get; private set; } = true;
+        public bool OwnsSimulation { get; private set; } = true;
+        public MobaBattleLaunchSyncMode SyncMode { get; private set; } =
+            MobaBattleLaunchSyncMode.FrameSync;
+        public MobaBattleLaunchAuthorityMode AuthorityMode { get; private set; } =
+            MobaBattleLaunchAuthorityMode.LocalAuthority;
+        public string LastChangeReason { get; private set; }
+        public long Revision { get; private set; }
+
+        public void Configure(
+            MobaBattleLaunchSyncMode syncMode,
+            MobaBattleLaunchAuthorityMode authorityMode,
+            bool ownsSimulation,
+            bool replayMode,
+            bool replayReady,
+            string reason = null)
+        {
+            SyncMode = syncMode;
+            AuthorityMode = authorityMode;
+            OwnsSimulation = ownsSimulation;
+            IsReplayMode = replayMode;
+            IsReplayReady = !replayMode || replayReady;
+            IsPaused = false;
+            Touch(reason ?? "logic world drive profile configured");
+        }
+
+        public void SetPaused(bool paused, string reason = null)
+        {
+            if (IsPaused == paused) return;
+
+            IsPaused = paused;
+            Touch(reason ?? (paused ? "logic world paused" : "logic world resumed"));
+        }
+
+        public void SetReplayReady(bool ready, string reason = null)
+        {
+            if (IsReplayReady == ready) return;
+
+            IsReplayReady = ready;
+            Touch(reason ?? (ready ? "replay input ready" : "replay input unavailable"));
+        }
+
+        public void Dispose()
+        {
+            IsPaused = false;
+            IsReplayMode = false;
+            IsReplayReady = true;
+            OwnsSimulation = true;
+            SyncMode = MobaBattleLaunchSyncMode.FrameSync;
+            AuthorityMode = MobaBattleLaunchAuthorityMode.LocalAuthority;
+            LastChangeReason = "disposed";
+            Revision = 0L;
+        }
+
+        public override string ToString()
+        {
+            return
+                $"paused={IsPaused}, replay={IsReplayMode}, replayReady={IsReplayReady}, " +
+                $"ownsSimulation={OwnsSimulation}, sync={SyncMode}, authority={AuthorityMode}, " +
+                $"revision={Revision}, reason={LastChangeReason}";
+        }
+
+        private void Touch(string reason)
+        {
+            LastChangeReason = reason;
+            Revision++;
+        }
     }
 
     public readonly struct MobaLogicWorldDriveDecision
@@ -48,6 +129,8 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaLogicWorldDriveGate : ILogicWorldDriveGate
     {
         [WorldInject(required: false)] private MobaLogicWorldRunGateService _phase = null;
+        [WorldInject(required: false)] private MobaLogicWorldDriveStateService _driveState = null;
+        [WorldInject(required: false)] private MobaGameplayService _gameplay = null;
         [WorldInject(required: false)] private IMobaBattleRuntimePort _runtime = null;
         [WorldInject(required: false)] private IMobaRuntimeValidationHistory _validationHistory = null;
 
@@ -69,6 +152,37 @@ namespace AbilityKit.Demo.Moba.Services
             if (!_phase.InGame)
             {
                 return MobaLogicWorldDriveDecision.Block(MobaLogicWorldDriveBlockReason.NotInGame, "logic world battle loop is not enabled. " + _phase);
+            }
+
+            if (_driveState == null)
+            {
+                return MobaLogicWorldDriveDecision.Block(MobaLogicWorldDriveBlockReason.MissingDriveState, "MobaLogicWorldDriveStateService is required before driving the logic world.");
+            }
+
+            if (_driveState.IsPaused)
+            {
+                return MobaLogicWorldDriveDecision.Block(MobaLogicWorldDriveBlockReason.Paused, "logic world drive is paused. " + _driveState);
+            }
+
+            if (_gameplay != null &&
+                (_gameplay.Phase == MobaGameplayPhase.Ending ||
+                 _gameplay.Phase == MobaGameplayPhase.Ended))
+            {
+                return MobaLogicWorldDriveDecision.Block(
+                    MobaLogicWorldDriveBlockReason.SettlementReached,
+                    $"gameplay settlement has been reached. phase={_gameplay.Phase}, result={_gameplay.LastResult}");
+            }
+
+            if (_driveState.IsReplayMode && !_driveState.IsReplayReady)
+            {
+                return MobaLogicWorldDriveDecision.Block(MobaLogicWorldDriveBlockReason.ReplayNotReady, "replay world is waiting for validated replay input. " + _driveState);
+            }
+
+            if (!_driveState.OwnsSimulation)
+            {
+                return MobaLogicWorldDriveDecision.Block(
+                    MobaLogicWorldDriveBlockReason.AuthorityDoesNotOwnSimulation,
+                    "current authority profile does not own local logic simulation. " + _driveState);
             }
 
             if (_runtime == null)

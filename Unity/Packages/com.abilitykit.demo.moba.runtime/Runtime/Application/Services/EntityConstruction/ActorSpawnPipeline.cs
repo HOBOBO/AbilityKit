@@ -51,8 +51,10 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             }
             catch
             {
-                entities?.Unregister(spec.Info.ActorId);
-                registry?.Unregister(spec.Info.ActorId);
+                new MobaActorSpawnRegistrar(registry, entities).Unregister(
+                    spec.Info.ActorId,
+                    out _,
+                    publishDespawn: false);
                 DestroyBuiltEntity(result.Entity);
                 throw;
             }
@@ -67,16 +69,17 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             if (entity == null) throw new ArgumentNullException(nameof(entity));
             if (spec.Info.ActorId <= 0) throw new InvalidOperationException("actorId is required");
 
-            registry?.Register(spec.Info.ActorId, entity);
-
-            if (entities == null) return;
-            entities.Register(
-                actorId: spec.Info.ActorId,
-                entity: entity,
-                team: spec.Info.Team,
-                mainType: spec.Info.MainType,
-                unitSubType: spec.Info.UnitSubType,
-                ownerPlayer: spec.Info.OwnerPlayer);
+            var registrar = new MobaActorSpawnRegistrar(registry, entities);
+            var registered = registrar.Register(
+                entity,
+                in spec,
+                registerActor: registry != null,
+                registerEntityManager: entities != null,
+                registerEntityManagerFromEntity: false);
+            if (registered && entities != null)
+            {
+                entities.PublishSpawn(entity);
+            }
         }
 
         internal static void DestroyBuiltEntity(ActorEntity entity)
@@ -200,11 +203,14 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             }
             catch
             {
+                var registrar = new MobaActorSpawnRegistrar(registry, entities);
                 for (var i = builtCount - 1; i >= 0; i--)
                 {
                     var built = builtActors[i];
-                    entities.Unregister(built.Spec.Info.ActorId);
-                    registry.Unregister(built.Spec.Info.ActorId);
+                    registrar.Unregister(
+                        built.Spec.Info.ActorId,
+                        out _,
+                        publishDespawn: false);
                     DestroyBuiltEntity(built.Entity);
                 }
 

@@ -52,6 +52,7 @@ namespace AbilityKit.Game.Flow
         Task ISessionGatewayRuntime.GatewayRoomPreparationTask => GatewayRoomPreparationTask;
         bool ISessionGatewayRuntime.ShouldPrepareGatewayRoom() => ShouldPrepareGatewayRoom();
         void ISessionGatewayRuntime.StartGatewayRoomPreparation() => StartGatewayRoomPreparation();
+        void ISessionGatewayRuntime.CompleteGatewayRoomPreparation() => CompleteGatewayRoomPreparation();
         void ISessionGatewayRuntime.StopGatewayRoomPreparation() => StopGatewayRoomPreparation();
         void ISessionGatewayRuntime.TickGatewayRoomConnection(float deltaTime) => TickGatewayRoomConnection(deltaTime);
         void ISessionGatewayRuntime.OnStartSessionRequested() => OnStartSessionRequested();

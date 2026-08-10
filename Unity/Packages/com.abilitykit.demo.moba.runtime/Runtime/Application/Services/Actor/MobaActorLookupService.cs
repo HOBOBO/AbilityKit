@@ -39,7 +39,6 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (_index.TryGet(actorId, out entity) && IsAlive(entity))
             {
-                _registry.Register(actorId, entity);
                 return true;
             }
 
@@ -55,7 +54,6 @@ namespace AbilityKit.Demo.Moba.Services
                 if (!IsAlive(e) || !e.hasActorId) continue;
                 if (e.actorId.Value != actorId) continue;
 
-                _registry.Register(actorId, e);
                 entity = e;
                 return true;
             }

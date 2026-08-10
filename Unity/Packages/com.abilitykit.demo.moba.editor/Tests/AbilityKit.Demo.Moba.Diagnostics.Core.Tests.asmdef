@@ -4,6 +4,7 @@
   "references": [
     "AbilityKit.Demo.Moba.Diagnostics.Core",
     "AbilityKit.Demo.Moba.Runtime",
+    "AbilityKit.Protocol.Moba",
     "AbilityKit.Diagnostics",
     "AbilityKit.Demo.Moba.Editor",
     "AbilityKit.Demo.Moba.Share",
@@ -12,12 +13,16 @@
     "AbilityKit.World.ECS",
     "AbilityKit.World.FrameSync",
     "AbilityKit.Trace",
+    "AbilityKit.Triggering",
     "AbilityKit.Core",
     "AbilityKit.Ability",
     "AbilityKit.Attributes",
+    "AbilityKit.Host",
+    "AbilityKit.Host.Extensions.Moba",
     "AbilityKit.GameplayTags",
     "AbilityKit.Combat.Projectile",
-    "AbilityKit.Combat.Collision.Abstractions"
+    "AbilityKit.Combat.Collision.Abstractions",
+    "AbilityKit.Combat.EntityManager"
   ],
   "includePlatforms": [
     "Editor"

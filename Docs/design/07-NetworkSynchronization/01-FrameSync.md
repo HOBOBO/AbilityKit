@@ -589,6 +589,10 @@ flowchart TB
 
 两者都叫帧同步，但所在层级不同：Host 模块是“运行时驱动器”，Orleans Grain 是“分布式帧通道”。
 
+CatchUp 也需要按调用层拆分。`WorldCatchUpDriver` 已被会话侧控制器消费，证明按权威帧补跑并喂入快照的算法链存在；`FrameSyncCatchUpClientModule` 则只实现 `DecideCatchUp`、`ApplyCatchUpPayload` 和 `TryCatchUp`，源码仍明确说明尚未安装到客户端 reconnect flow。因此当前不能把“CatchUp primitive 有消费者”表述成“断线重连已自动完成 FrameSync CatchUp”。
+
+MOBA gameplay catalog 支持 `frame-sync-authority` 和 `state-sync-authority`，默认 gameplay profile 选择前者；MobaSmoke Program 也能解析 `--sync-template`。但现有 `run_moba_smoke.ps1`、`run_moba_multiprocess_smoke.ps1` 与 CI gate 没有透传该参数，Program 默认仍是 `state-sync-authority`。这意味着模板声明和 CLI 入口已有 E0/E1 证据，当前 smoke/CI 不能作为 FrameSync 模板的 E4/E5 证据。
+
 ---
 
 ## 7.1.15 设计意图总结
@@ -628,6 +632,8 @@ Orleans 负责分布式房间里的输入帧推进和观察者推送；Host Driv
 | 输入提交后立即 Tick 世界 | 输入先进入 `PendingInputs`，在下一次 Host `PreTick` 统一提交 |
 | 空输入帧可以跳过 | 空输入也会生成空数组并推进逻辑帧，避免不同端帧号分叉 |
 | `BattleFrameSyncGrain` 等同完整战斗服务器 | 它是 Orleans 帧通道/Relay，是否运行战斗逻辑取决于玩法模板和 runtime adapter |
+| CatchUp 类存在就代表 reconnect 闭环 | `WorldCatchUpDriver` 有消费者，但 `FrameSyncCatchUpClientModule` 尚未接入客户端 reconnect 主链 |
+| MobaSmoke 支持模板参数就代表 FrameSync gate 已建立 | Program 支持参数，但当前脚本和 gate 未透传，实际默认仍走 StateSync 模板 |
 | 客户端收到 `FramePacket` 只用于表现 | 它同时可写入输入缓冲、确认缓冲，并喂给 `FrameSnapshotDispatcher` |
 
 ---
@@ -640,7 +646,9 @@ Orleans 负责分布式房间里的输入帧推进和观察者推送；Host Driv
 4. `FramePacket.cs` 与 `FrameMessage.cs`：输入与快照如何打包广播。
 5. `ServerFrameTimeModule.cs`：`IFrameTime` 如何跟随帧同步更新。
 6. `FramePacketNetAdapter.cs` 与 `RemoteFrameAggregator.cs`：客户端如何缓冲远端输入和快照。
-7. `BattleFrameSyncGrain.cs` 与 `FrameSyncModels.cs`：Orleans 侧按 TickRate 推送输入帧的 relay 模型。
+7. `FrameSyncCatchUpClientModule.cs` 与 `WorldCatchUpDriver`：CatchUp primitive、真实消费者和 reconnect 未接线边界。
+8. `BattleFrameSyncGrain.cs` 与 `FrameSyncModels.cs`：Orleans 侧按 TickRate 推送输入帧的 relay 模型。
+9. `ServerGameplayModuleCatalog.cs`、MobaSmoke `Program.cs` 与 `tools/test-gates.json`：模板声明、CLI 入口和当前 gate 覆盖的差异。
 
 ---
 

@@ -753,7 +753,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     sessionToken: "token",
                     region: "dev",
                     serverId: "local",
-                    autoCreateRoom: true,
+                    autoCreateRoom: false,
                     autoJoinRoom: false,
                     joinRoomId: string.Empty,
                     createRoomOpCode: 110,
@@ -761,12 +761,10 @@ namespace AbilityKit.Game.Test.UnitTest
                 .Build();
 
             SetPrivatePlan(feature, plan);
-            InitializeDispatchers(feature);
+            InvokePrivate(feature, "StartGatewayRoomPreparation");
 
             try
             {
-                var connection = (IConnection)InvokePrivate(feature, "CreateGatewayRoomConnection", plan);
-                Assert.AreSame(gatewayConnectionFactory.Connection, connection);
                 Assert.AreEqual(1, gatewayConnectionFactory.CreateCount);
                 Assert.AreEqual(plan, gatewayConnectionFactory.LastPlan);
                 Assert.IsNotNull(gatewayConnectionFactory.LastCallbackDispatcher);
@@ -774,7 +772,7 @@ namespace AbilityKit.Game.Test.UnitTest
             }
             finally
             {
-                InvokePrivate(feature, "DisposeNetworkIoDispatcher");
+                InvokePrivate(feature, "StopGatewayRoomPreparation");
             }
         }
 
@@ -2129,14 +2127,20 @@ namespace AbilityKit.Game.Test.UnitTest
             var dispatchersField = featureType.GetField(
                 "_dispatchers",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(dispatchersField, "_dispatchers");
+
             var handlesField = featureType.GetField(
                 "_handles",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            Assert.IsNotNull(dispatchersField, "_dispatchers");
-            Assert.IsNotNull(handlesField, "_handles");
+            object handles = handlesField != null
+                ? handlesField.GetValue(feature)
+                : featureType.GetProperty(
+                    "_handles",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                    ?.GetValue(feature);
+            Assert.IsNotNull(handles, "_handles compatibility accessor");
 
             var dispatchers = dispatchersField.GetValue(feature);
-            var handles = handlesField.GetValue(feature);
             var onAttach = dispatchers.GetType().GetMethod("OnAttach");
             Assert.IsNotNull(onAttach, "SessionDispatchersController.OnAttach");
             onAttach.Invoke(dispatchers, new[] { handles });

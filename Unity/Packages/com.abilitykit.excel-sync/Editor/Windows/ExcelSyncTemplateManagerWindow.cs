@@ -24,7 +24,7 @@ namespace AbilityKit.ExcelSync.Editor
         // 批量选择
         private System.Collections.Generic.HashSet<int> _selectedIndices = new();
 
-        [MenuItem("Tools/Excel/模板管理器")]
+        [MenuItem("Tools/AbilityKit/Framework/Excel/模板管理器")]
         public static void Open()
         {
             var w = GetWindow<ExcelSyncTemplateManagerWindow>();

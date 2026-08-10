@@ -121,8 +121,8 @@ finally
 static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeSpan timeout, string syncTemplateId)
 {
     using var timeoutCts = new CancellationTokenSource(timeout);
-    using var owner = new MobaSmokeClient("owner", host, port);
-    using var member = new MobaSmokeClient("member", host, port);
+    using var owner = new MobaSmokeClient("owner", host, port, syncTemplateId);
+    using var member = new MobaSmokeClient("member", host, port, syncTemplateId);
 
     await owner.LoginAsync(timeoutCts.Token);
     await member.LoginAsync(timeoutCts.Token);
@@ -173,8 +173,8 @@ static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeS
 
     var ownerPlayerId = ResolvePlayerId(final.Snapshot, heroId: 1001);
     var memberPlayerId = ResolvePlayerId(final.Snapshot, heroId: 1002);
-    using var ownerBattle = new MobaSmokeClient("owner-battle", host, port);
-    using var memberBattle = new MobaSmokeClient("member-battle", host, port);
+    using var ownerBattle = new MobaSmokeClient("owner-battle", host, port, syncTemplateId);
+    using var memberBattle = new MobaSmokeClient("member-battle", host, port, syncTemplateId);
     await ownerBattle.BindSessionAsync(owner.SessionToken, timeoutCts.Token);
     await memberBattle.BindSessionAsync(member.SessionToken, timeoutCts.Token);
 
@@ -393,6 +393,7 @@ internal sealed class MobaSmokeClient : IDisposable
     private readonly RequestClient _requests;
     private readonly Channel<WireStateSyncSnapshotPush> _snapshots = Channel.CreateUnbounded<WireStateSyncSnapshotPush>();
     private string _sessionToken = string.Empty;
+    private string _syncTemplateId = string.Empty;
     private long _nextCommandSequence;
 
     // StateSync diagnostics distinguish transport, decoding, and projection failures.
@@ -413,8 +414,9 @@ internal sealed class MobaSmokeClient : IDisposable
 
     public string SessionToken => _sessionToken;
 
-    public MobaSmokeClient(string name, string host, int port)
+    public MobaSmokeClient(string name, string host, int port, string syncTemplateId)
     {
+        _syncTemplateId = syncTemplateId;
         _channel = new SmokeTcpGameFrameworkNetworkChannel($"MobaSmoke-{name}");
         _connection = GameFrameworkGatewayConnectionFactory.Wrap(_channel);
         _requests = new RequestClient(_connection);
@@ -644,7 +646,7 @@ internal sealed class MobaSmokeClient : IDisposable
                 ["gameplayId"] = "1",
                 ["minPlayers"] = "2",
                 ["tickRate"] = "30",
-                [ShooterRoomTagKeys.SyncTemplateId] = syncTemplateId
+                [ShooterRoomTagKeys.SyncTemplateId] = _syncTemplateId
             }
         }, cancellationToken);
     }

@@ -10,7 +10,7 @@ namespace AbilityKit.Triggering.Editor.Diagnostics
     {
         private const string ReportPath = "Temp/AbilityKit.Triggering.Diagnostics.md";
 
-        [MenuItem("AbilityKit/Triggering/Diagnostics/Write Runtime Report")]
+        [MenuItem("Tools/AbilityKit/Framework/Triggering/Diagnostics/Write Runtime Report")]
         public static void WriteRuntimeReport()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(ReportPath));

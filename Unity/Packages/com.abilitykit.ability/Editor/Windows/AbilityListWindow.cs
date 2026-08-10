@@ -19,7 +19,7 @@ namespace AbilityKit.Ability.Editor
         private double _nextAutoExportAt;
         private const double AutoExportDebounceSeconds = 0.35;
 
-        [MenuItem("Tools/AbilityKit/Ability/Ability List")]
+        [MenuItem("Window/AbilityKit/Ability List")]
         private static void Open()
         {
             GetWindow<AbilityListWindow>("Ability List");

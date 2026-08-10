@@ -1,6 +1,6 @@
 # Shooter 网络模块深潜
 
-> 本文聚焦 Shooter 示例的网络模块组合：客户端 Session、Gateway Room Flow、同步控制器、快照编码、纯状态预算、延迟补偿与重连验收。它补充 `04-ClientSyncStrategies.md` 与 `05-ServerFlowAndSmokeDeepDive.md` 中没有展开的网络模块职责边界。
+> 本文聚焦 Shooter 示例的网络模块组合：客户端 Session、Room 控制面连接、独立 battle 数据面、同步控制器、快照编码、纯状态预算、延迟补偿与重连验收。它补充 `04-ClientSyncStrategies.md` 与 `05-ServerFlowAndSmokeDeepDive.md` 中没有展开的网络模块职责边界。
 
 ## 1. 网络模块全景
 
@@ -12,25 +12,23 @@ flowchart TB
         Launcher[ShooterClientNetworkLauncher]
         Session[ShooterClientSession]
         Input[ShooterClientInputCoordinator]
+        Queue[RemoteClientInputSubmitQueue]
+        Handle[ShooterClientBattleHandle]
+        Flow[ShooterRoomGatewayFlow]
+        Control[Room Gateway Connection]
+        BattleTransport[Independent NetworkTransport]
+        BattleClient[ShooterBattleTransportGatewayClient]
+        DataPlane[ShooterBattleDataPlane]
         FrameSync[ShooterClientFrameSyncController]
-        Factory[ShooterClientSyncControllerFactory]
-        Predict[ShooterClientPredictRollbackSyncController]
-        Interp[ShooterClientAuthoritativeInterpolationSyncController]
-        Hybrid[ShooterClientHybridHeroPredictionSyncController]
-        ApplyCoordinator[ShooterClientSnapshotApplyCoordinator]
         SnapshotPipeline[ShooterFrameworkSnapshotPipeline]
-        PureCtrl[ShooterPureStateSnapshotSyncController]
         Reconnect[ShooterFastReconnectDriver]
     end
 
-    subgraph Gateway[Gateway / Orleans]
-        Flow[ShooterRoomGatewayFlow]
-        GatewayClient[ShooterRoomGatewayClient]
-        RoomClient[ShooterRoomGatewayRoomClient]
-        Router[GatewayRequestRouter]
+    subgraph Gateway[Gateway and Orleans]
+        RoomRouter[Room Request Router]
+        InputHandler[Battle Input Handler]
         Room[RoomGrain]
-        Battle[ShooterBattleRuntimeAdapter]
-        FrameGrain[BattleFrameSyncGrain]
+        Battle[BattleLogicHostGrain]
     end
 
     subgraph Runtime[Shooter Runtime]
@@ -41,25 +39,21 @@ flowchart TB
         Lag[ShooterLagCompensationService]
     end
 
-    Launcher --> Session --> Input
-    Session --> FrameSync
-    Session --> Factory
-    Factory --> Predict
-    Factory --> Interp
-    Factory --> Hybrid
-    Predict --> ApplyCoordinator
-    Interp --> ApplyCoordinator
-    Hybrid --> ApplyCoordinator
-    ApplyCoordinator --> SnapshotPipeline
-    SnapshotPipeline --> PureCtrl
-    Session --> Flow --> GatewayClient --> RoomClient --> Router --> Room
-    Room --> Battle --> RuntimePort
+    Launcher --> Session
+    Launcher --> Flow --> Control --> RoomRouter --> Room
+    Launcher --> BattleTransport
+    BattleTransport --> BattleClient --> Handle
+    BattleTransport --> DataPlane --> Session
+    Input --> Session --> FrameSync
+    Input --> Queue --> Handle --> BattleClient
+    BattleClient --> InputHandler --> Battle --> RuntimePort
+    Session --> SnapshotPipeline
     RuntimePort --> Packed
     RuntimePort --> Pure
     RuntimePort --> Hash
     RuntimePort --> Lag
-    Room --> FrameGrain
     Reconnect --> Flow
+    Handle --> Control
 ```
 
 ## 2. 客户端网络入口
@@ -67,17 +61,20 @@ flowchart TB
 | 模块 | 职责 |
 |------|------|
 | `ShooterClientNetworkEndpoint` | 描述服务器地址、端口、协议等连接端点 |
-| `ShooterClientConnectionFactory` | 创建底层连接对象 |
-| `ShooterClientNetworkLauncher` | 把 endpoint、connection、session 组合成启动流程 |
-| `ShooterClientGatewayLauncher` | 面向 Gateway 模式的启动入口 |
-| `ShooterClientSession` | 聚合登录、房间、输入、同步、表现回调 |
-| `ShooterClientBattleHandle` | 封装进入战斗后的句柄与状态 |
+| `ShooterClientConnectionFactory` | 创建 Room 控制面连接对象 |
+| `ShooterClientNetworkLauncher` | 完成 Room flow 后，根据 battle 身份创建独立数据面 transport |
+| `ShooterClientGatewayLauncher` | 组合阶段化 Gateway flow，并通过回调构造 battle client |
+| `ShooterClientSession` | 聚合本地输入、同步策略、push 应用与表现回调 |
+| `ShooterClientBattleHandle` | 校验 session/battle/world/player 身份，封装输入、ack 和 full-state RPC |
+| `ShooterBattleTransportGatewayClient` | 把 battle input 请求编码到独立 `NetworkTransport` |
+| `ShooterBattleDataPlane` | 接收线程入队 push，主线程 `Drain` 后分发并触发 ack/resync |
+| `RemoteClientInputSubmitQueue` | 一个在途请求加一个最新等待输入；提供替换和恢复诊断 |
 
-设计上客户端不直接调用 `RoomGrain` 或 `BattleFrameSyncGrain`。所有远程调用先进入 Gateway 客户端层，再由服务端路由到 Orleans Grain。
+设计上客户端不直接调用 Orleans Grain。Room 控制面请求和 battle 数据请求都先进入 Gateway 协议层，但二者不共享同一个 transport 生命周期。
 
 ## 3. Room Gateway Flow
 
-`ShooterRoomGatewayFlow` 把房间生命周期包装成客户端可调用的顺序流程：
+`ShooterRoomGatewayFlow` 组合 `com.abilitykit.network.room` 的阶段化原子入口，把房间生命周期包装成客户端可调用的控制面流程：
 
 ```mermaid
 sequenceDiagram
@@ -100,31 +97,39 @@ sequenceDiagram
     Flow->>RoomClient: subscribe state sync
 ```
 
-这层的价值是把“网络请求编排”与“战斗同步策略”隔离：房间创建失败、登录失败、ready/start 失败不会污染 packed/pure-state 同步控制器。
+这层的价值是把“控制面请求编排”与“战斗同步策略”隔离：房间创建失败、登录失败、ready/start 失败不会污染 packed/pure-state 同步控制器。启动结果提供 battle/world/session 身份后，launcher 才创建新的 battle `NetworkTransport`；Room connection 继续承担 reliable-event ack 与 full-state baseline/resync RPC。
 
-## 4. 输入网络模块
+## 4. 输入与 push 数据面
 
-Shooter 输入链路按“本地输入采样 → frame sync 协调 → Gateway 提交 → 服务端 Tick”组织：
+Shooter 正式输入链路按“本地输入采样与预测 → 背压队列 → battle transport 请求 → Battle Host 权威 Tick”组织：
 
 | 模块 | 职责 |
 |------|------|
-| `ShooterClientInputCoordinator` | 采样移动、瞄准、开火等输入，生成协议输入 |
-| `ShooterClientFrameSyncController` | 将输入绑定到帧号，处理预测、回滚和帧同步节奏 |
-| `BattleFrameSyncGrain` | 服务端聚合输入帧，形成权威帧推进依据 |
-| `FramePacketNetAdapter` | Host Extension 中的 frame packet 网络适配层 |
+| `ShooterClientInputCoordinator` | 将移动、瞄准、开火输入绑定本地预测帧并生成协议输入 |
+| `ShooterClientFrameSyncController` | 处理本地预测、权威快照校正和 pending input replay |
+| `RemoteClientInputSubmitQueue` | 保持一个在途请求和一个最新等待输入，旧等待输入可被替换 |
+| `ShooterClientBattleHandle` | 提交已接受输入；根据响应或 baseline 状态请求 full snapshot |
+| `ShooterBattleTransportGatewayClient` | 在独立 battle transport 上发请求并 inline 匹配响应 |
+| `BattleLogicHostGrain` | 调度 accepted frame、缓冲输入并推进权威 runtime |
+| `ShooterBattleDataPlane` | 网络线程只入队 push，主线程 `Drain` 后应用状态 |
 
 ```mermaid
 flowchart LR
-    Sample[本地输入采样]
-    Command[Shooter input command]
-    Frame[绑定 frame]
-    Gateway[SubmitBattleInput]
-    Grain[BattleFrameSyncGrain]
-    Battle[Runtime Tick]
-    Snapshot[StateSyncPush]
+    Sample[Local Input]
+    Predict[Local Prediction]
+    Queue[Input Submit Queue]
+    Handle[Battle Handle]
+    Transport[Battle Transport]
+    Battle[BattleLogicHostGrain]
+    Push[StateSync Push Queue]
+    Drain[Main Thread Drain]
+    Session[Client Session]
 
-    Sample --> Command --> Frame --> Gateway --> Grain --> Battle --> Snapshot
+    Sample --> Predict --> Queue --> Handle --> Transport --> Battle
+    Battle --> Push --> Drain --> Session
 ```
+
+输入请求不依赖主线程 pump 才能完成，否则 PlayMode 在等待提交结果时可能死锁。相反，异步 push 必须经队列切回主线程，避免 receive thread 上的 `ApplyGatewayPush` 与 `session.Tick` 并发修改同步状态。
 
 ## 5. 同步控制器与快照应用组件
 
@@ -230,7 +235,7 @@ sequenceDiagram
     Rewind-->>Lag: LagCompensationHitResult
 ```
 
-## 9. 网络质量与重连
+## 9. 网络质量、恢复与证据边界
 
 | 模块 | 说明 |
 |------|------|
@@ -242,14 +247,27 @@ sequenceDiagram
 | `ShooterFastReconnectDriver` | 快速重连流程驱动 |
 | `ShooterTimeAnchorCoordinator` | 对齐客户端播放时间与服务端权威时间 |
 
-这些模块共同支撑 smoke 中的 stale snapshot、late join、reconnect、state hash 校验。
+这些模块共同支撑 stale snapshot、late join、reconnect 和 state hash 校验。恢复还依赖 battle handle 的 full-state single-flight：同一请求 key 的并发请求复用在途任务，并受自动 timeout 约束；可靠事件 ack 失败时请求 `ReliableEventGap` baseline，full snapshot watermark 可恢复可靠事件 cursor。
+
+证据必须分层声明：
+
+| 层级 | 当前证据 | 可证明范围 |
+|------|----------|------------|
+| E0 | launcher、handle、data plane、transport gateway client 源码 | 类型与结构存在 |
+| E2 | `ShooterRemoteStateSyncPlayModeHost` 正式组合链 | Shooter 业务运行时采用，且不依赖 coordinator |
+| E3 | battle handle、Room flow、remote coordinator contract 等测试 | wire contract、重试、single-flight、resync、旧路径删除 |
+| E4 | Shooter 多进程 Smoke 和 diagnostic/replay artifact | 真实进程故障恢复与组合收敛 |
+| E5 | Shooter CI gate 配置 | main/schedule/manual 的阻断责任；完整多进程矩阵不是 PR gate |
 
 ## 10. 模块边界总结
 
 | 层级 | 不应该做 | 应该做 |
 |------|----------|--------|
-| Gateway Flow | 不解释 snapshot 内容 | 负责登录、房间、订阅、请求顺序 |
-| ClientSession | 不实现具体同步算法 | 聚合同步控制器、输入、表现回调 |
+| Gateway Flow | 不拥有 battle transport 或解释 snapshot | 负责登录、房间、订阅和恢复阶段顺序 |
+| Battle Handle | 不驱动本地 world | 校验身份并封装输入、ack、baseline/resync RPC |
+| Battle Data Plane | 不在 receive thread 应用 session 状态 | push 入队、主线程 Drain、分发与恢复触发 |
+| Input Submit Queue | 不拥有连接、pause、reconnect 或 dispose | 管一个在途请求、最新等待输入和诊断 |
+| ClientSession | 不创建第二套 coordinator 生命周期 | 聚合同步控制器、输入、push 应用与表现回调 |
 | Strategy SyncController | 不解析每种 payload 的协议细节 | 负责预测、插值、回滚和策略级恢复 |
 | Snapshot Apply/Pipeline | 不创建房间或选择同步策略 | 解码、路由、兼容性检查、stale 处理与 runtime 导入 |
 | RuntimePort | 不关心网络连接 | 导出 snapshot/hash、执行 tick、导入权威状态 |
@@ -261,9 +279,13 @@ sequenceDiagram
 | 主题 | 源码 |
 |------|------|
 | 客户端 Session | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientSession.cs` |
-| 网络启动 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientNetworkLauncher.cs` |
+| 网络启动与双连接装配 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientNetworkLauncher.cs` |
+| Battle handle | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientBattleHandle.cs` |
+| Battle data plane | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterBattleDataPlane.cs` |
+| Battle transport client | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Gateway/ShooterBattleTransportGatewayClient.cs` |
 | Gateway Flow | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Gateway/ShooterRoomGatewayFlow.cs` |
 | Gateway Client | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Gateway/ShooterRoomGatewayClient.cs` |
+| 框架远端输入队列 | `Unity/Packages/com.abilitykit.host.extension/Runtime/Client/StateSync/RemoteClientInputSubmitQueue.cs` |
 | 输入协调 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Session/ShooterClientInputCoordinator.cs` |
 | 帧同步控制 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientFrameSyncController.cs` |
 | 同步控制器工厂 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientSyncControllerFactory.cs` |
@@ -274,4 +296,7 @@ sequenceDiagram
 | packed exporter | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Synchronization/ShooterPackedSnapshotExporter.cs` |
 | lag compensation | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Synchronization/ShooterLagCompensationService.cs` |
 | RoomGrain | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs` |
-| BattleFrameSyncGrain | `Server/Orleans/src/AbilityKit.Orleans.Grains/FrameSync/BattleFrameSyncGrain.cs` |
+| BattleLogicHostGrain | `Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/BattleLogicHostGrain.cs` |
+| Battle handle 测试 | `src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterClientBattleHandleTests.cs` |
+| 正式链去 coordinator 契约测试 | `src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterRemoteCoordinatorInputContractTests.cs` |
+| 阶段化 Room flow 测试 | `src/AbilityKit.Demo.Shooter.Runtime.Tests/Gateway/ShooterRoomGatewayFlowTests.cs` |

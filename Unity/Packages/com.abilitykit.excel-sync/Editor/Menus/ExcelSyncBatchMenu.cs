@@ -9,7 +9,7 @@ namespace AbilityKit.ExcelSync.Editor
     /// </summary>
     public static class ExcelSyncBatchMenu
     {
-        [MenuItem("Tools/Excel/批量操作/扫描 Excel 并创建模板")]
+        [MenuItem("Tools/AbilityKit/Framework/Excel/批量操作/扫描 Excel 并创建模板")]
         public static void ScanAndCreateTemplates()
         {
             var config = ExcelSyncProjectConfig.Instance;
@@ -38,7 +38,7 @@ namespace AbilityKit.ExcelSync.Editor
             EditorUtility.DisplayDialog(result.HasErrors ? "扫描完成（有错误）" : "扫描完成", message, "确定");
         }
 
-        [MenuItem("Tools/Excel/批量操作/生成所有代码")]
+        [MenuItem("Tools/AbilityKit/Framework/Excel/批量操作/生成所有代码")]
         public static void GenerateAllCode()
         {
             var config = ExcelSyncProjectConfig.Instance;
@@ -53,7 +53,7 @@ namespace AbilityKit.ExcelSync.Editor
             ShowBatchResult(result, "代码生成");
         }
 
-        [MenuItem("Tools/Excel/批量操作/导入所有配置")]
+        [MenuItem("Tools/AbilityKit/Framework/Excel/批量操作/导入所有配置")]
         public static void ImportAll()
         {
             var config = ExcelSyncProjectConfig.Instance;
@@ -83,7 +83,7 @@ namespace AbilityKit.ExcelSync.Editor
             ShowBatchResult(result, "导入");
         }
 
-        [MenuItem("Tools/Excel/批量操作/导出所有配置")]
+        [MenuItem("Tools/AbilityKit/Framework/Excel/批量操作/导出所有配置")]
         public static void ExportAll()
         {
             var config = ExcelSyncProjectConfig.Instance;
@@ -112,7 +112,7 @@ namespace AbilityKit.ExcelSync.Editor
             ShowBatchResult(result, "导出");
         }
 
-        [MenuItem("Tools/Excel/批量操作/一键生成并导入所有")]
+        [MenuItem("Tools/AbilityKit/Framework/Excel/批量操作/一键生成并导入所有")]
         public static void OneClickGenerateAndImportAll()
         {
             var config = ExcelSyncProjectConfig.Instance;
@@ -150,7 +150,7 @@ namespace AbilityKit.ExcelSync.Editor
             ShowBatchResult(result, "一键同步");
         }
 
-        [MenuItem("Tools/Excel/批量操作/创建 Table Asset 并绑定")]
+        [MenuItem("Tools/AbilityKit/Framework/Excel/批量操作/创建 Table Asset 并绑定")]
         public static void CreateAndBindAllAssets()
         {
             var config = ExcelSyncProjectConfig.Instance;
@@ -192,7 +192,7 @@ namespace AbilityKit.ExcelSync.Editor
             EditorUtility.DisplayDialog("创建完成", message, "确定");
         }
 
-        [MenuItem("Tools/Excel/批量操作/刷新所有基线状态")]
+        [MenuItem("Tools/AbilityKit/Framework/Excel/批量操作/刷新所有基线状态")]
         public static void RefreshAllBaselineStatus()
         {
             var config = ExcelSyncProjectConfig.Instance;
@@ -210,7 +210,7 @@ namespace AbilityKit.ExcelSync.Editor
             Debug.Log($"[ExcelSync] 已刷新 {count} 个模板的基线状态");
         }
 
-        [MenuItem("Tools/Excel/批量操作/启用所有配置")]
+        [MenuItem("Tools/AbilityKit/Framework/Excel/批量操作/启用所有配置")]
         public static void EnableAll()
         {
             var config = ExcelSyncProjectConfig.Instance;
@@ -228,7 +228,7 @@ namespace AbilityKit.ExcelSync.Editor
             Debug.Log($"[ExcelSync] 已启用所有 {config.TableTemplates.Count} 个配置表");
         }
 
-        [MenuItem("Tools/Excel/批量操作/禁用所有配置")]
+        [MenuItem("Tools/AbilityKit/Framework/Excel/批量操作/禁用所有配置")]
         public static void DisableAll()
         {
             var config = ExcelSyncProjectConfig.Instance;
@@ -246,7 +246,7 @@ namespace AbilityKit.ExcelSync.Editor
             Debug.Log($"[ExcelSync] 已禁用所有 {config.TableTemplates.Count} 个配置表");
         }
 
-        [MenuItem("Tools/Excel/批量操作/打开模板管理器")]
+        // [MenuItem removed — duplicate of top-level 模板管理器]
         public static void OpenTemplateManager()
         {
             ExcelSyncTemplateManagerWindow.Open();

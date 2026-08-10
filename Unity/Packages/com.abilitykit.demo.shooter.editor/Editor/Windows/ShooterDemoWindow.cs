@@ -129,7 +129,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         private const string RemoteRoomFilterKey = "AbilityKit.ShooterDemo.RemoteRoomFilter";
         private const string RemoteShowFullRoomsKey = "AbilityKit.ShooterDemo.RemoteShowFullRooms";
 
-        [MenuItem("Tools/AbilityKit/Shooter Demo")]
+        [MenuItem("Tools/AbilityKit/Demos/Shooter/Shooter Demo")]
         private static void Open()
         {
             GetWindow<ShooterDemoWindow>("Shooter Demo");

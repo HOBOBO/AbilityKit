@@ -10,6 +10,8 @@ public sealed class ShooterSmokeClientProcessRunnerContractTests
         "Runtime", "Client", "Gateway", "ShooterRoomGatewayConnection.cs"));
     private static readonly string BattleHandleSource = File.ReadAllText(GetUnitySourcePath(
         "Runtime", "Client", "ShooterClientBattleHandle.cs"));
+    private static readonly string BattleDataPlaneSource = File.ReadAllText(GetUnitySourcePath(
+        "Runtime", "Client", "ShooterBattleDataPlane.cs"));
 
     [Fact]
     public void ClientProcessUsesFormalAccountLoginProtocol()
@@ -75,8 +77,8 @@ public sealed class ShooterSmokeClientProcessRunnerContractTests
         Assert.Contains("_fullStateSyncInFlight = completion.Task;", BattleHandleSource, StringComparison.Ordinal);
         Assert.Contains("if (ReferenceEquals(_fullStateSyncInFlight, completion.Task))", BattleHandleSource, StringComparison.Ordinal);
         Assert.Contains("_fullStateSyncInFlight = null;", BattleHandleSource, StringComparison.Ordinal);
-        Assert.Contains("AutomaticFullStateSyncTimeout = TimeSpan.FromSeconds(10);", GatewayConnectionSource, StringComparison.Ordinal);
-        Assert.Contains("RequestFullSnapshotResyncIfNeededAsync(AutomaticFullStateSyncTimeout)", GatewayConnectionSource, StringComparison.Ordinal);
+        Assert.Contains("AutomaticFullStateSyncTimeout = TimeSpan.FromSeconds(10);", BattleDataPlaneSource, StringComparison.Ordinal);
+        Assert.Contains("RequestFullSnapshotResyncIfNeededAsync(AutomaticFullStateSyncTimeout)", BattleDataPlaneSource, StringComparison.Ordinal);
     }
 
     [Fact]

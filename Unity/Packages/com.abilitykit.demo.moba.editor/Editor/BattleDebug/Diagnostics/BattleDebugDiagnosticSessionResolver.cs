@@ -26,13 +26,15 @@ namespace AbilityKit.Game.Editor.Diagnostics
             IBattleDiagnosticReadOnlySession session,
             MobaSkillCastRuntimeService skillRuntimeService,
             MobaBattleDiagnosticStateSampler stateSampler = null,
-            MobaBattleDiagnosticEventCollector eventCollector = null)
+            MobaBattleDiagnosticEventCollector eventCollector = null,
+            BattleDiagnosticHealthSnapshot? healthSnapshot = null)
         {
             Phase = phase;
             Session = session;
             SkillRuntimeService = skillRuntimeService;
             StateSampler = stateSampler;
             EventCollector = eventCollector;
+            HealthSnapshot = healthSnapshot;
         }
 
         public BattleDebugDiagnosticSessionResolutionPhase Phase { get; }
@@ -40,7 +42,9 @@ namespace AbilityKit.Game.Editor.Diagnostics
         public MobaSkillCastRuntimeService SkillRuntimeService { get; }
         public MobaBattleDiagnosticStateSampler StateSampler { get; }
         public MobaBattleDiagnosticEventCollector EventCollector { get; }
+        public BattleDiagnosticHealthSnapshot? HealthSnapshot { get; }
         public bool IsReady => Session != null;
+        public bool HasHealthSnapshot => HealthSnapshot.HasValue && HealthSnapshot.Value.IsValid;
 
         public string StatusMessage
         {
@@ -128,6 +132,8 @@ namespace AbilityKit.Game.Editor.Diagnostics
             services.TryResolve(out MobaSkillCastRuntimeService skillRuntimeService);
             services.TryResolve(out MobaBattleDiagnosticStateSampler stateSampler);
             services.TryResolve(out MobaBattleDiagnosticEventCollector eventCollector);
+            services.TryResolve(out IBattleDiagnosticHealthReadStore healthReadStore);
+            var healthSnapshot = healthReadStore?.CaptureHealthSnapshot();
             return new BattleDebugDiagnosticSessionResolution(
                 session != null
                     ? BattleDebugDiagnosticSessionResolutionPhase.Ready
@@ -135,7 +141,8 @@ namespace AbilityKit.Game.Editor.Diagnostics
                 session,
                 skillRuntimeService,
                 stateSampler,
-                eventCollector);
+                eventCollector,
+                healthSnapshot);
         }
     }
 }

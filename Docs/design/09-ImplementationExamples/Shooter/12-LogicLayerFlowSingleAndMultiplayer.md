@@ -125,19 +125,20 @@ sequenceDiagram
 
 ## 5. 多人远程客户端流程
 
-多人远程入口是 `ShooterRemoteStateSyncPlayModeHost`。它先连接 Gateway 完成 create/join/restore、ready、start、subscribe，再基于 `ShooterClientBattleHandle` 创建框架 `RemoteClientInputSubmitQueue`。运行时每 tick 同时做三件事：本地预测、排队提交已接受输入、Gateway push 接收处理。
+多人远程入口是 `ShooterRemoteStateSyncPlayModeHost`。它先通过 Room 控制面连接完成 create/join/restore、ready、start、subscribe，再由 `ShooterClientNetworkLauncher` 根据 battle 身份创建独立 `NetworkTransport`、`ShooterBattleTransportGatewayClient` 和 `ShooterBattleDataPlane`，最后基于 `ShooterClientBattleHandle` 创建框架 `RemoteClientInputSubmitQueue`。运行时每 tick 推进本地预测、排队提交已接受输入，并在主线程调用 data plane `Drain` 应用已入队的 battle push。
 
 ```mermaid
 flowchart TD
-    A["StartAsync / StartOrReconnectAsync"] --> B["Create local ShooterBattleWorldSession"]
-    B --> C["ShooterClientNetworkLauncher opens Gateway connection"]
-    C --> D["ShooterRemoteStateSyncConnectionFlow"]
-    D --> E["Create / Join / Restore room"]
-    E --> F["Ready + StartBattle + SubscribeStateSync"]
-    F --> G["Request initial full state sync if needed"]
-    G --> H["ShooterClientSession ready"]
-    H --> I["Create RemoteClientInputSubmitQueue"]
-    I --> J["Bind ShooterClientBattleHandle submit delegate"]
+    A["StartAsync or StartOrReconnectAsync"] --> B["Create local ShooterBattleWorldSession"]
+    B --> C["Open Room control connection"]
+    C --> D["Create, join or restore room"]
+    D --> E["Ready, start and subscribe"]
+    E --> F["Resolve battle, world and session identity"]
+    F --> G["Create independent battle NetworkTransport"]
+    G --> H["Create battle gateway client and data plane"]
+    H --> I["Create ShooterClientBattleHandle"]
+    I --> J["Request initial full state if needed"]
+    J --> K["Create RemoteClientInputSubmitQueue"]
 ```
 
 多人客户端每帧运行流程：
@@ -150,13 +151,14 @@ sequenceDiagram
     participant FrameSync as ShooterClientFrameSyncController
     participant Runtime as Client Shooter runtime
     participant Queue as RemoteClientInputSubmitQueue
-    participant Battle as ShooterClientBattleHandle
-    participant Gateway as Gateway / Room battle input
-    participant Push as Gateway state sync push
+    participant Handle as ShooterClientBattleHandle
+    participant BattleNet as Battle NetworkTransport
+    participant DataPlane as ShooterBattleDataPlane
+    participant Control as Room Control Connection
     participant View as Presentation ViewSink
 
     Host->>Input: ReadInput(controlledPlayerId)
-    Input-->>Host: move / aim / fire
+    Input-->>Host: move, aim and fire
     Host->>Session: SubmitLocalInput(command)
     Session->>FrameSync: SubmitLocalInput(command)
     FrameSync->>Runtime: SubmitInput(currentFrame, command)
@@ -164,26 +166,32 @@ sequenceDiagram
     Session-->>Host: ShooterClientInputSubmitResult
 
     Host->>Queue: SubmitOrQueue(local accepted input)
-    Queue->>Battle: SubmitAcceptedInputToGatewayAsync(local, timeout)
-    Battle->>Gateway: SubmitBattleInput request
+    Queue->>Handle: SubmitAcceptedInputToGatewayAsync
+    Handle->>BattleNet: SubmitBattleInput request
+    BattleNet-->>Handle: inline matched response
 
     Host->>Session: Tick(deltaSeconds)
     Session->>FrameSync: Tick(deltaSeconds)
     FrameSync->>Runtime: predicted Tick(fixedDelta)
-    Runtime-->>FrameSync: frame / hash
-    FrameSync->>View: ApplyLocalPredictionSnapshot(runtime snapshot)
+    Runtime-->>FrameSync: frame and hash
+    FrameSync->>View: ApplyLocalPredictionSnapshot
 
-    Push-->>Session: ApplyGatewayPush(opCode, payload)
+    BattleNet-->>DataPlane: enqueue push on receive thread
+    Host->>DataPlane: Drain on main thread
+    DataPlane->>Session: ApplyGatewayPush(opCode, payload)
     Session->>FrameSync: ApplyGatewayPush
-    FrameSync->>Runtime: Import authoritative packed / pure state
-    FrameSync->>FrameSync: reconcile + replay pending local inputs
-    FrameSync->>View: Publish reconciliation + local prediction snapshot
+    FrameSync->>Runtime: Import authoritative packed or pure state
+    FrameSync->>FrameSync: reconcile and replay pending inputs
+    FrameSync->>View: Publish reconciliation and prediction
 
-    Host->>Gateway: Launcher.Tick(deltaSeconds)
+    opt reliable ack or full-state recovery
+        DataPlane->>Handle: acknowledge or request baseline
+        Handle->>Control: room RPC
+    end
     Host->>View: Render presentation frame
 ```
 
-这里有一个容易误判的点：客户端仍然会先 `SubmitLocalInput` 到本地 runtime，这是预测和立即反馈需要的本地路径，不代表它绕过服务器权威。真正发往服务端的路径是 `RemoteClientInputSubmitQueue` -> `ShooterClientBattleHandle.SubmitAcceptedInputToGatewayAsync` -> Gateway。Shooter 的连接、房间、快照订阅和预测生命周期已经由 `ShooterClientSession`、`ShooterClientNetworkLauncher` 和 `RoomGatewaySessionFlow` 共同持有，因此不能为了转发一次输入再启动第二套 `SessionCoordinator` 生命周期。
+这里有两个容易误判的点。第一，客户端先 `SubmitLocalInput` 到本地 runtime 是预测和立即反馈需要的本地路径，不代表绕过服务器权威；真正发往服务端的路径是 `RemoteClientInputSubmitQueue` -> `ShooterClientBattleHandle` -> 独立 battle transport。第二，battle push 不是在 receive thread 直接调用 session，而是入队后由主线程 `Drain`；这样既避免网络线程与本地 Tick 竞争，也不让 awaited 输入 response 依赖主线程 pump。Shooter 的 world、Room 控制面、battle 数据面、订阅和预测生命周期已由业务 host、session 与 launcher 唯一持有，不能再叠加当前源码中并不存在的 `SessionCoordinator` 实现链。
 
 ## 6. 多人服务端权威流程
 
@@ -275,7 +283,7 @@ flowchart TD
 
 ## 8. 与框架设计的符合性
 
-从当前代码看，Shooter 逻辑层符合 AbilityKit 框架的组合边界。远程 PlayMode 复用框架的带背压输入队列、Gateway room flow、快照管线和预测回滚组件；Shooter 专用 battle handle 只保留协议适配和请求出口。
+从当前代码看，Shooter 逻辑层符合 AbilityKit 框架的组合边界。远程 PlayMode 复用框架的带背压输入队列、阶段化 Gateway room flow、快照管线和预测回滚组件；Shooter 专用 battle handle 校验会话身份并封装输入、ack 和 full-state RPC，data plane 负责 battle push 的线程切换。
 
 符合点：
 
@@ -284,8 +292,10 @@ flowchart TD
 | 逻辑世界只处理领域输入和 tick | `ShooterBattleRuntimePort.SubmitInput` / `Tick` | 符合 |
 | session/host 决定运行模式 | 单机 `ShooterPlaySessionRunner`，多人 `ShooterRemoteStateSyncPlayModeHost`，服务端 `BattleLogicHostGrain` | 符合 |
 | 输入提交具备统一背压和诊断 | `RemoteClientInputSubmitQueue` 组合提交委托并统计 queued/replaced/failed/resync | 符合 |
-| 已存在完整客户端 session 时不重复装配生命周期 | `ShooterRemoteStateSyncPlayModeHost` 只持有 runtime world、launcher、launch result | 符合 |
-| Gateway 请求封装在客户端 battle handle | `ShooterClientBattleHandle.SubmitAcceptedInputToGatewayAsync` | 符合 |
+| 已存在完整客户端 session 时不重复装配生命周期 | `ShooterRemoteStateSyncPlayModeHost` 持有 runtime world、launcher、launch result 和输入策略 | 符合 |
+| Room 控制面与 battle 数据面分离 | launcher 在 flow 完成后创建独立 `NetworkTransport` 和 data plane | 符合 |
+| Gateway 请求封装在客户端 battle handle | 输入、可靠事件 ack 和 full-state 请求均经 handle | 符合 |
+| push 跨线程有明确边界 | receive thread 入队，主线程 `Drain` 后应用 session | 符合 |
 | 服务端通过 driver host 适配 runtime | `ShooterBattleDriverHost` 实现 `ILogicWorldDriverBridge` | 符合 |
 | 输出通过 snapshot/hash/state sync 表达 | `GetSnapshot`、`ComputeStateHash`、packed/pure state exporters | 符合 |
 
@@ -296,7 +306,7 @@ flowchart TD
 | 客户端 remote 最终调用 Gateway 提交 API | 调用封装在 `ShooterClientBattleHandle`，PlayMode 只提供已接受的本地输入 | 协议细节不进入输入泵和本地预测控制器 |
 | 输入队列不拥有网络生命周期 | 队列只组合异步提交委托并管理背压 | pause/reconnect/dispose 仍由唯一的 launcher/session 生命周期负责 |
 | 本地预测世界 tick 独立于网络请求 | 本地预测由 Shooter client frame sync controller 驱动 | 网络延迟不会阻塞本地固定步进，权威快照负责后续纠偏 |
-| 服务端 Orleans 不是直接由 Coordinator 创建 | 服务端由 Room/Battle grain 管理 runtime lifecycle | 符合服务器侧 Orleans 架构，Coordinator 主要用于客户端 session 组织和 transport 抽象 |
+| 服务端 Orleans 不由客户端会话装配器创建 | 服务端由 Room/Battle grain 管理 runtime lifecycle | 符合服务器侧 Orleans 架构；当前 coordinator Package 也没有会话总装器实现 |
 
 ## 9. 流程分层判断点
 
@@ -304,10 +314,12 @@ flowchart TD
 
 1. 逻辑层是否保持纯粹：`ShooterBattleRuntimePort` 不依赖 Gateway、Unity 输入或 Orleans observer，只接受领域命令并输出 snapshot/hash。
 2. 单机是否本地闭环：`ShooterPlaySessionRunner` 的输入、tick、snapshot、render 都在本地完成，没有网络提交。
-3. 多人客户端是否只有一套生命周期：远程输入通过框架队列进入现有 `ShooterClientBattleHandle`，没有为输入转发创建第二套 world、session 或 tick。
-4. 服务端是否权威：Orleans `BattleLogicHostGrain` 负责输入调度、权威 tick 和状态推送，客户端只做预测和校正。
+3. 多人客户端是否只有一套生命周期：远程输入通过框架队列进入现有 battle handle，没有为输入转发创建第二套 world、session 或 tick。
+4. 双连接所有权是否明确：Room connection 负责控制与恢复 RPC，battle transport 负责输入和 push，二者绑定同一组身份。
+5. 线程边界是否明确：输入 response inline 匹配，push 接收线程只入队，主线程 Drain 后应用。
+6. 服务端是否权威：Orleans `BattleLogicHostGrain` 负责输入调度、权威 tick 和状态推送，客户端只做预测和校正。
 
-按这四点看，当前 Shooter 示例的主流程已经符合框架分层：runtime 是领域逻辑核心，PlayMode/session 决定运行方式，框架队列与 battle handle 负责远程输入提交，Orleans battle host 负责服务端权威模拟与状态输出。`ExistingWorldSessionCoordinatorHost` 仍适用于确实由 Coordinator 管理完整会话的业务，但不应只为单次输入转发叠加到已有 Shooter 会话上。
+按这些点看，当前 Shooter 示例的主流程已经符合框架分层：runtime 是领域逻辑核心，PlayMode/session 决定运行方式，框架队列、battle handle 与 data plane 负责远程数据面，Orleans battle host 负责服务端权威模拟与状态输出。当前 coordinator Package 不包含 `SessionCoordinator` 或 `ExistingWorldSessionCoordinatorHost`，因此旧接法既不是 Shooter 的采用路径，也不是可直接调用的现役扩展点。
 
 ## 10. 源码索引
 
@@ -322,5 +334,8 @@ flowchart TD
 | 多人远程 PlayMode host | [ShooterRemoteStateSyncPlayModeHost.cs](../../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Unity/PlayMode/ShooterRemoteStateSyncPlayModeHost.cs) |
 | 远程输入提交策略 | [ShooterRemoteInputSubmitStrategy.cs](../../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Unity/PlayMode/ShooterRemoteInputSubmitStrategy.cs) |
 | 客户端 battle handle | [ShooterClientBattleHandle.cs](../../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientBattleHandle.cs) |
+| 客户端 battle data plane | [ShooterBattleDataPlane.cs](../../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterBattleDataPlane.cs) |
+| Battle transport Gateway client | [ShooterBattleTransportGatewayClient.cs](../../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Gateway/ShooterBattleTransportGatewayClient.cs) |
+| 框架远端输入队列 | [RemoteClientInputSubmitQueue.cs](../../../../Unity/Packages/com.abilitykit.host.extension/Runtime/Client/StateSync/RemoteClientInputSubmitQueue.cs) |
 | 服务端 battle host grain | [BattleLogicHostGrain.cs](../../../../Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/BattleLogicHostGrain.cs) |
 | 服务端 Shooter runtime adapter | [ShooterBattleRuntimeAdapter.cs](../../../../Server/Orleans/src/AbilityKit.Orleans.Grains/Gameplays/Shooter/Battle/ShooterBattleRuntimeAdapter.cs) |

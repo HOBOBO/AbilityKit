@@ -19,7 +19,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         private const string PlanOutputFileName = "ability_trigger_plans_from_source.json";
         private const string PackageAbilityResourcesPath = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability";
 
-        [MenuItem("AbilityKit/Ability/Source/Export Source JSON")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/Source/Export Source JSON")]
         public static void ExportSourceJson()
         {
             var sourcePath = EditorUtility.OpenFilePanel(
@@ -36,7 +36,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             ExportSourceToPlan(sourcePath);
         }
 
-        [MenuItem("AbilityKit/Ability/Source/Import Plan JSON to Source")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/Source/Import Plan JSON to Source")]
         public static void ImportPlanToSource()
         {
             var planPath = EditorUtility.OpenFilePanel(
@@ -61,7 +61,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerPlanJsonSplitter.Merge();
         }
 
-        [MenuItem("AbilityKit/Ability/Source/Export from SO to Source JSON")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/Source/Export from SO to Source JSON")]
         public static void ExportSoToSource()
         {
             ExportLog.Info("Exporting SO configs to Source JSON...");

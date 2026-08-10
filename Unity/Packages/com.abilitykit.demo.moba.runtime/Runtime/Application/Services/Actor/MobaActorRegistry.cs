@@ -19,15 +19,28 @@ namespace AbilityKit.Demo.Moba.Services
             _byId[actorId] = entity;
         }
 
+        public bool Contains(int actorId)
+        {
+            return actorId > 0 && _byId.ContainsKey(actorId);
+        }
+
         public bool TryGet(int actorId, out global::ActorEntity entity)
         {
-            if (_byId.TryGetValue(actorId, out entity) && entity != null && entity.isEnabled)
+            if (TryGetRegistered(actorId, out entity) && entity.isEnabled)
             {
                 return true;
             }
 
             entity = null;
             return false;
+        }
+
+        internal bool TryGetRegistered(int actorId, out global::ActorEntity entity)
+        {
+            entity = null;
+            return actorId > 0 &&
+                   _byId.TryGetValue(actorId, out entity) &&
+                   entity != null;
         }
 
         public void Unregister(int actorId)

@@ -22,7 +22,11 @@ namespace AbilityKit.Game.Editor
         {
             if (!ctx.HasSelection)
             {
-                EditorGUILayout.HelpBox("请先选择一个实体。", MessageType.Info);
+                DrawEmptyState(BattleDebugEmptyStateProjector.Project(
+                    default,
+                    requiresSelection: true,
+                    hasSelection: false,
+                    subject: "实体标签"));
                 return;
             }
 
@@ -36,23 +40,26 @@ namespace AbilityKit.Game.Editor
 
             if (!session.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorTags))
             {
-                EditorGUILayout.HelpBox("当前诊断会话不支持实体标签查询。", MessageType.Info);
+                var unsupported = BattleDiagnosticQueryStatus.Unavailable(
+                    0,
+                    session.ActorTagStoreRevision,
+                    BattleDiagnosticDataAvailability.Unsupported);
+                DrawEmptyState(BattleDebugEmptyStateProjector.Project(
+                    in unsupported,
+                    subject: "实体标签"));
                 return;
             }
 
             DrawToolbar(in ctx);
             _viewModel.RefreshIfNeeded(session, ctx.SelectedId.ActorId);
 
-            if (!string.IsNullOrEmpty(_viewModel.StatusMessage))
-            {
-                EditorGUILayout.HelpBox(_viewModel.StatusMessage, MessageType.None);
-            }
-
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
             var tags = _viewModel.Tags;
             if (tags == null || tags.Count == 0)
             {
-                EditorGUILayout.LabelField("（空）", EditorStyles.miniLabel);
+                DrawEmptyState(BattleDebugEmptyStateProjector.Project(
+                    _viewModel.QueryStatus,
+                    subject: "实体标签"));
             }
             else
             {
@@ -62,6 +69,20 @@ namespace AbilityKit.Game.Editor
                 }
             }
             EditorGUILayout.EndScrollView();
+        }
+
+        private static void DrawEmptyState(in BattleDebugEmptyStateProjection projection)
+        {
+            if (!projection.HasValue) return;
+            var message = string.IsNullOrEmpty(projection.Message)
+                ? projection.Title
+                : $"{projection.Title}\n{projection.Message}";
+            var messageType = projection.Severity == BattleDebugEmptyStateSeverity.Error
+                ? MessageType.Error
+                : projection.Severity == BattleDebugEmptyStateSeverity.Warning
+                    ? MessageType.Warning
+                    : MessageType.Info;
+            EditorGUILayout.HelpBox(message, messageType);
         }
 
         private void DrawToolbar(in BattleDebugContext ctx)

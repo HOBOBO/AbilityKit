@@ -14,10 +14,10 @@ namespace AbilityKit.Game.Editor
         private const string MultiplayerStarterScenePath = "Assets/Scenes/MultiplayerStarterScene.unity";
         private const string MobaMultiplayerScenePath = "Assets/Scenes/MobaMultiplayerScene.unity";
         private const string ShooterMultiplayerScenePath = "Assets/Scenes/ShooterMultiplayerScene.unity";
-        private const string MobaMenuPath = "Tools/AbilityKit/Demo Builds/Build MOBA Windows IL2CPP";
-        private const string ShooterMenuPath = "Tools/AbilityKit/Demo Builds/Build Shooter Windows IL2CPP";
-        private const string MultiplayerMenuPath = "Tools/AbilityKit/Demo Builds/Build Multiplayer Starter Windows IL2CPP";
-        private const string AllMenuPath = "Tools/AbilityKit/Demo Builds/Build All Windows IL2CPP";
+        private const string MobaMenuPath = "Tools/AbilityKit/Demos/Moba/Builds/Build MOBA Windows IL2CPP";
+        private const string ShooterMenuPath = "Tools/AbilityKit/Demos/Moba/Builds/Build Shooter Windows IL2CPP";
+        private const string MultiplayerMenuPath = "Tools/AbilityKit/Demos/Moba/Builds/Build Multiplayer Starter Windows IL2CPP";
+        private const string AllMenuPath = "Tools/AbilityKit/Demos/Moba/Builds/Build All Windows IL2CPP";
         private const string MobaExecutableName = "AbilityKitMobaDemo.exe";
         private const string ShooterExecutableName = "AbilityKitShooterDemo.exe";
         private const string MultiplayerExecutableName = "AbilityKitMultiplayerDemo.exe";

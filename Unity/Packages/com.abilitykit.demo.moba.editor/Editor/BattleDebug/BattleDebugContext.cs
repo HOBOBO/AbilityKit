@@ -18,12 +18,14 @@ namespace AbilityKit.Game.Editor
             Action<long> selectActor = null,
             Action<long, long> openTrace = null,
             Action<long> openEvents = null,
+            Action openRecentFailures = null,
             Action<BattleDebugConfigReference> openConfig = null,
             Func<int, bool> seekReplayFrame = null,
             IBattleDiagnosticReadOnlySession diagnosticSession = null,
             MobaSkillCastRuntimeService skillRuntimeService = null,
             BattleDebugDiagnosticSessionResolution diagnosticResolution = default,
-            bool isOffline = false)
+            bool isOffline = false,
+            BattleDiagnosticWorkspaceState workspaceState = null)
         {
             Facade = facade;
             SelectedId = selectedId;
@@ -32,12 +34,14 @@ namespace AbilityKit.Game.Editor
             SelectActor = selectActor;
             OpenTrace = openTrace;
             OpenEvents = openEvents;
+            OpenRecentFailures = openRecentFailures;
             OpenConfig = openConfig;
             SeekReplayFrame = seekReplayFrame;
             DiagnosticSession = diagnosticSession;
             SkillRuntimeService = skillRuntimeService;
             DiagnosticResolution = diagnosticResolution;
             IsOffline = isOffline;
+            WorkspaceState = workspaceState;
         }
 
         public IBattleDebugFacade Facade { get; }
@@ -47,12 +51,14 @@ namespace AbilityKit.Game.Editor
         public Action<long> SelectActor { get; }
         public Action<long, long> OpenTrace { get; }
         public Action<long> OpenEvents { get; }
+        public Action OpenRecentFailures { get; }
         public Action<BattleDebugConfigReference> OpenConfig { get; }
         public Func<int, bool> SeekReplayFrame { get; }
         public IBattleDiagnosticReadOnlySession DiagnosticSession { get; }
         public MobaSkillCastRuntimeService SkillRuntimeService { get; }
         public BattleDebugDiagnosticSessionResolution DiagnosticResolution { get; }
         public bool IsOffline { get; }
+        public BattleDiagnosticWorkspaceState WorkspaceState { get; }
 
         public bool HasSelection => SelectedId.IsValid;
         public bool HasRuntimeSelection => SelectedId.IsValid && SelectedUnit != null;

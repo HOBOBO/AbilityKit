@@ -1,8 +1,3 @@
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
 
@@ -22,37 +17,9 @@ namespace AbilityKit.Game.Flow
             set => _handles.Net.Ctx = value;
         }
 
-        private IConnection _gatewayConn
-        {
-            get => _handles.GatewayRoom.Conn;
-            set => _handles.GatewayRoom.Conn = value;
-        }
+        private IConnection _gatewayConn => _runtime.GatewayRoom.Connection;
 
-        private IGatewayRoomClient _gatewayClient
-        {
-            get => _handles.GatewayRoom.Client;
-            set => _handles.GatewayRoom.Client = value;
-        }
-
-        private Task _gatewayTask
-        {
-            get => _handles.GatewayRoom.Task;
-            set => _handles.GatewayRoom.Task = value;
-        }
-
-        private CancellationTokenSource _gatewayTimeSyncCts
-        {
-            get => _handles.GatewayRoom.TimeSyncCts;
-            set => _handles.GatewayRoom.TimeSyncCts = value;
-        }
-
-        private Task _gatewayTimeSyncTask
-        {
-            get => _handles.GatewayRoom.TimeSyncTask;
-            set => _handles.GatewayRoom.TimeSyncTask = value;
-        }
-
-        private Dictionary<WorldId, GatewayWorldStartAnchor> _gatewayWorldStartAnchors => _handles.GatewayRoom.WorldStartAnchors;
+        private IGatewayRoomClient _gatewayClient => _runtime.GatewayRoom.Client;
 
         private IDispatcher _unityDispatcher
         {

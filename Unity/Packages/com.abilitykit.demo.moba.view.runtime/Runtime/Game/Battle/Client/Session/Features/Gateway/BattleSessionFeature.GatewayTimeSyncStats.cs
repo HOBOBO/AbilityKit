@@ -20,7 +20,7 @@ namespace AbilityKit.Game.Flow
                 BattleFlowDebugProvider.TimeSyncStatsByWorld = new Dictionary<string, TimeSyncStatsSnapshot>();
             }
 
-            foreach (var kv in _gatewayWorldStartAnchors)
+            foreach (var kv in _runtime.GatewayRoom.WorldStartAnchors)
             {
                 BattleFlowDebugProvider.TimeSyncStatsByWorld[kv.Key.Value] =
                     BuildTimeSyncStats(kv.Key, opCode, intervalMs, alpha, timeoutMs);

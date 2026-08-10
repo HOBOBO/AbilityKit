@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Components;
@@ -84,6 +86,11 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             {
                 context.Runtime = existingRuntime;
                 context.IsExistingRuntime = true;
+                if (buff.StackingPolicy == BuffStackingPolicy.Replace)
+                {
+                    return ApplyReplacement(target, list, existingIndex, existingRuntime, ref context);
+                }
+
                 var applied = ApplyToExisting(target, ref context);
                 if (applied) BuffRepository.MarkDirty(list);
                 return applied;
@@ -102,24 +109,15 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
 
             var runtimeState = context.RuntimeView;
             var oldStackCount = runtime.StackCount;
-            var isReplace = buff.StackingPolicy == BuffStackingPolicy.Replace;
-            var oldOwnerKey = runtime.SourceContextId;
-            if (isReplace)
+            _ctx?.EnsureBuffContext(runtime, buff.Id, request.SourceActorId, context.TargetActorId, request.Origin);
+            if (!_bindings.BindSkillRuntime(runtime, in request))
             {
-                _bindings.EndContinuous(runtime, TraceLifecycleReason.Interrupted);
-                _bindings.CleanupContinuous(target, context.TargetActorId, runtime, applyRemovalTags: false);
-                _ctx?.CancelAndEnd(runtime);
-                _endFlow.CleanupOwnerBindings(target, oldOwnerKey);
-                _endFlow.ReleaseSkillRuntime(runtime);
-                _endFlow.NotifyLifecycle(runtime, MobaRuntimeLifecycleEventKind.Cleared, "buff.lifecycle.replaced");
-                runtimeState.ClearRuntimeBindings();
+                return Reject(BuffLifecycleRejectCode.ApplySkillRuntimeBindingFailed, $"skill runtime binding failed for existing buff. target={context.TargetActorId} buffId={buff.Id} source={request.SourceActorId} sourceContextId={runtime.SourceContextId}.");
             }
 
             var stackingResult = _stacking.ApplyToExisting(runtime, buff, request.SourceActorId, context.DurationSeconds);
             var applied = stackingResult.Applied;
-            _ctx?.EnsureBuffContext(runtime, buff.Id, request.SourceActorId, context.TargetActorId, request.Origin);
             _endFlow.NotifyLifecycle(runtime, MobaRuntimeLifecycleEventKind.Activated, "buff.lifecycle.active");
-            _bindings.BindSkillRuntime(runtime, in request);
             if (applied || runtime.TagRequirements == null)
             {
                 runtimeState.SetTagRequirements(context.Requirements);
@@ -127,14 +125,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
 
             if (applied && !EnsureContinuousRuntime(runtime, buff, request.SourceActorId, context.TargetActorId, context.DurationSeconds, context.Requirements))
             {
-                if (isReplace)
-                {
-                    _ctx?.CancelAndEnd(runtime);
-                    _endFlow.ReleaseSkillRuntime(runtime);
-                    _endFlow.NotifyLifecycle(runtime, MobaRuntimeLifecycleEventKind.Failed, "buff.lifecycle.activateFailed");
-                    runtimeState.ClearRuntimeBindings();
-                }
-
                 return Reject(BuffLifecycleRejectCode.ApplyContinuousActivationFailed, $"continuous runtime activation failed for existing buff. target={context.TargetActorId} buffId={buff.Id} source={request.SourceActorId} sourceContextId={runtime.SourceContextId}.");
             }
 
@@ -148,6 +138,60 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             return true;
         }
 
+        private bool ApplyReplacement(
+            global::ActorEntity target,
+            List<BuffRuntime> list,
+            int existingIndex,
+            BuffRuntime existingRuntime,
+            ref BuffOperationContext context)
+        {
+            var buff = context.Buff;
+            var request = context.ApplyRequest;
+            if (buff == null || existingRuntime == null)
+            {
+                return Reject(BuffLifecycleRejectCode.ApplyExistingRuntimeMissing, "replacement buff runtime or config is null.");
+            }
+
+            var replacement = _stacking.CreateNewRuntime(buff, request.SourceActorId, context.DurationSeconds);
+            replacement.SourceContextId = request.SourceContextId;
+            _ctx?.EnsureBuffContext(replacement, buff.Id, request.SourceActorId, context.TargetActorId, request.Origin);
+            if (!_bindings.BindSkillRuntime(replacement, in request))
+            {
+                var failedSourceContextId = replacement.SourceContextId;
+                CleanupFailedCandidate(target, context.TargetActorId, replacement);
+                return Reject(BuffLifecycleRejectCode.ApplySkillRuntimeBindingFailed, $"skill runtime binding failed for replacement buff. target={context.TargetActorId} buffId={buff.Id} source={request.SourceActorId} sourceContextId={failedSourceContextId}.");
+            }
+
+            new BuffRuntimeView(replacement).SetTagRequirements(context.Requirements);
+            if (!EnsureContinuousRuntime(replacement, buff, request.SourceActorId, context.TargetActorId, context.DurationSeconds, context.Requirements))
+            {
+                var failedSourceContextId = replacement.SourceContextId;
+                CleanupFailedCandidate(target, context.TargetActorId, replacement);
+                return Reject(BuffLifecycleRejectCode.ApplyContinuousActivationFailed, $"continuous runtime activation failed for replacement buff. target={context.TargetActorId} buffId={buff.Id} source={request.SourceActorId} sourceContextId={failedSourceContextId}.");
+            }
+
+            _ctx?.BindRuntimeContext(replacement, context.TargetActorId, MobaRuntimeContextLifecycleState.Active);
+            if (!BuffRepository.ReplaceAt(list, existingIndex, existingRuntime, replacement))
+            {
+                var failedSourceContextId = replacement.SourceContextId;
+                CleanupFailedCandidate(target, context.TargetActorId, replacement);
+                return Reject(BuffLifecycleRejectCode.ApplyReplacementCommitFailed, $"replacement commit failed. target={context.TargetActorId} buffId={buff.Id} source={request.SourceActorId} sourceContextId={failedSourceContextId}.");
+            }
+
+            var targetActorId = context.TargetActorId;
+            var durationSeconds = context.DurationSeconds;
+            Exception firstFailure = null;
+            TryStep(() => _endFlow.EndCommittedRuntime(target, existingRuntime, existingRuntime.SourceId, TraceLifecycleReason.Replaced), ref firstFailure);
+            TryStep(() => _endFlow.NotifyLifecycle(replacement, MobaRuntimeLifecycleEventKind.Activated, "buff.lifecycle.active"), ref firstFailure);
+            TryStep(() => _notifier.AppliedNew(buff, request.SourceActorId, targetActorId, durationSeconds, replacement), ref firstFailure);
+            if (firstFailure != null)
+            {
+                ExceptionDispatchInfo.Capture(firstFailure).Throw();
+            }
+
+            return true;
+        }
+
         private bool ApplyNew(global::ActorEntity target, List<BuffRuntime> list, ref BuffOperationContext context)
         {
             var buff = context.Buff;
@@ -158,26 +202,46 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             runtime.SourceContextId = request.SourceContextId;
             context.Runtime = runtime;
             _ctx?.EnsureBuffContext(runtime, buff.Id, request.SourceActorId, context.TargetActorId, request.Origin);
-            _endFlow.NotifyLifecycle(runtime, MobaRuntimeLifecycleEventKind.Activated, "buff.lifecycle.active");
-            _bindings.BindSkillRuntime(runtime, in request);
+            if (!_bindings.BindSkillRuntime(runtime, in request))
+            {
+                var failedSourceContextId = runtime.SourceContextId;
+                CleanupFailedCandidate(target, context.TargetActorId, runtime);
+                return Reject(BuffLifecycleRejectCode.ApplySkillRuntimeBindingFailed, $"skill runtime binding failed for new buff. target={context.TargetActorId} buffId={buff.Id} source={request.SourceActorId} sourceContextId={failedSourceContextId}.");
+            }
+
             context.RuntimeView.SetTagRequirements(context.Requirements);
             if (!EnsureContinuousRuntime(runtime, buff, request.SourceActorId, context.TargetActorId, context.DurationSeconds, context.Requirements))
             {
                 var failedSourceContextId = runtime.SourceContextId;
-                _ctx?.CancelAndEnd(runtime);
-                _endFlow.ReleaseSkillRuntime(runtime);
-                _endFlow.NotifyLifecycle(runtime, MobaRuntimeLifecycleEventKind.Failed, "buff.lifecycle.activateFailed");
-                new BuffRuntimeView(runtime).ClearRuntimeBindings();
-                BuffRepository.ReleaseRuntime(runtime);
+                CleanupFailedCandidate(target, context.TargetActorId, runtime);
                 return Reject(BuffLifecycleRejectCode.ApplyContinuousActivationFailed, $"continuous runtime activation failed for new buff. target={context.TargetActorId} buffId={buff.Id} source={request.SourceActorId} sourceContextId={failedSourceContextId}.");
             }
 
             _ctx?.BindRuntimeContext(runtime, context.TargetActorId, MobaRuntimeContextLifecycleState.Active);
             list.Add(runtime);
             BuffRepository.RegisterRuntime(list, runtime);
- 
+
+            _endFlow.NotifyLifecycle(runtime, MobaRuntimeLifecycleEventKind.Activated, "buff.lifecycle.active");
             _notifier.AppliedNew(buff, request.SourceActorId, context.TargetActorId, context.DurationSeconds, runtime);
             return true;
+        }
+
+        private void CleanupFailedCandidate(global::ActorEntity target, int targetActorId, BuffRuntime runtime)
+        {
+            if (runtime == null) return;
+
+            Exception firstFailure = null;
+            TryStep(() => _bindings?.EndContinuous(runtime, TraceLifecycleReason.Failed), ref firstFailure);
+            TryStep(() => _bindings?.CleanupContinuous(target, targetActorId, runtime, applyRemovalTags: false), ref firstFailure);
+            TryStep(() => _ctx?.CancelAndEnd(runtime), ref firstFailure);
+            TryStep(() => _endFlow.ReleaseSkillRuntime(runtime), ref firstFailure);
+            TryStep(() => _endFlow.NotifyLifecycle(runtime, MobaRuntimeLifecycleEventKind.Failed, "buff.lifecycle.activateFailed"), ref firstFailure);
+            TryStep(() => new BuffRuntimeView(runtime).ClearRuntimeBindings(), ref firstFailure);
+            TryStep(() => BuffRepository.ReleaseRuntime(runtime), ref firstFailure);
+            if (firstFailure != null)
+            {
+                ExceptionDispatchInfo.Capture(firstFailure).Throw();
+            }
         }
 
         private bool EnsureContinuousRuntime(BuffRuntime runtime, BuffMO buff, int sourceActorId, int targetActorId, float remainingSeconds, ContinuousTagRequirements requirements)
@@ -191,6 +255,18 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             if (actorId <= 0) return false;
             if (_actors == null) return false;
             return _actors.TryGetActorEntity(actorId, out target) && target != null && target.hasActorId;
+        }
+
+        private static void TryStep(Action action, ref Exception firstFailure)
+        {
+            try
+            {
+                action?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                if (firstFailure == null) firstFailure = ex;
+            }
         }
 
         private bool Reject(BuffLifecycleRejectCode code, string message)

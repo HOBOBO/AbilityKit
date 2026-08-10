@@ -30,6 +30,9 @@ namespace AbilityKit.Game.Editor
         /// <summary>最近一次查询的状态消息（空字符串表示无特殊状态）。</summary>
         public string StatusMessage { get; private set; } = string.Empty;
 
+        public BattleDiagnosticQueryStatus WorldQueryStatus { get; private set; }
+        public BattleDiagnosticQueryStatus ActorQueryStatus { get; private set; }
+
         /// <summary>最近一次查询时的 Store Revision。</summary>
         public long StoreRevision => _lastStoreRevision;
 
@@ -38,6 +41,8 @@ namespace AbilityKit.Game.Editor
         {
             _cachedWorld = null;
             _cachedActors = null;
+            WorldQueryStatus = default;
+            ActorQueryStatus = default;
             _lastStoreRevision = -1;
             _hasCachedResult = false;
         }
@@ -63,6 +68,8 @@ namespace AbilityKit.Game.Editor
 
             var worldResult = session.QueryWorld(_lastRequestId, frame);
             var actorsResult = session.QueryActors(_lastRequestId, frame);
+            WorldQueryStatus = worldResult.Status;
+            ActorQueryStatus = actorsResult.Status;
 
             _lastStoreRevision = currentRevision;
             _lastFrameInput = FrameInput;

@@ -1,6 +1,7 @@
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Ability.Host.Extensions.Moba.StartSources;
+using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Services.LogicWorld;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -103,10 +104,28 @@ namespace AbilityKit.Demo.Moba.Services
             ready &= Require<IWorldStateSnapshotProvider>(in context, report, "output.snapshot.provider", "IWorldStateSnapshotProvider is required for snapshot retrieval by frame.");
             ready &= Require<IMobaSnapshotHealthProvider>(in context, report, "output.snapshot.health", "IMobaSnapshotHealthProvider is required to verify snapshot emitter readiness.");
 
-            if (context.TryResolve<IMobaSnapshotHealthProvider>(out var healthProvider) && healthProvider != null)
+            MobaSnapshotOutputContract contract = null;
+            if (!context.TryResolve<MobaGameplayConfigSettings>(out var gameplaySettings) || gameplaySettings == null)
+            {
+                report.Error(Source, "output.snapshot.gameplay_settings", "MobaGameplayConfigSettings is required to resolve the gameplay-aware snapshot contract.", nameof(MobaGameplayConfigSettings), blocksStartup: true);
+                ready = false;
+            }
+            else if (!context.TryResolve<MobaSnapshotContractProfileRegistry>(out var profiles) || profiles == null)
+            {
+                report.Error(Source, "output.snapshot.profile_registry", "MobaSnapshotContractProfileRegistry is required to resolve the gameplay-aware snapshot contract.", nameof(MobaSnapshotContractProfileRegistry), blocksStartup: true);
+                ready = false;
+            }
+            else if (!profiles.TryResolve(gameplaySettings.DefaultGameplayId, out contract, out var profileError))
+            {
+                report.Error(Source, "output.snapshot.profile", profileError, nameof(MobaSnapshotContractProfileRegistry), blocksStartup: true);
+                ready = false;
+            }
+
+            if (contract != null &&
+                context.TryResolve<IMobaSnapshotHealthProvider>(out var healthProvider) &&
+                healthProvider != null)
             {
                 var health = healthProvider.GetHealth();
-                var contract = MobaSnapshotOutputContract.CreateDefault();
                 var validation = contract.Validate(in health);
                 if (!validation.Succeeded)
                 {

@@ -18,7 +18,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     public static class MobaConfigJsonExporter
     {
         private const string PackageMobaResourcesPath = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba";
-        [MenuItem("AbilityKit/Moba/Export Config Json")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Export Config Json")]
         public static void ExportSelected()
         {
             var folder = TryGetSelectedFolderPath();

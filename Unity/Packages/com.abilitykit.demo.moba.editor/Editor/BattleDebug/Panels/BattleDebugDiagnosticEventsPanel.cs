@@ -34,14 +34,23 @@ namespace AbilityKit.Game.Editor
 
         public void OpenForActor(long actorId)
         {
-            if (actorId <= 0) return;
-
             _viewModel.ClearCorrelationFocus();
-            _viewModel.FilterBySelectedActor = true;
+            _viewModel.FilterBySelectedActor = actorId > 0;
             _viewModel.ActorRelation = BattleDiagnosticActorRelation.Either;
             _viewModel.FailuresOnly = false;
             _viewModel.SearchText = string.Empty;
             _viewModel.InvalidateCache();
+            ClearSelection();
+        }
+
+        public void OpenRecentFailures()
+        {
+            _viewModel.FocusRecentFailures();
+            ClearSelection();
+        }
+
+        private void ClearSelection()
+        {
             _selectedEvent = null;
             _selectedInvestigation = null;
             _actionStatus = string.Empty;
@@ -62,7 +71,13 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.Space(4);
 
             var selectedActorId = ctx.HasSelection ? ctx.SelectedId.ActorId : 0;
-            var items = _viewModel.RefreshIfNeeded(session, selectedActorId, ctx.HasSelection);
+            var workspaceFilter = ctx.WorkspaceState.Filter;
+            var items = _viewModel.RefreshIfNeeded(
+                session,
+                selectedActorId,
+                ctx.HasSelection,
+                in workspaceFilter);
+            RestoreWorkspaceEventSelection(in ctx, items);
             DrawWorksetControls(in ctx, session, selectedActorId);
             items = _viewModel.Items;
             DrawInvestigations(in ctx, items);
@@ -230,29 +245,47 @@ namespace AbilityKit.Game.Editor
                 _actionStatus = "已切换到触发预算阻断调查。";
             }
 
-            EditorGUI.BeginDisabledGroup(
-                !_viewModel.FilterBySelectedActor &&
-                !_viewModel.FailuresOnly &&
-                !_viewModel.HasTriggerAnalysisFilter &&
-                _viewModel.ConfigId == 0 &&
-                _viewModel.EventScope == BattleDebugDiagnosticEventScope.All &&
-                _viewModel.RecentFrameCount == 0 &&
-                string.IsNullOrEmpty(_viewModel.SearchText));
-            if (GUILayout.Button("全部历史", EditorStyles.toolbarButton, GUILayout.Width(65)))
+            EditorGUI.BeginDisabledGroup(!_viewModel.HasActiveFilter);
+            if (GUILayout.Button(
+                    new GUIContent("清除局部", "清除 Events 面板调查条件，不修改共享筛选"),
+                    EditorStyles.toolbarButton,
+                    GUILayout.Width(65)))
             {
-                _viewModel.ClearCorrelationFocus();
-                _viewModel.FilterBySelectedActor = false;
-                _viewModel.ActorRelation = BattleDiagnosticActorRelation.Either;
-                _viewModel.FailuresOnly = false;
-                _viewModel.EventScope = BattleDebugDiagnosticEventScope.All;
-                _viewModel.RecentFrameCount = 0;
-                _viewModel.TriggerStage = BattleDiagnosticTriggerAnalysisStage.Unknown;
-                _viewModel.TriggerResult = BattleDiagnosticTriggerAnalysisResult.Unknown;
-                _viewModel.TriggerContextKind = 0;
-                _viewModel.TriggerOriginKind = 0;
-                _viewModel.ConfigId = 0;
-                _viewModel.SearchText = string.Empty;
+                _viewModel.ClearLocalFilters();
+                GUI.FocusControl(null);
+            }
+            EditorGUI.EndDisabledGroup();
+
+            EditorGUI.BeginDisabledGroup(!_viewModel.HasActiveFilter);
+            if (GUILayout.Button(
+                    new GUIContent(
+                        "设为共享",
+                        "将当前 Events 可共享条件设为工作区筛选；最近帧仅是本面板工作集窗口，不会共享"),
+                    EditorStyles.toolbarButton,
+                    GUILayout.Width(65)))
+            {
+                var hadRecentFrameWindow = _viewModel.RecentFrameCount > 0;
+                var localFilter = _viewModel.BuildLocalFilter(
+                    ctx.HasSelection ? ctx.SelectedId.ActorId : 0,
+                    ctx.HasSelection);
+                ctx.WorkspaceState.SetFilter(localFilter);
+                _viewModel.ClearLocalFilters();
+                _actionStatus = hadRecentFrameWindow
+                    ? "已共享可共享条件；最近帧工作集窗口已清除且未写入共享筛选。"
+                    : "已将 Events 可共享条件设为共享筛选。";
+                GUI.FocusControl(null);
+            }
+            EditorGUI.EndDisabledGroup();
+
+            EditorGUI.BeginDisabledGroup(ctx.WorkspaceState.Filter.ActiveFilterCount == 0);
+            if (GUILayout.Button(
+                    new GUIContent("清除共享", "清除工作区共享筛选，保留 Events 面板局部调查条件"),
+                    EditorStyles.toolbarButton,
+                    GUILayout.Width(65)))
+            {
+                ctx.WorkspaceState.SetFilter(BattleDiagnosticFilter.Default);
                 _viewModel.InvalidateCache();
+                _actionStatus = "已清除工作区共享筛选。";
                 GUI.FocusControl(null);
             }
             EditorGUI.EndDisabledGroup();
@@ -279,6 +312,7 @@ namespace AbilityKit.Game.Editor
                 EditorGUILayout.EndHorizontal();
             }
 
+            var sharedFilter = ctx.WorkspaceState.Filter;
             var actorScope = _viewModel.FilterBySelectedActor
                 ? (ctx.HasSelection
                     ? $"Actor={ctx.SelectedId.ActorId}({_viewModel.ActorRelation})"
@@ -289,7 +323,10 @@ namespace AbilityKit.Game.Editor
                 : "全部保留历史";
             var triggerScope = FormatTriggerFilterSummary();
             EditorGUILayout.LabelField(
-                $"{frameScope}  {_viewModel.EventScope}  {actorScope}  {triggerScope}  Cfg={(_viewModel.ConfigId == 0 ? "全部" : _viewModel.ConfigId.ToString())}  最新优先  LiveRevision={_viewModel.StoreRevision}",
+                $"共享={sharedFilter.ActiveFilterCount}项  局部={(_viewModel.HasActiveFilter ? "活动" : "无")}  " +
+                $"{frameScope}  {_viewModel.EventScope}  {actorScope}  {triggerScope}  " +
+                $"Cfg={(_viewModel.ConfigId == 0 ? "全部" : _viewModel.ConfigId.ToString())}  " +
+                $"最新优先  LiveRevision={_viewModel.StoreRevision}",
                 EditorStyles.miniLabel);
         }
 
@@ -317,7 +354,12 @@ namespace AbilityKit.Game.Editor
                 var selectedCaseKey = _selectedInvestigation.HasValue
                     ? _selectedInvestigation.Value.Key
                     : string.Empty;
-                if (_viewModel.LoadMore(session, selectedActorId, ctx.HasSelection))
+                var workspaceFilter = ctx.WorkspaceState.Filter;
+                if (_viewModel.LoadMore(
+                        session,
+                        selectedActorId,
+                        ctx.HasSelection,
+                        in workspaceFilter))
                 {
                     RestoreInvestigationSelection(selectedCaseKey, _viewModel.Items);
                     _actionStatus = $"调查工作集已扩展到 {_viewModel.LoadedCount} 条。";
@@ -657,14 +699,17 @@ namespace AbilityKit.Game.Editor
                     GUILayout.MinHeight(180f),
                     GUILayout.MaxHeight(Mathf.Max(260f, EditorGUIUtility.currentViewWidth * 0.42f)));
 
-            if (!string.IsNullOrEmpty(_viewModel.StatusMessage))
-            {
-                EditorGUILayout.HelpBox(_viewModel.StatusMessage, MessageType.None);
-            }
-
             if (items == null || items.Count == 0)
             {
-                EditorGUILayout.LabelField("（无事件）", EditorStyles.miniLabel);
+                var workspaceFilter = ctx.WorkspaceState.Filter;
+                var emptyState = BattleDebugEmptyStateProjector.Project(
+                    _viewModel.QueryStatus,
+                    requiresSelection: _viewModel.FilterBySelectedActor &&
+                                       !workspaceFilter.HasActorFilter,
+                    hasSelection: ctx.HasSelection,
+                    hasActiveFilter: _viewModel.HasEffectiveFilter(in workspaceFilter),
+                    subject: "诊断事件");
+                DrawEmptyState(in emptyState);
             }
             else
             {
@@ -674,7 +719,27 @@ namespace AbilityKit.Game.Editor
                 }
             }
 
+            if (items != null && items.Count > 0 && !string.IsNullOrEmpty(_viewModel.StatusMessage))
+            {
+                EditorGUILayout.HelpBox(_viewModel.StatusMessage, MessageType.None);
+            }
+
             EditorGUILayout.EndScrollView();
+        }
+
+        private static void DrawEmptyState(in BattleDebugEmptyStateProjection projection)
+        {
+            if (!projection.HasValue) return;
+
+            var message = string.IsNullOrEmpty(projection.Message)
+                ? projection.Title
+                : $"{projection.Title}\n{projection.Message}";
+            var messageType = projection.Severity == BattleDebugEmptyStateSeverity.Error
+                ? MessageType.Error
+                : projection.Severity == BattleDebugEmptyStateSeverity.Warning
+                    ? MessageType.Warning
+                    : MessageType.Info;
+            EditorGUILayout.HelpBox(message, messageType);
         }
 
         private void DrawEventRow(
@@ -691,9 +756,7 @@ namespace AbilityKit.Game.Editor
             var style = selected ? EditorStyles.toolbarButton : EditorStyles.miniButton;
             if (GUILayout.Button($"#{evt.Sequence}", style, GUILayout.Width(70)))
             {
-                _selectedEvent = evt;
-                _actionStatus = string.Empty;
-                ctx.RequestRepaint?.Invoke();
+                SelectEvent(in ctx, in evt);
             }
             GUI.color = oldColor;
 
@@ -756,13 +819,13 @@ namespace AbilityKit.Game.Editor
             EditorGUI.BeginDisabledGroup(selectedIndex < 0 || selectedIndex >= items.Count - 1);
             if (GUILayout.Button(new GUIContent("▲", "选择当前结果中的上一条事件"), EditorStyles.toolbarButton, GUILayout.Width(26f)))
             {
-                SelectResult(items, selectedIndex + 1);
+                SelectResult(in ctx, items, selectedIndex + 1);
             }
             EditorGUI.EndDisabledGroup();
             EditorGUI.BeginDisabledGroup(selectedIndex <= 0);
             if (GUILayout.Button(new GUIContent("▼", "选择当前结果中的下一条事件"), EditorStyles.toolbarButton, GUILayout.Width(26f)))
             {
-                SelectResult(items, selectedIndex - 1);
+                SelectResult(in ctx, items, selectedIndex - 1);
             }
             EditorGUI.EndDisabledGroup();
             if (GUILayout.Button(new GUIContent("复制", "复制该事件的完整诊断字段"), EditorStyles.toolbarButton, GUILayout.Width(42f)))
@@ -870,11 +933,56 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.EndHorizontal();
         }
 
-        private void SelectResult(IReadOnlyList<BattleDiagnosticEvent> items, int index)
+        private void SelectResult(
+            in BattleDebugContext ctx,
+            IReadOnlyList<BattleDiagnosticEvent> items,
+            int index)
         {
             if (items == null || index < 0 || index >= items.Count) return;
-            _selectedEvent = items[index];
+            var diagnosticEvent = items[index];
+            SelectEvent(in ctx, in diagnosticEvent);
+        }
+
+        private void SelectEvent(
+            in BattleDebugContext ctx,
+            in BattleDiagnosticEvent diagnosticEvent)
+        {
+            _selectedEvent = diagnosticEvent;
             _actionStatus = string.Empty;
+            ctx.WorkspaceState?.Select(new BattleDiagnosticSelection(
+                diagnosticEvent.Scope,
+                BattleDiagnosticSelectionKind.Event,
+                diagnosticEvent.Sequence,
+                diagnosticEvent.Frame,
+                diagnosticEvent.RootContextId));
+            ctx.RequestRepaint?.Invoke();
+        }
+
+        private void RestoreWorkspaceEventSelection(
+            in BattleDebugContext ctx,
+            IReadOnlyList<BattleDiagnosticEvent> items)
+        {
+            var selection = ctx.WorkspaceState?.Selection ?? default;
+            if (selection.Kind != BattleDiagnosticSelectionKind.Event ||
+                (_selectedEvent.HasValue && _selectedEvent.Value.Sequence == selection.Id))
+            {
+                return;
+            }
+
+            var index = FindEventIndex(items, selection.Id);
+            if (index >= 0)
+            {
+                _selectedEvent = items[index];
+                _selectedInvestigation = null;
+                _actionStatus = string.Empty;
+                _scroll = Vector2.zero;
+            }
+            else
+            {
+                _selectedEvent = null;
+                _selectedInvestigation = null;
+                _actionStatus = $"事件 #{selection.Id} 不在当前查询窗口中，可能已被过滤或淘汰。";
+            }
         }
 
         private static int FindEventIndex(IReadOnlyList<BattleDiagnosticEvent> items, long sequence)

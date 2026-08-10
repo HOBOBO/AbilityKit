@@ -41,6 +41,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             builder.Register<ActionRegistry>(WorldLifetime.Singleton, _ => new ActionRegistry());
             builder.Register<AbilityKit.Demo.Moba.Services.MobaBattleRouteRegistry>(WorldLifetime.Singleton, _ => AbilityKit.Demo.Moba.Services.MobaBattleRouteRegistry.CreateDefault());
             builder.Register<AbilityKit.Demo.Moba.Services.MobaInputCommandContractRegistry>(WorldLifetime.Singleton, _ => AbilityKit.Demo.Moba.Services.MobaInputCommandContractRegistry.CreateDefault());
+            builder.Register<AbilityKit.Demo.Moba.Services.MobaSnapshotContractProfileRegistry>(WorldLifetime.Singleton, _ => AbilityKit.Demo.Moba.Services.MobaSnapshotContractProfileRegistry.CreateDefault());
             builder.TryRegister<MobaGameplayConfigSettings>(WorldLifetime.Scoped, _ => new MobaGameplayConfigSettings());
             builder.Register<AbilityKit.Demo.Moba.Services.MobaTriggerPayloadResolverRegistry>(WorldLifetime.Singleton, _ => new AbilityKit.Demo.Moba.Services.MobaTriggerPayloadResolverRegistry());
             builder.Register<AbilityKit.Demo.Moba.Services.MobaTriggerConditionRegistry>(WorldLifetime.Singleton, _ => new AbilityKit.Demo.Moba.Services.MobaTriggerConditionRegistry());

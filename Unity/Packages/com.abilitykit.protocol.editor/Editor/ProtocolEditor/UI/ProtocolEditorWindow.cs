@@ -12,7 +12,7 @@ namespace AbilityKit.ProtocolEditor.UI
         private DefaultAsset _outputFolder;
         private string _namespace = "AbilityKit.Protocol";
 
-        [MenuItem("AbilityKit/Protocol/Protocol Editor")]
+        [MenuItem("Tools/AbilityKit/Framework/Protocol/Protocol Editor")]
         private static void Open()
         {
             GetWindow<ProtocolEditorWindow>("Protocol Editor");

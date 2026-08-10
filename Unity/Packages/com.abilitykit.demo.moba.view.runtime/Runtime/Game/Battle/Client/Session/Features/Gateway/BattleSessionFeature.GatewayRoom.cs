@@ -1,49 +1,60 @@
 using System.Threading.Tasks;
-using AbilityKit.Game.Battle.Agent;
-using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleSessionFeature
     {
-        private bool HasGatewayRoomConnection => _gatewayConn != null;
+        private bool HasGatewayRoomConnection => _runtime.GatewayRoom.IsBuilt;
 
-        private void TickGatewayRoomConnection(float deltaTime) => _gatewayConn?.Tick(deltaTime);
+        private void TickGatewayRoomConnection(float deltaTime) => _runtime.GatewayRoom.Tick(deltaTime);
 
-        private Task GatewayRoomPreparationTask => _gatewayTask;
+        private Task GatewayRoomPreparationTask => _runtime.GatewayRoom.PreparationTask;
 
         private bool ShouldPrepareGatewayRoom() => GatewayRoomPreparationHelper.ShouldPrepareGatewayRoom(_plan);
 
         private void StartGatewayRoomPreparation()
         {
             StopGatewayRoomPreparation();
+            _runtime.GatewayRoom.Build(_plan, _unityDispatcher, _networkIoDispatcher);
+            _runtime.GatewayRoom.StartPreparation(
+                _plan,
+                plan => _plan = plan,
+                PublishGatewayClockSample,
+                exception => _eventsCtrl.NotifySessionFailed(this, exception));
+        }
 
-            var gateway = _plan.Gateway;
-            _gatewayConn = CreateGatewayRoomConnection(_plan);
-            _gatewayConn.Open(gateway.Host, gateway.Port);
-
-            // 绑定工具生命周期；只有显式启用档案后才接管上下行流量。
-            AttachNetworkConditionToGatewayConnection();
-
-            var opCodes = new GatewayRoomOpCodes(gateway.CreateRoomOpCode, gateway.JoinRoomOpCode);
-            _gatewayClient = _gatewayRoomClientFactory.CreateGatewayRoomClient(_gatewayConn, opCodes);
-
-            _gatewayTask = PrepareRoomAsync();
+        private void CompleteGatewayRoomPreparation()
+        {
+            _runtime.GatewayRoom.CompletePreparation();
         }
 
         private void StopGatewayRoomPreparation()
         {
-            _gatewayTask = null;
-            _gatewayClient = null;
+            _runtime.GatewayRoom.Dispose();
+            _state.GatewayRoomTimeSync.Reset();
+            BattleFlowDebugProvider.TimeSyncStats = null;
+            BattleFlowDebugProvider.TimeSyncStatsByWorld = null;
+        }
 
-            StopTimeSyncLoop();
-            GatewayRoomCleanupHelper.ClearWorldStartAnchors(_gatewayWorldStartAnchors);
-
-            // 在连接注册表释放连接前解除订阅，避免悬挂回调。
-            DetachNetworkConditionFromGatewayConnection();
-            GatewayRoomCleanupHelper.RemoveGatewayReliableConnection(_connectionRegistry);
-
-            _gatewayConn = null;
+        private void PublishGatewayClockSample(
+            GatewayTimeSyncEwma estimate,
+            GatewayTimeSyncRuntimeOptions options)
+        {
+            var state = _state.GatewayRoomTimeSync;
+            state.HasClockSync = estimate.HasClockSync;
+            state.ClockOffsetSecondsEwma = estimate.ClockOffsetSecondsEwma;
+            state.RttSecondsEwma = estimate.RttSecondsEwma;
+            state.Samples = estimate.Samples;
+            BattleFlowDebugProvider.TimeSyncStats = BuildCurrentTimeSyncStats(
+                options.OpCode,
+                options.IntervalMs,
+                options.Alpha,
+                options.TimeoutMs);
+            UpdateTimeSyncStatsByWorld(
+                options.OpCode,
+                options.IntervalMs,
+                options.Alpha,
+                options.TimeoutMs);
         }
     }
 }

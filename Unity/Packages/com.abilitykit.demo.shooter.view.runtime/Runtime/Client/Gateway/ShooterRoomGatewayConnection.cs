@@ -9,19 +9,24 @@ using AbilityKit.Network.Sdk;
 
 namespace AbilityKit.Demo.Shooter.View
 {
+    /// <summary>
+    /// Room-control request transport for the room gateway. After P2.2 this connection is ROOM-ONLY:
+    /// battle data (input submit + snapshot/event push + ack/resync) moved to the dedicated battle
+    /// <see cref="NetworkTransport"/> driven by <see cref="ShooterBattleDataPlane"/>. The battle-state
+    /// members (<see cref="CurrentSession"/>, <see cref="LastPushResult"/>, <see cref="SnapshotPushDispatched"/>)
+    /// are retained as a FACADE populated from the battle data plane, so existing
+    /// <c>GatewayConnection.X</c> consumers keep working. <see cref="OnServerPushReceived"/> no longer
+    /// applies battle snapshots (so room-connection battle pushes, if any, are not double-applied).
+    /// </summary>
     public sealed class ShooterRoomGatewayConnection :
         IShooterRoomGatewayRequestTransport,
         IShooterRoomGatewayPushTransport,
         IDisposable
     {
-        private static readonly TimeSpan AutomaticFullStateSyncTimeout = TimeSpan.FromSeconds(10);
-
         private readonly Func<uint, ArraySegment<byte>, TimeSpan?, CancellationToken, Task<ArraySegment<byte>>> _sendRequestAsync;
         private readonly Action<Action<uint, ArraySegment<byte>>> _unsubscribeServerPush;
         private readonly IDisposable? _ownedRequestClient;
         private ShooterClientSession? _session;
-        private ShooterClientBattleHandle? _battle;
-        private long _lastReliableEventAckRequested;
         private bool _disposed;
 
         public ShooterRoomGatewayConnection(IConnection connection)
@@ -67,15 +72,11 @@ namespace AbilityKit.Demo.Shooter.View
         public void AttachSession(ShooterClientSession session)
         {
             _session = session ?? throw new ArgumentNullException(nameof(session));
-            _battle = null;
-            _lastReliableEventAckRequested = session.LastReliableEventAck;
         }
 
         public void AttachBattle(ShooterClientBattleHandle battle)
         {
-            _battle = battle ?? throw new ArgumentNullException(nameof(battle));
-            _session = battle.Session;
-            _lastReliableEventAckRequested = battle.Session.LastReliableEventAck;
+            _session = (battle ?? throw new ArgumentNullException(nameof(battle))).Session;
         }
 
         public Task<ArraySegment<byte>> SendRequestAsync(uint opCode, ArraySegment<byte> payload, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
@@ -91,80 +92,23 @@ namespace AbilityKit.Demo.Shooter.View
                 return;
             }
 
+            // Room control plane only. Battle pushes are handled by ShooterBattleDataPlane on the
+            // dedicated battle connection; this connection no longer applies battle snapshots.
             ServerPushReceived?.Invoke(opCode, payload);
+        }
 
-            var session = _session;
-            var result = session == null
-                ? ShooterSnapshotApplyResult.Ignored
-                : session.ApplyGatewayPush(opCode, payload);
+        /// <summary>Populates the battle-state facade from the battle data plane
+        /// (<see cref="LastPushResult"/> / <see cref="SnapshotPushDispatched"/>), so existing
+        /// <c>GatewayConnection.X</c> telemetry consumers keep working post-P2.2.</summary>
+        internal void NotifyBattlePushDispatched(uint opCode, ArraySegment<byte> payload, ShooterSnapshotApplyResult result)
+        {
+            if (_disposed)
+            {
+                return;
+            }
 
             LastPushResult = result;
             SnapshotPushDispatched?.Invoke(opCode, payload, result);
-            AcknowledgeReliableBattleEventsIfNeededAsync();
-            RequestFullSnapshotResyncIfNeededAsync();
-        }
-
-        private void AcknowledgeReliableBattleEventsIfNeededAsync()
-        {
-            var battle = _battle;
-            if (battle == null
-                || battle.Session.NeedsReliableEventResync
-                || battle.Session.LastReliableEventAck <= _lastReliableEventAckRequested)
-            {
-                return;
-            }
-
-            _lastReliableEventAckRequested = battle.Session.LastReliableEventAck;
-            _ = AcknowledgeReliableBattleEventsAsync(battle, _lastReliableEventAckRequested);
-        }
-
-        private async Task AcknowledgeReliableBattleEventsAsync(ShooterClientBattleHandle battle, long requestedSequence)
-        {
-            try
-            {
-                var result = await battle.AcknowledgeReliableBattleEventsAsync().ConfigureAwait(false);
-                if (!result.Success)
-                {
-                    if (_lastReliableEventAckRequested == requestedSequence)
-                    {
-                        _lastReliableEventAckRequested = Math.Max(0L, result.AcceptedAckSequence);
-                    }
-
-                    await battle.RequestFullSnapshotBaselineAsync("ReliableEventGap").ConfigureAwait(false);
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-            }
-            catch
-            {
-                if (_lastReliableEventAckRequested == requestedSequence)
-                {
-                    _lastReliableEventAckRequested = Math.Max(0L, requestedSequence - 1L);
-                }
-            }
-        }
-
-        private void RequestFullSnapshotResyncIfNeededAsync()
-        {
-            var battle = _battle;
-            if (battle == null)
-            {
-                return;
-            }
-
-            _ = RequestFullSnapshotResyncIfNeededAsync(battle);
-        }
-
-        private async Task RequestFullSnapshotResyncIfNeededAsync(ShooterClientBattleHandle battle)
-        {
-            try
-            {
-                await battle.RequestFullSnapshotResyncIfNeededAsync(AutomaticFullStateSyncTimeout).ConfigureAwait(false);
-            }
-            catch (ObjectDisposedException)
-            {
-            }
         }
 
         private void ThrowIfDisposed()

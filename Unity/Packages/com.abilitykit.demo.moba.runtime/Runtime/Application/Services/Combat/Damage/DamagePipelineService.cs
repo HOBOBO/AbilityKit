@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private readonly MobaActorLookupService _actors;
         private readonly MobaDamageService _damage;
+        private readonly MobaShieldService _shields;
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly List<IMobaDamagePipelineStage> _standardStages;
         [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
@@ -35,6 +36,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _damage = damage ?? throw new ArgumentNullException(nameof(damage));
+            _shields = shields;
             _eventBus = eventBus;
             _diagnostics = diagnostics;
             _eventCollector = eventCollector;
@@ -74,18 +76,33 @@ namespace AbilityKit.Demo.Moba.Services
 
                 Publish(DamagePipelineEvents.BeforeApply, calc);
 
-                var targetAttrs = target.GetMobaAttrs();
-                var oldHp = targetAttrs.Hp;
-                var maxHp = targetAttrs.MaxHp;
+                var shieldCommitted = calc.ShieldPlan == null || _shields == null || _shields.CommitAbsorb(calc.ShieldPlan);
+                if (!shieldCommitted)
+                {
+                    diagnostics?.Counter("moba.damage.shieldCommitConflict");
+                    return null;
+                }
 
-                var applied = _damage.ApplyDamage(
-                    attackerActorId: attack.AttackerActorId,
-                    targetActorId: attack.TargetActorId,
-                    damageType: (int)attack.DamageType,
-                    value: calc.HpDamage.Value,
-                    reasonKind: (int)attack.ReasonKind,
-                    reasonParam: attack.ReasonParam);
+                attack.TryGetOrigin(out var attackOrigin);
+                var hpDamage = calc.HpDamage.Value;
+                var committed = hpDamage > 0f
+                    ? _damage.CommitDamage(
+                        attackerActorId: attack.AttackerActorId,
+                        targetActorId: attack.TargetActorId,
+                        damageType: (int)attack.DamageType,
+                        value: hpDamage,
+                        reasonKind: (int)attack.ReasonKind,
+                        reasonParam: attack.ReasonParam,
+                        origin: attackOrigin)
+                    : default;
+                if (hpDamage > 0f && !committed.Succeeded)
+                {
+                    _shields?.RollbackAbsorb(calc.ShieldPlan);
+                    diagnostics?.Counter("moba.damage.healthCommitRejected");
+                    return null;
+                }
 
+                var targetAttributes = target.GetMobaAttrs();
                 var result = new DamageResult
                 {
                     AttackerActorId = attack.AttackerActorId,
@@ -95,10 +112,12 @@ namespace AbilityKit.Demo.Moba.Services
                     CritType = attack.CritType,
                     ReasonKind = attack.ReasonKind,
                     ReasonParam = attack.ReasonParam,
-                    Value = applied,
-                    TargetHp = Clamp(oldHp - applied, 0f, maxHp),
-                    TargetMaxHp = maxHp,
+                    Value = committed.AppliedValue,
+                    TargetHp = committed.Succeeded ? committed.TargetHp : targetAttributes.Hp,
+                    TargetMaxHp = committed.Succeeded ? committed.TargetMaxHp : targetAttributes.MaxHp,
                 };
+
+                _shields?.FinalizeAbsorb(calc.ShieldPlan);
 
                 if (attack.TryGetOrigin(out var origin))
                 {
@@ -110,7 +129,7 @@ namespace AbilityKit.Demo.Moba.Services
                 Publish(DamagePipelineEvents.AfterApply, result);
                 TryCollectDamage(result);
                 diagnostics?.Counter("moba.damage.applied");
-                diagnostics?.Sample("moba.damage.value", applied);
+                diagnostics?.Sample("moba.damage.value", result.Value);
                 return result;
             }
             finally
@@ -284,13 +303,6 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 trace.EndContext(contextId, TraceLifecycleReason.Completed);
             }
-        }
-
-        private static float Clamp(float v, float min, float max)
-        {
-            if (v < min) return min;
-            if (v > max) return max;
-            return v;
         }
 
         public void Dispose()

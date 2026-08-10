@@ -205,8 +205,10 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 
             _links?.UnlinkByActorId(actorId);
             _despawnSnapshots?.Enqueue(actorId, (byte)reason);
-            _registry?.Unregister(actorId);
-            _entities?.Unregister(actorId);
+            new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
+                actorId,
+                out _,
+                publishDespawn: true);
 
             try { entity.Destroy(); }
             catch (System.Exception ex) { Log.Exception(ex, $"[MobaProjectileSyncSystem] destroy projectile actor failed (actorId={actorId}, projectileId={projectileId.Value}, reason={reason}, sourceActorId={sourceActorId})"); }

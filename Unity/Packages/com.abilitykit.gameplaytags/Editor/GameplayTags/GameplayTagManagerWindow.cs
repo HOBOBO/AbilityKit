@@ -24,7 +24,7 @@ namespace AbilityKit.GameplayTags.Editor
         private GameplayTagTreeView _tree;
         private SearchField _search;
 
-        [MenuItem("Tools/Gameplay Tags/Manager")]
+        [MenuItem("Tools/AbilityKit/Framework/Gameplay Tags/Manager")]
         public static void Open()
         {
             var w = GetWindow<GameplayTagManagerWindow>();

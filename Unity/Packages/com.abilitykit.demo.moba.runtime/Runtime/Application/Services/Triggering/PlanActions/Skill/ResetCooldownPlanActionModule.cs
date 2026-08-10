@@ -21,7 +21,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            var coreInput = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
+            if (!MobaPlanActionInputResolver.TryResolve(
+                    triggerArgs,
+                    ctx,
+                    out var coreInput))
+            {
+                LogRejected(ctx, "requires combat execution context.");
+                return;
+            }
+
             var effectInput = new MobaEffectActionInput(in coreInput);
             if (!effectInput.HasCasterActor)
             {

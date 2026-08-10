@@ -19,6 +19,8 @@ namespace AbilityKit.Game.Editor
 
         public IReadOnlyList<BattleDiagnosticActorAttribute> Attributes => _attributes;
         public IReadOnlyList<BattleDiagnosticActorAttributeModifier> Modifiers => _modifiers;
+        public BattleDiagnosticQueryStatus AttributeQueryStatus { get; private set; }
+        public BattleDiagnosticQueryStatus ModifierQueryStatus { get; private set; }
         public string StatusMessage { get; private set; } = string.Empty;
         public long StoreRevision => _lastStoreRevision;
 
@@ -26,6 +28,9 @@ namespace AbilityKit.Game.Editor
         {
             _attributes = Array.Empty<BattleDiagnosticActorAttribute>();
             _modifiers = Array.Empty<BattleDiagnosticActorAttributeModifier>();
+            AttributeQueryStatus = default;
+            ModifierQueryStatus = default;
+            StatusMessage = string.Empty;
             _lastStoreRevision = -1;
             _hasCachedResult = false;
         }
@@ -61,6 +66,8 @@ namespace AbilityKit.Game.Editor
             _lastActorId = actorId;
             _lastFrame = queryFrame;
             _hasCachedResult = true;
+            AttributeQueryStatus = attributeResult.Status;
+            ModifierQueryStatus = modifierResult.Status;
             _attributes = attributeResult.Items ?? Array.Empty<BattleDiagnosticActorAttribute>();
             _modifiers = modifierResult.Items ?? Array.Empty<BattleDiagnosticActorAttributeModifier>();
             StatusMessage = BuildStatusMessage(attributeResult.Status, modifierResult.Status);

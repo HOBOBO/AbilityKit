@@ -1,0 +1,67 @@
+# tools/ 脚本索引
+
+> 所有项目工具脚本位于 `tools/` 根目录（平铺）。按命名前缀分类如下。
+
+## 测试 / 验证（test & validate）
+
+| 脚本 | 用途 |
+|------|------|
+| `run_test_gate.ps1` | 统一测试门禁入口（CI + 本地） |
+| `run_shooter_unity_headless_multiplayer.ps1` | Shooter Unity 无头双实例多人冒烟测试 |
+| `run_moba_unity_headless_multiplayer.ps1` | MOBA Unity 无头双实例多人冒烟测试 |
+| `run_et_battle_smoke.ps1` | ET 对战冒烟测试 |
+| `run_shooter_aoi_lod_gate.ps1` | Shooter AOI/LOD 性能门禁 |
+| `run_moba_skill_analysis.ps1` | MOBA 技能分析报告 |
+| `run_runtime_benchmarks.ps1` | 运行时基准测试 |
+| `validate_shooter_test_gates.ps1` | Shooter 测试门禁契约校验 |
+| `validate_abilitykit_package_json.ps1` | 包 package.json 格式校验 |
+| `validate_moba_codegen_ownership.ps1` | MOBA 代码生成归属校验 |
+| `validate_moba_hero_manifest.ps1` | MOBA 英雄清单校验 |
+| `validate_moba_hero_acceptance_coverage.ps1` | MOBA 英雄验收覆盖校验 |
+
+## 构建 / 项目设置（build & setup）
+
+| 脚本 | 用途 |
+|------|------|
+| `clone_unity_project_for_multiplayer.ps1` / `.cmd` | 克隆 Unity 项目为第二实例（多人测试） |
+| `update_abilitykit_package_versions.ps1` | 批量更新 AbilityKit 包版本 |
+| `sync_unity_runtime_csproj.ps1` | 同步 Unity/Runtime csproj |
+| `audit_unity_package_dependencies.ps1` | 审计 Unity 包依赖 |
+| `open_samples_web.ps1` / `.cmd` | 打开 Samples Web 页面 |
+
+## 配置同步（config sync）
+
+| 脚本 | 用途 |
+|------|------|
+| `sync_moba_json_configs.ps1` | 同步 MOBA JSON 配置 |
+| `moba_business_id.ps1` | MOBA 业务 ID 生成/校验（含 `.tests.ps1`） |
+| `new_moba_hero_manifest.ps1` | 新建 MOBA 英雄清单 |
+
+## 文档 / 导出（docs & export）
+
+| 脚本 | 用途 |
+|------|------|
+| `export_design_docs_for_feishu.ps1` | 导出设计文档到飞书 |
+| `sync_design_docs_to_feishu.ps1` / `.cmd` | 同步设计文档到飞书 |
+| `export_zhihu_mermaid_assets.ps1` | 导出知乎 Mermaid 图表素材 |
+| `generate_abilitykit_ppt_assets.ps1` | 生成 AbilityKit PPT 素材 |
+
+## 子目录
+
+| 目录 | 用途 |
+|------|------|
+| `AbilityKitPptAssetGenerator/` | PPT 素材生成器（C# 项目） |
+| `ai_training/` | AI 训练（Python） |
+
+## 命名规范
+
+- `run_*.ps1` — 执行类脚本（测试/冒烟/基准）
+- `validate_*.ps1` — 校验类脚本（门禁/契约）
+- `sync_*.ps1` — 同步类脚本（配置/文档）
+- `export_*.ps1` — 导出类脚本
+- `clone_*.ps1` — 项目设置类
+- `update_*.ps1` / `audit_*.ps1` — 维护类
+
+## 注意
+
+如果后续要拆分为子目录（`tools/test/`、`tools/build/` 等），需要同步更新每个脚本内的 `$PSScriptRoot` 路径（当前 18 个脚本用 `$PSScriptRoot\..` 或 `Join-Path $PSScriptRoot '..'` 定位仓库根，移到子目录后需加一层 `..\..`）。

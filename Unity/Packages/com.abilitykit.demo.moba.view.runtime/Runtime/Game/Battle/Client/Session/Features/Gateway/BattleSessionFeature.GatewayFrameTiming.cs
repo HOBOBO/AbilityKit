@@ -9,9 +9,7 @@ namespace AbilityKit.Game.Flow
     {
         private bool TryGetWorldStartAnchor(WorldId worldId, out GatewayWorldStartAnchor anchor)
         {
-            anchor = default;
-            if (string.IsNullOrEmpty(worldId.Value)) return false;
-            return _gatewayWorldStartAnchors.TryGetValue(worldId, out anchor) && anchor.ServerTickFrequency != 0;
+            return _runtime.GatewayRoom.TryGetWorldStartAnchor(worldId, out anchor);
         }
 
         private int ResolveIdealFrameRaw(WorldId worldId)

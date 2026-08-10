@@ -26,7 +26,7 @@ namespace AbilityKit.ExcelSync.Editor
         private string _codeOutputFolderAssetsPath = DefaultCodeOutputFolder;
         private string _assetOutputFolderAssetsPath = DefaultAssetOutputFolder;
 
-        [MenuItem("Tools/Excel/Create DataList Table From Excel...")]
+        [MenuItem("Tools/AbilityKit/Framework/Excel/Create DataList Table From Excel...")]
         private static void Open()
         {
             GetWindow<ExcelSoTableWizardWindow>(false, "Excel->SO Wizard", true);

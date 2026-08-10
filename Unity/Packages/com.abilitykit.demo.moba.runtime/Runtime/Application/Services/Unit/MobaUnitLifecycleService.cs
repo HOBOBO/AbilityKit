@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.ExceptionServices;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Mathematics;
@@ -43,18 +44,18 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaActorLookupService _actors;
         private readonly MobaEntityManager _entities;
         private readonly MobaUnitDeathSubscriber _deaths;
-        private readonly MobaDamageEventSnapshotService _damageSnapshots;
+        private readonly MobaDamageService _damage;
 
         public MobaUnitLifecycleService(
             MobaActorLookupService actors,
             MobaEntityManager entities,
             MobaUnitDeathSubscriber deaths,
-            MobaDamageEventSnapshotService damageSnapshots)
+            MobaDamageService damage)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
             _deaths = deaths ?? throw new ArgumentNullException(nameof(deaths));
-            _damageSnapshots = damageSnapshots ?? throw new ArgumentNullException(nameof(damageSnapshots));
+            _damage = damage ?? throw new ArgumentNullException(nameof(damage));
         }
 
         public MobaUnitRespawnResult TryRespawn(int actorId, float healthRatio = 1f)
@@ -97,28 +98,62 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             var normalizedRatio = Clamp(healthRatio, 0.01f, 1f);
-            var restoredHp = maximumHp * normalizedRatio;
-            attributes.Hp = restoredHp;
-
-            if (hasRespawnPosition && actor.hasTransform)
+            var requestedHp = maximumHp * normalizedRatio;
+            MobaHealthChangeResult committed = default;
+            Exception firstFailure = null;
+            try
             {
-                var transform = actor.transform.Value;
-                actor.ReplaceTransform(new Transform3(respawnPosition, transform.Rotation, transform.Scale));
+                committed = _damage.CommitHeal(
+                    healerActorId: actorId,
+                    targetActorId: actorId,
+                    healType: 0,
+                    value: requestedHp,
+                    allowDeadTarget: true);
+            }
+            catch (Exception ex)
+            {
+                firstFailure = ex;
             }
 
-            _deaths.NotifyRespawned(actorId);
-            _entities.PublishRespawn(actor);
-            _damageSnapshots.ReportHeal(
-                healerActorId: actorId,
-                targetActorId: actorId,
-                healType: 0,
-                value: restoredHp,
-                reasonKind: 0,
-                reasonParam: 0,
-                targetHp: restoredHp,
-                targetMaxHp: maximumHp);
+            var restoredHp = attributes.Hp;
+            if (!committed.Succeeded && restoredHp <= 0f)
+            {
+                if (firstFailure != null)
+                {
+                    ExceptionDispatchInfo.Capture(firstFailure).Throw();
+                }
+
+                return Failed(actorId, MobaUnitRespawnFailure.MissingAttributes);
+            }
+
+            var committedRespawnPosition = respawnPosition;
+            TryPostCommitStep(() =>
+            {
+                if (!hasRespawnPosition || !actor.hasTransform) return;
+                var transform = actor.transform.Value;
+                actor.ReplaceTransform(new Transform3(committedRespawnPosition, transform.Rotation, transform.Scale));
+            }, ref firstFailure);
+            TryPostCommitStep(() => _deaths.NotifyRespawned(actorId), ref firstFailure);
+            TryPostCommitStep(() => _entities.PublishRespawn(actor), ref firstFailure);
+
+            if (firstFailure != null)
+            {
+                ExceptionDispatchInfo.Capture(firstFailure).Throw();
+            }
 
             return new MobaUnitRespawnResult(true, actorId, restoredHp, MobaUnitRespawnFailure.None);
+        }
+
+        private static void TryPostCommitStep(Action action, ref Exception firstFailure)
+        {
+            try
+            {
+                action?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                if (firstFailure == null) firstFailure = ex;
+            }
         }
 
         private static MobaUnitRespawnResult Failed(int actorId, MobaUnitRespawnFailure failure)

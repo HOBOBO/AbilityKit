@@ -89,7 +89,7 @@ namespace AbilityKit.Demo.Shooter.View
             return new ConnectionOptions();
         }
 
-        private sealed class SynchronizationContextDispatcher : IDispatcher
+        internal sealed class SynchronizationContextDispatcher : IDispatcher
         {
             private readonly SynchronizationContext _synchronizationContext;
 

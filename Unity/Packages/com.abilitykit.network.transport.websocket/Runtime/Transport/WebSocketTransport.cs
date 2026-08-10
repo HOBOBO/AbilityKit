@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.Net.WebSockets;
 using System.Threading;
@@ -151,7 +152,18 @@ namespace AbilityKit.Network.Transport.WebSocket
 
                     if (message.Length > 0)
                     {
-                        BytesReceived?.Invoke(new ArraySegment<byte>(message.ToArray()));
+                        // Use pooled buffer instead of ToArray() to avoid per-message allocation
+                        var length = (int)message.Length;
+                        var rented = ArrayPool<byte>.Shared.Rent(length);
+                        try
+                        {
+                            message.GetBuffer().AsSpan(0, length).CopyTo(rented);
+                            BytesReceived?.Invoke(new ArraySegment<byte>(rented, 0, length));
+                        }
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(rented);
+                        }
                     }
                 }
 

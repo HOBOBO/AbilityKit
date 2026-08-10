@@ -25,41 +25,31 @@ namespace AbilityKit.Demo.Moba.Services
             _eventBus = eventBus;
             _entities = entities;
 
-            var eid = AbilityKit.Demo.Moba.Services.TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply);
-            _sub = _eventBus != null ? _eventBus.Subscribe(new EventKey<DamageResult>(eid), OnAfterApply) : null;
+            var eid = AbilityKit.Demo.Moba.Services.TriggeringIdUtil.GetEventEid(DamagePipelineEvents.HealthCommitted);
+            _sub = _eventBus != null ? _eventBus.Subscribe(new EventKey<MobaHealthChangeResult>(eid), OnHealthCommitted) : null;
         }
 
-        private void OnAfterApply(DamageResult r)
+        private void OnHealthCommitted(MobaHealthChangeResult result)
         {
-            HandleAfterApply(r);
-        }
-
-        private void HandleAfterApply(DamageResult r)
-        {
-            if (r == null) return;
-            if (r.TargetActorId <= 0) return;
-            if (r.TargetHp > 0f) return;
-
+            if (!result.BecameDead || result.TargetActorId <= 0) return;
             if (_entities == null) return;
-            if (!_entities.TryGetActorEntity(r.TargetActorId, out var e) || e == null) return;
+            if (!_entities.TryGetActorEntity(result.TargetActorId, out var e) || e == null) return;
+            if (!_reported.Add(result.TargetActorId)) return;
 
-            if (!_reported.Add(r.TargetActorId)) return;
-
-            PublishDie(r);
+            PublishDie(in result);
         }
 
-        private void PublishDie(DamageResult r)
+        private void PublishDie(in MobaHealthChangeResult result)
         {
             var eventId = MobaUnitTriggering.Events.Die;
-
-            r.TryGetOrigin(out var origin);
+            var origin = result.Origin;
             var payload = new UnitDieEventPayload(
-                actorId: r.TargetActorId,
-                killerActorId: r.AttackerActorId,
-                damageType: (int)r.DamageType,
-                reasonKind: (int)r.ReasonKind,
-                reasonParam: r.ReasonParam,
-                damageValue: r.Value,
+                actorId: result.TargetActorId,
+                killerActorId: result.SourceActorId,
+                damageType: result.ValueType,
+                reasonKind: result.ReasonKind,
+                reasonParam: result.ReasonParam,
+                damageValue: result.AppliedValue,
                 origin: in origin);
 
             if (_eventBus == null) return;

@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,6 +9,9 @@ namespace AbilityKit.Network.Runtime
 {
     public sealed class TcpTransport : ITransport
     {
+        private const int ReceiveBufferSize = 64 * 1024;
+        private const int PoolRentalThreshold = 256; // below this, Gen0 is cheaper than pool overhead
+
         private readonly object _gate = new object();
         private readonly object _sendGate = new object();
 
@@ -65,29 +69,9 @@ namespace AbilityKit.Network.Runtime
                 _receiveLoop = null;
             }
 
-            try
-            {
-                cts?.Cancel();
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                client?.Close();
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                client?.Dispose();
-            }
-            catch
-            {
-            }
+            try { cts?.Cancel(); } catch { }
+            try { client?.Close(); } catch { }
+            try { client?.Dispose(); } catch { }
         }
 
         public void Send(ArraySegment<byte> bytes)
@@ -97,11 +81,7 @@ namespace AbilityKit.Network.Runtime
             lock (_sendGate)
             {
                 NetworkStream stream;
-                lock (_gate)
-                {
-                    stream = _stream;
-                }
-
+                lock (_gate) { stream = _stream; }
                 if (stream == null) throw new InvalidOperationException("Not connected.");
 
                 try
@@ -117,45 +97,54 @@ namespace AbilityKit.Network.Runtime
             }
         }
 
-        public void Dispose()
-        {
-            Close();
-        }
+        public void Dispose() => Close();
 
         private async Task RunAsync(string host, int port, CancellationToken ct)
         {
+            byte[] receiveBuffer = null;
             try
             {
                 await _client.ConnectAsync(host, port);
                 if (ct.IsCancellationRequested) return;
 
                 var stream = _client.GetStream();
-                lock (_gate)
-                {
-                    _stream = stream;
-                }
+                lock (_gate) { _stream = stream; }
 
                 Connected?.Invoke();
 
-                var buffer = new byte[64 * 1024];
+                receiveBuffer = new byte[ReceiveBufferSize]; // one reusable buffer for entire connection
+
                 while (!ct.IsCancellationRequested)
                 {
-                    var n = await stream.ReadAsync(buffer, 0, buffer.Length, ct);
+                    var n = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length, ct);
                     if (n <= 0) break;
 
-                    var bytes = new byte[n];
-                    Buffer.BlockCopy(buffer, 0, bytes, 0, n);
-                    BytesReceived?.Invoke(new ArraySegment<byte>(bytes));
+                    if (n >= PoolRentalThreshold)
+                    {
+                        // Rent from ArrayPool for larger packets → avoid Gen0 allocation
+                        var rented = ArrayPool<byte>.Shared.Rent(n);
+                        try
+                        {
+                            Buffer.BlockCopy(receiveBuffer, 0, rented, 0, n);
+                            BytesReceived?.Invoke(new ArraySegment<byte>(rented, 0, n));
+                        }
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(rented);
+                        }
+                    }
+                    else
+                    {
+                        // Small packets: inline new is cheaper than pool overhead (Gen0 handles it)
+                        var bytes = new byte[n];
+                        Buffer.BlockCopy(receiveBuffer, 0, bytes, 0, n);
+                        BytesReceived?.Invoke(new ArraySegment<byte>(bytes));
+                    }
                 }
 
-                if (!ct.IsCancellationRequested)
-                {
-                    Disconnected?.Invoke();
-                }
+                if (!ct.IsCancellationRequested) Disconnected?.Invoke();
             }
-            catch (OperationCanceledException)
-            {
-            }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 Error?.Invoke(ex);

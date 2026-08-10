@@ -349,3 +349,19 @@ Manager 的 Dictionary 枚举、Container 的 HashSet 枚举和 Stack 的 Dictio
 - DefaultTagSerializer 按名称保存是正确方向，但 parser、转义和未知标签动态注册策略尚不足以承载不可信或长期数据。
 - Editor Database、JSON 和生成代码都存在，仓库没有强制唯一真源和目录 manifest。
 - 核心包自动化测试目前只有 None 的最小断言，层级、查询、服务、持久化和协议边界尚缺专项证据。
+
+## 十三、包内入口、构建与证据
+
+包内快速接入见 [`README.md`](../../../Unity/Packages/com.abilitykit.gameplaytags/README.md)，Core、Template、序列化和所有权语义见 [`GameplayTags标签系统模块开发设计文档.md`](../../../Unity/Packages/com.abilitykit.gameplaytags/Document/GameplayTags标签系统模块开发设计文档.md)。本文作为跨模块 canonical，负责目录生产链、Ability owner 状态、MOBA 规则边界和长期协议决策。
+
+源码阅读路径：
+
+1. `Unity/Packages/com.abilitykit.gameplaytags/Runtime/GameplayTags/Core/GameplayTag.cs`
+2. `Unity/Packages/com.abilitykit.gameplaytags/Runtime/GameplayTags/Core/GameplayTagManager.cs`
+3. `Unity/Packages/com.abilitykit.gameplaytags/Runtime/GameplayTags/Core/GameplayTagContainer.cs`
+4. `Unity/Packages/com.abilitykit.gameplaytags/Runtime/GameplayTags/Core/GameplayTagQuery.cs` 与 `GameplayTagRequirements.cs`
+5. `Unity/Packages/com.abilitykit.ability/Runtime/Ability/Tags/GameplayTagService.cs`
+6. `Unity/Packages/com.abilitykit.gameplaytags/Editor/GameplayTags/GameplayTagDatabase.cs` 与 `GameplayTagJsonExporter.cs`
+7. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Tags/MobaGameplayTagCatalog.cs`
+
+当前 .NET 测试入口为 `src/AbilityKit.GameplayTags.Tests`；本轮源码审计确认独立测试目前只覆盖 `GameplayTag.None` 默认值和零值，不能替代 Query、引用计数、目录一致性和序列化契约测试。证据等级为 E0 Core/Service/Editor 实现、E1 MOBA 注册装配、E2 业务消费者、E3 局部测试，尚无 E4/E5 专项验收或发布门禁。

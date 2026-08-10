@@ -38,7 +38,8 @@ flowchart TB
     end
 
     subgraph E2E[端到端门禁]
-        MobaSmoke[MOBA runtime smoke\n首帧快照/输入/host contract]
+        MobaRuntime[MOBA runtime smoke\n首帧快照/输入/host contract]
+        MobaGateway[MOBA TCP Gateway smoke\n双客户端/房间/权威输入帧]
         ShooterSmoke[Shooter Orleans smoke\nGateway/Room/Battle/Snapshot]
         ETSmoke[ET smoke\n配置门禁/一致性签名]
     end
@@ -55,7 +56,8 @@ flowchart TB
     Editor --> Acceptance
     Contract --> Harness
     Harness --> PlayMode
-    Acceptance --> MobaSmoke
+    Acceptance --> MobaRuntime
+    MobaRuntime --> MobaGateway
     Harness --> ShooterSmoke
     Acceptance --> ETSmoke
     Build --> Targeted --> Matrix --> Smoke --> Artifacts
@@ -79,6 +81,8 @@ flowchart TB
 | Orleans Gateway 测试 | `Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests` | TCP/WebSocket Gateway、RoomGatewaySessionFlow、协议路由 |
 | Orleans Grains 测试 | `Server/Orleans/src/AbilityKit.Orleans.Grains.Tests` | RoomGrain、BattleLogicHostGrain、FrameSyncGrain、Grain 状态边界 |
 | Shooter Smoke 测试工程 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests` | Smoke runner、结果格式化、replay artifact、端到端场景保护 |
+| MOBA Gateway Smoke | `Server/Orleans/tools/run_moba_smoke.ps1` | 双客户端 TCP Gateway、房间阶段、输入提交和权威聚合帧 |
+| MOBA Multiprocess Smoke | `Server/Orleans/tools/run_moba_multiprocess_smoke.ps1` | host-only silo 与标准 smoke client 进程隔离、端口和 artifact |
 | ET Smoke 脚本 | `tools/run_et_battle_smoke.ps1` | ET 控制台战斗、配置门禁、确定性签名、临时输出清理 |
 | Shooter Orleans Smoke | `Server/Orleans/tools/run_shooter_smoke.ps1` | Gateway、Room、BattleGrain、StateSync push、input submit、late join、reconnect |
 
@@ -242,9 +246,9 @@ flowchart LR
 
 冒烟测试不是替代单元测试，而是验证“多个已通过单元测试的模块组合起来是否真的能跑通”。它关注的是链路完整性、协议闭环和运行时稳定性。
 
-### 8.1 MOBA runtime smoke
+### 8.1 MOBA runtime 与 Gateway smoke
 
-MOBA smoke 重点验证 runtime/host 边界：
+MOBA 纯 C# runtime smoke 重点验证 runtime/host 边界：
 
 - `TryStartGame` 是否成功；
 - 首帧是否输出进入游戏和 ActorSpawn 快照；
@@ -252,7 +256,11 @@ MOBA smoke 重点验证 runtime/host 边界：
 - state read model 是否走 buffer 填充边界，避免不必要分配；
 - pending game start spec 是否能被 host 设置、验证、清理。
 
-这类 smoke 仍运行在纯 C# 测试工程中，成本低、定位准，适合作为大部分 MOBA runtime 改动的默认门禁。
+这类 smoke 运行在纯 C# 测试工程中，成本低、定位准，但不能证明真实 Gateway/Orleans 链路。正式 `moba-smoke` gate 还会运行两客户端 TCP Gateway 场景：owner/member 分别登录、创建或加入房间、选英雄、ready、loading、开始战斗并提交输入，最后验证权威聚合帧同时包含两名玩家输入。该 gate 为 P1，在 pull request、push 和 schedule 运行并要求 artifact。
+
+`moba-multiprocess` 是 P2 schedule-only gate。它启动独立的 host-only Orleans silo 进程，再运行标准 smoke client 场景；owner/member 的两条 TCP 连接仍位于同一个 client OS 进程，因此当前证据是服务端/客户端进程隔离，不是真正的“一客户端一进程”矩阵。
+
+MobaSmoke Program 支持 `--sync-template`，但现有两个 PowerShell 脚本和 gate 参数均未透传。Program 默认仍是 `state-sync-authority`，所以当前 P1/P2 smoke 不能作为 `frame-sync-authority` 模板的 E4/E5 证据。
 
 ### 8.2 Shooter 同步模式 smoke
 
@@ -292,15 +300,18 @@ sequenceDiagram
     Smoke->>Gateway: login / create / join / ready / start
     Gateway->>Room: route room command
     Room->>Battle: start battle runtime
-    Battle->>FrameSync: publish frame/snapshot
-    FrameSync-->>Gateway: StateSyncPush
-    Gateway-->>Client: packed snapshot
+    opt template enables frame relay
+        Room->>FrameSync: initialize authority frame channel
+        FrameSync-->>Gateway: frame input event
+    end
+    Battle-->>Gateway: StateSyncPush
+    Gateway-->>Client: packed or pure-state snapshot
     Client->>Client: decode/import/hash check
     Smoke->>Gateway: submit input / late join / reconnect
     Gateway-->>Smoke: stable response and pushed snapshots
 ```
 
-它验证的是 Gateway、RoomGrain、BattleAdapter、FrameSyncGrain、StateSyncPush、输入提交、晚加入、重连、stale snapshot 保护等端到端协议语义。
+它验证的是 Gateway、RoomGrain、BattleAdapter、StateSyncPush、输入提交、晚加入、重连、stale snapshot 保护等端到端协议语义。`BattleLogicHostGrain` 负责玩法 runtime 和 StateSync 发布；`BattleFrameSyncGrain` 是按模板启用的权威帧节奏与输入 relay，不能把 StateSyncPush 归属到该 Grain。
 
 `ShooterSmokeResult` 和 `ShooterSmokeResultFormatter` 把 smoke 输出拆成稳定字段，便于 CI 和人工排查读取：
 
@@ -368,13 +379,25 @@ flowchart TD
     Pass -->|no| Artifact[保留日志/trace/summary 定位]
 ```
 
-测试组合分为三档：
+`tools/test-gates.json` 中的 P0/P1/P2 是 gate 元数据，不能单独推导运行时机。CI 是否在 pull request、push、schedule 运行，以及是否要求 artifact，必须读取每个 gate 的 `ciPolicy`。例如 `shooter-multiprocess-soak` 标为 P0，但它是 schedule-only 长稳 gate；`moba-smoke` 标为 P1，却在 pull request、push 和 schedule 都执行。
 
-| 档位 | 运行时机 | 内容 | 典型命令 |
-|------|----------|------|----------|
-| P0 快速本地 | 每次小改 | 目标工程 build + targeted xUnit | `dotnet test src/AbilityKit.Network.Runtime.Tests/AbilityKit.Network.Runtime.Tests.csproj` |
-| P1 合入前 | PR / 合入前 | 相关 `src/*.Tests` + DemoHarness/Acceptance matrix 子集 | `dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj --filter ShooterAcceptance` |
-| P2 正式回归 | 版本准入 / 大重构后 | 全量测试 + Unity batch + Shooter Orleans smoke + ET smoke + 关键 MOBA smoke | `powershell -ExecutionPolicy Bypass -File Server/Orleans/tools/run_shooter_smoke.ps1` |
+当前代表性 gate：
+
+| Gate | Level | CI policy | 主要边界 |
+|------|-------|-----------|----------|
+| `precheck` | P0 | 以 gate 配置为准 | 仓库和配置前置检查 |
+| `moba-codegen` | P1 | 以 gate 配置为准 | MOBA 代码生成所有权与产物 |
+| `runtime-contracts` / `network-sdk` / `core-stability` | P1 | 以各 gate 配置为准 | runtime、网络 SDK 和核心稳定性契约 |
+| `regression` | P2 | 以 gate 配置为准 | 扩大的跨模块回归集合 |
+| `moba-smoke` | P1 | PR + push + schedule；artifact required | 两客户端 TCP Gateway smoke |
+| `moba-multiprocess` | P2 | schedule only；artifact required | host-only silo 与 smoke client 进程隔离 |
+| `shooter-fast` / `shooter-integration` / `shooter-unity-playmode` | P1 | PR + push；artifact required | 纯契约、跨边界集成和 Unity PlayMode |
+| `shooter-multiprocess` | P1 | push + schedule；artifact required | 独立进程故障恢复场景 |
+| `shooter-multiprocess-compatibility` | P2 | schedule only；artifact required | payload、客户端数与恢复兼容矩阵 |
+| `shooter-multiprocess-soak` | P0 | schedule only；artifact required | 16/64 observer 长稳、恢复和资源趋势 |
+| `shooter-multiprocess-ownership-cleanup` / `shooter-performance` | P1 | 以各 gate 配置为准 | 进程所有权清理与性能预算 |
+
+本地开发仍应按风险从 targeted test 放大到对应 gate；发布或合入判定则以 gate 的 `requiredBefore`、`failurePolicy` 和 `ciPolicy` 为准。
 
 常用命令可以按改动面选择：
 
@@ -392,8 +415,9 @@ flowchart TD
  dotnet test Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj
  dotnet test Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/AbilityKit.Orleans.Grains.Tests.csproj
 
-# ET 与 Shooter 端到端 smoke
+# ET、MOBA 与 Shooter 端到端 smoke
  powershell -ExecutionPolicy Bypass -File tools/run_et_battle_smoke.ps1
+ powershell -ExecutionPolicy Bypass -File Server/Orleans/tools/run_moba_smoke.ps1
  powershell -ExecutionPolicy Bypass -File Server/Orleans/tools/run_shooter_smoke.ps1
 ```
 
@@ -416,8 +440,8 @@ Unity batch 命令需要按本机 Unity Editor 路径执行，核心参数保持
 
 | 方向 | 说明 |
 |------|------|
-| 统一测试命令清单 | 在仓库根目录沉淀 `test` / `smoke` / `acceptance` 脚本说明 |
-| CI 分层 job | 将 P0/P1/P2 拆成 fast、matrix、smoke、nightly |
+| Gate 入口持续治理 | 保持 `tools/test-gates.json`、执行脚本、workflow 和文档一致 |
+| Level 与 CI policy 语义 | 明确 P0/P1/P2 的排序含义，避免与 PR、push、schedule 触发策略混用 |
 | Artifact schema 固化 | 将 summary、trace、health、signature 的 JSON schema 固化为文档与测试 |
 | Unity batch 自动化 | 补齐 Editor/PlayMode 可在 CI 批处理运行的入口 |
 | 性能 smoke | 为固定玩家数、固定技能输入、固定投射物数量增加帧耗时与 GC 指标 |

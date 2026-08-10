@@ -92,6 +92,19 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core
             return true;
         }
 
+        /// <summary>
+        /// 原子替换指定槽位。引用校验失败时列表保持不变。
+        /// </summary>
+        public static bool ReplaceAt(List<BuffRuntime> list, int index, BuffRuntime expectedRuntime, BuffRuntime replacement)
+        {
+            if (list == null || replacement == null) return false;
+            if (index < 0 || index >= list.Count) return false;
+            if (expectedRuntime != null && !ReferenceEquals(list[index], expectedRuntime)) return false;
+            list[index] = replacement;
+            MarkDirty(list);
+            return true;
+        }
+
         private static bool TryGetIndexedRuntime(List<BuffRuntime> list, in BuffRuntimeKey key, out BuffRuntime runtime, out int index)
         {
             index = s_index.TryGetIndex(list, in key);

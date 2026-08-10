@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.Core;
@@ -32,11 +34,21 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             _bindings = bindings;
         }
 
-        public void EndRuntime(global::ActorEntity target, List<BuffRuntime> list, int index, BuffRuntime runtime, int sourceActorId, TraceLifecycleReason reason)
+        public bool EndRuntime(global::ActorEntity target, List<BuffRuntime> list, int index, BuffRuntime runtime, int sourceActorId, TraceLifecycleReason reason)
         {
-            if (target == null) return;
-            if (!target.hasActorId) return;
-            if (runtime == null) return;
+            if (target == null || !target.hasActorId || runtime == null) return false;
+            if (!BuffRepository.RemoveAt(list, index, runtime)) return false;
+
+            EndCommittedRuntime(target, runtime, sourceActorId, reason);
+            return true;
+        }
+
+        /// <summary>
+        /// 清理已从仓库移除或已被替换的运行时。调用前必须完成容器提交。
+        /// </summary>
+        public void EndCommittedRuntime(global::ActorEntity target, BuffRuntime runtime, int sourceActorId, TraceLifecycleReason reason)
+        {
+            if (target == null || !target.hasActorId || runtime == null) return;
 
             var targetActorId = target.actorId.Value;
             var normalizedReason = reason == TraceLifecycleReason.None ? TraceLifecycleReason.Expired : reason;
@@ -45,23 +57,23 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             var hadContinuous = runtime.Continuous != null;
             var hadSkillRuntimeRetain = runtime.SkillRuntimeRetainHandle.IsValid;
             var hadModifierBindings = runtime.ModifierBindings != null && runtime.ModifierBindings.Count > 0;
+            Exception firstFailure = null;
 
-            _bindings?.EndContinuous(runtime, normalizedReason);
-            _bindings?.CleanupContinuous(target, targetActorId, runtime, applyRemovalTags: true);
-            _ctx?.EndByRuntimeNoClear(runtime, normalizedReason);
-            CleanupOwnerBindings(target, runtime.SourceContextId);
-            NotifyRemoved(targetActorId, sourceActorId, runtime, normalizedReason);
-            ReleaseSkillRuntime(runtime);
-            NotifyLifecycle(runtime, MobaRuntimeLifecycleEventKind.Ended, "buff.lifecycle.ended");
- 
-            var removedFromList = BuffRepository.RemoveAt(list, index, runtime);
-            if (removedFromList)
+            TryStep(() => _bindings?.EndContinuous(runtime, normalizedReason), ref firstFailure);
+            TryStep(() => _bindings?.CleanupContinuous(target, targetActorId, runtime, applyRemovalTags: true), ref firstFailure);
+            TryStep(() => _ctx?.EndByRuntimeNoClear(runtime, normalizedReason), ref firstFailure);
+            TryStep(() => CleanupOwnerBindings(target, sourceContextId), ref firstFailure);
+            TryStep(() => NotifyRemoved(targetActorId, sourceActorId, runtime, normalizedReason), ref firstFailure);
+            TryStep(() => ReleaseSkillRuntime(runtime), ref firstFailure);
+            TryStep(() => NotifyLifecycle(runtime, MobaRuntimeLifecycleEventKind.Ended, "buff.lifecycle.ended"), ref firstFailure);
+            TryStep(() => new BuffRuntimeView(runtime).ClearRuntimeBindings(), ref firstFailure);
+            TryStep(() => BuffRepository.ReleaseRuntime(runtime), ref firstFailure);
+
+            LogBuffCleanup(buffId, targetActorId, sourceActorId, sourceContextId, normalizedReason, hadContinuous, true, hadSkillRuntimeRetain, true, hadModifierBindings, true, true);
+            if (firstFailure != null)
             {
-                new BuffRuntimeView(runtime).ClearRuntimeBindings();
-                BuffRepository.ReleaseRuntime(runtime);
+                ExceptionDispatchInfo.Capture(firstFailure).Throw();
             }
-
-            LogBuffCleanup(buffId, targetActorId, sourceActorId, sourceContextId, normalizedReason, hadContinuous, removedFromList, hadSkillRuntimeRetain, removedFromList, hadModifierBindings, removedFromList, removedFromList);
         }
 
         public void CleanupOwnerBindings(global::ActorEntity target, long ownerKey)
@@ -89,6 +101,18 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             if (!_configs.TryGetBuff(runtime.BuffId, out var buff) || buff == null) return;
 
             _notifier?.Removed(buff, sourceActorId, targetActorId, runtime, reason);
+        }
+
+        private static void TryStep(Action action, ref Exception firstFailure)
+        {
+            try
+            {
+                action?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                if (firstFailure == null) firstFailure = ex;
+            }
         }
 
         private static void LogBuffCleanup(int buffId, int targetActorId, int sourceActorId, long sourceContextId, TraceLifecycleReason reason, bool hadContinuous, bool continuousCleared, bool hadSkillRuntimeRetain, bool skillRuntimeCleared, bool hadModifierBindings, bool modifierBindingsCleared, bool removedFromList)

@@ -21,10 +21,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            var input = MobaPlanActionInputResolver.ResolveSummon(triggerArgs, ctx);
+            if (!MobaPlanActionInputResolver.TryResolveSummon(triggerArgs, ctx, out var input))
+            {
+                LogRejected(ctx, "requires combat execution context.");
+                return;
+            }
+
             if (!input.HasCasterActor)
             {
-                LogRejected("requires caster actor");
+                LogRejected(ctx, "requires caster actor.");
                 return;
             }
 
@@ -37,13 +42,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             if (summonId <= 0)
             {
-                LogRejected("requires summon_id > 0");
+                LogRejected(ctx, "requires summon_id > 0.");
                 return;
             }
             var positionMode = (SpawnSummonPositionMode)args.PositionMode;
             if (!input.TryResolveSpawnPosition(positionMode, out var spawnPos))
             {
-                LogRejected($"cannot resolve spawn position. mode={positionMode}");
+                LogRejected(ctx, $"cannot resolve spawn position. mode={positionMode}");
                 return;
             }
 
@@ -51,7 +56,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var sourceContext = input.CreateSourceContext(casterActorId, summonId);
             if (summonSvc.TrySummon(casterActorId, summonId, in spawnPos, in forward, in sourceContext))
             {
-                LogApplied($"caster={casterActorId} summonId={summonId}");
+                LogApplied(ctx, $"caster={casterActorId} summonId={summonId}");
             }
         }
     }

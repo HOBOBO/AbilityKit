@@ -37,7 +37,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             ctx.Context.TryResolve<MobaCombatActivityService>(out var combatActivity);
 
-            var coreInput = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
+            if (!MobaPlanActionInputResolver.TryResolve(
+                    triggerArgs,
+                    ctx,
+                    out var coreInput))
+            {
+                LogRejected(ctx, "requires combat execution context.");
+                return;
+            }
+
             var effectInput = new MobaEffectActionInput(in coreInput);
             if (!effectInput.HasCasterActor)
             {
@@ -55,7 +63,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
                 for (int i = 0; i < targets.Count; i++)
                 {
-                    ApplyToTarget(actors, damage, combatActivity, effectInput.CasterActorId, args, targets[i], ctx);
+                    ApplyToTarget(actors, damage, combatActivity, in effectInput, args, targets[i], ctx);
                 }
             }
             finally
@@ -68,7 +76,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             MobaActorLookupService actors,
             MobaDamageService damage,
             MobaCombatActivityService combatActivity,
-            int healerActorId,
+            in MobaEffectActionInput effectInput,
             ConvertResourceToHealArgs args,
             int targetActorId,
             ExecCtx<IWorldResolver> ctx)
@@ -85,13 +93,26 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var requestedHeal = consumed * args.HealRatio;
             if (requestedHeal <= 0f) return;
 
-            var healed = damage.ApplyHeal(healerActorId, targetActorId, (int)args.HealType, requestedHeal, args.ReasonKind, args.ReasonParam);
-            if (healed <= 0f) return;
+            var healerActorId = effectInput.CasterActorId;
+            var origin = effectInput.BuildOrigin(
+                healerActorId,
+                targetActorId,
+                MobaTraceKind.EffectExecution,
+                args.ReasonParam);
+            var result = damage.CommitHeal(
+                healerActorId,
+                targetActorId,
+                (int)args.HealType,
+                requestedHeal,
+                args.ReasonKind,
+                args.ReasonParam,
+                origin);
+            if (!result.Succeeded) return;
 
             state.Current -= consumed;
             if (state.Current < 0f) state.Current = 0f;
             MobaResourceAttributeContextProjector.Refresh(entity);
-            MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.ConvertResourceToHeal, $"healer={healerActorId}, target={targetActorId}, type={args.ResourceType}, consumed={consumed:0.###}, healed={healed:0.###}, current={state.Current:0.###}");
+            MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.ConvertResourceToHeal, $"healer={healerActorId}, target={targetActorId}, type={args.ResourceType}, consumed={consumed:0.###}, healed={result.AppliedValue:0.###}, current={state.Current:0.###}");
         }
     }
 }

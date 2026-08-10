@@ -20,7 +20,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            var coreInput = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
+            if (!MobaPlanActionInputResolver.TryResolve(
+                    triggerArgs,
+                    ctx,
+                    out var coreInput))
+            {
+                LogRejected(ctx, "requires combat execution context.");
+                return;
+            }
+
             var effectInput = new MobaEffectActionInput(in coreInput);
             if (!effectInput.HasCasterActor)
             {
@@ -38,10 +46,23 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
                 for (int i = 0; i < targets.Count; i++)
                 {
-                    var healed = damage.ApplyHeal(effectInput.CasterActorId, targets[i], (int)args.HealType, args.Amount, args.ReasonKind, args.ReasonParam);
-                    if (healed > 0f)
+                    var targetActorId = targets[i];
+                    var origin = effectInput.BuildOrigin(
+                        effectInput.CasterActorId,
+                        targetActorId,
+                        MobaTraceKind.EffectExecution,
+                        args.ReasonParam);
+                    var result = damage.CommitHeal(
+                        effectInput.CasterActorId,
+                        targetActorId,
+                        (int)args.HealType,
+                        args.Amount,
+                        args.ReasonKind,
+                        args.ReasonParam,
+                        origin);
+                    if (result.Succeeded)
                     {
-                        MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.Heal, $"healer={effectInput.CasterActorId}, target={targets[i]}, amount={healed:0.###}, reasonParam={args.ReasonParam}");
+                        MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.Heal, $"healer={effectInput.CasterActorId}, target={targetActorId}, amount={result.AppliedValue:0.###}, reasonParam={args.ReasonParam}");
                     }
                 }
             }

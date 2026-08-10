@@ -1,12 +1,12 @@
 # 07 · 多人联网 SDK 新示例接入指南
 
-> 权威清单：一个**新玩法示例**要接入 AbilityKit 多人联网，"白拿什么 / 必须自己写什么 / 按什么顺序接入"。基于 shooter 与 moba 两个已落地示例的源码核校（2026-08-06）。
+> 权威清单：一个**新玩法示例**要接入 AbilityKit 多人联网，"白拿什么 / 必须自己写什么 / 按什么顺序接入"。基于 shooter 与 moba 两个已落地示例的源码核校（2026-08-09）。
 >
-> 相关：SDK 组装根见 `com.abilitykit.network.sdk` README；房间能力见 `com.abilitykit.network.room` README。
+> 相关：SDK 装配、所有权、线程和 transport 证据以 `com.abilitykit.network.sdk` README 为 package canonical；房间能力见 `com.abilitykit.network.room` README。
 
 ## 0. 一句话定位
 
-AbilityKit 的多人联网**底层已经是一套玩法无关的 SDK**（`network.sdk` + `network.room`），shooter 与 moba 两个示例都构建在它之上。**新示例真正要写的只有游戏专属的"战斗数据面"（协议 + 同步策略），连接、重连、房间流程、服务端网关骨架全部白拿。**
+AbilityKit 的多人联网底层已经是一套玩法无关的 SDK（`network.sdk` + `network.room`），shooter 与 moba 都有真实接入。新示例可复用连接、重连、房间流程和当前 TCP/Orleans 网关骨架；仍需交付游戏协议、战斗数据面、同步策略，并为非 TCP transport 单独完成服务端与部署验收。
 
 ## 1. 分层回顾（哪些是 SDK，哪些是示例自写）
 
@@ -32,16 +32,37 @@ AbilityKit 的多人联网**底层已经是一套玩法无关的 SDK**（`networ
 - **服务端网关骨架**：`TcpTransportServer` + `GatewayRequestRouter` + `GatewayHandlerRegistry` + `GatewaySessionRegistry/Binder` + Orleans grains（`RoomGrain` / `BattleLogicHostGrain` / `StateSyncObserverGrain`）
 - **登录**：`DemoRoomGatewayAccountClient.LoginTcpAsync`（返回 `SessionToken`，后续每个 room/battle RPC 携带）
 
+## 🆕 最快接入路径：GatewayMultiplayerSession
+
+`network.room` 新增的高层会话门面。新项目用 **~10 行代码**完成从零到"进战斗 + 订阅状态同步"：
+
+```csharp
+var session = await GatewayMultiplayerSession.CreateAsync(
+    "127.0.0.1", 4000, "player-1",
+    RoomGatewayLaunchSpec.CreateDefault("yourgame", "yourgame-world"),
+    transportFactory: () => new TcpTransport(),  // 当前生产与 Smoke 默认路径
+    configureRoomClient: rc => { /* 注册游戏推送 */ });
+
+// session.SdkClient     — 用于战斗数据面（NetworkBattleConfig + NetworkTransport）
+// session.Result        — roomId / battleId / playerId / RoomSnapshot
+// session.RoomClient    — 游戏专属 RPC（PickHero 等）
+session.Tick(deltaTime);
+session.Dispose();
+```
+
+内部封装：NetworkSdkBuilder → 连接 → GuestLogin → RoomGatewaySessionFlow（create/join → ready → waitForStart → subscribe）。替代各 demo 各自实现的 ~200 行组装代码。
+
 ## 可选传输 + 配置（SDK 扩展包）
 
-| 包 | 类型 | 用途 |
+| 包 | 客户端实现与局部测试 | 生产采用 / 服务端前提 |
 |---|---|---|
-| `network.transport.websocket` | `WebSocketTransport` | WebSocket 传输（桌面/移动/服务端；WebGL 需平台特化）|
-| `network.transport.litenet` | `LiteNetTransport` | 可靠 UDP 传输（LiteNetLib，快节奏/低延迟/丢包场景）|
-| `network.transport.inmemory` | `InMemoryTransport` | 进程内传输对（快速 in-process 测试，无需真实 socket）|
-| `network.battle.config` | `NetworkBattleConfig` | 高层配置 builder（封装标准 room-gateway 协议预设，~7 行替代 ~30 行 options）|
+| `network.runtime` / `TcpTransport` | 裸 TCP 实现；SDK 有契约测试 | Room、Battle、Moba、Shooter 和 Orleans Smoke 的默认或实际路径 |
+| `network.transport.websocket` | `ClientWebSocket`；本机 `HttpListener` echo round-trip | 未发现生产消费者；不支持 Unity WebGL；Orleans 服务端类存在，但 canonical Gateway 尚未注册或托管 |
+| `network.transport.litenet` | LiteNetLib `ReliableOrdered`；本机 UDP echo round-trip | 未发现生产消费者和 AbilityKit UDP/LiteNet 网关；没有真实弱网或 TCP 性能对比证据 |
+| `network.transport.inmemory` | linked-pair 同步回环测试 | 仅适合进程内测试，不模拟 socket、时延、丢包、乱序或异步线程 |
+| `network.battle.config` | `NetworkBattleConfig` 高层配置 builder | 封装标准 room-gateway 协议预设，不改变 transport 的服务端前提 |
 
-注入方式：`NetworkSdkBuilder.UseTransportFactory(() => new YourTransport())`。上层无需改动。
+客户端注入方式是 `NetworkSdkBuilder.UseTransportFactory(() => new YourTransport())`，因此 SDK 上层装配可以保持不变；这不表示对应服务端监听、目标平台、TLS/代理、弱网与恢复链路已经可用。详细所有权、线程和缓冲区契约以 SDK package README 为准。
 
 `NetworkBattleConfig` builder：`new NetworkBattleConfig().WithGateway(...).WithTcpTransport().WithSession(...).UseRoomGatewayProtocol(...).WithInputSerializer(...).WithSnapshotDeserializer(...).Build()` → 自动设置 8 个标准 opcodes + auth 握手 + reliable-event ack + full-state-sync + command-sequence wrapping。游戏只需提供 input serialize/deserialize + snapshot deserialize。
 
@@ -49,7 +70,7 @@ AbilityKit 的多人联网**底层已经是一套玩法无关的 SDK**（`networ
 
 ### 3.1 游戏专属 wire protocol（参考 `protocol.shooter` / `protocol.moba`）
 
-- op-code 表（参考 `ShooterOpCodes`：11 个，分 Input / Snapshot.{StartGame,State,Events,PackedState,...}）
+- op-code 表（参考 `ShooterOpCodes`：9 个，分 Input / Snapshot.{StartGame,State,Events,PackedState,...}）
 - MemoryPack DTO（玩家指令、输入载荷、开战载荷、快照载荷）
 - codec（快照编解码，如 `ShooterStateSnapshotCodec` / `ShooterPackedSnapshotCodec`）
 
@@ -66,7 +87,7 @@ AbilityKit 的多人联网**底层已经是一套玩法无关的 SDK**（`networ
 
 ### 3.3 战斗数据面（输入上行 + 快照下行 + 客户端同步策略）
 
-这是**唯一的工程变量**。注意：通用的"输入上行 + 快照/事件下行 + 可靠事件 + resync"引擎**已经存在** —— `NetworkTransport` / `NetworkTransportOptions`（`com.abilitykit.network.battle`，见其 README）。**MOBA 已在用**；**shooter 目前手写、尚未迁移**。下方两条 bullet 描述两个示例当前各自的数据面接线：
+这是**唯一的工程变量**。注意：通用的"输入上行 + 快照/事件下行 + 可靠事件 + resync"引擎**已经存在** —— `NetworkTransport` / `NetworkTransportOptions`（`com.abilitykit.network.battle`，见其 README）。**MOBA 与 shooter 均已在用**（shooter 2026-08-09 迁移到两连接 NetworkTransport，multiprocess smoke 全绿，详见第 4 节）。下方两条 bullet 描述两个示例当前各自的数据面接线：
 
 - **输入上行**：经通用 gateway 的 `SubmitBattleInput` op-code（`RoomGatewayOpCodes.SubmitBattleInput`）提交。shooter 的 `ShooterRoomGatewayClient.SubmitBattleInputAsync`、moba 的 `GatewayRoomClient.SubmitBattleInputAsync` 即此。
 - **快照下行**：订阅 `ServerPushReceived`，按 op-code 分发到快照解码与应用。shooter 的 `ShooterRoomGatewayConnection.OnServerPushReceived`、moba 的 `BattleSessionFeature` 即此。
@@ -89,12 +110,12 @@ AbilityKit 的多人联网**底层已经是一套玩法无关的 SDK**（`networ
 | 房间适配 | `ShooterRoomGatewayConnection` + `ShooterRoomGatewayFlow` | `GatewayRoomClient`（包 `RoomGatewayWireSessionClient`） |
 | 战斗 session | `ShooterClientSession` | `BattleSessionFeature` |
 | 同步策略 | 自写 3 套 SyncController + `ShooterClientPredictionRuntimeAdapter` | `FrameSyncDriverModule` + `ClientPredictionDriverModule` |
-| 协议 | `protocol.shooter`（11 opcodes） | `protocol.moba` |
+| 协议 | `protocol.shooter`（9 opcodes） | `protocol.moba` |
 | 经 coordinator？ | **否**（契约测试守护） | **否**（战斗走 host.extension framesync） |
 
 ## 5. 服务端侧（Orleans）
 
-通用骨架已就绪，新示例只需**注册游戏专属 handler**：
+当前 TCP 主链的通用骨架已就绪，新示例只需注册游戏专属 handler。若选择 WebSocket 或 LiteNet，还必须先完成对应 listener 的启动注册、配置和端到端 smoke；仅客户端替换 factory 不会让服务端自动支持新协议。
 
 - 通用（白拿）：`GuestLoginHandler` / `CreateRoomHandler` / `JoinRoomHandler` / `LeaveRoomHandler` / `RoomReadyHandler` / `BeginLoadingHandler` / `ReportAssetsLoadedHandler` / `StartRoomBattleHandler` / `SubscribeStateSyncHandler` / `RestoreRoomHandler` / `GetSnapshotHandler` / `TimeSyncHandler` + grains（`RoomGrain` / `BattleLogicHostGrain`）。
 - 游戏专属（自写）：战斗数据 handler，如 `SubmitBattleInputHandler`（按 `roomType`/`worldType` 路由到该玩法的战斗逻辑）、快照构建。参考 shooter 的 `AddShooterSmokeGateway` 注册方式。
@@ -182,13 +203,19 @@ coordinator 当初的设想是"逻辑层不关心帧同步/状态同步，宿主
 
 ## 7. 后续收敛（路线图）
 
-源码核校（2026-08-06）：通用战斗数据面引擎已迁至中立包 `com.abilitykit.network.battle`（命名空间 `AbilityKit.Network.Battle`，见其 README）；moba 在用、shooter 尚未迁移。`Moba/` 遗留子树已随 `game.battle.transport.runtime` 包整体删除（Console demo 已迁移到统一 SDK）。
+源码核校（2026-08-09）：通用战斗数据面引擎已迁至中立包 `com.abilitykit.network.battle`（命名空间 `AbilityKit.Network.Battle`，见其 README）；**moba 与 shooter 均在用**（shooter 已迁移，multiprocess smoke 含 recoverable-retry 故障注入全绿）。`Moba/` 遗留子树已随 `game.battle.transport.runtime` 包整体删除（Console demo 已迁移到统一 SDK）。SDK package canonical 已补齐 Builder/Client 所有权、Tick/Dispose、dispatcher、缓冲区和 transport 证据边界。
 
 - **P2（已完成）**：把现有引擎文档化为 SDK 战斗层。
 - **P2.1（已完成）**：把通用引擎（`NetworkTransport`/`NetworkTransportOptions`/`Projection`）从 `game.battle.transport.runtime` 搬到中立包 `com.abilitykit.network.battle`，命名空间改为 `AbilityKit.Network.Battle`。
 - **P2.1b（已完成）**：Console demo 迁移到统一 SDK（`NetworkSdkClient` + `WireRoomGatewayBinary` + `RoomGatewayOpCodes`），`game.battle.transport.runtime` 包**整体删除**。
-- **P2.2（后续）**：shooter 客户端数据面迁移到统一引擎，退役 `ShooterRoomGatewayClient`/`ShooterRoomGatewayConnection`/`ShooterClientSession.ApplyGatewayPush` 手写胶水。
-- **P3（后续）**：提供参考同步实现（如 shooter 的 `AuthoritativeInterpolation`）作为开箱默认。
+- **P2.2（已完成 2026-08-09）**：shooter 客户端数据面迁移到统一引擎 —— 两连接拓扑（房间控制面 + 独立 battle NetworkTransport 连接）；`ShooterBattleTransportGatewayClient` 适配 `NetworkTransport.SendInputAsync`（per-submit 结果），`ShooterBattleDataPlane` 经 `RawServerPushReceived` 喂既有 `ApplyGatewayPush`（push 在主线程 drain，不与 `session.Tick` 竞争）；`ShooterRoomGatewayConnection` 收缩为房间控制面 + battle-state facade（`NotifyBattlePushDispatched`）。退役了 `ShooterRoomGatewayClient`/`ShooterRoomGatewayConnection` 的手写战斗胶水。multiprocess smoke（含 recoverable-retry 3 次注入故障 + 重连）全绿、`diffStatus=Identical`。
+### 进行中（WIP，未提交；2026-08-09 记录）
+
+- **Room-flow staged-restore 重构（用户进行中）**：`network.room/Runtime/RoomGatewaySessionFlow.cs`（工作树 `M`）正从单步 `CreateRoomAsync`/`RestoreRoomAsync` 高层接口重构为分阶段 restore（`RoomGatewayStagedRestoreResult` / `NextStep` / `RestoreStatus` 等）。重构**尚未完成**：已知粗糙点 —— create 路径 `EntryKind` 因 server `JoinRoom` 的 alreadyMember 副产物被标成 `Reconnect`（shooter flow 已在 `ShooterRoomGatewayFlow.JoinAndLaunchAsync` 用 `createdRoomOwner ? TeamLobby : join.JoinKind` 修复；SDK flow 同类问题待随重构收尾确认）。
+- **`GatewayMultiplayerSession`（高层 ~10 行门面，`network.room/Runtime/GatewayMultiplayerSession.cs`，工作树 `??`）**：封装 connect → GuestLogin → create/join → ready → `WaitForBattleStart`（轮询直到 InBattle）→ SubscribeStateSync；已能编译（`network.room` 0 错误），但**零消费者**，且依赖上述 room-flow WIP。
+- **GatewayMultiplayerSession 接入（高层门面 dogfood）—— 阻塞于 room-flow WIP 稳定**：已评估接入点：① Console demo `StateSyncAdapter`（单 client SnapshotAuthority + 无 formal battle start + async-void 连接结构）与门面的 `WaitForBattleStart` 不适配；② MOBA `MultiplayerGatewayEntryModule` 是正确形态（完整 create→ready→start→subscribe），但是 ~429 行复杂模块。合成测试也非轻量（需模拟 room→InBattle）。**建议**：room-flow staged-restore 收尾、entryKind 等粗糙点清理后，把 `MultiplayerGatewayEntryModule` 切到 `GatewayMultiplayerSession`，由 `moba-smoke` 验证。
+
+- **P3（后续）**：提供参考同步实现（如 shooter 的 `AuthoritativeInterpolation`）作为开箱默认；并把 `GatewayMultiplayerSession` 真正接入一个示例（依赖上方 room-flow WIP 收尾）。
 - **P4（后续）**：决策 coordinator 去留（收缩为本地/harness 专用，删远端死 adapter）。
 - **P5（可选）**：收敛预测算法（帧同步 vs 状态同步机制不同，不强行统一；可能永远不做）。
 

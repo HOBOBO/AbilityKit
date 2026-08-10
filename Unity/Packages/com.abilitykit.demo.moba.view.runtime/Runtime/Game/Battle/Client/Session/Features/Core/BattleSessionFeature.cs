@@ -10,7 +10,12 @@ using AbilityKit.Network.Runtime;
 
 namespace AbilityKit.Game.Flow
 {
-    public sealed partial class BattleSessionFeature : IBattleSessionFeature, Battle.Replay.IBattleReplayControl
+    public sealed partial class BattleSessionFeature :
+        IBattleSessionFeature,
+        Battle.Replay.IBattleReplayControl,
+        ISessionLogicPort,
+        ISessionPipelinePort,
+        ISessionRuntimeResourcesPort
     {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         public static bool DebugForceClientHashMismatch { get; set; }
@@ -25,20 +30,22 @@ namespace AbilityKit.Game.Flow
         private readonly IBattleLogicSessionRegistry _sessionRegistry;
         private readonly BattleReplaySessionOwner _replayOwner = new BattleReplaySessionOwner();
 
-        private readonly BattleSessionState _state = new BattleSessionState();
-        private readonly BattleSessionHandles _handles = new BattleSessionHandles();
+        // Compatibility facade during staged migration. Mutable session state and resources
+        // are owned by BattleSessionRuntime rather than by this feature facade.
+        private readonly BattleSessionRuntime _runtime = new BattleSessionRuntime();
+        private BattleSessionState _state => _runtime.State;
+        private BattleSessionHandles _handles => _runtime.Handles;
+        private SessionOrchestrator _orchestrator => _runtime.Orchestrator;
 
         private readonly SessionLifecycleHost _lifecycleHost;
         private readonly TickLoopHost _tickLoopHost;
         private readonly SessionNetAdapterContextHost _netAdapterContextHost;
-        private readonly SessionOrchestrator _orchestrator;
         private readonly SessionDispatchersController _dispatchers;
         private readonly SessionNetAdapterController _net;
         private readonly SessionReplayController _replayCtrl;
         private readonly SessionPlanController _planCtrl;
         private readonly SessionEventsController _eventsCtrl;
         private readonly TickLoopController _tickLoop;
-        private readonly SessionSnapshotRoutingController _snapshotRouting;
         private readonly SessionWorldCatchUpController _worldCatchUp;
 
 #if UNITY_EDITOR
@@ -77,28 +84,13 @@ namespace AbilityKit.Game.Flow
             _gatewayConnectionFactory = gatewayRoomConnectionFactory ?? new DefaultBattleSessionGatewayConnectionFactory(gatewayConnectionFactory);
             _gatewayRoomClientFactory = gatewayRoomClientFactory ?? new DefaultBattleSessionGatewayRoomClientFactory();
             _sessionRegistry = sessionRegistry ?? new DefaultBattleLogicSessionRegistry();
-            _lifecycleHost = new SessionLifecycleHost(new SessionLifecycleHostOptions
-            {
-                GetPlan = () => _plan,
-                GetContext = () => _ctx,
-                Handles = _handles,
-                GetFrameReceivedHandler = () => OnFrame,
-                StartBattleLogicSession = StartBattleLogicSession,
-                StopBattleLogicSession = _sessionRegistry.Stop,
-                InvokeSessionStartingPipeline = InvokeSessionStartingPipeline,
-                InvokeSessionStoppingPipeline = InvokeSessionStoppingPipeline,
-                InvokeReplaySetupPipeline = InvokeReplaySetupPipeline,
-                StartRemoteDrivenLocalWorld = StartRemoteDrivenLocalWorld,
-                StartConfirmedAuthorityWorld = StartConfirmedAuthorityWorld,
-                TryDestroyBattleWorlds = TryDestroyBattleWorlds,
-                DisposeSnapshotRouting = DisposeSnapshotRouting,
-                DisposeConfirmedView = DisposeConfirmedView,
-                DisposeRemoteDrivenWorld = DisposeRemoteDrivenWorld,
-                DisposeConfirmedWorld = DisposeConfirmedWorld,
-                DisposeRemoteInterpolation = DisposeRemoteInterpolation,
-                ResetSessionHandles = ResetSessionHandles,
-            });
-            _orchestrator = new SessionOrchestrator(_state, _handles, _lifecycleHost);
+            _runtime.ConfigureGatewayRoom(
+                _connectionRegistry,
+                _gatewayConnectionFactory,
+                _gatewayRoomClientFactory,
+                NetworkCondition);
+            _lifecycleHost = new SessionLifecycleHost(_handles, this, this, this);
+            _runtime.ConfigureOrchestrator(_lifecycleHost);
             _dispatchers = new SessionDispatchersController();
             _net = new SessionNetAdapterController();
             _replayCtrl = new SessionReplayController();
@@ -114,7 +106,6 @@ namespace AbilityKit.Game.Flow
                 () => _plan,
                 _handles,
                 () => _snapshots);
-            _snapshotRouting = new SessionSnapshotRoutingController();
             _worldCatchUp = new SessionWorldCatchUpController();
         }
 

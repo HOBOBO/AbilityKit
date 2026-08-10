@@ -18,7 +18,7 @@ namespace AbilityKit.Analyzer.Editor
         /// <summary>
         /// 手动触发检查，可在菜单中调用
         /// </summary>
-        [MenuItem("AbilityKit/Analyzer/检查命名空间约束")]
+        [MenuItem("Tools/AbilityKit/Framework/Analyzer/检查命名空间约束")]
         public static void CheckConstraints()
         {
             var violations = CheckAllAssemblies();

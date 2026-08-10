@@ -22,21 +22,21 @@ namespace AbilityKit.Ability.Editor.Utilities
         private const string PackageAbilityResourcesPath = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability";
         private const string DefaultAbilityConfigFolder = "Assets/Configs/Ability";
 
-        [MenuItem("AbilityKit/Ability/Export Trigger Json")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/导出/Trigger Json")]
         public static void ExportSelectedFolder()
         {
             var folder = AbilityTriggerExportUtils.TryGetSelectedFolderPath();
             ExportFromFolder(folder);
         }
 
-        [MenuItem("AbilityKit/Ability/Export Trigger Plan Json")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/导出/Trigger Plan Json")]
         public static void ExportSelectedFolderPlans()
         {
             var folder = AbilityTriggerExportUtils.TryGetSelectedFolderPath();
             ExportPlanFromFolder(folder);
         }
 
-        [MenuItem("AbilityKit/Ability/Export Trigger Json (Configs/Ability)")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/导出/Trigger Json (Configs/Ability)")]
         public static void ExportDefaultFolder()
         {
             ExportFromFolder(DefaultAbilityConfigFolder);
@@ -47,7 +47,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             ExportPlanFromFolder("Assets");
         }
 
-        [MenuItem("AbilityKit/Ability/Export Trigger Plan Json (Configs/Ability)")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/导出/Trigger Plan Json (Configs/Ability)")]
         public static void ExportDefaultFolderPlans()
         {
             ExportDefaultFolderPlansForBatchMode();

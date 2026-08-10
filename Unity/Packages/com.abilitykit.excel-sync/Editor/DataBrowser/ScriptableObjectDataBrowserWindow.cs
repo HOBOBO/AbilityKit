@@ -79,7 +79,7 @@ namespace AbilityKit.ExcelSync.Editor.DataBrowser
         private Func<object, string> _getName;
         private Func<object, string> _getDesc;
 
-        [MenuItem("Tools/Excel/ScriptableObject Data Browser")]
+        [MenuItem("Tools/AbilityKit/Framework/Excel/ScriptableObject Data Browser")]
         private static void Open()
         {
             GetWindow<ScriptableObjectDataBrowserWindow>(false, "SO Data Browser", true);

@@ -11,10 +11,19 @@ namespace AbilityKit.Demo.Shooter.View
     public sealed class ShooterClientGatewayLauncher
     {
         private readonly IShooterRoomGatewayRequestTransport _transport;
+        private readonly Func<ShooterRoomGatewayFlowResult, IShooterRoomGatewayClient>? _battleClientFactory;
 
         public ShooterClientGatewayLauncher(IShooterRoomGatewayRequestTransport transport)
+            : this(transport, null)
+        {
+        }
+
+        public ShooterClientGatewayLauncher(
+            IShooterRoomGatewayRequestTransport transport,
+            Func<ShooterRoomGatewayFlowResult, IShooterRoomGatewayClient>? battleClientFactory)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+            _battleClientFactory = battleClientFactory;
         }
 
         public Task<ShooterClientGatewayLaunchResult> CreateReadyStartAndSubscribeAsync(
@@ -319,7 +328,7 @@ namespace AbilityKit.Demo.Shooter.View
                     : await flow.JoinReadyStartAndSubscribeAsync(sessionToken, joinRoomId, launchSpec, playerId, timeout, cancellationToken).ConfigureAwait(false))
                 : await flow.RestoreRoomAsync(sessionToken, restoreRegion, restoreServerId ?? string.Empty, launchSpec, playerId, timeout, cancellationToken).ConfigureAwait(false);
 
-            var gatewayClient = new ShooterRoomGatewayClient(_transport);
+            var gatewayClient = _battleClientFactory?.Invoke(flowResult) ?? new ShooterRoomGatewayClient(_transport);
             var session = new ShooterClientSession(runtime, presentationSession, tickRate, syncAssemblyOptions, gatewayClient);
             var alignedStartGame = startGame.WithWorldStartAnchor(
                 flowResult.WorldId,

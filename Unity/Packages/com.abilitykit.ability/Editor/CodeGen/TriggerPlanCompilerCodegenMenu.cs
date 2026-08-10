@@ -16,7 +16,7 @@ namespace AbilityKit.Ability.Editor.Utilities
     {
         private const string OutputPath = "Packages/com.abilitykit.ability.editor/Editor/Ability/Editor/Triggering/Generated/GeneratedTriggerPlanCompiler.g.cs";
 
-        [MenuItem("AbilityKit/Triggering/Codegen/Generate Plan Compiler")]
+        [MenuItem("Tools/AbilityKit/Framework/Triggering/Codegen/Generate Plan Compiler")]
         public static void Generate()
         {
             var actions = FindActions();

@@ -66,6 +66,12 @@ namespace AbilityKit.Network.Battle
         public readonly bool RetryAtAuthoritativeFrame;
         public readonly string Status;
         public readonly string Message;
+        /// <summary>The frame the server accepted the input at (statesync lag-compensation health).</summary>
+        public readonly int AcceptedFrame;
+        /// <summary>Server-side timestamp (UTC ticks) at accept, for lag-compensation validation.</summary>
+        public readonly long ServerTicks;
+        /// <summary>Server signaled that the client should request a full-state resync.</summary>
+        public readonly bool ShouldResync;
 
         public NetworkSubmitInputResponse(
             bool accepted,
@@ -73,7 +79,10 @@ namespace AbilityKit.Network.Battle
             int reasonCode,
             bool retryAtAuthoritativeFrame,
             string status = null,
-            string message = null)
+            string message = null,
+            int acceptedFrame = 0,
+            long serverTicks = 0,
+            bool shouldResync = false)
         {
             Accepted = accepted;
             ServerFrame = serverFrame;
@@ -81,6 +90,9 @@ namespace AbilityKit.Network.Battle
             RetryAtAuthoritativeFrame = retryAtAuthoritativeFrame;
             Status = status ?? string.Empty;
             Message = message ?? string.Empty;
+            AcceptedFrame = acceptedFrame;
+            ServerTicks = serverTicks;
+            ShouldResync = shouldResync;
         }
     }
 }

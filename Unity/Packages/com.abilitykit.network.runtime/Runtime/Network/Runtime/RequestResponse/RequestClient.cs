@@ -163,6 +163,9 @@ namespace AbilityKit.Network.Runtime
         private static ArraySegment<byte> Copy(ArraySegment<byte> src)
         {
             if (src.Array == null || src.Count <= 0) return default;
+            // Allocates a permanent copy — the underlying transport buffer may be reused/returned before
+            // the consumer processes it. ArrayPool can't be used here because there's no return mechanism
+            // in the TaskCompletionSource<ArraySegment<byte>> API. Gen0 handles this fine at game frame rates.
             var bytes = new byte[src.Count];
             Buffer.BlockCopy(src.Array, src.Offset, bytes, 0, src.Count);
             return new ArraySegment<byte>(bytes);

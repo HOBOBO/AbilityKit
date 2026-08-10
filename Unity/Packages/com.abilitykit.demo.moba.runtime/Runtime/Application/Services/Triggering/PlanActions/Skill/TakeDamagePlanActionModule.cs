@@ -58,8 +58,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 FormulaKind = (int)DamageFormulaKind.Standard,
             };
 
-            var input = MobaPlanActionInputResolver.ResolveEffect(triggerArgs, ctx);
-            origin = input.BuildFromOrigin(in origin, attackerActorId, targetActorId);
+            if (MobaPlanActionInputResolver.TryResolveEffect(
+                    triggerArgs,
+                    ctx,
+                    out var input))
+            {
+                origin = input.BuildFromOrigin(
+                    in origin,
+                    attackerActorId,
+                    targetActorId);
+            }
 
             attack.SetOrigin(in origin);
             attack.BaseDamage.BaseValue = baseValue;

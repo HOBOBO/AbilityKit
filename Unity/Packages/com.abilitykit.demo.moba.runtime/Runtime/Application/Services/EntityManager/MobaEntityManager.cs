@@ -71,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
             var actorId = e.actorId.Value;
             if (actorId <= 0) return false;
 
-            Register(
+            RegisterSilently(
                 actorId: actorId,
                 entity: e,
                 team: e.team.Value,
@@ -90,66 +90,159 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
             UnitSubType unitSubType,
             PlayerId ownerPlayer)
         {
+            var isNew = RegisterSilently(actorId, entity, team, mainType, unitSubType, ownerPlayer);
+            if (isNew)
+            {
+                PublishSpawn(entity);
+            }
+        }
+
+        internal bool RegisterSilently(
+            int actorId,
+            global::ActorEntity entity,
+            Team team,
+            EntityMainType mainType,
+            UnitSubType unitSubType,
+            PlayerId ownerPlayer)
+        {
             if (actorId <= 0) throw new ArgumentOutOfRangeException(nameof(actorId));
             if (entity == null) throw new ArgumentNullException(nameof(entity));
 
-            var isNew = !Index.Registry.Contains(actorId);
-
-            _byActorId[actorId] = entity;
-
-            if (isNew)
+            var indexContains = Index.Registry.Contains(actorId);
+            var dictionaryContains = _byActorId.TryGetValue(actorId, out var existingEntity);
+            if (indexContains != dictionaryContains)
             {
-                Index.Add(actorId);
+                throw new InvalidOperationException($"Actor {actorId} registration indexes are inconsistent.");
             }
-            ByTeam.SetKey(actorId, team);
-            ByMainType.SetKey(actorId, mainType);
-            ByUnitSubType.SetKey(actorId, unitSubType);
-            ByOwnerPlayer.SetKey(actorId, ownerPlayer);
-
-            if (isNew)
+            if (dictionaryContains && !ReferenceEquals(existingEntity, entity))
             {
-                PublishUnitEvent(MobaUnitTriggering.Events.Spawn, actorId, team, mainType, unitSubType, ownerPlayer, entity, MobaTraceKind.UnitSpawn);
+                throw new InvalidOperationException($"Actor {actorId} is already registered with a different entity.");
             }
+
+            var isNew = !indexContains;
+            var hadTeam = ByTeam.TryGetKey(actorId, out var oldTeam);
+            var hadMainType = ByMainType.TryGetKey(actorId, out var oldMainType);
+            var hadUnitSubType = ByUnitSubType.TryGetKey(actorId, out var oldUnitSubType);
+            var hadOwnerPlayer = ByOwnerPlayer.TryGetKey(actorId, out var oldOwnerPlayer);
+            try
+            {
+                _byActorId[actorId] = entity;
+                if (isNew)
+                {
+                    Index.Add(actorId);
+                }
+                ByTeam.SetKey(actorId, team);
+                ByMainType.SetKey(actorId, mainType);
+                ByUnitSubType.SetKey(actorId, unitSubType);
+                ByOwnerPlayer.SetKey(actorId, ownerPlayer);
+                return isNew;
+            }
+            catch
+            {
+                if (isNew)
+                {
+                    _byActorId.Remove(actorId);
+                    if (Index.Registry.Contains(actorId))
+                    {
+                        Index.Remove(actorId);
+                    }
+                }
+                else
+                {
+                    RestoreKey(ByTeam, actorId, hadTeam, oldTeam);
+                    RestoreKey(ByMainType, actorId, hadMainType, oldMainType);
+                    RestoreKey(ByUnitSubType, actorId, hadUnitSubType, oldUnitSubType);
+                    RestoreKey(ByOwnerPlayer, actorId, hadOwnerPlayer, oldOwnerPlayer);
+                }
+                throw;
+            }
+        }
+
+        private static void RestoreKey<TKey>(KeyedEntityIndex<TKey, int> index, int actorId, bool hadKey, TKey oldKey)
+        {
+            if (hadKey)
+            {
+                index.SetKey(actorId, oldKey);
+            }
+            else
+            {
+                index.ClearKey(actorId);
+            }
+        }
+
+        internal void PublishSpawn(global::ActorEntity entity)
+        {
+            PublishEntityEvent(entity, MobaUnitTriggering.Events.Spawn, MobaTraceKind.UnitSpawn);
         }
 
         public void Unregister(int actorId)
         {
-            if (actorId <= 0) return;
+            if (!UnregisterSilently(actorId, out var entity)) return;
+            PublishDespawn(entity);
+        }
 
-            if (_byActorId.TryGetValue(actorId, out var entity) && entity != null)
+        internal void PublishDespawn(global::ActorEntity entity)
+        {
+            PublishEntityEvent(entity, MobaUnitTriggering.Events.Despawn, MobaTraceKind.UnitDespawn);
+        }
+
+        internal bool UnregisterSilently(int actorId, out global::ActorEntity entity)
+        {
+            entity = null;
+            if (actorId <= 0) return false;
+
+            var dictionaryContains = _byActorId.TryGetValue(actorId, out entity);
+            var indexContains = Index.Registry.Contains(actorId);
+            if (dictionaryContains != indexContains)
             {
-                var team = entity.hasTeam ? entity.team.Value : Team.None;
-                var mainType = entity.hasEntityMainType ? entity.entityMainType.Value : EntityMainType.Unit;
-                var unitSubType = entity.hasUnitSubType ? entity.unitSubType.Value : UnitSubType.Hero;
-                var ownerPlayer = entity.hasOwnerPlayerId ? entity.ownerPlayerId.Value : default;
-
-                PublishUnitEvent(MobaUnitTriggering.Events.Despawn, actorId, team, mainType, unitSubType, ownerPlayer, entity, MobaTraceKind.UnitDespawn);
+                throw new InvalidOperationException($"Actor {actorId} registration indexes are inconsistent.");
             }
+            if (!indexContains) return false;
 
-            _byActorId.Remove(actorId);
-            Index.Remove(actorId);
+            var hadTeam = ByTeam.TryGetKey(actorId, out var oldTeam);
+            var hadMainType = ByMainType.TryGetKey(actorId, out var oldMainType);
+            var hadUnitSubType = ByUnitSubType.TryGetKey(actorId, out var oldUnitSubType);
+            var hadOwnerPlayer = ByOwnerPlayer.TryGetKey(actorId, out var oldOwnerPlayer);
+            try
+            {
+                Index.Remove(actorId);
+                _byActorId.Remove(actorId);
+                return true;
+            }
+            catch
+            {
+                if (!Index.Registry.Contains(actorId))
+                {
+                    Index.Add(actorId);
+                }
+                RestoreKey(ByTeam, actorId, hadTeam, oldTeam);
+                RestoreKey(ByMainType, actorId, hadMainType, oldMainType);
+                RestoreKey(ByUnitSubType, actorId, hadUnitSubType, oldUnitSubType);
+                RestoreKey(ByOwnerPlayer, actorId, hadOwnerPlayer, oldOwnerPlayer);
+                _byActorId[actorId] = entity;
+                throw;
+            }
         }
 
         public void PublishRespawn(global::ActorEntity entity)
         {
             if (entity == null || !entity.hasActorId) return;
+            if (!_byActorId.ContainsKey(entity.actorId.Value)) return;
+            PublishEntityEvent(entity, MobaUnitTriggering.Events.Respawn, MobaTraceKind.UnitRespawn);
+        }
+
+        private void PublishEntityEvent(global::ActorEntity entity, string eventId, MobaTraceKind traceKind)
+        {
+            if (entity == null || !entity.hasActorId) return;
 
             var actorId = entity.actorId.Value;
-            if (actorId <= 0 || !_byActorId.ContainsKey(actorId)) return;
+            if (actorId <= 0) return;
 
             var team = entity.hasTeam ? entity.team.Value : Team.None;
             var mainType = entity.hasEntityMainType ? entity.entityMainType.Value : EntityMainType.Unit;
             var unitSubType = entity.hasUnitSubType ? entity.unitSubType.Value : UnitSubType.Hero;
             var ownerPlayer = entity.hasOwnerPlayerId ? entity.ownerPlayerId.Value : default;
-            PublishUnitEvent(
-                MobaUnitTriggering.Events.Respawn,
-                actorId,
-                team,
-                mainType,
-                unitSubType,
-                ownerPlayer,
-                entity,
-                MobaTraceKind.UnitRespawn);
+            PublishUnitEvent(eventId, actorId, team, mainType, unitSubType, ownerPlayer, entity, traceKind);
         }
 
         private void PublishUnitEvent(string eventId, int actorId, Team team, EntityMainType mainType, UnitSubType unitSubType, PlayerId ownerPlayer, global::ActorEntity entity, MobaTraceKind traceKind)

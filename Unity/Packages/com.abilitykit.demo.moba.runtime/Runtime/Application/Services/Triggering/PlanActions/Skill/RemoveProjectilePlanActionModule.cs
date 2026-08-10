@@ -22,7 +22,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            var input = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
+            if (!MobaPlanActionInputResolver.TryResolve(
+                    triggerArgs,
+                    ctx,
+                    out var input))
+            {
+                LogRejected(ctx, "requires combat execution context.");
+                return;
+            }
+
             if (!input.HasTargetActor)
             {
                 LogRejected(ctx, "requires target actor from trigger payload.");

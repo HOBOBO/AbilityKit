@@ -18,6 +18,9 @@ namespace AbilityKit.Demo.Moba.Services
         MissingHandler = 9,
         HandlerRejected = 10,
         PayloadInvalid = 11,
+        ContractMissing = 12,
+        AuthorityRejected = 13,
+        FramePolicyRejected = 14,
     }
 
     public readonly struct MobaInputCommandResult

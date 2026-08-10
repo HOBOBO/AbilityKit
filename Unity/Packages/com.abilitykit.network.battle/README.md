@@ -26,7 +26,7 @@ network.battle(本包)  NetworkTransport：opcode-keyed 输入提交 + 下行分
 | `NetworkTransport` | `IBattleLogicTransport` | **完整战斗数据面引擎**：自建 `NetworkSdkClient`，输入提交（带服务端权威帧重试）、CreateWorld/Join/Leave、帧/快照/可靠事件下行分发、resync。 |
 | `GenericNetworkClient` | `INetworkClient` | **精简请求/推送适配器**：自建 `NetworkSdkClient`，只暴露 `Connect/Disconnect/SendRequestAsync/SendServerPushAsync` + `OnServerPush`。 |
 
-另有 `NullBattleLogicTransport`（`IBattleLogicTransport` 空实现，离线/测试）与 `Projection/`（`IActorProjectionProducer`/`IActorProjectionConsumer`/`ActorProjectionData`/`ActorProjectionFields`，逻辑→视图/快照投影抽象，被两个 demo + 服务端共用）。
+另有 `Projection/`（`IActorProjectionProducer`/`IActorProjectionConsumer`/`ActorProjectionData`/`ActorProjectionFields`，逻辑→视图/快照投影抽象，被两个 demo + 服务端共用）。
 
 ## NetworkTransportOptions（核心：纯 callback 配置表）
 

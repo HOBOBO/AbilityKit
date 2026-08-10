@@ -9,7 +9,7 @@ namespace AbilityKit.Triggering.Editor.Diagnostics
     {
         private const string ReportPath = "Temp/AbilityKit.Triggering.ProductAcceptance.md";
 
-        [MenuItem("AbilityKit/Triggering/Diagnostics/Write Product Acceptance Report")]
+        [MenuItem("Tools/AbilityKit/Framework/Triggering/Diagnostics/Write Product Acceptance Report")]
         public static void WriteProductAcceptanceReport()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(ReportPath));

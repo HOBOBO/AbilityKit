@@ -1,201 +1,356 @@
-# Battle Debug 可用性优化计划
+# Battle Debug 产品优化与功能完善路线图
 
-> 制定日期：2026-07-22
+> 规划版本：2026-08-08
 >
-> 范围：将 Battle Debug 从“存在多个查询面板”提升为本地 Unity Play Mode 中可完成日常战斗、技能、状态和 Replay 排查的工具。
+> 目标：将 Battle Debug 从“多个诊断查询面板”建设为面向战斗模块开发的调查、定位、验证和证据沉淀工作台。
 >
-> 本文是后续优化批次的执行基线，不描述已经完成的能力；现状以 [CURRENT-CAPABILITIES.md](CURRENT-CAPABILITIES.md) 为准。
+> 当前实现事实以 [CURRENT-CAPABILITIES.md](CURRENT-CAPABILITIES.md) 为准；已交付批次以 [IMPLEMENTATION-HISTORY.md](IMPLEMENTATION-HISTORY.md) 为准；本文只描述产品方向、缺口和后续执行路线。
 
-## 1. 问题定义
+## 1. 产品判断
 
-当前 Runtime 已存在 Event Collector、状态采样器、Local Diagnostic Session、Actor Store、Trace Store 和多类 Producer；Battle Debug 也已有 Actor、Attributes、Buffs、Tags、Effects、Events、Trace、State 与 FrameSync 面板。
+Battle Debug 的主要问题已经不是缺少基础采集能力，而是已有能力没有围绕开发任务形成完整闭环。
 
-但实际使用体验仍不可接受：
+当前工具已经能够采集并查询 World、Actor、Attributes、Buffs、Tags、Effects、Events 和 Trace，也具备标准 Artifact、离线浏览、真实逻辑 Replay、Trace 导航和技能失败调查工作集。但用户仍然需要在多个面板之间手工拼接事实，工具更多是在“展示数据”，还不能稳定回答以下问题：
 
-- 实体栏主要显示 Actor ID 与 Tag/Effect 计数，不能快速判断对象身份、阵营、生命或当前状态。
-- 实时 Diagnostics Session 由各面板临时解析；窗口没有统一报告 Facade、Logic Session、World、Services、Local Session 任一环节的失效原因。
-- 采样、采集、可选服务注入和面板构造多处静默吞异常；事件或状态为空时用户无法判断是尚未采样、Producer 未触达、通道关闭、采集冻结、Actor 过滤排空，还是查询故障。
-- Actor 与 Diagnostics 由工作区和下拉框两级隐藏；一次只能看一个面板，无法低成本关联“技能事件 -> Trace -> 受影响 Actor 状态”。
-- 诊断事件默认按选中 Actor 过滤，事件关联字段不完整或用户切换 Actor 时会把实际事件隐藏；空结果只显示“无事件”。
-- World Summary 的活动技能运行时和 Trace Root 数当前未真实采样，固定为 0，降低用户对诊断数据的信任。
+- 哪里首先出现异常？
+- 这个异常影响了谁？
+- 最终伤害、Buff 或技能结果是如何产生的？
+- 这是配置问题、输入问题、规则拒绝、执行链中断、状态问题，还是同步问题？
+- 修改代码或配置后，行为是否真的改善？
+- 如何把现场和结论交给其他开发者复现？
 
-优化目标不是增加更多静态字段，而是让用户能够在一次技能释放后，在同一个窗口确认数据是否进入系统、事件发生了什么、因果 Trace 在哪里、Actor 状态改变了什么，以及空数据应如何处理。
+因此后续工作必须从“继续增加面板”转为“建设开发工作流”。优先级不以功能数量为标准，而以减少定位步骤、提高结论可信度、缩短修复验证时间为标准。
 
-## 2. 产品目标与完成定义
+## 2. 产品目标
 
-### 2.1 首要用户工作流
+### 2.1 愿景
 
-1. 打开 Battle Debug 后，用户在 5 秒内能够看出数据源是实时、Replay、离线还是未连接，并知道未连接的具体断点。
-2. 本地战斗开始后，用户在不输入 Actor ID 的情况下可从实体列表识别己方/敌方、名称或类型、生命状态与存活状态，并选中目标。
-3. 释放一次可成功执行的技能后，用户可在默认视图看到 Skill 生命周期事件；选择事件后可打开对应 Trace，并可跳转到来源或目标 Actor。
-4. 释放失败、无事件或无状态时，用户能从健康视图区分“未安装/未解析”“未采样”“Producer 未产出”“过滤无匹配”“通道关闭”“Frozen”“查询失败”，而不是只看到空列表。
-5. 加载纯逻辑 Replay 并跳到目标帧后，用户可复用同一工作流检查该帧的 Actor、事件、Trace 和状态；不能假装具备 latest-only Store 不支持的历史快照能力。
+开发者在本地 Play Mode、Replay 或离线 Artifact 中，能够围绕一个战斗问题完成以下闭环：
 
-### 2.2 非目标
+1. 发现：工具主动指出异常、失败、异常密度或数据链路缺失。
+2. 定位：从总览进入 Actor、Frame、Event 或 Investigation，找到第一个异常点。
+3. 解释：通过 Trace、技能阶段、Damage、Effect、Buff 和 Attribute 来源解释结果。
+4. 验证：对比修改前后的帧、Actor、Replay 或 Artifact，确认行为和性能变化。
+5. 沉淀：保存筛选、书签、证据范围和结论，生成可复现、可分享的诊断材料。
 
-- 本计划不在 P0/P1 引入远端诊断协议、鉴权或 Remote Session Adapter。
-- 不把 latest-only State Store 改造成无限历史数据库；历史状态继续通过 Replay 确定性重演获得。
-- 不允许 Editor 面板绕过 `IBattleDiagnosticReadOnlySession` 直接写入 Store 或战斗 Runtime。
-- 不以吞掉异常保持主循环稳定为代价丢失健康证据；错误记录必须有界、低频且不携带大对象引用。
-- 不承诺跨 Store 原子快照或事件/状态严格同帧一致性，必须继续以各轨道 revision 与 frame 明示边界。
+### 2.2 成功指标
 
-### 2.3 发布门槛
+以下指标用于每个阶段的手工验收和回归评审，不要求一开始全部自动化，但必须逐步形成可测量基线：
 
-P1 完成后，本地 Play Mode 必须满足：
+| 指标 | 目标 |
+| --- | --- |
+| 首次判断数据源 | 打开窗口后 5 秒内确认 Live、Replay、Artifact、Disconnected 及原因 |
+| 技能失败定位 | 从失败案例到第一个可疑阶段不超过 3 次主要交互 |
+| 技能结果解释 | 从 Damage/Heal/Effect 事件到来源技能、Trace、Source/Target Actor 不超过 3 次主要交互 |
+| 空数据判定 | 所有常见空态都能区分 NotProduced、NotCaptured、FilteredEmpty、Empty、Unavailable、Failed、Evicted |
+| 修复验证 | 同一问题可保存相同筛选和证据范围，并完成修改前后对比 |
+| 证据复现 | 导出的证据包包含来源、Scope、Frame、Revision、稳定 ID、筛选和结论，不依赖 Editor 对象引用 |
+| 大数据可用性 | 2 万条事件保留区下，滚动、筛选、选择不因全量 OnGUI 查询造成明显卡顿 |
+| 诊断侵入性 | 采集异常不打断战斗 Tick；健康信息有界、限频、可追踪 |
 
-- 健康面板能显示 Session 解析路径、capability、各 Store revision、最后采样帧、Event sequence、通道和冻结状态。
-- 成功施放一个项目内基准技能时，Event revision 增长且能看到至少开始与结束事件；若对应技能路径没有 Trace，也必须明确显示“事件无 Root Context”，不显示空白。
-- Actor 详情首页在不依赖 Runtime `IUnitFacade` 的情况下展示可用的状态、属性/资源摘要和最近相关事件。
-- Events、Trace 与 Actor 之间至少具备事件 -> Trace、事件 -> Actor、Trace 节点 -> Actor 的单向或双向导航闭环。
-- 全部新增空态按状态码区分，并提供可执行的排查提示。
-- 聚焦 EditMode 测试、范围化构建和至少一次 Play Mode 手工验收有明确结果记录。
+指标若因真实场景无法测量，必须记录阻塞原因，而不是用“看起来可用”替代结果。
 
-## 3. 设计原则
+### 2.3 非目标与边界
 
-1. 先证明数据链路健康，再优化展示。没有 Session、Store revision 或 Producer 增长证据时，不以“无事件”作为结论。
-2. 一个窗口只维护一份当前数据源和 Diagnostics Session 解析结果。面板读取同一不可变上下文，避免实时与离线逻辑分叉。
-3. 对用户默认展示全局事实，再允许缩小到选中 Actor、当前 Trace、失败或指定 Channel。过滤必须可见、可一键清除。
-4. 首屏服务高频排查，深度字段放进 Inspector。Actor、事件和 Trace 应通过稳定 ID 关联，而不依赖临时对象引用。
-5. 采集稳定性和可观测性分离。采集异常仍不能中断战斗 Tick，但健康服务必须记录有界的失败计数、错误码、最后错误时间和上下文。
-6. 性能按 revision 驱动。刷新只在 Session 身份、Store revision、选择或过滤改变时查询；大列表保持上限、分页或虚拟化，不在每次 `OnGUI` 全量分配。
+- P0-P2 不引入远端协议、鉴权、跨机器控制或云端存储。
+- 不把 latest-only 状态 Store 直接改成无限历史数据库；历史状态优先通过确定性 Replay 获取。
+- 不允许 Editor 绕过 `IBattleDiagnosticReadOnlySession` 直接读取可变 Store 或修改战斗 Runtime。
+- 不用固定 0、空列表或日志文本伪造缺失诊断事实。
+- 不承诺多个 Store 具备跨轨道原子快照；每条轨道继续展示独立 revision、frame 和稳定性边界。
+- 不在第一阶段制作自由布局的复杂 Trace 图；优先做可搜索、可折叠、可定位的路径视图。
+- 不把控制采集、Freeze、Clear 等高风险能力直接暴露为无确认的日常按钮。
 
-## 4. 分阶段实施计划
+## 3. 已完成、需整合与真正缺口
 
-### P0：诊断链路自检与数据打通
+| 分类 | 当前内容 | 后续动作 |
+| --- | --- | --- |
+| 已完成 | 统一只读 Session、独立 Store revision、不可变 DTO、事件 Ring Store、固定 revision 分页 | 作为所有新功能的基础契约，不重复建设 |
+| 已完成 | 标准 Artifact 导出/导入、离线 Session、实时快照导出 | 补充证据范围和来源元数据，不改变现有格式兼容性 |
+| 已完成 | 真实逻辑 Replay、暂停、单步、Seek、纯逻辑/表现模式 | 增加围绕问题的帧定位和比较工作流 |
+| 已完成 | Actor、Events、Trace、Attributes、Buffs、Tags、Effects 面板 | 迁移到统一工作区和持久 Inspector |
+| 已完成 | 技能失败调查案例、问题簇、置信度、证据聚焦、Trace/Actor 导航 | 扩展为通用 Investigation，而非只服务技能失败 |
+| 已完成 | Phase 0 的 Health DTO、阶段化 Session Resolver、Overview Health 和首批空态投影 | 继续补齐 Producer/Panel 健康聚合与真实场景验收 |
+| 需整合 | Actor/Diagnostics 二级工作区、面板下拉选择、分散的直接导航回调 | 持久 Inspector 已完成 Actor/Event/Trace 与 Editor-only Config 投影接入；继续扩展 Skill Runtime 和一级工作区整合；统一 Frame Cursor 可见闭环已完成首批迁移 |
+| 需整合 | Core Workspace Selection/Filter/History 与局部面板筛选 | 让共享 Filter 真正驱动 Events、State、Trace 和 Actor，并统一清除/恢复语义 |
+| 需整合 | Overview、事件筛选、Trace 搜索和当前临时 Pin | 统一筛选、关联上下文、书签和证据范围 |
+| 需整合 | 空态和查询状态已有部分 DTO/状态码支持 | 将统一投影迁移到 Trace、Actor 详情和更多可查询面板 |
+| 真正缺口 | 首屏异常总览、事件密度和趋势 | P1 优先完成 |
+| 真正缺口 | 跨帧 Timeline、Damage/Effect/Buff/Modifier 解释链 | P1/P2 完成；Frame Cursor 已完成窗口可见闭环的首批迁移 |
+| 真正缺口 | Frame/Actor/Run/Artifact 对比、回归摘要、证据包 | P2 完成 |
+| 真正缺口 | 背景索引、性能预算、远端权威会话、Local/Authority 对账 | P3，按实际需求启动 |
 
-目标：将“Diagnostics 下没有东西”变成可定位的状态，并在真实技能路径中验证 Event/State/Trace revision 是否增长。
+## 4. 核心开发工作流
 
-Runtime：
+### 4.1 技能无法释放
 
-- 新增只读 Runtime 健康 DTO 和 `IBattleDiagnosticHealthReadStore`，包含 Session Scope、采集状态、capability、各 Store revision、最新 State frame、Event last sequence、EnabledChannels、Frozen、采样成功/失败计数、采集成功/拒绝/失败计数、最近错误码和时间戳。
-- 将 `BattleDebugDiagnosticSessionResolver` 扩展为有阶段结果的解析器，至少区分 Offline、FacadeMissing、LogicSessionMissing、WorldMissing、ServicesMissing、DiagnosticSessionMissing、Connected；保留现有布尔入口作为兼容包装或统一迁移调用方。
-- 在 `MobaDiagnosticStateSampleSystem`、`MobaBattleDiagnosticStateSampler`、`MobaBattleDiagnosticEventCollector` 和技能生命周期采集边界保留主循环隔离，但将吞掉的异常归档到健康服务。错误信息应归类、限频、截断，不能每帧写 Unity Console。
-- 明确 Collector 对 draft 的拒绝原因：Frozen、ChannelDisabled、InvalidDraft、StoreRejected、Exception。Producer 调用只记录聚合计数，不把高频正常路径写日志。
-- 修正 World Summary：从真实技能 Runtime/Trace Registry 获取活动数量；若依赖不存在，Health 中标记 unavailable，不能固定填 0 伪装为事实。
-- 以真实本地 World 解析验证 `IBattleDiagnosticReadOnlySession`、`IMobaBattleDiagnosticEventSink`、`IMobaBattleDiagnosticCaptureControl`、Sampler 与各 Actor Store 的 Scope 一致性。
+入口应是 Overview 的失败热点或 Events 的技能失败案例。用户需要依次看到 Input、Preparation、Rule、Runner、Pipeline 等阶段，失败 Code、Message、Source、Slot、Target、Config 和关联 Trace。最终结论应区分输入错误、目标不可用、资源/冷却、规则拒绝、配置缺失、Pipeline 中断和诊断未采集。
 
-Editor：
+### 4.2 技能释放了但结果不对
 
-- Battle Debug 窗口在构造 `BattleDebugContext` 前统一解析实时或离线 Session，并把解析结果、Health Snapshot 和数据源身份注入上下文。
-- 顶部来源状态升级为紧凑健康条：来源、World、Session、连接阶段、Capture 状态、capabilities、Event/State/Trace revision 与最后帧；异常时显示精确失败阶段及建议动作。
-- 新增固定的“健康”入口，不依赖反射面板发现。显示通道、Frozen、上次成功采样、计数器、最近错误和缺失服务；提供只读复制诊断摘要操作。
-- `BattleDebugPanelRegistry` 记录发现/构造失败的 Panel 类型和异常摘要，并在健康页展示；不能再静默忽略。
-- Events 空态按 Health 和查询结果显示“尚未产生事件”“当前 Actor 过滤无匹配”“Skill 通道关闭”“采集已冻结”“Producer 调用失败”“查询失败”，并提供“清除 Actor 过滤/查看全部事件”等局部操作。
+用户从技能事件进入 Timeline 和 Trace，再进入 Damage/Heal Inspector。工具应展示 Source、Target、技能阶段、最终结果、每个计算阶段、Modifier 来源和关键状态变化，避免只显示一个最终数值。
 
-验收：
+### 4.3 Buff、属性或标签不符合预期
 
-- 无活动 Session、缺少 Local Session、无 State 采样、Frozen、关闭 Skill Channel、选中 Actor 过滤无匹配、Producer 抛错均产生不同健康状态和可读提示。
-- 成功技能的 Event Store revision 和 LastSequence 增长；状态采样后 State revision 和 Snapshot frame 增长；有 Trace 时 Trace revision 增长。
-- P0 不改变现有业务事件语义，只补健康证据、失败分类与真实活动数量。
+用户选择 Actor 后，应能按当前帧查看属性 Base/Final/Delta、Modifier 优先级和来源 Buff/Effect/Config，并能反向跳转到添加、移除或修改它的 Event/Trace。无历史帧时必须引导使用 Replay，而不是暗示 Store 能查询历史。
 
-### P1：技能与 Actor 核心调试工作流
+### 4.4 Effect、触发器或技能链中断
 
-目标：让一名玩法开发能从“选中目标”或“释放技能”出发完成第一轮根因定位。
+用户应能从 Trigger/Effect 事件进入 Trace Path，看到条件、Action、Phase、Context、Parent Context、结束状态和终止原因。没有完整结构化 Payload 时显示证据不足，并指出需要补充的 Producer 字段。
 
-信息架构：
+### 4.5 战斗状态或同步出现异常
 
-- 将现有“Actor / Diagnostics + 下拉框”的两级隐藏改为稳定一级主 Tab：Overview、Actor、Events、Trace、Network、Health。Actor 内部再使用紧凑子 Tab 或可折叠区承载 Attributes、Buffs、Tags、Effects。
-- 保持选中 Actor、选中 Event、选中 Trace Root/Node 为窗口状态；跨 Tab 切换不得丢失关联上下文。
-- 首屏 Overview 使用主从布局：左侧实体列表，中间 Actor Summary/状态卡，右侧 Recent Events 或 Event Inspector。窄窗口自动降为纵向布局，避免工具栏和关键字段截断。
+Health 和 Sync 工作区应先显示数据源、采样状态、权威状态哈希和 revision，再定位第一个可观测差异。对没有可靠事实来源的 Snapshot Gap、Rollback 或 Full Snapshot，不生成空的“无差异”结论。
 
-实体与 Actor：
+### 4.6 修改后是否变好
 
-- 实体列表从诊断 Actor 快照投影名称、Kind、Team、HP、存活/失效状态、Tag/Effect/Buff 计数；实时 Unit 只作为可选增强，离线与 Replay 必须得到一致的 DTO 视图。
-- Actor Summary 至少展示 ID、名称、类型、队伍、当前 HP、位置或不可用状态、Tag/Effect/Buff 摘要、最近相关 Event、当前/最近 Root Context。
-- Attributes 支持搜索、仅变化项、Base/Final/差值、来源与优先级排序；Buff/Tag/Effect 支持按名称搜索和状态分组。空集合继续是正常 Empty，但必须显示采样帧和 Store 状态。
-- State 页面显示 World、Actor 列表、最近采样帧、采样延迟/过期提示和状态 revision；不是只有一组静态摘要。
+用户应能保存一次问题的 Frame、Actor、Event、Trace、Filter 和备注，重新运行或打开另一份 Artifact 后执行前后对比。结果至少包含行为差异、失败数、事件数、关键状态差异、耗时和诊断覆盖差异，并明确哪些数据不可比较。
 
-事件与 Trace：
+## 5. 产品架构方向
 
-- Events 默认显示全部 Channel，明确显示当前过滤条件；选择 Actor 后由用户主动启用“仅该 Actor”，并可一键恢复全部。
-- 增加 Channel 快速过滤：Skill、Damage/Heal、Buff、Effect、Projectile、Summon、Warning/Exception、All；默认保留 Skill 和 Failure 的高信号入口。
-- 事件行显示 Frame、Sequence、Channel、Kind、Outcome、Source/Target、Skill/Config、Summary；详情展示所有可用关联 ID 和强类型 Payload。
-- Event Inspector 支持打开 Trace、选择 Source/Target Actor、按 Root Context 查看相关事件。没有 Root Context 时明确提示。
-- Trace 页面由事件或 Actor 最近 Root 自动带入；显示根摘要、节点树、状态、帧区间、结束原因和关联 Actor，并支持节点 -> Actor 跳转。
+### 5.1 一级工作区
 
-验收：
+将现有面板组织为固定一级入口：
 
-- 玩家在 3 次以内点击完成“从技能事件打开 Trace，再定位受击 Actor”。
-- 选择一个有 Buff、Tag、Effect 的 Actor 时，不需要切换多个下拉面板即可看到其核心摘要和最近事件。
-- 默认 Events 不会因残留 Actor 选择而错误显示空列表；所有 active filter 均可见。
+- Overview：异常、热点、健康、最近事件和推荐入口。
+- Timeline：按 Frame 展示事件密度、技能链、Actor、Damage、Buff、Effect 和同步轨道。
+- Actor：Actor Summary、Attributes、Buffs、Tags、Effects。
+- Trace：Trace Tree、Trace Path、阶段和配置定位。
+- Compare：Frame、Actor、Replay、Artifact 和 Run 对比。
+- Evidence：书签、调查案例、证据范围、导出和备注。
+- Health：Session、Capability、Store、Producer、查询和 UI 自身健康。
 
-### P2：Replay、时间关联与生产效率
+一级入口名称可以按现有中文界面规范落地，但不能继续让用户通过面板下拉框猜测功能位置。
 
-目标：让实时问题可迁移到 Replay，在目标帧附近高效比较因果与状态。
+### 5.2 统一上下文
 
-- 在 Event、Trace 节点和 Actor 状态显示可跳转的 Replay frame；仅在活动 Replay Session 时启用，Live/Artifact 必须显示不支持原因。
-- 提供前后帧状态对比：HP、Buff、Tag、Effect、关键 Attribute 的新增/移除/变化。对 latest-only Store 通过 Seek 后重新采样取得两端，不伪造持续历史。
-- 增加 Bookmark、已保存过滤预设和“仅当前技能链”视图；持久化内容只保存稳定 ID、过滤与 Replay frame，不保存 Runtime 对象。
-- 支持导出选中的 Event/Trace/Actor 摘要到标准 Artifact 附加信息或独立文本，明确其不是完整诊断快照替代品。
-- 引入长事件列表的分页、增量加载或虚拟化；记录查询耗时、保留区淘汰与 UI 刷新开销。
+窗口级状态应逐步收敛到一个只读上下文，至少包括：Session、Selection、Frame Cursor、Filters、Navigation History、Health Snapshot 和 repaint 请求。所有面板从同一上下文读取，导航只修改稳定 ID 和帧，不传递临时 Runtime 对象。
 
-验收：
+建议逐步建立以下边界：
 
-- 纯逻辑 Replay 跳到技能帧并暂停后，可从事件、Trace、Actor 状态完成与实时相同的排查闭环。
-- Event 超过显示上限时，用户能看到保留范围、当前页/过滤和淘汰提示，而非误以为数据丢失。
+- `BattleDebugSelection`：Actor、Event Sequence、Root Context、Trace Context、Skill Runtime、Config Reference。
+- `BattleDebugFrameCursor`：当前帧、范围、是否可 Seek、来源和不可用原因。
+- `BattleDebugFilterState`：全局筛选、局部筛选、保存预设和筛选来源。
+- `BattleDebugNavigationHistory`：前进、后退和入口原因。
+- `BattleDebugHealthSnapshot`：数据链路和工具自身的只读状态。
 
-### P3：规模化与远端准备
+### 5.3 数据解释优先于数据堆积
 
-目标：为大规模战斗、远端数据源和团队共享准备稳定边界，不提前耦合传输实现。
+新增 DTO 和 Producer 字段必须服务于一个可执行问题。每个新事件至少回答：发生时间、来源、目标、稳定关联 ID、阶段、结果、原因、配置来源和可继续导航的位置。无法提供完整因果链时要提供置信度和缺失证据，而不是增加一行不具备解释性的文本。
 
-- 定义远端 Health/Session Adapter 所需的最小字段、权限和降级语义；优先复用 P0 的 Health DTO 和 Session Resolver 状态码。
-- 增加 Diagnostics 自监控：Store 容量/淘汰、采样耗时、Collector 拒绝率、UI 查询耗时、对象分配预算。
-- 提供容量配置、采样频率、Channel 配置和安全的控制权限模型；Capture Control 的 Freeze/Clear 不直接暴露为无确认的日常按钮。
-- 为大型 Actor/Trace 数据引入虚拟化、搜索索引和节流，并建立性能回归场景。
+## 6. 分阶段路线图
 
-验收：
+### Phase 0：信任基础与产品骨架
 
-- 远端或大数据量未接入时，UI 仍能按 capability 和连接状态明确降级。
-- 诊断自身开销可测量，且不会因全量刷新、异常日志或无限保留造成明显战斗帧抖动。
+**目标**：让用户先相信工具显示的状态，并让后续工作有统一上下文。
 
-## 5. 代码边界
+**Runtime/Core 交付物**：
 
-预期核心修改区域：
+- Health DTO、Health Read Store 和统一状态码，覆盖 Session 解析、Capability、Capture、Store revision/frame、通道、冻结、淘汰、采样/采集成功失败和最近错误。
+- 统一 Session Resolver 阶段结果：Offline、FacadeMissing、LogicSessionMissing、WorldMissing、ServicesMissing、DiagnosticSessionMissing、Connected。
+- 修正 World Summary 的真实活动 Skill Runtime、Trace Root 数量；缺少来源时标记 Unavailable。
+- 统一事件拒绝分类：Frozen、ChannelDisabled、InvalidDraft、StoreRejected、Exception，并采用计数、限频和有界最近错误。
 
-- Runtime Diagnostics：`Runtime/Application/Services/Diagnostics`、`Runtime/Application/Systems/Diagnostics`、技能生命周期及其他 Producer 边界。
-- Diagnostics Core：只新增平台无关 Health DTO、状态码和只读查询契约；不引用 Unity 或 Editor。
-- Editor Battle Debug：`Editor/BattleDebug` 下的 Context、Session Resolver、Window、Registry、Panels 和 ViewModels。
-- 测试：现有 Diagnostics Core Tests、Moba Editor Tests、Game Unit Tests；新增真实 World 健康与技能事件端到端 fixture。
-- 文档：当前能力、测试指南、实施历史，以及本文的状态和批次勾选。
+**Editor 交付物**：
 
-明确禁止：
+- 固定 Health 入口和顶部健康条，不依赖反射 Panel Registry 才能发现。
+- `BattleDebugContext` 注入来源身份、Health 和统一 revision 状态。
+- Events、State、Trace 和 Actor 空态统一显示状态码、原因和建议动作。
+- Panel 发现/构造异常进入 Health，而不是静默丢弃。
 
-- Editor 直接访问 Collector 的可变 Store 或绕过 Session 查询。
-- 为修复 UI 空态而在业务路径伪造 Event、Trace 或状态数据。
-- 将每帧异常的完整堆栈无限存入内存或 Console。
-- 为了显示历史而改变 latest-only Store 语义却不建立容量、淘汰与一致性设计。
+**验收标准**：
 
-## 6. 测试矩阵
+- 无 Session、缺 World、未采样、Frozen、通道关闭、过滤无匹配、正常 Empty、Evicted 和查询 Failed 可被明确区分。
+- 一次基准技能释放后，Event/State/Trace revision 和最后帧变化可被确认；没有 Trace 时明确显示无 Root Context。
+- 诊断采集失败不会中断战斗 Tick，也不会每帧刷完整异常日志。
 
-| 层级 | P0 | P1 | P2/P3 |
-| --- | --- | --- | --- |
-| Core/Runtime 单元测试 | Resolver 阶段、Health 状态码、采样/采集失败分类、channel/frozen/revision | DTO 投影、过滤、空态分类 | Bookmark/比较模型、容量与淘汰语义 |
-| 真实 World 集成测试 | 自动服务/系统安装、Local Session Scope、技能 Producer 到 Event/Trace/State revision 增长 | Actor/事件/Trace 关联 ID 完整性 | Replay seek 后状态与事件查询 |
-| Editor ViewModel 测试 | 统一 Context、健康视图、过滤无匹配与 producer 未产出区分 | Tab/selection 状态、Actor summary、Event/Trace 导航 | 预设、时间关联、分页/虚拟化投影 |
-| Editor Window 手工验收 | 未连接与缺服务可诊断、健康条更新 | 一次技能释放闭环、窄窗口和默认过滤 | Replay 跳帧、前后状态比较、大列表性能 |
-| 构建与静态检查 | Runtime、Editor、Diagnostics Tests 0 errors；`git diff --check` | 同左 | 增加性能场景和发布配置检查 |
+**测试与风险**：
 
-每个新增异常分支至少验证：正常路径、Unavailable/NotProduced/NotCaptured/Empty/Failed 语义、revision 变化、缓存失效、日志限频与不影响战斗 Tick。
+- 覆盖 Resolver 状态机、Health 状态转移、拒绝分类、revision 和日志限频。
+- 增加真实 World fixture 验证 Scope、服务安装和技能 Producer 链路。
+- 风险是健康 DTO 侵入高频路径；控制方式是无字符串成功路径、聚合计数和固定容量错误记录。
 
-## 7. 风险与控制
+### Phase 1：Overview、统一选择与 Inspector
 
-- 服务解析存在可选依赖：Health 必须报告“未解析”而不是把能力位或固定 0 当成真实数据。
-- Producer 频率高：健康计数应使用轻量数值和有限最近错误，不在成功路径分配字符串。
-- UI 重构风险：P1 先迁移现有 Panel 和 ViewModel，不同时重写全部查询逻辑；保持旧面板可在过渡开关或测试中验证后移除。
-- Replay 与 Live 数据源互斥：任何跳转操作都要检查当前来源，离线 Artifact 不得伪装可 Seek。
-- 多 Store 异步更新：Summary 必须显示各 revision/frame，不能承诺单一原子时刻。
-- Unity Test Runner 被运行中的 Editor 占用：构建结果与 NUnit 结果分别记录，不能以编译通过代替测试通过。
+**目标**：从“打开哪个面板”转为“从问题入口开始调查”。
 
-## 8. 推荐执行顺序
+**Editor/UX 交付物**：
 
-1. 先执行 P0 的 Runtime Health DTO、Collector/Sampler 证据记录和统一 Session Resolver。
-2. 接入窗口健康条与 Health 页面，先在用户当前场景复现“释放技能无事件”并给出确切断点。
-3. 用真实 World 集成测试锁定技能 Event/Trace/State revision 增长后，再开始 P1 信息架构迁移。
-4. P1 完成一次技能闭环的 Play Mode 验收后，进入 P2 的 Replay 时间关联。
-5. P3 仅在本地流程稳定且性能数据表明需要时启动。
+- 固定 Overview、Actor、Timeline、Trace、Health 一级入口，逐步淘汰工作区加下拉框的隐藏层级。
+- Overview 显示数据源、健康摘要、异常热点、最近失败、事件密度、活跃 Actor 和推荐调查入口。
+- 建立统一 Selection、Frame Cursor、Filter State 和 Navigation History。
+- 引入持久右侧 Inspector：选中 Actor、Event、Trace Root 或 Trace Node 后始终显示详情，不因切换主视图丢失上下文；Runtime 诊断以真实 Session 查询、固定 revision 和有界 Event 分页为边界。Config 已使用完整 Editor-only Reference 持久投影，保留 SkillFlow PhaseId 并绑定来源 Workspace Selection；后续再扩展 Skill Runtime 独立选择，并评估 Config 是否需要进入 Core History。
+- Actor Summary 统一显示身份、队伍、生命/存活、Tag/Buff/Effect 数、最近事件和最近 Root Context。
+- 全局筛选可见，支持一键清除 Actor、Frame、Channel 和搜索条件；局部筛选不能静默污染其他工作区。
 
-## 9. 计划维护规则
+**Runtime/Core 交付物**：
 
-- 每完成一个阶段，在本文标记完成项，并同步更新 [CURRENT-CAPABILITIES.md](CURRENT-CAPABILITIES.md)、[TESTING.md](TESTING.md) 和 [IMPLEMENTATION-HISTORY.md](IMPLEMENTATION-HISTORY.md)。
-- 任何“可用”声明必须附带实际环境、聚焦测试、构建与手工验收边界。
-- 若真实场景证明某 Producer 未进入当前技能路径，应先修复或明确其覆盖边界，再优化相关 UI；不得把未产出的数据伪造成已采集。
+- 为 Actor Summary 和 Overview 补充缺失的稳定字段，但不让 Editor 回退读取 Runtime 对象。
+- 建立最近异常和热点的只读投影模型；初期可基于分页工作集，后续再增加后台索引。
+
+**验收标准**：
+
+- 用户打开窗口后能在 5 秒内判断来源和健康状态。
+- 从 Overview 选 Actor、Event 或失败案例后，切换 Timeline、Trace、Actor 不丢失选择。
+- 从一个技能失败案例到证据 Event、Trace 和 Source/Target Actor 不超过 3 次主要交互。
+- 在窄窗口下关键状态、选择和操作不重叠，列表和树保持独立滚动。
+
+**测试与风险**：
+
+- ViewModel 测试覆盖 Selection、Filter、Frame Cursor、History 和缓存失效。
+- 手工验收覆盖 Live、Replay、Artifact、Disconnected 和 720/960/1180 宽度；Frame Cursor 需要验证手工固定帧、跟随最新、Selection/History 帧恢复和 Replay Seek 边界。
+- 风险是一次性重写窗口造成回归；采取渐进迁移，保留旧 Panel 作为兼容实现直到新入口完成闭环。
+
+### Phase 2：Timeline 与战斗因果分析
+
+**目标**：让用户可以按时间理解战斗，而不是在事件列表和 Trace 树之间手工拼接。
+
+**Runtime/Core 交付物**：
+
+- 扩充 Event Payload：Damage/Heal、Buff、Effect、Projectile、Summon、Skill Phase、Condition、Action 和 Modifier 的稳定结构化字段。
+- 引入 Timeline 查询和分段聚合契约，支持按 Frame、Actor、Channel、Root Context 和 Skill Runtime 查询。
+- 增加 Damage Pipeline DTO，至少描述输入、修正、吸收、抗性、暴击、最终结果和每项 Modifier 来源。
+- 增加 Buff/Attribute provenance DTO，支持来源 Event、Effect、Buff、Config 和优先级。
+
+**Editor/UX 交付物**：
+
+- Timeline 支持帧游标、范围选择、缩放聚合、泳道、事件密度、异常标记和关键事件跳转。
+- Trace 增加 Trace Path 模式：展示从 Root 到当前节点的父链和关键阶段，不制作首版自由图。
+- Damage/Heal Inspector 使用 waterfall 展示计算过程；Effect/Condition/Action 展示输入、结果和中断原因。
+- Timeline、Event、Trace、Actor 和 Config 之间建立双向导航。
+
+**验收标准**：
+
+- 对一个错误伤害案例，用户能从 Timeline 找到首个异常事件，再进入 Damage waterfall 和 Modifier 来源。
+- 对一个触发器失败案例，用户能看到条件/Action/Phase 的执行结果和停止原因。
+- 没有结构化 Payload 时，界面明确标记“当前事件只能解释到信封层”，不推断不存在的因果关系。
+
+**测试与风险**：
+
+- Core 测试覆盖 Payload 版本化、Timeline 排序/聚合、Damage waterfall 和 provenance 关联。
+- 真实技能场景覆盖成功、失败、免疫、护盾、Buff 叠加、Projectile 命中和跨 Actor 触发。
+- 风险是 Producer 字段扩张导致采集开销上升；采用按 Channel 配置、固定容量和离线导出兼容策略。
+
+### Phase 3：Replay、比较与修复验证
+
+**目标**：把诊断工具从“定位问题”提升为“证明修改有效”。
+
+**Editor/UX 交付物**：
+
+- Event、Trace Node、Investigation 和 Bookmark 都能跳转到 Replay Frame；不支持 Seek 的来源显示明确原因。
+- Bookmark 保存稳定 ID、Frame/Range、Filter、来源、标签、备注和结论，不保存 Runtime 引用。
+- 支持前后帧对比：HP、关键 Attribute、Buff、Tag、Effect、Event、Trace 和 Skill Runtime。
+- 支持 Actor 对比、Run/Artifact 对比和同一 Investigation 的修复前后对比。
+- 提供回归摘要：失败数量、首个异常帧、技能完成率、Damage/Heal 结果、关键状态差异、事件覆盖和不可比较项。
+- 支持导出聚焦证据包，包含来源、Scope、revision、frame、稳定 ID、筛选、关键记录和人工结论。
+
+**Runtime/Core 交付物**：
+
+- 设计统一 Comparison Model，逐字段声明 Equal、Changed、Added、Removed、Unavailable 和 NotComparable。
+- 记录 Replay 启动上下文、配置版本、场景/模式标识和诊断能力，避免不同条件被误判为回归。
+- 扩展 Artifact 元数据和证据附加信息，同时保持旧 Artifact 可导入。
+
+**验收标准**：
+
+- 用户可从实时问题导出现场，使用同一 Bookmark/Filter 在 Replay 或另一 Artifact 中复查。
+- 修改前后至少能看到首个异常帧、失败数和关键结果差异，并说明不可比较原因。
+- 证据包在无活动 Runtime 的 Edit Mode 中可打开，且不依赖原始对象引用。
+
+**测试与风险**：
+
+- 测试 Seek 后 latest-only 状态的重新采样语义，不允许把单快照伪装成历史快照。
+- Codec 测试覆盖旧版本、缺失附加信息、损坏证据和不兼容能力降级。
+- 风险是 Replay 重启 Session 带来副作用；所有跳转必须明确来源、暂停状态和重建行为。
+
+### Phase 4：规模化、自监控与团队协作
+
+**目标**：在本地工作流稳定后，支撑大型战斗、批量回归和远端准备。
+
+**交付物**：
+
+- SelfMetrics：Store 容量/淘汰、采样耗时、Collector 拒绝率、查询耗时、Timeline 索引耗时、UI 刷新次数和分配预算。
+- 长列表、Actor 树、Trace 树和 Timeline 的虚拟化、增量索引和后台聚合。
+- Capture 配置、容量、采样频率和 Channel 的受控入口，带权限、确认、变更记录和恢复策略。
+- 定义远端 authoritative Session Adapter 的最小字段、Capability 协商、权限和降级语义。
+- 为 CI/CLI 消费设计只读 Artifact 和回归摘要接口，优先复用标准 Artifact，不提前绑定传输协议。
+- Local/Authority 对账工作区，只有在同步层提供可靠 Snapshot Gap、Rollback、Full Snapshot 事实后才生成结论。
+
+**验收标准**：
+
+- 2 万事件、数百 Actor、深层 Trace 下，查询和滚动保持可用，性能指标可查看。
+- 工具自身的内存、查询和 UI 成本能够通过固定场景回归。
+- 远端或大数据量能力缺失时按 Capability 明确降级，不显示伪造的空结果。
+
+**测试与风险**：
+
+- 建立性能基准、内存上限、分配检查和大数据 Artifact 回归。
+- 对控制入口做权限和误操作测试。
+- 远端能力延后到本地数据模型稳定后实现，避免把当前 Editor 设计锁死在传输细节上。
+
+## 7. 依赖关系与执行批次
+
+建议执行顺序如下：
+
+1. **批次 A：Phase 0 信任基础**。先完成 Health、Resolver 阶段状态、真实 World 数量和空态语义。
+2. **批次 B：Phase 1 工作区骨架**。统一 Context、Selection、Filter、Frame Cursor、Overview 和 Inspector。
+3. **批次 C：Phase 1 核心闭环**。完成技能失败、事件、Trace、Actor 的稳定导航和 Play Mode 手工验收。
+4. **批次 D：Phase 2 解释能力**。先补 Damage/Heal、Skill Phase、Effect 和 Modifier 的结构化事实，再实现 Timeline。
+5. **批次 E：Phase 3 验证能力**。Bookmark、证据包、前后帧和 Artifact/Run 比较。
+6. **批次 F：Phase 4 规模化**。只根据真实性能数据启动索引、虚拟化、SelfMetrics、CI 和远端准备。
+
+依赖原则：Health 是 Overview 和空态的前置；统一 Selection/Frame/Filter 是 Timeline、Inspector 和 Compare 的前置；结构化 Payload 是因果解释的前置；Artifact 元数据是跨 Run 比较的前置；性能索引不能早于查询契约稳定。
+
+## 8. 测试矩阵与发布门槛
+
+| 层级 | Phase 0 | Phase 1 | Phase 2 | Phase 3/4 |
+| --- | --- | --- | --- | --- |
+| Diagnostics Core | Health、Resolver、拒绝分类、revision | Summary/Filter/Selection 模型 | Payload、Timeline、Waterfall、Provenance | Compare、Bookmark、SelfMetrics、容量 |
+| Runtime 集成 | 服务安装、Scope、采样和技能事件增长 | 真实 Actor/事件/Trace 关联 | Damage、Buff、Effect、Phase 完整链路 | Replay、批量 Artifact、性能场景 |
+| Editor ViewModel | 状态投影、空态、缓存失效 | Context、导航、Inspector、筛选 | Timeline、Trace Path、详情模型 | 比较、证据包、虚拟化 |
+| 手工验收 | 未连接、未采样、Frozen、过滤无匹配 | 一次技能问题闭环、窄窗口 | 伤害和技能链解释 | 修复前后对比、大数据滚动 |
+| 工程验证 | 目标项目静态检查、`git diff --check` | 同左，另记录 Unity 编译边界 | 同左，增加 Artifact 兼容性 | 性能报告、CI/CLI 输出 |
+
+每个新状态分支至少验证正常、Unavailable、NotProduced、NotCaptured、Empty、FilteredEmpty、Evicted、Failed；每次修改必须分别记录静态检查、生成项目构建和 Unity NUnit/Play Mode 结果，不能用其中一项替代另一项。
+
+## 9. 代码边界与变更纪律
+
+预期修改区域：
+
+- Diagnostics Core：平台无关 DTO、状态码、查询、Timeline、Comparison 和证据契约。
+- Runtime Diagnostics：采样、Collector、Producer、Health 和快照元数据。
+- Editor Battle Debug：Context、Session Resolver、Window、Overview、Timeline、Inspector、Trace、Compare、Evidence 和 ViewModel。
+- Tests：Diagnostics Core、Runtime 集成、Editor ViewModel、Artifact Codec 和性能基准。
+- Documents：同步 [CURRENT-CAPABILITIES.md](CURRENT-CAPABILITIES.md)、[TESTING.md](TESTING.md) 和 [IMPLEMENTATION-HISTORY.md](IMPLEMENTATION-HISTORY.md)。
+
+禁止事项：
+
+- Editor 直接持有或修改 Collector、Store、World Service 和 Runtime 对象。
+- 为了让 UI 有内容而伪造 Event、Trace、State 或活动数量。
+- 用 Summary 文案、日志文本或临时对象引用推断稳定关联关系。
+- 无限保留事件、错误堆栈、索引或 UI 缓存。
+- 在未确认当前工作区用户修改的情况下覆盖 `BattleDebugWindow.cs` 或其他无关文件。
+
+## 10. 第一批实现状态
+
+第一批最小闭环已完成代码接入和源码编译验证，当前状态如下：
+
+| 交付物 | 状态 | 说明 |
+| --- | --- | --- |
+| Health DTO 和 Session Resolver 阶段状态 | 已接入 | Live/Offline Health、Resolver 阶段和 Overview 展示已接入 |
+| Overview 来源/健康/异常入口 | 已接入 | “最近失败”和“全部事件”使用不同语义路由 |
+| Selection、Filter、Navigation History 最小模型 | 部分接入 | Selection/History 已接入窗口；Workspace Filter 已驱动 Events 查询、缓存和分页，State/Trace/Actor 尚未消费待设计字段 |
+| Event、失败案例、Trace、Actor 稳定导航 | 已接入 | 支持稳定 ID、Trace/Actor 跳转和窗口前进/后退 |
+| 持久 Selection Inspector 首批闭环 | 已接入 | Actor/Event/Trace Root/Trace Node 通过稳定 Selection 查询；桌面右栏、窄窗口下方布局、宽度/显示状态持久化、不可用状态和有界 Event 扫描已接入 |
+| Config 持久 Inspector 投影 | 已接入 | 保存完整 Editor-only Kind/Id/PhaseId 与来源 Selection；权威 JSON 路径/行号、持续错误、重新解析和复制已接入，来源选择改变后自动退出；不进入 Core History |
+| Events 共享与局部 Filter 语义 | 已接入 | 显示来源并提供清除局部、设为共享、清除共享；共享标量优先，Channel 交集，最近帧不共享 |
+| 统一空态组件及 ViewModel 测试 | 已接入 | Events、State、Trace、Attributes、Buffs、Tags、Effects 已统一；Partial/Truncated 有结果时保留内容；Inspector 投影新增缓存、revision、分页、淘汰和 Config 身份/解析生命周期测试 |
+| 真实技能场景 Play Mode 验收 | 待执行 | 已写入 `TESTING.md`；Config 本批尚未获得 Unity Test Runner 结果，也未完成窗口视觉和真实技能交互验收 |
+
+当前 Battle Debug 已具备“先确认链路，再进入问题”的基础入口，Events 已形成共享与局部筛选边界，Actor/Event/Trace 拥有持久 Inspector，Config 也具备不丢失 PhaseId 的 Editor-only 持久投影；一级工作区、跨全部面板的统一可见 Filter、Skill Runtime 独立选择、Config Core History、Timeline 和真实技能场景证据闭环仍未完成。
+
+## 11. 计划维护规则
+
+- 每完成一个阶段，更新本文的阶段状态，并同步 [CURRENT-CAPABILITIES.md](CURRENT-CAPABILITIES.md)、[TESTING.md](TESTING.md) 和 [IMPLEMENTATION-HISTORY.md](IMPLEMENTATION-HISTORY.md)。
+- 已实现能力只能进入“已完成”或“需整合”，不得继续作为未来功能重复列出。
+- 每个“可用”声明必须附带运行模式、能力限制、测试结果和手工验收边界。
+- 若真实场景证明某 Producer 未进入当前技能路径，先修复或明确覆盖边界，再优化 UI；不能把未产出的数据包装成已采集。
+- 规划评审以成功指标和开发者完成任务的步骤数为依据，不以面板数量或 DTO 数量作为完成标准。

@@ -29,7 +29,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         /// <summary>
         /// 将单个 JSON 文件拆分为多个文件
         /// </summary>
-        [MenuItem("AbilityKit/Ability/Split Trigger Plan JSON")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/格式转换/Split Trigger Plan JSON")]
         public static void Split()
         {
             var outputDir = GetAbilityResourcesDirectory();
@@ -78,7 +78,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         /// <summary>
         /// 将多个文件合并为单个 JSON 文件
         /// </summary>
-        [MenuItem("AbilityKit/Ability/Merge Trigger Plan JSON")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/格式转换/Merge Trigger Plan JSON")]
         public static void Merge()
         {
             var inputDir = Path.Combine(GetAbilityResourcesDirectory(), TriggersDirName);
@@ -125,7 +125,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         /// <summary>
         /// 导出可读格式到拆分目录
         /// </summary>
-        [MenuItem("AbilityKit/Ability/Export Readable Split")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/导出/Readable Split")]
         public static void ExportReadableSplit()
         {
             var outputDir = GetAbilityResourcesDirectory();
@@ -194,7 +194,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         /// <summary>
         /// 从拆分目录导入可读格式
         /// </summary>
-        [MenuItem("AbilityKit/Ability/Import Readable Split")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/导入/Readable Split")]
         public static void ImportReadableSplit()
         {
             var inputDir = Path.Combine(GetAbilityResourcesDirectory(), TriggersDirName + "_readable");

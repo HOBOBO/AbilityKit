@@ -26,7 +26,7 @@ namespace AbilityKit.Editor.FrameSync
 
         private int _selectedFrameIndex = -1;
 
-        [MenuItem("Tools/AbilityKit/FrameSync Test")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/FrameSync Test")]
         public static void Open()
         {
             GetWindow<FrameSyncTestWindow>("FrameSync Test");

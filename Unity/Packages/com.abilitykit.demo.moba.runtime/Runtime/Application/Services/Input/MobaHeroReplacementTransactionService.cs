@@ -355,8 +355,10 @@ namespace AbilityKit.Demo.Moba.Services
 
         private void CompensateSpawn(in MobaActorSpawnResult spawnResult)
         {
-            _entities.Unregister(spawnResult.ActorId);
-            _registry.Unregister(spawnResult.ActorId);
+            new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
+                spawnResult.ActorId,
+                out _,
+                publishDespawn: false);
             ActorSpawnPipeline.DestroyBuiltEntity(spawnResult.Entity);
         }
 

@@ -15,7 +15,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     {
         private const string BaseResourcesFolder = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba";
 
-        [MenuItem("AbilityKit/Moba/Config Json/Import Folder -> Selected SO")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Config Json/Import Folder -> Selected SO")]
         public static void ImportFolderToSelectedSo()
         {
             var table = Selection.activeObject as MobaConfigTableAssetSO;
@@ -28,7 +28,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             ImportInto(table);
         }
 
-        [MenuItem("AbilityKit/Moba/Config Json/Export Selected SO -> Folder")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Config Json/Export Selected SO -> Folder")]
         public static void ExportSelectedSoToFolder()
         {
             var table = Selection.activeObject as MobaConfigTableAssetSO;
@@ -41,7 +41,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             ExportFrom(table);
         }
 
-        [MenuItem("AbilityKit/Moba/Config Json/Export Array Json -> Folder (Selected SO Type)")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Config Json/Export Array Json -> Folder (Selected SO Type)")]
         public static void ExportArrayJsonToFolderBySelectedType()
         {
             var table = Selection.activeObject as MobaConfigTableAssetSO;
@@ -54,7 +54,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             ExportArrayJsonToFolder(table);
         }
 
-        [MenuItem("AbilityKit/Moba/Config Json/Import Folder -> Array Json (Selected SO Type)")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Config Json/Import Folder -> Array Json (Selected SO Type)")]
         public static void ImportFolderToArrayJsonBySelectedType()
         {
             var table = Selection.activeObject as MobaConfigTableAssetSO;

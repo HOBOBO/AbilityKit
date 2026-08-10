@@ -83,7 +83,10 @@ namespace AbilityKit.Game.Editor
 
             if (!_viewModel.WorldSummary.HasValue)
             {
-                EditorGUILayout.LabelField("（尚未采样）", EditorStyles.miniLabel);
+                var emptyState = BattleDebugEmptyStateProjector.Project(
+                    _viewModel.WorldQueryStatus,
+                    subject: "世界状态");
+                DrawEmptyState(in emptyState);
                 return;
             }
 
@@ -105,18 +108,15 @@ namespace AbilityKit.Game.Editor
         private void DrawActorList(in BattleDebugContext ctx)
         {
             EditorGUILayout.LabelField("Actor 摘要", EditorStyles.boldLabel);
-
-            if (!string.IsNullOrEmpty(_viewModel.StatusMessage))
-            {
-                EditorGUILayout.HelpBox(_viewModel.StatusMessage, MessageType.None);
-            }
-
             _actorScroll = EditorGUILayout.BeginScrollView(_actorScroll);
 
             var actors = _viewModel.Actors;
             if (actors == null || actors.Count == 0)
             {
-                EditorGUILayout.LabelField("（无 Actor）", EditorStyles.miniLabel);
+                var emptyState = BattleDebugEmptyStateProjector.Project(
+                    _viewModel.ActorQueryStatus,
+                    subject: "Actor 状态");
+                DrawEmptyState(in emptyState);
             }
             else
             {
@@ -127,6 +127,21 @@ namespace AbilityKit.Game.Editor
             }
 
             EditorGUILayout.EndScrollView();
+        }
+
+        private static void DrawEmptyState(in BattleDebugEmptyStateProjection projection)
+        {
+            if (!projection.HasValue) return;
+
+            var message = string.IsNullOrEmpty(projection.Message)
+                ? projection.Title
+                : $"{projection.Title}\n{projection.Message}";
+            var messageType = projection.Severity == BattleDebugEmptyStateSeverity.Error
+                ? MessageType.Error
+                : projection.Severity == BattleDebugEmptyStateSeverity.Warning
+                    ? MessageType.Warning
+                    : MessageType.Info;
+            EditorGUILayout.HelpBox(message, messageType);
         }
 
         private void DrawActorRow(

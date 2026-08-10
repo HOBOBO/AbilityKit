@@ -15,14 +15,14 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         private const string OutputFileWithoutExt = "vfx";
         private const string PackageResourcesPath = "Packages/com.abilitykit.demo.moba.view.runtime/Resources";
 
-        [MenuItem("AbilityKit/Vfx/Export Vfx Json")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Vfx/Export Vfx Json")]
         public static void ExportSelected()
         {
             var folder = TryGetSelectedFolderPath();
             ExportFromFolder(folder);
         }
 
-        [MenuItem("AbilityKit/Vfx/Export Vfx Json (Assets)")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Vfx/Export Vfx Json (Assets)")]
         public static void ExportAll()
         {
             ExportFromFolder("Assets");

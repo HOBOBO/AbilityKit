@@ -4,7 +4,7 @@
 >
 > 最近验证日期：2026-07-19
 >
-> 事实源：`Server/Orleans/tools/run_shooter_multiprocess_smoke.ps1`、`ShooterSmokeClientProcessRunner`、版本化 run manifest 与诊断 artifact
+> 事实源：`Server/Orleans/tools/run_shooter_multiprocess_smoke.ps1`、`ShooterSmokeClientProcessRunner`、版本化 run manifest 与诊断 artifact。本文的源码入口复用了 Shooter client session/data-plane 契约；源码契约测试不等于一次真实双连接故障运行。
 
 ## 1. 文档定位
 
@@ -48,6 +48,8 @@ flowchart LR
 ```
 
 Orchestrator 持有场景计划、端口、进程、超时、fault command、assertion 和 manifest。客户端只负责执行正式 create/join/input/reconnect 路径并输出结构化结果，不自行宣布整个矩阵通过。最终判定由 orchestrator 聚合完成。
+
+Smoke runner 的客户端路径应与正式 Shooter 组合保持一致：Room 控制面完成登录、入场、订阅和恢复；独立 battle 数据面处理输入请求与 push；客户端 session/data plane 的源码契约由 `ShooterSmokeClientProcessRunnerContractTests` 锁定。该测试证明 runner 仍引用正式入口和收敛字段，但不产生 E4 运行证据。
 
 每个场景使用独立的 TCP Gateway、Silo 和 Orleans Gateway 端口。`full` 与 `compatibility` profile 中相邻 case 的三个端口均按固定偏移隔离，避免前一场景残留污染后一场景。
 
@@ -115,7 +117,7 @@ join 客户端每轮执行以下顺序：
 
 1. 记录当前 runtime frame 与 push count。
 2. 调用真实 connection close。
-3. 通过 `JoinReadyStartAndSubscribeAsync` 重新进入房间、ready、start 和 subscribe 流程。
+3. 通过当前阶段化 Room flow 重新进入房间、ready、start 和 subscribe 流程；不依赖已删除的聚合入口。
 4. 要求 entry kind 为 `Reconnect`。
 5. 等待一个新的可应用 push，并要求 push count 严格前进。
 
@@ -297,7 +299,17 @@ TEST-01C 的 running manifest 为每个已启动角色记录：
 
 ## 13. CI 分层与验证入口
 
-CI 按运行成本分层：`shooter-multiprocess` 保留 `minimal` 并用于主分支快速门禁；`shooter-multiprocess-compatibility` 使用 Release 和 `compatibility`，仅在 schedule 或 workflow dispatch 运行。两个 Windows job 共用 non-cancelling concurrency group，防止固定端口范围竞争，且都要求 always-upload artifact。
+CI 按运行成本和证据强度分层。源码契约测试、PR 快速测试、真实多进程 Smoke、兼容性矩阵、soak 与 ownership cleanup 的职责不能互相替代：
+
+| 层级 | 入口 | 触发条件 | 证明范围 |
+|------|------|----------|----------|
+| E3 | `AbilityKit.Orleans.ShooterSmoke.Tests`、`shooter-fast`/`shooter-integration` | PR 与 main 的快速 workflow | 契约、集成与有限业务路径；不证明完整多进程故障收敛 |
+| E4 | `shooter-multiprocess`、`run_shooter_multiprocess_smoke.ps1` | main push、schedule、manual；不由 PR 自动触发 | 真实 server/client 进程、故障注入、artifact、diff 和 bounded convergence |
+| E4 扩展 | `shooter-multiprocess-compatibility` | schedule、manual | Packed/PureState、扇出、弱网和正交故障组合 |
+| E4 长稳 | `shooter-multiprocess-soak` | schedule、manual | 长时间运行、重复恢复与资源/收敛趋势 |
+| E5 清理 | `shooter-multiprocess-ownership-cleanup` | schedule、manual | 动态超时后的 PID 身份、端口释放、manifest 收口和保护进程安全 |
+
+`tools/test-gates.json` 是 gate owner、scope、failure policy 与脚本入口的配置事实源；`.github/workflows/abilitykit-test-gates.yml` 是触发条件和 job 分层事实源。多进程 job 使用 `windows-latest` 和 non-cancelling concurrency group，并要求 always-upload artifact。main 上运行不等于 PR gate，schedule/manual 运行也不应写成每次提交都会执行。
 
 ```powershell
 # 查看 compatibility 正交计划，不启动进程
@@ -313,7 +325,7 @@ CI 按运行成本分层：`shooter-multiprocess` 保留 `minimal` 并用于主�
 .\Server\Orleans\tools\run_shooter_multiprocess_smoke.ps1 -Configuration Debug -Profile custom -Scenario reconnect-cycles -PayloadMode pure-state
 ```
 
-聚焦源码契约测试位于 `AbilityKit.Orleans.ShooterSmoke.Tests`，用于锁定 profile 计划、逐 case 参数、DLL 直启、timeout 分层、fault gate、PureState 推进、reliable/diff/replay 和 manifest 字段。源码契约不能代替真实多进程运行，两者应同时保留。
+聚焦源码契约测试位于 `AbilityKit.Orleans.ShooterSmoke.Tests`，用于锁定 profile 计划、逐 case 参数、DLL 直启、timeout 分层、fault gate、PureState 推进、reliable/diff/replay 和 manifest 字段。它属于 E3 结构证据；只有真实运行生成的 manifest、diagnostic、FrameRecord/replay、diff 和端口清理结果才属于 E4。两者应同时保留。
 
 ## 14. 环境与后续边界
 
@@ -329,4 +341,4 @@ CI 按运行成本分层：`shooter-multiprocess` 保留 `minimal` 并用于主�
 
 TEST-01C 不修改单场景 manifest schema 2 的既有字段语义；新增身份和 cleanup evidence 应保持向后兼容，matrix timeout 仍使用 schema 3。所有工作复用当前 artifact、timeout、replay、diff 和 convergence 契约，不新建平行 runner。
 
-这些工作应复用当前 manifest、artifact、timeout 和 convergence 契约，不新建平行 runner 或以更多同步模式枚举表达故障组合。
+这些工作应复用当前 manifest、artifact、timeout 和 convergence 契约，不新建平行 runner 或以更多同步模式枚举表达故障组合。当前文档不因本轮源码审计更新最近验证日期；新增日期必须来自新的真实 Smoke artifact。

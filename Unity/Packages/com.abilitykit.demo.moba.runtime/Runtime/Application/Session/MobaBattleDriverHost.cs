@@ -51,7 +51,7 @@ namespace AbilityKit.Demo.Moba.Session
         // 位置快照事件回调（由 ET Logic 层设置）
         private System.Action<int, MobaActorTransformSnapshotEntry[]>? _onTransformSnapshot;
 
-        public void Bind(IWorld world, HostRuntime hostRuntime, ISessionCoordinator coordinator)
+        public void Bind(IWorld world, HostRuntime hostRuntime)
         {
             BindLogicWorld(world, hostRuntime);
         }

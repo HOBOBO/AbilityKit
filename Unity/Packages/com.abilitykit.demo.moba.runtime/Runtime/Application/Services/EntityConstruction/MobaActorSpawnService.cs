@@ -142,15 +142,26 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 }
 
                 MobaActorSpawnPostSetupApplier.Apply(entity, in request.PostSetup);
-                CreateRegistrar().Register(entity, in spec, request.RegisterActor, request.RegisterEntityManager, request.RegisterEntityManagerFromEntity);
+                var publishSpawn = CreateRegistrar().Register(
+                    entity,
+                    in spec,
+                    request.RegisterActor,
+                    request.RegisterEntityManager,
+                    request.RegisterEntityManagerFromEntity);
+                if (publishSpawn)
+                {
+                    _entities.PublishSpawn(entity);
+                }
 
                 result = new MobaActorSpawnResult(true, spec.Info.ActorId, entity, in spec, null);
                 return true;
             }
             catch (Exception ex)
             {
-                _entities?.Unregister(spec.Info.ActorId);
-                _registry?.Unregister(spec.Info.ActorId);
+                CreateRegistrar().Unregister(
+                    spec.Info.ActorId,
+                    out _,
+                    publishDespawn: false);
                 ActorSpawnPipeline.DestroyBuiltEntity(entity);
                 Log.Exception(ex, $"[MobaActorSpawnService] spawn failed. kind={spec.Info.Kind} actorId={spec.Info.ActorId} sourceKind={spec.SourceKind} sourceId={spec.SourceId}");
                 result = MobaActorSpawnResult.Failed(ex.Message);

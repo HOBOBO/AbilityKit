@@ -71,11 +71,14 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
+            ValidateFrame(frame);
             return _snapshots.TryGetSnapshot(frame, out snapshot);
         }
 
         public int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32)
         {
+            ValidateFrame(frame);
+
             if (snapshots == null)
             {
                 throw new ArgumentNullException(nameof(snapshots));
@@ -95,6 +98,14 @@ namespace AbilityKit.Demo.Moba.Services
 
             snapshots.Add(snapshot);
             return 1;
+        }
+
+        private static void ValidateFrame(FrameIndex frame)
+        {
+            if (frame.Value < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(frame), frame.Value, "frame must be non-negative.");
+            }
         }
 
         private static MobaInputSubmitFailureCode MapFailureCode(LogicWorldInputSubmitFailureCode failureCode)

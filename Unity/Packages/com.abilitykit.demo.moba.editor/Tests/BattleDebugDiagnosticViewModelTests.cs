@@ -70,6 +70,127 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void EventsWorkspaceFilter_MergesSharedAndLocalConditionsWithDocumentedPrecedence()
+        {
+            var viewModel = new BattleDebugDiagnosticEventsViewModel
+            {
+                FilterBySelectedActor = true,
+                ActorRelation = BattleDiagnosticActorRelation.Target,
+                FailuresOnly = true,
+                EventScope = BattleDebugDiagnosticEventScope.Effects,
+                ConfigId = 800,
+                SearchText = "local",
+                TriggerStage = BattleDiagnosticTriggerAnalysisStage.Conditions,
+                TriggerResult = BattleDiagnosticTriggerAnalysisResult.Failed,
+                TriggerContextKind = 8,
+                TriggerOriginKind = 9
+            };
+            var shared = new BattleDiagnosticFilter(
+                new BattleDiagnosticFrameFilter(10, 20),
+                BattleDiagnosticEventChannel.Skill | BattleDiagnosticEventChannel.Effect,
+                actorId: 42,
+                actorRelation: BattleDiagnosticActorRelation.Source,
+                configId: 700,
+                rootContextId: 100,
+                contextId: 110,
+                skillRuntimeId: 120,
+                attackId: 130,
+                unfinishedOnly: true,
+                searchText: "shared",
+                triggerStage: BattleDiagnosticTriggerAnalysisStage.Budget,
+                triggerResult: BattleDiagnosticTriggerAnalysisResult.Blocked,
+                triggerContextKind: 4,
+                triggerOriginKind: 5);
+
+            var effective = viewModel.BuildEffectiveFilter(99, true, in shared);
+
+            Assert.That(effective.Frames, Is.EqualTo(shared.Frames));
+            Assert.That(effective.Channels, Is.EqualTo(BattleDiagnosticEventChannel.Effect));
+            Assert.That(effective.ActorId, Is.EqualTo(42));
+            Assert.That(effective.ActorRelation, Is.EqualTo(BattleDiagnosticActorRelation.Source));
+            Assert.That(effective.ConfigId, Is.EqualTo(700));
+            Assert.That(effective.RootContextId, Is.EqualTo(100));
+            Assert.That(effective.ContextId, Is.EqualTo(110));
+            Assert.That(effective.SkillRuntimeId, Is.EqualTo(120));
+            Assert.That(effective.AttackId, Is.EqualTo(130));
+            Assert.That(effective.FailuresOnly, Is.True);
+            Assert.That(effective.UnfinishedOnly, Is.True);
+            Assert.That(effective.SearchText, Is.EqualTo("shared"));
+            Assert.That(effective.TriggerStage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Budget));
+            Assert.That(effective.TriggerResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Blocked));
+            Assert.That(effective.TriggerContextKind, Is.EqualTo(4));
+            Assert.That(effective.TriggerOriginKind, Is.EqualTo(5));
+        }
+
+        [Test]
+        public void EventsWorkspaceFilter_ChangesCacheKeyAndInvalidatesFixedRevisionPaging()
+        {
+            var events = new List<BattleDiagnosticEvent>();
+            for (var frame = 201; frame >= 1; frame--)
+            {
+                events.Add(new BattleDiagnosticEvent(
+                    RecordingSession.Scope,
+                    frame,
+                    frame,
+                    frame,
+                    BattleDiagnosticEventKind.Damage,
+                    BattleDiagnosticEventChannel.DamageAndHeal,
+                    BattleDiagnosticEventOutcome.Succeeded));
+            }
+
+            var session = new RecordingSession
+            {
+                EventStoreRevision = 7,
+                Events = events,
+                PageEventResults = true
+            };
+            var viewModel = new BattleDebugDiagnosticEventsViewModel
+            {
+                FilterBySelectedActor = false,
+                EventScope = BattleDebugDiagnosticEventScope.All,
+                RecentFrameCount = 0
+            };
+            var initial = BattleDiagnosticFilter.Default;
+            viewModel.RefreshIfNeeded(session, 0, false, in initial);
+            viewModel.RefreshIfNeeded(session, 0, false, in initial);
+            Assert.That(session.EventQueryCount, Is.EqualTo(1));
+            Assert.That(viewModel.HasMore, Is.True);
+
+            var changed = initial.WithSearchText("damage");
+            Assert.That(viewModel.LoadMore(session, 0, false, in changed), Is.False);
+            Assert.That(session.EventQueryCount, Is.EqualTo(1));
+            Assert.That(viewModel.PagingStatusMessage, Does.Contain("筛选条件已变化"));
+
+            viewModel.RefreshIfNeeded(session, 0, false, in changed);
+            Assert.That(session.EventQueryCount, Is.EqualTo(2));
+            Assert.That(session.LastEventQuery.Filter.SearchText, Is.EqualTo("damage"));
+        }
+
+        [Test]
+        public void EventsClearLocalFilters_DoesNotMutateWorkspaceFilter()
+        {
+            var workspace = new BattleDiagnosticWorkspaceState();
+            var shared = BattleDiagnosticFilter.Default.WithSearchText("shared");
+            workspace.SetFilter(shared);
+            var viewModel = new BattleDebugDiagnosticEventsViewModel
+            {
+                FilterBySelectedActor = true,
+                FailuresOnly = true,
+                EventScope = BattleDebugDiagnosticEventScope.Effects,
+                RecentFrameCount = 600,
+                ConfigId = 7,
+                SearchText = "local"
+            };
+
+            viewModel.ClearLocalFilters();
+
+            Assert.That(workspace.Filter, Is.EqualTo(shared));
+            Assert.That(viewModel.HasActiveFilter, Is.False);
+            Assert.That(viewModel.RecentFrameCount, Is.Zero);
+            Assert.That(viewModel.BuildLocalFilter(99, true), Is.EqualTo(BattleDiagnosticFilter.Default));
+        }
+
+        [Test]
         public void EventsIssueGroups_AggregateStructuredTriggerFailuresAndFocusTheSelectedGroup()
         {
             var first = new BattleDiagnosticTriggerAnalysisPayload(
@@ -786,6 +907,43 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void ActorDtoViewModels_PreserveQueryStatusAndClearItWhenInvalidated()
+        {
+            var session = new RecordingSession();
+            var attributes = new BattleDebugDiagnosticAttributesViewModel();
+            var buffs = new BattleDebugDiagnosticBuffsViewModel();
+            var tags = new BattleDebugDiagnosticTagsViewModel();
+            var effects = new BattleDebugDiagnosticEffectsViewModel();
+
+            attributes.RefreshIfNeeded(session, 11);
+            buffs.RefreshIfNeeded(session, 11);
+            tags.RefreshIfNeeded(session, 11);
+            effects.RefreshIfNeeded(session, 11);
+
+            Assert.That(attributes.AttributeQueryStatus.Availability,
+                Is.EqualTo(BattleDiagnosticDataAvailability.NotProduced));
+            Assert.That(attributes.ModifierQueryStatus.Availability,
+                Is.EqualTo(BattleDiagnosticDataAvailability.NotProduced));
+            Assert.That(buffs.QueryStatus.Availability,
+                Is.EqualTo(BattleDiagnosticDataAvailability.NotProduced));
+            Assert.That(tags.QueryStatus.Availability,
+                Is.EqualTo(BattleDiagnosticDataAvailability.NotProduced));
+            Assert.That(effects.QueryStatus.Availability,
+                Is.EqualTo(BattleDiagnosticDataAvailability.NotProduced));
+
+            attributes.InvalidateCache();
+            buffs.InvalidateCache();
+            tags.InvalidateCache();
+            effects.InvalidateCache();
+
+            Assert.That(attributes.AttributeQueryStatus, Is.EqualTo(default(BattleDiagnosticQueryStatus)));
+            Assert.That(attributes.ModifierQueryStatus, Is.EqualTo(default(BattleDiagnosticQueryStatus)));
+            Assert.That(buffs.QueryStatus, Is.EqualTo(default(BattleDiagnosticQueryStatus)));
+            Assert.That(tags.QueryStatus, Is.EqualTo(default(BattleDiagnosticQueryStatus)));
+            Assert.That(effects.QueryStatus, Is.EqualTo(default(BattleDiagnosticQueryStatus)));
+        }
+
+        [Test]
         public void OverviewCacheKey_IncludesAllRevisionsActorAndFrame()
         {
             var session = new RecordingSession();
@@ -1000,6 +1158,24 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void TraceQueryStatus_IsPreservedAndClearedWithCacheInvalidation()
+        {
+            var session = new RecordingSession
+            {
+                TraceAvailability = BattleDiagnosticDataAvailability.Evicted
+            };
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+
+            viewModel.RefreshIfNeeded(session, 100);
+            Assert.That(viewModel.QueryStatus.Availability,
+                Is.EqualTo(BattleDiagnosticDataAvailability.Evicted));
+
+            viewModel.InvalidateCache();
+            Assert.That(viewModel.QueryStatus, Is.EqualTo(default(BattleDiagnosticQueryStatus)));
+            Assert.That(viewModel.StatusMessage, Is.Empty);
+        }
+
+        [Test]
         public void Trace_CyclicParents_DoNotRecurseForever()
         {
             var session = new RecordingSession
@@ -1139,6 +1315,361 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(viewModel.PinnedContextId, Is.EqualTo(110));
             Assert.That(viewModel.IsPinnedContextAvailable, Is.False);
             Assert.That(viewModel.SelectPinned(), Is.False);
+        }
+
+        [Test]
+        public void SelectionInspector_ActorUsesSelectionFrameAndRevisionAwareCache()
+        {
+            var actor = new BattleDiagnosticActorSummary(
+                RecordingSession.Scope,
+                27,
+                42,
+                BattleDiagnosticActorKind.Hero,
+                1001,
+                1,
+                1f,
+                2f,
+                3f,
+                90f,
+                100f,
+                true,
+                "Hero");
+            var session = new RecordingSession
+            {
+                StateStoreRevision = 5,
+                Actors = new[] { actor }
+            };
+            var selection = new BattleDiagnosticSelection(
+                session.SessionInfo.Scope,
+                BattleDiagnosticSelectionKind.Actor,
+                42,
+                27);
+            var viewModel = new BattleDebugSelectionInspectorViewModel();
+
+            viewModel.RefreshIfNeeded(session, in selection);
+            viewModel.RefreshIfNeeded(session, in selection);
+
+            Assert.That(session.ActorQueryCount, Is.EqualTo(1));
+            Assert.That(session.LastActorFrame, Is.EqualTo(27));
+            Assert.That(viewModel.Actor, Is.EqualTo(actor));
+
+            session.StateStoreRevision++;
+            viewModel.RefreshIfNeeded(session, in selection);
+
+            Assert.That(session.ActorQueryCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void SelectionInspector_EventUsesExactFrameAndFixedRevision()
+        {
+            var diagnosticEvent = new BattleDiagnosticEvent(
+                RecordingSession.Scope,
+                18,
+                99,
+                99,
+                BattleDiagnosticEventKind.Damage,
+                BattleDiagnosticEventChannel.DamageAndHeal,
+                BattleDiagnosticEventOutcome.Succeeded,
+                summary: "hit");
+            var session = new RecordingSession
+            {
+                EventStoreRevision = 7,
+                Events = new[] { diagnosticEvent }
+            };
+            var selection = new BattleDiagnosticSelection(
+                session.SessionInfo.Scope,
+                BattleDiagnosticSelectionKind.Event,
+                99,
+                18);
+            var viewModel = new BattleDebugSelectionInspectorViewModel();
+
+            viewModel.RefreshIfNeeded(session, in selection);
+
+            Assert.That(viewModel.Event, Is.EqualTo(diagnosticEvent));
+            Assert.That(session.LastEventQuery.Filter.Frames.FirstFrame, Is.EqualTo(18));
+            Assert.That(session.LastEventQuery.Filter.Frames.LastFrame, Is.EqualTo(18));
+            Assert.That(session.LastEventQuery.Page.StoreRevision, Is.EqualTo(7));
+            Assert.That(session.LastEventQuery.NewestFirst, Is.True);
+        }
+
+        [Test]
+        public void SelectionInspector_EventCanBeRestoredFromSecondPage()
+        {
+            var events = new List<BattleDiagnosticEvent>();
+            for (var i = 0; i <= BattleDiagnosticPageRequest.MaximumPageSize; i++)
+            {
+                events.Add(new BattleDiagnosticEvent(
+                    RecordingSession.Scope,
+                    12,
+                    i + 1,
+                    i + 1,
+                    BattleDiagnosticEventKind.Damage,
+                    BattleDiagnosticEventChannel.DamageAndHeal,
+                    BattleDiagnosticEventOutcome.Succeeded));
+            }
+
+            var session = new RecordingSession
+            {
+                EventStoreRevision = 8,
+                Events = events,
+                PageEventResults = true
+            };
+            var selection = new BattleDiagnosticSelection(
+                session.SessionInfo.Scope,
+                BattleDiagnosticSelectionKind.Event,
+                BattleDiagnosticPageRequest.MaximumPageSize + 1,
+                12);
+            var viewModel = new BattleDebugSelectionInspectorViewModel();
+
+            viewModel.RefreshIfNeeded(session, in selection);
+
+            Assert.That(viewModel.Event.HasValue, Is.True);
+            Assert.That(viewModel.Event.Value.Sequence, Is.EqualTo(BattleDiagnosticPageRequest.MaximumPageSize + 1));
+            Assert.That(viewModel.EventPagesScanned, Is.EqualTo(2));
+            Assert.That(session.EventQueryCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void SelectionInspector_EventLookupStopsAtBoundedScanWindow()
+        {
+            var count = BattleDebugSelectionInspectorViewModel.MaximumEventPages *
+                        BattleDiagnosticPageRequest.MaximumPageSize + 1;
+            var events = new List<BattleDiagnosticEvent>(count);
+            for (var i = 0; i < count; i++)
+            {
+                events.Add(new BattleDiagnosticEvent(
+                    RecordingSession.Scope,
+                    12,
+                    i + 1,
+                    i + 1,
+                    BattleDiagnosticEventKind.Damage,
+                    BattleDiagnosticEventChannel.DamageAndHeal,
+                    BattleDiagnosticEventOutcome.Succeeded));
+            }
+
+            var session = new RecordingSession
+            {
+                EventStoreRevision = 9,
+                Events = events,
+                PageEventResults = true
+            };
+            var selection = new BattleDiagnosticSelection(
+                session.SessionInfo.Scope,
+                BattleDiagnosticSelectionKind.Event,
+                count,
+                12);
+            var viewModel = new BattleDebugSelectionInspectorViewModel();
+
+            viewModel.RefreshIfNeeded(session, in selection);
+
+            Assert.That(viewModel.Event.HasValue, Is.False);
+            Assert.That(viewModel.EventPagesScanned, Is.EqualTo(BattleDebugSelectionInspectorViewModel.MaximumEventPages));
+            Assert.That(session.EventQueryCount, Is.EqualTo(BattleDebugSelectionInspectorViewModel.MaximumEventPages));
+            Assert.That(viewModel.QueryStatus.Phase, Is.EqualTo(BattleDiagnosticQueryPhase.Partial));
+            Assert.That(viewModel.QueryStatus.Availability, Is.EqualTo(BattleDiagnosticDataAvailability.Truncated));
+        }
+
+        [Test]
+        public void SelectionInspector_EventEvictionRemainsVisible()
+        {
+            var session = new RecordingSession
+            {
+                EventStoreRevision = 11,
+                EvictedEventRevision = 11
+            };
+            var selection = new BattleDiagnosticSelection(
+                session.SessionInfo.Scope,
+                BattleDiagnosticSelectionKind.Event,
+                77,
+                20);
+            var viewModel = new BattleDebugSelectionInspectorViewModel();
+
+            viewModel.RefreshIfNeeded(session, in selection);
+
+            Assert.That(viewModel.Event.HasValue, Is.False);
+            Assert.That(viewModel.QueryStatus.Availability, Is.EqualTo(BattleDiagnosticDataAvailability.Evicted));
+            Assert.That(viewModel.StatusMessage, Does.Contain("Evicted"));
+        }
+
+        [Test]
+        public void SelectionInspector_TraceUsesRelatedRootAndMatchesContext()
+        {
+            var root = TraceNode(100, 100, 0, "Skill");
+            var child = TraceNode(100, 110, 100, "Effect");
+            var session = new RecordingSession
+            {
+                TraceStoreRevision = 4,
+                TraceNodes = new[] { root, child }
+            };
+            var selection = new BattleDiagnosticSelection(
+                session.SessionInfo.Scope,
+                BattleDiagnosticSelectionKind.TraceNode,
+                110,
+                1,
+                100);
+            var viewModel = new BattleDebugSelectionInspectorViewModel();
+
+            viewModel.RefreshIfNeeded(session, in selection);
+
+            Assert.That(session.LastTraceRootContextId, Is.EqualTo(100));
+            Assert.That(viewModel.TraceNode, Is.EqualTo(child));
+        }
+
+        [Test]
+        public void SelectionInspector_ConfigSelectionPreservesExactFlowPhase()
+        {
+            var session = new RecordingSession();
+            var sourceSelection = new BattleDiagnosticSelection(
+                session.SessionInfo.Scope,
+                BattleDiagnosticSelectionKind.TraceNode,
+                110,
+                1,
+                100);
+            var reference = new BattleDebugConfigReference(
+                BattleDebugConfigKind.SkillFlow,
+                7001,
+                "cast.release");
+            var viewModel = new BattleDebugSelectionInspectorViewModel();
+
+            viewModel.SelectConfig(in reference, in sourceSelection);
+
+            Assert.That(viewModel.HasConfigSelection, Is.True);
+            Assert.That(viewModel.ConfigReference, Is.EqualTo(reference));
+            Assert.That(viewModel.ConfigReference.PhaseId, Is.EqualTo("cast.release"));
+        }
+
+        [Test]
+        public void SelectionInspector_ConfigSelectionResolvesAuthoritativeSource()
+        {
+            var session = new RecordingSession();
+            var sourceSelection = new BattleDiagnosticSelection(
+                session.SessionInfo.Scope,
+                BattleDiagnosticSelectionKind.Event,
+                12,
+                1);
+            var reference = new BattleDebugConfigReference(BattleDebugConfigKind.Skill, 1);
+            var viewModel = new BattleDebugSelectionInspectorViewModel();
+            viewModel.SelectConfig(in reference, in sourceSelection);
+
+            var active = viewModel.RefreshConfigIfActive(in sourceSelection);
+
+            Assert.That(active, Is.True);
+            Assert.That(viewModel.ConfigLocation.HasValue, Is.True, viewModel.ConfigStatusMessage);
+            Assert.That(viewModel.ConfigLocation.Value.AssetPath, Does.EndWith("/Resources/moba/skills.json"));
+            Assert.That(viewModel.ConfigLocation.Value.LineNumber, Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void SelectionInspector_ConfigSelectionClearsWhenWorkspaceSelectionChanges()
+        {
+            var session = new RecordingSession();
+            var sourceSelection = new BattleDiagnosticSelection(
+                session.SessionInfo.Scope,
+                BattleDiagnosticSelectionKind.Event,
+                12,
+                1);
+            var nextSelection = new BattleDiagnosticSelection(
+                session.SessionInfo.Scope,
+                BattleDiagnosticSelectionKind.Actor,
+                27,
+                1);
+            var reference = new BattleDebugConfigReference(BattleDebugConfigKind.Skill, 1);
+            var viewModel = new BattleDebugSelectionInspectorViewModel();
+            viewModel.SelectConfig(in reference, in sourceSelection);
+
+            var active = viewModel.RefreshConfigIfActive(in nextSelection);
+
+            Assert.That(active, Is.False);
+            Assert.That(viewModel.HasConfigSelection, Is.False);
+            Assert.That(viewModel.ConfigLocation.HasValue, Is.False);
+        }
+
+        [Test]
+        public void EmptyStateProjector_MissingRequiredSelection_TakesPriority()
+        {
+            var projection = BattleDebugEmptyStateProjector.Project(
+                BattleDiagnosticQueryStatus.Ready(1, 1, 0, false),
+                requiresSelection: true,
+                hasSelection: false,
+                subject: "事件");
+
+            Assert.That(projection.Reason, Is.EqualTo(BattleDebugEmptyStateReason.SelectionRequired));
+            Assert.That(projection.Severity, Is.EqualTo(BattleDebugEmptyStateSeverity.Info));
+        }
+
+        [Test]
+        public void EmptyStateProjector_UsesConfiguredSelectionSubject()
+        {
+            var projection = BattleDebugEmptyStateProjector.Project(
+                default,
+                requiresSelection: true,
+                hasSelection: false,
+                subject: "Trace 树",
+                selectionSubject: "Root Context");
+
+            Assert.That(projection.Reason, Is.EqualTo(BattleDebugEmptyStateReason.SelectionRequired));
+            Assert.That(projection.Title, Does.Contain("Root Context"));
+            Assert.That(projection.Message, Does.Contain("Root Context"));
+            Assert.That(projection.Message, Does.Not.Contain("Actor"));
+        }
+
+        [TestCase(true, (int)BattleDebugEmptyStateReason.FilteredEmpty)]
+        [TestCase(false, (int)BattleDebugEmptyStateReason.Empty)]
+        public void EmptyStateProjector_EmptyResult_DistinguishesActiveFilters(
+            bool hasActiveFilter,
+            int expectedReason)
+        {
+            var projection = BattleDebugEmptyStateProjector.Project(
+                BattleDiagnosticQueryStatus.Ready(1, 1, 0, false),
+                hasActiveFilter: hasActiveFilter,
+                subject: "事件");
+
+            Assert.That(projection.Reason, Is.EqualTo((BattleDebugEmptyStateReason)expectedReason));
+            Assert.That(projection.HasValue, Is.True);
+        }
+
+        [TestCase(BattleDiagnosticDataAvailability.NotProduced, (int)BattleDebugEmptyStateReason.NotProduced, (int)BattleDebugEmptyStateSeverity.Info)]
+        [TestCase(BattleDiagnosticDataAvailability.NotCaptured, (int)BattleDebugEmptyStateReason.NotCaptured, (int)BattleDebugEmptyStateSeverity.Warning)]
+        [TestCase(BattleDiagnosticDataAvailability.Evicted, (int)BattleDebugEmptyStateReason.Evicted, (int)BattleDebugEmptyStateSeverity.Warning)]
+        [TestCase(BattleDiagnosticDataAvailability.Unsupported, (int)BattleDebugEmptyStateReason.Unsupported, (int)BattleDebugEmptyStateSeverity.Info)]
+        [TestCase(BattleDiagnosticDataAvailability.Disconnected, (int)BattleDebugEmptyStateReason.Disconnected, (int)BattleDebugEmptyStateSeverity.Warning)]
+        public void EmptyStateProjector_UnavailableResult_MapsReasonAndSeverity(
+            BattleDiagnosticDataAvailability availability,
+            int expectedReason,
+            int expectedSeverity)
+        {
+            var status = BattleDiagnosticQueryStatus.Unavailable(1, 2, availability, "detail");
+            var projection = BattleDebugEmptyStateProjector.Project(status, subject: "状态");
+
+            Assert.That(projection.Reason, Is.EqualTo((BattleDebugEmptyStateReason)expectedReason));
+            Assert.That(projection.Severity, Is.EqualTo((BattleDebugEmptyStateSeverity)expectedSeverity));
+            Assert.That(projection.Message, Does.Contain("detail"));
+        }
+
+        [Test]
+        public void EmptyStateProjector_FailedResult_IncludesErrorCode()
+        {
+            var status = BattleDiagnosticQueryStatus.Failed(1, 2, "Query.Failed", "boom");
+            var projection = BattleDebugEmptyStateProjector.Project(status, subject: "事件");
+
+            Assert.That(projection.Reason, Is.EqualTo(BattleDebugEmptyStateReason.Error));
+            Assert.That(projection.Severity, Is.EqualTo(BattleDebugEmptyStateSeverity.Error));
+            Assert.That(projection.Message, Does.Contain("Query.Failed"));
+            Assert.That(projection.Message, Does.Contain("boom"));
+        }
+
+        [Test]
+        public void EmptyStateProjector_PartialResult_RemainsDisplayable()
+        {
+            var status = BattleDiagnosticQueryStatus.Partial(
+                1,
+                2,
+                3,
+                BattleDiagnosticDataAvailability.Truncated,
+                "partial");
+            var projection = BattleDebugEmptyStateProjector.Project(status, subject: "事件");
+
+            Assert.That(projection.HasValue, Is.False);
         }
 
         private static BattleDiagnosticEvent TriggerEvent(

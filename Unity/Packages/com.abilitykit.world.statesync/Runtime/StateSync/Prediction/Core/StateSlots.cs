@@ -196,23 +196,6 @@ public sealed class StateSlots
         }
         _version++;
     }
-
-    /// <summary>
-    /// 计算状态哈希
-    /// </summary>
-    public long ComputeHash()
-    {
-        unchecked
-        {
-            long hash = 17;
-            foreach (var kvp in _slots)
-            {
-                hash = hash * 31 + kvp.Key.GetHashCode();
-                hash = hash * 31 + (kvp.Value.Value != null ? kvp.Value.Value.GetHashCode() : 0);
-            }
-            return hash;
-        }
-    }
 }
 
 /// <summary>

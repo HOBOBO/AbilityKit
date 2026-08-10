@@ -12,6 +12,7 @@ namespace AbilityKit.Core.Continuous
         private readonly Dictionary<long, List<IContinuous>> _ownerContinuous = new Dictionary<long, List<IContinuous>>();
         private readonly HashSet<IContinuous> _registered = new HashSet<IContinuous>();
         private readonly HashSet<IContinuous> _active = new HashSet<IContinuous>();
+        private readonly List<IContinuous> _registrationOrder = new List<IContinuous>();
         private readonly List<IContinuousAdmissionPolicy> _admissionPolicies = new List<IContinuousAdmissionPolicy>();
         private readonly List<IContinuousLifecycleBinder> _lifecycleBinders = new List<IContinuousLifecycleBinder>();
 
@@ -109,10 +110,27 @@ namespace AbilityKit.Core.Continuous
             }
 
             _registered.Add(continuous);
+            _registrationOrder.Add(continuous);
             AddOwnerIndex(continuous);
             continuous.OnEnded += HandleContinuousEnded;
 
-            NotifyRegistered(continuous);
+            var binders = new List<IContinuousLifecycleBinder>(_lifecycleBinders);
+            var attemptedBinderCount = 0;
+            try
+            {
+                for (int i = 0; i < binders.Count; i++)
+                {
+                    attemptedBinderCount = i + 1;
+                    binders[i].OnRegistered(continuous, this);
+                }
+            }
+            catch
+            {
+                RollbackRegistration(continuous);
+                CompensateRegistrationBinders(continuous, binders, attemptedBinderCount);
+                throw;
+            }
+
             OnRegistered?.Invoke(continuous);
             return true;
         }
@@ -125,6 +143,7 @@ namespace AbilityKit.Core.Continuous
 
             continuous.OnEnded -= HandleContinuousEnded;
             _active.Remove(continuous);
+            _registrationOrder.Remove(continuous);
             RemoveOwnerIndex(continuous);
 
             NotifyUnregistered(continuous, reason);
@@ -197,7 +216,7 @@ namespace AbilityKit.Core.Continuous
         /// </summary>
         public IReadOnlyList<IContinuous> GetAllContinuous()
         {
-            return new List<IContinuous>(_registered);
+            return new List<IContinuous>(_registrationOrder);
         }
 
         /// <summary>
@@ -205,7 +224,15 @@ namespace AbilityKit.Core.Continuous
         /// </summary>
         public IReadOnlyList<IContinuous> GetAllActiveContinuous()
         {
-            return new List<IContinuous>(_active);
+            var result = new List<IContinuous>(_active.Count);
+            for (int i = 0; i < _registrationOrder.Count; i++)
+            {
+                var continuous = _registrationOrder[i];
+                if (_active.Contains(continuous))
+                    result.Add(continuous);
+            }
+
+            return result;
         }
 
         /// <inheritdoc />
@@ -297,7 +324,7 @@ namespace AbilityKit.Core.Continuous
         /// </summary>
         public void Clear(ContinuousEndReason reason = ContinuousEndReason.CleanedUp)
         {
-            var snapshot = new List<IContinuous>(_registered);
+            var snapshot = new List<IContinuous>(_registrationOrder);
             for (int i = 0; i < snapshot.Count; i++)
                 Unregister(snapshot[i], reason);
         }
@@ -357,8 +384,41 @@ namespace AbilityKit.Core.Continuous
                 return;
 
             _active.Remove(continuous);
-            NotifyEnded(continuous, reason);
-            Unregister(continuous, reason);
+            try
+            {
+                NotifyEnded(continuous, reason);
+            }
+            finally
+            {
+                Unregister(continuous, reason);
+            }
+        }
+
+        private void RollbackRegistration(IContinuous continuous)
+        {
+            continuous.OnEnded -= HandleContinuousEnded;
+            _active.Remove(continuous);
+            _registrationOrder.Remove(continuous);
+            RemoveOwnerIndex(continuous);
+            _registered.Remove(continuous);
+        }
+
+        private void CompensateRegistrationBinders(
+            IContinuous continuous,
+            IReadOnlyList<IContinuousLifecycleBinder> binders,
+            int attemptedBinderCount)
+        {
+            for (int i = attemptedBinderCount - 1; i >= 0; i--)
+            {
+                try
+                {
+                    binders[i].OnUnregistered(continuous, ContinuousEndReason.CleanedUp, this);
+                }
+                catch
+                {
+                    // Preserve the original registration failure after best-effort compensation.
+                }
+            }
         }
 
         private void AddOwnerIndex(IContinuous continuous)
@@ -391,12 +451,6 @@ namespace AbilityKit.Core.Continuous
                 return new List<IContinuous>();
 
             return new List<IContinuous>(list);
-        }
-
-        private void NotifyRegistered(IContinuous continuous)
-        {
-            for (int i = 0; i < _lifecycleBinders.Count; i++)
-                _lifecycleBinders[i].OnRegistered(continuous, this);
         }
 
         private void NotifyActivated(IContinuous continuous)

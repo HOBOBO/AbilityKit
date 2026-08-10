@@ -7,7 +7,7 @@ namespace AbilityKit.Ability.Explain.Editor
     {
         private AbilityExplainWindowPresenter _presenter;
 
-        [MenuItem("Tools/技能解释器")]
+        [MenuItem("Window/AbilityKit/Ability Explain")]
         public static void Open()
         {
             var w = GetWindow<AbilityExplainWindow>();

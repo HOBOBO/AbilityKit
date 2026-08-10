@@ -19,6 +19,9 @@ namespace AbilityKit.Game.Editor
         private const string PreferencesPrefix = "AbilityKit.BattleDebug.";
         private const float MinEntityPaneWidth = 160f;
         private const float MaxEntityPaneWidth = 420f;
+        private const float MinInspectorPaneWidth = 260f;
+        private const float MaxInspectorPaneWidth = 480f;
+        private const float InspectorColumnThreshold = 960f;
         private const float SplitterWidth = 5f;
 
         private string _filter;
@@ -34,12 +37,19 @@ namespace AbilityKit.Game.Editor
         private int _totalEntityCount;
         private double _nextRefreshAt;
         private float _entityPaneWidth = 220f;
+        private float _inspectorPaneWidth = 320f;
         private bool _resizingEntityPane;
+        private bool _resizingInspectorPane;
         private bool _autoRefresh = true;
         private bool _renderReplayPresentation = true;
         private bool _showEntityPane = true;
         private bool _showStatusArea = true;
+        private bool _showSelectionInspector = true;
         private readonly BattleDebugDiagnosticSource _diagnosticSource = new BattleDebugDiagnosticSource();
+        private readonly BattleDiagnosticWorkspaceState _diagnosticWorkspaceState =
+            new BattleDiagnosticWorkspaceState();
+        private readonly BattleDebugSelectionInspector _selectionInspector =
+            new BattleDebugSelectionInspector();
         private string _fileStatus;
         private MessageType _fileStatusType = MessageType.None;
 
@@ -47,7 +57,7 @@ namespace AbilityKit.Game.Editor
         private int _selectedActorPanelIndex;
         private int _selectedDiagnosticsPanelIndex;
 
-        [MenuItem("Tools/AbilityKit/Battle/战斗调试")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Battle/战斗调试")]
         private static void Open()
         {
             GetWindow<BattleDebugWindow>("战斗调试");
@@ -59,6 +69,10 @@ namespace AbilityKit.Game.Editor
                 EditorPrefs.GetFloat(PreferencesPrefix + "EntityPaneWidth", 220f),
                 MinEntityPaneWidth,
                 MaxEntityPaneWidth);
+            _inspectorPaneWidth = Mathf.Clamp(
+                EditorPrefs.GetFloat(PreferencesPrefix + "InspectorPaneWidth", 320f),
+                MinInspectorPaneWidth,
+                MaxInspectorPaneWidth);
             _workspace = (BattleDebugWorkspace)Mathf.Clamp(
                 EditorPrefs.GetInt(PreferencesPrefix + "Workspace", 0),
                 0,
@@ -72,18 +86,21 @@ namespace AbilityKit.Game.Editor
             _renderReplayPresentation = EditorPrefs.GetBool(PreferencesPrefix + "RenderReplayPresentation", true);
             _showEntityPane = EditorPrefs.GetBool(PreferencesPrefix + "ShowEntityPane", true);
             _showStatusArea = EditorPrefs.GetBool(PreferencesPrefix + "ShowStatusArea", true);
+            _showSelectionInspector = EditorPrefs.GetBool(PreferencesPrefix + "ShowSelectionInspector", true);
             _nextRefreshAt = EditorApplication.timeSinceStartup;
         }
 
         private void OnDisable()
         {
             EditorPrefs.SetFloat(PreferencesPrefix + "EntityPaneWidth", _entityPaneWidth);
+            EditorPrefs.SetFloat(PreferencesPrefix + "InspectorPaneWidth", _inspectorPaneWidth);
             EditorPrefs.SetInt(PreferencesPrefix + "Workspace", (int)_workspace);
             EditorPrefs.SetInt(PreferencesPrefix + "ActorPanelIndex", _selectedActorPanelIndex);
             EditorPrefs.SetInt(PreferencesPrefix + "DiagnosticsPanelIndex", _selectedDiagnosticsPanelIndex);
             EditorPrefs.SetBool(PreferencesPrefix + "RenderReplayPresentation", _renderReplayPresentation);
             EditorPrefs.SetBool(PreferencesPrefix + "ShowEntityPane", _showEntityPane);
             EditorPrefs.SetBool(PreferencesPrefix + "ShowStatusArea", _showStatusArea);
+            EditorPrefs.SetBool(PreferencesPrefix + "ShowSelectionInspector", _showSelectionInspector);
         }
 
         private void OnDestroy()
@@ -99,8 +116,10 @@ namespace AbilityKit.Game.Editor
                 ? new BattleDebugDiagnosticSessionResolution(
                     BattleDebugDiagnosticSessionResolutionPhase.Ready,
                     _diagnosticSource.Session,
-                    null)
+                    null,
+                    healthSnapshot: _diagnosticSource.HealthSnapshot)
                 : BattleDebugDiagnosticSessionResolver.Resolve(facade, EditorApplication.isPlaying);
+            SynchronizeDiagnosticWorkspace(in diagnosticResolution, isOffline);
             var hasLiveSession = !isOffline &&
                                  diagnosticResolution.Phase != BattleDebugDiagnosticSessionResolutionPhase.NotPlaying &&
                                  diagnosticResolution.Phase != BattleDebugDiagnosticSessionResolutionPhase.FacadeUnavailable &&
@@ -123,14 +142,17 @@ namespace AbilityKit.Game.Editor
                 selectActor: SelectActor,
                 openTrace: OpenTrace,
                 openEvents: OpenEvents,
+                openRecentFailures: OpenRecentFailures,
                 openConfig: OpenConfig,
                 seekReplayFrame: CanSeekReplayFrame() ? SeekReplayFrame : null,
                 diagnosticSession: diagnosticResolution.Session,
                 skillRuntimeService: diagnosticResolution.SkillRuntimeService,
                 diagnosticResolution: diagnosticResolution,
-                isOffline: isOffline);
+                isOffline: isOffline,
+                workspaceState: _diagnosticWorkspaceState);
 
             DrawToolbar(in ctx);
+            DrawFrameCursor(in ctx);
             if (_showStatusArea)
             {
                 DrawSourceStatus(hasLiveSession, in diagnosticResolution);
@@ -151,14 +173,7 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
-            EditorGUILayout.BeginHorizontal();
-            if (_showEntityPane)
-            {
-                DrawEntityList(facade);
-                DrawEntityPaneSplitter();
-            }
-            DrawEntityDetails(in ctx);
-            EditorGUILayout.EndHorizontal();
+            DrawWorkspace(in ctx, facade);
 
             AutoRefresh();
         }
@@ -197,6 +212,24 @@ namespace AbilityKit.Game.Editor
                 new GUIContent("状态", "显示或收起数据源、现场和回放控制区"),
                 EditorStyles.toolbarButton,
                 GUILayout.Width(42));
+            _showSelectionInspector = GUILayout.Toggle(
+                _showSelectionInspector,
+                new GUIContent("检查器", "显示或收起持久 Selection Inspector"),
+                EditorStyles.toolbarButton,
+                GUILayout.Width(54));
+
+            EditorGUI.BeginDisabledGroup(!_diagnosticWorkspaceState.Navigation.CanGoBack);
+            if (GUILayout.Button(new GUIContent("◀", "返回上一个诊断选择"), EditorStyles.toolbarButton, GUILayout.Width(26)))
+            {
+                NavigateDiagnosticHistory(back: true);
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUI.BeginDisabledGroup(!_diagnosticWorkspaceState.Navigation.CanGoForward);
+            if (GUILayout.Button(new GUIContent("▶", "前进到下一个诊断选择"), EditorStyles.toolbarButton, GUILayout.Width(26)))
+            {
+                NavigateDiagnosticHistory(back: false);
+            }
+            EditorGUI.EndDisabledGroup();
 
             GUILayout.FlexibleSpace();
 
@@ -258,6 +291,113 @@ namespace AbilityKit.Game.Editor
             }
 
             EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawFrameCursor(in BattleDebugContext ctx)
+        {
+            var workspace = ctx.WorkspaceState;
+            if (workspace == null || !workspace.Scope.IsValid)
+            {
+                return;
+            }
+
+            var cursor = workspace.FrameCursor;
+            var latestFrame = ResolveLatestCompleteFrame(in ctx);
+            EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+            GUILayout.Label("帧游标", EditorStyles.miniBoldLabel, GUILayout.Width(42));
+
+            EditorGUI.BeginChangeCheck();
+            var requestedFrame = EditorGUILayout.DelayedIntField(
+                cursor.HasFrame ? cursor.Frame : BattleDiagnosticFrames.Invalid,
+                GUILayout.Width(72));
+            if (EditorGUI.EndChangeCheck() && BattleDiagnosticFrames.IsValid(requestedFrame))
+            {
+                workspace.SetFrame(requestedFrame);
+                cursor = workspace.FrameCursor;
+            }
+
+            GUILayout.Label(
+                cursor.FollowsLive ? "跟随最新" : ResolveFrameCursorReason(cursor.ChangeReason),
+                EditorStyles.miniLabel,
+                GUILayout.Width(72));
+            if (BattleDiagnosticFrames.IsValid(latestFrame))
+            {
+                GUILayout.Label($"最新 F{latestFrame}", EditorStyles.miniLabel, GUILayout.Width(72));
+            }
+            else
+            {
+                GUILayout.Label("最新帧不可用", EditorStyles.miniLabel, GUILayout.Width(82));
+            }
+
+            var selection = workspace.Selection;
+            if (selection.IsValid)
+            {
+                GUILayout.Label(
+                    $"{selection.Kind} #{selection.Id}",
+                    EditorStyles.miniLabel,
+                    GUILayout.MinWidth(110));
+            }
+
+            GUILayout.FlexibleSpace();
+            EditorGUI.BeginDisabledGroup(
+                cursor.FollowsLive || !BattleDiagnosticFrames.IsValid(latestFrame));
+            if (GUILayout.Button(
+                    new GUIContent("跟随最新", "将诊断帧游标恢复到当前数据源的最新完整帧"),
+                    GUILayout.Width(68)))
+            {
+                workspace.SetFollowLive(true, latestFrame);
+            }
+            EditorGUI.EndDisabledGroup();
+
+            EditorGUI.BeginDisabledGroup(ctx.SeekReplayFrame == null || !cursor.HasFrame);
+            if (GUILayout.Button(
+                    new GUIContent("定位 Replay", "暂停 Replay 并将逻辑世界定位到当前诊断帧游标"),
+                    GUILayout.Width(82)))
+            {
+                if (ctx.SeekReplayFrame != null && ctx.SeekReplayFrame(cursor.Frame))
+                {
+                    _fileStatus = $"Replay 已定位到诊断帧 F{cursor.Frame}。";
+                    _fileStatusType = MessageType.Info;
+                }
+                else
+                {
+                    _fileStatus = $"无法将 Replay 定位到诊断帧 F{cursor.Frame}；该帧可能超出录像范围。";
+                    _fileStatusType = MessageType.Warning;
+                }
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private int ResolveLatestCompleteFrame(in BattleDebugContext ctx)
+        {
+            if (ctx.DiagnosticResolution.HasHealthSnapshot)
+            {
+                return ctx.DiagnosticResolution.HealthSnapshot.Value.LastSuccessfulStateFrame;
+            }
+
+            return ctx.IsOffline
+                ? _diagnosticSource.LatestCompleteFrame
+                : BattleDiagnosticFrames.Invalid;
+        }
+
+        private static string ResolveFrameCursorReason(BattleDiagnosticFrameCursorChangeReason reason)
+        {
+            switch (reason)
+            {
+                case BattleDiagnosticFrameCursorChangeReason.UserSelectedFrame:
+                    return "手工设定";
+                case BattleDiagnosticFrameCursorChangeReason.SelectionNavigation:
+                    return "选择定位";
+                case BattleDiagnosticFrameCursorChangeReason.RetainedRangeClamped:
+                    return "保留区约束";
+                case BattleDiagnosticFrameCursorChangeReason.SessionChanged:
+                    return "会话切换";
+                case BattleDiagnosticFrameCursorChangeReason.FollowLiveAdvanced:
+                    return "最新推进";
+                default:
+                    return "固定帧";
+            }
         }
 
         private void DrawSourceStatus(
@@ -627,6 +767,78 @@ namespace AbilityKit.Game.Editor
             }
         }
 
+        private void DrawWorkspace(in BattleDebugContext ctx, IBattleDebugFacade facade)
+        {
+            var useInspectorColumn = _showSelectionInspector && position.width >= InspectorColumnThreshold;
+            if (useInspectorColumn)
+            {
+                EditorGUILayout.BeginHorizontal();
+                if (_showEntityPane)
+                {
+                    DrawEntityList(facade);
+                    DrawEntityPaneSplitter();
+                }
+                DrawEntityDetails(in ctx);
+                DrawInspectorPaneSplitter();
+                EditorGUILayout.BeginVertical(GUILayout.Width(_inspectorPaneWidth));
+                _selectionInspector.Draw(in ctx);
+                EditorGUILayout.EndVertical();
+                EditorGUILayout.EndHorizontal();
+                return;
+            }
+
+            EditorGUILayout.BeginVertical();
+            EditorGUILayout.BeginHorizontal();
+            if (_showEntityPane)
+            {
+                DrawEntityList(facade);
+                DrawEntityPaneSplitter();
+            }
+            DrawEntityDetails(in ctx);
+            EditorGUILayout.EndHorizontal();
+            if (_showSelectionInspector)
+            {
+                EditorGUILayout.Space(3f);
+                _selectionInspector.Draw(in ctx);
+            }
+            EditorGUILayout.EndVertical();
+        }
+
+        private void DrawInspectorPaneSplitter()
+        {
+            var splitterRect = GUILayoutUtility.GetRect(
+                SplitterWidth,
+                SplitterWidth,
+                GUILayout.ExpandHeight(true));
+            EditorGUIUtility.AddCursorRect(splitterRect, MouseCursor.ResizeHorizontal);
+            EditorGUI.DrawRect(splitterRect, new Color(0f, 0f, 0f, 0.18f));
+
+            var currentEvent = Event.current;
+            if (currentEvent.type == EventType.MouseDown &&
+                currentEvent.button == 0 &&
+                splitterRect.Contains(currentEvent.mousePosition))
+            {
+                _resizingInspectorPane = true;
+                currentEvent.Use();
+            }
+            else if (_resizingInspectorPane && currentEvent.type == EventType.MouseDrag)
+            {
+                _inspectorPaneWidth = Mathf.Clamp(
+                    _inspectorPaneWidth - currentEvent.delta.x,
+                    MinInspectorPaneWidth,
+                    Mathf.Min(MaxInspectorPaneWidth, Mathf.Max(MinInspectorPaneWidth, position.width - 420f)));
+                Repaint();
+                currentEvent.Use();
+            }
+            else if (_resizingInspectorPane &&
+                     (currentEvent.type == EventType.MouseUp || currentEvent.rawType == EventType.MouseUp))
+            {
+                _resizingInspectorPane = false;
+                EditorPrefs.SetFloat(PreferencesPrefix + "InspectorPaneWidth", _inspectorPaneWidth);
+                currentEvent.Use();
+            }
+        }
+
         private void DrawEntityDetails(in BattleDebugContext ctx)
         {
             EditorGUILayout.BeginVertical();
@@ -868,11 +1080,25 @@ namespace AbilityKit.Game.Editor
 
         private void SelectActor(long actorId)
         {
+            SelectActor(actorId, recordNavigation: true);
+        }
+
+        private void SelectActor(long actorId, bool recordNavigation)
+        {
             if (actorId <= 0 || actorId > int.MaxValue)
             {
                 _selectionStatus = $"Actor ID {actorId} 超出有效范围。";
                 Repaint();
                 return;
+            }
+
+            if (recordNavigation && _diagnosticWorkspaceState.Scope.IsValid)
+            {
+                _diagnosticWorkspaceState.Select(new BattleDiagnosticSelection(
+                    _diagnosticWorkspaceState.Scope,
+                    BattleDiagnosticSelectionKind.Actor,
+                    actorId,
+                    _diagnosticWorkspaceState.FrameCursor.Frame));
             }
 
             _selectedActorId = (int)actorId;
@@ -1007,8 +1233,16 @@ namespace AbilityKit.Game.Editor
 
         private void OpenEvents(long actorId)
         {
-            if (actorId <= 0) return;
+            OpenEventsTarget(target => target.OpenForActor(actorId));
+        }
 
+        private void OpenRecentFailures()
+        {
+            OpenEventsTarget(target => target.OpenRecentFailures());
+        }
+
+        private void OpenEventsTarget(Action<IBattleDebugEventsTarget> open)
+        {
             var panels = BattleDebugPanelRegistry.GetAll();
             if (panels == null) return;
 
@@ -1024,7 +1258,7 @@ namespace AbilityKit.Game.Editor
 
                 if (panel is IBattleDebugEventsTarget target)
                 {
-                    target.OpenForActor(actorId);
+                    open(target);
                     _selectedDiagnosticsPanelIndex = CountDiagnosticsPanelsBefore(panels, i);
                     _detailScroll = Vector2.zero;
                     Repaint();
@@ -1035,6 +1269,10 @@ namespace AbilityKit.Game.Editor
 
         private void OpenConfig(BattleDebugConfigReference reference)
         {
+            var sourceSelection = _diagnosticWorkspaceState.Selection;
+            _selectionInspector.SelectConfig(in reference, in sourceSelection);
+            _showSelectionInspector = true;
+
             if (!BattleDebugConfigSourceIndex.TryLocate(in reference, out var location, out var error))
             {
                 _fileStatus = $"配置定位失败：{error}";
@@ -1128,7 +1366,26 @@ namespace AbilityKit.Game.Editor
 
         private void OpenTrace(long rootContextId, long contextId)
         {
+            OpenTrace(rootContextId, contextId, recordNavigation: true);
+        }
+
+        private void OpenTrace(long rootContextId, long contextId, bool recordNavigation)
+        {
             if (rootContextId <= 0) return;
+
+            if (recordNavigation && _diagnosticWorkspaceState.Scope.IsValid)
+            {
+                var focusedContextId = contextId > 0 ? contextId : rootContextId;
+                var kind = focusedContextId == rootContextId
+                    ? BattleDiagnosticSelectionKind.TraceRoot
+                    : BattleDiagnosticSelectionKind.TraceNode;
+                _diagnosticWorkspaceState.Select(new BattleDiagnosticSelection(
+                    _diagnosticWorkspaceState.Scope,
+                    kind,
+                    focusedContextId,
+                    _diagnosticWorkspaceState.FrameCursor.Frame,
+                    rootContextId));
+            }
 
             var panels = BattleDebugPanelRegistry.GetAll();
             if (panels == null) return;
@@ -1147,7 +1404,8 @@ namespace AbilityKit.Game.Editor
                 ? new BattleDebugDiagnosticSessionResolution(
                     BattleDebugDiagnosticSessionResolutionPhase.Ready,
                     _diagnosticSource.Session,
-                    null)
+                    null,
+                    healthSnapshot: _diagnosticSource.HealthSnapshot)
                 : BattleDebugDiagnosticSessionResolver.Resolve(facade, EditorApplication.isPlaying);
             var ctx = new BattleDebugContext(
                 facade,
@@ -1157,12 +1415,14 @@ namespace AbilityKit.Game.Editor
                 selectActor: SelectActor,
                 openTrace: OpenTrace,
                 openEvents: OpenEvents,
+                openRecentFailures: OpenRecentFailures,
                 openConfig: OpenConfig,
                 seekReplayFrame: CanSeekReplayFrame() ? SeekReplayFrame : null,
                 diagnosticSession: diagnosticResolution.Session,
                 skillRuntimeService: diagnosticResolution.SkillRuntimeService,
                 diagnosticResolution: diagnosticResolution,
-                isOffline: _diagnosticSource.IsOffline);
+                isOffline: _diagnosticSource.IsOffline,
+                workspaceState: _diagnosticWorkspaceState);
             var diagnosticsIndex = 0;
             for (var i = 0; i < panels.Count; i++)
             {
@@ -1185,6 +1445,92 @@ namespace AbilityKit.Game.Editor
                 }
 
                 diagnosticsIndex++;
+            }
+        }
+
+        private void SynchronizeDiagnosticWorkspace(
+            in BattleDebugDiagnosticSessionResolution resolution,
+            bool isOffline)
+        {
+            var session = resolution.Session;
+            if (session == null || !session.SessionInfo.Scope.IsValid)
+            {
+                if (_diagnosticWorkspaceState.Scope.IsValid)
+                {
+                    _diagnosticWorkspaceState.DetachSession();
+                }
+                return;
+            }
+
+            var scope = session.SessionInfo.Scope;
+            var latestFrame = resolution.HasHealthSnapshot
+                ? resolution.HealthSnapshot.Value.LastSuccessfulStateFrame
+                : isOffline
+                    ? _diagnosticSource.LatestCompleteFrame
+                    : BattleDiagnosticFrames.Invalid;
+            if (_diagnosticWorkspaceState.Scope != scope)
+            {
+                _diagnosticWorkspaceState.AttachSession(scope, latestFrame);
+                return;
+            }
+
+            _diagnosticWorkspaceState.AdvanceLive(latestFrame);
+        }
+
+        private void NavigateDiagnosticHistory(bool back)
+        {
+            var changed = back
+                ? _diagnosticWorkspaceState.GoBack()
+                : _diagnosticWorkspaceState.GoForward();
+            if (!changed)
+            {
+                return;
+            }
+
+            ApplyDiagnosticSelection(_diagnosticWorkspaceState.Selection);
+        }
+
+        private void ApplyDiagnosticSelection(in BattleDiagnosticSelection selection)
+        {
+            switch (selection.Kind)
+            {
+                case BattleDiagnosticSelectionKind.Actor:
+                    SelectActor(selection.Id, recordNavigation: false);
+                    break;
+                case BattleDiagnosticSelectionKind.Event:
+                    SelectDiagnosticsPanel<BattleDebugDiagnosticEventsPanel>();
+                    break;
+                case BattleDiagnosticSelectionKind.TraceRoot:
+                case BattleDiagnosticSelectionKind.TraceNode:
+                    var rootContextId = selection.RelatedId > 0
+                        ? selection.RelatedId
+                        : selection.Id;
+                    OpenTrace(rootContextId, selection.Id, recordNavigation: false);
+                    break;
+            }
+
+            Repaint();
+        }
+
+        private void SelectDiagnosticsPanel<TPanel>() where TPanel : class, IBattleDebugPanel
+        {
+            var panels = BattleDebugPanelRegistry.GetAll();
+            if (panels == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < panels.Count; i++)
+            {
+                if (!(panels[i] is TPanel))
+                {
+                    continue;
+                }
+
+                _workspace = BattleDebugWorkspace.Diagnostics;
+                _selectedDiagnosticsPanelIndex = CountDiagnosticsPanelsBefore(panels, i);
+                _detailScroll = Vector2.zero;
+                return;
             }
         }
     }

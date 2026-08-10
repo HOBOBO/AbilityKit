@@ -13,5 +13,6 @@
 
         public const string BeforeApply = "damage.apply.before";
         public const string AfterApply = "damage.apply.after";
+        public const string HealthCommitted = "health.change.committed";
     }
 }

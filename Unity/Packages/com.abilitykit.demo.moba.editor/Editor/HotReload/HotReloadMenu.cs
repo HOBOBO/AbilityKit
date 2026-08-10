@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Editor.HotReload
         private const string HotfixProjectRelative = "HotUpdateSrc/Hotfix.Ability.Moba/Hotfix.Ability.Moba.csproj";
         private const string OutputDirRelative = "Library/HotUpdate";
 
-        [MenuItem("Tools/AbilityKit/Hot Reload/Compile Hotfix")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Hot Reload/Compile Hotfix")]
         public static void CompileHotfix()
         {
             var unityDir = GetUnityProjectDir();
@@ -52,7 +52,7 @@ namespace AbilityKit.Game.Editor.HotReload
             }
         }
 
-        [MenuItem("Tools/AbilityKit/Hot Reload/Reload Hotfix")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Hot Reload/Reload Hotfix")]
         public static void ReloadHotfix()
         {
             var unityDir = GetUnityProjectDir();

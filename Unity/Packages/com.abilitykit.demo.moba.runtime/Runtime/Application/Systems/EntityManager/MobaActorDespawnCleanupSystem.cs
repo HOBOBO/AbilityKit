@@ -5,6 +5,7 @@ using AbilityKit.Core.Logging;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Trace;
@@ -115,8 +116,10 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             ReclaimActorState(actorId);
 
             _despawnSnapshots?.Enqueue(actorId, (byte)request.Reason);
-            _registry?.Unregister(actorId);
-            _entities?.Unregister(actorId);
+            new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
+                actorId,
+                out _,
+                publishDespawn: true);
             TryDestroy(entity, actorId, request.Reason);
         }
 

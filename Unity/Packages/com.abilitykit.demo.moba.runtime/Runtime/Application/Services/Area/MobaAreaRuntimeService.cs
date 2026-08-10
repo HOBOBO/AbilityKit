@@ -18,8 +18,10 @@ namespace AbilityKit.Demo.Moba.Services.Area
         [WorldInject(required: false)] private IFrameTime _frameTime = null;
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
         [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
+        [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
 
         private readonly Dictionary<int, MobaAreaRuntimeInfo> _areas = new Dictionary<int, MobaAreaRuntimeInfo>();
+        private readonly Dictionary<int, MobaSkillRuntimeRetainHandle> _skillRuntimeRetainsByAreaId = new Dictionary<int, MobaSkillRuntimeRetainHandle>();
         private readonly Dictionary<int, List<int>> _areasByOwner = new Dictionary<int, List<int>>();
         private readonly Dictionary<int, List<int>> _areasByTemplate = new Dictionary<int, List<int>>();
         private readonly HashSet<int> _delayTriggeredAreas = new HashSet<int>();
@@ -68,9 +70,12 @@ namespace AbilityKit.Demo.Moba.Services.Area
             if (_areas.TryGetValue(areaId.Value, out var oldInfo))
             {
                 Unindex(oldInfo);
+                EndAreaTrace(in oldInfo, TraceLifecycleReason.Replaced);
+                ReleaseSkillRuntime(areaId.Value);
             }
 
             _areas[areaId.Value] = info;
+            RetainSkillRuntime(in info);
             _delayTriggeredAreas.Remove(areaId.Value);
             Index(_areasByOwner, ownerActorId, areaId.Value);
             Index(_areasByTemplate, templateId, areaId.Value);
@@ -88,6 +93,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             Unindex(info);
             _presentationEvents.Add(new MobaAreaEventSnapshotEntry((int)AreaEventKind.Expire, info.AreaId, info.OwnerActorId, info.TemplateId, info.Center.X, info.Center.Y, info.Center.Z, info.Radius));
             EndAreaTrace(in info, TraceLifecycleReason.Completed);
+            ReleaseSkillRuntime(areaId.Value);
             _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Area, ActiveCount, CurrentFrame);
             return true;
         }
@@ -174,6 +180,13 @@ namespace AbilityKit.Demo.Moba.Services.Area
 
         public void Dispose()
         {
+            foreach (var pair in _areas)
+            {
+                var info = pair.Value;
+                EndAreaTrace(in info, TraceLifecycleReason.Cancelled);
+            }
+
+            ReleaseAllSkillRuntimes();
             _areas.Clear();
             _areasByOwner.Clear();
             _areasByTemplate.Clear();
@@ -240,6 +253,60 @@ namespace AbilityKit.Demo.Moba.Services.Area
             if (_trace == null) return;
             if (info.SourceContextId == 0L) return;
             _trace.EndContext(info.SourceContextId, reason);
+        }
+
+        private bool RetainSkillRuntime(in MobaAreaRuntimeInfo info)
+        {
+            if (_skillRuntimes == null) return false;
+            if (!info.SkillRuntimeHandle.IsValid) return false;
+            if (_skillRuntimeRetainsByAreaId.ContainsKey(info.AreaId)) return true;
+
+            var child = new MobaSkillRuntimeChildRef(
+                MobaSkillRuntimeChildKind.Area,
+                info.AreaId,
+                info.SourceContextId,
+                info.TemplateId);
+            var runtimeHandle = info.SkillRuntimeHandle;
+            if (!_skillRuntimes.RetainChild(in runtimeHandle, in child, out var retainHandle)) return false;
+
+            _skillRuntimeRetainsByAreaId[info.AreaId] = retainHandle;
+            return true;
+        }
+
+        private void ReleaseSkillRuntime(int areaId)
+        {
+            if (!_skillRuntimeRetainsByAreaId.TryGetValue(areaId, out var retainHandle)) return;
+            _skillRuntimeRetainsByAreaId.Remove(areaId);
+
+            try
+            {
+                _skillRuntimes?.ReleaseChild(in retainHandle);
+            }
+            catch (Exception ex)
+            {
+                AbilityKit.Core.Logging.Log.Exception(ex, $"[MobaAreaRuntimeService] Release skill runtime retain failed (areaId={areaId})");
+            }
+        }
+
+        private void ReleaseAllSkillRuntimes()
+        {
+            if (_skillRuntimeRetainsByAreaId.Count == 0) return;
+
+            foreach (var pair in _skillRuntimeRetainsByAreaId)
+            {
+                var areaId = pair.Key;
+                var retainHandle = pair.Value;
+                try
+                {
+                    _skillRuntimes?.ReleaseChild(in retainHandle);
+                }
+                catch (Exception ex)
+                {
+                    AbilityKit.Core.Logging.Log.Exception(ex, $"[MobaAreaRuntimeService] Release skill runtime retain failed during dispose (areaId={areaId})");
+                }
+            }
+
+            _skillRuntimeRetainsByAreaId.Clear();
         }
 
         private static void Index(Dictionary<int, List<int>> index, int key, int areaId)

@@ -69,6 +69,7 @@ namespace AbilityKit.Game.Editor
 
         private long _lastRequestId;
         private long _lastStoreRevision = -1;
+        private BattleDiagnosticFilter _lastWorkspaceFilter = BattleDiagnosticFilter.Default;
         private bool _lastFilterBySelectedActor;
         private BattleDiagnosticActorRelation _lastActorRelation;
         private bool _lastFailuresOnly;
@@ -90,6 +91,25 @@ namespace AbilityKit.Game.Editor
         private int _nextPageOffset;
         private IReadOnlyList<BattleDiagnosticEvent> _cachedItems;
         private IReadOnlyList<BattleDebugDiagnosticIssueGroup> _issueGroups;
+
+        /// <summary>最近一次事件查询的结构化状态。</summary>
+        public BattleDiagnosticQueryStatus QueryStatus { get; private set; }
+
+        /// <summary>当前是否存在会缩小结果集的面板局部过滤条件。</summary>
+        public bool HasActiveFilter =>
+            FilterBySelectedActor ||
+            FailuresOnly ||
+            EventScope != BattleDebugDiagnosticEventScope.All ||
+            RecentFrameCount > 0 ||
+            HasCorrelationFocus ||
+            HasTriggerAnalysisFilter ||
+            ConfigId != 0 ||
+            !string.IsNullOrEmpty(SearchText);
+
+        public bool HasEffectiveFilter(in BattleDiagnosticFilter workspaceFilter)
+        {
+            return workspaceFilter.ActiveFilterCount > 0 || HasActiveFilter;
+        }
 
         /// <summary>是否按选中实体 ActorId 过滤。</summary>
         public bool FilterBySelectedActor { get; set; } = true;
@@ -167,6 +187,7 @@ namespace AbilityKit.Game.Editor
         {
             _cachedItems = null;
             _issueGroups = null;
+            QueryStatus = default;
             _lastStoreRevision = -1;
             _worksetRevision = -1;
             _nextPageOffset = 0;
@@ -207,6 +228,26 @@ namespace AbilityKit.Game.Editor
 
         public void ClearCorrelationFocus()
         {
+            RootContextId = 0;
+            ContextId = 0;
+            SkillRuntimeId = 0;
+            AttackId = 0;
+            InvalidateCache();
+        }
+
+        public void ClearLocalFilters()
+        {
+            FilterBySelectedActor = false;
+            ActorRelation = BattleDiagnosticActorRelation.Either;
+            FailuresOnly = false;
+            EventScope = BattleDebugDiagnosticEventScope.All;
+            RecentFrameCount = 0;
+            SearchText = string.Empty;
+            TriggerStage = BattleDiagnosticTriggerAnalysisStage.Unknown;
+            TriggerResult = BattleDiagnosticTriggerAnalysisResult.Unknown;
+            TriggerContextKind = 0;
+            TriggerOriginKind = 0;
+            ConfigId = 0;
             RootContextId = 0;
             ContextId = 0;
             SkillRuntimeId = 0;
@@ -280,9 +321,24 @@ namespace AbilityKit.Game.Editor
             long selectedActorId,
             bool hasSelection)
         {
+            var workspaceFilter = BattleDiagnosticFilter.Default;
+            return RefreshIfNeeded(
+                session,
+                selectedActorId,
+                hasSelection,
+                in workspaceFilter);
+        }
+
+        public IReadOnlyList<BattleDiagnosticEvent> RefreshIfNeeded(
+            IBattleDiagnosticReadOnlySession session,
+            long selectedActorId,
+            bool hasSelection,
+            in BattleDiagnosticFilter workspaceFilter)
+        {
             var currentRevision = session.EventStoreRevision;
             if (_cachedItems != null &&
                 _lastStoreRevision == currentRevision &&
+                _lastWorkspaceFilter.Equals(workspaceFilter) &&
                 _lastFilterBySelectedActor == FilterBySelectedActor &&
                 _lastActorRelation == ActorRelation &&
                 _lastFailuresOnly == FailuresOnly &&
@@ -307,7 +363,7 @@ namespace AbilityKit.Game.Editor
             _lastRequestId++;
             if (_lastRequestId <= 0) _lastRequestId = 1;
 
-            var filter = BuildFilter(selectedActorId, hasSelection);
+            var filter = BuildFilter(selectedActorId, hasSelection, in workspaceFilter);
             var page = new BattleDiagnosticPageRequest(currentRevision, 0, DisplayLimit);
             var query = new BattleDiagnosticEventQuery(
                 _lastRequestId,
@@ -317,7 +373,9 @@ namespace AbilityKit.Game.Editor
                 recentFrameCount: RecentFrameCount);
 
             var result = session.QueryEvents(query);
+            QueryStatus = result.Status;
             _lastStoreRevision = currentRevision;
+            _lastWorkspaceFilter = workspaceFilter;
             _lastFilterBySelectedActor = FilterBySelectedActor;
             _lastActorRelation = ActorRelation;
             _lastFailuresOnly = FailuresOnly;
@@ -369,12 +427,26 @@ namespace AbilityKit.Game.Editor
             long selectedActorId,
             bool hasSelection)
         {
+            var workspaceFilter = BattleDiagnosticFilter.Default;
+            return LoadMore(
+                session,
+                selectedActorId,
+                hasSelection,
+                in workspaceFilter);
+        }
+
+        public bool LoadMore(
+            IBattleDiagnosticReadOnlySession session,
+            long selectedActorId,
+            bool hasSelection,
+            in BattleDiagnosticFilter workspaceFilter)
+        {
             if (session == null || _cachedItems == null || !HasMore)
             {
                 return false;
             }
 
-            if (!MatchesCachedFilter(selectedActorId, hasSelection))
+            if (!MatchesCachedFilter(selectedActorId, hasSelection, in workspaceFilter))
             {
                 PagingStatusMessage = "筛选条件已变化，请先刷新调查工作集。";
                 return false;
@@ -383,7 +455,7 @@ namespace AbilityKit.Game.Editor
             _lastRequestId++;
             if (_lastRequestId <= 0) _lastRequestId = 1;
 
-            var filter = BuildFilter(selectedActorId, hasSelection);
+            var filter = BuildFilter(selectedActorId, hasSelection, in workspaceFilter);
             var page = new BattleDiagnosticPageRequest(
                 _worksetRevision,
                 _nextPageOffset,
@@ -429,9 +501,13 @@ namespace AbilityKit.Game.Editor
             return true;
         }
 
-        private bool MatchesCachedFilter(long selectedActorId, bool hasSelection)
+        private bool MatchesCachedFilter(
+            long selectedActorId,
+            bool hasSelection,
+            in BattleDiagnosticFilter workspaceFilter)
         {
-            return _lastFilterBySelectedActor == FilterBySelectedActor &&
+            return _lastWorkspaceFilter.Equals(workspaceFilter) &&
+                   _lastFilterBySelectedActor == FilterBySelectedActor &&
                    _lastActorRelation == ActorRelation &&
                    _lastFailuresOnly == FailuresOnly &&
                    _lastEventScope == EventScope &&
@@ -486,13 +562,7 @@ namespace AbilityKit.Game.Editor
                 return "当前 Actor 在所选过滤条件下没有匹配事件。";
             }
 
-            if (FailuresOnly ||
-                EventScope != BattleDebugDiagnosticEventScope.All ||
-                RecentFrameCount > 0 ||
-                HasCorrelationFocus ||
-                HasTriggerAnalysisFilter ||
-                ConfigId != 0 ||
-                !string.IsNullOrEmpty(SearchText))
+            if (HasActiveFilter)
             {
                 return "当前历史窗口和过滤条件下没有匹配事件。";
             }
@@ -500,37 +570,65 @@ namespace AbilityKit.Game.Editor
             return "事件存储当前为空。请施放技能或检查顶部数据源中的 Event revision 是否递增。";
         }
 
-        private BattleDiagnosticFilter BuildFilter(long selectedActorId, bool hasSelection)
+        public BattleDiagnosticFilter BuildEffectiveFilter(
+            long selectedActorId,
+            bool hasSelection,
+            in BattleDiagnosticFilter workspaceFilter)
         {
-            long actorId = 0;
-            var relation = BattleDiagnosticActorRelation.Any;
+            return BuildFilter(selectedActorId, hasSelection, in workspaceFilter);
+        }
+
+        public BattleDiagnosticFilter BuildLocalFilter(long selectedActorId, bool hasSelection)
+        {
+            var workspaceFilter = BattleDiagnosticFilter.Default;
+            return BuildFilter(
+                selectedActorId,
+                hasSelection,
+                in workspaceFilter);
+        }
+
+        private BattleDiagnosticFilter BuildFilter(
+            long selectedActorId,
+            bool hasSelection,
+            in BattleDiagnosticFilter workspaceFilter)
+        {
+            var shared = workspaceFilter;
+            long localActorId = 0;
+            var localActorRelation = BattleDiagnosticActorRelation.Any;
 
             if (FilterBySelectedActor && hasSelection)
             {
-                actorId = selectedActorId;
-                relation = ActorRelation;
+                localActorId = selectedActorId;
+                localActorRelation = ActorRelation;
             }
 
             return new BattleDiagnosticFilter(
-                frames: new BattleDiagnosticFrameFilter(
-                    BattleDiagnosticFrames.Invalid,
-                    BattleDiagnosticFrames.Invalid),
-                channels: ResolveChannels(EventScope),
-                actorId: actorId,
-                actorRelation: relation,
-                configId: ConfigId,
-                rootContextId: RootContextId,
-                contextId: ContextId,
-                skillRuntimeId: SkillRuntimeId,
-                attackId: AttackId,
-                failuresOnly: FailuresOnly,
-                unfinishedOnly: false,
-                searchText: SearchText ?? string.Empty,
-                triggerStage: TriggerStage,
-                triggerResult: TriggerResult,
-                triggerContextKind: TriggerContextKind,
-                triggerOriginKind: TriggerOriginKind);
+                frames: shared.Frames,
+                channels: shared.Channels & ResolveChannels(EventScope),
+                actorId: shared.HasActorFilter ? shared.ActorId : localActorId,
+                actorRelation: shared.HasActorFilter ? shared.ActorRelation : localActorRelation,
+                configId: shared.ConfigId != 0 ? shared.ConfigId : ConfigId,
+                rootContextId: shared.RootContextId != 0 ? shared.RootContextId : RootContextId,
+                contextId: shared.ContextId != 0 ? shared.ContextId : ContextId,
+                skillRuntimeId: shared.SkillRuntimeId != 0 ? shared.SkillRuntimeId : SkillRuntimeId,
+                attackId: shared.AttackId != 0 ? shared.AttackId : AttackId,
+                failuresOnly: shared.FailuresOnly || FailuresOnly,
+                unfinishedOnly: shared.UnfinishedOnly,
+                searchText: shared.HasTextSearch ? shared.SearchText : SearchText ?? string.Empty,
+                triggerStage: shared.TriggerStage != BattleDiagnosticTriggerAnalysisStage.Unknown
+                    ? shared.TriggerStage
+                    : TriggerStage,
+                triggerResult: shared.TriggerResult != BattleDiagnosticTriggerAnalysisResult.Unknown
+                    ? shared.TriggerResult
+                    : TriggerResult,
+                triggerContextKind: shared.TriggerContextKind != 0
+                    ? shared.TriggerContextKind
+                    : TriggerContextKind,
+                triggerOriginKind: shared.TriggerOriginKind != 0
+                    ? shared.TriggerOriginKind
+                    : TriggerOriginKind);
         }
+
 
         private static IReadOnlyList<BattleDebugDiagnosticIssueGroup> BuildIssueGroups(
             IReadOnlyList<BattleDiagnosticEvent> events)

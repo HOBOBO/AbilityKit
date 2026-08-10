@@ -17,7 +17,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         /// <summary>
         /// 导出可读格式
         /// </summary>
-        [MenuItem("AbilityKit/Ability/Export Readable Trigger Plan Json")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/导出/Readable Trigger Plan Json")]
         public static void ExportReadable()
         {
             ExportReadableFromInternal();
@@ -26,7 +26,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         /// <summary>
         /// 从可读格式导入
         /// </summary>
-        [MenuItem("AbilityKit/Ability/Import Readable Trigger Plan Json")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/导入/Readable Trigger Plan Json")]
         public static void ImportReadable()
         {
             ImportReadableToInternal();
@@ -35,7 +35,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         /// <summary>
         /// 双向转换：可读格式 <-> 内部格式
         /// </summary>
-        [MenuItem("AbilityKit/Ability/Convert Trigger Plan Format")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/格式转换/Convert Trigger Plan Format")]
         public static void ConvertFormat()
         {
             var outputDir = GetAbilityResourcesDirectory();

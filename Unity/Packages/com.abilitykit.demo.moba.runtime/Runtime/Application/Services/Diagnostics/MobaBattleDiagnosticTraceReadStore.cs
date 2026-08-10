@@ -162,8 +162,9 @@ namespace AbilityKit.Demo.Moba.Services
 
         private static string ResolveEndReason(int reason)
         {
-            return Enum.IsDefined(typeof(TraceLifecycleReason), reason)
-                ? ((TraceLifecycleReason)reason).ToString()
+            var lifecycleReason = (TraceLifecycleReason)reason;
+            return Enum.IsDefined(typeof(TraceLifecycleReason), lifecycleReason)
+                ? lifecycleReason.ToString()
                 : reason.ToString();
         }
 

@@ -17,20 +17,52 @@ using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    public enum MobaInputCommandAuthority
+    {
+        Unspecified = 0,
+        BattlePlayer = 1,
+    }
+
+    public enum MobaInputCommandFramePolicy
+    {
+        Unspecified = 0,
+        ExactBatchFrame = 1,
+    }
+
+    public delegate bool MobaInputPayloadValidator(
+        byte[] payload,
+        out string error);
+
     public readonly struct MobaInputCommandContract
     {
-        public MobaInputCommandContract(int opCode, Type handlerType, string name, bool required)
+        public MobaInputCommandContract(
+            int opCode,
+            Type handlerType,
+            string name,
+            bool required,
+            MobaInputCommandAuthority authority,
+            MobaInputCommandFramePolicy framePolicy,
+            string payloadSchema,
+            MobaInputPayloadValidator payloadValidator)
         {
             OpCode = opCode;
             HandlerType = handlerType;
             Name = string.IsNullOrEmpty(name) ? handlerType?.Name : name;
             Required = required;
+            Authority = authority;
+            FramePolicy = framePolicy;
+            PayloadSchema = payloadSchema;
+            PayloadValidator = payloadValidator;
         }
 
         public int OpCode { get; }
         public Type HandlerType { get; }
         public string Name { get; }
         public bool Required { get; }
+        public MobaInputCommandAuthority Authority { get; }
+        public MobaInputCommandFramePolicy FramePolicy { get; }
+        public string PayloadSchema { get; }
+        public MobaInputPayloadValidator PayloadValidator { get; }
     }
 
     public sealed class MobaInputCommandContractValidationResult
@@ -66,22 +98,71 @@ namespace AbilityKit.Demo.Moba.Services
         {
             var handlerRegistry = MobaInputCommandHandlerRegistry.CreateEmpty();
             var registry = new MobaInputCommandContractRegistry(handlerRegistry);
-            registry.Require(AbilityKit.Protocol.Moba.MobaOpCodes.Input.Move, typeof(MobaMoveInputCommandHandler), "Move");
-            registry.Require(AbilityKit.Protocol.Moba.MobaOpCodes.Input.SkillInput, typeof(MobaSkillInputCommandHandler), "SkillInput");
+            registry.Require(
+                AbilityKit.Protocol.Moba.MobaOpCodes.Input.Move,
+                typeof(MobaMoveInputCommandHandler),
+                "Move",
+                MobaInputCommandAuthority.BattlePlayer,
+                MobaInputCommandFramePolicy.ExactBatchFrame,
+                nameof(MobaMovePayload),
+                ValidateMovePayload);
+            registry.Require(
+                AbilityKit.Protocol.Moba.MobaOpCodes.Input.SkillInput,
+                typeof(MobaSkillInputCommandHandler),
+                "SkillInput",
+                MobaInputCommandAuthority.BattlePlayer,
+                MobaInputCommandFramePolicy.ExactBatchFrame,
+                nameof(SkillInputEvent),
+                ValidateSkillInputPayload);
             registry.Require(
                 AbilityKit.Protocol.Moba.MobaOpCodes.Input.DebugSpawnUnit,
                 typeof(MobaDebugSpawnUnitInputCommandHandler),
-                "DebugSpawnUnit");
+                "DebugSpawnUnit",
+                MobaInputCommandAuthority.BattlePlayer,
+                MobaInputCommandFramePolicy.ExactBatchFrame,
+                nameof(MobaDebugSpawnUnitPayload) + ":v1",
+                ValidateDebugSpawnUnitPayload);
             registry.Require(
                 AbilityKit.Protocol.Moba.MobaOpCodes.Input.DebugReplaceHero,
                 typeof(MobaDebugReplaceHeroInputCommandHandler),
-                "DebugReplaceHero");
+                "DebugReplaceHero",
+                MobaInputCommandAuthority.BattlePlayer,
+                MobaInputCommandFramePolicy.ExactBatchFrame,
+                nameof(MobaDebugReplaceHeroPayload) + ":v1",
+                ValidateDebugReplaceHeroPayload);
             return registry;
         }
 
         public void Require(int opCode, Type handlerType, string name = null)
         {
-            Register(new MobaInputCommandContract(opCode, handlerType, name, required: true));
+            Require(
+                opCode,
+                handlerType,
+                name,
+                MobaInputCommandAuthority.Unspecified,
+                MobaInputCommandFramePolicy.Unspecified,
+                null,
+                null);
+        }
+
+        public void Require(
+            int opCode,
+            Type handlerType,
+            string name,
+            MobaInputCommandAuthority authority,
+            MobaInputCommandFramePolicy framePolicy,
+            string payloadSchema,
+            MobaInputPayloadValidator payloadValidator)
+        {
+            Register(new MobaInputCommandContract(
+                opCode,
+                handlerType,
+                name,
+                required: true,
+                authority,
+                framePolicy,
+                payloadSchema,
+                payloadValidator));
         }
 
         public void Register(in MobaInputCommandContract contract)
@@ -130,6 +211,26 @@ namespace AbilityKit.Demo.Moba.Services
                 var contract = _contractList[i];
                 if (!contract.Required) continue;
 
+                if (contract.Authority == MobaInputCommandAuthority.Unspecified)
+                {
+                    result.AddError($"input command authority is unspecified. opCode={contract.OpCode}, name={contract.Name}");
+                }
+
+                if (contract.FramePolicy == MobaInputCommandFramePolicy.Unspecified)
+                {
+                    result.AddError($"input command frame policy is unspecified. opCode={contract.OpCode}, name={contract.Name}");
+                }
+
+                if (string.IsNullOrEmpty(contract.PayloadSchema))
+                {
+                    result.AddError($"input command payload schema is missing. opCode={contract.OpCode}, name={contract.Name}");
+                }
+
+                if (contract.PayloadValidator == null)
+                {
+                    result.AddError($"input command payload validator is missing. opCode={contract.OpCode}, name={contract.Name}");
+                }
+
                 if (!HandlerRegistry.TryGetHandlerDescriptor(contract.OpCode, out var descriptor))
                 {
                     result.AddError($"missing input command handler. opCode={contract.OpCode}, name={contract.Name}, expected={contract.HandlerType.Name}");
@@ -144,6 +245,79 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             return result;
+        }
+
+        public bool TryValidateCommand(
+            MobaInputCommandContext context,
+            FrameIndex frame,
+            PlayerInputCommand command,
+            out MobaInputCommandResult result)
+        {
+            if (!_contracts.TryGetValue(command.OpCode, out var contract))
+            {
+                result = MobaInputCommandResult.Rejected(
+                    command,
+                    MobaInputCommandFailureCode.ContractMissing,
+                    $"Input command contract is missing. opCode={command.OpCode}");
+                return false;
+            }
+
+            if (contract.Authority != MobaInputCommandAuthority.BattlePlayer ||
+                context?.PlayerActorMap == null ||
+                !context.PlayerActorMap.TryGetActorId(command.Player, out _))
+            {
+                result = MobaInputCommandResult.Rejected(
+                    command,
+                    MobaInputCommandFailureCode.AuthorityRejected,
+                    $"Input command authority rejected. authority={contract.Authority}, player={command.Player.Value}");
+                return false;
+            }
+
+            if (contract.FramePolicy != MobaInputCommandFramePolicy.ExactBatchFrame ||
+                command.Frame.Value != frame.Value)
+            {
+                result = MobaInputCommandResult.Rejected(
+                    command,
+                    MobaInputCommandFailureCode.FramePolicyRejected,
+                    $"Input command frame policy rejected. policy={contract.FramePolicy}, batch={frame.Value}, command={command.Frame.Value}");
+                return false;
+            }
+
+            var payloadError = contract.PayloadValidator == null
+                ? "validator missing"
+                : null;
+            if (contract.PayloadValidator == null ||
+                !contract.PayloadValidator(command.Payload, out payloadError))
+            {
+                result = MobaInputCommandResult.Rejected(
+                    command,
+                    MobaInputCommandFailureCode.PayloadInvalid,
+                    $"Input command payload does not match schema. schema={contract.PayloadSchema}, error={payloadError}");
+                return false;
+            }
+
+            result = default;
+            return true;
+        }
+
+        private static bool ValidateMovePayload(byte[] payload, out string error)
+        {
+            return MobaMoveCodec.TryDeserialize(payload, out _, out _, out error);
+        }
+
+        private static bool ValidateSkillInputPayload(byte[] payload, out string error)
+        {
+            return SkillInputCodec.TryDeserialize(payload, out _, out error);
+        }
+
+        private static bool ValidateDebugSpawnUnitPayload(byte[] payload, out string error)
+        {
+            return MobaDebugSpawnUnitCodec.TryDeserialize(payload, out _, out error);
+        }
+
+        private static bool ValidateDebugReplaceHeroPayload(byte[] payload, out string error)
+        {
+            return MobaDebugReplaceHeroCodec.TryDeserialize(payload, out _, out error);
         }
     }
 

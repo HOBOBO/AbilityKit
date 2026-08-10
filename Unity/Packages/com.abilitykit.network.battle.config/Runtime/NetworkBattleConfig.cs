@@ -10,22 +10,25 @@ using AbilityKit.Protocol.Room;
 namespace AbilityKit.Network.Battle.Config
 {
     /// <summary>
+    /// Wraps a <see cref="SubmitInputRequest"/> with a command sequence for retry tracking.
+    /// Passed to <see cref="NetworkBattleConfig.WithInputSerializer"/> as the object the serialize lambda receives.
+    /// </summary>
+    public readonly struct SequencedInput
+    {
+        public readonly SubmitInputRequest Request;
+        public readonly ulong CommandSequence;
+        public SequencedInput(in SubmitInputRequest request, ulong commandSequence)
+        {
+            Request = request;
+            CommandSequence = commandSequence;
+        }
+    }
+
+    /// <summary>
     /// High-level fluent builder that produces a <see cref="NetworkTransportOptions"/> with sensible defaults
     /// and the standard room-gateway protocol preset (opcodes + auth + ack + resync). The game provides ONLY
     /// its game-specific callbacks (input serialize/deserialize + snapshot deserialize). Everything else is
     /// handled by the builder.
-    ///
-    /// Reduces a ~30-line options initializer to ~7 lines:
-    /// <code>
-    /// var options = new NetworkBattleConfig()
-    ///     .WithGateway(host, port)
-    ///     .WithTcpTransport()
-    ///     .WithSession(token, battleId, roomId, worldId)
-    ///     .UseRoomGatewayProtocol()
-    ///     .WithInputSerializer(serialize, deserializeResponse)
-    ///     .WithSnapshotDeserializer(deserializeSnapshot)
-    ///     .Build();
-    /// </code>
     /// </summary>
     public sealed class NetworkBattleConfig
     {
@@ -156,14 +159,14 @@ namespace AbilityKit.Network.Battle.Config
             {
                 if (requestObj is not SubmitInputRequest req)
                     throw new ArgumentException("Expected SubmitInputRequest.", nameof(requestObj));
-                return new SequencedSubmitInputRequest(req, unchecked((ulong)Interlocked.Increment(ref _nextCommandSequence)));
+                return new SequencedInput(req, unchecked((ulong)Interlocked.Increment(ref _nextCommandSequence)));
             };
             _o.RewriteSubmitInputFrame = (requestObj, frame) =>
             {
-                if (requestObj is not SequencedSubmitInputRequest seq)
-                    throw new ArgumentException("Expected SequencedSubmitInputRequest.", nameof(requestObj));
+                if (requestObj is not SequencedInput seq)
+                    throw new ArgumentException("Expected SequencedInput.", nameof(requestObj));
                 var r = seq.Request;
-                return new SequencedSubmitInputRequest(
+                return new SequencedInput(
                     new SubmitInputRequest(r.WorldId,
                         new AbilityKit.Ability.Host.PlayerInputCommand(
                             new AbilityKit.Ability.FrameSync.FrameIndex(frame),
@@ -195,6 +198,14 @@ namespace AbilityKit.Network.Battle.Config
             return this;
         }
 
+        /// <summary>Sets the frame push deserializer (for framesync mode; returns a FramePacket).</summary>
+        public NetworkBattleConfig WithFrameDeserializer(Func<ArraySegment<byte>, AbilityKit.Ability.Host.FramePacket> deserializeFramePushed)
+        {
+            _o.DeserializeFramePushed = deserializeFramePushed;
+            _o.OpFramePushed = _o.OpFramePushed == 0 ? 9001u : _o.OpFramePushed; // default if not set by preset
+            return this;
+        }
+
         /// <summary>Sets the reliable-event cursor callbacks (for reconnect resubscribe).</summary>
         public NetworkBattleConfig WithReliableEventCursor(Func<string> getEpoch, Func<long> getLastAck)
         {
@@ -218,16 +229,6 @@ namespace AbilityKit.Network.Battle.Config
                 throw new InvalidOperationException("Set input serializer (WithInputSerializer).");
             return _o;
         }
-
-        private readonly struct SequencedSubmitInputRequest
-        {
-            public readonly SubmitInputRequest Request;
-            public readonly ulong CommandSequence;
-            public SequencedSubmitInputRequest(in SubmitInputRequest request, ulong commandSequence)
-            {
-                Request = request;
-                CommandSequence = commandSequence;
-            }
-        }
     }
 }
+

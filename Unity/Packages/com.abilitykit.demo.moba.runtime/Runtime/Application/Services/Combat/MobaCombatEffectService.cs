@@ -24,7 +24,13 @@ namespace AbilityKit.Demo.Moba.Services
 
         public float Heal(int healerActorId, int targetActorId, int healType, float value, int reasonKind = 0, int reasonParam = 0)
         {
-            return _damageApplier.ApplyHeal(healerActorId, targetActorId, healType, value, reasonKind, reasonParam);
+            return _damageApplier.CommitHeal(
+                healerActorId,
+                targetActorId,
+                healType,
+                value,
+                reasonKind,
+                reasonParam).AppliedValue;
         }
 
         public void Dispose()

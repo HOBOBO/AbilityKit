@@ -8,7 +8,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 {
     public static class MobaConfigJsonFolderBatchSync
     {
-        [MenuItem("AbilityKit/Moba/Config Json/Import Folder -> All SOs In Selected Folder")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Config Json/Import Folder -> All SOs In Selected Folder")]
         public static void ImportAllInSelectedFolder()
         {
             var folder = TryGetSelectedFolderPath();
@@ -33,7 +33,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Debug.Log($"[MobaConfigJsonFolderBatchSync] Imported {ok} tables from folder: {folder}");
         }
 
-        [MenuItem("AbilityKit/Moba/Config Json/Export Folder -> All SOs In Selected Folder")]
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Config Json/Export Folder -> All SOs In Selected Folder")]
         public static void ExportAllInSelectedFolder()
         {
             var folder = TryGetSelectedFolderPath();

@@ -31,6 +31,8 @@ Analysis Artifact 是 AbilityKit 诊断数据的版本化聚合容器。它把�
 
 Artifact 是一次观察结果。它不负责恢复游戏世界，不替代 FrameRecord、Snapshot 或存档协议，也不应成为战斗逻辑的读取来源。
 
+Analysis Artifact 与 FrameRecord 是互补证据：前者聚合指标、Trace、诊断、阈值和基线，后者保存 Inputs、Snapshots、StateHashes 三条可回读轨道。Shooter Smoke 可以同时引用二者，但 Analysis JSON 可解析不证明 FrameRecord 可重放，FrameRecord 可加载也不证明阈值、业务场景或 CI gate 已通过。FrameRecord 当前 codec 与回读边界见 [FrameRecord 编码与 Smoke 证据链](../07-NetworkSynchronization/06-FrameRecordCodecAndSmokeEvidence.md)。
+
 ### 2.2 数据形成流程
 
 ```mermaid
@@ -208,6 +210,8 @@ Trace profile 中声明的规则值是 `8`，实际评估会根据节点总量�
 
 因此“成功写出 JSON”只证明序列化完成，不等于产物可作为 CI 门禁证据。
 
+MOBA/Shooter smoke 的 artifact 要求也遵循同一原则。`tools/test-gates.json` 中 `artifactRequired: true` 表示该 gate 必须保留可追溯输出，不表示任意 JSON、Replay 或日志文件存在即可通过。E4 需要场景断言、领域回读和产物一致性；E5 还需要 CI 触发策略、失败阻断、预算或发布责任。当前 `moba-smoke` 是 PR/push/schedule 的 P1 gate，`moba-multiprocess` 是 schedule-only 的 P2 gate；Shooter 另有 multiprocess、compatibility、soak、ownership cleanup 与 performance 分层，不能用单次 smoke artifact 代替这些策略。
+
 ### 7.2 建议的门禁顺序
 
 ```mermaid
@@ -249,7 +253,9 @@ flowchart TD
 | Profiler 投影 | 已实现 | 可输出事实数据，尚不执行通用预算门禁 |
 | MOBA Trace/Diagnostics/Runtime 投影 | 已实现 | 已有生产 Builder，字段完整度受采集选项影响 |
 | MOBA Insights/Threshold/Baseline | 已实现 Demo 策略 | 不能直接提升为通用或生产默认策略 |
-| BattleDiagnostics 导入导出 | 已实现并有 NUnit 测试 | 当前最完整的离线往返证据 |
+| BattleDiagnostics 导入导出 | 已实现并有 NUnit 测试 | 当前最完整的 Analysis section 离线往返证据 |
+| FrameRecord smoke evidence | Shooter 已有实际记录、回读和 diff 链 | 属于独立记录协议，不能由 Analysis 根 Schema 替代 |
+| CI artifact retention | MOBA/Shooter 多个 gate 要求 artifact | 证明产物被保留；是否通过仍由场景断言和 gate policy 决定 |
 | 通用 Artifact 导入与校验 | 未实现 | 不能宣称根 Artifact 全量往返 |
 | CI 门禁评估器 | 未发现统一实现 | 需要消费方定义失败策略和退出码 |
 | Web 样例兼容 | 存在格式漂移 | 需要迁移或独立版本 |
@@ -278,10 +284,12 @@ flowchart TD
 | MOBA 派生摘要、阈值和 baseline | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Diagnostics/MobaAnalysisDerivedSummaryBuilder.cs` |
 | BattleDiagnostics codec | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Diagnostics/MobaBattleDiagnosticArtifactCodec.cs` |
 | BattleDiagnostics codec 测试 | `Unity/Packages/com.abilitykit.demo.moba.editor/Tests/MobaBattleDiagnosticArtifactCodecTests.cs` |
+| FrameRecord evidence canonical | `Docs/design/07-NetworkSynchronization/06-FrameRecordCodecAndSmokeEvidence.md` |
+| Gate 与 artifact policy | `tools/test-gates.json`、`.github/workflows/abilitykit-test-gates.yml` |
 | 历史/Web 展示样例 | `sample-web-output-analysis/moba-complete-flow.analysis.json` |
 
 ## 十一、结论
 
 Analysis Artifact 已具备版本化根容器、通用 Profiler 投影、MOBA 运行时证据组装和 BattleDiagnostics 离线往返能力。当前可以把它用于诊断留档、离线查询和项目侧门禁输入，但不能把 JSON 导出成功等同于证据有效，也不能把 MOBA Demo 阈值和嵌入 baseline 当作通用生产标准。
 
-正式门禁还需要补齐根级 validator、canonical fixture、派生规则测试、项目历史 baseline 和确定的退出码策略。展示样例与当前 DTO 的格式漂移也应在继续扩展消费端前处理，否则相同版本字符串会掩盖实际协议差异。
+FrameRecord、Smoke 输出和 CI artifact retention 提供相邻但不同的证据层。正式门禁还需要补齐根级 validator、canonical fixture、派生规则测试、项目历史 baseline 和确定的退出码策略，并由 gate 固定场景断言、触发策略与失败责任。展示样例与当前 DTO 的格式漂移也应在继续扩展消费端前处理，否则相同版本字符串会掩盖实际协议差异。

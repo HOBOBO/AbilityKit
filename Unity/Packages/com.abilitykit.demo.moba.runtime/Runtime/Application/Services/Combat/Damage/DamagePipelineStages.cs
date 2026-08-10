@@ -61,9 +61,8 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (calc == null || calc.Attack == null) return;
 
-            var shieldAbsorb = _shields != null
-                ? _shields.Absorb(calc.Attack, calc.MitigatedDamage.Value)
-                : 0f;
+            calc.ShieldPlan = _shields?.PreviewAbsorb(calc.Attack, calc.MitigatedDamage.Value);
+            var shieldAbsorb = calc.ShieldPlan != null ? calc.ShieldPlan.Absorbed : 0f;
             calc.ShieldAbsorb.BaseValue = Math.Max(0f, shieldAbsorb);
             calc.HpDamage.BaseValue = Math.Max(0f, calc.MitigatedDamage.Value - calc.ShieldAbsorb.Value);
         }

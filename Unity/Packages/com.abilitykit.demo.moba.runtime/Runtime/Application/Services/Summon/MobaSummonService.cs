@@ -267,9 +267,10 @@ namespace AbilityKit.Demo.Moba.Services
             if (rootOwner <= 0) rootOwner = owner;
             if (e.hasSummonMeta && e.summonMeta != null) summonId = e.summonMeta.SummonId;
 
-            _registry.Unregister(summonActorId);
-            try { _entities?.Unregister(summonActorId); }
-            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] unregister summon failed (summonActorId={summonActorId}, summonId={summonId})"); }
+            new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
+                summonActorId,
+                out _,
+                publishDespawn: true);
 
             UntrackSummon(rootOwner, summonActorId);
             var sourceContext = ConsumeSourceContext(summonActorId);
@@ -523,11 +524,20 @@ namespace AbilityKit.Demo.Moba.Services
             try { EndSpawnTrace(traceContextId, SummonDespawnReason.SceneCleanup); }
             catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] rollback trace end failed (summonActorId={summonActorId}, summonId={summonId})"); }
 
-            try { _entities?.Unregister(summonActorId); }
-            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] rollback entity-manager unregister failed (summonActorId={summonActorId}, summonId={summonId})"); }
-            try { _registry?.Unregister(summonActorId); }
-            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] rollback registry unregister failed (summonActorId={summonActorId}, summonId={summonId})"); }
-            try { spawnResult.Entity?.Destroy(); }
+            try
+            {
+                new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
+                    summonActorId,
+                    out _,
+                    publishDespawn: false);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, $"[MobaSummonService] rollback actor unregister failed (summonActorId={summonActorId}, summonId={summonId})");
+                return;
+            }
+
+            try { ActorSpawnPipeline.DestroyBuiltEntity(spawnResult.Entity); }
             catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] rollback entity destroy failed (summonActorId={summonActorId}, summonId={summonId})"); }
         }
 

@@ -14,7 +14,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
     /// </summary>
     public static class ShooterAcceptanceAutomation
     {
-        private const string MenuRoot = "Tools/AbilityKit/Shooter Demo/Acceptance";
+        private const string MenuRoot = "Tools/AbilityKit/Demos/Shooter/Shooter Demo/Acceptance";
 
         [MenuItem(MenuRoot + "/Run Catalog Matrix")]
         public static void RunCatalogMatrixMenu()

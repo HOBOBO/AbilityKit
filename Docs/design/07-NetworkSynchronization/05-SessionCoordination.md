@@ -1,6 +1,6 @@
 # 7.5 会话协调
 
-> 本文从源码角度说明 AbilityKit 如何把客户端会话、已有 world 接入、远端 transport、Gateway 入场流程、Room 生命周期、Battle Host 权威推进、帧包适配和状态订阅串成一次可恢复、可重连、可观测的联机会话。会话协调不是单一类的职责，而是 `SessionCoordinator`、`RemoteSyncAdapter`、`IRemoteBattleSyncTransport`、`RoomGatewaySessionFlow`、`RoomGrain`、`BattleLogicHostGrain` 和 `FramePacketNetAdapter` 的组合边界。
+> 本文从源码角度说明 AbilityKit 如何把阶段化 Gateway 入场、业务客户端会话、Room 生命周期、Battle Host 权威推进、端侧数据面、帧包适配和状态恢复串成一次可恢复、可重连、可观测的联机会话。当前 `com.abilitykit.coordinator` 只保留配置、契约和值对象；历史 `SessionCoordinator`、同步 adapter 与远端 transport 实现不在当前 Package 中，不能再作为现役主链。
 
 ---
 
@@ -9,8 +9,8 @@
 1. [能力定位](#1-能力定位)
 2. [源码入口](#2-源码入口)
 3. [会话协调的分层边界](#3-会话协调的分层边界)
-4. [客户端 SessionCoordinator](#4-客户端-sessioncoordinator)
-5. [远端同步端口](#5-远端同步端口)
+4. [Coordinator Package 当前基线](#4-coordinator-package-当前基线)
+5. [当前客户端采用路径](#5-当前客户端采用路径)
 6. [Gateway 入场流程](#6-gateway-入场流程)
 7. [Room 与 Battle 服务端协调](#7-room-与-battle-服务端协调)
 8. [端侧帧包适配](#8-端侧帧包适配)
@@ -26,24 +26,24 @@
 
 会话协调解决的是跨层问题：玩家从“我要加入一局游戏”到“本地 world 跟随服务器帧和快照稳定推进”之间，需要经过身份、房间、准备、开战、世界锚点、输入提交、快照订阅、重连恢复等步骤。
 
-AbilityKit 把这些职责拆成几层：
+AbilityKit 当前把这些职责拆成几层：
 
 | 层级 | 责任 | 关键类型 |
 |------|------|----------|
-| 客户端会话 | 创建或复用 world，选择 sync adapter，驱动 Tick，暴露 hooks | `SessionCoordinator`、`ISessionCoordinatorHost` |
-| 远端同步 | 连接 endpoint，提交输入，接收服务器快照 | `RemoteSyncAdapter`、`IRemoteBattleSyncTransport` |
-| Gateway Flow | 按 create/join/ready/start/subscribe/restore 编排入场流程 | `RoomGatewaySessionFlow`、`IRoomGatewaySessionClient` |
+| Coordinator 契约 | 保存会话配置、host/policy 契约和跨层 DTO | `SessionConfig`、`ISessionCoordinatorHost`、`ISessionCoordinatorConfigPolicy` |
+| Gateway Flow | 按 create/join/ready/loading/start/subscribe/restore 编排控制面 | `RoomGatewaySessionFlow`、`IRoomGatewaySessionClient` |
+| 业务客户端会话 | 拥有 world、同步策略、连接、输入队列、push 应用和恢复 | Shooter/MOBA 各自的 session、launcher 与 battle handle |
 | 房间域 | 成员、准备、玩法房间状态、恢复、晚加入、开战入口 | `RoomGrain`、`RoomMemberTracker`、`IRoomGameplayAdapter` |
 | 战斗域 | 权威 Tick、输入调度、运行时 session、快照推送 | `BattleLogicHostGrain`、`BattleInputBuffer`、`BattleTickDriver` |
 | 帧同步广播 | 纯 frame push 场景下按帧广播输入 | `BattleFrameSyncGrain` |
-| 端侧帧包 | 把网络帧包写入 remote-driven/confirmed 输入源并路由快照 | `FramePacketNetAdapter`、`RemoteFrameAggregator` |
+| 端侧消费 | 通用帧包双写，或由业务数据面排队并路由 packed/pure-state push | `FramePacketNetAdapter`、`ShooterBattleDataPlane` |
 
 设计目标：
 
-- 业务层不直接依赖 Gateway handler、Orleans Grain 或 Socket 类型。
+- 业务逻辑 runtime 不直接依赖 Gateway handler、Orleans Grain 或 Socket 类型。
 - Room 和 Battle 分层，避免大厅/成员生命周期污染权威 Tick。
-- 客户端既能创建新 world，也能把已有 world 纳入 Coordinator。
-- 输入、快照、确认、恢复都通过明确边界传递。
+- 客户端会话所有权由业务入口明确承担，避免重复 world、连接和 Tick。
+- 控制面请求与 battle 数据面可以独立连接，但必须绑定同一组会话身份。
 - 断线恢复和晚加入都能拿到 `WorldStartAnchor`、`BattleId`、`WorldId` 等会话锚点。
 
 ---
@@ -54,17 +54,15 @@ AbilityKit 把这些职责拆成几层：
 
 | 能力 | 源码 | 说明 |
 |------|------|------|
-| 会话协调器 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Core/SessionCoordinator.cs` | 生命周期、world 创建、adapter attach、Tick |
-| 已有 world host | `Unity/Packages/com.abilitykit.coordinator/Runtime/Core/ExistingWorldSessionCoordinatorHost.cs` | 把已有 `IWorld` 包装成 coordinator host |
-| 同步 adapter 工厂 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/SyncAdapterFactory.cs` | 按有效同步模式选择 Local、Remote 或 Hybrid adapter |
-| 本地同步 adapter | `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/LocalSyncAdapter.cs` | 本地输入缓冲、逻辑帧推进和 driver bridge |
-| 远端同步 adapter | `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/RemoteSyncAdapter.cs` | 连接 transport、提交输入、接收服务器快照 |
-| 混合同步 adapter | `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/HybridSyncAdapter.cs` | 已有 transport/bookkeeping；通用预测校正仍未闭环 |
-| 远端 transport 端口 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Transport/IRemoteBattleSyncTransport.cs` | 环境提供 Gateway/Socket/测试替身 |
-| Gateway flow | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/RoomGatewaySessionFlow.cs` | create/join/ready/start/subscribe/restore 编排 |
+| Coordinator 配置与契约 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Core` | `SessionConfig`、枚举、host/policy、drive gate、spawn service 等；不含 coordinator 实现 |
+| Coordinator 数据对象 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Data` | payload codec、实体状态、帧快照、端点、输入和 spawn DTO |
+| Gateway flow | `Unity/Packages/com.abilitykit.network.room/Runtime/RoomGatewaySessionFlow.cs` | create/join/ready/loading/start/subscribe/restore 阶段编排 |
+| Gateway 高层门面 | `Unity/Packages/com.abilitykit.network.room/Runtime/GatewayMultiplayerSession.cs` | E0 类型存在；当前未发现真实消费者，不作为默认入口 |
 | 帧包适配 | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs` | 输入双写和快照路由 |
+| 远端输入队列 | `Unity/Packages/com.abilitykit.host.extension/Runtime/Client/StateSync/RemoteClientInputSubmitQueue.cs` | 一个在途请求加一个最新等待输入；不拥有连接生命周期 |
 | MOBA view adapter | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/BattleSessionNetAdapter.cs` | Demo View 包对通用帧包适配器的封装 |
-| Shooter 客户端会话 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client` | 已有完整 session 生命周期，直接组合 Gateway flow、预测管线与框架输入队列 |
+| Shooter 客户端会话 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client` | 业务 session、Room 控制面、独立 battle 数据面、输入和恢复 |
+| Console adapter 实验 | `src/AbilityKit.Demo.Moba.Console/Battle/Sync` | Demo 自有 factory 和 adapter；不是 coordinator Package 通用实现 |
 
 ### 2.2 Server/Orleans
 
@@ -83,253 +81,123 @@ AbilityKit 把这些职责拆成几层：
 
 ```mermaid
 flowchart TB
-    subgraph Client[Client]
-        App[Application]
-        Coordinator[SessionCoordinator]
-        WorldHost[IWorldHost]
-        World[IWorld]
-        SyncAdapter[RemoteSyncAdapter]
-        Transport[IRemoteBattleSyncTransport]
-        NetAdapter[FramePacketNetAdapter]
-    end
-
-    subgraph GatewayLayer[Gateway]
+    subgraph Client[Business Client]
+        App[Application Host]
+        Session[Business Session]
         Flow[RoomGatewaySessionFlow]
-        GatewayClient[IRoomGatewaySessionClient]
-        InputHandler[SubmitBattleInputHandler]
+        Control[Room Control Connection]
+        Handle[Battle Handle]
+        DataPlane[Battle Data Plane]
+        World[Local World and Sync Controller]
     end
 
-    subgraph Orleans[Orleans]
+    subgraph Orleans[Gateway and Orleans]
         Room[RoomGrain]
+        InputHandler[SubmitBattleInputHandler]
         FrameSync[BattleFrameSyncGrain]
         Battle[BattleLogicHostGrain]
         Runtime[IBattleRuntimeSession]
     end
 
-    App --> Coordinator
-    Coordinator --> WorldHost
-    WorldHost --> World
-    Coordinator --> SyncAdapter
-    SyncAdapter --> Transport
-    Flow --> GatewayClient
-    Transport --> InputHandler
-    GatewayClient --> Room
+    App --> Session
+    Session --> Flow
+    Flow --> Control
+    Control --> Room
+    Session --> Handle
+    Handle --> DataPlane
+    DataPlane --> InputHandler
+    InputHandler --> Battle
     Room --> FrameSync
     Room --> Battle
-    InputHandler --> Battle
     Battle --> Runtime
-    Runtime --> Transport
-    Transport --> NetAdapter
+    Runtime --> DataPlane
+    DataPlane --> Session
+    Session --> World
 ```
 
-这张图强调两个边界：
+这张图强调三个边界：
 
-1. `SessionCoordinator` 是客户端本地装配器，不应该直接知道 Orleans Grain。
-2. `RoomGatewaySessionFlow` 是入场编排脚本，不是底层 transport；真正提交输入时仍应通过 `RemoteSyncAdapter` 和 `IRemoteBattleSyncTransport`。
+1. `RoomGatewaySessionFlow` 是控制面编排工具，不是每帧 battle transport。
+2. 业务 session 是 world、同步策略、连接和恢复的唯一所有者；coordinator Package 当前不提供总装器。
+3. Shooter 使用独立 battle 数据面处理输入 request/response 和 push，可靠事件 ack/full-state 请求则经 Room 控制面 RPC 返回。
 
 ---
 
-## 4. 客户端 SessionCoordinator
+## 4. Coordinator Package 当前基线
 
-### 4.1 初始化流程
+### 4.1 当前保留内容与缺失实现面
 
-`SessionCoordinator.Initialize(SessionConfig config, ISessionCoordinatorHost host)` 的源码顺序：
+当前 Package 可用于共享配置、host/policy 契约和数据边界，但不能直接创建或驱动一次客户端会话。已核验的 Runtime 文件集中在 `Core` 和 `Data`：
 
-1. 状态必须是 `Idle`，否则抛异常。
-2. 状态切到 `Initializing`。
-3. 保存 config 和 host。
-4. 如果 host 实现 `ISessionCoordinatorConfigPolicy`，调用 `ConfigureSession(ref config)`。
-5. 解析 `SessionRuntimePolicy`。
-6. `host.CreateWorldHost(config)`。
-7. 创建 `WorldCreateOptions`，并调用 `host.ConfigureWorldCreateOptions`。
-8. `worldHost.CreateWorld(options)`。
-9. `world.Initialize()`。
-10. 保存 `world.Services` 为 resolver。
-11. `host.LoadConfig(world, config)`。
-12. `host.RegisterServices(world, config)`。
-13. 创建 `ViewTimeline`。
-14. `SyncAdapterFactory.Create(world, config)`。
-15. `syncAdapter.Attach(this)`。
-16. 如果已经设置 driver，则 `syncAdapter.SetLogicWorldDriver(driver)`。
-17. 触发 `SessionStarting` hook。
-18. 状态回到 `Idle`，等待 `Start()`。
+- Core：`ILogicWorldDriveGate`、`ILogicWorldDriverBridge`、`ISessionCoordinatorHost`、`ISessionCoordinatorConfigPolicy`、`ISpawnService`、会话配置与 ID。
+- Data：payload codec、实体状态、帧快照、网络端点、玩家输入和 spawn data。
 
-```mermaid
-sequenceDiagram
-    participant App as App
-    participant Coord as SessionCoordinator
-    participant Host as ISessionCoordinatorHost
-    participant WorldHost as IWorldHost
-    participant World as IWorld
-    participant Adapter as ISyncAdapter
+以下历史实现当前不存在：
 
-    App->>Coord: Initialize(config, host)
-    Coord->>Host: ConfigureSession(ref config)
-    Coord->>Host: CreateWorldHost(config)
-    Host-->>Coord: IWorldHost
-    Coord->>Host: ConfigureWorldCreateOptions
-    Coord->>WorldHost: CreateWorld(options)
-    WorldHost-->>Coord: IWorld
-    Coord->>World: Initialize()
-    Coord->>Host: LoadConfig(world, config)
-    Coord->>Host: RegisterServices(world, config)
-    Coord->>Coord: new ViewTimeline
-    Coord->>Coord: SyncAdapterFactory.Create(world, config)
-    Coord->>Adapter: Attach(this)
-```
+- `SessionCoordinator`
+- `ExistingWorldSessionCoordinatorHost`
+- `SyncAdapterFactory`
+- `LocalSyncAdapter`、`RemoteSyncAdapter`、`HybridSyncAdapter`
+- `IRemoteBattleSyncTransport`、`NullRemoteBattleSyncTransport`
 
-### 4.2 Start 和 Tick
+因此旧版初始化、attach、drive gate 和 adapter Tick 时序不是当前可执行链。`MobaSessionCoordinatorHost` 实现 host/policy 契约，只证明残留契约仍有消费者，不证明总装器仍存在。
 
-`Start()` 的源码行为：
+### 4.2 证据成熟度
 
-- 状态必须是 `Idle`。
-- 状态切到 `Running`。
-- 如果 `UseCoordinatorSpawnService` 为 true，调用 host 创建 spawn data 并尝试通过 `ISpawnService` 生成玩家。
-- 重新 attach sync adapter。
-- 触发 `SessionStarted` 和 `FirstFrameReceived` hooks。
-
-`Tick(float deltaTime)` 的顺序：
-
-1. 非 Running 状态直接返回。
-2. `PreTick` hook。
-3. 所有 `ISessionPreTickSubFeature.OnPreTick`。
-4. `_syncAdapter.Tick(deltaTime)`。
-5. 如果 `CanDriveLogicWorld(deltaTime)`，调用 `_worldHost.Tick(deltaTime)`。
-6. 所有 `ISessionPostTickSubFeature.OnPostTick`。
-7. `PostTick` hook。
-
-```mermaid
-flowchart TD
-    A[Tick] --> B{State == Running}
-    B -- no --> X[return]
-    B -- yes --> C[InvokePreTick]
-    C --> D[SubFeature OnPreTick]
-    D --> E[SyncAdapter.Tick]
-    E --> F{CanDriveLogicWorld}
-    F -- yes --> G[WorldHost.Tick]
-    F -- no --> H[skip world]
-    G --> I[SubFeature OnPostTick]
-    H --> I
-    I --> J[InvokePostTick]
-```
-
-`CanDriveLogicWorld` 会优先查询 `ILogicWorldDriveGate`。如果 runtime policy 要求 gate，但 resolver 中没有 gate 或 gate 返回 false，本地 world 就不会被 Tick。该边界服务于远端权威和状态同步客户端的驱动隔离。
+| 声明 | 证据 | 成熟度 |
+|------|------|--------|
+| Coordinator 配置、契约和值对象存在 | Package 源码 | E0 |
+| MOBA host 实现残留契约 | 业务源码消费者 | E1/E2，限契约采用 |
+| 历史 coordinator/adapter 可直接使用 | 当前无实现文件 | 不成立 |
+| Console Demo 有 Local/Remote/Hybrid adapter | Console Demo 源码 | E1，限 Demo 实验路径 |
 
 ---
 
-## 5. 远端同步端口
+## 5. 当前客户端采用路径
 
-### 5.1 `IRemoteBattleSyncTransport`
+### 5.1 阶段化 Room 控制面
 
-这个接口是 Coordinator 和具体网络环境之间的端口：
+`RoomGatewaySessionFlow` 位于 `com.abilitykit.network.room`。它面向 `IRoomGatewaySessionClient` 提供原子阶段，由业务会话决定 create、join、restore、ready、loading、start 和 subscribe 的组合顺序。它不拥有本地 world，也不驱动每帧输入或 battle push。
 
-| 成员 | 语义 |
-|------|------|
-| `IsConnected` | 当前是否连接 |
-| `OnConnectionChanged` | 连接状态变化 |
-| `OnServerSnapshot` | 收到服务器快照 |
-| `OnServerConfirmation` | 收到服务器确认 |
-| `Connect(endpoint, roomId, playerId, syncMode)` | 连接远端战斗同步服务 |
-| `Disconnect()` | 断开 |
-| `Tick(deltaTime)` | 推进网络 transport |
-| `SubmitInput(PlayerInput input)` | 提交本地输入 |
+`GatewayMultiplayerSession.CreateAsync` 会创建 SDK client 并要求启动结果同时满足 started/subscribed，但全仓未找到真实消费者。当前成熟度只能记为 E0/WIP，不能作为已 dogfood 的高层推荐入口。
 
-源码注释明确说明：Coordinator 拥有同步编排，具体环境拥有 grain calls、gateway requests、sockets 或 test doubles。
+### 5.2 Shooter 双连接业务链
 
-### 5.2 `RemoteSyncAdapter`
-
-`RemoteSyncAdapter` 构造时从 `world.Services` 解析 `IRemoteBattleSyncTransport`。如果没有解析到，使用 `NullRemoteBattleSyncTransport.Instance`，其 `IsConnected` 永远 false，`SubmitInput` 返回 false。
-
-```mermaid
-flowchart TD
-    A[RemoteSyncAdapter ctor] --> B[Resolve IRemoteBattleSyncTransport]
-    B --> C{found}
-    C -- yes --> D[Bind transport]
-    C -- no --> E[NullRemoteBattleSyncTransport]
-    D --> F[Subscribe connection and snapshot events]
-    E --> F
-    F --> G[Connect endpoint]
-    G --> H[SubmitInput only when connected]
-    H --> I[FeedServerSnapshot]
-    I --> J[OnServerSnapshot + OnFrameSync]
-```
-
-关键行为：
-
-| 方法 | 源码行为 |
-|------|----------|
-| `Connect` | 保存 endpoint、roomId、playerId，调用 transport.Connect |
-| `Tick` | 累加 render time，调用 transport.Tick |
-| `SubmitInput` | transport 未连接时直接返回 |
-| `FeedServerSnapshot` | 清空并更新 `_lastSnapshot`，触发快照和帧同步事件 |
-| `GetAllEntityStates` | 有 driver 时读 driver，否则返回 `_lastSnapshot` |
-| `Dispose` | Disconnect、解绑事件、清空状态 |
-
-### 5.3 为什么不能让业务直接调 Gateway
-
-业务直接调 Gateway 会带来三个问题：
-
-1. 本地/远端/回放/测试模式无法复用同一入口。
-2. 表现层会依赖传输协议，难以替换 TCP、HTTP、Orleans 或本地模拟器。
-3. 输入确认、服务器快照、连接状态无法统一接入 `ISyncAdapter` 生命周期。
-
-标准路径应该是：
+Shooter 由 `ShooterClientNetworkLauncher` 先使用 Room Gateway 连接完成控制面，再根据启动结果中的 battle/world/session 身份创建新的 `NetworkTransport`：
 
 ```mermaid
 flowchart LR
-    UI[Input System or UI] --> Coord[SessionCoordinator.SubmitLocalInput]
-    Coord --> Adapter[RemoteSyncAdapter.SubmitInput]
-    Adapter --> Transport[IRemoteBattleSyncTransport.SubmitInput]
-    Transport --> Gateway[Gateway or Socket]
-    Gateway --> Battle[BattleLogicHostGrain.SubmitInputAsync]
+    Host[PlayMode Host] --> Session[ShooterClientSession]
+    Session --> Flow[Room Gateway Flow]
+    Flow --> Control[Room Control Connection]
+    Session --> Handle[ShooterClientBattleHandle]
+    Handle --> Queue[RemoteClientInputSubmitQueue]
+    Handle --> BattleTransport[Independent Battle Transport]
+    BattleTransport --> DataPlane[ShooterBattleDataPlane]
+    DataPlane --> Session
+    Handle --> Control
 ```
 
-### 5.4 Local、Remote 与 Hybrid 成熟度矩阵
+- battle transport 的 request/response 采用 inline matching，避免 awaited 输入请求依赖主线程 pump。
+- battle push 在接收线程只入队；主线程 `Drain` 后才调用 session 应用，避免与本地 Tick 竞争。
+- reliable event ack 和 full-state baseline/resync 通过 battle handle 使用 Room client RPC。
+- `RemoteClientInputSubmitQueue` 最多保留一个在途请求和一个最新等待输入；它不拥有连接、pause、reconnect 或 dispose 生命周期，`Reset` 也不会取消底层异步请求。
 
-`DefaultSyncAdapterFactory` 当前把 `Lockstep` 映射到 `LocalSyncAdapter`，把 `SnapshotAuthority` 和 `StateSync` 映射到 `RemoteSyncAdapter`，把 `Hybrid` 映射到 `HybridSyncAdapter`。这个映射证明实例化入口存在，不等同于每种同步模式的全部语义均已闭环。
+### 5.3 Console Demo adapter 的所有权
 
-| Adapter | 当前已实现能力 | 尚未覆盖或限制 | 当前成熟度判断 |
-|---------|----------------|----------------|----------------|
-| `LocalSyncAdapter` | 本地输入缓冲；按 tick rate 推进；通过 `ILogicWorldDriverBridge` 提交输入、启动和推进 world；支持 drive gate；输出帧事件 | 自身不提供跨端输入交换、确定性校验或远端确认；无 driver 时只推进内部帧号和时间，实体状态为空 | 本地/离线装配为 Pilot；不能仅凭类型名声明通用多人锁步已闭环 |
-| `RemoteSyncAdapter` | 解析并绑定 transport；连接/断开；已连接时提交输入；接收权威快照；转发连接、快照和帧事件；无 driver 时保留最后快照 | 不承担客户端预测、回滚或插值；缺少 transport 时退化为永不连接的 Null transport | 远端权威 adapter 契约已实现；生产成熟度仍取决于具体 transport、场景测试和恢复门禁 |
-| `HybridSyncAdapter` | transport 绑定；输入缓冲与服务端提交；预测开关和预测帧 bookkeeping；接收确认/快照；保存 confirmed snapshot；触发 reconciliation 状态和事件 | 未把输入应用到预测状态；未执行通用本地预测模拟；未比较预测与权威状态；未实施校正和 replay；无 driver 时不返回预测快照 | transport/bookkeeping 可作为 Pilot 子能力；通用预测、对账、校正与重演仍是 Experimental |
+`src/AbilityKit.Demo.Moba.Console/Battle/Sync` 有自己的 factory 和 Hybrid adapter。这些实现可以支持 Console 演示与实验，但命名相似不代表它们属于 `com.abilitykit.coordinator`，也不能据此声明 Unity 通用 Package 已提供完整 adapter 套件。
 
-Hybrid 当前流程的真实边界如下：
-
-```mermaid
-flowchart LR
-    Input[SubmitInput] --> Queue[输入入队]
-    Queue --> Counter[预测帧计数加一]
-    Queue --> Transport[发送到服务端]
-    Transport --> Confirm[收到确认或快照]
-    Confirm --> Store[保存 confirmed snapshot]
-    Store --> Mark[标记需要 reconciliation]
-    Mark --> Stub[Reconcile bookkeeping]
-    Stub -. 未实现 .-> Sim[本地预测模拟]
-    Stub -. 未实现 .-> Compare[预测与权威比较]
-    Stub -. 未实现 .-> Replay[校正并重演未确认输入]
-```
-
-因此文档、PPT 和选型材料应使用以下措辞：
-
-- 可以说“Hybrid adapter 已有 transport 接入、输入缓冲、确认状态和 reconciliation 骨架”。
-- 不应说“框架已提供完整通用客户端预测和自动回滚校正”。
-- 项目若已经通过 Shooter 或 MOBA 专用控制器实现预测，只能声明该项目路径已验证，不能反推通用 `HybridSyncAdapter` 已完成。
-- Hybrid 晋升 Pilot/Supported 前，需要补预测状态接口、确定性 replay、误差阈值、输入确认清理、恢复测试和断线重连场景。
-
-成熟度采用公司治理定义，详见[公司级采用与模块治理规范](../10-EngineeringQuality/04-CompanyAdoptionAndModuleGovernance.md)。
-
-### 5.5 模式选型速查
+### 5.4 选型速查
 
 | 场景 | 建议起点 | 采用前必须确认 |
 |------|----------|----------------|
-| 单机、离线验证、同进程逻辑 | Local | driver 是否由 adapter 或 coordinator 驱动；是否会发生双 Tick |
-| 客户端只消费服务器权威状态 | Remote | transport 注入、订阅恢复、world drive gate、快照基线和断线策略 |
-| 项目已有专用预测控制器 | Remote + 项目预测层 | 预测状态不归通用 adapter；确认源、校正和 replay 由项目契约覆盖 |
-| 希望直接使用通用 Hybrid 预测 | 暂不作为生产默认选型 | 5.4 列出的预测模拟、比较、校正、重演和恢复缺口必须先闭合 |
-| 多人确定性锁步 | 不能仅凭 Local 选定 | 还需跨端输入交换、帧确认、确定性 hash、迟到输入和重连协议 |
+| 单机、离线验证、同进程逻辑 | 业务本地 session 或 Console Demo | world 和 Tick 唯一所有者 |
+| Room 入场与恢复 | `RoomGatewaySessionFlow` 原子阶段 | snapshot 阶段、`NextStep`、可靠事件 cursor |
+| 权威状态客户端 | 业务 session + 明确 transport + snapshot pipeline | 输入确认、baseline、reconnect、线程切换 |
+| Shooter 双连接 | launcher、battle handle、data plane、输入队列 | 控制面与数据面身份一致；连接各自只创建一次 |
+| 通用 Local/Remote/Hybrid adapter | 当前不可直接选用 | Package 中实现面缺失，需先恢复设计与验证 |
 
-选型评审应先确认权威源、谁驱动 world、输入如何确认、状态如何恢复，再选择 adapter。`SyncAdapterFactory` 的枚举映射只是装配结果，不是同步方案设计的替代品。
+成熟度采用公司治理定义，详见[公司级采用与模块治理规范](../10-EngineeringQuality/04-CompanyAdoptionAndModuleGovernance.md)。
 
 ---
 
@@ -649,48 +517,45 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant App as Client App
+    participant App as Business Client Host
     participant Flow as RoomGatewaySessionFlow
-    participant Gateway as Gateway Client
+    participant Control as Room Control Connection
     participant Room as RoomGrain
     participant Battle as BattleLogicHostGrain
-    participant Coord as SessionCoordinator
-    participant Sync as RemoteSyncAdapter
-    participant Transport as IRemoteBattleSyncTransport
-    participant NetAdapter as FramePacketNetAdapter
-    participant View as View/Snapshot Dispatcher
+    participant Handle as Battle Handle
+    participant Data as Battle Data Plane
+    participant Session as Client Session
 
-    App->>Flow: CreateReadyStartAndSubscribe or JoinReadyStartAndSubscribe
-    Flow->>Gateway: create/join/ready/start/subscribe
-    Gateway->>Room: JoinMemberAsync / SetReadyAsync / StartBattleAsync
+    App->>Flow: CreateRoomAsync or JoinRoomAsync
+    Flow->>Control: create or join
+    App->>Flow: ready, loading and wait for start
+    Control->>Room: room commands
     Room->>Battle: InitializeBattleAsync
     Battle-->>Room: WorldStartAnchor
-    Room-->>Gateway: BattleId + WorldId + Anchor
-    Gateway-->>Flow: RoomGatewaySessionFlowResult
+    Room-->>Control: BattleId, WorldId and anchor
+    App->>Flow: SubscribeStateSyncAsync
+    App->>Data: create independent battle transport
 
-    App->>Coord: Initialize(config, host)
-    Coord->>Coord: Create or reuse world
-    Coord->>Sync: Attach coordinator
-    App->>Sync: Connect(endpoint, roomId, playerId)
-    Sync->>Transport: Connect
-
-    loop input frames
-        App->>Coord: SubmitLocalInput
-        Coord->>Sync: SubmitInput
-        Sync->>Transport: SubmitInput
-        Transport->>Battle: SubmitInputAsync via Gateway
-        Battle->>Battle: schedule and buffer input
-        Battle->>Battle: Tick runtime
-        Battle-->>Transport: StateSyncPush or snapshot
-        Transport->>NetAdapter: ProcessAndFeed
-        NetAdapter->>View: Feed snapshots
+    loop input and state frames
+        App->>Handle: submit accepted local input
+        Handle->>Data: battle input request
+        Data->>Battle: SubmitInputAsync via Gateway
+        Battle->>Battle: schedule, buffer and Tick
+        Battle-->>Data: response and state push
+        Data->>Data: enqueue push on receive thread
+        App->>Data: Drain on main thread
+        Data->>Session: ApplyGatewayPush
+        Session->>Handle: ack event or request baseline when needed
+        Handle->>Control: reliable ack or full-state RPC
     end
 ```
 
-这个时序把“入场”和“持续同步”分开：
+这个时序把“控制面”和“数据面”分开：
 
-- 入场阶段需要 room/battle/world/anchor 信息。
-- 持续同步阶段只应该围绕 coordinator、sync adapter、transport、frame packet 和 snapshot dispatcher。
+- Room 控制面由 create/join、ready、loading、wait-for-start、subscribe 和 restore 原子阶段组成。
+- Shooter 在获得 room/battle/world/anchor 后建立独立 battle transport；它不是 `RoomGatewaySessionFlow` 内部连接的别名。
+- push 先跨线程入队，再由主线程 `Drain` 应用；输入 response inline 匹配，不等待主线程 pump。
+- ack 与 baseline/resync 使用控制面 RPC，使恢复动作仍受 room session 身份约束。
 
 ---
 
@@ -733,44 +598,37 @@ MOBA 的 `MultiplayerRoomFlowController.RestoreAsync` 只根据 `NextStep` 定�
 
 恢复失败使用结构化诊断而不是统一抛出 `InvalidOperationException`。`NoActiveRoom`、`NotMember`、`RoomClosed`、`RoomExpired`、`InvalidSession`、`Timeout` 和 `Failed/InternalError` 会保留到示例结果；`Timeout` 与内部错误标记为可重试，调用者取消仍保持取消语义并直接抛出。
 
-### 10.3 已有 world 接入 Coordinator
+### 10.3 已有 world 的唯一所有权
 
-有些示例或客户端运行时已经创建了 `IWorld`，不能让 `SessionCoordinator` 再创建第二套 world。源码提供 `ExistingWorldSessionCoordinatorHost`：
+当前没有 `ExistingWorldSessionCoordinatorHost`。已有 world 的客户端必须由业务 session 明确承担创建、Tick、销毁和网络恢复责任，不能从旧文档复制 overlay host 接法。
 
-- 构造时传入已有 `IWorld`。
-- 可传入 `serviceOverrides`，例如远端 transport。
-- `CreateWorldHost` 返回包装后的 `ExistingWorldHost`。
-- `CreateWorld` 总是返回已有 world。
-- `DestroyWorld` 返回 false，不销毁外部 world。
-- `DisposeAll` 不销毁外部 world。
-- `ExistingWorldOverlayResolver` 会先查 service overrides，再查原 world services。
-
-`ExistingWorldSessionCoordinatorHost` 只适合 Coordinator 确实拥有完整会话编排的场景。Shooter 当前已经由 `ShooterClientSession`、`ShooterClientNetworkLauncher` 和 `RoomGatewaySessionFlow` 持有连接、房间、快照订阅、预测与重连生命周期，因此没有再接入 Coordinator：
+Shooter 当前由 `ShooterClientSession`、`ShooterClientNetworkLauncher`、Room 控制连接和独立 battle 数据面共同持有 world、房间、快照订阅、预测与重连生命周期：
 
 ```mermaid
 flowchart TD
     A[ShooterRemoteStateSyncPlayModeHost] --> B[ShooterClientSession]
     A --> C[ShooterClientNetworkLauncher]
-    C --> D[RoomGatewaySessionFlow]
-    B --> E[Local prediction and reconciliation]
-    A --> F[RemoteClientInputSubmitQueue]
-    F --> G[ShooterClientBattleHandle]
-    G --> H[Gateway battle input]
+    C --> D[Room control connection]
+    C --> E[Independent battle data plane]
+    B --> F[Local prediction and reconciliation]
+    A --> G[RemoteClientInputSubmitQueue]
+    G --> H[ShooterClientBattleHandle]
+    H --> E
 ```
 
-该边界避免为了转发一次已接受输入而创建 `SessionCoordinator`、existing-world overlay、remote adapter 和额外 Tick。Shooter 仍复用框架 `RemoteClientInputSubmitQueue` 的背压、最新值替换和诊断能力；只有协议相关提交留在 `ShooterClientBattleHandle`。
+该边界避免为了转发一次已接受输入而创建第二套 world、连接和 Tick。Shooter 仍复用框架 `RemoteClientInputSubmitQueue` 的背压、最新值替换和诊断能力；协议提交、ack 与 full-state 恢复留在 `ShooterClientBattleHandle`。
 
 ---
 
 ## 11. 设计意图
 
-### 11.1 Coordinator 管本地装配，Transport 管外部通信
+### 11.1 业务 Session 管本地装配，连接对象管外部通信
 
-`SessionCoordinator` 只认识 `ISyncAdapter` 和 world 服务。远端通信藏在 `IRemoteBattleSyncTransport` 后面，这让同一套会话生命周期可以跑在 Unity、Console、Shooter View、测试替身或 Orleans Gateway 上。
+当前 coordinator Package 不提供会话总装器。现役客户端应由业务 session 统一拥有 world 与同步控制器，并把 Room 控制连接和 battle 数据连接限制在各自协议边界内。
 
 ### 11.2 Gateway Flow 管入场脚本，不管每帧输入
 
-`RoomGatewaySessionFlow` 适合 create/join/ready/start/subscribe/restore 这种阶段性操作。每帧输入的出口由当前会话所有者决定：Coordinator 拥有完整会话时走 `RemoteSyncAdapter.SubmitInput`；Shooter 已有完整客户端 session 时走框架提交队列到 `ShooterClientBattleHandle`。两种方式都只能有一个网络生命周期所有者。
+`RoomGatewaySessionFlow` 适合 create/join/ready/loading/start/subscribe/restore 这种阶段性操作。每帧输入的出口由业务会话所有者决定；Shooter 走框架提交队列到 `ShooterClientBattleHandle`，再进入独立 battle transport。每种连接和 world 都只能有一个生命周期所有者。
 
 ### 11.3 Room 管成员和恢复，Battle 管权威模拟
 
@@ -780,9 +638,9 @@ Room 如果直接 Tick 战斗，会混入成员清理、目录通知、玩法房
 
 客户端最终需要的是某一帧的输入和快照，而不是某个 Gateway DTO。`FramePacketNetAdapter` 消费 `FramePacket`/`RemoteInputFrame`/`RemoteSnapshotFrame`，保持输入源、快照 dispatcher 和传输协议分离。
 
-### 11.5 ExistingWorldHost 解决示例/业务已有 world 的接入问题
+### 11.5 已有 world 必须由业务会话显式接管
 
-真实项目经常先有自己的 world 或 runtime bootstrap。`ExistingWorldSessionCoordinatorHost` 允许接入 Coordinator 而不重建 world，是框架可渐进迁移的关键扩展点。
+真实项目经常先有自己的 world 或 runtime bootstrap。当前没有通用 existing-world coordinator host；集成方必须在业务 session 中明确 world 的创建、推进、恢复和释放，并用测试防止双 Tick 或重复销毁。
 
 ---
 
@@ -790,11 +648,14 @@ Room 如果直接 Tick 战斗，会混入成员清理、目录通知、玩法房
 
 | 风险 | 表现 | 检查点 |
 |------|------|--------|
-| 把 adapter 类型存在当作模式完备 | Hybrid 被宣传为已完成预测、校正和重演 | 对照 5.4 成熟度矩阵与源码 TODO，按子能力声明 |
+| 把历史 adapter 当作当前实现 | 集成代码引用不存在的 Local/Remote/Hybrid adapter | 对照当前 coordinator Package 文件清单；Console Demo 实现单独标注 |
+| 继续调用已删除聚合入口 | 文档或业务代码假定 create/join/restore 一次完成所有阶段 | 只使用阶段化原子入口，并按 room snapshot 或 `NextStep` 推进 |
 | 重复创建会话协调层 | 只为输入转发又启动一套 Coordinator、transport 和 Tick | 先确认现有 session 是否已经拥有连接、预测、快照与重连生命周期 |
-| transport 未注入 | Remote 模式启动但永远 disconnected | world services 是否能解析 `IRemoteBattleSyncTransport` |
-| 已有 world 被重复创建 | 客户端出现两个逻辑世界或双 Tick | 完整接入 Coordinator 时使用 `ExistingWorldSessionCoordinatorHost`；已有完整 session 时不要再叠加 Coordinator |
+| 控制面/数据面身份不一致 | battle 请求使用错误 token、battle、world 或 player | `ShooterClientBattleHandle` 创建时校验四类身份 |
+| 已有 world 被重复创建 | 客户端出现两个逻辑世界或双 Tick | 业务 session 是 world 唯一所有者，并覆盖启动/恢复/释放测试 |
 | Room/Battle 边界混乱 | 晚加入、恢复、权威 Tick 互相影响 | Room 只管成员/生命周期，Battle 只管 runtime/Tick |
+| 恢复 cursor 丢失 | 重连后可靠事件重复或遗漏 | InBattle restore/subscribe 保留 `eventEpoch` 与 `lastEventAck`，由唯一订阅所有者推进确认 |
+| 把房间恢复等同 FrameSync CatchUp | Room 已恢复但本地预测世界仍缺帧 | 分别验证 room/session restore、StateSync baseline 和 FrameSync CatchUp；`FrameSyncCatchUpClientModule` 当前仍未接入 reconnect 主链 |
 | 输入帧落点不一致 | 客户端请求帧与服务端接受帧不同步 | 检查 `BattleInputSubmitResult.AcceptedFrame` 和 `Status` |
 | 快照订阅缺失 | 战斗开始后客户端没有状态推送 | Gateway flow 是否调用 `SubscribeStateSyncAsync` |
 | RemoteDriven/Confirmed 混用 | 预测和确认状态互相污染 | 消费者明确读取对应输入源 |
@@ -804,17 +665,17 @@ Room 如果直接 Tick 战斗，会混入成员清理、目录通知、玩法房
 
 ## 13. 源码阅读路径
 
-1. `Unity/Packages/com.abilitykit.coordinator/Runtime/Core/SessionCoordinator.cs`：客户端会话生命周期。
-2. `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/SyncAdapterFactory.cs`：同步模式到 adapter 的实例化映射。
-3. `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/LocalSyncAdapter.cs`：本地输入和逻辑帧驱动。
-4. `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/RemoteSyncAdapter.cs`：远端输入和权威快照端口。
-5. `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/HybridSyncAdapter.cs`：混合模式已实现边界与预测 TODO。
-6. `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/RoomGatewaySessionFlow.cs`：create/join/ready/start/restore 编排。
-7. `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs`：房间和恢复语义。
-8. `Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/BattleLogicHostGrain.cs`：权威 Tick 和输入调度。
-9. `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs`：端侧输入和快照如何落到 world。
-10. `Docs/design/07-NetworkSynchronization/00-SynchronizationCapabilityMap.md`：全局同步架构中的模块关系。
+1. `Unity/Packages/com.abilitykit.coordinator/Runtime/Core`：当前保留的配置和 host/policy 契约。
+2. `Unity/Packages/com.abilitykit.coordinator/Runtime/Data`：当前保留的数据对象和 codec。
+3. `Unity/Packages/com.abilitykit.network.room/Runtime/RoomGatewaySessionFlow.cs`：阶段化 create/join/ready/loading/start/restore 编排。
+4. `Unity/Packages/com.abilitykit.network.room/Runtime/GatewayMultiplayerSession.cs`：仅 E0、当前零消费者的高层门面。
+5. `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientNetworkLauncher.cs`：Room 控制面与 battle 数据面的装配。
+6. `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterBattleDataPlane.cs`：push 排队和主线程 Drain。
+7. `Unity/Packages/com.abilitykit.host.extension/Runtime/Client/StateSync/RemoteClientInputSubmitQueue.cs`：远端输入背压和最新值替换。
+8. `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs`：房间和恢复语义。
+9. `Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/BattleLogicHostGrain.cs`：权威 Tick 和输入调度。
+10. `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs`：通用帧包如何落到输入源和快照路由。
 
 ---
 
-*文档版本：v2.1 | 最后更新：2026-07-14*
+*文档版本：v2.3 | 最后更新：2026-08-09*

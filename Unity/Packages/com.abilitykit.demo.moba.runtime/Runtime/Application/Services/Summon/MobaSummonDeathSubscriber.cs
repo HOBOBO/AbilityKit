@@ -24,24 +24,19 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (_eventBus != null)
             {
-                var eid = AbilityKit.Demo.Moba.Services.TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply);
-                _sub = _eventBus.Subscribe(new EventKey<DamageResult>(eid), HandleAfterApply);
+                var eid = AbilityKit.Demo.Moba.Services.TriggeringIdUtil.GetEventEid(DamagePipelineEvents.HealthCommitted);
+                _sub = _eventBus.Subscribe(new EventKey<MobaHealthChangeResult>(eid), HandleHealthCommitted);
             }
         }
 
-        private void HandleAfterApply(DamageResult r)
+        private void HandleHealthCommitted(MobaHealthChangeResult result)
         {
-            if (_summons == null) return;
-            if (_registry == null) return;
-
-            if (r == null) return;
-            if (r.TargetActorId <= 0) return;
-            if (r.TargetHp > 0f) return;
-
-            if (!_registry.TryGet(r.TargetActorId, out var e) || e == null) return;
+            if (_summons == null || _registry == null) return;
+            if (!result.BecameDead || result.TargetActorId <= 0) return;
+            if (!_registry.TryGet(result.TargetActorId, out var e) || e == null) return;
             if (!e.hasSummonMeta) return;
 
-            _summons.TryDespawn(r.TargetActorId, SummonDespawnReason.Killed);
+            _summons.TryDespawn(result.TargetActorId, SummonDespawnReason.Killed);
         }
 
         public void OnDeinit(IWorldResolver services)

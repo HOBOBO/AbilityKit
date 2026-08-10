@@ -448,6 +448,7 @@
         "com.abilitykit.network.room": "0.1.0",
         "com.abilitykit.network.sdk": "0.1.0",
         "com.abilitykit.network.battle": "0.1.0",
+        "com.abilitykit.network.battle.config": "0.1.0",
         "com.abilitykit.protocol.room": "0.0.1",
         "com.abilitykit.protocol.shooter": "0.0.1",
         "com.abilitykit.record": "0.0.1",
@@ -662,12 +663,6 @@
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.protocol": "0.0.1"
       }
-    },
-    "com.abilitykit.protocol.memorypack": {
-      "version": "file:com.abilitykit.protocol.memorypack",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {}
     },
     "com.abilitykit.protocol.moba": {
       "version": "file:com.abilitykit.protocol.moba",

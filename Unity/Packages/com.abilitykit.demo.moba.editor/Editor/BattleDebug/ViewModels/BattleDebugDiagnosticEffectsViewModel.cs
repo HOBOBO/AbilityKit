@@ -16,12 +16,15 @@ namespace AbilityKit.Game.Editor
             Array.Empty<BattleDiagnosticActorEffect>();
 
         public IReadOnlyList<BattleDiagnosticActorEffect> Effects => _effects;
+        public BattleDiagnosticQueryStatus QueryStatus { get; private set; }
         public string StatusMessage { get; private set; } = string.Empty;
         public long StoreRevision => _lastStoreRevision;
 
         public void InvalidateCache()
         {
             _effects = Array.Empty<BattleDiagnosticActorEffect>();
+            QueryStatus = default;
+            StatusMessage = string.Empty;
             _lastStoreRevision = -1;
             _hasCachedResult = false;
         }
@@ -55,6 +58,7 @@ namespace AbilityKit.Game.Editor
             _lastActorId = actorId;
             _lastFrame = queryFrame;
             _hasCachedResult = true;
+            QueryStatus = result.Status;
             _effects = result.Items ?? Array.Empty<BattleDiagnosticActorEffect>();
             StatusMessage = BuildStatusMessage(result.Status);
         }

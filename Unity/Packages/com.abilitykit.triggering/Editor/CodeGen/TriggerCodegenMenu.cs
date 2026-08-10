@@ -16,7 +16,7 @@ namespace AbilityKit.Triggering.Editor.CodeGen
     {
         private const string OutputPath = "Packages/com.abilitykit.triggering/Runtime/Generated/Triggering.GeneratedIds.cs";
 
-        [MenuItem("AbilityKit/Triggering/Codegen/Generate Ids")]
+        [MenuItem("Tools/AbilityKit/Framework/Triggering/Codegen/Generate Ids")]
         public static void GenerateIds()
         {
             try

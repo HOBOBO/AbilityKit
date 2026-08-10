@@ -439,19 +439,10 @@ namespace AbilityKit.Demo.Moba.Services
 
                 _playerActorMap?.Unbind(entry.PlayerId, entry.ActorId);
 
-                global::ActorEntity entity = null;
-                if (_entities != null)
-                {
-                    _entities.TryGetActorEntity(entry.ActorId, out entity);
-                    _entities.Unregister(entry.ActorId);
-                }
-
-                if (entity == null && _registry != null)
-                {
-                    _registry.TryGet(entry.ActorId, out entity);
-                }
-
-                _registry?.Unregister(entry.ActorId);
+                new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
+                    entry.ActorId,
+                    out var entity,
+                    publishDespawn: false);
                 ActorSpawnPipeline.DestroyBuiltEntity(entity);
             }
         }

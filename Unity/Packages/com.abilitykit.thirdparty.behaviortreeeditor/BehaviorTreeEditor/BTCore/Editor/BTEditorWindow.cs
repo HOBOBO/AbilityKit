@@ -32,7 +32,7 @@ namespace BTCore.Editor
 
         private BTree _preBTree;
         
-        [MenuItem("Tools/BehaviorTree/BTEditorWindow")]
+        [MenuItem("Window/AbilityKit/BehaviorTree/BTEditorWindow")]
         public static void OpenWindow()
         {
             var wnd = GetWindow<BTEditorWindow>();

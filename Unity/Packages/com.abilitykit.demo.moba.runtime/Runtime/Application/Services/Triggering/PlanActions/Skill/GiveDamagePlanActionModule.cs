@@ -32,7 +32,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            var coreInput = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
+            if (!MobaPlanActionInputResolver.TryResolve(triggerArgs, ctx, out var coreInput))
+            {
+                LogRejected(ctx, "requires combat execution context.");
+                return;
+            }
+
             var effectInput = new MobaEffectActionInput(in coreInput);
             if (!effectInput.HasCasterActor)
             {
@@ -103,7 +108,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var sourceAttack = args.DamageType == DamageType.Magic ? attrs.MagicAttack : attrs.PhysicsAttack;
             return args.DamageValue + sourceAttack * args.SourceAttackRatio;
         }
- 
+
         private static void LogDamageTrace(GiveDamageArgs args, MobaEffectActionInput input, ExecCtx<IWorldResolver> ctx, float requestedDamage, float pipelineBaseDamage, in MobaGameplayOrigin origin, DamageResult result)
         {
             var sb = new StringBuilder(1024);

@@ -1,6 +1,6 @@
 # MOBA 战斗诊断当前能力与限制
 
-> 状态日期：2026-07-27
+> 状态日期：2026-08-09
 >
 > 本文是当前实现状态的唯一事实入口。设计目标请查阅架构设计，历史批次请查阅实施历史。
 
@@ -91,8 +91,10 @@ Battle Debug 在本地 Play Mode 提供嵌入式录像控制区。当前 MVP 不
 
 事件面板以每页 200 条的调查工作集展示结果，并将失败事件投影为案例导向的调查入口：
 
-- 首屏绑定查询时的 Event Store revision；“加载更多”只从同一固定 revision 追加更早结果，不把新的 live 数据混入已有工作集。
-- 筛选条件或 live revision 变化时重建首屏；固定 revision 被 Store 淘汰时保留已经加载的数据、停止继续分页并显示明确状态。
+- 正式消费 Workspace 共享 Filter，并与 Events 局部调查条件合并。Channel 取交集；共享 Actor、Config、Correlation、Search 和 Trigger 标量条件存在时优先；局部条件只补共享未设置字段；`FailuresOnly` 取 OR；共享 Frame 与 `UnfinishedOnly` 保留。
+- 面板持续显示共享与局部条件来源，提供“清除局部”“设为共享”和“清除共享”三个独立入口。`RecentFrameCount` 只是 Events 当前调查工作集窗口，不属于共享 Filter；提升可共享条件时会清除该局部窗口并明确提示。
+- 首屏绑定查询时的 Event Store revision；“加载更多”只从同一固定 revision 和有效 Filter 追加更早结果，不把新的 live 数据混入已有工作集。
+- 共享或局部筛选条件、或者 live revision 变化时重建首屏；固定 revision 被 Store 淘汰时保留已经加载的数据、停止继续分页并显示明确状态。
 - 只有共享可靠 Root Context 的失败才合并；无 Root Trace 的失败按事件独立保留。
 - 案例显式标注 `Confirmed`、`Inferred` 或 `InsufficientEvidence`，支持按置信度和根因组合过滤；增量加载后按稳定案例 Key 保持当前选择。
 - 支持前后案例导航、直接选择证据事件、聚焦证据关联链、选择来源 Actor、打开 Trace 和复制证据摘要。
@@ -157,6 +159,20 @@ Battle Debug 已建立只读配置源索引，通过类型化的 `BattleDebugCon
 
 主窗口使用稳定 Actor ID 保存选择，实体列表重建、排序或过滤不会把选择静默切换到其他 Actor。实体工具栏显示可见/总实体数，支持清除过滤；左栏支持按 ID 跳转、在当前可见实体间循环前后选择和清除选择。面板分为 `Actor` 和 `Diagnostics` 两个工作区，二级面板通过下拉框选择；拥有大型列表或树的面板自行管理滚动，避免窗口外层滚动嵌套。实体栏支持拖拽调整宽度，栏宽、工作区和各工作区面板索引通过 EditorPrefs 持久化；Actor 选择属于会话状态，不跨窗口持久化。周期刷新仅在过滤后的 Actor ID 序列变化时替换实体列表快照，并可通过窗口“自动刷新”开关暂停轮询；该开关不等同于 Diagnostics Freeze，不停止采集，也不修改 Store。
 
+Diagnostics 工作区维护与 Session Scope 绑定的稳定选择、可见 Frame Cursor 和有界导航历史，当前覆盖 Actor、Event、Trace Root 与 Trace Node。窗口顶部状态条显示当前帧、跟随最新状态、变更来源和稳定 Selection，并支持手工固定帧、恢复跟随最新；Event、Trace 节点和历史恢复会通过 Workspace State 更新帧游标。Replay 提供 Seek 端口时，游标定位可以进一步驱动真实 Replay；Live 和 Artifact 只维护诊断帧上下文，不伪装具备历史 Seek 能力。Event 历史恢复受当前查询工作集限制：目标 Sequence 不在已加载页时不会隐式扫描完整保留区。
+
+窗口已接入持久 Inspector，Runtime 诊断投影以 Workspace Selection 为唯一事实源，支持 Actor、Event、Trace Root 和 Trace Node。Actor 按选择帧与 State Store revision 查询，frame 0 保持 latest-only 语义；Event 使用选择帧精确过滤和固定 Event Store revision，按最新优先分页恢复稳定 Sequence，单次最多扫描 4 页、2,000 条，超限明确显示 Partial/Truncated；Trace 使用 Selection 的 RelatedId 作为 Root Context，并按选中 Context ID 投影节点。查询结果按 Session Scope、Selection 和对应 Store revision 缓存；淘汰、未生产、未捕获、不支持、断开和查询失败均保留真实状态，不合成详情。
+
+Config 已作为 Editor-only 持久投影接入同一 Inspector。点击 Event、Trace 或其他现有“打开配置”入口时，Inspector 保存完整 `BattleDebugConfigReference(Kind, Id, PhaseId)` 及来源 Workspace Selection，不修改只有数值字段的 Core Selection DTO，也不把 SkillFlow `PhaseId` 编码为数字。配置通过权威 JSON Source Index 解析，成功时持续显示 Kind、Id、PhaseId、源路径和行号，失败时持续显示源缺失、JSON、ID 或 Phase 错误；支持重新解析、复制引用和原有配置打开动作。来源 Workspace Selection 改变后 Config 投影自动清除，避免把旧配置误认为当前诊断选择；该投影不进入 Core Navigation History，也不依赖 Runtime Session 或 Store revision。
+
+宽度不小于 960 时 Inspector 为可拖拽、可持久化宽度的右栏；窄窗口降级到主工作区下方，并可通过工具栏收起。Inspector 支持 Actor、Trace、Config 和帧导航以及 Event/Trace 复制；Skill Runtime 独立选择尚未接入。
+
+Overview 在未选择 Actor 时也可显示数据源与 Health 摘要，包括连接/捕获状态、Event/State/Trace 独立 revision、最后状态帧、最后事件序列、冻结状态和有界最近错误。“最近失败”会打开 Events 的失败预设，“全部事件”会打开无 Actor 限制的全局事件视图，两者不再指向同一未筛选结果。
+
+Session Resolver 显式区分 Offline、FacadeMissing、LogicSessionMissing、WorldMissing、ServicesMissing、DiagnosticSessionMissing 和 Connected。实时 Health 来自 scoped Runtime 健康只读端口；离线 Health 由 Artifact 已存在轨道保守投影，不把缺失轨道伪装为已生产。
+
+Events、State、Trace、Attributes、Buffs、Tags 和 Effects 已使用同一空态投影语义，区分缺少选择、过滤无匹配、普通空结果、NotProduced、NotCaptured、Evicted、Truncated、Unsupported、Disconnected 和 Failed。Trace 使用 Root Context 作为选择主体；各 ViewModel 保留真实 QueryStatus，并在缓存失效时清除旧状态。Partial/Truncated 查询只要仍有可显示项就继续展示数据及状态，不用空态覆盖有效结果。
+
 以下详情面板已经通过只读 Diagnostics Session 消费不可变 DTO：
 
 - 总览
@@ -195,6 +211,7 @@ Battle Debug 已建立只读配置源索引，通过类型化的 `BattleDebugCon
 - Replay 当前要求活动战斗提供完整 `BattleStartPlan`，尚不能仅凭录像文件在 Edit Mode 或空场景中独立创建逻辑世界，也未实现 Live 与 Replay 并行对照；“渲染表现”是当前 Replay 控制器的运行时选择，尚未写入启动计划或录像文件。
 - 强类型 Event Payload 当前正式覆盖同步状态哈希、触发分析和技能失败；其他事件仍主要依赖稳定信封字段和 Summary。
 - 调查工作集仍是当前筛选下的显式增量读取，不是完整保留区的后台索引；不提供趋势图、跨 Artifact 问题合并或 Bookmark。
+- Workspace Filter 已正式驱动 Events 查询、缓存和固定 revision 分页，并与 Events 局部调查条件区分来源和清除语义；State、Trace 和 Actor 详情尚未消费其不适用或待设计字段，因此还不是跨全部面板的统一可见 Filter。统一 Frame Cursor、Actor/Event/Trace 持久 Inspector 和 Editor-only Config 持久投影已形成可见闭环，但 Timeline、Skill Runtime 独立选择和跨面板 Filter 仍需继续收敛；Config 尚未进入 Core Navigation History，清除 Actor 选择、Artifact 自动选择和超出当前 Event 工作集的历史恢复也仍需继续收敛。
 - Freeze、Clear 和通道控制存在内部端口，但没有完整面板操作与权限模型。
 - Battle Debug 已提供实时快照磁盘导出、离线 Artifact 导入和 Play Mode 录像重演，但尚无文件大小限制、来源信任策略、自监控指标或远端能力；Editor 当前树内的临时导航 Pin 不跨文件持久化。
 - Replay 控制会重启、推进或回滚当前逻辑 Session；除该显式工作流外，Diagnostics 查询面板仍保持只读，不建立任意可变 Runtime 旁路。

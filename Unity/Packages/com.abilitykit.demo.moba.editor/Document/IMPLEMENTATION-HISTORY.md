@@ -4,7 +4,7 @@
 >
 > 当前能力以 [CURRENT-CAPABILITIES.md](CURRENT-CAPABILITIES.md) 为准。历史记录中的“当前”“尚未”等措辞只描述对应批次结束时的状态。
 >
-> 最后整理：2026-07-25
+> 最后整理：2026-08-09
 
 ## 阅读规则
 
@@ -335,6 +335,98 @@ Unity 手工验收：尚未在 Play Mode 验证超过 200 条事件的追加、l
 已知限制：单页固定为 200 条，用户需显式加载更早结果；快照淘汰后只能保留已加载部分并重新刷新到 live revision，不能继续读取已淘汰历史。当前提供范围统计而非趋势图，也没有 Bookmark 或跨 Artifact 对比。
 
 当前能力文档更新：README、当前能力和测试指南已登记固定 revision 工作集、增量加载、案例选择保持、问题簇范围、淘汰语义及验证边界。
+
+## 第三十八批：Health、Overview 与稳定调查上下文
+
+目标：实施产品路线图推荐的第一批最小闭环，使用户先确认数据链路健康，再从 Overview 进入技能失败并在 Actor、Event 与 Trace 间稳定调查。
+
+关键结果：Diagnostics Core 新增平台无关 Health Snapshot 与只读端口，Runtime 从 scoped Session、Event/State/Trace Store 指标和有界最近错误生成实时 Health，Artifact 数据源按实际轨道保守生成离线 Health。Editor Session Resolver 显式区分 Offline、FacadeMissing、LogicSessionMissing、WorldMissing、ServicesMissing、DiagnosticSessionMissing 和 Connected；Overview 在没有 Actor 选择时展示来源、Health、独立 revision、最后帧/事件和错误，并将“最近失败”与“全部事件”路由到不同 Event 预设。
+
+统一上下文：Core Workspace State 维护 Session Scope、稳定 Selection、Frame、Filter 和有界 Navigation History；窗口已接入 Actor、Event、Trace Root 与 Trace Node 的前进/后退和稳定恢复。Events 与 State 接入纯 ViewModel 空态投影，区分 SelectionRequired、FilteredEmpty、Empty、NotProduced、NotCaptured、Evicted、Truncated、Unsupported、Disconnected 和 Failed；Partial/Truncated 且仍有结果时继续展示数据。
+
+未改变的边界：共享 Workspace Filter 尚未统一驱动各面板的局部筛选；Trace 和 Actor 详情尚未全部迁移统一空态组件。Event 历史目标必须位于当前已加载工作集，窗口不会为恢复选择隐式扫描完整 Ring；清除 Actor 选择与 Artifact 自动选择的历史语义仍需收敛。没有新增 Timeline、持久 Inspector、Bookmark、远端 Session 或跨 Store 原子快照声明。
+
+测试：`BattleDiagnosticCoreTests` 新增 Health 有效性、Produced 判定、错误、512 字符截断、相等性和哈希覆盖；`BattleDebugDiagnosticViewModelTests` 新增必需选择、过滤空、普通空、不可用原因、Failed 错误信息及 Partial/Truncated 可显示语义覆盖。Diagnostics Tests 生成项目完成源码编译，0 errors；这只证明测试程序集可编译，未执行 Unity Test Runner，不宣称 NUnit 通过。
+
+构建：Diagnostics Core 与 Moba Runtime 隔离构建均为 0 errors、2 个既有 Unity framework 程序集版本冲突 warning；Diagnostics Tests 隔离构建为 0 errors、0 warnings。Moba Editor 生成项目当前未收录新增空态源码，直接构建以两个 `BattleDebugEmptyStateProjection` 缺失错误结束；此前临时补入该源码后编译为 0 errors、132 warnings，临时 Compile 项已删除，生成 `.csproj` 无保留差异。范围化 `git diff --check` 通过，仅报告工作树既有 LF/CRLF 转换提示。
+
+Unity 手工验收：`TESTING.md` 已增加真实技能失败场景，覆盖 Overview Health、最近失败/全部事件、结构化证据、Actor/Event/Trace 导航历史和空态。Unity 2022.3.62f1 已安装，但同一项目正被活动 Editor 进程占用，因此未启动第二实例、未结束用户进程，也未代替用户操作现有 Editor；该 Play Mode 场景与 Unity Test Runner 均未执行，没有 XML、截图、录像或通过结论。
+
+已知限制：Health 当前覆盖数据链路和 Store 生产状态，不是完整 SelfMetrics，不含 UI 分配、查询耗时、拒绝分类趋势或 Panel 构造异常汇总。一级工作区、持久 Inspector、统一可见 Filter、完整 Frame Cursor 和真实技能场景验收仍属于后续批次。
+
+当前能力文档更新：已登记 Health、Resolver 阶段、Overview 异常入口、稳定导航历史、Events/State 空态语义及共享 Filter 和历史恢复限制。
+
+## 第三十九批：Events 共享筛选与详情空态统一
+
+目标：继续实施 Phase 1 工作区整合，让 Workspace Filter 真正参与 Events 调查，同时将结构化查询状态和统一空态扩展到 Trace 与 Actor DTO 详情。
+
+关键结果：Events 查询、缓存键和固定 revision 分页均接入 Workspace Filter；共享与局部条件采用明确合并规则，Channel 取交集，共享 Actor、Config、Correlation、Search 和 Trigger 标量条件存在时优先，局部条件只补共享未设置字段，`FailuresOnly` 取 OR，共享 Frame 与 `UnfinishedOnly` 保留。面板持续显示条件来源，并提供“清除局部”“设为共享”和“清除共享”；`RecentFrameCount` 保持 Events 局部工作集窗口，提升可共享条件时不会写入 Workspace Filter。Trace、Attributes、Buffs、Tags 和 Effects 保存真实 QueryStatus，并与 Events/State 一起使用统一空态投影；Trace 缺少选择时使用 Root Context 文案，缓存失效会清除旧状态。
+
+未改变的边界：Workspace Filter 当前只正式驱动 Events，尚未让 State、Trace 和 Actor 详情消费不适用或待设计字段；共享标量冲突采用共享优先，不是严格数学交集。没有新增 Timeline、Frame Cursor、持久 Inspector、Bookmark、后台索引或 Runtime 控制能力；Event 历史恢复仍受当前已加载工作集限制。
+
+测试：`BattleDebugDiagnosticViewModelTests` 新增 Workspace/局部 Filter 合并优先级、Filter 缓存键与固定 revision 分页失效、清除局部不修改 Workspace、Trace 与 Actor DTO QueryStatus 生命周期，以及 Root Context 空态文案用例。测试源码已完成编译；本批未执行 Unity Test Runner，没有 NUnit XML，不宣称用例通过。
+
+构建：`AbilityKit.Demo.Moba.Diagnostics.Core.Tests.csproj` 完整项目引用构建成功，134 warnings、0 errors；警告为既有 Unity framework 程序集版本冲突与过时 API。目标源码与文档执行范围化 `git diff --check`；全仓检查仍被任务外 `NetworkBattleConfig.cs` 文件末尾新增空行阻断，该文件未修改或回退。
+
+Unity 手工验收：尚未在 Play Mode 验证共享/局部来源、三种清除操作、最近帧不共享、Trace/Actor 空态和真实技能调查路径。同一项目由活动 Unity Editor 占用，因此未启动第二实例、未结束用户进程，也未代替用户操作现有 Editor。
+
+已知限制：Channel 交集可以得到 None；当前只通过 ViewModel 合并测试锁定语义，没有新增 Store 专项行为测试。共享 Filter 仍不是跨 Events、State、Trace 和 Actor 的完整统一筛选，真实技能场景和窄窗口交互仍待手工验收。
+
+当前能力文档更新：已登记 Events 共享/局部 Filter 的来源、优先级、清除与分页语义，Trace/Actor DTO 统一空态覆盖，以及构建、NUnit 和 Play Mode 验证边界。
+
+## 第四十批：统一 Frame Cursor 可见闭环
+
+目标：继续实施 Phase 1 统一上下文，让已有 Core Frame Cursor 从内部状态变成用户可见、可操作且与 Selection、History 和 Replay 一致的窗口级能力。
+
+关键结果：Battle Debug 顶部新增独立 Frame Cursor 状态条，显示当前帧、跟随最新状态、变更来源、最新完整帧和稳定 Selection；支持手工固定帧、恢复跟随最新，以及 Replay 可用时定位真实逻辑世界。Event、Trace Root、Trace Node 和导航历史沿用 Workspace Selection 的稳定帧语义；Trace 节点选择记录 StartFrame 与 RootContextId，详情起止帧操作先更新 Workspace Frame Cursor，再按能力端口尝试 Replay Seek。
+
+未改变的边界：Core Frame Cursor、Workspace State、Session Query 和 Runtime Store 契约均未修改。Live 与 Artifact 只维护诊断帧上下文，不因状态条或 Trace 帧按钮获得历史状态查询或 Replay Seek；Replay Seek 失败不回滚用户选择的诊断游标。一级工作区、Timeline、持久 Inspector、Bookmark 和跨全部面板的共享 Filter 仍未实现。
+
+测试：`BattleDiagnosticCoreTests` 新增固定帧恢复跟随最新、跟随游标推进与固定游标不推进，以及 Workspace 后退/前进恢复 Selection Frame 和 `SelectionNavigation` 原因的覆盖。测试源码已纳入生成测试项目；本批未执行 Unity Test Runner，没有 NUnit XML，不宣称用例通过。
+
+构建：`AbilityKit.Demo.Moba.Diagnostics.Core.Tests.csproj` 完整项目引用构建成功，134 warnings、0 errors；警告为既有 Unity framework 程序集版本冲突与过时 API。目标源码和四份文档范围化 `git diff --check` 通过，仅报告 `BattleDebugWindow.cs` 的 LF/CRLF 转换提示；生成 `.csproj` 无改动，未发现冲突标记。
+
+Unity 手工验收：已将 Live、Replay、Artifact、Selection/History 帧恢复、Trace 起止帧和 720/960/1180 宽度加入手工验收清单；同一项目由活动 Unity Editor 占用，因此未启动第二实例、未结束用户进程，也未代替用户操作现有 Editor。
+
+已知限制：状态条仍属于现有 IMGUI 工作区骨架，不是 Timeline 游标；最新完整帧依赖 Health 或离线数据源，来源不可用时不能恢复跟随最新。Replay Seek 失败目前通过既有窗口状态反馈边界处理，Trace 面板不新增独立错误状态。
+
+当前能力文档更新：已登记统一 Frame Cursor、Selection/History 帧联动、Replay 能力边界和剩余 Timeline/Inspector 缺口。
+
+## 第四十一批：持久 Selection Inspector 首批闭环
+
+目标：继续收口 Phase 1 工作区，让稳定 Workspace Selection 在切换一级工作区或二级面板后仍有持续可见的详情入口，并保持只读 Session、稳定 ID 与真实不可用语义。
+
+关键结果：新增无 UnityEditor 依赖的 Selection Inspector ViewModel 和独立 IMGUI 渲染器，首批覆盖 Actor、Event、Trace Root 与 Trace Node。Actor 按 Selection Frame 查询并使用 State revision 缓存；Event 按精确帧、固定 Event revision 和稳定 Sequence 恢复，单页 500 条、最多扫描四页；Trace 使用 Related Root 查询并按 Context ID 恢复节点。Inspector 以 Workspace Selection 为唯一来源，不保存面板私有对象引用；Evicted、Unavailable、NotCaptured、Partial 和 Truncated 等状态原样展示。
+
+窗口集成：宽度不小于 960 时 Inspector 作为右栏，窄窗口降级到主工作区下方并可收起；栏宽限制在 260 至 480 像素，宽度与显示状态通过 EditorPrefs 持久化。详情复用既有 Actor、Trace、Config、Frame 和复制导航入口，切换 Actor/Diagnostics 工作区或二级面板不会清除当前 Inspector 上下文。
+
+未改变的边界：Diagnostics Core、Runtime Store、Session Query 和 Selection DTO 契约均未修改；Inspector 不直接访问活动 Unit、Store 或 Runtime 容器，也不增加历史状态查询、后台完整 Event 索引或可变控制能力。Skill Runtime、专用 Config Inspector、Timeline 和跨全部面板的统一 Filter 仍属于后续工作。
+
+测试：`BattleDebugDiagnosticViewModelTests` 新增六个聚焦用例，覆盖 Actor 选择帧与 State revision 缓存、Event 精确帧与固定 revision、第二页稳定恢复、四页扫描上限及 Partial/Truncated、Evicted 状态保留，以及 Trace Related Root 与 Context 匹配。Unity 2022.3.62f1 EditMode Test Runner 已生成有效 XML `moba_selection_inspector_test_results.xml`，完整程序集 373/373 通过、0 failed、0 skipped。
+
+构建：`AbilityKit.Demo.Moba.Diagnostics.Core.Tests.csproj` 完整项目引用构建成功，175 warnings、0 errors；警告为工作区既有 Unity framework 程序集版本冲突、过时 API 和并发项目图告警。测试前仅检查并清理当前 `C:\Workspace\gitProject\AbilityKit\Unity` 工程关联进程，实际残余进程数为 0，未终止其他 Unity 工程。
+
+Unity 手工验收：尚未在实际窗口完成 960 阈值、栏宽拖动、偏好恢复、按钮行为、长内容布局和不可用状态的视觉验收；真实技能场景、文件对话框与 Play Mode 验收也未执行，没有截图、录像或手工通过结论。
+
+当前能力文档更新：已登记持久 Selection Inspector 的数据源、查询、缓存、布局、导航与不可用语义，并继续将 Skill Runtime、Config Inspector、Timeline 和跨面板 Filter 标记为未完成。
+
+## 第四十二批：Config 稳定引用与持久 Inspector 投影
+
+目标：继续收口 Phase 1 Inspector 导航，让 Event/Trace 等现有配置入口从一次性 Asset 跳转升级为持续可见、可重新解析且不丢失 SkillFlow PhaseId 的配置投影。
+
+关键结果：Selection Inspector ViewModel 新增 Editor-only Config 状态，保存完整 `BattleDebugConfigReference(Kind, Id, PhaseId)` 和来源 Workspace Selection。配置通过权威 JSON Source Index 结构化解析，成功时显示源路径与行号，失败时保留源缺失、JSON、ID 或 Phase 错误；支持打开配置、重新解析和复制完整引用。`OpenConfig` 在执行原有 SkillFlow Inspector、Asset Selection、Ping 和外部编辑器动作前先建立持久投影并确保 Inspector 可见，因此定位失败也不会丢失错误上下文。来源 Workspace Selection 改变时投影自动清除，避免陈旧配置继续冒充当前选择。
+
+未改变的边界：Diagnostics Core、Runtime Store、Session Query、`BattleDiagnosticSelection` 和 Navigation History 契约均未修改。Core Selection 只有数值 Id/RelatedId，不能无损表达字符串 PhaseId，因此本批不做哈希、数字编码或不透明映射；Config 投影不进入 Core History，不依赖 Runtime Session 或 Store revision。Skill Runtime 独立选择、Timeline、一级工作区和跨全部面板的统一 Filter 仍未实现。
+
+测试：`BattleDebugDiagnosticViewModelTests` 新增三个聚焦用例，覆盖 SkillFlow 精确 PhaseId 保留、权威 Skill JSON 路径与行号解析，以及 Workspace Selection 改变后清除 Config 投影。测试源码已补齐，但当前尚未获得本批 Unity EditMode Test Runner XML，因此不宣称新增用例通过。
+
+构建：Diagnostics Tests 与 Moba Editor 生成项目均已尝试完整引用构建，但被任务外 `SessionMobaWorldBootstrapFactory.cs` 对当前 `BattleSyncMode` 不存在的 `StateSync` 和 `Hybrid` 成员引用阻断；两个项目日志只发现这两个错误，未发现本批文件编译错误。未修改或回退该并发文件。目标源码范围化 `git diff --check` 已通过，仅报告 `BattleDebugWindow.cs` 的 LF/CRLF 转换提示。
+
+Unity 验证：运行 Unity 2022.3.62f1 EditMode Test Runner，但项目脚本编译被任务外 `MobaLogicWorldDriveGateTests.cs` 对缺失 `MobaGameStartSpec`/`AbilityKit.Protocol.Moba` 引用的错误阻断，未进入 NUnit、未生成 XML，因此没有 total/passed/failed/skipped 统计。已将 Config Kind/Id/PhaseId、权威 JSON 路径/行号、SkillFlow 精确 Phase、持续错误、重新解析、复制引用、来源选择变化和 720/960 布局加入 `TESTING.md`；窗口视觉、文件打开行为、真实技能场景和 Play Mode 尚未执行，没有截图、录像或手工通过结论。
+
+已知限制：Config 的稳定性当前只覆盖 Inspector 会话内投影和来源 Selection 绑定，后退/前进恢复来源诊断选择时不会同时恢复 Config；配置源变化需要手工刷新或重新解析。若后续要求 Config 进入 Core History，应先设计可跨 Editor/CLI 表达字符串身份的正式契约，而不是复用数值字段。
+
+当前能力文档更新：已登记 Editor-only Config 持久投影、完整 PhaseId、权威源定位、错误与缓存语义，并将剩余缺口收敛为 Skill Runtime 独立选择、Config Core History、一级工作区、跨面板 Filter、Timeline 和真实场景验收。
 
 ## 后续记录格式
 

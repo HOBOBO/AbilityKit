@@ -150,15 +150,15 @@ flowchart LR
 
 ## 7. 权威插值路径
 
-权威插值控制器仍复用 core 处理本地玩家输入和预测，但普通远端快照不会导入本地 runtime，也不会触发本地回滚：
+权威插值控制器不是“客户端完全不预测”。它把本地主控校正与远端 actor 播放分开处理：
 
-1. decoder 解码 push；
-2. pure-state payload 若存在，直接交给 presentation pure-state 路径；
-3. 否则从 worldId、frame、serverTicks 和 Actor 列表创建远端 sample；
-4. `RemoteInterpolationPlayback.Observe()` 拒绝过期 sample 或写入缓冲；
-5. Tick 推进播放时间线；
-6. projector 对相邻样本插值；
-7. presentation 应用插值后的远端 frame。
+1. 本地输入仍进入 frame sync，并以有界列表保存 pending input；
+2. 权威快照按 command sequence 确认输入，旧协议则以 gateway accepted frame 作为兼容确认条件；
+3. 本地主控从 packed、pure-state 或 actor snapshot 提取权威 pose，裁剪已确认输入，并最多重演 `MaxReplayFrames` 个未确认输入；
+4. 小误差可忽略或按 `MaxCorrectionPerSnapshot` 限幅，大误差、world change、full snapshot 或 authority override 会强制吸附；
+5. 远端 actor 样本不会导入本地 runtime，也不会触发整世界回滚；
+6. `RemoteInterpolationPlayback.Observe()` 拒绝过期 sample 或写入缓冲；
+7. Tick 推进播放时间线，projector 对相邻样本插值，再由 presentation 发布远端 frame。
 
 ```mermaid
 sequenceDiagram
@@ -223,10 +223,11 @@ pure-state 主要更新表现投影，并不等价于预测回滚使用的完整
 `ShooterClientHybridHeroPredictionSyncController` 组合两种行为：
 
 - 主控玩家输入、权威校正和回放沿用预测回滚核心；
-- 远端 Actor 样本进入插值 playback；
+- packed Gateway push 先由 rollback controller 应用，再解码同一快照并写入远端 interpolation buffer；
+- pure-state snapshot 由 rollback/presentation 路径处理后直接返回，不写入 Hybrid 远端插值缓冲；
 - presentation 需要区分本地预测实体与远端投影实体，避免权威远端帧覆盖本地主控姿态。
 
-混合模式的风险不只是“两套逻辑同时跑”，还包括实体所有权识别、frame/serverTicks 双时间线、projectile 行为归属及远端样本过期。验收必须同时验证本地主控收敛和远端播放连续性。
+因此“同一 packed 快照双路使用”是当前 Hybrid 的真实行为：本地主控看 rollback/import 结果，远端对象看插值样本。它不表示 pure-state 也走相同双路。混合模式的风险还包括实体所有权识别、frame/serverTicks 双时间线、projectile 行为归属及远端样本过期；验收必须同时验证本地主控收敛和远端播放连续性。
 
 ## 11. 结果与诊断
 
@@ -252,12 +253,15 @@ pure-state 主要更新表现投影，并不等价于预测回滚使用的完整
 
 ## 12. 恢复与 full state 请求
 
-session 暴露两类相关但不同的状态：
+session 暴露三类相关但不同的状态：
 
+- `NeedsReliableEventResync`：可靠事件序列存在缺口，需要通过完整 baseline 恢复 watermark；
 - `NeedsFullSnapshotResync`：预测回滚/runtime 权威状态需要完整快照；
 - `Presentation.NeedsPureStateFullBaselineResync`：pure-state delta 链缺少有效 baseline。
 
-`RequestFullSnapshotResyncAsync()` 只是向 room gateway 发请求，不会在本地伪造 baseline。请求成功后仍需等待并应用服务端 full snapshot。初始进入、晚加入和重连流程应根据 entry kind 和当前状态决定是否请求，而不是无限循环请求。
+`ShooterClientBattleHandle` 只在上述任一条件成立时创建 full state 请求。请求携带 session、battle、room、world、客户端帧、最后权威帧、两侧 hash 与 reason；相同 `ShooterClientFullStateSyncRequestKey` 会去重，并发请求复用同一个 in-flight task，只有 Gateway 返回 `Accepted` 后才记录最后成功 key。
+
+`ShooterBattleDataPlane` 在收到 push、连接建立和 reliable event ack 失败后触发恢复检查。请求成功不会在本地伪造 baseline，客户端仍需等待并应用服务端 full snapshot；应用 baseline 后再推进 reliable event watermark。`ShooterClientFrameSyncController` 的状态依次覆盖 `CatchUp`、`AwaitingFullSnapshot`、`ApplyingFullSnapshot` 和 `Recovered`，初始进入、晚加入和重连不能用无限循环请求代替状态机。
 
 Fast reconnect phase 和相关健康事件由共享 core 暴露，但 factory 没有 `FastReconnect` 顶层 controller。恢复是会话能力，不是单独播放算法。
 
@@ -276,13 +280,13 @@ Fast reconnect phase 和相关健康事件由共享 core 暴露，但 factory �
 
 控制器接口当前不以 `IDisposable` 形式统一暴露。生命周期所有者在替换 session 时应停止旧 Tick、解绑网关 observer 和表现会话，防止旧实例继续消费 push。
 
-## 14. 验证矩阵
+## 14. 验证矩阵与证据等级
 
 | 场景 | 必验结果 |
 |------|----------|
 | 默认/Unspecified | 实际创建预测回滚控制器 |
 | PredictRollback | packed import、hash 对比、需要时 rollback/replay |
-| AuthoritativeInterpolation | 远端状态不导入 runtime；buffer、publish、starvation 可观测 |
+| AuthoritativeInterpolation | 本地主控 pending input 确认、局部 pose 校正和有界重演；远端状态不导入 runtime，buffer/publish/starvation 可观测 |
 | BatchStateSync | 使用插值控制器但 `SyncModel` 保持 Batch |
 | MassBattleLodSync | 使用插值控制器；验证服务端 budget/AOI payload 而非假定客户端裁剪 |
 | HybridHeroPrediction | 本地主控预测收敛且远端实体平滑 |
@@ -292,6 +296,10 @@ Fast reconnect phase 和相关健康事件由共享 core 暴露，但 factory �
 | gateway ShouldResync | frame sync 进入恢复状态并记录输入健康事件 |
 | 未注册 FastReconnect model | 工厂显式失败，不静默映射 |
 | factory 自定义注册 | builder 生效，测试结束恢复默认 |
+| full state 请求重复触发 | 相同 key 去重、in-flight 合并，只有 Accepted 后记录成功 key |
+| reconnect/reliable event gap | DataPlane 触发 full snapshot 检查，baseline 应用后恢复可靠事件 watermark |
+
+证据应分层解释：控制器、请求状态机和 Gateway handler 属于 E0-E2；专项契约测试属于 E3；Shooter smoke 与 replay artifact 属于 E4；`shooter-fast`、`shooter-integration`、`shooter-unity-playmode` 是 PR/Push P1 gate，而 multiprocess minimal/compatibility/soak/cleanup 按 Push、Schedule 或 Manual 分层，不能统一写成每次 PR 的 E5 阻断。
 
 ## 15. 源码索引
 
@@ -313,3 +321,7 @@ Fast reconnect phase 和相关健康事件由共享 core 暴露，但 factory �
 | Snapshot view mapper | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Presentation/ShooterSnapshotViewModelMapper.cs` |
 | 通用 profile 注册表 | `Unity/Packages/com.abilitykit.network.runtime/Runtime/Network/Runtime/Sync/NetworkSyncProfileRegistry.cs` |
 | Baseline/delta validator | `Unity/Packages/com.abilitykit.network.runtime/Runtime/Network/Runtime/Sync/BaselineDeltaSnapshotValidator.cs` |
+| Full state 请求与去重 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientBattleHandle.cs` |
+| Push/reconnect 恢复触发 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterBattleDataPlane.cs` |
+
+*文档版本：v2.1 | 最后更新：2026-08-09*

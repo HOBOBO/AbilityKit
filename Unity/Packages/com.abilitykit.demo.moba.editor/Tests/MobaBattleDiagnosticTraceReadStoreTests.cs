@@ -40,7 +40,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             var result = store.QueryTrace(1, rootId);
 
-            Assert.That(result.Status.Phase, Is.EqualTo(BattleDiagnosticQueryPhase.Ready));
+            Assert.That(
+                result.Status.Phase,
+                Is.EqualTo(BattleDiagnosticQueryPhase.Ready),
+                $"{result.Status.ErrorCode}: {result.Status.Message}");
             Assert.That(result.Status.StoreRevision, Is.EqualTo(registry.Revision));
             Assert.That(result.Items.Count, Is.EqualTo(4));
             Assert.That(result.Items[0].ContextId, Is.EqualTo(rootId));
@@ -126,6 +129,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             var result = store.QueryTrace(1, rootId);
 
+            Assert.That(
+                result.Status.Phase,
+                Is.EqualTo(BattleDiagnosticQueryPhase.Ready),
+                $"{result.Status.ErrorCode}: {result.Status.Message}");
             Assert.That(result.Items[1].ContextId, Is.EqualTo(failedId));
             Assert.That(result.Items[1].State, Is.EqualTo(BattleDiagnosticTraceNodeState.Failed));
             Assert.That(result.Items[2].ContextId, Is.EqualTo(cancelledId));

@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
@@ -103,6 +104,7 @@ namespace AbilityKit.Demo.Moba.Session
                 config.WorldType,
                 config.WorldId > 0 ? config.WorldId.ToString() : _defaults.WorldId);
             RegisterCreateWorldInitData(in config, options);
+            RegisterLogicWorldDriveProfile(in config, options);
         }
 
         public void ConfigureLogicWorldOptions(WorldCreateOptions options, string worldType, string worldId)
@@ -190,6 +192,79 @@ namespace AbilityKit.Demo.Moba.Session
             return _pendingSpawns != null && _pendingSpawns.Length > 0
                 ? _pendingSpawns
                 : Array.Empty<LogicWorldSpawnData>();
+        }
+
+        private static void RegisterLogicWorldDriveProfile(
+            in SessionConfig config,
+            WorldCreateOptions options)
+        {
+            var policy = config.ResolveRuntimePolicy();
+            var replayMode = config.EnableReplayPlayback;
+            var syncMode = replayMode
+                ? MobaBattleLaunchSyncMode.Replay
+                : ToLaunchSyncMode(policy.EffectiveSyncMode);
+            ResolveAuthority(
+                in policy,
+                out var authorityMode,
+                out var ownsSimulation);
+
+            options.ServiceBuilder.Register<MobaLogicWorldDriveStateService>(
+                WorldLifetime.Scoped,
+                _ =>
+                {
+                    var state = new MobaLogicWorldDriveStateService();
+                    state.Configure(
+                        syncMode,
+                        authorityMode,
+                        ownsSimulation,
+                        replayMode,
+                        replayReady: !replayMode,
+                        reason: "coordinator session policy");
+                    return state;
+                });
+        }
+
+        private static MobaBattleLaunchSyncMode ToLaunchSyncMode(
+            AbilityKit.Coordinator.Core.SyncMode syncMode)
+        {
+            switch (syncMode)
+            {
+                case AbilityKit.Coordinator.Core.SyncMode.Lockstep:
+                    return MobaBattleLaunchSyncMode.FrameSync;
+                case AbilityKit.Coordinator.Core.SyncMode.SnapshotAuthority:
+                case AbilityKit.Coordinator.Core.SyncMode.StateSync:
+                    return MobaBattleLaunchSyncMode.StateSync;
+                case AbilityKit.Coordinator.Core.SyncMode.Hybrid:
+                    return MobaBattleLaunchSyncMode.Hybrid;
+                default:
+                    return MobaBattleLaunchSyncMode.Unspecified;
+            }
+        }
+
+        private static void ResolveAuthority(
+            in SessionRuntimePolicy policy,
+            out MobaBattleLaunchAuthorityMode authorityMode,
+            out bool ownsSimulation)
+        {
+            switch (policy.HostMode)
+            {
+                case AbilityKit.Coordinator.Core.HostMode.Local:
+                    authorityMode = MobaBattleLaunchAuthorityMode.LocalAuthority;
+                    ownsSimulation = true;
+                    return;
+                case AbilityKit.Coordinator.Core.HostMode.Host:
+                    authorityMode = MobaBattleLaunchAuthorityMode.ServerAuthority;
+                    ownsSimulation = true;
+                    return;
+                case AbilityKit.Coordinator.Core.HostMode.Client when policy.EnableClientPrediction:
+                    authorityMode = MobaBattleLaunchAuthorityMode.ClientPrediction;
+                    ownsSimulation = true;
+                    return;
+                default:
+                    authorityMode = MobaBattleLaunchAuthorityMode.ServerAuthority;
+                    ownsSimulation = false;
+                    return;
+            }
         }
 
         private void RegisterCreateWorldInitData(in SessionConfig config, WorldCreateOptions options)

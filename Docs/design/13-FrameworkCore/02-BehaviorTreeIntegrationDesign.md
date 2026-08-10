@@ -477,6 +477,7 @@ MOBA 使用 Json.NET 的 TypeNameHandling 相关序列化设置，并在归一�
 - 通用 Blackboard 接口：`Unity/Packages/com.abilitykit.behavior/Runtime/BTree/IBlackboard.cs`
 - BTCore 树执行器：`Unity/Packages/com.abilitykit.thirdparty.behaviortreeeditor/BehaviorTreeEditor/BTCore/Runtime/BTree.cs`
 - BTCore 节点基类：`Unity/Packages/com.abilitykit.thirdparty.behaviortreeeditor/BehaviorTreeEditor/BTCore/Runtime/BTNode.cs`
+
 - BTCore 随机 Selector：`Unity/Packages/com.abilitykit.thirdparty.behaviortreeeditor/BehaviorTreeEditor/BTCore/Runtime/Composites/RandomSelector.cs`
 - BTCore 随机 Sequence：`Unity/Packages/com.abilitykit.thirdparty.behaviortreeeditor/BehaviorTreeEditor/BTCore/Runtime/Composites/RandomSequence.cs`
 - BTCore 随机条件：`Unity/Packages/com.abilitykit.thirdparty.behaviortreeeditor/BehaviorTreeEditor/BTCore/Runtime/Conditions/RandomProbability.cs`
@@ -490,3 +491,9 @@ MOBA 使用 Json.NET 的 TypeNameHandling 相关序列化设置，并在归一�
 - MOBA 技能选择测试：`src/AbilityKit.Demo.Moba.Tests/Behavior/MobaBrainSkillSelectionPolicyTests.cs`
 - MOBA Hero AI 冒烟：`src/AbilityKit.Demo.Moba.Tests/Smoke/MobaGenericHeroAiSmokeTests.cs`
 - MOBA Summon BTree 冒烟：`src/AbilityKit.Demo.Moba.Tests/Smoke/MobaSummonBTreeSkillSmokeTests.cs`
+
+包内运行语义以 [`Behavior行为执行模块开发设计文档.md`](../../../Unity/Packages/com.abilitykit.behavior/Document/Behavior行为执行模块开发设计文档.md) 为准；本文只维护 Behavior、BTCore 与 MOBA 三层之间的集成决策。
+
+### 12.1 构建与证据边界
+
+包内 Behavior Runtime 的 .NET 镜像工程应从 `src/` 目录中确认后执行对应 `dotnet build`；该命令只证明编译闭合，不证明 Unity 生命周期、Manager Tick 删除风险或行为树确定性已经正确。当前仓库可见消费者为 BTCore/MOBA 集成路径，E0 源码和 E1/E2 调用证据较明确；E3 仅覆盖部分生命周期与领域行为，E4/E5 的专项 Smoke、性能预算、CI 阻断和发布回滚证据尚未形成。

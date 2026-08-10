@@ -85,7 +85,17 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var invalidAttribute = _store.TryReplaceSnapshot(
                 2,
                 new long[] { 10 },
-                new[] { new BattleDiagnosticActorAttribute(_scope, 2, 10, 0, 1f, 2f, 0) },
+                new[]
+                {
+                    new BattleDiagnosticActorAttribute(
+                        new BattleDiagnosticSessionScope("other", "world", 1),
+                        2,
+                        10,
+                        1,
+                        1f,
+                        2f,
+                        0)
+                },
                 new BattleDiagnosticActorAttributeModifier[0]);
             var orphanModifier = _store.TryReplaceSnapshot(
                 2,

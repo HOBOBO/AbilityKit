@@ -12,7 +12,7 @@ namespace AbilityKit.Game.Editor
     {
         private const int DemoMapId = 1;
         private const string DemoScenePath = "Assets/Scenes/MobaDemoScene.unity";
-        private const string MenuRoot = "Tools/AbilityKit/MOBA Demo/";
+        private const string MenuRoot = "Tools/AbilityKit/Demos/Moba/";
 
         [MenuItem(MenuRoot + "Open Demo Scene", priority = 10)]
         private static void OpenDemoScene()

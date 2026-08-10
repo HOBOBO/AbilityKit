@@ -42,6 +42,7 @@ namespace AbilityKit.Game.Editor
         public IReadOnlyList<BattleDebugDiagnosticTraceRow> Rows => _rows;
         public IReadOnlyList<BattleDebugDiagnosticTraceRow> VisibleRows => _visibleRows;
         public IReadOnlyList<BattleDiagnosticTraceNodeSummary> SelectedPath => _selectedPath;
+        public BattleDiagnosticQueryStatus QueryStatus { get; private set; }
         public string StatusMessage { get; private set; } = string.Empty;
         public long StoreRevision => _lastStoreRevision;
         public long RootContextId => _lastRootContextId;
@@ -55,6 +56,8 @@ namespace AbilityKit.Game.Editor
 
         public void InvalidateCache()
         {
+            QueryStatus = default;
+            StatusMessage = string.Empty;
             _lastStoreRevision = -1;
             _hasCachedResult = false;
         }
@@ -71,6 +74,7 @@ namespace AbilityKit.Game.Editor
             SelectedContextId = 0;
             PinnedContextId = 0;
             SearchMatchCount = 0;
+            QueryStatus = default;
             StatusMessage = string.Empty;
             InvalidateCache();
         }
@@ -96,6 +100,7 @@ namespace AbilityKit.Game.Editor
             if (_lastRequestId <= 0) _lastRequestId = 1;
 
             var result = session.QueryTrace(_lastRequestId, rootContextId);
+            QueryStatus = result.Status;
             _lastScope = scope;
             _lastStoreRevision = revision;
             _lastRootContextId = rootContextId;

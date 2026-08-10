@@ -51,7 +51,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             public List<ActionNode> Items;
         }
 
-        [MenuItem("AbilityKit/Ability/Apply Trigger ChangeSet Json -> Module")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/导入/Apply Trigger ChangeSet Json -> Module")]
         private static void ApplyFromJsonMenu()
         {
             var jsonPath = EditorUtility.OpenFilePanel("Select Trigger ChangeSet Json", Application.dataPath, "json");

@@ -9,7 +9,8 @@
   "allowUnsafeCode": false,
   "overrideReferences": false,
   "precompiledReferences": [
-    "Newtonsoft.Json.dll"
+    "Newtonsoft.Json.dll",
+    "MemoryPack.dll"
   ],
   "autoReferenced": true,
   "defineConstraints": [],
