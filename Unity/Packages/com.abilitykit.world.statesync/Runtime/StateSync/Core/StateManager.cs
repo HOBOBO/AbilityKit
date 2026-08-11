@@ -115,7 +115,7 @@ namespace AbilityKit.Ability.StateSync
 
         public bool TryRestore(int frame)
         {
-            if (!_snapshotBuffer.TryGet(frame, out var snapshot))
+            if (!_snapshotBuffer.TryGet(frame, out _))
             {
                 Log?.Invoke($"[StateManager] No snapshot found for frame={frame}");
                 return false;
@@ -143,7 +143,7 @@ namespace AbilityKit.Ability.StateSync
                 return false;
             }
 
-            RestoreSnapshot(snapshot, frame, entityRollbackData, rollbackables);
+            RestoreSnapshot(frame, entityRollbackData, rollbackables);
             Log?.Invoke($"[StateManager] Restored state for frame={frame}");
             return true;
         }
@@ -182,11 +182,12 @@ namespace AbilityKit.Ability.StateSync
         }
 
         /// <summary>
-        /// 从快照恢复所有实体的状态
+        /// 从回滚数据恢复所有实体的状态。
+        /// 恢复路径刻意只回放逐实体回滚数据（IRollbackable）；WorldStateSnapshot 服务于
+        /// diff/哈希/网络面，不参与恢复，因此不再传入。
         /// 要求业务层实现 IRollbackable 接口
         /// </summary>
         private void RestoreSnapshot(
-            WorldStateSnapshot snapshot,
             int frame,
             Dictionary<long, byte[]> entityRollbackData,
             Dictionary<long, IRollbackable> rollbackables)

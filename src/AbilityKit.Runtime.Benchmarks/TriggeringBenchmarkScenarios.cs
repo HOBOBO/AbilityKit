@@ -42,6 +42,7 @@ public sealed class TriggerDispatchScenario : BenchmarkScenarioBase
             "trigger-evaluation",
             new Dictionary<string, string>
             {
+                [BenchmarkWorkloadDimensions.Scope] = BenchmarkScenarioScopes.Capability,
                 ["dispatchMode"] = mode,
                 ["fanout"] = fanout.ToString(),
                 ["executionControl"] = reuseControl ? "reused" : "implicit",

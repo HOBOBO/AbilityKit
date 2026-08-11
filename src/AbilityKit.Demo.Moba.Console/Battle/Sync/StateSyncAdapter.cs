@@ -1,25 +1,40 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Battle.ECS.Components;
 using AbilityKit.Demo.Moba.Share;
-using AbilityKit.Network.Runtime;
-using AbilityKit.Network.Sdk;
+using AbilityKit.Network.Battle.Config;
+using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Client;
+using AbilityKit.Network.Room;
 using AbilityKit.Protocol.Room;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Host;
+using AbilityKit.Game.Battle.Requests;
+using BattleWorldId = AbilityKit.Ability.World.Abstractions.WorldId;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Sync
 {
     /// <summary>
-    /// State-sync adapter using the unified AbilityKit network SDK (network.sdk + protocol.room).
-    /// Replaces the legacy TcpNetworkClient/NetworkProtocol/NetworkOpCodes with NetworkSdkClient +
-    /// WireRoomGatewayBinary + RoomGatewayOpCodes. Same IBattleSyncAdapter interface.
+    /// State-sync adapter on the shared two-connection client host
+    /// (<see cref="GatewayBattleClientHost"/>: room control plane + battle data plane on its own
+    /// NetworkTransport connection). This adapter keeps only demo-specific pieces: the full
+    /// battle-start flow hooks (hero-pick/loading), the snapshot apply, and the one-shot-host
+    /// rebuild reconnect policy.
     /// </summary>
     public sealed class StateSyncAdapter : IBattleSyncAdapter
     {
         private ConsoleBattleContext _context;
         private BattleStartConfig _config;
-        private NetworkSdkClient? _sdkClient;
+        private GatewayBattleClientHost _host;
+        private bool _entering;
+        private bool _enterRequested;
+        private string _host_ = "localhost";
+        private int _port = 4000;
         private bool _initialized;
         private bool _connected;
         private int _currentFrame;
@@ -28,7 +43,6 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Sync
         private int _localActorId;
 
         private string _roomId = string.Empty;
-        private string _sessionToken = string.Empty;
         private ulong _numericRoomId;
         private string _playerId = string.Empty;
 
@@ -37,9 +51,10 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Sync
         private readonly object _statesLock = new();
 
         private NetworkConfig _networkConfig = new();
+        private readonly System.Diagnostics.Stopwatch _networkTickClock = new();
 
         public SyncMode Mode => SyncMode.SnapshotAuthority;
-        public bool IsConnected => _connected && (_sdkClient?.IsConnected ?? false);
+        public bool IsConnected => _connected && (_host?.RoomConnection.IsConnected ?? false);
         public int CurrentFrame => _currentFrame;
         public double LogicTimeSeconds => _logicTimeSeconds;
         public double RenderTimeSeconds => _renderTimeSeconds;
@@ -73,124 +88,214 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Sync
 
             _roomId = roomId;
             _playerId = playerId;
-
-            _sdkClient = new NetworkSdkBuilder()
-                .UseTransportFactory(() => new TcpTransport())
-                .Build();
-            _sdkClient.Connected += OnGatewayConnected;
-            _sdkClient.Disconnected += OnGatewayDisconnected;
-            _sdkClient.ServerPushReceived += OnServerPush;
-            _sdkClient.Error += OnGatewayError;
+            _host_ = host;
+            _port = port;
 
             Platform.Log.Sync($"[StateSync] Connecting to {host}:{port}...");
-            _sdkClient.Open(host, port);
+            _networkTickClock.Restart();
+            _ = EnterHostAsync();
         }
 
         public void Connect()
         {
-            Connect(_networkConfig.Host, _networkConfig.Port, _roomId, _playerId);
+            // Parameterless entry used by bootstrapper/flow when config.Network is set:
+            // fall back to config identity when no explicit room/player was provided.
+            Connect(
+                _networkConfig.Host,
+                _networkConfig.Port,
+                string.IsNullOrEmpty(_roomId) ? _config.WorldId : _roomId,
+                string.IsNullOrEmpty(_playerId) ? _config.PlayerId : _playerId);
         }
 
-        private async void OnGatewayConnected()
+        /// <summary>
+        /// One full entry: room connection + login + room flow (join-or-create → hero-pick → ready →
+        /// loading → battle start) + battle data-plane attach, all via the shared host. The host is
+        /// one-shot, so a connection loss rebuilds it (see <see cref="OnRoomConnectionLost"/>).
+        /// </summary>
+        private async Task EnterHostAsync()
         {
-            Platform.Log.Sync("[StateSync] Connected to server, logging in...");
-
+            if (_entering) { _enterRequested = true; return; }
+            _entering = true;
             try
             {
-                // 1. Guest Login (gateway protocol: opCode 100)
-                var loginPayload = WireRoomGatewayBinary.Serialize(
-                    new WireRoomGuestLoginReq { GuestId = _playerId });
-                var loginRespBytes = await _sdkClient!.SendRawRequestAsync(
-                    RoomGatewayOpCodes.GuestLogin, loginPayload);
-                var loginResult = WireRoomGatewayBinary.Deserialize<WireRoomGuestLoginRes>(loginRespBytes);
-                if (!loginResult.Success)
+                var previous = _host;
+                _host = null;
+                if (previous != null)
                 {
-                    Platform.Log.Sync($"[StateSync] Login failed: {loginResult.Message}");
-                    return;
+                    previous.RoomConnection.Disconnected -= OnRoomConnectionLost;
+                    previous.Dispose();
                 }
-                _sessionToken = loginResult.SessionToken;
-                _playerId = loginResult.SessionToken;
-                Platform.Log.Sync($"[StateSync] Logged in: {_sessionToken}");
 
-                // 2. Create or Join Room (gateway protocol: opCode 101/102)
-                bool roomJoined = false;
-                if (!string.IsNullOrEmpty(_roomId))
-                {
-                    var joinPayload = WireRoomGatewayBinary.Serialize(
-                        new WireJoinRoomReq
-                        {
-                            SessionToken = _sessionToken,
-                            Region = "dev",
-                            ServerId = "local",
-                            RoomId = _roomId
-                        });
-                    var joinRespBytes = await _sdkClient.SendRawRequestAsync(
-                        RoomGatewayOpCodes.JoinRoom, joinPayload);
-                    var joinResult = WireRoomGatewayBinary.Deserialize<WireJoinRoomRes>(joinRespBytes);
-                    if (joinResult.Success)
+                var launchSpec = new RoomGatewayLaunchSpec(
+                    region: "dev",
+                    serverId: "local",
+                    roomType: "moba",
+                    roomTitle: string.IsNullOrEmpty(_roomId) ? "console-battle" : _roomId,
+                    maxPlayers: 4,
+                    gameplayId: 1,
+                    ruleSetId: 0,
+                    configVersion: 0,
+                    protocolVersion: 0,
+                    worldType: "moba",
+                    clientId: _playerId,
+                    // SnapshotAuthority needs the state-sync battle template; without the tag the
+                    // room boots the default frame-sync battle and no snapshots are ever pushed.
+                    tags: new Dictionary<string, string>
                     {
-                        _roomId = joinResult.RoomId;
-                        Platform.Log.Sync($"[StateSync] Joined room: {_roomId}");
-                        roomJoined = true;
-                    }
-                }
-
-                if (!roomJoined)
-                {
-                    var createPayload = WireRoomGatewayBinary.Serialize(
-                        new WireCreateRoomReq
-                        {
-                            SessionToken = _sessionToken,
-                            Region = "dev",
-                            ServerId = "local",
-                            RoomType = "moba",
-                            Title = _roomId,
-                            IsPublic = true,
-                            MaxPlayers = 4
-                        });
-                    var createRespBytes = await _sdkClient.SendRawRequestAsync(
-                        RoomGatewayOpCodes.CreateRoom, createPayload);
-                    var createResult = WireRoomGatewayBinary.Deserialize<WireCreateRoomRes>(createRespBytes);
-                    if (createResult.Success)
-                    {
-                        _roomId = createResult.RoomId;
-                        Platform.Log.Sync($"[StateSync] Created room: {_roomId}");
-                        roomJoined = true;
-                    }
-                }
-
-                if (!roomJoined)
-                {
-                    Platform.Log.Sync("[StateSync] Failed to create/join room");
-                    return;
-                }
-
-                // 3. Subscribe State Sync (gateway protocol: opCode 103 — required before pushes)
-                var subPayload = WireRoomGatewayBinary.Serialize(
-                    new WireSubscribeStateSyncReq
-                    {
-                        SessionToken = _sessionToken,
-                        BattleId = _roomId,
-                        RoomId = _roomId
+                        ["mapId"] = "1",
+                        ["gameplayId"] = "1",
+                        ["minPlayers"] = "1",
+                        ["tickRate"] = _config.TickRate.ToString(CultureInfo.InvariantCulture),
+                        ["syncTemplateId"] = "state-sync-authority",
                     });
-                _ = await _sdkClient.SendRawRequestAsync(
-                    RoomGatewayOpCodes.SubscribeStateSync, subPayload);
-                Platform.Log.Sync("[StateSync] Subscribed to state sync");
+
+                var host = await GatewayBattleClientHost.EnterAsync(
+                    _host_, _port, _playerId, launchSpec,
+                    configureBattle: ConfigureBattle,
+                    battleDispatcher: InlineDispatcher.Instance,
+                    joinRoomId: string.IsNullOrEmpty(_roomId) ? null : _roomId,
+                    joinFallbackToCreate: true,
+                    waitForBattleStart: true,
+                    afterJoinAndBeforeReady: PickHeroForLocalPlayerAsync,
+                    afterReadyAndBeforeBattleStart: DriveLoadingAsync);
+
+                host.RoomConnection.Disconnected += OnRoomConnectionLost;
+                host.RoomConnection.ServerPushReceived += OnServerPush;
+                host.Battle.StateSyncSnapshotPushed += OnBattleSnapshotPushed;
+
+                _host = host;
+                _roomId = host.Session.RoomId;
+                _numericRoomId = host.Session.NumericRoomId;
 
                 _connected = true;
                 OnConnectionChanged?.Invoke(true);
+                Platform.Log.Sync($"[StateSync] Entered room: {_roomId} (battle={host.Session.BattleId})");
             }
             catch (Exception ex)
             {
                 Platform.Log.Sync($"[StateSync] Connection error: {ex.Message}");
                 OnConnectionChanged?.Invoke(false);
             }
+            finally
+            {
+                _entering = false;
+            }
         }
 
-        private void OnGatewayDisconnected()
+        /// <summary>
+        /// Fills the game-specific callbacks on the host-prepared battle config (gateway address,
+        /// session identity, room-gateway protocol preset are already applied). Engine retry off;
+        /// per-submit results are not consumed by this demo.
+        /// </summary>
+        private void ConfigureBattle(NetworkBattleConfig config, GatewaySessionResult session)
+        {
+            var playerId = (uint)Math.Max(1, _localActorId);
+            config
+                .UseRoomGatewayStateSyncInput(
+                    session.BattleId,
+                    playerIdToUInt: p => uint.TryParse(p.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : playerId,
+                    worldIdToUlong: w => ulong.TryParse(w.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : session.NumericRoomId)
+                .WithSnapshotDeserializer(payload => WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload));
+        }
+
+        /// <summary>
+        /// Facade hook (after join, before ready): pick the local player's hero with the full
+        /// loadout from battle config — the server requires a complete loadout before it can start.
+        /// </summary>
+        private async Task PickHeroForLocalPlayerAsync(
+            RoomGatewaySessionFlow flow, string sessionToken, string roomId, TimeSpan? timeout, CancellationToken cancellationToken)
+        {
+            PlayerConfig local = null;
+            if (_config.Players != null)
+            {
+                foreach (var p in _config.Players)
+                {
+                    if (p != null && p.PlayerId == _config.PlayerId) { local = p; break; }
+                }
+                local ??= _config.Players.Count > 0 ? _config.Players[0] : null;
+            }
+            if (local == null || local.HeroId <= 0)
+            {
+                Platform.Log.Sync("[StateSync] No local player loadout in config; skipping hero pick");
+                return;
+            }
+
+            var pick = await flow.ConfigureLoadoutAsync(new RoomGatewayPickHeroRequest(
+                sessionToken,
+                roomId,
+                heroId: local.HeroId,
+                teamId: local.TeamId,
+                spawnPointId: 0,
+                level: local.Level,
+                attributeTemplateId: local.AttributeTemplateId,
+                basicAttackSkillId: local.BasicAttackSkillId,
+                skillIds: local.SkillIds), timeout, cancellationToken);
+            Platform.Log.Sync(pick.Success
+                ? $"[StateSync] Hero picked: {local.HeroId}"
+                : $"[StateSync] Pick hero not applied: {pick.Message}");
+        }
+
+        /// <summary>
+        /// Facade hook (after ready, before battle-start wait): drive the loading stage so the room
+        /// commits a battle world. Only the owner can begin loading; a joiner reads the manifest
+        /// from the room snapshot instead.
+        /// </summary>
+        private async Task DriveLoadingAsync(
+            RoomGatewaySessionFlow flow, string sessionToken, string roomId, TimeSpan? timeout, CancellationToken cancellationToken)
+        {
+            RoomGatewaySnapshot loadingSnapshot = null;
+            var begin = await flow.BeginLoadingAsync(
+                new RoomGatewayBeginLoadingRequest(sessionToken, roomId, expectedRevision: null, Guid.NewGuid().ToString("N")),
+                timeout, cancellationToken);
+            if (begin.Success && begin.Applied && begin.Snapshot != null)
+            {
+                loadingSnapshot = begin.Snapshot;
+                Platform.Log.Sync("[StateSync] Begin loading (owner)");
+            }
+            else
+            {
+                var snapshot = await flow.GetSnapshotAsync(sessionToken, roomId, timeout, cancellationToken);
+                if (snapshot.Success && snapshot.Snapshot != null && snapshot.Snapshot.Phase >= RoomGatewaySessionPhase.Loading)
+                {
+                    loadingSnapshot = snapshot.Snapshot;
+                    Platform.Log.Sync($"[StateSync] Loading already started (phase={snapshot.Snapshot.Phase})");
+                }
+                else
+                {
+                    Platform.Log.Sync($"[StateSync] Begin loading not applied ({begin.Message}); waiting for the owner to start");
+                    return;
+                }
+            }
+
+            var loaded = await flow.ReportAssetsLoadedAsync(
+                new RoomGatewayReportAssetsLoadedRequest(
+                    sessionToken,
+                    roomId,
+                    loadingSnapshot.LaunchGeneration,
+                    loadingSnapshot.LaunchManifestVersion,
+                    loadingSnapshot.LaunchManifestHash,
+                    Guid.NewGuid().ToString("N")),
+                timeout, cancellationToken);
+            Platform.Log.Sync(loaded.Success
+                ? "[StateSync] Assets loaded reported"
+                : $"[StateSync] Report assets loaded not applied: {loaded.Message}");
+        }
+
+        private void OnBattleSnapshotPushed(object snapshot)
+        {
+            if (snapshot is WireStateSyncSnapshotPush push)
+            {
+                HandleSnapshotPushed(in push);
+            }
+        }
+
+        private void OnRoomConnectionLost()
         {
             _connected = false;
             OnConnectionChanged?.Invoke(false);
+            // The host is one-shot; rebuild it (fresh login + flow + battle attach) on the next Tick
+            // rather than on this event thread.
+            _enterRequested = true;
             Platform.Log.Sync("[StateSync] Disconnected from server");
         }
 
@@ -201,25 +306,15 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Sync
 
         private void OnServerPush(uint opCode, ArraySegment<byte> payload)
         {
-            switch (opCode)
-            {
-                case RoomGatewayOpCodes.SnapshotPushed:
-                case RoomGatewayOpCodes.DeltaSnapshotPushed:
-                    HandleSnapshotPushed(payload);
-                    break;
-
-                default:
-                    Platform.Log.Sync($"[StateSync] Push OpCode {opCode} ({payload.Count} bytes)");
-                    break;
-            }
+            // Snapshot pushes arrive on the battle data plane (typed StateSyncSnapshotPushed event);
+            // the room connection only carries control-plane pushes.
+            Platform.Log.Sync($"[StateSync] Push OpCode {opCode} ({payload.Count} bytes)");
         }
 
-        private void HandleSnapshotPushed(ArraySegment<byte> payload)
+        private void HandleSnapshotPushed(in WireStateSyncSnapshotPush snapshot)
         {
             try
             {
-                var snapshot = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
-
                 lock (_statesLock)
                 {
                     _currentFrame = snapshot.Frame;
@@ -265,8 +360,13 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Sync
 
         public void Disconnect()
         {
-            _sdkClient?.Dispose();
-            _sdkClient = null;
+            var host = _host;
+            _host = null;
+            if (host != null)
+            {
+                host.RoomConnection.Disconnected -= OnRoomConnectionLost;
+                host.Dispose();
+            }
 
             _connected = false;
             OnConnectionChanged?.Invoke(false);
@@ -275,27 +375,35 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Sync
 
         public void SubmitInput(PlayerInput input)
         {
-            if (!_connected || _sdkClient == null) return;
+            var battle = _host?.Battle;
+            if (!_connected || battle == null) return;
 
-            var payload = WireRoomGatewayBinary.Serialize(
-                new WireSubmitBattleInputReq
-                {
-                    SessionToken = _sessionToken,
-                    BattleId = _roomId,
-                    WorldId = _numericRoomId,
-                    Frame = _currentFrame,
-                    PlayerId = (uint)LocalActorId,
-                    InputOpCode = (int)input.OpCode,
-                    Payload = input.Payload ?? Array.Empty<byte>()
-                });
-
-            _ = _sdkClient.SendRawRequestAsync(RoomGatewayOpCodes.SubmitBattleInput, payload);
+            // Engine handles request/response + retry; per-submit results are not consumed by this demo.
+            battle.SendInput(new SubmitInputRequest(
+                new BattleWorldId(_numericRoomId.ToString(CultureInfo.InvariantCulture)),
+                new PlayerInputCommand(
+                    new FrameIndex(_currentFrame),
+                    new PlayerId(((uint)Math.Max(1, _localActorId)).ToString(CultureInfo.InvariantCulture)),
+                    (int)input.OpCode,
+                    input.Payload ?? Array.Empty<byte>())));
         }
 
         public void Tick(float deltaTime)
         {
             if (!_initialized) return;
-            _sdkClient?.Tick(deltaTime);
+
+            if (_enterRequested && !_entering)
+            {
+                _enterRequested = false;
+                _ = EnterHostAsync();
+            }
+
+            // The console battle can fast-forward (game loop spins faster than wall-clock), so the
+            // SDK Tick must be fed real elapsed time — heartbeat/reconnect liveness timers run on
+            // the supplied delta, and fake deltas would trip the heartbeat timeout within ~150ms.
+            var realDelta = (float)_networkTickClock.Elapsed.TotalSeconds;
+            _networkTickClock.Restart();
+            _host?.Tick(realDelta);
 
             _renderTimeSeconds = _logicTimeSeconds - (1.0 / _config.TickRate);
             _logicTimeSeconds += deltaTime;

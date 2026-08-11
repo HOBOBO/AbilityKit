@@ -4,10 +4,32 @@ namespace AbilityKit.Runtime.Benchmarks;
 
 public static class BenchmarkScenarioCatalog
 {
+    private static readonly IReadOnlySet<string> SupportedModules = new HashSet<string>(
+        Create("full").Select(scenario => scenario.Descriptor.Module),
+        StringComparer.OrdinalIgnoreCase);
+
+    public static IReadOnlyCollection<string> Modules => SupportedModules;
+
+    public static bool IsSupportedModule(string module) =>
+        module.Equals("all", StringComparison.OrdinalIgnoreCase)
+        || SupportedModules.Contains(module);
+
     public static IReadOnlyList<IBenchmarkScenario> Create(string profile)
     {
+        if (!profile.Equals("smoke", StringComparison.OrdinalIgnoreCase)
+            && !profile.Equals("full", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Profile must be 'smoke' or 'full'.", nameof(profile));
+        }
+
         var scenarios = new List<IBenchmarkScenario>
         {
+            new AttributeRecomputeScenario(modifierCount: 1),
+            new AttributeRecomputeScenario(modifierCount: 16),
+            new ModifierComposeSortedScenario(modifierCount: 4),
+            new ModifierComposeSortedScenario(modifierCount: 32),
+            new RecordIdHashScenario(nameLength: 16),
+            new RecordIdHashScenario(nameLength: 64),
             new PipelineSynchronousScenario(4, batchSize: 100),
             new PipelineSynchronousScenario(32, batchSize: 100),
             new PipelineActiveRunsScenario(1_000),
@@ -19,6 +41,9 @@ public static class BenchmarkScenarioCatalog
 
         if (profile.Equals("full", StringComparison.OrdinalIgnoreCase))
         {
+            scenarios.Add(new AttributeRecomputeScenario(modifierCount: 64));
+            scenarios.Add(new ModifierComposeSortedScenario(modifierCount: 128));
+            scenarios.Add(new RecordIdHashScenario(nameLength: 256));
             scenarios.Add(new PipelineSynchronousScenario(64, batchSize: 100));
             scenarios.Add(new PipelineActiveRunsScenario(5_000));
             scenarios.Add(new TriggerDispatchScenario(256, queued: false, reuseControl: false, batchSize: 100));

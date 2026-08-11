@@ -44,7 +44,7 @@ namespace AbilityKit.Game.Flow
 
             options.ResetTickState?.Invoke();
 
-            var authWorldId = CreateWorldRuntime(
+            CreateWorldRuntime(
                 options.Plan,
                 handles,
                 options.FixedDeltaSeconds,
@@ -52,15 +52,11 @@ namespace AbilityKit.Game.Flow
 
             CreateInputRuntime(handles);
             CreateViewEventPipeline(options.Plan, handles, options.HasSession);
-            ConfirmedViewSideInstaller.EnsureInstalled(
-                options.Context,
-                options.Flow,
-                handles,
-                authWorldId,
-                ConfirmedViewSideInstaller.ShouldRenderConfirmedView(options.Plan));
+            ConfirmedAuthorityDebugStatsPublisher.Initialize(
+                ConfirmedAuthorityWorldId.Create(options.Plan));
         }
 
-        private static WorldId CreateWorldRuntime(
+        private static void CreateWorldRuntime(
             BattleStartPlan plan,
             BattleSessionConfirmedWorldRuntime handles,
             float fixedDeltaSeconds,
@@ -73,7 +69,6 @@ namespace AbilityKit.Game.Flow
                 resolveIdealFrameLimit);
 
             handles.BindWorldRuntime(worldRuntime);
-            return worldRuntime.WorldId;
         }
 
         private static void CreateInputRuntime(BattleSessionConfirmedWorldRuntime handles)

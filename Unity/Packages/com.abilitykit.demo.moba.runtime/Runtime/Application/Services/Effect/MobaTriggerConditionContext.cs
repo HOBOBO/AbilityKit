@@ -51,6 +51,7 @@ namespace AbilityKit.Demo.Moba.Services
         public float DurationSeconds => StageSnapshot.DurationSeconds;
         public bool HasSkillRuntime => SkillRuntimeHandle.IsValid;
         public bool HasExecutionSource => SourceActorId > 0 && ParentContextId != 0;
+        public bool CanCreateRootExecution => SourceActorId > 0 && ParentContextId == 0;
 
         public bool TryGetPayload<TPayload>(out TPayload payload)
         {
@@ -116,9 +117,9 @@ namespace AbilityKit.Demo.Moba.Services
 
         public MobaTriggerExecutionRequest ToExecutionRequest(int triggerId)
         {
-            if (!HasExecutionSource)
+            if (!HasExecutionSource && !CanCreateRootExecution)
             {
-                throw new InvalidOperationException($"MobaTriggerConditionContext requires execution source before creating execution request. triggerId={triggerId}, frame={Frame}, sourceActorId={SourceActorId}, parentContextId={ParentContextId}, rootContextId={RootContextId}, contextKind={ContextKind}, originKind={OriginKind}");
+                throw new InvalidOperationException($"MobaTriggerConditionContext requires an execution source or root capability before creating execution request. triggerId={triggerId}, frame={Frame}, sourceActorId={SourceActorId}, parentContextId={ParentContextId}, rootContextId={RootContextId}, contextKind={ContextKind}, originKind={OriginKind}");
             }
 
             return new MobaTriggerExecutionRequest(

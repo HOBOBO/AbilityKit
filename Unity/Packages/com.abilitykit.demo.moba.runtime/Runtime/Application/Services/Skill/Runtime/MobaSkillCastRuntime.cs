@@ -25,6 +25,7 @@ namespace AbilityKit.Demo.Moba.Services
         Summon = 5,
         Periodic = 6,
         Presentation = 7,
+        ProjectileLauncher = 8,
     }
 
     public enum MobaSkillRuntimeLifecycleEventKind

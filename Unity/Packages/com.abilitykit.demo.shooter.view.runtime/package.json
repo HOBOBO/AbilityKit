@@ -22,6 +22,7 @@
     "com.abilitykit.network.sdk": "0.1.0",
     "com.abilitykit.network.battle": "0.1.0",
     "com.abilitykit.network.battle.config": "0.1.0",
+    "com.abilitykit.network.client": "0.1.0",
     "com.abilitykit.protocol.room": "0.0.1",
     "com.abilitykit.protocol.shooter": "0.0.1",
     "com.abilitykit.record": "0.0.1",

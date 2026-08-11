@@ -46,6 +46,7 @@ public static class Program
 public sealed record BenchmarkArguments(
     string Profile,
     string Module,
+    string Scope,
     string? CaseFilter,
     string? Output,
     int? Warmup,
@@ -56,6 +57,7 @@ public sealed record BenchmarkArguments(
     {
         "profile",
         "module",
+        "scope",
         "case",
         "output",
         "warmup",
@@ -83,16 +85,23 @@ public sealed record BenchmarkArguments(
         if (profile is not ("smoke" or "full"))
             throw new ArgumentException("Profile must be 'smoke' or 'full'.");
         var module = Get(values, "module") ?? "all";
-        if (!module.Equals("all", StringComparison.OrdinalIgnoreCase)
-            && !module.Equals("pipeline", StringComparison.OrdinalIgnoreCase)
-            && !module.Equals("triggering", StringComparison.OrdinalIgnoreCase))
+        if (!BenchmarkScenarioCatalog.IsSupportedModule(module))
         {
-            throw new ArgumentException("Module must be 'all', 'pipeline' or 'triggering'.");
+            var supported = string.Join("', '", BenchmarkScenarioCatalog.Modules.Order(StringComparer.OrdinalIgnoreCase));
+            throw new ArgumentException($"Module must be 'all', '{supported}'.");
+        }
+
+        var scope = Get(values, "scope") ?? "all";
+        if (!scope.Equals("all", StringComparison.OrdinalIgnoreCase)
+            && !BenchmarkScenarioScopes.All.Contains(scope))
+        {
+            throw new ArgumentException("Scope must be 'all', 'package' or 'capability'.");
         }
 
         return new BenchmarkArguments(
             profile,
             module,
+            scope,
             Get(values, "case"),
             Get(values, "output"),
             GetInt(values, "warmup"),
@@ -117,9 +126,12 @@ public sealed record BenchmarkArguments(
     {
         var moduleMatches = Module.Equals("all", StringComparison.OrdinalIgnoreCase)
             || scenario.Descriptor.Module.Equals(Module, StringComparison.OrdinalIgnoreCase);
+        var scopeMatches = Scope.Equals("all", StringComparison.OrdinalIgnoreCase)
+            || (scenario.Descriptor.Workload.TryGetValue(BenchmarkWorkloadDimensions.Scope, out var scope)
+                && scope.Equals(Scope, StringComparison.OrdinalIgnoreCase));
         var caseMatches = string.IsNullOrWhiteSpace(CaseFilter)
             || scenario.Descriptor.Id.Contains(CaseFilter, StringComparison.OrdinalIgnoreCase);
-        return moduleMatches && caseMatches;
+        return moduleMatches && scopeMatches && caseMatches;
     }
 
     private static string? Get(IReadOnlyDictionary<string, string> values, string key) =>

@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle.Agent;
@@ -14,7 +15,7 @@ namespace AbilityKit.Game.Flow
     /// 本 Feature 只消费连接事件，不维护第二套 socket 重连计时或 attempt 生命周期。
     ///
     /// 重连后的状态重置（P1 端到端）：
-    /// 1. 销毁 RemoteDriven 预测世界（含重置 _remoteDrivenLastTickedFrame），标记待状态导入
+    /// 1. 销毁 RemoteDriven 预测世界（含重置 Simulation owner 的 last-ticked frame），标记待状态导入
     /// 2. 重置远端插值缓冲（MobaRemoteInterpolationPlayback.Reset）
     /// 3. 重置状态哈希对账（PredictionReconcileControl.ResetReconcile）
     /// 4. 清空输入 ACK 帧跟踪
@@ -27,36 +28,12 @@ namespace AbilityKit.Game.Flow
     /// </summary>
     public sealed partial class BattleSessionFeature
     {
-        private bool _reconnectWatchEnabled;
         private bool _battleConnectionRecoveryPending;
-
-        private void HookReconnectWatch(NetworkTransport transport)
-        {
-            if (transport == null || _reconnectWatchEnabled) return;
-
-            _reconnectWatchEnabled = true;
-            _battleConnectionRecoveryPending = false;
-            transport.ConnectionClosed += OnBattleConnectionClosed;
-            transport.ConnectionEstablished += OnBattleConnectionEstablished;
-        }
-
-        private void UnhookReconnectWatch()
-        {
-            if (!_reconnectWatchEnabled) return;
-            _reconnectWatchEnabled = false;
-            _battleConnectionRecoveryPending = false;
-
-            if (_interpolationTransport != null)
-            {
-                _interpolationTransport.ConnectionClosed -= OnBattleConnectionClosed;
-                _interpolationTransport.ConnectionEstablished -= OnBattleConnectionEstablished;
-            }
-        }
 
         private void OnBattleConnectionClosed()
         {
             // 会话已停止（主动 Disconnect）时不进入自动重连。
-            if (!_reconnectWatchEnabled || _handles.Session == null) return;
+            if (!_runtime.Replication.IsBuilt || _handles.Session == null) return;
             _battleConnectionRecoveryPending = true;
 
             Log.Warning(
@@ -66,7 +43,7 @@ namespace AbilityKit.Game.Flow
 
         private void OnBattleConnectionEstablished()
         {
-            if (!_reconnectWatchEnabled || !_battleConnectionRecoveryPending) return;
+            if (!_runtime.Replication.IsBuilt || !_battleConnectionRecoveryPending) return;
 
             _battleConnectionRecoveryPending = false;
 
@@ -76,7 +53,7 @@ namespace AbilityKit.Game.Flow
 
         private void ResetStateAfterReconnect()
         {
-            // 1. 销毁预测世界（内部已重置 _remoteDrivenLastTickedFrame = 0）。
+            // 1. 销毁预测世界（内部已重置 Simulation owner 的 last-ticked frame）。
             //
             // 世界在首个 FullSnapshot 到达时重建并导入服务端状态
             // （见 TransportFactory.TryImportStateIntoLogicWorld）。
@@ -120,6 +97,30 @@ namespace AbilityKit.Game.Flow
 
             // 4. 清空输入 ACK 帧跟踪
             _lastServerAckFrame = 0;
+        }
+
+        /// <summary>
+        /// 鉴权/订阅握手失败（RenewSession 或 SubscribeStateSync 异常）。TCP 已连但推送流未建立 ——
+        /// 如果不处理，会话会卡在等 baseline 的僵尸态。处置：断开当前连接，让 ConnectionManager
+        /// 进入退避重连周期，下次建连引擎自动重试 RenewSession。token 真过期时最终触发重连耗尽。
+        /// </summary>
+        private void OnBattleAuthenticationFailed(Exception ex)
+        {
+            if (!_runtime.Replication.IsBuilt) return;
+
+            Log.Warning(
+                $"[BattleSessionFeature] Battle authentication failed: {ex?.Message}. " +
+                "Disconnecting to trigger reconnect + re-auth cycle.");
+
+            _battleConnectionRecoveryPending = true;
+            try
+            {
+                _runtime.Replication.Transport?.Disconnect();
+            }
+            catch (Exception disconnectEx)
+            {
+                Log.Exception(disconnectEx, "[BattleSessionFeature] Transport disconnect after auth failure failed.");
+            }
         }
     }
 }

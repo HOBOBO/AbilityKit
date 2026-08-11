@@ -39,12 +39,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             var schedule = context.RepeatCount == 1
                 ? ProjectileScheduleParams.Once(firstEmitFrame)
                 : ProjectileScheduleParams.Repeat(firstEmitFrame, context.IntervalFrames, context.RepeatCount);
-            var launcherSource = context.LauncherSource;
-            if (context.Links != null && launcherSource.IsValid)
-            {
-                context.Links.BindLauncherSource(context.LauncherActorId, in launcherSource);
-            }
-
             var baseSpawn = context.BaseSpawn;
             var scheduleId = context.Projectiles.ScheduleEmit(patternProvider, in baseSpawn, in schedule);
             context.LauncherEntity.AddProjectileLauncher(

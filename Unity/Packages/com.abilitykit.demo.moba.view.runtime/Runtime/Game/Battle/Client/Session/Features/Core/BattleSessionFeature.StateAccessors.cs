@@ -35,18 +35,6 @@ namespace AbilityKit.Game.Flow
             set => _state.Tick.FirstFrameReceived = value;
         }
 
-        private int _remoteDrivenLastTickedFrame
-        {
-            get => _state.RemoteDriven.LastTickedFrame;
-            set => _state.RemoteDriven.LastTickedFrame = value;
-        }
-
-        private int _confirmedLastTickedFrame
-        {
-            get => _state.Confirmed.LastTickedFrame;
-            set => _state.Confirmed.LastTickedFrame = value;
-        }
-
         private bool _autoPlanLogged
         {
             get => _state.Flags.AutoPlanLogged;

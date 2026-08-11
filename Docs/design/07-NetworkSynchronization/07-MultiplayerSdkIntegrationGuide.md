@@ -212,10 +212,10 @@ coordinator 当初的设想是"逻辑层不关心帧同步/状态同步，宿主
 ### 进行中（WIP，未提交；2026-08-09 记录）
 
 - **Room-flow staged-restore 重构（用户进行中）**：`network.room/Runtime/RoomGatewaySessionFlow.cs`（工作树 `M`）正从单步 `CreateRoomAsync`/`RestoreRoomAsync` 高层接口重构为分阶段 restore（`RoomGatewayStagedRestoreResult` / `NextStep` / `RestoreStatus` 等）。重构**尚未完成**：已知粗糙点 —— create 路径 `EntryKind` 因 server `JoinRoom` 的 alreadyMember 副产物被标成 `Reconnect`（shooter flow 已在 `ShooterRoomGatewayFlow.JoinAndLaunchAsync` 用 `createdRoomOwner ? TeamLobby : join.JoinKind` 修复；SDK flow 同类问题待随重构收尾确认）。
-- **`GatewayMultiplayerSession`（高层 ~10 行门面，`network.room/Runtime/GatewayMultiplayerSession.cs`，工作树 `??`）**：封装 connect → GuestLogin → create/join → ready → `WaitForBattleStart`（轮询直到 InBattle）→ SubscribeStateSync；已能编译（`network.room` 0 错误），但**零消费者**，且依赖上述 room-flow WIP。
-- **GatewayMultiplayerSession 接入（高层门面 dogfood）—— 阻塞于 room-flow WIP 稳定**：已评估接入点：① Console demo `StateSyncAdapter`（单 client SnapshotAuthority + 无 formal battle start + async-void 连接结构）与门面的 `WaitForBattleStart` 不适配；② MOBA `MultiplayerGatewayEntryModule` 是正确形态（完整 create→ready→start→subscribe），但是 ~429 行复杂模块。合成测试也非轻量（需模拟 room→InBattle）。**建议**：room-flow staged-restore 收尾、entryKind 等粗糙点清理后，把 `MultiplayerGatewayEntryModule` 切到 `GatewayMultiplayerSession`，由 `moba-smoke` 验证。
+- **`GatewayMultiplayerSession`（高层 ~10 行门面，`network.room/Runtime/GatewayMultiplayerSession.cs`）**：封装 connect → GuestLogin → create/join → ready → 可选 `WaitForBattleStart` → SubscribeStateSync；已有首个真实消费者（Console demo，见下）。
+- **GatewayMultiplayerSession 接入（高层门面 dogfood）—— ✅ Console 已接入（2026-08-10）**：① Console demo `StateSyncAdapter` 的房间组装已切到门面编排 seam `RunRoomFlowAsync`（`waitForBattleStart: false` 适配单 client SnapshotAuthority 无 formal battle start），保留自有连接/重连外壳与 join→create 回退；对本地 Orleans 网关端到端验证通过（login → join 409 回退 create → ready → subscribe），`moba-console-smoke` 门禁 4/4。② MOBA **评估后决定不接入门面**：其房间栈（`GatewayMultiplayerRoomSession`+`MultiplayerRoomFlowController`）已全面跑在 SDK `RoomGatewaySessionFlow` 分阶段 API 上，状态机承载 hero-pick 交互/loading 进度/断线恢复，线性门面表达不了事件驱动阶段，强切是降级 —— MOBA 的统一性证据记在 `RoomGatewaySessionFlow` 层。门面定位：线性/最小流程的快速入口（Console 背书）。
 
-- **P3（后续）**：提供参考同步实现（如 shooter 的 `AuthoritativeInterpolation`）作为开箱默认；并把 `GatewayMultiplayerSession` 真正接入一个示例（依赖上方 room-flow WIP 收尾）。
+- **P3（后续）**：提供参考同步实现（如 shooter 的 `AuthoritativeInterpolation`）作为开箱默认。`GatewayMultiplayerSession` 已接入 Console 示例（见上）；剩余硬化项是 in-process gateway fixture 的完整 happy-path 测试；详见 `08-NetworkOptimizationPlan.md` P-A。
 - **P4（后续）**：决策 coordinator 去留（收缩为本地/harness 专用，删远端死 adapter）。
 - **P5（可选）**：收敛预测算法（帧同步 vs 状态同步机制不同，不强行统一；可能永远不做）。
 

@@ -9,6 +9,8 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Battle;
+using AbilityKit.Network.Client;
+using AbilityKit.Network.Room;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Shooter;
@@ -20,6 +22,7 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly IConnection _connection;
         private readonly NetworkSdkClient _sdkClient;
         private readonly ShooterRoomGatewayConnection _gatewayConnection;
+        private GatewayBattleClientHost? _battleHost;
         private NetworkTransport? _battleTransport;
         private ShooterBattleDataPlane? _battleData;
         private ShooterClientSession? _battleSession;
@@ -77,10 +80,17 @@ namespace AbilityKit.Demo.Shooter.View
         public void Tick(float deltaTime)
         {
             ThrowIfDisposed();
-            _sdkClient.Tick(deltaTime);
-            // Battle transport: pump heartbeat/reconnect, then run queued battle callbacks (push apply)
-            // on this (main) thread — single-threaded with session.Tick, so ApplyGatewayPush can't race it.
-            _battleTransport?.Tick(deltaTime);
+            // Once the battle host exists it pumps both connections (room + battle); before that,
+            // pump the room connection directly. Then run queued battle callbacks (push apply) on
+            // this (main) thread — single-threaded with session.Tick, so ApplyGatewayPush can't race it.
+            if (_battleHost != null)
+            {
+                _battleHost.Tick(deltaTime);
+            }
+            else
+            {
+                _sdkClient.Tick(deltaTime);
+            }
             _battleData?.Drain();
         }
 
@@ -637,30 +647,55 @@ namespace AbilityKit.Demo.Shooter.View
         }
 
         /// <summary>
-        /// Builds the battle data-plane on its OWN connection (two-connection / MOBA topology): a
-        /// <see cref="NetworkTransport"/> over a fresh TcpTransport, the <see cref="ShooterBattleDataPlane"/>
-        /// push/reconnect dispatcher, and the <see cref="ShooterBattleTransportGatewayClient"/> input adapter.
+        /// Builds the battle data-plane on its OWN connection (two-connection / MOBA topology) via the
+        /// shared <see cref="GatewayBattleClientHost"/> (primitives path: shooter's room control plane is
+        /// its own staged stack, not the facade). The host assembles gateway/session/protocol-preset;
+        /// the configure callback adds the shooter-specific input preset, reliable-event cursor, and
+        /// raw-downlink mode. Connect is deferred so the <see cref="ShooterBattleDataPlane"/> can
+        /// subscribe before the engine's connect handshake emits its first pushes.
         /// Called from the gateway launcher's battle-client factory once the room flow yields the battle ids.
         /// </summary>
         private IShooterRoomGatewayClient BuildBattleTransport(string host, int port, ShooterRoomGatewayFlowResult flow)
         {
-            var options = ShooterNetworkTransportOptionsFactory.Create(
+            var session = new GatewaySessionResult(
+                flow.SessionToken,
+                flow.RoomId,
+                flow.BattleId,
+                flow.NumericRoomId,
+                flow.PlayerId,
+                roomSnapshot: default,
+                subscribed: false);
+
+            _battleHost = new GatewayBattleClientHost(
+                _sdkClient,
+                in session,
                 host,
                 port,
-                transportFactory: () => new TcpTransport(),
-                playerIdToUInt: pid => uint.Parse(pid.Value, CultureInfo.InvariantCulture),
-                worldIdToUlong: w => ulong.Parse(w.Value, CultureInfo.InvariantCulture),
-                sessionToken: flow.SessionToken,
-                battleId: flow.BattleId,
-                publicRoomId: flow.RoomId,
-                getReliableEventEpoch: () => _battleSession?.ReliableEventEpoch ?? string.Empty,
-                getReliableEventLastAcknowledgedSequence: () => _battleSession?.LastReliableEventAck ?? 0L);
+                battleTransportFactory: () => new TcpTransport(),
+                battleDispatcher: InlineDispatcher.Instance);
+
+            _battleTransport = _battleHost.AttachBattle((config, s) =>
+            {
+                config
+                    // Standard room-gateway input uplink preset. Engine retry disabled (no retry policy):
+                    // shooter keeps its own RejectedTooFarFuture retry as the sole retry. ShouldResync is
+                    // carried as a pure data field for the client's MarkGatewayInputResyncRequested path.
+                    .UseRoomGatewayStateSyncInput(
+                        s.BattleId,
+                        playerIdToUInt: pid => uint.Parse(pid.Value, CultureInfo.InvariantCulture),
+                        worldIdToUlong: w => ulong.Parse(w.Value, CultureInfo.InvariantCulture))
+                    .WithReliableEventCursor(
+                        () => _battleSession?.ReliableEventEpoch ?? string.Empty,
+                        () => _battleSession?.LastReliableEventAck ?? 0L)
+                    // Shooter is a raw downlink consumer: all pushes route through RawServerPushReceived
+                    // into ShooterClientSession.ApplyGatewayPush; typed deserializers stay off.
+                    .WithRawDownlinkOnly();
+            }, connect: false);
 
             // InlineDispatcher callback: PacketReceived (incl. RequestClient response matching) fires
             // immediately on the receive thread, so an awaited SendInputAsync can't deadlock on the main
             // thread. ApplyGatewayPush is queued in ShooterBattleDataPlane and drained on the main thread
             // during Tick, so it can't race session.Tick.
-            _battleTransport = new NetworkTransport(options, InlineDispatcher.Instance);
             _battleData = new ShooterBattleDataPlane(_battleTransport);
             _battleData.SnapshotPushDispatched += (op, payload, result) => _gatewayConnection.NotifyBattlePushDispatched(op, payload, result);
             return new ShooterBattleTransportGatewayClient(
@@ -691,9 +726,17 @@ namespace AbilityKit.Demo.Shooter.View
 
             _disposed = true;
             _battleData?.Dispose();
-            _battleTransport?.Dispose();
+            // The host disposes the battle transport and the room connection; if no battle was ever
+            // attached, the room connection is still ours to release.
+            if (_battleHost != null)
+            {
+                _battleHost.Dispose();
+            }
+            else
+            {
+                _sdkClient.Dispose();
+            }
             _gatewayConnection.Dispose();
-            _sdkClient.Dispose();
         }
     }
 

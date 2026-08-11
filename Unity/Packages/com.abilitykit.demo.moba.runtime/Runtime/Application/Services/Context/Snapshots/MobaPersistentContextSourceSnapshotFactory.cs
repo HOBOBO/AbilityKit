@@ -103,73 +103,10 @@ namespace AbilityKit.Demo.Moba.Services
         public static bool TryCapture(object payload, out MobaPersistentContextSourceSnapshot snapshot)
         {
             snapshot = default;
-            if (payload == null) return false;
+            if (!payload.TryResolveContextSource(out var source)) return false;
 
-            if (payload is MobaPersistentContextSourceSnapshot direct && direct.IsValid)
-            {
-                snapshot = direct;
-                return true;
-            }
-
-            if (payload is IMobaPersistentContextSourceProvider persistentProvider
-                && persistentProvider.TryGetPersistentContextSource(out snapshot)
-                && snapshot.IsValid)
-            {
-                return true;
-            }
-
-            if (payload is MobaContextSourceView directSource && directSource.IsValid)
-            {
-                snapshot = FromContextSource(in directSource);
-                return snapshot.IsValid;
-            }
-
-            if (payload is IMobaContextSourceProvider sourceProvider
-                && sourceProvider.TryGetContextSource(out var source)
-                && source.IsValid)
-            {
-                snapshot = FromContextSource(in source);
-                return snapshot.IsValid;
-            }
-
-            if (payload is IMobaCombatContextSource combatSourceProvider
-                && combatSourceProvider.TryGetCombatContextSource(out var combatSource)
-                && combatSource.IsValid)
-            {
-                snapshot = FromCombatSource(in combatSource);
-                return snapshot.IsValid;
-            }
-
-            if (payload is IMobaTriggerExecutionSnapshotProvider executionProvider
-                && executionProvider.TryGetExecutionSnapshot(out var executionSnapshot)
-                && executionSnapshot.IsValid)
-            {
-                snapshot = FromExecutionSnapshot(in executionSnapshot);
-                return snapshot.IsValid;
-            }
-
-            if (payload is IMobaOriginContextProvider originProvider
-                && originProvider.TryGetOrigin(out var origin)
-                && origin.IsValid)
-            {
-                snapshot = FromOrigin(in origin);
-                return snapshot.IsValid;
-            }
-
-            if (payload is IMobaTriggerLineageContextProvider lineageProvider
-                && lineageProvider.TryGetLineageContext(out var lineageContext))
-            {
-                var handle = default(MobaSkillCastRuntimeHandle);
-                if (payload is IMobaTriggerSkillRuntimeContext skillRuntimeProvider)
-                {
-                    skillRuntimeProvider.TryGetSkillRuntimeHandle(out handle);
-                }
-
-                snapshot = FromLineage(in lineageContext, handle);
-                return snapshot.IsValid;
-            }
-
-            return false;
+            snapshot = FromContextSource(in source);
+            return snapshot.IsValid;
         }
     }
 }

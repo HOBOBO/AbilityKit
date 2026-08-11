@@ -18,6 +18,7 @@ public sealed class BenchmarkScenarioTests
         {
             "--profile", "full",
             "--module", "pipeline",
+            "--scope", "capability",
             "--case", "active-runs",
             "--output", "result.json",
             "--warmup", "3",
@@ -27,6 +28,7 @@ public sealed class BenchmarkScenarioTests
 
         Assert.Equal("full", arguments.Profile);
         Assert.Equal("pipeline", arguments.Module);
+        Assert.Equal("capability", arguments.Scope);
         Assert.Equal("active-runs", arguments.CaseFilter);
         Assert.Equal("result.json", arguments.Output);
         Assert.Equal(new BenchmarkRunOptions(3, 7, 11), arguments.CreateOptions());
@@ -41,20 +43,82 @@ public sealed class BenchmarkScenarioTests
         var smoke = BenchmarkScenarioCatalog.Create("smoke");
         var full = BenchmarkScenarioCatalog.Create("full");
 
-        Assert.Equal(7, smoke.Count);
-        Assert.Equal(12, full.Count);
+        Assert.Equal(13, smoke.Count);
+        Assert.Equal(21, full.Count);
         Assert.Equal(smoke.Count, smoke.Select(item => item.Descriptor.Id).Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(full.Count, full.Select(item => item.Descriptor.Id).Distinct(StringComparer.Ordinal).Count());
-        Assert.Equal(new[] { "pipeline", "triggering" }, smoke.Select(item => item.Descriptor.Module).Distinct().Order().ToArray());
-        Assert.All(smoke, item => Assert.NotEmpty(item.Descriptor.Workload));
+        Assert.Equal(
+            new[] { "attributes", "modifiers", "pipeline", "record", "triggering" },
+            smoke.Select(item => item.Descriptor.Module).Distinct().Order().ToArray());
+        Assert.Equal(
+            new[] { "attributes", "modifiers", "pipeline", "record", "triggering" },
+            BenchmarkScenarioCatalog.Modules.Order().ToArray());
+        Assert.All(smoke, item =>
+        {
+            Assert.True(item.Descriptor.Workload.TryGetValue(BenchmarkWorkloadDimensions.Scope, out var scope));
+            Assert.Contains(scope, BenchmarkScenarioScopes.All);
+        });
+    }
+
+    [Fact]
+    public void Arguments_ScopeFilterSeparatesPackageAndCapabilityScenarios()
+    {
+        var packageArguments = BenchmarkArguments.Parse(new[] { "--scope", "package" });
+        var capabilityArguments = BenchmarkArguments.Parse(new[] { "--scope", "capability" });
+        var scenarios = BenchmarkScenarioCatalog.Create("smoke");
+
+        Assert.Equal(new[] { "attributes", "modifiers", "record" }, scenarios.Where(packageArguments.Matches)
+            .Select(item => item.Descriptor.Module).Distinct().Order().ToArray());
+        Assert.Equal(new[] { "pipeline", "triggering" }, scenarios.Where(capabilityArguments.Matches)
+            .Select(item => item.Descriptor.Module).Distinct().Order().ToArray());
     }
 
     [Theory]
     [InlineData("--unknown", "value")]
     [InlineData("--module", "other")]
+    [InlineData("--scope", "other")]
     public void Arguments_RejectUnsupportedInput(string name, string value)
     {
         Assert.Throws<ArgumentException>(() => BenchmarkArguments.Parse(new[] { name, value }));
+    }
+
+    [Fact]
+    public void RecordIdHashScenario_HashesEveryNameDeterministically()
+    {
+        var result = BenchmarkRunner.RunScenario(
+            new RecordIdHashScenario(nameLength: 16, batchSize: 4),
+            new BenchmarkRunOptions(0, 2, 3));
+
+        Assert.Equal(24, result.Summary.TotalOperations);
+        Assert.StartsWith("operations=12;checksum=", result.DeterminismDigest);
+        Assert.Equal(BenchmarkScenarioScopes.Package,
+            result.Descriptor.Workload[BenchmarkWorkloadDimensions.Scope]);
+    }
+
+    [Fact]
+    public void AttributeRecomputeScenario_RecomputesDeterministically()
+    {
+        var result = BenchmarkRunner.RunScenario(
+            new AttributeRecomputeScenario(modifierCount: 2, batchSize: 4),
+            SingleSample);
+
+        Assert.Equal(4, result.Summary.TotalOperations);
+        Assert.Equal("recomputes=4;checksum=414.000", result.DeterminismDigest);
+        Assert.Equal(BenchmarkScenarioScopes.Package,
+            result.Descriptor.Workload[BenchmarkWorkloadDimensions.Scope]);
+    }
+
+    [Fact]
+    public void ModifierComposeSortedScenario_ComposesDeterministically()
+    {
+        var result = BenchmarkRunner.RunScenario(
+            new ModifierComposeSortedScenario(modifierCount: 3, batchSize: 4),
+            SingleSample);
+
+        Assert.Equal(4, result.Summary.TotalOperations);
+        Assert.StartsWith("compositions=4;checksum=", result.DeterminismDigest);
+        Assert.Equal(BenchmarkScenarioScopes.Package,
+            result.Descriptor.Workload[BenchmarkWorkloadDimensions.Scope]);
     }
 
     [Fact]

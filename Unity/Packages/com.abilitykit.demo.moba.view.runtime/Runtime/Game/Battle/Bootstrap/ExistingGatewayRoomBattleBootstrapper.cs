@@ -114,7 +114,7 @@ namespace AbilityKit.Game.Flow
                 playerId: _localPlayerId.ToString(CultureInfo.InvariantCulture),
                 tickRate: world.TickRate,
                 inputDelayFrames: world.InputDelayFrames,
-                hostMode: BattleStartConfig.BattleHostMode.GatewayRemote,
+                hostMode: BattleHostMode.GatewayRemote,
                 useGatewayTransport: true,
                 gatewayHost: _gatewayHost,
                 gatewayPort: _gatewayPort,

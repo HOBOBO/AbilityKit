@@ -20,6 +20,7 @@
         "AbilityKit.Game.Battle.Runtime",
         "AbilityKit.Game.Battle.Shared.Logging",
         "AbilityKit.Game.Battle.Shared.Time",
+        "AbilityKit.Network.Battle",
         "AbilityKit.Network.Runtime",
         "AbilityKit.Network.Room",
         "AbilityKit.Network.Sdk",

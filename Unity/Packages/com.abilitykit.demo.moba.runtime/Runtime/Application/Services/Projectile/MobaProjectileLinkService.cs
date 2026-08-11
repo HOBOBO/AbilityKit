@@ -15,8 +15,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         private readonly Dictionary<ProjectileId, int> _actorIdByProjectile = new Dictionary<ProjectileId, int>();
         private readonly Dictionary<ProjectileId, ProjectileSourceContext> _sourceByProjectile = new Dictionary<ProjectileId, ProjectileSourceContext>();
         private readonly Dictionary<ProjectileId, MobaSkillRuntimeRetainHandle> _retainByProjectile = new Dictionary<ProjectileId, MobaSkillRuntimeRetainHandle>();
-        private readonly Dictionary<int, ProjectileSourceContext> _sourceByLauncherActorId = new Dictionary<int, ProjectileSourceContext>();
-        private readonly Dictionary<int, MobaSkillRuntimeRetainHandle> _retainByLauncherActorId = new Dictionary<int, MobaSkillRuntimeRetainHandle>();
+        private readonly Dictionary<int, LauncherLink> _launcherByActorId = new Dictionary<int, LauncherLink>();
 
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
         [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
@@ -57,14 +56,25 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 throw new InvalidOperationException($"Projectile launcher source context is incomplete. launcherActorId={launcherActorId} sourceActorId={source.SourceActorId} sourceContextId={source.SourceContextId} projectileConfigId={source.ProjectileConfigId}");
             }
 
-            _sourceByLauncherActorId[launcherActorId] = source;
+            if (_launcherByActorId.TryGetValue(launcherActorId, out var link))
+            {
+                link.Source = source;
+                return;
+            }
+
+            _launcherByActorId.Add(launcherActorId, new LauncherLink(in source));
         }
 
         public void BindLauncherRetain(int launcherActorId, in MobaSkillRuntimeRetainHandle retainHandle)
         {
             if (launcherActorId <= 0) return;
             if (!retainHandle.IsValid) return;
-            _retainByLauncherActorId[launcherActorId] = retainHandle;
+            if (!_launcherByActorId.TryGetValue(launcherActorId, out var link))
+            {
+                throw new InvalidOperationException($"Projectile launcher retain requires a bound source. launcherActorId={launcherActorId}");
+            }
+
+            link.RetainHandle = retainHandle;
         }
 
         public bool TryGetActorId(ProjectileId projectileId, out int actorId)
@@ -115,23 +125,33 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public bool TryGetLauncherSource(int launcherActorId, out ProjectileSourceContext source)
         {
-            return _sourceByLauncherActorId.TryGetValue(launcherActorId, out source) && source.IsValid;
+            if (_launcherByActorId.TryGetValue(launcherActorId, out var link) && link.Source.IsValid)
+            {
+                source = link.Source;
+                return true;
+            }
+
+            source = default;
+            return false;
         }
 
         public bool TryGetLauncherRetain(int launcherActorId, out MobaSkillRuntimeRetainHandle retainHandle)
         {
-            return _retainByLauncherActorId.TryGetValue(launcherActorId, out retainHandle) && retainHandle.IsValid;
+            if (_launcherByActorId.TryGetValue(launcherActorId, out var link) && link.RetainHandle.IsValid)
+            {
+                retainHandle = link.RetainHandle;
+                return true;
+            }
+
+            retainHandle = default;
+            return false;
         }
 
         public bool TryConsumeLauncherRetain(int launcherActorId, out MobaSkillRuntimeRetainHandle retainHandle)
         {
-            if (!_retainByLauncherActorId.TryGetValue(launcherActorId, out retainHandle) || !retainHandle.IsValid)
-            {
-                retainHandle = default;
-                return false;
-            }
+            if (!TryGetLauncherRetain(launcherActorId, out retainHandle)) return false;
 
-            _retainByLauncherActorId.Remove(launcherActorId);
+            _launcherByActorId[launcherActorId].RetainHandle = default;
             return true;
         }
 
@@ -180,8 +200,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public void UnlinkLauncher(int launcherActorId)
         {
             if (launcherActorId <= 0) return;
-            _sourceByLauncherActorId.Remove(launcherActorId);
-            _retainByLauncherActorId.Remove(launcherActorId);
+            _launcherByActorId.Remove(launcherActorId);
         }
 
         public void Clear()
@@ -190,8 +209,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             _actorIdByProjectile.Clear();
             _sourceByProjectile.Clear();
             _retainByProjectile.Clear();
-            _sourceByLauncherActorId.Clear();
-            _retainByLauncherActorId.Clear();
+            _launcherByActorId.Clear();
             _lifecycle?.SetActive(MobaTemporaryEntityKind.Projectile, 0);
         }
 
@@ -248,6 +266,17 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public void Dispose()
         {
             Clear();
+        }
+
+        private sealed class LauncherLink
+        {
+            public LauncherLink(in ProjectileSourceContext source)
+            {
+                Source = source;
+            }
+
+            public ProjectileSourceContext Source;
+            public MobaSkillRuntimeRetainHandle RetainHandle;
         }
     }
 

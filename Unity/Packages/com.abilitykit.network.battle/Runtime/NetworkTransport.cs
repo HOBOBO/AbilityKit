@@ -89,6 +89,17 @@ namespace AbilityKit.Network.Battle
         /// 不要再订上面的 FramePushed/StateSyncSnapshotPushed/ReliableEventsPushed（二选一，避免重复处理）。
         /// </summary>
         public event Action<uint, ArraySegment<byte>> RawServerPushReceived;
+        /// <summary>
+        /// 连接后的鉴权/订阅握手（RenewSession→PostAuthentication）失败时触发。引擎不再只记日志 —
+        /// 订阅方应把它当作"推送流未建立"处理（如触发重登或整体重连）。
+        /// </summary>
+        public event Action<Exception> AuthenticationFailed;
+        /// <summary>
+        /// 输入提交的异常出口（网络错误/序列化失败等，不含服务端业务拒绝 —— 拒绝走
+        /// <see cref="NetworkSubmitInputResponse"/>）。两条提交路径异常时都会触发；
+        /// <see cref="SendInputAsync"/> 的 await 方拿到的仍是 default 响应，需要区分异常请订阅此事件。
+        /// </summary>
+        public event Action<Exception> SubmitInputFailed;
 
         public void Connect()
         {
@@ -204,6 +215,7 @@ namespace AbilityKit.Network.Battle
             catch (Exception ex)
             {
                 Log.Exception(ex, "[NetworkTransport] Input submission failed.");
+                SubmitInputFailed?.Invoke(ex);
             }
 
             return response;
@@ -341,6 +353,7 @@ namespace AbilityKit.Network.Battle
             catch (Exception ex)
             {
                 Log.Exception(ex, "[NetworkTransport] Connection authentication failed");
+                AuthenticationFailed?.Invoke(ex);
             }
         }
 

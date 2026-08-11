@@ -29,6 +29,7 @@ public sealed class PipelineSynchronousScenario : BenchmarkScenarioBase
             "phase",
             new Dictionary<string, string>
             {
+                [BenchmarkWorkloadDimensions.Scope] = BenchmarkScenarioScopes.Capability,
                 ["runMode"] = "synchronous-completion",
                 ["phaseCount"] = phaseCount.ToString(),
                 ["batchSize"] = batchSize.ToString(),
@@ -114,6 +115,7 @@ public sealed class PipelineActiveRunsScenario : BenchmarkScenarioBase
             "run-tick",
             new Dictionary<string, string>
             {
+                [BenchmarkWorkloadDimensions.Scope] = BenchmarkScenarioScopes.Capability,
                 ["runMode"] = "cross-frame-active",
                 ["activeRuns"] = activeRunCount.ToString(),
                 ["phaseCount"] = "1",

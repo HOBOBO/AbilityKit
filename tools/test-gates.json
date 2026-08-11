@@ -152,7 +152,8 @@
       "scope": [
         "network-runtime",
         "world-di",
-        "game-view-runtime-contracts"
+        "game-view-runtime-contracts",
+        "moba-view-runtime-contracts"
       ],
       "requiredBefore": [
         "merge-runtime-contract-change",
@@ -180,6 +181,11 @@
           "name": "Game view runtime tests",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Game.View.Runtime.Tests/AbilityKit.Game.View.Runtime.Tests.csproj"
+        },
+        {
+          "name": "MOBA view runtime tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.View.Runtime.Tests/AbilityKit.Demo.Moba.View.Runtime.Tests.csproj"
         }
       ]
     },
@@ -239,6 +245,11 @@
           "name": "Network battle config tests",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Network.Battle.Config.Tests/AbilityKit.Network.Battle.Config.Tests.csproj"
+        },
+        {
+          "name": "Network client host tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Network.Client.Tests/AbilityKit.Network.Client.Tests.csproj"
         }
       ]
     },
@@ -1028,15 +1039,18 @@
       "name": "runtime-performance-measurement",
       "level": "P2",
       "owner": "Runtime Platform",
-      "description": "Informational Pipeline and Triggering performance measurement with reusable benchmark contracts and JSON artifacts.",
+      "description": "Informational package and capability performance measurement for Attributes, Modifiers, Record, Pipeline, and Triggering with reusable benchmark contracts and JSON artifacts.",
       "scope": [
         "runtime-performance",
+        "attributes",
+        "modifiers",
+        "record",
         "pipeline",
         "triggering",
         "benchmark-contracts"
       ],
       "requiredBefore": [
-        "approve-pipeline-or-triggering-performance-budget",
+        "approve-runtime-performance-budget",
         "large-runtime-hot-path-refactor"
       ],
       "failurePolicy": "Block when benchmark contracts, functional validation, execution, or artifact production fail. Metric values remain informational until a reviewed budget is approved.",
@@ -1053,7 +1067,7 @@
           "project": "src/AbilityKit.Runtime.Benchmarks.Tests/AbilityKit.Runtime.Benchmarks.Tests.csproj"
         },
         {
-          "name": "Pipeline and Triggering benchmark smoke",
+          "name": "Runtime package and capability benchmark smoke",
           "kind": "powershell-script",
           "script": "tools/run_runtime_benchmarks.ps1",
           "arguments": [

@@ -245,7 +245,7 @@ namespace AbilityKit.Game
                 for (var i = 0; i < _battleStartPresets.Length; i++)
                 {
                     var candidate = _battleStartPresets[i];
-                    if (candidate != null && candidate.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote)
+                    if (candidate != null && candidate.HostMode == BattleHostMode.GatewayRemote)
                     {
                         remotePreset = candidate;
                         break;

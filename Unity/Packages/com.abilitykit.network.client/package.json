@@ -1,0 +1,16 @@
+{
+  "name": "com.abilitykit.network.client",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Network Client",
+  "unity": "2021.3",
+  "description": "Two-connection multiplayer battle client host (GatewayBattleClientHost): owns the room control-plane connection (GatewayMultiplayerSession) and the battle data-plane connection (NetworkTransport) with the push-binding discipline built in.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.network.sdk": "0.1.0",
+    "com.abilitykit.network.room": "0.1.0",
+    "com.abilitykit.network.battle": "0.1.0",
+    "com.abilitykit.network.battle.config": "0.1.0",
+    "com.abilitykit.network.runtime": "0.1.0",
+    "com.abilitykit.protocol.room": "0.0.1"
+  }
+}

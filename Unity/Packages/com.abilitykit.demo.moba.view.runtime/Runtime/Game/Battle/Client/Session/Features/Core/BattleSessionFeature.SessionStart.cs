@@ -9,7 +9,7 @@ namespace AbilityKit.Game.Flow
         {
             try
             {
-                if (_plan.RunModeOptions.RunMode == BattleStartConfig.BattleRunMode.Replay)
+                if (_plan.RunModeOptions.RunMode == BattleRunMode.Replay)
                 {
                     StartIsolatedReplaySession();
                     return;

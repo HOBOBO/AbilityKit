@@ -109,13 +109,21 @@ var restore = await flow.RestoreAsync(...);   // 按 NextStep 续上
 ```csharp
 var session = await GatewayMultiplayerSession.CreateAsync(
     "127.0.0.1", 4000, "player-1",
-    RoomGatewayLaunchSpec.CreateDefault("yourgame", "yourgame-world"));
-// session.SdkClient — 战斗数据面；session.Result — roomId/battleId/playerId
+    new RoomGatewayLaunchSpec(region, serverId, "yourgame", "title", maxPlayers, gameplayId, ruleSetId, configVersion, protocolVersion, "yourgame-world", clientId));
+// session.SdkClient — 战斗数据面；session.Result — roomId/battleId/playerId/RoomSnapshot
 session.Tick(deltaTime);
 session.Dispose();
 ```
 
-替代各 demo 各自实现的 ~200 行组装代码。可选：`transportFactory`（WebSocket/LiteNetLib）、`joinRoomId`（加入已有房间）、`configureRoomClient`（游戏专属推送）。
+替代各 demo 各自实现的 ~200 行组装代码。可选参数：
+- `transportFactory`（WebSocket/LiteNetLib）、`joinRoomId`（加入已有房间）、`configureRoomClient`（游戏专属推送）
+- **`waitForBattleStart: false`** —— 跳过 `WaitForBattleStart` 轮询，适配无正式开战环节的流程（如单 client SnapshotAuthority）
+- **`afterJoinAndBeforeReady` 钩子** —— 在 Join 与 SetReady 之间插入 hero-pick / loadout 配置（MOBA 类流程）
+- **`afterReadyAndBeforeBattleStart` 钩子** —— 在 SetReady 与开战等待之间驱动 loading 阶段（BeginLoading + ReportAssetsLoaded），供需要服务端提交战斗世界后才推快照的流程用
+
+**可注入/可测试**：房间流程编排核心是公开的 `GatewayMultiplayerSession.RunRoomFlowAsync(RoomGatewaySessionFlow flow, ...)`，可用任意 `IRoomGatewaySessionClientBase` 构建的 flow 驱动（含 fake client 单测，见 `src/AbilityKit.Network.Room.Tests/GatewayMultiplayerSessionTests.cs`）。
+
+> 状态（2026-08-10）：门面已灵活化/可注入/可扩展并测试。**首个真实消费者已接入并端到端验证**：Console demo `StateSyncAdapter` 经 `RunRoomFlowAsync` 编排 seam + 两个钩子完成 join-or-create → hero-pick → ready → loading → 等开战 → subscribe 全链路，对本地 Orleans 网关收到权威快照流（1189 帧推送）。MOBA 评估结论：不接入门面（其房间栈已在 `RoomGatewaySessionFlow` 分阶段 API 上，状态机承载交互阶段，线性门面表达不了）。优化路线见 `Docs/design/07-NetworkSynchronization/08-NetworkOptimizationPlan.md`。
 
 ## 相关
 

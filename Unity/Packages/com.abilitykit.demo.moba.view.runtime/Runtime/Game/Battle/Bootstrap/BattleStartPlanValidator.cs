@@ -26,9 +26,9 @@ namespace AbilityKit.Game.Flow
             if (world.InputDelayFrames < 0) throw new InvalidOperationException("Battle start InputDelayFrames cannot be negative.");
         }
 
-        private static void ValidateGateway(BattleStartConfig.BattleHostMode hostMode, in BattleStartPlanGatewayOptions gateway)
+        private static void ValidateGateway(BattleHostMode hostMode, in BattleStartPlanGatewayOptions gateway)
         {
-            if (hostMode != BattleStartConfig.BattleHostMode.GatewayRemote && !gateway.UseGatewayTransport) return;
+            if (hostMode != BattleHostMode.GatewayRemote && !gateway.UseGatewayTransport) return;
 
             if (string.IsNullOrEmpty(gateway.Host)) throw new InvalidOperationException("Gateway Host is required when gateway transport is enabled.");
             if (gateway.Port <= 0) throw new InvalidOperationException("Gateway Port must be greater than 0 when gateway transport is enabled.");
@@ -60,12 +60,12 @@ namespace AbilityKit.Game.Flow
 
         private static void ValidateRunMode(in BattleStartPlanRunModeOptions runMode)
         {
-            if (runMode.RunMode == BattleStartConfig.BattleRunMode.Record && string.IsNullOrEmpty(runMode.InputRecordOutputPath))
+            if (runMode.RunMode == BattleRunMode.Record && string.IsNullOrEmpty(runMode.InputRecordOutputPath))
             {
                 throw new InvalidOperationException("InputRecordOutputPath is required when run mode is Record.");
             }
 
-            if (runMode.RunMode == BattleStartConfig.BattleRunMode.Replay && string.IsNullOrEmpty(runMode.InputReplayPath))
+            if (runMode.RunMode == BattleRunMode.Replay && string.IsNullOrEmpty(runMode.InputReplayPath))
             {
                 throw new InvalidOperationException("InputReplayPath is required when run mode is Replay.");
             }

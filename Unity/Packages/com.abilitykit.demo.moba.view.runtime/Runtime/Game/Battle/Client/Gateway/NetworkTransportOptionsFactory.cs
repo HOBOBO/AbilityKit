@@ -1,27 +1,30 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Network.Battle.Config;
-using AbilityKit.Game.Battle.Requests;
+using AbilityKit.Network.Client;
 using AbilityKit.Network.Battle;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
-using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Room;
+using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 using AbilityKit.Protocol.Room;
-using AbilityKit.Game.Battle.Agent;
-using StateSyncOpCodes = AbilityKit.Protocol.Moba.StateSync.OpCodes;
 
 namespace AbilityKit.Game.Battle
 {
     /// <summary>
-    /// Builds <see cref="NetworkTransportOptions"/> for the MOBA demo via <see cref="NetworkBattleConfig"/>.
-    /// The standard room-gateway protocol (opcodes + auth + ack + resync + command-sequence) is handled by
-    /// <see cref="NetworkBattleConfig.UseRoomGatewayProtocol"/>; only the MOBA-specific input/snapshot/frame
-    /// serialize/deserialize callbacks are passed as lambdas.
+    /// Builds <see cref="NetworkTransportOptions"/> for the MOBA demo. The shared room-gateway
+    /// protocol prefill (gateway/session/protocol preset) comes from
+    /// <see cref="GatewayBattleClientHost.BuildBattleOptions"/> — the same assembly step the shooter
+    /// and console demos use — so all three converge on one protocol-setup source of truth. Only the
+    /// MOBA-specific callbacks (framesync/statesync input, snapshot+frame deserializers, reliable-event
+    /// cursor) are added here. MOBA keeps its own <see cref="NetworkTransport"/> construction with dual
+    /// dispatchers (its battle session owns the lifecycle), so only the static options-assembly step is
+    /// shared, not the host's lifecycle.
     /// </summary>
     public static class NetworkTransportOptionsFactory
     {
@@ -48,83 +51,79 @@ namespace AbilityKit.Game.Battle
             if (playerIdFromUInt == null) throw new ArgumentNullException(nameof(playerIdFromUInt));
             if (worldIdToUlong == null) throw new ArgumentNullException(nameof(worldIdToUlong));
             if (worldIdFromUlong == null) throw new ArgumentNullException(nameof(worldIdFromUlong));
-
             if (string.IsNullOrWhiteSpace(battleId))
             {
                 throw new ArgumentException("Battle id is required for authoritative input submission.", nameof(battleId));
             }
 
-            long nextCommandSequence = 0;
+            // Shared prefill (gateway address + session identity + room-gateway protocol preset) via the
+            // same static assembly step the other demos use — see GatewayBattleClientHost.BuildBattleOptions.
+            var session = new GatewaySessionResult(
+                sessionToken, publicRoomId, battleId, roomId, playerId: 0u, roomSnapshot: default, subscribed: false);
 
-            return new NetworkBattleConfig()
-                .WithGateway(host, port)
-                .WithTransportFactory(transportFactory)
-                .WithSession(sessionToken, battleId, publicRoomId)
-                .UseRoomGatewayProtocol(battleId, publicRoomId)
-                .WithInputSerializer(
-                    serializeSubmitInput: requestObj =>
+            return GatewayBattleClientHost.BuildBattleOptions(
+                in session,
+                host,
+                port,
+                battleTransportFactory: transportFactory,
+                configureBattle: (config, s) =>
+                {
+                    if (useFrameSyncInput)
                     {
-                        if (requestObj is not SequencedInput sequenced) return default;
-                        var req = sequenced.Request;
-                        var pid = playerIdToUInt(req.Input.Player);
-                        var wid = worldIdToUlong(req.WorldId);
+                        config.WithInputSerializer(
+                            serializeSubmitInput: requestObj =>
+                            {
+                                if (requestObj is not SequencedInput sequenced) return default;
+                                var req = sequenced.Request;
+                                var frameWire = new WireSubmitFrameInputReq(
+                                    s.NumericRoomId,
+                                    worldIdToUlong(req.WorldId),
+                                    playerIdToUInt(req.Input.Player),
+                                    req.Input.Frame.Value,
+                                    req.Input.OpCode,
+                                    req.Input.Payload ?? Array.Empty<byte>());
+                                return WireCustomBinary.Serialize(in frameWire);
+                            },
+                            deserializeSubmitInputResponse: payload =>
+                            {
+                                var frameWire = WireCustomBinary.DeserializeSubmitFrameInputRes(payload);
+                                var retryAtAuthoritativeFrame = !frameWire.Accepted &&
+                                    (frameWire.ReasonCode == 3 || frameWire.ReasonCode == 4);
+                                return new NetworkSubmitInputResponse(
+                                    frameWire.Accepted, frameWire.ServerFrame, frameWire.ReasonCode,
+                                    retryAtAuthoritativeFrame, $"FrameInputReason({frameWire.ReasonCode})");
+                            });
+                    }
+                    else
+                    {
+                        // Standard room-gateway StateSync input preset. NOTE: retryAtAuthoritativeFrame is
+                        // mapped from ShouldResync for historical compatibility; new consumers usually
+                        // leave the engine retry off.
+                        config.UseRoomGatewayStateSyncInput(
+                            s.BattleId,
+                            playerIdToUInt,
+                            worldIdToUlong,
+                            retryAtAuthoritativeFrame: wire => wire.ShouldResync);
+                    }
 
-                        if (useFrameSyncInput)
+                    config
+                        .WithSnapshotDeserializer(payload =>
                         {
-                            var frameWire = new WireSubmitFrameInputReq(
-                                roomId, wid, pid,
-                                req.Input.Frame.Value, req.Input.OpCode,
-                                req.Input.Payload ?? Array.Empty<byte>());
-                            return WireCustomBinary.Serialize(in frameWire);
-                        }
-
-                        var wire = new WireSubmitBattleInputReq
+                            var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
+                            return GatewayRoomClient.ToGatewaySnapshot(in wire);
+                        })
+                        .WithFrameDeserializer(payload =>
                         {
-                            SessionToken = sessionToken,
-                            BattleId = battleId,
-                            WorldId = wid,
-                            Frame = req.Input.Frame.Value,
-                            PlayerId = pid,
-                            InputOpCode = req.Input.OpCode,
-                            Payload = req.Input.Payload ?? Array.Empty<byte>(),
-                            CommandSequence = sequenced.CommandSequence
-                        };
-                        return WireRoomGatewayBinary.Serialize(in wire);
-                    },
-                    deserializeSubmitInputResponse: payload =>
-                    {
-                        if (useFrameSyncInput)
-                        {
-                            var frameWire = WireCustomBinary.DeserializeSubmitFrameInputRes(payload);
-                            var retryAtAuthoritativeFrame = !frameWire.Accepted &&
-                                (frameWire.ReasonCode == 3 || frameWire.ReasonCode == 4);
-                            return new NetworkSubmitInputResponse(
-                                frameWire.Accepted, frameWire.ServerFrame, frameWire.ReasonCode,
-                                retryAtAuthoritativeFrame, $"FrameInputReason({frameWire.ReasonCode})");
-                        }
-
-                        var wire = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputRes>(payload);
-                        return new NetworkSubmitInputResponse(
-                            wire.Success, wire.CurrentFrame, wire.Success ? 0 : 1,
-                            wire.ShouldResync, wire.Status, wire.Message);
-                    })
-                .WithSnapshotDeserializer(payload =>
-                    {
-                        var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
-                        return GatewayRoomClient.ToGatewaySnapshot(in wire);
-                    })
-                .WithFrameDeserializer(payload =>
-                    {
-                        var push = WireCustomBinary.DeserializeFramePushedPush(payload);
-                        var worldId = worldIdFromUlong(push.WorldId);
-                        var frame = new FrameIndex(push.Frame);
-                        var inputs = (IReadOnlyList<PlayerInputCommand>)(push.Inputs == null || push.Inputs.Length == 0
-                            ? Array.Empty<PlayerInputCommand>()
-                            : ConvertInputs(frame, push.Inputs, playerIdFromUInt));
-                        return new FramePacket(worldId, frame, inputs, snapshot: null);
-                    })
-                .WithReliableEventCursor(getReliableEventEpoch, getReliableEventLastAcknowledgedSequence)
-                .Build();
+                            var push = WireCustomBinary.DeserializeFramePushedPush(payload);
+                            var worldId = worldIdFromUlong(push.WorldId);
+                            var frame = new FrameIndex(push.Frame);
+                            var inputs = (IReadOnlyList<PlayerInputCommand>)(push.Inputs == null || push.Inputs.Length == 0
+                                ? Array.Empty<PlayerInputCommand>()
+                                : ConvertInputs(frame, push.Inputs, playerIdFromUInt));
+                            return new FramePacket(worldId, frame, inputs, snapshot: null);
+                        })
+                        .WithReliableEventCursor(getReliableEventEpoch, getReliableEventLastAcknowledgedSequence);
+                });
         }
 
         private static PlayerInputCommand[] ConvertInputs(FrameIndex frame, WireInputItem[] inputs, Func<uint, PlayerId> playerIdFromUInt)

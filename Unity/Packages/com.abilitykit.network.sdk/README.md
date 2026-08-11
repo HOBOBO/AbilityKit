@@ -87,6 +87,7 @@ Build
 - `Open(host, port)` 委托给底层 connection；host 不能为空，port 必须在 1..65535。
 - `OpenIfDisconnected` 只在当前状态为 `Disconnected` 时调用 `Open` 并返回 `true`；其他状态返回 `false`。
 - `Tick(deltaTime)` 必须由宿主持续推进。默认 `ConnectionManager` 的心跳检测、重连等待和重连尝试都依赖它。
+- **`Tick` 的 `deltaTime` 必须是真实墙钟时间**。心跳超时/重连计时直接累加该 delta —— 若宿主以快于墙钟的速率空转 Tick（如 fast-forward 的 console/回放宿主每空转一次喂固定 0.033），心跳计时会被加速数十倍，任何一次短暂的服务端等待（如战斗初始化阻塞响应 ~1.6s）都会被误判为心跳超时而断连。快进宿主应改用 `Stopwatch` 实测的真实间隔喂 `Tick`（参考 `AbilityKit.Demo.Moba.Console` 的 `StateSyncAdapter.Tick`）。
 - `Close()` 关闭当前连接，但不释放 client；调用者仍可再次 `Open`。
 - `ResetReconnect()` 仅在底层实现 `IReconnectableConnection` 时有效，否则抛出 `NotSupportedException`。
 - `Dispose()` 是终态且幂等；之后 `Open`、`Tick`、发送和重连操作抛 `ObjectDisposedException`，`Close()` 则保持 no-op。

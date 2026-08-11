@@ -34,9 +34,9 @@ namespace AbilityKit.Game.Flow
             var gatewaySo = preset != null ? preset.GatewaySO : config.GatewaySO;
             var overrides = config.RuntimeOverrides;
 
-            var runMode = runModeSo != null ? runModeSo.Mode : BattleStartConfig.BattleRunMode.Normal;
-            var enableInputRecording = runMode == BattleStartConfig.BattleRunMode.Record;
-            var enableInputReplay = runMode == BattleStartConfig.BattleRunMode.Replay;
+            var runMode = runModeSo != null ? runModeSo.Mode : BattleRunMode.Normal;
+            var enableInputRecording = runMode == BattleRunMode.Record;
+            var enableInputReplay = runMode == BattleRunMode.Replay;
 
             var recordPath = BuildRecordPath(runModeSo, overrides);
             var replayPath = runModeSo != null ? runModeSo.ReplayInputFilePath : string.Empty;
@@ -44,7 +44,7 @@ namespace AbilityKit.Game.Flow
 
             var hostMode = preset != null ? preset.HostMode : config.HostMode;
             var gateway = gatewaySo;
-            if (hostMode == BattleStartConfig.BattleHostMode.GatewayRemote && gateway == null)
+            if (hostMode == BattleHostMode.GatewayRemote && gateway == null)
             {
                 throw new InvalidOperationException("GatewaySO is required when HostMode is GatewayRemote.");
             }

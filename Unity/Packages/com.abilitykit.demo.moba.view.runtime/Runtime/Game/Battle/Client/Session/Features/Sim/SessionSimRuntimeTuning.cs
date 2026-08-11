@@ -20,7 +20,7 @@ namespace AbilityKit.Game.Flow
 
         public static int ResolveInputSubmitFrame(int lastObservedFrame, in BattleStartPlan plan)
         {
-            if (plan.HostMode != BattleStartConfig.BattleHostMode.GatewayRemote ||
+            if (plan.HostMode != BattleHostMode.GatewayRemote ||
                 !plan.Gateway.UseGatewayTransport)
             {
                 return lastObservedFrame + 1;

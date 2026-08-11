@@ -4,18 +4,16 @@ namespace AbilityKit.Game.Flow
     {
         private void StartRemoteDrivenLocalWorld()
         {
-            _worldInstaller.EnsureRemoteDrivenStarted(new RemoteDrivenWorldInstallOptions(
+            _runtime.Simulation.StartRemoteDriven(
                 _plan,
                 _ctx,
-                _handles.RemoteDriven,
                 GetFixedDeltaSeconds(),
                 ResolveIdealFrameLimit,
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                () => DebugForceClientHashMismatch,
+                () => DebugForceClientHashMismatch);
 #else
-                () => false,
+                () => false);
 #endif
-                () => _remoteDrivenLastTickedFrame = 0));
         }
     }
 }

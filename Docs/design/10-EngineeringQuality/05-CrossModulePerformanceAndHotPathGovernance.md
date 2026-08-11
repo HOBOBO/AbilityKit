@@ -1,6 +1,6 @@
 # 10.5 跨模块性能与热路径治理
 
-> 本文定义 AbilityKit 跨模块热路径的识别、测量、基线、预算、回归判断和门禁晋升规则。当前仓库已经存在 Shooter 场景 benchmark，以及 Pipeline/Triggering 共用的运行时测量、JSON artifact 和 P2 informational gate，但尚未建立覆盖全框架的统一性能预算或通用性能阻断门禁。本文既记录现状，也规定后续把场景 benchmark 晋升为公司级治理能力所需的证据。
+> 本文定义 AbilityKit 跨模块热路径的识别、测量、基线、预算、回归判断和门禁晋升规则。当前仓库已经存在 Shooter 场景 benchmark，以及 Attributes、Modifiers、Record、Pipeline、Triggering 共用的运行时测量、JSON artifact 和 P2 informational gate，但尚未建立覆盖全框架的统一性能预算或通用性能阻断门禁。本文既记录现状，也规定后续把场景 benchmark 晋升为公司级治理能力所需的证据。
 
 ---
 
@@ -41,14 +41,17 @@
 | P1 | 契约阻断 | 可承载稳定、低噪声的关键性能契约，但当前未配置通用性能 gate |
 | P2 | 回归基线 | 已接入 `runtime-performance-measurement` informational benchmark；当前只阻断契约、执行和 artifact 失败，不按性能数值阻断 |
 
-因此当前准确表述是：“仓库已有可复用测量基础设施、Pipeline/Triggering 场景基线和分层门禁，但没有框架级通用性能预算门禁。”
+因此当前准确表述是：“仓库已有可复用测量基础设施、Attributes/Modifiers/Record package 与 Pipeline/Triggering capability 场景基线和分层门禁，但没有框架级通用性能预算门禁。”
 
-### 2.3 Pipeline 与 Triggering 首批基线
+### 2.3 Runtime package 与 capability 首批基线
 
 通用测量契约位于 `src/AbilityKit.Benchmarking`，场景入口位于 `src/AbilityKit.Runtime.Benchmarks`，契约与场景正确性测试位于 `src/AbilityKit.Runtime.Benchmarks.Tests`。artifact schema 为 `abilitykit.runtime-benchmark.v1`，统一记录环境、配置、workload、原始样本、mean/median/P95/P99/max、当前线程托管分配、吞吐和确定性摘要。初始化、iteration setup、验证、清理和 JSON 序列化均在测量区间外。
 
 首批稳定 ID：
 
+- `attributes.recompute.modifiers-{1|16|64}`：修改基础值后读取脏 Attribute 的重算成本，以 dirty-recompute 归一化；注册、修改器构造和预热位于测量区间外。
+- `modifiers.compose-sorted.count-{4|32|128}`：预排序固定值修改器的组合成本，以 modifier-composition 归一化；排序位于测量区间外。
+- `record.id-hash.utf8.length-{16|64|256}`：Record 稳定 ID 的 UTF-8 FNV-1a 计算成本，以 name-hash 归一化。实现直接把 UTF-16 code point 混合为 UTF-8 字节，兼容代理对与非法代理项 fallback，稳态不创建中间 byte array。
 - `pipeline.synchronous.phases-{4|32|64}`：Run 创建、阶段实例隔离、同步完成和清理的端到端成本，以 phase 归一化。
 - `pipeline.active-runs.count-{1000|5000}`：跨帧活跃 Run 的 Tick 成本，以 run-tick 归一化。
 - `triggering.dispatch.immediate.control-implicit.fanout-{1|64|256}`：即时派发并由 Runner 创建 control。
@@ -59,15 +62,36 @@
 
 ```powershell
 tools/run_runtime_benchmarks.ps1 -Profile smoke
-tools/run_runtime_benchmarks.ps1 -Profile full -Module pipeline
+tools/run_runtime_benchmarks.ps1 -Profile smoke -Scope package
+tools/run_runtime_benchmarks.ps1 -Profile full -Scope capability
+tools/run_runtime_benchmarks.ps1 -Profile full -Module record
 tools/run_test_gate.ps1 -Gate runtime-performance-measurement -Configuration Release
 ```
 
-2026-07-27 的首轮本地 Release 测量只用于验证口径，不是批准预算。结果显示 1,000/5,000 active Pipeline runs 的 Tick 路径保持零当前线程托管分配且单位成本同阶；Triggering 默认空 Cue 路径移除无效上下文构造后，复用 control 的 64/256 fanout 均保持零当前线程托管分配，隐式 control 表现为每事件固定分配并随 fanout 摊薄。同步 Pipeline Start 仍包含 Run 和独立 phase 实例的生命周期分配，需要在后续历史趋势中继续观察，不能与纯 Tick 成本混为一项预算。
+`scope=package` 表示单一框架包内可独立解释的微基准；`scope=capability` 表示由一个或多个框架模块组成的能力链路。该分类写入 artifact workload，并可通过 `-Scope` 过滤。示例专项不并入通用 Runtime catalog，而是使用独立 benchmark 工程和报告，例如 Shooter AOI/LOD。
+
+2026-07-27 的首轮本地 Release 测量只用于验证口径，不是批准预算。结果显示 1,000/5,000 active Pipeline runs 的 Tick 路径保持零当前线程托管分配且单位成本同阶；Triggering 默认空 Cue 路径移除无效上下文构造后，复用 control 的 64/256 fanout 均保持零当前线程托管分配，隐式 control 表现为每事件固定分配并随 fanout 摊薄。同步 Pipeline Start 仍包含 Run 和独立 phase 实例的生命周期分配，需要在后续历史趋势中继续观察，不能与纯 Tick 成本混为一项预算。Attributes dirty recompute、Modifiers pre-sorted composition 和 Record ID hash 是后续新增的 package 级样板；Record hash 已通过契约测试确认 UTF-8 兼容和稳态零当前线程托管分配，但这些 workload 仍需经过 nightly 积累后才能形成趋势结论。
+
+FrameRecord 优化二进制 codec 当前公开边界绑定文件路径，内部 track 编解码也绑定 `BinaryReader`/`BinaryWriter`。现阶段不把文件系统耗时包装成 CPU 微基准；H2 codec workload 应在生产代码提供 stream/memory 核心后，分别记录 encode/decode CPU、payload bytes、当前线程托管分配与文件 I/O 端到端耗时，避免口径混淆。
 
 ---
 
 ## 3. 热路径分类
+
+### 3.1 Benchmark 工程归属
+
+| Scope | 适用对象 | 默认工程 | 拆分条件 |
+|------|----------|----------|----------|
+| `package` | 单个框架包的算法、容器、编解码或注册热路径 | `AbilityKit.Runtime.Benchmarks` | 使用通用 CPU、分配和吞吐指标时不单独建工程 |
+| `capability` | 多个模块组成的能力链路或框架运行时流程 | `AbilityKit.Runtime.Benchmarks` | 能复用通用 runner、生命周期和 artifact schema 时集中维护 |
+| example specialization | MOBA、Shooter 等业务矩阵或引擎专项 | 独立 `AbilityKit.<Domain>.<Feature>.Benchmarks` | 出现专属 workload、指标/schema、baseline 或硬阈值时必须拆分 |
+| Unity specialization | Burst、Jobs、PlayMode、主线程或原生内存测量 | Unity 专用 benchmark assembly | 结果依赖 Unity Player/Editor 时不得由普通 `dotnet test` 代替 |
+
+真实采样不放入普通模块 `.Tests`。`AbilityKit.Runtime.Benchmarks.Tests` 或专项 `.Benchmarks.Tests` 只验证 runner、参数、catalog、场景正确性、确定性和报告契约，不把 xUnit 执行耗时作为性能数据。
+
+新增通用场景必须提供稳定 ID、明确 operation unit、非空 workload，并设置 `scope=package|capability`。模块筛选集合由 catalog 自动发现；PowerShell 入口的 `ValidateSet` 仍需同步更新，以便命令行尽早报告错误。
+
+### 3.2 热路径等级
 
 | 等级 | 判定方式 | 典型路径 | 默认治理要求 |
 |------|----------|----------|----------------|
@@ -346,13 +370,14 @@ Artifact schema 变化属于行为契约变化。历史基线无法读取时，�
 
 ## 12. 当前落地顺序
 
-1. 已保留 Shooter benchmark 为明确标注环境的场景基线样板。
-2. 已落地 Pipeline/Triggering 稳定 workload；继续补齐 Targeting、EventDispatcher、Snapshot/Record。
-3. 已建立 `abilitykit.runtime-benchmark.v1` 最小 artifact 和结果状态；新增模块应复用该契约。
+1. 已保留 Shooter benchmark 为明确标注环境的示例专项基线样板。
+2. 已落地 Attributes/Modifiers/Record package 和 Pipeline/Triggering capability 两类稳定 workload；继续补齐 Targeting、EventDispatcher、Snapshot/Record codec。
+3. 已建立 `abilitykit.runtime-benchmark.v1` 最小 artifact 和结果状态；新增模块应复用该契约，并通过 `scope` 明确归属。
 4. 已在 nightly/manual P2 中接入 `runtime-performance-measurement` informational 测量。
-5. 收集至少一个稳定周期的噪声、趋势和失败数据。
-6. 由 owner 与采用项目批准预算。
-7. 先晋升低噪声 P2 阻断，再评估少量 P1 性能契约。
+5. 优先覆盖 H0/H1 和高分配 H2 路径，避免仅按包数量追求形式覆盖率。
+6. 收集至少一个稳定周期的噪声、趋势和失败数据。
+7. 由 owner 与采用项目批准预算。
+8. 先晋升低噪声 P2 阻断，再评估少量 P1 性能契约。
 
 在完成第 6 步前，对外只能表述“已有测量/基线”，不能表述“已有统一性能门禁”。
 
@@ -378,8 +403,8 @@ Artifact schema 变化属于行为契约变化。历史基线无法读取时，�
 
 ## 14. 治理结论
 
-性能治理不是给每个模块贴上“高性能”标签，而是把工作负载、测量口径、基线、预算和阻断策略逐层建立。AbilityKit 当前已有统一测量 artifact、Pipeline/Triggering 首批 workload 和 informational CI 基础，但框架级性能治理仍需扩展模块覆盖、积累稳定历史并完成预算审批。任何性能声明都必须限定场景和证据；任何优化都不能以破坏生命周期、稳定顺序、确定性、恢复能力或可观测性为代价。
+性能治理不是给每个模块贴上“高性能”标签，而是把工作负载、测量口径、基线、预算和阻断策略逐层建立。AbilityKit 当前已有统一测量 artifact、Attributes/Modifiers/Record package、Pipeline/Triggering capability 首批 workload 和 informational CI 基础，但框架级性能治理仍需扩展模块覆盖、积累稳定历史并完成预算审批。任何性能声明都必须限定场景和证据；任何优化都不能以破坏生命周期、稳定顺序、确定性、恢复能力或可观测性为代价。
 
 ---
 
-*文档版本：v1.1 | 最后更新：2026-07-27*
+*文档版本：v1.2 | 最后更新：2026-08-10*

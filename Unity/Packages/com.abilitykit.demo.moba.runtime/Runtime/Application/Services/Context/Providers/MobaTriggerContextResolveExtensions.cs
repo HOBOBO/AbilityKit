@@ -1,3 +1,5 @@
+using System;
+
 namespace AbilityKit.Demo.Moba.Services
 {
     public static class MobaTriggerContextResolveExtensions
@@ -7,69 +9,160 @@ namespace AbilityKit.Demo.Moba.Services
             source = default;
             if (payload == null) return false;
 
-            if (payload is MobaContextSourceView direct && direct.IsValid)
+            var selectedKind = MobaContextSourceResolveKind.Unknown;
+            if (payload is MobaContextSourceView direct)
             {
-                source = direct;
-                return true;
+                ConsiderCandidate(payload, in direct, ref source, ref selectedKind);
             }
 
-            if (payload is MobaPersistentContextSourceSnapshot snapshot && snapshot.TryGetContextSource(out source) && source.IsValid)
-                return true;
-
-            if (payload is IMobaPersistentContextSourceProvider persistentProvider && persistentProvider.TryGetPersistentContextSource(out snapshot) && snapshot.TryGetContextSource(out source) && source.IsValid)
-                return true;
-
-            if (payload is IMobaContextSourceProvider sourceProvider && sourceProvider.TryGetContextSource(out source) && source.IsValid)
-                return true;
-
-            if (payload.TryResolveCombatExecutionContext(out var executionContext))
+            if (payload is MobaPersistentContextSourceSnapshot directSnapshot
+                && directSnapshot.TryGetContextSource(out var directSnapshotSource))
             {
-                source = new MobaContextSourceView(
+                ConsiderCandidate(payload, in directSnapshotSource, ref source, ref selectedKind);
+            }
+
+            if (payload is MobaCombatExecutionContext directExecution)
+            {
+                var candidate = FromCombatExecution(in directExecution);
+                ConsiderCandidate(payload, in candidate, ref source, ref selectedKind);
+            }
+
+            if (payload is IMobaCombatContextSource combatSourceProvider
+                && combatSourceProvider.TryGetCombatContextSource(out var combatSource)
+                && combatSource.IsValid)
+            {
+                var candidate = combatSource.ToContextSourceView(
                     MobaContextSourceResolveKind.CombatExecutionContext,
-                    MobaContextSourceBoundary.Execution,
-                    executionContext.ContextKind,
-                    executionContext.OriginKind,
-                    executionContext.SourceActorId,
-                    executionContext.TargetActorId,
-                    executionContext.ParentContextId,
-                    executionContext.ParentContextId,
-                    executionContext.RootContextId,
-                    executionContext.OwnerContextId,
-                    executionContext.ConfigId,
-                    executionContext.TriggerId,
-                    executionContext.Frame,
-                    null,
-                    0,
-                    false,
-                    executionContext.SkillRuntimeHandle);
-                return source.IsValid;
+                    MobaContextSourceBoundary.Execution);
+                ConsiderCandidate(payload, in candidate, ref source, ref selectedKind);
             }
 
-            if (payload.TryResolveOrigin(out var origin))
+            if (payload is IMobaCombatExecutionContextProvider executionContextProvider
+                && executionContextProvider.TryGetCombatExecutionContext(out var executionContext))
             {
-                source = MobaContextSourceView.FromOrigin(in origin);
-                return source.IsValid;
+                var candidate = FromCombatExecution(in executionContext);
+                ConsiderCandidate(payload, in candidate, ref source, ref selectedKind);
             }
 
-            if (payload.TryResolveLineageContext(out var lineageContext))
+            if (payload is IMobaPersistentContextSourceProvider persistentProvider
+                && persistentProvider.TryGetPersistentContextSource(out var snapshot)
+                && snapshot.TryGetContextSource(out var persistentSource))
             {
-                var handle = default(MobaSkillCastRuntimeHandle);
-                if (payload is IMobaTriggerSkillRuntimeContext skillRuntimeProvider)
-                {
-                    skillRuntimeProvider.TryGetSkillRuntimeHandle(out handle);
-                }
-
-                source = MobaContextSourceView.FromLineage(in lineageContext, skillRuntimeHandle: handle);
-                return source.IsValid;
+                ConsiderCandidate(payload, in persistentSource, ref source, ref selectedKind);
             }
 
-            if (payload.TryResolveExecutionSnapshot(out var executionSnapshot))
+            if (payload is IMobaContextSourceProvider sourceProvider
+                && sourceProvider.TryGetContextSource(out var providerSource))
             {
-                source = MobaContextSourceView.FromExecutionSnapshot(in executionSnapshot);
-                return source.IsValid;
+                ConsiderCandidate(payload, in providerSource, ref source, ref selectedKind);
             }
 
-            return false;
+            if (payload is IMobaOriginContextProvider originProvider
+                && originProvider.TryGetOrigin(out var origin)
+                && origin.IsValid)
+            {
+                var candidate = MobaContextSourceView.FromOrigin(in origin);
+                ConsiderCandidate(payload, in candidate, ref source, ref selectedKind);
+            }
+
+            var skillRuntimeHandle = default(MobaSkillCastRuntimeHandle);
+            if (payload is IMobaTriggerSkillRuntimeContext skillRuntimeProvider)
+            {
+                skillRuntimeProvider.TryGetSkillRuntimeHandle(out skillRuntimeHandle);
+            }
+
+            if (payload is IMobaTriggerLineageContextProvider lineageProvider
+                && lineageProvider.TryGetLineageContext(out var lineageContext))
+            {
+                var candidate = MobaContextSourceView.FromLineage(
+                    in lineageContext,
+                    skillRuntimeHandle: skillRuntimeHandle);
+                ConsiderCandidate(payload, in candidate, ref source, ref selectedKind);
+            }
+
+            if (payload is IMobaTriggerTraceContextProvider traceProvider
+                && traceProvider.TryGetTraceContext(out var traceContext))
+            {
+                var candidate = MobaContextSourceView.FromTrace(
+                    in traceContext,
+                    skillRuntimeHandle);
+                ConsiderCandidate(payload, in candidate, ref source, ref selectedKind);
+            }
+
+            if (payload is IMobaTriggerExecutionSnapshotProvider snapshotProvider
+                && snapshotProvider.TryGetExecutionSnapshot(out var executionSnapshot)
+                && executionSnapshot.IsValid)
+            {
+                var candidate = MobaContextSourceView.FromExecutionSnapshot(in executionSnapshot);
+                ConsiderCandidate(payload, in candidate, ref source, ref selectedKind);
+            }
+
+            return source.IsValid;
+        }
+
+        private static MobaContextSourceView FromCombatExecution(
+            in MobaCombatExecutionContext executionContext)
+        {
+            return new MobaContextSourceView(
+                MobaContextSourceResolveKind.CombatExecutionContext,
+                MobaContextSourceBoundary.Execution,
+                executionContext.ContextKind,
+                executionContext.OriginKind,
+                executionContext.SourceActorId,
+                executionContext.TargetActorId,
+                executionContext.ParentContextId,
+                executionContext.ParentContextId,
+                executionContext.RootContextId,
+                executionContext.OwnerContextId,
+                executionContext.ConfigId,
+                executionContext.TriggerId,
+                executionContext.Frame,
+                null,
+                0,
+                false,
+                executionContext.SkillRuntimeHandle);
+        }
+
+        private static void ConsiderCandidate(
+            object payload,
+            in MobaContextSourceView candidate,
+            ref MobaContextSourceView selected,
+            ref MobaContextSourceResolveKind selectedKind)
+        {
+            if (!candidate.IsValid) return;
+            if (!selected.IsValid)
+            {
+                selected = candidate;
+                selectedKind = candidate.ResolveKind;
+                return;
+            }
+
+            if (!HasFormalIdentityConflict(in selected, in candidate)) return;
+
+            var payloadType = payload.GetType().FullName;
+            throw new InvalidOperationException(
+                $"[MobaTriggerContextResolveExtensions] Conflicting formal context providers. " +
+                $"payloadType={payloadType} selected={selectedKind} candidate={candidate.ResolveKind} " +
+                $"selectedSourceActor={selected.SourceActorId} candidateSourceActor={candidate.SourceActorId} " +
+                $"selectedSourceContext={selected.SourceContextId} candidateSourceContext={candidate.SourceContextId} " +
+                $"selectedRootContext={selected.RootContextId} candidateRootContext={candidate.RootContextId} " +
+                $"selectedOwnerContext={selected.OwnerContextId} candidateOwnerContext={candidate.OwnerContextId}.");
+        }
+
+        private static bool HasFormalIdentityConflict(
+            in MobaContextSourceView left,
+            in MobaContextSourceView right)
+        {
+            return Conflicts(left.SourceActorId, right.SourceActorId)
+                   || Conflicts(left.SourceContextId, right.SourceContextId)
+                   || Conflicts(left.ParentContextId, right.ParentContextId)
+                   || Conflicts(left.RootContextId, right.RootContextId)
+                   || Conflicts(left.OwnerContextId, right.OwnerContextId);
+        }
+
+        private static bool Conflicts(long left, long right)
+        {
+            return left != 0L && right != 0L && left != right;
         }
 
         public static bool TryResolveExecutionSnapshot(this object payload, out MobaTriggerExecutionSnapshot snapshot)

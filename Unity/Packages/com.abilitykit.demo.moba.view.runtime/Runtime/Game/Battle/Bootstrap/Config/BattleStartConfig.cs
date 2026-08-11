@@ -14,19 +14,6 @@ namespace AbilityKit.Game.Flow
     [CreateAssetMenu(menuName = "AbilityKit/Game/Battle Start Config", fileName = "BattleStartConfig")]
     public sealed class BattleStartConfig : ScriptableObject
     {
-        public enum BattleRunMode
-        {
-            Normal = 0,
-            Record = 1,
-            Replay = 2,
-        }
-
-        public enum BattleHostMode
-        {
-            Local = 0,
-            GatewayRemote = 1,
-        }
-
         [Header("Preset")]
         [LabelText("Preset(妯℃澘/瀹屽叏瑕嗙洊)")]
         public BattleStartPresetSO Preset;

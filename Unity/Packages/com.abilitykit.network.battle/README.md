@@ -40,7 +40,7 @@ network.battle(本包)  NetworkTransport：opcode-keyed 输入提交 + 下行分
 - **可靠事件 ack**：`OpAcknowledgeReliableEvents`+`SerializeAcknowledgeReliableEvents`/`DeserializeAcknowledgeReliableEventsResponse`
 - **全量 resync**：`OpRequestFullStateSync`+`SerializeRequestFullStateSync`/`DeserializeRequestFullStateSyncResponse`
 
-`NetworkSubmitInputResponse`（上行回执）：`Accepted`/`ServerFrame`/`ReasonCode`/`RetryAtAuthoritativeFrame`/`Status`/`Message`。
+`NetworkSubmitInputResponse`（上行回执）：`Accepted`/`ServerFrame`/`ReasonCode`/`RetryAtAuthoritativeFrame`/`Status`/`Message` + `AcceptedFrame`/`ServerTicks`/`ShouldResync`（2026-08-09 扩展，承载 statesync 客户端的 per-submit 校验字段，如 shooter 的 lag-compensation）。
 
 ## NetworkTransport 公共面
 
@@ -53,15 +53,18 @@ public sealed class NetworkTransport : IBattleLogicTransport, IDisposable
     public event Action<FramePacket> FramePushed;            // OpFramePushed
     public event Action<object>     StateSyncSnapshotPushed; // OpSnapshotPushed / OpDeltaSnapshotPushed
     public event Action<object>     ReliableEventsPushed;    // OpReliableEventsPushed
+    public event Action<uint, ArraySegment<byte>> RawServerPushReceived; // 原始下行（类型化解码前），喂既有 raw apply 管线
     public event Action ConnectionEstablished;              // TCP 建连/重连（早于鉴权）
     public event Action ConnectionClosed;
 
     public void Connect();
     public void Disconnect();
+    public void Tick(float deltaTime);                        // 泵 heartbeat/重连中间件；单线程宿主在 Tick 循环调（dispatcher 驱动宿主不用）
     public void SendCreateWorld(CreateWorldRequest request); // fire-and-forget
     public void SendJoin(JoinWorldRequest request);
     public void SendLeave(LeaveWorldRequest request);
     public void SendInput(SubmitInputRequest request);       // 配了 DeserializeSubmitInputResponse → 请求-响应 + 权威帧重试一次；否则 fire-and-forget
+    public Task<NetworkSubmitInputResponse> SendInputAsync(SubmitInputRequest request); // awaitable per-submit 结果（statesync 校验用）
 }
 ```
 

@@ -1,8 +1,10 @@
 param(
     [ValidateSet('smoke', 'full')]
     [string]$Profile = 'smoke',
-    [ValidateSet('all', 'pipeline', 'triggering')]
+    [ValidateSet('all', 'attributes', 'modifiers', 'pipeline', 'record', 'triggering')]
     [string]$Module = 'all',
+    [ValidateSet('all', 'package', 'capability')]
+    [string]$Scope = 'all',
     [string]$OutputPath = 'artifacts\runtime-benchmarks\smoke.json',
     [string]$Configuration = 'Release',
     [switch]$NoRestore
@@ -29,6 +31,7 @@ if ($NoRestore) {
 $arguments += @(
     '--', '--profile', $Profile,
     '--module', $Module,
+    '--scope', $Scope,
     '--output', $resolvedOutputPath
 )
 

@@ -21,7 +21,7 @@ namespace AbilityKit.Game.Flow
         public static bool TryResolveLocalTrainingOpponent(BattleContext ctx, PlayerId primaryPlayerId, out PlayerId opponentPlayerId)
         {
             opponentPlayerId = default;
-            if (ctx == null || ctx.Plan.HostMode != BattleStartConfig.BattleHostMode.Local) return false;
+            if (ctx == null || ctx.Plan.HostMode != BattleHostMode.Local) return false;
 
             var players = ctx.BuildEffectivePlayerLoadouts();
             var primaryTeamId = 0;

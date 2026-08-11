@@ -113,6 +113,14 @@ namespace AbilityKit.Network.Runtime
                 return;
             }
 
+            // Inline fast path: avoid allocating a closure per received chunk when the
+            // dispatcher would invoke inline anyway.
+            if (ReferenceEquals(_ioDispatcher, InlineDispatcher.Instance))
+            {
+                HandleBytesReceived(bytes);
+                return;
+            }
+
             _ioDispatcher.Post(() => HandleBytesReceived(bytes));
         }
 
@@ -137,9 +145,25 @@ namespace AbilityKit.Network.Runtime
             var opCode = header.OpCode;
             var seq = header.Seq;
 
+            // Inline fast path: avoid allocating a closure per packet when the dispatcher
+            // would invoke inline anyway (single-threaded hosts / smoke runners).
+            var inline = ReferenceEquals(_dispatcher, InlineDispatcher.Instance);
+
             if ((header.Flags & NetworkPacketFlags.ServerPush) != 0)
             {
+                if (inline)
+                {
+                    ServerPushReceived?.Invoke(opCode, payload);
+                    return;
+                }
+
                 _dispatcher.Post(() => ServerPushReceived?.Invoke(opCode, payload));
+                return;
+            }
+
+            if (inline)
+            {
+                PacketReceived?.Invoke(opCode, seq, payload);
                 return;
             }
 

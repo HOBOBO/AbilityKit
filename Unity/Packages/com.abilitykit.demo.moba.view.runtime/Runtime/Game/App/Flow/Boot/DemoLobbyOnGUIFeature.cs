@@ -114,7 +114,7 @@ namespace AbilityKit.Game.Flow
         internal static bool IsRemotePreset(BattleStartPresetSO preset)
         {
             return preset != null &&
-                   preset.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote;
+                   preset.HostMode == BattleHostMode.GatewayRemote;
         }
 
         private void LoadAssets(GameEntry entry)

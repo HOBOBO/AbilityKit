@@ -13,7 +13,7 @@ namespace AbilityKit.Game.Flow
         }
 
         [LabelText("运行模式")]
-        public BattleStartConfig.BattleRunMode Mode = BattleStartConfig.BattleRunMode.Normal;
+        public BattleRunMode Mode = BattleRunMode.Normal;
 
         [LabelText("录制格式")]
         public InputRecordFormat RecordFormat = InputRecordFormat.Json;

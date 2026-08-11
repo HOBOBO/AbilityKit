@@ -38,7 +38,7 @@ namespace AbilityKit.Game.Flow
             _eventsCtrl.NotifyFirstFrameReceived(this);
         }
 
-        internal static bool CompletesAssetBarrierOnFirstFrame(BattleStartConfig.BattleHostMode hostMode)
+        internal static bool CompletesAssetBarrierOnFirstFrame(BattleHostMode hostMode)
         {
             return false;
         }

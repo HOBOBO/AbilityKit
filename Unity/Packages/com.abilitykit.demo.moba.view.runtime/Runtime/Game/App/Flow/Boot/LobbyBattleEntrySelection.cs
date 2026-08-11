@@ -11,12 +11,12 @@ namespace AbilityKit.Game.Flow
 
         public bool IsRemoteSelected =>
             Preset != null &&
-            Preset.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote;
+            Preset.HostMode == BattleHostMode.GatewayRemote;
 
         public void SelectRemote(BattleStartConfig config, BattleStartPresetSO preset)
         {
             if (preset == null) throw new ArgumentNullException(nameof(preset));
-            if (preset.HostMode != BattleStartConfig.BattleHostMode.GatewayRemote)
+            if (preset.HostMode != BattleHostMode.GatewayRemote)
             {
                 throw new ArgumentException("Only a GatewayRemote preset can activate the multiplayer lobby.", nameof(preset));
             }

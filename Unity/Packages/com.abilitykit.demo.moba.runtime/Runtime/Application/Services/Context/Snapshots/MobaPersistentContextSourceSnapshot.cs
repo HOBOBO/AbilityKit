@@ -1,5 +1,10 @@
 namespace AbilityKit.Demo.Moba.Services
 {
+    /// <summary>
+    /// Cross-frame value snapshot of formal context identity. A skill runtime handle is a
+    /// generation-checked capability value, not a live runtime reference; consumers must
+    /// resolve it through MobaSkillCastRuntimeService before use.
+    /// </summary>
     public readonly struct MobaPersistentContextSourceSnapshot : IMobaContextSourceProvider, IMobaTriggerLineageContextProvider, IMobaTriggerExecutionSnapshotProvider, IMobaCombatContextSource
     {
         private readonly MobaContextSourceView _source;

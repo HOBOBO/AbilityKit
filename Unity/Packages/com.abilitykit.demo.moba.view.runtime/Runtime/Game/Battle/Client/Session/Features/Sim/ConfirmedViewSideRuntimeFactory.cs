@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Game.Flow
@@ -21,13 +23,49 @@ namespace AbilityKit.Game.Flow
 
     internal static class ConfirmedViewSideRuntimeFactory
     {
-        public static ConfirmedViewSideRuntime Create(BattleContext sourceCtx, WorldId authWorldId)
+        public static ConfirmedViewSideRuntime Create(
+            BattleContext sourceCtx,
+            WorldId authWorldId,
+            System.Action<AbilityKit.World.ECS.IEntity> destroyEntityTree)
         {
-            var ctx = ConfirmedViewContextFactory.Create(sourceCtx, authWorldId);
-            var snapshotRuntime = ConfirmedViewSnapshotRuntime.Create(ctx);
-            var feature = new ConfirmedBattleViewFeature(ctx);
+            BattleContext ctx = null;
+            ConfirmedViewSnapshotRuntime snapshotRuntime = null;
+            try
+            {
+                ctx = ConfirmedViewContextFactory.Create(sourceCtx, authWorldId);
+                snapshotRuntime = ConfirmedViewSnapshotRuntime.Create(ctx);
+                var feature = new ConfirmedBattleViewFeature(ctx);
 
-            return new ConfirmedViewSideRuntime(ctx, snapshotRuntime, feature);
+                return new ConfirmedViewSideRuntime(ctx, snapshotRuntime, feature);
+            }
+            catch (Exception creationFailure)
+            {
+                var cleanupFailures = new List<Exception>();
+                try
+                {
+                    snapshotRuntime?.Dispose();
+                }
+                catch (Exception cleanupFailure)
+                {
+                    cleanupFailures.Add(cleanupFailure);
+                }
+
+                try
+                {
+                    ConfirmedViewContextDisposer.Dispose(ctx, destroyEntityTree);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    cleanupFailures.Add(cleanupFailure);
+                }
+
+                if (cleanupFailures.Count == 0) throw;
+
+                cleanupFailures.Insert(0, creationFailure);
+                throw new AggregateException(
+                    "Confirmed view resource creation and cleanup both failed.",
+                    cleanupFailures);
+            }
         }
     }
 }

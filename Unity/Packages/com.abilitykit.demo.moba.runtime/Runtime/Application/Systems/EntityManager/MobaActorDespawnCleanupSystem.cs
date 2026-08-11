@@ -136,11 +136,49 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         private void CleanupProjectile(int actorId, ActorDespawnRequestComponent request)
         {
             if (_projectileLinks == null) return;
-            if (!_projectileLinks.TryGetProjectileId(actorId, out var projectileId)) return;
 
-            EndProjectileTrace(projectileId, request.Reason);
-            ReleaseSkillRuntime(projectileId);
-            _projectileLinks.UnlinkByActorId(actorId);
+            if (_projectileLinks.TryGetProjectileId(actorId, out var projectileId))
+            {
+                EndProjectileTrace(projectileId, request.Reason);
+                ReleaseSkillRuntime(projectileId);
+                _projectileLinks.UnlinkByActorId(actorId);
+            }
+
+            CleanupProjectileLauncher(actorId, request.Reason);
+        }
+
+        private void CleanupProjectileLauncher(int launcherActorId, ActorDespawnReason reason)
+        {
+            if (_projectileLinks == null) return;
+
+            if (_projectileLinks.TryGetLauncherSource(launcherActorId, out var source)
+                && source.SourceContextId != 0L
+                && _trace != null)
+            {
+                try
+                {
+                    _trace.EndContext(source.SourceContextId, ToTraceReason(reason));
+                }
+                catch (System.Exception ex)
+                {
+                    Log.Exception(ex, $"[MobaActorDespawnCleanupSystem] End projectile launcher trace failed (launcherActorId={launcherActorId}, sourceContextId={source.SourceContextId})");
+                }
+            }
+
+            if (_skillRuntimes != null
+                && _projectileLinks.TryConsumeLauncherRetain(launcherActorId, out var retainHandle))
+            {
+                try
+                {
+                    _skillRuntimes.ReleaseChild(in retainHandle);
+                }
+                catch (System.Exception ex)
+                {
+                    Log.Exception(ex, $"[MobaActorDespawnCleanupSystem] Release projectile launcher retain failed (launcherActorId={launcherActorId})");
+                }
+            }
+
+            _projectileLinks.UnlinkLauncher(launcherActorId);
         }
 
         private void EndProjectileTrace(ProjectileId projectileId, ActorDespawnReason reason)

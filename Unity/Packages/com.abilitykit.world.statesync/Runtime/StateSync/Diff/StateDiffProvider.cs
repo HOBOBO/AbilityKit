@@ -219,8 +219,16 @@ namespace AbilityKit.Ability.StateSync.Diff
             return result;
         }
 
+        /// <summary>
+        /// 通用反射序列化兜底（仅 public 实例<strong>字段</strong>；property 不参与，刻意不扩展以
+        /// 保持线格式稳定）。当前无生产消费者（WorldStateSnapshot 走 <c>ToBytes</c> 快路径），
+        /// 仅作通用 TState 的兜底。反射元数据按类型静态缓存，避免每个对象节点重复 GetFields。
+        /// </summary>
         private class BinarySerializerImpl
         {
+            private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, System.Reflection.FieldInfo[]> SerializableFieldsCache =
+                new System.Collections.Concurrent.ConcurrentDictionary<Type, System.Reflection.FieldInfo[]>();
+
             private readonly BinaryReader _reader;
             private readonly BinaryWriter _writer;
 
@@ -228,6 +236,13 @@ namespace AbilityKit.Ability.StateSync.Diff
             {
                 _reader = new BinaryReader(stream);
                 _writer = new BinaryWriter(stream);
+            }
+
+            private static System.Reflection.FieldInfo[] GetSerializableFields(Type type)
+            {
+                return SerializableFieldsCache.GetOrAdd(
+                    type,
+                    static t => t.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance));
             }
 
             public void Serialize(object value)
@@ -258,7 +273,7 @@ namespace AbilityKit.Ability.StateSync.Diff
                     return;
                 }
 
-                var fields = type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                var fields = GetSerializableFields(type);
                 _writer.Write(fields.Length);
                 foreach (var f in fields) SerializeObject(f.GetValue(value), depth + 1);
             }
@@ -280,7 +295,7 @@ namespace AbilityKit.Ability.StateSync.Diff
                 }
 
                 var obj = Activator.CreateInstance(type);
-                var fields = type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                var fields = GetSerializableFields(type);
                 var count = _reader.ReadInt32();
                 for (int i = 0; i < count && i < fields.Length; i++)
                     fields[i].SetValue(obj, DeserializeObject(fields[i].FieldType, depth + 1));

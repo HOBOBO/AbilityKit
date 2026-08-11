@@ -19,7 +19,7 @@ namespace AbilityKit.Game.Flow
             var gateway = _plan.Gateway;
             var auto = _plan.Auto;
 
-            if (_plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && gateway.UseGatewayTransport)
+            if (_plan.HostMode == BattleHostMode.GatewayRemote && gateway.UseGatewayTransport)
             {
                 Log.Info("[BattleSessionFeature] GatewayRemote transport active. Skipping AutoCreateWorld/AutoJoin/AutoReady (room lifecycle owns these actions). AutoConnect is supported.");
                 if (auto.AutoConnect)
@@ -31,7 +31,7 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            var isLocal = sync.SyncMode != BattleSyncMode.SnapshotAuthority && _plan.HostMode == BattleStartConfig.BattleHostMode.Local;
+            var isLocal = sync.SyncMode != BattleSyncMode.SnapshotAuthority && _plan.HostMode == BattleHostMode.Local;
             if (isLocal) _session?.Connect();
             else if (auto.AutoConnect) _session?.Connect();
 

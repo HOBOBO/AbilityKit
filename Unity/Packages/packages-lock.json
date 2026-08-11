@@ -333,6 +333,7 @@
         "com.abilitykit.flow": "0.0.1",
         "com.abilitykit.game.battle.runtime": "0.0.1",
         "com.abilitykit.network.battle": "0.1.0",
+        "com.abilitykit.network.client": "0.1.0",
         "com.abilitykit.game.view.runtime": "0.0.1",
         "com.abilitykit.hfsm": "0.0.1",
         "com.abilitykit.host": "0.0.1",
@@ -449,6 +450,7 @@
         "com.abilitykit.network.sdk": "0.1.0",
         "com.abilitykit.network.battle": "0.1.0",
         "com.abilitykit.network.battle.config": "0.1.0",
+        "com.abilitykit.network.client": "0.1.0",
         "com.abilitykit.protocol.room": "0.0.1",
         "com.abilitykit.protocol.shooter": "0.0.1",
         "com.abilitykit.record": "0.0.1",
@@ -586,6 +588,19 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.network.battle": "0.1.0",
+        "com.abilitykit.network.runtime": "0.1.0",
+        "com.abilitykit.protocol.room": "0.0.1"
+      }
+    },
+    "com.abilitykit.network.client": {
+      "version": "file:com.abilitykit.network.client",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.network.sdk": "0.1.0",
+        "com.abilitykit.network.room": "0.1.0",
+        "com.abilitykit.network.battle": "0.1.0",
+        "com.abilitykit.network.battle.config": "0.1.0",
         "com.abilitykit.network.runtime": "0.1.0",
         "com.abilitykit.protocol.room": "0.0.1"
       }

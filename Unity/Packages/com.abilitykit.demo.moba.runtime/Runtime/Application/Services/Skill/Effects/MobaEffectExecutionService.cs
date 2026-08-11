@@ -51,7 +51,26 @@ namespace AbilityKit.Demo.Moba.Services
         /// 当前正在执行的可选 trace 栈（用于嵌套效果和 Action 父子关系追踪）
         /// </summary>
         private readonly Stack<EffectExecutionTraceScope> _traceScopes = new Stack<EffectExecutionTraceScope>();
-        private readonly Stack<MobaCombatExecutionContext> _executionContexts = new Stack<MobaCombatExecutionContext>();
+        private readonly Stack<CombatExecutionFrame> _executionContexts = new Stack<CombatExecutionFrame>();
+
+        private sealed class CombatExecutionFrame
+        {
+            public CombatExecutionFrame(in MobaCombatExecutionContext context)
+            {
+                Context = context;
+            }
+
+            public MobaCombatExecutionContext Context { get; private set; }
+
+            public void PromoteToExecutionRoot(
+                long rootContextId,
+                int effectConfigId)
+            {
+                Context = Context.WithExecutionRoot(
+                    rootContextId,
+                    effectConfigId);
+            }
+        }
 
         /// <summary>
         /// 获取当前正在追踪的 Action 链路
@@ -65,7 +84,7 @@ namespace AbilityKit.Demo.Moba.Services
             context = default;
             if (_executionContexts.Count == 0) return false;
 
-            context = _executionContexts.Peek();
+            context = _executionContexts.Peek().Context;
             return context.HasExecutionSource;
         }
 
@@ -393,10 +412,18 @@ namespace AbilityKit.Demo.Moba.Services
             in MobaTriggerExecutionBudgetToken budgetToken)
         {
             EffectExecutionTraceScope traceScope = null;
-            _executionContexts.Push(executionContext);
+            var executionFrame = new CombatExecutionFrame(in executionContext);
+            _executionContexts.Push(executionFrame);
             try
             {
                 traceScope = BeginEffectTraceScope(effectConfigId, triggerId, in lineageInput);
+                if (lineageInput.CanCreateRootExecution)
+                {
+                    executionFrame.PromoteToExecutionRoot(
+                        traceScope.EffectContextId,
+                        traceScope.EffectConfigId);
+                }
+
                 if (plan.Actions != null && plan.Actions.Length > 0)
                 {
                     CreateActionChildNodes(in plan, lineageInput.SourceActorId, lineageInput.TargetActorId);
@@ -404,28 +431,66 @@ namespace AbilityKit.Demo.Moba.Services
 
                 CollectEffectStarted(traceScope, in lineageInput);
 
-                return new MobaEffectExecutionSession(this, traceScope, budgetToken, in lineageInput);
+                return new MobaEffectExecutionSession(this, traceScope, executionFrame, budgetToken, in lineageInput);
             }
             catch
             {
-                if (traceScope != null)
+                var ownsSession = false;
+                try
                 {
-                    EndCurrentTrace((int)TraceLifecycleReason.Failed);
+                    EnsureCurrentSession(executionFrame, traceScope, "begin-failed");
+                    ownsSession = true;
+                    if (traceScope != null)
+                    {
+                        EndCurrentTrace((int)TraceLifecycleReason.Failed);
+                    }
+                }
+                finally
+                {
+                    try
+                    {
+                        if (ownsSession)
+                        {
+                            PopExecutionFrame(executionFrame, "begin-failed");
+                        }
+                    }
+                    finally
+                    {
+                        _executionBudget.Exit(in budgetToken);
+                    }
                 }
 
-                if (_executionContexts.Count > 0)
-                {
-                    _executionContexts.Pop();
-                }
-
-                _executionBudget.Exit(in budgetToken);
                 throw;
             }
+        }
+
+        private void EnsureCurrentSession(
+            CombatExecutionFrame executionFrame,
+            EffectExecutionTraceScope traceScope,
+            string operation)
+        {
+            if (_executionContexts.Count == 0 || !ReferenceEquals(_executionContexts.Peek(), executionFrame))
+            {
+                throw new InvalidOperationException($"[MobaEffectExecutionService] Combat execution session lost LIFO ownership. operation={operation}, executionDepth={_executionContexts.Count}");
+            }
+
+            if (traceScope != null &&
+                (_traceScopes.Count == 0 || !ReferenceEquals(_traceScopes.Peek(), traceScope)))
+            {
+                throw new InvalidOperationException($"[MobaEffectExecutionService] Effect trace session lost LIFO ownership. operation={operation}, traceDepth={_traceScopes.Count}, effectContextId={traceScope.EffectContextId}");
+            }
+        }
+
+        private void PopExecutionFrame(CombatExecutionFrame executionFrame, string operation)
+        {
+            EnsureCurrentSession(executionFrame, null, operation);
+            _executionContexts.Pop();
         }
 
         private sealed class MobaEffectExecutionSession : IDisposable
         {
             private readonly MobaEffectExecutionService _owner;
+            private readonly CombatExecutionFrame _executionFrame;
             private readonly MobaTriggerExecutionBudgetToken _budgetToken;
             private readonly MobaEffectLineageInput _lineageInput;
             private EffectExecutionTraceScope _traceScope;
@@ -434,22 +499,36 @@ namespace AbilityKit.Demo.Moba.Services
             public MobaEffectExecutionSession(
                 MobaEffectExecutionService owner,
                 EffectExecutionTraceScope traceScope,
+                CombatExecutionFrame executionFrame,
                 in MobaTriggerExecutionBudgetToken budgetToken,
                 in MobaEffectLineageInput lineageInput)
             {
                 _owner = owner;
                 _traceScope = traceScope;
+                _executionFrame = executionFrame;
                 _budgetToken = budgetToken;
                 _lineageInput = lineageInput;
             }
 
+            public MobaCombatExecutionContext ExecutionContext =>
+                _executionFrame.Context;
+
             public void Complete(bool executed)
             {
-                if (_traceScope == null) return;
+                var traceScope = _traceScope;
+                if (traceScope == null) return;
 
-                _owner.EndCurrentTrace(ToTraceEndReason(executed));
-                _owner.CollectEffectEnded(_traceScope, in _lineageInput, executed);
-                _traceScope = null;
+                _owner.EnsureCurrentSession(_executionFrame, traceScope, "complete");
+                try
+                {
+                    _owner.EndCurrentTrace(ToTraceEndReason(executed));
+                }
+                finally
+                {
+                    _traceScope = null;
+                }
+
+                _owner.CollectEffectEnded(traceScope, in _lineageInput, executed);
             }
 
             public void Dispose()
@@ -457,19 +536,40 @@ namespace AbilityKit.Demo.Moba.Services
                 if (_disposed) return;
                 _disposed = true;
 
-                if (_traceScope != null)
+                var ownsSession = false;
+                try
                 {
-                    _owner.CollectEffectEnded(_traceScope, in _lineageInput, false);
-                    _owner.EndCurrentTrace((int)TraceLifecycleReason.Failed);
-                    _traceScope = null;
-                }
+                    var traceScope = _traceScope;
+                    _owner.EnsureCurrentSession(_executionFrame, traceScope, "dispose");
+                    ownsSession = true;
+                    if (traceScope != null)
+                    {
+                        try
+                        {
+                            _owner.EndCurrentTrace((int)TraceLifecycleReason.Failed);
+                        }
+                        finally
+                        {
+                            _traceScope = null;
+                        }
 
-                if (_owner._executionContexts.Count > 0)
+                        _owner.CollectEffectEnded(traceScope, in _lineageInput, false);
+                    }
+                }
+                finally
                 {
-                    _owner._executionContexts.Pop();
+                    try
+                    {
+                        if (ownsSession)
+                        {
+                            _owner.PopExecutionFrame(_executionFrame, "dispose");
+                        }
+                    }
+                    finally
+                    {
+                        _owner._executionBudget.Exit(in _budgetToken);
+                    }
                 }
-
-                _owner._executionBudget.Exit(in _budgetToken);
             }
         }
 
@@ -538,6 +638,8 @@ namespace AbilityKit.Demo.Moba.Services
 
             using (var session = BeginExecutionSession(effectId, effectId, in executionContext, in lineageInput, in plan, in budgetToken))
             {
+                var activeExecutionContext = session.ExecutionContext;
+                conditionContext = CreateConditionContext(in activeExecutionContext);
                 var conditionResult = EvaluateTriggerConditions(effectId, in conditionContext);
                 var conditionsPassed = conditionResult.Passed;
                 var planExecuted = conditionsPassed && TryExecutePlanByTriggerId(effectId, wrappedContext);
@@ -615,6 +717,8 @@ namespace AbilityKit.Demo.Moba.Services
 
             using (var session = BeginExecutionSession(triggerId, triggerId, in executionContext, in lineageInput, in plan, in budgetToken))
             {
+                var activeExecutionContext = session.ExecutionContext;
+                conditionContext = CreateConditionContext(in activeExecutionContext);
                 var conditionResult = EvaluateTriggerConditions(triggerId, in conditionContext);
                 var conditionsPassed = conditionResult.Passed;
                 if (conditionsPassed)
@@ -656,6 +760,8 @@ namespace AbilityKit.Demo.Moba.Services
 
             using (var session = BeginExecutionSession(triggerId, triggerId, in executionContext, in lineageInput, in plan, in budgetToken))
             {
+                var activeExecutionContext = session.ExecutionContext;
+                conditionContext = CreateConditionContext(in activeExecutionContext);
                 var conditionResult = EvaluateTriggerConditions(triggerId, in conditionContext);
                 var conditionsPassed = conditionResult.Passed;
                 var planExecuted = conditionsPassed && (predicateMissIsSuccess

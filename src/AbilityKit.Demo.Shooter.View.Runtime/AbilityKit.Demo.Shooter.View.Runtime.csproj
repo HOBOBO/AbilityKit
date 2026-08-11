@@ -21,6 +21,7 @@
     <ProjectReference Include="../AbilityKit.Network.Sdk/AbilityKit.Network.Sdk.csproj" />
     <ProjectReference Include="../AbilityKit.Network.Battle/AbilityKit.Network.Battle.csproj" />
     <ProjectReference Include="../AbilityKit.Network.Battle.Config/AbilityKit.Network.Battle.Config.csproj" />
+    <ProjectReference Include="../AbilityKit.Network.Client/AbilityKit.Network.Client.csproj" />
     <ProjectReference Include="../AbilityKit.Record/AbilityKit.Record.csproj" />
     <ProjectReference Include="../AbilityKit.GameFramework/AbilityKit.GameFramework.csproj" />
     <ProjectReference Include="../AbilityKit.GameFramework.Network/AbilityKit.GameFramework.Network.csproj" />

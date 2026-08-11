@@ -86,12 +86,26 @@ namespace AbilityKit.Demo.Moba.Services.Passive
         }
 
         /// <summary>
-        /// 世界关闭时释放服务内部缓存的 ownerKey 集合，避免对象池借出对象泄漏。
+        /// 世界关闭时结束仍由本服务持有的 passive root，并释放池化 ownerKey 集合。
         /// </summary>
-        public void ReleaseAllCachedOwnerKeys()
+        public void ReleaseAllOwnedPassiveContexts(int frame = 0)
         {
             if (_ownerKeysByActor.Count > 0)
             {
+                var ownedContextIds = new HashSet<long>();
+                foreach (var kv in _ownerKeysByActor)
+                {
+                    var actorOwnedContextIds = kv.Value;
+                    if (actorOwnedContextIds == null) continue;
+
+                    foreach (var contextId in actorOwnedContextIds)
+                    {
+                        if (contextId != 0) ownedContextIds.Add(contextId);
+                    }
+                }
+
+                EndOwnedPassiveContexts(ownedContextIds, frame);
+
                 foreach (var kv in _ownerKeysByActor)
                 {
                     if (kv.Value != null) s_ownerKeySetPool.Release(kv.Value);
@@ -163,7 +177,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
 
         public void Dispose()
         {
-            ReleaseAllCachedOwnerKeys();
+            ReleaseAllOwnedPassiveContexts();
         }
 
         private void SyncListeners(global::ActorEntity entity, List<PassiveSkillTriggerListenerRuntime> listeners, int frame)
@@ -236,7 +250,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
         {
             if (listeners == null || listeners.Count == 0) return;
 
-            var ownerKeys = new HashSet<long>();
+            var ownedContextIds = new HashSet<long>();
             try
             {
                 for (int i = listeners.Count - 1; i >= 0; i--)
@@ -245,15 +259,15 @@ namespace AbilityKit.Demo.Moba.Services.Passive
                     if (listener == null) continue;
                     if (desired != null && desired.Contains(listener.PassiveSkillId)) continue;
 
-                    if (listener.SourceContextId != 0) ownerKeys.Add(listener.SourceContextId);
+                    if (listener.SourceContextId != 0) ownedContextIds.Add(listener.SourceContextId);
                     listeners.RemoveAt(i);
                 }
 
-                EndOwnerKeys(ownerKeys, frame);
+                EndOwnedPassiveContexts(ownedContextIds, frame);
             }
             finally
             {
-                ownerKeys.Clear();
+                ownedContextIds.Clear();
             }
         }
 
@@ -264,48 +278,54 @@ namespace AbilityKit.Demo.Moba.Services.Passive
             var listeners = entity.passiveSkillTriggerListeners.Active;
             if (listeners == null || listeners.Count == 0) return;
 
-            var ownerKeys = new HashSet<long>();
+            var ownedContextIds = new HashSet<long>();
             try
             {
                 for (int i = listeners.Count - 1; i >= 0; i--)
                 {
                     var listener = listeners[i];
                     if (listener == null) continue;
-                    if (listener.SourceContextId != 0) ownerKeys.Add(listener.SourceContextId);
+                    if (listener.SourceContextId != 0) ownedContextIds.Add(listener.SourceContextId);
                     listeners.RemoveAt(i);
                 }
 
-                EndOwnerKeys(ownerKeys, frame);
+                EndOwnedPassiveContexts(ownedContextIds, frame);
             }
             finally
             {
-                ownerKeys.Clear();
+                ownedContextIds.Clear();
             }
         }
 
-        private void EndOwnerKeys(HashSet<long> ownerKeys, int frame)
+        private void EndOwnedPassiveContexts(IEnumerable<long> ownedContextIds, int frame)
         {
-            if (ownerKeys == null || ownerKeys.Count == 0) return;
+            if (ownedContextIds == null) return;
 
-            foreach (var ownerKey in ownerKeys)
+            foreach (var ownedContextId in ownedContextIds)
             {
+                if (ownedContextId == 0) continue;
+
+                // This context is a passive root created by EnsurePassiveSkillContext.
+                // Its numeric value is also used as an owner routing key, but owner keys alone
+                // never grant permission to end a trace context.
                 try
                 {
-                    _continuousProcesses?.EndOwnerProcesses(ownerKey, AbilityKit.Core.Continuous.ContinuousEndReason.CleanedUp);
-                    _actionRunner?.CancelByOwnerKey(ownerKey);
+                    _continuousProcesses?.EndOwnerProcesses(ownedContextId, AbilityKit.Core.Continuous.ContinuousEndReason.CleanedUp);
+                    _actionRunner?.CancelByOwnerKey(ownedContextId);
+                    _passiveByOwnerKey.Remove(ownedContextId);
                 }
                 catch (Exception ex)
                 {
-                    Log.Exception(ex, $"[MobaPassiveSkillLifecycleService] CancelByOwnerKey failed. ownerKey={ownerKey}");
+                    Log.Exception(ex, $"[MobaPassiveSkillLifecycleService] Owner runtime cleanup failed. ownerKey={ownedContextId}");
                 }
 
                 try
                 {
-                    _trace?.EndContext(ownerKey, TraceLifecycleReason.Cancelled);
+                    _trace?.EndContext(ownedContextId, TraceLifecycleReason.Cancelled);
                 }
                 catch (Exception ex)
                 {
-                    Log.Exception(ex, $"[MobaPassiveSkillLifecycleService] Trace.EndContext failed. ownerKey={ownerKey} frame={frame}");
+                    Log.Exception(ex, $"[MobaPassiveSkillLifecycleService] Trace.EndContext failed. ownedContextId={ownedContextId} frame={frame}");
                 }
             }
         }

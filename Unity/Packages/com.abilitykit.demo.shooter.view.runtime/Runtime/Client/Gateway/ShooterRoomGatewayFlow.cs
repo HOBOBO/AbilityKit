@@ -507,21 +507,35 @@ namespace AbilityKit.Demo.Shooter.View
             string eventEpoch,
             long lastEventAck,
             TimeSpan? timeout,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool subscribeOnRoomConnection = true)
         {
             if (runningSnapshot == null || string.IsNullOrWhiteSpace(runningSnapshot.BattleId))
             {
                 throw new InvalidOperationException("Room gateway battle start did not return a battle id.");
             }
-            var subscribe = await _flow.SubscribeStateSyncAsync(
-                metadata.SessionToken,
-                runningSnapshot.BattleId,
-                metadata.RoomId,
-                eventEpoch,
-                lastEventAck,
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(subscribe.Success, subscribe.Message, "subscribe state sync");
+            var message = string.Empty;
+            if (subscribeOnRoomConnection)
+            {
+                var subscribe = await _flow.SubscribeStateSyncAsync(
+                    metadata.SessionToken,
+                    runningSnapshot.BattleId,
+                    metadata.RoomId,
+                    eventEpoch,
+                    lastEventAck,
+                    timeout,
+                    cancellationToken).ConfigureAwait(false);
+                EnsureSuccess(subscribe.Success, subscribe.Message, "subscribe state sync");
+                message = subscribe.Message;
+            }
+            else
+            {
+                // The battle data plane owns the state-sync subscription (its NetworkTransport re-auths
+                // RenewSession→SubscribeStateSync on reconnect). Re-subscribing on the room connection
+                // would re-bind the observer's push route to this connection (gateway binding is
+                // last-writer-wins per observer key) and black out the battle connection's push stream.
+                message = "state sync subscription owned by battle data plane";
+            }
             ShooterMultiplayerLoadingStatus.MarkStarted(runningSnapshot);
 
             return new RoomGatewaySessionFlowResult(
@@ -539,7 +553,7 @@ namespace AbilityKit.Demo.Shooter.View
                 metadata.CanStart,
                 started: true,
                 subscribed: true,
-                message: subscribe.Message,
+                message: message,
                 metadata.RestoreStatus,
                 metadata.RestoreErrorCode);
         }
@@ -684,7 +698,8 @@ namespace AbilityKit.Demo.Shooter.View
                         eventEpoch,
                         lastEventAck,
                         timeout,
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken,
+                        subscribeOnRoomConnection: false).ConfigureAwait(false);
                     break;
                 default:
                     throw new InvalidOperationException(

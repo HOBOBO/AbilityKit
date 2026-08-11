@@ -180,6 +180,57 @@ namespace AbilityKit.Network.Battle.Config
 
         // ============== Game-specific callbacks ==============
 
+        /// <summary>
+        /// Applies the standard room-gateway StateSync input uplink (<c>WireSubmitBattleInputReq/Res</c>
+        /// mapping incl. command-sequence) as the input serializer pair. The game provides ONLY the id
+        /// converters. Call after <see cref="WithSession"/> (the token is read lazily at invoke time).
+        /// <paramref name="retryAtAuthoritativeFrame"/> decides the engine-level retry policy from the
+        /// wire response; default null = never retry (engine retry off, e.g. the game retries itself).
+        /// </summary>
+        public NetworkBattleConfig UseRoomGatewayStateSyncInput(
+            string battleId,
+            Func<AbilityKit.Ability.Host.PlayerId, uint> playerIdToUInt,
+            Func<AbilityKit.Ability.World.Abstractions.WorldId, ulong> worldIdToUlong,
+            Func<WireSubmitBattleInputRes, bool> retryAtAuthoritativeFrame = null)
+        {
+            if (string.IsNullOrWhiteSpace(battleId)) throw new ArgumentException("Battle id is required.", nameof(battleId));
+            if (playerIdToUInt == null) throw new ArgumentNullException(nameof(playerIdToUInt));
+            if (worldIdToUlong == null) throw new ArgumentNullException(nameof(worldIdToUlong));
+
+            return WithInputSerializer(
+                serializeSubmitInput: requestObj =>
+                {
+                    if (requestObj is not SequencedInput sequenced) return default;
+                    var req = sequenced.Request;
+                    var wire = new WireSubmitBattleInputReq
+                    {
+                        SessionToken = _o.SessionToken,
+                        BattleId = battleId,
+                        WorldId = worldIdToUlong(req.WorldId),
+                        Frame = req.Input.Frame.Value,
+                        PlayerId = playerIdToUInt(req.Input.Player),
+                        InputOpCode = req.Input.OpCode,
+                        Payload = req.Input.Payload ?? Array.Empty<byte>(),
+                        CommandSequence = sequenced.CommandSequence
+                    };
+                    return WireRoomGatewayBinary.Serialize(in wire);
+                },
+                deserializeSubmitInputResponse: payload =>
+                {
+                    var wire = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputRes>(payload);
+                    return new NetworkSubmitInputResponse(
+                        wire.Success,
+                        wire.CurrentFrame,
+                        wire.Success ? 0 : 1,
+                        retryAtAuthoritativeFrame?.Invoke(wire) ?? false,
+                        wire.Status,
+                        wire.Message,
+                        acceptedFrame: wire.AcceptedFrame,
+                        serverTicks: wire.ServerTicks,
+                        shouldResync: wire.ShouldResync);
+                });
+        }
+
         /// <summary>Sets the game-specific input serialize + response deserialize.</summary>
         public NetworkBattleConfig WithInputSerializer(
             Func<object, ArraySegment<byte>> serializeSubmitInput,
@@ -211,6 +262,20 @@ namespace AbilityKit.Network.Battle.Config
         {
             _o.GetReliableEventEpoch = getEpoch;
             _o.GetReliableEventLastAcknowledgedSequence = getLastAck;
+            return this;
+        }
+
+        /// <summary>
+        /// Raw-downlink consumer mode: clears ALL typed push deserializers (frame/snapshot/reliable
+        /// events) so the engine's typed handlers short-circuit and every push flows through
+        /// <c>NetworkTransport.RawServerPushReceived</c> only. For clients that keep their own
+        /// raw (opCode, payload) apply pipeline.
+        /// </summary>
+        public NetworkBattleConfig WithRawDownlinkOnly()
+        {
+            _o.DeserializeFramePushed = null;
+            _o.DeserializeSnapshotPushed = null;
+            _o.DeserializeReliableEventsPushed = null;
             return this;
         }
 

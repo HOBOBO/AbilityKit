@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>AbilityKit.Network.Client</AssemblyName>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.network.client/Runtime/**/*.cs"
+             Exclude="../../Unity/Packages/com.abilitykit.network.client/Runtime/**/*.asmdef" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AbilityKit.Network.Sdk/AbilityKit.Network.Sdk.csproj" />
+    <ProjectReference Include="../AbilityKit.Network.Room/AbilityKit.Network.Room.csproj" />
+    <ProjectReference Include="../AbilityKit.Network.Battle.Config/AbilityKit.Network.Battle.Config.csproj" />
+  </ItemGroup>
+</Project>

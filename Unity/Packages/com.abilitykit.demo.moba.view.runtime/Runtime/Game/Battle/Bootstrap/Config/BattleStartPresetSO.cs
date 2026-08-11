@@ -18,7 +18,7 @@ namespace AbilityKit.Game.Flow
         public string ClientId = "battle_client";
 
         [LabelText("HostMode(主机模式)")]
-        public BattleStartConfig.BattleHostMode HostMode = BattleStartConfig.BattleHostMode.Local;
+        public BattleHostMode HostMode = BattleHostMode.Local;
 
         [LabelText("AutoConnect(自动连接)")]
         public bool AutoConnect = true;

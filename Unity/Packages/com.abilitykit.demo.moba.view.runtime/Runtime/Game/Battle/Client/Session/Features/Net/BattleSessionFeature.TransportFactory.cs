@@ -18,30 +18,57 @@ namespace AbilityKit.Game.Flow
     {
         private const float SynchronizationHealthSampleIntervalSeconds = 0.5f;
 
-        private MobaClientAuthoritativeInterpolationSyncController _remoteInterpolationController;
-        private MobaClientReplicationPipeline _remoteReplicationPipeline;
-        private MobaSynchronizationHealthEvaluator _synchronizationHealthEvaluator;
-        private MobaSynchronizationHealthSnapshot _synchronizationHealth;
-        private SyncHealthReport _synchronizationHealthReport = SyncHealthReport.Empty;
-        private float _synchronizationHealthSampleElapsed;
-        private MobaSnapshotAdmission _snapshotAdmission;
-        private MobaAuthoritativeSnapshotState _authoritativeSnapshotState;
+        private MobaClientAuthoritativeInterpolationSyncController _remoteInterpolationController =>
+            _runtime.Replication.InterpolationController;
+        private MobaClientReplicationPipeline _remoteReplicationPipeline =>
+            _runtime.Replication.ReplicationPipeline;
+        private MobaSynchronizationHealthEvaluator _synchronizationHealthEvaluator =>
+            _runtime.Replication.SynchronizationHealthEvaluator;
+        private MobaSynchronizationHealthSnapshot _synchronizationHealth
+        {
+            get => _runtime.Replication.SynchronizationHealth;
+            set => _runtime.Replication.SynchronizationHealth = value;
+        }
+        private SyncHealthReport _synchronizationHealthReport
+        {
+            get => _runtime.Replication.SynchronizationHealthReport;
+            set => _runtime.Replication.SynchronizationHealthReport = value;
+        }
+        private float _synchronizationHealthSampleElapsed
+        {
+            get => _runtime.Replication.SynchronizationHealthSampleElapsed;
+            set => _runtime.Replication.SynchronizationHealthSampleElapsed = value;
+        }
+        private MobaSnapshotAdmission _snapshotAdmission =>
+            _runtime.Replication.SnapshotAdmission;
+        private MobaAuthoritativeSnapshotState _authoritativeSnapshotState =>
+            _runtime.Replication.AuthoritativeSnapshotState;
         private const int MaxPendingReliableEventBatches = 32;
         private const int MaxReliableEventAckAttempts = 3;
 
-        private MobaReliableBattleEventCursor _reliableEventCursor;
-        private readonly Queue<WireReliableBattleEventPush> _pendingReliableEventBatches =
-            new Queue<WireReliableBattleEventPush>();
-        private NetworkTransport _interpolationTransport;
-        private int _lastServerAckFrame;
-        private bool _pendingStateImport;
+        private MobaReliableBattleEventCursor _reliableEventCursor =>
+            _runtime.Replication.ReliableEventCursor;
+        private Queue<WireReliableBattleEventPush> _pendingReliableEventBatches =>
+            _runtime.Replication.PendingReliableEventBatches;
+        private NetworkTransport _interpolationTransport =>
+            _runtime.Replication.Transport;
+        private int _lastServerAckFrame
+        {
+            get => _runtime.Replication.LastServerAckFrame;
+            set => _runtime.Replication.LastServerAckFrame = value;
+        }
+        private bool _pendingStateImport
+        {
+            get => _runtime.Replication.PendingStateImport;
+            set => _runtime.Replication.PendingStateImport = value;
+        }
 
         private BattleLogicSession StartBattleLogicSession(BattleLogicSessionOptions opts)
         {
             var world = _plan.World;
             var gateway = _plan.Gateway;
 
-            if (_plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && gateway.UseGatewayTransport)
+            if (_plan.HostMode == BattleHostMode.GatewayRemote && gateway.UseGatewayTransport)
             {
                 if (!uint.TryParse(world.PlayerId, out var localPlayerId))
                 {
@@ -64,47 +91,31 @@ namespace AbilityKit.Game.Flow
                 // 远端实体插值播放：Gateway 推送 SnapshotPushed → 统一复制管线 → 每帧投影。
                 if (transport is NetworkTransport networkTransport)
                 {
-                    _remoteInterpolationController = new MobaClientAuthoritativeInterpolationSyncController(
-                        MobaRemoteInterpolationPlayback.CreateFrameTimelineConfig(_plan.World.TickRate));
-                    _remoteReplicationPipeline = new MobaClientReplicationPipeline(_remoteInterpolationController);
-                    _synchronizationHealthEvaluator = new MobaSynchronizationHealthEvaluator();
-                    _synchronizationHealth = default;
-                    _synchronizationHealthReport = SyncHealthReport.Empty;
-                    _synchronizationHealthSampleElapsed = 0f;
-                    _snapshotAdmission = new MobaSnapshotAdmission();
-                    _snapshotAdmission.Reset(roomId);
-                    _authoritativeSnapshotState = new MobaAuthoritativeSnapshotState();
-                    _reliableEventCursor = new MobaReliableBattleEventCursor(
-                        gateway.BattleId ?? string.Empty);
                     var reliableEventCheckpoint = _plan.ReliableEventCheckpoint;
-                    if (reliableEventCheckpoint.IsValid &&
-                        !_reliableEventCursor.TryRestore(
-                            in reliableEventCheckpoint))
+                    var checkpointAccepted = _runtime.Replication.Build(
+                        networkTransport,
+                        _plan.World.TickRate,
+                        roomId,
+                        gateway.BattleId ?? string.Empty,
+                        in reliableEventCheckpoint,
+                        OnStateSyncSnapshotPushed,
+                        OnReliableEventsPushed,
+                        OnBattleConnectionClosed,
+                        OnBattleConnectionEstablished,
+                        OnBattleAuthenticationFailed);
+                    if (!checkpointAccepted)
                     {
                         Log.Warning(
                             "[BattleSessionFeature] Reliable event checkpoint rejected " +
                             "because it does not match the active battle.");
                     }
-                    _pendingStateImport = true;
-                    if (_ctx != null) _ctx.CanSubmitGameplayInput = false;
-                    _interpolationTransport = networkTransport;
-                    networkTransport.Options.GetReliableEventEpoch =
-                        () => _reliableEventCursor?.Epoch ?? string.Empty;
-                    networkTransport.Options.GetReliableEventLastAcknowledgedSequence =
-                        () => _reliableEventCursor?.LastAcknowledgedSequence ?? 0L;
-                    networkTransport.StateSyncSnapshotPushed += OnStateSyncSnapshotPushed;
-                    networkTransport.ReliableEventsPushed += OnReliableEventsPushed;
-                    if (_ctx != null) _ctx.EnableRemoteInterpolation = true;
 
-                    // 输入 ACK 帧回传同时更新预测窗口和统一复制诊断。
-                    networkTransport.Options.OnSubmitInputAck = serverFrame =>
+                    _battleConnectionRecoveryPending = false;
+                    if (_ctx != null)
                     {
-                        _lastServerAckFrame = serverFrame;
-                        _remoteReplicationPipeline?.AcknowledgeInput(serverFrame);
-                    };
-
-                    // 断线重连：断线检测 → 退避重连 → 状态重置追帧
-                    HookReconnectWatch(networkTransport);
+                        _ctx.CanSubmitGameplayInput = false;
+                        _ctx.EnableRemoteInterpolation = true;
+                    }
                 }
 
                 return _sessionRegistry.Start(opts, remoteTransport: transport);
@@ -433,7 +444,7 @@ namespace AbilityKit.Game.Flow
             }
 
             // Frame alignment and recovery completion only follow a successful import and rebase.
-            _remoteDrivenLastTickedFrame = snapshot.Frame;
+            _runtime.Simulation.RemoteDrivenLastTickedFrame = snapshot.Frame;
             if (!CompleteReliableEventRecovery(in snapshot))
             {
                 return false;
@@ -562,33 +573,8 @@ namespace AbilityKit.Game.Flow
 
         private void DisposeRemoteInterpolation()
         {
-            UnhookReconnectWatch();
-
-            if (_interpolationTransport != null)
-            {
-                _interpolationTransport.StateSyncSnapshotPushed -= OnStateSyncSnapshotPushed;
-                _interpolationTransport.ReliableEventsPushed -= OnReliableEventsPushed;
-                _interpolationTransport.Options.GetReliableEventEpoch = null;
-                _interpolationTransport.Options.GetReliableEventLastAcknowledgedSequence = null;
-                _interpolationTransport = null;
-            }
-
-            _remoteInterpolationController?.Reset();
-            _remoteReplicationPipeline?.ResetDiagnostics();
-            _synchronizationHealthEvaluator?.Reset();
-            _synchronizationHealth = default;
-            _synchronizationHealthReport = SyncHealthReport.Empty;
-            _synchronizationHealthSampleElapsed = 0f;
-            _authoritativeSnapshotState?.Reset();
-            _pendingReliableEventBatches.Clear();
-            _reliableEventCursor?.Reset();
-            _remoteInterpolationController = null;
-            _remoteReplicationPipeline = null;
-            _synchronizationHealthEvaluator = null;
-            _snapshotAdmission = null;
-            _authoritativeSnapshotState = null;
-            _reliableEventCursor = null;
-            _pendingStateImport = false;
+            _battleConnectionRecoveryPending = false;
+            _runtime.DisposeReplication();
             if (_ctx != null)
             {
                 _ctx.EnableRemoteInterpolation = false;

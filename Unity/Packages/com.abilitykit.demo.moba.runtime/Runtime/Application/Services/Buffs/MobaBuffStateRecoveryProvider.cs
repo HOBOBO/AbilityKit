@@ -288,7 +288,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                 OriginRootContextId,
                 OriginOwnerContextId,
                 skill);
-            runtime.ContextSource = MobaContextSourceView.FromOrigin(runtime.Origin, MobaContextSourceResolveKind.Origin, MobaContextSourceBoundary.Snapshot, hasLiveRuntime: true, runtimeKind: "Buff", runtimeConfigId: BuffId);
+            runtime.ContextSource = MobaContextSourceView.FromOrigin(runtime.Origin, MobaContextSourceResolveKind.Origin, MobaContextSourceBoundary.Snapshot, hasLiveRuntime: false, runtimeKind: "Buff", runtimeConfigId: BuffId);
             runtime.SkillRuntimeHandle = skill;
             runtime.SkillRuntimeRetainHandle = default;
             runtime.Continuous = null;

@@ -18,6 +18,7 @@
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Gateway/IGatewayRoomClient.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/GatewayRoomClient.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/GatewayRoomModels.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/NetworkTransportOptionsFactory.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/GatewayRoomOpCodes.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/Room/ClientRoomSnapshot.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/Room/ClientRoomSnapshotMapper.cs" />
@@ -32,6 +33,14 @@
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaRemoteInterpolationPlayback.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaClientAuthoritativeInterpolationSyncController.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaClientReplicationPipeline.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaAuthoritativeSnapshotState.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Net/BattleReplicationRuntime.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Bootstrap/BattleModes.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Bootstrap/BattleStartPlan.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Bootstrap/BattleStartPlanOptions.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Bootstrap/BattleStartPlanBuilder.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Bootstrap/BattleStartPlanValidator.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/SessionSimRuntimeTuning.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Testing/MobaDemoHarnessCarrier.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Replay/BattleReplayManifest.cs" />
   </ItemGroup>
@@ -42,6 +51,7 @@
     <ProjectReference Include="../AbilityKit.Demo.Moba.Host/AbilityKit.Demo.Moba.Host.csproj" />
     <ProjectReference Include="../AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
     <ProjectReference Include="../AbilityKit.Network.Room/AbilityKit.Network.Room.csproj" />
+    <ProjectReference Include="../AbilityKit.Network.Client/AbilityKit.Network.Client.csproj" />
     <ProjectReference Include="../AbilityKit.Network.Sdk/AbilityKit.Network.Sdk.csproj" />
     <ProjectReference Include="../AbilityKit.Record/AbilityKit.Record.csproj" />
     <ProjectReference Include="../AbilityKit.Protocol.Moba/AbilityKit.Protocol.Moba.csproj" />

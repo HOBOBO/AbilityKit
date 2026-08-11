@@ -4,30 +4,22 @@ namespace AbilityKit.Game.Flow
     {
         private void TryDestroyBattleWorlds()
         {
-            SessionSimRuntimeDisposer.DestroyBattleWorlds(_plan, _handles);
+            _runtime.Simulation.DestroyBattleWorlds(_plan);
         }
 
         private void DisposeConfirmedView()
         {
-            SessionSimRuntimeDisposer.DisposeConfirmedView(
-                _flow,
-                _handles.Confirmed,
-                DestroyEntityTree);
+            _runtime.Simulation.DisposeConfirmedView(_flow, DestroyEntityTree);
         }
 
         private void DisposeRemoteDrivenWorld()
         {
-            SessionSimRuntimeDisposer.DisposeRemoteDrivenWorld(
-                _handles.RemoteDriven,
-                () => _remoteDrivenLastTickedFrame = 0);
+            _runtime.Simulation.DisposeRemoteDrivenWorld();
         }
 
         private void DisposeConfirmedWorld()
         {
-            SessionSimRuntimeDisposer.DisposeConfirmedWorld(
-                _ctx,
-                _handles.Confirmed,
-                () => _confirmedLastTickedFrame = 0);
+            _runtime.Simulation.DisposeConfirmedWorld(_ctx);
         }
     }
 }

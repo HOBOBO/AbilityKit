@@ -151,28 +151,26 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 skillRuntimeHandle = origin.SkillRuntimeHandle;
                 LogInvestigation(ctx,
                     $"resolved origin immediate={origin.ImmediateContextId} parent={origin.EffectiveParentContextId} root={origin.EffectiveRootContextId} owner={origin.OwnerContextId} target={targetActorId}");
-                if (origin.EffectiveParentContextId == 0L)
+                if (trace == null || origin.EffectiveParentContextId == 0L)
                 {
-                    AbilityKit.Core.Logging.Log.Warning($"[SpawnAreaPlanActionModule] rejected missing source context areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId} immediate={origin.ImmediateContextId} parent={origin.EffectiveParentContextId} root={origin.EffectiveRootContextId} owner={origin.OwnerContextId}");
-                    LogRejected(ctx, $"requires source context. areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId}");
+                    AbilityKit.Core.Logging.Log.Warning($"[SpawnAreaPlanActionModule] rejected missing trace dependency areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId} hasTrace={trace != null} immediate={origin.ImmediateContextId} parent={origin.EffectiveParentContextId} root={origin.EffectiveRootContextId} owner={origin.OwnerContextId}");
+                    LogRejected(ctx, $"requires trace service and source context. areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId}");
                     return false;
                 }
 
-                sourceContextId = trace != null
-                    ? trace.CreateChildContext(
-                        origin.EffectiveParentContextId,
-                        MobaTraceKind.AreaSpawn,
-                        args.AreaId,
-                        input.CasterActorId,
-                        targetActorId,
-                        TraceEndpoint.Config(MobaRuntimeKindNames.Area, args.AreaId),
-                        TraceEndpoint.Actor(targetActorId))
-                    : 0L;
+                sourceContextId = trace.CreateChildContext(
+                    origin.EffectiveParentContextId,
+                    MobaTraceKind.AreaSpawn,
+                    args.AreaId,
+                    input.CasterActorId,
+                    targetActorId,
+                    TraceEndpoint.Config(MobaRuntimeKindNames.Area, args.AreaId),
+                    TraceEndpoint.Actor(targetActorId));
                 if (sourceContextId == 0L)
                 {
-                    sourceContextId = origin.ImmediateContextId != 0L
-                        ? origin.ImmediateContextId
-                        : origin.EffectiveParentContextId;
+                    AbilityKit.Core.Logging.Log.Warning($"[SpawnAreaPlanActionModule] rejected area trace creation failed areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId} parent={origin.EffectiveParentContextId}");
+                    LogRejected(ctx, $"area trace creation failed. areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId}");
+                    return false;
                 }
 
                 rootContextId = origin.EffectiveRootContextId != 0L
@@ -194,6 +192,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var areaId = projectiles.SpawnArea(in spawnParams, frame);
             if (areaId.Value <= 0)
             {
+                if (sourceContextId != 0L)
+                {
+                    trace.EndContext(sourceContextId, TraceLifecycleReason.Failed);
+                }
+
                 AbilityKit.Core.Logging.Log.Warning($"[SpawnAreaPlanActionModule] rejected spawn failed areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId} center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} collisionMask={collisionLayerMask} frame={frame}");
                 LogRejected(ctx, $"spawn failed. areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId} center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames}");
                 return false;
@@ -201,20 +204,40 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             if (areaRuntime != null)
             {
-                areaRuntime.RegisterSpawn(
-                    areaId,
-                    args.AreaId,
-                    input.CasterActorId,
-                    in center,
-                    radius,
-                    collisionLayerMask,
-                    aoe.MaxTargets,
-                    frame,
-                    delayFrames,
-                    sourceContextId,
-                    rootContextId,
-                    ownerContextId,
-                    skillRuntimeHandle);
+                try
+                {
+                    areaRuntime.RegisterSpawn(
+                        areaId,
+                        args.AreaId,
+                        input.CasterActorId,
+                        in center,
+                        radius,
+                        collisionLayerMask,
+                        aoe.MaxTargets,
+                        frame,
+                        delayFrames,
+                        sourceContextId,
+                        rootContextId,
+                        ownerContextId,
+                        skillRuntimeHandle);
+                }
+                catch (Exception ex)
+                {
+                    areaRuntime.RollbackSpawn(areaId, sourceContextId);
+                    projectiles.DespawnArea(areaId, frame);
+                    try
+                    {
+                        trace.EndContext(sourceContextId, TraceLifecycleReason.Failed);
+                    }
+                    catch (Exception cleanupEx)
+                    {
+                        AbilityKit.Core.Logging.Log.Exception(cleanupEx, $"[SpawnAreaPlanActionModule] end area trace failed during spawn rollback. areaId={areaId.Value} sourceContextId={sourceContextId}");
+                    }
+
+                    AbilityKit.Core.Logging.Log.Exception(ex, $"[SpawnAreaPlanActionModule] register spawn failed and was rolled back. areaId={areaId.Value} templateId={args.AreaId} caster={input.CasterActorId} target={targetActorId}");
+                    LogRejected(ctx, $"runtime registration failed. areaId={args.AreaId} runtimeId={areaId.Value}");
+                    return false;
+                }
             }
 
             LogApplied(ctx, $"templateId={args.AreaId} runtimeId={areaId.Value} caster={input.CasterActorId} target={targetActorId} radius={radius} lifetimeFrames={lifetimeFrames}");

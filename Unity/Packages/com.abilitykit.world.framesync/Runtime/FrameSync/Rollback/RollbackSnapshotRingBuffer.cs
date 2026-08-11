@@ -23,9 +23,16 @@ namespace AbilityKit.Ability.FrameSync.Rollback
 
         public void Store(in WorldRollbackSnapshot snapshot)
         {
-            var ownedEntries = CloneEntries(snapshot.Entries, usePool: true);
-            var ownedSnapshot = new WorldRollbackSnapshot(snapshot.Version, snapshot.Frame, ownedEntries);
-            var idx = Mod(snapshot.Frame.Value, _capacity);
+            Store(snapshot.Frame, snapshot.Entries, snapshot.Version);
+        }
+
+        /// <summary>Stores a deep-copy of <paramref name="entries"/>. Lets the internal capture→store path
+        /// pass the pooled capture list directly (as a span) without an intermediate ToArray allocation.</summary>
+        public void Store(FrameIndex frame, ReadOnlySpan<WorldRollbackSnapshotEntry> entries, int version)
+        {
+            var ownedEntries = CloneEntries(entries, usePool: true);
+            var ownedSnapshot = new WorldRollbackSnapshot(version, frame, ownedEntries);
+            var idx = Mod(frame.Value, _capacity);
 
             lock (_sync)
             {
@@ -34,7 +41,7 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                     ReleaseSnapshot(_snapshots[idx]);
                 }
 
-                _frames[idx] = snapshot.Frame;
+                _frames[idx] = frame;
                 _snapshots[idx] = ownedSnapshot;
                 _has[idx] = true;
             }
@@ -79,10 +86,10 @@ namespace AbilityKit.Ability.FrameSync.Rollback
         }
 
         private static WorldRollbackSnapshotEntry[] CloneEntries(
-            WorldRollbackSnapshotEntry[] entries,
+            ReadOnlySpan<WorldRollbackSnapshotEntry> entries,
             bool usePool)
         {
-            if (entries == null || entries.Length == 0)
+            if (entries.IsEmpty)
             {
                 return Array.Empty<WorldRollbackSnapshotEntry>();
             }

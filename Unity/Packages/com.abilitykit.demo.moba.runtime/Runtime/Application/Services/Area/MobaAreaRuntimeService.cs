@@ -98,6 +98,40 @@ namespace AbilityKit.Demo.Moba.Services.Area
             return true;
         }
 
+        public bool RollbackSpawn(
+            AreaId areaId,
+            long expectedSourceContextId)
+        {
+            if (areaId.Value <= 0) return false;
+            if (!_areas.TryGetValue(areaId.Value, out var info)) return false;
+            if (expectedSourceContextId != 0L
+                && info.SourceContextId != expectedSourceContextId)
+            {
+                return false;
+            }
+
+            _areas.Remove(areaId.Value);
+            _delayTriggeredAreas.Remove(areaId.Value);
+            Unindex(info);
+            ReleaseSkillRuntime(areaId.Value);
+
+            try
+            {
+                _lifecycle?.RecordDespawn(
+                    MobaTemporaryEntityKind.Area,
+                    ActiveCount,
+                    CurrentFrame);
+            }
+            catch (Exception ex)
+            {
+                AbilityKit.Core.Logging.Log.Exception(
+                    ex,
+                    $"[MobaAreaRuntimeService] Record area despawn failed during spawn rollback (areaId={areaId.Value})");
+            }
+
+            return true;
+        }
+
         public int DrainPresentationEvents(IList<MobaAreaEventSnapshotEntry> results)
         {
             if (results == null) return 0;

@@ -49,46 +49,22 @@ namespace AbilityKit.Demo.Moba.Services
         private void EndExecutionContext(IContinuous continuous, ContinuousEndReason reason)
         {
             if (continuous is not IMobaContinuousExecutionContextProvider provider) return;
-            if (!provider.TryGetCombatExecutionContext(out var context) || !context.HasExecutionSource) return;
+            if (!provider.TryGetCombatExecutionContext(out var context) || !context.IsValid) return;
 
-            var ownerKey = context.OwnerContextId != 0 ? context.OwnerContextId : context.ParentContextId;
-            if (ownerKey != 0)
-            {
-                try
-                {
-                    _actionRunner?.CancelByOwnerKey(ownerKey);
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, $"[MobaContinuousContextLifecycle] CancelByOwnerKey exception (ownerKey={ownerKey})");
-                }
-            }
-
-            var contextId = context.ParentContextId;
-            if (contextId == 0) return;
+            // ParentContextId is a borrowed attachment point used to create downstream
+            // execution nodes. The Continuous runtime does not own that node and must not end it.
+            var ownerKey = context.OwnerContextId;
+            if (ownerKey == 0) return;
 
             try
             {
-                _trace?.EndContext(contextId, ToTraceReason(reason));
+                _actionRunner?.CancelByOwnerKey(ownerKey);
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, $"[MobaContinuousContextLifecycle] Trace.End exception (contextId={contextId}, reason={reason})");
+                Log.Exception(ex, $"[MobaContinuousContextLifecycle] CancelByOwnerKey exception (ownerKey={ownerKey})");
             }
         }
 
-        private static TraceLifecycleReason ToTraceReason(ContinuousEndReason reason)
-        {
-            switch (reason)
-            {
-                case ContinuousEndReason.Completed:
-                    return TraceLifecycleReason.Completed;
-                case ContinuousEndReason.Interrupted:
-                    return TraceLifecycleReason.Interrupted;
-                case ContinuousEndReason.CleanedUp:
-                default:
-                    return TraceLifecycleReason.Expired;
-            }
-        }
     }
 }

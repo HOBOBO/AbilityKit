@@ -185,7 +185,14 @@ ShooterRoomGatewayConnection            实现 IRoomGatewayRequestTransport + IR
   ↓
 ShooterRoomGatewayFlow                  包装通用 RoomGatewaySessionFlow（8 阶段），内含 ShooterRoomGatewaySessionClient 适配 shooter DTO → 通用能力接口
   ↓
-ShooterClientSession                    tick 本地预测 + 应用下推快照；输入上行 ShooterRoomGatewayClient.SubmitBattleInputAsync（opcode = RoomGatewayOpCodes.SubmitBattleInput）
+ShooterClientSession                    tick 本地预测 + 应用下推快照
+
+【P2.2 战斗数据面 —— 两连接拓扑（2026-08-09，房间控制面之外的独立 battle 连接）】
+ShooterClientNetworkLauncher            房间连接之外另建 battle NetworkTransport（独立 TcpTransport，dispatcher 驱动 + Tick 泵 heartbeat）
+  ↓
+ShooterBattleTransportGatewayClient     输入上行经 NetworkTransport.SendInputAsync（per-submit 结果：AcceptedFrame/ServerTicks/ShouldResync，喂 lag-compensation）
+ShooterBattleDataPlane                  下推经 RawServerPushReceived（类型化解码前的原始 opCode,payload）→ 喂既有 ShooterClientSession.ApplyGatewayPush；push 在主线程 Drain（不与 session.Tick 竞争）；承载 reliable-event ack + 10s 全量重同步旁路
+ShooterRoomGatewayConnection            收缩为房间控制面 + battle-state facade（由 NotifyBattlePushDispatched 灌注，SnapshotPushDispatched/CurrentSession 等消费者零改动）
 ```
 
 - shooter 不引用 `AbilityKit.Coordinator`（view.runtime asmdef），不实现 `IRemoteBattleSyncTransport`，不创建 `SessionCoordinator`。

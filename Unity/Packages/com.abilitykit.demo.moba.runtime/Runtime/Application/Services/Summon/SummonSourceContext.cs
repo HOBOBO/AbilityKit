@@ -64,7 +64,7 @@ namespace AbilityKit.Demo.Moba.Services
         public bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext)
         {
             lineageContext = new MobaTriggerLineageContext(
-                EffectContextKind.Unknown,
+                EffectContextKind.Summon,
                 MobaTraceKind.SummonSpawn,
                 SourceActorId,
                 SummonActorId,
@@ -222,7 +222,7 @@ namespace AbilityKit.Demo.Moba.Services
                 _origin = MobaGameplayOriginBuilder.Create()
                     .FromOrigin(in _origin)
                     .WithActors(_sourceActorId, _summonActorId)
-                    .WithImmediate(MobaTraceKind.SummonSpawn, _summonConfigId, sourceContextId)
+                    .WithLifecycleNode(MobaTraceKind.SummonSpawn, _summonConfigId, sourceContextId)
                     .WithRootContext(_rootContextId)
                     .WithOwnerContext(_ownerContextId)
                     .WithSkillRuntimeIfMissing(in _skillRuntimeHandle)

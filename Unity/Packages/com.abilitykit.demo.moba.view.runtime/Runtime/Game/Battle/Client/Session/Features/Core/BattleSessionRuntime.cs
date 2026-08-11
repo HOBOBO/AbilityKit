@@ -15,12 +15,32 @@ namespace AbilityKit.Game.Flow
         internal SessionOrchestrator Orchestrator { get; private set; }
         internal BattleSnapshotRoutingRuntime SnapshotRouting { get; }
         internal GatewaySessionRuntime GatewayRoom { get; private set; }
+        internal BattleReplicationRuntime Replication { get; }
+        internal BattlePresentationSessionResources Presentation { get; }
+        internal BattleSimulationRuntime Simulation { get; private set; }
 
         internal BattleSessionRuntime()
         {
             State = new BattleSessionState();
             Handles = new BattleSessionHandles();
             SnapshotRouting = new BattleSnapshotRoutingRuntime(Handles);
+            Replication = new BattleReplicationRuntime();
+            Presentation = new BattlePresentationSessionResources();
+        }
+
+        internal void ConfigureSimulation(IBattleSessionWorldInstaller worldInstaller)
+        {
+            if (worldInstaller == null) throw new ArgumentNullException(nameof(worldInstaller));
+            if (Simulation != null)
+            {
+                throw new InvalidOperationException("Battle session simulation has already been configured.");
+            }
+
+            Simulation = new BattleSimulationRuntime(
+                State,
+                Handles,
+                worldInstaller,
+                Presentation);
         }
 
         internal void ConfigureGatewayRoom(
@@ -51,6 +71,11 @@ namespace AbilityKit.Game.Flow
             }
 
             Orchestrator = new SessionOrchestrator(State, Handles, host);
+        }
+
+        internal void DisposeReplication()
+        {
+            Replication.Dispose();
         }
     }
 }

@@ -213,6 +213,63 @@ namespace AbilityKit.Demo.Moba.Services
         {
             return MobaCombatExecutionContextFactory.WithSnapshot(in this, in executionSnapshot, frame);
         }
+
+        public MobaCombatExecutionContext WithExecutionRoot(
+            long rootContextId,
+            int effectConfigId)
+        {
+            if (rootContextId == 0L)
+            {
+                throw new System.ArgumentOutOfRangeException(
+                    nameof(rootContextId),
+                    rootContextId,
+                    "Execution root context id must be non-zero.");
+            }
+
+            var ownerContextId = OwnerContextId != 0L
+                ? OwnerContextId
+                : rootContextId;
+            var configId = effectConfigId != 0
+                ? effectConfigId
+                : ConfigId;
+            var lineageInput = new MobaEffectLineageInput(
+                ContextKind,
+                MobaTraceKind.EffectExecution,
+                SourceActorId,
+                TargetActorId,
+                rootContextId,
+                rootContextId,
+                ownerContextId,
+                configId);
+            var origin = new MobaGameplayOrigin(
+                SourceActorId,
+                TargetActorId,
+                MobaTraceKind.EffectExecution,
+                configId,
+                rootContextId,
+                rootContextId,
+                rootContextId,
+                ownerContextId,
+                SkillRuntimeHandle);
+            var snapshot = new MobaTriggerExecutionSnapshot(
+                ContextKind,
+                SourceActorId,
+                TargetActorId,
+                rootContextId,
+                rootContextId,
+                ownerContextId,
+                TriggerId,
+                configId,
+                Frame,
+                SkillRuntimeHandle);
+            return new MobaCombatExecutionContext(
+                Payload,
+                lineageInput,
+                origin,
+                snapshot,
+                SkillRuntimeHandle,
+                Frame);
+        }
     }
 
     public static class MobaCombatExecutionContextResolveExtensions

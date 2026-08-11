@@ -18,7 +18,10 @@ namespace AbilityKit.Demo.Moba.Services
             var origin = default(MobaGameplayOrigin);
             payload.TryResolveOrigin(out origin);
 
-            if (!lineageInput.HasExecutionSource && !origin.HasExecutionSource && !executionSnapshot.HasExecutionSource)
+            if (!lineageInput.HasExecutionSource
+                && !lineageInput.CanCreateRootExecution
+                && !origin.HasExecutionSource
+                && !executionSnapshot.HasExecutionSource)
             {
                 var payloadType = payload != null ? payload.GetType().FullName : "null";
                 throw new InvalidOperationException($"[MobaCombatExecutionContextFactory] Missing combat execution source. payloadType={payloadType}, lineageSourceActorId={lineageInput.SourceActorId}, lineageParentContextId={lineageInput.ParentContextId}, originSourceActorId={origin.SourceActorId}, originParentContextId={origin.EffectiveParentContextId}, snapshotSourceActorId={executionSnapshot.SourceActorId}, snapshotSourceContextId={executionSnapshot.SourceContextId}. Context creation requires sourceActorId and sourceContextId for execution.");

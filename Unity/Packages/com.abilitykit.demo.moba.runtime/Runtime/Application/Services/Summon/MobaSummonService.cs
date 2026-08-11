@@ -659,7 +659,7 @@ namespace AbilityKit.Demo.Moba.Services
             origin = MobaGameplayOriginBuilder.Create()
                 .FromOrigin(in origin)
                 .WithActors(casterActorId, summonActorId)
-                .WithImmediate(MobaTraceKind.SummonSpawn, summonId, spawnContextId)
+                .WithLifecycleNode(MobaTraceKind.SummonSpawn, summonId, spawnContextId)
                 .WithRootContext(origin.EffectiveRootContextId != 0L ? origin.EffectiveRootContextId : spawnContextId)
                 .WithOwnerContext(origin.OwnerContextId != 0L ? origin.OwnerContextId : spawnContextId)
                 .Build();

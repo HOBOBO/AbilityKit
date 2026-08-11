@@ -32,7 +32,7 @@ namespace AbilityKit.Game.Flow
     {
         private readonly BattleStartPlanRequiredData _required;
 
-        private BattleStartConfig.BattleHostMode _hostMode = BattleStartConfig.BattleHostMode.Local;
+        private BattleHostMode _hostMode = BattleHostMode.Local;
         private BattleSyncMode _syncMode = BattleSyncMode.Lockstep;
         private BattleViewEventSourceMode _viewEventSourceMode = BattleViewEventSourceMode.SnapshotOnly;
         private bool _enableClientPrediction = true;
@@ -60,7 +60,7 @@ namespace AbilityKit.Game.Flow
             autoReady: false);
 
         private BattleStartPlanRunModeOptions _runMode = new BattleStartPlanRunModeOptions(
-            runMode: BattleStartConfig.BattleRunMode.Normal,
+            runMode: BattleRunMode.Normal,
             enableInputRecording: false,
             inputRecordOutputPath: string.Empty,
             enableInputReplay: false,
@@ -103,7 +103,7 @@ namespace AbilityKit.Game.Flow
             return new BattleStartPlanBuilder(in required);
         }
 
-        public BattleStartPlanBuilder WithHostMode(BattleStartConfig.BattleHostMode hostMode)
+        public BattleStartPlanBuilder WithHostMode(BattleHostMode hostMode)
         {
             _hostMode = hostMode;
             return this;
@@ -172,7 +172,7 @@ namespace AbilityKit.Game.Flow
         }
 
         public BattleStartPlanBuilder WithRunMode(
-            BattleStartConfig.BattleRunMode runMode,
+            BattleRunMode runMode,
             bool enableInputRecording,
             string inputRecordOutputPath,
             bool enableInputReplay,

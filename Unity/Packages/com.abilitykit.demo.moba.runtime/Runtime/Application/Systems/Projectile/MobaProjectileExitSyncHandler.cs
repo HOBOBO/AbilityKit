@@ -26,8 +26,14 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
                 _sys.ProjectileSnapshots?.RecordExit(evt);
                 _sys.StageTriggers?.ExecuteProjectileExit(evt);
                 DecrementLauncherActiveBullets(evt.LauncherActorId);
-                if (!_sys.Links.TryGetActorId(evt.Projectile, out var actorId) || actorId <= 0) continue;
-                RequestProjectileActorDespawn(evt, actorId);
+                if (_sys.Links.TryGetActorId(evt.Projectile, out var actorId) && actorId > 0)
+                {
+                    RequestProjectileActorDespawn(evt, actorId);
+                }
+                else
+                {
+                    CleanupUnlinkedProjectile(evt.Projectile);
+                }
             }
 
             exits.Clear();
@@ -49,6 +55,47 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             }
 
             _sys.CleanupProjectileActorOnExit(evt.Projectile, projectileEntity, ActorDespawnReason.ProjectileHitOrExit, sourceActorId, sourceContextId);
+        }
+
+        private void CleanupUnlinkedProjectile(ProjectileId projectileId)
+        {
+            var links = _sys.Links;
+            if (links == null) return;
+
+            if (links.TryGetSource(projectileId, out var source)
+                && source.SourceContextId != 0L
+                && _sys.Trace != null)
+            {
+                try
+                {
+                    _sys.Trace.EndContext(
+                        source.SourceContextId,
+                        AbilityKit.Trace.TraceLifecycleReason.Completed);
+                }
+                catch (Exception ex)
+                {
+                    AbilityKit.Core.Logging.Log.Exception(
+                        ex,
+                        $"[MobaProjectileExitSyncHandler] end unlinked projectile trace failed (projectileId={projectileId.Value}, sourceContextId={source.SourceContextId})");
+                }
+            }
+
+            if (_sys.SkillRuntimes != null
+                && links.TryConsumeRetain(projectileId, out var retainHandle))
+            {
+                try
+                {
+                    _sys.SkillRuntimes.ReleaseChild(in retainHandle);
+                }
+                catch (Exception ex)
+                {
+                    AbilityKit.Core.Logging.Log.Exception(
+                        ex,
+                        $"[MobaProjectileExitSyncHandler] release unlinked projectile retain failed (projectileId={projectileId.Value})");
+                }
+            }
+
+            links.UnlinkByProjectileId(projectileId);
         }
 
         private void DecrementLauncherActiveBullets(int launcherActorId)

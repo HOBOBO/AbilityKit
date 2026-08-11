@@ -18,6 +18,10 @@ namespace AbilityKit.Ability.FrameSync
         private readonly object _sync = new object();
         private readonly Dictionary<int, Dictionary<TKey, TCommand>> _frames = new Dictionary<int, Dictionary<TKey, TCommand>>();
         private readonly IComparer<TCommand>? _commandComparer;
+        // Reused across trims (TrimBeforeLocked is always called under _sync, so single-threaded access).
+        private readonly List<int> _trimRemovals = new List<int>();
+        // Pool of per-frame dictionaries retired by trim/clear; accessed only under _sync.
+        private readonly Stack<Dictionary<TKey, TCommand>> _frameCommandPool = new Stack<Dictionary<TKey, TCommand>>();
         private int _oldestRetainedFrame;
         private int _retainedFrameWindow;
         private int _latestFrame;
@@ -47,6 +51,10 @@ namespace AbilityKit.Ability.FrameSync
         {
             lock (_sync)
             {
+                foreach (var kv in _frames)
+                {
+                    RetireFrameCommands(kv.Value);
+                }
                 _frames.Clear();
                 _oldestRetainedFrame = 0;
                 _latestFrame = 0;
@@ -81,7 +89,9 @@ namespace AbilityKit.Ability.FrameSync
 
                 if (!_frames.TryGetValue(frame, out var commands))
                 {
-                    commands = new Dictionary<TKey, TCommand>();
+                    commands = _frameCommandPool.Count > 0
+                        ? _frameCommandPool.Pop()
+                        : new Dictionary<TKey, TCommand>();
                     _frames[frame] = commands;
                 }
 
@@ -193,7 +203,9 @@ namespace AbilityKit.Ability.FrameSync
                 return;
             }
 
-            var removed = new List<int>();
+            // Reuse the field buffer instead of allocating a List per trim (this runs every tick).
+            var removed = _trimRemovals;
+            removed.Clear();
             foreach (var kv in _frames)
             {
                 if (kv.Key < frame)
@@ -204,10 +216,21 @@ namespace AbilityKit.Ability.FrameSync
 
             for (var i = 0; i < removed.Count; i++)
             {
-                _frames.Remove(removed[i]);
+                if (_frames.Remove(removed[i], out var retired))
+                {
+                    RetireFrameCommands(retired);
+                }
             }
 
             _oldestRetainedFrame = frame;
+        }
+
+        // Caller must hold _sync. Pooled dictionaries never escape: public reads hand out
+        // detached defensive copies, so retiring here cannot alias a live reader.
+        private void RetireFrameCommands(Dictionary<TKey, TCommand> commands)
+        {
+            commands.Clear();
+            _frameCommandPool.Push(commands);
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Core.Snapshots.Routing;
 
 namespace AbilityKit.Game.Flow
 {
@@ -8,6 +9,7 @@ namespace AbilityKit.Game.Flow
         public readonly BattleStartPlan Plan;
         public readonly BattleContext Context;
         public readonly BattleSessionConfirmedWorldRuntime Handles;
+        public readonly FrameSnapshotDispatcher PresentationSnapshots;
         public readonly SessionWorldCatchUpController WorldCatchUp;
         public readonly int LastTickedFrame;
         public readonly float FixedDeltaSeconds;
@@ -17,6 +19,7 @@ namespace AbilityKit.Game.Flow
             BattleStartPlan plan,
             BattleContext context,
             BattleSessionConfirmedWorldRuntime handles,
+            FrameSnapshotDispatcher presentationSnapshots,
             SessionWorldCatchUpController worldCatchUp,
             int lastTickedFrame,
             float fixedDeltaSeconds,
@@ -25,6 +28,7 @@ namespace AbilityKit.Game.Flow
             Plan = plan;
             Context = context;
             Handles = handles;
+            PresentationSnapshots = presentationSnapshots;
             WorldCatchUp = worldCatchUp;
             LastTickedFrame = lastTickedFrame;
             FixedDeltaSeconds = fixedDeltaSeconds;
@@ -58,7 +62,7 @@ namespace AbilityKit.Game.Flow
                 feed: packet =>
                 {
                     handles.Snapshots?.Feed(packet);
-                    handles.ViewSnapshotRuntime?.Snapshots?.Feed(packet);
+                    options.PresentationSnapshots?.Feed(packet);
                 });
 
             inputSource.TrimBefore(SessionSimRuntimeTuning.ResolveInputTrimBeforeFrame(

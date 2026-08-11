@@ -6,6 +6,7 @@ using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.GameplayTags;
@@ -177,6 +178,42 @@ namespace AbilityKit.Game.Tests
                 shields.Dispose();
                 context.DestroyAllEntities();
             }
+        }
+
+        [Test]
+        public void BuffStateRecoveryEntry_RestoresCapabilityHandleWithoutClaimingLiveRuntime()
+        {
+            var entry = new MobaBuffStateRecoveryEntry(
+                targetActorId: 42,
+                buffId: 7001,
+                remainingSeconds: 6f,
+                intervalRemainingSeconds: 0.4f,
+                sourceActorId: 10,
+                stackCount: 2,
+                sourceContextId: 3002L,
+                runtimeContextId: 4001L,
+                runtimeContextVersion: 3L,
+                originSourceActorId: 10,
+                originTargetActorId: 42,
+                originTraceKind: (int)MobaTraceKind.BuffApply,
+                originConfigId: 7001,
+                originImmediateContextId: 3002L,
+                originParentContextId: 3002L,
+                originRootContextId: 3001L,
+                originOwnerContextId: 3002L,
+                skillRuntimeId: 51L,
+                skillRuntimeGeneration: 4,
+                skillRuntimeRootTraceContextId: 3001L);
+            var runtime = new BuffRuntime();
+
+            entry.ApplyTo(runtime);
+
+            Assert.That(runtime.ContextSource.Boundary, Is.EqualTo(MobaContextSourceBoundary.Snapshot));
+            Assert.That(runtime.ContextSource.HasLiveRuntime, Is.False);
+            Assert.That(runtime.SkillRuntimeHandle.RuntimeId, Is.EqualTo(51L));
+            Assert.That(runtime.SkillRuntimeHandle.Generation, Is.EqualTo(4));
+            Assert.That(runtime.SkillRuntimeHandle.RootTraceContextId, Is.EqualTo(3001L));
+            Assert.That(runtime.SkillRuntimeRetainHandle.IsValid, Is.False);
         }
 
         private static BuffRuntime CreateBuffRuntime(

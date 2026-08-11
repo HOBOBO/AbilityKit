@@ -26,18 +26,6 @@ namespace AbilityKit.Game.Flow
                 destroyConfirmedWorld);
         }
 
-        public static void DisposeConfirmedView(
-            GameFlowDomain flow,
-            BattleSessionConfirmedWorldRuntime handles,
-            Action<IEntity> destroyEntityTree)
-        {
-            ExecuteCleanupSteps(
-                "Failed to dispose confirmed view resources.",
-                () => DetachConfirmedViewFeature(flow, handles),
-                handles.DisposeViewSnapshotRuntime,
-                () => DisposeConfirmedViewContext(handles, destroyEntityTree));
-        }
-
         public static void DisposeRemoteDrivenWorld(
             BattleSessionRemoteDrivenWorldRuntime handles,
             Action resetTickState)
@@ -76,24 +64,6 @@ namespace AbilityKit.Game.Flow
 
             if (failures.Count == 1) throw failures[0];
             if (failures.Count > 1) throw new AggregateException(message, failures);
-        }
-
-        private static void DetachConfirmedViewFeature(
-            GameFlowDomain flow,
-            BattleSessionConfirmedWorldRuntime handles)
-        {
-            var feature = handles.GetViewFeature();
-            if (flow != null && feature != null) flow.Detach(feature);
-            handles.ClearViewFeature(feature);
-        }
-
-        private static void DisposeConfirmedViewContext(
-            BattleSessionConfirmedWorldRuntime handles,
-            Action<IEntity> destroyEntityTree)
-        {
-            var context = handles.GetViewContext();
-            ConfirmedViewContextDisposer.Dispose(context, destroyEntityTree);
-            handles.ClearViewContext(context);
         }
 
         private static void TryCleanup(Action cleanup, ICollection<Exception> failures)

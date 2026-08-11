@@ -23,7 +23,6 @@ namespace AbilityKit.Game.Flow
 
         private readonly IBattleBootstrapper _bootstrapper;
         private readonly IAbilityKitConnectionRegistry _connectionRegistry;
-        private readonly IBattleSessionWorldInstaller _worldInstaller;
         private readonly IBattleSessionTransportFactory _transportFactory;
         private readonly IBattleSessionGatewayConnectionFactory _gatewayConnectionFactory;
         private readonly IBattleSessionGatewayRoomClientFactory _gatewayRoomClientFactory;
@@ -79,11 +78,11 @@ namespace AbilityKit.Game.Flow
         {
             _bootstrapper = bootstrapper;
             _connectionRegistry = connectionRegistry ?? new AbilityKitConnectionRegistry();
-            _worldInstaller = worldInstaller ?? new DefaultBattleSessionWorldInstaller();
             _transportFactory = transportFactory ?? new DefaultBattleSessionTransportFactory();
             _gatewayConnectionFactory = gatewayRoomConnectionFactory ?? new DefaultBattleSessionGatewayConnectionFactory(gatewayConnectionFactory);
             _gatewayRoomClientFactory = gatewayRoomClientFactory ?? new DefaultBattleSessionGatewayRoomClientFactory();
             _sessionRegistry = sessionRegistry ?? new DefaultBattleLogicSessionRegistry();
+            _runtime.ConfigureSimulation(worldInstaller ?? new DefaultBattleSessionWorldInstaller());
             _runtime.ConfigureGatewayRoom(
                 _connectionRegistry,
                 _gatewayConnectionFactory,

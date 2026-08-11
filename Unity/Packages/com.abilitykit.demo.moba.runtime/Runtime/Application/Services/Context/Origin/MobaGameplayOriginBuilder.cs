@@ -81,9 +81,21 @@ namespace AbilityKit.Demo.Moba.Services
             return this;
         }
 
-        public MobaGameplayOriginBuilder WithParentContext(long parentContextId)
+        public MobaGameplayOriginBuilder WithLifecycleNode(MobaTraceKind kind, int configId, long contextId)
         {
-            _parentContextId = parentContextId;
+            if (contextId == 0L)
+            {
+                throw new System.ArgumentOutOfRangeException(
+                    nameof(contextId),
+                    "A formal lifecycle node requires a non-zero trace context id.");
+            }
+
+            _immediateKind = kind;
+            _immediateConfigId = configId;
+            _immediateContextId = contextId;
+            _parentContextId = contextId;
+            if (_rootContextId == 0L) _rootContextId = contextId;
+            if (_ownerContextId == 0L) _ownerContextId = contextId;
             return this;
         }
 

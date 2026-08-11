@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Ability.Host;
@@ -7,6 +8,7 @@ using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Flow;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Battle;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Demo.Common.Rooms;
@@ -27,7 +29,269 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(runtime.Handles, Is.SameAs(runtime.Handles));
             Assert.That(runtime.SnapshotRouting, Is.Not.Null);
             Assert.That(runtime.SnapshotRouting, Is.SameAs(runtime.SnapshotRouting));
+            Assert.That(runtime.Presentation, Is.Not.Null);
+            Assert.That(runtime.Presentation, Is.SameAs(runtime.Presentation));
+            Assert.That(runtime.Replication, Is.Not.Null);
+            Assert.That(runtime.Replication, Is.SameAs(runtime.Replication));
+            Assert.That(runtime.Simulation, Is.Null);
             Assert.That(runtime.Orchestrator, Is.Null);
+        }
+
+        [Test]
+        public void BattleSessionRuntime_ConfiguresStableSimulationOwnerOnce()
+        {
+            var runtime = new BattleSessionRuntime();
+            var installer = new TrackingSimulationInstaller();
+
+            runtime.ConfigureSimulation(installer);
+
+            Assert.That(runtime.Simulation, Is.Not.Null);
+            Assert.That(runtime.Simulation, Is.SameAs(runtime.Simulation));
+            Assert.That(runtime.Simulation.RemoteDriven, Is.SameAs(runtime.Handles.RemoteDriven));
+            Assert.That(runtime.Simulation.Confirmed, Is.SameAs(runtime.Handles.Confirmed));
+            Assert.Throws<InvalidOperationException>(() => runtime.ConfigureSimulation(installer));
+        }
+
+        [Test]
+        public void BattleSessionRuntime_RejectsNullSimulationInstaller()
+        {
+            var runtime = new BattleSessionRuntime();
+
+            Assert.Throws<ArgumentNullException>(() => runtime.ConfigureSimulation(null));
+            Assert.That(runtime.Simulation, Is.Null);
+        }
+
+        [Test]
+        public void BattleSimulationRuntime_StartsWorldsAndKeepsTickStateIsolated()
+        {
+            var state = new BattleSessionState();
+            var handles = new BattleSessionHandles();
+            var installer = new TrackingSimulationInstaller();
+            var simulation = new BattleSimulationRuntime(state, handles, installer);
+            var plan = CreatePlan();
+            simulation.RemoteDrivenLastTickedFrame = 41;
+            simulation.ConfirmedLastTickedFrame = 73;
+
+            simulation.StartRemoteDriven(plan, null, 1f / 30f, _ => 1, () => false);
+
+            Assert.That(installer.RemoteDrivenStartCount, Is.EqualTo(1));
+            Assert.That(simulation.RemoteDrivenLastTickedFrame, Is.Zero);
+            Assert.That(simulation.ConfirmedLastTickedFrame, Is.EqualTo(73));
+
+            simulation.StartConfirmedAuthority(plan, null, null, false, 1f / 30f, _ => 1, _ => { });
+
+            Assert.That(installer.ConfirmedStartCount, Is.EqualTo(1));
+            Assert.That(simulation.RemoteDrivenLastTickedFrame, Is.Zero);
+            Assert.That(simulation.ConfirmedLastTickedFrame, Is.Zero);
+        }
+
+        [Test]
+        public void BattleSimulationRuntime_RemoteStartupFailureRollsBackOnlyRemoteState()
+        {
+            var state = new BattleSessionState();
+            var handles = new BattleSessionHandles();
+            var installer = new TrackingSimulationInstaller
+            {
+                RemoteDrivenFailure = new InvalidOperationException("remote start failed"),
+            };
+            var simulation = new BattleSimulationRuntime(state, handles, installer);
+            var plan = CreatePlan();
+            simulation.RemoteDrivenLastTickedFrame = 41;
+            simulation.ConfirmedLastTickedFrame = 73;
+
+            var thrown = Assert.Throws<InvalidOperationException>(() =>
+                simulation.StartRemoteDriven(plan, null, 1f / 30f, _ => 1, () => false));
+
+            Assert.That(thrown, Is.SameAs(installer.RemoteDrivenFailure));
+            Assert.That(simulation.RemoteDrivenLastTickedFrame, Is.Zero);
+            Assert.That(simulation.ConfirmedLastTickedFrame, Is.EqualTo(73));
+            Assert.That(handles.RemoteDriven.World, Is.Null);
+            Assert.That(handles.Confirmed.World, Is.Null);
+        }
+
+        [Test]
+        public void BattleSimulationRuntime_ConfirmedStartupFailureRollsBackOnlyConfirmedState()
+        {
+            var state = new BattleSessionState();
+            var handles = new BattleSessionHandles();
+            var installer = new TrackingSimulationInstaller
+            {
+                ConfirmedFailure = new InvalidOperationException("confirmed start failed"),
+            };
+            var simulation = new BattleSimulationRuntime(state, handles, installer);
+            var plan = CreatePlan();
+            simulation.RemoteDrivenLastTickedFrame = 41;
+            simulation.ConfirmedLastTickedFrame = 73;
+
+            var thrown = Assert.Throws<InvalidOperationException>(() =>
+                simulation.StartConfirmedAuthority(
+                    plan,
+                    null,
+                    null,
+                    false,
+                    1f / 30f,
+                    _ => 1,
+                    _ => { }));
+
+            Assert.That(thrown, Is.SameAs(installer.ConfirmedFailure));
+            Assert.That(simulation.RemoteDrivenLastTickedFrame, Is.EqualTo(41));
+            Assert.That(simulation.ConfirmedLastTickedFrame, Is.Zero);
+            Assert.That(handles.RemoteDriven.World, Is.Null);
+            Assert.That(handles.Confirmed.World, Is.Null);
+        }
+
+        [Test]
+        public void BattleSimulationRuntime_RepeatedStartDoesNotRecreateOrResetWorlds()
+        {
+            var installer = new TrackingSimulationInstaller();
+            var simulation = new BattleSimulationRuntime(
+                new BattleSessionState(),
+                new BattleSessionHandles(),
+                installer);
+            var plan = CreatePlan();
+
+            simulation.StartRemoteDriven(plan, null, 1f / 30f, _ => 1, () => false);
+            simulation.StartConfirmedAuthority(plan, null, null, false, 1f / 30f, _ => 1, _ => { });
+            simulation.RemoteDrivenLastTickedFrame = 41;
+            simulation.ConfirmedLastTickedFrame = 73;
+
+            simulation.StartRemoteDriven(plan, null, 1f / 30f, _ => 1, () => false);
+            simulation.StartConfirmedAuthority(plan, null, null, false, 1f / 30f, _ => 1, _ => { });
+
+            Assert.That(installer.RemoteDrivenStartCount, Is.EqualTo(1));
+            Assert.That(installer.ConfirmedStartCount, Is.EqualTo(1));
+            Assert.That(simulation.RemoteDrivenLastTickedFrame, Is.EqualTo(41));
+            Assert.That(simulation.ConfirmedLastTickedFrame, Is.EqualTo(73));
+        }
+
+        [Test]
+        public void BattleSimulationRuntime_DisposeStepsAreIdempotentAndWorldIsolated()
+        {
+            var simulation = new BattleSimulationRuntime(
+                new BattleSessionState(),
+                new BattleSessionHandles(),
+                new TrackingSimulationInstaller());
+            simulation.RemoteDrivenLastTickedFrame = 41;
+            simulation.ConfirmedLastTickedFrame = 73;
+
+            simulation.DisposeRemoteDrivenWorld();
+            simulation.DisposeRemoteDrivenWorld();
+
+            Assert.That(simulation.RemoteDrivenLastTickedFrame, Is.Zero);
+            Assert.That(simulation.ConfirmedLastTickedFrame, Is.EqualTo(73));
+
+            simulation.DisposeConfirmedWorld(null);
+            simulation.DisposeConfirmedWorld(null);
+
+            Assert.That(simulation.ConfirmedLastTickedFrame, Is.Zero);
+        }
+
+        [Test]
+        public void PresentationResources_DisabledInstallAndDisposeAreIdempotent()
+        {
+            var owner = new BattlePresentationSessionResources();
+
+            owner.EnsureConfirmedViewInstalled(
+                sourceContext: null,
+                flow: null,
+                authWorldId: default,
+                enabled: false,
+                destroyEntityTree: null);
+            owner.DisposeConfirmedView(flow: null, destroyEntityTree: null);
+            owner.DisposeConfirmedView(flow: null, destroyEntityTree: null);
+
+            Assert.That(owner.ConfirmedContext, Is.Null);
+            Assert.That(owner.ConfirmedFeature, Is.Null);
+            Assert.That(owner.ConfirmedSnapshots, Is.Null);
+        }
+
+        [Test]
+        public void PresentationResources_CreateTwoContextsAndDisposeThemIndependently()
+        {
+            var first = ConfirmedViewSideRuntimeFactory.Create(null, default, null);
+            var second = ConfirmedViewSideRuntimeFactory.Create(null, default, null);
+
+            Assert.That(first.Context, Is.Not.Null);
+            Assert.That(second.Context, Is.Not.Null);
+            Assert.That(first.Context, Is.Not.SameAs(second.Context));
+            Assert.That(first.SnapshotRuntime, Is.Not.Null);
+            Assert.That(second.SnapshotRuntime, Is.Not.Null);
+            Assert.That(first.SnapshotRuntime.Snapshots, Is.Not.SameAs(second.SnapshotRuntime.Snapshots));
+            Assert.That(first.Feature, Is.Not.Null);
+            Assert.That(second.Feature, Is.Not.Null);
+
+            first.SnapshotRuntime.Dispose();
+            ConfirmedViewContextDisposer.Dispose(first.Context, null);
+
+            Assert.That(second.Context.FrameSnapshots, Is.SameAs(second.SnapshotRuntime.Snapshots));
+            Assert.That(second.SnapshotRuntime.Snapshots, Is.Not.Null);
+
+            second.SnapshotRuntime.Dispose();
+            second.SnapshotRuntime.Dispose();
+            ConfirmedViewContextDisposer.Dispose(second.Context, null);
+        }
+
+        [Test]
+        public void PresentationResources_RepeatedInstallKeepsCurrentGeneration()
+        {
+            var owner = new BattlePresentationSessionResources();
+            var current = ConfirmedViewSideRuntimeFactory.Create(null, default, null);
+            SetPrivateField(owner, "_confirmedContext", current.Context);
+            SetPrivateField(owner, "_confirmedSnapshotRuntime", current.SnapshotRuntime);
+            SetPrivateField(owner, "_confirmedFeature", current.Feature);
+
+            owner.EnsureConfirmedViewInstalled(
+                sourceContext: null,
+                flow: new GameFlowDomain((IGameHost)null),
+                authWorldId: default,
+                enabled: true,
+                destroyEntityTree: null);
+
+            Assert.That(owner.ConfirmedContext, Is.SameAs(current.Context));
+            Assert.That(owner.ConfirmedSnapshots, Is.SameAs(current.SnapshotRuntime.Snapshots));
+            Assert.That(owner.ConfirmedFeature, Is.SameAs(current.Feature));
+
+            owner.DisposeConfirmedView(flow: null, destroyEntityTree: null);
+        }
+
+        [Test]
+        public void PresentationResources_StaleContextCleanupDoesNotClearReplacement()
+        {
+            var owner = new BattlePresentationSessionResources();
+            var stale = ConfirmedViewSideRuntimeFactory.Create(null, default, null);
+            var replacement = ConfirmedViewSideRuntimeFactory.Create(null, default, null);
+            SetPrivateField(owner, "_confirmedContext", stale.Context);
+            SetPrivateField(owner, "_confirmedSnapshotRuntime", stale.SnapshotRuntime);
+            SetPrivateField(owner, "_confirmedFeature", stale.Feature);
+
+            owner.DisposeConfirmedView(
+                flow: null,
+                destroyEntityTree: _ =>
+                {
+                    SetPrivateField(owner, "_confirmedContext", replacement.Context);
+                    SetPrivateField(owner, "_confirmedSnapshotRuntime", replacement.SnapshotRuntime);
+                    SetPrivateField(owner, "_confirmedFeature", replacement.Feature);
+                });
+
+            Assert.That(owner.ConfirmedContext, Is.SameAs(replacement.Context));
+            Assert.That(owner.ConfirmedSnapshots, Is.SameAs(replacement.SnapshotRuntime.Snapshots));
+            Assert.That(owner.ConfirmedFeature, Is.SameAs(replacement.Feature));
+
+            owner.DisposeConfirmedView(flow: null, destroyEntityTree: null);
+        }
+
+        [Test]
+        public void PresentationResources_TwoStableOwnersRemainIndependent()
+        {
+            var firstOwner = new BattlePresentationSessionResources();
+            var secondOwner = new BattlePresentationSessionResources();
+
+            Assert.That(firstOwner, Is.Not.SameAs(secondOwner));
+            firstOwner.DisposeConfirmedView(flow: null, destroyEntityTree: null);
+            secondOwner.DisposeConfirmedView(flow: null, destroyEntityTree: null);
+
+            Assert.That(firstOwner.ConfirmedContext, Is.Null);
+            Assert.That(secondOwner.ConfirmedContext, Is.Null);
         }
 
         [Test]
@@ -713,6 +977,165 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(handles.GatewayRoom.ConnectionOwner, Is.SameAs(owner));
         }
 
+        [Test]
+        public void ReplicationRuntime_BuildAndDispose_OwnsBindingsAndRestoresOptions()
+        {
+            var transport = CreateNetworkTransport();
+            var options = transport.Options;
+            Func<string> previousEpoch = () => "previous";
+            Func<long> previousSequence = () => 17L;
+            Action<int> previousAck = _ => { };
+            options.GetReliableEventEpoch = previousEpoch;
+            options.GetReliableEventLastAcknowledgedSequence = previousSequence;
+            options.OnSubmitInputAck = previousAck;
+            var owner = new BattleReplicationRuntime();
+            var connected = 0;
+            var disconnected = 0;
+
+            var checkpointAccepted = owner.Build(
+                transport,
+                30,
+                42UL,
+                "battle",
+                default,
+                _ => { },
+                _ => { },
+                () => disconnected++,
+                () => connected++);
+
+            Assert.That(checkpointAccepted, Is.True);
+            Assert.That(owner.IsBuilt, Is.True);
+            Assert.That(owner.Transport, Is.SameAs(transport));
+            Assert.That(owner.InterpolationController, Is.Not.Null);
+            Assert.That(owner.ReplicationPipeline, Is.Not.Null);
+            Assert.That(owner.SnapshotAdmission, Is.Not.Null);
+            Assert.That(owner.AuthoritativeSnapshotState, Is.Not.Null);
+            Assert.That(owner.ReliableEventCursor, Is.Not.Null);
+            Assert.That(owner.PendingStateImport, Is.True);
+            Assert.That(options.GetReliableEventEpoch, Is.Not.SameAs(previousEpoch));
+            Assert.That(options.GetReliableEventLastAcknowledgedSequence, Is.Not.SameAs(previousSequence));
+            Assert.That(options.OnSubmitInputAck, Is.Not.SameAs(previousAck));
+
+            options.OnSubmitInputAck(12);
+            InvokePrivate(transport, "OnConnected");
+            InvokePrivate(transport, "OnDisconnected");
+
+            Assert.That(owner.LastServerAckFrame, Is.EqualTo(12));
+            Assert.That(connected, Is.EqualTo(1));
+            Assert.That(disconnected, Is.EqualTo(1));
+
+            owner.Dispose();
+            owner.Dispose();
+
+            Assert.That(owner.IsBuilt, Is.False);
+            Assert.That(owner.InterpolationController, Is.Null);
+            Assert.That(owner.PendingReliableEventBatches, Is.Empty);
+            Assert.That(options.GetReliableEventEpoch, Is.SameAs(previousEpoch));
+            Assert.That(options.GetReliableEventLastAcknowledgedSequence, Is.SameAs(previousSequence));
+            Assert.That(options.OnSubmitInputAck, Is.SameAs(previousAck));
+            transport.Dispose();
+        }
+
+        [Test]
+        public void ReplicationRuntime_Rebuild_DetachesOldGeneration()
+        {
+            var firstTransport = CreateNetworkTransport();
+            var secondTransport = CreateNetworkTransport();
+            var owner = new BattleReplicationRuntime();
+            var firstConnected = 0;
+            var secondConnected = 0;
+
+            owner.Build(
+                firstTransport, 30, 1UL, "first", default,
+                _ => { }, _ => { }, () => { }, () => firstConnected++);
+            owner.Build(
+                secondTransport, 30, 2UL, "second", default,
+                _ => { }, _ => { }, () => { }, () => secondConnected++);
+
+            InvokePrivate(firstTransport, "OnConnected");
+            InvokePrivate(secondTransport, "OnConnected");
+
+            Assert.That(firstConnected, Is.Zero);
+            Assert.That(secondConnected, Is.EqualTo(1));
+            Assert.That(owner.Transport, Is.SameAs(secondTransport));
+
+            owner.Dispose();
+            firstTransport.Dispose();
+            secondTransport.Dispose();
+        }
+
+        [Test]
+        public void ReplicationRuntime_InvalidRebuild_PreservesCurrentGeneration()
+        {
+            var transport = CreateNetworkTransport();
+            var owner = new BattleReplicationRuntime();
+            var connected = 0;
+            owner.Build(
+                transport, 30, 1UL, "battle", default,
+                _ => { }, _ => { }, () => { }, () => connected++);
+
+            Assert.Throws<ArgumentNullException>(() => owner.Build(
+                transport, 30, 1UL, "battle", default,
+                null, _ => { }, () => { }, () => { }));
+            InvokePrivate(transport, "OnConnected");
+
+            Assert.That(owner.IsBuilt, Is.True);
+            Assert.That(owner.Transport, Is.SameAs(transport));
+            Assert.That(connected, Is.EqualTo(1));
+
+            owner.Dispose();
+            transport.Dispose();
+        }
+
+        [Test]
+        public void ReplicationRuntime_Dispose_DoesNotOverwriteExternallyReplacedOptions()
+        {
+            var transport = CreateNetworkTransport();
+            var owner = new BattleReplicationRuntime();
+            owner.Build(
+                transport, 30, 1UL, "battle", default,
+                _ => { }, _ => { }, () => { }, () => { });
+            Func<string> replacementEpoch = () => "replacement";
+            Func<long> replacementSequence = () => 99L;
+            Action<int> replacementAck = _ => { };
+            transport.Options.GetReliableEventEpoch = replacementEpoch;
+            transport.Options.GetReliableEventLastAcknowledgedSequence = replacementSequence;
+            transport.Options.OnSubmitInputAck = replacementAck;
+
+            owner.Dispose();
+
+            Assert.That(transport.Options.GetReliableEventEpoch, Is.SameAs(replacementEpoch));
+            Assert.That(transport.Options.GetReliableEventLastAcknowledgedSequence, Is.SameAs(replacementSequence));
+            Assert.That(transport.Options.OnSubmitInputAck, Is.SameAs(replacementAck));
+            transport.Dispose();
+        }
+
+        private static NetworkTransport CreateNetworkTransport()
+        {
+            return new NetworkTransport(new NetworkTransportOptions
+            {
+                ConnectionFactory = () => new TrackingConnection()
+            });
+        }
+
+        private static void InvokePrivate(object target, string methodName)
+        {
+            var method = target.GetType().GetMethod(
+                methodName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, $"Private method '{methodName}' was not found.");
+            method.Invoke(target, null);
+        }
+
+        private static void SetPrivateField(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Private field '{fieldName}' was not found.");
+            field.SetValue(target, value);
+        }
+
         private static GatewaySessionRuntime CreateGatewayOwner(
             BattleSessionHandles handles,
             TrackingConnectionRegistry registry,
@@ -748,7 +1171,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 playerId: "1",
                 tickRate: 30,
                 inputDelayFrames: 0,
-                hostMode: BattleStartConfig.BattleHostMode.GatewayRemote,
+                hostMode: BattleHostMode.GatewayRemote,
                 useGatewayTransport: true,
                 gatewayHost: "127.0.0.1",
                 gatewayPort: 4000,
@@ -773,7 +1196,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 inputRecordOutputPath: string.Empty,
                 enableInputReplay: false,
                 inputReplayPath: string.Empty,
-                runMode: BattleStartConfig.BattleRunMode.Normal,
+                runMode: BattleRunMode.Normal,
                 createWorldOpCode: 0,
                 createWorldPayload: null,
                 timeSyncIntervalMs: timeSyncIntervalMs);
@@ -820,6 +1243,37 @@ namespace AbilityKit.Game.Test.UnitTest
                 State = state;
                 Host = host;
                 Orchestrator = orchestrator;
+            }
+        }
+
+        private sealed class TrackingSimulationInstaller : IBattleSessionWorldInstaller
+        {
+            private bool _remoteDrivenStarted;
+            private bool _confirmedStarted;
+
+            public int RemoteDrivenStartCount { get; private set; }
+            public int ConfirmedStartCount { get; private set; }
+            public Exception RemoteDrivenFailure { get; set; }
+            public Exception ConfirmedFailure { get; set; }
+
+            public void EnsureRemoteDrivenStarted(RemoteDrivenWorldInstallOptions options)
+            {
+                if (_remoteDrivenStarted) return;
+
+                RemoteDrivenStartCount++;
+                options.ResetTickState?.Invoke();
+                if (RemoteDrivenFailure != null) throw RemoteDrivenFailure;
+                _remoteDrivenStarted = true;
+            }
+
+            public void EnsureConfirmedAuthorityStarted(ConfirmedAuthorityWorldInstallOptions options)
+            {
+                if (_confirmedStarted) return;
+
+                ConfirmedStartCount++;
+                options.ResetTickState?.Invoke();
+                if (ConfirmedFailure != null) throw ConfirmedFailure;
+                _confirmedStarted = true;
             }
         }
 

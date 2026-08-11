@@ -145,7 +145,7 @@ namespace AbilityKit.Game.Flow
             get
             {
                 var ctx = Context;
-                return ctx != null && ctx.Session != null && ctx.Plan.HostMode == BattleStartConfig.BattleHostMode.Local;
+                return ctx != null && ctx.Session != null && ctx.Plan.HostMode == BattleHostMode.Local;
             }
         }
 
@@ -174,7 +174,7 @@ namespace AbilityKit.Game.Flow
                 var ctx = Context;
                 if (ctx == null) return "战斗上下文缺失";
                 if (ctx.Session == null) return "战斗会话缺失";
-                if (ctx.Plan.HostMode != BattleStartConfig.BattleHostMode.Local) return $"非本地模式（{ctx.Plan.HostMode}）";
+                if (ctx.Plan.HostMode != BattleHostMode.Local) return $"非本地模式（{ctx.Plan.HostMode}）";
                 return "就绪";
             }
         }

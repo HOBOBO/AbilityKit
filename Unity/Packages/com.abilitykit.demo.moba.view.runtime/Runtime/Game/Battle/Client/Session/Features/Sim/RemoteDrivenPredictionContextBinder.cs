@@ -28,7 +28,7 @@ namespace AbilityKit.Game.Flow
 
         private static bool ShouldExposePredictionFeatures(BattleStartPlan plan)
         {
-            return plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && plan.Gateway.UseGatewayTransport;
+            return plan.HostMode == BattleHostMode.GatewayRemote && plan.Gateway.UseGatewayTransport;
         }
 
         private static void ClearPredictionControls(BattleContext ctx)

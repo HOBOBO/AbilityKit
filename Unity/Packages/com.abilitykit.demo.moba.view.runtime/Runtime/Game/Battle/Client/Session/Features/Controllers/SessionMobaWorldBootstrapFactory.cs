@@ -104,7 +104,7 @@ namespace AbilityKit.Game.Flow
             var authorityMode = launchSpec.AuthorityMode;
             if (authorityMode == MobaBattleLaunchAuthorityMode.Unspecified)
             {
-                authorityMode = plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote
+                authorityMode = plan.HostMode == BattleHostMode.GatewayRemote
                     ? MobaBattleLaunchAuthorityMode.ServerAuthority
                     : plan.Authority.EnableClientPrediction
                         ? MobaBattleLaunchAuthorityMode.ClientPrediction
@@ -137,11 +137,11 @@ namespace AbilityKit.Game.Flow
         }
 
         private static bool OwnsLocalSimulation(
-            BattleStartConfig.BattleHostMode hostMode,
+            BattleHostMode hostMode,
             MobaBattleLaunchAuthorityMode authorityMode)
         {
             return authorityMode == MobaBattleLaunchAuthorityMode.ClientPrediction ||
-                hostMode != BattleStartConfig.BattleHostMode.GatewayRemote;
+                hostMode != BattleHostMode.GatewayRemote;
         }
 
         private static MobaBattleLaunchSyncMode ToLaunchSyncMode(BattleSyncMode syncMode)

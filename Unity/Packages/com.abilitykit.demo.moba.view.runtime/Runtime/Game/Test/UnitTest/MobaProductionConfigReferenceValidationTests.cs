@@ -72,7 +72,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(gateway.DefaultBasicAttackSkillId, Is.EqualTo(10010001));
             Assert.That(gateway.DefaultSkillIds, Is.EqualTo(new[] { 10010101, 10010201, 10010301 }));
             Assert.That(gateway.StarterSceneName, Is.EqualTo("MultiplayerStarterScene"));
-            Assert.That(preset.HostMode, Is.EqualTo(BattleStartConfig.BattleHostMode.GatewayRemote));
+            Assert.That(preset.HostMode, Is.EqualTo(BattleHostMode.GatewayRemote));
             Assert.That(preset.GatewaySO, Is.SameAs(gateway));
             Assert.That(gateway.TryValidateFormalLobby(out var validationError), Is.True, validationError);
 

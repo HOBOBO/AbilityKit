@@ -14,7 +14,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var primaryPlayerId = new PlayerId("p1");
             var context = CreateContext(
-                BattleStartConfig.BattleHostMode.Local,
+                BattleHostMode.Local,
                 CreateLoadout("p1", teamId: 1),
                 CreateLoadout("p1_ally", teamId: 1),
                 CreateLoadout("p2", teamId: 2),
@@ -41,7 +41,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var primaryPlayerId = new PlayerId("p1");
             var context = CreateContext(
-                BattleStartConfig.BattleHostMode.Local,
+                BattleHostMode.Local,
                 CreateLoadout("p1", teamId: 1),
                 CreateLoadout("p1_ally", teamId: 1));
 
@@ -66,7 +66,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var primaryPlayerId = new PlayerId("p1");
             var context = CreateContext(
-                BattleStartConfig.BattleHostMode.GatewayRemote,
+                BattleHostMode.GatewayRemote,
                 CreateLoadout("p1", teamId: 1),
                 CreateLoadout("p2", teamId: 2));
 
@@ -87,7 +87,7 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         private static BattleContext CreateContext(
-            BattleStartConfig.BattleHostMode hostMode,
+            BattleHostMode hostMode,
             params MobaPlayerLoadout[] players)
         {
             var primaryPlayerId = new PlayerId("p1");

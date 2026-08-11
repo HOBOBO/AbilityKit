@@ -48,6 +48,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         public long EffectiveRootContextId => RootContextId != 0 ? RootContextId : ParentContextId;
         public bool HasExecutionSource => SourceActorId > 0 && ParentContextId != 0;
+        /// <summary>仅表示当前输入可创建新的效果根节点，不表示存在可借用的父节点。</summary>
+        public bool CanCreateRootExecution => SourceActorId > 0 && ParentContextId == 0;
         public bool IsValid => ContextKind != EffectContextKind.Unknown
                                || SourceActorId != 0
                                || TargetActorId != 0

@@ -9,8 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Attributes\AbilityKit.Attributes.csproj" />
     <ProjectReference Include="..\AbilityKit.Benchmarking\AbilityKit.Benchmarking.csproj" />
+    <ProjectReference Include="..\AbilityKit.Modifiers\AbilityKit.Modifiers.csproj" />
     <ProjectReference Include="..\AbilityKit.Pipeline\AbilityKit.Pipeline.csproj" />
+    <ProjectReference Include="..\AbilityKit.Record\AbilityKit.Record.csproj" />
     <ProjectReference Include="..\AbilityKit.Triggering\AbilityKit.Triggering.csproj" />
   </ItemGroup>
 </Project>

@@ -13,7 +13,7 @@ namespace AbilityKit.Game.Flow
 
         public void SetupReplayOrRecord(BattleStartPlan plan, BattleContext ctx)
         {
-            if (plan.RunModeOptions.RunMode != BattleStartConfig.BattleRunMode.Record) return;
+            if (plan.RunModeOptions.RunMode != BattleRunMode.Record) return;
 
             BattleRecordCodecBootstrap.TryInstallMemoryPack();
             SetupRecordWriter(plan, ctx);

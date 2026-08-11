@@ -122,14 +122,14 @@ namespace AbilityKit.Game.Flow
 
     public readonly struct BattleStartPlanRunModeOptions
     {
-        public readonly BattleStartConfig.BattleRunMode RunMode;
+        public readonly BattleRunMode RunMode;
         public readonly bool EnableInputRecording;
         public readonly string InputRecordOutputPath;
         public readonly bool EnableInputReplay;
         public readonly string InputReplayPath;
 
         public BattleStartPlanRunModeOptions(
-            BattleStartConfig.BattleRunMode runMode,
+            BattleRunMode runMode,
             bool enableInputRecording,
             string inputRecordOutputPath,
             bool enableInputReplay,
@@ -202,7 +202,7 @@ namespace AbilityKit.Game.Flow
         public readonly int TickRate;
         public readonly int InputDelayFrames;
 
-        public readonly BattleStartConfig.BattleHostMode HostMode;
+        public readonly BattleHostMode HostMode;
         public readonly BattleSyncMode SyncMode;
         public readonly BattleViewEventSourceMode ViewEventSourceMode;
 
@@ -220,7 +220,7 @@ namespace AbilityKit.Game.Flow
 
         public BattleStartPlanOptions(
             in BattleStartPlanWorldOptions world,
-            BattleStartConfig.BattleHostMode hostMode,
+            BattleHostMode hostMode,
             in BattleStartPlanSyncOptions sync,
             in BattleStartPlanAuthorityOptions authority,
             in BattleStartPlanGatewayOptions gateway,
@@ -260,7 +260,7 @@ namespace AbilityKit.Game.Flow
             string playerId,
             int tickRate,
             int inputDelayFrames,
-            BattleStartConfig.BattleHostMode hostMode,
+            BattleHostMode hostMode,
             BattleSyncMode syncMode,
             BattleViewEventSourceMode viewEventSourceMode,
             bool enableClientPrediction,

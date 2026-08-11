@@ -135,9 +135,6 @@ namespace AbilityKit.Game.Flow
         internal DebugBattleViewEventSink ViewEventSink;
         internal BattleSnapshotViewAdapter SnapshotViewAdapter;
         internal BattleTriggerEventViewBridge TriggerBridge;
-        internal BattleContext ViewCtx;
-        internal ConfirmedViewSnapshotRuntime ViewSnapshotRuntime;
-        internal ConfirmedBattleViewFeature ViewFeature;
 
         internal void BindWorldRuntime(ConfirmedAuthorityWorldRuntime runtime)
         {
@@ -163,15 +160,6 @@ namespace AbilityKit.Game.Flow
             SnapshotViewAdapter = pipeline != null ? pipeline.SnapshotViewAdapter : null;
             TriggerBridge = pipeline != null ? pipeline.TriggerBridge : null;
         }
-
-        internal void BindViewSideRuntime(ConfirmedViewSideRuntime runtime)
-        {
-            ViewCtx = runtime.Context;
-            ViewSnapshotRuntime = runtime.SnapshotRuntime;
-            ViewFeature = runtime.Feature;
-        }
-
-        internal bool HasViewFeature() => ViewFeature != null;
 
         internal void DestroyWorld(WorldId fallbackWorldId)
         {
@@ -209,13 +197,6 @@ namespace AbilityKit.Game.Flow
             Sink = null;
         }
 
-        internal void DisposeViewSnapshotRuntime()
-        {
-            if (ViewSnapshotRuntime == null) return;
-            ViewSnapshotRuntime.Dispose();
-            ViewSnapshotRuntime = null;
-        }
-
         internal void DisposeViewEventPipeline()
         {
             if (ViewEventPipeline != null)
@@ -238,28 +219,11 @@ namespace AbilityKit.Game.Flow
             ViewEventSink = null;
         }
 
-        internal BattleContext GetViewContext() => ViewCtx;
-
-        internal void ClearViewContext(BattleContext expected)
-        {
-            if (ReferenceEquals(ViewCtx, expected)) ViewCtx = null;
-        }
-
-        internal ConfirmedBattleViewFeature GetViewFeature() => ViewFeature;
-
-        internal void ClearViewFeature(ConfirmedBattleViewFeature expected)
-        {
-            if (ReferenceEquals(ViewFeature, expected)) ViewFeature = null;
-        }
-
         public void Reset()
         {
             ClearWorldRuntime();
             DisposeInput();
-            DisposeViewSnapshotRuntime();
             DisposeViewEventPipeline();
-            ViewCtx = null;
-            ViewFeature = null;
         }
     }
 

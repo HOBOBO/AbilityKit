@@ -10,7 +10,7 @@ namespace AbilityKit.Game.Flow
         public static bool ShouldPrepareGatewayRoom(BattleStartPlan plan)
         {
             var gateway = plan.Gateway;
-            if (plan.HostMode != BattleStartConfig.BattleHostMode.GatewayRemote) return false;
+            if (plan.HostMode != BattleHostMode.GatewayRemote) return false;
             if (!gateway.UseGatewayTransport) return false;
             if (!gateway.AutoCreateRoom && !gateway.AutoJoinRoom) return false;
             return true;

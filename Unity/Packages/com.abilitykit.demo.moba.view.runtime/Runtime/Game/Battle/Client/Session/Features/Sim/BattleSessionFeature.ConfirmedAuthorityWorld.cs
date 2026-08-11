@@ -4,15 +4,14 @@ namespace AbilityKit.Game.Flow
     {
         private void StartConfirmedAuthorityWorld()
         {
-            _worldInstaller.EnsureConfirmedAuthorityStarted(new ConfirmedAuthorityWorldInstallOptions(
+            _runtime.Simulation.StartConfirmedAuthority(
                 _plan,
                 _ctx,
                 _flow,
-                _handles.Confirmed,
                 _session != null,
                 GetFixedDeltaSeconds(),
                 ResolveIdealFrameLimit,
-                () => _confirmedLastTickedFrame = 0));
+                DestroyEntityTree);
         }
     }
 }

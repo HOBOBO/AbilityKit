@@ -12,6 +12,7 @@
         "AbilityKit.Game.Battle.Runtime",
         "AbilityKit.Network.Battle",
         "AbilityKit.Network.Battle.Config",
+        "AbilityKit.Network.Client",
         "AbilityKit.Game.Battle.Shared.Assets",
         "AbilityKit.Game.Battle.Shared.Logging",
         "AbilityKit.Game.Battle.Shared.Time",

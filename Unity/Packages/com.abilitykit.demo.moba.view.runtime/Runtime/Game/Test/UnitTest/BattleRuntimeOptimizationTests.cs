@@ -658,10 +658,10 @@ namespace AbilityKit.Game.Test.UnitTest
             CollectionAssert.AreEqual(new[] { "session" }, provider.CreatedFeatureIds);
         }
 
-        [TestCase(BattleStartConfig.BattleHostMode.Local)]
-        [TestCase(BattleStartConfig.BattleHostMode.GatewayRemote)]
+        [TestCase(BattleHostMode.Local)]
+        [TestCase(BattleHostMode.GatewayRemote)]
         public void BattleSessionFeature_DoesNotTreatFirstFrameAsAssetBarrier(
-            BattleStartConfig.BattleHostMode hostMode)
+            BattleHostMode hostMode)
         {
             Assert.IsFalse(BattleSessionFeature.CompletesAssetBarrierOnFirstFrame(hostMode));
         }
@@ -687,7 +687,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var feature = new BattleSessionFeature(null, null, null, installer, transportFactory);
             var plan = BattleStartPlanBuilder
                 .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
-                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithHostMode(BattleHostMode.GatewayRemote)
                 .WithGateway(
                     useGatewayTransport: true,
                     host: "127.0.0.1",
@@ -744,7 +744,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var feature = new BattleSessionFeature(null, null, null, installer, null, gatewayConnectionFactory);
             var plan = BattleStartPlanBuilder
                 .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
-                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithHostMode(BattleHostMode.GatewayRemote)
                 .WithGateway(
                     useGatewayTransport: true,
                     host: "127.0.0.1",
@@ -785,7 +785,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var feature = new BattleSessionFeature(null, null, null, installer, null, gatewayConnectionFactory, gatewayRoomClientFactory);
             var plan = BattleStartPlanBuilder
                 .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
-                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithHostMode(BattleHostMode.GatewayRemote)
                 .WithGateway(
                     useGatewayTransport: true,
                     host: "127.0.0.1",
@@ -823,11 +823,11 @@ namespace AbilityKit.Game.Test.UnitTest
             var autoJoinPlan = CreateGatewayPlan(worldId: "1001", numericRoomId: 2002, joinRoomId: string.Empty);
             var noGatewayPlan = BattleStartPlanBuilder
                 .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
-                .WithHostMode(BattleStartConfig.BattleHostMode.Local)
+                .WithHostMode(BattleHostMode.Local)
                 .Build();
             var noRoomPlan = BattleStartPlanBuilder
                 .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
-                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithHostMode(BattleHostMode.GatewayRemote)
                 .WithGateway(
                     useGatewayTransport: true,
                     host: "127.0.0.1",
@@ -1357,11 +1357,11 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var localPlan = BattleStartPlanBuilder
                 .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 9)
-                .WithHostMode(BattleStartConfig.BattleHostMode.Local)
+                .WithHostMode(BattleHostMode.Local)
                 .Build();
             var minimumLeadGatewayPlan = BattleStartPlanBuilder
                 .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
-                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithHostMode(BattleHostMode.GatewayRemote)
                 .WithGateway(
                     useGatewayTransport: true,
                     host: "127.0.0.1",
@@ -1378,7 +1378,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 .Build();
             var configuredLeadGatewayPlan = BattleStartPlanBuilder
                 .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 5)
-                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithHostMode(BattleHostMode.GatewayRemote)
                 .WithGateway(
                     useGatewayTransport: true,
                     host: "127.0.0.1",
@@ -1608,7 +1608,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var config = ScriptableObject.CreateInstance<BattleStartConfig>();
             var preset = ScriptableObject.CreateInstance<BattleStartPresetSO>();
-            preset.HostMode = BattleStartConfig.BattleHostMode.GatewayRemote;
+            preset.HostMode = BattleHostMode.GatewayRemote;
             var selection = new LobbyBattleEntrySelection();
 
             try
@@ -1767,7 +1767,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var sourcePlan = BattleStartPlanBuilder
                 .ForWorld("preset-world", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
-                .WithHostMode(BattleStartConfig.BattleHostMode.Local)
+                .WithHostMode(BattleHostMode.Local)
                 .WithGateway(
                     useGatewayTransport: false,
                     host: "127.0.0.1",
@@ -1799,7 +1799,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 bootstrapper.IsConnectivityReady,
                 "Connectivity gate must use the configured plan endpoint when no launch request override exists.");
             Assert.IsTrue(bootstrapper.IsAssetsReady);
-            Assert.AreEqual(BattleStartConfig.BattleHostMode.GatewayRemote, plan.HostMode);
+            Assert.AreEqual(BattleHostMode.GatewayRemote, plan.HostMode);
             Assert.AreEqual("7001", plan.World.WorldId);
             Assert.AreEqual("42", plan.World.PlayerId);
             Assert.AreEqual(9001UL, plan.Gateway.NumericRoomId);
@@ -1952,7 +1952,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var calls = new List<string>();
             var plan = BattleStartPlanBuilder
                 .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
-                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithHostMode(BattleHostMode.GatewayRemote)
                 .WithGateway(
                     useGatewayTransport: true,
                     host: "127.0.0.1",
@@ -2150,7 +2150,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             return BattleStartPlanBuilder
                 .ForWorld(worldId, "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
-                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithHostMode(BattleHostMode.GatewayRemote)
                 .WithGateway(
                     useGatewayTransport: true,
                     host: "127.0.0.1",

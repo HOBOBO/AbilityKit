@@ -17,7 +17,7 @@ namespace AbilityKit.Game.Flow
         public readonly BattleStartPlanTimeSyncOptions TimeSync;
         public readonly MobaReliableBattleEventCheckpoint ReliableEventCheckpoint;
 
-        public readonly BattleStartConfig.BattleHostMode HostMode;
+        public readonly BattleHostMode HostMode;
         public readonly MobaBattleLaunchSpec LaunchSpec;
 
         public BattleStartPlan(in BattleStartPlanOptions options)
@@ -228,7 +228,7 @@ namespace AbilityKit.Game.Flow
                 inputRecordOutputPath: string.Empty,
                 enableInputReplay: true,
                 inputReplayPath: inputReplayPath,
-                runMode: BattleStartConfig.BattleRunMode.Replay,
+                runMode: BattleRunMode.Replay,
                 createWorldOpCode: CreateWorld.OpCode,
                 createWorldPayload: CreateWorld.Payload,
                 timeSyncOpCode: TimeSync.OpCode,
@@ -252,7 +252,7 @@ namespace AbilityKit.Game.Flow
             string playerId,
             int tickRate,
             int inputDelayFrames,
-            BattleStartConfig.BattleHostMode hostMode,
+            BattleHostMode hostMode,
             bool useGatewayTransport,
             string gatewayHost,
             int gatewayPort,
@@ -277,7 +277,7 @@ namespace AbilityKit.Game.Flow
             string inputRecordOutputPath,
             bool enableInputReplay,
             string inputReplayPath,
-            BattleStartConfig.BattleRunMode runMode,
+            BattleRunMode runMode,
             int createWorldOpCode,
             byte[] createWorldPayload,
             uint timeSyncOpCode = 1300,
@@ -387,7 +387,7 @@ namespace AbilityKit.Game.Flow
                 playerId,
                 tickRate,
                 inputDelayFrames,
-                BattleStartConfig.BattleHostMode.Local,
+                BattleHostMode.Local,
                 useGatewayTransport,
                 gatewayHost,
                 gatewayPort,
@@ -412,7 +412,7 @@ namespace AbilityKit.Game.Flow
                 inputRecordOutputPath,
                 enableInputReplay,
                 inputReplayPath,
-                enableInputReplay ? BattleStartConfig.BattleRunMode.Replay : (enableInputRecording ? BattleStartConfig.BattleRunMode.Record : BattleStartConfig.BattleRunMode.Normal),
+                enableInputReplay ? BattleRunMode.Replay : (enableInputRecording ? BattleRunMode.Record : BattleRunMode.Normal),
                 createWorldOpCode,
                 createWorldPayload,
                 timeSyncOpCode,

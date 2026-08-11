@@ -67,7 +67,7 @@ namespace AbilityKit.Demo.Moba.Systems
                     }
                 }
 
-                _passives?.ReleaseAllCachedOwnerKeys();
+                _passives?.ReleaseAllOwnedPassiveContexts(GetFrame());
             }
             finally
             {

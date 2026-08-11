@@ -44,17 +44,13 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             var sourceContextId = SourceContextId;
             var rootContextId = RootContextId != 0 ? RootContextId : sourceContextId;
             var ownerContextId = OwnerContextId != 0 ? OwnerContextId : sourceContextId;
-            var isSpawn = string.Equals(EventId, "area.spawn", System.StringComparison.Ordinal);
-            var parentContextId = isSpawn
-                ? sourceContextId
-                : (rootContextId != 0L ? rootContextId : sourceContextId);
             origin = new MobaGameplayOrigin(
                 OwnerActorId,
                 TargetActorId,
                 traceKind,
                 TemplateId,
                 sourceContextId,
-                parentContextId,
+                sourceContextId,
                 rootContextId,
                 ownerContextId,
                 SkillRuntimeHandle);

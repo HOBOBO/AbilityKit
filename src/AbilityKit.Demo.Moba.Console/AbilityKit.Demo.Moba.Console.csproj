@@ -28,6 +28,9 @@
     <ProjectReference Include="..\AbilityKit.Host.Extension\AbilityKit.Host.Extension.csproj" />
     <ProjectReference Include="../AbilityKit.Demo.Moba.Host/AbilityKit.Demo.Moba.Host.csproj" />
     <ProjectReference Include="..\AbilityKit.Triggering\AbilityKit.Triggering.csproj" />
+    <ProjectReference Include="..\AbilityKit.Network.Room\AbilityKit.Network.Room.csproj" />
+    <ProjectReference Include="..\AbilityKit.Network.Client\AbilityKit.Network.Client.csproj" />
+    <ProjectReference Include="..\AbilityKit.Network.Battle.Config\AbilityKit.Network.Battle.Config.csproj" />
     <ProjectReference Include="..\AbilityKit.HFSM.Core\AbilityKit.HFSM.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Flow\AbilityKit.Flow.csproj" />
     <ProjectReference Include="..\AbilityKit.Combat.Collision.Abstractions\AbilityKit.Combat.Collision.Abstractions.csproj" />
