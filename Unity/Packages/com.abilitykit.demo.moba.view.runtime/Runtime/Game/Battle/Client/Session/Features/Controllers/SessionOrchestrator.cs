@@ -213,7 +213,7 @@ namespace AbilityKit.Game.Flow
 
             // Reverse startup order. Each successful step is remembered so a later Stop can
             // resume only the failed work without repeating already-completed teardown.
-            DisposeStep(CleanupStep.RecordWriter, DisposeContextRecordWriter, "input record writer");
+            DisposeStep(CleanupStep.RecordWriter, _host.DisposeReplayRecordWriter, "input record writer");
             DisposeStep(CleanupStep.BattleContext, ClearBattleContext, "battle context");
 
             if (_sessionStartingPipelineEntered)
@@ -246,16 +246,6 @@ namespace AbilityKit.Game.Flow
 
             _cleanupRequired = false;
             _sessionStartingPipelineEntered = false;
-        }
-
-        private void DisposeContextRecordWriter()
-        {
-            var ctx = _host.Context;
-            if (ctx == null) return;
-
-            var writer = ctx.InputRecordWriter;
-            ctx.InputRecordWriter = null;
-            writer?.Dispose();
         }
 
         private void ClearBattleContext()

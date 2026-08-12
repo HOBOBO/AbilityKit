@@ -1,7 +1,7 @@
 param(
     [ValidateSet('smoke', 'full')]
     [string]$Profile = 'smoke',
-    [ValidateSet('all', 'attributes', 'modifiers', 'pipeline', 'record', 'triggering')]
+    [ValidateSet('all', 'attributes', 'event-dispatcher', 'modifiers', 'pipeline', 'record', 'targeting', 'triggering')]
     [string]$Module = 'all',
     [ValidateSet('all', 'package', 'capability')]
     [string]$Scope = 'all',

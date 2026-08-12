@@ -19,7 +19,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync.Spectator
     /// 3. 对每个收到的 FramePushed 事件调用 FeedFrameInputs
     /// 4. 每帧调用 TryTick 推进世界并从返回的 IWorld 提取渲染状态
     /// </summary>
-    public sealed class SpectatorWorldDriver
+    public sealed class SpectatorWorldDriver : IDisposable
     {
         private IWorld? _world;
         private IWorldInputSink? _inputSink;
@@ -145,6 +145,31 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync.Spectator
                 $"ReachedFrame={_currentFrame} Steps={steps}");
 
             return _currentFrame;
+        }
+
+        public void Dispose()
+        {
+            var world = _world;
+            if (world == null)
+            {
+                ResetState();
+                return;
+            }
+
+            world.Dispose();
+            if (ReferenceEquals(_world, world))
+            {
+                ResetState();
+            }
+        }
+
+        private void ResetState()
+        {
+            _world = null;
+            _inputSink = null;
+            _jitterBuffer = null;
+            _initialized = false;
+            _currentFrame = -1;
         }
     }
 }

@@ -95,8 +95,9 @@ flowchart TD
 
 - `ProjectileId` 服务运动、碰撞、命中次数和退出；
 - Actor ID 服务世界注册、属性/标签、快照、表现和通用生命周期；
-- `MobaProjectileLinkService` 维护双向映射；
-- unlink 时同时清除 source 和 retain，并上报临时实体 despawn 计数。
+- `MobaProjectileLinkService` 维护 projectile ID 与 Actor ID 双向映射，并为每个 launcher Actor ID 维护一个同时容纳 source 与 retain 的 `LauncherLink`；
+- launcher 必须先调用 `BindLauncherSource` 建立有效来源记录，再调用 `BindLauncherRetain` 附加 retain；缺少 source record 时绑定 retain 会抛出异常；
+- launcher retain 使用 `MobaSkillRuntimeChildKind.ProjectileLauncher`，实际 projectile retain 使用 `MobaSkillRuntimeChildKind.Projectile`，避免 launcher Actor ID 与 projectile ID 数值相同时发生 child identity 冲突。
 
 ```mermaid
 classDiagram
@@ -117,6 +118,10 @@ classDiagram
         +Link(projectileId, actorId)
         +BindSource(projectileId, source)
         +BindRetain(projectileId, handle)
+        +BindLauncherSource(actorId, source)
+        +BindLauncherRetain(actorId, handle)
+        +TryConsumeLauncherRetain(actorId)
+        +UnlinkLauncher(actorId)
         +UnlinkByProjectileId(projectileId)
     }
     LauncherActor --> ProjectileRuntime : 发射
@@ -125,7 +130,7 @@ classDiagram
     MobaProjectileLinkService --> ProjectileActor
 ```
 
-如果 launcher Actor 已创建但 emitter sequence 不存在或启动失败，服务会请求 launcher despawn，避免失败路径遗留临时 Actor。调用返回成功只表示序列已启动，不表示所有 projectile 已完成、命中或造成伤害。
+如果 launcher Actor 已创建但 emitter sequence 不存在、启动失败或启动过程抛出异常，服务都会请求 launcher despawn，避免失败路径遗留临时 Actor。despawn cleanup 先读取保留的 source 并结束 launcher trace，再消费 retain、调用 `ReleaseChild`，最后 `UnlinkLauncher` 删除整个记录。`TryConsumeLauncherRetain` 只清空 retain 字段，不提前丢弃 source，保证 trace 清理仍有归因数据。调用返回成功只表示序列已启动，不表示所有 projectile 已完成、命中或造成伤害。
 
 ## 5. 来源上下文与技能运行时保留
 
@@ -157,27 +162,27 @@ Pierce 配置使用 `HitsRemaining`；`-1` 表示无限，其余非正值回退�
 
 当前 `MobaTeamProjectileHitFilter` 只保证：
 
-1. collider ID 为零时拒绝；
-2. 能解析到 Actor 时拒绝命中 owner 自身；
-3. owner 与 target 都有有效阵营且同队时拒绝；
-4. 中立或未分队目标允许命中；
-5. registry 缺失、owner 缺失或 collider 无法映射 Actor 时倾向允许，由底层碰撞继续处理。
+1. collider ID 为零时返回 `ProjectileCollisionResponse.Ignore`；
+2. registry 缺失、owner 缺失、collider 查询异常或 collider 无法映射 Actor 时返回 `Ignore`；
+3. 命中 owner 自身时返回 `Ignore`；
+4. owner 与 target 都有有效阵营且同队时返回 `Ignore`；
+5. 中立或未分队目标允许命中。
 
-它当前没有直接检查目标存活、可见性、无敌标签或技能特定目标规则。把这些能力写成 projectile 层已实现会造成错误预期。需要更严格规则时，可扩展组合 filter，或在命中 trigger/战斗规则层再次门禁；安全关键规则不能仅依赖这个宽松过滤器。
+它当前没有直接检查目标存活、可见性、无敌标签或技能特定目标规则。把这些能力写成 projectile 层已实现会造成错误预期。需要更严格规则时，可扩展组合 filter，或在命中 trigger/战斗规则层再次门禁；依赖或映射不完整时当前策略是 fail-closed，不会把未知碰撞放行到命中效果链。
 
 ```mermaid
 flowchart TD
-    A[ShouldHit] --> B{Collider 有效}
-    B -->|否| R[拒绝]
+    A[ResolveCollision] --> B{Collider 有效}
+    B -->|否| R[Ignore]
     B -->|是| C{Registry 与 Owner 可解析}
-    C -->|否| Y[允许]
+    C -->|否| R
     C -->|是| D{命中 Actor 可解析}
-    D -->|否| Y
+    D -->|否| R
     D -->|是| E{Actor 是 Owner}
     E -->|是| R
     E -->|否| F{双方同一有效阵营}
     F -->|是| R
-    F -->|否| Y
+    F -->|否| Y[允许命中]
 ```
 
 ## 8. 命中到 Trigger，而非直接扣血
@@ -264,8 +269,9 @@ snapshot emitter 只在 `InGame` 阶段工作，同一帧最多导出一次；�
 |------|----------|
 | 请求或依赖无效 | 返回失败并记录 warning，创建前终止 |
 | launcher spawn 失败 | 返回带 error 的结果 |
-| sequence 创建/启动失败 | 请求 launcher despawn |
-| projectile 退出 | 下游系统应 unlink Actor、source 和 retain |
+| sequence 创建/启动失败或抛异常 | 请求 launcher despawn |
+| launcher despawn | 结束 trace -> 消费并释放 `ProjectileLauncher` retain -> unlink launcher record |
+| projectile 退出 | 下游系统应 unlink Actor、source 和 `Projectile` retain |
 | damage target 缺失 | pipeline 记录 `moba.damage.targetMissing` |
 | damage 成功或被归零 | 均返回 `DamageResult`，Value 为实际应用值 |
 | 快照缓冲为空 | emitter 不产生 snapshot |
@@ -291,6 +297,7 @@ snapshot emitter 只在 `InGame` 阶段工作，同一帧最多导出一次；�
 | 证据层 | 当前直接证据 | 已覆盖行为 | 不能据此推断 |
 |--------|--------------|------------|----------------|
 | 通用 Projectile 运行时 | `DajiRectangularProjectileTests.RectangularSweep_ShouldHitOffsetTargetThatPointRayMisses`、`RectangularSweep_ShouldSkipIgnoredColliderAndHitTargetBehindIt`、`RectangularSweep_BlockerShouldExitPiercingProjectileWithoutHitEvent`、`ManualDespawn_ShouldQueueExitWithoutHitEvent`、`Rollback_ShouldRetainRectangularCollisionHalfExtents` | 矩形 sweep、Ignore/Block 响应、手动退出事件、ActiveCount 清理和碰撞几何回滚 | MOBA Actor spawn、launcher sequence、source/retain、配置转译和命中 Trigger |
+| MOBA launcher 契约 | `MobaTriggerPlanPayloadCompatibilityTests.ProjectileLinkService_LauncherRecordConsumesRetainWithoutLosingSource` | launcher 单 record、consume retain 后 source 仍可读取，以及 launcher/projectile child identity 分离 | emitter sequence 的全部失败路径和实际 Actor despawn 系统组合 |
 | MOBA Trace 单测 | `MobaTraceRegistrySmokeTests.Projectile_source_snapshot_survives_link_cleanup_while_trace_remains_until_purge` | link 清理后来源快照仍可用于 trace，trace 按独立保留策略清理 | 实际 projectile 退出是否同时释放 Actor、retain 与临时实体计数 |
 | Console 生命周期 Smoke | `MobaCompleteBattleLifecycleSmokeTests.ConsoleWorldCompletesDeathRespawnRedeathAndSettlement`，以及 `MobaSkillCastLifecycleSmokeTests` 中死亡相关用例 | 正式 World 可解析并调用 `DamagePipelineService`，致死结果可驱动死亡、复活和施法取消规则 | damage stage 顺序、减伤、护盾、clamp、heal 或 snapshot 的逐项正确性 |
 | Unity 单局 journey/英雄验收 | `DajiBattleJourney_ShouldCoverCombatDeathRespawnAndSettlement`、`Skill10050101_ShouldLaunchRectangularWaveAndDamageOffsetTarget`、`Skill10050201_ShouldAutoLockEnemyLaunchHomingCharmAndApplyControlOnHit`、`Skill10050301_ShouldLaunchExactlyFiveFoxfiresFromOneCast`、`Skill10040201_ShouldLaunchCannonAndSpawnEndpointCrater` | 具体配置可执行 ShootProjectile，产生 projectile spawn，推进运动，并在部分英雄路径中命中、伤害、控制或生成后续区域 | 任意 projectile 配置均正确，也不覆盖所有失败分支、阵营过滤、随机确定性或多人复制 |
@@ -300,7 +307,7 @@ snapshot emitter 只在 `InGame` 阶段工作，同一帧最多导出一次；�
 当前仍应优先补以下专项测试：
 
 1. `MobaProjectileService.Shoot` 的无效参数、方向回退、Actor spawn，以及 link/source/retain 的原子建立和失败清理。
-2. 配置化 `Launch` 的毫秒转帧、持续次数、散射顺序、随机源确定性，以及 sequence 创建或启动失败后的 launcher 回收。
+2. 配置化 `Launch` 的毫秒转帧、持续次数、散射顺序、随机源确定性，以及 sequence 创建或启动失败后的 launcher Actor despawn 组合链。
 3. `MobaTeamProjectileHitFilter` 对 self、same-team、neutral、registry 缺失和 collider 无法解析分支的直接断言。
 4. `MobaStageTriggerService` 对“命中只执行配置 effect/trigger，不隐式造成伤害”和 source context 进入 `ProjectileHitArgs` 的专项测试。
 5. `DamagePipelineService` 的 stage 顺序、减伤、护盾、最终实际值和事件时序；现有致死 Smoke 只证明一条组合路径可执行。
@@ -324,4 +331,4 @@ snapshot emitter 只在 `InGame` 阶段工作，同一帧最多导出一次；�
 
 ---
 
-*文档版本：v1.1 | 状态：Projectile 与 Damage 实现及分层测试证据 | 最后更新：2026-08-02 | 验证基线：已核对 .NET、Unity EditMode 与 Editor 测试入口；本轮未重新执行测试*
+*文档版本：v1.2 | 状态：Projectile 与 Damage 实现及分层测试证据 | 最后更新：2026-08-11 | 验证基线：`MobaTriggerPlanPayloadCompatibilityTests` 21/21 通过；`MobaRollbackProviderTests` 5/5 通过；本轮文档更新未重新执行全量测试*

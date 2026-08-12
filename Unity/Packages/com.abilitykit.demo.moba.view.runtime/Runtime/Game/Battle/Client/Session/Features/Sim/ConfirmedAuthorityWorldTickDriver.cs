@@ -9,6 +9,7 @@ namespace AbilityKit.Game.Flow
         public readonly BattleStartPlan Plan;
         public readonly BattleContext Context;
         public readonly BattleSessionConfirmedWorldRuntime Handles;
+        public readonly BattleSessionDiagnostics Diagnostics;
         public readonly FrameSnapshotDispatcher PresentationSnapshots;
         public readonly SessionWorldCatchUpController WorldCatchUp;
         public readonly int LastTickedFrame;
@@ -19,6 +20,7 @@ namespace AbilityKit.Game.Flow
             BattleStartPlan plan,
             BattleContext context,
             BattleSessionConfirmedWorldRuntime handles,
+            BattleSessionDiagnostics diagnostics,
             FrameSnapshotDispatcher presentationSnapshots,
             SessionWorldCatchUpController worldCatchUp,
             int lastTickedFrame,
@@ -28,6 +30,7 @@ namespace AbilityKit.Game.Flow
             Plan = plan;
             Context = context;
             Handles = handles;
+            Diagnostics = diagnostics;
             PresentationSnapshots = presentationSnapshots;
             WorldCatchUp = worldCatchUp;
             LastTickedFrame = lastTickedFrame;
@@ -70,6 +73,7 @@ namespace AbilityKit.Game.Flow
                 handles.Consumable.LastConsumedFrame));
 
             ConfirmedAuthorityDebugStatsPublisher.Update(
+                options.Diagnostics,
                 frameState.ConfirmedFrame,
                 frameState.PredictedFrame,
                 inputTargetFrame,

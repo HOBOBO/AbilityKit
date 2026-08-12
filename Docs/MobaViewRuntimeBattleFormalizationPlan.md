@@ -89,17 +89,18 @@ Presentation 只消费表现数据和表现资源，不负责网络连接、战�
 | `BattleSessionHandles` | `BattleSessionFeature` | `BattleSessionRuntime` | 已完成 |
 | `SessionOrchestrator` | `BattleSessionFeature` | `BattleSessionRuntime` | 已完成 |
 | `SessionLifecycleHost` | `BattleSessionFeature` 装配的 host | `SessionLifecycleCoordinator` / Runtime Resource Port | 能力端口收敛已完成 |
-| Gateway、Snapshot、World、Replay 句柄 | `BattleSessionHandles`，由 Feature partial 直接操作 | 按能力分组的 Runtime Resource Port | Gateway Connection/Room Client/Preparation/Clock、Snapshot Routing、Replication、Simulation 与 confirmed Presentation 已迁移，其他待后续阶段 |
+| Gateway、Snapshot、World、Replay 句柄 | `BattleSessionHandles`，由 Feature partial 直接操作 | 按能力分组的 Runtime Resource Port | Gateway Connection/Room Client/Preparation/Clock、Snapshot Routing、Replication、Simulation、Replay、Spectator 与 confirmed Presentation 已迁移，其他待后续阶段 |
 | `GatewaySessionRuntime` | Gateway session 资源聚合生命周期 | Connection、Room Client、preparation、clock、registry binding、network conditioning attachment | 已完成；preparation 与 clock 分别由专属 owner 持有 |
 | `GatewayPreparationRuntime` | 单个 generation 的房间准备事务 | preparation task/CTS、局部 plan、world-start anchors | 已完成 |
 | `GatewayClockSynchronizer` | 单个 generation 的 Gateway 时钟同步循环 | TimeSync task/CTS、EWMA estimate、连续失败计数 | 已完成 |
 | `BattleReplicationRuntime` | 快照、可靠事件、插值、健康度、重连 catch-up | transport bindings、Options callbacks、pipeline、cursor、admission、authoritative state、health 与 pending state | 已完成；Feature 暂保留 world import、可靠事件业务投递、checkpoint 持久化和重连世界恢复 facade |
 | `BattleSimulationRuntime` | Remote-driven 和 confirmed authority world | World runtime、input runtime、world tick、prediction view bridge、confirmed world-bound event pipeline 与分步 teardown 协调 | 已完成；Feature 保留 Session composition 和 presentation callback facade |
 | `BattleSnapshotRoutingRuntime` | Snapshot routing composition 和 dispose | Dispatcher、pipeline、command handler、routing | 已完成 |
-| `BattleReplayRuntime` | Record、replay、seek、pause、step 的 Session 资源 | Replay driver、record writer | 后续阶段 |
+| `BattleReplayRuntime` | Record、replay、seek、pause、step 的 Session 资源 | 独立 Replay session owner、record writer | 已完成；Feature 保留 `IBattleReplayControl` facade，Context writer 仅为非拥有热路径镜像 |
+| `SpectatorSessionRuntime` | Spectator 启动、推送订阅、追帧和世界生命周期 | generation operation/CTS、network client、push handler、candidate/active world driver | 已完成；Feature 仅保留 `Task` 启动、停止和 tick facade |
 | `BattleInputRuntime` | HUD buffer、Session identity、actor resolver 和 aim projection | Input queue、resolver、submitter | 后续阶段 |
 | `BattlePresentationSessionResources` | Confirmed View Context、View Feature 和表现快照 | confirmed presentation context、snapshot runtime 与 feature attach/detach | 已完成；world-bound event pipeline 仍归 Simulation owner |
-| `BattleSessionDiagnostics` | Debug facade、health report 和生命周期观测 | session-scoped diagnostics | 后续阶段 |
+| `BattleSessionDiagnostics` | Debug facade、health report 和生命周期观测 | session-scoped diagnostics；静态 Provider 仅作兼容读取面 | 已完成；jitter、time-sync、confirmed authority 与 synchronization health 已收敛 |
 
 本批保留 `BattleSessionFeature` 上的同名只读兼容访问器，以支持分阶段迁移既有 partial 调用；测试反射 helper 同时兼容字段和属性，避免测试契约反向锁定旧 owner 结构。
 
@@ -171,8 +172,8 @@ P0 的结束条件是 Session Runtime 能运行，但既有功能行为不变；
 
 | 当前文件组 | 目标 owner | 处理策略 |
 | --- | --- | --- |
-| `Replay*.cs`、Feature 内 Replay Control | `BattleReplayRuntime` | 保留 live/replay session 隔离；Replay Control 通过注入端口暴露 |
-| `Spectator.cs` | `SpectatorSessionRuntime` | 将 `async void` 改为可取消的 `Task`/显式 operation，CTS 归 owner 所有 |
+| `Replay*.cs`、Feature 内 Replay Control | `BattleReplayRuntime` | 已完成：保留 live/replay session 隔离与公共 Replay Control facade；独立 session 和 live writer 均归稳定 runtime owner |
+| `Spectator.cs` | `SpectatorSessionRuntime` | 已完成：`Task` 启动入口、generation operation/CTS、push subscription 和 candidate world 均归稳定 owner；Feature 仅保留 facade |
 | `Debug*.cs`、Provider 发布逻辑 | `BattleSessionDiagnostics` | 优先 session-scoped，静态 Provider 只保留兼容层 |
 | `EditorHooks*.cs` | `EditorSessionLifecycleAdapter` | 与生产 Session Runtime 隔离，保留 UNITY_EDITOR 条件编译 |
 
@@ -387,6 +388,35 @@ Runtime/Game/Battle/Diagnostics
 - Runtime 完整外部构建通过（0 errors）；关闭项目引用重建的 UnitTests 顶层编译通过（21 warnings、0 errors）；定向 ownership 搜索无旧 handles 表现 API 残留，`git diff --check` 无 whitespace error，仅报告工作树既有 LF/CRLF 提示。
 - 新增 NUnit 行为测试尚未通过 Unity Test Runner 实际执行，不能宣称测试已运行通过。新增 Presentation 目录、owner 文件及 `.meta` 已由 Unity 登记，生成 `.csproj` 已自动收录 owner 源文件。
 
+### 9.7 Replay Runtime 正式化实施记录
+
+- `BattleSessionRuntime` 现在稳定持有 `BattleReplayRuntime`；该 owner 组合既有 `BattleReplaySessionOwner` 复用独立 Replay session、checkpoint、seek 和 playback 算法，并统一持有 live recording writer。
+- `BattleSessionFeature` 继续提供 `IBattleReplayControl` 公共 facade。Replay subfeature 通过显式 runtime contract 获取 owner；live/replay registry 仍隔离，Replay session 不发布或覆盖 live debug facade。
+- `BattleContext.InputRecordWriter` 降为输入热路径镜像。writer replacement 使用 commit-on-success：旧 writer 清理失败时不发布候选并回收候选；双方清理均失败时按 ownership 顺序聚合异常。
+- owner 仅在 dispose 成功后清引用，并以 reference equality 清理 Context 镜像；失败时保留 owner 状态供 orchestrator cleanup bitmask 后续重试，stale Context 或其他 runtime 的替代 writer 不会被清除。
+- orchestrator 通过 `ISessionRuntimeResourcesPort.DisposeReplayRecordWriter()` 执行 writer teardown，不再直接读取 Context writer。旧 `BattleSessionReplayRuntime`、handles Replay 字段及无生产赋值点的 Replay driver 已删除。
+- 新增 writer 替换、Context 迁移、stale 镜像、幂等释放、失败回滚、双重失败聚合、双 runtime 隔离及 orchestrator writer-step 重试测试；测试追加到已被当前 Unity 生成工程收集的既有测试文件。
+- `AbilityKit.Game.Battle.Runtime.csproj` 构建通过（34 warnings、0 errors），`AbilityKit.Game.UnitTests.csproj` 构建通过（137 warnings、0 errors）；定向 ownership 搜索无旧 handles Replay 引用，`git diff --check` 无 whitespace error，仅有工作树 LF/CRLF 提示。
+- 本批新增 NUnit 测试已通过外部项目编译，但尚未由 Unity Test Runner 实际执行，因此不宣称行为测试已运行通过。
+
+### 9.8 Spectator Runtime 正式化实施记录
+
+- `BattleSessionRuntime` 现在稳定持有 `SpectatorSessionRuntime`。Feature 的 Spectator partial 已收敛为 `Task` 启动、停止和 tick facade，不再持有 network client、CTS、push handler 或 world driver。
+- 每次启动创建独立 generation operation，并由该 operation 统一持有 client、CTS、缓存 token 和 push handler。每个 await 后同时校验 generation、client 与 operation identity；停止或替代启动后的 late completion 不得发布旧 world。
+- 订阅成功和追帧完成前，`SpectatorWorldDriver` 仅作为 candidate 存在；全部步骤成功后才提交为 active driver。启动失败、取消或 stale completion 会回滚订阅并释放 candidate world。
+- `SpectatorWorldDriver` 已实现幂等 `IDisposable`。world dispose 失败时保留引用供后续 Stop 重试；成功后才清除内部状态，避免资源失去 owner。Feature detach 对各资源执行 best-effort cleanup，单项异常不会阻断 Replay、主 Session 和其余资源释放。
+- 新增 8 个生命周期测试，覆盖延迟发布、订阅取消与 late completion、替代 generation、world dispose 失败重试、catch-up 取消、world factory 失败回滚、重复 Stop 和双 runtime 隔离。测试使用 Unity 兼容的 `UnityTest` coroutine 入口桥接异步主体，并保留原始异步异常。
+- Unity 2022.3.62f1 EditMode 定向执行通过（8 passed、0 failed）；`AbilityKit.Game.Battle.Runtime.csproj` 构建通过（34 warnings、0 errors），`AbilityKit.Game.UnitTests.csproj` 构建通过（156 warnings、0 errors）。
+- 定向 ownership 检查确认 driver 创建和 server push 订阅仅位于 `SpectatorSessionRuntime`，Feature 无旧 client/CTS ownership 残留；`git diff --check` 无 whitespace error，仅报告工作树 LF/CRLF 提示。
+
+### 9.9 Session Diagnostics 正式化实施记录
+
+- `BattleSessionRuntime` 现在稳定持有 `BattleSessionDiagnostics`，并向 Snapshot Routing、Gateway、Remote-driven input 和 Confirmed Authority publisher 注入同一 session-scoped owner；Feature detach 通过 best-effort cleanup 释放 diagnostics。
+- jitter buffer、Gateway time-sync current/by-world 和 confirmed authority 的静态兼容发布统一收敛到 diagnostics owner。清理仅在 Provider 仍引用本 owner 发布对象时执行，stale Session dispose 不会覆盖新 Session 的诊断数据。
+- synchronization health snapshot/report 通过 diagnostics facade 读取 `BattleReplicationRuntime` 状态，不转移 replication evaluator、transport、world 或 UI-bound Context/HUD/View 的 ownership。
+- 新增幂等清理、stale owner 隔离、双 Session 独立发布和 health facade 四项生命周期测试；Unity 2022.3.62f1 EditMode 聚焦执行通过（4 passed、0 failed）。完整 `SessionOrchestratorLifecycleTests` 执行 51 项，其中 44 passed、7 failed；失败均为既有无关项（6 个异步测试在当前 Runner 下 NotRunnable，1 个 Presentation root 为空）。
+- `AbilityKit.Demo.Moba.View.Runtime.csproj` 构建通过（153 warnings、0 errors），`AbilityKit.Game.UnitTests.csproj` 构建通过（175 warnings、0 errors）。定向静态检查确认四类 Provider 写入仅位于 `BattleSessionDiagnostics`，Snapshot Routing 生产构造使用稳定 diagnostics owner；`git diff --check` 无 whitespace error。
+
 ## 10. 风险和回滚
 
 | 风险 | 防护 | 回滚方式 |
@@ -421,7 +451,7 @@ Runtime/Game/Battle/Diagnostics
 2. 新建 `BattleSessionRuntime` 组合对象及兼容 adapter。已完成。
 3. 将 `SessionLifecycleHostOptions` 收敛为分组能力端口。已完成；具体为 `ISessionLogicPort`、`ISessionPipelinePort` 和 `ISessionRuntimeResourcesPort`。
 4. 为 `BattleSessionRuntime` 增加启动、停止、失败、重复停止和清理重试测试。已完成。
-5. 将 `BattleSessionFeature` 现有 partial 中的字段迁移逐项登记，禁止未登记字段继续增加。进行中；Snapshot Routing、Gateway Connection/Room Client/Preparation/Clock、Replication、Simulation 与 confirmed Presentation 已迁移。
-6. 完成基线测试后再开始迁移 Gateway/Replication。已完成 Snapshot Routing、Gateway、Replication、Simulation 与 confirmed Presentation owner 闭包；新增 NUnit 仅完成外部编译验证，尚未通过 Unity Test Runner 实际执行。
+5. 将 `BattleSessionFeature` 现有 partial 中的字段迁移逐项登记，禁止未登记字段继续增加。进行中；Snapshot Routing、Gateway Connection/Room Client/Preparation/Clock、Replication、Simulation、Replay、Spectator、Diagnostics 与 confirmed Presentation 已迁移。
+6. 完成基线测试后再开始迁移 Gateway/Replication。已完成 Snapshot Routing、Gateway、Replication、Simulation、Replay、Spectator、Diagnostics 与 confirmed Presentation owner 闭包；Spectator 和 Diagnostics 新增生命周期测试已通过 Unity Test Runner 定向执行，其余历史批次的 Unity 行为验证状态以各实施记录为准。
 
 第一批不修改 asmdef，不修改公共接口，不改变现有目录 namespace，也不删除 Unity `.meta` 文件。

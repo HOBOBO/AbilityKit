@@ -507,38 +507,46 @@ namespace AbilityKit.Demo.Moba.Services
             in SummonSourceContext createdSourceContext,
             long createdTraceContextId)
         {
-            try { ReleaseSkillRuntime(summonActorId, summonId); }
-            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] rollback skill-runtime release failed (summonActorId={summonActorId}, summonId={summonId})"); }
-
+            var rollbackSpawnResult = spawnResult;
+            var fallbackSourceContext = createdSourceContext;
             var trackedSourceContext = default(SummonSourceContext);
-            try { trackedSourceContext = ConsumeSourceContext(summonActorId); }
-            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] rollback source-context removal failed (summonActorId={summonActorId}, summonId={summonId})"); }
-            try { UntrackSummon(rootOwnerActorId, summonActorId); }
-            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] rollback summon untracking failed (summonActorId={summonActorId}, summonId={summonId})"); }
-
-            var traceContextId = trackedSourceContext.SourceContextId != 0L
-                ? trackedSourceContext.SourceContextId
-                : createdSourceContext.SourceContextId != 0L
-                    ? createdSourceContext.SourceContextId
-                    : createdTraceContextId;
-            try { EndSpawnTrace(traceContextId, SummonDespawnReason.SceneCleanup); }
-            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] rollback trace end failed (summonActorId={summonActorId}, summonId={summonId})"); }
-
-            try
+            var transaction = new MobaTemporaryEntitySpawnTransaction();
+            transaction.Enlist("summon-actor-spawn", () => RollbackSummonActor(rollbackSpawnResult));
+            transaction.Enlist("summon-trace", () =>
             {
-                new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
-                    summonActorId,
-                    out _,
-                    publishDespawn: false);
-            }
-            catch (Exception ex)
+                var traceContextId = trackedSourceContext.SourceContextId != 0L
+                    ? trackedSourceContext.SourceContextId
+                    : fallbackSourceContext.SourceContextId != 0L
+                        ? fallbackSourceContext.SourceContextId
+                        : createdTraceContextId;
+                EndSpawnTrace(traceContextId, SummonDespawnReason.SceneCleanup);
+            });
+            transaction.Enlist("summon-owner-tracking", () => UntrackSummon(rootOwnerActorId, summonActorId));
+            transaction.Enlist("summon-source-context", () => trackedSourceContext = ConsumeSourceContext(summonActorId));
+            transaction.Enlist("summon-skill-retain", () => ReleaseSkillRuntime(summonActorId, summonId));
+            transaction.Rollback();
+        }
+
+        private void RollbackSummonActor(MobaActorSpawnResult spawnResult)
+        {
+            if (_actorSpawn is IMobaActorSpawnTransactionService spawnTransactions)
             {
-                Log.Exception(ex, $"[MobaSummonService] rollback actor unregister failed (summonActorId={summonActorId}, summonId={summonId})");
+                spawnTransactions.Rollback(in spawnResult);
                 return;
             }
 
-            try { ActorSpawnPipeline.DestroyBuiltEntity(spawnResult.Entity); }
-            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] rollback entity destroy failed (summonActorId={summonActorId}, summonId={summonId})"); }
+            global::ActorEntity registered = null;
+            try
+            {
+                new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
+                    spawnResult.ActorId,
+                    out registered,
+                    publishDespawn: false);
+            }
+            finally
+            {
+                ActorSpawnPipeline.DestroyBuiltEntity(registered ?? spawnResult.Entity);
+            }
         }
 
         private void CompactTrackedSummons(int rootOwnerActorId, List<int> list)

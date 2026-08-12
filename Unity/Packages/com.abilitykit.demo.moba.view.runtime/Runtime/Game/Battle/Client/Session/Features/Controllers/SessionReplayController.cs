@@ -11,12 +11,16 @@ namespace AbilityKit.Game.Flow
     {
         private const int StateHashRecordIntervalFrames = 10;
 
-        public void SetupReplayOrRecord(BattleStartPlan plan, BattleContext ctx)
+        public void SetupReplayOrRecord(
+            BattleStartPlan plan,
+            BattleContext ctx,
+            BattleReplayRuntime replayResources)
         {
             if (plan.RunModeOptions.RunMode != BattleRunMode.Record) return;
+            if (replayResources == null) throw new ArgumentNullException(nameof(replayResources));
 
             BattleRecordCodecBootstrap.TryInstallMemoryPack();
-            SetupRecordWriter(plan, ctx);
+            SetupRecordWriter(plan, ctx, replayResources);
         }
 
         public void OnFrameReceived(BattleStartPlan plan, BattleSessionState state, BattleContext ctx, FramePacket packet)
@@ -26,17 +30,19 @@ namespace AbilityKit.Game.Flow
             RecordFrameIfNeeded(plan, state, ctx, packet);
         }
 
-        private static void SetupRecordWriter(BattleStartPlan plan, BattleContext ctx)
+        private static void SetupRecordWriter(
+            BattleStartPlan plan,
+            BattleContext ctx,
+            BattleReplayRuntime replayResources)
         {
             if (ctx == null) return;
-
-            ctx.InputRecordWriter?.Dispose();
 
             var outPath = plan.RunModeOptions.InputRecordOutputPath;
             EnsureOutputDirectory(outPath);
 
             var meta = CreateRecordMeta(plan);
-            ctx.InputRecordWriter = FrameRecordCodecs.Current.CreateWriter(outPath, meta);
+            var writer = FrameRecordCodecs.Current.CreateWriter(outPath, meta);
+            replayResources.BindRecordWriter(ctx, writer);
         }
 
         private static void EnsureOutputDirectory(string outPath)

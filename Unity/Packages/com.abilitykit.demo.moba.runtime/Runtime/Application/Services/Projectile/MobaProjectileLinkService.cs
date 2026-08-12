@@ -197,6 +197,26 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             }
         }
 
+        internal void RollbackLink(ProjectileId projectileId, int expectedActorId)
+        {
+            var wasActive = false;
+            if (_actorIdByProjectile.TryGetValue(projectileId, out var actorId))
+            {
+                _actorIdByProjectile.Remove(projectileId);
+                _projectileByActorId.Remove(actorId);
+                wasActive = true;
+            }
+
+            if (expectedActorId > 0) _projectileByActorId.Remove(expectedActorId);
+
+            _sourceByProjectile.Remove(projectileId);
+            _retainByProjectile.Remove(projectileId);
+            if (wasActive)
+            {
+                _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
+            }
+        }
+
         public void UnlinkLauncher(int launcherActorId)
         {
             if (launcherActorId <= 0) return;

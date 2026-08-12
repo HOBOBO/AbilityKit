@@ -43,15 +43,15 @@ public sealed class BenchmarkScenarioTests
         var smoke = BenchmarkScenarioCatalog.Create("smoke");
         var full = BenchmarkScenarioCatalog.Create("full");
 
-        Assert.Equal(13, smoke.Count);
-        Assert.Equal(21, full.Count);
+        Assert.Equal(17, smoke.Count);
+        Assert.Equal(27, full.Count);
         Assert.Equal(smoke.Count, smoke.Select(item => item.Descriptor.Id).Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(full.Count, full.Select(item => item.Descriptor.Id).Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(
-            new[] { "attributes", "modifiers", "pipeline", "record", "triggering" },
+            new[] { "attributes", "event-dispatcher", "modifiers", "pipeline", "record", "targeting", "triggering" },
             smoke.Select(item => item.Descriptor.Module).Distinct().Order().ToArray());
         Assert.Equal(
-            new[] { "attributes", "modifiers", "pipeline", "record", "triggering" },
+            new[] { "attributes", "event-dispatcher", "modifiers", "pipeline", "record", "targeting", "triggering" },
             BenchmarkScenarioCatalog.Modules.Order().ToArray());
         Assert.All(smoke, item =>
         {
@@ -67,9 +67,9 @@ public sealed class BenchmarkScenarioTests
         var capabilityArguments = BenchmarkArguments.Parse(new[] { "--scope", "capability" });
         var scenarios = BenchmarkScenarioCatalog.Create("smoke");
 
-        Assert.Equal(new[] { "attributes", "modifiers", "record" }, scenarios.Where(packageArguments.Matches)
+        Assert.Equal(new[] { "attributes", "modifiers", "record", "targeting" }, scenarios.Where(packageArguments.Matches)
             .Select(item => item.Descriptor.Module).Distinct().Order().ToArray());
-        Assert.Equal(new[] { "pipeline", "triggering" }, scenarios.Where(capabilityArguments.Matches)
+        Assert.Equal(new[] { "event-dispatcher", "pipeline", "triggering" }, scenarios.Where(capabilityArguments.Matches)
             .Select(item => item.Descriptor.Module).Distinct().Order().ToArray());
     }
 
@@ -118,6 +118,32 @@ public sealed class BenchmarkScenarioTests
         Assert.Equal(4, result.Summary.TotalOperations);
         Assert.StartsWith("compositions=4;checksum=", result.DeterminismDigest);
         Assert.Equal(BenchmarkScenarioScopes.Package,
+            result.Descriptor.Workload[BenchmarkWorkloadDimensions.Scope]);
+    }
+
+    [Fact]
+    public void TargetingStreamingTopKScenario_EvaluatesEveryCandidateDeterministically()
+    {
+        var result = BenchmarkRunner.RunScenario(
+            new TargetingStreamingTopKScenario(candidateCount: 4, topK: 2, batchSize: 2),
+            SingleSample);
+
+        Assert.Equal(8, result.Summary.TotalOperations);
+        Assert.Equal("searches=2;results=4;checksum=14", result.DeterminismDigest);
+        Assert.Equal(BenchmarkScenarioScopes.Package,
+            result.Descriptor.Workload[BenchmarkWorkloadDimensions.Scope]);
+    }
+
+    [Fact]
+    public void EventDispatcherPublishScenario_InvokesEverySubscriberDeterministically()
+    {
+        var result = BenchmarkRunner.RunScenario(
+            new EventDispatcherPublishScenario(fanout: 4, batchSize: 2),
+            SingleSample);
+
+        Assert.Equal(8, result.Summary.TotalOperations);
+        Assert.Equal("events=2;executions=8;checksum=12", result.DeterminismDigest);
+        Assert.Equal(BenchmarkScenarioScopes.Capability,
             result.Descriptor.Workload[BenchmarkWorkloadDimensions.Scope]);
     }
 

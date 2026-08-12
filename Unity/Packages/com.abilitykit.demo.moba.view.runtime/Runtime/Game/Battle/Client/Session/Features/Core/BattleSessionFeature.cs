@@ -27,7 +27,6 @@ namespace AbilityKit.Game.Flow
         private readonly IBattleSessionGatewayConnectionFactory _gatewayConnectionFactory;
         private readonly IBattleSessionGatewayRoomClientFactory _gatewayRoomClientFactory;
         private readonly IBattleLogicSessionRegistry _sessionRegistry;
-        private readonly BattleReplaySessionOwner _replayOwner = new BattleReplaySessionOwner();
 
         // Compatibility facade during staged migration. Mutable session state and resources
         // are owned by BattleSessionRuntime rather than by this feature facade.
@@ -112,17 +111,17 @@ namespace AbilityKit.Game.Flow
         public int LastFrame => _lastFrame;
         public BattleStartPlan Plan => _plan;
 
-        public bool IsReplaySession => _replayOwner.IsActive;
-        public bool IsPlaying => _replayOwner.IsPlaying;
+        public bool IsReplaySession => _runtime.Replay.IsActive;
+        public bool IsPlaying => _runtime.Replay.IsPlaying;
         public bool RenderPresentation => true;
-        public int CurrentFrame => IsReplaySession ? _replayOwner.CurrentFrame : _lastFrame;
-        int Battle.Replay.IBattleReplayControl.LastFrame => _replayOwner.LastFrame;
-        public string ReplayPath => _replayOwner.ReplayPath;
+        public int CurrentFrame => IsReplaySession ? _runtime.Replay.CurrentFrame : _lastFrame;
+        int Battle.Replay.IBattleReplayControl.LastFrame => _runtime.Replay.LastFrame;
+        public string ReplayPath => _runtime.Replay.ReplayPath;
 
         public float PlaybackSpeed
         {
-            get => _replayOwner.PlaybackSpeed;
-            set => _replayOwner.PlaybackSpeed = value;
+            get => _runtime.Replay.PlaybackSpeed;
+            set => _runtime.Replay.PlaybackSpeed = value;
         }
 
         public bool TryLoad(string path, bool renderPresentation, out string error)
@@ -145,34 +144,34 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            return _replayOwner.TryStart(_plan, path, out error);
+            return _runtime.Replay.TryStart(_plan, path, out error);
         }
 
         public void Play()
         {
-            _replayOwner.Play();
+            _runtime.Replay.Play();
         }
 
         public void Pause()
         {
-            _replayOwner.Pause();
+            _runtime.Replay.Pause();
         }
 
         public bool StepForward()
         {
             Pause();
-            return SeekToFrame(_replayOwner.CurrentFrame + 1);
+            return SeekToFrame(_runtime.Replay.CurrentFrame + 1);
         }
 
         public bool StepBackward()
         {
             Pause();
-            return SeekToFrame(_replayOwner.CurrentFrame - 1);
+            return SeekToFrame(_runtime.Replay.CurrentFrame - 1);
         }
 
         public bool SeekToFrame(int frame)
         {
-            return _replayOwner.SeekToFrame(frame);
+            return _runtime.Replay.SeekToFrame(frame);
         }
 
         private float GetFixedDeltaSeconds() => _orchestrator.GetFixedDeltaSeconds();

@@ -11,6 +11,7 @@ using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Map;
+using AbilityKit.Demo.Moba.Util.Converter;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -31,6 +32,8 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject] private ActorIdAllocator _actorIds = null;
         [WorldInject] private MobaActorRegistry _registry = null;
         [WorldInject] private MobaEntityManager _entities = null;
+        [WorldInject] private IMobaActorSpawnCoordinator _actorSpawns = null;
+        [WorldInject] private IMobaActorSpawnTransactionService _actorSpawnTransactions = null;
         [WorldInject] private MobaPlayerActorMapService _playerActorMap = null;
         [WorldInject(required: false)] private ActorEntityInitPipeline _generator = null;
         [WorldInject] private MobaActorSpawnSnapshotService _spawn = null;
@@ -63,7 +66,7 @@ namespace AbilityKit.Demo.Moba.Services
             Log.Info($"[MobaEnterGameFlowService] TryStartGame: begin (players={(effectiveReq.Players != null ? effectiveReq.Players.Length : 0)}, playerId={effectiveReq.PlayerId.Value})");
 
             var spawnEntries = new List<MobaActorSpawnSnapshotEntry>(effectiveReq.Players != null ? effectiveReq.Players.Length : 4);
-            var buildResult = BuildEnterGameActors(actorContext, in effectiveReq, spawnEntries, out var built);
+            var buildResult = BuildEnterGameActors(in effectiveReq, spawnEntries, out var built);
             if (!buildResult.Succeeded)
             {
                 return buildResult;
@@ -72,14 +75,14 @@ namespace AbilityKit.Demo.Moba.Services
             var bindResult = BindPlayerActors(built.PlayerActors);
             if (!bindResult.Succeeded)
             {
-                RollbackBuiltActors(built.PlayerActors);
+                RollbackBuiltActors(in built);
                 return bindResult;
             }
 
             var gameplayPreparation = PrepareGameplay(effectiveReq.GameplayId);
             if (!gameplayPreparation.Succeeded)
             {
-                RollbackBuiltActors(built.PlayerActors);
+                RollbackBuiltActors(in built);
                 return gameplayPreparation;
             }
 
@@ -211,51 +214,88 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         private MobaGameStartResult BuildEnterGameActors(
-            ActorContext actorContext,
             in EnterMobaGameReq effectiveReq,
             List<MobaActorSpawnSnapshotEntry> spawnEntries,
             out BuildActorsResult built)
         {
             built = default;
 
+            MobaActorSpawnResult[] spawnResults = null;
             try
             {
-                built = ActorSpawnPipeline.BuildActorsFromEnterGameReqAndInitialize(
-                    actorContext,
-                    _actorIds,
-                    _registry,
-                    _entities,
-                    effectiveReq,
-                    initializer: (entity, loadout) =>
+                var loadouts = effectiveReq.Players;
+                var requests = new MobaActorSpawnRequest[loadouts.Length];
+                for (var i = 0; i < loadouts.Length; i++)
+                {
+                    var loadout = loadouts[i];
+                    var spec = MobaConverter.ToActorBuildSpec(_actorIds.Next(), in loadout);
+                    var request = MobaActorSpawnRequest.FromSpec(in spec);
+                    request.Initializer = (entity, _) =>
                     {
                         if (!_generator.TryInitializeFromLoadout(entity, in loadout, out var error))
                         {
                             throw new InvalidOperationException(
                                 error ?? $"actor loadout initialization failed. playerId={loadout.PlayerId.Value} heroId={loadout.HeroId}");
                         }
-                    },
-                    onActorBuilt: (entity, loadout) =>
-                    {
-                        var actorId = entity != null && entity.hasActorId ? entity.actorId.Value : 0;
-                        if (actorId <= 0)
-                        {
-                            throw new InvalidOperationException($"actor id is invalid after build. playerId={loadout.PlayerId.Value}, heroId={loadout.HeroId}");
-                        }
+                    };
+                    requests[i] = request;
+                }
 
-                        spawnEntries.Add(new MobaActorSpawnSnapshotEntry
-                        {
-                            NetId = actorId,
-                            Kind = (int)SpawnEntityKind.Character,
-                            Code = loadout.HeroId,
-                            OwnerNetId = 0,
-                            X = loadout.SpawnX,
-                            Y = loadout.SpawnY,
-                            Z = loadout.SpawnZ
-                        });
+                if (!_actorSpawns.TrySpawnBatch(requests, out var batch) || !batch.Success)
+                {
+                    throw new InvalidOperationException(batch.Error ?? "actor spawn batch failed");
+                }
+
+                spawnResults = batch.Actors;
+                var players = new MobaPlayerEntry[loadouts.Length];
+                var playerActors = new MobaPlayerActorEntry[loadouts.Length];
+                var localActorId = 0;
+                var localTransform = Transform3.Identity;
+                for (var i = 0; i < loadouts.Length; i++)
+                {
+                    var loadout = loadouts[i];
+                    var actor = spawnResults[i];
+                    var actorId = actor.ActorId;
+                    if (actorId <= 0)
+                    {
+                        throw new InvalidOperationException($"actor id is invalid after build. playerId={loadout.PlayerId.Value}, heroId={loadout.HeroId}");
+                    }
+
+                    players[i] = new MobaPlayerEntry(loadout.PlayerId, loadout.TeamId, loadout.HeroId, loadout.SpawnIndex);
+                    playerActors[i] = new MobaPlayerActorEntry(loadout.PlayerId, actorId);
+                    spawnEntries.Add(new MobaActorSpawnSnapshotEntry
+                    {
+                        NetId = actorId,
+                        Kind = (int)SpawnEntityKind.Character,
+                        Code = loadout.HeroId,
+                        OwnerNetId = 0,
+                        X = loadout.SpawnX,
+                        Y = loadout.SpawnY,
+                        Z = loadout.SpawnZ
                     });
+
+                    if (localActorId == 0 && loadout.PlayerId.Equals(effectiveReq.PlayerId))
+                    {
+                        localActorId = actorId;
+                        localTransform = actor.Spec.Info.Transform;
+                    }
+                }
+
+                if (localActorId <= 0)
+                {
+                    throw new InvalidOperationException($"localPlayerId not found in loadouts. playerId={effectiveReq.PlayerId.Value}");
+                }
+
+                built = new BuildActorsResult(
+                    localActorId,
+                    players,
+                    playerActors,
+                    in localTransform,
+                    spawnResults);
             }
             catch (Exception ex)
             {
+                RollbackSpawnResults(spawnResults);
                 ReportStartupException(ex, MobaBattleExceptionDomain.Bootstrap, nameof(BuildEnterGameActors), MobaBattleExceptionSeverity.Critical, $"players={effectiveReq.Players.Length}");
                 return Fail(MobaGameStartFailureCode.ActorBuildFailed, ex.Message);
             }
@@ -263,7 +303,7 @@ namespace AbilityKit.Demo.Moba.Services
             var buildValidation = ValidateBuildResult(in built, effectiveReq.Players.Length);
             if (!buildValidation.Succeeded)
             {
-                RollbackBuiltActors(built.PlayerActors);
+                RollbackBuiltActors(in built);
                 return buildValidation;
             }
 
@@ -428,22 +468,46 @@ namespace AbilityKit.Demo.Moba.Services
             return MobaGameStartResult.Success;
         }
 
-        private void RollbackBuiltActors(MobaPlayerActorEntry[] playerActors)
+        private void RollbackBuiltActors(in BuildActorsResult built)
         {
+            var playerActors = built.PlayerActors;
+            if (playerActors != null)
+            {
+                for (var i = playerActors.Length - 1; i >= 0; i--)
+                {
+                    var entry = playerActors[i];
+                    if (entry.ActorId <= 0) continue;
+
+                    _playerActorMap?.Unbind(entry.PlayerId, entry.ActorId);
+                }
+            }
+
+            if (built.SpawnResults != null && built.SpawnResults.Length > 0)
+            {
+                RollbackSpawnResults(built.SpawnResults);
+                return;
+            }
+
             if (playerActors == null) return;
 
             for (var i = playerActors.Length - 1; i >= 0; i--)
             {
                 var entry = playerActors[i];
                 if (entry.ActorId <= 0) continue;
-
-                _playerActorMap?.Unbind(entry.PlayerId, entry.ActorId);
-
                 new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
                     entry.ActorId,
                     out var entity,
                     publishDespawn: false);
                 ActorSpawnPipeline.DestroyBuiltEntity(entity);
+            }
+        }
+
+        private void RollbackSpawnResults(MobaActorSpawnResult[] spawnResults)
+        {
+            if (spawnResults == null || _actorSpawnTransactions == null) return;
+            for (var i = spawnResults.Length - 1; i >= 0; i--)
+            {
+                _actorSpawnTransactions.Rollback(in spawnResults[i]);
             }
         }
 

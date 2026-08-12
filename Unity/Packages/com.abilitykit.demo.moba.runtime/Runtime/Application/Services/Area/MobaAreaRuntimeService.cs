@@ -110,24 +110,17 @@ namespace AbilityKit.Demo.Moba.Services.Area
                 return false;
             }
 
-            _areas.Remove(areaId.Value);
-            _delayTriggeredAreas.Remove(areaId.Value);
-            Unindex(info);
-            ReleaseSkillRuntime(areaId.Value);
-
-            try
-            {
+            var transaction = new MobaTemporaryEntitySpawnTransaction();
+            transaction.Enlist("area-lifecycle-diagnostic", () =>
                 _lifecycle?.RecordDespawn(
                     MobaTemporaryEntityKind.Area,
                     ActiveCount,
-                    CurrentFrame);
-            }
-            catch (Exception ex)
-            {
-                AbilityKit.Core.Logging.Log.Exception(
-                    ex,
-                    $"[MobaAreaRuntimeService] Record area despawn failed during spawn rollback (areaId={areaId.Value})");
-            }
+                    CurrentFrame));
+            transaction.Enlist("area-skill-retain", () => ReleaseSkillRuntime(areaId.Value));
+            transaction.Enlist("area-indexes", () => Unindex(info));
+            transaction.Enlist("area-delay-index", () => _delayTriggeredAreas.Remove(areaId.Value));
+            transaction.Enlist("area-runtime", () => _areas.Remove(areaId.Value));
+            transaction.Rollback();
 
             return true;
         }

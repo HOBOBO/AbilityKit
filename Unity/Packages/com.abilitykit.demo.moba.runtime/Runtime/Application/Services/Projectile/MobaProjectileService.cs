@@ -51,6 +51,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public bool Shoot(int casterActorId, ProjectileEmitterType emitterType, int projectileCode, float speed, int lifetimeFrames, float maxDistance, in Vec3 aimPos, in Vec3 aimDir, in ProjectileSourceContext sourceContext)
         {
             if (_projectiles == null) return false;
+            if (_actorIds == null) return false;
+            if (_entities == null) return false;
             if (casterActorId <= 0) return false;
             if (projectileCode <= 0) return false;
             if (speed <= 0f) return false;
@@ -82,62 +84,104 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 return false;
             }
 
-            var bullet = spawnResult.Entity;
-            if (bullet == null) return false;
-
-            if (_spawnSnapshots != null)
+            var transaction = new MobaTemporaryEntitySpawnTransaction();
+            transaction.Enlist("actor-spawn", () => RollbackSpawnedActor(spawnResult));
+            try
             {
-                _spawnSnapshots.Enqueue(new MobaActorSpawnSnapshotEntry
+                var bullet = spawnResult.Entity;
+                if (bullet == null)
                 {
-                    NetId = projectileActorId,
-                    Kind = (int)SpawnEntityKind.Projectile,
-                    Code = projectileCode,
-                    OwnerNetId = casterActorId,
-                    X = spawnPos.X,
-                    Y = spawnPos.Y,
-                    Z = spawnPos.Z
-                });
+                    throw new InvalidOperationException($"Projectile spawn returned no entity. projectileCode={projectileCode} actorId={projectileActorId}");
+                }
+
+                var ignore = default(ColliderId);
+                if (caster.hasCollisionId) ignore = caster.collisionId.Value;
+
+                var collisionMask = MobaCollisionLayers.UnitMask | MobaCollisionLayers.WorldMask;
+
+                var spawnFrame = GetCurrentFrame();
+
+                var spawn = new ProjectileSpawnParams(
+                    ownerId: casterActorId,
+                    templateId: projectileCode,
+                    launcherActorId: 0,
+                    rootActorId: casterActorId,
+                    spawnFrame: spawnFrame,
+                    position: spawnPos,
+                    direction: dir,
+                    speed: speed,
+                    returnAfterFrames: 0,
+                    returnSpeed: 0f,
+                    returnStopDistance: 0f,
+                    lifetimeFrames: lifetimeFrames,
+                    maxDistance: maxDistance,
+                    collisionLayerMask: collisionMask,
+                    ignoreCollider: ignore,
+                    hitFilter: new MobaTeamProjectileHitFilter(_registry));
+
+                ProjectileId pid;
+                switch (emitterType)
+                {
+                    case ProjectileEmitterType.Linear:
+                    default:
+                        pid = _projectiles.Spawn(in spawn);
+                        break;
+                }
+
+                if (pid.Value <= 0)
+                {
+                    throw new InvalidOperationException($"Projectile service returned an invalid projectile id. projectileCode={projectileCode} actorId={projectileActorId} projectileId={pid.Value}");
+                }
+
+                transaction.Enlist("projectile-runtime", () => _projectiles.Despawn(pid, spawnFrame, ProjectileExitReason.Manual));
+
+                var createdTraceContextId = 0L;
+                var acquiredRetain = default(MobaSkillRuntimeRetainHandle);
+                if (_links != null)
+                {
+                    transaction.Enlist("projectile-link", () => _links.RollbackLink(pid, projectileActorId));
+                    _links.Link(pid, projectileActorId);
+
+                    transaction.Enlist("projectile-trace", () => EndFailedProjectileTrace(createdTraceContextId));
+                    var boundSource = CreateLaunchSource(
+                        casterActorId,
+                        0,
+                        projectileCode,
+                        in sourceContext,
+                        ref createdTraceContextId);
+                    if (boundSource.IsValid)
+                    {
+                        _links.BindSource(pid, in boundSource);
+                    }
+
+                    transaction.Enlist("projectile-skill-retain", () => ReleaseProjectileSkillRuntime(acquiredRetain));
+                    RetainProjectileSkillRuntime(pid, projectileCode, out acquiredRetain);
+                }
+
+                if (_spawnSnapshots != null)
+                {
+                    _spawnSnapshots.Enqueue(new MobaActorSpawnSnapshotEntry
+                    {
+                        NetId = projectileActorId,
+                        Kind = (int)SpawnEntityKind.Projectile,
+                        Code = projectileCode,
+                        OwnerNetId = casterActorId,
+                        X = spawnPos.X,
+                        Y = spawnPos.Y,
+                        Z = spawnPos.Z
+                    });
+                }
+
+                CollectProjectileSpawned(casterActorId, projectileActorId, projectileCode, in sourceContext);
+                transaction.Commit();
+                return true;
             }
-
-            var ignore = default(ColliderId);
-            if (caster.hasCollisionId) ignore = caster.collisionId.Value;
-
-            var collisionMask = MobaCollisionLayers.UnitMask | MobaCollisionLayers.WorldMask;
-
-            var spawnFrame = GetCurrentFrame();
-
-            var spawn = new ProjectileSpawnParams(
-                ownerId: casterActorId,
-                templateId: projectileCode,
-                launcherActorId: 0,
-                rootActorId: casterActorId,
-                spawnFrame: spawnFrame,
-                position: spawnPos,
-                direction: dir,
-                speed: speed,
-                returnAfterFrames: 0,
-                returnSpeed: 0f,
-                returnStopDistance: 0f,
-                lifetimeFrames: lifetimeFrames,
-                maxDistance: maxDistance,
-                collisionLayerMask: collisionMask,
-                ignoreCollider: ignore,
-                hitFilter: new MobaTeamProjectileHitFilter(_registry));
-
-            ProjectileId pid;
-            switch (emitterType)
+            catch (Exception ex)
             {
-                case ProjectileEmitterType.Linear:
-                default:
-                    pid = _projectiles.Spawn(in spawn);
-                    break;
+                transaction.Rollback(ex);
+                Log.Exception(ex, $"[MobaProjectileService] projectile post-spawn initialization failed. projectileCode={projectileCode} actorId={projectileActorId} casterActorId={casterActorId}");
+                return false;
             }
-
-            _links?.Link(pid, projectileActorId);
-            BindProjectileSource(pid, casterActorId, 0, projectileCode, in sourceContext);
-            RetainProjectileSkillRuntime(pid, projectileCode);
-            CollectProjectileSpawned(casterActorId, projectileActorId, projectileCode, in sourceContext);
-            return true;
         }
 
         private sealed class MobaTeamProjectileHitFilter : IProjectileHitFilter, IProjectileCollisionResponseResolver
@@ -370,21 +414,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             var launcherActorId = _actorIds.Next();
             var launcherSpec = MobaConverter.ToProjectileLauncherActorBuildSpec(launcherActorId, launcher.Id, caster, in sp, in d);
             var launcherRequest = MobaActorSpawnRequest.FromSpec(in launcherSpec);
-            if (!_actorSpawn.TrySpawn(in launcherRequest, out var launcherSpawnResult) || !launcherSpawnResult.Success)
-            {
-                var error = $"launcher actor spawn failed. launcherId={launcher.Id} actorId={launcherActorId} casterActorId={casterActorId} error={launcherSpawnResult.Error}";
-                Log.Warning($"[MobaProjectileService] {error}");
-                result = MobaProjectileLaunchResult.Failed(error);
-                return false;
-            }
-
-            var launcherEntity = launcherSpawnResult.Entity;
-            if (launcherEntity == null)
-            {
-                result = MobaProjectileLaunchResult.Failed("Launcher actor spawn returned null entity");
-                Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error} launcherId={launcher.Id} actorId={launcherActorId} casterActorId={casterActorId}");
-                return false;
-            }
 
             var hitCooldownFrames = ResolveOptionalFramesFromMs(projectile.HitCooldownMs, frameTime);
             var tickIntervalFrames = ResolveOptionalFramesFromMs(projectile.TickIntervalMs, frameTime);
@@ -441,23 +470,52 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     projectile.CollisionWidth * 0.5f,
                     projectile.CollisionHeight * 0.5f,
                     projectile.CollisionLength * 0.5f));
- 
+
+            if (!_actorSpawn.TrySpawn(in launcherRequest, out var launcherSpawnResult) || !launcherSpawnResult.Success)
+            {
+                var error = $"launcher actor spawn failed. launcherId={launcher.Id} actorId={launcherActorId} casterActorId={casterActorId} error={launcherSpawnResult.Error}";
+                Log.Warning($"[MobaProjectileService] {error}");
+                result = MobaProjectileLaunchResult.Failed(error);
+                return false;
+            }
+
+            var transaction = new MobaTemporaryEntitySpawnTransaction();
+            transaction.Enlist("launcher-actor-spawn", () => RollbackSpawnedActor(launcherSpawnResult));
             var launcherSource = default(ProjectileSourceContext);
+            var launcherTraceContextId = 0L;
+            var launcherRetain = default(MobaSkillRuntimeRetainHandle);
+            var sequenceResult = default(MobaProjectileLaunchResult);
             try
             {
+                var launcherEntity = launcherSpawnResult.Entity;
+                if (launcherEntity == null)
+                {
+                    throw new InvalidOperationException("Launcher actor spawn returned null entity");
+                }
+
                 var sourceContext = request.SourceContext;
-                launcherSource = CreateLaunchSource(casterActorId, sourceContext.InitialTargetActorId, projectile.Id, in sourceContext);
+                transaction.Enlist("launcher-link", () => _links.UnlinkLauncher(launcherActorId));
+                transaction.Enlist("launcher-trace", () => EndFailedProjectileTrace(launcherTraceContextId));
+                launcherSource = CreateLaunchSource(
+                    casterActorId,
+                    sourceContext.InitialTargetActorId,
+                    projectile.Id,
+                    in sourceContext,
+                    ref launcherTraceContextId);
                 _links.BindLauncherSource(launcherActorId, in launcherSource);
-                RetainLauncherSkillRuntime(launcherActorId, launcher.Id, in launcherSource);
+                transaction.Enlist("launcher-skill-retain", () => ReleaseProjectileSkillRuntime(launcherRetain));
+                RetainLauncherSkillRuntime(launcherActorId, launcher.Id, in launcherSource, out launcherRetain);
 
                 var endTimeMs = durationMs > 0 ? nowMs + durationMs : nowMs;
                 if (!TryCreateLaunchSequence(launcher, out var sequence, out var sequenceError))
                 {
-                    RequestLauncherDespawn(launcherEntity, ActorDespawnReason.ProjectileLauncherCompleted);
                     result = MobaProjectileLaunchResult.Failed(sequenceError);
                     Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error} launcherId={launcher.Id} projectileId={projectile.Id} launcherActorId={launcherActorId}");
+                    transaction.Rollback();
                     return false;
                 }
+
+                transaction.Enlist("launcher-sequence", () => RollbackLaunchSequence(sequence, sequenceResult));
 
                 var context = new MobaProjectileLaunchContext(
                     in request,
@@ -479,41 +537,71 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     _random,
                     this);
 
-                var started = sequence.TryStart(in context, out result);
-                if (!started || !result.Success)
+                var started = sequence.TryStart(in context, out sequenceResult);
+                result = sequenceResult;
+                if (!started || !sequenceResult.Success)
                 {
-                    Log.Warning($"[MobaProjectileService] TryStartLaunch sequence start failed. launcherId={launcher.Id} projectileId={projectile.Id} launcherActorId={launcherActorId} started={started} error={result.Error ?? "<none>"}");
-                    RequestLauncherDespawn(launcherEntity, ActorDespawnReason.ProjectileLauncherCompleted);
+                    Log.Warning($"[MobaProjectileService] TryStartLaunch sequence start failed. launcherId={launcher.Id} projectileId={projectile.Id} launcherActorId={launcherActorId} started={started} error={sequenceResult.Error ?? "<none>"}");
+                    transaction.Rollback();
+                    return started;
                 }
 
-                return started;
+                transaction.Commit();
+                return true;
             }
             catch (Exception ex)
             {
-                if (launcherSource.SourceContextId != 0L
-                    && !_links.TryGetLauncherSource(launcherActorId, out _)
-                    && _trace != null)
-                {
-                    try
-                    {
-                        _trace.EndContext(launcherSource.SourceContextId, TraceLifecycleReason.Failed);
-                    }
-                    catch (Exception cleanupEx)
-                    {
-                        Log.Exception(cleanupEx, $"[MobaProjectileService] compensate unbound launcher trace failed. launcherActorId={launcherActorId} sourceContextId={launcherSource.SourceContextId}");
-                    }
-                }
-
-                RequestLauncherDespawn(launcherEntity, ActorDespawnReason.ProjectileLauncherCompleted);
+                transaction.Rollback(ex);
                 result = MobaProjectileLaunchResult.Failed(ex.Message);
                 Log.Exception(ex, $"[MobaProjectileService] TryStartLaunch failed. launcherId={launcher.Id} projectileId={projectile.Id} launcherActorId={launcherActorId}");
                 return false;
             }
         }
 
-        private void RequestLauncherDespawn(global::ActorEntity launcherEntity, ActorDespawnReason reason)
+        private void RollbackSpawnedActor(MobaActorSpawnResult spawnResult)
         {
-            ActorLifecycleRequests.RequestDespawn(launcherEntity, CurrentFrame, reason);
+            if (_actorSpawn is IMobaActorSpawnTransactionService spawnTransactions)
+            {
+                spawnTransactions.Rollback(in spawnResult);
+                return;
+            }
+
+            global::ActorEntity registered = null;
+            try
+            {
+                new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
+                    spawnResult.ActorId,
+                    out registered,
+                    publishDespawn: false);
+            }
+            finally
+            {
+                ActorSpawnPipeline.DestroyBuiltEntity(registered ?? spawnResult.Entity);
+            }
+        }
+
+        private void EndFailedProjectileTrace(long sourceContextId)
+        {
+            if (sourceContextId == 0L || _trace == null) return;
+            _trace.EndContext(sourceContextId, TraceLifecycleReason.Failed);
+        }
+
+        private void ReleaseProjectileSkillRuntime(MobaSkillRuntimeRetainHandle retainHandle)
+        {
+            if (!retainHandle.IsValid || _skillRuntimes == null) return;
+            _skillRuntimes.ReleaseChild(in retainHandle);
+        }
+
+        private void RollbackLaunchSequence(
+            IMobaProjectileLaunchSequence sequence,
+            MobaProjectileLaunchResult result)
+        {
+            if (result.ScheduleId.Value > 0)
+            {
+                _projectiles?.CancelSchedule(result.ScheduleId);
+            }
+
+            sequence?.Stop(in result, ContinuousEndReason.CleanedUp);
         }
 
         public bool IsLaunchComplete(in MobaProjectileLaunchResult result)
@@ -598,20 +686,14 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             throw new InvalidOperationException("MobaProjectileService requires IFrameTime for current time.");
         }
 
-        private void BindProjectileSource(ProjectileId projectileId, int sourceActorId, int targetActorId, int projectileConfigId, in ProjectileSourceContext sourceContext)
+        private ProjectileSourceContext CreateLaunchSource(
+            int sourceActorId,
+            int targetActorId,
+            int projectileConfigId,
+            in ProjectileSourceContext sourceContext,
+            ref long createdTraceContextId)
         {
-            if (_links == null) return;
-            if (projectileId.Value == 0) return;
-
-            var source = CreateLaunchSource(sourceActorId, targetActorId, projectileConfigId, in sourceContext);
-            if (source.IsValid)
-            {
-                _links.BindSource(projectileId, in source);
-            }
-        }
-
-        private ProjectileSourceContext CreateLaunchSource(int sourceActorId, int targetActorId, int projectileConfigId, in ProjectileSourceContext sourceContext)
-        {
+            createdTraceContextId = 0L;
             var origin = sourceContext.TryGetOrigin(out var sourceOrigin)
                 ? sourceOrigin.WithActors(sourceActorId, targetActorId)
                 : new MobaGameplayOrigin(
@@ -632,6 +714,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 launchContextId = parentContextId != 0L
                     ? _trace.CreateChildContext(parentContextId, MobaTraceKind.ProjectileLaunch, projectileConfigId, sourceActorId, targetActorId)
                     : _trace.CreateRootContext(MobaTraceKind.ProjectileLaunch, projectileConfigId, sourceActorId, targetActorId);
+                createdTraceContextId = launchContextId;
             }
 
             if (launchContextId == 0L)
@@ -661,16 +744,26 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         internal bool RetainProjectileSkillRuntime(ProjectileId projectileId, int projectileConfigId)
         {
+            return RetainProjectileSkillRuntime(projectileId, projectileConfigId, out _);
+        }
+
+        private bool RetainProjectileSkillRuntime(
+            ProjectileId projectileId,
+            int projectileConfigId,
+            out MobaSkillRuntimeRetainHandle acquiredRetain)
+        {
+            acquiredRetain = default;
             if (_links == null) return false;
             if (_skillRuntimes == null) return false;
             if (!_links.TryGetSource(projectileId, out var source)) return false;
             if (!source.SkillRuntimeHandle.IsValid) return false;
-            if (_links.TryGetRetain(projectileId, out _)) return true;
+            if (_links.TryGetRetain(projectileId, out acquiredRetain)) return true;
 
             var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Projectile, projectileId.Value, source.SourceContextId, projectileConfigId);
             var runtimeHandle = source.SkillRuntimeHandle;
             if (_skillRuntimes.RetainChild(in runtimeHandle, in child, out var retainHandle))
             {
+                acquiredRetain = retainHandle;
                 _links.BindRetain(projectileId, in retainHandle);
                 return true;
             }
@@ -681,11 +774,13 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         private bool RetainLauncherSkillRuntime(
             int launcherActorId,
             int launcherConfigId,
-            in ProjectileSourceContext source)
+            in ProjectileSourceContext source,
+            out MobaSkillRuntimeRetainHandle acquiredRetain)
         {
+            acquiredRetain = default;
             if (_links == null || _skillRuntimes == null) return false;
             if (!source.SkillRuntimeHandle.IsValid) return false;
-            if (_links.TryGetLauncherRetain(launcherActorId, out _)) return true;
+            if (_links.TryGetLauncherRetain(launcherActorId, out acquiredRetain)) return true;
 
             var child = new MobaSkillRuntimeChildRef(
                 MobaSkillRuntimeChildKind.ProjectileLauncher,
@@ -698,6 +793,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 return false;
             }
 
+            acquiredRetain = retainHandle;
             try
             {
                 _links.BindLauncherRetain(launcherActorId, in retainHandle);
@@ -706,6 +802,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             catch
             {
                 _skillRuntimes.ReleaseChild(in retainHandle);
+                acquiredRetain = default;
                 throw;
             }
         }

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
@@ -18,7 +17,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaDamageService _damage;
         private readonly MobaShieldService _shields;
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
-        private readonly List<IMobaDamagePipelineStage> _standardStages;
+        private readonly IMobaDamageStageProvider _stageProvider;
         [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
         [WorldInject(required: false)] private MobaCombatActivityService _combatActivity = null;
  
@@ -32,7 +31,8 @@ namespace AbilityKit.Demo.Moba.Services
             MobaDamageMitigationService mitigation = null,
             MobaShieldService shields = null,
             IMobaBattleDiagnosticsService diagnostics = null,
-            IMobaBattleDiagnosticEventSink eventCollector = null)
+            IMobaBattleDiagnosticEventSink eventCollector = null,
+            IMobaDamageStageProvider stageProvider = null)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _damage = damage ?? throw new ArgumentNullException(nameof(damage));
@@ -40,13 +40,7 @@ namespace AbilityKit.Demo.Moba.Services
             _eventBus = eventBus;
             _diagnostics = diagnostics;
             _eventCollector = eventCollector;
-            _standardStages = new List<IMobaDamagePipelineStage>(4)
-            {
-                new MobaBaseDamagePipelineStage(),
-                new MobaDamageMitigationPipelineStage(mitigation),
-                new MobaShieldAbsorbPipelineStage(shields),
-                new MobaFinalDamagePipelineStage(),
-            };
+            _stageProvider = stageProvider ?? new MobaDamageStageRegistry(mitigation, shields);
         }
 
         public DamageResult Execute(AttackInfo attack)
@@ -153,19 +147,25 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 case DamageFormulaKind.Standard:
                 default:
-                    RunStages(calc, _standardStages);
+                    var validation = _stageProvider.Validate();
+                    if (!validation.Succeeded)
+                    {
+                        throw new InvalidOperationException("Invalid damage stage configuration: " + string.Join("; ", validation.Errors));
+                    }
+
+                    RunStages(calc, _stageProvider.GetStages());
                     break;
             }
         }
 
-        private void RunStages(AttackCalcInfo calc, List<IMobaDamagePipelineStage> stages)
+        private void RunStages(AttackCalcInfo calc, System.Collections.Generic.IReadOnlyList<MobaDamageStageDescriptor> stages)
         {
             if (calc == null || stages == null) return;
 
             var diagnostics = _diagnostics;
             for (var i = 0; i < stages.Count; i++)
             {
-                var stage = stages[i];
+                var stage = stages[i].Stage;
                 if (stage == null) continue;
 
                 var start = diagnostics != null ? diagnostics.GetTimestamp() : 0L;

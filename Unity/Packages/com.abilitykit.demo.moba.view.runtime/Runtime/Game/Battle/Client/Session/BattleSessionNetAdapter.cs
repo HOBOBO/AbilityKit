@@ -29,11 +29,15 @@ namespace AbilityKit.Game.Flow
     internal sealed class BattleSessionNetAdapter
     {
         private readonly IBattleSessionNetAdapterContext _ctx;
+        private readonly BattleSessionDiagnostics _diagnostics;
         private readonly FramePacketNetAdapter _adapter;
 
-        public BattleSessionNetAdapter(IBattleSessionNetAdapterContext ctx)
+        public BattleSessionNetAdapter(
+            IBattleSessionNetAdapterContext ctx,
+            BattleSessionDiagnostics diagnostics)
         {
-            _ctx = ctx;
+            _ctx = ctx ?? throw new ArgumentNullException(nameof(ctx));
+            _diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
             _adapter = new FramePacketNetAdapter(new AdapterContext(ctx));
         }
 
@@ -55,7 +59,7 @@ namespace AbilityKit.Game.Flow
         {
             if (_ctx.RemoteDrivenInputSource is AbilityKit.Network.Runtime.FrameJitterBuffer<PlayerInputCommand[]> jb)
             {
-                AbilityKit.Game.Flow.BattleFlowDebugProvider.JitterBufferStats = new AbilityKit.Game.Flow.JitterBufferStatsSnapshot
+                _diagnostics.PublishJitterBuffer(new JitterBufferStatsSnapshot
                 {
                     DelayFrames = jb.DelayFrames,
                     MissingMode = jb.MissingMode.ToString(),
@@ -70,7 +74,7 @@ namespace AbilityKit.Game.Flow
                     LateCount = jb.LateCount,
                     ConsumedCount = jb.ConsumedCount,
                     FilledDefaultCount = jb.FilledDefaultCount,
-                };
+                });
             }
         }
 

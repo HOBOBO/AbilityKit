@@ -306,13 +306,25 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         public readonly MobaPlayerEntry[] Players;
         public readonly MobaPlayerActorEntry[] PlayerActors;
         public readonly Transform3 LocalActorTransform;
+        public readonly MobaActorSpawnResult[] SpawnResults;
 
         public BuildActorsResult(int localActorId, MobaPlayerEntry[] players, MobaPlayerActorEntry[] playerActors, in Transform3 localActorTransform)
+            : this(localActorId, players, playerActors, in localActorTransform, null)
+        {
+        }
+
+        public BuildActorsResult(
+            int localActorId,
+            MobaPlayerEntry[] players,
+            MobaPlayerActorEntry[] playerActors,
+            in Transform3 localActorTransform,
+            MobaActorSpawnResult[] spawnResults)
         {
             LocalActorId = localActorId;
             Players = players;
             PlayerActors = playerActors;
             LocalActorTransform = localActorTransform;
+            SpawnResults = spawnResults ?? Array.Empty<MobaActorSpawnResult>();
         }
     }
 }

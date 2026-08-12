@@ -5,22 +5,15 @@ namespace AbilityKit.Game.Flow
 {
     internal static class ConfirmedAuthorityDebugStatsPublisher
     {
-        public static void Initialize(WorldId authWorldId)
+        public static void Initialize(
+            BattleSessionDiagnostics diagnostics,
+            WorldId authWorldId)
         {
-            BattleFlowDebugProvider.ConfirmedAuthorityWorldStats = new ConfirmedAuthorityWorldStatsSnapshot
-            {
-                WorldId = authWorldId.Value,
-                ConfirmedFrame = 0,
-                PredictedFrame = 0,
-                AuthorityInputTargetFrame = 0,
-                AuthorityDriveTargetFrame = 0,
-                AuthorityLastTickedFrame = 0,
-                ViewEventTotal = 0,
-                RecentViewEvents = null,
-            };
+            diagnostics?.InitializeConfirmedAuthority(authWorldId.Value);
         }
 
         public static void Update(
+            BattleSessionDiagnostics diagnostics,
             int confirmedFrame,
             int predictedFrame,
             int inputTargetFrame,
@@ -28,24 +21,21 @@ namespace AbilityKit.Game.Flow
             int lastTickedFrame,
             DebugBattleViewEventSink viewEventSink)
         {
-            var stats = BattleFlowDebugProvider.ConfirmedAuthorityWorldStats;
-            if (stats == null) return;
-
-            stats.ConfirmedFrame = confirmedFrame;
-            stats.PredictedFrame = predictedFrame;
-            stats.AuthorityInputTargetFrame = inputTargetFrame;
-            stats.AuthorityDriveTargetFrame = driveTargetFrame;
-            stats.AuthorityLastTickedFrame = lastTickedFrame;
-
-            if (viewEventSink == null) return;
-
-            stats.ViewEventTotal = viewEventSink.Total;
-            stats.RecentViewEvents = viewEventSink.GetRecentLines();
+            diagnostics?.UpdateConfirmedAuthority(
+                confirmedFrame,
+                predictedFrame,
+                inputTargetFrame,
+                driveTargetFrame,
+                lastTickedFrame,
+                viewEventSink?.Total ?? 0,
+                viewEventSink?.GetRecentLines());
         }
 
-        public static void Clear(BattleContext ctx)
+        public static void Clear(
+            BattleSessionDiagnostics diagnostics,
+            BattleContext ctx)
         {
-            BattleFlowDebugProvider.ConfirmedAuthorityWorldStats = null;
+            diagnostics?.ClearConfirmedAuthority();
 
             if (ctx != null)
             {

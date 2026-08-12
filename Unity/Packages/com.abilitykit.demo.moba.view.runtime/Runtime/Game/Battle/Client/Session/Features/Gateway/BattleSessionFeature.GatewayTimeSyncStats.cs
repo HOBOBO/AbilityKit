@@ -13,24 +13,26 @@ namespace AbilityKit.Game.Flow
             return BuildTimeSyncStats(worldId, opCode, intervalMs, alpha, timeoutMs);
         }
 
-        private void UpdateTimeSyncStatsByWorld(uint opCode, int intervalMs, double alpha, int timeoutMs)
+        private Dictionary<string, TimeSyncStatsSnapshot> BuildTimeSyncStatsByWorld(
+            TimeSyncStatsSnapshot current,
+            uint opCode,
+            int intervalMs,
+            double alpha,
+            int timeoutMs)
         {
-            if (BattleFlowDebugProvider.TimeSyncStatsByWorld == null)
-            {
-                BattleFlowDebugProvider.TimeSyncStatsByWorld = new Dictionary<string, TimeSyncStatsSnapshot>();
-            }
-
+            var snapshots = new Dictionary<string, TimeSyncStatsSnapshot>();
             foreach (var kv in _runtime.GatewayRoom.WorldStartAnchors)
             {
-                BattleFlowDebugProvider.TimeSyncStatsByWorld[kv.Key.Value] =
+                snapshots[kv.Key.Value] =
                     BuildTimeSyncStats(kv.Key, opCode, intervalMs, alpha, timeoutMs);
             }
 
             var worldIdValue = _plan.World.WorldId;
             if (worldIdValue != null)
             {
-                BattleFlowDebugProvider.TimeSyncStatsByWorld[worldIdValue] = BattleFlowDebugProvider.TimeSyncStats;
+                snapshots[worldIdValue] = current;
             }
+            return snapshots;
         }
 
         private TimeSyncStatsSnapshot BuildTimeSyncStats(WorldId worldId, uint opCode, int intervalMs, double alpha, int timeoutMs)

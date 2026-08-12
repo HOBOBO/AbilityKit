@@ -7,11 +7,15 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class RemoteDrivenInputRuntime : IDisposable
     {
+        private readonly BattleSessionDiagnostics _diagnostics;
         private FrameJitterBuffer<PlayerInputCommand[]> _buffer;
 
-        private RemoteDrivenInputRuntime(FrameJitterBuffer<PlayerInputCommand[]> buffer)
+        private RemoteDrivenInputRuntime(
+            FrameJitterBuffer<PlayerInputCommand[]> buffer,
+            BattleSessionDiagnostics diagnostics)
         {
             _buffer = buffer;
+            _diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
         }
 
         public IRemoteFrameSource<PlayerInputCommand[]> Source => _buffer;
@@ -20,7 +24,9 @@ namespace AbilityKit.Game.Flow
 
         public IRemoteFrameSink<PlayerInputCommand[]> Sink => _buffer;
 
-        public static RemoteDrivenInputRuntime Create(int delayFrames)
+        public static RemoteDrivenInputRuntime Create(
+            int delayFrames,
+            BattleSessionDiagnostics diagnostics)
         {
             var buffer = new FrameJitterBuffer<PlayerInputCommand[]>(
                 delayFrames: delayFrames,
@@ -28,14 +34,14 @@ namespace AbilityKit.Game.Flow
                 missingFrameFactory: Array.Empty<PlayerInputCommand>,
                 initialCapacity: 256);
 
-            return new RemoteDrivenInputRuntime(buffer);
+            return new RemoteDrivenInputRuntime(buffer, diagnostics);
         }
 
         public void PublishDebugStats()
         {
             if (_buffer == null) return;
 
-            BattleFlowDebugProvider.JitterBufferStats = new JitterBufferStatsSnapshot
+            _diagnostics.PublishJitterBuffer(new JitterBufferStatsSnapshot
             {
                 DelayFrames = _buffer.DelayFrames,
                 MissingMode = _buffer.MissingMode.ToString(),
@@ -50,13 +56,14 @@ namespace AbilityKit.Game.Flow
                 LateCount = _buffer.LateCount,
                 ConsumedCount = _buffer.ConsumedCount,
                 FilledDefaultCount = _buffer.FilledDefaultCount,
-            };
+            });
         }
 
         public void Dispose()
         {
             _buffer?.Dispose();
             _buffer = null;
+            _diagnostics.ClearJitterBuffer();
         }
     }
 }

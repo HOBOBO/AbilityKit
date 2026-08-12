@@ -36,6 +36,7 @@ namespace AbilityKit.Game.Flow
     {
         void StartRemoteDrivenLocalWorld();
         void StartConfirmedAuthorityWorld();
+        void DisposeReplayRecordWriter();
         void TryDestroyBattleWorlds();
         void DisposeSnapshotRouting();
         void DisposeConfirmedView();
@@ -62,6 +63,7 @@ namespace AbilityKit.Game.Flow
         void StartRemoteDrivenLocalWorld();
         void StartConfirmedAuthorityWorld();
 
+        void DisposeReplayRecordWriter();
         void TryDestroyBattleWorlds();
         void DisposeSnapshotRouting();
         void DisposeConfirmedView();

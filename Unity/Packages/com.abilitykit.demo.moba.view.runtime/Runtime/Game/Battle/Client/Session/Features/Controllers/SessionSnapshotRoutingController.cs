@@ -11,6 +11,7 @@ namespace AbilityKit.Game.Flow
     internal sealed class BattleSnapshotRoutingRuntime : IDisposable
     {
         private readonly BattleSessionHandles _handles;
+        private readonly BattleSessionDiagnostics _diagnostics;
         private BattleContext _context;
         private BattleLogicSession _session;
         private Action<FramePacket> _frameReceivedHandler;
@@ -22,9 +23,12 @@ namespace AbilityKit.Game.Flow
         private BattleSessionNetAdapter _netAdapter;
         private bool _frameReceivedSubscribed;
 
-        internal BattleSnapshotRoutingRuntime(BattleSessionHandles handles)
+        internal BattleSnapshotRoutingRuntime(
+            BattleSessionHandles handles,
+            BattleSessionDiagnostics diagnostics)
         {
             _handles = handles ?? throw new ArgumentNullException(nameof(handles));
+            _diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
         }
 
         internal bool IsBuilt => _routing != null;
@@ -57,7 +61,7 @@ namespace AbilityKit.Game.Flow
                 if (netAdapterHost != null)
                 {
                     _netContext = new BattleSessionNetAdapterContext(netAdapterHost);
-                    _netAdapter = new BattleSessionNetAdapter(_netContext);
+                    _netAdapter = new BattleSessionNetAdapter(_netContext, _diagnostics);
                 }
 
                 PublishHandles();
@@ -110,6 +114,7 @@ namespace AbilityKit.Game.Flow
             _routing = null;
             _netContext = null;
             _netAdapter = null;
+            _diagnostics.ClearJitterBuffer();
         }
 
         public void Feed(FramePacket packet)

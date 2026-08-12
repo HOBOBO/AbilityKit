@@ -275,7 +275,8 @@ MOBA 的 continuous runtime 与 context 设计很强调边界来源：
 
 - `MobaContextSourceView` 区分 origin / lineage / execution / runtime debug；
 - `MobaContextSourceBoundary` 区分 snapshot / execution / live runtime；
-- `HasLiveRuntime` 与 `HasRuntimeDiagnostics` 标记是否来自真实运行时。
+- `HasLiveRuntime` 只表示存在真实 runtime backing；
+- `HasRuntimeDiagnostics` 表示存在 runtime kind/config 等诊断元数据，不要求 live runtime；有效 capability handle 同样不会自动把 snapshot 提升为 live runtime。
 
 `MobaContinuousRuntimeView` 和 `MobaContextIntegrityRuntimeValidator` 正是围绕这些边界工作：
 

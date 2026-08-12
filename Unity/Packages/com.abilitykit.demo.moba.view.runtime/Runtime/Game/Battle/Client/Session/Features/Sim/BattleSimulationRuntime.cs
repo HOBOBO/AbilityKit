@@ -16,6 +16,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleSessionHandles _handles;
         private readonly IBattleSessionWorldInstaller _worldInstaller;
         private readonly BattlePresentationSessionResources _presentation;
+        private readonly BattleSessionDiagnostics _diagnostics;
         private PredictionViewBridge _predictionViewBridge;
 
         internal BattleSimulationRuntime(
@@ -26,7 +27,8 @@ namespace AbilityKit.Game.Flow
                 state,
                 handles,
                 worldInstaller,
-                new BattlePresentationSessionResources())
+                new BattlePresentationSessionResources(),
+                new BattleSessionDiagnostics(new BattleReplicationRuntime()))
         {
         }
 
@@ -35,11 +37,27 @@ namespace AbilityKit.Game.Flow
             BattleSessionHandles handles,
             IBattleSessionWorldInstaller worldInstaller,
             BattlePresentationSessionResources presentation)
+            : this(
+                state,
+                handles,
+                worldInstaller,
+                presentation,
+                new BattleSessionDiagnostics(new BattleReplicationRuntime()))
+        {
+        }
+
+        internal BattleSimulationRuntime(
+            BattleSessionState state,
+            BattleSessionHandles handles,
+            IBattleSessionWorldInstaller worldInstaller,
+            BattlePresentationSessionResources presentation,
+            BattleSessionDiagnostics diagnostics)
         {
             _state = state ?? throw new ArgumentNullException(nameof(state));
             _handles = handles ?? throw new ArgumentNullException(nameof(handles));
             _worldInstaller = worldInstaller ?? throw new ArgumentNullException(nameof(worldInstaller));
             _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
+            _diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
         }
 
         internal BattleSessionRemoteDrivenWorldRuntime RemoteDriven => _handles.RemoteDriven;
@@ -71,6 +89,7 @@ namespace AbilityKit.Game.Flow
                     plan,
                     context,
                     RemoteDriven,
+                    _diagnostics,
                     fixedDeltaSeconds,
                     resolveIdealFrameLimit,
                     shouldForceHashMismatch,
@@ -99,6 +118,7 @@ namespace AbilityKit.Game.Flow
                     context,
                     flow,
                     Confirmed,
+                    _diagnostics,
                     hasSession,
                     fixedDeltaSeconds,
                     resolveIdealFrameLimit,
@@ -156,6 +176,7 @@ namespace AbilityKit.Game.Flow
                     plan,
                     context,
                     Confirmed,
+                    _diagnostics,
                     _presentation.ConfirmedSnapshots,
                     worldCatchUp,
                     ConfirmedLastTickedFrame,
@@ -194,6 +215,7 @@ namespace AbilityKit.Game.Flow
             SessionSimRuntimeDisposer.DisposeConfirmedWorld(
                 context,
                 Confirmed,
+                _diagnostics,
                 () => ConfirmedLastTickedFrame = 0);
         }
 

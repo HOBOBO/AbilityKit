@@ -46,6 +46,35 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaRuntimeCombatDependencyValidator : MobaRuntimeDependencyValidatorBase
     {
         public override string Name => "runtime.dependencies.combat";
+
+        public override void Validate(in MobaRuntimeValidationContext context, MobaRuntimeValidationReport report)
+        {
+            base.Validate(in context, report);
+            if (report == null) return;
+
+            Require<DamagePipelineService>(in context, report, "damage.pipeline");
+            Require<HealPipelineService>(in context, report, "heal.pipeline");
+            if (!context.TryResolve<IMobaDamageStageProvider>(out var provider) || provider == null)
+            {
+                report.Error(Name, "damage.stage_provider", "IMobaDamageStageProvider is required for controlled damage stage composition.", nameof(IMobaDamageStageProvider), blocksStartup: true);
+                return;
+            }
+
+            var validation = provider.Validate();
+            for (var i = 0; i < validation.Errors.Count; i++)
+            {
+                report.Error(Name, "damage.stage_configuration", validation.Errors[i], nameof(IMobaDamageStageProvider), blocksStartup: true);
+            }
+        }
+
+        private void Require<T>(in MobaRuntimeValidationContext context, MobaRuntimeValidationReport report, string path)
+            where T : class
+        {
+            if (!context.TryResolve<T>(out var service) || service == null)
+            {
+                report.Error(Name, path, typeof(T).Name + " is required for governed combat execution.", typeof(T).Name, blocksStartup: true);
+            }
+        }
     }
 
     public sealed class MobaRuntimeTemporaryEntityDependencyValidator : MobaRuntimeDependencyValidatorBase

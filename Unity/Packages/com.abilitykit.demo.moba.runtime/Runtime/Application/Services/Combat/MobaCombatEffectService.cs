@@ -8,12 +8,12 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaCombatEffectService : IService
     {
         private readonly DamagePipelineService _damagePipeline;
-        private readonly MobaDamageService _damageApplier;
+        private readonly HealPipelineService _healPipeline;
 
-        public MobaCombatEffectService(DamagePipelineService damagePipeline, MobaDamageService damageApplier)
+        public MobaCombatEffectService(DamagePipelineService damagePipeline, HealPipelineService healPipeline)
         {
             _damagePipeline = damagePipeline ?? throw new ArgumentNullException(nameof(damagePipeline));
-            _damageApplier = damageApplier ?? throw new ArgumentNullException(nameof(damageApplier));
+            _healPipeline = healPipeline ?? throw new ArgumentNullException(nameof(healPipeline));
         }
 
         public DamageResult DealDamage(AttackInfo attack)
@@ -24,13 +24,14 @@ namespace AbilityKit.Demo.Moba.Services
 
         public float Heal(int healerActorId, int targetActorId, int healType, float value, int reasonKind = 0, int reasonParam = 0)
         {
-            return _damageApplier.CommitHeal(
+            var request = new MobaHealRequest(
                 healerActorId,
                 targetActorId,
                 healType,
                 value,
                 reasonKind,
-                reasonParam).AppliedValue;
+                reasonParam);
+            return _healPipeline.Execute(in request).AppliedValue;
         }
 
         public void Dispose()

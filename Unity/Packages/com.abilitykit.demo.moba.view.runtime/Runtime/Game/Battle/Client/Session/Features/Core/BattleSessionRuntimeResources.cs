@@ -76,16 +76,6 @@ namespace AbilityKit.Game.Flow
         }
     }
 
-    internal sealed class BattleSessionReplayRuntime
-    {
-        internal FrameReplayDriver Driver;
-
-        public void Reset()
-        {
-            Driver = null;
-        }
-    }
-
     internal sealed class BattleSessionPhaseRuntime
     {
         internal GamePhaseContext PhaseCtx;

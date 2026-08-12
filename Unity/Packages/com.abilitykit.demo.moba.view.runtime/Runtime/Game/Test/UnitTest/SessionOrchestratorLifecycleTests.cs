@@ -11,6 +11,7 @@ using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Battle;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
+using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Demo.Common.Rooms;
 using NUnit.Framework;
 
@@ -33,6 +34,8 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(runtime.Presentation, Is.SameAs(runtime.Presentation));
             Assert.That(runtime.Replication, Is.Not.Null);
             Assert.That(runtime.Replication, Is.SameAs(runtime.Replication));
+            Assert.That(runtime.Diagnostics, Is.Not.Null);
+            Assert.That(runtime.Diagnostics, Is.SameAs(runtime.Diagnostics));
             Assert.That(runtime.Simulation, Is.Null);
             Assert.That(runtime.Orchestrator, Is.Null);
         }
@@ -349,8 +352,16 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var handles = new BattleSessionHandles();
             var context = new BattleContext();
-            var staleOwner = new BattleSnapshotRoutingRuntime(handles);
-            var activeOwner = new BattleSnapshotRoutingRuntime(handles);
+            var staleDiagnostics = new BattleSessionDiagnostics(
+                new BattleReplicationRuntime());
+            var activeDiagnostics = new BattleSessionDiagnostics(
+                new BattleReplicationRuntime());
+            var staleOwner = new BattleSnapshotRoutingRuntime(
+                handles,
+                staleDiagnostics);
+            var activeOwner = new BattleSnapshotRoutingRuntime(
+                handles,
+                activeDiagnostics);
 
             staleOwner.Build(CreatePlan(), context, null, null, null);
             activeOwner.Build(CreatePlan(), context, null, null, null);
@@ -772,6 +783,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private static readonly string[] CleanupOrder =
         {
+            "record-writer",
             "pipeline-stop",
             "snapshot-routing",
             "confirmed-view",
@@ -834,6 +846,30 @@ namespace AbilityKit.Game.Test.UnitTest
             var callCount = fixture.Host.Calls.Count;
             fixture.Orchestrator.StopSession();
             Assert.That(fixture.Host.Calls.Count, Is.EqualTo(callCount));
+        }
+
+        [Test]
+        public void StopSession_WhenRecordWriterCleanupFails_RetriesOnlyWriterStep()
+        {
+            var fixture = CreateFixture();
+            fixture.Orchestrator.StartSession();
+            fixture.Host.FailNext("record-writer");
+
+            Assert.Throws<AggregateException>(() => fixture.Orchestrator.StopSession());
+
+            Assert.That(fixture.State.Lifecycle, Is.EqualTo(BattleSessionLifecycleState.Faulted));
+            Assert.That(fixture.Host.CountCalls("record-writer"), Is.EqualTo(1));
+            Assert.That(fixture.Host.CountCalls("pipeline-stop"), Is.EqualTo(1));
+            Assert.That(fixture.Host.CountCalls("stop-logic"), Is.EqualTo(1));
+            Assert.That(fixture.Host.ResetHandlesCount, Is.Zero);
+
+            fixture.Orchestrator.StopSession();
+
+            Assert.That(fixture.State.Lifecycle, Is.EqualTo(BattleSessionLifecycleState.Stopped));
+            Assert.That(fixture.Host.CountCalls("record-writer"), Is.EqualTo(2));
+            Assert.That(fixture.Host.CountCalls("pipeline-stop"), Is.EqualTo(1));
+            Assert.That(fixture.Host.CountCalls("stop-logic"), Is.EqualTo(1));
+            Assert.That(fixture.Host.ResetHandlesCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -975,6 +1011,138 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.That(handles.Phase.Ctx, Is.SameAs(context));
             Assert.That(handles.GatewayRoom.ConnectionOwner, Is.SameAs(owner));
+        }
+
+        [Test]
+        public void Diagnostics_Dispose_ClearsOwnedPublicationsAndIsIdempotent()
+        {
+            var diagnostics = new BattleSessionDiagnostics(
+                new BattleReplicationRuntime());
+            var jitter = new JitterBufferStatsSnapshot { DelayFrames = 3 };
+            var timeSync = new TimeSyncStatsSnapshot { Samples = 5 };
+            var timeSyncByWorld = new Dictionary<string, TimeSyncStatsSnapshot>
+            {
+                ["world-a"] = timeSync,
+            };
+
+            diagnostics.PublishJitterBuffer(jitter);
+            diagnostics.PublishTimeSync(timeSync, timeSyncByWorld);
+            diagnostics.InitializeConfirmedAuthority("world-a");
+            diagnostics.UpdateConfirmedAuthority(
+                10,
+                12,
+                13,
+                14,
+                15,
+                2,
+                new[] { "spawn", "hit" });
+            var authority = BattleFlowDebugProvider.ConfirmedAuthorityWorldStats;
+
+            Assert.That(BattleFlowDebugProvider.JitterBufferStats, Is.SameAs(jitter));
+            Assert.That(BattleFlowDebugProvider.TimeSyncStats, Is.SameAs(timeSync));
+            Assert.That(BattleFlowDebugProvider.TimeSyncStatsByWorld, Is.SameAs(timeSyncByWorld));
+            Assert.That(authority.WorldId, Is.EqualTo("world-a"));
+            Assert.That(authority.ConfirmedFrame, Is.EqualTo(10));
+            Assert.That(authority.RecentViewEvents, Is.EqualTo(new[] { "spawn", "hit" }));
+
+            diagnostics.Dispose();
+            diagnostics.Dispose();
+
+            Assert.That(BattleFlowDebugProvider.JitterBufferStats, Is.Null);
+            Assert.That(BattleFlowDebugProvider.TimeSyncStats, Is.Null);
+            Assert.That(BattleFlowDebugProvider.TimeSyncStatsByWorld, Is.Null);
+            Assert.That(BattleFlowDebugProvider.ConfirmedAuthorityWorldStats, Is.Null);
+        }
+
+        [Test]
+        public void Diagnostics_StaleOwnerDispose_DoesNotClearReplacementPublications()
+        {
+            var stale = new BattleSessionDiagnostics(new BattleReplicationRuntime());
+            var active = new BattleSessionDiagnostics(new BattleReplicationRuntime());
+            var staleJitter = new JitterBufferStatsSnapshot { DelayFrames = 1 };
+            var activeJitter = new JitterBufferStatsSnapshot { DelayFrames = 2 };
+            var staleTimeSync = new TimeSyncStatsSnapshot { Samples = 1 };
+            var activeTimeSync = new TimeSyncStatsSnapshot { Samples = 2 };
+            var staleByWorld = new Dictionary<string, TimeSyncStatsSnapshot>
+            {
+                ["stale"] = staleTimeSync,
+            };
+            var activeByWorld = new Dictionary<string, TimeSyncStatsSnapshot>
+            {
+                ["active"] = activeTimeSync,
+            };
+
+            stale.PublishJitterBuffer(staleJitter);
+            stale.PublishTimeSync(staleTimeSync, staleByWorld);
+            stale.InitializeConfirmedAuthority("stale");
+            active.PublishJitterBuffer(activeJitter);
+            active.PublishTimeSync(activeTimeSync, activeByWorld);
+            active.InitializeConfirmedAuthority("active");
+            var activeAuthority = BattleFlowDebugProvider.ConfirmedAuthorityWorldStats;
+
+            stale.Dispose();
+
+            Assert.That(BattleFlowDebugProvider.JitterBufferStats, Is.SameAs(activeJitter));
+            Assert.That(BattleFlowDebugProvider.TimeSyncStats, Is.SameAs(activeTimeSync));
+            Assert.That(BattleFlowDebugProvider.TimeSyncStatsByWorld, Is.SameAs(activeByWorld));
+            Assert.That(BattleFlowDebugProvider.ConfirmedAuthorityWorldStats, Is.SameAs(activeAuthority));
+
+            active.Dispose();
+        }
+
+        [Test]
+        public void Diagnostics_SeparateSessions_PublishIndependentSnapshots()
+        {
+            var first = new BattleSessionRuntime();
+            var second = new BattleSessionRuntime();
+            var firstJitter = new JitterBufferStatsSnapshot { DelayFrames = 4 };
+            var secondJitter = new JitterBufferStatsSnapshot { DelayFrames = 7 };
+
+            first.Diagnostics.PublishJitterBuffer(firstJitter);
+            second.Diagnostics.PublishJitterBuffer(secondJitter);
+
+            Assert.That(first.Diagnostics, Is.Not.SameAs(second.Diagnostics));
+            Assert.That(BattleFlowDebugProvider.JitterBufferStats, Is.SameAs(secondJitter));
+
+            first.Diagnostics.Dispose();
+
+            Assert.That(BattleFlowDebugProvider.JitterBufferStats, Is.SameAs(secondJitter));
+
+            second.Diagnostics.Dispose();
+            Assert.That(BattleFlowDebugProvider.JitterBufferStats, Is.Null);
+        }
+
+        [Test]
+        public void Diagnostics_HealthFacade_ReflectsReplicationState()
+        {
+            var replication = new BattleReplicationRuntime();
+            var diagnostics = new BattleSessionDiagnostics(replication);
+            var health = new MobaSynchronizationHealthSnapshot(
+                MobaSynchronizationHealthLevel.Degraded,
+                3,
+                2,
+                0,
+                1,
+                0,
+                0,
+                1,
+                default);
+            var report = new SyncHealthReport(
+                3,
+                1,
+                1,
+                1,
+                0,
+                0,
+                null,
+                null);
+
+            replication.SynchronizationHealth = health;
+            replication.SynchronizationHealthReport = report;
+
+            Assert.That(diagnostics.SynchronizationHealth.PressureScore, Is.EqualTo(3));
+            Assert.That(diagnostics.SynchronizationHealth.Level, Is.EqualTo(MobaSynchronizationHealthLevel.Degraded));
+            Assert.That(diagnostics.SynchronizationHealthReport, Is.SameAs(report));
         }
 
         [Test]
@@ -1688,6 +1856,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 Call("start-confirmed");
             }
 
+            public void DisposeReplayRecordWriter() => CleanupCall("record-writer");
             public void TryDestroyBattleWorlds() => CleanupCall("destroy-worlds");
             public void DisposeSnapshotRouting() => CleanupCall("snapshot-routing");
             public void DisposeConfirmedView() => CleanupCall("confirmed-view");

@@ -10,7 +10,6 @@ namespace AbilityKit.Game.Flow
         internal readonly BattleSessionSnapshotRuntime Snapshot = new BattleSessionSnapshotRuntime();
         internal readonly BattleSessionNetworkRuntime Net = new BattleSessionNetworkRuntime();
         internal readonly BattleSessionDispatcherRuntime Dispatchers = new BattleSessionDispatcherRuntime();
-        internal readonly BattleSessionReplayRuntime Replay = new BattleSessionReplayRuntime();
         internal readonly BattleSessionPhaseRuntime Phase = new BattleSessionPhaseRuntime();
         internal readonly BattleSessionGatewayRoomRuntime GatewayRoom = new BattleSessionGatewayRoomRuntime();
         internal readonly BattleSessionConfirmedWorldRuntime Confirmed = new BattleSessionConfirmedWorldRuntime();
@@ -21,7 +20,6 @@ namespace AbilityKit.Game.Flow
             Session = null;
             Snapshot.Reset();
             Net.Reset();
-            Replay.Reset();
             Confirmed.Reset();
             RemoteDriven.Reset();
         }

@@ -9,6 +9,7 @@ namespace AbilityKit.Game.Flow
         public readonly BattleContext Context;
         public readonly GameFlowDomain Flow;
         public readonly BattleSessionConfirmedWorldRuntime Handles;
+        public readonly BattleSessionDiagnostics Diagnostics;
         public readonly bool HasSession;
         public readonly float FixedDeltaSeconds;
         public readonly Func<WorldId, int> ResolveIdealFrameLimit;
@@ -19,6 +20,7 @@ namespace AbilityKit.Game.Flow
             BattleContext context,
             GameFlowDomain flow,
             BattleSessionConfirmedWorldRuntime handles,
+            BattleSessionDiagnostics diagnostics,
             bool hasSession,
             float fixedDeltaSeconds,
             Func<WorldId, int> resolveIdealFrameLimit,
@@ -28,6 +30,7 @@ namespace AbilityKit.Game.Flow
             Context = context;
             Flow = flow;
             Handles = handles;
+            Diagnostics = diagnostics;
             HasSession = hasSession;
             FixedDeltaSeconds = fixedDeltaSeconds;
             ResolveIdealFrameLimit = resolveIdealFrameLimit;
@@ -53,6 +56,7 @@ namespace AbilityKit.Game.Flow
             CreateInputRuntime(handles);
             CreateViewEventPipeline(options.Plan, handles, options.HasSession);
             ConfirmedAuthorityDebugStatsPublisher.Initialize(
+                options.Diagnostics,
                 ConfirmedAuthorityWorldId.Create(options.Plan));
         }
 

@@ -1039,12 +1039,14 @@
       "name": "runtime-performance-measurement",
       "level": "P2",
       "owner": "Runtime Platform",
-      "description": "Informational package and capability performance measurement for Attributes, Modifiers, Record, Pipeline, and Triggering with reusable benchmark contracts and JSON artifacts.",
+      "description": "Informational package and capability performance measurement for Attributes, Modifiers, Record, Targeting, EventDispatcher, Pipeline, and Triggering with reusable benchmark contracts and JSON artifacts.",
       "scope": [
         "runtime-performance",
         "attributes",
         "modifiers",
         "record",
+        "targeting",
+        "event-dispatcher",
         "pipeline",
         "triggering",
         "benchmark-contracts"

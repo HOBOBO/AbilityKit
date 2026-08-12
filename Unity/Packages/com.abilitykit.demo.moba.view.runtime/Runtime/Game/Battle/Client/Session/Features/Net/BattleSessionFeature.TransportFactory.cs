@@ -487,9 +487,11 @@ namespace AbilityKit.Game.Flow
                 lastAuthoritativeFrame);
         }
 
-        public MobaSynchronizationHealthSnapshot SynchronizationHealth => _synchronizationHealth;
+        public MobaSynchronizationHealthSnapshot SynchronizationHealth =>
+            _runtime.Diagnostics.SynchronizationHealth;
 
-        public SyncHealthReport SynchronizationHealthReport => _synchronizationHealthReport;
+        public SyncHealthReport SynchronizationHealthReport =>
+            _runtime.Diagnostics.SynchronizationHealthReport;
 
         private void TickRemoteInterpolation(float deltaTime)
         {

@@ -54,6 +54,7 @@ namespace AbilityKit.Game.Flow
         public void InvokeReplaySetupPipeline() => _pipeline.InvokeReplaySetupPipeline();
         public void StartRemoteDrivenLocalWorld() => _resources.StartRemoteDrivenLocalWorld();
         public void StartConfirmedAuthorityWorld() => _resources.StartConfirmedAuthorityWorld();
+        public void DisposeReplayRecordWriter() => _resources.DisposeReplayRecordWriter();
         public void TryDestroyBattleWorlds() => _resources.TryDestroyBattleWorlds();
         public void DisposeSnapshotRouting() => _resources.DisposeSnapshotRouting();
         public void DisposeConfirmedView() => _resources.DisposeConfirmedView();
@@ -78,6 +79,7 @@ namespace AbilityKit.Game.Flow
         void ISessionPipelinePort.InvokeReplaySetupPipeline() => InvokeReplaySetupPipeline();
         void ISessionRuntimeResourcesPort.StartRemoteDrivenLocalWorld() => StartRemoteDrivenLocalWorld();
         void ISessionRuntimeResourcesPort.StartConfirmedAuthorityWorld() => StartConfirmedAuthorityWorld();
+        void ISessionRuntimeResourcesPort.DisposeReplayRecordWriter() => _runtime.Replay.DisposeRecordWriter();
         void ISessionRuntimeResourcesPort.TryDestroyBattleWorlds() => TryDestroyBattleWorlds();
         void ISessionRuntimeResourcesPort.DisposeSnapshotRouting() => DisposeSnapshotRouting();
         void ISessionRuntimeResourcesPort.DisposeConfirmedView() => DisposeConfirmedView();

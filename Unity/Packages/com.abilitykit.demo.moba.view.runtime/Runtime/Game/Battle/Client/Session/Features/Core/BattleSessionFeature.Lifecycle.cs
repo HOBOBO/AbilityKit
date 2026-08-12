@@ -51,30 +51,41 @@ namespace AbilityKit.Game.Flow
 
         public void OnDetach(in GamePhaseContext ctx)
         {
+            var detachContext = ctx;
             if (ReferenceEquals(Battle.Replay.BattleReplayControlProvider.Current, this))
             {
                 Battle.Replay.BattleReplayControlProvider.Current = null;
             }
 
-            _subFeatureHost?.Detach(new FeatureModuleContext<BattleSessionFeature>(ctx, this));
-
-            _replayOwner.Stop();
-            StopSession();
-
-            DisposeRemoteInterpolation();
-
-            ResetHandles();
-
-            _state.ResetSessionFlags();
-
-            _eventsCtrl.OnDetach(this);
-
-            SessionContextBinder.ClearSession(_ctx);
-            ReleaseAssetLease();
+            TryDetachCleanup(
+                () => _subFeatureHost?.Detach(new FeatureModuleContext<BattleSessionFeature>(detachContext, this)),
+                "sub-features");
+            TryDetachCleanup(_runtime.Spectator.Stop, "spectator session");
+            TryDetachCleanup(_runtime.Replay.Stop, "replay session");
+            TryDetachCleanup(StopSession, "battle session");
+            TryDetachCleanup(DisposeRemoteInterpolation, "remote interpolation");
+            TryDetachCleanup(ResetHandles, "session handles");
+            TryDetachCleanup(_state.ResetSessionFlags, "session flags");
+            TryDetachCleanup(() => _eventsCtrl.OnDetach(this), "session events");
+            TryDetachCleanup(() => SessionContextBinder.ClearSession(_ctx), "session context");
+            TryDetachCleanup(_runtime.Diagnostics.Dispose, "session diagnostics");
+            TryDetachCleanup(ReleaseAssetLease, "asset lease");
 
             _ctx = null;
             _flow = null;
             _phaseCtx = default;
+        }
+
+        private static void TryDetachCleanup(Action cleanup, string resourceName)
+        {
+            try
+            {
+                cleanup();
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, $"[BattleSessionFeature] Failed to release {resourceName} during detach");
+            }
         }
 
         internal void AdoptAssetLease(IBattleAssetLease lease)
@@ -115,7 +126,7 @@ namespace AbilityKit.Game.Flow
         {
             Hooks?.PreTick.Invoke(deltaTime);
             InvokeSubFeaturesPreTick(ctx, deltaTime);
-            _replayOwner.Tick(deltaTime);
+            _runtime.Replay.Tick(deltaTime);
 
             if (_session == null) return;
 

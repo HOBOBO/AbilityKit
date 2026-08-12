@@ -32,8 +32,7 @@ namespace AbilityKit.Game.Flow
         {
             _runtime.GatewayRoom.Dispose();
             _state.GatewayRoomTimeSync.Reset();
-            BattleFlowDebugProvider.TimeSyncStats = null;
-            BattleFlowDebugProvider.TimeSyncStatsByWorld = null;
+            _runtime.Diagnostics.ClearTimeSync();
         }
 
         private void PublishGatewayClockSample(
@@ -45,16 +44,18 @@ namespace AbilityKit.Game.Flow
             state.ClockOffsetSecondsEwma = estimate.ClockOffsetSecondsEwma;
             state.RttSecondsEwma = estimate.RttSecondsEwma;
             state.Samples = estimate.Samples;
-            BattleFlowDebugProvider.TimeSyncStats = BuildCurrentTimeSyncStats(
+            var current = BuildCurrentTimeSyncStats(
                 options.OpCode,
                 options.IntervalMs,
                 options.Alpha,
                 options.TimeoutMs);
-            UpdateTimeSyncStatsByWorld(
+            var byWorld = BuildTimeSyncStatsByWorld(
+                current,
                 options.OpCode,
                 options.IntervalMs,
                 options.Alpha,
                 options.TimeoutMs);
+            _runtime.Diagnostics.PublishTimeSync(current, byWorld);
         }
     }
 }

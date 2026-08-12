@@ -117,8 +117,8 @@ entity.hasTransform == true
 
 | 命名空间/位置 | 特征 | 本文用途 |
 |---------------|------|----------|
-| `AbilityKit.Core.Snapshots.Routing` | 通用、无 session，外部调用 `Feed()` | 新的通用快照路由与 confirmed view |
-| `AbilityKit.Game.Flow.Snapshot` | 持有 `BattleLogicSession`，可自动订阅 session frame | 本文的 MOBA 客户端 Battle Pipeline |
+| `AbilityKit.Core.Snapshots.Routing` | 通用、无 session，外部调用 `Feed()` | confirmed-view 快照装配的唯一 dispatcher 类型 |
+| `AbilityKit.Game.Flow.Snapshot` | 持有 `BattleLogicSession`，可自动订阅 session frame | 旧 MOBA 客户端 Battle Pipeline；不可传给 confirmed-view 工厂 |
 | MOBA share flow snapshot | 面向 share 层接口 | 旧/共享流程适配，不与前两者视为同一实例 |
 
 阅读源码和日志时必须同时确认命名空间与构造函数。仅写“FrameSnapshotDispatcher”不足以说明实际管线。
@@ -212,7 +212,7 @@ Pipeline Dispose 只取消其 `SnapshotReceived` 订阅；各 stage subscription
 - typed handler 仍有逐个异常隔离；
 - 顶层事件仍没有隔离。
 
-在 confirmed view 或框架级 snapshot pipeline 中，应以通用 dispatcher 的行为为准，不能套用 MOBA view dispatcher 的自动订阅与日志语义。
+在 confirmed view 或框架级 snapshot pipeline 中，应以通用 dispatcher 的行为为准，不能套用 MOBA view dispatcher 的自动订阅与日志语义。`ConfirmedViewSnapshotRuntime`、其 factory 和调用方字段必须统一声明为 `AbilityKit.Core.Snapshots.Routing.FrameSnapshotDispatcher`；同名的 `AbilityKit.Game.Flow.Snapshot.FrameSnapshotDispatcher` 不是兼容替代，即使二者都公开 `Feed()`。
 
 ## 10. 远程驱动与预测模块
 
@@ -284,11 +284,11 @@ WorldAutoStartModule
 1. 停止继续接收/Feed 新 envelope；
 2. 释放 Pipeline stage 和 typed route subscriptions；
 3. Dispose `SnapshotPipeline`，取消 `SnapshotReceived`；
-4. Dispose MOBA view dispatcher，取消 session `FrameReceived`；
-5. 销毁 remote-driven world；
-6. 释放 confirmed view/world 与其他 session resources。
+4. 若使用旧 MOBA Battle Pipeline，Dispose MOBA view dispatcher 并取消 session `FrameReceived`；
+5. 释放使用 Core dispatcher 的 confirmed-view runtime；
+6. 销毁 remote-driven world 与其他 session resources。
 
-只销毁 world 不会自动解除 view dispatcher 对 `BattleLogicSession` 的事件订阅；只 Dispose dispatcher 也不会销毁逻辑 world。
+只销毁 world 不会自动解除旧 MOBA view dispatcher 对 `BattleLogicSession` 的事件订阅；只 Dispose dispatcher 也不会销毁逻辑 world。confirmed-view 的 Core dispatcher 不持有 session 订阅，其 teardown 不应假设存在 MOBA dispatcher 的自动解绑行为。
 
 ## 14. 失败诊断矩阵
 
@@ -328,6 +328,7 @@ WorldAutoStartModule
 | 通用 `FrameSnapshotDispatcher` 源码 | route payload type 冲突会抛异常；decoder false 时停止 route；typed handler 逐个隔离异常；顶层事件直接 Invoke | 这是实现分支核对，不是自动回归结果 |
 | 通用 `SnapshotPipeline` 源码 | stage 按 order 升序；同 order 保持注册顺序；stage 异常隔离；Dispose 解除 `SnapshotReceived` | 尚无专项测试固定 decoder false、类型冲突、同 order、异常继续和 Dispose 后不再接收 |
 | MOBA view `FrameSnapshotDispatcher` 源码 | session 自动订阅可关闭；Dispose 会解除 `BattleLogicSession.FrameReceived` | 尚无直接测试证明 teardown 后不再收到 session frame |
+| confirmed-view 编译契约 | confirmed-view runtime、factory 与调用方统一接收 Core routing dispatcher；相关项目编译通过 | 不证明 decoder、handler、stage 和视觉结果的运行时组合 |
 
 这里不能引用 Shooter 的 snapshot 导入、恢复或表现测试作为 MOBA 证据。通用 package 的行为可以作为底层契约来源，但 MOBA 包装器的 session 绑定、warning 和生命周期仍需自己的测试。
 
@@ -356,8 +357,8 @@ WorldAutoStartModule
 | Snapshot Router 与 health | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaSnapshotRouter.cs` |
 | Snapshot 输出契约 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/IMobaSnapshotEmitter.cs` |
 | Transform emitter | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Actor/MobaActorTransformSnapshotService.cs` |
-| 通用 Dispatcher | `Unity/Packages/com.abilitykit.world.snapshot/Runtime/SnapshotRouting/FrameSnapshotDispatcher.cs` |
-| MOBA view Dispatcher | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/SnapshotRouting/FrameSnapshotDispatcher.cs` |
+| 通用/Core Dispatcher（confirmed view 使用） | `Unity/Packages/com.abilitykit.world.snapshot/Runtime/SnapshotRouting/FrameSnapshotDispatcher.cs` |
+| 旧 MOBA session Dispatcher（Battle Pipeline 使用） | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Snapshot/FrameSnapshotDispatcher.cs` |
 | 通用 Snapshot Pipeline | `Unity/Packages/com.abilitykit.world.snapshot/Runtime/SnapshotRouting/SnapshotPipeline.cs` |
 | MOBA confirmed-view 快照装配 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/ConfirmedViewSnapshotRuntime.cs` |
 | Share 层 Dispatcher | `Unity/Packages/com.abilitykit.demo.moba.share/Runtime/Game/Flow/Battle/Snapshot/FrameSnapshotDispatcher.cs` |
@@ -370,8 +371,8 @@ WorldAutoStartModule
 
 ## 17. 版本与验证基线
 
-- 文档核对日期：2026-08-02。
+- 文档核对日期：2026-08-11。
 - 当前事实基线：MOBA prediction history 以 `RemoteDrivenRuntimeModuleFactory.PredictionRollbackHistoryFrames = 600` 及对应 Unity 单元测试为准；本文不再沿用旧的 240 帧描述。
 - 历史执行记录：2026-08-02 的 MOBA .NET Release 测试记录为 232/232 通过，执行过程存在警告。该记录只说明当时对应测试集的结果，不代表本文列出的 Unity 测试或待补边界已在本轮执行。
-- 本轮验证范围：重新核对上述生产源码、测试入口及断言，未重新运行 .NET 或 Unity 测试。因此“直接证明”表示仓库中已有对应自动测试，不表示本轮获得了新的通过结果。
+- 本轮验证范围：重新核对上述生产源码、测试入口及断言；`AbilityKit.Demo.Moba.Runtime.csproj` 与 `AbilityKit.Game.UnitTests.csproj` 编译为 0 errors，并完成 `MobaTriggerPlanPayloadCompatibilityTests` 21/21、`MobaRollbackProviderTests` 5/5 定向验证；文档更新阶段未重新运行全量 Unity 测试。因此“直接证明”仍只按具体被测对象解释，不由编译或定向 fixture 扩大覆盖。
 - 证据使用原则：Shooter 测试、类型存在、编译成功和单个 Smoke 不向上推导为 MOBA 快照、预测回滚或表现恢复的完整验收。

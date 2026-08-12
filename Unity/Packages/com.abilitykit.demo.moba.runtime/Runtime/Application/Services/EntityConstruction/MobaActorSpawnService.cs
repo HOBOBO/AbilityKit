@@ -12,6 +12,13 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         bool TrySpawn(in MobaActorSpawnRequest request, out MobaActorSpawnResult result);
     }
 
+    public interface IMobaActorSpawnTransactionService : IService
+    {
+        bool TrySpawnUnpublished(in MobaActorSpawnRequest request, out MobaActorSpawnResult result);
+        void Publish(in MobaActorSpawnResult result);
+        void Rollback(in MobaActorSpawnResult result);
+    }
+
     public sealed class MobaActorSpawnRequest
     {
         public MobaActorBuildSpec Spec;
@@ -36,14 +43,30 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         public readonly global::ActorEntity Entity;
         public readonly MobaActorBuildSpec Spec;
         public readonly string Error;
+        public readonly bool RegisteredActor;
+        public readonly bool RegisteredEntityManager;
 
         public MobaActorSpawnResult(bool success, int actorId, global::ActorEntity entity, in MobaActorBuildSpec spec, string error)
+            : this(success, actorId, entity, in spec, error, success, success)
+        {
+        }
+
+        public MobaActorSpawnResult(
+            bool success,
+            int actorId,
+            global::ActorEntity entity,
+            in MobaActorBuildSpec spec,
+            string error,
+            bool registeredActor,
+            bool registeredEntityManager)
         {
             Success = success;
             ActorId = actorId;
             Entity = entity;
             Spec = spec;
             Error = error;
+            RegisteredActor = registeredActor;
+            RegisteredEntityManager = registeredEntityManager;
         }
 
         public static MobaActorSpawnResult Failed(string error)
@@ -89,7 +112,8 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 
     [WorldService(typeof(MobaActorSpawnService))]
     [WorldService(typeof(IMobaActorSpawnService))]
-    public sealed class MobaActorSpawnService : IMobaActorSpawnService
+    [WorldService(typeof(IMobaActorSpawnTransactionService))]
+    public sealed class MobaActorSpawnService : IMobaActorSpawnService, IMobaActorSpawnTransactionService
     {
         [WorldInject(required: false)] private global::Entitas.IContexts _contexts = null;
         [WorldInject(required: false)] private ActorIdAllocator _actorIds = null;
@@ -99,6 +123,19 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         private MobaActorSpawnRegistrar _registrar;
 
         public bool TrySpawn(in MobaActorSpawnRequest request, out MobaActorSpawnResult result)
+        {
+            return TrySpawnCore(in request, publishSpawn: true, out result);
+        }
+
+        public bool TrySpawnUnpublished(in MobaActorSpawnRequest request, out MobaActorSpawnResult result)
+        {
+            return TrySpawnCore(in request, publishSpawn: false, out result);
+        }
+
+        private bool TrySpawnCore(
+            in MobaActorSpawnRequest request,
+            bool publishSpawn,
+            out MobaActorSpawnResult result)
         {
             if (request == null)
             {
@@ -126,6 +163,9 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             }
 
             global::ActorEntity entity = null;
+            var registrationCompleted = false;
+            var registeredActor = false;
+            var registeredEntityManager = false;
             try
             {
                 var built = ActorSpawnPipeline.BuildActor(
@@ -142,30 +182,110 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 }
 
                 MobaActorSpawnPostSetupApplier.Apply(entity, in request.PostSetup);
-                var publishSpawn = CreateRegistrar().Register(
+                var registeredInEntityManager = CreateRegistrar().Register(
                     entity,
                     in spec,
                     request.RegisterActor,
                     request.RegisterEntityManager,
                     request.RegisterEntityManagerFromEntity);
-                if (publishSpawn)
+                registrationCompleted = true;
+                registeredActor = request.RegisterActor &&
+                    _registry != null &&
+                    _registry.TryGetRegistered(spec.Info.ActorId, out var actorRegistration) &&
+                    ReferenceEquals(actorRegistration, entity);
+                registeredEntityManager = request.RegisterEntityManager &&
+                    _entities != null &&
+                    _entities.TryGetActorEntity(spec.Info.ActorId, out var entityRegistration) &&
+                    ReferenceEquals(entityRegistration, entity);
+                if (publishSpawn && registeredInEntityManager && registeredEntityManager)
                 {
                     _entities.PublishSpawn(entity);
                 }
 
-                result = new MobaActorSpawnResult(true, spec.Info.ActorId, entity, in spec, null);
+                result = new MobaActorSpawnResult(
+                    true,
+                    spec.Info.ActorId,
+                    entity,
+                    in spec,
+                    null,
+                    registeredActor,
+                    registeredEntityManager);
                 return true;
             }
             catch (Exception ex)
             {
-                CreateRegistrar().Unregister(
-                    spec.Info.ActorId,
-                    out _,
-                    publishDespawn: false);
+                if (registrationCompleted)
+                {
+                    RollbackRegistration(
+                        spec.Info.ActorId,
+                        entity,
+                        registeredActor,
+                        registeredEntityManager);
+                }
                 ActorSpawnPipeline.DestroyBuiltEntity(entity);
                 Log.Exception(ex, $"[MobaActorSpawnService] spawn failed. kind={spec.Info.Kind} actorId={spec.Info.ActorId} sourceKind={spec.SourceKind} sourceId={spec.SourceId}");
                 result = MobaActorSpawnResult.Failed(ex.Message);
                 return false;
+            }
+        }
+
+        public void Publish(in MobaActorSpawnResult result)
+        {
+            if (!result.Success ||
+                !result.RegisteredEntityManager ||
+                result.Entity == null ||
+                _entities == null) return;
+            if (_entities.TryGetActorEntity(result.ActorId, out var registered) &&
+                ReferenceEquals(registered, result.Entity))
+            {
+                _entities.PublishSpawn(result.Entity);
+            }
+        }
+
+        public void Rollback(in MobaActorSpawnResult result)
+        {
+            if (result.ActorId <= 0 && result.Entity == null) return;
+
+            try
+            {
+                RollbackRegistration(
+                    result.ActorId,
+                    result.Entity,
+                    result.RegisteredActor,
+                    result.RegisteredEntityManager);
+            }
+            finally
+            {
+                ActorSpawnPipeline.DestroyBuiltEntity(result.Entity);
+            }
+        }
+
+        private void RollbackRegistration(
+            int actorId,
+            global::ActorEntity expectedEntity,
+            bool registeredActor,
+            bool registeredEntityManager)
+        {
+            if (registeredActor && registeredEntityManager)
+            {
+                CreateRegistrar().Unregister(actorId, out _, publishDespawn: false);
+                return;
+            }
+
+            if (registeredEntityManager && _entities != null)
+            {
+                if (_entities.TryGetActorEntity(actorId, out var entityRegistration) &&
+                    ReferenceEquals(entityRegistration, expectedEntity))
+                {
+                    _entities.UnregisterSilently(actorId, out _);
+                }
+            }
+
+            if (registeredActor && _registry != null &&
+                _registry.TryGetRegistered(actorId, out var actorRegistration) &&
+                ReferenceEquals(actorRegistration, expectedEntity))
+            {
+                _registry.Unregister(actorId);
             }
         }
 

@@ -78,7 +78,7 @@ flowchart TB
 |------|------|----------|
 | `ExecuteDirectTrigger<TPayload>` | 技能、阶段事件、投射物命中等一次性触发 | 校验 triggerId，记录 direct stats，调用 effect execution |
 | `ApplyOwnerBoundTriggers` | Buff、被动、光环等绑定到 owner 的触发计划 | 校验 ownerKey，记录 owner apply stats，调用订阅服务调和 |
-| `StopOwnerBoundTriggers` | owner 生命周期结束、Buff 移除、被动失效 | 停止 ownerKey 下全部订阅并统计 stop |
+| `StopOwnerBoundTriggers` | owner 生命周期结束、Buff 移除、被动失效 | 停止 ownerKey 下全部订阅并统计 stop；不因此获得结束同值 trace context 的权限 |
 | `CopyActiveOwnerKeys` | 诊断或校验当前活跃 owner-bound 触发器 | 从订阅服务复制活跃 ownerKey |
 
 执行网关还内建诊断计数：
@@ -131,6 +131,8 @@ sequenceDiagram
 7. `RemoveStaleRegistrations` 释放本次 desired 列表中不再出现的旧订阅；
 8. `OnDeinit` 停止全部 ownerKey，防止世界销毁后事件仍回调。
 
+`ownerKey` 是 subscription、gate 与 stop 的路由身份，不是 trace lifecycle ownership。数值相同也不能据此推断订阅服务或调用方拥有对应 trace；trace 只能由实际创建并持有其生命周期记录的服务结束。例如 `MobaPassiveSkillLifecycleService.ReleaseAllOwnedPassiveContexts` 只收集服务自身 `_ownerKeysByActor` 中追踪的 passive root，再结束这些已拥有上下文。
+
 ```mermaid
 flowchart TD
     A[ApplyTriggers ownerKey + triggerIds] --> B{triggerIds empty?}
@@ -168,7 +170,7 @@ flowchart TD
 - Execute 阶段再次防御，避免 Evaluate 与 Execute 之间状态变化；
 - Execute 成功后调用 `Complete`。
 
-这使 owner-bound 触发器适合表达“被动技能触发一次后进入内部状态”的规则，而不是把这类状态散落到 Action 模块里。
+这使 owner-bound 触发器适合表达“被动技能触发一次后进入内部状态”的规则，而不是把这类状态散落到 Action 模块里。`Complete` 只提交 gate 状态，不代表完成或结束 owner 对应的 trace。
 
 ## 6. Stage Trigger 与持续效果推进
 
@@ -338,6 +340,7 @@ MOBA Trigger、Validation 与 Presentation Cue 覆盖面较宽，以下主题适
 | owner-bound 订阅 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs` |
 | owner-bound gate | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaOwnerBoundTriggerGateService.cs` |
 | gate 接口 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/IMobaOwnerBoundTriggerGate.cs` |
+| passive trace ownership | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Passive/MobaPassiveSkillLifecycleService.cs` |
 | stage trigger | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaStageTriggerService.cs` |
 | effects step system | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Effects/MobaEffectsStepSystem.cs` |
 | runtime validation | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaRuntimeValidation.cs` |
@@ -345,3 +348,7 @@ MOBA Trigger、Validation 与 Presentation Cue 覆盖面较宽，以下主题适
 | context integrity validator | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaContextIntegrityRuntimeValidator.cs` |
 | cue factory | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Cue/MobaPresentationCueFactory.cs` |
 | presentation cue | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Cue/MobaPresentationTriggerCue.cs` |
+
+---
+
+*文档版本：v1.1 | 状态：Trigger 路由、生命周期所有权与表现边界 | 最后更新：2026-08-11 | 验证基线：`MobaTriggerPlanPayloadCompatibilityTests` 21/21 通过；本轮文档更新未重新执行全量测试*

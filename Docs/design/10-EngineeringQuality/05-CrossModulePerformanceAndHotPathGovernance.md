@@ -1,6 +1,6 @@
 # 10.5 跨模块性能与热路径治理
 
-> 本文定义 AbilityKit 跨模块热路径的识别、测量、基线、预算、回归判断和门禁晋升规则。当前仓库已经存在 Shooter 场景 benchmark，以及 Attributes、Modifiers、Record、Pipeline、Triggering 共用的运行时测量、JSON artifact 和 P2 informational gate，但尚未建立覆盖全框架的统一性能预算或通用性能阻断门禁。本文既记录现状，也规定后续把场景 benchmark 晋升为公司级治理能力所需的证据。
+> 本文定义 AbilityKit 跨模块热路径的识别、测量、基线、预算、回归判断和门禁晋升规则。当前仓库已经存在 Shooter 场景 benchmark，以及 Attributes、Modifiers、Record、Targeting、EventDispatcher、Pipeline、Triggering 共用的运行时测量、JSON artifact 和 P2 informational gate，但尚未建立覆盖全框架的统一性能预算或通用性能阻断门禁。本文既记录现状，也规定后续把场景 benchmark 晋升为公司级治理能力所需的证据。
 
 ---
 
@@ -41,17 +41,19 @@
 | P1 | 契约阻断 | 可承载稳定、低噪声的关键性能契约，但当前未配置通用性能 gate |
 | P2 | 回归基线 | 已接入 `runtime-performance-measurement` informational benchmark；当前只阻断契约、执行和 artifact 失败，不按性能数值阻断 |
 
-因此当前准确表述是：“仓库已有可复用测量基础设施、Attributes/Modifiers/Record package 与 Pipeline/Triggering capability 场景基线和分层门禁，但没有框架级通用性能预算门禁。”
+因此当前准确表述是：“仓库已有可复用测量基础设施、Attributes/Modifiers/Record/Targeting package 与 EventDispatcher/Pipeline/Triggering capability 场景基线和分层门禁，但没有框架级通用性能预算门禁。”
 
 ### 2.3 Runtime package 与 capability 首批基线
 
 通用测量契约位于 `src/AbilityKit.Benchmarking`，场景入口位于 `src/AbilityKit.Runtime.Benchmarks`，契约与场景正确性测试位于 `src/AbilityKit.Runtime.Benchmarks.Tests`。artifact schema 为 `abilitykit.runtime-benchmark.v1`，统一记录环境、配置、workload、原始样本、mean/median/P95/P99/max、当前线程托管分配、吞吐和确定性摘要。初始化、iteration setup、验证、清理和 JSON 序列化均在测量区间外。
 
-首批稳定 ID：
+当前稳定 ID：
 
 - `attributes.recompute.modifiers-{1|16|64}`：修改基础值后读取脏 Attribute 的重算成本，以 dirty-recompute 归一化；注册、修改器构造和预热位于测量区间外。
 - `modifiers.compose-sorted.count-{4|32|128}`：预排序固定值修改器的组合成本，以 modifier-composition 归一化；排序位于测量区间外。
 - `record.id-hash.utf8.length-{16|64|256}`：Record 稳定 ID 的 UTF-8 FNV-1a 计算成本，以 name-hash 归一化。实现直接把 UTF-16 code point 混合为 UTF-8 字节，兼容代理对与非法代理项 fallback，稳态不创建中间 byte array。
+- `targeting.streaming-top-k.candidates-{128|1024|4096}.top-{8|16|32}`：预热对象池后执行完整候选遍历、评分和 descending Streaming Top-K，以 candidate-evaluation 归一化；查询、候选数组、结果容量和 selector 构造位于测量区间外。
+- `event-dispatcher.publish.fanout-{1|64|256}`：固定整数 event ID 和持久订阅下的同步派发，以 handler-invocation 归一化；订阅注册位于测量区间外，参数自动回收关闭，从而不混入装箱和 pool release 分支。
 - `pipeline.synchronous.phases-{4|32|64}`：Run 创建、阶段实例隔离、同步完成和清理的端到端成本，以 phase 归一化。
 - `pipeline.active-runs.count-{1000|5000}`：跨帧活跃 Run 的 Tick 成本，以 run-tick 归一化。
 - `triggering.dispatch.immediate.control-implicit.fanout-{1|64|256}`：即时派发并由 Runner 创建 control。
@@ -70,9 +72,11 @@ tools/run_test_gate.ps1 -Gate runtime-performance-measurement -Configuration Rel
 
 `scope=package` 表示单一框架包内可独立解释的微基准；`scope=capability` 表示由一个或多个框架模块组成的能力链路。该分类写入 artifact workload，并可通过 `-Scope` 过滤。示例专项不并入通用 Runtime catalog，而是使用独立 benchmark 工程和报告，例如 Shooter AOI/LOD。
 
-2026-07-27 的首轮本地 Release 测量只用于验证口径，不是批准预算。结果显示 1,000/5,000 active Pipeline runs 的 Tick 路径保持零当前线程托管分配且单位成本同阶；Triggering 默认空 Cue 路径移除无效上下文构造后，复用 control 的 64/256 fanout 均保持零当前线程托管分配，隐式 control 表现为每事件固定分配并随 fanout 摊薄。同步 Pipeline Start 仍包含 Run 和独立 phase 实例的生命周期分配，需要在后续历史趋势中继续观察，不能与纯 Tick 成本混为一项预算。Attributes dirty recompute、Modifiers pre-sorted composition 和 Record ID hash 是后续新增的 package 级样板；Record hash 已通过契约测试确认 UTF-8 兼容和稳态零当前线程托管分配，但这些 workload 仍需经过 nightly 积累后才能形成趋势结论。
+2026-07-27 的首轮本地 Release 测量只用于验证口径，不是批准预算。结果显示 1,000/5,000 active Pipeline runs 的 Tick 路径保持零当前线程托管分配且单位成本同阶；Triggering 默认空 Cue 路径移除无效上下文构造后，复用 control 的 64/256 fanout 均保持零当前线程托管分配，隐式 control 表现为每事件固定分配并随 fanout 摊薄。同步 Pipeline Start 仍包含 Run 和独立 phase 实例的生命周期分配，需要在后续历史趋势中继续观察，不能与纯 Tick 成本混为一项预算。Attributes dirty recompute、Modifiers pre-sorted composition、Record ID hash、Targeting Streaming Top-K 和 EventDispatcher persistent publish 是后续新增样板；Record hash 已通过契约测试确认 UTF-8 兼容和稳态零当前线程托管分配，但这些 workload 仍需经过 nightly 积累后才能形成趋势结论。
 
-FrameRecord 优化二进制 codec 当前公开边界绑定文件路径，内部 track 编解码也绑定 `BinaryReader`/`BinaryWriter`。现阶段不把文件系统耗时包装成 CPU 微基准；H2 codec workload 应在生产代码提供 stream/memory 核心后，分别记录 encode/decode CPU、payload bytes、当前线程托管分配与文件 I/O 端到端耗时，避免口径混淆。
+2026-08-11 的第三批小样本同样只用于验证口径：Targeting Streaming Top-K 在 128/1,024 candidates 下分别约为 0.92/0.11 B per candidate-evaluation，对应每次查询近似固定的 117 B 当前线程托管分配；EventDispatcher 单订阅整数 ID 派发为 0 B per handler-invocation，64 fanout 的 snapshot 派发约为 0.89 B per handler-invocation，对应每事件约 57 B。该结果用于暴露查询池和多订阅 snapshot 路径的优化候选，不构成零分配声明或批准预算。
+
+FrameRecord 优化二进制 codec 当前公开边界绑定文件路径，内部 track 编解码也绑定 `BinaryReader`/`BinaryWriter`。现阶段不把文件系统耗时包装成 CPU 微基准；H2 codec workload 应在生产代码提供 stream/memory 核心后，分别记录 encode/decode CPU、payload bytes、当前线程托管分配与文件 I/O 端到端耗时，避免口径混淆。World Snapshot 当前可用的纯内存入口主要是 opCode 路由、解码和有序阶段派发，与已覆盖的 Pipeline/EventDispatcher 调度成本高度重叠；在形成快照构造、内存编解码或 rollback ring-buffer 的独立 workload 前，不为追求模块数量重复加入 catalog。
 
 ---
 
@@ -371,15 +375,16 @@ Artifact schema 变化属于行为契约变化。历史基线无法读取时，�
 ## 12. 当前落地顺序
 
 1. 已保留 Shooter benchmark 为明确标注环境的示例专项基线样板。
-2. 已落地 Attributes/Modifiers/Record package 和 Pipeline/Triggering capability 两类稳定 workload；继续补齐 Targeting、EventDispatcher、Snapshot/Record codec。
-3. 已建立 `abilitykit.runtime-benchmark.v1` 最小 artifact 和结果状态；新增模块应复用该契约，并通过 `scope` 明确归属。
-4. 已在 nightly/manual P2 中接入 `runtime-performance-measurement` informational 测量。
-5. 优先覆盖 H0/H1 和高分配 H2 路径，避免仅按包数量追求形式覆盖率。
-6. 收集至少一个稳定周期的噪声、趋势和失败数据。
-7. 由 owner 与采用项目批准预算。
-8. 先晋升低噪声 P2 阻断，再评估少量 P1 性能契约。
+2. 已落地 Attributes/Modifiers/Record/Targeting package 和 EventDispatcher/Pipeline/Triggering capability 两类稳定 workload。
+3. 下一批优先提取 Snapshot/Record codec 的独立 CPU-only 内存边界，并评估 Modifiers pre-sorted composition 已观测到的稳定分配热点；不重复测量仅做路由或派发的 Snapshot 包装层。
+4. 已建立 `abilitykit.runtime-benchmark.v1` 最小 artifact 和结果状态；新增模块应复用该契约，并通过 `scope` 明确归属。
+5. 已在 nightly/manual P2 中接入 `runtime-performance-measurement` informational 测量。
+6. 优先覆盖 H0/H1 和高分配 H2 路径，避免仅按包数量追求形式覆盖率。
+7. 收集至少一个稳定周期的噪声、趋势和失败数据。
+8. 由 owner 与采用项目批准预算。
+9. 先晋升低噪声 P2 阻断，再评估少量 P1 性能契约。
 
-在完成第 6 步前，对外只能表述“已有测量/基线”，不能表述“已有统一性能门禁”。
+在完成第 7 步前，对外只能表述“已有测量/基线”，不能表述“已有统一性能门禁”。
 
 ---
 
@@ -403,8 +408,8 @@ Artifact schema 变化属于行为契约变化。历史基线无法读取时，�
 
 ## 14. 治理结论
 
-性能治理不是给每个模块贴上“高性能”标签，而是把工作负载、测量口径、基线、预算和阻断策略逐层建立。AbilityKit 当前已有统一测量 artifact、Attributes/Modifiers/Record package、Pipeline/Triggering capability 首批 workload 和 informational CI 基础，但框架级性能治理仍需扩展模块覆盖、积累稳定历史并完成预算审批。任何性能声明都必须限定场景和证据；任何优化都不能以破坏生命周期、稳定顺序、确定性、恢复能力或可观测性为代价。
+性能治理不是给每个模块贴上“高性能”标签，而是把工作负载、测量口径、基线、预算和阻断策略逐层建立。AbilityKit 当前已有统一测量 artifact、Attributes/Modifiers/Record/Targeting package、EventDispatcher/Pipeline/Triggering capability workload 和 informational CI 基础，但框架级性能治理仍需扩展独立热路径覆盖、积累稳定历史并完成预算审批。任何性能声明都必须限定场景和证据；任何优化都不能以破坏生命周期、稳定顺序、确定性、恢复能力或可观测性为代价。
 
 ---
 
-*文档版本：v1.2 | 最后更新：2026-08-10*
+*文档版本：v1.3 | 最后更新：2026-08-11*

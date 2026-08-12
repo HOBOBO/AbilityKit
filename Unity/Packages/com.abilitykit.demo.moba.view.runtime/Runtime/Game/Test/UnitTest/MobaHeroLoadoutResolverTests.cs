@@ -290,6 +290,90 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void ActorInitializerProvider_PreparesAllStepsThenAppliesInStableOrder()
+        {
+            var calls = new List<string>();
+            var provider = new MobaActorInitializerProvider(
+                new IMobaActorInitializerStep[]
+                {
+                    new RecordingInitializerStep("core.second", 200, calls),
+                    new RecordingInitializerStep("core.first", 100, calls)
+                },
+                new[] { new RecordingInitializerStep("extension.middle", 150, calls) });
+            var loadout = default(MobaPlayerLoadout);
+            var resolved = default(MobaResolvedHeroLoadout);
+            var context = new MobaActorInitializationContext(null, in loadout, in resolved);
+
+            var succeeded = provider.TryInitialize(in context, out var error);
+
+            Assert.IsTrue(succeeded, error);
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    "prepare:core.first",
+                    "prepare:extension.middle",
+                    "prepare:core.second",
+                    "apply:core.first",
+                    "apply:extension.middle",
+                    "apply:core.second"
+                },
+                calls);
+        }
+
+        [Test]
+        public void ActorInitializerProvider_RejectsCoreIdAndOrderConflicts()
+        {
+            var calls = new List<string>();
+            var core = new[] { new RecordingInitializerStep("core.attributes", 200, calls) };
+
+            var idConflict = Assert.Throws<InvalidOperationException>(() =>
+                new MobaActorInitializerProvider(
+                    core,
+                    new[] { new RecordingInitializerStep("core.attributes", 250, calls) }));
+            StringAssert.Contains("id conflict", idConflict.Message);
+
+            var orderConflict = Assert.Throws<InvalidOperationException>(() =>
+                new MobaActorInitializerProvider(
+                    core,
+                    new[] { new RecordingInitializerStep("extension.attributes", 200, calls) }));
+            StringAssert.Contains("order conflict", orderConflict.Message);
+        }
+
+        [Test]
+        public void ActorSpawnCoordinator_LaterFailureRollsBackInReverseOrder()
+        {
+            var transactions = new RecordingSpawnTransactionService(failAtIndex: 3);
+            var coordinator = new MobaActorSpawnCoordinator(transactions);
+            var requests = CreateSpawnRequests(701, 702, 703, 704);
+
+            var succeeded = coordinator.TrySpawnBatch(requests, out var result);
+
+            Assert.IsFalse(succeeded);
+            Assert.IsFalse(result.Success);
+            Assert.AreEqual(3, result.FailedIndex);
+            CollectionAssert.AreEqual(new[] { 703, 702, 701 }, transactions.RolledBackActorIds);
+            Assert.AreEqual(0, transactions.PublishedActorIds.Count);
+            Assert.AreEqual(0, result.Actors.Length);
+        }
+
+        [Test]
+        public void ActorSpawnCoordinator_SuccessPublishesAndReturnsAllActors()
+        {
+            var transactions = new RecordingSpawnTransactionService();
+            var coordinator = new MobaActorSpawnCoordinator(transactions);
+            var requests = CreateSpawnRequests(801, 802, 803);
+
+            var succeeded = coordinator.TrySpawnBatch(requests, out var result);
+
+            Assert.IsTrue(succeeded, result.Error);
+            Assert.IsTrue(result.Success);
+            Assert.AreEqual(-1, result.FailedIndex);
+            CollectionAssert.AreEqual(new[] { 801, 802, 803 }, result.Actors.Select(actor => actor.ActorId));
+            CollectionAssert.AreEqual(new[] { 801, 802, 803 }, transactions.PublishedActorIds);
+            Assert.AreEqual(0, transactions.RolledBackActorIds.Count);
+        }
+
+        [Test]
         public void PlayerActorMap_UnbindRequiresExpectedActorId()
         {
             var map = new MobaPlayerActorMapService();
@@ -509,6 +593,97 @@ namespace AbilityKit.Game.Test.UnitTest
             public void Dispose()
             {
             }
+        }
+
+        private sealed class RecordingInitializerStep : IMobaActorInitializerStep
+        {
+            private readonly List<string> _calls;
+
+            public RecordingInitializerStep(string id, int order, List<string> calls)
+            {
+                Id = id;
+                Order = order;
+                _calls = calls;
+            }
+
+            public string Id { get; }
+            public int Order { get; }
+
+            public bool TryPrepare(
+                in MobaActorInitializationContext context,
+                out object preparedState,
+                out string error)
+            {
+                _calls.Add($"prepare:{Id}");
+                preparedState = Id;
+                error = null;
+                return true;
+            }
+
+            public void Apply(in MobaActorInitializationContext context, object preparedState)
+            {
+                Assert.AreEqual(Id, preparedState);
+                _calls.Add($"apply:{Id}");
+            }
+        }
+
+        private sealed class RecordingSpawnTransactionService : IMobaActorSpawnTransactionService
+        {
+            private readonly int _failAtIndex;
+            private int _spawnIndex;
+
+            public readonly List<int> PublishedActorIds = new List<int>();
+            public readonly List<int> RolledBackActorIds = new List<int>();
+
+            public RecordingSpawnTransactionService(int failAtIndex = -1)
+            {
+                _failAtIndex = failAtIndex;
+            }
+
+            public bool TrySpawnUnpublished(
+                in MobaActorSpawnRequest request,
+                out MobaActorSpawnResult result)
+            {
+                if (_spawnIndex++ == _failAtIndex)
+                {
+                    result = MobaActorSpawnResult.Failed("injected batch failure");
+                    return false;
+                }
+
+                var spec = request.Spec;
+                result = new MobaActorSpawnResult(
+                    true,
+                    spec.Info.ActorId,
+                    null,
+                    in spec,
+                    null);
+                return true;
+            }
+
+            public void Publish(in MobaActorSpawnResult result)
+            {
+                PublishedActorIds.Add(result.ActorId);
+            }
+
+            public void Rollback(in MobaActorSpawnResult result)
+            {
+                RolledBackActorIds.Add(result.ActorId);
+            }
+
+            public void Dispose()
+            {
+            }
+        }
+
+        private static MobaActorSpawnRequest[] CreateSpawnRequests(params int[] actorIds)
+        {
+            var requests = new MobaActorSpawnRequest[actorIds.Length];
+            for (var i = 0; i < actorIds.Length; i++)
+            {
+                var spec = CreateBuildSpec(actorIds[i], $"player-{i + 1}");
+                requests[i] = MobaActorSpawnRequest.FromSpec(in spec);
+            }
+            return requests;
         }
 
         private sealed class RecordingSnapshotPrecommit : IMobaHeroReplacementSnapshotPrecommit

@@ -35,6 +35,7 @@ namespace AbilityKit.Game.Flow
         BattleSessionHandles Handles { get; }
         BattleContext Context { get; }
         SessionReplayController Replay { get; }
+        BattleReplayRuntime ReplayResources { get; }
     }
 
     internal interface ISessionNetAdapterRuntime

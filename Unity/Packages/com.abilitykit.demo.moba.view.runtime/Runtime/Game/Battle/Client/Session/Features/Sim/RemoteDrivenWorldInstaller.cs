@@ -11,6 +11,7 @@ namespace AbilityKit.Game.Flow
         public readonly BattleStartPlan Plan;
         public readonly BattleContext Context;
         public readonly BattleSessionRemoteDrivenWorldRuntime Handles;
+        public readonly BattleSessionDiagnostics Diagnostics;
         public readonly float FixedDeltaSeconds;
         public readonly Func<WorldId, int> ResolveIdealFrameLimit;
         public readonly Func<bool> ShouldForceHashMismatch;
@@ -20,6 +21,7 @@ namespace AbilityKit.Game.Flow
             BattleStartPlan plan,
             BattleContext context,
             BattleSessionRemoteDrivenWorldRuntime handles,
+            BattleSessionDiagnostics diagnostics,
             float fixedDeltaSeconds,
             Func<WorldId, int> resolveIdealFrameLimit,
             Func<bool> shouldForceHashMismatch,
@@ -28,6 +30,7 @@ namespace AbilityKit.Game.Flow
             Plan = plan;
             Context = context;
             Handles = handles;
+            Diagnostics = diagnostics;
             FixedDeltaSeconds = fixedDeltaSeconds;
             ResolveIdealFrameLimit = resolveIdealFrameLimit;
             ShouldForceHashMismatch = shouldForceHashMismatch;
@@ -53,7 +56,7 @@ namespace AbilityKit.Game.Flow
                 options.ShouldForceHashMismatch);
 
             options.ResetTickState?.Invoke();
-            CreateInputRuntime(handles, inputDelayFrames);
+            CreateInputRuntime(handles, options.Diagnostics, inputDelayFrames);
         }
 
         private static void CreateWorldRuntime(
@@ -92,9 +95,10 @@ namespace AbilityKit.Game.Flow
 
         private static void CreateInputRuntime(
             BattleSessionRemoteDrivenWorldRuntime handles,
+            BattleSessionDiagnostics diagnostics,
             int inputDelayFrames)
         {
-            var inputRuntime = RemoteDrivenInputRuntime.Create(inputDelayFrames);
+            var inputRuntime = RemoteDrivenInputRuntime.Create(inputDelayFrames, diagnostics);
             handles.BindInputRuntime(inputRuntime);
             inputRuntime?.PublishDebugStats();
         }

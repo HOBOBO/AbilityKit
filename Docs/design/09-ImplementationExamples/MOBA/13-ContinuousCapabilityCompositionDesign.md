@@ -230,17 +230,20 @@ stateDiagram-v2
 | 测试入口 | 直接覆盖范围 | 本文不据此声明的范围 |
 |----------|--------------|----------------------|
 | `src/AbilityKit.Demo.Moba.Tests/Continuous/MobaContinuousLifecycleTests.cs` | runtime 和 manager 的激活、暂停、恢复、结束、激活拒绝与 owner tag 冲突 | 领域配置、周期效果、Modifier、Cue 的完整组合 |
+| `MobaRollbackProviderTests.BuffStateRecoveryEntry_RestoresCapabilityHandleWithoutClaimingLiveRuntime` | Buff 状态恢复保留 capability handle，同时不恢复 retain/live runtime | Continuous、Modifier、Tag requirement 与订阅自动重建 |
 | `src/AbilityKit.Demo.Moba.Tests/Buff/BuffStackingPolicyApplierTests.cs` | Buff 叠层策略、持续时间与 interval 初始值 | 非 Buff runtime 的统一 stack 语义 |
 | `src/AbilityKit.Demo.Moba.Tests/Triggering/MobaPresentationCueRuntimeTests.cs` | Cue registry、active store、快照、codec、生命周期 helper 与 trigger cue | 正式表现资源、多客户端播放一致性 |
 | `src/AbilityKit.Demo.Moba.Tests/Passive/MobaPassiveSkillLifecycleServiceTests.cs` | 被动技能独立绑定、冷却、移除、持续过程激活与脱战中断 | 任意 owner-bound trigger 的通用组合验收 |
 
-这些测试按职责分散，没有一个专项测试同时覆盖 duration、stack、periodic、tags、modifier、cue 和 owner-bound trigger。本文据此确认的是各接点及其局部行为，不是整套组合已完成端到端验收。本次文档治理核对了源码和测试入口，没有重新运行 MOBA 全量测试集。
+这些测试按职责分散，没有一个专项测试同时覆盖 duration、stack、periodic、tags、modifier、cue 和 owner-bound trigger。本文据此确认的是各接点及其局部行为，不是整套组合已完成端到端验收。2026-08-11 定向执行 `MobaRollbackProviderTests` 5/5 通过；本次文档治理没有重新运行 MOBA 全量测试集。
 
 ### 8.2 恢复、回滚与网络边界
 
-`MobaBuffStateRecoveryProvider` 提供 Buff 状态恢复入口，但预测回滚使用的 `MobaBuffTimerRollbackProvider` 只导出和恢复已有 Buff 的 `Remaining`、`IntervalRemainingSeconds` 与 `StackCount`。它不会重建 Buff 列表，也不恢复 `Continuous`、`ModifierBindings`、`TagRequirements`、`SkillRuntimeHandle` 或 Cue active store。
+`MobaBuffStateRecoveryProvider` 提供 Buff 状态恢复入口。它会恢复 generation-checked `SkillRuntimeHandle` 这一 capability value，但把 context 标记为 `Boundary = Snapshot`、`HasLiveRuntime = false`，并清空 `SkillRuntimeRetainHandle`、`Continuous`、`ModifierBindings` 与 `TagRequirements`。有效 handle 只允许后续在 generation 校验通过时尝试解析能力，不表示恢复载荷持有真实 runtime backing 或生命周期 retain。
 
-因此，计时器回滚不能作为完整 Continuous 状态回滚的证据。Presentation Cue 快照带有复制和预测元数据，也不能单独证明持续行为的 authoritative replication、客户端预测、误差校正和重模拟已经形成统一协议；这些能力必须在同步与预测专题中按具体状态提供者和验收入口分别确认。
+预测回滚使用的 `MobaBuffTimerRollbackProvider` 边界更窄：只导出和恢复已有 Buff 的 `Remaining`、`IntervalRemainingSeconds` 与 `StackCount`。它不会重建 Buff 列表，也不恢复上述行为绑定、skill runtime handle 或 Cue active store。
+
+因此，计时器回滚不能作为完整 Continuous 状态回滚的证据，状态恢复中的 capability handle 也不能被解释为 live runtime 已恢复。Presentation Cue 快照带有复制和预测元数据，同样不能单独证明持续行为的 authoritative replication、客户端预测、误差校正和重模拟已经形成统一协议；这些能力必须在同步与预测专题中按具体状态提供者和验收入口分别确认。
 
 ## 9. 设计意图与取舍
 
@@ -347,4 +350,4 @@ stateDiagram-v2
 
 最终目标不是把 AbilityKit 变成 GAS 的形状，而是保留 AbilityKit 的组合式能力边界：框架提供统一生命周期和通用玩法能力，MOBA 项目按自己的战斗模型决定如何组合。
 
-*文档版本：v1.1 | 状态：持续能力实现与证据边界 | 最后更新：2026-08-02 | 验证基线：已核对 Continuous、Buff stacking、Cue、Passive 测试入口；未重新运行 MOBA 全量测试*
+*文档版本：v1.2 | 状态：持续能力实现与恢复边界 | 最后更新：2026-08-11 | 验证基线：已核对 Continuous、Buff stacking、Cue、Passive 测试入口；`MobaRollbackProviderTests` 5/5 通过；未重新运行 MOBA 全量测试*

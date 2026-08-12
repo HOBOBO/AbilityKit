@@ -81,50 +81,58 @@ flowchart TB
 | `SourceActorId` / `TargetActorId` | 执行源与执行目标 |
 | `ParentContextId` | 新效果应挂接到哪个父 trace 节点 |
 | `RootContextId` | 已知根节点；缺省时使用 parent 作为有效 root |
-| `OwnerContextId` | 传递所有权上下文，用于持续效果、Buff、触发器链路 |
+| `OwnerContextId` | 传播、订阅与取消使用的路由身份；它本身不授予结束 trace 的生命周期权限 |
 | `OriginConfigId` | 导致执行的配置 id |
 
-关键约束：`HasExecutionSource` 要求 `SourceActorId > 0` 且 `ParentContextId != 0`。这意味着 MOBA 不允许 effect 在没有来源 actor 和父上下文的情况下悄悄执行，否则验收 trace 无法解释。
+已有 trace lineage 的输入通过 `HasExecutionSource` 要求 `SourceActorId > 0` 且 `ParentContextId != 0`。actor-only payload 是受控例外：Actor ID 与 trace context ID 属于不同命名空间，resolver 只保留 source/target actor，并令 parent/root/owner context 为零；effect service 创建新的 trace root 后，再把 execution frame 提升到该真实 root。实现不会把 Actor ID 伪装成 trace parent。
 
-## 5. Lineage 解析顺序
+## 5. Context Source 解析与 Lineage 归一化
 
-`MobaEffectLineageInputResolver` 对任意 payload 做强制归一化。解析顺序体现了“越完整的上下文优先级越高”：
+`MobaEffectLineageInputResolver` 先通过 `TryResolveContextSource` 把 payload 归一化为一个 `MobaContextSourceView`，再生成 lineage input。正式候选按稳定顺序检查：
+
+```text
+MobaContextSourceView
+-> MobaPersistentContextSourceSnapshot
+-> MobaCombatExecutionContext
+-> IMobaCombatContextSource
+-> IMobaCombatExecutionContextProvider
+-> IMobaPersistentContextSourceProvider
+-> IMobaContextSourceProvider
+-> IMobaOriginContextProvider
+-> IMobaTriggerLineageContextProvider
+-> IMobaTriggerTraceContextProvider
+-> IMobaTriggerExecutionSnapshotProvider
+```
+
+解析采用“首个有效候选整体胜出”，不从后续 provider 拼接缺失字段。后续有效候选仅用于正式身份一致性检查；以下任一双方非零字段不一致会立即抛出 `InvalidOperationException`：
+
+- `SourceActorId`；
+- `SourceContextId`；
+- `ParentContextId`；
+- `RootContextId`；
+- `OwnerContextId`。
 
 ```mermaid
 flowchart TD
-    Payload[Effect payload]
-    Combat{TryResolveCombatExecutionContext?}
-    Origin{TryResolveOrigin?}
-    Lineage{TryResolveLineageContext?}
-    Invocation{IMobaTriggerInvocationContext?}
-    EffectCtx{IEffectContext?}
-    Valid[返回 MobaEffectLineageInput]
-    Fail[抛 Missing complete effect lineage context]
-
-    Payload --> Combat
-    Combat -- yes --> Valid
-    Combat -- no --> Origin
-    Origin -- yes且HasExecutionSource --> Valid
-    Origin -- no --> Lineage
-    Lineage -- yes且HasExecutionSource --> Valid
-    Lineage -- no --> Invocation
-    Invocation -- yes且HasExecutionSource --> Valid
-    Invocation -- no --> EffectCtx
-    EffectCtx -- yes且HasExecutionSource --> Valid
-    EffectCtx -- no --> Fail
+    Payload[Effect payload] --> Resolve[TryResolveContextSource]
+    Resolve --> First{首个有效候选?}
+    First -->|是| Select[整体选择该 MobaContextSourceView]
+    Select --> More{后续有效候选?}
+    More -->|是| Conflict{正式身份冲突?}
+    Conflict -->|是| Fail[Fail fast]
+    Conflict -->|否| More
+    More -->|否| Lineage[生成 MobaEffectLineageInput]
+    First -->|否| Actor{存在 actor-only source?}
+    Actor -->|是| RootCandidate[parent/root 保持 0，允许创建新 root]
+    Actor -->|否| Missing[抛缺少完整 lineage]
+    RootCandidate --> Lineage
 ```
 
-这条链路让多个系统可以用不同接口提供上下文：
-
-- `IMobaCombatContextSource`：适合已经归一化的战斗上下文；
-- `IMobaOriginContextProvider`：适合玩法事件来源；
-- `IMobaTriggerLineageContextProvider`：适合触发器链路；
-- `IMobaTriggerInvocationContext`：适合 trigger action 执行；
-- `IEffectContext`：适合效果管线直接执行。
+该规则消除了 provider precedence 隐式字段融合：调用方可以提供不同 DTO 或接口形态，但同一个 payload 上的正式身份必须一致。目标、帧、运行时诊断等非正式字段不会反向覆盖已选择候选。
 
 ## 6. CombatExecutionContext：统一读模型
 
-`MobaCombatExecutionContext` 是战斗执行期统一上下文。它不要求业务代码直接理解所有 payload 类型，而是统一读取 source、target、root、parent、owner、frame、skill runtime handle。
+`MobaCombatExecutionContext` 是战斗执行期统一上下文。它不要求业务代码直接理解所有 payload 类型，而是统一读取 source、target、root、parent、owner、frame、skill runtime handle。跨边界数据继续使用职责不同的投影，而不是把 live runtime 引用塞入持久 DTO：`MobaCombatContextSource` 表达执行来源，`MobaTriggerExecutionSnapshot` 表达触发时快照，`MobaPersistentContextSourceSnapshot` 表达可持久化来源，`MobaContextSourceView` 作为统一只读解析结果。
 
 ```mermaid
 flowchart LR
@@ -149,10 +157,10 @@ flowchart LR
     Context --> Frame[Frame]
 ```
 
-字段推导遵循稳定优先级：
+构造执行上下文时可从明确传入的 lineage、origin 与 execution snapshot 推导字段，但 payload provider 解析阶段不会跨候选逐字段合并。二者边界不同：前者是工厂对显式输入的确定性投影，后者是从多种接口中选择唯一正式来源。
 
-| 字段 | 优先级 |
-|------|--------|
+| 字段 | 显式输入投影优先级 |
+|------|--------------------|
 | `SourceActorId` | Lineage → Origin → ExecutionSnapshot |
 | `TargetActorId` | Lineage → Origin → ExecutionSnapshot |
 | `ParentContextId` | Lineage → Origin.EffectiveParentContextId → Snapshot.SourceContextId |
@@ -215,6 +223,7 @@ sequenceDiagram
     Trigger->>CombatCtx: Create(payload,lineage,snapshot,frame)
     Trigger->>Trace: CreateEffectRoot(effectId,...)
     Trace-->>Trigger: effect root id
+    Trigger->>CombatCtx: actor-only 时 PromoteToExecutionRoot
     Trigger->>Effect: Execute(effectId, context)
     Effect->>Action: 执行动作
     Action->>Trace: CreateActionChild(effectRoot, actionId,...)
@@ -242,7 +251,8 @@ sequenceDiagram
 | Trace 不负责执行业务 | 只记录根、父子、kind、metadata、生命周期 |
 | Context 不负责修改战斗状态 | 只提供稳定读模型与 source/root/parent 推导 |
 | EffectInvoker 不负责解释配置 | 只把 effectId 与 context 交给执行服务 |
-| Resolver 不做容错猜测 | 缺少完整 lineage 直接抛错 |
+| Resolver 不做字段拼接猜测 | 首个有效 provider 胜出，正式身份冲突 fail-fast；只有 actor-only 输入可创建真实新 root |
+| Owner identity 不等于 lifecycle ownership | `OwnerContextId` 可用于传播、订阅和取消；只有实际创建并持有 trace 的服务负责结束它 |
 | 验收基于结构而不是日志文本 | 断言 trace node、root、configId、kind |
 
 ## 12. 源码入口
@@ -257,7 +267,13 @@ sequenceDiagram
 | MOBA metadata | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceMetadata.cs` |
 | lineage input | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaEffectLineageInput.cs` |
 | lineage resolver | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaEffectLineageInputResolver.cs` |
+| context provider resolver | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextResolveExtensions.cs` |
+| context source view | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextProviders.cs` |
 | combat execution context | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs` |
 | effect invoker | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaEffectInvokerService.cs` |
 | context wrapper | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/EffectContextWrapper.cs` |
 | 验收 trace harness | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/MobaSkillConfigTestHarness.cs` |
+
+---
+
+*文档版本：v1.1 | 状态：Trace、Context 与 Effect 正式身份边界 | 最后更新：2026-08-11 | 验证基线：`MobaTriggerPlanPayloadCompatibilityTests` 21/21 通过；本轮文档更新未重新执行全量测试*

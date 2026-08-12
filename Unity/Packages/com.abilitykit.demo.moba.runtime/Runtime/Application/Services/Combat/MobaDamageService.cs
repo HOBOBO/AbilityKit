@@ -31,12 +31,7 @@ namespace AbilityKit.Demo.Moba.Services
             _eventBus = eventBus;
         }
 
-        public float ApplyDamage(int attackerActorId, int targetActorId, int damageType, float value, int reasonKind = 0, int reasonParam = 0)
-        {
-            return CommitDamage(attackerActorId, targetActorId, damageType, value, reasonKind, reasonParam).AppliedValue;
-        }
-
-        public MobaHealthChangeResult CommitDamage(
+        internal MobaHealthChangeResult CommitDamage(
             int attackerActorId,
             int targetActorId,
             int damageType,
@@ -45,7 +40,7 @@ namespace AbilityKit.Demo.Moba.Services
             int reasonParam = 0,
             MobaGameplayOrigin origin = default)
         {
-            if (targetActorId <= 0 || value <= 0f) return default;
+            if (targetActorId <= 0 || !IsFinitePositive(value)) return default;
             if (_rules != null && !_rules.CanReceiveDamage(attackerActorId, targetActorId).Passed) return default;
             if (!_actors.TryGetActorEntity(targetActorId, out var target) || target == null) return default;
 
@@ -76,12 +71,7 @@ namespace AbilityKit.Demo.Moba.Services
             return result;
         }
 
-        public float ApplyHeal(int healerActorId, int targetActorId, int healType, float value, int reasonKind = 0, int reasonParam = 0)
-        {
-            return CommitHeal(healerActorId, targetActorId, healType, value, reasonKind, reasonParam).AppliedValue;
-        }
-
-        public MobaHealthChangeResult CommitHeal(
+        internal MobaHealthChangeResult CommitHeal(
             int healerActorId,
             int targetActorId,
             int healType,
@@ -91,7 +81,29 @@ namespace AbilityKit.Demo.Moba.Services
             MobaGameplayOrigin origin = default,
             bool allowDeadTarget = false)
         {
-            if (targetActorId <= 0 || value <= 0f) return default;
+            var request = new MobaHealRequest(
+                healerActorId,
+                targetActorId,
+                healType,
+                value,
+                reasonKind,
+                reasonParam,
+                origin,
+                allowDeadTarget);
+            return HealPipelineService.Execute(this, _eventBus, in request);
+        }
+
+        internal MobaHealthChangeResult CommitHealCore(
+            int healerActorId,
+            int targetActorId,
+            int healType,
+            float value,
+            int reasonKind = 0,
+            int reasonParam = 0,
+            MobaGameplayOrigin origin = default,
+            bool allowDeadTarget = false)
+        {
+            if (targetActorId <= 0 || !IsFinitePositive(value)) return default;
             if (!allowDeadTarget && _rules != null && (!_rules.TryGetActor(targetActorId, out _) || !_rules.IsAlive(targetActorId))) return default;
             if (!_actors.TryGetActorEntity(targetActorId, out var target) || target == null) return default;
 
@@ -249,6 +261,11 @@ namespace AbilityKit.Demo.Moba.Services
             if (v < min) return min;
             if (v > max) return max;
             return v;
+        }
+
+        private static bool IsFinitePositive(float value)
+        {
+            return value > 0f && !float.IsNaN(value) && !float.IsInfinity(value);
         }
 
         public void Dispose()

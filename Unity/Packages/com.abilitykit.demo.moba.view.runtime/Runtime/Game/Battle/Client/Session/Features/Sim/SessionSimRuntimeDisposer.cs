@@ -40,6 +40,7 @@ namespace AbilityKit.Game.Flow
         public static void DisposeConfirmedWorld(
             BattleContext ctx,
             BattleSessionConfirmedWorldRuntime handles,
+            BattleSessionDiagnostics diagnostics,
             Action resetTickState)
         {
             ExecuteCleanupSteps(
@@ -48,7 +49,7 @@ namespace AbilityKit.Game.Flow
                 resetTickState,
                 handles.DisposeInput,
                 handles.DisposeViewEventPipeline,
-                () => ConfirmedAuthorityDebugStatsPublisher.Clear(ctx));
+                () => ConfirmedAuthorityDebugStatsPublisher.Clear(diagnostics, ctx));
         }
 
         internal static void ExecuteCleanupSteps(string message, params Action[] cleanupSteps)

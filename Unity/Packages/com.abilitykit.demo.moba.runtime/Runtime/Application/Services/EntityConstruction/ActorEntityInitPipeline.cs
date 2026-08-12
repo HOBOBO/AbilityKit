@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
@@ -19,13 +20,26 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         private readonly MobaActorInitDiagnostics _diagnostics = new MobaActorInitDiagnostics();
         private readonly MobaActorAttributeInitializer _attributes = new MobaActorAttributeInitializer();
         private readonly MobaActorSkillLoadoutInitializer _skills = new MobaActorSkillLoadoutInitializer();
+        private readonly MobaActorInitializerProvider _initializers;
         private MobaConfigDatabase _config;
 
         public ActorEntityInitPipeline(IWorldResolver services)
+            : this(services, null)
+        {
+        }
+
+        internal ActorEntityInitPipeline(
+            IWorldResolver services,
+            IEnumerable<IMobaActorInitializerStep> extensionInitializers)
         {
             _services = services;
+            _initializers = new MobaActorInitializerProvider(
+                CreateCoreInitializers(),
+                extensionInitializers);
             TryResolveConfig();
         }
+
+        public MobaActorInitializerProvider Initializers => _initializers;
 
         public void InitializeFromAttributeTemplate(global::ActorEntity entity, int attributeTemplateId)
         {
@@ -77,33 +91,19 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 return false;
             }
 
-            MobaPreparedActorAttributes preparedAttributes;
-            try
-            {
-                preparedAttributes = _attributes.Prepare(resolved.AttributeTemplate);
-            }
-            catch (Exception ex)
-            {
-                error = ex.Message;
-                return false;
-            }
+            var context = new MobaActorInitializationContext(entity, in loadout, in resolved);
+            return _initializers.TryInitialize(in context, out error);
+        }
 
-            if (!_skills.TryPrepare(in resolved, out var preparedSkills, out error))
+        private IEnumerable<IMobaActorInitializerStep> CreateCoreInitializers()
+        {
+            return new IMobaActorInitializerStep[]
             {
-                return false;
-            }
-
-            var modelId = resolved.Character.ModelId;
-            if (modelId > 0)
-            {
-                if (entity.hasModelId) entity.ReplaceModelId(modelId);
-                else entity.AddModelId(modelId);
-            }
-
-            _attributes.Apply(entity, in preparedAttributes);
-            _skills.Apply(entity, in preparedSkills);
-            ApplyConfiguredBrain(entity, in loadout);
-            return true;
+                new ModelInitializer(),
+                new AttributeInitializer(_attributes),
+                new SkillInitializer(_skills),
+                new BrainInitializer(this)
+            };
         }
 
         private void ApplyConfiguredBrain(global::ActorEntity entity, in MobaPlayerLoadout loadout)
@@ -186,6 +186,109 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 
         public void Dispose()
         {
+        }
+
+        private sealed class ModelInitializer : IMobaActorInitializerStep
+        {
+            public string Id => "core.model";
+            public int Order => 100;
+
+            public bool TryPrepare(in MobaActorInitializationContext context, out object preparedState, out string error)
+            {
+                preparedState = context.ResolvedLoadout.Character.ModelId;
+                error = null;
+                return true;
+            }
+
+            public void Apply(in MobaActorInitializationContext context, object preparedState)
+            {
+                var modelId = (int)preparedState;
+                if (modelId <= 0) return;
+                if (context.Entity.hasModelId) context.Entity.ReplaceModelId(modelId);
+                else context.Entity.AddModelId(modelId);
+            }
+        }
+
+        private sealed class AttributeInitializer : IMobaActorInitializerStep
+        {
+            private readonly MobaActorAttributeInitializer _initializer;
+
+            public AttributeInitializer(MobaActorAttributeInitializer initializer)
+            {
+                _initializer = initializer;
+            }
+
+            public string Id => "core.attributes";
+            public int Order => 200;
+
+            public bool TryPrepare(in MobaActorInitializationContext context, out object preparedState, out string error)
+            {
+                preparedState = _initializer.Prepare(context.ResolvedLoadout.AttributeTemplate);
+                error = null;
+                return true;
+            }
+
+            public void Apply(in MobaActorInitializationContext context, object preparedState)
+            {
+                var prepared = (MobaPreparedActorAttributes)preparedState;
+                _initializer.Apply(context.Entity, in prepared);
+            }
+        }
+
+        private sealed class SkillInitializer : IMobaActorInitializerStep
+        {
+            private readonly MobaActorSkillLoadoutInitializer _initializer;
+
+            public SkillInitializer(MobaActorSkillLoadoutInitializer initializer)
+            {
+                _initializer = initializer;
+            }
+
+            public string Id => "core.skills";
+            public int Order => 300;
+
+            public bool TryPrepare(in MobaActorInitializationContext context, out object preparedState, out string error)
+            {
+                if (_initializer.TryPrepare(in context.ResolvedLoadout, out var prepared, out error))
+                {
+                    preparedState = prepared;
+                    return true;
+                }
+
+                preparedState = null;
+                return false;
+            }
+
+            public void Apply(in MobaActorInitializationContext context, object preparedState)
+            {
+                var prepared = (MobaPreparedActorSkillLoadout)preparedState;
+                _initializer.Apply(context.Entity, in prepared);
+            }
+        }
+
+        private sealed class BrainInitializer : IMobaActorInitializerStep
+        {
+            private readonly ActorEntityInitPipeline _pipeline;
+
+            public BrainInitializer(ActorEntityInitPipeline pipeline)
+            {
+                _pipeline = pipeline;
+            }
+
+            public string Id => "core.brain";
+            public int Order => 400;
+
+            public bool TryPrepare(in MobaActorInitializationContext context, out object preparedState, out string error)
+            {
+                preparedState = null;
+                error = null;
+                return true;
+            }
+
+            public void Apply(in MobaActorInitializationContext context, object preparedState)
+            {
+                _pipeline.ApplyConfiguredBrain(context.Entity, in context.Loadout);
+            }
         }
     }
 }

@@ -29,7 +29,10 @@ namespace AbilityKit.Game.Flow
         {
             if (!BattleSessionFeatureRuntimeAccess.TryGet<ISessionReplayRuntime>(ctx, out var runtime)) return;
 
-            runtime.Replay.SetupReplayOrRecord(runtime.Plan, runtime.Context);
+            runtime.Replay.SetupReplayOrRecord(
+                runtime.Plan,
+                runtime.Context,
+                runtime.ReplayResources);
         }
 
         public void OnFrameReceived(in FeatureModuleContext<BattleSessionFeature> ctx, FramePacket packet)

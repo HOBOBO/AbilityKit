@@ -38,6 +38,7 @@ namespace AbilityKit.Game.Flow
         BattleSessionHandles ISessionReplayRuntime.Handles => _handles;
         BattleContext ISessionReplayRuntime.Context => _ctx;
         SessionReplayController ISessionReplayRuntime.Replay => _replayCtrl;
+        BattleReplayRuntime ISessionReplayRuntime.ReplayResources => _runtime.Replay;
 
         BattleLogicSession ISessionNetAdapterRuntime.Session => _session;
         BattleSessionNetAdapter ISessionNetAdapterRuntime.NetAdapter => _netAdapter;

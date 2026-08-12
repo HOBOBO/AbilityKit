@@ -11,6 +11,8 @@
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Attributes\AbilityKit.Attributes.csproj" />
     <ProjectReference Include="..\AbilityKit.Benchmarking\AbilityKit.Benchmarking.csproj" />
+    <ProjectReference Include="..\AbilityKit.Combat.Targeting\AbilityKit.Combat.Targeting.csproj" />
+    <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Modifiers\AbilityKit.Modifiers.csproj" />
     <ProjectReference Include="..\AbilityKit.Pipeline\AbilityKit.Pipeline.csproj" />
     <ProjectReference Include="..\AbilityKit.Record\AbilityKit.Record.csproj" />

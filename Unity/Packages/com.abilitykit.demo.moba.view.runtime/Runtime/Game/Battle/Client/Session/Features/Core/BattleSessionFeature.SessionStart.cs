@@ -23,7 +23,7 @@ namespace AbilityKit.Game.Flow
             catch (Exception ex)
             {
                 Log.Exception(ex, "[BattleSessionFeature] StartSession failed after gateway room preparation");
-                _replayOwner.Stop();
+                _runtime.Replay.Stop();
                 StopSession();
                 _eventsCtrl.NotifySessionFailed(this, ex);
                 return;
@@ -35,7 +35,7 @@ namespace AbilityKit.Game.Flow
         private void StartIsolatedReplaySession()
         {
             var path = _plan.RunModeOptions.InputReplayPath;
-            if (!_replayOwner.TryStart(_plan, path, out var error))
+            if (!_runtime.Replay.TryStart(_plan, path, out var error))
             {
                 throw new InvalidOperationException(error ?? "无法启动独立 Replay Session。");
             }
