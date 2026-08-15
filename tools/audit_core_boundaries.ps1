@@ -35,7 +35,15 @@ function Assert-Contract {
 $foundationAsmdef = Get-Content -LiteralPath $foundationAsmdefPath -Raw | ConvertFrom-Json
 Assert-Contract ($foundationAsmdef.name -eq 'AbilityKit.Core') 'Foundation asmdef name must remain AbilityKit.Core.'
 Assert-Contract ($foundationAsmdef.noEngineReferences -eq $true) 'AbilityKit.Core must keep noEngineReferences enabled.'
-Assert-Contract (@($foundationAsmdef.references).Count -eq 0) 'AbilityKit.Core must not reference other Unity assemblies.'
+# Contract update (2026-08 fixed-point migration, phase P2): the ONLY Unity assembly reference
+# Core may hold is the deterministic math kernel AbilityKit.Deterministic
+# (MathUtil.Sqrt / Vec Magnitude / Quat normalization route through the fixed-point kernel).
+# No other references may be added; Deterministic itself stays dependency-free
+# (both ship in the same release batch).
+$coreReferences = @($foundationAsmdef.references)
+$coreReferencesOk = ($coreReferences.Count -eq 1 -and $coreReferences[0] -eq 'AbilityKit.Deterministic')
+$coreReferencesMessage = 'AbilityKit.Core may reference only AbilityKit.Deterministic (deterministic math kernel, decision 2026-08). Found: [' + ($coreReferences -join ', ') + ']'
+Assert-Contract $coreReferencesOk $coreReferencesMessage
 Assert-Contract ($foundationAsmdef.allowUnsafeCode -eq $false) 'AbilityKit.Core must not enable unsafe code without a reviewed boundary change.'
 
 $unityAsmdef = Get-Content -LiteralPath $unityAsmdefPath -Raw | ConvertFrom-Json
@@ -337,6 +345,10 @@ else {
         ForEach-Object { Get-ChildItem -LiteralPath $_.FullName -Recurse -Filter '*.cs' }
     foreach ($source in $packageSources) {
         $text = Get-Content -LiteralPath $source.FullName -Raw
+        if ([string]::IsNullOrEmpty($text)) {
+            continue
+        }
+
         if ($text -match 'AbilityKit\.Core\.(Configuration|Reflection)' -and
             -not $source.FullName.StartsWith($runtimeRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
             $relativePath = $source.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
@@ -364,7 +376,7 @@ else {
     }
 
     $projects = Get-ChildItem -LiteralPath $repoRoot -Recurse -Filter '*.csproj' |
-        Where-Object { $_.FullName -notmatch '[\\/](?:obj|bin)[\\/]' }
+        Where-Object { $_.FullName -notmatch '[\\/](?:obj|bin|\.kilo|\.git)[\\/]' }
     foreach ($project in $projects) {
         if ($project.FullName -eq $coreProjectPath -or $project.FullName -eq $unityCoreProjectPath) {
             continue

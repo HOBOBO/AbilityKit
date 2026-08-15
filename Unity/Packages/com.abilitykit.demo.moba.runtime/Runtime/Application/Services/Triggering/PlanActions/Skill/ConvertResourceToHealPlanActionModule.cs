@@ -87,11 +87,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (!entity.hasResourceContainer || entity.resourceContainer.Value == null || entity.resourceContainer.Value.Map == null) return;
             if (!entity.resourceContainer.Value.Map.TryGetValue(args.ResourceType, out var state) || state == null) return;
 
-            var consumed = Math.Min(state.Current, args.Amount);
-            if (consumed <= 0f) return;
+            var amountFixed = MobaResourceFixedConvert.ToFixed(args.Amount);
+            var consumed = AbilityKit.Deterministic.DeterministicMath.Min(state.Current, amountFixed);
+            if (consumed <= AbilityKit.Deterministic.Fixed64.Zero) return;
 
-            var requestedHeal = consumed * args.HealRatio;
-            if (requestedHeal <= 0f) return;
+            var requestedHeal = consumed * MobaResourceFixedConvert.ToFixed(args.HealRatio);
+            if (requestedHeal <= AbilityKit.Deterministic.Fixed64.Zero) return;
 
             var healerActorId = effectInput.CasterActorId;
             var origin = effectInput.BuildOrigin(
@@ -103,16 +104,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 healerActorId,
                 targetActorId,
                 (int)args.HealType,
-                requestedHeal,
+                MobaResourceFixedConvert.ToSingle(requestedHeal),
                 args.ReasonKind,
                 args.ReasonParam,
                 origin);
             if (!result.Succeeded) return;
 
             state.Current -= consumed;
-            if (state.Current < 0f) state.Current = 0f;
+            if (state.Current < AbilityKit.Deterministic.Fixed64.Zero) state.Current = AbilityKit.Deterministic.Fixed64.Zero;
             MobaResourceAttributeContextProjector.Refresh(entity);
-            MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.ConvertResourceToHeal, $"healer={healerActorId}, target={targetActorId}, type={args.ResourceType}, consumed={consumed:0.###}, healed={result.AppliedValue:0.###}, current={state.Current:0.###}");
+            MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.ConvertResourceToHeal, $"healer={healerActorId}, target={targetActorId}, type={args.ResourceType}, consumed={MobaResourceFixedConvert.ToSingle(consumed):0.###}, healed={result.AppliedValue:0.###}, current={MobaResourceFixedConvert.ToSingle(state.Current):0.###}");
         }
     }
 }

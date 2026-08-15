@@ -69,25 +69,26 @@ namespace UnityHFSM.Extension
 
     public sealed class DelayBehaviour : IRollbackActionBehaviour, IInterruptibleActionBehaviour
     {
-        private readonly float _duration;
+        private readonly long _durationRaw;
         private readonly bool _useUnscaled;
-        private float _elapsed;
+        // Q32.32 raw 累计（整数加法无漂移）；快照的 FloatValue 是边界单次换算视图。
+        private long _elapsedRaw;
 
         public DelayBehaviour(float duration, bool useUnscaled = false)
         {
-            _duration = Math.Max(0f, duration);
+            _durationRaw = AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(Math.Max(0f, duration)).RawValue;
             _useUnscaled = useUnscaled;
         }
 
         public void Reset()
         {
-            _elapsed = 0f;
+            _elapsedRaw = 0L;
         }
 
         public ActionBehaviourStatus Tick(in ActionBehaviourContext ctx)
         {
-            _elapsed += ctx.GetScaledDelta(_useUnscaled);
-            return _elapsed >= _duration ? ActionBehaviourStatus.Success : ActionBehaviourStatus.Running;
+            _elapsedRaw += AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(ctx.GetScaledDelta(_useUnscaled)).RawValue;
+            return _elapsedRaw >= _durationRaw ? ActionBehaviourStatus.Success : ActionBehaviourStatus.Running;
         }
 
         public void Abort(in ActionBehaviourContext ctx)
@@ -96,13 +97,15 @@ namespace UnityHFSM.Extension
 
         public ActionBehaviourSnapshot CaptureSnapshot()
         {
-            return new ActionBehaviourSnapshot(nameof(DelayBehaviour), floatValue: _elapsed);
+            return new ActionBehaviourSnapshot(
+                nameof(DelayBehaviour),
+                floatValue: AbilityKit.Deterministic.Fixed64.FromRaw(_elapsedRaw).ToSingle());
         }
 
         public void RestoreSnapshot(ActionBehaviourSnapshot snapshot)
         {
             CallbackBehaviour.ValidateSnapshot(snapshot, nameof(DelayBehaviour));
-            _elapsed = snapshot.FloatValue;
+            _elapsedRaw = AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(snapshot.FloatValue).RawValue;
         }
     }
 
@@ -565,20 +568,21 @@ namespace UnityHFSM.Extension
     public sealed class TimeoutBehaviour : IRollbackActionBehaviour, IInterruptibleActionBehaviour
     {
         private readonly IActionBehaviour _child;
-        private readonly float _duration;
+        private readonly long _durationRaw;
         private readonly bool _useUnscaled;
-        private float _elapsed;
+        // Q32.32 raw 累计；快照 FloatValue 是边界单次换算视图。
+        private long _elapsedRaw;
 
         public TimeoutBehaviour(IActionBehaviour child, float duration, bool useUnscaled = false)
         {
             _child = child;
-            _duration = Math.Max(0f, duration);
+            _durationRaw = AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(Math.Max(0f, duration)).RawValue;
             _useUnscaled = useUnscaled;
         }
 
         public void Reset()
         {
-            _elapsed = 0f;
+            _elapsedRaw = 0L;
             _child?.Reset();
         }
 
@@ -588,8 +592,8 @@ namespace UnityHFSM.Extension
             var status = _child.Tick(in ctx);
             if (status != ActionBehaviourStatus.Running) return status;
 
-            _elapsed += ctx.GetScaledDelta(_useUnscaled);
-            if (_elapsed < _duration) return ActionBehaviourStatus.Running;
+            _elapsedRaw += AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(ctx.GetScaledDelta(_useUnscaled)).RawValue;
+            if (_elapsedRaw < _durationRaw) return ActionBehaviourStatus.Running;
 
             SequenceBehaviour.AbortChild(_child, in ctx);
             return ActionBehaviourStatus.Failure;
@@ -604,14 +608,14 @@ namespace UnityHFSM.Extension
         {
             return new ActionBehaviourSnapshot(
                 nameof(TimeoutBehaviour),
-                floatValue: _elapsed,
+                floatValue: AbilityKit.Deterministic.Fixed64.FromRaw(_elapsedRaw).ToSingle(),
                 children: SequenceBehaviour.CaptureChildren(new[] { _child }, nameof(TimeoutBehaviour)));
         }
 
         public void RestoreSnapshot(ActionBehaviourSnapshot snapshot)
         {
             CallbackBehaviour.ValidateSnapshot(snapshot, nameof(TimeoutBehaviour));
-            _elapsed = snapshot.FloatValue;
+            _elapsedRaw = AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(snapshot.FloatValue).RawValue;
             SequenceBehaviour.RestoreChildren(new[] { _child }, snapshot.Children, nameof(TimeoutBehaviour));
         }
     }

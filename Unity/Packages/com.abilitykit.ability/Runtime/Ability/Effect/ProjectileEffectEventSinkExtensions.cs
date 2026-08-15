@@ -6,6 +6,23 @@ namespace AbilityKit.Ability.Share.Effect
     using AbilityKit.Ability.Share.Effect;
     public static class ProjectileEffectEventSinkExtensions
     {
+        /// <summary>
+        /// 连击衰减率 = 0.8^n。定点连乘（确定性）；上限 256 次连乘，
+        /// 之后 Q32.32 已不可表示（0.8^256 ≈ 1e-25），结果自然归零。
+        /// </summary>
+        private static float HitDecayRate(int exponent)
+        {
+            var factor = AbilityKit.Deterministic.Fixed64.FromSingle(0.8f);
+            var result = AbilityKit.Deterministic.Fixed64.One;
+            var steps = exponent < 256 ? exponent : 256;
+            for (var i = 0; i < steps; i++)
+            {
+                result *= factor;
+            }
+
+            return result.ToSingle();
+        }
+
         public static void PublishProjectileSpawn(this IEffectEventSink sink, in ProjectileSpawnEvent evt, object source = null, object target = null)
         {
             if (sink == null) return;
@@ -83,7 +100,7 @@ namespace AbilityKit.Ability.Share.Effect
             var hitNormal = evt.Normal;
 
             var hitCount = evt.HitCount;
-            var hitDecayRate = hitCount <= 1 ? 1f : (float)System.Math.Pow(0.8d, hitCount - 1);
+            var hitDecayRate = hitCount <= 1 ? 1f : HitDecayRate(hitCount - 1);
 
             sink.Publish(ProjectileTriggering.Events.Hit, payload: evt, fillArgs: args =>
             {

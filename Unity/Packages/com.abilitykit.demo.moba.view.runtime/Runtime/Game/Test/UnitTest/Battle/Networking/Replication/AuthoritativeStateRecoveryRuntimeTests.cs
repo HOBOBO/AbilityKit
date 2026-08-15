@@ -95,7 +95,7 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
-        public async Task FrameworkRecoverySignal_RoutesToMobaFullStateRequest()
+        public void FrameworkRecoverySignal_RoutesToMobaFullStateRequest()
         {
             using var fixture = new Fixture();
             fixture.BeginGeneration();
@@ -108,7 +108,9 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(
                 fixture.Runtime.TryReport(in signal, out var decision),
                 Is.True);
-            var execution = await fixture.Runtime.ExecuteRecoveryDecisionAsync(decision);
+            var execution = fixture.Runtime.ExecuteRecoveryDecisionAsync(decision)
+                .GetAwaiter()
+                .GetResult();
 
             Assert.That(execution.Status, Is.EqualTo(NetworkSessionRecoveryExecutionStatus.Executed));
             Assert.That(execution.HasValue, Is.True);
@@ -120,7 +122,7 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
-        public async Task ReplacedGeneration_StaleFrameworkDecisionCannotMutateActiveGeneration()
+        public void ReplacedGeneration_StaleFrameworkDecisionCannotMutateActiveGeneration()
         {
             using var fixture = new Fixture();
             fixture.BeginGeneration();
@@ -139,7 +141,9 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var activeTransport = new ControllableTransport();
             fixture.BeginGeneration(activeTransport);
-            var execution = await fixture.Runtime.ExecuteRecoveryDecisionAsync(staleDecision);
+            var execution = fixture.Runtime.ExecuteRecoveryDecisionAsync(staleDecision)
+                .GetAwaiter()
+                .GetResult();
 
             Assert.That(execution.Status, Is.EqualTo(NetworkSessionRecoveryExecutionStatus.Executed));
             Assert.That(execution.Value, Is.False);

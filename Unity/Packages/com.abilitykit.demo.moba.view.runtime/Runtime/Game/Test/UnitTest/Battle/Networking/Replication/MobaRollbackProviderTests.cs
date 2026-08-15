@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Continuous;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Rollback;
@@ -116,26 +117,26 @@ namespace AbilityKit.Game.Tests
                 shields.AddShield(42, original);
                 Assert.That(shields.TryGetContainer(42, out var container), Is.True);
                 container.NextInstanceId = 12;
-                container.TotalRemaining = 25f;
+                container.TotalRemaining = Fixed64.FromSingle(25f);
                 container.Dirty = false;
                 var payload = provider.Export(new FrameIndex(20));
 
-                container.Layers[0].CurrentValue = 1f;
+                container.Layers[0].CurrentValue = Fixed64.FromSingle(1f);
                 container.Layers[0].Priority = -1;
                 container.Layers.Add(CreateShieldLayer(instanceId: 99, currentValue: 50f));
                 container.NextInstanceId = 99;
-                container.TotalRemaining = 51f;
+                container.TotalRemaining = Fixed64.FromSingle(51f);
                 container.Dirty = true;
 
                 provider.Import(new FrameIndex(20), payload);
 
                 Assert.That(shields.TryGetContainer(42, out var restored), Is.True);
                 Assert.That(restored.NextInstanceId, Is.EqualTo(12));
-                Assert.That(restored.TotalRemaining, Is.EqualTo(25f));
+                Assert.That(restored.TotalRemaining, Is.EqualTo(Fixed64.FromSingle(25f)));
                 Assert.That(restored.Dirty, Is.False);
                 Assert.That(restored.Layers, Has.Count.EqualTo(1));
                 Assert.That(restored.Layers[0].InstanceId, Is.EqualTo(7));
-                Assert.That(restored.Layers[0].CurrentValue, Is.EqualTo(25f));
+                Assert.That(restored.Layers[0].CurrentValue, Is.EqualTo(Fixed64.FromSingle(25f)));
                 Assert.That(restored.Layers[0].Priority, Is.EqualTo(5));
                 Assert.That(restored.Layers[0].SourceContextId, Is.EqualTo(3001L));
                 Assert.That(restored.Layers[0].RootContextId, Is.EqualTo(3000L));
@@ -164,13 +165,13 @@ namespace AbilityKit.Game.Tests
                 var payload = provider.Export(new FrameIndex(20));
 
                 shields.TryGetContainer(42, out var current);
-                current.Layers[0].CurrentValue = 3f;
+                current.Layers[0].CurrentValue = Fixed64.FromSingle(3f);
                 actors.Register(43, context.CreateEntity());
 
                 var exception = Assert.Throws<InvalidOperationException>(
                     () => provider.Import(new FrameIndex(20), payload));
                 Assert.That(exception.Message, Does.Contain("Actor collection changed"));
-                Assert.That(current.Layers[0].CurrentValue, Is.EqualTo(3f),
+                Assert.That(current.Layers[0].CurrentValue, Is.EqualTo(Fixed64.FromSingle(3f)),
                     "Actor-set validation must complete before Shield mutation.");
             }
             finally
@@ -274,11 +275,11 @@ namespace AbilityKit.Game.Tests
                 TransferredFromActorId = 40,
                 TransferredToActorId = 42,
                 TransferredAtFrame = 18,
-                TransferRatio = 0.5f,
-                CurrentValue = currentValue,
-                MaxValue = 30f,
-                InitialValue = 30f,
-                AbsorbRatio = 0.75f,
+                TransferRatio = Fixed64.FromSingle(0.5f),
+                CurrentValue = Fixed64.FromSingle(currentValue),
+                MaxValue = Fixed64.FromSingle(30f),
+                InitialValue = Fixed64.FromSingle(30f),
+                AbsorbRatio = Fixed64.FromSingle(0.75f),
                 Priority = 5,
                 DamageTypeMask = 3,
                 StartFrame = 10,

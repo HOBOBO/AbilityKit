@@ -223,7 +223,7 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 var transform = actorEntity.transform.Value;
                 position = transform.Position;
-                forward = transform.Rotation.Rotate(Vec3.Forward).Normalized;
+                forward = DeterministicMathBridge.Normalize(transform.Rotation.Rotate(Vec3.Forward));
             }
         }
 

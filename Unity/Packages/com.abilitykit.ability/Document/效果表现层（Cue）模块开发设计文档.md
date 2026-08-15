@@ -251,6 +251,11 @@ public sealed class GameplayEffectSpec
 ### 3.2 EffectInstance - 效果实例
 
 ```csharp
+// ⚠ 更新注记（2026-08-15 定点化）：下方为初版 float 计时示意。当前实现的三个计时字段
+// 内部改为 Q32.32 raw long 累加（internal ElapsedRaw/RemainingRaw/NextTickRaw，
+// EffectContainer.Step 整数运算），下面的 float 属性保留为边界单次换算视图——
+// 触发事件 Args、Cue、表现层继续读 float，无需改动。定点栈总览见
+// com.abilitykit.world.framesync/Document/定点帧同步接入指南.md。
 public sealed class EffectInstance
 {
     internal EffectInstance(int id, GameplayEffectSpec spec)

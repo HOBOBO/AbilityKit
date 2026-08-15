@@ -63,6 +63,10 @@ Host/Session → WorldTypeRegistry → MobaWorldBlueprintsRegistration
 - [ai_bt.md](ai_bt.md) — **NEW** AI 行为树修复：DefaultApproachRange 0.5 + CreateSummon WithMoveInput
 - [multiplayer_sync.md](multiplayer_sync.md) — 🆕 **v0.1.0** 多人同步完整度：BattleWorldWithFrameSync / CatchUp / Recording / Metrics / Spectator / BotAI / TickRate
 
+## 确定性/定点栈（2026-08 P0-P4 完成 + 审计修复）
+
+模拟域已定点化（`com.abilitykit.deterministic`，Q32.32）：弹丸运动学、碰撞查询、运动、伤害/治疗/护盾/资源管线（`CombatNumberValue`/`MobaResourceFixedConvert` 边界）、FrameTime 定点累加（含 `AlignTo` 整数对齐/`TimeMilliseconds`/`FrameAfterSeconds`）、EffectContainer/BehaviorRuntime/buff-Continuous 计时链（`MobaContinuousRuntimeBase.ElapsedRaw/IntervalRemainingRaw`，TickProcessor 全整数推进）。回滚快照定点字段存 raw long（ActorHp v2 / Shield v2 / FrameTime v2 / BuffTimer v3 / projectile v7）；状态哈希以 HP raw 对账；HP 权威存储为 ResourceState.Current（HP attribute 仅初始基线）。快照输出按 ActorId 定序；行为 Tick 按注册序；Math.Cos/Sin/Pow 类漂移源全部走定点（含 RPN 表达式函数库——exp/log 类无确定性实现已禁用）。**接入/新增数值字段前必读**：`Unity/Packages/com.abilitykit.world.framesync/Document/定点帧同步接入指南.md`（含剩余 float 计时残留清单）。导航包因纯整数 A* 天然确定，未引入 Fixed64。
+
 ## 相关 skill
 
 - 技能/触发器/BUFF 业务 → [ability-kit](../ability-kit/SKILL.md)

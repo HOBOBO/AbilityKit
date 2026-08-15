@@ -114,11 +114,7 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
 
             if (entity.hasResourceContainer && entity.resourceContainer.Value != null)
             {
-                var container = entity.resourceContainer.Value;
-                if (container.Map != null && container.Map.TryGetValue(ResourceType.Hp, out var hpState) && hpState != null)
-                {
-                    current = hpState.Current;
-                }
+                current = entity.GetMobaResource(ResourceType.Hp);
             }
 
             if (entity.hasAttributeGroup && entity.attributeGroup.Group != null)

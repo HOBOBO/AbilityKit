@@ -138,6 +138,28 @@ namespace AbilityKit.Demo.Moba.Services.Motion
         private const float ProjectionSearchStep = 0.25f;
         private const float ProjectionMaxDistance = 64f;
 
+        /// <summary>
+        /// 碰撞挤出方向基向量表：静态初始化时经定点 CORDIC 生成一次，
+        /// 保证跨运行时位一致（原 System.Math.Cos/Sin 的 double libm 可能差 1 ulp，
+        /// 挤出落点会漂移进状态哈希）。
+        /// </summary>
+        private static readonly Vec3[] ProjectionDirections = BuildProjectionDirections();
+
+        private static Vec3[] BuildProjectionDirections()
+        {
+            var directions = new Vec3[ProjectionDirectionCount];
+            for (var i = 0; i < ProjectionDirectionCount; i++)
+            {
+                var angle = (float)(Math.PI * 2.0 * i / ProjectionDirectionCount);
+                directions[i] = new Vec3(
+                    Core.Mathematics.DeterministicMathBridge.Cos(angle),
+                    0f,
+                    Core.Mathematics.DeterministicMathBridge.Sin(angle));
+            }
+
+            return directions;
+        }
+
         private readonly ICollisionWorld _world;
         private readonly MobaActorRegistry _actors;
         private readonly List<ColliderId> _candidates = new List<ColliderId>(16);
@@ -160,7 +182,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             out Vec3 appliedDelta)
         {
             appliedDelta = desiredDelta;
-            var distance = desiredDelta.Magnitude;
+            var distance = DeterministicMathBridge.Magnitude(in desiredDelta);
             if (distance <= MathUtil.Epsilon)
             {
                 hit = MotionHit.None;
@@ -298,8 +320,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             var bestDistance = float.PositiveInfinity;
             for (var i = 0; i < ProjectionDirectionCount; i++)
             {
-                var angle = (float)(Math.PI * 2.0 * i / ProjectionDirectionCount);
-                var direction = new Vec3((float)Math.Cos(angle), 0f, (float)Math.Sin(angle));
+                var direction = ProjectionDirections[i];
                 if (!TryFindFreeAlongDirection(
                         moverId,
                         in position,

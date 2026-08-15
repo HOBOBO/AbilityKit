@@ -73,10 +73,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 SourceContextId = origin.ImmediateContextId,
                 RootContextId = origin.EffectiveRootContextId,
                 OwnerContextId = origin.OwnerContextId,
-                CurrentValue = args.Value,
-                MaxValue = args.Value,
-                InitialValue = args.Value,
-                AbsorbRatio = args.AbsorbRatio,
+                CurrentValue = MobaResourceFixedConvert.ToFixed(args.Value),
+                MaxValue = MobaResourceFixedConvert.ToFixed(args.Value),
+                InitialValue = MobaResourceFixedConvert.ToFixed(args.Value),
+                AbsorbRatio = MobaResourceFixedConvert.ToFixed(args.AbsorbRatio),
                 Priority = args.Priority,
                 DamageTypeMask = args.DamageTypeMask,
                 StartFrame = startFrame,
@@ -106,8 +106,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             if (args.DurationMs > 0)
             {
-                var seconds = args.DurationMs / 1000f;
-                expireFrame = Math.Max(startFrame + 1, frameTime.TimeToFrame(frameTime.Time + seconds).Value);
+                // FrameTime 走定点直达（不经 float Time 中转）；测试替身回退旧路径。
+                var expire = frameTime is FrameTime fixedTime
+                    ? fixedTime.FrameAfterSeconds(args.DurationMs / 1000f).Value
+                    : frameTime.TimeToFrame(frameTime.Time + args.DurationMs / 1000f).Value;
+                expireFrame = Math.Max(startFrame + 1, expire);
             }
         }
 

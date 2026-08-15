@@ -104,7 +104,7 @@ namespace AbilityKit.Combat.MotionSystem.Core
             {
                 var f = state.Forward;
                 f = new Vec3(f.X, 0f, f.Z);
-                var fMag = f.Magnitude;
+                var fMag = DeterministicMathBridge.Magnitude(in f);
                 if (fMag <= 0.00001f)
                 {
                     f = new Vec3(0f, 0f, 1f);
@@ -118,7 +118,7 @@ namespace AbilityKit.Combat.MotionSystem.Core
                 dir = r * _input.X + f * _input.Z;
             }
 
-            var mag = dir.Magnitude;
+            var mag = DeterministicMathBridge.Magnitude(in dir);
             if (mag <= 0.00001f) return;
             dir = dir / mag;
 

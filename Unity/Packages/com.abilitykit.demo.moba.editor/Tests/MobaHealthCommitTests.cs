@@ -5,6 +5,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Attributes.Core;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Events.Unit;
@@ -361,8 +362,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 {
                     [ResourceType.Hp] = new ResourceState
                     {
-                        Current = initialHp,
-                        LastMax = MaxHp,
+                        Current = Fixed64.FromSingle(initialHp),
+                        LastMax = Fixed64.FromSingle(MaxHp),
                         MaxAttribute = MobaAttributeIds.MAX_HP,
                     },
                 },

@@ -349,7 +349,7 @@ namespace AbilityKit.Demo.Moba.Services
                     container.Map.TryGetValue(ResourceType.Hp, out var hpState) &&
                     hpState != null)
                 {
-                    health = hpState.Current;
+                    health = MobaResourceFixedConvert.ToSingle(hpState.Current);
                 }
             }
 

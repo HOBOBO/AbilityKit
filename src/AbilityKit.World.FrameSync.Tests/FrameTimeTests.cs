@@ -48,4 +48,77 @@ public sealed class FrameTimeTests
         // frame.Value * fixedDelta：第 10 帧 ≈ 1.0s（用区间容忍浮点）
         Assert.InRange(ft.FrameToTime(new FrameIndex(10)), 0.99f, 1.01f);
     }
+
+    [Fact]
+    public void Time_accumulates_exactly_in_raw_fixed_point()
+    {
+        // 定点累加契约：N 步后的 TimeRaw 恒等于 N × 单步 raw（整数加法，无漂移）。
+        var ft = new FrameTime();
+        var stepRaw = AbilityKit.Deterministic.Fixed64.FromSingle(1f / 30f).RawValue;
+        for (var i = 1; i <= 300; i++)
+        {
+            ft.StepTo(new FrameIndex(i), 1f / 30f);
+        }
+
+        Assert.Equal(300 * stepRaw, ft.TimeRaw);
+    }
+
+    [Fact]
+    public void RestoreRaw_roundtrips_exact_accumulated_time()
+    {
+        var ft = new FrameTime();
+        for (var i = 1; i <= 7; i++)
+        {
+            ft.StepTo(new FrameIndex(i), 1f / 30f);
+        }
+
+        var provider = new AbilityKit.Ability.FrameSync.Rollback.FrameTimeRollbackStateProvider(ft);
+        var payload = provider.Export(default);
+        ft.StepTo(new FrameIndex(8), 1f / 30f);
+        provider.Import(default, payload);
+
+        Assert.Equal(7 * AbilityKit.Deterministic.Fixed64.FromSingle(1f / 30f).RawValue, ft.TimeRaw);
+    }
+
+    [Fact]
+    public void AlignTo_matches_step_accumulation_bit_exactly()
+    {
+        // 逐帧累加 120 步的对齐基准。
+        var stepped = new FrameTime();
+        for (var i = 1; i <= 120; i++)
+        {
+            stepped.StepTo(new FrameIndex(i), 1f / 30f);
+        }
+
+        // 客户端预测对齐路径：一步整数重建必须与累加位一致。
+        var aligned = new FrameTime();
+        aligned.StepTo(new FrameIndex(1), 1f / 30f);
+        Assert.True(aligned.AlignTo(new FrameIndex(120), 1f / 30f));
+
+        Assert.Equal(stepped.TimeRaw, aligned.TimeRaw);
+        Assert.Equal(stepped.TimeMilliseconds, aligned.TimeMilliseconds);
+    }
+
+    [Fact]
+    public void TimeMilliseconds_is_pure_integer_floor_of_raw()
+    {
+        var ft = new FrameTime();
+        for (var i = 1; i <= 10; i++)
+        {
+            ft.StepTo(new FrameIndex(i), 1f / 30f);
+        }
+
+        Assert.Equal((ft.TimeRaw * 1000L) >> 32, ft.TimeMilliseconds);
+        Assert.Equal(333L, ft.TimeMilliseconds);
+    }
+
+    [Fact]
+    public void FrameAfterSeconds_uses_fixed_division_from_current_frame()
+    {
+        var ft = new FrameTime();
+        ft.StepTo(new FrameIndex(8), 0.125f);
+
+        // dyadic 步长下精确：0.5s @ 0.125s/帧 = 4 帧，从当前帧起算。
+        Assert.Equal(12, ft.FrameAfterSeconds(0.5f).Value);
+    }
 }

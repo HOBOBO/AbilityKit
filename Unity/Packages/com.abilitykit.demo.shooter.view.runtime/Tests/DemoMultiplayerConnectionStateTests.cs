@@ -66,6 +66,8 @@ namespace AbilityKit.Demo.Shooter.View.Tests
             Assert.That(profile.RoomTitle, Is.EqualTo("Shooter Room"));
             Assert.That(profile.MaxPlayers, Is.EqualTo(4));
             Assert.That(profile.RoomListLimit, Is.EqualTo(10));
+            Assert.That(profile.AutoReady, Is.False);
+            Assert.That(profile.AutoStart, Is.False);
             Assert.That(profile.StarterSceneName, Is.EqualTo("MultiplayerStarterScene"));
 
             var options = profile.BuildSessionOptions();

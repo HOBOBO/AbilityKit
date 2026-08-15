@@ -1,3 +1,4 @@
+using AbilityKit.Core.Mathematics;
 using System;
 using System.Globalization;
 using BTCore.Runtime;
@@ -18,7 +19,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                      - Blackboard.GetValue<float>(MobaBTreeKeys.OwnerY);
             var dz = Blackboard.GetValue<float>(MobaBTreeKeys.TargetZ)
                      - Blackboard.GetValue<float>(MobaBTreeKeys.OwnerZ);
-            var length = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            var length = DeterministicMathBridge.Sqrt(dx * dx + dy * dy + dz * dz);
 
             Blackboard.SetValue(MobaBTreeKeys.AimTargetActorId,
                 Blackboard.GetValue<int>(MobaBTreeKeys.TargetId));

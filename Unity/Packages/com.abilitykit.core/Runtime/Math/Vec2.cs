@@ -17,7 +17,7 @@ namespace AbilityKit.Core.Mathematics
         public static Vec2 One => new Vec2(1f, 1f);
 
         public float SqrMagnitude => X * X + Y * Y;
-        public float Magnitude => (float)System.Math.Sqrt(SqrMagnitude);
+        public float Magnitude => MathUtil.Sqrt(SqrMagnitude);
 
         public Vec2 Normalized
         {

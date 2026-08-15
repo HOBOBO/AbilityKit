@@ -47,11 +47,10 @@ namespace AbilityKit.Demo.Moba.Services
         {
             Clear();
 
-            foreach (var kv in _registry.Entries)
+            // 按 ActorId 定序：快照条目顺序跨端必须一致（字典序不保证）。
+            foreach (var id in _registry.CopyActorIdsInOrder())
             {
-                var id = kv.Key;
-                var e = kv.Value;
-                if (e == null) continue;
+                if (!_registry.TryGetRegistered(id, out var e) || e == null) continue;
                 if (!e.hasTransform) continue;
                 var transform = e.transform.Value;
                 var p = transform.Position;

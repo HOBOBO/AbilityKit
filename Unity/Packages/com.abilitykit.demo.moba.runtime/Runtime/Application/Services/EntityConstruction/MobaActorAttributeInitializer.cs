@@ -213,8 +213,8 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             }
 
             state.MaxAttribute = maxAttr;
-            state.Current = current;
-            state.LastMax = lastMax;
+            state.Current = MobaResourceFixedConvert.ToFixed(current);
+            state.LastMax = MobaResourceFixedConvert.ToFixed(lastMax);
         }
 
         private static void EnsureResourceIfMissing(
@@ -237,8 +237,8 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             container.Map[type] = new ResourceState
             {
                 MaxAttribute = maxAttr,
-                Current = current,
-                LastMax = lastMax
+                Current = MobaResourceFixedConvert.ToFixed(current),
+                LastMax = MobaResourceFixedConvert.ToFixed(lastMax)
             };
         }
     }

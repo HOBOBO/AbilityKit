@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 
 namespace AbilityKit.Demo.Shooter.View
 {
@@ -26,6 +27,7 @@ namespace AbilityKit.Demo.Shooter.View
         }
 
         public event Action<ShooterRoomSessionSnapshot?>? SnapshotChanged;
+        public event Action<ShooterRoomSessionChange>? RoomChanged;
 
         public bool TryApply(ShooterGatewayStagedRoomSnapshot snapshot)
         {
@@ -33,6 +35,7 @@ namespace AbilityKit.Demo.Shooter.View
             if (string.IsNullOrWhiteSpace(snapshot.RoomId)) return false;
 
             var projected = ShooterRoomSessionSnapshot.FromGateway(snapshot);
+            ShooterRoomSessionChange? change = null;
             lock (_gate)
             {
                 if (_disposed) return false;
@@ -44,10 +47,17 @@ namespace AbilityKit.Demo.Shooter.View
                     return false;
                 }
 
+                if (_current != null &&
+                    string.Equals(_current.RoomId, projected.RoomId, StringComparison.Ordinal))
+                {
+                    change = BuildChange(_current, projected);
+                }
+
                 _current = projected;
             }
 
             SnapshotChanged?.Invoke(projected);
+            if (change?.HasChanges == true) RoomChanged?.Invoke(change);
             return true;
         }
 
@@ -76,6 +86,69 @@ namespace AbilityKit.Demo.Shooter.View
             if (changed) SnapshotChanged?.Invoke(null);
         }
 
+        private static ShooterRoomSessionChange BuildChange(
+            ShooterRoomSessionSnapshot previous,
+            ShooterRoomSessionSnapshot current)
+        {
+            var previousByAccount = IndexMembers(previous.Members);
+            var currentByAccount = IndexMembers(current.Members);
+            var joined = new List<string>();
+            var left = new List<string>();
+            var memberChanges = new List<ShooterRoomSessionMemberChange>();
+
+            for (var i = 0; i < current.Members.Count; i++)
+            {
+                var member = current.Members[i];
+                if (!previousByAccount.TryGetValue(member.AccountId, out var oldMember))
+                {
+                    joined.Add(member.AccountId);
+                    continue;
+                }
+
+                if (oldMember.IsOnline != member.IsOnline || oldMember.LobbyReady != member.LobbyReady)
+                {
+                    memberChanges.Add(new ShooterRoomSessionMemberChange(
+                        member.AccountId,
+                        oldMember.IsOnline,
+                        member.IsOnline,
+                        oldMember.LobbyReady,
+                        member.LobbyReady));
+                }
+            }
+
+            for (var i = 0; i < previous.Members.Count; i++)
+            {
+                var member = previous.Members[i];
+                if (!currentByAccount.ContainsKey(member.AccountId)) left.Add(member.AccountId);
+            }
+
+            return new ShooterRoomSessionChange(
+                current.RoomId,
+                previous.RoomRevision,
+                current.RoomRevision,
+                previous.OwnerAccountId,
+                current.OwnerAccountId,
+                previous.Phase,
+                current.Phase,
+                current.PhaseReason,
+                joined,
+                left,
+                memberChanges);
+        }
+
+        private static Dictionary<string, ShooterRoomSessionMember> IndexMembers(
+            IReadOnlyList<ShooterRoomSessionMember> members)
+        {
+            var result = new Dictionary<string, ShooterRoomSessionMember>(StringComparer.Ordinal);
+            for (var i = 0; i < members.Count; i++)
+            {
+                var member = members[i];
+                if (!string.IsNullOrWhiteSpace(member.AccountId)) result[member.AccountId] = member;
+            }
+
+            return result;
+        }
+
         private void HandleSnapshotChanged(ShooterGatewayStagedRoomSnapshot snapshot)
         {
             TryApply(snapshot);
@@ -93,6 +166,7 @@ namespace AbilityKit.Demo.Shooter.View
 
             if (_feed != null) _feed.SnapshotChanged -= HandleSnapshotChanged;
             SnapshotChanged = null;
+            RoomChanged = null;
         }
     }
 }

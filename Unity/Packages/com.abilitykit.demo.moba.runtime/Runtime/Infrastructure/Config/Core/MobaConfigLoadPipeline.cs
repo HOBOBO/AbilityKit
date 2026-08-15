@@ -47,7 +47,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 {
                     if (strict)
                     {
-                        var fail = ConfigReloadResult.Fail("moba.config", database.Version, $"DTO provider did not return config: {definition.DtoType.FullName}");
+                        var fail = ConfigReloadResult.Fail(MobaConfigDatabase.ReloadConfigKey, database.Version, $"DTO provider did not return config: {definition.DtoType.FullName}");
                         ConfigReloadBus.Publish(fail);
                         return fail;
                     }

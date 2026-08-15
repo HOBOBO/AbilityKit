@@ -11,7 +11,7 @@
 | 类 | 文件 | 作用 |
 |----|------|------|
 | `EffectService` | `EffectService.cs` | 核心服务，持有 `IEventBus`（第一套）+ `TriggerRunner`（第一套）；`PublishEffectApply/Tick/Remove`，`Publish`，`EvaluateOnce/RunOnce` |
-| `EffectInstance` | `EffectInstance.cs` | 运行实例：`Id` / `Spec` / `ElapsedSeconds` / `RemainingSeconds` / `NextTickInSeconds` / `StackCount` / `State` dict |
+| `EffectInstance` | `EffectInstance.cs` | 运行实例：`Id` / `Spec` / `ElapsedSeconds` / `RemainingSeconds` / `NextTickInSeconds` / `StackCount` / `State` dict。**计时字段已定点化（2026-08）**：内部 `ElapsedRaw` / `RemainingRaw` / `NextTickRaw`（Q32.32 raw long 累加，internal），float 属性为边界视图——触发事件/表现层继续读 float，零改动；`EffectContainer.Step` 全整数运算 |
 | `GameplayEffectSpec` | `GameplayEffectSpec.cs` | 配置态 |
 | `EffectContainer` | `EffectContainer.cs` | 容器（持有效果实例列表） |
 | `EffectExecutionContext` | `EffectExecutionContext.cs`（ns `AbilityKit.Effect`） | 执行上下文，含 `Source` / `Target` |

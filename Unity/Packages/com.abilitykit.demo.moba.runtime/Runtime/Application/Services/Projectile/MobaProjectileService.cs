@@ -65,7 +65,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             var spawnPos = aimPos.SqrMagnitude > 0f ? aimPos : caster.transform.Value.Position;
             var dir = aimDir.SqrMagnitude > 0f ? aimDir : caster.transform.Value.Forward;
-            dir = dir.Normalized;
+            dir = DeterministicMathBridge.Normalize(in dir);
             if (dir.SqrMagnitude <= 0f) dir = Vec3.Forward;
 
             if (_actorSpawn == null) return false;
@@ -286,7 +286,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             var spawnPos = aimPos.SqrMagnitude > 0f ? aimPos : caster.transform.Value.Position;
             var dir = aimDir.SqrMagnitude > 0f ? aimDir : caster.transform.Value.Forward;
-            dir = dir.Normalized;
+            dir = DeterministicMathBridge.Normalize(in dir);
             if (dir.SqrMagnitude <= 0f) dir = Vec3.Forward;
 
             return LaunchFromSpawn(casterActorId, launcher, projectile, countPerShot, fanAngleDeg, durationMs, continuousProcessId, trackTarget, in spawnPos, in dir, in sourceContext);
@@ -383,7 +383,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 return false;
             }
 
-            var d = request.Direction.SqrMagnitude > 0f ? request.Direction.Normalized : caster.transform.Value.Forward.Normalized;
+            var d = request.Direction.SqrMagnitude > 0f ? DeterministicMathBridge.Normalize(request.Direction) : DeterministicMathBridge.Normalize(caster.transform.Value.Forward);
             if (d.SqrMagnitude <= 0f) d = Vec3.Forward;
 
             var sp = request.SpawnPosition.SqrMagnitude > 0f ? request.SpawnPosition : caster.transform.Value.Position;

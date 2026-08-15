@@ -107,7 +107,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
                         }
 
                         hasFail = true;
-                        fail = ConfigReloadResult.Fail("moba.config", db != null ? db.Version : 0, $"Config json not found in source: {fullPath}");
+                        fail = ConfigReloadResult.Fail(MobaConfigDatabase.ReloadConfigKey, db != null ? db.Version : 0, $"Config json not found in source: {fullPath}");
                         return jsonByKey;
                     }
                 }
@@ -120,7 +120,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
                         throw new InvalidOperationException($"Config json is not a valid array format: {fullPath}");
                     }
                     hasFail = true;
-                    fail = ConfigReloadResult.Fail("moba.config", db != null ? db.Version : 0, $"Config json is not a valid array format: {fullPath}");
+                    fail = ConfigReloadResult.Fail(MobaConfigDatabase.ReloadConfigKey, db != null ? db.Version : 0, $"Config json is not a valid array format: {fullPath}");
                     return jsonByKey;
                 }
 
@@ -169,7 +169,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
                 {
                     if (strict) throw new InvalidOperationException($"Config json not found in Resources: {path}");
                     hasFail = true;
-                    fail = ConfigReloadResult.Fail("moba.config", db != null ? db.Version : 0, $"Config json not found in Resources: {path}");
+                    fail = ConfigReloadResult.Fail(MobaConfigDatabase.ReloadConfigKey, db != null ? db.Version : 0, $"Config json not found in Resources: {path}");
                     return jsonByKey;
                 }
 
@@ -181,7 +181,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
                         throw new InvalidOperationException($"Config json is not a valid array format: {path}. Expected array format like [{{...}}, {{...}}]");
                     }
                     hasFail = true;
-                    fail = ConfigReloadResult.Fail("moba.config", db != null ? db.Version : 0, $"Config json is not a valid array format: {path}");
+                    fail = ConfigReloadResult.Fail(MobaConfigDatabase.ReloadConfigKey, db != null ? db.Version : 0, $"Config json is not a valid array format: {path}");
                     return jsonByKey;
                 }
 

@@ -241,7 +241,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
 
         private static ST.Vec2 Normalize(float x, float y)
         {
-            var inv = 1f / (float)Math.Sqrt(x * x + y * y);
+            var inv = 1f / DeterministicMathBridge.Sqrt(x * x + y * y);
             return new ST.Vec2(x * inv, y * inv);
         }
     }

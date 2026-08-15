@@ -58,7 +58,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly struct SkillCommitTransaction
         {
             private readonly ResourceState _resource;
-            private readonly float _resourceCurrent;
+            private readonly AbilityKit.Deterministic.Fixed64 _resourceCurrent;
             private readonly ActiveSkillRuntime _skill;
             private readonly int _cooldownDurationMs;
             private readonly long _cooldownEndTimeMs;
@@ -68,7 +68,7 @@ namespace AbilityKit.Demo.Moba.Services
                 ActiveSkillRuntime skill)
             {
                 _resource = resource;
-                _resourceCurrent = resource?.Current ?? 0f;
+                _resourceCurrent = resource?.Current ?? AbilityKit.Deterministic.Fixed64.Zero;
                 _skill = skill;
                 _cooldownDurationMs = skill?.CooldownDurationMs ?? 0;
                 _cooldownEndTimeMs = skill?.CooldownEndTimeMs ?? 0L;

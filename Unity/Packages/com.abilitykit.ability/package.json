@@ -10,6 +10,7 @@
   "dependencies": {
     "com.unity.nuget.newtonsoft-json": "3.2.1",
     "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.deterministic": "0.1.0",
     "com.abilitykit.attributes": "0.1.0",
     "com.abilitykit.world.di": "0.1.0",
     "com.abilitykit.world.framesync": "0.1.0",

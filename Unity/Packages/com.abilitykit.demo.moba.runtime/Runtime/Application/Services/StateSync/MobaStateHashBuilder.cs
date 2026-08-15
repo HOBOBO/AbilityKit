@@ -84,13 +84,15 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
                     var entity = pair.Value;
                     if (entity == null || !entity.hasTransform) continue;
 
-                    var hp = 0f;
-                    if (entity.hasAttributeGroup && entity.attributeGroup.Group != null)
+                    // 真实血量在 ResourceContainer（Q32.32）；HP attribute 只是初始基线，不再进哈希。
+                    var hpRaw = 0L;
+                    if (entity.hasResourceContainer && entity.resourceContainer.Value?.Map != null &&
+                        entity.resourceContainer.Value.Map.TryGetValue(AbilityKit.Demo.Moba.Components.ResourceType.Hp, out var hpState) && hpState != null)
                     {
-                        hp = entity.attributeGroup.Group.GetValue(MobaAttributeIds.HP);
+                        hpRaw = hpState.Current.RawValue;
                     }
 
-                    _entries.Add(new StateHashEntry(pair.Key, entity.transform.Value, hp));
+                    _entries.Add(new StateHashEntry(pair.Key, entity.transform.Value, hpRaw));
                 }
 
                 _entries.Sort(CompareEntriesByActorId);
@@ -111,7 +113,7 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
                     hash.AddFloat(entry.ScaleX);
                     hash.AddFloat(entry.ScaleY);
                     hash.AddFloat(entry.ScaleZ);
-                    hash.AddFloat(entry.Hp);
+                    hash.AddLong(entry.HpRaw);
                 }
 
                 return hash.Value;
@@ -119,7 +121,7 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
             finally
             {
                 _entries.Clear();
-                if (_entries.Capacity > 256)
+                if(_entries.Capacity > 256)
                 {
                     _entries.Capacity = 16;
                 }
@@ -131,7 +133,7 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
             public StateHashEntry(
                 int actorId,
                 in AbilityKit.Core.Mathematics.Transform3 transform,
-                float hp)
+                long hpRaw)
             {
                 ActorId = actorId;
                 X = transform.Position.X;
@@ -144,7 +146,7 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
                 ScaleX = transform.Scale.X;
                 ScaleY = transform.Scale.Y;
                 ScaleZ = transform.Scale.Z;
-                Hp = hp;
+                HpRaw = hpRaw;
             }
 
             public int ActorId { get; }
@@ -158,7 +160,7 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
             public float ScaleX { get; }
             public float ScaleY { get; }
             public float ScaleZ { get; }
-            public float Hp { get; }
+            public long HpRaw { get; }
         }
     }
 }

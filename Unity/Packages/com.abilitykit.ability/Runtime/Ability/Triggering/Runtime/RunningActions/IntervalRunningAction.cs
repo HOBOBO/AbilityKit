@@ -1,21 +1,23 @@
 using System;
+using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
     public sealed class IntervalRunningAction : IRunningAction
     {
         private readonly Action _tick;
-        private readonly float _interval;
-        private float _elapsed;
-        private float _duration;
+        // Q32.32 raw 计时（整数加减无漂移）。
+        private readonly long _intervalRaw;
+        private long _elapsedRaw;
+        private long _durationRaw;
         private bool _done;
         private bool _disposed;
 
         public IntervalRunningAction(float intervalSeconds, float durationSeconds, Action tick)
         {
             if (intervalSeconds <= 0f) throw new ArgumentException("intervalSeconds must be > 0", nameof(intervalSeconds));
-            _interval = intervalSeconds;
-            _duration = durationSeconds;
+            _intervalRaw = DeterministicMathBridge.ToFixed(intervalSeconds).RawValue;
+            _durationRaw = DeterministicMathBridge.ToFixed(durationSeconds).RawValue;
             _tick = tick;
         }
 
@@ -25,17 +27,18 @@ namespace AbilityKit.Ability.Triggering.Runtime
         {
             if (_done) return;
 
-            _duration -= deltaTime;
-            if (_duration <= 0f)
+            var dtRaw = DeterministicMathBridge.ToFixed(deltaTime).RawValue;
+            _durationRaw -= dtRaw;
+            if (_durationRaw <= 0L)
             {
                 _done = true;
                 return;
             }
 
-            _elapsed += deltaTime;
-            while (_elapsed >= _interval)
+            _elapsedRaw += dtRaw;
+            while (_elapsedRaw >= _intervalRaw)
             {
-                _elapsed -= _interval;
+                _elapsedRaw -= _intervalRaw;
                 _tick?.Invoke();
                 if (_done) return;
             }

@@ -77,7 +77,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 }
 
                 velocity = aimDelta / duration;
-                dir = aimDelta.Normalized;
+                dir = DeterministicMathBridge.Normalize(in aimDelta);
             }
             else
             {

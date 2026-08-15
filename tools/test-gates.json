@@ -349,6 +349,7 @@
         "core-api",
         "core-boundary",
         "core-namespace-ownership",
+        "deterministic-math",
         "record",
         "state-sync",
         "frame-sync",
@@ -379,6 +380,21 @@
           "name": "Core tests and Public API compatibility",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Core.Tests/AbilityKit.Core.Tests.csproj"
+        },
+        {
+          "name": "Deterministic math package tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Deterministic.Tests/AbilityKit.Deterministic.Tests.csproj"
+        },
+        {
+          "name": "Combat projectile deterministic kinematics tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Combat.Projectile.Tests/AbilityKit.Combat.Projectile.Tests.csproj"
+        },
+        {
+          "name": "Combat collision deterministic query tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Combat.Collision.Abstractions.Tests/AbilityKit.Combat.Collision.Abstractions.Tests.csproj"
         },
         {
           "name": "Continuous package tests",

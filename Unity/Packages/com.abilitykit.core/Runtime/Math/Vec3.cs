@@ -25,7 +25,7 @@ namespace AbilityKit.Core.Mathematics
         public static Vec3 Back => new Vec3(0f, 0f, -1f);
 
         public float SqrMagnitude => X * X + Y * Y + Z * Z;
-        public float Magnitude => (float)System.Math.Sqrt(SqrMagnitude);
+        public float Magnitude => MathUtil.Sqrt(SqrMagnitude);
 
         public Vec3 Normalized
         {

@@ -29,7 +29,7 @@ public sealed class SkillCommitAtomicityTests
     {
         var contexts = new Contexts();
         var actor = contexts.actor.CreateEntity();
-        var resource = new ResourceState { Current = 75f, LastMax = 100f };
+        var resource = new ResourceState { Current = 75, LastMax = 100 };
         var skill = new ActiveSkillRuntime
         {
             SkillId = SkillId,
@@ -120,7 +120,7 @@ public sealed class SkillCommitAtomicityTests
 
         Assert.True(context.IsAborted);
         Assert.Equal($"Skill rule plan failed: {CommitTriggerId}", context.FailReason);
-        Assert.Equal(75f, resource.Current);
+        Assert.Equal(AbilityKit.Deterministic.Fixed64.FromInt32(75), resource.Current);
         Assert.Equal(321, skill.CooldownDurationMs);
         Assert.Equal(654L, skill.CooldownEndTimeMs);
     }

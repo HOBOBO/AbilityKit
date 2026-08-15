@@ -627,3 +627,21 @@ P4-P5 已按 13.8 的顺序完成。实现过程中保持既有 public port、�
 - P5-1/P5-3 过滤测试及新 Gateway fixture 的 `dotnet test` 均以退出码 0 完成。该证据来自 Unity 生成的测试 `.csproj`，本批次未执行 Unity Editor Batchmode Test Runner，因此不宣称已生成 Unity Test Runner XML 结果。
 - Unity source 元数据门禁通过：缺失 `.cs.meta` 为 0，重复 GUID 为 0；拆分前后测试特性总数为 87；`git diff --check` 通过，仅保留既有换行风格提示。
 - 为验证尚未刷新生成工程中的新增 source，曾临时加入两个 `.csproj` 的 Compile 项；验证完成后均已移除，生成的 runtime 与 UnitTests `.csproj` 不保留本批次修改。
+
+### 13.10 下一批 P0-1：字符串诊断去热路径化实施结果
+
+- `SkillPipelineRunner` 新增一次调用级 `SkillPipelineStartResult`，统一返回 success、兼容 fail reason、结构化 start reject 与 pipeline failure。旧 `bool`/`out string` 入口保留并委托新入口，既有调用方无需同步迁移。
+- `SkillCastCoordinator` 改为直接消费单一启动结果，`SkillResultFactory` 通过稳定 code/stage/message 映射施放失败；启动失败后的 runtime rollback cleanup 顺序保持不变。
+- runtime validation 的 skipped、entry、suppressed count 与 summary 动态文本均移到 `Func<string>` 门控后。日志关闭时不会执行格式化 factory，避免在禁用诊断时产生字符串构造成本。
+- 新增定向测试覆盖日志禁用时 factory invocation count 为 0，以及结构化入口稳定公开 `skill.start.castConfigMissing` 并与旧包装保持 fail reason 一致。测试程序集因直接调用包含 `IAbilityPipelineConfig` 的公开签名，已在 asmdef 正式声明 `AbilityKit.Pipeline` 直接依赖。
+- `AbilityKit.Demo.Moba.Runtime.csproj` 串行构建通过（117 warnings、0 errors）。`AbilityKit.Game.UnitTests.csproj` 的首次编译已越过新增测试源码，仅暴露缺少 Pipeline 直接引用的 2 个 `CS0012`；补齐 asmdef 后，外部生成项目验证被既有 deterministic 源码遗漏和共享 `Temp/bin` 中间程序集缺失阻断，不将其归类为本批源码错误。
+- Unity 2022.3.62f1 EditMode 定向命令因同一项目已有 Unity Editor 实例持锁而退出，未生成权威测试 XML，因此本批不宣称两个新增测试已执行通过。生产 runtime 编译证据、测试源码静态门禁和测试 asmdef 依赖修复已完成，Unity 定向执行仍是剩余验证边界。
+- 为诊断 Unity 生成工程缺口，曾临时给 projectile 项目加入 deterministic 源码与 conversion bridge，并给 UnitTests 项目加入 Pipeline 引用。Unity 再生成后这些临时项均已清除，两个 `.csproj` 的 UTF-8 BOM 已恢复且 `git status` 无 retained diff。
+
+### 13.11 下一批 P0-2：数组返回 API 与快照/查询边界分配治理实施结果
+
+- 状态 read model、host runtime port 与正式 runtime facade 已具备 caller-owned `IList<T>` fill contract，旧数组查询入口继续作为兼容和低频 API 保留。本批未重复建立平行接口，而是让 `ILogicWorldDriverHost` 正式暴露 `FillLogicWorldEntityStates`，并直接转发 runtime port，移除数组 fallback 与运行时类型探测。
+- `MobaSnapshotBuffer<T>` 新增语义明确的非消费式 `PeekTo`；destination 采用追加语义，由调用方负责按复用周期 `Clear`。`CopyTo(IList<T>)` 保留为兼容包装，`DrainTo(IList<T>)` 复用 `PeekTo` 后清空 owner buffer，emitter 模板同步公开对应入口。
+- ET driver 的 snapshot collection 已复用字段级 `List<WorldStateSnapshot>`，View runtime 的 allocation smoke test 改为跨帧复用同一 caller-owned list。旧 frame dispatcher 的数组 ownership contract，以及 spawn、damage、projectile、skill 等 codec 需要独立数组的序列化边界继续保留；本批不把这些必要 materialization 误判为可消除的热路径分配。
+- snapshot buffer 定向测试覆盖追加顺序、destination 复用、peek 不消费、drain 消费、旧 `CopyTo` 兼容和 null 参数。最终过滤执行结果为 4/4 通过；View runtime port 与 allocation budget 过滤测试为 11/11 通过，均为 0 failed、0 skipped。
+- MOBA Core、MOBA Tests 与 View Runtime Tests 串行构建均为 0 errors，warning 分别为 10892、190、30，属于既有 nullable、XML 文档、包兼容性和已知依赖漏洞基线。scoped `git diff --check` 退出码为 0，仅有既有 LF/CRLF 提示；三个受影响 Unity source 的既有 `.meta` 均存在且未修改，本批没有新增 Unity 资源或 GUID。

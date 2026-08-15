@@ -17,6 +17,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
     public sealed class BuffContinuousRuntime : MobaContinuousRuntimeBase, IMobaTickableContinuous, IMobaContinuousIntervalState, IMobaContinuousRuntimeStateSync, IMobaContinuousRuntimeDebugSource, IMobaContinuousExecutionContextProvider
     {
         private readonly BuffContinuousConfig _config;
+        // 持续时长的 Q32.32 raw（null=无限期）；与 _config.DurationSeconds(float 视图)同步维护。
+        private long? _durationRaw;
 
         public BuffContinuousRuntime(BuffMO buff, int sourceActorId, int targetActorId, float durationSeconds, ContinuousTagRequirements tagRequirements)
         {
@@ -26,6 +28,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             SourceActorId = sourceActorId;
             TargetActorId = targetActorId;
             _config = new BuffContinuousConfig(this, durationSeconds, tagRequirements, buff);
+            _durationRaw = durationSeconds > 0f
+                ? global::AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(durationSeconds).RawValue
+                : (long?)null;
         }
 
         public int BuffId { get; }
@@ -37,17 +42,20 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
 
         public ContinuousTagRequirements TagRequirements => _config.TagRequirements;
         public override IContinuousConfig Config => _config;
-        public float IntervalRemainingSeconds { get; set; }
         public float RemainingSeconds
         {
             get
             {
-                var duration = _config.DurationSeconds;
-                if (!duration.HasValue) return float.PositiveInfinity;
-                var remaining = duration.Value - ElapsedSeconds;
-                return remaining > 0f ? remaining : 0f;
+                if (!_durationRaw.HasValue) return float.PositiveInfinity;
+                var remainingRaw = _durationRaw.Value - ElapsedRaw;
+                return remainingRaw > 0L ? Deterministic.Fixed64.FromRaw(remainingRaw).ToSingle() : 0f;
             }
         }
+
+        /// <summary>剩余秒数的 Q32.32 raw（无限期为 null）——回滚快照与位断言用。</summary>
+        internal long? RemainingRaw => _durationRaw.HasValue
+            ? System.Math.Max(0L, _durationRaw.Value - ElapsedRaw)
+            : (long?)null;
 
         public void BindRuntime(BuffRuntime runtime)
         {
@@ -65,8 +73,22 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
         /// </summary>
         public void Refresh(int sourceActorId, float remainingSeconds, int stackCount, int maxStack, ContinuousTagRequirements tagRequirements)
         {
+            RefreshRaw(
+                sourceActorId,
+                remainingSeconds > 0f ? global::AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(remainingSeconds).RawValue : (long?)null,
+                stackCount,
+                maxStack,
+                tagRequirements);
+        }
+
+        /// <summary>定点版刷新（回滚恢复路径直用 raw，不经 float 中转）。</summary>
+        internal void RefreshRaw(int sourceActorId, long? remainingRaw, int stackCount, int maxStack, ContinuousTagRequirements tagRequirements)
+        {
             SourceActorId = sourceActorId;
-            _config.DurationSeconds = remainingSeconds > 0f ? remainingSeconds : (float?)null;
+            _durationRaw = remainingRaw;
+            _config.DurationSeconds = remainingRaw.HasValue
+                ? Deterministic.Fixed64.FromRaw(remainingRaw.Value).ToSingle()
+                : (float?)null;
             _config.Stack = stackCount;
             _config.MaxStack = maxStack > 0 ? maxStack : int.MaxValue;
             _config.TagRequirements = tagRequirements;
@@ -78,8 +100,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             if (!IsActive || deltaTimeSeconds <= 0f) return;
 
             AdvanceElapsed(deltaTimeSeconds);
-            var duration = _config.DurationSeconds;
-            if (duration.HasValue && ElapsedSeconds >= duration.Value)
+            if (_durationRaw.HasValue && ElapsedRaw >= _durationRaw.Value)
             {
                 End(ContinuousEndReason.Completed);
             }

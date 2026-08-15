@@ -450,7 +450,7 @@ namespace AbilityKit.Demo.Moba.Services
             var req = prepared.Request;
             var runner = _runnerRegistry.GetOrCreate(actorId);
             var policy = _policyResolver.Resolve(skillId, _castPolicy);
-            var success = runner.Start(
+            var startResult = runner.TryStart(
                 prepared.PreCastConfig,
                 prepared.PreCastPhases,
                 prepared.CastConfig,
@@ -458,26 +458,15 @@ namespace AbilityKit.Demo.Moba.Services
                 abilityInstance: this,
                 in req,
                 ctx,
-                out var failReason,
-                policy: policy);
+                in policy);
             var failure = MobaSkillCastFailure.None;
-            if (!success)
+            if (!startResult.Success)
             {
-                failure = SkillResultFactory.StartReject(runner, failReason);
-                if (!failure.HasValue)
-                {
-                    failure = SkillResultFactory.PipelineFailure(runner, failReason);
-                }
-
-                if (!failure.HasValue)
-                {
-                    failure = SkillResultFactory.UnknownCastFailure(failReason);
-                }
-
+                failure = SkillResultFactory.PipelineStartFailure(in startResult);
                 prepared.Runtimes.ForceTerminate(in ctx.RuntimeHandle, MobaSkillRuntimeEndReason.RollbackCleanup);
             }
 
-            return MobaSkillCastResult.From(success, failReason, in ctx.RuntimeHandle, in failure);
+            return MobaSkillCastResult.From(startResult.Success, startResult.FailReason, in ctx.RuntimeHandle, in failure);
         }
 
         private bool TryValidateCombatRules(

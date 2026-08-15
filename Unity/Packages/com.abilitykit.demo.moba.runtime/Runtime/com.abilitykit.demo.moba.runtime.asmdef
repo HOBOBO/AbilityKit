@@ -32,6 +32,7 @@
     "AbilityKit.Combat.Targeting",
     "AbilityKit.Combat.Collision.Abstractions",
     "AbilityKit.Combat.Navigation",
+    "AbilityKit.Deterministic",
     "AbilityKit.Triggering",
     "AbilityKit.Pipeline",
     "AbilityKit.Trace",

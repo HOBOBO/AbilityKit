@@ -20,7 +20,11 @@ namespace AbilityKit.Demo.Moba.Services
         public bool IsAborted { get; set; }
         public bool IsPaused { get; set; }
         public float StartTime { get; set; }
-        public float ElapsedTime { get; private set; }
+
+        // Q32.32 raw 时间累计（整数加法无漂移）；float 属性是触发/表现边界的单次换算视图。
+        private long _elapsedRaw;
+
+        public float ElapsedTime => Deterministic.Fixed64.FromRaw(_elapsedRaw).ToSingle();
 
         public MobaSkillCastRuntimeHandle RuntimeHandle { get; set; }
         public long RuntimeId { get; set; }
@@ -161,7 +165,7 @@ namespace AbilityKit.Demo.Moba.Services
             IsAborted = false;
             IsPaused = false;
             StartTime = 0f;
-            ElapsedTime = 0f;
+            _elapsedRaw = 0L;
 
             SharedData.Clear();
             FailReason = null;
@@ -258,7 +262,7 @@ namespace AbilityKit.Demo.Moba.Services
         public void AdvanceTime(float deltaTime)
         {
             if (deltaTime <= 0f) return;
-            ElapsedTime += deltaTime;
+            _elapsedRaw += DeterministicMathBridge.ToFixed(deltaTime).RawValue;
         }
 
         public bool TryGetCombatContextSource(out MobaCombatContextSource source)
@@ -332,7 +336,7 @@ namespace AbilityKit.Demo.Moba.Services
             IsAborted = false;
             IsPaused = false;
             StartTime = 0f;
-            ElapsedTime = 0f;
+            _elapsedRaw = 0L;
 
             SharedData.Clear();
 

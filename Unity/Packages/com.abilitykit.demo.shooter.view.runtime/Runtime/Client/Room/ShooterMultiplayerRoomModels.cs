@@ -55,6 +55,79 @@ namespace AbilityKit.Demo.Shooter.View
         public int LoadingProgress { get; }
     }
 
+    public sealed class ShooterRoomSessionMemberChange
+    {
+        public ShooterRoomSessionMemberChange(
+            string accountId,
+            bool previousOnline,
+            bool currentOnline,
+            bool previousReady,
+            bool currentReady)
+        {
+            AccountId = accountId ?? string.Empty;
+            PreviousOnline = previousOnline;
+            CurrentOnline = currentOnline;
+            PreviousReady = previousReady;
+            CurrentReady = currentReady;
+        }
+
+        public string AccountId { get; }
+        public bool PreviousOnline { get; }
+        public bool CurrentOnline { get; }
+        public bool PreviousReady { get; }
+        public bool CurrentReady { get; }
+        public bool OnlineChanged => PreviousOnline != CurrentOnline;
+        public bool ReadyChanged => PreviousReady != CurrentReady;
+    }
+
+    public sealed class ShooterRoomSessionChange
+    {
+        public ShooterRoomSessionChange(
+            string roomId,
+            long previousRevision,
+            long currentRevision,
+            string previousOwnerAccountId,
+            string currentOwnerAccountId,
+            ShooterRoomSessionPhase previousPhase,
+            ShooterRoomSessionPhase currentPhase,
+            string phaseReason,
+            IReadOnlyList<string>? joinedAccountIds = null,
+            IReadOnlyList<string>? leftAccountIds = null,
+            IReadOnlyList<ShooterRoomSessionMemberChange>? memberChanges = null)
+        {
+            RoomId = roomId ?? string.Empty;
+            PreviousRevision = previousRevision;
+            CurrentRevision = currentRevision;
+            PreviousOwnerAccountId = previousOwnerAccountId ?? string.Empty;
+            CurrentOwnerAccountId = currentOwnerAccountId ?? string.Empty;
+            PreviousPhase = previousPhase;
+            CurrentPhase = currentPhase;
+            PhaseReason = phaseReason ?? string.Empty;
+            JoinedAccountIds = joinedAccountIds ?? Array.Empty<string>();
+            LeftAccountIds = leftAccountIds ?? Array.Empty<string>();
+            MemberChanges = memberChanges ?? Array.Empty<ShooterRoomSessionMemberChange>();
+        }
+
+        public string RoomId { get; }
+        public long PreviousRevision { get; }
+        public long CurrentRevision { get; }
+        public string PreviousOwnerAccountId { get; }
+        public string CurrentOwnerAccountId { get; }
+        public ShooterRoomSessionPhase PreviousPhase { get; }
+        public ShooterRoomSessionPhase CurrentPhase { get; }
+        public string PhaseReason { get; }
+        public IReadOnlyList<string> JoinedAccountIds { get; }
+        public IReadOnlyList<string> LeftAccountIds { get; }
+        public IReadOnlyList<ShooterRoomSessionMemberChange> MemberChanges { get; }
+        public bool OwnerChanged => !string.Equals(
+            PreviousOwnerAccountId,
+            CurrentOwnerAccountId,
+            StringComparison.Ordinal);
+        public bool PhaseChanged => PreviousPhase != CurrentPhase;
+        public bool HasChanges => OwnerChanged || PhaseChanged || JoinedAccountIds.Count > 0 ||
+                                  LeftAccountIds.Count > 0 || MemberChanges.Count > 0;
+    }
+
     public sealed class ShooterRoomSessionSnapshot
     {
         public ShooterRoomSessionSnapshot(

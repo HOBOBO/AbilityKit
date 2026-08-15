@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -18,9 +19,9 @@ namespace AbilityKit.Demo.Moba.Services
             if (calc == null || calc.Attack == null) return;
 
             var attack = calc.Attack;
-            var baseValue = attack.BaseDamage.Value;
-            var scaled = baseValue * attack.DamageRate.Value + attack.FlatBonus.Value;
-            calc.RawDamage.BaseValue = Math.Max(0f, scaled);
+            var baseValue = attack.BaseDamage.FixedValue;
+            var scaled = baseValue * attack.DamageRate.FixedValue + attack.FlatBonus.FixedValue;
+            calc.RawDamage.FixedBaseValue = DeterministicMath.Max(Fixed64.Zero, scaled);
         }
     }
 
@@ -40,9 +41,9 @@ namespace AbilityKit.Demo.Moba.Services
             if (calc == null || calc.Attack == null) return;
 
             var mitigated = _mitigation != null
-                ? _mitigation.Mitigate(calc.Attack, calc.RawDamage.Value)
-                : calc.RawDamage.Value;
-            calc.MitigatedDamage.BaseValue = Math.Max(0f, mitigated);
+                ? _mitigation.Mitigate(calc.Attack, calc.RawDamage.FixedValue)
+                : calc.RawDamage.FixedValue;
+            calc.MitigatedDamage.FixedBaseValue = DeterministicMath.Max(Fixed64.Zero, mitigated);
         }
     }
 
@@ -61,10 +62,10 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (calc == null || calc.Attack == null) return;
 
-            calc.ShieldPlan = _shields?.PreviewAbsorb(calc.Attack, calc.MitigatedDamage.Value);
-            var shieldAbsorb = calc.ShieldPlan != null ? calc.ShieldPlan.Absorbed : 0f;
-            calc.ShieldAbsorb.BaseValue = Math.Max(0f, shieldAbsorb);
-            calc.HpDamage.BaseValue = Math.Max(0f, calc.MitigatedDamage.Value - calc.ShieldAbsorb.Value);
+            calc.ShieldPlan = _shields?.PreviewAbsorb(calc.Attack, calc.MitigatedDamage.FixedValue);
+            var shieldAbsorb = calc.ShieldPlan != null ? calc.ShieldPlan.Absorbed : Fixed64.Zero;
+            calc.ShieldAbsorb.FixedBaseValue = DeterministicMath.Max(Fixed64.Zero, shieldAbsorb);
+            calc.HpDamage.FixedBaseValue = DeterministicMath.Max(Fixed64.Zero, calc.MitigatedDamage.FixedValue - calc.ShieldAbsorb.FixedValue);
         }
     }
 
@@ -76,10 +77,10 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (calc == null || calc.Attack == null) return;
 
-            var finalOverride = calc.Attack.FinalDamage.Value;
-            if (finalOverride > 0f)
+            var finalOverride = calc.Attack.FinalDamage.FixedValue;
+            if (finalOverride > Fixed64.Zero)
             {
-                calc.HpDamage.BaseValue = finalOverride;
+                calc.HpDamage.FixedBaseValue = finalOverride;
             }
         }
     }

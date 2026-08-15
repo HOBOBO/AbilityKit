@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Logging;
+using AbilityKit.Deterministic;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Effect;
@@ -65,7 +66,7 @@ namespace AbilityKit.Ability.Share.Effect
 
             if (spec.PeriodSeconds > 0f)
             {
-                inst.NextTickInSeconds = System.Math.Max(0f, spec.PeriodSeconds);
+                inst.NextTickRaw = Fixed64.FromSingle(System.Math.Max(0f, spec.PeriodSeconds)).RawValue;
             }
 
             return inst;
@@ -92,6 +93,10 @@ namespace AbilityKit.Ability.Share.Effect
             var dt = context.Time.DeltaTime;
             if (dt <= 0f) return;
 
+            // 定点累加：dt 单次换算进 Q32.32 后整数加减，跨端位一致（与 FrameTime 同款约定）。
+            var dtRaw = Fixed64.FromSingle(dt).RawValue;
+            var minTickRaw = Fixed64.FromSingle(0.0001f).RawValue;
+
             for (int i = _active.Count - 1; i >= 0; i--)
             {
                 var inst = _active[i];
@@ -103,26 +108,28 @@ namespace AbilityKit.Ability.Share.Effect
 
                 var spec = inst.Spec;
 
-                inst.ElapsedSeconds += dt;
+                inst.ElapsedRaw += dtRaw;
 
                 (spec.Cue ?? NullGameplayEffectCue.Instance).WhileActive(in context, inst);
 
                 if (spec.DurationPolicy == EffectDurationPolicy.Duration)
                 {
-                    inst.RemainingSeconds -= dt;
+                    inst.RemainingRaw -= dtRaw;
                 }
 
                 if (spec.PeriodSeconds > 0f)
                 {
-                    inst.NextTickInSeconds -= dt;
-                    while (inst.NextTickInSeconds <= 0f)
+                    inst.NextTickRaw -= dtRaw;
+                    var periodRaw = Fixed64.FromSingle(spec.PeriodSeconds).RawValue;
+                    var tickStepRaw = periodRaw < minTickRaw ? minTickRaw : periodRaw;
+                    while (inst.NextTickRaw <= 0L)
                     {
                         TickInstance(inst, in context);
-                        inst.NextTickInSeconds += System.Math.Max(0.0001f, spec.PeriodSeconds);
+                        inst.NextTickRaw += tickStepRaw;
                     }
                 }
 
-                if (spec.DurationPolicy == EffectDurationPolicy.Duration && inst.RemainingSeconds <= 0f)
+                if (spec.DurationPolicy == EffectDurationPolicy.Duration && inst.RemainingRaw <= 0L)
                 {
                     RemoveAt(i, in context);
                 }

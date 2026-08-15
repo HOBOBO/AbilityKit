@@ -38,7 +38,7 @@ using MotionGroupMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.MotionGroupMO;
     /// </summary>
     public sealed class MobaConfigDatabase
     {
-        private const string ReloadConfigKey = "moba.config";
+        public const string ReloadConfigKey = "moba.config";
 
         private readonly ConfigDatabase _innerDb;
         private readonly IMobaConfigTableRegistry _registry;

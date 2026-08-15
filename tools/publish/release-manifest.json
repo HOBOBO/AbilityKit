@@ -16,9 +16,10 @@
       "id": "batch-1-leaves",
       "status": "candidate",
       "_comment": "status: candidate (awaiting stability sign-off) -> ready (cleared to tag) -> shipped (tagged).",
-      "description": "Leaf framework packages with no internal AbilityKit dependencies. Ships first to validate the registry + tag pipeline end-to-end before broader rollout.",
+      "description": "Leaf framework packages with no internal AbilityKit dependencies. Ships first to validate the registry + tag pipeline end-to-end before broader rollout. deterministic joins this batch (2026-08): core depends on it (MathUtil.Sqrt routes through the fixed-point kernel), so they must ship together.",
       "packages": [
         "com.abilitykit.core",
+        "com.abilitykit.deterministic",
         "com.abilitykit.gameplaytags",
         "com.abilitykit.threading",
         "com.abilitykit.diagnostics",

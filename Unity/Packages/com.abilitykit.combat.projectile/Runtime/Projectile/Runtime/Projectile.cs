@@ -1,5 +1,6 @@
 using AbilityKit.Core.Pooling;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Deterministic;
 
 namespace AbilityKit.Combat.Projectile
 {
@@ -20,22 +21,23 @@ namespace AbilityKit.Combat.Projectile
 
         public int SpawnFrame;
 
-        public Vec3 Position;
-        public Vec3 Direction;
-        public float Speed;
+        // 运动学状态全部定点化：逐帧积分路径跨平台位一致。
+        public FixedVec3 Position;
+        public FixedVec3 Direction;
+        public Fixed64 Speed;
         public int TrackingTargetActorId;
 
         public int ReturnAfterFrames;
-        public float ReturnSpeed;
-        public float ReturnStopDistance;
+        public Fixed64 ReturnSpeed;
+        public Fixed64 ReturnStopDistance;
         public bool IsReturning;
 
         public int LifetimeFramesLeft;
-        public float DistanceLeft;
+        public Fixed64 DistanceLeft;
 
         public int CollisionLayerMask;
         public ColliderId IgnoreCollider;
-        public Vec3 CollisionHalfExtents;
+        public FixedVec3 CollisionHalfExtents;
 
         public IProjectileHitPolicy HitPolicy;
         public int HitsRemaining;
@@ -68,19 +70,19 @@ namespace AbilityKit.Combat.Projectile
             LauncherActorId = 0;
             RootActorId = 0;
             SpawnFrame = 0;
-            Position = Vec3.Zero;
-            Direction = Vec3.Zero;
-            Speed = 0f;
+            Position = FixedVec3.Zero;
+            Direction = FixedVec3.Zero;
+            Speed = Fixed64.Zero;
             TrackingTargetActorId = 0;
             ReturnAfterFrames = 0;
-            ReturnSpeed = 0f;
-            ReturnStopDistance = 0f;
+            ReturnSpeed = Fixed64.Zero;
+            ReturnStopDistance = Fixed64.Zero;
             IsReturning = false;
             LifetimeFramesLeft = 0;
-            DistanceLeft = 0f;
+            DistanceLeft = Fixed64.Zero;
             CollisionLayerMask = 0;
             IgnoreCollider = default;
-            CollisionHalfExtents = Vec3.Zero;
+            CollisionHalfExtents = FixedVec3.Zero;
             HitPolicy = null;
             HitsRemaining = 0;
             HitPolicyKind = default;

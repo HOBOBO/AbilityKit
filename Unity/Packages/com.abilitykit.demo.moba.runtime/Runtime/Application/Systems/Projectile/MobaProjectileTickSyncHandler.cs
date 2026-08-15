@@ -45,8 +45,8 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
         private static Vec3 ResolveForward(in Vec3 previousPosition, in Vec3 newPosition, in Vec3 fallback)
         {
             var delta = newPosition - previousPosition;
-            if (delta.SqrMagnitude > 0.0001f) return delta.Normalized;
-            if (fallback.SqrMagnitude > 0.0001f) return fallback.Normalized;
+            if (delta.SqrMagnitude > 0.0001f) return DeterministicMathBridge.Normalize(in delta);
+            if (fallback.SqrMagnitude > 0.0001f) return DeterministicMathBridge.Normalize(in fallback);
             return Vec3.Forward;
         }
 

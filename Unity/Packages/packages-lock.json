@@ -7,6 +7,7 @@
       "dependencies": {
         "com.unity.nuget.newtonsoft-json": "3.2.1",
         "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.deterministic": "0.1.0",
         "com.abilitykit.attributes": "0.1.0",
         "com.abilitykit.world.di": "0.1.0",
         "com.abilitykit.world.framesync": "0.1.0",
@@ -98,6 +99,7 @@
       "dependencies": {
         "com.abilitykit.ability": "0.1.0",
         "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.deterministic": "0.1.0",
         "com.abilitykit.continuous": "0.1.0",
         "com.abilitykit.pipeline": "0.1.0",
         "com.abilitykit.thirdparty.behaviortreeeditor": "0.0.1"
@@ -109,7 +111,8 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.core": "0.1.0",
-        "com.abilitykit.world.di": "0.1.0"
+        "com.abilitykit.world.di": "0.1.0",
+        "com.abilitykit.deterministic": "0.1.0"
       }
     },
     "com.abilitykit.combat.damage": {
@@ -137,7 +140,8 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.core": "0.1.0",
-        "com.abilitykit.combat.collision.abstractions": "0.1.0"
+        "com.abilitykit.combat.collision.abstractions": "0.1.0",
+        "com.abilitykit.deterministic": "0.1.0"
       }
     },
     "com.abilitykit.combat.navigation": {
@@ -159,7 +163,8 @@
         "com.abilitykit.world.entitas": "0.1.0",
         "com.abilitykit.world.framesync": "0.1.0",
         "com.abilitykit.world.ecs": "0.1.0",
-        "com.abilitykit.combat.collision.abstractions": "0.1.0"
+        "com.abilitykit.combat.collision.abstractions": "0.1.0",
+        "com.abilitykit.deterministic": "0.1.0"
       }
     },
     "com.abilitykit.combat.skilllibrary": {
@@ -208,7 +213,9 @@
       "version": "file:com.abilitykit.core",
       "depth": 0,
       "source": "embedded",
-      "dependencies": {}
+      "dependencies": {
+        "com.abilitykit.deterministic": "0.1.0"
+      }
     },
     "com.abilitykit.dataflow": {
       "version": "file:com.abilitykit.dataflow",
@@ -311,7 +318,8 @@
         "com.abilitykit.triggering": "0.1.0",
         "com.abilitykit.world.networkfragments": "0.1.0",
         "com.abilitykit.world.statesync": "0.1.0",
-        "com.cysharp.memorypack": "1.10.0"
+        "com.cysharp.memorypack": "1.10.0",
+        "com.abilitykit.deterministic": "0.1.0"
       }
     },
     "com.abilitykit.demo.moba.share": {
@@ -496,6 +504,12 @@
         "com.abilitykit.gameframework.network": "0.1.0"
       }
     },
+    "com.abilitykit.deterministic": {
+      "version": "file:com.abilitykit.deterministic",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.abilitykit.diagnostics": {
       "version": "file:com.abilitykit.diagnostics",
       "depth": 0,
@@ -560,7 +574,8 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.core": "0.1.0"
+        "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.deterministic": "0.1.0"
       }
     },
     "com.abilitykit.host": {
@@ -899,6 +914,7 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.deterministic": "0.1.0",
         "com.abilitykit.world.di": "0.1.0",
         "com.cysharp.memorypack": "1.10.0"
       }

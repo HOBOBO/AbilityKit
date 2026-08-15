@@ -110,11 +110,11 @@ namespace AbilityKit.Combat.MotionSystem.Collision
 
                 // 切向滑动：消除剩余位移里指向墙法向（XZ）的分量，保留沿墙分量。
                 var horizontalLengthBeforeProjection =
-                    (float)Math.Sqrt(remaining.X * remaining.X + remaining.Z * remaining.Z);
+                    DeterministicMathBridge.Sqrt(remaining.X * remaining.X + remaining.Z * remaining.Z);
                 var normal = stepHit.Normal;
                 var normalSqr = normal.X * normal.X + normal.Z * normal.Z;
                 if (normalSqr <= 1e-8f) break;
-                var inverseLength = 1f / (float)Math.Sqrt(normalSqr);
+                var inverseLength = 1f / DeterministicMathBridge.Sqrt(normalSqr);
                 var nx = normal.X * inverseLength;
                 var nz = normal.Z * inverseLength;
                 var intoWall = remaining.X * nx + remaining.Z * nz;
@@ -123,7 +123,7 @@ namespace AbilityKit.Combat.MotionSystem.Collision
                     remaining = new Vec3(remaining.X - nx * intoWall, remaining.Y, remaining.Z - nz * intoWall);
 
                     var projectedHorizontalLength =
-                        (float)Math.Sqrt(remaining.X * remaining.X + remaining.Z * remaining.Z);
+                        DeterministicMathBridge.Sqrt(remaining.X * remaining.X + remaining.Z * remaining.Z);
                     if (constraints.WallSlideSpeedRecovery > 0f && projectedHorizontalLength > 1e-6f)
                     {
                         var targetHorizontalLength = projectedHorizontalLength +
@@ -231,7 +231,7 @@ namespace AbilityKit.Combat.MotionSystem.Collision
                     break;
             }
 
-            var dist = (float)Math.Sqrt(dist2);
+            var dist = DeterministicMathBridge.Sqrt(dist2);
             if (dist <= 1e-6f)
             {
                 return Vec3.Zero;

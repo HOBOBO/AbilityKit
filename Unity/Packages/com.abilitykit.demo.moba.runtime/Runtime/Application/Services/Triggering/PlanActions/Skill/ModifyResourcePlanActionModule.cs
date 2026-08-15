@@ -64,14 +64,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (!entity.hasResourceContainer || entity.resourceContainer.Value == null || entity.resourceContainer.Value.Map == null) return;
             if (!entity.resourceContainer.Value.Map.TryGetValue(args.ResourceType, out var state) || state == null) return;
 
-            var next = state.Current + args.Amount;
-            if (args.HasMinValue && next < args.MinValue) next = args.MinValue;
-            if (args.HasMaxValue && next > args.MaxValue) next = args.MaxValue;
-            else if (state.LastMax > 0f && next > state.LastMax) next = state.LastMax;
+            var next = state.Current + MobaResourceFixedConvert.ToFixed(args.Amount);
+            if (args.HasMinValue && next < MobaResourceFixedConvert.ToFixed(args.MinValue)) next = MobaResourceFixedConvert.ToFixed(args.MinValue);
+            if (args.HasMaxValue && next > MobaResourceFixedConvert.ToFixed(args.MaxValue)) next = MobaResourceFixedConvert.ToFixed(args.MaxValue);
+            else if (state.LastMax > AbilityKit.Deterministic.Fixed64.Zero && next > state.LastMax) next = state.LastMax;
 
             state.Current = next;
             MobaResourceAttributeContextProjector.Refresh(entity);
-            MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.ModifyResource, $"actorId={actorId}, type={args.ResourceType}, amount={args.Amount:0.###}, current={state.Current:0.###}");
+            MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.ModifyResource, $"actorId={actorId}, type={args.ResourceType}, amount={args.Amount:0.###}, current={MobaResourceFixedConvert.ToSingle(state.Current):0.###}");
         }
     }
 }

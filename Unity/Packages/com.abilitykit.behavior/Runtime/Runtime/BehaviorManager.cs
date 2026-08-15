@@ -76,6 +76,9 @@ namespace AbilityKit.Ability.Behavior
         #region Private Fields
         
         private readonly Dictionary<long, BehaviorRuntime> _behaviors = new Dictionary<long, BehaviorRuntime>();
+        // 注册序视图：Tick 顺序决定模拟输出（行为相互作用的先后），
+        // Dictionary 遍历序跨运行时不保证一致，必须按注册序遍历。
+        private readonly List<BehaviorRuntime> _orderedBehaviors = new List<BehaviorRuntime>();
         private readonly Dictionary<BehaviorEntityId, List<BehaviorRuntime>> _entityBehaviors = new Dictionary<BehaviorEntityId, List<BehaviorRuntime>>();
         private readonly Dictionary<long, BehaviorBinding> _bindings = new Dictionary<long, BehaviorBinding>();
         
@@ -123,6 +126,7 @@ namespace AbilityKit.Ability.Behavior
                 config.Config);
             
             _behaviors[instanceId] = behavior;
+            _orderedBehaviors.Add(behavior);
             
             // 添加到实体列表
             if (!_entityBehaviors.TryGetValue(config.OwnerId, out var list))
@@ -295,14 +299,22 @@ namespace AbilityKit.Ability.Behavior
         /// </summary>
         public void Tick(float deltaTime, long frame)
         {
-            foreach (var behavior in _behaviors.Values)
+            // 按注册序遍历（_behaviors 字典序跨运行时不一致，会漂移行为相互作用顺序）。
+            for (int i = _orderedBehaviors.Count - 1; i >= 0; i--)
             {
+                var behavior = _orderedBehaviors[i];
+                if (behavior == null)
+                {
+                    _orderedBehaviors.RemoveAt(i);
+                    continue;
+                }
+
                 if (behavior.Phase == BehaviorPhase.Running)
                 {
                     behavior.Tick(deltaTime, frame);
                 }
             }
-            
+
             CleanupTerminatedBehaviors();
         }
         
@@ -372,6 +384,7 @@ namespace AbilityKit.Ability.Behavior
             
             // 从总表移除
             _behaviors.Remove(instanceId);
+            _orderedBehaviors.Remove(behavior);
             
             OnBehaviorEnded?.Invoke(behavior, reason);
         }

@@ -25,16 +25,16 @@ public sealed class MobaAllocationBudgetSmokeTests
             new FakeOutputPort(),
             new FakeStateReadModel());
 
-        // Warm up any first-touch allocations.
-        var warm = new System.Collections.Generic.List<WorldStateSnapshot>();
-        port.CollectSnapshots(new FrameIndex(0), warm, maxSnapshots: 16);
+        // Warm up and then reuse the same caller-owned buffer across repeated samples.
+        var buffer = new System.Collections.Generic.List<WorldStateSnapshot>();
+        port.CollectSnapshots(new FrameIndex(0), buffer, maxSnapshots: 16);
 
         // The exact allocation budget is non-portable across runtimes; the contract is that
         // the API does not throw, never allocates internally beyond List growth, and never
         // forces snapshot generation. We assert the structural behaviour here.
         for (var frame = 1; frame <= 16; frame++)
         {
-            var buffer = new System.Collections.Generic.List<WorldStateSnapshot>();
+            buffer.Clear();
             var count = port.CollectSnapshots(new FrameIndex(frame), buffer, maxSnapshots: 16);
 
             Assert.Equal(0, count);

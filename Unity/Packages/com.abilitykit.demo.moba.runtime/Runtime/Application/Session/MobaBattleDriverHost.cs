@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Session
         MobaInputSubmitResult SubmitCommands(IReadOnlyList<PlayerInputCommand> commands);
         MobaInputSubmitResult SubmitCommands(FrameIndex targetFrame, IReadOnlyList<PlayerInputCommand> commands);
         LogicWorldEntityState[] GetLogicWorldEntityStates();
+        int FillLogicWorldEntityStates(IList<LogicWorldEntityState> buffer);
         bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot);
         int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32);
     }
@@ -44,6 +45,8 @@ namespace AbilityKit.Demo.Moba.Session
         private MobaTransformSnapshotDispatcher _transformSnapshots;
         private MobaCoordinatorStateAdapter _stateAdapter;
         private FrameIndex _currentFrame;
+        // 会话/表现域时间（对局时长显示、编辑器面板、测试时间戳），跨包接口 double 消费者众多；
+        // double IEEE 累计位一致，不参与逐帧模拟判定，故保留 double 不迁定点。
         private double _logicTimeSeconds;
         private bool _isRunning;
         private bool _missingDriveGateLogged;
@@ -187,23 +190,7 @@ namespace AbilityKit.Demo.Moba.Session
         public int FillLogicWorldEntityStates(IList<LogicWorldEntityState> buffer)
         {
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
-            if (_runtime == null) return 0;
-
-            if (_runtime is IMobaLogicWorldStateReadModel readModel)
-            {
-                return readModel.FillAllEntityStates(buffer);
-            }
-
-            var states = _runtime.GetAllEntityStates();
-            if (states == null || states.Length == 0) return 0;
-
-            var count = Math.Min(states.Length, buffer.Count);
-            for (int i = 0; i < count; i++)
-            {
-                buffer[i] = states[i];
-            }
-
-            return count;
+            return _runtime?.FillAllEntityStates(buffer) ?? 0;
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)

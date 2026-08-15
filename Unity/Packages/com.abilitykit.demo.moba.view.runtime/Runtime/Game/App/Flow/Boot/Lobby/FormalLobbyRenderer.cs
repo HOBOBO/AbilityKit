@@ -9,6 +9,7 @@ namespace AbilityKit.Game.Flow
         public static void Draw(
             in FormalLobbyPresentationSnapshot snapshot,
             Action ready,
+            Action notReady,
             Action start,
             Action leaveAndCreate,
             Action leave)
@@ -34,7 +35,9 @@ namespace AbilityKit.Game.Flow
             }
             else
             {
-                GUILayout.Label("Ready");
+                GUI.enabled = previousEnabled && state.CanNotReady && !snapshot.OperationBusy;
+                if (GUILayout.Button("Not Ready", GUILayout.Height(34f))) notReady?.Invoke();
+                GUI.enabled = previousEnabled;
             }
 
             if (snapshot.IsLocalRoomOwner)

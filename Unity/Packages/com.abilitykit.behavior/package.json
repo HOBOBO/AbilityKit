@@ -10,6 +10,7 @@
   "dependencies": {
     "com.abilitykit.ability": "0.1.0",
     "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.deterministic": "0.1.0",
     "com.abilitykit.continuous": "0.1.0",
     "com.abilitykit.pipeline": "0.1.0",
     "com.abilitykit.thirdparty.behaviortreeeditor": "0.0.1"

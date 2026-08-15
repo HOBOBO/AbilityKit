@@ -12,7 +12,8 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly int _durationMs;
         private readonly SkillTimelineEventDTO[] _events;
         private readonly MobaEffectInvokerService _effects;
-        private float _elapsedSeconds;
+        // Q32.32 raw 时间累计；elapsedMs 用整数换算 (raw×1000)>>32。
+        private long _elapsedRaw;
         private int _nextEventIndex;
 
         public SkillTimelinePhase(AbilityPipelinePhaseId phaseId, int durationMs, SkillTimelineEventDTO[] events, MobaEffectInvokerService effects)
@@ -25,7 +26,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         protected override void OnEnter(SkillPipelineContext context)
         {
-            _elapsedSeconds = 0f;
+            _elapsedRaw = 0L;
             _nextEventIndex = 0;
             context?.SetTimelineNextEventIndex(0);
         }
@@ -41,11 +42,11 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (deltaTime > 0f)
             {
-                _elapsedSeconds += deltaTime;
+                _elapsedRaw += AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(deltaTime).RawValue;
             }
 
             var nextIndex = _nextEventIndex;
-            var elapsedMs = (int)(_elapsedSeconds * 1000f);
+            var elapsedMs = (int)((_elapsedRaw * 1000L) >> 32);
 
             if (_events != null)
             {
@@ -105,7 +106,7 @@ namespace AbilityKit.Demo.Moba.Services
         public override void Reset()
         {
             base.Reset();
-            _elapsedSeconds = 0f;
+            _elapsedRaw = 0L;
             _nextEventIndex = 0;
         }
 

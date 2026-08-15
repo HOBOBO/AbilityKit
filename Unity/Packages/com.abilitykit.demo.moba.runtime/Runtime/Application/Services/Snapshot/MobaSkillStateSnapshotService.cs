@@ -68,11 +68,10 @@ namespace AbilityKit.Demo.Moba.Services
             _entries.Clear();
             var nowMs = MobaSkillRuntimeAccess.GetCurrentTimeMs(_time);
 
-            foreach (var kv in _registry.Entries)
+            // 按 ActorId 定序：快照条目顺序跨端必须一致（字典序不保证）。
+            foreach (var actorId in _registry.CopyActorIdsInOrder())
             {
-                var actorId = kv.Key;
-                var actor = kv.Value;
-                if (actor == null || !actor.hasSkillLoadout) continue;
+                if (!_registry.TryGetRegistered(actorId, out var actor) || actor == null || !actor.hasSkillLoadout) continue;
 
                 var activeSkills = actor.skillLoadout.ActiveSkills;
                 if (activeSkills == null || activeSkills.Length == 0) continue;

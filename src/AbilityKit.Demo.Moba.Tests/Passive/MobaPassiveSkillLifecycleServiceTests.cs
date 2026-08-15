@@ -10,6 +10,7 @@ using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Passive;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.Trace;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Passive;
@@ -35,6 +36,34 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
         Assert.All(actor.ongoingTriggerPlans.Active, entry => Assert.True(service.IsPassiveOwnerKey(entry.OwnerKey)));
         Assert.Contains(actor.ongoingTriggerPlans.Active, entry => entry.TriggerIds.SequenceEqual(new[] { 1001 }));
         Assert.Contains(actor.ongoingTriggerPlans.Active, entry => entry.TriggerIds.SequenceEqual(new[] { 1002 }));
+    }
+
+    [Fact]
+    public void Repeated_sync_keeps_plan_list_entries_trigger_arrays_and_revision_stable()
+    {
+        using var trace = new MobaTraceRegistry();
+        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), trace);
+        var actor = CreateActor(
+            new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 },
+            new PassiveSkillRuntime { PassiveSkillId = 102, Level = 1 });
+
+        service.SyncActorPassives(actor, frame: 1);
+        var plans = actor.ongoingTriggerPlans.Active;
+        var revision = actor.ongoingTriggerPlans.Revision;
+        var entries = plans.ToArray();
+        var triggerArrays = entries.Select(entry => entry.TriggerIds).ToArray();
+        var ownerKeys = entries.Select(entry => entry.OwnerKey).ToArray();
+
+        service.SyncActorPassives(actor, frame: 2);
+
+        Assert.Same(plans, actor.ongoingTriggerPlans.Active);
+        Assert.Equal(revision, actor.ongoingTriggerPlans.Revision);
+        Assert.Equal(ownerKeys, actor.ongoingTriggerPlans.Active.Select(entry => entry.OwnerKey));
+        for (int i = 0; i < entries.Length; i++)
+        {
+            Assert.Same(entries[i], actor.ongoingTriggerPlans.Active[i]);
+            Assert.Same(triggerArrays[i], actor.ongoingTriggerPlans.Active[i].TriggerIds);
+        }
     }
 
     [Fact]
@@ -71,17 +100,47 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
         var actor = CreateActor(first, second);
 
         service.SyncActorPassives(actor, frame: 1);
-        var firstOwnerKey = actor.ongoingTriggerPlans.Active.Single(entry => entry.TriggerIds.Contains(1001)).OwnerKey;
-        var secondOwnerKey = actor.ongoingTriggerPlans.Active.Single(entry => entry.TriggerIds.Contains(1002)).OwnerKey;
+        var plans = actor.ongoingTriggerPlans.Active;
+        var revision = actor.ongoingTriggerPlans.Revision;
+        var firstOwnerKey = plans.Single(entry => entry.TriggerIds.Contains(1001)).OwnerKey;
+        var secondEntry = plans.Single(entry => entry.TriggerIds.Contains(1002));
+        var secondOwnerKey = secondEntry.OwnerKey;
+        var secondTriggerIds = secondEntry.TriggerIds;
 
         actor.ReplaceSkillLoadout(Array.Empty<ActiveSkillRuntime>(), new[] { second });
         service.SyncActorPassives(actor, frame: 2);
 
         Assert.False(service.IsPassiveOwnerKey(firstOwnerKey));
         Assert.True(service.IsPassiveOwnerKey(secondOwnerKey));
+        Assert.Same(plans, actor.ongoingTriggerPlans.Active);
+        Assert.Equal(revision + 1, actor.ongoingTriggerPlans.Revision);
         var remaining = Assert.Single(actor.ongoingTriggerPlans.Active);
+        Assert.Same(secondEntry, remaining);
+        Assert.Same(secondTriggerIds, remaining.TriggerIds);
         Assert.Equal(secondOwnerKey, remaining.OwnerKey);
         Assert.Equal(new[] { 1002 }, remaining.TriggerIds);
+    }
+
+    [Fact]
+    public void Unregister_actor_releases_listener_plan_owner_binding_and_trace_root()
+    {
+        using var trace = new MobaTraceRegistry();
+        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), trace);
+        var actor = CreateActor(new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 });
+
+        service.SyncActorPassives(actor, frame: 1);
+        var ownerKey = Assert.Single(actor.ongoingTriggerPlans.Active).OwnerKey;
+        Assert.True(trace.TryGetNodeSnapshot(ownerKey, out var activeTrace));
+        Assert.False(activeTrace.IsEnded);
+
+        service.UnregisterActor(actor, frame: 2);
+
+        Assert.False(actor.hasOngoingTriggerPlans);
+        Assert.Empty(actor.passiveSkillTriggerListeners.Active);
+        Assert.False(service.IsPassiveOwnerKey(ownerKey));
+        Assert.True(trace.TryGetNodeSnapshot(ownerKey, out var endedTrace));
+        Assert.True(endedTrace.IsEnded);
+        Assert.Equal((int)TraceLifecycleReason.Cancelled, endedTrace.EndReason);
     }
 
     [Fact]

@@ -3,6 +3,18 @@
 本包遵循 [Keep a Changelog](https://keepachangelog.com/) 风格；版本号遵循语义化版本。
 AbilityKit 整体仍处于开发期，0.x 版本不承诺向后兼容；重大变更会在对应版本条目里写明迁移要点。
 
+## [Unreleased]
+
+### 变更
+- **`FrameTime` 累计时刻定点化**：内部时间以 Q32.32（raw long 整数累加，无精度漂移）维护，
+  `Frame` / `DeltaTime` / `Time` 公开语义不变（`Time` 为边界单次换算视图）；
+  `FrameToTime` / `TimeToFrame` 改为定点运算。
+- **`FrameTimeRollbackStatePayload` 升至 v2**：`Time` / `FixedDelta` 以 raw long 存储
+  （`TimeRaw` / `FixedDeltaRaw`），版本不匹配严格拒绝——**与 v1 载荷不兼容**（回滚缓冲为会话内存态，无持久化迁移需求）。
+- 新增依赖 `com.abilitykit.deterministic`（0.1.0）。
+- 新增契约测试：定点累加精确性（N 步 raw 恒等于 N × 单步 raw）、回滚 payload raw 往返无损。
+- 新增《定点帧同步接入指南》（`Document/定点帧同步接入指南.md`）。
+
 ## [0.1.0] — 2026-07-31 — Beta
 
 首个 Beta 里程碑。锁步(frame-sync)与回滚(rollback)工具是确定性模拟的基础，

@@ -10,6 +10,8 @@
         "AbilityKit.Attributes",
         "AbilityKit.Core",
         "AbilityKit.Continuous",
+        "AbilityKit.Deterministic",
+        "AbilityKit.Pipeline",
         "AbilityKit.Record",
         "AbilityKit.Modifiers",
         "AbilityKit.Host",

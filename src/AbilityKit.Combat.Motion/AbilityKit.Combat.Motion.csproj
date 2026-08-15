@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Combat.Collision.Abstractions/AbilityKit.Combat.Collision.Abstractions.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Deterministic/AbilityKit.Deterministic.csproj" />
   </ItemGroup>
 
 </Project>

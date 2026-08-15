@@ -78,8 +78,8 @@ namespace AbilityKit.Demo.Moba.Services
                 }
 
                 attack.TryGetOrigin(out var attackOrigin);
-                var hpDamage = calc.HpDamage.Value;
-                var committed = hpDamage > 0f
+                var hpDamage = calc.HpDamage.FixedValue;
+                var committed = hpDamage > AbilityKit.Deterministic.Fixed64.Zero
                     ? _damage.CommitDamage(
                         attackerActorId: attack.AttackerActorId,
                         targetActorId: attack.TargetActorId,
@@ -89,7 +89,7 @@ namespace AbilityKit.Demo.Moba.Services
                         reasonParam: attack.ReasonParam,
                         origin: attackOrigin)
                     : default;
-                if (hpDamage > 0f && !committed.Succeeded)
+                if (hpDamage > AbilityKit.Deterministic.Fixed64.Zero && !committed.Succeeded)
                 {
                     _shields?.RollbackAbsorb(calc.ShieldPlan);
                     diagnostics?.Counter("moba.damage.healthCommitRejected");

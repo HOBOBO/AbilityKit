@@ -6,6 +6,7 @@
   "description": "Hierarchical FSM utilities.",
   "author": { "name": "AbilityKit" },
   "dependencies": {
-    "com.abilitykit.core": "0.1.0"
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.deterministic": "0.1.0"
   }
 }

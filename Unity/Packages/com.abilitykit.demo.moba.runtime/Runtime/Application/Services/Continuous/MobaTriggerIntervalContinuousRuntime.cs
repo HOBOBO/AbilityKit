@@ -30,7 +30,6 @@ namespace AbilityKit.Demo.Moba.Services
         public long SourceContextId { get; }
         public int ModifierSourceId { get; }
         public override IContinuousConfig Config => _config;
-        public float IntervalRemainingSeconds { get; set; }
 
         public float RemainingSeconds
         {

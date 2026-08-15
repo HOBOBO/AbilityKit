@@ -95,7 +95,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
                         }
 
                         hasFail = true;
-                        fail = ConfigReloadResult.Fail("moba.config", db != null ? db.Version : 0, $"Config bytes not found in source: {fullPath}");
+                        fail = ConfigReloadResult.Fail(MobaConfigDatabase.ReloadConfigKey, db != null ? db.Version : 0, $"Config bytes not found in source: {fullPath}");
                         return bytesByKey;
                     }
                 }
@@ -131,7 +131,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
                     {
                         if (strict) throw new InvalidOperationException($"Config bytes not found in Resources: {path}");
                         hasFail = true;
-                        fail = ConfigReloadResult.Fail("moba.config", db != null ? db.Version : 0, $"Config bytes not found in Resources: {path}");
+                        fail = ConfigReloadResult.Fail(MobaConfigDatabase.ReloadConfigKey, db != null ? db.Version : 0, $"Config bytes not found in Resources: {path}");
                         return bytesByKey;
                     }
                 }
@@ -140,7 +140,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
                 {
                     if (strict) throw new InvalidOperationException($"Config bytes is empty: {path}");
                     hasFail = true;
-                    fail = ConfigReloadResult.Fail("moba.config", db != null ? db.Version : 0, $"Config bytes is empty: {path}");
+                    fail = ConfigReloadResult.Fail(MobaConfigDatabase.ReloadConfigKey, db != null ? db.Version : 0, $"Config bytes is empty: {path}");
                     return bytesByKey;
                 }
 

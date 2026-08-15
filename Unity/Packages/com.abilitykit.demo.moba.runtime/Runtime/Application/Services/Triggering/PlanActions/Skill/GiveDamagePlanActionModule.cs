@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
@@ -86,27 +87,27 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 FormulaKind = (int)DamageFormulaKind.Standard,
             };
             attack.SetOrigin(in origin);
-            attack.BaseDamage.BaseValue = requestedDamage;
+            attack.BaseDamage.FixedBaseValue = requestedDamage;
 
             var result = combat.DealDamage(attack);
             if (result == null)
             {
-                MobaPlanActionDiagnostics.Rejected(ctx.Context, TriggeringConstants.Actions.GiveDamage, $"pipeline returned null. attacker={attackerActorId} target={targetActorId} damage={requestedDamage:0.###} reasonParam={args.ReasonParam}");
+                MobaPlanActionDiagnostics.Rejected(ctx.Context, TriggeringConstants.Actions.GiveDamage, $"pipeline returned null. attacker={attackerActorId} target={targetActorId} damage={MobaResourceFixedConvert.ToSingle(requestedDamage):0.###} reasonParam={args.ReasonParam}");
                 return;
             }
 
-            LogDamageTrace(args, input, ctx, requestedDamage, attack.BaseDamage.Value, in origin, result);
+            LogDamageTrace(args, input, ctx, MobaResourceFixedConvert.ToSingle(requestedDamage), attack.BaseDamage.Value, in origin, result);
         }
 
-        private static float ResolveRequestedDamage(GiveDamageArgs args, ExecCtx<IWorldResolver> ctx, int attackerActorId)
+        private static Fixed64 ResolveRequestedDamage(GiveDamageArgs args, ExecCtx<IWorldResolver> ctx, int attackerActorId)
         {
-            if (args.SourceAttackRatio == 0f || attackerActorId <= 0) return args.DamageValue;
-            if (!ctx.Context.TryResolve<MobaActorLookupService>(out var actors) || actors == null) return args.DamageValue;
-            if (!actors.TryGetActorEntity(attackerActorId, out var attacker) || attacker == null || !attacker.hasAttributeGroup) return args.DamageValue;
+            if (args.SourceAttackRatio == 0f || attackerActorId <= 0) return MobaResourceFixedConvert.ToFixed(args.DamageValue);
+            if (!ctx.Context.TryResolve<MobaActorLookupService>(out var actors) || actors == null) return MobaResourceFixedConvert.ToFixed(args.DamageValue);
+            if (!actors.TryGetActorEntity(attackerActorId, out var attacker) || attacker == null || !attacker.hasAttributeGroup) return MobaResourceFixedConvert.ToFixed(args.DamageValue);
 
             var attrs = attacker.GetMobaAttrs();
-            var sourceAttack = args.DamageType == DamageType.Magic ? attrs.MagicAttack : attrs.PhysicsAttack;
-            return args.DamageValue + sourceAttack * args.SourceAttackRatio;
+            var sourceAttack = MobaResourceFixedConvert.ToFixed(args.DamageType == DamageType.Magic ? attrs.MagicAttack : attrs.PhysicsAttack);
+            return MobaResourceFixedConvert.ToFixed(args.DamageValue) + sourceAttack * MobaResourceFixedConvert.ToFixed(args.SourceAttackRatio);
         }
 
         private static void LogDamageTrace(GiveDamageArgs args, MobaEffectActionInput input, ExecCtx<IWorldResolver> ctx, float requestedDamage, float pipelineBaseDamage, in MobaGameplayOrigin origin, DamageResult result)

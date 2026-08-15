@@ -143,9 +143,9 @@ namespace AbilityKit.Core.Mathematics
         public OrientedBoxSweep(in Vec3 center, in Vec3 right, in Vec3 up, in Vec3 forward, in Vec3 halfExtents)
         {
             Center = center;
-            Right = right.Normalized;
-            Up = up.Normalized;
-            Forward = forward.Normalized;
+            Right = DeterministicMathBridge.Normalize(in right);
+            Up = DeterministicMathBridge.Normalize(in up);
+            Forward = DeterministicMathBridge.Normalize(in forward);
             HalfExtents = new Vec3(
                 MathUtil.Max(0f, halfExtents.X),
                 MathUtil.Max(0f, halfExtents.Y),
@@ -333,7 +333,7 @@ namespace AbilityKit.Core.Mathematics
 
         public bool SweepOrientedBox(in OrientedBoxSweep box, in Vec3 direction, float maxDistance, in Combat.Collision.LayerFilter filter, out RaycastHit hit)
         {
-            var dir = direction.Normalized;
+            var dir = DeterministicMathBridge.Normalize(in direction);
             if (dir.SqrMagnitude <= 0f || maxDistance < 0f)
             {
                 hit = default;
@@ -373,7 +373,7 @@ namespace AbilityKit.Core.Mathematics
 
         public bool SweepSphere(in Vec3 start, in Vec3 direction, float maxDistance, float radius, in Combat.Collision.LayerFilter filter, out RaycastHit hit)
         {
-            var dir = direction.Normalized;
+            var dir = DeterministicMathBridge.Normalize(in direction);
             if (dir.SqrMagnitude <= 0f || maxDistance < 0f)
             {
                 hit = default;

@@ -29,7 +29,8 @@ namespace AbilityKit.Combat.MotionSystem.Generic
             var total = 0f;
             for (int i = 1; i < _points.Length; i++)
             {
-                var seg = (_points[i] - _points[i - 1]).Magnitude;
+                var segVec = _points[i] - _points[i - 1];
+                var seg = DeterministicMathBridge.Magnitude(in segVec);
                 total += seg;
                 _cumulative[i] = total;
             }
@@ -70,7 +71,8 @@ namespace AbilityKit.Combat.MotionSystem.Generic
 
             if (_duration <= 0f)
             {
-                forward = (_points[_points.Length - 1] - _points[0]).Normalized;
+                var overall = _points[_points.Length - 1] - _points[0];
+                forward = DeterministicMathBridge.Normalize(in overall);
                 return true;
             }
 
@@ -84,7 +86,7 @@ namespace AbilityKit.Combat.MotionSystem.Generic
             if (idx >= _points.Length) idx = _points.Length - 1;
 
             var d = _points[idx] - _points[idx - 1];
-            var mag = d.Magnitude;
+            var mag = DeterministicMathBridge.Magnitude(in d);
             forward = mag > 0.00001f ? d / mag : new Vec3(0f, 0f, 1f);
             return true;
         }

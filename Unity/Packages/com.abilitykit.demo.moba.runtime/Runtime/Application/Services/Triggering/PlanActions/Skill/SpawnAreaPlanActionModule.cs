@@ -253,6 +253,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return true;
         }
 
+        /// <summary>秒→帧数：FrameTime 走定点直达（不经 float Time 中转）；测试替身回退旧路径。</summary>
+        private static int SecondsToFrameCount(IFrameTime frameTime, float seconds)
+        {
+            if (frameTime is FrameTime fixedTime)
+            {
+                return fixedTime.FrameAfterSeconds(seconds).Value - fixedTime.Frame.Value;
+            }
+
+            return frameTime.TimeToFrame(frameTime.Time + seconds).Value - frameTime.Frame.Value;
+        }
+
         private static int ResolveLifetimeFrames(SpawnAreaArgs args, int configDurationMs, IWorldResolver services)
         {
             if (args.DurationFrames > 0) return args.DurationFrames;
@@ -264,9 +275,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var frameTime = ResolveFrameTime(services);
-            var seconds = durationMs / 1000f;
-            var now = frameTime.Frame.Value;
-            return Math.Max(1, frameTime.TimeToFrame(frameTime.Time + seconds).Value - now);
+            return Math.Max(1, SecondsToFrameCount(frameTime, durationMs / 1000f));
         }
 
         private static int ResolveDelayFrames(int configDelayMs, IWorldResolver services)
@@ -274,9 +283,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (configDelayMs <= 0) return 0;
 
             var frameTime = ResolveFrameTime(services);
-            var seconds = configDelayMs / 1000f;
-            var now = frameTime.Frame.Value;
-            return Math.Max(1, frameTime.TimeToFrame(frameTime.Time + seconds).Value - now);
+            return Math.Max(1, SecondsToFrameCount(frameTime, configDelayMs / 1000f));
         }
 
         private static int ResolveStayIntervalFrames(SpawnAreaArgs args, int configIntervalMs, IWorldResolver services)
@@ -285,9 +292,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (configIntervalMs <= 0) return 0;
 
             var frameTime = ResolveFrameTime(services);
-            var seconds = configIntervalMs / 1000f;
-            var now = frameTime.Frame.Value;
-            return Math.Max(1, frameTime.TimeToFrame(frameTime.Time + seconds).Value - now);
+            return Math.Max(1, SecondsToFrameCount(frameTime, configIntervalMs / 1000f));
         }
 
         private static int ResolveFrame(IWorldResolver services)

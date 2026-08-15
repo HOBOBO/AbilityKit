@@ -3,6 +3,7 @@
     "rootNamespace": "AbilityKit.Ability.Behavior",
     "references": [
         "AbilityKit.Core",
+        "AbilityKit.Deterministic",
         "AbilityKit.Continuous",
         "AbilityKit.Ability",
         "AbilityKit.Pipeline",

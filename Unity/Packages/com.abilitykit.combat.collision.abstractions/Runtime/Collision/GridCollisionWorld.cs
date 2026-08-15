@@ -224,7 +224,7 @@ namespace AbilityKit.Combat.Collision
 
         public bool SweepOrientedBox(in OrientedBoxSweep box, in Vec3 direction, float maxDistance, in LayerFilter filter, out RaycastHit hit)
         {
-            var dir = direction.Normalized;
+            var dir = DeterministicMathBridge.Normalize(in direction);
             if (dir.SqrMagnitude <= 0f || maxDistance < 0f)
             {
                 hit = default;
@@ -279,7 +279,7 @@ namespace AbilityKit.Combat.Collision
 
         public bool SweepSphere(in Vec3 start, in Vec3 direction, float maxDistance, float radius, in LayerFilter filter, out RaycastHit hit)
         {
-            var dir = direction.Normalized;
+            var dir = DeterministicMathBridge.Normalize(in direction);
             if (dir.SqrMagnitude <= 0f || maxDistance < 0f)
             {
                 hit = default;

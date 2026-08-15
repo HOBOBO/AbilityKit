@@ -19,7 +19,9 @@ namespace AbilityKit.Demo.Moba.Rollback
     public sealed class MobaBuffTimerRollbackProvider : IRollbackStateProvider
     {
         public const int DefaultKey = 10003;
-        private const int CurrentPayloadVersion = 2;
+        // v3 (2026-08-15): 剩余/间隔剩余以 Q32.32 raw long 存储（无限期时长用 long.MinValue 哨兵）。
+        private const int CurrentPayloadVersion = 3;
+        private const long InfiniteRemainingRaw = long.MinValue;
 
         private static readonly ObjectPool<List<MobaBuffTimerRollbackEntry>> s_entryListPool = Pools.GetPool(
             createFunc: () => new List<MobaBuffTimerRollbackEntry>(16),
@@ -73,10 +75,20 @@ namespace AbilityKit.Demo.Moba.Rollback
                         }
 
                         var continuous = buff.Continuous;
-                        var remaining = continuous != null ? continuous.RemainingSeconds : buff.Remaining;
-                        var intervalRemaining = continuous != null
-                            ? continuous.IntervalRemainingSeconds
-                            : buff.IntervalRemainingSeconds;
+                        long remainingRaw;
+                        long intervalRemainingRaw;
+                        if (continuous != null)
+                        {
+                            var continuousRemaining = continuous.RemainingRaw;
+                            remainingRaw = continuousRemaining.HasValue ? continuousRemaining.Value : InfiniteRemainingRaw;
+                            intervalRemainingRaw = continuous.IntervalRemainingRaw;
+                        }
+                        else
+                        {
+                            remainingRaw = Core.Mathematics.DeterministicMathBridge.ToFixed(buff.Remaining).RawValue;
+                            intervalRemainingRaw = Core.Mathematics.DeterministicMathBridge.ToFixed(buff.IntervalRemainingSeconds).RawValue;
+                        }
+
                         var maxStack = continuous?.Config is IStackConfig stackConfig
                             ? stackConfig.MaxStack
                             : Math.Max(1, buff.StackCount);
@@ -84,8 +96,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                         entries.Add(new MobaBuffTimerRollbackEntry(
                             actorId,
                             buff.BuffId,
-                            remaining,
-                            intervalRemaining,
+                            remainingRaw,
+                            intervalRemainingRaw,
                             buff.StackCount,
                             buff.SourceId,
                             buff.SourceContextId,
@@ -240,19 +252,23 @@ namespace AbilityKit.Demo.Moba.Rollback
             runtime.SourceId = entry.SourceActorId;
             runtime.StackCount = entry.StackCount;
             runtime.RuntimeContextVersion = entry.RuntimeContextVersion;
-            runtime.Remaining = entry.Remaining;
-            runtime.IntervalRemainingSeconds = entry.IntervalRemainingSeconds;
 
             var continuous = runtime.Continuous;
-            if (continuous == null) return;
+            if (continuous == null)
+            {
+                runtime.Remaining = Deterministic.Fixed64.FromRaw(entry.RemainingRaw).ToSingle();
+                runtime.IntervalRemainingSeconds = Deterministic.Fixed64.FromRaw(entry.IntervalRemainingRaw).ToSingle();
+                return;
+            }
 
-            continuous.Refresh(
+            var remainingRaw = entry.RemainingRaw == InfiniteRemainingRaw ? (long?)null : entry.RemainingRaw;
+            continuous.RefreshRaw(
                 entry.SourceActorId,
-                entry.Remaining,
+                remainingRaw,
                 entry.StackCount,
                 entry.ContinuousMaxStack,
                 runtime.TagRequirements);
-            continuous.IntervalRemainingSeconds = entry.IntervalRemainingSeconds;
+            continuous.IntervalRemainingRaw = entry.IntervalRemainingRaw;
             continuous.SyncManagedState();
         }
 
@@ -341,8 +357,8 @@ namespace AbilityKit.Demo.Moba.Rollback
     {
         [MemoryPackOrder(0)] public readonly int ActorId;
         [MemoryPackOrder(1)] public readonly int BuffId;
-        [MemoryPackOrder(2)] public readonly float Remaining;
-        [MemoryPackOrder(3)] public readonly float IntervalRemainingSeconds;
+        [MemoryPackOrder(2)] public readonly long RemainingRaw;
+        [MemoryPackOrder(3)] public readonly long IntervalRemainingRaw;
         [MemoryPackOrder(4)] public readonly int StackCount;
         [MemoryPackOrder(5)] public readonly int SourceActorId;
         [MemoryPackOrder(6)] public readonly long SourceContextId;
@@ -355,8 +371,8 @@ namespace AbilityKit.Demo.Moba.Rollback
         public MobaBuffTimerRollbackEntry(
             int actorId,
             int buffId,
-            float remaining,
-            float intervalRemainingSeconds,
+            long remainingRaw,
+            long intervalRemainingRaw,
             int stackCount,
             int sourceActorId,
             long sourceContextId,
@@ -368,8 +384,8 @@ namespace AbilityKit.Demo.Moba.Rollback
         {
             ActorId = actorId;
             BuffId = buffId;
-            Remaining = remaining;
-            IntervalRemainingSeconds = intervalRemainingSeconds;
+            RemainingRaw = remainingRaw;
+            IntervalRemainingRaw = intervalRemainingRaw;
             StackCount = stackCount;
             SourceActorId = sourceActorId;
             SourceContextId = sourceContextId;
@@ -383,10 +399,10 @@ namespace AbilityKit.Demo.Moba.Rollback
         public MobaBuffTimerRollbackEntry(
             int actorId,
             int buffId,
-            float remaining,
-            float intervalRemainingSeconds,
+            long remainingRaw,
+            long intervalRemainingRaw,
             int stackCount)
-            : this(actorId, buffId, remaining, intervalRemainingSeconds, stackCount, 0, 0L, 0L, 0L, false, 0, 1)
+            : this(actorId, buffId, remainingRaw, intervalRemainingRaw, stackCount, 0, 0L, 0L, 0L, false, 0, 1)
         {
         }
     }

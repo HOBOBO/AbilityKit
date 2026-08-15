@@ -17,7 +17,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public override AdjustDamageNumberArgs ParseArgs(Dictionary<string, ActionArgValue> namedArgs, ExecCtx<IWorldResolver> ctx)
         {
             var numberSlot = ReadEnum(namedArgs, ctx, DamageNumberSlot.BaseDamage, "number_slot", "numberslot", "slot");
-            var op = ReadEnum(namedArgs, ctx, DamageNumberModifierOp.Mul, "op", "modifier_op", "modifierop");
+            var op = ReadEnum(namedArgs, ctx, CombatNumberModifierOp.Mul, "op", "modifier_op", "modifierop");
             var value = ReadFloat(namedArgs, ctx, 0f, "value", "modifier_value", "modifiervalue");
             var sourceId = ReadInt(namedArgs, ctx, 0, "source_id", "sourceid");
             var reasonKind = ReadEnum(namedArgs, ctx, DamageReasonKind.None, "reason_kind", "reasonkind");

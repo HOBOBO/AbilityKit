@@ -13,6 +13,47 @@ using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Demo.Moba.Predicates
 {
+    public enum CombatPredicateTargetMode
+    {
+        Target = 0,
+        Source = 1
+    }
+
+    public enum HealthPercentCompareType
+    {
+        LessThan = 0,
+        GreaterThan = 1
+    }
+
+    public static class CombatPredicateContracts
+    {
+        public static class Type
+        {
+            public const string HasBuff = "has_buff";
+            public const string HealthPercent = "health_percent";
+        }
+
+        public static class Argument
+        {
+            public const string BuffId = "buff_id";
+            public const string CheckStack = "check_stack";
+            public const string TargetMode = "target_mode";
+            public const string Threshold = "threshold";
+            public const string CompareType = "compare_type";
+            public const string FirstPosition = "0";
+            public const string SecondPosition = "1";
+        }
+
+        public static class Function
+        {
+            public const string HasBuff = "predicate:has_buff";
+            public const string HasBuffOwner = "predicate:has_buff_owner";
+            public const string OwnerMatchesPayloadSource = "predicate:owner_matches_payload_source";
+            public const string OwnerMatchesPayloadTarget = "predicate:owner_matches_payload_target";
+            public const string TargetIsFlyingProjectile = "predicate:target_is_flying_projectile";
+        }
+    }
+
     /// <summary>
     /// 检查目标是否有指定 BUFF 的条件
     /// </summary>
@@ -28,12 +69,9 @@ namespace AbilityKit.Demo.Moba.Predicates
         /// </summary>
         public bool CheckStack { get; private set; }
 
-        /// <summary>
-        /// 检查目标模式：0=目标(target)，1=自身/来源(owner/source)
-        /// </summary>
-        public int TargetMode { get; private set; }
+        public CombatPredicateTargetMode TargetMode { get; private set; }
 
-        protected override string PredicateType => "has_buff";
+        protected override string PredicateType => CombatPredicateContracts.Type.HasBuff;
         protected override int Order => 10;
 
         private IWorldResolver _services;
@@ -43,9 +81,13 @@ namespace AbilityKit.Demo.Moba.Predicates
 
         public override void ParseFrom(Dictionary<string, ActionArgValue> namedArgs, ExecCtx<IWorldResolver> ctx)
         {
-            BuffId = AutoPredicateExtensions.ResolveInt(this, namedArgs, "buff_id", 0);
-            CheckStack = AutoPredicateExtensions.ResolveInt(this, namedArgs, "check_stack", 0) > 0;
-            TargetMode = AutoPredicateExtensions.ResolveInt(this, namedArgs, "target_mode", 0);
+            BuffId = AutoPredicateExtensions.ResolveInt(this, namedArgs, CombatPredicateContracts.Argument.BuffId, 0);
+            CheckStack = AutoPredicateExtensions.ResolveInt(this, namedArgs, CombatPredicateContracts.Argument.CheckStack, 0) > 0;
+            TargetMode = (CombatPredicateTargetMode)AutoPredicateExtensions.ResolveInt(
+                this,
+                namedArgs,
+                CombatPredicateContracts.Argument.TargetMode,
+                (int)CombatPredicateTargetMode.Target);
             _services = ctx.Context;
             CombatPredicateRuntime.TryResolve(_services, out _actors);
         }
@@ -59,7 +101,7 @@ namespace AbilityKit.Demo.Moba.Predicates
             }
 
             int targetActorId;
-            if (TargetMode == 1)
+            if (TargetMode == CombatPredicateTargetMode.Source)
             {
                 if (!CombatPredicateRuntime.TryResolveSourceActorId(context?.Args, _services, out targetActorId)
                     || !CombatPredicateRuntime.TryGetActor(_services, ref _actors, targetActorId, out var actor))
@@ -106,12 +148,9 @@ namespace AbilityKit.Demo.Moba.Predicates
         /// </summary>
         public float Threshold { get; private set; }
 
-        /// <summary>
-        /// 比较类型: 0=小于, 1=大于
-        /// </summary>
-        public int CompareType { get; private set; }
+        public HealthPercentCompareType CompareType { get; private set; }
 
-        protected override string PredicateType => "health_percent";
+        protected override string PredicateType => CombatPredicateContracts.Type.HealthPercent;
         protected override int Order => 10;
 
         private IWorldResolver _services;
@@ -122,8 +161,12 @@ namespace AbilityKit.Demo.Moba.Predicates
 
         public override void ParseFrom(Dictionary<string, ActionArgValue> namedArgs, ExecCtx<IWorldResolver> ctx)
         {
-            Threshold = AutoPredicateExtensions.ResolveFloat(this, namedArgs, "threshold", 50f);
-            CompareType = AutoPredicateExtensions.ResolveInt(this, namedArgs, "compare_type", 0);
+            Threshold = AutoPredicateExtensions.ResolveFloat(this, namedArgs, CombatPredicateContracts.Argument.Threshold, 50f);
+            CompareType = (HealthPercentCompareType)AutoPredicateExtensions.ResolveInt(
+                this,
+                namedArgs,
+                CombatPredicateContracts.Argument.CompareType,
+                (int)HealthPercentCompareType.LessThan);
             _services = ctx.Context;
             CombatPredicateRuntime.TryResolve(_services, out _payloads);
             CombatPredicateRuntime.TryResolve(_services, out _actors);
@@ -140,8 +183,8 @@ namespace AbilityKit.Demo.Moba.Predicates
             var percent = hp / maxHp * 100f;
             switch (CompareType)
             {
-                case 0: return percent < Threshold;
-                case 1: return percent > Threshold;
+                case HealthPercentCompareType.LessThan: return percent < Threshold;
+                case HealthPercentCompareType.GreaterThan: return percent > Threshold;
                 default:
                     CombatPredicateRuntime.LogOnce(ref _invalidCompareLogged, $"[HealthPercentPredicate] Unsupported compare_type. compareType={CompareType}, threshold={Threshold}");
                     return false;

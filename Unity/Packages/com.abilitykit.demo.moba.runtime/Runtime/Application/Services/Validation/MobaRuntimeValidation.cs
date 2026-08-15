@@ -646,7 +646,11 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 if (invocation != MobaRuntimeValidationInvocation.Runtime)
                 {
-                    MobaRuntimeLog.Info(MobaRuntimeLogModule.Diagnostics, MobaRuntimeLogPurpose.Validation, nameof(MobaRuntimeValidationService), "Runtime validation skipped. mode=" + options.Mode + " invocation=" + invocation);
+                    MobaRuntimeLog.Info(
+                        MobaRuntimeLogModule.Diagnostics,
+                        MobaRuntimeLogPurpose.Validation,
+                        nameof(MobaRuntimeValidationService),
+                        () => "Runtime validation skipped. mode=" + options.Mode + " invocation=" + invocation);
                 }
 
                 return;
@@ -664,28 +668,47 @@ namespace AbilityKit.Demo.Moba.Services
                 for (int i = 0; i < maxEntries; i++)
                 {
                     var entry = report.Entries[i];
-                    var text = report.FormatEntry(in entry);
                     switch (entry.Severity)
                     {
                         case MobaRuntimeValidationSeverity.Error:
-                            MobaRuntimeLog.Error(MobaRuntimeLogModule.Diagnostics, MobaRuntimeLogPurpose.Validation, nameof(MobaRuntimeValidationService), text);
+                            MobaRuntimeLog.Error(
+                                MobaRuntimeLogModule.Diagnostics,
+                                MobaRuntimeLogPurpose.Validation,
+                                nameof(MobaRuntimeValidationService),
+                                () => report.FormatEntry(entry));
                             break;
                         case MobaRuntimeValidationSeverity.Warning:
-                            MobaRuntimeLog.Warning(MobaRuntimeLogModule.Diagnostics, MobaRuntimeLogPurpose.Validation, nameof(MobaRuntimeValidationService), text);
+                            MobaRuntimeLog.Warning(
+                                MobaRuntimeLogModule.Diagnostics,
+                                MobaRuntimeLogPurpose.Validation,
+                                nameof(MobaRuntimeValidationService),
+                                () => report.FormatEntry(entry));
                             break;
                         default:
-                            MobaRuntimeLog.Info(MobaRuntimeLogModule.Diagnostics, MobaRuntimeLogPurpose.Validation, nameof(MobaRuntimeValidationService), text);
+                            MobaRuntimeLog.Info(
+                                MobaRuntimeLogModule.Diagnostics,
+                                MobaRuntimeLogPurpose.Validation,
+                                nameof(MobaRuntimeValidationService),
+                                () => report.FormatEntry(entry));
                             break;
                     }
                 }
 
                 if (maxEntries < report.Entries.Count)
                 {
-                    MobaRuntimeLog.Warning(MobaRuntimeLogModule.Diagnostics, MobaRuntimeLogPurpose.Validation, nameof(MobaRuntimeValidationService), "Runtime validation entries suppressed. remaining=" + (report.Entries.Count - maxEntries));
+                    MobaRuntimeLog.Warning(
+                        MobaRuntimeLogModule.Diagnostics,
+                        MobaRuntimeLogPurpose.Validation,
+                        nameof(MobaRuntimeValidationService),
+                        () => "Runtime validation entries suppressed. remaining=" + (report.Entries.Count - maxEntries));
                 }
             }
 
-            MobaRuntimeLog.Warning(MobaRuntimeLogModule.Diagnostics, MobaRuntimeLogPurpose.Validation, nameof(MobaRuntimeValidationService), "Runtime validation completed. " + report.FormatSummary());
+            MobaRuntimeLog.Warning(
+                MobaRuntimeLogModule.Diagnostics,
+                MobaRuntimeLogPurpose.Validation,
+                nameof(MobaRuntimeValidationService),
+                () => "Runtime validation completed. " + report.FormatSummary());
         }
     }
 }

@@ -18,31 +18,31 @@ namespace AbilityKit.Moba.Behavior
         public Action<SkillPipelineContext, string> OnChannelInterrupted { get; set; }
         public Action<SkillPipelineContext> OnChannelComplete { get; set; }
         
-        public ChannelingBehaviorPhase() : base("Channeling")
+        public ChannelingBehaviorPhase() : base(MobaBehaviorContracts.Phase.Channeling)
         {
         }
         
         protected override DelegateDecision CreateDecision(SkillPipelineContext context)
         {
-            return new DelegateDecision("Channeling", (ctx, world) =>
+            return new DelegateDecision(MobaBehaviorContracts.Phase.Channeling, (ctx, world) =>
             {
                 var mobaWorld = world as MobaWorldQuery;
                 
                 if (!IsAlive(ctx, world))
                 {
-                    return DecisionResult.Interrupt("OwnerDied");
+                    return DecisionResult.Interrupt(MobaBehaviorContracts.InterruptReason.OwnerDied);
                 }
                 
                 if (mobaWorld != null)
                 {
                     if (!mobaWorld.CanBeControlled(ctx.OwnerId))
                     {
-                        return DecisionResult.Interrupt("LostControl");
+                        return DecisionResult.Interrupt(MobaBehaviorContracts.InterruptReason.LostControl);
                     }
                     
-                    if (mobaWorld.HasTag(ctx.OwnerId, "Silenced"))
+                    if (mobaWorld.HasAnyTag(ctx.OwnerId, MobaGameplayTagCatalog.SilencedAliases))
                     {
-                        return DecisionResult.Interrupt("Silenced");
+                        return DecisionResult.Interrupt(MobaBehaviorContracts.InterruptReason.Silenced);
                     }
                 }
                 
@@ -51,30 +51,30 @@ namespace AbilityKit.Moba.Behavior
                     var targetId = ctx.TargetId.Value;
                     if (!world.EntityExists(targetId))
                     {
-                        return DecisionResult.Interrupt("TargetInvalid");
+                        return DecisionResult.Interrupt(MobaBehaviorContracts.InterruptReason.TargetInvalid);
                     }
                     
                     if (mobaWorld != null && !mobaWorld.IsAlive(targetId))
                     {
-                        return DecisionResult.Interrupt("TargetDied");
+                        return DecisionResult.Interrupt(MobaBehaviorContracts.InterruptReason.TargetDied);
                     }
                     
-                    if (context.TryGetData<float>("MaxRange", out var maxRange) && maxRange > 0)
+                    if (context.TryGetData<float>(MobaBehaviorContracts.ContextKey.MaxRange, out var maxRange) && maxRange > 0)
                     {
                         var distance = world.GetDistanceToPosition(ctx.OwnerId, world.GetPosition(targetId));
                         if (distance > maxRange)
                         {
-                            return DecisionResult.Interrupt("OutOfRange");
+                            return DecisionResult.Interrupt(MobaBehaviorContracts.InterruptReason.OutOfRange);
                         }
                     }
                 }
                 
                 if (CanContinueChanneling != null && !CanContinueChanneling(context))
                 {
-                    return DecisionResult.Interrupt("CustomCondition");
+                    return DecisionResult.Interrupt(MobaBehaviorContracts.InterruptReason.CustomCondition);
                 }
                 
-                return DecisionResult.Continue("Channeling");
+                return DecisionResult.Continue(MobaBehaviorContracts.State.Channeling);
             });
         }
         
@@ -85,7 +85,7 @@ namespace AbilityKit.Moba.Behavior
         
         protected override IWorldQuery CreateWorldQuery(SkillPipelineContext context)
         {
-            if (context.TryGetData<MobaWorldQuery>("MobaWorldQuery", out var query))
+            if (context.TryGetData<MobaWorldQuery>(MobaBehaviorContracts.ContextKey.WorldQuery, out var query))
             {
                 return query;
             }
@@ -111,7 +111,7 @@ namespace AbilityKit.Moba.Behavior
         {
             if (world is MobaWorldQuery moba)
                 return moba.IsAlive(ctx.OwnerId);
-            return world.GetData<bool>(ctx.OwnerId, "alive", true);
+            return world.GetData<bool>(ctx.OwnerId, MobaBehaviorContracts.WorldDataKey.Alive, true);
         }
         
         private class ChannelingExecutor : ABehaviorExecutor
@@ -156,13 +156,13 @@ namespace AbilityKit.Moba.Behavior
         public float FollowDistance { get; set; } = 1f;
         public float MoveSpeed { get; set; } = 5f;
         
-        public FollowBehaviorPhase() : base("Follow")
+        public FollowBehaviorPhase() : base(MobaBehaviorContracts.Phase.Follow)
         {
         }
         
         protected override DelegateDecision CreateDecision(SkillPipelineContext context)
         {
-            return new DelegateDecision("Follow", (ctx, world) =>
+            return new DelegateDecision(MobaBehaviorContracts.Phase.Follow, (ctx, world) =>
             {
                 if (!ctx.TargetId.HasValue)
                 {
@@ -172,12 +172,12 @@ namespace AbilityKit.Moba.Behavior
                 var targetId = ctx.TargetId.Value;
                 if (!world.EntityExists(targetId))
                 {
-                    return DecisionResult.Interrupt("TargetDied");
+                    return DecisionResult.Interrupt(MobaBehaviorContracts.InterruptReason.TargetInvalid);
                 }
                 
                 if (world is MobaWorldQuery moba && !moba.IsAlive(targetId))
                 {
-                    return DecisionResult.Interrupt("TargetDied");
+                    return DecisionResult.Interrupt(MobaBehaviorContracts.InterruptReason.TargetDied);
                 }
                 
                 var ownerPos = world.GetPosition(ctx.OwnerId);
@@ -191,7 +191,7 @@ namespace AbilityKit.Moba.Behavior
                 
                 var speed = MoveSpeed > 0 ? MoveSpeed : (world as MobaWorldQuery)?.GetMoveSpeed(ctx.OwnerId, 5f) ?? 5f;
                 
-                return DecisionResult.Continue("Following")
+                return DecisionResult.Continue(MobaBehaviorContracts.State.Following)
                     .WithMovement(targetPos, targetId, speed);
             });
         }
@@ -218,7 +218,7 @@ namespace AbilityKit.Moba.Behavior
         
         private string _initialState;
         
-        public StateMachineBehaviorPhase(string initialState) : base("StateMachine")
+        public StateMachineBehaviorPhase(string initialState) : base(MobaBehaviorContracts.Phase.StateMachine)
         {
             _initialState = initialState;
         }
@@ -232,9 +232,9 @@ namespace AbilityKit.Moba.Behavior
         
         protected override DelegateDecision CreateDecision(SkillPipelineContext context)
         {
-            return new DelegateDecision("StateMachine", (ctx, world) =>
+            return new DelegateDecision(MobaBehaviorContracts.Phase.StateMachine, (ctx, world) =>
             {
-                if (!context.TryGetData<string>("currentState", out var currentState))
+                if (!context.TryGetData<string>(MobaBehaviorContracts.ContextKey.CurrentState, out var currentState))
                 {
                     currentState = _initialState;
                 }
@@ -248,7 +248,7 @@ namespace AbilityKit.Moba.Behavior
                 
                 if (result.Kind == DecisionKind.ChangeState && !string.IsNullOrEmpty(result.StateName))
                 {
-                    context.SetData("currentState", result.StateName);
+                    context.SetData(MobaBehaviorContracts.ContextKey.CurrentState, result.StateName);
                 }
                 
                 return result;

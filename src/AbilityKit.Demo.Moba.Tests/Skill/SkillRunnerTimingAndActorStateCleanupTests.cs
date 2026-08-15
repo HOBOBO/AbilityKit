@@ -129,10 +129,10 @@ public sealed class SkillRunnerTimingAndActorStateCleanupTests
             ShieldId = 1,
             SourceActorId = actorId,
             TargetActorId = actorId,
-            CurrentValue = 50f,
-            MaxValue = 50f,
-            InitialValue = 50f,
-            AbsorbRatio = 1f,
+            CurrentValue = 50,
+            MaxValue = 50,
+            InitialValue = 50,
+            AbsorbRatio = 1,
             StackingPolicy = ShieldStackingPolicy.Independent,
         };
     }

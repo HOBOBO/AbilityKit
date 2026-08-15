@@ -78,9 +78,69 @@ namespace AbilityKit.Game.Test.UnitTest
             StringAssert.Contains("action=debug_log configured message", _sink.InfoMessages[0]);
         }
 
+        [Test]
+        public void DisabledRuntimeLog_DoesNotInvokeMessageFactory()
+        {
+            MobaRuntimeLog.MinimumLevel = MobaRuntimeLogLevel.Off;
+            var invocationCount = 0;
+
+            MobaRuntimeLog.Warning(
+                MobaRuntimeLogModule.Diagnostics,
+                MobaRuntimeLogPurpose.Validation,
+                nameof(DisabledRuntimeLog_DoesNotInvokeMessageFactory),
+                () =>
+                {
+                    invocationCount++;
+                    return "deferred validation message";
+                });
+
+            Assert.AreEqual(0, invocationCount);
+            Assert.IsEmpty(_sink.WarningMessages);
+        }
+
+        [Test]
+        public void SkillPipelineStartResult_ExposesStableCodeAndMatchesLegacyWrapper()
+        {
+            var runner = new SkillPipelineRunner(actorId: 7);
+            var request = default(SkillCastRequest);
+            var context = new SkillCastContext();
+            var policy = SkillCastPolicy.Default;
+
+            var result = runner.TryStart(
+                preCastConfig: null,
+                preCastPhases: null,
+                castConfig: null,
+                castPhases: null,
+                abilityInstance: this,
+                in request,
+                context,
+                in policy);
+
+            Assert.IsFalse(result.Success);
+            Assert.AreEqual("skill.start.castConfigMissing", result.StartReject.Code);
+            Assert.AreEqual("Skill cast pipeline config is missing.", result.FailReason);
+            Assert.IsFalse(result.PipelineFailure.HasValue);
+
+            var legacySuccess = runner.Start(
+                preCastConfig: null,
+                preCastPhases: null,
+                castConfig: null,
+                castPhases: null,
+                abilityInstance: this,
+                in request,
+                context,
+                out var legacyFailReason,
+                policy: in policy);
+
+            Assert.IsFalse(legacySuccess);
+            Assert.AreEqual(result.FailReason, legacyFailReason);
+            Assert.AreEqual(result.StartReject.Code, runner.LastStartReject.Code);
+        }
+
         private sealed class RecordingLogSink : ILogSink
         {
             public readonly List<string> InfoMessages = new List<string>();
+            public readonly List<string> WarningMessages = new List<string>();
 
             public void Info(string message)
             {
@@ -89,6 +149,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             public void Warning(string message)
             {
+                WarningMessages.Add(message);
             }
 
             public void Error(string message)

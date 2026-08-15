@@ -44,7 +44,7 @@ namespace AbilityKit.Demo.Moba.Services
             _items.Sort(comparison);
         }
 
-        public int CopyTo(IList<T> destination)
+        public int PeekTo(IList<T> destination)
         {
             if (destination == null) throw new ArgumentNullException(nameof(destination));
 
@@ -54,6 +54,11 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             return _items.Count;
+        }
+
+        public int CopyTo(IList<T> destination)
+        {
+            return PeekTo(destination);
         }
 
         public int CopyTo(T[] destination, int destinationIndex = 0)
@@ -69,7 +74,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public int DrainTo(IList<T> destination)
         {
-            var count = CopyTo(destination);
+            var count = PeekTo(destination);
             _items.Clear();
             TrimIfNeeded();
             return count;

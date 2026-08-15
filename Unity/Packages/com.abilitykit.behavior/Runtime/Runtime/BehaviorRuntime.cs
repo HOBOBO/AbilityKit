@@ -120,7 +120,9 @@ namespace AbilityKit.Ability.Behavior
         
         public BehaviorPhase Phase { get; private set; }
         public long CurrentFrame { get; private set; }
-        public float ElapsedSeconds { get; private set; }
+
+        /// <summary>已流逝秒数（Q32.32 raw 累加，整数运算无漂移；float 属性为边界单次换算视图）。</summary>
+        public float ElapsedSeconds => AbilityKit.Deterministic.Fixed64.FromRaw(_elapsedRaw).ToSingle();
         
         public IBehaviorDecision Decision { get; }
         public IBehaviorExecutor Executor { get; }
@@ -139,10 +141,16 @@ namespace AbilityKit.Ability.Behavior
         #endregion
         
         #region Private Fields
-        
+
         private bool _requestComplete;
         private string _interruptReason;
-        
+        private long _elapsedRaw;
+
+        private static long ToRaw(float seconds)
+        {
+            return AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(seconds).RawValue;
+        }
+
         #endregion
         
         #region Constructor
@@ -219,9 +227,9 @@ namespace AbilityKit.Ability.Behavior
         public void Tick(float deltaTime, long frame)
         {
             if (Phase != BehaviorPhase.Running) return;
-            
+
             CurrentFrame = frame;
-            ElapsedSeconds += deltaTime;
+            _elapsedRaw += ToRaw(deltaTime);
             
             // 重置输出
             _requestComplete = false;
@@ -252,8 +260,8 @@ namespace AbilityKit.Ability.Behavior
                     return;
                 }
                 
-                // 检查持续时间
-                if (DurationSeconds.HasValue && ElapsedSeconds >= DurationSeconds.Value)
+                // 检查持续时间（定点比较：raw 累计 vs 配置秒数单次换算）
+                if (DurationSeconds.HasValue && _elapsedRaw >= ToRaw(DurationSeconds.Value))
                 {
                     Complete();
                 }

@@ -1,16 +1,18 @@
 using System;
+using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {
     public sealed class DelayRunningAction : IRunningAction
     {
-        private float _remaining;
+        // Q32.32 raw 倒计时（整数减法无漂移）。
+        private long _remainingRaw;
         private bool _done;
         private bool _disposed;
 
         public DelayRunningAction(float delaySeconds)
         {
-            _remaining = delaySeconds;
+            _remainingRaw = DeterministicMathBridge.ToFixed(delaySeconds).RawValue;
         }
 
         public bool IsDone => _done;
@@ -18,8 +20,8 @@ namespace AbilityKit.Ability.Triggering.Runtime
         public void Tick(float deltaTime)
         {
             if (_done) return;
-            _remaining -= deltaTime;
-            if (_remaining <= 0f) _done = true;
+            _remainingRaw -= DeterministicMathBridge.ToFixed(deltaTime).RawValue;
+            if (_remainingRaw <= 0L) _done = true;
         }
 
         public void Cancel()

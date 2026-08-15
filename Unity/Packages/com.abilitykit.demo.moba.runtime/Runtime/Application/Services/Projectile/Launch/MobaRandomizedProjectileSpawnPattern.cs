@@ -53,9 +53,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             var local = ResolveAxisRandomOffset(x, y, z, random);
             if (local.SqrMagnitude <= 0f) return Vec3.Zero;
 
-            var forward = direction.SqrMagnitude > 0f ? direction.Normalized : Vec3.Forward;
+            var forward = direction.SqrMagnitude > 0f ? DeterministicMathBridge.Normalize(in direction) : Vec3.Forward;
             var up = Vec3.Up;
-            var right = Vec3.Cross(in up, in forward).Normalized;
+            var right = DeterministicMathBridge.Normalize(Vec3.Cross(in up, in forward));
             if (right.SqrMagnitude <= 0f) right = Vec3.Right;
 
             return right * local.X + Vec3.Up * local.Y + forward * local.Z;

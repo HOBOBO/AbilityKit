@@ -19,12 +19,17 @@
   <!-- 项目引用 -->
   <ItemGroup>
     <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Deterministic/AbilityKit.Deterministic.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.DI/AbilityKit.World.DI.csproj" />
   </ItemGroup>
 
   <!-- NuGet 依赖 -->
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.21.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AbilityKit.World.FrameSync.Tests" />
   </ItemGroup>
 
 </Project>

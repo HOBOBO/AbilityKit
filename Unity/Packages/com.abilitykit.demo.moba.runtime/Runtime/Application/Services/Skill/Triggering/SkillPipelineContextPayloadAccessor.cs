@@ -206,7 +206,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (!actor.hasResourceContainer || actor.resourceContainer.Value == null || actor.resourceContainer.Value.Map == null) return false;
             if (!actor.resourceContainer.Value.Map.TryGetValue(resourceType, out var state) || state == null) return false;
 
-            current = state.Current;
+            current = MobaResourceFixedConvert.ToSingle(state.Current);
             max = ResolveResourceMax(actor, state, resourceType);
             return true;
         }
@@ -271,7 +271,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         private static double ResolveResourceMax(global::ActorEntity actor, ResourceState state, ResourceType resourceType)
         {
-            if (state != null && state.LastMax > 0f) return state.LastMax;
+            if (state != null && state.LastMax > AbilityKit.Deterministic.Fixed64.Zero) return MobaResourceFixedConvert.ToSingle(state.LastMax);
             if (actor == null || !actor.hasAttributeGroup || actor.attributeGroup.Group == null) return 0d;
 
             var attr = resourceType switch

@@ -8,7 +8,9 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Attributes.Core;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateSync;
@@ -60,7 +62,8 @@ namespace AbilityKit.Game.Tests
                     "Transform changes must be visible to reconciliation.");
 
                 first.ReplaceTransform(new Transform3(new Vec3(1f, 2f, 3f), Quat.Identity, Vec3.One));
-                first.attributeGroup.Group.SetBase(MobaAttributeIds.HP, 89f);
+                // 真实血量在 ResourceContainer（Q32.32），HP 变化必须能被对账哈希感知。
+                first.resourceContainer.Value.Map[ResourceType.Hp].Current = Fixed64.FromInt32(89);
                 Assert.That(calculator.Compute(true, forwardRegistry), Is.Not.EqualTo(expected),
                     "HP changes must be visible to reconciliation.");
             }
@@ -244,6 +247,15 @@ namespace AbilityKit.Game.Tests
             var group = attributeContext.GetOrCreateGroup(Guid.NewGuid().ToString("N"));
             group.SetBase(MobaAttributeIds.HP, hp);
             entity.AddAttributeGroup(group, attributeContext);
+            entity.AddResourceContainer(
+                new ResourceContainer
+                {
+                    Map = new Dictionary<ResourceType, ResourceState>
+                    {
+                        [ResourceType.Hp] = new ResourceState { Current = Fixed64.FromSingle(hp) },
+                    },
+                },
+                true);
             return entity;
         }
 

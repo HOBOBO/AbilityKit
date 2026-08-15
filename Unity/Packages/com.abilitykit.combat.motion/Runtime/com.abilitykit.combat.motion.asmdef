@@ -1,17 +1,28 @@
-{
-    "name": "AbilityKit.Combat.Motion",
-    "rootNamespace": "AbilityKit",
-    "references": [
-        "AbilityKit.Core",
-        "AbilityKit.Combat.Collision.Abstractions"
-    ],
-    "includePlatforms": [],
-    "excludePlatforms": [],
-    "allowUnsafeCode": false,
-    "overrideReferences": false,
-    "precompiledReferences": [],
-    "autoReferenced": true,
-    "defineConstraints": [],
-    "versionDefines": [],
-    "noEngineReferences": false
+﻿{
+    "name":  "AbilityKit.Combat.Motion",
+    "rootNamespace":  "AbilityKit",
+    "references":  [
+                       "AbilityKit.Core",
+                       "AbilityKit.Combat.Collision.Abstractions",
+                       "AbilityKit.Deterministic"
+                   ],
+    "includePlatforms":  [
+
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  false,
+    "precompiledReferences":  [
+
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
 }

@@ -352,11 +352,11 @@ public sealed class MobaContinuousLifecycleTests
         public TestPeriodicContinuous(float intervalSeconds, float initialRemainingSeconds)
         {
             _config = new TestPeriodicConfig(intervalSeconds);
+            // IntervalRemainingSeconds 由基类承载（Q32.32 raw 存储 + float 视图）。
             IntervalRemainingSeconds = initialRemainingSeconds;
         }
 
         public override IContinuousConfig Config => _config;
-        public float IntervalRemainingSeconds { get; set; }
 
         public bool TryGetCombatExecutionContext(out MobaCombatExecutionContext context)
         {

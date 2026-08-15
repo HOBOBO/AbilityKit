@@ -112,7 +112,7 @@ namespace AbilityKit.Combat.MotionSystem.Generic
 
             var target = _points[_index];
             var deltaTo = target - state.Position;
-            var dist = deltaTo.Magnitude;
+            var dist = DeterministicMathBridge.Magnitude(in deltaTo);
             if (dist <= 0.00001f)
             {
                 _index++;

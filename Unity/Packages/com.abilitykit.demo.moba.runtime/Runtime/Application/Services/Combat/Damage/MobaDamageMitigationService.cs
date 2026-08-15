@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Attributes;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -15,21 +16,25 @@ namespace AbilityKit.Demo.Moba.Services
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
         }
 
-        public float Mitigate(AttackInfo attack, float rawDamage)
+        /// <summary>
+        /// 定点减伤：属性系统仍是 float 存储，在读取处经
+        /// <see cref="MobaResourceFixedConvert"/> 单次换算进 Q32.32 后做确定性算术。
+        /// </summary>
+        public Fixed64 Mitigate(AttackInfo attack, Fixed64 rawDamage)
         {
-            if (attack == null) return 0f;
-            if (rawDamage <= 0f) return 0f;
+            if (attack == null) return Fixed64.Zero;
+            if (rawDamage <= Fixed64.Zero) return Fixed64.Zero;
             if (attack.DamageType == DamageType.True) return rawDamage;
 
             if (!_actors.TryGetActorEntity(attack.TargetActorId, out var target) || target == null) return rawDamage;
             if (!target.hasAttributeGroup) return rawDamage;
 
             var targetAttrs = target.GetMobaAttrs();
-            var defense = ResolveDefense(targetAttrs, attack.DamageType);
-            var penetrationR = ResolvePenetrationRatio(attack.AttackerActorId, attack.DamageType);
-            var effectiveDefense = Math.Max(0f, defense * (1f - Clamp(penetrationR, 0f, 0.95f)));
+            var defense = MobaResourceFixedConvert.ToFixed(ResolveDefense(targetAttrs, attack.DamageType));
+            var penetrationR = MobaResourceFixedConvert.ToFixed(ResolvePenetrationRatio(attack.AttackerActorId, attack.DamageType));
+            var effectiveDefense = DeterministicMath.Max(Fixed64.Zero, defense * (Fixed64.One - DeterministicMath.Clamp(penetrationR, Fixed64.Zero, MobaResourceFixedConvert.ToFixed(0.95f))));
 
-            return rawDamage * 100f / (100f + effectiveDefense);
+            return rawDamage * 100 / (100 + effectiveDefense);
         }
 
         private float ResolvePenetrationRatio(int attackerActorId, DamageType damageType)
@@ -61,13 +66,6 @@ namespace AbilityKit.Demo.Moba.Services
                 default:
                     return 0f;
             }
-        }
-
-        private static float Clamp(float value, float min, float max)
-        {
-            if (value < min) return min;
-            if (value > max) return max;
-            return value;
         }
 
         public void Dispose()

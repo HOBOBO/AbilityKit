@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Common.Rooms;
@@ -13,7 +14,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     public sealed class ShooterFormalMultiplayerController : MonoBehaviour
     {
         private const float WindowWidth = 420f;
-        private const float WindowHeight = 470f;
+        private const float WindowHeight = 500f;
+        private const long RoomNoticeDurationMilliseconds = 6000L;
 
         [SerializeField] private ShooterMultiplayerProfileSO? profile;
 
@@ -27,6 +29,9 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private Task? _battleWaitTask;
         private string _status = "Initializing";
         private string _error = string.Empty;
+        private string _pendingBattleRoomId = string.Empty;
+        private string _roomNotice = string.Empty;
+        private long _roomNoticeExpiresAtUnixMs;
         private Vector2 _roomScroll;
         private bool _hasRequest;
         private bool _busy;
@@ -83,10 +88,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             GUILayout.Label($"Server: {ValueOrDash(_request.Region)} / {ValueOrDash(_request.ServerId)}");
             GUILayout.Label(_busy ? $"Status: {_status}..." : $"Status: {_status}");
             if (!string.IsNullOrWhiteSpace(_error)) GUILayout.Label($"Error: {_error}");
+            DrawRoomNotice();
 
             if (_roomController?.HasActiveRoom == true)
             {
                 DrawRoomSession(_roomController);
+            }
+            else if (!string.IsNullOrWhiteSpace(_pendingBattleRoomId))
+            {
+                DrawBattleConnectionRecovery();
             }
             else
             {
@@ -99,6 +109,20 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 ReturnToStarterAsync();
             }
             GUILayout.EndArea();
+        }
+
+        private void DrawBattleConnectionRecovery()
+        {
+            GUILayout.Space(12f);
+            GUILayout.Label($"Room: {_pendingBattleRoomId}");
+            GUILayout.Label("The room is already in battle. Reconnect to subscribe to its authoritative state.");
+            GUILayout.Space(8f);
+            GUI.enabled = !_busy && !_returning;
+            if (GUILayout.Button("Retry Battle Connection", GUILayout.Height(38f)))
+            {
+                RetryBattleConnectionAsync();
+            }
+            GUI.enabled = true;
         }
 
         private void DrawRoomDirectory()
@@ -147,12 +171,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 for (var i = 0; i < snapshot.Members.Count; i++)
                 {
                     var member = snapshot.Members[i];
+                    var owner = string.Equals(member.AccountId, snapshot.OwnerAccountId, StringComparison.Ordinal)
+                        ? " / Owner"
+                        : string.Empty;
                     var ready = member.LobbyReady ? "Ready" : "Not ready";
                     var online = member.IsOnline ? string.Empty : " / Offline";
                     var loading = snapshot.Phase == ShooterRoomSessionPhase.Loading
                         ? $" / {member.LoadingProgress}%"
                         : string.Empty;
-                    GUILayout.Label($"P{member.PlayerId}  {ready}{loading}{online}");
+                    GUILayout.Label($"P{member.PlayerId} {member.AccountId} / {ready}{owner}{loading}{online}");
                 }
             }
 
@@ -364,6 +391,39 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var launcher = _roomLauncher;
             _roomLauncher = null;
             DisposeRoomFlow(disposeLauncher: false);
+            await ConnectBattleAsync(roomId, launcher);
+        }
+
+        private async void RetryBattleConnectionAsync()
+        {
+            if (_battleLaunchRequested || _busy || _returning || string.IsNullOrWhiteSpace(_pendingBattleRoomId)) return;
+            _battleLaunchRequested = true;
+            _busy = true;
+            _status = "Reconnecting battle";
+            _error = string.Empty;
+            var roomId = _pendingBattleRoomId;
+            ShooterClientNetworkLauncher? launcher = null;
+            try
+            {
+                launcher = ShooterClientNetworkLauncher.Create(
+                    ShooterClientConnectionFactory.TcpForUnityMainThread());
+                launcher.Open(new ShooterClientNetworkEndpoint(_request.Host, _request.Port));
+            }
+            catch (Exception ex)
+            {
+                launcher?.Dispose();
+                _battleLaunchRequested = false;
+                _busy = false;
+                _status = "Battle connection failed";
+                _error = ex.Message;
+                return;
+            }
+
+            await ConnectBattleAsync(roomId, launcher);
+        }
+
+        private async Task ConnectBattleAsync(string roomId, ShooterClientNetworkLauncher launcher)
+        {
             try
             {
                 var options = RequireProfile().BuildLaunchOptions(
@@ -371,11 +431,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                     ShooterRemoteStateSyncLaunchMode.JoinRoom,
                     roomId);
                 await ShooterRemoteStateSyncPlayModeHost.StartAsync(options, launcher);
+                _pendingBattleRoomId = string.Empty;
                 _status = "In battle";
             }
             catch (Exception ex)
             {
-                _status = "Failed";
+                _pendingBattleRoomId = roomId;
+                _battleLaunchRequested = false;
+                _status = "Battle connection failed";
                 _error = ex.Message;
             }
             finally
@@ -394,11 +457,89 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var session = new ShooterGatewayRoomSession(_roomClient, store);
             _roomController = new ShooterRoomSessionController(session, store);
             _roomController.StateChanged += HandleRoomStateChanged;
+            _roomController.RoomChanged += HandleRoomChanged;
         }
 
         private void HandleRoomStateChanged(ShooterRoomSessionState state)
         {
             _status = FormatState(state);
+            if (state == ShooterRoomSessionState.InLobby) CancelBattleWait();
+        }
+
+        private void HandleRoomChanged(ShooterRoomSessionChange change)
+        {
+            AppendRoomNotice(FormatRoomNotice(change));
+        }
+
+        internal static string FormatRoomNotice(ShooterRoomSessionChange change)
+        {
+            if (change == null) return string.Empty;
+            var messages = new List<string>();
+            for (var i = 0; i < change.LeftAccountIds.Count; i++)
+            {
+                messages.Add(change.LeftAccountIds[i] + " left the room.");
+            }
+            for (var i = 0; i < change.JoinedAccountIds.Count; i++)
+            {
+                messages.Add(change.JoinedAccountIds[i] + " joined the room.");
+            }
+            if (change.OwnerChanged && !string.IsNullOrWhiteSpace(change.CurrentOwnerAccountId))
+            {
+                messages.Add(change.CurrentOwnerAccountId + " is now room owner.");
+            }
+
+            for (var i = 0; i < change.MemberChanges.Count; i++)
+            {
+                var member = change.MemberChanges[i];
+                if (member.OnlineChanged)
+                {
+                    messages.Add(member.CurrentOnline
+                        ? member.AccountId + " reconnected."
+                        : member.AccountId + " went offline.");
+                }
+                if (member.ReadyChanged)
+                {
+                    messages.Add(member.CurrentReady
+                        ? member.AccountId + " is ready."
+                        : member.AccountId + " is no longer ready.");
+                }
+            }
+
+            if (change.PreviousPhase is ShooterRoomSessionPhase.Loading or ShooterRoomSessionPhase.Starting &&
+                change.CurrentPhase == ShooterRoomSessionPhase.Lobby)
+            {
+                messages.Add(change.PhaseReason switch
+                {
+                    "LockedMemberLeft" => "Loading was cancelled because a player left.",
+                    "LoadingTimeout" => "Loading timed out. The room returned to the lobby.",
+                    _ => "Loading was cancelled. The room returned to the lobby."
+                });
+            }
+
+            return string.Join(" ", messages);
+        }
+
+        private void AppendRoomNotice(string notice)
+        {
+            if (string.IsNullOrWhiteSpace(notice)) return;
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            _roomNotice = !string.IsNullOrWhiteSpace(_roomNotice) && now < _roomNoticeExpiresAtUnixMs
+                ? _roomNotice + " " + notice
+                : notice;
+            _roomNoticeExpiresAtUnixMs = now + RoomNoticeDurationMilliseconds;
+        }
+
+        private void DrawRoomNotice()
+        {
+            if (string.IsNullOrWhiteSpace(_roomNotice)) return;
+            if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() >= _roomNoticeExpiresAtUnixMs)
+            {
+                _roomNotice = string.Empty;
+                return;
+            }
+
+            GUILayout.Space(4f);
+            GUILayout.Label(_roomNotice);
         }
 
         private async Task<T> WithRoomClient<T>(Func<IDemoRoomDirectoryClient, Task<T>> action)
@@ -526,7 +667,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private void DisposeRoomFlow(bool disposeLauncher)
         {
             CancelBattleWait();
-            if (_roomController != null) _roomController.StateChanged -= HandleRoomStateChanged;
+            if (_roomController != null)
+            {
+                _roomController.StateChanged -= HandleRoomStateChanged;
+                _roomController.RoomChanged -= HandleRoomChanged;
+            }
             _roomController?.Dispose();
             _roomController = null;
             _roomClient?.Dispose();

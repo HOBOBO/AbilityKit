@@ -1,3 +1,4 @@
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Moba.Behavior;
@@ -47,7 +48,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         {
             if (!TryGetEntity(entityId, out var e) || !e.hasTransform) return;
             var t = e.transform.Value;
-            var rotation = global::AbilityKit.Core.Mathematics.Quat.LookRotation(forward.Normalized, global::AbilityKit.Core.Mathematics.Vec3.Up);
+            var rotation = global::AbilityKit.Core.Mathematics.Quat.LookRotation(DeterministicMathBridge.Normalize(in forward), global::AbilityKit.Core.Mathematics.Vec3.Up);
             e.ReplaceTransform(new global::AbilityKit.Core.Mathematics.Transform3(t.Position, rotation, t.Scale));
         }
 
@@ -129,15 +130,14 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         {
             if (!TryGetGroup(entityId, out var group)) return 0f;
 
-            // MobaWorldQuery.GetMoveSpeed 使用字符串 "MoveSpeed"
-            if (string.Equals(attributeId, "MoveSpeed", System.StringComparison.Ordinal))
+            if (string.Equals(attributeId, MobaBehaviorContracts.WorldDataKey.MoveSpeed, System.StringComparison.Ordinal))
             {
                 return group.GetValue(MobaAttributeIds.MOVE_SPEED);
             }
 
-            if (string.Equals(attributeId, "HP", System.StringComparison.Ordinal))
+            if (string.Equals(attributeId, MobaBehaviorContracts.WorldDataKey.HitPoints, System.StringComparison.Ordinal))
             {
-                return group.GetValue(MobaAttributeIds.HP);
+                return GetCurrentHp(entityId, group);
             }
 
             return 0f;
@@ -146,7 +146,20 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         public bool IsAlive(long entityId)
         {
             if (!TryGetGroup(entityId, out var group)) return false;
-            return group.GetValue(MobaAttributeIds.HP) > 0f;
+            return GetCurrentHp(entityId, group) > 0f;
+        }
+
+        /// <summary>真实血量在 ResourceContainer；无容器时回退 HP attribute 初始基线。</summary>
+        private float GetCurrentHp(long entityId, global::AbilityKit.Attributes.Core.AttributeGroup group)
+        {
+            if (_registry.TryGet((int)entityId, out var e) && e != null &&
+                e.hasResourceContainer && e.resourceContainer.Value?.Map != null &&
+                e.resourceContainer.Value.Map.TryGetValue(AbilityKit.Demo.Moba.Components.ResourceType.Hp, out var hpState) && hpState != null)
+            {
+                return MobaResourceFixedConvert.ToSingle(hpState.Current);
+            }
+
+            return group.GetValue(MobaAttributeIds.HP);
         }
 
         public int GetTeam(long entityId)

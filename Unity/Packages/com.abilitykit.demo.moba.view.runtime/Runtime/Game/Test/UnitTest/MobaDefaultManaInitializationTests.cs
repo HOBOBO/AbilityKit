@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
@@ -20,8 +21,8 @@ namespace AbilityKit.Game.UnitTests
             Assert.IsTrue(actor.resourceContainer.Value.Map.TryGetValue(ResourceType.Mana, out var mana));
             Assert.NotNull(mana);
             Assert.AreEqual(MobaAttributeIds.MAX_MANA, mana.MaxAttribute);
-            Assert.AreEqual(0f, mana.Current);
-            Assert.AreEqual(0f, mana.LastMax);
+            Assert.AreEqual(Fixed64.Zero, mana.Current);
+            Assert.AreEqual(Fixed64.Zero, mana.LastMax);
         }
 
         [Test]
@@ -32,8 +33,8 @@ namespace AbilityKit.Game.UnitTests
             var existing = new ResourceState
             {
                 MaxAttribute = MobaAttributeIds.MAX_MANA,
-                Current = 17f,
-                LastMax = 80f
+                Current = Fixed64.FromSingle(17f),
+                LastMax = Fixed64.FromSingle(80f)
             };
             actor.AddResourceContainer(
                 new ResourceContainer
@@ -48,8 +49,8 @@ namespace AbilityKit.Game.UnitTests
             new MobaActorAttributeInitializer().EnsureContainers(actor);
 
             Assert.AreSame(existing, actor.resourceContainer.Value.Map[ResourceType.Mana]);
-            Assert.AreEqual(17f, existing.Current);
-            Assert.AreEqual(80f, existing.LastMax);
+            Assert.AreEqual(Fixed64.FromSingle(17f), existing.Current);
+            Assert.AreEqual(Fixed64.FromSingle(80f), existing.LastMax);
         }
     }
 }

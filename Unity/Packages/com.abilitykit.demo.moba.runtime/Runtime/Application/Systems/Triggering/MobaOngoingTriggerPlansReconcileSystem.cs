@@ -9,6 +9,7 @@ namespace AbilityKit.Demo.Moba.Systems.Triggering
     [WorldSystem(order: MobaSystemOrder.OngoingTriggerPlansReconcile, Phase = WorldSystemPhase.Execute)]
     public sealed class MobaOngoingTriggerPlansReconcileSystem : WorldSystemBase
     {
+        private readonly List<OngoingTriggerPlanEntry> _activePlans = new List<OngoingTriggerPlanEntry>(16);
         private MobaTriggerPlanReconcileService _reconcileService;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
@@ -27,7 +28,7 @@ namespace AbilityKit.Demo.Moba.Systems.Triggering
         {
             if (_reconcileService == null) return;
 
-            var activePlans = new List<OngoingTriggerPlanEntry>(16);
+            _activePlans.Clear();
             var entities = _group.GetEntities();
             if (entities != null && entities.Length > 0)
             {
@@ -41,12 +42,12 @@ namespace AbilityKit.Demo.Moba.Systems.Triggering
 
                     for (int j = 0; j < list.Count; j++)
                     {
-                        activePlans.Add(list[j]);
+                        _activePlans.Add(list[j]);
                     }
                 }
             }
 
-            _reconcileService.Reconcile(activePlans);
+            _reconcileService.Reconcile(_activePlans);
         }
     }
 }

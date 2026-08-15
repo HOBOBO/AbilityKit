@@ -11,7 +11,8 @@ namespace AbilityKit.Ability.Triggering.Runtime
     {
         private readonly int _sourceId;
         private readonly Action<int> _removeEffect;
-        private float _remaining;
+        // Q32.32 raw 倒计时（整数减法无漂移）。
+        private long _remainingRaw;
         private bool _done;
 
         /// <summary>
@@ -21,7 +22,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
         {
             _sourceId = sourceId;
             _removeEffect = removeEffect;
-            _remaining = durationSeconds;
+            _remainingRaw = AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(durationSeconds).RawValue;
             if (durationSeconds <= 0f)
             {
                 _done = true;
@@ -37,7 +38,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
         {
             _sourceId = sourceId;
             _removeEffect = null;
-            _remaining = durationSeconds;
+            _remainingRaw = AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(durationSeconds).RawValue;
             if (durationSeconds <= 0f)
             {
                 _done = true;
@@ -51,8 +52,8 @@ namespace AbilityKit.Ability.Triggering.Runtime
         {
             if (_done) return;
 
-            _remaining -= deltaTime;
-            if (_remaining <= 0f)
+            _remainingRaw -= AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(deltaTime).RawValue;
+            if (_remainingRaw <= 0L)
             {
                 _done = true;
                 Remove();

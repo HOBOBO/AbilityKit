@@ -1173,34 +1173,19 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             FrameIndex targetFrame,
             float fallbackDeltaTime)
         {
-            if (frameTime == null || frameTime.Frame.Value == targetFrame.Value) return;
+            if (frameTime == null) return;
 
-            var fixedDelta = frameTime.FrameToTime(new FrameIndex(1));
-            if (fixedDelta <= 0f)
-            {
-                fixedDelta = fallbackDeltaTime;
-            }
-            if (fixedDelta <= 0f) return;
-
-            var previousFrame = new FrameIndex(targetFrame.Value - 1);
-            frameTime.Reset(
-                previousFrame,
-                previousFrame.Value * fixedDelta,
-                fixedDelta);
-            frameTime.StepTo(targetFrame, fixedDelta);
+            // 整数对齐：时间 = 帧号 × 固定步长（与逐帧累加位一致）。
+            // 原实现经 float（FrameToTime/Reset）中转重建，与累加路径有亚毫秒偏差，
+            // 会在冷却 ms 判定边界触发预测哈希失配。
+            frameTime.AlignTo(targetFrame, fallbackDeltaTime);
         }
 
         private static void AlignFrameTimeToBaseline(FrameTime frameTime, FrameIndex baselineFrame)
         {
             if (frameTime == null) return;
 
-            var fixedDelta = frameTime.FrameToTime(new FrameIndex(1));
-            if (fixedDelta <= 0f) return;
-
-            frameTime.Reset(
-                baselineFrame,
-                baselineFrame.Value * fixedDelta,
-                fixedDelta);
+            frameTime.AlignTo(baselineFrame, 0f);
         }
 
         private static bool InputsEqual(PlayerInputCommand[] a, PlayerInputCommand[] b)

@@ -37,6 +37,7 @@ namespace AbilityKit.Game.Flow
         private string _roomNotice = string.Empty;
         private long _roomNoticeExpiresAtUnixMs;
         private long _lastSnapshotReceivedAtUnixMs;
+        private ClientRoomSnapshot _lastObservedRoomSnapshot;
 
         private bool IsOperationBusy => _runtime.IsOperationBusy;
 
@@ -61,6 +62,7 @@ namespace AbilityKit.Game.Flow
             _roomNotice = string.Empty;
             _roomNoticeExpiresAtUnixMs = 0L;
             _lastSnapshotReceivedAtUnixMs = 0L;
+            _lastObservedRoomSnapshot = null;
 
             _gatewayConfig = null;
             _session = null;
@@ -119,6 +121,7 @@ namespace AbilityKit.Game.Flow
             _roomNotice = string.Empty;
             _roomNoticeExpiresAtUnixMs = 0L;
             _lastSnapshotReceivedAtUnixMs = 0L;
+            _lastObservedRoomSnapshot = null;
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
@@ -348,6 +351,27 @@ namespace AbilityKit.Game.Flow
             return string.Join(" ", messages);
         }
 
+        internal static string FormatPhaseRollbackNotice(
+            ClientRoomSnapshot previous,
+            ClientRoomSnapshot current)
+        {
+            if (previous == null ||
+                current == null ||
+                (previous.Phase != ClientRoomPhase.Loading &&
+                 previous.Phase != ClientRoomPhase.Starting) ||
+                current.Phase != ClientRoomPhase.Lobby)
+            {
+                return string.Empty;
+            }
+
+            return current.PhaseReason switch
+            {
+                "LockedMemberLeft" => "Loading was cancelled because a player left.",
+                "LoadingTimeout" => "Loading timed out. The room returned to the lobby.",
+                _ => "Loading was cancelled. The room returned to the lobby."
+            };
+        }
+
         internal static FormalLobbyPresentationState BuildLobbyPresentation(
             MultiplayerRoomSnapshot snapshot,
             MultiplayerRoomPlayerSnapshot localPlayer,
@@ -377,6 +401,7 @@ namespace AbilityKit.Game.Flow
             var localReady = localPlayer?.LobbyReady == true && localPlayer.HeroId > 0;
             var updatesCurrent = connectionState == ConnectionState.Connected && !snapshotIsStale;
             var canReady = localPlayer != null && !localReady && updatesCurrent;
+            var canNotReady = localPlayer != null && localReady && updatesCurrent;
             var canStart = isLocalRoomOwner &&
                            localReady &&
                            updatesCurrent &&
@@ -445,6 +470,7 @@ namespace AbilityKit.Game.Flow
                 minPlayers,
                 localReady,
                 canReady,
+                canNotReady,
                 canStart);
         }
 
@@ -860,7 +886,11 @@ namespace AbilityKit.Game.Flow
         private void HandleSnapshotChanged(ClientRoomSnapshot snapshot)
         {
             if (snapshot == null) return;
+
+            var previous = _lastObservedRoomSnapshot;
+            _lastObservedRoomSnapshot = snapshot;
             _lastSnapshotReceivedAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            AppendRoomNotice(FormatPhaseRollbackNotice(previous, snapshot));
         }
 
         private void DrawRoomNotice()
@@ -1015,6 +1045,15 @@ namespace AbilityKit.Game.Flow
                 {
                     _runtime.MarkPrepared(snapshot.RoomId);
                     StartOperation("Preparing player", PrepareDefaultLoadoutAsync);
+                },
+                notReady: () =>
+                {
+                    _runtime.MarkPrepared(snapshot.RoomId);
+                    StartOperation(
+                        "Cancelling ready state",
+                        operationContext => _controller.SetReadyAsync(
+                            false,
+                            operationContext.CancellationToken));
                 },
                 start: () => StartOperation(
                     "Starting match",

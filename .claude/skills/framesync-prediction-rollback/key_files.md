@@ -35,7 +35,7 @@
 - `RollbackEntriesArrayPool.cs` — 池化
 - `WorldRollbackSnapshot.cs` — 快照结构体 + Codec 版本
 - `RollbackOperationResult.cs` — `Kind / Status / Frame / ...`
-- `FrameTimeRollbackStateProvider.cs`
+- `FrameTimeRollbackStateProvider.cs` — payload **v2（2026-08）**：`TimeRaw` / `FixedDeltaRaw` 以 Q32.32 raw long 存储（`FrameTime` 内部定点累加，float `Time` 为边界视图），版本不匹配严格拒绝；定点栈约定总览见 `com.abilitykit.world.framesync/Document/定点帧同步接入指南.md`
 
 ### Generic 集合：`com.abilitykit.host.extension/Runtime/Client/FrameSync/`（4 个 .cs，被 ConfirmedAuthority 路径使用）
 

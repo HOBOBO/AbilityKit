@@ -7,7 +7,8 @@ namespace AbilityKit.Ability.FrameSync.Rollback
     {
         public const int DefaultKey = 900002;
 
-        private const int PayloadVersion = 1;
+        // v2 (2026-08-15): FrameTime 累计时刻定点化（Q32.32），快照以 raw long 存储 Time/FixedDelta。
+        private const int PayloadVersion = 2;
         private readonly FrameTime _frameTime;
 
         public FrameTimeRollbackStateProvider(FrameTime frameTime, int key = DefaultKey)
@@ -23,9 +24,9 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             return MemoryPackSerializer.Serialize(new FrameTimeRollbackStatePayload(
                 PayloadVersion,
                 _frameTime.Frame.Value,
-                _frameTime.Time,
+                _frameTime.TimeRaw,
                 _frameTime.DeltaTime,
-                _frameTime.FrameToTime(new FrameIndex(1))));
+                _frameTime.FixedDeltaRaw));
         }
 
         public void Import(FrameIndex frame, byte[] payload)
@@ -43,11 +44,11 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                     $"Unsupported frame-time rollback payload version: {state.Version}");
             }
 
-            _frameTime.Restore(
+            _frameTime.RestoreRaw(
                 new FrameIndex(state.Frame),
-                state.Time,
+                state.TimeRaw,
                 state.DeltaTime,
-                state.FixedDelta);
+                state.FixedDeltaRaw);
         }
     }
 
@@ -56,17 +57,17 @@ namespace AbilityKit.Ability.FrameSync.Rollback
     {
         [MemoryPackOrder(0)] public readonly int Version;
         [MemoryPackOrder(1)] public readonly int Frame;
-        [MemoryPackOrder(2)] public readonly float Time;
+        [MemoryPackOrder(2)] public readonly long TimeRaw;
         [MemoryPackOrder(3)] public readonly float DeltaTime;
-        [MemoryPackOrder(4)] public readonly float FixedDelta;
+        [MemoryPackOrder(4)] public readonly long FixedDeltaRaw;
 
-        public FrameTimeRollbackStatePayload(int version, int frame, float time, float deltaTime, float fixedDelta)
+        public FrameTimeRollbackStatePayload(int version, int frame, long timeRaw, float deltaTime, long fixedDeltaRaw)
         {
             Version = version;
             Frame = frame;
-            Time = time;
+            TimeRaw = timeRaw;
             DeltaTime = deltaTime;
-            FixedDelta = fixedDelta;
+            FixedDeltaRaw = fixedDeltaRaw;
         }
     }
 }

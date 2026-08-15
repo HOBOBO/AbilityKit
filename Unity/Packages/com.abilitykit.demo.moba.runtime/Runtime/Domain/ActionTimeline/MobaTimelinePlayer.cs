@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using AbilityKit.ActionSchema;
+using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Demo.Moba.ActionTimeline
 {
@@ -10,7 +11,8 @@ namespace AbilityKit.Demo.Moba.ActionTimeline
         private readonly MobaClipHandlerRegistry _registry;
         private readonly IMobaTimelineEventSink _sink;
 
-        private float _time;
+        // Q32.32 raw 时间累计（整数加法无漂移）；float Time 是边界视图。
+        private long _timeRaw;
         private readonly HashSet<string> _fired = new HashSet<string>();
 
         public MobaTimelinePlayer(SkillAssetDto asset, MobaClipHandlerRegistry registry, IMobaTimelineEventSink sink)
@@ -20,11 +22,11 @@ namespace AbilityKit.Demo.Moba.ActionTimeline
             _sink = sink;
         }
 
-        public float Time => _time;
+        public float Time => Deterministic.Fixed64.FromRaw(_timeRaw).ToSingle();
 
         public void Reset(float time = 0f)
         {
-            _time = time;
+            _timeRaw = DeterministicMathBridge.ToFixed(time).RawValue;
             _fired.Clear();
         }
 
@@ -32,9 +34,12 @@ namespace AbilityKit.Demo.Moba.ActionTimeline
         {
             if (_asset == null || _asset.groups == null) return;
 
-            if (deltaTime < 0) deltaTime = 0;
-            _time += deltaTime;
+            if (deltaTime > 0f)
+            {
+                _timeRaw += DeterministicMathBridge.ToFixed(deltaTime).RawValue;
+            }
 
+            var epsilonRaw = DeterministicMathBridge.ToFixed(1e-6f).RawValue;
             foreach (var group in _asset.groups)
             {
                 if (group == null || !group.active) continue;
@@ -52,7 +57,7 @@ namespace AbilityKit.Demo.Moba.ActionTimeline
                         var key = MakeClipKey(group, track, clip);
                         if (_fired.Contains(key)) continue;
 
-                        if (_time + 1e-6f < clip.start) continue;
+                        if (_timeRaw + epsilonRaw < DeterministicMathBridge.ToFixed(clip.start).RawValue) continue;
 
                         TryFireClip(clip);
                         _fired.Add(key);
@@ -71,7 +76,7 @@ namespace AbilityKit.Demo.Moba.ActionTimeline
             if (_sink == null) return;
 
             if (!_registry.TryGet(clip.type, out var handler) || handler == null) return;
-            handler.TryHandle(_time, clip, _sink);
+            handler.TryHandle(Time, clip, _sink);
         }
     }
 }

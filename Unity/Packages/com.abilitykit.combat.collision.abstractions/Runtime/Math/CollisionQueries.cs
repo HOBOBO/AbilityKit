@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Deterministic;
 
 namespace AbilityKit.Core.Mathematics
 {
@@ -6,39 +7,46 @@ namespace AbilityKit.Core.Mathematics
     {
         public static bool Raycast(in Ray3 ray, in Sphere sphere, out float distance, out Vec3 normal)
         {
-            // 求解 |o + t d - c|^2 = r^2。
-            var oc = ray.Origin - sphere.Center;
-            var a = Vec3.Dot(ray.Direction, ray.Direction);
-            var b = 2f * Vec3.Dot(oc, ray.Direction);
-            var c = Vec3.Dot(oc, oc) - sphere.Radius * sphere.Radius;
-            var discriminant = b * b - 4f * a * c;
+            // 求解 |o + t d - c|^2 = r^2。判别式开方与法线归一化走定点内核
+            // （DeterministicMathBridge），保证命中判定跨平台位一致。
+            var o = DeterministicMathBridge.ToFixed(ray.Origin);
+            var d = DeterministicMathBridge.ToFixed(ray.Direction);
+            var c = DeterministicMathBridge.ToFixed(sphere.Center);
+            var r = Fixed64.FromSingle(sphere.Radius);
 
-            if (discriminant < 0f)
+            var oc = o - c;
+            var a = FixedVec3.Dot(d, d);
+            var b = Fixed64.FromInt64(2) * FixedVec3.Dot(oc, d);
+            var cc = FixedVec3.Dot(oc, oc) - r * r;
+            var discriminant = (b * b) - (Fixed64.FromInt64(4) * a * cc);
+
+            if (discriminant < Fixed64.Zero)
             {
                 distance = 0f;
                 normal = Vec3.Zero;
                 return false;
             }
 
-            var sqrt = MathUtil.Sqrt(discriminant);
-            var inv2a = 1f / (2f * a);
-            var t0 = (-b - sqrt) * inv2a;
-            var t1 = (-b + sqrt) * inv2a;
+            var sqrt = DeterministicMath.Sqrt(discriminant);
+            var inv2a = Fixed64.FromInt64(2) * a;
+            var t0 = (-b - sqrt) / inv2a;
+            var t1 = (-b + sqrt) / inv2a;
 
             var t = t0;
-            if (t < 0f) t = t1;
-            if (t < 0f)
+            if (t < Fixed64.Zero) t = t1;
+            if (t < Fixed64.Zero)
             {
                 distance = 0f;
                 normal = Vec3.Zero;
                 return false;
             }
 
-            distance = t;
-            var hitPoint = ray.GetPoint(t);
-            var n = hitPoint - sphere.Center;
-            var len = n.Magnitude;
-            normal = len > MathUtil.Epsilon ? n / len : Vec3.Zero;
+            distance = t.ToSingle();
+            var hitDelta = (o + (d * t)) - c;
+            var len = DeterministicMath.Sqrt(hitDelta.SqrMagnitude);
+            normal = len > DeterministicMathBridge.Epsilon
+                ? DeterministicMathBridge.ToVec3(hitDelta / len)
+                : Vec3.Zero;
             return true;
         }
 

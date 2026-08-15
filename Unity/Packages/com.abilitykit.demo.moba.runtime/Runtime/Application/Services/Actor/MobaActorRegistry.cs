@@ -12,6 +12,21 @@ namespace AbilityKit.Demo.Moba.Services
 
         public IEnumerable<KeyValuePair<int, global::ActorEntity>> Entries => _byId;
 
+        private readonly List<int> _orderedIdScratch = new List<int>(16);
+
+        /// <summary>
+        /// 按 ActorId 升序填充 id 列表（复用内部 scratch，消费方须在下一调用前用完）。
+        /// 快照/投影/跨网络输出必须按此序遍历：字典遍历序跨运行时不保证一致，
+        /// 按 id 定序保证两端字节序一致。
+        /// </summary>
+        public List<int> CopyActorIdsInOrder()
+        {
+            _orderedIdScratch.Clear();
+            _orderedIdScratch.AddRange(_byId.Keys);
+            _orderedIdScratch.Sort();
+            return _orderedIdScratch;
+        }
+
         public void Register(int actorId, global::ActorEntity entity)
         {
             if (actorId <= 0) throw new ArgumentOutOfRangeException(nameof(actorId));

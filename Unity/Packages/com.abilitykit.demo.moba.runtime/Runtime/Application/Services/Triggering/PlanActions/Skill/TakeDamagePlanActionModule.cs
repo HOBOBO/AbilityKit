@@ -1,3 +1,4 @@
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
@@ -40,8 +41,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var reasonParam = args.ReasonParam;
 
-            baseValue *= rate;
-            if (baseValue <= 0f)
+            var baseFixed = MobaResourceFixedConvert.ToFixed(baseValue) * MobaResourceFixedConvert.ToFixed(rate);
+            if (baseFixed <= Fixed64.Zero)
             {
                 LogRejected(ctx, $"requires positive damage. attacker={attackerActorId} target={targetActorId} base={baseValue:0.###} rate={rate:0.###} reasonParam={reasonParam}");
                 return;
@@ -70,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             attack.SetOrigin(in origin);
-            attack.BaseDamage.BaseValue = baseValue;
+            attack.BaseDamage.FixedBaseValue = baseFixed;
 
             var result = combat.DealDamage(attack);
             if (result == null)

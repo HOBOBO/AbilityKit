@@ -6,6 +6,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Attributes.Core;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
@@ -159,7 +160,11 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 Map = new Dictionary<ResourceType, ResourceState>
                 {
-                    [ResourceType.Hp] = new ResourceState { Current = 123f, LastMax = 321f }
+                    [ResourceType.Hp] = new ResourceState
+                    {
+                        Current = Fixed64.FromSingle(123f),
+                        LastMax = Fixed64.FromSingle(321f)
+                    }
                 }
             };
             var activeSkills = new[] { new ActiveSkillRuntime { SkillId = 7001, Level = 3 } };
@@ -180,7 +185,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(attributeGroup.TryGet(MobaAttributeIds.HP, out var hpAttribute));
             Assert.AreEqual(321f, hpAttribute.BaseValue);
             Assert.AreSame(resources, entity.resourceContainer.Value);
-            Assert.AreEqual(123f, resources.Map[ResourceType.Hp].Current);
+            Assert.AreEqual(Fixed64.FromSingle(123f), resources.Map[ResourceType.Hp].Current);
             Assert.AreSame(activeSkills, entity.skillLoadout.ActiveSkills);
             Assert.AreSame(passiveSkills, entity.skillLoadout.PassiveSkills);
         }

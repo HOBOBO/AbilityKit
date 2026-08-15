@@ -8,6 +8,7 @@
     "AbilityKit.World.FrameSync",
     "AbilityKit.World.ECS",
     "AbilityKit.Combat.Collision.Abstractions",
+    "AbilityKit.Deterministic",
     "MemoryPack"
   ],
   "includePlatforms": [],

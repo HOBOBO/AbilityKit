@@ -85,9 +85,14 @@ namespace AbilityKit.Demo.Moba.Services.Snapshot
             _buffer.Clear();
         }
 
+        protected int PeekTo(IList<TEntry> destination)
+        {
+            return _buffer.PeekTo(destination);
+        }
+
         protected int CopyTo(IList<TEntry> destination)
         {
-            return _buffer.CopyTo(destination);
+            return PeekTo(destination);
         }
 
         protected int DrainTo(IList<TEntry> destination)

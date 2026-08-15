@@ -23,7 +23,8 @@ namespace AbilityKit.Demo.Moba.Gameplay
         [WorldInject(required: false)] private IWorldResolver _services = null;
  
         private MobaGameplayPhase _phase = MobaGameplayPhase.NotStarted;
-        private float _elapsedSeconds;
+        // Q32.32 raw 累计；float 属性/事件参数是表现边界单次换算视图。
+        private long _elapsedRaw;
         private MobaGameplayResult _lastResult;
         private int _currentGameplayId;
         private GameplayMO _currentGameplay;
@@ -35,7 +36,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
         public bool IsRunning => _phase == MobaGameplayPhase.Running;
 
-        public float ElapsedSeconds => _elapsedSeconds;
+        public float ElapsedSeconds => AbilityKit.Deterministic.Fixed64.FromRaw(_elapsedRaw).ToSingle();
 
         public MobaGameplayResult LastResult => _lastResult;
 
@@ -140,7 +141,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
             var frame = _preparedStartFrame;
             _preparedGameplay = null;
             _preparedStartFrame = 0;
-            _elapsedSeconds = 0f;
+            _elapsedRaw = 0L;
             _lastResult = default;
             _currentGameplayId = gameplay.Id;
             _currentGameplay = gameplay;
@@ -178,8 +179,8 @@ namespace AbilityKit.Demo.Moba.Gameplay
                 return;
             }
 
-            _elapsedSeconds += deltaTime;
-            Publish(GameplayTriggerEvents.Tick, new GameplayLifecycleEventArgs(GetCurrentFrame(), _elapsedSeconds, deltaTime, null));
+            _elapsedRaw += AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(deltaTime).RawValue;
+            Publish(GameplayTriggerEvents.Tick, new GameplayLifecycleEventArgs(GetCurrentFrame(), ElapsedSeconds, deltaTime, null));
         }
 
         public bool End(string reason, int winTeamId = 0)
@@ -190,7 +191,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
             }
 
             _phase = MobaGameplayPhase.Ending;
-            var result = new MobaGameplayResult(reason, winTeamId, GetCurrentFrame(), _elapsedSeconds);
+            var result = new MobaGameplayResult(reason, winTeamId, GetCurrentFrame(), ElapsedSeconds);
             _lastResult = result;
 
             Publish(GameplayTriggerEvents.Ended, new GameplayLifecycleEventArgs(result.EndFrame, result.ElapsedSeconds, 0f, result.Reason, result.WinTeamId));
@@ -209,14 +210,14 @@ namespace AbilityKit.Demo.Moba.Gameplay
                 return;
             }
 
-            Publish(eventName, new GameplayLifecycleEventArgs(GetCurrentFrame(), _elapsedSeconds, 0f, reason));
+            Publish(eventName, new GameplayLifecycleEventArgs(GetCurrentFrame(), ElapsedSeconds, 0f, reason));
         }
 
         public void Reset()
         {
             CancelPreparedStart();
             _triggerBindings?.Unbind();
-            _elapsedSeconds = 0f;
+            _elapsedRaw = 0L;
             _lastResult = default;
             _currentGameplayId = 0;
             _currentGameplay = null;

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Network.Battle.Projection;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -75,8 +76,17 @@ namespace AbilityKit.Demo.Moba.Services.Projection
             if (e.hasAttributeGroup && e.attributeGroup.Group != null)
             {
                 var group = e.attributeGroup.Group;
-                hp = group.GetValue(MobaAttributeIds.HP);
                 hpMax = group.GetValue(MobaAttributeIds.MAX_HP);
+                // 真实血量在 ResourceContainer（伤害/治疗落地处）；无容器时回退 HP attribute 初始基线。
+                if (e.hasResourceContainer && e.resourceContainer.Value?.Map != null &&
+                    e.resourceContainer.Value.Map.TryGetValue(ResourceType.Hp, out var hpState) && hpState != null)
+                {
+                    hp = MobaResourceFixedConvert.ToSingle(hpState.Current);
+                }
+                else
+                {
+                    hp = group.GetValue(MobaAttributeIds.HP);
+                }
             }
 
             var teamId = e.hasTeam ? (int)e.team.Value : 0;

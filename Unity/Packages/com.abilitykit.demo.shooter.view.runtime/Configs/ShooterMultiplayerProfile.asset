@@ -15,8 +15,8 @@ MonoBehaviour:
   roomTitle: Shooter Room
   maxPlayers: 4
   roomListLimit: 10
-  autoReady: 1
-  autoStart: 1
+  autoReady: 0
+  autoStart: 0
   syncTemplateId: predict-rollback-authority
   randomSeed: 3901
   playerCount: 2

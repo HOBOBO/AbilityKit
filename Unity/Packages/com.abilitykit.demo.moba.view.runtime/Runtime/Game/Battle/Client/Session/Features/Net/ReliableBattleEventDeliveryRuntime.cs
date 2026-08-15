@@ -157,8 +157,10 @@ namespace AbilityKit.Game.Flow
             if (timelineInvalidated == null) throw new ArgumentNullException(nameof(timelineInvalidated));
 
             _session?.Dispose();
-            var commonCheckpointStore = checkpointStore == null
-                ? null
+            IReliableEventCheckpointStore commonCheckpointStore = checkpointStore == null
+                ? syncSession == null
+                    ? null
+                    : new InMemoryReliableEventCheckpointStore()
                 : new CheckpointStoreAdapter(checkpointStore);
             _session = new ReliableEventSessionBuilder<WireReliableBattleEvent>(
                 new ReliableEventSessionOptions<WireReliableBattleEvent>

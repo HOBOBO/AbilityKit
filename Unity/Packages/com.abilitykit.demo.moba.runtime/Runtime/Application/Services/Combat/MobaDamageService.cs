@@ -1,5 +1,6 @@
 ﻿using System;
 using AbilityKit.Core.Eventing;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Ability.World.Services;
@@ -35,23 +36,23 @@ namespace AbilityKit.Demo.Moba.Services
             int attackerActorId,
             int targetActorId,
             int damageType,
-            float value,
+            Fixed64 value,
             int reasonKind = 0,
             int reasonParam = 0,
             MobaGameplayOrigin origin = default)
         {
-            if (targetActorId <= 0 || !IsFinitePositive(value)) return default;
+            if (targetActorId <= 0 || value <= Fixed64.Zero) return default;
             if (_rules != null && !_rules.CanReceiveDamage(attackerActorId, targetActorId).Passed) return default;
             if (!_actors.TryGetActorEntity(targetActorId, out var target) || target == null) return default;
 
             var attrs = target.GetMobaAttrs();
-            var oldHp = attrs.Hp;
-            var maxHp = attrs.MaxHp;
-            var newHp = Clamp(oldHp - value, 0f, maxHp);
+            var oldHp = attrs.FixedHp;
+            var maxHp = MobaResourceFixedConvert.ToFixed(attrs.MaxHp);
+            var newHp = DeterministicMath.Clamp(oldHp - value, Fixed64.Zero, maxHp);
             var actual = oldHp - newHp;
-            if (actual <= 0f) return default;
+            if (actual <= Fixed64.Zero) return default;
 
-            attrs.Hp = newHp;
+            attrs.FixedHp = newHp;
             var result = new MobaHealthChangeResult(
                 MobaHealthChangeKind.Damage,
                 attackerActorId,
@@ -59,16 +60,30 @@ namespace AbilityKit.Demo.Moba.Services
                 damageType,
                 reasonKind,
                 reasonParam,
-                value,
-                actual,
-                oldHp,
-                newHp,
-                maxHp,
+                MobaResourceFixedConvert.ToSingle(value),
+                MobaResourceFixedConvert.ToSingle(actual),
+                MobaResourceFixedConvert.ToSingle(oldHp),
+                MobaResourceFixedConvert.ToSingle(newHp),
+                attrs.MaxHp,
                 in origin);
-            _snapshots.ReportDamage(attackerActorId, targetActorId, damageType, actual, reasonKind, reasonParam, newHp, maxHp);
-            CollectDirectDamage(attackerActorId, targetActorId, damageType, actual, reasonKind, reasonParam, newHp, maxHp);
+            _snapshots.ReportDamage(attackerActorId, targetActorId, damageType, MobaResourceFixedConvert.ToSingle(actual), reasonKind, reasonParam, MobaResourceFixedConvert.ToSingle(newHp), attrs.MaxHp);
+            CollectDirectDamage(attackerActorId, targetActorId, damageType, MobaResourceFixedConvert.ToSingle(actual), reasonKind, reasonParam, MobaResourceFixedConvert.ToSingle(newHp), attrs.MaxHp);
             PublishCommitted(in result);
             return result;
+        }
+
+        /// <summary>float 边界重载（事件/测试入口，单次换算）。</summary>
+        internal MobaHealthChangeResult CommitDamage(
+            int attackerActorId,
+            int targetActorId,
+            int damageType,
+            float value,
+            int reasonKind = 0,
+            int reasonParam = 0,
+            MobaGameplayOrigin origin = default)
+        {
+            if (!IsFinitePositive(value)) return default;
+            return CommitDamage(attackerActorId, targetActorId, damageType, MobaResourceFixedConvert.ToFixed(value), reasonKind, reasonParam, origin);
         }
 
         internal MobaHealthChangeResult CommitHeal(
@@ -104,17 +119,31 @@ namespace AbilityKit.Demo.Moba.Services
             bool allowDeadTarget = false)
         {
             if (targetActorId <= 0 || !IsFinitePositive(value)) return default;
+            return CommitHealFixed(healerActorId, targetActorId, healType, MobaResourceFixedConvert.ToFixed(value), reasonKind, reasonParam, origin, allowDeadTarget);
+        }
+
+        internal MobaHealthChangeResult CommitHealFixed(
+            int healerActorId,
+            int targetActorId,
+            int healType,
+            Fixed64 value,
+            int reasonKind = 0,
+            int reasonParam = 0,
+            MobaGameplayOrigin origin = default,
+            bool allowDeadTarget = false)
+        {
+            if (targetActorId <= 0 || value <= Fixed64.Zero) return default;
             if (!allowDeadTarget && _rules != null && (!_rules.TryGetActor(targetActorId, out _) || !_rules.IsAlive(targetActorId))) return default;
             if (!_actors.TryGetActorEntity(targetActorId, out var target) || target == null) return default;
 
             var attrs = target.GetMobaAttrs();
-            var oldHp = attrs.Hp;
-            var maxHp = attrs.MaxHp;
-            var newHp = Clamp(oldHp + value, 0f, maxHp);
+            var oldHp = attrs.FixedHp;
+            var maxHp = MobaResourceFixedConvert.ToFixed(attrs.MaxHp);
+            var newHp = DeterministicMath.Clamp(oldHp + value, Fixed64.Zero, maxHp);
             var actual = newHp - oldHp;
-            if (actual <= 0f) return default;
+            if (actual <= Fixed64.Zero) return default;
 
-            attrs.Hp = newHp;
+            attrs.FixedHp = newHp;
             var kind = allowDeadTarget ? MobaHealthChangeKind.Respawn : MobaHealthChangeKind.Heal;
             var result = new MobaHealthChangeResult(
                 kind,
@@ -123,14 +152,14 @@ namespace AbilityKit.Demo.Moba.Services
                 healType,
                 reasonKind,
                 reasonParam,
-                value,
-                actual,
-                oldHp,
-                newHp,
-                maxHp,
+                MobaResourceFixedConvert.ToSingle(value),
+                MobaResourceFixedConvert.ToSingle(actual),
+                MobaResourceFixedConvert.ToSingle(oldHp),
+                MobaResourceFixedConvert.ToSingle(newHp),
+                attrs.MaxHp,
                 in origin);
-            _snapshots.ReportHeal(healerActorId, targetActorId, healType, actual, reasonKind, reasonParam, newHp, maxHp);
-            CollectHeal(healerActorId, targetActorId, healType, actual, reasonKind, reasonParam, newHp, maxHp);
+            _snapshots.ReportHeal(healerActorId, targetActorId, healType, MobaResourceFixedConvert.ToSingle(actual), reasonKind, reasonParam, MobaResourceFixedConvert.ToSingle(newHp), attrs.MaxHp);
+            CollectHeal(healerActorId, targetActorId, healType, MobaResourceFixedConvert.ToSingle(actual), reasonKind, reasonParam, MobaResourceFixedConvert.ToSingle(newHp), attrs.MaxHp);
             PublishCommitted(in result);
             return result;
         }
@@ -254,13 +283,6 @@ namespace AbilityKit.Demo.Moba.Services
                 object boxed = result;
                 _eventBus.Publish(objectKey, in boxed);
             }
-        }
-
-        private static float Clamp(float v, float min, float max)
-        {
-            if (v < min) return min;
-            if (v > max) return max;
-            return v;
         }
 
         private static bool IsFinitePositive(float value)

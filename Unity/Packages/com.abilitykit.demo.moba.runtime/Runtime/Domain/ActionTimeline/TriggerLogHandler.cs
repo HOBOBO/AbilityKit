@@ -6,6 +6,7 @@ namespace AbilityKit.Demo.Moba.ActionTimeline
     public sealed class TriggerLogHandler : IMobaClipHandler
     {
         public const string ClipType = "AbilityKit.ActionEditorImpl.TriggerLog";
+        public const string LogArgumentKey = "log";
 
         public bool TryHandle(float time, ClipDto clip, IMobaTimelineEventSink sink)
         {
@@ -17,7 +18,7 @@ namespace AbilityKit.Demo.Moba.ActionTimeline
             string msg = null;
             if (clip.args != null)
             {
-                clip.args.TryGetValue("log", out msg);
+                clip.args.TryGetValue(LogArgumentKey, out msg);
             }
 
             sink.OnTriggerLog(time, msg ?? string.Empty);

@@ -48,7 +48,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
         public int ConfigId => Request.ContinuousProcessId > 0 ? Request.ContinuousProcessId : LauncherId;
         public int ModifierSourceId => CreateModifierSourceId(SourceContextId, ConfigId, CasterActorId, LauncherId, ProjectileId);
         public long SourceContextId => Request.SourceContext.SourceContextId;
-        public float IntervalRemainingSeconds { get; set; }
 
         public override IContinuousConfig Config => _config;
 

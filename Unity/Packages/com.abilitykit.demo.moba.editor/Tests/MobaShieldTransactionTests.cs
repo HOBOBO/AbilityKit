@@ -1,5 +1,6 @@
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Deterministic;
 using NUnit.Framework;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
@@ -12,9 +13,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void PreviewAbsorb_DoesNotMutateShieldState()
         {
             var service = CreateServiceWithShield(40f);
-            var plan = service.PreviewAbsorb(CreateAttack(), 25f);
+            var plan = service.PreviewAbsorb(
+                CreateAttack(),
+                Fixed64.FromSingle(25f));
 
-            Assert.That(plan.Absorbed, Is.EqualTo(25f));
+            Assert.That(plan.Absorbed, Is.EqualTo(Fixed64.FromSingle(25f)));
             Assert.That(service.GetTotalRemaining(TargetActorId), Is.EqualTo(40f));
         }
 
@@ -22,7 +25,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void CommitAndRollback_RestoresOriginalShieldValue()
         {
             var service = CreateServiceWithShield(40f);
-            var plan = service.PreviewAbsorb(CreateAttack(), 25f);
+            var plan = service.PreviewAbsorb(
+                CreateAttack(),
+                Fixed64.FromSingle(25f));
 
             Assert.That(service.CommitAbsorb(plan), Is.True);
             Assert.That(service.GetTotalRemaining(TargetActorId), Is.EqualTo(15f));
@@ -34,7 +39,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void DepletedLayer_IsRemovedOnlyAfterFinalize()
         {
             var service = CreateServiceWithShield(20f);
-            var plan = service.PreviewAbsorb(CreateAttack(), 20f);
+            var plan = service.PreviewAbsorb(
+                CreateAttack(),
+                Fixed64.FromSingle(20f));
 
             Assert.That(service.CommitAbsorb(plan), Is.True);
             Assert.That(service.TryGetContainer(TargetActorId, out var committed), Is.True);
@@ -53,10 +60,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             {
                 ShieldId = 101,
                 SourceActorId = 7,
-                CurrentValue = value,
-                MaxValue = value,
-                InitialValue = value,
-                AbsorbRatio = 1f,
+                CurrentValue = Fixed64.FromSingle(value),
+                MaxValue = Fixed64.FromSingle(value),
+                InitialValue = Fixed64.FromSingle(value),
+                AbsorbRatio = Fixed64.One,
                 StackingPolicy = ShieldStackingPolicy.Independent,
                 ConsumePolicy = ShieldConsumePolicy.PriorityThenOldest,
             });

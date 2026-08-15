@@ -317,9 +317,11 @@ reviewed through a deprecation cycle rather than expanded in place:
   package and the `AbilityKit.Continuous` namespace. Core retains only the
   obsolete compatibility implementation until the next major-version removal
   window; boundary auditing prevents production consumers from returning to it.
-- `Numerics`: deprecated gameplay modifier compatibility surface. The only
-  framework consumer has migrated to the MOBA-owned `DamageNumberValue`; keep
-  the old API source-compatible until the next major-version removal window.
+- `Numerics`: **removed (2026-08, before the first release)**. The deprecated
+  gameplay modifier compatibility surface (`NumberValue` and friends) had no
+  production consumers — the only framework consumer migrated to the MOBA-owned
+  fixed-point `CombatNumberValue` (formerly DamageNumberValue). Domain-owned numeric pipelines should follow
+  the fixed-point integration guide instead.
 - Configuration and reflection: MOBA consumers now use owner-package settings
   and bootstrap APIs. Core retains obsolete compatibility types until the next
   major-version removal window; new consumers are blocked by boundary audit.

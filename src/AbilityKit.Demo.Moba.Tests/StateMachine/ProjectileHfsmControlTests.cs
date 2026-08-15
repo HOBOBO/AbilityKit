@@ -3,6 +3,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Combat.Collision;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Deterministic;
 using MemoryPack;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using Xunit;
@@ -53,7 +54,7 @@ public sealed class ProjectileHfsmControlTests
         world.Tick(100, 0.1f, null, null, null);
         var suspended = Snapshot(world, 100);
         Assert.Equal(1, suspended.IsSuspended);
-        Assert.Equal(0f, suspended.Position.X);
+        Assert.Equal(0L, suspended.PositionX);
         Assert.Equal(2, suspended.LifetimeFramesLeft);
 
         var controlledPosition = new Vec3(-2f, 0f, 0f);
@@ -64,14 +65,14 @@ public sealed class ProjectileHfsmControlTests
         world.Tick(101, 0.1f, null, null, null);
         var resumed = Snapshot(world, 101);
         Assert.Equal(0, resumed.IsSuspended);
-        Assert.Equal(-1f, resumed.Position.X, 4);
+        Assert.Equal(-1f, Fixed64.FromRaw(resumed.PositionX).ToSingle(), 4);
         Assert.Equal(1, resumed.LifetimeFramesLeft);
 
         world.ImportRollback(new FrameIndex(100), rollback);
         world.Tick(101, 0.1f, null, null, null);
         var restored = Snapshot(world, 101);
         Assert.Equal(1, restored.IsSuspended);
-        Assert.Equal(-2f, restored.Position.X, 4);
+        Assert.Equal(-2f, Fixed64.FromRaw(restored.PositionX).ToSingle(), 4);
         Assert.Equal(2, restored.LifetimeFramesLeft);
 
         world.Clear();

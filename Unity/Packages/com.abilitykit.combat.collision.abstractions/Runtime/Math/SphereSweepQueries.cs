@@ -1,4 +1,5 @@
 using AbilityKit.Combat.Collision;
+using AbilityKit.Deterministic;
 
 namespace AbilityKit.Core.Mathematics
 {
@@ -75,7 +76,7 @@ namespace AbilityKit.Core.Mathematics
                 return false;
             }
 
-            worldNormal = (right * localNormal.X + up * localNormal.Y + forward * localNormal.Z).Normalized;
+            worldNormal = DeterministicMathBridge.Normalize(right * localNormal.X + up * localNormal.Y + forward * localNormal.Z);
             return true;
         }
 
@@ -87,9 +88,10 @@ namespace AbilityKit.Core.Mathematics
 
             if (distSq <= expandedRadius * expandedRadius)
             {
-                // 贴边/已穿透：分离法向沿“障碍心→球心”（指向移动体）。
-                var dist = MathUtil.Sqrt(distSq);
-                var sep = dist > MathUtil.Epsilon ? d / dist : -direction;
+                // 贴边/已穿透：分离法向沿“障碍心→球心”（指向移动体）。开方/归一化走定点内核。
+                var dFixed = DeterministicMathBridge.ToFixed(d);
+                var len = DeterministicMath.Sqrt(dFixed.SqrMagnitude);
+                var sep = len > DeterministicMathBridge.Epsilon ? DeterministicMathBridge.ToVec3(dFixed / len) : -direction;
                 worldNormal = sep;
                 if (Vec3.Dot(direction, sep) >= 0f)
                 {
@@ -124,12 +126,12 @@ namespace AbilityKit.Core.Mathematics
 
             if (distSq <= expandedRadius * expandedRadius)
             {
-                // 贴边/已穿透：分离法向沿“ capsules 线段最近点→球心”。
+                // 贴边/已穿透：分离法向沿“capsules 线段最近点→球心”。开方/归一化走定点内核。
                 var ab = obstacle.B - obstacle.A;
                 var closest = obstacle.A + ab * t;
-                var d = start - closest;
-                var dist = MathUtil.Sqrt(distSq);
-                var sep = dist > MathUtil.Epsilon ? d / dist : -direction;
+                var dFixed = DeterministicMathBridge.ToFixed(start - closest);
+                var len = DeterministicMath.Sqrt(dFixed.SqrMagnitude);
+                var sep = len > DeterministicMathBridge.Epsilon ? DeterministicMathBridge.ToVec3(dFixed / len) : -direction;
                 worldNormal = sep;
                 if (Vec3.Dot(direction, sep) >= 0f)
                 {

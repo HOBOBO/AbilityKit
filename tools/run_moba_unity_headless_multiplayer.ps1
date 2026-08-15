@@ -10,6 +10,8 @@ param(
     [int]$TimeoutSeconds = 240,
     [ValidateRange(1, 5)]
     [int]$CompileWarmupAttempts = 3,
+    [ValidateRange(10, 300)]
+    [int]$ClientStartupTimeoutSeconds = 180,
     [string]$OutputRoot,
     [switch]$SkipCompileWarmup
 )
@@ -249,7 +251,22 @@ try {
         -StatePath $ownerStatePath -EventsPath $ownerEventsPath `
         -ResultPath $ownerResultPath -LogPath $ownerLogPath) -PassThru -WindowStyle Hidden
 
-    Write-Host "Starting Unity member client. Project=$MemberProject" -ForegroundColor Cyan
+    $startupTimer = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($startupTimer.Elapsed.TotalSeconds -lt $ClientStartupTimeoutSeconds) {
+        $ownerProcess.Refresh()
+        if ($ownerProcess.HasExited) {
+            throw "Unity owner client exited before writing startup state. exit=$($ownerProcess.ExitCode), log=$ownerLogPath"
+        }
+        if (Read-ClientState $ownerStatePath) {
+            break
+        }
+        Start-Sleep -Milliseconds 500
+    }
+    if (-not (Read-ClientState $ownerStatePath)) {
+        throw "Unity owner client did not write startup state within $ClientStartupTimeoutSeconds seconds. log=$ownerLogPath"
+    }
+
+    Write-Host "Owner startup state is available; starting Unity member client. Project=$MemberProject" -ForegroundColor Cyan
     $memberProcess = Start-Process -FilePath $UnityExe -ArgumentList (New-ClientArguments `
         -ProjectPath $MemberProject -Role 'member' -Account $memberAccount `
         -StatePath $memberStatePath -EventsPath $memberEventsPath `

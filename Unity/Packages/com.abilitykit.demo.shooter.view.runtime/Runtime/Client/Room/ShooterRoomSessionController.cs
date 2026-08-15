@@ -24,11 +24,13 @@ namespace AbilityKit.Demo.Shooter.View
             _session = session ?? throw new ArgumentNullException(nameof(session));
             _store = store ?? throw new ArgumentNullException(nameof(store));
             _store.SnapshotChanged += HandleSnapshotChanged;
+            _store.RoomChanged += HandleRoomChanged;
             CurrentSnapshot = _store.Current;
         }
 
         public event Action<ShooterRoomSessionState>? StateChanged;
         public event Action<ShooterRoomSessionSnapshot?>? SnapshotChanged;
+        public event Action<ShooterRoomSessionChange>? RoomChanged;
 
         public ShooterRoomSessionState CurrentState { get; private set; } = ShooterRoomSessionState.Idle;
         public ShooterRoomSessionSnapshot? CurrentSnapshot { get; private set; }
@@ -296,7 +298,20 @@ namespace AbilityKit.Demo.Shooter.View
                 return;
             }
 
+            if (snapshot.Phase == ShooterRoomSessionPhase.Lobby &&
+                CurrentState is ShooterRoomSessionState.LoadingAssets or ShooterRoomSessionState.WaitingForBattle)
+            {
+                CancelPendingStage();
+                ShooterMultiplayerLoadingStatus.Reset();
+            }
+
             Transition(MapSnapshotState(snapshot));
+        }
+
+        private void HandleRoomChanged(ShooterRoomSessionChange change)
+        {
+            if (_disposed) return;
+            RoomChanged?.Invoke(change);
         }
 
         private ShooterRoomSessionState MapSnapshotState(ShooterRoomSessionSnapshot? snapshot)
@@ -368,6 +383,7 @@ namespace AbilityKit.Demo.Shooter.View
             if (_disposed) return;
             _disposed = true;
             _store.SnapshotChanged -= HandleSnapshotChanged;
+            _store.RoomChanged -= HandleRoomChanged;
             _lifetime.Cancel();
             CancelPendingStage();
             _session.Dispose();
@@ -375,6 +391,7 @@ namespace AbilityKit.Demo.Shooter.View
             _lifetime.Dispose();
             StateChanged = null;
             SnapshotChanged = null;
+            RoomChanged = null;
         }
     }
 }

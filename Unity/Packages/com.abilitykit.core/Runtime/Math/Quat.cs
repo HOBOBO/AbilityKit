@@ -50,7 +50,7 @@ namespace AbilityKit.Core.Mathematics
             var trace = m00 + m11 + m22;
             if (trace > 0f)
             {
-                var s = System.MathF.Sqrt(trace + 1f) * 2f;
+                var s = MathUtil.Sqrt(trace + 1f) * 2f;
                 var inv = 1f / s;
                 return new Quat(
                     (m21 - m12) * inv,
@@ -61,7 +61,7 @@ namespace AbilityKit.Core.Mathematics
 
             if (m00 > m11 && m00 > m22)
             {
-                var s = System.MathF.Sqrt(1f + m00 - m11 - m22) * 2f;
+                var s = MathUtil.Sqrt(1f + m00 - m11 - m22) * 2f;
                 var inv = 1f / s;
                 return new Quat(
                     0.25f * s,
@@ -72,7 +72,7 @@ namespace AbilityKit.Core.Mathematics
 
             if (m11 > m22)
             {
-                var s = System.MathF.Sqrt(1f + m11 - m00 - m22) * 2f;
+                var s = MathUtil.Sqrt(1f + m11 - m00 - m22) * 2f;
                 var inv = 1f / s;
                 return new Quat(
                     (m01 + m10) * inv,
@@ -82,7 +82,7 @@ namespace AbilityKit.Core.Mathematics
             }
 
             {
-                var s = System.MathF.Sqrt(1f + m22 - m00 - m11) * 2f;
+                var s = MathUtil.Sqrt(1f + m22 - m00 - m11) * 2f;
                 var inv = 1f / s;
                 return new Quat(
                     (m02 + m20) * inv,

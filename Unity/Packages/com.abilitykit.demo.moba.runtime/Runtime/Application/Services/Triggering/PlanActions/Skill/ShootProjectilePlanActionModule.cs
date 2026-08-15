@@ -156,16 +156,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
                 aimPos = targetEntity.transform.Value.Position;
                 var targetDelta = new Vec3(aimPos.X - casterPos.X, 0f, aimPos.Z - casterPos.Z);
-                if (!targetDelta.Equals(Vec3.Zero)) aimDir = targetDelta.Normalized;
+                if (!targetDelta.Equals(Vec3.Zero)) aimDir = DeterministicMathBridge.Normalize(in targetDelta);
             }
             else if (!aimDir.Equals(Vec3.Zero))
             {
-                aimDir = aimDir.Normalized;
+                aimDir = DeterministicMathBridge.Normalize(in aimDir);
             }
             else if (!aimPos.Equals(Vec3.Zero))
             {
                 var delta = new Vec3(aimPos.X - casterPos.X, 0f, aimPos.Z - casterPos.Z);
-                if (!delta.Equals(Vec3.Zero)) aimDir = delta.Normalized;
+                if (!delta.Equals(Vec3.Zero)) aimDir = DeterministicMathBridge.Normalize(in delta);
             }
 
             aimPos = casterPos;

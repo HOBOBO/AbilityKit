@@ -11,11 +11,11 @@ namespace AbilityKit.Demo.Moba.Predicates
 {
     public static class MobaPlanPredicateFunctions
     {
-        public static readonly FunctionId HasBuffFunctionId = new FunctionId(StableStringId.Get("predicate:has_buff"));
-        public static readonly FunctionId HasBuffOwnerFunctionId = new FunctionId(StableStringId.Get("predicate:has_buff_owner"));
-        public static readonly FunctionId OwnerMatchesPayloadSourceFunctionId = new FunctionId(StableStringId.Get("predicate:owner_matches_payload_source"));
-        public static readonly FunctionId OwnerMatchesPayloadTargetFunctionId = new FunctionId(StableStringId.Get("predicate:owner_matches_payload_target"));
-        public static readonly FunctionId TargetIsFlyingProjectileFunctionId = new FunctionId(StableStringId.Get("predicate:target_is_flying_projectile"));
+        public static readonly FunctionId HasBuffFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.HasBuff));
+        public static readonly FunctionId HasBuffOwnerFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.HasBuffOwner));
+        public static readonly FunctionId OwnerMatchesPayloadSourceFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.OwnerMatchesPayloadSource));
+        public static readonly FunctionId OwnerMatchesPayloadTargetFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.OwnerMatchesPayloadTarget));
+        public static readonly FunctionId TargetIsFlyingProjectileFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.TargetIsFlyingProjectile));
 
         public static void Register(FunctionRegistry functions)
         {
@@ -54,13 +54,13 @@ namespace AbilityKit.Demo.Moba.Predicates
 
         private static bool HasBuffCore(object triggerArgs, NamedArgsDict args, ExecCtx<IWorldResolver> ctx, bool checkOwner)
         {
-            var buffId = ReadInt(args, "0");
+            var buffId = ReadInt(args, CombatPredicateContracts.Argument.FirstPosition);
             if (buffId <= 0 || ctx.Context == null)
             {
                 return false;
             }
 
-            var checkStack = ReadInt(args, "1") != 0;
+            var checkStack = ReadInt(args, CombatPredicateContracts.Argument.SecondPosition) != 0;
             var actors = default(MobaActorLookupService);
 
             int actorId;

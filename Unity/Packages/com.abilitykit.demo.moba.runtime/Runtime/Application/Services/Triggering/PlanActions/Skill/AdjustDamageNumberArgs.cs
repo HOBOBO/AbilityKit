@@ -11,7 +11,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     public readonly struct AdjustDamageNumberArgs
     {
         public readonly DamageNumberSlot NumberSlot;
-        public readonly DamageNumberModifierOp Op;
+        public readonly CombatNumberModifierOp Op;
         public readonly float Value;
         public readonly int SourceId;
         public readonly DamageReasonKind ReasonKind;
@@ -24,7 +24,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public AdjustDamageNumberArgs(
             DamageNumberSlot numberSlot,
-            DamageNumberModifierOp op,
+            CombatNumberModifierOp op,
             float value,
             int sourceId,
             DamageReasonKind reasonKind,

@@ -4,7 +4,9 @@
   "references": [
     "AbilityKit.Demo.Common",
     "AbilityKit.Demo.Shooter.View.Runtime",
+    "AbilityKit.Game.View.Runtime",
     "AbilityKit.Network.Runtime",
+    "AbilityKit.Network.Room",
     "AbilityKit.Host",
     "AbilityKit.Protocol.Shooter",
     "AbilityKit.World.NetworkFragments"

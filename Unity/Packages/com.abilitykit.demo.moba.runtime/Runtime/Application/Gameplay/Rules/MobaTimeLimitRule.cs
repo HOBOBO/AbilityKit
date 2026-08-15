@@ -2,15 +2,18 @@ namespace AbilityKit.Demo.Moba.Gameplay
 {
     public sealed class MobaTimeLimitRule : IMobaGameplayRule
     {
-        private readonly float _durationSeconds;
+        private readonly long _durationRaw;
         private readonly string _onExpiredEvent;
         private MobaGameplayService _gameplay;
-        private float _elapsedSeconds;
+        // Q32.32 raw 累计（整数加法无漂移）。
+        private long _elapsedRaw;
         private bool _expired;
 
         public MobaTimeLimitRule(float durationSeconds, string onExpiredEvent)
         {
-            _durationSeconds = durationSeconds > 0f ? durationSeconds : 0f;
+            _durationRaw = durationSeconds > 0f
+                ? AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(durationSeconds).RawValue
+                : 0L;
             _onExpiredEvent = string.IsNullOrEmpty(onExpiredEvent) ? "gameplay.time_expired" : onExpiredEvent;
         }
 
@@ -19,8 +22,8 @@ namespace AbilityKit.Demo.Moba.Gameplay
         public void Start(MobaGameplayService gameplay)
         {
             _gameplay = gameplay;
-            _elapsedSeconds = 0f;
-            _expired = _durationSeconds <= 0f;
+            _elapsedRaw = 0L;
+            _expired = _durationRaw <= 0L;
         }
 
         public void Tick(float deltaTime)
@@ -30,8 +33,8 @@ namespace AbilityKit.Demo.Moba.Gameplay
                 return;
             }
 
-            _elapsedSeconds += deltaTime;
-            if (_elapsedSeconds < _durationSeconds)
+            _elapsedRaw += AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(deltaTime).RawValue;
+            if (_elapsedRaw < _durationRaw)
             {
                 return;
             }

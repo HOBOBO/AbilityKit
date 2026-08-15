@@ -1,0 +1,17 @@
+{
+  "name": "com.abilitykit.deterministic",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Deterministic",
+  "unity": "2022.3",
+  "description": "Deterministic numeric facade for AbilityKit frame-sync simulation code.",
+  "keywords": [
+    "abilitykit",
+    "deterministic",
+    "fixed-point",
+    "framesync",
+    "lockstep"
+  ],
+  "author": {
+    "name": "AbilityKit"
+  }
+}

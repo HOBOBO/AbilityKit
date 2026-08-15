@@ -102,9 +102,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 return false;
             }
 
-            var forward = state.Direction.SqrMagnitude > 0f ? state.Direction.Normalized : Vec3.Forward;
+            var forward = state.Direction.SqrMagnitude > 0f ? DeterministicMathBridge.Normalize(state.Direction) : Vec3.Forward;
             var up = Vec3.Up;
-            var right = Vec3.Cross(in up, in forward).Normalized;
+            var right = DeterministicMathBridge.Normalize(Vec3.Cross(in up, in forward));
             if (right.SqrMagnitude <= 0f) right = Vec3.Right;
 
             var origin = ResolveLauncherOrigin(state.LauncherActorId, state.Position);

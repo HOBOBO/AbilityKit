@@ -16,7 +16,7 @@ namespace AbilityKit.Combat.MotionSystem.Trajectory
             _duration = duration <= 0f ? 0.0001f : duration;
 
             var d = end - start;
-            var mag = d.Magnitude;
+            var mag = DeterministicMathBridge.Magnitude(in d);
             _dir = mag > 0.00001f ? d / mag : new Vec3(0f, 0f, 1f);
         }
 

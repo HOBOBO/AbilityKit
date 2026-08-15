@@ -130,7 +130,7 @@ namespace AbilityKit.Combat.MotionSystem.Constraints
             var d2 = desiredDelta.SqrMagnitude;
             if (d2 <= 0f) return Vec3.Zero;
             if (d2 <= maxDistance * maxDistance) return desiredDelta;
-            var len = desiredDelta.Magnitude;
+            var len = DeterministicMathBridge.Magnitude(in desiredDelta);
             if (len <= 1e-6f) return Vec3.Zero;
             var s = maxDistance / len;
             return new Vec3(desiredDelta.X * s, desiredDelta.Y * s, desiredDelta.Z * s);

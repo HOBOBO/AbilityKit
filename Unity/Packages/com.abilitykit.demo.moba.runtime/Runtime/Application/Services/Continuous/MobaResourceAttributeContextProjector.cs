@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Attributes.Core;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Components;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -30,20 +31,21 @@ namespace AbilityKit.Demo.Moba.Services
                 var name = type.ToString().ToLowerInvariant();
                 var current = state.Current;
                 var max = ResolveResourceMax(ctx, state);
-                var ratio = max > 0f ? Math.Max(0f, Math.Min(1f, current / max)) : 0f;
+                // 定点算 ratio（确定性）；AttributeContext 是 float 表现边界，出参单次换算。
+                var ratio = max > Fixed64.Zero ? DeterministicMath.Clamp(current / max, Fixed64.Zero, Fixed64.One) : Fixed64.Zero;
 
-                ctx.SetFloat($"resource.{name}.current", current);
-                ctx.SetFloat($"resource.{name}.max", max);
-                ctx.SetFloat($"resource.{name}.ratio", ratio);
+                ctx.SetFloat($"resource.{name}.current", MobaResourceFixedConvert.ToSingle(current));
+                ctx.SetFloat($"resource.{name}.max", MobaResourceFixedConvert.ToSingle(max));
+                ctx.SetFloat($"resource.{name}.ratio", MobaResourceFixedConvert.ToSingle(ratio));
             }
         }
 
-        private static float ResolveResourceMax(AttributeContext ctx, ResourceState state)
+        private static Fixed64 ResolveResourceMax(AttributeContext ctx, ResourceState state)
         {
             if (state.MaxAttribute.IsValid)
             {
                 var max = ctx.GetValue(state.MaxAttribute);
-                if (max > 0f) return max;
+                if (max > 0f) return MobaResourceFixedConvert.ToFixed(max);
             }
 
             return state.LastMax;

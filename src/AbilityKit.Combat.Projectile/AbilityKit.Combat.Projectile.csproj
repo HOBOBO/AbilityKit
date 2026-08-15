@@ -12,8 +12,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/**/*.cs" 
+    <Compile Include="../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/**/*.cs"
              Exclude="../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/**/*.asmdef" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AbilityKit.Combat.Projectile.Tests" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +27,7 @@
     <ProjectReference Include="../../src/AbilityKit.World.FrameSync/AbilityKit.World.FrameSync.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.ECS/AbilityKit.World.ECS.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Combat.Collision.Abstractions/AbilityKit.Combat.Collision.Abstractions.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Deterministic/AbilityKit.Deterministic.csproj" />
   </ItemGroup>
 
 </Project>

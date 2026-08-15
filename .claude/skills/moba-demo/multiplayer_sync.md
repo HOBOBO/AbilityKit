@@ -64,9 +64,10 @@ ServerBattleSyncProfile.FrameSync("frame-sync-authority", ["state-sync-authority
 
 | 项目 | 优先级 | 说明 |
 |------|--------|------|
-| 定点数学库 | P2 | 延后至框架稳定 (v1.0)，浮点 hash 对账可检测但无法修正 |
+| ~~定点数学库~~ | ~~P2~~ | **已完成（2026-08，P0-P4）**：`com.abilitykit.deterministic` 定点栈已全仓接入（弹丸/碰撞/运动/伤害资源/FrameTime/EffectContainer），HP/资源回滚快照存 raw long，state hash 以 HP raw 对账。接入约定见 `com.abilitykit.world.framesync/Document/定点帧同步接入指南.md` |
 | Host Migration（战斗级） | P2 | 房间级 Owner 在线保持/掉线迁移已实现（见能力矩阵）；战斗运行时的 Host 迁移仍依赖 Orleans 集群能力 |
 | MOBA state hash 接入 GetWorldDiagnostics | P1 | 当前 `MobaBattleRuntimeAdapter` 返回 null，用帧号近似 |
+| 跨运行时 JSON float 解析 | P3 | 服务端 .NET 与客户端 Mono/IL2CPP 的配置 float 解析存在理论末位差；当前服务端权威+同构客户端不触发，纯跨运行时 P2P 锁步前需评估 decimal-string 配置通道 |
 
 ## E2E 验证（2026-08-03）
 

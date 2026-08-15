@@ -17,7 +17,7 @@ namespace AbilityKit.Battle.SearchTarget
         }
 
         public float SqrMagnitude => X * X + Y * Y;
-        public float Magnitude => (float)Math.Sqrt(SqrMagnitude);
+        public float Magnitude => AbilityKit.Core.Mathematics.MathUtil.Sqrt(SqrMagnitude);
 
         public Vec2 Add(Vec2 other) => this + other;
         public Vec2 Subtract(Vec2 other) => this - other;

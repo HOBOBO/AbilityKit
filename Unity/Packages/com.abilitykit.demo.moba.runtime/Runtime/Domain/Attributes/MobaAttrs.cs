@@ -2,6 +2,7 @@
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Attributes.Core;
+using AbilityKit.Deterministic;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Demo.Moba.Attributes
@@ -31,13 +32,13 @@ namespace AbilityKit.Demo.Moba.Attributes
             return _entity.resourceContainer.Value;
         }
 
-        private static float GetResourceCurrent(ResourceContainer container, ResourceType type)
+        private static Fixed64 GetResourceCurrentFixed(ResourceContainer container, ResourceType type)
         {
-            if (container.Map == null) return 0f;
-            return container.Map.TryGetValue(type, out var s) && s != null ? s.Current : 0f;
+            if (container.Map == null) return Fixed64.Zero;
+            return container.Map.TryGetValue(type, out var s) && s != null ? s.Current : Fixed64.Zero;
         }
 
-        private static void SetResourceCurrent(ResourceContainer container, ResourceType type, float value)
+        private static void SetResourceCurrentFixed(ResourceContainer container, ResourceType type, Fixed64 value)
         {
             if (container.Map == null) container.Map = new System.Collections.Generic.Dictionary<ResourceType, ResourceState>();
             if (!container.Map.TryGetValue(type, out var s) || s == null)
@@ -49,32 +50,63 @@ namespace AbilityKit.Demo.Moba.Attributes
             s.Current = value;
         }
 
+        /// <summary>定点当前血量（模拟域权威值，Q32.32）。</summary>
+        public Fixed64 FixedHp
+        {
+            get => GetResourceCurrentFixed(RequireResources(), ResourceType.Hp);
+            set => SetResourceCurrentFixed(RequireResources(), ResourceType.Hp, value);
+        }
+
+        /// <summary>定点当前法力（模拟域权威值，Q32.32）。</summary>
+        public Fixed64 FixedMana
+        {
+            get => GetResourceCurrentFixed(RequireResources(), ResourceType.Mana);
+            set => SetResourceCurrentFixed(RequireResources(), ResourceType.Mana, value);
+        }
+
+        /// <summary>定点当前怒气（模拟域权威值，Q32.32）。</summary>
+        public Fixed64 FixedRage
+        {
+            get => GetResourceCurrentFixed(RequireResources(), ResourceType.Rage);
+            set => SetResourceCurrentFixed(RequireResources(), ResourceType.Rage, value);
+        }
+
+        public Fixed64 GetFixedResource(ResourceType type)
+        {
+            return GetResourceCurrentFixed(RequireResources(), type);
+        }
+
+        public void SetFixedResource(ResourceType type, Fixed64 value)
+        {
+            SetResourceCurrentFixed(RequireResources(), type, value);
+        }
+
         public float Hp
         {
-            get => GetResourceCurrent(RequireResources(), ResourceType.Hp);
-            set => SetResourceCurrent(RequireResources(), ResourceType.Hp, value);
+            get => MobaResourceFixedConvert.ToSingle(FixedHp);
+            set => FixedHp = MobaResourceFixedConvert.ToFixed(value);
         }
 
         public float Mana
         {
-            get => GetResourceCurrent(RequireResources(), ResourceType.Mana);
-            set => SetResourceCurrent(RequireResources(), ResourceType.Mana, value);
+            get => MobaResourceFixedConvert.ToSingle(FixedMana);
+            set => FixedMana = MobaResourceFixedConvert.ToFixed(value);
         }
 
         public float Rage
         {
-            get => GetResourceCurrent(RequireResources(), ResourceType.Rage);
-            set => SetResourceCurrent(RequireResources(), ResourceType.Rage, value);
+            get => MobaResourceFixedConvert.ToSingle(FixedRage);
+            set => FixedRage = MobaResourceFixedConvert.ToFixed(value);
         }
 
         public float GetResource(ResourceType type)
         {
-            return GetResourceCurrent(RequireResources(), type);
+            return MobaResourceFixedConvert.ToSingle(GetFixedResource(type));
         }
 
         public void SetResource(ResourceType type, float value)
         {
-            SetResourceCurrent(RequireResources(), type, value);
+            SetFixedResource(type, MobaResourceFixedConvert.ToFixed(value));
         }
 
         public float MaxHp => RequireGroup().GetValue(MobaAttributeIds.MAX_HP);

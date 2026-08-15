@@ -186,6 +186,13 @@ namespace AbilityKit.Demo.Moba.Services.StateImport
                 group.SetBase(MobaAttributeIds.HP, a.Hp);
             }
 
+            // 真实血量同步进 ResourceContainer（伤害/治疗/投影/哈希的权威存储）。
+            if (entity.hasResourceContainer && entity.resourceContainer.Value?.Map != null &&
+                entity.resourceContainer.Value.Map.TryGetValue(ResourceType.Hp, out var hpState) && hpState != null)
+            {
+                hpState.Current = MobaResourceFixedConvert.ToFixed(a.Hp);
+            }
+
             var team = (Team)a.TeamId;
             if (entity.hasTeam)
             {

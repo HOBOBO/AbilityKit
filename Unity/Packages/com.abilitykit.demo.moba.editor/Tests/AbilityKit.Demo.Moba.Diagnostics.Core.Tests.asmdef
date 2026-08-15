@@ -21,6 +21,7 @@
     "AbilityKit.Host",
     "AbilityKit.Host.Extensions.Moba",
     "AbilityKit.GameplayTags",
+    "AbilityKit.Deterministic",
     "AbilityKit.Combat.Projectile",
     "AbilityKit.Combat.Collision.Abstractions",
     "AbilityKit.Combat.EntityManager"

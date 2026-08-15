@@ -107,6 +107,34 @@ namespace AbilityKit.Game.Test.UnitTest
                     "account-b reconnected. account-b is ready."));
         }
 
+        [TestCase("LockedMemberLeft", "Loading was cancelled because a player left.")]
+        [TestCase("LoadingTimeout", "Loading timed out. The room returned to the lobby.")]
+        [TestCase("ManualCancellation", "Loading was cancelled. The room returned to the lobby.")]
+        public void PhaseRollbackNotice_FormatsAuthoritativeLobbyReason(
+            string phaseReason,
+            string expected)
+        {
+            var notice = FormalLobbyFeature.FormatPhaseRollbackNotice(
+                new ClientRoomSnapshot { Phase = ClientRoomPhase.Loading },
+                new ClientRoomSnapshot
+                {
+                    Phase = ClientRoomPhase.Lobby,
+                    PhaseReason = phaseReason
+                });
+
+            Assert.That(notice, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void PhaseRollbackNotice_NonRollbackDoesNotPublishNotice()
+        {
+            Assert.That(
+                FormalLobbyFeature.FormatPhaseRollbackNotice(
+                    new ClientRoomSnapshot { Phase = ClientRoomPhase.Lobby },
+                    new ClientRoomSnapshot { Phase = ClientRoomPhase.Lobby }),
+                Is.Empty);
+        }
+
         [Test]
         public void LobbyPresentation_LiveReadyOwnerCanStart()
         {
@@ -154,6 +182,8 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(state.ReadyPlayerCount, Is.EqualTo(2));
             Assert.That(state.OnlinePlayerCount, Is.EqualTo(2));
             Assert.That(state.CanStart, Is.True);
+            Assert.That(state.CanReady, Is.False);
+            Assert.That(state.CanNotReady, Is.True);
             Assert.That(state.ActionStatus, Is.EqualTo("All players are ready."));
             StringAssert.Contains("Live | Revision 12 | just now", state.SyncStatus);
         }
@@ -199,6 +229,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 nowUnixMs: 2000);
 
             Assert.That(state.CanStart, Is.False);
+            Assert.That(state.CanNotReady, Is.False);
             Assert.That(state.ActionStatus, Is.EqualTo("Synchronizing the latest room state."));
             Assert.That(state.SyncStatus, Is.EqualTo("Room updates: Catching up | Revision 20"));
         }
@@ -244,6 +275,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 nowUnixMs: 4000);
 
             Assert.That(state.RoleLabel, Is.EqualTo("Member"));
+            Assert.That(state.CanReady, Is.False);
+            Assert.That(state.CanNotReady, Is.True);
             Assert.That(state.CanStart, Is.False);
             Assert.That(state.ActionStatus, Is.EqualTo("Waiting for room owner to start."));
             StringAssert.Contains("3s ago", state.SyncStatus);
@@ -710,6 +743,40 @@ namespace AbilityKit.Game.Test.UnitTest
             });
 
             Assert.That(controller.CurrentState, Is.EqualTo(MultiplayerRoomFlowState.LoadingAssets));
+        }
+
+        [TestCase("LockedMemberLeft", "")]
+        [TestCase("LoadingTimeout", "Room loading timed out before all players finished loading.")]
+        public void AuthoritativeLoadingRollback_ReturnsActiveFlowToLobby(
+            string phaseReason,
+            string expectedError)
+        {
+            var provider = new TestSnapshotProvider();
+            using var controller = new MultiplayerRoomFlowController(
+                new TestRoomSession(),
+                provider);
+            controller.StartJoinRoomAsync(CreateLaunchSpec(), "room-a").GetAwaiter().GetResult();
+            provider.Publish(new MultiplayerRoomSnapshot
+            {
+                RoomId = "room-a",
+                NumericRoomId = 10,
+                Phase = MultiplayerRoomPhase.Loading,
+                LaunchGeneration = 1
+            });
+
+            provider.Publish(new MultiplayerRoomSnapshot
+            {
+                RoomId = "room-a",
+                NumericRoomId = 10,
+                Phase = MultiplayerRoomPhase.Lobby,
+                PhaseReason = phaseReason,
+                LaunchGeneration = 1
+            });
+
+            Assert.That(controller.CurrentState, Is.EqualTo(MultiplayerRoomFlowState.InLobby));
+            Assert.That(controller.LocalLoadingProgress, Is.Zero);
+            Assert.That(controller.CurrentLoadingAssetKey, Is.Empty);
+            Assert.That(controller.LastError, Is.EqualTo(expectedError));
         }
 
         [Test]

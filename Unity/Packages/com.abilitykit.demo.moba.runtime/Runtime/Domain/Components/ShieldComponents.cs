@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AbilityKit.Deterministic;
 using Entitas;
 using Entitas.CodeGeneration.Attributes;
 
@@ -22,10 +23,14 @@ namespace AbilityKit.Demo.Moba.Components
     {
         public List<ShieldLayer> Layers;
         public int NextInstanceId;
-        public float TotalRemaining;
+        public Fixed64 TotalRemaining;
         public bool Dirty;
     }
 
+    /// <summary>
+    /// 护盾数值字段（CurrentValue/MaxValue/InitialValue/AbsorbRatio/TransferRatio）为 Q32.32 定点，
+    /// 参与伤害吸收的确定性算术；构造入口（配置 PlanAction）做单次 float 边界换算。
+    /// </summary>
     public sealed class ShieldLayer
     {
         public int InstanceId;
@@ -44,12 +49,12 @@ namespace AbilityKit.Demo.Moba.Components
         public int TransferredFromActorId;
         public int TransferredToActorId;
         public int TransferredAtFrame;
-        public float TransferRatio;
+        public Fixed64 TransferRatio;
 
-        public float CurrentValue;
-        public float MaxValue;
-        public float InitialValue;
-        public float AbsorbRatio;
+        public Fixed64 CurrentValue;
+        public Fixed64 MaxValue;
+        public Fixed64 InitialValue;
+        public Fixed64 AbsorbRatio;
 
         public int Priority;
         public int DamageTypeMask;
@@ -81,10 +86,10 @@ namespace AbilityKit.Demo.Moba.Components
         public long OwnerContextId;
 
         public List<SharedShieldPoolMember> Members;
-        public float CurrentValue;
-        public float MaxValue;
-        public float InitialValue;
-        public float AbsorbRatio;
+        public Fixed64 CurrentValue;
+        public Fixed64 MaxValue;
+        public Fixed64 InitialValue;
+        public Fixed64 AbsorbRatio;
 
         public int Priority;
         public int DamageTypeMask;
@@ -102,8 +107,8 @@ namespace AbilityKit.Demo.Moba.Components
     {
         public int MemberId;
         public int ActorId;
-        public float Weight;
-        public float MaxConsumeValue;
+        public Fixed64 Weight;
+        public Fixed64 MaxConsumeValue;
         public int JoinedFrame;
         public int LeftFrame;
         public bool Active;

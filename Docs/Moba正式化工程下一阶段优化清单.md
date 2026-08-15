@@ -93,6 +93,15 @@
 - 被动技能刷新不会在无变化时替换 ongoing plan list。
 - actor 销毁、Buff 结束、被动技能移除后，对应订阅与 trace context 全部释放并可测试验证。
 
+**实施结果与保留边界（2026-08-15）**
+
+- `MobaPassiveSkillLifecycleService` 已集中维护被动 listener、owner binding、ongoing plan、continuous runtime、action 与 passive root trace 的生命周期；actor 注销和被动移除通过同一 ownerKey 清理链路收口。
+- ongoing plan 已改为按 ownerKey 原地差量同步。配置无变化时保持 plan list、entry、trigger array 与 revision 的对象和值稳定；单项移除时复用原列表及未变化 entry/array，只有新增 owner 或 trigger 配置实际变化时才创建对应对象。
+- listener desired id、临时 context owner set、actor owner-key snapshot 已接入集合池或 actor 生命周期内复用；`MobaOngoingTriggerPlansReconcileSystem` 使用字段级聚合列表，避免逐帧创建 reconcile 缓冲。
+- trigger gateway 的订阅 apply/stop 仍由 `MobaTriggerPlanReconcileService` 与 `MobaTriggerPlanSubscriptionService` 负责。lifecycle service 只维护计划数据与 revision，不新增对 gateway 的强耦合；公开 `OngoingTriggerPlanEntry.TriggerIds` 数组契约保持不变。
+- 定向 lifecycle 测试覆盖稳定重复同步、单项移除 identity、actor 注销后的 listener/plan/owner binding/trace 清理，结果为 7/7 通过。
+- runtime core 使用 `BuildProjectReferences=false` 复用既有依赖产物完成两次编译，最终结果为 0 error。默认完整项目引用构建仍受工作树中既有 `AbilityKit.Core` Public API analyzer 配置与未跟踪 API 基线文件影响，本批未修改或回滚这些无关状态。
+
 ## P1：正式宿主集成与能力契约补齐
 
 ### P1-1 BattleRuntimePort / IO / StartSpec 的外部契约稳定化

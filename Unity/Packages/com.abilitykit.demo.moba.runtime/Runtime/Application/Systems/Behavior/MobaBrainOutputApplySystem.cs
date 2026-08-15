@@ -75,7 +75,7 @@ namespace AbilityKit.Demo.Moba.Systems
                     var ownerPos = e.transform.Value.Position;
                     var dx = targetPos.X - ownerPos.X;
                     var dz = targetPos.Z - ownerPos.Z;
-                    var length = (float)System.Math.Sqrt(dx * dx + dz * dz);
+                    var length = DeterministicMathBridge.Sqrt(dx * dx + dz * dz);
                     if (length > 0.0001f)
                     {
                         WriteMoveInput(e, dx / length, dz / length);

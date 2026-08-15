@@ -208,6 +208,7 @@ namespace AbilityKit.Combat.MotionSystem.Core
 
             state.Position = new Vec3(state.Position.X + result.AppliedDelta.X, state.Position.Y + result.AppliedDelta.Y, state.Position.Z + result.AppliedDelta.Z);
             state.Velocity = output.NewVelocity;
+            // state.Time 是公共状态字段（快照/调试读），IEEE 加法位一致；源级计时（FixedDelta/Trajectory）已是 raw 定点。
             state.Time += dt;
 
             if (result.Hit.Hit)

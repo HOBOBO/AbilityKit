@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using MemoryPack;
@@ -16,7 +17,8 @@ namespace AbilityKit.Demo.Moba.Rollback
     public sealed class MobaShieldRollbackProvider : IRollbackStateProvider
     {
         public const int DefaultKey = 10006;
-        private const int CurrentPayloadVersion = 1;
+        // v2 (2026-08-15): 护盾数值字段定点化（Q32.32），快照以 raw long 存储（TotalRemaining/TransferRatio/CurrentValue/MaxValue/InitialValue/AbsorbRatio）。
+        private const int CurrentPayloadVersion = 2;
 
         private readonly MobaActorRegistry _actors;
         private readonly MobaShieldService _shields;
@@ -74,6 +76,11 @@ namespace AbilityKit.Demo.Moba.Rollback
             _shields.RestoreContainers(restored);
         }
 
+        private static Fixed64 FromRaw(long raw)
+        {
+            return Fixed64.FromRaw(raw);
+        }
+
         private void ValidateActorSet(IReadOnlyList<MobaShieldRollbackEntry> entries)
         {
             var currentActorIds = new List<int>();
@@ -119,7 +126,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 {
                     Layers = layers,
                     NextInstanceId = entry.NextInstanceId,
-                    TotalRemaining = entry.TotalRemaining,
+                    TotalRemaining = FromRaw(entry.TotalRemainingRaw),
                     Dirty = entry.Dirty,
                 });
             }
@@ -187,7 +194,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(0)] public readonly int ActorId;
         [MemoryPackOrder(1)] public readonly bool HasContainer;
         [MemoryPackOrder(2)] public readonly int NextInstanceId;
-        [MemoryPackOrder(3)] public readonly float TotalRemaining;
+        [MemoryPackOrder(3)] public readonly long TotalRemainingRaw;
         [MemoryPackOrder(4)] public readonly bool Dirty;
         [MemoryPackOrder(5)] public readonly MobaShieldLayerRollbackEntry[] Layers;
 
@@ -196,14 +203,14 @@ namespace AbilityKit.Demo.Moba.Rollback
             int actorId,
             bool hasContainer,
             int nextInstanceId,
-            float totalRemaining,
+            long totalRemainingRaw,
             bool dirty,
             MobaShieldLayerRollbackEntry[] layers)
         {
             ActorId = actorId;
             HasContainer = hasContainer;
             NextInstanceId = nextInstanceId;
-            TotalRemaining = totalRemaining;
+            TotalRemainingRaw = totalRemainingRaw;
             Dirty = dirty;
             Layers = layers;
         }
@@ -214,7 +221,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 actorId,
                 false,
                 0,
-                0f,
+                0L,
                 false,
                 Array.Empty<MobaShieldLayerRollbackEntry>());
         }
@@ -243,7 +250,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 actorId,
                 true,
                 container.NextInstanceId,
-                container.TotalRemaining,
+                container.TotalRemaining.RawValue,
                 container.Dirty,
                 layers);
         }
@@ -266,11 +273,11 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(11)] public readonly int TransferredFromActorId;
         [MemoryPackOrder(12)] public readonly int TransferredToActorId;
         [MemoryPackOrder(13)] public readonly int TransferredAtFrame;
-        [MemoryPackOrder(14)] public readonly float TransferRatio;
-        [MemoryPackOrder(15)] public readonly float CurrentValue;
-        [MemoryPackOrder(16)] public readonly float MaxValue;
-        [MemoryPackOrder(17)] public readonly float InitialValue;
-        [MemoryPackOrder(18)] public readonly float AbsorbRatio;
+        [MemoryPackOrder(14)] public readonly long TransferRatioRaw;
+        [MemoryPackOrder(15)] public readonly long CurrentValueRaw;
+        [MemoryPackOrder(16)] public readonly long MaxValueRaw;
+        [MemoryPackOrder(17)] public readonly long InitialValueRaw;
+        [MemoryPackOrder(18)] public readonly long AbsorbRatioRaw;
         [MemoryPackOrder(19)] public readonly int Priority;
         [MemoryPackOrder(20)] public readonly int DamageTypeMask;
         [MemoryPackOrder(21)] public readonly int StartFrame;
@@ -296,11 +303,11 @@ namespace AbilityKit.Demo.Moba.Rollback
             int transferredFromActorId,
             int transferredToActorId,
             int transferredAtFrame,
-            float transferRatio,
-            float currentValue,
-            float maxValue,
-            float initialValue,
-            float absorbRatio,
+            long transferRatioRaw,
+            long currentValueRaw,
+            long maxValueRaw,
+            long initialValueRaw,
+            long absorbRatioRaw,
             int priority,
             int damageTypeMask,
             int startFrame,
@@ -325,11 +332,11 @@ namespace AbilityKit.Demo.Moba.Rollback
             TransferredFromActorId = transferredFromActorId;
             TransferredToActorId = transferredToActorId;
             TransferredAtFrame = transferredAtFrame;
-            TransferRatio = transferRatio;
-            CurrentValue = currentValue;
-            MaxValue = maxValue;
-            InitialValue = initialValue;
-            AbsorbRatio = absorbRatio;
+            TransferRatioRaw = transferRatioRaw;
+            CurrentValueRaw = currentValueRaw;
+            MaxValueRaw = maxValueRaw;
+            InitialValueRaw = initialValueRaw;
+            AbsorbRatioRaw = absorbRatioRaw;
             Priority = priority;
             DamageTypeMask = damageTypeMask;
             StartFrame = startFrame;
@@ -358,11 +365,11 @@ namespace AbilityKit.Demo.Moba.Rollback
                 layer.TransferredFromActorId,
                 layer.TransferredToActorId,
                 layer.TransferredAtFrame,
-                layer.TransferRatio,
-                layer.CurrentValue,
-                layer.MaxValue,
-                layer.InitialValue,
-                layer.AbsorbRatio,
+                layer.TransferRatio.RawValue,
+                layer.CurrentValue.RawValue,
+                layer.MaxValue.RawValue,
+                layer.InitialValue.RawValue,
+                layer.AbsorbRatio.RawValue,
                 layer.Priority,
                 layer.DamageTypeMask,
                 layer.StartFrame,
@@ -392,11 +399,11 @@ namespace AbilityKit.Demo.Moba.Rollback
                 TransferredFromActorId = TransferredFromActorId,
                 TransferredToActorId = TransferredToActorId,
                 TransferredAtFrame = TransferredAtFrame,
-                TransferRatio = TransferRatio,
-                CurrentValue = CurrentValue,
-                MaxValue = MaxValue,
-                InitialValue = InitialValue,
-                AbsorbRatio = AbsorbRatio,
+                TransferRatio = Fixed64.FromRaw(TransferRatioRaw),
+                CurrentValue = Fixed64.FromRaw(CurrentValueRaw),
+                MaxValue = Fixed64.FromRaw(MaxValueRaw),
+                InitialValue = Fixed64.FromRaw(InitialValueRaw),
+                AbsorbRatio = Fixed64.FromRaw(AbsorbRatioRaw),
                 Priority = Priority,
                 DamageTypeMask = DamageTypeMask,
                 StartFrame = StartFrame,

@@ -46,7 +46,7 @@ namespace AbilityKit.Battle.SearchTarget.Rules
             var mag = forward.SqrMagnitude;
             if (mag > 0f)
             {
-                var inv = 1f / (float)Math.Sqrt(mag);
+                var inv = 1f / AbilityKit.Core.Mathematics.MathUtil.Sqrt(mag);
                 _forward = forward.Multiply(inv);
             }
             else
@@ -55,7 +55,9 @@ namespace AbilityKit.Battle.SearchTarget.Rules
             }
 
             var halfAngleRad = halfAngleDegrees * (float)Math.PI / 180f;
-            _cosHalfAngle = (float)Math.Cos(halfAngleRad);
+            // 定点 cos（CORDIC）：System.Math.Cos 走 double libm，跨运行时可能差 1 ulp，
+            // 会漂移扇形筛选的目标集合；度→弧度本身是 IEEE 确定运算。
+            _cosHalfAngle = AbilityKit.Core.Mathematics.DeterministicMathBridge.Cos(halfAngleRad);
         }
 
         public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)

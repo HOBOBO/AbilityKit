@@ -1,4 +1,5 @@
 using AbilityKit.Combat.Collision;
+using AbilityKit.Deterministic;
 
 namespace AbilityKit.Core.Mathematics
 {
@@ -99,7 +100,7 @@ namespace AbilityKit.Core.Mathematics
                 return false;
             }
 
-            worldNormal = FromBoxLocal(in localNormal, in box).Normalized;
+            worldNormal = DeterministicMathBridge.Normalize(FromBoxLocal(in localNormal, in box));
             return true;
         }
 

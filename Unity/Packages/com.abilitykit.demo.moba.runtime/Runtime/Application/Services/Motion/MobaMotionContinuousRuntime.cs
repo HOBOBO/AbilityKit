@@ -77,7 +77,6 @@ namespace AbilityKit.Demo.Moba.Services.Motion
         public int OwnerActorId { get; }
         public long SourceContextId { get; }
         public int ModifierSourceId { get; }
-        public float IntervalRemainingSeconds { get; set; }
         public override IContinuousConfig Config => _config;
 
         protected override bool OnActivating()

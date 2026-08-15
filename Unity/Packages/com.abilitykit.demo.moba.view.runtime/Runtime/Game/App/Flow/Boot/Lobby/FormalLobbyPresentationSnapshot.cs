@@ -49,6 +49,7 @@ namespace AbilityKit.Game.Flow
             int minPlayers,
             bool localReady,
             bool canReady,
+            bool canNotReady,
             bool canStart)
         {
             PhaseLabel = phaseLabel;
@@ -62,6 +63,7 @@ namespace AbilityKit.Game.Flow
             MinPlayers = minPlayers;
             LocalReady = localReady;
             CanReady = canReady;
+            CanNotReady = canNotReady;
             CanStart = canStart;
         }
 
@@ -76,6 +78,7 @@ namespace AbilityKit.Game.Flow
         public int MinPlayers { get; }
         public bool LocalReady { get; }
         public bool CanReady { get; }
+        public bool CanNotReady { get; }
         public bool CanStart { get; }
     }
 }

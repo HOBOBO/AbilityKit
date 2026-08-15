@@ -1,7 +1,15 @@
 using System;
+using AbilityKit.Deterministic;
 
 namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
 {
+    /// <summary>
+    /// 数值表达式的默认 RPN 函数库。表达式结果直接进入帧同步模拟，
+    /// 因此全部漂移敏感函数（开方/三角/乘方）走 AbilityKit.Deterministic 的整数实现，
+    /// 求值域为 Q32.32（±2.1e9、分辨率 ~2.3e-10）。
+    /// exp/log/log10/log2/cbrt 没有确定性实现且无配置使用，已从注册表移除——
+    /// 如未来需要，必须先在 Deterministic 包补整数实现再开放。
+    /// </summary>
     public static class DefaultNumericRpnFunctions
     {
         public static NumericRpnFunctionRegistry CreateRegistry()
@@ -14,9 +22,6 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
             r.Register(new Round());
             r.Register(new Sqrt());
             r.Register(new Pow());
-            r.Register(new Exp());
-            r.Register(new Log());
-            r.Register(new Log10());
             r.Register(new Sin());
             r.Register(new Cos());
             r.Register(new Tan());
@@ -26,13 +31,20 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
             r.Register(new Clamp01());
             r.Register(new Lerp());
             r.Register(new Atan2());
-            r.Register(new Cbrt());
-            r.Register(new Log2());
             r.Register(new Trunc());
             r.Register(new Fract());
             r.Register(new Mod());
             r.Register(new Percent());
             return r;
+        }
+
+        private static bool TryToFixed(double value, out Fixed64 fixedValue)
+        {
+            fixedValue = Fixed64.Zero;
+            if (double.IsNaN(value) || double.IsInfinity(value)) return false;
+            if (value > 2147483647d || value < -2147483648d) return false;
+            fixedValue = Fixed64.FromDouble(value);
+            return true;
         }
 
         private sealed class Abs : INumericRpnFunction
@@ -115,7 +127,8 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
                 result = 0d;
                 if (args == null || args.Length != 1) return false;
                 if (args[0] < 0d) return false;
-                result = Math.Sqrt(args[0]);
+                if (!TryToFixed(args[0], out var v)) return false;
+                result = DeterministicMath.Sqrt(v).ToDouble();
                 return true;
             }
         }
@@ -129,51 +142,34 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
             {
                 result = 0d;
                 if (args == null || args.Length != 2) return false;
-                result = Math.Pow(args[0], args[1]);
-                return true;
-            }
-        }
 
-        private sealed class Exp : INumericRpnFunction
-        {
-            public string Name => "exp";
-            public int ArgCount => 1;
+                // 仅支持整数指数（定点平方-乘）。分数指数无确定性实现，拒绝求值。
+                var exponent = args[1];
+                if (Math.Floor(exponent) != exponent || Math.Abs(exponent) > 62d) return false;
 
-            public bool TryInvoke(double[] args, out double result)
-            {
-                result = 0d;
-                if (args == null || args.Length != 1) return false;
-                result = Math.Exp(args[0]);
-                return true;
-            }
-        }
+                if (!TryToFixed(args[0], out var basis)) return false;
+                var negativeBase = basis < Fixed64.Zero;
+                var magnitude = negativeBase ? -basis : basis;
+                var power = (int)exponent;
+                var isOdd = power % 2 != 0;
 
-        private sealed class Log : INumericRpnFunction
-        {
-            public string Name => "log";
-            public int ArgCount => 1;
+                var acc = Fixed64.One;
+                var factor = magnitude;
+                var e = power < 0 ? -power : power;
+                while (e > 0)
+                {
+                    if ((e & 1) == 1) acc *= factor;
+                    if (e > 1) factor *= factor;
+                    e >>= 1;
+                }
 
-            public bool TryInvoke(double[] args, out double result)
-            {
-                result = 0d;
-                if (args == null || args.Length != 1) return false;
-                if (args[0] <= 0d) return false;
-                result = Math.Log(args[0]);
-                return true;
-            }
-        }
+                if (power < 0)
+                {
+                    if (acc == Fixed64.Zero) return false;
+                    acc = Fixed64.One / acc;
+                }
 
-        private sealed class Log10 : INumericRpnFunction
-        {
-            public string Name => "log10";
-            public int ArgCount => 1;
-
-            public bool TryInvoke(double[] args, out double result)
-            {
-                result = 0d;
-                if (args == null || args.Length != 1) return false;
-                if (args[0] <= 0d) return false;
-                result = Math.Log10(args[0]);
+                result = (negativeBase && isOdd ? -acc : acc).ToDouble();
                 return true;
             }
         }
@@ -187,7 +183,8 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
             {
                 result = 0d;
                 if (args == null || args.Length != 1) return false;
-                result = Math.Sin(args[0]);
+                if (!TryToFixed(args[0], out var v)) return false;
+                result = DeterministicMath.Sin(v).ToDouble();
                 return true;
             }
         }
@@ -201,7 +198,8 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
             {
                 result = 0d;
                 if (args == null || args.Length != 1) return false;
-                result = Math.Cos(args[0]);
+                if (!TryToFixed(args[0], out var v)) return false;
+                result = DeterministicMath.Cos(v).ToDouble();
                 return true;
             }
         }
@@ -215,7 +213,8 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
             {
                 result = 0d;
                 if (args == null || args.Length != 1) return false;
-                result = Math.Tan(args[0]);
+                if (!TryToFixed(args[0], out var v)) return false;
+                result = DeterministicMath.Tan(v).ToDouble();
                 return true;
             }
         }
@@ -324,36 +323,9 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
             {
                 result = 0d;
                 if (args == null || args.Length != 2) return false;
-                result = Math.Atan2(args[0], args[1]);
-                return true;
-            }
-        }
-
-        private sealed class Cbrt : INumericRpnFunction
-        {
-            public string Name => "cbrt";
-            public int ArgCount => 1;
-
-            public bool TryInvoke(double[] args, out double result)
-            {
-                result = 0d;
-                if (args == null || args.Length != 1) return false;
-                result = Math.Cbrt(args[0]);
-                return true;
-            }
-        }
-
-        private sealed class Log2 : INumericRpnFunction
-        {
-            public string Name => "log2";
-            public int ArgCount => 1;
-
-            public bool TryInvoke(double[] args, out double result)
-            {
-                result = 0d;
-                if (args == null || args.Length != 1) return false;
-                if (args[0] <= 0d) return false;
-                result = Math.Log(args[0], 2d);
+                if (!TryToFixed(args[0], out var y) || !TryToFixed(args[1], out var x)) return false;
+                if (y == Fixed64.Zero && x == Fixed64.Zero) return false;
+                result = DeterministicMath.Atan2(y, x).ToDouble();
                 return true;
             }
         }

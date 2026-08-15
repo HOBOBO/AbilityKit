@@ -3,6 +3,7 @@
   "rootNamespace": "AbilityKit.Ability",
   "references": [
     "AbilityKit.Core",
+    "AbilityKit.Deterministic",
     "AbilityKit.GameplayTags",
     "AbilityKit.Attributes",
     "AbilityKit.Modifiers",

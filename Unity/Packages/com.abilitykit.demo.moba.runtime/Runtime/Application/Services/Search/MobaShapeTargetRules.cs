@@ -41,7 +41,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
         private static Vec2 NormalizeOrUp(Vec2 value)
         {
             if (value.SqrMagnitude <= 0.000001f) return Vec2.Up;
-            var inverseMagnitude = 1f / (float)Math.Sqrt(value.SqrMagnitude);
+            var inverseMagnitude = 1f / global::AbilityKit.Core.Mathematics.DeterministicMathBridge.Sqrt(value.SqrMagnitude);
             return new Vec2(value.X * inverseMagnitude, value.Y * inverseMagnitude);
         }
     }
@@ -86,7 +86,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
         private static Vec2 NormalizeOrUp(Vec2 value)
         {
             if (value.SqrMagnitude <= 0.000001f) return Vec2.Up;
-            var inverseMagnitude = 1f / (float)Math.Sqrt(value.SqrMagnitude);
+            var inverseMagnitude = 1f / global::AbilityKit.Core.Mathematics.DeterministicMathBridge.Sqrt(value.SqrMagnitude);
             return new Vec2(value.X * inverseMagnitude, value.Y * inverseMagnitude);
         }
     }

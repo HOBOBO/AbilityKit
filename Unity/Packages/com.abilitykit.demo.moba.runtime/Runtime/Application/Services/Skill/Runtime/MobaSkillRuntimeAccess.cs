@@ -9,6 +9,13 @@ namespace AbilityKit.Demo.Moba.Services
         public static long GetCurrentTimeMs(IFrameTime time)
         {
             if (time == null) return 0L;
+            // 整数域取毫秒（FrameTime 内部 raw×1000 右移），不经 float 视图中转，
+            // 与累加/对齐路径完全一致（原 Round(Time*1000f) 存在 .5 边界与量化语义弱的问题）。
+            if (time is FrameTime frameTime)
+            {
+                return frameTime.TimeMilliseconds;
+            }
+
             return (long)MathF.Round(time.Time * 1000f);
         }
 

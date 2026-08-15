@@ -29,7 +29,7 @@
 - `GridPathfinder.cs` — **确定性整数格 A\***：cell 整数坐标、步进代价正交=10/对角=14、固定邻居展开序、`searchId` 计数器代替清零数组、二叉堆 tie-break(f→插入序)、LOS 超覆盖化简输出 `Vec3[]`。决策路径零 Sqrt——确定性由整数运算保证，无需定点数学栈。
 
 ### 关键设计决策
-- **无定点类型**：整个 AbilityKit 用 float+fixed-dt+帧同步保证 sim 确定性。A\* 全程在整数 cell 空间运算，只在与世界坐标互转时除以常数格距（IEEE-754 基本运算确定）。
+- **本包自身无定点类型**：A\* 全程在整数 cell 空间运算（决策路径零 Sqrt），只在与世界坐标互转时除以常数格距（IEEE-754 基本运算确定）。（仓库其余模拟栈已于 2026-08 定点化，见 `com.abilitykit.world.framesync/Document/定点帧同步接入指南.md`；导航包因纯整数实现天然确定，未引入 Fixed64。）
 - **烘焙复用碰撞世界**：`MobaNavigationBake` 在 `BattleMapMO.Bounds` 内按格距采样，每 cell 用 `collisionWorld.OverlapSphere(center, agentRadius, WorldMask)` 测阻塞 + "不在 WalkableArea 内"→阻塞。一次性、复用精确窄相、确定性。
 - **包不依赖 map/碰撞类型**：纯包只有 grid+planner+接口；烘焙逻辑全部在 demo runtime 侧。
 

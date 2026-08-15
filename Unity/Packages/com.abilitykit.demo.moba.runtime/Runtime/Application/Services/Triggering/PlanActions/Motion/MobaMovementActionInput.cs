@@ -84,7 +84,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var delta = caster.transform.Value.Position - self.transform.Value.Position;
             if (delta.SqrMagnitude > 0.01f)
             {
-                direction = delta.Normalized;
+                direction = DeterministicMathBridge.Normalize(in delta);
                 return true;
             }
 
@@ -133,7 +133,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
                 if (TryGetPlanarDeltaToAimPosition(selfActorId, out var aimDelta))
                 {
-                    return aimDelta.Normalized;
+                    return DeterministicMathBridge.Normalize(in aimDelta);
                 }
 
                 return Vec3.Zero;
@@ -177,7 +177,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         private static Vec3 FlattenDirection(Vec3 direction)
         {
             var flattened = new Vec3(direction.X, 0f, direction.Z);
-            return flattened.SqrMagnitude > 0f ? flattened.Normalized : Vec3.Zero;
+            return flattened.SqrMagnitude > 0f ? DeterministicMathBridge.Normalize(in flattened) : Vec3.Zero;
         }
     }
 }

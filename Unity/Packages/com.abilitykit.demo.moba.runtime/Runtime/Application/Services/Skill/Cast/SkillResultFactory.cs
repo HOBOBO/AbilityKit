@@ -42,31 +42,27 @@ namespace AbilityKit.Demo.Moba.Services
             return MobaSkillInputHandleResult.Accepted(message);
         }
 
-        internal static MobaSkillCastFailure StartReject(in SkillPipelineRunner runner, string failReason)
+        internal static MobaSkillCastFailure PipelineStartFailure(in SkillPipelineRunner.SkillPipelineStartResult result)
         {
-            var startReject = runner?.LastStartReject;
-            if (startReject.HasValue && startReject.Value.HasValue)
+            if (result.StartReject.HasValue)
             {
-                return new MobaSkillCastFailure("StartReject", null, startReject.Value.Code, startReject.Value.Message ?? failReason);
+                return new MobaSkillCastFailure(
+                    "StartReject",
+                    null,
+                    result.StartReject.Code,
+                    result.StartReject.Message ?? result.FailReason);
             }
 
-            return MobaSkillCastFailure.None;
-        }
-
-        internal static MobaSkillCastFailure PipelineFailure(in SkillPipelineRunner runner, string failReason)
-        {
-            var pipelineFailure = runner?.LastPipelineFailure;
-            if (pipelineFailure.HasValue && pipelineFailure.Value.HasValue)
+            if (result.PipelineFailure.HasValue)
             {
-                return new MobaSkillCastFailure("Pipeline", pipelineFailure.Value.Stage, pipelineFailure.Value.Code, pipelineFailure.Value.Message ?? failReason);
+                return new MobaSkillCastFailure(
+                    "Pipeline",
+                    result.PipelineFailure.Stage,
+                    result.PipelineFailure.Code,
+                    result.PipelineFailure.Message ?? result.FailReason);
             }
 
-            if (runner != null && !string.IsNullOrEmpty(runner.LastFailReason))
-            {
-                return new MobaSkillCastFailure("Pipeline", null, SkillFailureCodes.Pipeline.Failed, runner.LastFailReason);
-            }
-
-            return MobaSkillCastFailure.None;
+            return UnknownCastFailure(result.FailReason);
         }
 
         internal static MobaSkillCastFailure UnknownCastFailure(string failReason)
