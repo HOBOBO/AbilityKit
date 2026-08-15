@@ -89,11 +89,22 @@ namespace AbilityKit.Game.Flow
                 options.Plan,
                 worldId,
                 authorityFramesSource);
-            var world = runtime.CreateWorld(worldOptions);
+            IWorld world = null;
+            try
+            {
+                world = runtime.CreateWorld(worldOptions);
+                BindAuthorityFrameService(world);
+                return new RemoteDrivenWorldRuntime(worldId, worlds, runtime, world);
+            }
+            catch
+            {
+                if (world != null)
+                {
+                    runtime.DestroyWorld(worldId);
+                }
 
-            BindAuthorityFrameService(world);
-
-            return new RemoteDrivenWorldRuntime(worldId, worlds, runtime, world);
+                throw;
+            }
         }
 
         private static IWorldAuthorityFramesSource CreateAuthorityFramesSource(HostRuntime runtime)

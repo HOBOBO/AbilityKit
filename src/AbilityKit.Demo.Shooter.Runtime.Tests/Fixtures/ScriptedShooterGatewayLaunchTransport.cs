@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Shooter.View;
+using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Protocol.Room;
+using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.Runtime.Tests;
 
@@ -32,6 +35,8 @@ internal sealed class ScriptedShooterGatewayLaunchTransport : IShooterRoomGatewa
     public uint JoinCurrentPlayerId { get; set; } = 121u;
  
     public WireRoomJoinKind JoinKind { get; set; } = WireRoomJoinKind.TeamLobby;
+
+    public bool IncludeSyncCapabilities { get; set; }
 
     public WireReportAssetsLoadedReq LastReportAssetsLoadedRequest { get; private set; }
 
@@ -144,7 +149,31 @@ internal sealed class ScriptedShooterGatewayLaunchTransport : IShooterRoomGatewa
             LaunchManifestVersion = 3,
             LaunchManifestHash = "manifest-shooter-v3",
             RoomRevision = 4L,
-            LastEventSequence = 4L
+            LastEventSequence = 4L,
+            SyncCapabilities = IncludeSyncCapabilities ? CreateSyncCapabilities() : null
+        };
+    }
+
+    private static WireNetworkSyncCapabilities CreateSyncCapabilities()
+    {
+        return new WireNetworkSyncCapabilities
+        {
+            MetadataVersion = 1,
+            ProfileName = nameof(NetworkSyncModel.PredictRollback),
+            MinimumSchemaVersion = ShooterStateSyncCompatibilityPolicy.MinimumPureStateVersion,
+            MaximumSchemaVersion = ShooterPureStateSyncCodec.CurrentVersion,
+            ClientPlayback = (int)ClientPlaybackCapabilities.PredictRollback,
+            Input = (int)(InputPolicy.ImmediateSubmit | InputPolicy.ServerRemapAcceptedFrame),
+            Snapshot = (int)(SnapshotPolicy.FullSnapshot | SnapshotPolicy.AuthorityOverride |
+                SnapshotPolicy.EventStream),
+            Interest = (int)InterestPolicy.AllEntities,
+            Recovery = (int)(RecoveryPolicy.CatchUpToServerFrame | RecoveryPolicy.RequestFullSnapshot),
+            ServerValidation = (int)ServerValidationPolicy.AuthoritativeOnly,
+            ReliableEvent = (int)(ReliableEventCapabilities.OrderedDelivery |
+                ReliableEventCapabilities.ExternalAcknowledgement |
+                ReliableEventCapabilities.PersistentCheckpoint |
+                ReliableEventCapabilities.BufferedOutOfOrder |
+                ReliableEventCapabilities.AuthoritativeBaselineRecovery)
         };
     }
 

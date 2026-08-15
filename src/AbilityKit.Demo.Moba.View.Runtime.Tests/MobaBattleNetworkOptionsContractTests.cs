@@ -3,13 +3,13 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle;
-using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Battle;
 using AbilityKit.Network.Battle.Config;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 using AbilityKit.Protocol.Room;
 using Xunit;
 
@@ -113,6 +113,28 @@ public sealed class MobaBattleNetworkOptionsContractTests
     }
 
     [Fact]
+    public void StatesyncInputDeserializer_TreatsShouldResyncAsDataNotRetry()
+    {
+        var options = Build(useFrameSyncInput: false);
+
+        var wire = new WireSubmitBattleInputRes
+        {
+            Success = false,
+            CurrentFrame = 20,
+            Status = "NeedsFullState",
+            Message = "resync",
+            ShouldResync = true,
+            ServerTicks = 1000L,
+        };
+        var payload = WireRoomGatewayBinary.Serialize(in wire);
+        var response = options.DeserializeSubmitInputResponse!(payload);
+
+        Assert.False(response.Accepted);
+        Assert.True(response.ShouldResync);
+        Assert.False(response.RetryAtAuthoritativeFrame);
+    }
+
+    [Fact]
     public void SnapshotDeserializer_DecodesWireStateSyncSnapshotPush()
     {
         var options = Build(useFrameSyncInput: false);
@@ -153,7 +175,7 @@ public sealed class MobaBattleNetworkOptionsContractTests
     }
 
     [Fact]
-    public void FramesyncMode_InputSerializer_ProducesNonEmptyPayload()
+    public void FramesyncMode_InputRouteAndSerializer_UseFrameSyncProtocol()
     {
         var options = Build(useFrameSyncInput: true);
 
@@ -166,7 +188,29 @@ public sealed class MobaBattleNetworkOptionsContractTests
                 payload: new byte[] { 1, 2 }));
         var prepared = options.PrepareSubmitInput!(request);
         var payload = options.SerializeSubmitInput!(prepared);
+        var wire = WireCustomBinary.DeserializeSubmitFrameInputReq(payload);
 
-        Assert.True(payload.Count > 0);
+        Assert.Equal(OpCodes.SubmitFrameInput, options.OpSubmitInput);
+        Assert.Equal(RoomId, wire.RoomId);
+        Assert.Equal(RoomId, wire.WorldId);
+        Assert.Equal(1u, wire.PlayerId);
+        Assert.Equal(3, wire.Frame);
+        Assert.Equal(500, wire.InputOpCode);
+        Assert.Equal(new byte[] { 1, 2 }, wire.InputPayload);
+    }
+
+    [Fact]
+    public void FramesyncMode_RejectedAuthoritativeFrameReasons_EnableEngineRetry()
+    {
+        var options = Build(useFrameSyncInput: true);
+
+        var wire = new WireSubmitFrameInputRes(accepted: false, serverFrame: 30, reasonCode: 3);
+        var payload = WireCustomBinary.Serialize(in wire);
+        var response = options.DeserializeSubmitInputResponse!(payload);
+
+        Assert.False(response.Accepted);
+        Assert.True(response.RetryAtAuthoritativeFrame);
+        Assert.Equal(30, response.ServerFrame);
+        Assert.Equal(3, response.ReasonCode);
     }
 }

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Attributes.Core;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Modifiers;

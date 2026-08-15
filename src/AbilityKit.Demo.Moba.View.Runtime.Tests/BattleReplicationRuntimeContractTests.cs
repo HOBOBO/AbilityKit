@@ -2,10 +2,14 @@ using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle;
+using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Battle;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Room;
+using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Room;
 using Xunit;
 
@@ -62,8 +66,70 @@ public sealed class BattleReplicationRuntimeContractTests
         Assert.True(runtime.IsBuilt);
         Assert.True(runtime.PendingStateImport);
         Assert.Same(transport, runtime.Transport);
+        Assert.NotNull(runtime.SyncSession);
+        Assert.Equal(AbilityKit.Game.Flow.BattleReplicationRuntime.SyncProfileName, runtime.SyncSession.ProfileName);
+        Assert.Equal(NetworkSyncModel.AuthoritativeInterpolation, runtime.SyncSession.Profile.CompatibilityModel);
+        Assert.Equal(0, runtime.SyncSession.MinimumSchemaVersion);
+        Assert.Equal(GatewayStateSyncSnapshot.CurrentSchemaVersion, runtime.SyncSession.MaximumSchemaVersion);
+        Assert.True(runtime.SyncSession.ConfigurationReport.IsValid);
+        Assert.False(runtime.SyncSession.IsRemoteNegotiated);
+        Assert.Equal(RoomGatewayNetworkSyncBindingState.LegacyFallback, runtime.SyncBinding.State);
+        Assert.Equal(NetworkSyncRemoteCapabilityPolicy.NegotiateWhenAvailable, runtime.SyncSession.RemoteCapabilityPolicy);
 
         runtime.Dispose();
+    }
+
+    [Fact]
+    public void Build_WithGatewayCapabilities_NegotiatesRemoteSession()
+    {
+        var transport = CreateTransport();
+        var runtime = new AbilityKit.Game.Flow.BattleReplicationRuntime();
+        var remote = CreateRemoteCapabilities(AbilityKit.Game.Flow.BattleReplicationRuntime.SyncProfileName);
+
+        runtime.Build(
+            transport, 30, 999UL, "battle-1", default,
+            _ => { }, _ => { }, () => { }, () => { }, _ => { }, remote);
+
+        Assert.True(runtime.SyncSession.IsRemoteNegotiated);
+        Assert.Equal(RoomGatewayNetworkSyncBindingState.RemoteDeclared, runtime.SyncBinding.State);
+        Assert.Equal(NetworkSyncRemoteCapabilityPolicy.NegotiateWhenAvailable, runtime.SyncSession.RemoteCapabilityPolicy);
+        runtime.Dispose();
+    }
+
+    [Fact]
+    public void Build_WithMismatchedGatewayProfile_RejectsStartup()
+    {
+        var transport = CreateTransport();
+        var runtime = new AbilityKit.Game.Flow.BattleReplicationRuntime();
+        var remote = CreateRemoteCapabilities("Moba.OtherProfile");
+
+        var error = Assert.Throws<RoomGatewaySyncCapabilityException>(() => runtime.Build(
+            transport, 30, 999UL, "battle-1", default,
+            _ => { }, _ => { }, () => { }, () => { }, _ => { }, remote));
+
+        Assert.Equal(RoomGatewaySyncCapabilityErrorCode.ProfileMismatch, error.ErrorCode);
+    }
+
+    private static RoomGatewayNetworkSyncCapabilities CreateRemoteCapabilities(string profileName)
+    {
+        return RoomGatewayNetworkSyncCapabilitiesConverter.FromWire(new WireNetworkSyncCapabilities
+        {
+            MetadataVersion = 1,
+            ProfileName = profileName,
+            MinimumSchemaVersion = 0,
+            MaximumSchemaVersion = GatewayStateSyncSnapshot.CurrentSchemaVersion,
+            ClientPlayback = (int)ClientPlaybackCapabilities.AuthoritativeInterpolation,
+            Input = (int)InputPolicy.ImmediateSubmit,
+            Snapshot = (int)(SnapshotPolicy.FullSnapshot | SnapshotPolicy.DeltaSnapshot |
+                SnapshotPolicy.FixedRateStateStream | SnapshotPolicy.EventStream),
+            Interest = (int)InterestPolicy.AllEntities,
+            Recovery = (int)RecoveryPolicy.RequestFullSnapshot,
+            ServerValidation = (int)(ServerValidationPolicy.AuthoritativeOnly | ServerValidationPolicy.InputValidation),
+            ReliableEvent = (int)(ReliableEventCapabilities.OrderedDelivery |
+                ReliableEventCapabilities.AutomaticAcknowledgement |
+                ReliableEventCapabilities.PersistentCheckpoint |
+                ReliableEventCapabilities.AuthoritativeBaselineRecovery)
+        })!;
     }
 
     [Fact]
@@ -121,6 +187,8 @@ public sealed class BattleReplicationRuntimeContractTests
 
         Assert.False(runtime.IsBuilt);
         Assert.Null(runtime.Transport);
+        Assert.Null(runtime.SyncSession);
+        Assert.Equal(RoomGatewayNetworkSyncBindingState.Uninitialized, runtime.SyncBinding.State);
     }
 
     [Fact]

@@ -1,0 +1,18 @@
+{
+  "name": "com.abilitykit.demo.shooter.host",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Demo Shooter Host",
+  "unity": "2022.3",
+  "description": "Transport-neutral Shooter host request adapters and authoritative session binding.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.host": "0.1.0",
+    "com.abilitykit.host.network": "0.1.0",
+    "com.abilitykit.network.host": "0.1.0",
+    "com.abilitykit.network.runtime": "0.1.0",
+    "com.abilitykit.game.battle.runtime": "0.1.0",
+    "com.abilitykit.demo.shooter.runtime": "0.0.1",
+    "com.abilitykit.protocol.shooter": "0.1.0",
+    "com.abilitykit.world.di": "0.1.0"
+  }
+}

@@ -1,5 +1,5 @@
-using AbilityKit.Core.Debugging;
-using AbilityKit.Core.Editor.Debugging;
+using AbilityKit.Diagnostics.DebugDraw;
+using AbilityKit.Diagnostics.Editor.DebugDraw;
 using UnityEditor;
 
 namespace AbilityKit.Game.Editor.Gizmos

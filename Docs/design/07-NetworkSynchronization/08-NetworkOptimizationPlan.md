@@ -70,8 +70,10 @@
 - **验证**：StateSync.Tests 6/6。
 
 ### P-E · UDP/WebSocket 服务端
-- **价值**：中。客户端 transport（LiteNet/WebSocket）已就绪，gateway 仅 TCP；启用非 TCP 生产部署。
-- **成本**：中。**依赖**：用户的 WS 服务端 WIP（`WebSocketTransportServer.cs`）。
+- **价值**：中。客户端 transport（LiteNet/WebSocket）已就绪；WebSocket Gateway 服务端已进入 canonical 注册链但默认关闭，LiteNet/UDP 网关仍未实现。剩余目标是启用非 TCP 生产部署。
+- **WebSocket 已推进**：`WebSocketTransportServer` 由 `GatewayModuleExtensions` 绑定 `AbilityKit:Gateway:WebSocket` 并注册 hosted service；默认 `Enabled=false`，已有 Gateway 服务端路径/帧协议/Stop-Restart 契约测试。
+- **剩余**：WebSocket 端到端 smoke（含真实 Gateway 启动配置、TLS/反向代理/断线恢复按部署需要验证）；LiteNet/UDP server listener、配置、smoke。
+- **成本**：中。
 
 ### P-F · `DemoHarnessRunner` 迁出 `network.runtime`
 - **价值**：低-中。架构整洁（test infra 不该在 runtime 包）。`network.runtime` README 已标注"计划迁出"。

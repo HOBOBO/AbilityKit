@@ -1,0 +1,22 @@
+{
+  "id": 10030001,
+  "name": "赵云-普通攻击",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 115,
+      "source_attack_ratio": 1.0,
+      "damage_type": 1,
+      "reason_kind": 2,
+      "reason_param": 10030001,
+      "target_mode": 2,
+      "target_max_count": 1
+    }
+  ]
+}

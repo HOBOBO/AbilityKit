@@ -1,6 +1,6 @@
 {
   "name": "com.abilitykit.gameframework",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit GameFramework Bridge",
   "unity": "2022.3",
   "description": "Bridge package for integrating GameFramework modules into AbilityKit.",

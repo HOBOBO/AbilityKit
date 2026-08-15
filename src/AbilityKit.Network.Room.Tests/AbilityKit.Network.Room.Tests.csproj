@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Network.Room/AbilityKit.Network.Room.csproj" />
+    <ProjectReference Include="../AbilityKit.Network.Transport.InMemory/AbilityKit.Network.Transport.InMemory.csproj" />
   </ItemGroup>
 
   <ItemGroup>

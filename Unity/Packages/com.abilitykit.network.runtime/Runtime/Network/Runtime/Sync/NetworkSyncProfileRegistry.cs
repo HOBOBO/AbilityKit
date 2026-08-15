@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace AbilityKit.Network.Runtime.Sync
@@ -14,40 +13,21 @@ namespace AbilityKit.Network.Runtime.Sync
     /// </remarks>
     public static class NetworkSyncProfileRegistry
     {
-        private readonly struct Entry
-        {
-            public Entry(NetworkSyncModel model, string name, NetworkSyncProfile profile)
-            {
-                Model = model;
-                Name = name;
-                Profile = profile;
-            }
-
-            public NetworkSyncModel Model { get; }
-
-            public string Name { get; }
-
-            public NetworkSyncProfile Profile { get; }
-        }
-
-        // 按 NetworkSyncModel 枚举值排序，确保调用方枚举时得到稳定顺序。
-        private static readonly Entry[] Entries =
-        {
-            new Entry(NetworkSyncModel.Unspecified, nameof(NetworkSyncModel.Unspecified), NetworkSyncProfiles.Unspecified),
-            new Entry(NetworkSyncModel.Lockstep, nameof(NetworkSyncModel.Lockstep), NetworkSyncProfiles.Lockstep),
-            new Entry(NetworkSyncModel.PredictRollback, nameof(NetworkSyncModel.PredictRollback), NetworkSyncProfiles.PredictRollback),
-            new Entry(NetworkSyncModel.AuthoritativeInterpolation, nameof(NetworkSyncModel.AuthoritativeInterpolation), NetworkSyncProfiles.AuthoritativeInterpolation),
-            new Entry(NetworkSyncModel.BatchStateSync, nameof(NetworkSyncModel.BatchStateSync), NetworkSyncProfiles.BatchStateSync),
-            new Entry(NetworkSyncModel.MassBattleLodSync, nameof(NetworkSyncModel.MassBattleLodSync), NetworkSyncProfiles.MassBattleLodSync),
-            new Entry(NetworkSyncModel.HybridHeroPrediction, nameof(NetworkSyncModel.HybridHeroPrediction), NetworkSyncProfiles.HybridHeroPrediction),
-            new Entry(NetworkSyncModel.FastReconnect, nameof(NetworkSyncModel.FastReconnect), NetworkSyncProfiles.FastReconnect),
-            new Entry(NetworkSyncModel.ServerRewindLagCompensation, nameof(NetworkSyncModel.ServerRewindLagCompensation), NetworkSyncProfiles.ServerRewindLagCompensation),
-        };
+        private static readonly NetworkSyncProfileCatalog BuiltInCatalog = CreateBuiltInCatalog();
 
         /// <summary>
         /// 已注册兼容模型数量。
         /// </summary>
-        public static int Count => Entries.Length;
+        public static int Count => BuiltInCatalog.Count;
+
+        /// <summary>内置同步档案的冻结目录。</summary>
+        public static NetworkSyncProfileCatalog DefaultCatalog => BuiltInCatalog;
+
+        /// <summary>创建包含全部内置档案的可变目录，供接入项目继续注册或覆盖。</summary>
+        public static NetworkSyncProfileCatalog CreateMutableCatalog()
+        {
+            return BuiltInCatalog.CreateMutableCopy();
+        }
 
         /// <summary>
         /// 解析兼容模型对应的规范 <see cref="NetworkSyncProfile"/>。
@@ -55,12 +35,7 @@ namespace AbilityKit.Network.Runtime.Sync
         /// </summary>
         public static NetworkSyncProfile Resolve(NetworkSyncModel model)
         {
-            if (TryResolve(model, out var profile))
-            {
-                return profile;
-            }
-
-            throw new ArgumentOutOfRangeException(nameof(model), model, "Unknown network sync compatibility model.");
+            return BuiltInCatalog.Resolve(model);
         }
 
         /// <summary>
@@ -68,17 +43,7 @@ namespace AbilityKit.Network.Runtime.Sync
         /// </summary>
         public static bool TryResolve(NetworkSyncModel model, out NetworkSyncProfile profile)
         {
-            foreach (var entry in Entries)
-            {
-                if (entry.Model == model)
-                {
-                    profile = entry.Profile;
-                    return true;
-                }
-            }
-
-            profile = NetworkSyncProfiles.Unspecified;
-            return false;
+            return BuiltInCatalog.TryResolve(model, out profile);
         }
 
         /// <summary>
@@ -86,15 +51,7 @@ namespace AbilityKit.Network.Runtime.Sync
         /// </summary>
         public static string GetName(NetworkSyncModel model)
         {
-            foreach (var entry in Entries)
-            {
-                if (entry.Model == model)
-                {
-                    return entry.Name;
-                }
-            }
-
-            throw new ArgumentOutOfRangeException(nameof(model), model, "Unknown network sync compatibility model.");
+            return BuiltInCatalog.GetName(model);
         }
 
         /// <summary>
@@ -102,9 +59,10 @@ namespace AbilityKit.Network.Runtime.Sync
         /// </summary>
         public static IEnumerable<NetworkSyncModel> Models()
         {
-            foreach (var entry in Entries)
+            var entries = BuiltInCatalog.Entries();
+            for (var i = 0; i < entries.Count; i++)
             {
-                yield return entry.Model;
+                yield return entries[i].Model;
             }
         }
 
@@ -113,10 +71,27 @@ namespace AbilityKit.Network.Runtime.Sync
         /// </summary>
         public static IEnumerable<NetworkSyncProfile> Profiles()
         {
-            foreach (var entry in Entries)
+            var entries = BuiltInCatalog.Entries();
+            for (var i = 0; i < entries.Count; i++)
             {
-                yield return entry.Profile;
+                yield return entries[i].Profile;
             }
+        }
+
+        private static NetworkSyncProfileCatalog CreateBuiltInCatalog()
+        {
+            var catalog = new NetworkSyncProfileCatalog();
+            catalog.Register(nameof(NetworkSyncModel.Unspecified), NetworkSyncProfiles.Unspecified);
+            catalog.Register(nameof(NetworkSyncModel.Lockstep), NetworkSyncProfiles.Lockstep);
+            catalog.Register(nameof(NetworkSyncModel.PredictRollback), NetworkSyncProfiles.PredictRollback);
+            catalog.Register(nameof(NetworkSyncModel.AuthoritativeInterpolation), NetworkSyncProfiles.AuthoritativeInterpolation);
+            catalog.Register(nameof(NetworkSyncModel.BatchStateSync), NetworkSyncProfiles.BatchStateSync);
+            catalog.Register(nameof(NetworkSyncModel.MassBattleLodSync), NetworkSyncProfiles.MassBattleLodSync);
+            catalog.Register(nameof(NetworkSyncModel.HybridHeroPrediction), NetworkSyncProfiles.HybridHeroPrediction);
+            catalog.Register(nameof(NetworkSyncModel.FastReconnect), NetworkSyncProfiles.FastReconnect);
+            catalog.Register(nameof(NetworkSyncModel.ServerRewindLagCompensation), NetworkSyncProfiles.ServerRewindLagCompensation);
+            catalog.Freeze();
+            return catalog;
         }
     }
 }

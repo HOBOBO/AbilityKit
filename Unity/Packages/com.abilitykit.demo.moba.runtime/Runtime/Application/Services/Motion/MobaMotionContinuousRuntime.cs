@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Combat.MotionSystem.Core;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.GameplayTags;

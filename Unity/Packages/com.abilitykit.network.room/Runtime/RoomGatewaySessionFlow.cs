@@ -580,6 +580,7 @@ namespace AbilityKit.Network.Room
                 WorldId = snapshot.WorldId == 0ul ? restored.WorldId : snapshot.WorldId,
                 Members = snapshot.Members,
                 Players = snapshot.Players,
+                SyncCapabilities = snapshot.SyncCapabilities,
                 WorldStartAnchor = snapshot.WorldStartAnchor.IsValid
                     ? snapshot.WorldStartAnchor
                     : restored.WorldStartAnchor
@@ -1004,8 +1005,9 @@ namespace AbilityKit.Network.Room
         public readonly RoomGatewayWorldStartAnchor WorldStartAnchor;
         public readonly long ServerNowTicks;
         public readonly string Message;
+        public readonly RoomGatewayNetworkSyncCapabilities? SyncCapabilities;
 
-        public RoomGatewayStartBattleResult(bool success, string battleId, ulong worldId, bool started, RoomGatewayWorldStartAnchor worldStartAnchor, long serverNowTicks, string message)
+        public RoomGatewayStartBattleResult(bool success, string battleId, ulong worldId, bool started, RoomGatewayWorldStartAnchor worldStartAnchor, long serverNowTicks, string message, RoomGatewayNetworkSyncCapabilities? syncCapabilities = null)
         {
             Success = success;
             BattleId = battleId ?? string.Empty;
@@ -1014,6 +1016,7 @@ namespace AbilityKit.Network.Room
             WorldStartAnchor = worldStartAnchor;
             ServerNowTicks = serverNowTicks;
             Message = message ?? string.Empty;
+            SyncCapabilities = syncCapabilities;
         }
     }
 
@@ -1091,13 +1094,15 @@ namespace AbilityKit.Network.Room
         public readonly string Message;
         public readonly RoomGatewaySessionRestoreStatus RestoreStatus;
         public readonly RoomGatewaySessionRestoreErrorCode RestoreErrorCode;
+        /// <summary>服务端为本次战斗代际声明的同步能力；旧服务端可能不提供。</summary>
+        public readonly RoomGatewayNetworkSyncCapabilities? SyncCapabilities;
 
         public RoomGatewaySessionFlowResult(string sessionToken, string roomId, ulong numericRoomId, string battleId, ulong worldId, uint playerId, RoomGatewayWorldStartAnchor worldStartAnchor, long serverNowTicks, RoomGatewaySessionEntryKind entryKind, bool canStart, bool started, bool subscribed, string message)
             : this(sessionToken, roomId, numericRoomId, battleId, worldId, playerId, worldStartAnchor, serverNowTicks, entryKind, canStart, started, subscribed, message, RoomGatewaySessionRestoreStatus.Restored, RoomGatewaySessionRestoreErrorCode.None)
         {
         }
 
-        public RoomGatewaySessionFlowResult(string sessionToken, string roomId, ulong numericRoomId, string battleId, ulong worldId, uint playerId, RoomGatewayWorldStartAnchor worldStartAnchor, long serverNowTicks, RoomGatewaySessionEntryKind entryKind, bool canStart, bool started, bool subscribed, string message, RoomGatewaySessionRestoreStatus restoreStatus, RoomGatewaySessionRestoreErrorCode restoreErrorCode)
+        public RoomGatewaySessionFlowResult(string sessionToken, string roomId, ulong numericRoomId, string battleId, ulong worldId, uint playerId, RoomGatewayWorldStartAnchor worldStartAnchor, long serverNowTicks, RoomGatewaySessionEntryKind entryKind, bool canStart, bool started, bool subscribed, string message, RoomGatewaySessionRestoreStatus restoreStatus, RoomGatewaySessionRestoreErrorCode restoreErrorCode, RoomGatewayNetworkSyncCapabilities? syncCapabilities = null)
         {
             SessionToken = sessionToken ?? string.Empty;
             RoomId = roomId ?? string.Empty;
@@ -1114,6 +1119,7 @@ namespace AbilityKit.Network.Room
             Message = message ?? string.Empty;
             RestoreStatus = restoreStatus;
             RestoreErrorCode = restoreErrorCode;
+            SyncCapabilities = syncCapabilities;
         }
     }
 

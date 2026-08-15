@@ -6,7 +6,7 @@
   "description": "Navigation grid, deterministic pathfinding interfaces and math-only implementation.",
   "author": { "name": "AbilityKit" },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1",
-    "com.abilitykit.world.di": "0.0.1"
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.world.di": "0.1.0"
   }
 }

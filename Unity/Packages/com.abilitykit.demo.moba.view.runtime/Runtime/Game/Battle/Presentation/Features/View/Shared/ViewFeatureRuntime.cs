@@ -21,6 +21,7 @@ namespace AbilityKit.Game.Flow
         BattleAreaVfxPool AreaVfxPool { get; }
         BattleVfxManager Vfx { get; set; }
         EC.IEntity VfxNode { get; set; }
+        long ContextVfxBindingGeneration { get; set; }
         ViewTimeline Timeline { get; set; }
         BattleFloatingTextSystem FloatingTexts { get; set; }
         BattleAreaViewSystem AreaViews { get; set; }

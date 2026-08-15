@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Core.Buffers;
 
 namespace AbilityKit.Ability.FrameSync.Rollback
 {
@@ -7,7 +8,8 @@ namespace AbilityKit.Ability.FrameSync.Rollback
         private readonly object _sync = new object();
         private readonly int _capacity;
         private readonly FrameIndex[] _frames;
-        private readonly WorldRollbackSnapshot[] _snapshots;
+        private readonly int[] _versions;
+        private readonly PooledBufferOwner<WorldRollbackSnapshotEntry>[] _entryOwners;
         private readonly bool[] _has;
 
         public RollbackSnapshotRingBuffer(int capacity)
@@ -15,7 +17,8 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
             _capacity = capacity;
             _frames = new FrameIndex[_capacity];
-            _snapshots = new WorldRollbackSnapshot[_capacity];
+            _versions = new int[_capacity];
+            _entryOwners = new PooledBufferOwner<WorldRollbackSnapshotEntry>[_capacity];
             _has = new bool[_capacity];
         }
 
@@ -30,21 +33,28 @@ namespace AbilityKit.Ability.FrameSync.Rollback
         /// pass the pooled capture list directly (as a span) without an intermediate ToArray allocation.</summary>
         public void Store(FrameIndex frame, ReadOnlySpan<WorldRollbackSnapshotEntry> entries, int version)
         {
-            var ownedEntries = CloneEntries(entries, usePool: true);
-            var ownedSnapshot = new WorldRollbackSnapshot(version, frame, ownedEntries);
+            var ownedEntries = CloneEntriesToOwner(entries);
             var idx = Mod(frame.Value, _capacity);
+            PooledBufferOwner<WorldRollbackSnapshotEntry> previousOwner = null;
 
-            lock (_sync)
+            try
             {
-                if (_has[idx])
+                lock (_sync)
                 {
-                    ReleaseSnapshot(_snapshots[idx]);
+                    previousOwner = _entryOwners[idx];
+                    _frames[idx] = frame;
+                    _versions[idx] = version;
+                    _entryOwners[idx] = ownedEntries;
+                    _has[idx] = true;
+                    ownedEntries = null;
                 }
-
-                _frames[idx] = frame;
-                _snapshots[idx] = ownedSnapshot;
-                _has[idx] = true;
             }
+            finally
+            {
+                ownedEntries?.Dispose();
+            }
+
+            previousOwner?.Dispose();
         }
 
         public bool TryGet(FrameIndex frame, out WorldRollbackSnapshot snapshot)
@@ -54,11 +64,10 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                 var idx = Mod(frame.Value, _capacity);
                 if (_has[idx] && _frames[idx].Value == frame.Value)
                 {
-                    var stored = _snapshots[idx];
                     snapshot = new WorldRollbackSnapshot(
-                        stored.Version,
-                        stored.Frame,
-                        CloneEntries(stored.Entries, usePool: false));
+                        _versions[idx],
+                        _frames[idx],
+                        CloneEntriesToArray(_entryOwners[idx].Span));
                     return true;
                 }
             }
@@ -75,9 +84,10 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                 {
                     if (_has[i])
                     {
-                        ReleaseSnapshot(_snapshots[i]);
-                        _snapshots[i] = default;
+                        _entryOwners[i]?.Dispose();
+                        _entryOwners[i] = null;
                         _frames[i] = default;
+                        _versions[i] = default;
                     }
                 }
 
@@ -85,21 +95,16 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             }
         }
 
-        private static WorldRollbackSnapshotEntry[] CloneEntries(
-            ReadOnlySpan<WorldRollbackSnapshotEntry> entries,
-            bool usePool)
+        private static PooledBufferOwner<WorldRollbackSnapshotEntry> CloneEntriesToOwner(
+            ReadOnlySpan<WorldRollbackSnapshotEntry> entries)
         {
-            if (entries.IsEmpty)
-            {
-                return Array.Empty<WorldRollbackSnapshotEntry>();
-            }
-
-            var clone = usePool
-                ? RollbackEntriesArrayPool.Rent(entries.Length)
-                : new WorldRollbackSnapshotEntry[entries.Length];
+            var owner = PooledBufferOwner<WorldRollbackSnapshotEntry>.Rent(
+                entries.Length,
+                PooledBufferClearMode.OnReturn);
 
             try
             {
+                var clone = owner.Span;
                 for (int i = 0; i < entries.Length; i++)
                 {
                     var entry = entries[i];
@@ -109,18 +114,34 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                     clone[i] = new WorldRollbackSnapshotEntry(entry.Key, payload);
                 }
 
-                return clone;
+                return owner;
             }
             catch
             {
-                if (usePool) RollbackEntriesArrayPool.Release(clone);
+                owner.Dispose();
                 throw;
             }
         }
 
-        private static void ReleaseSnapshot(in WorldRollbackSnapshot snapshot)
+        private static WorldRollbackSnapshotEntry[] CloneEntriesToArray(
+            ReadOnlySpan<WorldRollbackSnapshotEntry> entries)
         {
-            RollbackEntriesArrayPool.Release(snapshot.Entries);
+            if (entries.IsEmpty)
+            {
+                return Array.Empty<WorldRollbackSnapshotEntry>();
+            }
+
+            var clone = new WorldRollbackSnapshotEntry[entries.Length];
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                var payload = entry.Payload == null || entry.Payload.Length == 0
+                    ? Array.Empty<byte>()
+                    : (byte[])entry.Payload.Clone();
+                clone[i] = new WorldRollbackSnapshotEntry(entry.Key, payload);
+            }
+
+            return clone;
         }
 
         private static int Mod(int x, int m)

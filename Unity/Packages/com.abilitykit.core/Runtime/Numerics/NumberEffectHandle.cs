@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Core.Numerics
 {
+    [Obsolete(NumericsDeprecation.Message)]
     public sealed class NumberEffectHandle : IDisposable
     {
         private readonly NumberValue _value;

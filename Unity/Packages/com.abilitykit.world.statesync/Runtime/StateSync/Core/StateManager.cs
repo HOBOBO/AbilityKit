@@ -20,6 +20,8 @@ namespace AbilityKit.Ability.StateSync
         /// 与 WorldStateSnapshot 分离，用于存储实体的完整回滚状态
         /// </summary>
         private readonly Dictionary<int, Dictionary<long, byte[]>> _entityRollbackBuffers = new Dictionary<int, Dictionary<long, byte[]>>();
+        private readonly List<int> _retainedFramesScratch = new List<int>(128);
+        private readonly List<int> _staleFramesScratch = new List<int>(128);
 
         public StateManager(SnapshotBuffer snapshotBuffer, StateDiffProvider diffProvider = null)
         {
@@ -103,11 +105,11 @@ namespace AbilityKit.Ability.StateSync
             }
 
             _snapshotBuffer.Store(frame, snapshot);
-            var retainedFrames = _snapshotBuffer.GetCapturedFrames();
             lock (_lock)
             {
+                _snapshotBuffer.CopyCapturedFrames(_retainedFramesScratch);
                 _entityRollbackBuffers[frame] = entityRollbackData;
-                TrimRollbackBuffers(retainedFrames);
+                TrimRollbackBuffers(_retainedFramesScratch);
             }
 
             Log?.Invoke($"[StateManager] Captured state for frame={frame} with {entityRollbackData.Count} entities");
@@ -214,15 +216,15 @@ namespace AbilityKit.Ability.StateSync
             }
         }
 
-        private void TrimRollbackBuffers(IReadOnlyList<int> retainedFrames)
+        private void TrimRollbackBuffers(List<int> retainedFrames)
         {
             if (_entityRollbackBuffers.Count <= retainedFrames.Count) return;
 
-            var retained = new HashSet<int>(retainedFrames);
-            var staleFrames = new List<int>();
+            var staleFrames = _staleFramesScratch;
+            staleFrames.Clear();
             foreach (var frame in _entityRollbackBuffers.Keys)
             {
-                if (!retained.Contains(frame)) staleFrames.Add(frame);
+                if (retainedFrames.BinarySearch(frame) < 0) staleFrames.Add(frame);
             }
 
             for (int i = 0; i < staleFrames.Count; i++)

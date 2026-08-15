@@ -17,7 +17,9 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 ShooterRemoteStateSyncLaunchMode.RestoreOnly,
                 source.Timeout,
                 string.IsNullOrWhiteSpace(roomId) ? source.RoomId : roomId,
-                source.RoomLaunchSpec);
+                source.RoomLaunchSpec,
+                source.ReliableEventCheckpointStore,
+                source.ReliableEventCheckpointLifecycleOptions);
         }
     }
 }

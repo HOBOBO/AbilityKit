@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Core.Configuration
 {
+    [Obsolete("Application settings no longer belong in Core. Move settings to the owning application package; this compatibility API will be removed in the next major version.")]
     public sealed class FlatJsonSettings
     {
         private readonly Dictionary<string, object> _values;

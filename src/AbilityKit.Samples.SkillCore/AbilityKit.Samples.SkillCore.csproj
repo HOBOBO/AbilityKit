@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Samples.SkillCore</RootNamespace>
+    <AssemblyName>AbilityKit.Samples.SkillCore</AssemblyName>
+  </PropertyGroup>
+
+  <!-- SkillCore 组合：Foundation（core + world.di）之上加 triggering + pipeline + modifiers -->
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Samples.Foundation\AbilityKit.Samples.Foundation.csproj" />
+    <ProjectReference Include="..\AbilityKit.Triggering\AbilityKit.Triggering.csproj" />
+    <ProjectReference Include="..\AbilityKit.Pipeline\AbilityKit.Pipeline.csproj" />
+    <ProjectReference Include="..\AbilityKit.Modifiers\AbilityKit.Modifiers.csproj" />
+  </ItemGroup>
+
+</Project>

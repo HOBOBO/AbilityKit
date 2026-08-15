@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;

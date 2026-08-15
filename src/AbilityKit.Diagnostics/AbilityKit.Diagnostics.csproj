@@ -15,4 +15,8 @@
     <Compile Include="../../Unity/Packages/com.abilitykit.diagnostics/Runtime/**/*.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../AbilityKit.Core/AbilityKit.Core.csproj" />
+  </ItemGroup>
+
 </Project>

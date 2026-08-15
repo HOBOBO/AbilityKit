@@ -42,7 +42,8 @@ public sealed record RoomBattleCommitPersistentState(
     [property: Id(5)] ulong WorldId,
     [property: Id(6)] WorldStartAnchor? WorldStartAnchor,
     [property: Id(7)] int AttemptCount,
-    [property: Id(8)] string? LastError);
+    [property: Id(8)] string? LastError,
+    [property: Id(9)] NetworkSyncCapabilityMetadata? SyncCapabilities = null);
 
 [GenerateSerializer]
 public sealed record RoomCommandDedupEntry(

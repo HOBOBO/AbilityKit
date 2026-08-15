@@ -7,6 +7,8 @@
     <RootNamespace>AbilityKit.Core</RootNamespace>
     <AssemblyName>AbilityKit.Core</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017</WarningsAsErrors>
+    <NoWarn>$(NoWarn);RS0026</NoWarn>
   </PropertyGroup>
 
   <!--
@@ -30,5 +32,11 @@
   <!-- 引用 Unity Package 中的纯运行时源码，Unity 专属桥接代码由 UPM asmdef 编译。 -->
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.core/Runtime/**/*.cs" Exclude="../../Unity/Packages/com.abilitykit.core/Runtime/Unity/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="3.3.4" PrivateAssets="all" />
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
   </ItemGroup>
 </Project>

@@ -13,7 +13,7 @@ using AbilityKit.Orleans.Grains.Battle;
 using AbilityKit.Orleans.Grains.Battle.Gameplay;
 using AbilityKit.Orleans.Grains.Gameplays.Moba.Protocol;
 using IWorld = AbilityKit.Ability.World.Abstractions.IWorld;
-using IWorldStateSnapshotProvider = AbilityKit.Ability.Host.IWorldStateSnapshotProvider;
+
 
 namespace AbilityKit.Orleans.Grains.Gameplays.Moba.Battle;
 

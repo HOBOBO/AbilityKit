@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Continuous/AbilityKit.Continuous.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Modifiers/AbilityKit.Modifiers.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.DI/AbilityKit.World.DI.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Triggering.Abstractions/AbilityKit.Triggering.Abstractions.csproj" />

@@ -10,8 +10,8 @@
   "dependencies": {
     "com.abilitykit.network.sdk": "0.1.0",
     "com.abilitykit.network.runtime": "0.1.0",
-    "com.abilitykit.game.battle.runtime": "0.0.1",
-    "com.abilitykit.world.networkfragments": "0.0.1",
+    "com.abilitykit.game.battle.runtime": "0.1.0",
+    "com.abilitykit.world.networkfragments": "0.1.0",
     "com.abilitykit.world.snapshot": "0.1.0"
   }
 }

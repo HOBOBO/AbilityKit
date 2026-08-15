@@ -17,6 +17,7 @@
   <!-- 依赖 AbilityKit packages -->
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.Continuous\AbilityKit.Continuous.csproj" />
     <ProjectReference Include="..\AbilityKit.Triggering\AbilityKit.Triggering.csproj" />
     <ProjectReference Include="..\AbilityKit.GameplayTags\AbilityKit.GameplayTags.csproj" />
     <ProjectReference Include="..\AbilityKit.Modifiers\AbilityKit.Modifiers.csproj" />

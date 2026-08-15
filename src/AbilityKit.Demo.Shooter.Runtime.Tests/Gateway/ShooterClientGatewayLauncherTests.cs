@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
+using AbilityKit.Network.Room;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
 using Xunit;
@@ -16,7 +17,8 @@ public sealed class ShooterClientGatewayLauncherTests
         var presentation = new ShooterPresentationFacade();
         var transport = new ScriptedShooterGatewayLaunchTransport
         {
-            JoinCurrentPlayerId = 41u
+            JoinCurrentPlayerId = 41u,
+            IncludeSyncCapabilities = true
         };
         var launcher = new ShooterClientGatewayLauncher(transport);
         var start = new ShooterStartGamePayload(
@@ -39,6 +41,8 @@ public sealed class ShooterClientGatewayLauncherTests
 
         Assert.True(launched.Session.IsStarted);
         Assert.True(launched.Session.HasGateway);
+        Assert.True(launched.Session.SyncSession.IsRemoteNegotiated);
+        Assert.Equal(RoomGatewayNetworkSyncBindingState.RemoteDeclared, launched.SyncBinding.State);
         Assert.Equal(0, launched.Session.CurrentFrame);
         Assert.Equal(0, presentation.ViewModel.Frame);
         Assert.Equal(9041ul, runtime.StartSpec.WorldId);

@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
+using AbilityKit.Core.Buffers;
 using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Network.Transport.WebSocket
@@ -125,14 +126,15 @@ namespace AbilityKit.Network.Transport.WebSocket
 
                 Connected?.Invoke();
 
-                var buffer = new byte[64 * 1024];
+                using var receiveOwner = PooledBufferOwner<byte>.Rent(64 * 1024);
+                var receiveBuffer = receiveOwner.Segment;
                 while (!ct.IsCancellationRequested)
                 {
                     WebSocketReceiveResult result;
                     using var message = new MemoryStream();
                     do
                     {
-                        result = await socket.ReceiveAsync(buffer, ct).ConfigureAwait(false);
+                        result = await socket.ReceiveAsync(receiveBuffer, ct).ConfigureAwait(false);
                         if (result.MessageType == WebSocketMessageType.Close)
                         {
                             break;
@@ -140,7 +142,7 @@ namespace AbilityKit.Network.Transport.WebSocket
 
                         if (result.Count > 0)
                         {
-                            message.Write(buffer, 0, result.Count);
+                            message.Write(receiveBuffer.Array!, 0, result.Count);
                         }
                     }
                     while (!result.EndOfMessage);

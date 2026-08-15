@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Core.Collections;
 
 namespace AbilityKit.Ability.Host
 {
@@ -8,6 +9,8 @@ namespace AbilityKit.Ability.Host
     {
         private readonly Dictionary<int, List<PlayerInputCommand>> _inputsByFrame = new Dictionary<int, List<PlayerInputCommand>>(256);
         private readonly Dictionary<int, List<ISnapshotEnvelope>> _envelopesByFrame = new Dictionary<int, List<ISnapshotEnvelope>>(256);
+        private readonly SortedIntSet _inputFrames = new SortedIntSet(256);
+        private readonly SortedIntSet _snapshotFrames = new SortedIntSet(256);
 
         public void AddPacket(FramePacket packet)
         {
@@ -22,6 +25,7 @@ namespace AbilityKit.Ability.Host
                 {
                     list = new List<PlayerInputCommand>(packet.Inputs.Count);
                     _inputsByFrame[frame] = list;
+                    _inputFrames.Add(frame);
                 }
 
                 for (int i = 0; i < packet.Inputs.Count; i++)
@@ -36,6 +40,7 @@ namespace AbilityKit.Ability.Host
                 {
                     list = new List<ISnapshotEnvelope>(4);
                     _envelopesByFrame[frame] = list;
+                    _snapshotFrames.Add(frame);
                 }
 
                 list.Add(packet);
@@ -66,39 +71,30 @@ namespace AbilityKit.Ability.Host
 
         public void TrimBefore(int minFrameInclusive)
         {
-            if (_inputsByFrame.Count > 0)
-            {
-                var keys = new List<int>(_inputsByFrame.Count);
-                foreach (var kv in _inputsByFrame)
-                {
-                    if (kv.Key < minFrameInclusive) keys.Add(kv.Key);
-                }
-
-                for (int i = 0; i < keys.Count; i++)
-                {
-                    _inputsByFrame.Remove(keys[i]);
-                }
-            }
-
-            if (_envelopesByFrame.Count > 0)
-            {
-                var keys = new List<int>(_envelopesByFrame.Count);
-                foreach (var kv in _envelopesByFrame)
-                {
-                    if (kv.Key < minFrameInclusive) keys.Add(kv.Key);
-                }
-
-                for (int i = 0; i < keys.Count; i++)
-                {
-                    _envelopesByFrame.Remove(keys[i]);
-                }
-            }
+            TrimDictionaryBefore(_inputsByFrame, _inputFrames, minFrameInclusive);
+            TrimDictionaryBefore(_envelopesByFrame, _snapshotFrames, minFrameInclusive);
         }
 
         public void Clear()
         {
             _inputsByFrame.Clear();
             _envelopesByFrame.Clear();
+            _inputFrames.Clear();
+            _snapshotFrames.Clear();
+        }
+
+        private static void TrimDictionaryBefore<T>(
+            Dictionary<int, List<T>> values,
+            SortedIntSet frames,
+            int minFrameInclusive)
+        {
+            var removeCount = frames.LowerBound(minFrameInclusive);
+            for (var index = 0; index < removeCount; index++)
+            {
+                values.Remove(frames[index]);
+            }
+
+            if (removeCount > 0) frames.RemoveRange(0, removeCount);
         }
     }
 }

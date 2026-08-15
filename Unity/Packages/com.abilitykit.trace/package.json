@@ -1,11 +1,11 @@
 {
   "name": "com.abilitykit.trace",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit Trace",
   "unity": "2022.3",
   "description": "AbilityKit trace tree runtime. Provides generic tree-building, lifecycle tracking, and query capabilities for effect source tracing.",
   "author": { "name": "AbilityKit" },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1"
+    "com.abilitykit.core": "0.1.0"
   }
 }

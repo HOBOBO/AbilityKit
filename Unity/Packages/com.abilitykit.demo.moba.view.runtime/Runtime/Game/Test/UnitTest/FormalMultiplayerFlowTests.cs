@@ -7,6 +7,7 @@ using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Flow;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Room;
 using AbilityKit.Protocol.Room;
 using NUnit.Framework;
 using UnityEngine;
@@ -520,6 +521,131 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void GatewayMembership_InvalidCommit_PreservesPreviousIdentity()
+        {
+            var membership = new GatewayRoomMembership();
+            membership.Commit("room-a", 10UL, 7u);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                membership.Commit("room-b", 11UL, 0u));
+
+            Assert.That(membership.RoomId, Is.EqualTo("room-a"));
+            Assert.That(membership.NumericRoomId, Is.EqualTo(10UL));
+            Assert.That(membership.PlayerId, Is.EqualTo(7u));
+        }
+
+        [Test]
+        public void GatewayMembership_Clear_ResetsIdentityTuple()
+        {
+            var membership = new GatewayRoomMembership();
+            membership.Commit("room-a", 10UL, 7u);
+
+            membership.Clear();
+
+            Assert.That(membership.RoomId, Is.Empty);
+            Assert.That(membership.NumericRoomId, Is.Zero);
+            Assert.That(membership.PlayerId, Is.Zero);
+        }
+
+        [Test]
+        public void CheckpointStore_InvalidSave_PreservesValidCheckpoint()
+        {
+            var store = new MobaReliableBattleEventCheckpointStore();
+            var expected = new MobaReliableBattleEventCheckpoint("battle-a", "epoch-a", 12L);
+            store.Save(in expected);
+            var invalid = default(MobaReliableBattleEventCheckpoint);
+
+            store.Save(in invalid);
+
+            Assert.That(store.TryLoad("battle-a", out var actual), Is.True);
+            Assert.That(actual.BattleId, Is.EqualTo("battle-a"));
+            Assert.That(actual.Epoch, Is.EqualTo("epoch-a"));
+            Assert.That(actual.LastAcknowledgedSequence, Is.EqualTo(12L));
+        }
+
+        [Test]
+        public void CheckpointStore_BattleIdMatch_IsOrdinalAndExact()
+        {
+            var store = new MobaReliableBattleEventCheckpointStore();
+            var checkpoint = new MobaReliableBattleEventCheckpoint("battle-a", "epoch-a", 1L);
+            store.Save(in checkpoint);
+
+            Assert.That(store.TryLoad("battle-a", out _), Is.True);
+            Assert.That(store.TryLoad("BATTLE-A", out _), Is.False);
+            Assert.That(store.TryLoad("battle-b", out _), Is.False);
+        }
+
+        [TestCase((int)RoomGatewayStagedRestoreNextStep.SetReadyAndBeginLoading, MultiplayerRoomRestoreNextStep.SetReadyAndBeginLoading)]
+        [TestCase((int)RoomGatewayStagedRestoreNextStep.ReportAssetsLoaded, MultiplayerRoomRestoreNextStep.ReportAssetsLoaded)]
+        [TestCase((int)RoomGatewayStagedRestoreNextStep.WaitForBattleStart, MultiplayerRoomRestoreNextStep.WaitForBattleStart)]
+        [TestCase((int)RoomGatewayStagedRestoreNextStep.SubscribeStateSync, MultiplayerRoomRestoreNextStep.EnterBattle)]
+        [TestCase(999, MultiplayerRoomRestoreNextStep.None)]
+        public void GatewayMapper_NextStepMapping_IsExplicit(
+            int wireValue,
+            MultiplayerRoomRestoreNextStep expected)
+        {
+            Assert.That(
+                GatewayRoomProtocolMapper.ToNextStep((RoomGatewayStagedRestoreNextStep)wireValue),
+                Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void GatewayMapper_UnknownRestoreEnums_FallBackSafely()
+        {
+            Assert.That(
+                GatewayRoomProtocolMapper.ToEntryKind((RoomGatewaySessionEntryKind)999),
+                Is.EqualTo(MultiplayerRoomEntryKind.TeamLobby));
+            Assert.That(
+                GatewayRoomProtocolMapper.ToRestoreStatus((RoomGatewaySessionRestoreStatus)999),
+                Is.EqualTo(MultiplayerRoomRestoreStatus.Restored));
+            Assert.That(
+                GatewayRoomProtocolMapper.ToRestoreErrorCode((RoomGatewaySessionRestoreErrorCode)999),
+                Is.EqualTo(MultiplayerRoomRestoreErrorCode.None));
+        }
+
+        [Test]
+        public void GatewayMapper_SnapshotProjection_DeepCopiesCollections()
+        {
+            var members = new[] { "account-a" };
+            var skillIds = new[] { 1001, 1002 };
+            var players = new[]
+            {
+                new RoomGatewayPlayerSnapshot
+                {
+                    AccountId = "account-a",
+                    PlayerId = 7u,
+                    SkillIds = skillIds,
+                    LobbyReady = true
+                }
+            };
+            var source = new RoomGatewaySnapshot
+            {
+                RoomId = "room-a",
+                Members = members,
+                Players = players,
+                RoomRevision = 3L
+            };
+
+            var projected = GatewayRoomProtocolMapper.ToClientSnapshot(source, 10UL);
+            members[0] = "mutated-account";
+            skillIds[0] = 9999;
+            players[0] = new RoomGatewayPlayerSnapshot { AccountId = "replacement" };
+
+            Assert.That(projected.NumericRoomId, Is.EqualTo(10UL));
+            Assert.That(projected.Members[0], Is.EqualTo("account-a"));
+            Assert.That(projected.Players[0].AccountId, Is.EqualTo("account-a"));
+            Assert.That(projected.Players[0].SkillIds[0], Is.EqualTo(1001));
+            Assert.That(projected.Players[0].Ready, Is.True);
+        }
+
+        [Test]
+        public void GatewayMapper_NullSnapshot_IsRejected()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                GatewayRoomProtocolMapper.ToClientSnapshot(null!, 10UL));
+        }
+
+        [Test]
         public void LaunchRequest_CanDelegateLobbyAutomationToAnExternalDriver()
         {
             var request = new DemoMultiplayerLaunchRequest(
@@ -718,6 +844,149 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(controller.CurrentSnapshot, Is.Not.Null);
         }
 
+        [Test]
+        public void StageRuntime_SameGeneration_ReusesRunningTask()
+        {
+            using var runtime = new MultiplayerRoomStageRuntime();
+            var completion = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var runCount = 0;
+
+            var first = runtime.ResumeAsync(7, _ =>
+            {
+                runCount++;
+                return completion.Task;
+            });
+            var second = runtime.ResumeAsync(7, _ =>
+            {
+                runCount++;
+                return Task.CompletedTask;
+            });
+
+            Assert.That(second, Is.SameAs(first));
+            Assert.That(runCount, Is.EqualTo(1));
+            completion.SetResult(true);
+            first.GetAwaiter().GetResult();
+        }
+
+        [Test]
+        public void StageRuntime_NewGeneration_CancelsAndWaitsForPreviousStage()
+        {
+            VerifyNewGenerationCancelsAndWaitsForPreviousStageAsync()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        private static async Task VerifyNewGenerationCancelsAndWaitsForPreviousStageAsync()
+        {
+            using var runtime = new MultiplayerRoomStageRuntime();
+            var started = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var canceled = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var nextStarted = false;
+
+            var previous = runtime.ResumeAsync(1, async ct =>
+            {
+                using var registration = ct.Register(() => canceled.TrySetResult(true));
+                started.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+            });
+            await started.Task.ConfigureAwait(false);
+
+            var next = runtime.ResumeAsync(2, _ =>
+            {
+                nextStarted = true;
+                return Task.CompletedTask;
+            });
+            await canceled.Task.ConfigureAwait(false);
+
+            Assert.That(nextStarted, Is.False);
+            release.SetResult(true);
+            await next.ConfigureAwait(false);
+            Assert.That(nextStarted, Is.True);
+            Assert.That(previous.IsCanceled, Is.True);
+        }
+
+        [Test]
+        public void AssetRuntime_ProgressIsMonotonicAndCancelReleasesAssets()
+        {
+            var loader = new TestAssetLoader();
+            var runtime = new MultiplayerAssetLoadingRuntime(loader);
+            var snapshot = new MultiplayerRoomSnapshot
+            {
+                RoomId = "room-a",
+                Phase = MultiplayerRoomPhase.Loading,
+                LaunchGeneration = 3
+            };
+
+            runtime.LoadAsync(
+                    snapshot,
+                    (_, _) => Task.CompletedTask,
+                    CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+
+            Assert.That(runtime.Progress, Is.EqualTo(100));
+            Assert.That(runtime.CurrentAssetKey, Is.EqualTo("asset-a"));
+
+            runtime.Cancel(releaseAssets: true);
+
+            Assert.That(runtime.Progress, Is.Zero);
+            Assert.That(runtime.CurrentAssetKey, Is.Empty);
+            Assert.That(loader.ReleaseCalls, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AssetRuntime_CancelRejectsLateProgressAndCancelsUpload()
+        {
+            VerifyCancelRejectsLateProgressAndCancelsUploadAsync()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        private static async Task VerifyCancelRejectsLateProgressAndCancelsUploadAsync()
+        {
+            var loader = new ControllableAssetLoader();
+            var runtime = new MultiplayerAssetLoadingRuntime(loader);
+            var uploadCalls = 0;
+            var snapshot = new MultiplayerRoomSnapshot
+            {
+                RoomId = "room-a",
+                Phase = MultiplayerRoomPhase.Loading,
+                LaunchGeneration = 4
+            };
+
+            var loading = runtime.LoadAsync(
+                snapshot,
+                (_, _) =>
+                {
+                    uploadCalls++;
+                    return Task.CompletedTask;
+                },
+                CancellationToken.None);
+            runtime.Cancel(releaseAssets: true);
+            loader.Report(new MultiplayerAssetLoadProgress(80, 2, 2, "asset-late"));
+
+            Assert.That(runtime.Progress, Is.Zero);
+            Assert.That(runtime.CurrentAssetKey, Is.Empty);
+            Assert.That(uploadCalls, Is.Zero);
+            Assert.That(loader.ReleaseCalls, Is.EqualTo(1));
+
+            loader.Complete();
+            try
+            {
+                await loading.ConfigureAwait(false);
+                Assert.Fail("Canceled loading should not complete successfully.");
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
         private static MultiplayerRoomLaunchSpec CreateLaunchSpec()
         {
             return new MultiplayerRoomLaunchSpec
@@ -730,6 +999,59 @@ namespace AbilityKit.Game.Test.UnitTest
                 RoomTitle = "MOBA Room",
                 MaxPlayers = 2
             };
+        }
+
+        private sealed class TestAssetLoader : IMultiplayerBattleAssetLoader
+        {
+            public int ReleaseCalls { get; private set; }
+
+            public Task LoadAsync(
+                MultiplayerRoomSnapshot snapshot,
+                IProgress<MultiplayerAssetLoadProgress> progress,
+                CancellationToken cancellationToken)
+            {
+                progress.Report(new MultiplayerAssetLoadProgress(60, 1, 2, "asset-a"));
+                progress.Report(new MultiplayerAssetLoadProgress(20, 1, 2, "asset-stale"));
+                return Task.CompletedTask;
+            }
+
+            public void Release()
+            {
+                ReleaseCalls++;
+            }
+        }
+
+        private sealed class ControllableAssetLoader : IMultiplayerBattleAssetLoader
+        {
+            private readonly TaskCompletionSource<bool> _completion =
+                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            private IProgress<MultiplayerAssetLoadProgress>? _progress;
+
+            public int ReleaseCalls { get; private set; }
+
+            public Task LoadAsync(
+                MultiplayerRoomSnapshot snapshot,
+                IProgress<MultiplayerAssetLoadProgress> progress,
+                CancellationToken cancellationToken)
+            {
+                _progress = progress;
+                return _completion.Task;
+            }
+
+            public void Report(MultiplayerAssetLoadProgress progress)
+            {
+                _progress?.Report(progress);
+            }
+
+            public void Complete()
+            {
+                _completion.TrySetResult(true);
+            }
+
+            public void Release()
+            {
+                ReleaseCalls++;
+            }
         }
 
         private sealed class TestSnapshotProvider : IRoomSnapshotProvider

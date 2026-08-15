@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Network.Room;
 using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Game.Flow
@@ -16,6 +17,8 @@ namespace AbilityKit.Game.Flow
         public readonly BattleStartPlanCreateWorldOptions CreateWorld;
         public readonly BattleStartPlanTimeSyncOptions TimeSync;
         public readonly MobaReliableBattleEventCheckpoint ReliableEventCheckpoint;
+        /// <summary>Gateway 为当前战斗代际声明的远端同步能力。</summary>
+        public readonly RoomGatewayNetworkSyncCapabilities RemoteSyncCapabilities;
 
         public readonly BattleHostMode HostMode;
         public readonly MobaBattleLaunchSpec LaunchSpec;
@@ -140,7 +143,8 @@ namespace AbilityKit.Game.Flow
                 enabledSnapshotRegistryIds: Sync.EnabledSnapshotRegistryIds,
                 launchSpec: LaunchSpec,
                 gatewayBattleId: Gateway.BattleId,
-                reliableEventCheckpoint: ReliableEventCheckpoint);
+                reliableEventCheckpoint: ReliableEventCheckpoint,
+                remoteSyncCapabilities: RemoteSyncCapabilities);
         }
 
         public BattleStartPlan WithGatewayRoom(string worldId, ulong numericRoomId)
@@ -191,7 +195,8 @@ namespace AbilityKit.Game.Flow
                 enabledSnapshotRegistryIds: Sync.EnabledSnapshotRegistryIds,
                 launchSpec: LaunchSpec,
                 gatewayBattleId: Gateway.BattleId,
-                reliableEventCheckpoint: ReliableEventCheckpoint);
+                reliableEventCheckpoint: ReliableEventCheckpoint,
+                remoteSyncCapabilities: RemoteSyncCapabilities);
         }
 
         public BattleStartPlan WithInputReplay(string inputReplayPath)
@@ -242,7 +247,8 @@ namespace AbilityKit.Game.Flow
                 enabledSnapshotRegistryIds: Sync.EnabledSnapshotRegistryIds,
                 launchSpec: LaunchSpec,
                 gatewayBattleId: Gateway.BattleId,
-                reliableEventCheckpoint: ReliableEventCheckpoint);
+                reliableEventCheckpoint: ReliableEventCheckpoint,
+                remoteSyncCapabilities: RemoteSyncCapabilities);
         }
 
         public BattleStartPlan(
@@ -291,7 +297,8 @@ namespace AbilityKit.Game.Flow
             string[] enabledSnapshotRegistryIds = null,
             MobaBattleLaunchSpec launchSpec = default,
             string gatewayBattleId = "",
-            MobaReliableBattleEventCheckpoint reliableEventCheckpoint = default)
+            MobaReliableBattleEventCheckpoint reliableEventCheckpoint = default,
+            RoomGatewayNetworkSyncCapabilities remoteSyncCapabilities = null)
         {
             World = new BattleStartPlanWorldOptions(
                 worldId,
@@ -337,6 +344,7 @@ namespace AbilityKit.Game.Flow
             HostMode = hostMode;
             LaunchSpec = launchSpec;
             ReliableEventCheckpoint = reliableEventCheckpoint;
+            RemoteSyncCapabilities = remoteSyncCapabilities;
         }
 
         public BattleStartPlan(

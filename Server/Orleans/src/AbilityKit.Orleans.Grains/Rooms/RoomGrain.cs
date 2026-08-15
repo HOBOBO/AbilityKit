@@ -135,7 +135,8 @@ public sealed class RoomGrain : Grain, IRoomGrain
             state.Launch.DeadlineUnixMs,
             state.Launch.ManifestHash,
             state.Launch.ManifestVersion,
-            state.BattleCommit.LastError));
+            state.BattleCommit.LastError,
+            state.BattleCommit.SyncCapabilities));
     }
 
     public async Task BindStatePushObserverAsync(
@@ -398,7 +399,13 @@ public sealed class RoomGrain : Grain, IRoomGrain
 
         if (!string.IsNullOrEmpty(_battleId))
         {
-            return new StartRoomBattleResponse(_battleId, _worldId, true, _worldStartAnchor, DateTime.UtcNow.Ticks);
+            return new StartRoomBattleResponse(
+                _battleId,
+                _worldId,
+                true,
+                _worldStartAnchor,
+                DateTime.UtcNow.Ticks,
+                RequirePersistentState().BattleCommit.SyncCapabilities);
         }
 
         EnsureOpen();
@@ -438,7 +445,13 @@ public sealed class RoomGrain : Grain, IRoomGrain
             throw new InvalidOperationException($"Legacy start battle failed: {lastError}");
         }
 
-        return new StartRoomBattleResponse(_battleId, _worldId, true, _worldStartAnchor, DateTime.UtcNow.Ticks);
+        return new StartRoomBattleResponse(
+            _battleId,
+            _worldId,
+            true,
+            _worldStartAnchor,
+            DateTime.UtcNow.Ticks,
+            committed.BattleCommit.SyncCapabilities);
     }
 
     public async Task CloseAsync(string accountId)
@@ -781,7 +794,16 @@ public sealed class RoomGrain : Grain, IRoomGrain
             initParams.WorldStartAnchor = worldStartAnchor;
         }
 
-        var commitTransition = RoomStateMachine.CommitBattleStarted(state, commitId, battleId, worldId, worldStartAnchor, initSpecHash, nowUnixMs);
+        var syncCapabilities = RoomNetworkSyncCapabilityResolver.Resolve(summary, initParams, startRoute.SyncTemplateId);
+        var commitTransition = RoomStateMachine.CommitBattleStarted(
+            state,
+            commitId,
+            battleId,
+            worldId,
+            worldStartAnchor,
+            initSpecHash,
+            nowUnixMs,
+            syncCapabilities);
         if (!commitTransition.Result.Success)
         {
             await RollbackCommitAsync(state, commitTransition.Result.Message, nowUnixMs);

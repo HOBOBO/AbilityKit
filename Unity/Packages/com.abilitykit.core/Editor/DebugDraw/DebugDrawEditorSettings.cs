@@ -1,7 +1,9 @@
+using System;
 using AbilityKit.Core.Debugging;
 
 namespace AbilityKit.Core.Editor.Debugging
 {
+    [Obsolete("Use AbilityKit.Diagnostics.Editor.DebugDraw.DebugDrawEditorSettings before the next major version.")]
     public static class DebugDrawEditorSettings
     {
         public static class Masks

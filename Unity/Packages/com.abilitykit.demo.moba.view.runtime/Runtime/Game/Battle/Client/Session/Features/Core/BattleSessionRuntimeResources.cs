@@ -6,7 +6,6 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Management;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Snapshots.Routing;
-using AbilityKit.Core.Utilities;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Flow.Battle;
@@ -21,6 +20,25 @@ using AbilityKit.Network.Runtime;
 
 namespace AbilityKit.Game.Flow
 {
+    internal static class BattleSessionResourceDisposer
+    {
+        public static void Dispose<T>(ref T resource) where T : class, IDisposable
+        {
+            var owned = resource;
+            resource = null;
+            if (owned == null) return;
+
+            try
+            {
+                owned.Dispose();
+            }
+            catch (Exception exception)
+            {
+                Log.Exception(exception);
+            }
+        }
+    }
+
     internal sealed class BattleSessionSnapshotRuntime
     {
         internal FrameSnapshotDispatcher Snapshots;
@@ -30,20 +48,10 @@ namespace AbilityKit.Game.Flow
 
         public void Reset()
         {
-            if (CmdHandler != null) DisposeUtils.TryDispose(ref CmdHandler, ex => Log.Exception(ex));
-            if (Pipeline != null) DisposeUtils.TryDispose(ref Pipeline, ex => Log.Exception(ex));
-            if (Snapshots != null) DisposeUtils.TryDispose(ref Snapshots, ex => Log.Exception(ex));
-
-            if (Routing != null)
-            {
-                try { Routing.Dispose(); }
-                catch (Exception ex) { Log.Exception(ex); }
-                Routing = null;
-            }
-
-            Snapshots = null;
-            Pipeline = null;
-            CmdHandler = null;
+            BattleSessionResourceDisposer.Dispose(ref CmdHandler);
+            BattleSessionResourceDisposer.Dispose(ref Pipeline);
+            BattleSessionResourceDisposer.Dispose(ref Snapshots);
+            BattleSessionResourceDisposer.Dispose(ref Routing);
         }
     }
 
@@ -72,7 +80,7 @@ namespace AbilityKit.Game.Flow
 
         public void DisposeNetworkIoDispatcher()
         {
-            DisposeUtils.TryDispose(ref NetworkIoDispatcher, ex => Log.Exception(ex));
+            BattleSessionResourceDisposer.Dispose(ref NetworkIoDispatcher);
         }
     }
 

@@ -31,7 +31,8 @@ namespace AbilityKit.Demo.Shooter.View
             _input = new ShooterClientInputCoordinator(_frameSync, gateway);
             _lastHealthEvents = new SyncHealthEventListView(
                 () => _frameSync.LastFastReconnectHealthEvents,
-                () => _input.LastHealthEvents);
+                () => _input.LastHealthEvents,
+                () => _frameSync.LastReconciliationHealthEvents);
         }
 
         public bool IsStarted => _runtime.IsStarted;

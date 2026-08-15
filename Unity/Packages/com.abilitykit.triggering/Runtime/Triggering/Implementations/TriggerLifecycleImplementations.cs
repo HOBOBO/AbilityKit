@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Logging;
+using AbilityKit.Core.Timing;
 
 namespace AbilityKit.Triggering.Runtime
 {
@@ -345,24 +346,24 @@ namespace AbilityKit.Triggering.Runtime
         public void OnBeforeEvaluate<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
             _currentTriggerId = (int)order;
-            _currentEvaluateStart = System.Diagnostics.Stopwatch.GetTimestamp();
+            _currentEvaluateStart = MonotonicTime.GetTimestamp();
         }
 
         public void OnAfterEvaluate<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool result)
         {
-            var elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - _currentEvaluateStart;
+            var elapsed = MonotonicTime.GetTimestamp() - _currentEvaluateStart;
             var eventName = key.StringId ?? key.IntId.ToString();
             IncrementEvaluated((int)order, eventName, elapsed);
         }
 
         public void OnBeforeExecute<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
-            _currentExecuteStart = System.Diagnostics.Stopwatch.GetTimestamp();
+            _currentExecuteStart = MonotonicTime.GetTimestamp();
         }
 
         public void OnAfterExecute<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
-            var elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - _currentExecuteStart;
+            var elapsed = MonotonicTime.GetTimestamp() - _currentExecuteStart;
             var eventName = key.StringId ?? key.IntId.ToString();
             IncrementExecuted((int)order, eventName, elapsed);
         }
@@ -431,7 +432,7 @@ namespace AbilityKit.Triggering.Runtime
         public TraceScope BeginTrace<TArgs>(AbilityKit.Core.Eventing.EventKey<TArgs> key, in TArgs args)
         {
             var scopeId = _nextScopeId++;
-            var timestamp = System.Diagnostics.Stopwatch.GetTimestamp();
+            var timestamp = MonotonicTime.GetTimestamp();
             var eventName = key.StringId ?? key.IntId.ToString();
             return new TraceScope(scopeId, timestamp, eventName, key.GetHashCode());
         }

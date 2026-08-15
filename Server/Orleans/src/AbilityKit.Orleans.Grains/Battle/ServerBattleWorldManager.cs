@@ -11,7 +11,6 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Orleans.Grains.Gameplay;
 using AbilityKit.Orleans.Grains.Gameplays.Moba.Resources;
 using Microsoft.Extensions.Logging;
-using IWorldStateSnapshotProvider = AbilityKit.Ability.Host.IWorldStateSnapshotProvider;
 
 namespace AbilityKit.Orleans.Grains.Battle;
 

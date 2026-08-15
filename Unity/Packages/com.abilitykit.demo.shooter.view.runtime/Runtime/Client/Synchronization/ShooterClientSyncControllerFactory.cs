@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Network.Sdk;
 
 namespace AbilityKit.Demo.Shooter.View
 {
@@ -104,6 +105,27 @@ namespace AbilityKit.Demo.Shooter.View
             if (runtime == null) throw new ArgumentNullException(nameof(runtime));
             if (presentation == null) throw new ArgumentNullException(nameof(presentation));
 
+            return CreateSession(
+                in assemblyOptions,
+                runtime,
+                presentation,
+                tickRate,
+                gateway).Controller;
+        }
+
+        /// <summary>
+        /// 在创建控制器前完成 Profile、能力和协议版本协商，并返回可供诊断的会话描述。
+        /// </summary>
+        public static NetworkSyncSessionBuildResult<IShooterClientSyncController> CreateSession(
+            in ShooterClientSyncAssemblyOptions assemblyOptions,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationFacade presentation,
+            int tickRate,
+            IShooterRoomGatewayClient? gateway)
+        {
+            if (runtime == null) throw new ArgumentNullException(nameof(runtime));
+            if (presentation == null) throw new ArgumentNullException(nameof(presentation));
+
             var context = new ShooterClientSyncControllerFactoryContext(
                 assemblyOptions.SyncProfile,
                 runtime,
@@ -112,7 +134,21 @@ namespace AbilityKit.Demo.Shooter.View
                 assemblyOptions.Decoder,
                 gateway,
                 assemblyOptions.InterpolationConfig);
-            return Registry.Create(assemblyOptions.SyncProfile, in context, "Shooter client sync controller");
+            var sessionOptions = new NetworkSyncSessionOptions
+            {
+                ProfileCatalog = assemblyOptions.ProfileCatalog,
+                RequiredProfileName = assemblyOptions.ProfileName,
+                RequiredProfile = assemblyOptions.SyncProfile,
+                RequiredMinimumSchemaVersion = assemblyOptions.MinimumSchemaVersion,
+                RequiredMaximumSchemaVersion = assemblyOptions.MaximumSchemaVersion,
+                AvailableCapabilities = assemblyOptions.AvailableCapabilities,
+                RemoteCapabilities = assemblyOptions.RemoteCapabilities,
+                RemoteCapabilityPolicy = assemblyOptions.RemoteCapabilityPolicy,
+                ControllerSubjectName = "Shooter 客户端同步控制器"
+            };
+            return new NetworkSyncSessionBuilder<IShooterClientSyncController, ShooterClientSyncControllerFactoryContext>(
+                Registry,
+                sessionOptions).Build(in context);
         }
 
         private static IReadOnlyDictionary<NetworkSyncProfile, NetworkSyncProfileControllerBuilder<IShooterClientSyncController, ShooterClientSyncControllerFactoryContext>> CreateDefaultBuilders()

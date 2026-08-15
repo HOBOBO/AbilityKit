@@ -1,39 +1,43 @@
 {
     "id":  10040112,
-    "name":  "墨子-和平漫步-强化普攻炮击",
-    "event":  "damage.apply.after",
-    "scope":  "owner",
+    "name":  "墨子-和平漫步-强化近战普攻",
+    "event":  "",
     "enabled":  true,
     "allowExternal":  false,
     "phase":  "immediate",
     "priority":  55,
     "conditions":  [
-                       {
-                           "type":  "arg_gt",
-                           "arg_name":  "damage_value",
-                           "value":  0
-                       },
-                       {
-                           "type":  "arg_eq",
-                           "left":  "payload:reason_kind",
-                           "right":  "2"
-                       },
-                       {
-                           "type":  "has_buff",
-                           "buff_id":  10040101,
-                           "check_stack":  0
-                       }
+
                    ],
     "actions":  [
                     {
-                        "type":  "shoot_projectile",
-                        "launcher_id":  31040201,
-                        "projectile_id":  30040201,
-                        "directionSource":  "cast_context"
+                        "type":  "give_damage",
+                        "damage_value":  240,
+                        "source_attack_ratio":  0.7,
+                        "damage_type":  2,
+                        "reason_param":  10040112,
+                        "target_mode":  2,
+                        "target_max_count":  1
+                    },
+                    {
+                        "type":  "pull",
+                        "speed":  12,
+                        "duration_ms":  300,
+                        "direction_mode":  1,
+                        "target_distance":  3,
+                        "priority":  15,
+                        "motion_group_id":  3,
+                        "target_mode":  2
+                    },
+                    {
+                        "type":  "remove_buff",
+                        "buff_id":  10040101,
+                        "target_self":  true,
+                        "remove_all":  true
                     },
                     {
                         "type":  "debug_log",
-                        "message":  "墨子一技能强化普攻：发射机关炮击；Buff消耗逻辑后续补齐",
+                        "message":  "墨子一技能强化普攻：近战命中造成法术伤害、击退目标并消耗强化普攻Buff",
                         "dump_args":  false
                     }
                 ]

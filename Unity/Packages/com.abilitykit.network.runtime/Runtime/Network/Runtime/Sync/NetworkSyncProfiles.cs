@@ -24,28 +24,37 @@ namespace AbilityKit.Network.Runtime.Sync
             NetworkSyncModel.PredictRollback,
             ClientPlaybackPolicy.PredictRollback,
             InputPolicy.ImmediateSubmit | InputPolicy.ServerRemapAcceptedFrame,
-            SnapshotPolicy.FullSnapshot | SnapshotPolicy.AuthorityOverride,
+            SnapshotPolicy.FullSnapshot | SnapshotPolicy.AuthorityOverride | SnapshotPolicy.EventStream,
             InterestPolicy.AllEntities,
             RecoveryPolicy.CatchUpToServerFrame | RecoveryPolicy.RequestFullSnapshot,
-            ServerValidationPolicy.AuthoritativeOnly);
+            ServerValidationPolicy.AuthoritativeOnly,
+            ReliableEventPolicy.OrderedDelivery | ReliableEventPolicy.ExternalAcknowledgement |
+            ReliableEventPolicy.PersistentCheckpoint | ReliableEventPolicy.BufferedOutOfOrder |
+            ReliableEventPolicy.AuthoritativeBaselineRecovery);
 
         public static NetworkSyncProfile AuthoritativeInterpolation { get; } = new NetworkSyncProfile(
             NetworkSyncModel.AuthoritativeInterpolation,
             ClientPlaybackPolicy.AuthoritativeInterpolation,
             InputPolicy.NoClientInput,
-            SnapshotPolicy.FixedRateStateStream,
+            SnapshotPolicy.FixedRateStateStream | SnapshotPolicy.EventStream,
             InterestPolicy.AllEntities,
             RecoveryPolicy.RequestKeyFrame | RecoveryPolicy.RequestFullSnapshot,
-            ServerValidationPolicy.AuthoritativeOnly);
+            ServerValidationPolicy.AuthoritativeOnly,
+            ReliableEventPolicy.OrderedDelivery | ReliableEventPolicy.ExternalAcknowledgement |
+            ReliableEventPolicy.PersistentCheckpoint | ReliableEventPolicy.BufferedOutOfOrder |
+            ReliableEventPolicy.AuthoritativeBaselineRecovery);
 
         public static NetworkSyncProfile BatchStateSync { get; } = new NetworkSyncProfile(
             NetworkSyncModel.BatchStateSync,
             ClientPlaybackPolicy.AuthoritativeInterpolation,
             InputPolicy.NoClientInput,
-            SnapshotPolicy.BatchSnapshot | SnapshotPolicy.KeyFrameSnapshot,
+            SnapshotPolicy.BatchSnapshot | SnapshotPolicy.KeyFrameSnapshot | SnapshotPolicy.EventStream,
             InterestPolicy.AllEntities,
             RecoveryPolicy.RequestKeyFrame | RecoveryPolicy.RequestFullSnapshot,
-            ServerValidationPolicy.AuthoritativeOnly);
+            ServerValidationPolicy.AuthoritativeOnly,
+            ReliableEventPolicy.OrderedDelivery | ReliableEventPolicy.ExternalAcknowledgement |
+            ReliableEventPolicy.PersistentCheckpoint | ReliableEventPolicy.BufferedOutOfOrder |
+            ReliableEventPolicy.AuthoritativeBaselineRecovery);
 
         public static NetworkSyncProfile MassBattleLodSync { get; } = new NetworkSyncProfile(
             NetworkSyncModel.MassBattleLodSync,
@@ -54,7 +63,9 @@ namespace AbilityKit.Network.Runtime.Sync
             SnapshotPolicy.BatchSnapshot | SnapshotPolicy.KeyFrameSnapshot | SnapshotPolicy.EventStream,
             InterestPolicy.DistanceAoi | InterestPolicy.TeamOrFactionAoi | InterestPolicy.PriorityBudget | InterestPolicy.LodFrequency,
             RecoveryPolicy.RequestAoiSlice,
-            ServerValidationPolicy.AuthoritativeOnly | ServerValidationPolicy.InputValidation);
+            ServerValidationPolicy.AuthoritativeOnly | ServerValidationPolicy.InputValidation,
+            ReliableEventPolicy.OrderedDelivery | ReliableEventPolicy.ExternalAcknowledgement |
+            ReliableEventPolicy.PersistentCheckpoint | ReliableEventPolicy.BufferedOutOfOrder);
 
         public static NetworkSyncProfile HybridHeroPrediction { get; } = new NetworkSyncProfile(
             NetworkSyncModel.HybridHeroPrediction,
@@ -63,7 +74,10 @@ namespace AbilityKit.Network.Runtime.Sync
             SnapshotPolicy.FullSnapshot | SnapshotPolicy.FixedRateStateStream | SnapshotPolicy.BatchSnapshot | SnapshotPolicy.EventStream,
             InterestPolicy.OwnerRelevant | InterestPolicy.DistanceAoi | InterestPolicy.PriorityBudget,
             RecoveryPolicy.RequestFullSnapshot | RecoveryPolicy.RequestKeyFrame | RecoveryPolicy.RequestAoiSlice,
-            ServerValidationPolicy.AuthoritativeOnly | ServerValidationPolicy.InputValidation);
+            ServerValidationPolicy.AuthoritativeOnly | ServerValidationPolicy.InputValidation,
+            ReliableEventPolicy.OrderedDelivery | ReliableEventPolicy.ExternalAcknowledgement |
+            ReliableEventPolicy.PersistentCheckpoint | ReliableEventPolicy.BufferedOutOfOrder |
+            ReliableEventPolicy.AuthoritativeBaselineRecovery);
 
         public static NetworkSyncProfile FastReconnect { get; } = new NetworkSyncProfile(
             NetworkSyncModel.FastReconnect,

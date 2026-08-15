@@ -1,7 +1,10 @@
 #nullable enable
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using AbilityKit.Game.View.Presentation;
+using AbilityKit.Network.Runtime;
 
 namespace AbilityKit.Demo.Shooter.View
 {
@@ -13,6 +16,10 @@ namespace AbilityKit.Demo.Shooter.View
 
         private readonly ShooterSnapshotViewBatch[] _buffer;
         private readonly ShooterSnapshotSamplingPolicy _samplingPolicy;
+        private readonly SparseSnapshotTrackBuffer<ShooterViewEntityKey, ShooterViewTransformComponentChange> _transformTracks =
+            new(InterpolateTransform);
+        private readonly HashSet<ShooterViewEntityKey> _sampledTransformKeys = new();
+        private readonly ReusableTransformList _transientTransformBuffer = new();
         private int _start;
         private int _count;
         private float _playbackFrame;
@@ -92,6 +99,7 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             batch = _samplingPolicy.Sample(in from, in to, playbackFrame, out isContinuousSample);
+            batch = ApplyLowFrequencyTransforms(in batch, playbackFrame, useTransientBuffer: false, ref isContinuousSample);
             return true;
         }
 
@@ -146,6 +154,8 @@ namespace AbilityKit.Demo.Shooter.View
                 batch = _samplingPolicy.Sample(in from, in to, _playbackFrame, out isContinuousSample);
             }
 
+            batch = ApplyLowFrequencyTransforms(in batch, _playbackFrame, useTransientBuffer, ref isContinuousSample);
+
             if (isContinuousSample)
             {
                 return true;
@@ -173,6 +183,9 @@ namespace AbilityKit.Demo.Shooter.View
             _hasLastSampledBatchKey = false;
             _playbackInitialized = false;
             _playbackSearchIndex = 0;
+            _transformTracks.Clear();
+            _sampledTransformKeys.Clear();
+            _transientTransformBuffer.Clear();
         }
 
         private bool TryFindSampleWindow(float playbackFrame, out ShooterSnapshotViewBatch from, out ShooterSnapshotViewBatch to)
@@ -241,6 +254,8 @@ namespace AbilityKit.Demo.Shooter.View
 
         private void Store(in ShooterSnapshotViewBatch batch)
         {
+            ObserveTransformTracks(in batch);
+
             var insertIndex = (_start + _count) % _buffer.Length;
             if (_count == _buffer.Length)
             {
@@ -257,6 +272,136 @@ namespace AbilityKit.Demo.Shooter.View
             _buffer[insertIndex] = batch;
         }
 
+        private void ObserveTransformTracks(in ShooterSnapshotViewBatch batch)
+        {
+            if (batch.ShouldReplaceMissingEntities)
+            {
+                _transformTracks.Clear();
+            }
+
+            for (var i = 0; i < batch.TransformChanges.Count; i++)
+            {
+                var transform = batch.TransformChanges[i];
+                _transformTracks.Observe(transform.Key, batch.Frame, in transform, transform.DeliveryHints);
+            }
+
+            for (var i = 0; i < batch.RemovedEntities.Count; i++)
+            {
+                _transformTracks.Remove(batch.RemovedEntities[i]);
+            }
+
+            for (var i = 0; i < batch.EntityChanges.Count; i++)
+            {
+                var entity = batch.EntityChanges[i];
+                if (!entity.Alive)
+                {
+                    _transformTracks.Remove(entity.Key);
+                }
+            }
+        }
+
+        private ShooterSnapshotViewBatch ApplyLowFrequencyTransforms(
+            in ShooterSnapshotViewBatch batch,
+            float playbackFrame,
+            bool useTransientBuffer,
+            ref bool isContinuousSample)
+        {
+            if (_transformTracks.Count == 0)
+            {
+                return batch;
+            }
+
+            var source = batch.TransformChanges;
+            _sampledTransformKeys.Clear();
+            var replacementCount = 0;
+            for (var i = 0; i < source.Count; i++)
+            {
+                var key = source[i].Key;
+                _sampledTransformKeys.Add(key);
+                if (_transformTracks.TrySample(key, playbackFrame, out _, out _))
+                {
+                    replacementCount++;
+                }
+            }
+
+            var appendedCount = 0;
+            var trackKeys = _transformTracks.GetKeyEnumerator();
+            while (trackKeys.MoveNext())
+            {
+                var key = trackKeys.Current;
+                if (!_sampledTransformKeys.Contains(key) &&
+                    _transformTracks.TrySample(key, playbackFrame, out _, out _))
+                {
+                    appendedCount++;
+                }
+            }
+
+            if (replacementCount == 0 && appendedCount == 0)
+            {
+                return batch;
+            }
+
+            var outputCount = source.Count + appendedCount;
+            IReadOnlyList<ShooterViewTransformComponentChange> sampledTransforms;
+            if (useTransientBuffer)
+            {
+                _transientTransformBuffer.Resize(outputCount);
+                FillLowFrequencyTransforms(source, playbackFrame, _transientTransformBuffer);
+                sampledTransforms = _transientTransformBuffer;
+            }
+            else
+            {
+                var owned = new ShooterViewTransformComponentChange[outputCount];
+                FillLowFrequencyTransforms(source, playbackFrame, owned);
+                sampledTransforms = owned;
+            }
+
+            isContinuousSample = true;
+            return new ShooterSnapshotViewBatch(
+                batch.WorldId,
+                batch.Frame,
+                batch.Sequence,
+                batch.SnapshotKind,
+                batch.Source,
+                batch.EntityChanges,
+                batch.RemovedEntities,
+                sampledTransforms,
+                batch.HealthChanges,
+                batch.ScoreChanges,
+                batch.ProjectileLifetimeChanges,
+                batch.Events,
+                batch.SampleFrame);
+        }
+
+        private void FillLowFrequencyTransforms(
+            IReadOnlyList<ShooterViewTransformComponentChange> source,
+            float playbackFrame,
+            IList<ShooterViewTransformComponentChange> destination)
+        {
+            var outputIndex = 0;
+            for (var i = 0; i < source.Count; i++)
+            {
+                var transform = source[i];
+                if (_transformTracks.TrySample(transform.Key, playbackFrame, out var sampled, out _))
+                {
+                    transform = sampled;
+                }
+
+                destination[outputIndex++] = transform;
+            }
+
+            var trackKeys = _transformTracks.GetKeyEnumerator();
+            while (trackKeys.MoveNext())
+            {
+                var key = trackKeys.Current;
+                if (!_sampledTransformKeys.Contains(key) &&
+                    _transformTracks.TrySample(key, playbackFrame, out var sampled, out _))
+                {
+                    destination[outputIndex++] = sampled;
+                }
+            }
+        }
+
         private void ReleaseStoredBatches()
         {
             for (var i = 0; i < _count; i++)
@@ -268,6 +413,88 @@ namespace AbilityKit.Demo.Shooter.View
         private ShooterSnapshotViewBatch GetAt(int index)
         {
             return _buffer[(_start + index) % _buffer.Length];
+        }
+
+        private static ShooterViewTransformComponentChange InterpolateTransform(
+            in ShooterViewTransformComponentChange from,
+            in ShooterViewTransformComponentChange to,
+            float t)
+        {
+            return new ShooterViewTransformComponentChange(
+                from.Key,
+                Lerp(from.X, to.X, t),
+                Lerp(from.Y, to.Y, t),
+                Lerp(from.FacingX, to.FacingX, t),
+                Lerp(from.FacingY, to.FacingY, t),
+                Lerp(from.VelocityX, to.VelocityX, t),
+                Lerp(from.VelocityY, to.VelocityY, t),
+                from.DeliveryHints | to.DeliveryHints);
+        }
+
+        private static float Lerp(float from, float to, float t)
+        {
+            return from + ((to - from) * t);
+        }
+
+        private sealed class ReusableTransformList : IList<ShooterViewTransformComponentChange>, IReadOnlyList<ShooterViewTransformComponentChange>
+        {
+            private ShooterViewTransformComponentChange[] _items = Array.Empty<ShooterViewTransformComponentChange>();
+
+            public int Count { get; private set; }
+
+            public bool IsReadOnly => false;
+
+            public ShooterViewTransformComponentChange this[int index]
+            {
+                get
+                {
+                    if ((uint)index >= (uint)Count) throw new ArgumentOutOfRangeException(nameof(index));
+                    return _items[index];
+                }
+                set
+                {
+                    if ((uint)index >= (uint)Count) throw new ArgumentOutOfRangeException(nameof(index));
+                    _items[index] = value;
+                }
+            }
+
+            public void Resize(int count)
+            {
+                if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+                if (_items.Length < count)
+                {
+                    var capacity = Math.Max(count, Math.Max(16, _items.Length * 2));
+                    _items = new ShooterViewTransformComponentChange[capacity];
+                }
+
+                Count = count;
+            }
+
+            public void Clear()
+            {
+                Count = 0;
+            }
+
+            public IEnumerator<ShooterViewTransformComponentChange> GetEnumerator()
+            {
+                for (var i = 0; i < Count; i++)
+                {
+                    yield return _items[i];
+                }
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
+            public int IndexOf(ShooterViewTransformComponentChange item) => throw new NotSupportedException();
+            public void Insert(int index, ShooterViewTransformComponentChange item) => throw new NotSupportedException();
+            public void RemoveAt(int index) => throw new NotSupportedException();
+            public void Add(ShooterViewTransformComponentChange item) => throw new NotSupportedException();
+            public bool Contains(ShooterViewTransformComponentChange item) => throw new NotSupportedException();
+            public void CopyTo(ShooterViewTransformComponentChange[] array, int arrayIndex) => throw new NotSupportedException();
+            public bool Remove(ShooterViewTransformComponentChange item) => throw new NotSupportedException();
         }
 
         private readonly struct ShooterSnapshotViewBatchKey : IEquatable<ShooterSnapshotViewBatchKey>

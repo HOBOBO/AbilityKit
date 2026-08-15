@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "com.abilitykit.demo.shooter.view.runtime",
   "version": "0.0.1",
   "displayName": "AbilityKit Demo Shooter View Runtime",
@@ -8,30 +8,30 @@
     "name": "AbilityKit"
   },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.core": "0.1.0",
     "com.abilitykit.demo.common": "0.0.1",
     "com.abilitykit.demo.shooter.jobs": "0.0.1",
     "com.abilitykit.demo.shooter.runtime": "0.0.1",
     "com.abilitykit.demo.shooter.share": "0.0.1",
-    "com.abilitykit.game.battle.runtime": "0.0.1",
-    "com.abilitykit.game.view.runtime": "0.0.1",
-    "com.abilitykit.host": "0.0.1",
-    "com.abilitykit.host.extension": "0.0.1",
-    "com.abilitykit.network.runtime": "0.0.1",
+    "com.abilitykit.game.battle.runtime": "0.1.0",
+    "com.abilitykit.game.view.runtime": "0.1.0",
+    "com.abilitykit.host": "0.1.0",
+    "com.abilitykit.host.extension": "0.1.0",
+    "com.abilitykit.network.runtime": "0.1.0",
     "com.abilitykit.network.room": "0.1.0",
     "com.abilitykit.network.sdk": "0.1.0",
     "com.abilitykit.network.battle": "0.1.0",
     "com.abilitykit.network.battle.config": "0.1.0",
     "com.abilitykit.network.client": "0.1.0",
-    "com.abilitykit.protocol.room": "0.0.1",
-    "com.abilitykit.protocol.shooter": "0.0.1",
-    "com.abilitykit.record": "0.0.1",
-    "com.abilitykit.world.di": "0.0.1",
-    "com.abilitykit.world.framesync": "0.0.1",
-    "com.abilitykit.world.networkfragments": "0.0.1",
-    "com.abilitykit.world.snapshot": "0.0.1",
-    "com.abilitykit.world.statesync": "0.0.1",
-    "com.abilitykit.gameframework": "0.0.1",
-    "com.abilitykit.gameframework.network": "0.0.1"
+    "com.abilitykit.protocol.room": "0.1.0",
+    "com.abilitykit.protocol.shooter": "0.1.0",
+    "com.abilitykit.record": "0.1.0",
+    "com.abilitykit.world.di": "0.1.0",
+    "com.abilitykit.world.framesync": "0.1.0",
+    "com.abilitykit.world.networkfragments": "0.1.0",
+    "com.abilitykit.world.snapshot": "0.1.0",
+    "com.abilitykit.world.statesync": "0.1.0",
+    "com.abilitykit.gameframework": "0.1.0",
+    "com.abilitykit.gameframework.network": "0.1.0"
   }
 }

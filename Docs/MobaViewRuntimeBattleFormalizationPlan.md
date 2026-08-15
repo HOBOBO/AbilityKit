@@ -10,7 +10,7 @@
 
 ### 2.1 规模和分类
 
-当前 `BattleSessionFeature*.cs` 匹配文件为 40 个，约 3051 行，是本次治理的 P0 对象。整个包中约有 53 个 `partial` 声明结果，但不能将其全部视为问题：
+截至 2026-08-12 的复核结果，`BattleSessionFeature` partial 组为 35 个文件、约 2226 行；`BattleContext` partial 组为 7 个文件、约 553 行。整个包仍有 53 个 `partial` 声明结果，但实际只归属于 7 个类型组，不能将声明数量直接等同于问题数量：
 
 | 分类 | 当前判断 | 处理策略 |
 | --- | --- | --- |
@@ -18,6 +18,18 @@
 | `BattleViewFeature` / `ConfirmedBattleViewFeature` 生命周期 partial | 风险较低 | 暂保留，后续按 View Runtime Host 评估 |
 | `BattleContext` partial | 职责聚合 | P1，拆为上下文、状态和服务 |
 | `BattleSessionFeature` partial | 巨型门面和实际 owner | P0，按资源闭包迁移 |
+
+补充量化如下：
+
+| partial 类型组 | 文件数 | 约行数 | 复核结论 |
+| --- | ---: | ---: | --- |
+| `BattleSessionFeature` | 35 | 2226 | 字段 owner 已显著收敛，但仍有业务算法和多领域 runtime adapter，继续治理 |
+| `BattleContext` | 7 | 553 | pooled context 仍包含输入、loadout、actor/world 查询、Entity、VFX 和 Snapshot 镜像 |
+| `BattleViewFeature` | 3 | 183 | 共享资源已集中到 `ViewFeatureRuntimeHostBase`，保留并补 teardown/隔离验证 |
+| `ConfirmedBattleViewFeature` | 3 | 169 | 同上，不抢占 P0 |
+| `SharedSnapshotRegistry` | 2 | 101 | 生成代码要求，排除 |
+| `SessionReplayController` | 1 | 100 | 单文件 `partial`，无生成原因时直接去除修饰符 |
+| `BattleSnapshotRegistry` | 2 | 62 | 生成代码要求，排除 |
 
 ### 2.2 当前分层的问题
 
@@ -357,14 +369,17 @@ Runtime/Game/Battle/Diagnostics
 
 ### 9.4 Replication Owner 正式化实施记录
 
-- 新增 `BattleReplicationRuntime` 并由 `BattleSessionRuntime` 稳定持有，统一管理 transport 四类事件绑定、Options 三个 callbacks、interpolation controller、replication pipeline、同步健康度、snapshot admission、authoritative snapshot state、reliable event cursor、pending reliable event queue、server ACK frame 和 pending state import。
+- 新增 `BattleReplicationRuntime` 并由 `BattleSessionRuntime` 稳定持有，统一管理 transport 四类事件绑定、Options 三个 callbacks、interpolation controller、replication pipeline、同步健康度、snapshot admission、authoritative snapshot state、server ACK frame 和 pending state import。
 - Build 先完成全部参数校验，再释放旧 generation；无效 Build 不改变当前有效 generation。重复 Build 通过统一幂等 Dispose 拆除旧 transport 绑定和 owner 状态。
-- transport 事件使用 owner wrapper delegate，并在转发前同时校验 generation 与 transport reference；旧 transport 的 late callback 不得进入当前 Feature 业务路径。
+- transport 事件使用 owner wrapper delegate，并在转发前同时校验 generation 与 transport reference；旧 transport 的 late callback 不得进入当前 Session 业务路径。
 - Options callbacks 安装前保存原值；Dispose 仅在当前值仍引用 owner 安装的 delegate 时恢复前值，避免 stale owner 覆盖外部或后续 generation 的替代 callback。
-- `BattleSessionFeature.TransportFactory` 和 `Reconnect` 已收敛为 owner 组装、复制业务消费及兼容访问器；world snapshot 导入、reliable battle event 业务投递、checkpoint/ACK 持久化、full-state 请求和 reconnect 后 world/reconcile reset 暂由 Feature 保留。
-- 新增 Build/Dispose、重复 Build、无效 Build 保留当前 generation、外部替换 Options 后 Dispose 不覆盖四项生命周期测试；测试 asmdef 已增加 `AbilityKit.Network.Battle` 直接依赖。
-- 定向静态检查确认 transport 事件订阅和 Options callback 写入仅存在于 owner，Feature 不再保留 Hook/Unhook ownership；`git diff --check` 未发现 whitespace error。
-- Runtime 与 UnitTests 外部构建验证已执行，但完整结果受无关 FrameSync Rollback `RollbackCoordinator.cs` 中 `CollectionsMarshal` 的三个既有 `CS0103` 阻塞；Unity 生成项目还未自动同步新增源码和 asmdef 引用。因此本批不能宣称完整构建或新增 NUnit 行为测试已通过，且未修改该无关阻塞代码。
+- `BattleReplicationRuntime` 组合 `AuthoritativeStateRecoveryRuntime` 与 `ReliableBattleEventDeliveryRuntime`：前者统一持有 full baseline admission、world import、removed actors、prediction rebase、full-state request 和 reconnect timeline reset；后者统一持有 reliable cursor、pending batch、业务投递、ACK retry 与 checkpoint persistence。
+- 两个 recovery owner 在异步 completion 前同时校验 generation、transport reference 与 cursor identity。可靠事件只在业务 sink 成功后 commit，并仅在 ACK 成功后确认和持久化；旧 generation 的 ACK、checkpoint 和 full-state completion 不得写入 active Session。
+- `BattleSessionFeature.TransportFactory` 和 `Reconnect` 已收敛为 owner 组装、兼容访问器与 host bridge，不再持有 recovery 状态机或接收 transport callback 后进入 Feature 私有业务方法。
+- 新增 Build/Dispose、重复 Build、无效 Build 保留当前 generation、外部替换 Options 后 Dispose 不覆盖，以及 full baseline、导入失败、removed actors、reconnect reset、ACK retry、checkpoint commit、pending batch ordering 和 stale completion 隔离测试。
+- Runtime 外部构建通过（134 warnings、0 errors），UnitTests 外部构建通过（142 warnings、0 errors）；警告均为当前工程既有引用冲突、nullable 和未使用测试事件。
+- Unity 2022.3.62f1 EditMode 聚焦执行通过：`AuthoritativeStateRecoveryRuntimeTests` 5 passed、0 failed，`ReliableBattleEventDeliveryRuntimeTests` 5 passed、0 failed。Unity 已自动收录新增测试源码，生成 `.csproj` 不作为手工维护的正式改动。
+- owner-level authoritative recovery 测试通过可替换 world recovery port 验证调用契约与 Session 状态；真实 `MobaLogicWorldStateImporter` 的实体级导入细节继续由其所属 runtime 测试负责，不在本批重复声明覆盖。
 
 ### 9.5 Simulation Owner 正式化实施记录
 
@@ -455,3 +470,160 @@ Runtime/Game/Battle/Diagnostics
 6. 完成基线测试后再开始迁移 Gateway/Replication。已完成 Snapshot Routing、Gateway、Replication、Simulation、Replay、Spectator、Diagnostics 与 confirmed Presentation owner 闭包；Spectator 和 Diagnostics 新增生命周期测试已通过 Unity Test Runner 定向执行，其余历史批次的 Unity 行为验证状态以各实施记录为准。
 
 第一批不修改 asmdef，不修改公共接口，不改变现有目录 namespace，也不删除 Unity `.meta` 文件。
+
+## 13. 2026-08-12 剩余职责审计与优先级路线
+
+### 13.1 判定原则
+
+本轮不按文件行数或 `partial` 语法机械排序。优先级由以下因素共同决定：
+
+1. 是否在 Feature 或 pooled Context 中保留跨领域业务算法，而不只是兼容转发。
+2. 是否同时修改网络、模拟、输入、持久化或表现状态，导致生命周期和失败恢复无法独立验证。
+3. 是否拥有 CTS、Task、事件订阅、Unity 对象或可替代 generation 的资源。
+4. 是否存在 concrete Feature 反向依赖、静态可变发布点或旧 owner 清理新 owner 的风险。
+5. 拆分后能否形成稳定 port，并为后续 Context、Lobby 或程序集治理解除前置阻塞。
+
+本轮明确区分三种状态：
+
+- **已完成 owner 化**：资源字段、订阅和 dispose 已归稳定 owner；不因兼容 facade 存在而重复实施。
+- **过渡 facade**：Feature 只转发调用或投影只读状态，可在调用方迁完后清理。
+- **未治理业务残余**：仍含准入、恢复、世界写入、策略计算或跨域状态修改，必须继续迁出。
+
+### 13.2 P0：先消除战斗 Session 和 Context 的跨域业务残余
+
+| 顺序 | 当前对象/文件组 | 仍混合的职责 | 目标边界 | 前置依赖 | 完成门禁 |
+| ---: | --- | --- | --- | --- | --- |
+| P0-1 | `BattleSessionFeature.TransportFactory.cs` + `Reconnect.cs` | 快照准入后的 world import、removed actor 应用、可靠事件 cursor/恢复队列/ACK/checkpoint、full-state 请求、重连 timeline reset、同步健康采样和表现插值投影 | 新建 `AuthoritativeStateRecoveryRuntime` 与 `ReliableBattleEventDeliveryRuntime`；health sampling 归 `BattleReplicationRuntime` 或专属 `SynchronizationHealthRuntime`；表现投影通过最小 port 注入。Feature 只组装和发布公共事件 | 复用已完成的 `BattleReplicationRuntime`、`BattleSimulationRuntime`、`BattleSessionDiagnostics`；先定义 world import、checkpoint、presentation 三个最小端口 | transport callback 不再进入 Feature 私有业务方法；旧 generation ACK/checkpoint/full-state completion 不得写入新 Session；world import、removed actors、可靠事件断点恢复、重连和 health tuning 有独立测试 |
+| P0-2 | `BattleContext.Input.cs` + `BattleContext.Debug.cs` 的 prediction 控制镜像 | HUD buffer、input queue/writer、player-to-actor 映射、world service 查询、Unity aim 坐标投影和 prediction tuning 控制混在 pooled Context | `BattleInputRuntime` 持有 HUD/input 提交闭包；`BattleLocalActorResolver` 只做身份到 actor/world position 解析；`BattleAimProjectionService` 只做 aim projection；prediction stats/control 由 Replication/Input owner 通过只读 port 暴露 | 先为现有 HUD、submitter、aim preview 建立兼容接口；不先删除 `BattleContext` facade | pool release 不残留输入或控制端口；resolver 可用 fake world 独立测试；aim projection 无 Context 依赖；HUD click/aim 行为、record writer 和 local actor 切换回归通过 |
+
+P0 固定执行顺序为 P0-1 后 P0-2。原因是 Context 中 prediction/health 控制目前仍被 Session 的 synchronization health 路径反向读取，先收敛 Replication/Recovery 边界才能避免 Input owner 再次依赖 Feature。
+
+#### P0-2 Input 与 Prediction 正式化实施结果
+
+- `BattleSessionRuntime` 现在稳定持有 `BattleInputRuntime` 与独立的 `BattlePredictionRuntime`。前者统一持有 HUD input buffer、local input queue 和 gameplay input submission closure；后者原子持有 prediction stats、reconcile 与 tuning ports。
+- `BattleLocalActorResolver` 仅通过最小 resolution port 处理 cached actor、player-to-actor 映射和 world position 查询；`BattleAimProjectionService` 只接收 actor position、aim offset 与方向，不依赖 pooled `BattleContext`。
+- `BattleContext.Input` 和 `BattleContext.Debug` 已降为兼容 facade。prediction 四个端口只读暴露，生产代码不再直接赋值；confirmed authority diagnostics 清理不再跨职责修改 remote prediction 状态。
+- Input 与 Prediction owner 均记录当前 Context identity。rebind 先清除上一 generation 的瞬态状态或端口，unbind 使用 reference equality，旧 Context 的延迟清理不会覆盖替代 generation。
+- pooled Context reset 统一释放 Input 与 Prediction binding；HUD buffer、queue frame/batch 和 prediction ports 不会跨池化生命周期残留。record writer 继续由 Replay owner 管理，Input submission 只保留写入和提交兼容路径。
+- 新增 6 项 owner 测试，覆盖 cached/remapped actor resolution、无 Context aim projection、Input rebind/reset、pool release 和 Prediction stale unbind；既有 HUD bridge 14 项与 projection 3 项一并回归。
+- `AbilityKit.Demo.Moba.View.Runtime.csproj` 构建通过（134 warnings、0 errors），`AbilityKit.Game.UnitTests.csproj` 构建通过（142 warnings、0 errors）；警告均为工程既有引用冲突、nullable 和未使用测试事件。
+- Unity 2022.3.62f1 EditMode 聚焦执行通过（23 passed、0 failed）：`BattleInputRuntimeTests` 6 项、`BattleHudInputEventBridgeTests` 14 项、`BattleHudInputProjectionTests` 3 项。定向 ownership 搜索无生产代码 prediction facade 赋值残留，HUD state 与 local queue 的生产 ownership 仅位于 `BattleInputRuntime`；`git diff --check` 无 whitespace error，仅报告工作树 LF/CRLF 提示。
+
+### 13.3 P1：收敛真实 owner 和跨 generation 资源边界
+
+P1 只处理同时拥有业务状态与资源生命周期的对象。每个子批次独立提交、独立回归，不并行改动相邻 owner 的公共契约。
+
+| 顺序 | 当前对象/文件组 | 当前问题 | 目标边界 | 完成门禁 |
+| ---: | --- | --- | --- | --- |
+| P1-1 | `FormalLobbyFeature.cs` | 1417 行内同时处理 attach generation、异步 operation、房间目录、自动准备/开战策略、Battle entry、presentation state 和完整 IMGUI | `FormalLobbyRuntime` 持有 lifetime、operation task/generation 和命令状态；`LobbyRoomDirectoryRuntime` 持有刷新事务；`LobbyAutomationPolicy` 只做纯计算；`LobbyBattleEntryCoordinator` 持有一次性 entry gate；renderer 只消费不可变 presentation snapshot | detach 或替代 attach 后的 late completion 不更新 active state；目录刷新、自动创建/准备/开战和 battle entry 可用纯 C# 测试；renderer 不直接调用 Gateway 或 Controller |
+| P1-2 | `GatewayMultiplayerRoomSession.cs` | 906 行的 command adapter 同时持有 auth token、membership、权威快照写入、reliable checkpoint 和 wire/domain mapping；同文件还包含 snapshot provider | 先物理分离 `ClientRoomSnapshotProvider` 和无状态 `GatewayRoomProtocolMapper`，再建立 `GatewayRoomMembership` 与 `MobaReliableBattleEventCheckpointStore`；Session 只保留命令调用顺序与成功后的原子 commit | membership 只在权威成功后 commit；leave/restore 失败不泄漏部分状态；checkpoint 可独立于 Session 生命周期测试；mapping 使用表驱动测试覆盖空值、边界值和协议错误 |
+| P1-3 | `MultiplayerRoomFlowController.cs` | 已增长到 1217 行；约前 409 行是 contracts，Controller 还同时持有状态转移、stage task/CTS/generation、asset loader、loading progress、恢复和 created-room ownership，旧“总体内聚、只拆 DTO”判断已失效 | `MultiplayerRoomFlowContracts` 承载 enum/DTO/spec/result；`MultiplayerRoomStageRuntime` 持有 stage task/CTS/generation；`MultiplayerAssetLoadingRuntime` 持有 loader、progress、resume/cancel；Controller 保留状态转移、命令编排和 public API | 先补 characterization tests 固化 create/join/restore/loading/leave 序列；stale stage completion 不提交状态；loading cancel/resume 不重复释放 lease；拆分前后状态、失败码和公开事件序列一致 |
+| P1-4 | `BattleContext.Runtime.cs`、`Entity.cs`、`Snapshot.cs` | pooled Context 仍聚合 loadout、Session identity/clock、ECS Entity、VFX/Presentation 和 Snapshot compatibility state | 第一批只迁 `BattlePlayerLoadoutStore`；第二批拆 `BattleEntityContext` 与 `BattlePresentationContext`；最后确认 Snapshot owner 调用方后将字段降为只读 facade 或删除。不要在同一批重写 Context 全部接口 | loadout revision/effective loadout 与 pool reset 测试通过；remote/confirmed Context 不共享可变 Entity/VFX；旧 Context 或 stale owner 不清除替代 binding；完整 Context pool 门禁保持通过 |
+| P1-5 | `BattleLoadingScreenFeature.cs` + Session asset lease | 454 行内同时负责 concrete Session 查找、coordinator、lease adoption、Flow callback、状态和 IMGUI，asset lease ownership 跨 Feature 隐式转移 | 引入最小 `IBattleAssetLoadSessionPort`；由 Battle scope 或 `BattleAssetLeaseOwner` 原子接收 lease；Loading Feature 只绑定 presenter、状态 snapshot 和 retry/cancel 命令；manifest adapters 独立文件 | lease 最多成功转移一次；attach/detach、retry/cancel、adopt 失败和 late completion 均无泄漏；Loading 不依赖 concrete `BattleSessionFeature` |
+| P1-6 | `BattleSessionFeature.World.cs` | world root 创建/销毁、serializer installer 和配置路径解析仍混在 Session facade | world composition 归 bootstrap/factory；serializer 安装归应用启动 adapter；路径解析归配置服务 | Session facade 不直接解析文件路径或安装全局 serializer；world 创建失败按逆序清理且可重试；公共 Session API 不变 |
+
+P1 固定顺序为 Lobby、Gateway Session、Room Flow、Context、Loading、World。前三项构成大厅到房间状态机的连续链路，但仍必须分批提交：先稳定上游 operation 和 membership commit，再拆 Controller 的 stage/asset owner。Context 与 Loading 不与该链路混批。
+
+### 13.4 P2：删除过渡 facade 并收敛应用生命周期边界
+
+| 顺序 | 当前对象/文件组 | 处理方案 | 完成门禁 |
+| ---: | --- | --- | --- |
+| P2-1 | `BattleSessionFeature*.cs` | 按下方清单删除空 wrapper 和已无调用方的 facade；调用方先迁到稳定 runtime port，不得为了减少文件数把业务重新合并回 Feature | Feature 最终只保留公共 Session facade、Unity lifecycle glue 和 composition；业务 partial 数量为零；新增业务字段禁止进入任何 Feature partial |
+| P2-2 | `GatewayFrameTiming.cs`、`GatewayTimeSyncStats.cs` | 纯策略移入 `GatewayFrameTimingPolicy`；diagnostics DTO builder 只依赖 Clock/Diagnostics snapshot，不读取 Feature 字段 | 时钟来源、safety margin、frame clamp 和 by-world stats 有纯 C# 测试 |
+| P2-3 | `MultiplayerGatewayEntryModule.cs` | `MultiplayerGatewayRecoveryRuntime` 持有 reconnect generation、room restore 和 server push refresh；Entry Module 仅装配 client、session、controller 和 recovery owner | 多次断线、过期 completion、detach 后 push、restore failure 和 reconnect exhausted reset 有测试；Entry detach 后无订阅或 CTS 残留 |
+| P2-4 | `BattleDebugOnGUIFeature.cs`、`BattleFlowDebugProvider` | `BattleDebugPublicationOwner` 负责 Context/HUD/View 兼容发布，`IBattleDebugCommandService` 负责换英雄、生成单位、重置 CD 和 AI 控制；IMGUI 只消费 debug snapshot 与 command facade | development-only 边界明确；stale publisher 不清空新发布；非开发构建不创建命令资源；命令服务可无 IMGUI 测试 |
+| P2-5 | `GameEntry.cs`、`GameEntryRuntimeGuiBridge` | 将 GUI bridge 和本地 debug UI 移出 Entry 文件；静态 `Instance` 只保留已有兼容访问面 | `GameEntry` 只负责 ModuleHost、应用 composition 和 Unity 根生命周期；GUI detach 不影响 Runtime owner |
+| P2-6 | `SessionReplayController` | 搜索确认无生成器、条件编译或第二声明后移除单文件 `partial` 修饰符 | 全仓第二声明为零，Runtime 和测试项目编译通过 |
+| P2-7 | `BattleViewFeature` / `ConfirmedBattleViewFeature` partial | 允许保留 lifecycle/runtime 物理分部；只补双 Context、重复 attach/detach 和 stale presentation owner 隔离验证 | `ViewFeatureRuntimeHostBase` 继续作为唯一资源 host；concrete partial 不新增 owner 字段 |
+
+#### 13.4.1 `BattleSessionFeature` partial 收尾分类
+
+分类依据是调用关系和 ownership，不是文件长度。删除动作执行前必须再次全仓搜索声明和调用方。
+
+| 分类 | 当前候选 | 动作 |
+| --- | --- | --- |
+| 可直接删除的空壳 | `GatewayConnection.cs`、`GatewayPreparation.cs`、`GatewayTimeSync.cs`、`Reconnect.cs` | 若文件只剩 namespace、空声明或注释，连同对应 `.meta` 一起通过 Unity 感知的移动/删除流程清理；不得保留“防止项目生成变化”的空 partial |
+| 调用方迁移后删除的 facade | `Accessors.cs`、`DispatcherDispose.cs`、`SnapshotAccessors.cs`、`SnapshotRouting.cs`、`ConfirmedAuthorityWorld.cs`、`RemoteDrivenLocalSim.cs`、`SimTick.Confirmed.cs`、`SimTick.RemoteDriven.cs`、`SimDispose.cs`、`NullRegistries.cs` 以及 Gateway/Replay/Spectator 的薄转发文件 | 先将调用方改依赖 `BattleSessionRuntime` 或对应最小 port，再删除 wrapper；一次只清理一个领域并执行定向测试 |
+| 暂时必须保留 | `BattleSessionFeature.cs`、`Lifecycle.cs`、`PhaseAccessors.cs` 以及仍承担 composition、公共接口或 Unity/editor lifecycle 的文件 | 允许继续使用 partial 作为物理组织，但不得拥有 Gateway、Replication、Simulation、Input、Replay、Spectator 或 Presentation 资源；依赖收敛后再合并最小 facade |
+
+目标不是把约 40 个文件一次压成一个大文件，而是删除无行为碎片，使剩余文件一一对应公共 facade、生命周期或 composition。任何 wrapper 只要仍修改业务状态、持有 CTS/Task/订阅或执行 cleanup，就不能按“薄 facade”删除，必须先回到 P1 owner 迁移流程。
+
+### 13.5 P3：千行文件和表现代码的物理治理
+
+P3 不改变 ownership 与公共行为，只降低导航、评审和测试维护成本。不得与 P1 owner 拆分放在同一提交。
+
+| 顺序 | 当前对象/文件组 | 建议物理边界 | 完成门禁 |
+| ---: | --- | --- | --- |
+| P3-1 | `BattleHudAimPreview.cs`（约 635 行） | 按 coordinator、position resolver、object factory、render object 拆文件，保持同一表现职责链和现有 namespace | 无新增 service locator 或 owner；HUD aim preview 的显示、更新、取消和对象销毁测试保持通过 |
+| P3-2 | `GatewayRoomClient.cs`（约 690 行） | 在 P1-2 mapper 抽取后，按 request transport、response validation 和 operation groups 物理组织；Client 仍是 wire adapter | op-code、request/response、取消和错误映射行为不变；不复制 protocol DTO |
+| P3-3 | 千行测试 fixture | `SessionOrchestratorLifecycleTests` 按 startup/cleanup/gateway/simulation fixtures 拆分；`BattleReplaySessionOwnerTests` 将 Spectator tests 独立；共享 fake 仅在确有复用时提取 | 测试数量和断言语义不减少；fixture 不跨领域暴露可变状态；生产代码重构不与测试物理拆分混批 |
+
+#### 13.5.1 P1-P3 实施结果
+
+- P1 已按 Lobby、Gateway Session、Room Flow、Context、Loading 与 world composition 顺序完成首轮 owner 迁移。新增 owner 保持原 public API、namespace、协议映射、取消语义和 Unity 资源 GUID；但 `FormalLobbyFeature`、`BattleLoadingScreenFeature` 和 `BattleContext` 仍保留兼容编排或跨域 facade，不能据此认定表现流程已经完成收口。
+- P2 已完成 Gateway recovery、部分 Session owner、development debug publication、Game Entry GUI bridge 等基础治理，但兼容面收尾尚未完成。当前 `BattleSessionFeature` 仍分布在 35 个 partial 文件、约 1659 行，包含 composition、生命周期、公共 facade、薄转发及少量待迁行为；`SessionReplayController` 仍是单文件 partial；`BattleDebugOnGUIFeature` 的命令服务与 IMGUI 仍位于同一文件。因此 P2 状态修正为“owner 迁移部分完成，partial 与表现边界待 P4/P5 收尾”。
+- P3-1 已将 HUD aim preview 按 coordinator、position resolver、object factory 和 render object 物理拆分；P3-2 已将 Gateway room client 按 loading、room operations、state sync 和 response mapping 分部组织，wire adapter 的公开入口、op-code 和 DTO 映射保持不变。
+- P3-3 已将 Session 聚合 fixture 拆为 simulation、gateway、startup/cleanup、diagnostics/replication 四个顶层 fixture，共保留 49 个测试特性和 6 个 startup failure source cases；Replay fixture 保留 22 个测试方法及 3 个额外 `TestCase`，8 个 Spectator `UnityTest` 已迁入独立 fixture。各 fixture 的可变 fake 均为私有，未建立跨领域共享状态。
+- 原 Session 与 Replay 测试资源分别保留 GUID `70475a221a024bf98f2c5a0a13237af5` 和 `9934cb0f90371944980b768fa6e711e7`；四个新测试资源 GUID 在 `Unity/Packages` 范围内各出现一次。P1-P3 未跟踪文件 whitespace 门禁覆盖 83 个文件并通过，受影响 tracked diff 的 `git diff --check` 通过。
+- 当前 Unity 2022.3.62f1 batchmode 在测试发现前被工作树既有编译错误阻断：MOBA 侧缺失 `UnityJsonSettingsBootstrap`，host.network 侧缺失 `IAsyncHostNetworkRequestHandler`。Unity 未生成本批测试结果 XML；生成的 `AbilityKit.Game.UnitTests.csproj` 也尚未收录新增 fixture，且外部构建同时受陈旧项目输入和既有依赖缺失阻断。因此 P3 的物理拆分与静态门禁已完成，但不得宣称新增 fixture 已由 Unity 编译或定向测试通过。
+
+### 13.6 明确保留和观察项
+
+- `BattleSnapshotRegistry`、`SharedSnapshotRegistry`：代码生成所需的合理 partial，保持不动。
+- `BattleViewFeature`、`ConfirmedBattleViewFeature`：当前由 `ViewFeatureRuntimeHostBase` 统一持有资源，允许保留 lifecycle/runtime partial，但禁止新增 owner 字段。
+- `GatewayRoomClient`：当前五个 partial 仍围绕同一 wire adapter，按 loading、room operation、state sync 和 response mapping 组织；只要不持有跨 operation 的业务 owner，可保留这种物理分部。
+- `BattleReplaySessionOwner`、`ClientRoomStore`、`FeatureScheduler`、`BattleScopeManager`：没有仅凭规模即可判定的跨域 owner 问题，维持观察，不做预防性重构。
+- asmdef 和 namespace 拆分继续后置。只有 Contracts、Flow、Session、Presentation 的反向引用完成收敛，才单独设计程序集迁移批次。
+
+### 13.7 推荐实施批次
+
+1. **P1-1 Lobby Policy/Presentation**：先提取纯策略和 presentation snapshot builder，以 characterization tests 固化现有自动化判定。
+2. **P1-1 Lobby Runtime**：再迁 operation generation、room directory和 battle entry gate，最后缩小 Feature 与 IMGUI。
+3. **P1-2 Gateway Session**：先移动 mapper/provider，再迁 membership/checkpoint；全程保持 `IMultiplayerRoomSession` 不变。
+4. **P1-3 Room Flow Contracts**：先物理拆 contracts 并建立状态机 characterization baseline，不改变 Controller 行为。
+5. **P1-3 Room Flow Owners**：依次迁 stage runtime 与 asset loading runtime；不同时修改状态枚举或 public result。
+6. **P1-4 Context Resources**：按 loadout、Entity、Presentation、Snapshot facade 顺序迁移，每次只处理一个 pooled resource closure。
+7. **P1-5/P1-6 Scope Resources**：先收敛 asset lease，再迁 world composition；分别验证失败回滚和 cleanup retry。
+8. **P2 Compatibility Cleanup**：按领域删除 `BattleSessionFeature` wrapper，然后处理 Gateway recovery、Debug 和 Entry 生命周期。
+9. **P3 Physical Split**：最后处理表现大文件、wire client 和千行测试 fixture；不作为架构完成的前置条件。
+
+以上为原 P1-P3 执行顺序和历史记录。当前工作树的后续执行基线以 13.8 为准。
+
+### 13.8 P4-P5 表现流程与 partial 收尾顺序
+
+后续不在“先优化表现层”与“先拆大文件/partial”之间二选一。统一规则是：先迁移错误 ownership，再删除失去职责的 facade，最后做物理拆分。禁止用新增 partial 掩盖跨域聚合。
+
+| 优先级 | 批次 | 当前对象 | 先做什么 | 完成标准 |
+| ---: | --- | --- | --- | --- |
+| 1 | P4-1 | `BattleSessionFeature*.cs` | 先按 runtime/composition、公共 facade、生命周期、薄转发、空壳五类重新登记；优先迁出仍修改 Gateway、Simulation、Snapshot 或 cleanup 状态的行为，再删除空壳和无调用方 wrapper | 业务行为不再跨 partial 隐式共享字段；剩余文件只对应公共 facade、composition 或生命周期；不得把 35 个文件直接合并成新巨型 Feature |
+| 2 | P4-2 | `BattleDebugOnGUIFeature.cs`、`GameEntry.cs` 中本地 debug 入口 | 将 publication owner、只读 debug snapshot/query、`IBattleDebugCommandService` 和 IMGUI renderer 分开；换英雄、生成单位、重置 CD、AI 控制不得由 GUI 类直接解析 world service | 命令服务可在无 IMGUI、无 `GameEntry.Instance` 的纯测试中运行；Feature 只 attach/detach publication 并绘制 snapshot；development-only 创建边界明确 |
+| 3 | P4-3 | `BattleLoadingScreenFeature.cs` | 将 phase attachment/runtime generation、lease transfer transaction、不可变 loading snapshot、renderer 和 manifest adapters 分离；保持 `IBattleAssetLoadSessionPort` 与取消/错误语义 | late completion 不发布旧状态；lease 仅成功转移一次；renderer 不接触 coordinator、Session 或 Flow；adopt failure/cancel/detach 可独立测试 |
+| 4 | P4-4 | `FormalLobbyFeature.cs` | 在已有 runtime/policy/renderer 基础上继续迁出 room-store subscription owner、自动化命令 coordinator、battle transition 和 scene exit；Feature 只解析 phase scope、生成 snapshot、转交命令和绘制 | IMGUI callback 不直接执行业务异步流程；subscription generation 与 operation generation 各有唯一 owner；大厅到战斗跳转可无 GUI 测试 |
+| 5 | P4-5 | `GameEntry.cs`、`MultiplayerGatewayEntryModule.cs` | 收敛应用根 composition、可靠检查点 flush、GUI bridge 和 Gateway recovery 的依赖方向；仅保留 Unity 根生命周期胶水 | Entry 不持有具体 debug controller；Module detach 后无 CTS、订阅或恢复 task；表现模块不能反向操纵应用根对象 |
+| 6 | P5-1 | `BattleContext*.cs` | 按调用方逐项删除已被 Input、Prediction、Entity、Presentation、Snapshot owner 替代的可变 facade；保留必要的只读兼容投影 | 七个 partial 不再作为跨域 service locator；pool reset 只调用明确 owner；stale binding 不清理替代 generation |
+| 7 | P5-2 | `SessionReplayController` 与 `BattleSessionFeature` 收尾 | 搜索第二声明和条件编译后移除单文件 `partial`；将剩余一两行转发合并到对应最小 facade 或直接删除，保留 `.meta` GUID 约束 | 单文件 partial 为零；空 partial 为零；每个剩余 partial 有可陈述的独立物理职责 |
+| 8 | P5-3 | 大型测试 fixture 与其他千行文件 | 仅在生产 ownership 稳定后按领域做物理拆分；共享 fake 保持不可变或 fixture-local | 测试特性、case source 展开和断言语义不减少；不与生产 ownership 重构混批 |
+
+`FormalLobbyFeature` 虽然当前仍约 1235 行，但排在 Debug 与 Loading 之后：它已有 runtime、directory、automation policy、entry coordinator 和 renderer 边界，剩余问题主要是编排收口；Debug 与 Loading 仍直接跨越表现、命令和资源生命周期，依赖反向风险更高。`BattleSessionFeature` 排第一也不是为了减少文件数，而是先建立后续改动依赖的稳定 Session port，避免 Debug、Loading 和 Lobby 再次依赖 concrete Feature。
+
+每批继续遵守 generation identity、commit-on-success、reference-equality cleanup、幂等 Dispose、失败重试和 Unity `.meta` GUID 保留规则。P4 owner 迁移必须执行 Runtime/UnitTests 构建与受影响 Unity 行为测试；P5 物理收尾至少执行受影响项目构建、测试数量/GUID 静态门禁和 `git diff --check`。
+
+### 13.9 P4-P5 实施结果
+
+P4-P5 已按 13.8 的顺序完成。实现过程中保持既有 public port、协议行为、取消语义、错误映射、资源所有权和 teardown 顺序不变；迁移重点是明确 owner 和依赖方向，而不是继续扩大 `BattleSessionFeature`、`BattleContext` 或入口类的聚合职责。
+
+- **P4-1：`BattleSessionFeature` 收敛。** 按 runtime/composition、稳定公共 facade、生命周期和薄转发重新整理残余 partial，迁出仍修改 Gateway、Simulation、Snapshot 或 cleanup 状态的行为，使剩余入口只承担稳定 port、composition 和生命周期胶水。
+- **P4-2：Debug 职责分离。** 将 debug publication、只读 query/snapshot、`IBattleDebugCommandService` 和 IMGUI renderer 分开。换英雄、生成单位、重置 CD、AI 控制等命令不再由 GUI 直接解析 world service，development-only 创建边界保留在明确的装配入口。
+- **P4-3：Loading 职责分离。** 分离 phase runtime、lease transfer transaction、不可变 loading snapshot、renderer 与 manifest adapter；late completion 不再发布旧状态，lease 只在成功路径转移一次，取消、adopt failure 和 detach 路径保持可独立验证。
+- **P4-4：FormalLobby 收口。** 将 room-store subscription、自动化命令、battle transition 和 scene exit 的 owner 从表现编排中收敛出来；IMGUI callback 只负责转交命令和绘制 snapshot，不直接执行业务异步流程，并分别维护 subscription generation 与 operation generation。
+- **P4-5：根生命周期收敛。** 收敛 `GameEntry` 与 `MultiplayerGatewayEntryModule` 的 application composition、可靠 checkpoint flush、GUI bridge 和 Gateway recovery 依赖。入口保留 Unity 根生命周期胶水，不持有具体 debug controller；module detach 后清理 CTS、订阅和恢复 task，表现模块不反向操纵应用根对象。
+- **P5-1：可变 facade 清理。** `InputRecordWriter` 改为私有 backing field 加只读 facade，所有权变更收敛到 `BattleReplayRuntime`；Entity/Presentation 相关 public setter 因 Editor tests 位于独立程序集而保留，避免以内部可见性改动破坏现有测试边界。`BattleContext` 不再作为跨域 service locator，pool reset 继续调用明确 owner，stale binding 由 generation identity 处理。
+- **P5-2：shell/partial 审计。** 审计 Null Object、生成 registry、Editor hook 及接口要求的 no-op 后，没有发现可以安全删除且不改变装配或兼容性的剩余壳；已移除无职责的单文件 partial，不为适配陈旧生成工程而恢复废弃 production shell。
+- **P5-3：测试物理拆分。** 将 15 个 Gateway room preparation、world-start anchor、time-sync 和 frame-timing 测试迁移至 `GatewayRuntimeTimingTests`，原 `BattleRuntimeOptimizationTests` 从 2790 行降至 2519 行，新 fixture 为 284 行；两个 fixture 合计保留 87 个测试特性。新 Unity source 配套 GUID 为 `4f86100b79514ae6a62c06cf71a9a3f8`，静态扫描确认唯一。
+
+验证结果如下：
+
+- 受影响的 runtime 项目串行构建通过：0 errors、140 warnings；由于 Unity 生成项目共用 `Temp/bin`，最终构建使用 `-m:1`，并确认并行执行造成的缺失中间程序集属于构建竞争而非源代码错误。
+- P5-1/P5-3 过滤测试及新 Gateway fixture 的 `dotnet test` 均以退出码 0 完成。该证据来自 Unity 生成的测试 `.csproj`，本批次未执行 Unity Editor Batchmode Test Runner，因此不宣称已生成 Unity Test Runner XML 结果。
+- Unity source 元数据门禁通过：缺失 `.cs.meta` 为 0，重复 GUID 为 0；拆分前后测试特性总数为 87；`git diff --check` 通过，仅保留既有换行风格提示。
+- 为验证尚未刷新生成工程中的新增 source，曾临时加入两个 `.csproj` 的 Compile 项；验证完成后均已移除，生成的 runtime 与 UnitTests `.csproj` 不保留本批次修改。

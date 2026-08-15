@@ -1,92 +1,95 @@
 [
-  {
-    "id": 10030212,
-    "name": "赵云-破云之龙-第二段命中",
-    "event": "",
-    "enabled": true,
-    "allowExternal": false,
-    "phase": "immediate",
-    "priority": 50,
-    "conditions": [],
-    "actions": [
-      {
-        "type": "give_damage",
-        "damage_value": 85,
-        "source_attack_ratio": 0.35,
-        "damage_type": 1,
-        "reason_param": 10030201,
-        "target_query_id": 50030201,
-        "target_max_count": 10
-      },
-      {
-        "type": "heal",
-        "amount": 35,
-        "heal_type": 0,
-        "reason_kind": 1,
-        "reason_param": 10030201,
-        "target_self": true
-      }
-    ],
-    "scope": "owner"
-  },
-  {
-    "id": 10030213,
-    "name": "赵云-破云之龙-第三段命中",
-    "event": "",
-    "enabled": true,
-    "allowExternal": false,
-    "phase": "immediate",
-    "priority": 50,
-    "conditions": [],
-    "actions": [
-      {
-        "type": "give_damage",
-        "damage_value": 85,
-        "source_attack_ratio": 0.35,
-        "damage_type": 1,
-        "reason_param": 10030201,
-        "target_query_id": 50030201,
-        "target_max_count": 10
-      },
-      {
-        "type": "heal",
-        "amount": 35,
-        "heal_type": 0,
-        "reason_kind": 1,
-        "reason_param": 10030201,
-        "target_self": true
-      }
-    ],
-    "scope": "owner"
-  },
-  {
-    "id": 10030214,
-    "name": "赵云-破云之龙-第四段命中",
-    "event": "",
-    "enabled": true,
-    "allowExternal": false,
-    "phase": "immediate",
-    "priority": 50,
-    "conditions": [],
-    "actions": [
-      {
-        "type": "give_damage",
-        "damage_value": 85,
-        "source_attack_ratio": 0.35,
-        "damage_type": 1,
-        "reason_param": 10030201,
-        "target_query_id": 50030201,
-        "target_max_count": 10
-      },
-      {
-        "type": "heal",
-        "amount": 35,
-        "heal_type": 0,
-        "reason_kind": 1,
-        "reason_param": 10030201,
-        "target_self": true
-      }
-    ],
-    "scope": "owner"
-  }
+    {
+        "id":  10030212,
+        "name":  "赵云-破云之龙-第二段命中",
+        "event":  "",
+        "enabled":  true,
+        "allowExternal":  false,
+        "phase":  "immediate",
+        "priority":  50,
+        "conditions":  [
+
+                       ],
+        "actions":  [
+                        {
+                            "type":  "give_damage",
+                            "damage_value":  85,
+                            "source_attack_ratio":  0.35,
+                            "damage_type":  1,
+                            "reason_param":  10030201,
+                            "target_query_id":  50030201,
+                            "target_max_count":  10
+                        },
+                        {
+                            "type":  "heal",
+                            "amount":  35,
+                            "heal_type":  0,
+                            "reason_kind":  1,
+                            "reason_param":  10030201,
+                            "target_self":  true
+                        }
+                    ]
+    },
+    {
+        "id":  10030213,
+        "name":  "赵云-破云之龙-第三段命中",
+        "event":  "",
+        "enabled":  true,
+        "allowExternal":  false,
+        "phase":  "immediate",
+        "priority":  50,
+        "conditions":  [
+
+                       ],
+        "actions":  [
+                        {
+                            "type":  "give_damage",
+                            "damage_value":  85,
+                            "source_attack_ratio":  0.35,
+                            "damage_type":  1,
+                            "reason_param":  10030201,
+                            "target_query_id":  50030201,
+                            "target_max_count":  10
+                        },
+                        {
+                            "type":  "heal",
+                            "amount":  35,
+                            "heal_type":  0,
+                            "reason_kind":  1,
+                            "reason_param":  10030201,
+                            "target_self":  true
+                        }
+                    ]
+    },
+    {
+        "id":  10030214,
+        "name":  "赵云-破云之龙-第四段命中",
+        "event":  "",
+        "enabled":  true,
+        "allowExternal":  false,
+        "phase":  "immediate",
+        "priority":  50,
+        "conditions":  [
+
+                       ],
+        "actions":  [
+                        {
+                            "type":  "give_damage",
+                            "damage_value":  85,
+                            "source_attack_ratio":  0.35,
+                            "damage_type":  1,
+                            "reason_param":  10030201,
+                            "target_query_id":  50030201,
+                            "target_max_count":  10
+                        },
+                        {
+                            "type":  "heal",
+                            "amount":  35,
+                            "heal_type":  0,
+                            "reason_kind":  1,
+                            "reason_param":  10030201,
+                            "target_self":  true
+                        }
+                    ]
+    }
 ]

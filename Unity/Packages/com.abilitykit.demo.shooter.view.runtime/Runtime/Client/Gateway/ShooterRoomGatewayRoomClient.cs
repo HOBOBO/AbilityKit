@@ -800,7 +800,8 @@ namespace AbilityKit.Demo.Shooter.View
                 source.WorldId,
                 in anchor,
                 source.OwnerAccountId,
-                ToStagedPlayers(source.Players));
+                ToStagedPlayers(source.Players),
+                source.SyncCapabilities);
         }
 
         private static IReadOnlyList<ShooterGatewayStagedRoomPlayerSnapshot> ToStagedPlayers(
@@ -1606,7 +1607,8 @@ namespace AbilityKit.Demo.Shooter.View
             ulong worldId,
             in ShooterGatewayWorldStartAnchor worldStartAnchor,
             string ownerAccountId = "",
-            IReadOnlyList<ShooterGatewayStagedRoomPlayerSnapshot>? players = null)
+            IReadOnlyList<ShooterGatewayStagedRoomPlayerSnapshot>? players = null,
+            RoomGatewayNetworkSyncCapabilities? syncCapabilities = null)
         {
             RoomId = roomId ?? string.Empty;
             Phase = phase;
@@ -1624,6 +1626,7 @@ namespace AbilityKit.Demo.Shooter.View
             WorldStartAnchor = worldStartAnchor;
             OwnerAccountId = ownerAccountId ?? string.Empty;
             Players = players ?? Array.Empty<ShooterGatewayStagedRoomPlayerSnapshot>();
+            SyncCapabilities = syncCapabilities;
         }
 
         public string RoomId { get; }
@@ -1642,6 +1645,8 @@ namespace AbilityKit.Demo.Shooter.View
         public string BattleId { get; }
         public ulong WorldId { get; }
         public ShooterGatewayWorldStartAnchor WorldStartAnchor { get; }
+        /// <summary>服务端为当前战斗代际声明的同步能力。</summary>
+        public RoomGatewayNetworkSyncCapabilities? SyncCapabilities { get; }
     }
 
     public sealed class ShooterGatewayStagedRoomPlayerSnapshot

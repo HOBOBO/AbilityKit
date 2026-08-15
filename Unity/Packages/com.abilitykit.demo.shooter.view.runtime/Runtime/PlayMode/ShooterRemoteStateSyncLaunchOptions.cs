@@ -2,6 +2,7 @@
 
 using System;
 using AbilityKit.Demo.Shooter.View.Hosting;
+using AbilityKit.Network.Sdk;
 
 namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
@@ -33,7 +34,9 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             ShooterRemoteStateSyncLaunchMode launchMode = ShooterRemoteStateSyncLaunchMode.RestoreFirst,
             TimeSpan? timeout = null,
             string roomId = "",
-            ShooterRoomLaunchSpec? roomLaunchSpec = null)
+            ShooterRoomLaunchSpec? roomLaunchSpec = null,
+            IReliableEventCheckpointStore? reliableEventCheckpointStore = null,
+            ReliableEventCheckpointLifecycleOptions? reliableEventCheckpointLifecycleOptions = null)
         {
             SessionOptions = sessionOptions.Normalized();
             Endpoint = endpoint;
@@ -44,6 +47,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             Timeout = timeout ?? TimeSpan.FromSeconds(5);
             RoomId = roomId ?? string.Empty;
             RoomLaunchSpec = roomLaunchSpec;
+#if UNITY_5_3_OR_NEWER
+            ReliableEventCheckpointStore = reliableEventCheckpointStore
+                ?? ShooterUnityReliableEventCheckpointStores.Default;
+#else
+            ReliableEventCheckpointStore = reliableEventCheckpointStore;
+#endif
+            ReliableEventCheckpointLifecycleOptions = reliableEventCheckpointLifecycleOptions;
         }
 
         public ShooterPlayModeSessionOptions SessionOptions { get; }
@@ -55,10 +65,19 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public TimeSpan Timeout { get; }
         public string RoomId { get; }
         public ShooterRoomLaunchSpec? RoomLaunchSpec { get; }
+        /// <summary>跨重连会话复用的可靠事件检查点存储。</summary>
+        public IReliableEventCheckpointStore? ReliableEventCheckpointStore { get; }
+
+        /// <summary>可靠事件检查点在断线、暂停和退出阶段采用的生命周期策略。</summary>
+        public ReliableEventCheckpointLifecycleOptions? ReliableEventCheckpointLifecycleOptions { get; }
 
         public ShooterClientSyncAssemblyOptions CreateClientSyncAssemblyOptions()
         {
-            return ShooterClientSyncAssemblyOptions.ForModel(SessionOptions.SyncModel);
+            return ShooterClientSyncAssemblyOptions
+                .ForModel(SessionOptions.SyncModel)
+                .WithReliableEventCheckpointStore(ReliableEventCheckpointStore)
+                .WithReliableEventCheckpointLifecycleOptions(
+                    ReliableEventCheckpointLifecycleOptions);
         }
 
         public static ShooterRemoteStateSyncLaunchOptions RestoreFirst(

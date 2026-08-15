@@ -34,12 +34,13 @@ namespace AbilityKit.Game.Flow
                 node.WithRef(query);
             }
 
-            ctx.EntityNode = node;
-            ctx.EntityWorld = viewWorld;
-            ctx.EntityLookup = lookup;
-            ctx.EntityFactory = entityFactory;
-            ctx.EntityQuery = query;
-            ctx.DirtyEntities = new List<IEntityId>(128);
+            ctx.BindEntityRuntime(
+                node,
+                viewWorld,
+                lookup,
+                entityFactory,
+                query,
+                new List<IEntityId>(128));
         }
     }
 }

@@ -1,0 +1,8 @@
+{"caseId":"skill_10010101_scenario_dash_hit_damage_knockup","kind":"SkillCast","configId":10010101,"rootId":100}
+{"caseId":"skill_10010101_scenario_dash_hit_damage_knockup","kind":"EffectExecution","configId":10010101,"rootId":100}
+{"caseId":"skill_10010101_scenario_dash_hit_damage_knockup","kind":"EffectAction","configId":1241142882,"rootId":100}
+{"caseId":"skill_10010101_scenario_dash_hit_damage_knockup","kind":"EffectAction","configId":427896051,"rootId":100}
+{"caseId":"skill_10010101_scenario_dash_hit_damage_knockup","kind":"EffectAction","configId":589451731,"rootId":100}
+{"caseId":"skill_10010101_scenario_dash_hit_damage_knockup","kind":"EffectAction","configId":2133799056,"rootId":100}
+{"caseId":"skill_10010101_scenario_dash_hit_damage_knockup","kind":"BuffApply","configId":10010000,"rootId":100}
+{"caseId":"skill_10010101_scenario_dash_hit_damage_knockup","kind":"DamageApply","configId":10010101,"rootId":100}

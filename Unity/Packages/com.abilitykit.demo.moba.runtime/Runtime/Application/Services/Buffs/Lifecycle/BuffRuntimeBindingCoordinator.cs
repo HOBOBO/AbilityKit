@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;

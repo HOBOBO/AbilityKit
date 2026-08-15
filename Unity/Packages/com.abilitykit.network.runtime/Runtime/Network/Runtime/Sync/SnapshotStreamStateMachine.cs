@@ -19,7 +19,8 @@ namespace AbilityKit.Network.Runtime.Sync
         MissingBaseline = 4,
         BaselineMismatch = 5,
         WorldChanged = 6,
-        UnsupportedVersion = 7
+        UnsupportedVersion = 7,
+        SequenceGap = 8
     }
 
     public enum SnapshotStreamRecoveryReason
@@ -28,7 +29,8 @@ namespace AbilityKit.Network.Runtime.Sync
         MissingBaseline = 1,
         BaselineMismatch = 2,
         WorldChanged = 3,
-        UnsupportedVersion = 4
+        UnsupportedVersion = 4,
+        SequenceGap = 5
     }
 
     public readonly struct SnapshotStreamEnvelope
@@ -122,7 +124,8 @@ namespace AbilityKit.Network.Runtime.Sync
         public bool NeedsFullBaseline =>
             Status == SnapshotStreamValidationStatus.MissingBaseline ||
             Status == SnapshotStreamValidationStatus.BaselineMismatch ||
-            Status == SnapshotStreamValidationStatus.WorldChanged;
+            Status == SnapshotStreamValidationStatus.WorldChanged ||
+            Status == SnapshotStreamValidationStatus.SequenceGap;
     }
 
     public sealed class SnapshotStreamStateMachine
@@ -172,6 +175,20 @@ namespace AbilityKit.Network.Runtime.Sync
 
         public SnapshotStreamValidationResult Validate(in SnapshotStreamEnvelope envelope)
         {
+            return Validate(in envelope, int.MaxValue);
+        }
+
+        /// <summary>
+        /// 校验快照，并可拒绝大于发布方预期序列增量的 delta 序列缺口。
+        /// 完整基线始终允许进入，以便数据流从缺口或恢复状态重新建立基线。
+        /// </summary>
+        public SnapshotStreamValidationResult Validate(
+            in SnapshotStreamEnvelope envelope,
+            int maximumDeltaSequenceAdvance)
+        {
+            if (maximumDeltaSequenceAdvance <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maximumDeltaSequenceAdvance));
+
             if (envelope.SchemaVersion < _minimumSupportedVersion || envelope.SchemaVersion > _maximumSupportedVersion)
             {
                 MarkRejected(SnapshotStreamRecoveryReason.UnsupportedVersion, in envelope, needsFullBaseline: false);
@@ -253,6 +270,18 @@ namespace AbilityKit.Network.Runtime.Sync
             }
 
             var gapCount = CalculateGapCount(in envelope);
+            if (maximumDeltaSequenceAdvance != int.MaxValue &&
+                gapCount >= maximumDeltaSequenceAdvance)
+            {
+                MarkRejected(SnapshotStreamRecoveryReason.SequenceGap, in envelope, needsFullBaseline: true);
+                return CreateResult(
+                    SnapshotStreamValidationStatus.SequenceGap,
+                    SnapshotStreamRecoveryReason.SequenceGap,
+                    in envelope,
+                    gapCount,
+                    worldChanged: false);
+            }
+
             return CreateResult(
                 SnapshotStreamValidationStatus.AcceptedDelta,
                 SnapshotStreamRecoveryReason.None,

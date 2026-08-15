@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Configuration;
+using AbilityKit.Demo.Moba.View.Settings;
 using AbilityKit.Game.EntityCreation;
 using AbilityKit.World.ECS;
 

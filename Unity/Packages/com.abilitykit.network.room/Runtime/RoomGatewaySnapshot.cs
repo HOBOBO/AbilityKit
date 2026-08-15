@@ -22,6 +22,8 @@ namespace AbilityKit.Network.Room
         public bool CanStart { get; set; }
         public string BattleId { get; set; } = string.Empty;
         public ulong WorldId { get; set; }
+        /// <summary>服务端声明的本战斗代际同步能力；为空表示旧服务端未声明。</summary>
+        public RoomGatewayNetworkSyncCapabilities? SyncCapabilities { get; set; }
         public IReadOnlyList<string> Members { get; set; } = Array.Empty<string>();
         public IReadOnlyList<RoomGatewayPlayerSnapshot> Players { get; set; } = Array.Empty<RoomGatewayPlayerSnapshot>();
         public RoomGatewayWorldStartAnchor WorldStartAnchor { get; set; }

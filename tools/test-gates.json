@@ -173,6 +173,11 @@
           "project": "src/AbilityKit.Network.Runtime.Tests/AbilityKit.Network.Runtime.Tests.csproj"
         },
         {
+          "name": "Demo common harness tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Common.Tests/AbilityKit.Demo.Common.Tests.csproj"
+        },
+        {
           "name": "World DI tests",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.World.DI.Tests/AbilityKit.World.DI.Tests.csproj"
@@ -190,13 +195,75 @@
       ]
     },
     {
+      "name": "moba-network-options",
+      "level": "P1",
+      "owner": "MOBA Multiplayer",
+      "description": "Fast MOBA battle data-plane option assembly contract: shared room-gateway preset, StateSync/FrameSync input serializers, retry semantics, snapshot/frame deserializers, and reliable-event cursor wiring.",
+      "scope": [
+        "moba",
+        "network-options",
+        "battle-data-plane",
+        "protocol-contract"
+      ],
+      "requiredBefore": [
+        "merge-moba-network-options-change",
+        "change-moba-battle-transport-preset"
+      ],
+      "failurePolicy": "Block MOBA network option or protocol preset changes until the focused dotnet contract passes.",
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "MOBA battle network options contract",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.View.Runtime.Tests/AbilityKit.Demo.Moba.View.Runtime.Tests.csproj",
+          "filter": "FullyQualifiedName~MobaBattleNetworkOptionsContractTests"
+        }
+      ]
+    },
+    {
+      "name": "moba-acceptance-dotnet",
+      "level": "P1",
+      "owner": "MOBA Acceptance/Testing",
+      "description": "Unity-free dotnet acceptance verdict: parse real expectations via System.Text.Json, run the harness-free verifier over trace sources, and emit canonical batch_summary.json. Seed of the dsl-regression gate.",
+      "scope": [
+        "acceptance-verdict",
+        "expectation-schema",
+        "dsl-regression-core"
+      ],
+      "requiredBefore": [
+        "merge-acceptance-verdict-or-expectation-change",
+        "continue-after-moba-acceptance-models-change"
+      ],
+      "failurePolicy": "Fix the verdict contract break or expectation schema drift before continuing. Behavioral coverage grows as trace fixtures are added (needs-trace cases do not fail this gate).",
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "MOBA acceptance dotnet verdict gate",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.Acceptance.Tests/AbilityKit.Demo.Moba.Acceptance.Tests.csproj",
+          "filter": "Gate=MobaAcceptanceDotnet"
+        }
+      ]
+    },
+    {
       "name": "network-sdk",
       "level": "P1",
       "owner": "Network SDK Platform",
-      "description": "Network SDK layer contracts: control plane (sdk/room), battle data-plane engine + config builder, and transport implementations (InMemory/LiteNet/WebSocket) loopback.",
+      "description": "Network SDK layer contracts: control plane (sdk/room), transport-neutral host lifecycle and integration, battle data-plane engine + config builder, and transport implementations (InMemory/LiteNet/WebSocket) loopback.",
       "scope": [
         "network-runtime",
         "network-sdk",
+        "network-host",
         "network-battle",
         "network-transports"
       ],
@@ -215,6 +282,26 @@
           "name": "Network SDK tests",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Network.Sdk.Tests/AbilityKit.Network.Sdk.Tests.csproj"
+        },
+        {
+          "name": "Network Host tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Network.Host.Tests/AbilityKit.Network.Host.Tests.csproj"
+        },
+        {
+          "name": "Host network integration tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Host.Network.Tests/AbilityKit.Host.Network.Tests.csproj"
+        },
+        {
+          "name": "MOBA Host network adapter tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.Host.Tests/AbilityKit.Demo.Moba.Host.Tests.csproj"
+        },
+        {
+          "name": "Shooter Host network adapter tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Shooter.Host.Tests/AbilityKit.Demo.Shooter.Host.Tests.csproj"
         },
         {
           "name": "Network room tests",
@@ -257,11 +344,16 @@
       "name": "core-stability",
       "level": "P1",
       "owner": "Runtime Platform",
-      "description": "Core package correctness, lifecycle, synchronization, allocation, and Unity direct-dependency contracts.",
+      "description": "Core package correctness, namespace ownership, lifecycle, synchronization, allocation, and Unity direct-dependency contracts.",
       "scope": [
+        "core-api",
+        "core-boundary",
+        "core-namespace-ownership",
         "record",
         "state-sync",
         "frame-sync",
+        "network-runtime",
+        "websocket-transport",
         "host",
         "triggering",
         "context",
@@ -284,6 +376,33 @@
       },
       "steps": [
         {
+          "name": "Core tests and Public API compatibility",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Core.Tests/AbilityKit.Core.Tests.csproj"
+        },
+        {
+          "name": "Continuous package tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Continuous.Tests/AbilityKit.Continuous.Tests.csproj"
+        },
+        {
+          "name": "MOBA owner-package bootstrap infrastructure tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
+          "filter": "FullyQualifiedName~MobaBootstrapInfrastructureTests"
+        },
+        {
+          "name": "MOBA View settings ownership tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.View.Settings.Tests/AbilityKit.Demo.Moba.View.Settings.Tests.csproj"
+        },
+        {
+          "name": "Core assembly and platform boundary audit",
+          "kind": "powershell-script",
+          "script": "tools/audit_core_boundaries.ps1",
+          "timeoutSeconds": 120
+        },
+        {
           "name": "Record tests",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Record.Tests/AbilityKit.Record.Tests.csproj"
@@ -297,6 +416,21 @@
           "name": "World FrameSync tests",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.World.FrameSync.Tests/AbilityKit.World.FrameSync.Tests.csproj"
+        },
+        {
+          "name": "Network runtime buffer ownership tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Network.Runtime.Tests/AbilityKit.Network.Runtime.Tests.csproj"
+        },
+        {
+          "name": "Demo common harness tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Common.Tests/AbilityKit.Demo.Common.Tests.csproj"
+        },
+        {
+          "name": "WebSocket transport buffer ownership tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Network.Transport.WebSocket.Tests/AbilityKit.Network.Transport.WebSocket.Tests.csproj"
         },
         {
           "name": "Host tests",
@@ -329,7 +463,7 @@
           "script": "tools/audit_unity_package_dependencies.ps1",
           "arguments": [
             "-PackageNames",
-            "com.abilitykit.record,com.abilitykit.world.statesync,com.abilitykit.world.framesync,com.abilitykit.host,com.abilitykit.triggering,com.abilitykit.context,com.abilitykit.attributes,com.abilitykit.modifiers"
+            "com.abilitykit.continuous,com.abilitykit.behavior,com.abilitykit.record,com.abilitykit.world.statesync,com.abilitykit.world.framesync,com.abilitykit.network.runtime,com.abilitykit.network.transport.websocket,com.abilitykit.host,com.abilitykit.triggering,com.abilitykit.context,com.abilitykit.attributes,com.abilitykit.modifiers,com.abilitykit.demo.moba.runtime,com.abilitykit.demo.moba.editor,com.abilitykit.demo.moba.view.runtime"
           ],
           "timeoutSeconds": 120
         }
@@ -763,6 +897,11 @@
           "name": "Network runtime tests",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Network.Runtime.Tests/AbilityKit.Network.Runtime.Tests.csproj"
+        },
+        {
+          "name": "Demo common harness tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Common.Tests/AbilityKit.Demo.Common.Tests.csproj"
         },
         {
           "name": "Record tests",

@@ -4,7 +4,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Attributes.Core;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Demo.Moba.Services

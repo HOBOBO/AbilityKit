@@ -2,7 +2,7 @@
   "triggers": [
     {
       "id": 10060301,
-      "name": "嬴政-至尊皇冠-开始引导并生成剑阵",
+      "name": "嬴政-至尊王权-开启飞剑状态",
       "event": "",
       "enabled": true,
       "allowExternal": false,
@@ -12,53 +12,21 @@
       "actions": [
         {
           "type": "add_buff",
-          "buffIds": [
-            10060301
-          ],
+          "buffIds": [10060301],
           "target_self": true
         },
         {
-          "type": "spawn_area",
-          "area_id": 40060301,
-          "position_mode": 1,
-          "radius": 5,
-          "duration_ms": 5500
-        },
-        {
-          "type": "spawn_area",
-          "area_id": 40060302,
-          "position_mode": 1,
-          "radius": 5,
-          "duration_ms": 5500
-        },
-        {
-          "type": "spawn_area",
-          "area_id": 40060303,
-          "position_mode": 1,
-          "radius": 5,
-          "duration_ms": 5500
-        },
-        {
-          "type": "spawn_area",
-          "area_id": 40060304,
-          "position_mode": 1,
-          "radius": 5,
-          "duration_ms": 5500
-        },
-        {
-          "type": "spawn_area",
-          "area_id": 40060305,
-          "position_mode": 1,
-          "radius": 5,
-          "duration_ms": 5500
+          "type": "shoot_projectile",
+          "launcher_id": 31060301,
+          "projectile_id": 30060301,
+          "directionSource": "cast_context"
         },
         {
           "type": "debug_log",
-          "message": "嬴政三技能：引导期间在目标区域生成多波剑阵，每波造成法术伤害并击退目标",
+          "message": "嬴政三技能至尊王权：启动单个持续飞剑发射器，共11波55支飞剑",
           "dump_args": false
         }
-      ],
-      "scope": "owner"
+      ]
     }
   ]
 }

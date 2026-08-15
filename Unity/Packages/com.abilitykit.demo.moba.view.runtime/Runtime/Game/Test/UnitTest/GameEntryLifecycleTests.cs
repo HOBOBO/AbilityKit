@@ -49,6 +49,28 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(typeof(MonoBehaviour).IsAssignableFrom(typeof(GameEntry)));
             Assert.IsFalse(typeof(MonoBehaviour).IsAssignableFrom(typeof(GameEntryBootstrap)));
             Assert.IsTrue(typeof(IGameEntryModule).IsAssignableFrom(typeof(GameEntryBootstrap)));
+            Assert.IsNull(typeof(GameEntryModuleContext).GetField("Entry"));
+        }
+
+        [Test]
+        public void EntryBootstrap_DependsOnlyOnRootLifecycle()
+        {
+            var world = new EntityWorld();
+            var root = world.Create("EntryBootstrap_DependsOnlyOnRootLifecycle");
+            var context = new GameEntryModuleContext(host: null, root: root);
+            var bootstrap = new GameEntryBootstrap();
+
+            bootstrap.OnAttach(in context);
+
+            Assert.IsTrue(root.TryGetRef(out GameManager gameManager));
+            Assert.IsTrue(gameManager.IsInGame);
+            Assert.IsTrue(root.TryGetChildById(1, out var systems));
+            Assert.IsTrue(systems.IsValid);
+
+            bootstrap.OnDetach(in context);
+
+            Assert.IsFalse(gameManager.IsInGame);
+            world.DestroyRecursive(root.Id);
         }
 
         [Test]

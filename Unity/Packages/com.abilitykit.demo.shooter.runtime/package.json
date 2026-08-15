@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "com.abilitykit.demo.shooter.runtime",
   "version": "0.0.1",
   "displayName": "AbilityKit Demo Shooter Runtime",
@@ -8,20 +8,20 @@
     "name": "AbilityKit"
   },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1",
-    "com.abilitykit.coordinator": "0.0.1",
-    "com.abilitykit.game.battle.runtime": "0.0.1",
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.coordinator": "0.1.0",
+    "com.abilitykit.game.battle.runtime": "0.1.0",
     "com.abilitykit.network.battle": "0.1.0",
-    "com.abilitykit.hfsm": "0.0.1",
-    "com.abilitykit.host": "0.0.1",
-    "com.abilitykit.network.runtime": "0.0.1",
+    "com.abilitykit.hfsm": "0.1.0",
+    "com.abilitykit.host": "0.1.0",
+    "com.abilitykit.network.runtime": "0.1.0",
     "com.abilitykit.thirdparty.svelto": "0.0.1",
-    "com.abilitykit.world.di": "0.0.1",
-    "com.abilitykit.world.framesync": "0.0.1",
-    "com.abilitykit.world.statesync": "0.0.1",
-    "com.abilitykit.world.svelto": "0.0.1",
+    "com.abilitykit.world.di": "0.1.0",
+    "com.abilitykit.world.framesync": "0.1.0",
+    "com.abilitykit.world.statesync": "0.1.0",
+    "com.abilitykit.world.svelto": "0.1.0",
     "com.abilitykit.demo.shooter.share": "0.0.1",
-    "com.abilitykit.protocol.shooter": "0.0.1",
+    "com.abilitykit.protocol.shooter": "0.1.0",
     "com.unity.nuget.newtonsoft-json": "3.2.1"
   }
 }

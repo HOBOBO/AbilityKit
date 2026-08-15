@@ -242,6 +242,23 @@ namespace AbilityKit.Protocol.Room
     }
 
     [MemoryPackable]
+    public partial struct WireNetworkSyncCapabilities
+    {
+        [MemoryPackOrder(0)] public int MetadataVersion { get; set; }
+        [MemoryPackOrder(1)] public string ProfileName { get; set; }
+        [MemoryPackOrder(2)] public int MinimumSchemaVersion { get; set; }
+        [MemoryPackOrder(3)] public int MaximumSchemaVersion { get; set; }
+        [MemoryPackOrder(4)] public int ClientPlayback { get; set; }
+        [MemoryPackOrder(5)] public int Input { get; set; }
+        [MemoryPackOrder(6)] public int Snapshot { get; set; }
+        [MemoryPackOrder(7)] public int Interest { get; set; }
+        [MemoryPackOrder(8)] public int Recovery { get; set; }
+        [MemoryPackOrder(9)] public int ServerValidation { get; set; }
+        // 仅追加字段：旧端缺少该字段时按不支持可靠事件扩展能力处理。
+        [MemoryPackOrder(10)] public int ReliableEvent { get; set; }
+    }
+
+    [MemoryPackable]
     public partial struct WireStartRoomBattleRes
     {
         [MemoryPackOrder(0)] public bool Success { get; set; }
@@ -251,6 +268,8 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(4)] public string Message { get; set; }
         [MemoryPackOrder(5)] public WireWorldStartAnchor WorldStartAnchor { get; set; }
         [MemoryPackOrder(6)] public long ServerNowTicks { get; set; }
+        // 仅追加字段：旧服务端响应缺少该字段时按未声明能力处理。
+        [MemoryPackOrder(7)] public WireNetworkSyncCapabilities? SyncCapabilities { get; set; }
     }
 
     [ProtocolOpCode(RoomGatewayOpCodes.SubmitBattleInput, ProtocolDirection.ClientToServer, nameof(WireSubmitBattleInputReq))]
@@ -442,6 +461,8 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(14)] public string LaunchManifestHash { get; set; }
         [MemoryPackOrder(15)] public int LaunchManifestVersion { get; set; }
         [MemoryPackOrder(16)] public string LastStartFailureCode { get; set; }
+        // 战斗代际固定的同步能力只随房间元数据传输，不进入逐帧快照。
+        [MemoryPackOrder(17)] public WireNetworkSyncCapabilities? SyncCapabilities { get; set; }
     }
 
     [MemoryPackable]

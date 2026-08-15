@@ -3,12 +3,10 @@
 namespace AbilityKit.Network.Runtime
 {
     /// <summary>
-    /// Gameplay-agnostic tuning for authoritative remote playback driven by
-    /// <see cref="RemoteSnapshotBuffer{TSample}"/> + <see cref="InterpolationTimeline"/>.
-    /// <see cref="TicksPerSecond"/> maps the authoritative server-tick timeline to wall-clock seconds,
-    /// and <see cref="InterpolationDelayTicks"/> is how far behind the newest authoritative sample the
-    /// remote playback is held so jitter is absorbed and interpolation has two samples to blend.
-    /// <see cref="BufferCapacity"/> bounds how many remote snapshots are retained.
+    /// 由 <see cref="RemoteSnapshotBuffer{TSample}"/> 与 <see cref="InterpolationTimeline"/> 驱动的
+    /// 玩法无关权威远端回放参数。<see cref="TicksPerSecond"/> 将服务器权威 tick 时间线映射到现实秒数；
+    /// <see cref="InterpolationDelayTicks"/> 指定远端回放落后最新权威样本的距离，用于吸收抖动并保留两个插值端点；
+    /// <see cref="BufferCapacity"/> 限制保留的远端快照数量。
     /// </summary>
     public readonly struct InterpolationConfig
     {
@@ -31,13 +29,12 @@ namespace AbilityKit.Network.Runtime
             MaxExtrapolationTicks = maxExtrapolationTicks < 0L ? 0L : maxExtrapolationTicks;
         }
 
-        /// <summary>Default soft catch-up rate: absorb clock drift at up to 10% of real time per frame.</summary>
+        /// <summary>默认柔性追帧速率：每帧最多按现实时间的 10% 吸收时钟漂移。</summary>
         public const double DefaultCatchUpRate = 0.1d;
 
         /// <summary>
-        /// Default extrapolation tolerance: when the delayed playback time runs more than 50ms past the
-        /// newest buffered snapshot (a starved buffer), playback holds the last authoritative pose and
-        /// is flagged as starved rather than drifting further.
+        /// 默认外推容忍度：当延迟回放时间超过最新缓冲快照 50ms 时，缓冲区被视为饥饿；
+        /// 此时保持最后一个权威姿态并标记饥饿，不再继续漂移。
         /// </summary>
         public const long DefaultMaxExtrapolationTicks = 50L;
 
@@ -48,25 +45,22 @@ namespace AbilityKit.Network.Runtime
         public int BufferCapacity { get; }
 
         /// <summary>
-        /// How aggressively the playback clock converges toward the authoritative server time. Zero
-        /// snaps directly; a positive value (clamped to 1) smoothly absorbs drift. See
-        /// <see cref="InterpolationTimeline.MaxCatchUpRate"/>.
+        /// 回放时钟向服务器权威时间收敛的强度。零表示直接跳转；正值会平滑吸收漂移，最大限制为 1。
+        /// 参见 <see cref="InterpolationTimeline.MaxCatchUpRate"/>。
         /// </summary>
         public double CatchUpRate { get; }
 
         /// <summary>
-        /// How far past the newest buffered snapshot the delayed playback may run before it is treated
-        /// as starved. Within this tolerance playback holds on the newest authoritative pose; beyond it
-        /// the controller flags the buffer as starved (see
-        /// <see cref="InterpolationDiagnostics.IsRemotePlaybackStarved"/>).
+        /// 延迟回放超过最新缓冲快照多远后被视为饥饿。在该容忍范围内保持最新权威姿态；
+        /// 超出后控制器将缓冲区标记为饥饿，参见
+        /// <see cref="InterpolationDiagnostics.IsRemotePlaybackStarved"/>。
         /// </summary>
         public long MaxExtrapolationTicks { get; }
 
         /// <summary>
-        /// Default tuning: a 100ms interpolation delay against a millisecond timeline, retaining the
-        /// last 32 remote snapshots, with soft clock convergence and a 50ms extrapolation tolerance.
-        /// Samples that carry server ticks in other units can supply a matching
-        /// <see cref="TicksPerSecond"/>.
+        /// 默认参数：在毫秒时间线上使用 100ms 插值延迟，保留最近 32 个远端快照，
+        /// 使用柔性时钟收敛与 50ms 外推容忍度。若样本中的服务器 tick 使用其他单位，
+        /// 应提供与之匹配的 <see cref="TicksPerSecond"/>。
         /// </summary>
         public static InterpolationConfig Default => new InterpolationConfig(
             ticksPerSecond: 1000L,

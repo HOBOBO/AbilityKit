@@ -1,6 +1,6 @@
 {
   "name": "com.abilitykit.ability.explain",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit Ability Explain",
   "unity": "2022.3",
   "description": "Editor explain/inspect framework (forest/tree + navigation protocol) for config-driven abilities.",
@@ -15,6 +15,6 @@
     }
   ],
   "dependencies": {
-    "com.abilitykit.core": "0.0.1"
+    "com.abilitykit.core": "0.1.0"
   }
 }

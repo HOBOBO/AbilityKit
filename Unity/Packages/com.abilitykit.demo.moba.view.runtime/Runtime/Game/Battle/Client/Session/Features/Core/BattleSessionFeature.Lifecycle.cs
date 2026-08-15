@@ -8,9 +8,10 @@ namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleSessionFeature
     {
-        private IBattleAssetLease _assetLease;
+        internal IBattleAssetLease AssetLease => _runtime.Assets.Lease;
 
-        internal IBattleAssetLease AssetLease => _assetLease;
+        IBattleAssetLookup IBattleAssetLoadSessionPort.AssetLookup =>
+            _runtime.Assets.AssetLookup;
 
         public void OnAttach(in GamePhaseContext ctx)
         {
@@ -20,6 +21,8 @@ namespace AbilityKit.Game.Flow
             BattleContext battleCtx;
             ctx.Features.TryGet(out battleCtx);
             _ctx = battleCtx;
+            _runtime.BindContext(_ctx);
+            ctx.Features.Set<IBattleAssetLoadSessionPort>(this);
             _flow = ctx.Entry != null ? ctx.Entry.Get<GameFlowDomain>() : null;
 
             _eventsCtrl.OnAttach(this);
@@ -27,6 +30,7 @@ namespace AbilityKit.Game.Flow
 
             EnsureSubFeaturesCreated();
             _subFeatureHost?.Attach(new FeatureModuleContext<BattleSessionFeature>(ctx, this));
+            _runtime.Diagnostics.PublishDebugControls();
         }
 
         private static void TryInstallUnityLogSinkIfNeeded()
@@ -68,8 +72,10 @@ namespace AbilityKit.Game.Flow
             TryDetachCleanup(_state.ResetSessionFlags, "session flags");
             TryDetachCleanup(() => _eventsCtrl.OnDetach(this), "session events");
             TryDetachCleanup(() => SessionContextBinder.ClearSession(_ctx), "session context");
+            TryDetachCleanup(() => _runtime.UnbindContext(_ctx), "input context");
+            TryDetachCleanup(() => UnpublishAssetLoadPort(detachContext), "asset load port");
             TryDetachCleanup(_runtime.Diagnostics.Dispose, "session diagnostics");
-            TryDetachCleanup(ReleaseAssetLease, "asset lease");
+            TryDetachCleanup(_runtime.Assets.Dispose, "asset lease");
 
             _ctx = null;
             _flow = null;
@@ -88,38 +94,24 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        internal void AdoptAssetLease(IBattleAssetLease lease)
+        internal void AdoptAssetLease(IBattleAssetLease lease) =>
+            _runtime.Assets.Adopt(lease);
+
+        void IBattleAssetLoadSessionPort.AdoptAssetLease(IBattleAssetLease lease) =>
+            AdoptAssetLease(lease);
+
+        void IBattleAssetLoadSessionPort.NotifyAssetsLoadCompleted() =>
+            NotifyAssetsLoadCompleted();
+
+        private void UnpublishAssetLoadPort(in GamePhaseContext ctx)
         {
-            if (lease == null) throw new ArgumentNullException(nameof(lease));
-
-            var previous = _assetLease;
-            _assetLease = lease;
-            if (previous == null || ReferenceEquals(previous, lease)) return;
-
-            try
+            if (!ctx.Features.TryGet(out IBattleAssetLoadSessionPort current) ||
+                !ReferenceEquals(current, this))
             {
-                previous.Dispose();
+                return;
             }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[BattleSessionFeature] Failed to release replaced battle asset lease");
-            }
-        }
 
-        private void ReleaseAssetLease()
-        {
-            var lease = _assetLease;
-            _assetLease = null;
-            if (lease == null) return;
-
-            try
-            {
-                lease.Dispose();
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[BattleSessionFeature] Failed to release battle asset lease");
-            }
+            ctx.Features.Remove<IBattleAssetLoadSessionPort>();
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)

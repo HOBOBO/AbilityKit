@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    性能回归基线比对器（工业化缺口：perf regression gate）。
+    读两份 BenchmarkReport（abilitykit.runtime-benchmark.v1，camelCase）——
+    golden baseline vs 当前 run，按 descriptor.id 配对，对时间/分配指标按阈值判 drift，
+    输出 verdict + JSON 报告 + CI 退出码。零侵入既有 benchmark runner / gate。
+    挂法（后续）：在 runtime-performance-measurement 门禁跑完 benchmark 后调用本工具比对。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>AbilityKit.Runtime.Benchmarks.Compare</RootNamespace>
+    <AssemblyName>AbilityKit.Runtime.Benchmarks.Compare</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Benchmarking\AbilityKit.Benchmarking.csproj" />
+  </ItemGroup>
+
+</Project>

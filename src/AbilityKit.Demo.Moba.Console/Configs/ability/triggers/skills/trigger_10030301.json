@@ -1,24 +1,43 @@
 {
-  "id": 10030301,
-  "name": "赵云-天翔之龙-跃向目标区域",
-  "event": "",
-  "enabled": true,
-  "allowExternal": false,
-  "phase": "immediate",
-  "priority": 50,
-  "conditions": [],
-  "actions": [
-    {
-      "type": "spawn_area",
-      "area_id": 40030301,
-      "position_mode": 1,
-      "radius": 4.5,
-      "duration_ms": 700
-    },
-    {
-      "type": "debug_log",
-      "message": "赵云三技能天翔之龙：跃向目标区域，落地造成伤害、击飞并施加感电标记",
-      "dump_args": false
-    }
-  ]
+    "id":  10030301,
+    "name":  "赵云-天翔之龙-跃向目标区域",
+    "event":  "",
+    "enabled":  true,
+    "allowExternal":  false,
+    "phase":  "immediate",
+    "priority":  50,
+    "conditions":  [
+
+                   ],
+    "actions":  [
+                    {
+                        "type":  "dash",
+                        "duration_ms":  500,
+                        "move_to_aim_position":  true,
+                        "priority":  1,
+                        "apply_to_caster":  true,
+                        "motion_group_id":  5
+                    },
+                    {
+                        "type":  "jump",
+                        "height":  2.2,
+                        "duration_ms":  500,
+                        "priority":  100,
+                        "apply_to_caster":  true,
+                        "motion_group_id":  5,
+                        "continuous_tag_template_id":  10000001
+                    },
+                    {
+                        "type":  "spawn_area",
+                        "area_id":  40030301,
+                        "position_mode":  2,
+                        "radius":  4.5,
+                        "duration_ms":  700
+                    },
+                    {
+                        "type":  "debug_log",
+                        "message":  "赵云三技能天翔之龙：跃向目标区域，落地造成伤害、击飞并施加感电标记",
+                        "dump_args":  false
+                    }
+                ]
 }

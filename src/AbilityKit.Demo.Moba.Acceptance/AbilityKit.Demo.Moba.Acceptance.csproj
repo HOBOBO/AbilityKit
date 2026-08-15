@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    验收判定层 · 纯 dotnet（无 Unity / 无模拟器 / 无 NUnit）。
+    对应设计文档 (Docs/AbilityKit白盒测试DSL与测试平台设计.md) Phase 0 的可移植层。
+    1) 链接现有真实 DTO MobaAcceptanceModels.cs（仅此一文件，纯 System 依赖）—— 证明它在 dotnet 可编译。
+    2) AcceptanceJsonCodec：用 System.Text.Json 替换 UnityEngine.JsonUtility 的读写（dotnet 侧）。
+    3) AcceptanceVerifier：从 MobaAcceptanceTraceExporter.BuildCoverage / BuildSummary 忠实移植的纯判定器，
+       不再依赖 MobaSkillConfigTestHarness —— 这正是 harness 解耦的「第一刀」。
+    不链接 runner/exporter/harness（它们依赖 UnityEngine.JsonUtility + 模拟器 + NUnit）。
+    零 ProjectReference：本层是完全自洽的。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>AbilityKit.Demo.Moba.Acceptance</RootNamespace>
+    <AssemblyName>AbilityKit.Demo.Moba.Acceptance</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <!-- 链接进来的 MobaAcceptanceModels.cs 是 legacy DTO（未做 nullable 标注），
+         在 Nullable=enable 下会刷大量 CS86xx「未初始化/可能 null」警告，且无法在不改 Unity 源码的前提下修复。
+         这里按 nullability-legacy 噪声族抑制；本库自有代码不产生这些警告。 -->
+    <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8605;CS8618;CS8625;CS8629;CS0649;CS0414</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\Test\UnitTest\Acceptance\Infrastructure\MobaAcceptanceModels.cs">
+      <Link>Linked\MobaAcceptanceModels.cs</Link>
+    </Compile>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Samples.BattleRuntime</RootNamespace>
+    <AssemblyName>AbilityKit.Samples.BattleRuntime</AssemblyName>
+  </PropertyGroup>
+
+  <!-- BattleRuntime 组合：SkillCore 之上加 targeting / projectile / damage（projectile 传递依赖 collision.abstractions） -->
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Samples.SkillCore\AbilityKit.Samples.SkillCore.csproj" />
+    <ProjectReference Include="..\AbilityKit.Combat.Targeting\AbilityKit.Combat.Targeting.csproj" />
+    <ProjectReference Include="..\AbilityKit.Combat.Projectile\AbilityKit.Combat.Projectile.csproj" />
+    <ProjectReference Include="..\AbilityKit.Combat.Damage\AbilityKit.Combat.Damage.csproj" />
+    <ProjectReference Include="..\AbilityKit.Combat.Collision.Abstractions\AbilityKit.Combat.Collision.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

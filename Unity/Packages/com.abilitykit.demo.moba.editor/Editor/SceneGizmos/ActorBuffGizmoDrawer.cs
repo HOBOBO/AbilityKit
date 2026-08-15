@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Debugging;
-using AbilityKit.Core.Editor.Debugging;
+using AbilityKit.Diagnostics.DebugDraw;
+using AbilityKit.Diagnostics.Editor.DebugDraw;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;

@@ -1,0 +1,57 @@
+{
+  "triggers": [
+    {
+      "id": 10050313,
+      "name": "妲己-女王崇拜-狐火命中伤害",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "give_damage",
+          "damage_value": 325,
+          "source_attack_ratio": 0.75,
+          "damage_type": 2,
+          "reason_param": 10050301
+        },
+        {
+          "type": "add_buff",
+          "buffIds": [10050000],
+          "duration_ms": 3000
+        },
+        {
+          "type": "debug_log",
+          "message": "妲己三技能女王崇拜：狐火命中造成法术伤害并叠加失心",
+          "dump_args": false
+        }
+      ]
+    },
+    {
+      "id": 10050314,
+      "name": "妲己-女王崇拜-重复命中伤害衰减",
+      "event": "damage.attack.before_calc",
+      "scope": "owner",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 60,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "adjust_damage_number",
+          "number_slot": 0,
+          "op": 1,
+          "reason_kind": 1,
+          "reason_param": 10050301,
+          "require_skill_runtime": true,
+          "skip_first_hit": true,
+          "repeat_target_decay_factor": 0.5,
+          "target_hit_count_key_base": 1500300
+        }
+      ]
+    }
+  ]
+}

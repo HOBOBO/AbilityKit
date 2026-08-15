@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Timing;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Blackboard;
@@ -418,9 +419,9 @@ namespace AbilityKit.Triggering.Runtime
                 bool wasInterrupted = false;
                 try
                 {
-                    var startTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+                    var startTicks = MonotonicTime.GetTimestamp();
                     entry.Trigger.Execute(in args, in execCtx);
-                    RecordTrace(key, in entry, TriggerRecordKind.Executed, null, null, System.Diagnostics.Stopwatch.GetTimestamp() - startTicks);
+                    RecordTrace(key, in entry, TriggerRecordKind.Executed, null, null, MonotonicTime.GetTimestamp() - startTicks);
                 }
                 catch (Exception ex)
                 {
@@ -477,7 +478,7 @@ namespace AbilityKit.Triggering.Runtime
                 kind,
                 predicateResult,
                 reason,
-                System.Diagnostics.Stopwatch.GetTimestamp(),
+                MonotonicTime.GetTimestamp(),
                 elapsedTicks,
                 GetScopePath());
             _tracer.RecordTrigger<TArgs>(_currentTraceScope, record);

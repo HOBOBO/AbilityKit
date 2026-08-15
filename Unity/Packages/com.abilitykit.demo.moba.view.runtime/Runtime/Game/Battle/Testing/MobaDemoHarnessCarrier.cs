@@ -4,7 +4,7 @@ using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
-using AbilityKit.Network.Runtime.DemoHarness;
+using AbilityKit.Demo.Harness;
 using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Game.Battle.Agent

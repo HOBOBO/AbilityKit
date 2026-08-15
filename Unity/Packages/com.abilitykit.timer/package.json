@@ -1,6 +1,6 @@
 {
   "name": "com.abilitykit.timer",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit Timer",
   "unity": "2022.3",
   "description": "General timer and scheduling framework.",
@@ -8,6 +8,6 @@
     "name": "AbilityKit"
   },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1"
+    "com.abilitykit.core": "0.1.0"
   }
 }

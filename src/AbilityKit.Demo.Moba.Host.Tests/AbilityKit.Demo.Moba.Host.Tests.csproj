@@ -9,6 +9,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Host\AbilityKit.Demo.Moba.Host.csproj" />
+    <ProjectReference Include="..\AbilityKit.Host.Network\AbilityKit.Host.Network.csproj" />
+    <ProjectReference Include="..\AbilityKit.Network.Host\AbilityKit.Network.Host.csproj" />
   </ItemGroup>
 
   <ItemGroup>

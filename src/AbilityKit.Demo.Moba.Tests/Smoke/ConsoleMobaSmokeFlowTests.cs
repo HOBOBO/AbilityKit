@@ -102,7 +102,8 @@ public sealed class ConsoleMobaSmokeFlowTests : ConsoleMobaSmokeTestBase
     private static void AssertRuntimeSkillEffectFlow(ConsoleSmokeRunResult result, int skillSlot)
     {
         var bootstrapper = result.Bootstrapper;
-        Assert.True(bootstrapper.RuntimeInputPortReady, "Console smoke must use the runtime IMobaBattleInputPort instead of DirectCallInputSink.");
+        Assert.True(bootstrapper.RuntimeInputPortReady, "Console smoke world must expose the runtime IMobaBattleInputPort.");
+        Assert.True(bootstrapper.HostNetworkReady, "Console smoke input must use the formal Host network session path.");
 
         for (var i = 0; i < 60; i++)
         {
@@ -110,7 +111,7 @@ public sealed class ConsoleMobaSmokeFlowTests : ConsoleMobaSmokeTestBase
         }
 
         var input = bootstrapper.RuntimeInputDiagnostics;
-        Assert.True(input.SubmitCount > 0, "AutoTest skill input must be submitted into the runtime input port.");
+        Assert.True(input.SubmitCount > 0, "AutoTest skill input must be submitted through the Host network client.");
         Assert.True(input.AcceptedCount > 0, input.LastResult);
         Assert.True(input.AcceptedCommandCount > 0, input.LastResult);
 

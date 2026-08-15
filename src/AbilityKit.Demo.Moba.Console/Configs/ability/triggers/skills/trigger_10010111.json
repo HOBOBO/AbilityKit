@@ -11,27 +11,29 @@
       "conditions": [],
       "actions": [
         {
-          "type": "give_damage",
-          "damage_value": 160,
-          "damage_type": 1,
-          "reason_param": 10010101,
-          "target_max_count": 1
-        },
-        {
           "type": "pull",
-          "speed": 7,
+          "speed": 7.0,
           "duration_ms": 300,
           "direction_mode": 2,
           "target_distance": 0,
-          "priority": 100
+          "priority": 100,
+          "motion_group_id": 3,
+          "continuous_tag_template_id": 10000001
+        },
+        {
+          "type": "give_damage",
+          "damage_value": 200,
+          "source_attack_ratio": 0.80,
+          "damage_type": 1,
+          "reason_param": 10010101,
+          "target_max_count": 1
         },
         {
           "type": "debug_log",
           "message": "廉颇一技能：冲撞命中造成物理伤害并击飞目标",
           "dump_args": false
         }
-      ],
-      "scope": "owner"
+      ]
     }
   ]
 }

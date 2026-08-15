@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
+using AbilityKit.Core.Lifetime;
 
 namespace AbilityKit.Core.Snapshots.Routing
 {
@@ -61,7 +62,9 @@ namespace AbilityKit.Core.Snapshots.Routing
             }
 
             route.Add(handler);
-            return new Subscription(() => route.Remove(handler));
+            return DisposableRegistration.Create(
+                new HandlerRegistration<T>(route, handler),
+                static registration => registration.Route.Remove(registration.Handler));
         }
 
         public void Dispose()
@@ -144,21 +147,15 @@ namespace AbilityKit.Core.Snapshots.Routing
             }
         }
 
-        private sealed class Subscription : IDisposable
+        private readonly struct HandlerRegistration<T>
         {
-            private Action _dispose;
+            public readonly Route<T> Route;
+            public readonly Action<ISnapshotEnvelope, T> Handler;
 
-            public Subscription(Action dispose)
+            public HandlerRegistration(Route<T> route, Action<ISnapshotEnvelope, T> handler)
             {
-                _dispose = dispose;
-            }
-
-            public void Dispose()
-            {
-                var d = _dispose;
-                if (d == null) return;
-                _dispose = null;
-                d();
+                Route = route;
+                Handler = handler;
             }
         }
     }

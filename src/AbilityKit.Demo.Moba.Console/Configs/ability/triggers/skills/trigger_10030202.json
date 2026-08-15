@@ -1,0 +1,74 @@
+{
+  "triggers": [
+    {
+      "id": 10030202,
+      "name": "赵云-破云之龙-二档范围增强",
+      "event": "skill.cast.complete",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 45,
+      "conditions": [
+        {
+          "type": "arg_eq",
+          "left": "payload:skill.id",
+          "right": "10030201"
+        },
+        {
+          "type": "has_buff",
+          "buff_id": 10030001,
+          "check_stack": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "spawn_area",
+          "area_id": 40030202,
+          "position_mode": 1,
+          "radius": 4.5,
+          "duration_ms": 600
+        },
+        {
+          "type": "debug_log",
+          "message": "赵云二技能二档增强：龙鸣二档触发更大范围突刺区域",
+          "dump_args": false
+        }
+      ]
+    },
+    {
+      "id": 10030203,
+      "name": "赵云-破云之龙-三档范围增强",
+      "event": "skill.cast.complete",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 44,
+      "conditions": [
+        {
+          "type": "arg_eq",
+          "left": "payload:skill.id",
+          "right": "10030201"
+        },
+        {
+          "type": "has_buff",
+          "buff_id": 10030002,
+          "check_stack": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "spawn_area",
+          "area_id": 40030203,
+          "position_mode": 1,
+          "radius": 5.5,
+          "duration_ms": 600
+        },
+        {
+          "type": "debug_log",
+          "message": "赵云二技能三档增强：龙鸣三档触发最大范围突刺区域",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

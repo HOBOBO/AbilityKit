@@ -12,19 +12,15 @@
       "actions": [
         {
           "type": "give_damage",
-          "damage_value": 150,
+          "damage_value": 160,
+          "source_attack_ratio": 0.80,
           "damage_type": 1,
           "reason_param": 10010301,
           "target_query_id": 50010301,
           "target_max_count": 10
         },
-        {
-          "type": "debug_log",
-          "message": "廉颇三技能：段落范围造成物理伤害",
-          "dump_args": false
-        }
-      ],
-      "scope": "owner"
+        { "type": "debug_log", "message": "廉颇三技能：段落范围造成物理伤害", "dump_args": false }
+      ]
     }
   ]
 }

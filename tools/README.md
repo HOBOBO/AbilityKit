@@ -18,6 +18,7 @@
 | `validate_moba_codegen_ownership.ps1` | MOBA 代码生成归属校验 |
 | `validate_moba_hero_manifest.ps1` | MOBA 英雄清单校验 |
 | `validate_moba_hero_acceptance_coverage.ps1` | MOBA 英雄验收覆盖校验 |
+| `audit_core_boundaries.ps1` | 审计 Core 平台/API 边界、命名空间所有权，并阻止旧 Continuous、Config、Reflection 消费回流 |
 
 ## 构建 / 项目设置（build & setup）
 

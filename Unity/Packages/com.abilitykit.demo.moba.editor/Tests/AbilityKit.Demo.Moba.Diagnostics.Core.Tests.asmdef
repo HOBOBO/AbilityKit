@@ -15,6 +15,7 @@
     "AbilityKit.Trace",
     "AbilityKit.Triggering",
     "AbilityKit.Core",
+    "AbilityKit.Continuous",
     "AbilityKit.Ability",
     "AbilityKit.Attributes",
     "AbilityKit.Host",

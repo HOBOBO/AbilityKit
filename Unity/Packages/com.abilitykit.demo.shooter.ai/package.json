@@ -8,8 +8,8 @@
     "name": "AbilityKit"
   },
   "dependencies": {
-    "com.abilitykit.ai.abstractions": "0.0.1",
+    "com.abilitykit.ai.abstractions": "0.1.0",
     "com.abilitykit.demo.shooter.runtime": "0.0.1",
-    "com.abilitykit.protocol.shooter": "0.0.1"
+    "com.abilitykit.protocol.shooter": "0.1.0"
   }
 }

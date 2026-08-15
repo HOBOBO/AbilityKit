@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Game.View.Presentation;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
@@ -250,6 +251,19 @@ namespace AbilityKit.Demo.Shooter.View
             float facingY,
             float velocityX,
             float velocityY)
+            : this(key, x, y, facingX, facingY, velocityX, velocityY, SnapshotDeliveryHints.None)
+        {
+        }
+
+        public ShooterViewTransformComponentChange(
+            ShooterViewEntityKey key,
+            float x,
+            float y,
+            float facingX,
+            float facingY,
+            float velocityX,
+            float velocityY,
+            SnapshotDeliveryHints deliveryHints)
         {
             Key = key;
             X = x;
@@ -258,6 +272,7 @@ namespace AbilityKit.Demo.Shooter.View
             FacingY = facingY;
             VelocityX = velocityX;
             VelocityY = velocityY;
+            DeliveryHints = deliveryHints;
         }
 
         public ShooterViewEntityKey Key { get; }
@@ -273,6 +288,12 @@ namespace AbilityKit.Demo.Shooter.View
         public float VelocityX { get; }
 
         public float VelocityY { get; }
+
+        public SnapshotDeliveryHints DeliveryHints { get; }
+
+        public bool IsLowFrequency => (DeliveryHints & SnapshotDeliveryHints.SparseUpdate) != 0;
+
+        public bool IsPredictedLocal => (DeliveryHints & SnapshotDeliveryHints.PredictedOwner) != 0;
     }
 
     public readonly struct ShooterViewHealthComponentChange

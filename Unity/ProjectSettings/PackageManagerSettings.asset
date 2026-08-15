@@ -30,6 +30,7 @@ MonoBehaviour:
     m_Name: OpenUPM
     m_Url: https://package.openupm.com
     m_Scopes:
+    - com.abilitykit
     - com.cysharp
     m_IsDefault: 0
     m_Capabilities: 0

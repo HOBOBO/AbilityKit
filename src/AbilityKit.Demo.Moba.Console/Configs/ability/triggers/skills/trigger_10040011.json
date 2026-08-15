@@ -1,0 +1,17 @@
+{
+  "id": 10040011,
+  "name": "墨子-普通攻击-发射",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "shoot_projectile",
+      "launcher_id": 31040011,
+      "projectile_id": 30040011
+    }
+  ]
+}

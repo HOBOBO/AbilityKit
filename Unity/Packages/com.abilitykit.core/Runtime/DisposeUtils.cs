@@ -2,6 +2,7 @@ using System;
 
 namespace AbilityKit.Core.Utilities
 {
+    [Obsolete("Disposal policy belongs to the resource owner; use an owner-local lifecycle helper before the next major version.")]
     public static class DisposeUtils
     {
         public static void TryDispose(ref IDisposable disposable)

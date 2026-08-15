@@ -2,7 +2,7 @@
   "triggers": [
     {
       "id": 10060311,
-      "name": "嬴政-至尊皇冠-剑阵第一波伤害",
+      "name": "嬴政-至尊王权-周期发射飞剑",
       "event": "",
       "enabled": true,
       "allowExternal": false,
@@ -11,21 +11,17 @@
       "conditions": [],
       "actions": [
         {
-          "type": "give_damage",
-          "damage_value": 130,
-          "damage_type": 2,
-          "source_attack_ratio": 0.2,
-          "reason_param": 10060301,
-          "target_query_id": 50060301,
-          "target_max_count": 10
+          "type": "shoot_projectile",
+          "launcher_id": 31060301,
+          "projectile_id": 30060301,
+          "directionSource": "cast_context"
         },
         {
           "type": "debug_log",
-          "message": "嬴政三技能：剑阵第一波伤害",
+          "message": "嬴政三技能至尊王权：周期发射前方飞剑",
           "dump_args": false
         }
-      ],
-      "scope": "owner"
+      ]
     }
   ]
 }

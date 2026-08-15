@@ -13,29 +13,23 @@ namespace AbilityKit.Game.Flow
             if (ctx == null) return;
             if (!ShouldExposePredictionFeatures(plan)) return;
 
-            ctx.PredictionStats = ResolveFeature<IClientPredictionDriverStats>(runtime);
-
+            var stats = ResolveFeature<IClientPredictionDriverStats>(runtime);
             if (!plan.Authority.EnableClientPrediction)
             {
-                ClearPredictionControls(ctx);
+                ctx.PredictionRuntime.Bind(stats, null, null, null);
                 return;
             }
 
-            ctx.PredictionReconcileTarget = ResolveFeature<IClientPredictionReconcileTarget>(runtime);
-            ctx.PredictionReconcileControl = ResolveFeature<IClientPredictionReconcileControl>(runtime);
-            ctx.PredictionTuningControl = ResolveFeature<IClientPredictionTuningControl>(runtime);
+            ctx.PredictionRuntime.Bind(
+                stats,
+                ResolveFeature<IClientPredictionReconcileTarget>(runtime),
+                ResolveFeature<IClientPredictionReconcileControl>(runtime),
+                ResolveFeature<IClientPredictionTuningControl>(runtime));
         }
 
         private static bool ShouldExposePredictionFeatures(BattleStartPlan plan)
         {
             return plan.HostMode == BattleHostMode.GatewayRemote && plan.Gateway.UseGatewayTransport;
-        }
-
-        private static void ClearPredictionControls(BattleContext ctx)
-        {
-            ctx.PredictionReconcileTarget = null;
-            ctx.PredictionReconcileControl = null;
-            ctx.PredictionTuningControl = null;
         }
 
         private static T ResolveFeature<T>(HostRuntime runtime)

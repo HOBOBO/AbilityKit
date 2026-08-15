@@ -7,7 +7,12 @@
     "phase":  "immediate",
     "priority":  50,
     "conditions":  [
-
+                       {
+                           "type":  "not",
+                           "item":  {
+                                        "type":  "target_is_flying_projectile"
+                                    }
+                       }
                    ],
     "actions":  [
                     {

@@ -3,7 +3,7 @@ using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
-using AbilityKit.Network.Runtime.DemoHarness;
+using AbilityKit.Demo.Harness;
 using AbilityKit.Network.Runtime.LagCompensation;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Demo.Shooter.View.PlayMode;

@@ -3,6 +3,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
@@ -12,6 +13,8 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly ShooterClientSession _session;
         private readonly IShooterRoomGatewayRoomClient? _roomClient;
         private readonly ShooterRoomGatewayFlowResult _flow;
+        private readonly NetworkSessionRecoveryActionRouter<ShooterGatewayFullStateSyncRequestResult> _recoveryActions;
+        private readonly NetworkSessionRecoveryRuntime<ShooterGatewayFullStateSyncRequestResult> _recoveryRuntime;
         private readonly object _fullStateSyncGate = new object();
         private ShooterClientFullStateSyncRequestKey _lastFullStateSyncRequestKey;
         private Task<ShooterGatewayFullStateSyncRequestResult>? _fullStateSyncInFlight;
@@ -41,6 +44,30 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             _flow = flow;
+            _recoveryActions = new NetworkSessionRecoveryActionRouter<ShooterGatewayFullStateSyncRequestResult>(
+                    new NetworkSessionRecoveryActionRouterOptions<ShooterGatewayFullStateSyncRequestResult>
+                    {
+                        // 保留 Shooter 既有请求异常语义，由上层决定重试或终止流程。
+                        HandlerFailurePolicy = NetworkSessionRecoveryHandlerFailurePolicy.Throw,
+                        CancellationPolicy = NetworkSessionRecoveryCancellationPolicy.Throw
+                    })
+                .Register(
+                    NetworkSessionRecoveryAction.RequestFullSnapshot,
+                    ExecuteFullSnapshotRecoveryAsync)
+                .Register(
+                    NetworkSessionRecoveryAction.RestoreReliableEventBaseline,
+                    ExecuteFullSnapshotRecoveryAsync);
+            _recoveryRuntime = new NetworkSessionRecoveryRuntime<ShooterGatewayFullStateSyncRequestResult>(
+                _recoveryActions,
+                _session.SessionRecoveryCoordinator,
+                new NetworkSessionRecoveryRuntimeOptions
+                {
+                    // Shooter 仍在输入提交或显式恢复入口执行请求，避免改变既有网络调用时机。
+                    ExecutionMode = NetworkSessionRecoveryExecutionMode.Manual,
+                    CancelSupersededExecution = true,
+                    CancelExecutionOnReset = true,
+                    SuppressStaleExecutionCompletion = true
+                });
         }
 
         public ShooterClientSession Session => _session;
@@ -58,6 +85,10 @@ namespace AbilityKit.Demo.Shooter.View
         public uint PlayerId => _flow.PlayerId;
 
         public int CurrentFrame => _session.CurrentFrame;
+
+        /// <summary>当前 Shooter 恢复动作生命周期诊断。</summary>
+        public NetworkSessionRecoveryRuntimeDiagnostics RecoveryRuntimeDiagnostics =>
+            _recoveryRuntime.GetRuntimeDiagnostics();
 
         public ShooterGatewayBattleInputContext CreateCurrentFrameInputContext()
         {
@@ -96,13 +127,42 @@ namespace AbilityKit.Demo.Shooter.View
             return result;
         }
 
-        public Task<ShooterGatewayFullStateSyncRequestResult> RequestFullSnapshotResyncIfNeededAsync(
+        public async Task<ShooterGatewayFullStateSyncRequestResult> RequestFullSnapshotResyncIfNeededAsync(
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
+            var decision = _session.EvaluateRecoveryDecision();
+            if (_recoveryActions.CanExecute(decision.Action))
+            {
+                var execution = await _recoveryRuntime.ExecuteCurrentAsync(
+                    timeout,
+                    cancellationToken).ConfigureAwait(false);
+                return execution.HasValue
+                    ? execution.Value
+                    : ShooterGatewayFullStateSyncRequestResult.NotRequested;
+            }
+
+            // 更高优先级动作应交给 Launcher 或产品流程处理，不能再退化为低优先级快照请求。
+            if (decision.HasAction)
+            {
+                return ShooterGatewayFullStateSyncRequestResult.NotRequested;
+            }
+
             return ShouldRequestFullStateSync()
-                ? RequestFullSnapshotAsync(CreateFullStateSyncRequest(), timeout, cancellationToken)
-                : Task.FromResult(ShooterGatewayFullStateSyncRequestResult.NotRequested);
+                ? await RequestFullSnapshotAsync(
+                    CreateFullStateSyncRequest(),
+                    timeout,
+                    cancellationToken).ConfigureAwait(false)
+                : ShooterGatewayFullStateSyncRequestResult.NotRequested;
+        }
+
+        /// <summary>执行当前统一恢复决策，并返回结构化路由结果。</summary>
+        public Task<NetworkSessionRecoveryExecutionResult<ShooterGatewayFullStateSyncRequestResult>> ExecuteRecoveryDecisionAsync(
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            _session.EvaluateRecoveryDecision();
+            return _recoveryRuntime.ExecuteCurrentAsync(timeout, cancellationToken);
         }
 
         public Task<ShooterGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(
@@ -260,6 +320,19 @@ namespace AbilityKit.Demo.Shooter.View
                     completion);
                 return completion.Task;
             }
+        }
+
+        private Task<ShooterGatewayFullStateSyncRequestResult> ExecuteFullSnapshotRecoveryAsync(
+            NetworkSessionRecoveryExecutionContext context,
+            CancellationToken cancellationToken)
+        {
+            var timeout = context.State is TimeSpan configuredTimeout
+                ? configuredTimeout
+                : (TimeSpan?)null;
+            return RequestFullSnapshotAsync(
+                CreateFullStateSyncRequest(),
+                timeout,
+                cancellationToken);
         }
 
         private async Task ExecuteFullSnapshotRequestAsync(

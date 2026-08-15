@@ -1,0 +1,18 @@
+{
+  "triggers": [
+    {
+      "id": 10010322,
+      "name": "廉颇-天崩地裂-第三段落地区域",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "spawn_area", "area_id": 40010321, "position_mode": 0, "radius": 4.5, "duration_ms": 650 },
+        { "type": "debug_log", "message": "廉颇三技能：第三段落地触发区域", "dump_args": false }
+      ]
+    }
+  ]
+}

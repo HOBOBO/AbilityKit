@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Pooling;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
@@ -236,14 +237,21 @@ namespace AbilityKit.Demo.Shooter.View
                 (entity.Flags & ShooterPureStateEntityFlags.Visible) != 0 &&
                 entity.DeltaKind != ShooterPureStateDeltaKinds.Despawn;
             AddEntity(key.Value, entity.OwnerId, alive);
-            AddTransform(
-                key.Value,
-                entity.QuantizedX / 1000f,
-                entity.QuantizedY / 1000f,
-                entity.QuantizedVelocityX == 0 && entity.QuantizedVelocityY == 0 ? 0f : entity.QuantizedVelocityX / 1000f,
-                entity.QuantizedVelocityX == 0 && entity.QuantizedVelocityY == 0 ? 1f : entity.QuantizedVelocityY / 1000f,
-                entity.QuantizedVelocityX / 1000f,
-                entity.QuantizedVelocityY / 1000f);
+            var deliveryHints = MapDeliveryHints(entity.Flags);
+            var isLocallyControlled = key.Value.Kind == ShooterViewEntityKind.Player &&
+                key.Value.EntityId == controlledPlayerId;
+            if (SnapshotDeliveryPolicy.ShouldApplyAuthoritativeTransform(deliveryHints, isLocallyControlled))
+            {
+                AddTransform(
+                    key.Value,
+                    entity.QuantizedX / 1000f,
+                    entity.QuantizedY / 1000f,
+                    entity.QuantizedVelocityX == 0 && entity.QuantizedVelocityY == 0 ? 0f : entity.QuantizedVelocityX / 1000f,
+                    entity.QuantizedVelocityX == 0 && entity.QuantizedVelocityY == 0 ? 1f : entity.QuantizedVelocityY / 1000f,
+                    entity.QuantizedVelocityX / 1000f,
+                    entity.QuantizedVelocityY / 1000f,
+                    deliveryHints);
+            }
 
             if (key.Value.Kind == ShooterViewEntityKind.Player)
             {
@@ -485,9 +493,26 @@ namespace AbilityKit.Demo.Shooter.View
             float facingX,
             float facingY,
             float velocityX,
-            float velocityY)
+            float velocityY,
+            SnapshotDeliveryHints deliveryHints = SnapshotDeliveryHints.None)
         {
-            _transformChanges!.Add(new ShooterViewTransformComponentChange(key, x, y, facingX, facingY, velocityX, velocityY));
+            _transformChanges!.Add(new ShooterViewTransformComponentChange(key, x, y, facingX, facingY, velocityX, velocityY, deliveryHints));
+        }
+
+        private static SnapshotDeliveryHints MapDeliveryHints(byte entityFlags)
+        {
+            var hints = SnapshotDeliveryHints.None;
+            if ((entityFlags & ShooterPureStateEntityFlags.LowFrequency) != 0)
+            {
+                hints |= SnapshotDeliveryHints.SparseUpdate;
+            }
+
+            if ((entityFlags & ShooterPureStateEntityFlags.PredictedLocal) != 0)
+            {
+                hints |= SnapshotDeliveryHints.PredictedOwner;
+            }
+
+            return hints;
         }
 
         private void AddHealth(ShooterViewEntityKey key, int hp)

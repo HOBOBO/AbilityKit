@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
+using AbilityKit.Core.Lifetime;
 
 namespace AbilityKit.Core.Snapshots.Routing
 {
@@ -83,7 +84,9 @@ namespace AbilityKit.Core.Snapshots.Routing
 
             var stage = new Stage<T>(order, handler);
             route.Add(stage);
-            return new Subscription(() => route.Remove(stage));
+            return DisposableRegistration.Create(
+                new StageRegistration<T>(route, stage),
+                static registration => registration.Route.Remove(registration.Stage));
         }
 
         IDisposable ISnapshotPipelineStageRegistry.AddPipelineStage<T>(int opCode, int order, Action<object, ISnapshotEnvelope, T> handler)
@@ -170,21 +173,15 @@ namespace AbilityKit.Core.Snapshots.Routing
             }
         }
 
-        private sealed class Subscription : IDisposable
+        private readonly struct StageRegistration<T>
         {
-            private Action _dispose;
+            public readonly Route<T> Route;
+            public readonly Stage<T> Stage;
 
-            public Subscription(Action dispose)
+            public StageRegistration(Route<T> route, Stage<T> stage)
             {
-                _dispose = dispose;
-            }
-
-            public void Dispose()
-            {
-                var d = _dispose;
-                if (d == null) return;
-                _dispose = null;
-                d();
+                Route = route;
+                Stage = stage;
             }
         }
     }

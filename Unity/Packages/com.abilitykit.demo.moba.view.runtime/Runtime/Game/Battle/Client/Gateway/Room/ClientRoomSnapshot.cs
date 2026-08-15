@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Network.Room;
 
 namespace AbilityKit.Game.Battle.Agent
 {
@@ -69,6 +70,8 @@ namespace AbilityKit.Game.Battle.Agent
         public IReadOnlyList<string> Members { get; set; } = Array.Empty<string>();
         public IReadOnlyList<ClientRoomPlayer> Players { get; set; } = Array.Empty<ClientRoomPlayer>();
         public GatewayWorldStartAnchor WorldStartAnchor { get; set; }
+        /// <summary>服务端为当前战斗代际声明的同步能力。</summary>
+        public RoomGatewayNetworkSyncCapabilities SyncCapabilities { get; set; }
 
         /// <summary>
         /// 快照是否处于可恢复的活跃阶段（Lobby/Loading/Starting/InBattle）。

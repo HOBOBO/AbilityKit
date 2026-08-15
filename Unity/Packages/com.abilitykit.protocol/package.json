@@ -1,9 +1,15 @@
 {
   "name": "com.abilitykit.protocol",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit Protocol",
   "unity": "2022.3",
   "description": "Shared protocol definitions for client/server.",
+  "keywords": [
+    "abilitykit",
+    "protocol",
+    "networking",
+    "dto"
+  ],
   "author": { "name": "AbilityKit" },
   "dependencies": {
     "com.unity.nuget.newtonsoft-json": "3.2.1"

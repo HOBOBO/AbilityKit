@@ -4,6 +4,7 @@ using System.IO;
 
 namespace AbilityKit.Core.Configuration
 {
+    [Obsolete("Persistent application config loading no longer belongs in Core. Move it to the owning bootstrap package; this compatibility API will be removed in the next major version.")]
     public static class PersistentJsonConfigLoader
     {
         private readonly struct CacheKey : IEquatable<CacheKey>

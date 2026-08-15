@@ -58,7 +58,11 @@ public sealed class GatewayBattleInputSecurityOptionsTests
         Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(IHostedService)
             && descriptor.ImplementationType == typeof(TcpTransportHostedService));
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(IHostedService)
+            && descriptor.ImplementationType == typeof(WebSocketTransportHostedService));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(TcpTransportServer));
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(WebSocketTransportServer));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IGatewayTransportEvents));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IGatewayRequestRouter));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IGatewayHandlerRegistry));
@@ -81,6 +85,27 @@ public sealed class GatewayBattleInputSecurityOptionsTests
         Assert.Equal("127.0.0.1", options.Host);
         Assert.Equal(14000, options.Port);
         Assert.Equal(4321, options.RequestTimeoutMs);
+    }
+
+    [Fact]
+    public void GatewayModule_BindsCanonicalWebSocketTransportOptions()
+    {
+        using var provider = BuildProvider(new Dictionary<string, string?>
+        {
+            ["AbilityKit:Gateway:WebSocket:Enabled"] = "true",
+            ["AbilityKit:Gateway:WebSocket:Host"] = "127.0.0.1",
+            ["AbilityKit:Gateway:WebSocket:Port"] = "14001",
+            ["AbilityKit:Gateway:WebSocket:Path"] = "/gateway",
+            ["AbilityKit:Gateway:WebSocket:RequestTimeoutMs"] = "4322"
+        });
+
+        var options = provider.GetRequiredService<IOptions<WebSocketTransportOptions>>().Value;
+
+        Assert.True(options.Enabled);
+        Assert.Equal("127.0.0.1", options.Host);
+        Assert.Equal(14001, options.Port);
+        Assert.Equal("/gateway", options.Path);
+        Assert.Equal(4322, options.RequestTimeoutMs);
     }
 
     [Fact]

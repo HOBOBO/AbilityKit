@@ -11,6 +11,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Starter;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Component;
@@ -36,7 +37,7 @@ namespace AbilityKit.Game.Test.UnitTest
     [InitializeOnLoad]
     public static class MobaMultiplayerHeadlessClientCommand
     {
-        private const string ScenePath = "Assets/Scenes/MobaMultiplayerScene.unity";
+        private const string StarterScenePath = "Assets/Scenes/MultiplayerStarterScene.unity";
         private const string RunningKey = "AbilityKit.MobaMultiplayerHeadless.Running";
         private const string OptionsKey = "AbilityKit.MobaMultiplayerHeadless.Options";
         private static readonly TimeSpan StateWriteInterval = TimeSpan.FromSeconds(1);
@@ -54,6 +55,8 @@ namespace AbilityKit.Game.Test.UnitTest
         private static GameFlowDomain? _flow;
         private static IMultiplayerGatewayRuntime? _gatewayRuntime;
         private static Task? _operation;
+        private static Task? _starterOperation;
+        private static MultiplayerStarterController? _starterController;
         private static ClientStage _stage;
         private static string _stageDetail = string.Empty;
         private static DateTime _deadlineUtc;
@@ -106,29 +109,14 @@ namespace AbilityKit.Game.Test.UnitTest
                 Directory.CreateDirectory(Path.GetDirectoryName(options.RoomPath)!);
                 Directory.CreateDirectory(Path.GetDirectoryName(options.SkillSignalPath)!);
 
-                var login = DemoRoomGatewayAccountClient.LoginTcpAsync(
-                        options.Host,
-                        options.Port,
-                        options.AccountId,
-                        TimeSpan.FromSeconds(options.RequestTimeoutSeconds))
-                    .GetAwaiter()
-                    .GetResult();
-                if (!login.Success || string.IsNullOrWhiteSpace(login.SessionToken))
-                {
-                    throw new InvalidOperationException("Account login failed: " + login.Message);
-                }
-
-                options.AccountId = login.AccountId;
-                options.SessionToken = login.SessionToken;
                 SessionState.SetBool(RunningKey, true);
                 SessionState.SetString(OptionsKey, JsonConvert.SerializeObject(options));
                 ResetRuntime(options);
-                PublishLaunchIntent();
 
-                var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+                var scene = EditorSceneManager.OpenScene(StarterScenePath, OpenSceneMode.Single);
                 if (!scene.IsValid())
                 {
-                    throw new InvalidOperationException("MOBA multiplayer scene could not be opened.");
+                    throw new InvalidOperationException("Multiplayer starter scene could not be opened.");
                 }
 
                 WriteState(force: true);
@@ -176,9 +164,16 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private static void Tick()
         {
+            if (_stage == ClientStage.WaitingForStarter ||
+                _stage == ClientStage.StartingFromStarter)
+            {
+                TickStarterLaunch();
+                return;
+            }
+
             if (!GameEntry.IsInitialized)
             {
-                SetStage(ClientStage.WaitingForEntry, "waiting for GameEntry");
+                SetStage(ClientStage.WaitingForEntry, "waiting for GameEntry after Starter launch");
                 return;
             }
 
@@ -301,14 +296,14 @@ namespace AbilityKit.Game.Test.UnitTest
                     if (_flow!.CurrentBattlePhase != MobaBattleState.InMatch ||
                         !entry.TryGet(out BattleContext context) ||
                         context.LastFrame <= 0 ||
-                        !TryGetOwnerPosition(context, out _ownerBaselinePosition, out _))
+                        !TryGetOwnerRuntimePosition(context, out _ownerBaselinePosition, out _))
                     {
                         return;
                     }
 
                     _hasOwnerBaseline = true;
                     _battleBaselineFrame = context.LastFrame;
-                    SetStage(ClientStage.BattleReady, "battle context and both player actors are observable");
+                    SetStage(ClientStage.BattleReady, "battle context and both runtime player actors are observable");
                     return;
 
                 case ClientStage.BattleReady:
@@ -400,6 +395,51 @@ namespace AbilityKit.Game.Test.UnitTest
                 default:
                     throw new InvalidOperationException("Unsupported client stage: " + _stage);
             }
+        }
+
+        private static void TickStarterLaunch()
+        {
+            if (_starterOperation == null)
+            {
+                _starterController = Object.FindObjectOfType<MultiplayerStarterController>();
+                if (_starterController == null)
+                {
+                    SetStage(ClientStage.WaitingForStarter, "waiting for MultiplayerStarterController");
+                    return;
+                }
+
+                _starterOperation = _starterController.LaunchMobaAutomatedAsync(
+                    _options!.AccountId,
+                    _options.Host,
+                    _options.Port,
+                    _options.Region,
+                    _options.ServerId,
+                    TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
+                SetStage(ClientStage.StartingFromStarter, "Starter is logging in and launching MOBA");
+                return;
+            }
+
+            if (!_starterOperation.IsCompleted) return;
+            if (_starterOperation.IsCanceled)
+            {
+                throw new OperationCanceledException("Automated Starter launch was canceled.");
+            }
+            if (_starterOperation.IsFaulted)
+            {
+                throw _starterOperation.Exception?.GetBaseException() ??
+                      new InvalidOperationException("Automated Starter launch failed.");
+            }
+            if (_starterController == null || string.IsNullOrWhiteSpace(_starterController.SessionToken))
+            {
+                throw new InvalidOperationException("Starter launch completed without an authenticated session.");
+            }
+
+            _options!.AccountId = _starterController.AuthenticatedAccountId;
+            _options.SessionToken = _starterController.SessionToken;
+            SessionState.SetString(OptionsKey, JsonConvert.SerializeObject(_options));
+            _starterOperation = null;
+            _starterController = null;
+            SetStage(ClientStage.WaitingForEntry, "Starter launched MOBA; waiting for GameEntry");
         }
 
         private static void BeginRoomOperation()
@@ -655,11 +695,25 @@ namespace AbilityKit.Game.Test.UnitTest
                 out actorCount);
         }
 
+        private static bool TryGetOwnerRuntimePosition(
+            BattleContext context,
+            out Vector3 position,
+            out int actorCount)
+        {
+            return TryGetOwnerPositions(
+                context,
+                out position,
+                out _,
+                out actorCount,
+                requireMemberView: false);
+        }
+
         private static bool TryGetOwnerPositions(
             BattleContext context,
             out Vector3 runtimePosition,
             out Vector3 presentedPosition,
-            out int actorCount)
+            out int actorCount,
+            bool requireMemberView = true)
         {
             runtimePosition = default;
             presentedPosition = default;
@@ -691,7 +745,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 var value = actor.transform.Value.Position;
                 runtimePosition = new Vector3(value.X, value.Y, value.Z);
                 presentedPosition = runtimePosition;
-                if (_options?.Role == ClientRole.Member &&
+                if (requireMemberView &&
+                    _options?.Role == ClientRole.Member &&
                     !TryGetViewPosition(context, actorId, out presentedPosition))
                 {
                     return false;
@@ -1035,7 +1090,7 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 _lifetime = new CancellationTokenSource(TimeSpan.FromSeconds(_options.TimeoutSeconds));
             }
-            if (_stage == default) _stage = ClientStage.WaitingForEntry;
+            if (_stage == default) _stage = ClientStage.WaitingForStarter;
             return true;
         }
 
@@ -1067,8 +1122,10 @@ namespace AbilityKit.Game.Test.UnitTest
             _flow = null;
             _gatewayRuntime = null;
             _operation = null;
-            _stage = ClientStage.WaitingForEntry;
-            _stageDetail = "launching multiplayer scene";
+            _starterOperation = null;
+            _starterController = null;
+            _stage = ClientStage.WaitingForStarter;
+            _stageDetail = "opening multiplayer Starter scene";
             _deadlineUtc = default;
             _gatewayConnectedUtc = default;
             _soloLobbyObservationStartedUtc = default;
@@ -1097,25 +1154,27 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private enum ClientStage
         {
-            WaitingForEntry = 0,
-            WaitingForGateway = 1,
-            WaitingForRoom = 2,
-            CreatingRoom = 3,
-            JoiningRoom = 4,
-            ObservingSoloLobby = 5,
-            WaitingAllReady = 6,
-            StartingMatch = 7,
-            WaitingForBattle = 8,
-            BattleReady = 9,
-            MovingOwner = 10,
-            ObservingMovement = 11,
-            WaitingForPeerObservation = 12,
-            SkillReady = 13,
-            CastingSkill = 14,
-            ObservingSkill = 15,
-            WaitingForSkillSettle = 16,
-            Passed = 17,
-            Failed = 18
+            WaitingForStarter = 0,
+            StartingFromStarter = 1,
+            WaitingForEntry = 2,
+            WaitingForGateway = 3,
+            WaitingForRoom = 4,
+            CreatingRoom = 5,
+            JoiningRoom = 6,
+            ObservingSoloLobby = 7,
+            WaitingAllReady = 8,
+            StartingMatch = 9,
+            WaitingForBattle = 10,
+            BattleReady = 11,
+            MovingOwner = 12,
+            ObservingMovement = 13,
+            WaitingForPeerObservation = 14,
+            SkillReady = 15,
+            CastingSkill = 16,
+            ObservingSkill = 17,
+            WaitingForSkillSettle = 18,
+            Passed = 19,
+            Failed = 20
         }
 
         private enum ClientRole

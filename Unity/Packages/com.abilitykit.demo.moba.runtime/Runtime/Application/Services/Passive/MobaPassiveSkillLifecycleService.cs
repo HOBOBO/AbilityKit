@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Triggering.Runtime;
@@ -310,7 +310,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
                 // never grant permission to end a trace context.
                 try
                 {
-                    _continuousProcesses?.EndOwnerProcesses(ownedContextId, AbilityKit.Core.Continuous.ContinuousEndReason.CleanedUp);
+                    _continuousProcesses?.EndOwnerProcesses(ownedContextId, AbilityKit.Continuous.ContinuousEndReason.CleanedUp);
                     _actionRunner?.CancelByOwnerKey(ownedContextId);
                     _passiveByOwnerKey.Remove(ownedContextId);
                 }
@@ -410,7 +410,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
             {
                 if (desiredOwnerKeys != null && desiredOwnerKeys.Contains(ownerKey)) continue;
 
-                _continuousProcesses?.EndOwnerProcesses(ownerKey, AbilityKit.Core.Continuous.ContinuousEndReason.CleanedUp);
+                _continuousProcesses?.EndOwnerProcesses(ownerKey, AbilityKit.Continuous.ContinuousEndReason.CleanedUp);
                 _passiveByOwnerKey.Remove(ownerKey);
             }
         }
@@ -467,7 +467,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
                 if (!_configs.TryGetPassiveSkill(passiveSkillId, out var passiveSkill) || passiveSkill == null) continue;
 
                 var processIds = passiveSkill.ContinuousProcessIds;
-                _continuousProcesses.EndMissingOwnerProcesses(ownerKey, processIds, AbilityKit.Core.Continuous.ContinuousEndReason.CleanedUp);
+                _continuousProcesses.EndMissingOwnerProcesses(ownerKey, processIds, AbilityKit.Continuous.ContinuousEndReason.CleanedUp);
                 if (processIds == null || processIds.Count == 0)
                 {
                     _continuousProcesses.ReconcileOwner(ownerKey);
@@ -659,7 +659,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
 
                 foreach (var ownerKey in toRemove)
                 {
-                    _continuousProcesses?.EndOwnerProcesses(ownerKey, AbilityKit.Core.Continuous.ContinuousEndReason.CleanedUp);
+                    _continuousProcesses?.EndOwnerProcesses(ownerKey, AbilityKit.Continuous.ContinuousEndReason.CleanedUp);
                     _passiveByOwnerKey.Remove(ownerKey);
                 }
 
@@ -708,7 +708,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
 
             foreach (var ownerKey in set)
             {
-                _continuousProcesses?.EndOwnerProcesses(ownerKey, AbilityKit.Core.Continuous.ContinuousEndReason.CleanedUp);
+                _continuousProcesses?.EndOwnerProcesses(ownerKey, AbilityKit.Continuous.ContinuousEndReason.CleanedUp);
                 _passiveByOwnerKey.Remove(ownerKey);
             }
 

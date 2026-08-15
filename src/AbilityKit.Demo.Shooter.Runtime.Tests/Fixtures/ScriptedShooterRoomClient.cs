@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Shooter.View;
+using AbilityKit.Network.Room;
 
 namespace AbilityKit.Demo.Shooter.Runtime.Tests;
 
@@ -50,6 +51,8 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
     public bool PreAssetsSnapshotCanStart { get; set; } = true;
 
     public bool SnapshotLocalIsOwner { get; set; }
+
+    public RoomGatewayNetworkSyncCapabilities? SyncCapabilities { get; set; }
 
     public bool RestoreIsInBattle { get; set; }
 
@@ -302,6 +305,7 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
             worldId,
             in anchor,
             "account-owner",
-            players);
+            players,
+            SyncCapabilities);
     }
 }

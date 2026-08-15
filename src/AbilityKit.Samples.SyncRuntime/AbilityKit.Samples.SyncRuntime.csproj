@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Samples.SyncRuntime</RootNamespace>
+    <AssemblyName>AbilityKit.Samples.SyncRuntime</AssemblyName>
+  </PropertyGroup>
+
+  <!-- SyncRuntime 组合：framesync（帧驱动）+ statesync（状态快照/哈希/恢复）+ record（录制/回放/确定性校验）。
+       传递依赖 core / world.di。这里聚焦同步机制本身，世界装配已在 Foundation/SkillCore/BattleRuntime 演示。 -->
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.World.FrameSync\AbilityKit.World.FrameSync.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.StateSync\AbilityKit.World.StateSync.csproj" />
+    <ProjectReference Include="..\AbilityKit.Record\AbilityKit.Record.csproj" />
+  </ItemGroup>
+
+</Project>

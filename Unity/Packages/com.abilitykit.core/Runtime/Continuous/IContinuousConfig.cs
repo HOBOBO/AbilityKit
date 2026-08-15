@@ -11,6 +11,7 @@ namespace AbilityKit.Core.Continuous
     /// - IMutexConfig: 互斥配置
     /// - IDurationConfig: 时长配置
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public interface IContinuousConfig
     {
         /// <summary>
@@ -37,6 +38,7 @@ namespace AbilityKit.Core.Continuous
     /// 标签配置扩展接口
     /// 实现此接口可支持标签匹配、暂停/阻止规则
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public interface ITagConfig
     {
         /// <summary>
@@ -58,6 +60,7 @@ namespace AbilityKit.Core.Continuous
     /// <summary>
     /// 标签容器接口（核心抽象，业务层实现具体容器）
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public interface ITagContainer
     {
         bool HasTag(string tag);
@@ -69,6 +72,7 @@ namespace AbilityKit.Core.Continuous
     /// 互斥配置扩展接口
     /// 实现此接口可支持互斥组管理
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public interface IMutexConfig
     {
         /// <summary>
@@ -86,6 +90,7 @@ namespace AbilityKit.Core.Continuous
     /// 时长配置扩展接口
     /// 实现此接口可支持定时过期
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public interface IDurationConfig
     {
         /// <summary>
@@ -98,6 +103,7 @@ namespace AbilityKit.Core.Continuous
     /// 层级配置扩展接口
     /// 实现此接口可支持嵌套持续体（如Buff/DEBUFF层级）
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public interface IHierarchyConfig
     {
         /// <summary>
@@ -115,6 +121,7 @@ namespace AbilityKit.Core.Continuous
     /// 层数配置扩展接口
     /// 实现此接口可支持堆叠
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public interface IStackConfig
     {
         /// <summary>

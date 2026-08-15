@@ -1,6 +1,6 @@
 #nullable enable
 using System;
-using System.Collections.Generic;
+using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Battle.Agent
@@ -79,251 +79,160 @@ namespace AbilityKit.Game.Battle.Agent
     }
 
     /// <summary>
-    /// Tracks reliable battle-event delivery separately from server-confirmed ACK state.
-    /// Delivery is committed only after every exposed event has been consumed successfully.
+    /// 将 MOBA 线协议适配到通用可靠事件游标，并保留示例原有的公开 API。
+    /// 只有所有业务事件均成功消费后，调用方才应提交投递位置。
     /// </summary>
-    public sealed class MobaReliableBattleEventCursor
+    public sealed class MobaReliableBattleEventCursor :
+        IReliableEventDeliveryCursor<WireReliableBattleEvent>,
+        IReliableEventCheckpointRestorable
     {
-        private static readonly WireReliableBattleEvent[] EmptyEvents =
-            Array.Empty<WireReliableBattleEvent>();
+        private static readonly ReliableEventDescriptor<WireReliableBattleEvent> Descriptor =
+            new ReliableEventDescriptor<WireReliableBattleEvent>(
+                item => item.BattleId,
+                item => item.Epoch,
+                item => item.Sequence);
 
-        private readonly string _battleId;
-        private string _epoch = string.Empty;
-        private long _lastDeliveredSequence;
-        private long _lastAcknowledgedSequence;
+        private readonly ReliableEventCursor<WireReliableBattleEvent> _cursor;
 
         public MobaReliableBattleEventCursor(string battleId)
         {
-            _battleId = battleId ?? string.Empty;
+            _cursor = new ReliableEventCursor<WireReliableBattleEvent>(
+                battleId,
+                Descriptor,
+                new ReliableEventCursorOptions
+                {
+                    GapPolicy = ReliableEventGapPolicy.Reject,
+                    BaselineAcknowledgementPolicy =
+                        ReliableEventBaselineAcknowledgementPolicy.PreserveConfirmedWithinWatermark,
+                    InferRetentionGapFromFirstAvailableSequence = false
+                });
         }
 
-        public string Epoch => _epoch;
-        public long LastDeliveredSequence => _lastDeliveredSequence;
-        public long LastAcknowledgedSequence => _lastAcknowledgedSequence;
+        public string Epoch => _cursor.TimelineId;
+        public long LastDeliveredSequence => _cursor.LastDeliveredSequence;
+        public long LastAcknowledgedSequence => _cursor.LastAcknowledgedSequence;
 
         public bool TryRestore(in MobaReliableBattleEventCheckpoint checkpoint)
         {
-            if (!checkpoint.IsValid ||
-                checkpoint.LastAcknowledgedSequence < 0 ||
-                (!string.IsNullOrEmpty(_battleId) &&
-                 !string.Equals(
-                     _battleId,
-                     checkpoint.BattleId,
-                     StringComparison.Ordinal)))
-            {
-                return false;
-            }
+            var commonCheckpoint = new ReliableEventCheckpoint(
+                checkpoint.BattleId,
+                checkpoint.Epoch,
+                checkpoint.LastAcknowledgedSequence);
+            return checkpoint.IsValid && _cursor.TryRestore(in commonCheckpoint);
+        }
 
-            _epoch = checkpoint.Epoch;
-            _lastDeliveredSequence = checkpoint.LastAcknowledgedSequence;
-            _lastAcknowledgedSequence = checkpoint.LastAcknowledgedSequence;
-            return true;
+        bool IReliableEventCheckpointRestorable.TryRestore(
+            in ReliableEventCheckpoint checkpoint)
+        {
+            return _cursor.TryRestore(in checkpoint);
         }
 
         public MobaReliableBattleEventCheckpoint CreateCheckpoint()
         {
             return new MobaReliableBattleEventCheckpoint(
-                _battleId,
-                _epoch,
-                _lastAcknowledgedSequence);
+                _cursor.StreamId,
+                _cursor.TimelineId,
+                _cursor.LastAcknowledgedSequence);
         }
 
         public MobaReliableBattleEventBatchResult Admit(
             in WireReliableBattleEventPush push)
         {
-            var pushBattleId = push.BattleId ?? string.Empty;
-            var pushEpoch = push.Epoch ?? string.Empty;
-
-            if (!string.IsNullOrEmpty(_battleId) &&
-                !string.Equals(_battleId, pushBattleId, StringComparison.Ordinal))
-            {
-                return Reject(
-                    MobaReliableBattleEventBatchStatus.InvalidBattle,
-                    pushEpoch,
-                    _lastDeliveredSequence + 1,
-                    0);
-            }
-
-            if (string.IsNullOrWhiteSpace(pushEpoch))
-            {
-                return Reject(
-                    MobaReliableBattleEventBatchStatus.InvalidEpoch,
-                    pushEpoch,
-                    _lastDeliveredSequence + 1,
-                    0);
-            }
-
-            if (!string.IsNullOrEmpty(_epoch) &&
-                !string.Equals(_epoch, pushEpoch, StringComparison.Ordinal))
-            {
-                return Reject(
-                    MobaReliableBattleEventBatchStatus.EpochChanged,
-                    pushEpoch,
-                    _lastDeliveredSequence + 1,
-                    0);
-            }
-
-            if (push.RetentionGap)
-            {
-                return Reject(
-                    MobaReliableBattleEventBatchStatus.RetentionGap,
-                    pushEpoch,
-                    _lastDeliveredSequence + 1,
-                    push.FirstAvailableSequence);
-            }
-
-            var source = push.Events;
-            if (source == null || source.Count == 0)
-            {
-                return new MobaReliableBattleEventBatchResult(
-                    MobaReliableBattleEventBatchStatus.DuplicateOnly,
-                    EmptyEvents,
-                    pushEpoch,
-                    _lastDeliveredSequence,
-                    _lastDeliveredSequence + 1,
-                    0);
-            }
-
-            var expected = _lastDeliveredSequence + 1;
-            List<WireReliableBattleEvent>? deliverable = null;
-            for (var i = 0; i < source.Count; i++)
-            {
-                var item = source[i];
-                var itemEpoch = item.Epoch ?? string.Empty;
-                var itemBattleId = item.BattleId ?? string.Empty;
-                if (!string.Equals(itemEpoch, pushEpoch, StringComparison.Ordinal))
-                {
-                    return Reject(
-                        MobaReliableBattleEventBatchStatus.EpochChanged,
-                        pushEpoch,
-                        expected,
-                        item.Sequence);
-                }
-
-                if (!string.IsNullOrEmpty(_battleId) &&
-                    !string.Equals(itemBattleId, _battleId, StringComparison.Ordinal))
-                {
-                    return Reject(
-                        MobaReliableBattleEventBatchStatus.InvalidBattle,
-                        pushEpoch,
-                        expected,
-                        item.Sequence);
-                }
-
-                if (item.Sequence <= _lastDeliveredSequence)
-                {
-                    continue;
-                }
-
-                if (item.Sequence != expected)
-                {
-                    return Reject(
-                        MobaReliableBattleEventBatchStatus.SequenceGap,
-                        pushEpoch,
-                        expected,
-                        item.Sequence);
-                }
-
-                deliverable ??= new List<WireReliableBattleEvent>(source.Count - i);
-                deliverable.Add(item);
-                expected++;
-            }
-
-            if (deliverable == null || deliverable.Count == 0)
-            {
-                return new MobaReliableBattleEventBatchResult(
-                    MobaReliableBattleEventBatchStatus.DuplicateOnly,
-                    EmptyEvents,
-                    pushEpoch,
-                    _lastDeliveredSequence,
-                    _lastDeliveredSequence + 1,
-                    0);
-            }
-
+            var batch = ToCommonBatch(in push);
+            var result = _cursor.Admit(in batch);
             return new MobaReliableBattleEventBatchResult(
-                MobaReliableBattleEventBatchStatus.Accepted,
-                deliverable.ToArray(),
-                pushEpoch,
-                expected - 1,
-                _lastDeliveredSequence + 1,
-                expected - 1);
+                MapStatus(result.Status),
+                result.Events,
+                result.TimelineId,
+                result.CommitSequence,
+                result.ExpectedSequence,
+                result.ReceivedSequence);
         }
 
         public bool CommitDelivered(
             string epoch,
             long sequence)
         {
-            if (string.IsNullOrWhiteSpace(epoch) ||
-                sequence < _lastDeliveredSequence ||
-                (!string.IsNullOrEmpty(_epoch) &&
-                 !string.Equals(_epoch, epoch, StringComparison.Ordinal)))
-            {
-                return false;
-            }
-
-            _epoch = epoch;
-            _lastDeliveredSequence = sequence;
-            return true;
+            return _cursor.CommitDelivered(epoch, sequence);
         }
 
         public bool AdoptAuthoritativeBaseline(string epoch, long eventWatermark)
         {
-            if (string.IsNullOrWhiteSpace(epoch) || eventWatermark < 0)
-            {
-                return false;
-            }
-
-            var epochChanged = !string.Equals(_epoch, epoch, StringComparison.Ordinal);
-            _epoch = epoch;
-            _lastDeliveredSequence = eventWatermark;
-            _lastAcknowledgedSequence = epochChanged
-                ? 0
-                : Math.Min(_lastAcknowledgedSequence, eventWatermark);
-            return true;
+            return _cursor.AdoptAuthoritativeBaseline(epoch, eventWatermark);
         }
 
         public bool ConfirmAcknowledged(
             string epoch,
             long acceptedSequence)
         {
-            if (string.IsNullOrEmpty(_epoch) ||
-                !string.Equals(_epoch, epoch, StringComparison.Ordinal) ||
-                acceptedSequence < 0 ||
-                acceptedSequence > _lastDeliveredSequence)
-            {
-                return false;
-            }
-
-            // ACK requests may complete out of order. An older accepted cursor is
-            // already covered by the newest confirmation and is therefore idempotent.
-            if (acceptedSequence > _lastAcknowledgedSequence)
-            {
-                _lastAcknowledgedSequence = acceptedSequence;
-            }
-
-            return true;
+            return _cursor.ConfirmAcknowledged(epoch, acceptedSequence);
         }
 
         public void Reset()
         {
-            _epoch = string.Empty;
-            _lastDeliveredSequence = 0;
-            _lastAcknowledgedSequence = 0;
+            _cursor.Reset();
         }
 
-        private MobaReliableBattleEventBatchResult Reject(
-            MobaReliableBattleEventBatchStatus status,
-            string epoch,
-            long expectedSequence,
-            long receivedSequence)
+        /// <summary>将 MOBA 推送映射为协议无关批次。</summary>
+        public static ReliableEventBatch<WireReliableBattleEvent> ToCommonBatch(
+            in WireReliableBattleEventPush push)
         {
-            return new MobaReliableBattleEventBatchResult(
-                status,
-                EmptyEvents,
-                epoch,
-                _lastDeliveredSequence,
-                expectedSequence,
-                receivedSequence);
+            return new ReliableEventBatch<WireReliableBattleEvent>(
+                push.BattleId,
+                push.Epoch,
+                push.FirstAvailableSequence,
+                push.Watermark,
+                push.RetentionGap,
+                push.Events);
+        }
+
+        ReliableEventBatchResult<WireReliableBattleEvent>
+            IReliableEventDeliveryCursor<WireReliableBattleEvent>.Admit(
+                in ReliableEventBatch<WireReliableBattleEvent> batch)
+        {
+            return _cursor.Admit(in batch);
+        }
+
+        ReliableEventCheckpoint
+            IReliableEventDeliveryCursor<WireReliableBattleEvent>.CreateCheckpoint()
+        {
+            return _cursor.CreateCheckpoint();
+        }
+
+        string IReliableEventDeliveryCursor<WireReliableBattleEvent>.StreamId =>
+            _cursor.StreamId;
+
+        string IReliableEventDeliveryCursor<WireReliableBattleEvent>.TimelineId =>
+            _cursor.TimelineId;
+
+        long IReliableEventDeliveryCursor<WireReliableBattleEvent>.LastObservedWatermark =>
+            _cursor.LastObservedWatermark;
+
+        void IReliableEventDeliveryCursor<WireReliableBattleEvent>.DiscardPending()
+        {
+            _cursor.DiscardPending();
+        }
+
+        private static MobaReliableBattleEventBatchStatus MapStatus(
+            ReliableEventBatchStatus status)
+        {
+            switch (status)
+            {
+                case ReliableEventBatchStatus.Accepted:
+                    return MobaReliableBattleEventBatchStatus.Accepted;
+                case ReliableEventBatchStatus.DuplicateOnly:
+                    return MobaReliableBattleEventBatchStatus.DuplicateOnly;
+                case ReliableEventBatchStatus.InvalidStream:
+                    return MobaReliableBattleEventBatchStatus.InvalidBattle;
+                case ReliableEventBatchStatus.InvalidTimeline:
+                    return MobaReliableBattleEventBatchStatus.InvalidEpoch;
+                case ReliableEventBatchStatus.TimelineChanged:
+                    return MobaReliableBattleEventBatchStatus.EpochChanged;
+                case ReliableEventBatchStatus.RetentionGap:
+                    return MobaReliableBattleEventBatchStatus.RetentionGap;
+                default:
+                    return MobaReliableBattleEventBatchStatus.SequenceGap;
+            }
         }
     }
 }

@@ -43,15 +43,15 @@ public sealed class BenchmarkScenarioTests
         var smoke = BenchmarkScenarioCatalog.Create("smoke");
         var full = BenchmarkScenarioCatalog.Create("full");
 
-        Assert.Equal(17, smoke.Count);
-        Assert.Equal(27, full.Count);
+        Assert.Equal(19, smoke.Count);
+        Assert.Equal(31, full.Count);
         Assert.Equal(smoke.Count, smoke.Select(item => item.Descriptor.Id).Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(full.Count, full.Select(item => item.Descriptor.Id).Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(
-            new[] { "attributes", "event-dispatcher", "modifiers", "pipeline", "record", "targeting", "triggering" },
+            new[] { "attributes", "core-collections", "event-dispatcher", "modifiers", "pipeline", "record", "targeting", "triggering" },
             smoke.Select(item => item.Descriptor.Module).Distinct().Order().ToArray());
         Assert.Equal(
-            new[] { "attributes", "event-dispatcher", "modifiers", "pipeline", "record", "targeting", "triggering" },
+            new[] { "attributes", "core-collections", "event-dispatcher", "modifiers", "pipeline", "record", "targeting", "triggering" },
             BenchmarkScenarioCatalog.Modules.Order().ToArray());
         Assert.All(smoke, item =>
         {
@@ -67,7 +67,7 @@ public sealed class BenchmarkScenarioTests
         var capabilityArguments = BenchmarkArguments.Parse(new[] { "--scope", "capability" });
         var scenarios = BenchmarkScenarioCatalog.Create("smoke");
 
-        Assert.Equal(new[] { "attributes", "modifiers", "record", "targeting" }, scenarios.Where(packageArguments.Matches)
+        Assert.Equal(new[] { "attributes", "core-collections", "modifiers", "record", "targeting" }, scenarios.Where(packageArguments.Matches)
             .Select(item => item.Descriptor.Module).Distinct().Order().ToArray());
         Assert.Equal(new[] { "event-dispatcher", "pipeline", "triggering" }, scenarios.Where(capabilityArguments.Matches)
             .Select(item => item.Descriptor.Module).Distinct().Order().ToArray());
@@ -93,6 +93,19 @@ public sealed class BenchmarkScenarioTests
         Assert.StartsWith("operations=12;checksum=", result.DeterminismDigest);
         Assert.Equal(BenchmarkScenarioScopes.Package,
             result.Descriptor.Workload[BenchmarkWorkloadDimensions.Scope]);
+    }
+
+    [Fact]
+    public void SortedIntSetFrameIndexScenario_matches_legacy_and_avoids_steady_state_allocation()
+    {
+        var options = new BenchmarkRunOptions(1, 1, 1);
+
+        var legacy = BenchmarkRunner.RunScenario(new LegacyFrameIndexScenario(128, batchSize: 1), options);
+        var optimized = BenchmarkRunner.RunScenario(new SortedIntSetFrameIndexScenario(128, batchSize: 1), options);
+
+        Assert.Equal(legacy.DeterminismDigest, optimized.DeterminismDigest);
+        Assert.True(legacy.Summary.TotalThreadAllocatedBytes > 0);
+        Assert.Equal(0, optimized.Summary.TotalThreadAllocatedBytes);
     }
 
     [Fact]

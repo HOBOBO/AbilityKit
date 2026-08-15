@@ -1,6 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
+using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
+using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Room;
 using Xunit;
 
@@ -27,6 +30,52 @@ public sealed class ShooterReliableBattleEventConsumerTests
         Assert.Empty(duplicate.CommittedEvents);
         Assert.Equal(3L, duplicate.AcknowledgedSequence);
         Assert.False(duplicate.ShouldAcknowledge);
+    }
+
+    [Fact]
+    public void NegotiatedSessionPersistsCheckpointAfterCommittedEvents()
+    {
+        var clientSession = new ShooterClientSession(
+            new ShooterBattleRuntimePort(),
+            new ShooterPresentationFacade(),
+            tickRate: 30);
+        var saved = new List<ReliableEventCheckpoint>();
+        var consumer = new ShooterReliableBattleEventConsumer(
+            clientSession.SyncSession,
+            saveCheckpoint: saved.Add);
+
+        var result = consumer.Consume(CreatePush(2L, Event(1L), Event(2L)));
+
+        Assert.False(result.RequiresResync);
+        Assert.Equal(2L, result.AcknowledgedSequence);
+        var checkpoint = Assert.IsType<ReliableEventCheckpoint>(consumer.LatestCheckpoint);
+        Assert.Equal(BattleId, checkpoint.StreamId);
+        Assert.Equal(Epoch, checkpoint.TimelineId);
+        Assert.Equal(2L, checkpoint.LastAcknowledgedSequence);
+        Assert.Contains(saved, item => item.Equals(checkpoint));
+    }
+
+    [Fact]
+    public void SharedCheckpointStoreRestoresNewConsumerWithoutManualCursorRestore()
+    {
+        var clientSession = new ShooterClientSession(
+            new ShooterBattleRuntimePort(),
+            new ShooterPresentationFacade(),
+            tickRate: 30);
+        var store = new InMemoryReliableEventCheckpointStore();
+        var first = new ShooterReliableBattleEventConsumer(
+            clientSession.SyncSession,
+            checkpointStore: store);
+        first.Consume(CreatePush(2L, Event(1L), Event(2L)));
+
+        var resumed = new ShooterReliableBattleEventConsumer(
+            clientSession.SyncSession,
+            checkpointStore: store);
+        var result = resumed.Consume(CreatePush(3L, Event(3L)));
+
+        Assert.False(result.RequiresResync);
+        Assert.Single(result.CommittedEvents);
+        Assert.Equal(3L, result.AcknowledgedSequence);
     }
 
     [Fact]
@@ -101,6 +150,56 @@ public sealed class ShooterReliableBattleEventConsumerTests
         Assert.True(result.RequiresResync);
         Assert.True(consumer.RequiresResync);
         Assert.Equal(0L, consumer.LastAcknowledgedSequence);
+    }
+
+    [Fact]
+    public void SinkFailureRequiresBaselineWithoutAdvancingAcknowledgement()
+    {
+        var consumer = new ShooterReliableBattleEventConsumer();
+        var push = CreatePush(1L, Event(1L));
+
+        var result = consumer.Consume(
+            in push,
+            _ => throw new InvalidOperationException("sink failed"));
+
+        Assert.True(result.RequiresResync);
+        Assert.True(consumer.RequiresResync);
+        Assert.Equal(0L, consumer.LastAcknowledgedSequence);
+        Assert.Empty(result.CommittedEvents);
+    }
+
+    [Fact]
+    public async Task CheckpointLifecyclePublishesFailureAndPreservesTriggerDiagnostics()
+    {
+        var expected = new InvalidOperationException("flush failed");
+        var store = new DelegatingReliableEventCheckpointStore(
+            _ => null,
+            _ => { },
+            _ => false,
+            _ => Task.FromException(expected));
+        var clientSession = new ShooterClientSession(
+            new ShooterBattleRuntimePort(),
+            new ShooterPresentationFacade(),
+            tickRate: 30);
+        var consumer = new ShooterReliableBattleEventConsumer(
+            clientSession.SyncSession,
+            checkpointStore: store);
+        ReliableEventCheckpointLifecycleFailure? publishedFailure = null;
+        consumer.CheckpointLifecycleFailure += failure => publishedFailure = failure;
+
+        var result = await consumer.FlushCheckpointStoreAsync(
+            ReliableEventCheckpointFlushTrigger.ApplicationPause);
+        var diagnostics = consumer.CheckpointLifecycleDiagnostics;
+
+        Assert.Equal(ReliableEventCheckpointFlushStatus.Failed, result.Status);
+        Assert.Equal(ReliableEventCheckpointFlushTrigger.ApplicationPause, result.Trigger);
+        Assert.Same(expected, result.Failure);
+        Assert.True(publishedFailure.HasValue);
+        Assert.Equal(ReliableEventCheckpointFlushTrigger.ApplicationPause, publishedFailure.Value.Trigger);
+        Assert.Equal(1, diagnostics.AttemptCount);
+        Assert.Equal(1, diagnostics.FailureCount);
+        Assert.Equal(ReliableEventCheckpointFlushTrigger.ApplicationPause, diagnostics.LastTrigger);
+        Assert.Same(expected, diagnostics.LastFailure);
     }
 
     private static WireReliableBattleEventPush CreatePush(long watermark, params WireReliableBattleEvent[] events)

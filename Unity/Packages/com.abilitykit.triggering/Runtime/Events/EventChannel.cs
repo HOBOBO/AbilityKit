@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Lifetime;
 using AbilityKit.Triggering.Runtime;
 
 namespace AbilityKit.Triggering.Eventing
@@ -65,7 +66,9 @@ namespace AbilityKit.Triggering.Eventing
             EnsureHandlerCapacity(_handlerCount + 1);
             _handlers[_handlerCount++] = new OrderedHandler<TArgs>(handler, order);
             _handlersDirty = true;
-            return new Subscription(this, handler);
+            return DisposableRegistration.Create(
+                new SubscriptionState(this, handler),
+                static state => state.Channel.Unsubscribe(state.Handler));
         }
 
         public void Enqueue(TArgs args, ExecutionControl control)
@@ -163,23 +166,15 @@ namespace AbilityKit.Triggering.Eventing
             }
         }
 
-        private sealed class Subscription : IDisposable
+        private readonly struct SubscriptionState
         {
-            private EventChannel<TArgs> _channel;
-            private Action<TArgs, ExecutionControl> _handler;
+            public readonly EventChannel<TArgs> Channel;
+            public readonly Action<TArgs, ExecutionControl> Handler;
 
-            public Subscription(EventChannel<TArgs> channel, Action<TArgs, ExecutionControl> handler)
+            public SubscriptionState(EventChannel<TArgs> channel, Action<TArgs, ExecutionControl> handler)
             {
-                _channel = channel;
-                _handler = handler;
-            }
-
-            public void Dispose()
-            {
-                if (_channel == null) return;
-                _channel.Unsubscribe(_handler);
-                _channel = null;
-                _handler = null;
+                Channel = channel;
+                Handler = handler;
             }
         }
     }

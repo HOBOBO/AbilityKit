@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using AbilityKit.Combat.Navigation;
-using AbilityKit.Core.Debugging;
-using AbilityKit.Core.Editor.Debugging;
+using AbilityKit.Diagnostics.DebugDraw;
+using AbilityKit.Diagnostics.Editor.DebugDraw;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Navigation;

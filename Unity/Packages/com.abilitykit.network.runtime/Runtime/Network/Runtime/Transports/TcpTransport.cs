@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using AbilityKit.Core.Buffers;
 using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Network.Runtime
@@ -101,7 +102,6 @@ namespace AbilityKit.Network.Runtime
 
         private async Task RunAsync(string host, int port, CancellationToken ct)
         {
-            byte[] receiveBuffer = null;
             try
             {
                 await _client.ConnectAsync(host, port);
@@ -112,11 +112,13 @@ namespace AbilityKit.Network.Runtime
 
                 Connected?.Invoke();
 
-                receiveBuffer = new byte[ReceiveBufferSize]; // one reusable buffer for entire connection
+                using var receiveOwner = PooledBufferOwner<byte>.Rent(ReceiveBufferSize);
+                var receiveSegment = receiveOwner.Segment;
+                var receiveBuffer = receiveSegment.Array!;
 
                 while (!ct.IsCancellationRequested)
                 {
-                    var n = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length, ct);
+                    var n = await stream.ReadAsync(receiveBuffer, 0, receiveSegment.Count, ct);
                     if (n <= 0) break;
 
                     if (n >= PoolRentalThreshold)

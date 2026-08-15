@@ -3,7 +3,7 @@
 using System;
 using System.Text;
 using AbilityKit.Demo.Shooter.View;
-using AbilityKit.Network.Runtime.DemoHarness;
+using AbilityKit.Demo.Harness;
 using UnityEditor;
 using UnityEngine;
 

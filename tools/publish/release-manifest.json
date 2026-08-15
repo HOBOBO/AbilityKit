@@ -1,0 +1,31 @@
+{
+  "_comment": "Release manifest for AbilityKit framework packages. Drives tools/publish/release.js. Edit batches/status here, then run release.js to tag.",
+  "cohortVersion": "0.1.0",
+  "registry": {
+    "name": "OpenUPM",
+    "url": "https://package.openupm.com",
+    "scope": "com.abilitykit"
+  },
+  "gitTagFormat": "{name}/{version}",
+  "neverReleased": {
+    "_comment": "These prefixes are vendored (thirdparty) or samples (demo) and are never released.",
+    "prefixes": ["com.abilitykit.thirdparty.", "com.abilitykit.demo."]
+  },
+  "batches": [
+    {
+      "id": "batch-1-leaves",
+      "status": "candidate",
+      "_comment": "status: candidate (awaiting stability sign-off) -> ready (cleared to tag) -> shipped (tagged).",
+      "description": "Leaf framework packages with no internal AbilityKit dependencies. Ships first to validate the registry + tag pipeline end-to-end before broader rollout.",
+      "packages": [
+        "com.abilitykit.core",
+        "com.abilitykit.gameplaytags",
+        "com.abilitykit.threading",
+        "com.abilitykit.diagnostics",
+        "com.abilitykit.ai.abstractions",
+        "com.abilitykit.protocol",
+        "com.abilitykit.network.runtime"
+      ]
+    }
+  ]
+}

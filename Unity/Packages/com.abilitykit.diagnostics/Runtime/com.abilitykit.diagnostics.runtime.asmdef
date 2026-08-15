@@ -1,7 +1,9 @@
 {
     "name": "AbilityKit.Diagnostics",
     "rootNamespace": "AbilityKit.Diagnostics",
-    "references": [],
+    "references": [
+        "AbilityKit.Core"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

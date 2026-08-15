@@ -1,7 +1,7 @@
 using System;
 using AbilityKit.Core.Logging;
 using AbilityKit.Combat.Projectile;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile.Launch

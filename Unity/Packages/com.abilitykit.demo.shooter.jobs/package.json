@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "com.abilitykit.demo.shooter.runtime": "0.0.1",
-    "com.abilitykit.world.di": "0.0.1",
+    "com.abilitykit.world.di": "0.1.0",
     "com.unity.burst": "1.8.21",
     "com.unity.collections": "2.1.4"
   }

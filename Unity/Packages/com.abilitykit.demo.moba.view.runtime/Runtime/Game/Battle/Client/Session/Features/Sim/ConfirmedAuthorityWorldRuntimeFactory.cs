@@ -53,9 +53,21 @@ namespace AbilityKit.Game.Flow
 
             var worldId = CreateWorldId(plan);
             var worldOptions = SessionMobaWorldBootstrapFactory.CreateWorldOptions(plan, worldId);
-            var world = runtime.CreateWorld(worldOptions);
+            IWorld world = null;
+            try
+            {
+                world = runtime.CreateWorld(worldOptions);
+                return new ConfirmedAuthorityWorldRuntime(worldId, worlds, runtime, world);
+            }
+            catch
+            {
+                if (world != null)
+                {
+                    runtime.DestroyWorld(worldId);
+                }
 
-            return new ConfirmedAuthorityWorldRuntime(worldId, worlds, runtime, world);
+                throw;
+            }
         }
 
         private static WorldId CreateWorldId(BattleStartPlan plan)

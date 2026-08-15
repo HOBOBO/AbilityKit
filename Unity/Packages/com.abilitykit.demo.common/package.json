@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "com.abilitykit.demo.common",
   "version": "0.0.1",
   "displayName": "AbilityKit Demo Common",
@@ -8,8 +8,8 @@
     "name": "AbilityKit"
   },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.core": "0.1.0",
     "com.abilitykit.network.runtime": "0.1.0",
-    "com.abilitykit.protocol.room": "0.0.1"
+    "com.abilitykit.protocol.room": "0.1.0"
   }
 }

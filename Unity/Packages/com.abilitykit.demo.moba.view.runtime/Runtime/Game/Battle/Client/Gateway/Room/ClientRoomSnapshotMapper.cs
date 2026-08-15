@@ -36,6 +36,7 @@ namespace AbilityKit.Game.Battle.Agent
                 WorldId = wire.WorldId,
                 Members = ToStringList(wire.Members),
                 Players = ToPlayerList(wire.Players),
+                SyncCapabilities = RoomGatewayNetworkSyncCapabilitiesConverter.FromWire(wire.SyncCapabilities),
                 WorldStartAnchor = ToAnchor(anchor)
             };
             return snapshot;
@@ -62,6 +63,7 @@ namespace AbilityKit.Game.Battle.Agent
                 WorldId = source.WorldId,
                 Members = ToStringList(source.Members),
                 Players = ToPlayerList(source.Players),
+                SyncCapabilities = source.SyncCapabilities,
                 WorldStartAnchor = ToAnchor(in anchor)
             };
         }

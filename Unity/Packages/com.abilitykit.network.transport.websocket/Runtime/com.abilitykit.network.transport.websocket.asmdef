@@ -2,6 +2,7 @@
     "name": "AbilityKit.Network.Transport.WebSocket",
     "rootNamespace": "AbilityKit",
     "references": [
+        "AbilityKit.Core",
         "AbilityKit.Network.Runtime"
     ],
     "includePlatforms": [],

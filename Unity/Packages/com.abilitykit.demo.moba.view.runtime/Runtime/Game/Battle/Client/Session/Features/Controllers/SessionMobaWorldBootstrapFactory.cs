@@ -66,7 +66,7 @@ namespace AbilityKit.Game.Flow
                     typeof(WorldServiceContainerFactory).Assembly,
                     typeof(BattleLogicSession).Assembly,
                     typeof(AbilityKit.Demo.Moba.Systems.MobaWorldBootstrapModule).Assembly,
-                    typeof(BattleSessionFeature).Assembly
+                    typeof(SessionMobaWorldBootstrapFactory).Assembly
                 },
                 new[] { "AbilityKit" }
             );

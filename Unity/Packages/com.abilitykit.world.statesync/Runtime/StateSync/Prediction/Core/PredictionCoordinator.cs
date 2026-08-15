@@ -123,8 +123,14 @@ public sealed class PredictionCoordinator : IPredictionCoordinator, IDisposable
     public void ApplyServerSnapshot(int serverFrame, int objectId, StateSlots serverSlots)
     {
         if (objectId != _localPlayerId) return;
+        if (serverSlots == null) throw new ArgumentNullException(nameof(serverSlots));
 
         var serverFrameObj = new Frame(serverFrame);
+
+        // Ignore confirmations that cannot advance the acknowledged timeline.
+        // A late packet must not roll the client back over a newer confirmation.
+        if (_confirmedFrame != Frame.Invalid && serverFrameObj <= _confirmedFrame)
+            return;
 
         var predictedSlots = _snapshotStore.Get(serverFrameObj);
         if (predictedSlots == null)
@@ -138,6 +144,8 @@ public sealed class PredictionCoordinator : IPredictionCoordinator, IDisposable
         }
         else
         {
+            var predictedFrame = _currentFrame;
+            var replayInputs = _inputHistory.GetInputs(serverFrameObj, predictedFrame);
             var handlerRollback = OnRollbackExecuted;
             if (handlerRollback != null)
                 handlerRollback(_currentFrame, conflictLevel);
@@ -145,12 +153,17 @@ public sealed class PredictionCoordinator : IPredictionCoordinator, IDisposable
 
             _currentFrame = serverFrameObj;
             _currentSlots.OverwriteFrom(serverSlots);
+            foreach (var handler in _handlers)
+            {
+                if (handler.Strategy != PredictionStrategy.None)
+                    handler.ApplyServerState(serverSlots, _currentSlots);
+            }
             _confirmedFrame = serverFrameObj;
 
             _snapshotStore.PruneBefore(serverFrameObj);
             _inputHistory.Clear();
 
-            ReplayInputs(serverFrameObj);
+            ReplayInputs(replayInputs);
         }
 
         var handlerServerApplied = OnServerStateApplied;
@@ -183,11 +196,12 @@ public sealed class PredictionCoordinator : IPredictionCoordinator, IDisposable
     /// <summary>
     /// 重演输入
     /// </summary>
-    private void ReplayInputs(Frame fromFrame)
+    private void ReplayInputs(IReadOnlyList<IInputCommand> inputs)
     {
-        var inputs = _inputHistory.GetInputs(fromFrame, _currentFrame);
         foreach (var input in inputs)
         {
+            _currentFrame = _currentFrame + 1;
+            _inputHistory.Record(_currentFrame, input);
             foreach (var handler in _handlers)
             {
                 if (handler.Strategy != PredictionStrategy.None)
@@ -195,6 +209,7 @@ public sealed class PredictionCoordinator : IPredictionCoordinator, IDisposable
                     handler.Predict(input, _currentSlots, _currentFrame);
                 }
             }
+            _snapshotStore.Record(_currentFrame, _currentSlots);
         }
     }
 

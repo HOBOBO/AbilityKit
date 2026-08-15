@@ -1,8 +1,7 @@
 using System;
 using System.Reflection;
-using AbilityKit.Core.Configuration;
+using AbilityKit.Demo.Moba.Bootstrap;
 using AbilityKit.Core.Logging;
-using AbilityKit.Core.Reflection;
 
 namespace AbilityKit.Demo.Moba.Serialization
 {
@@ -27,7 +26,7 @@ namespace AbilityKit.Demo.Moba.Serialization
 
             try
             {
-                if (!ReflectionInvokeUtils.TryInvokeStaticMethod(module.InstallerType, module.GetEffectiveMethod()))
+                if (!ModuleInstallerInvoker.TryInvoke(module))
                 {
                     Log.Info("[DemoWireSerializerBootstrap] Wire serializer installer not found/invokable; skip");
                     return false;

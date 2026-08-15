@@ -3,6 +3,7 @@ using System.Reflection;
 
 namespace AbilityKit.Core.Reflection
 {
+    [Obsolete("Broad reflection invocation no longer belongs in Core. Use a narrow owner-specific bootstrap contract; this compatibility API will be removed in the next major version.")]
     public static class ReflectionInvokeUtils
     {
         public static Type FindType(string typeNameOrAssemblyQualified)

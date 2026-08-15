@@ -168,7 +168,19 @@ public sealed class RoomLoadingHandlersTests
             LoadingDeadlineUnixMs: 123L,
             LaunchManifestHash: "h",
             LaunchManifestVersion: 3,
-            LastStartFailureCode: null);
+            LastStartFailureCode: null,
+            SyncCapabilities: new NetworkSyncCapabilityMetadata(
+                MetadataVersion: 1,
+                ProfileName: "Moba.AuthoritativeRemoteInterpolation",
+                MinimumSchemaVersion: 0,
+                MaximumSchemaVersion: 1,
+                ClientPlayback: 2,
+                Input: 2,
+                Snapshot: 19,
+                Interest: 1,
+                Recovery: 1,
+                ServerValidation: 3,
+                ReliableEvent: 43));
 
         var wire = RoomGatewayWireMapper.ToRoomOperationRes(result, snapshot);
 
@@ -184,6 +196,10 @@ public sealed class RoomLoadingHandlersTests
         Assert.Equal(3L, wire.Snapshot.LaunchGeneration);
         Assert.Equal(555L, wire.Snapshot.RoomRevision);
         Assert.Equal(2, wire.Snapshot.SchemaVersion);
+        Assert.True(wire.Snapshot.SyncCapabilities.HasValue);
+        Assert.Equal("Moba.AuthoritativeRemoteInterpolation", wire.Snapshot.SyncCapabilities.Value.ProfileName);
+        Assert.Equal(19, wire.Snapshot.SyncCapabilities.Value.Snapshot);
+        Assert.Equal(43, wire.Snapshot.SyncCapabilities.Value.ReliableEvent);
         // player 新字段
         var player = Assert.Single(wire.Snapshot.Players!);
         Assert.True(player.LobbyReady);

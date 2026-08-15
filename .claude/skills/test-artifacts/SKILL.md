@@ -1,6 +1,6 @@
 ---
 name: test-artifacts
-description: AbilityKit 测试产物管理规范——统一规划 moba headless / shooter StateSync multiprocess / dotnet test / Unity EditMode+PlayMode 四类测试的输出路径、命名、生命周期与清理。涵盖 tools/run_test_gate.ps1 + tools/test-gates.json 的 24 个 gate 体系、本地 local/Logs/ 与 CI 显式 artifacts/test-gates/ 目录约定、.gitignore 覆盖范围、绕过 gate 体系直接跑命令的注意事项。触发场景：跑测试、写新测试、加 test gate、排查测试产物位置、清理 TestResults、MultiplayerHeadlessHeroReplacement 产物、shooter multiprocess artifact、TRX 文件、NUnit XML、上传 CI artifact、CI workflow 上传测试产物。
+description: AbilityKit 测试产物管理规范——统一规划 moba headless / shooter StateSync multiprocess / dotnet test / Unity EditMode+PlayMode 四类测试的输出路径、命名、生命周期与清理。涵盖 tools/run_test_gate.ps1 + tools/test-gates.json 的 25 个 gate 体系（2026-08-14 新增 moba-acceptance-dotnet P1：无 Unity 的白盒验收判定）、本地 local/Logs/ 与 CI 显式 artifacts/test-gates/ 目录约定、.gitignore 覆盖范围、绕过 gate 体系直接跑命令的注意事项。触发场景：跑测试、写新测试、加 test gate、排查测试产物位置、清理 TestResults、MultiplayerHeadlessHeroReplacement 产物、shooter multiprocess artifact、TRX 文件、NUnit XML、上传 CI artifact、CI workflow 上传测试产物。
 ---
 
 # test-artifacts skill
@@ -56,7 +56,7 @@ local/Logs/
 ## Sections
 
 - [when_to_use.md](when_to_use.md) — 何时启用本 skill
-- [gate_runner.md](gate_runner.md) — `run_test_gate.ps1` + `test-gates.json` 24 gate 体系（推荐入口）
+- [gate_runner.md](gate_runner.md) — `run_test_gate.ps1` + `test-gates.json` 25 gate 体系（推荐入口；含 moba-acceptance-dotnet 白盒验收判定 gate，trace 基线在 `src/AbilityKit.Demo.Moba.Acceptance.Tests/{Fixtures,Traces}/`，真实基线经 `tools/capture_moba_acceptance_traces.ps1` 刷新）
 - [dotnet_test.md](dotnet_test.md) — dotnet test 直接跑的产物（TRX + local/Logs/dotnet/）
 - [unity_editmode_playmode.md](unity_editmode_playmode.md) — Unity EditMode/PlayMode 测试产物（NUnit XML + Editor Tests）
 - [moba_headless.md](moba_headless.md) — MultiplayerHeadlessHeroReplacementCommand 等无头测试

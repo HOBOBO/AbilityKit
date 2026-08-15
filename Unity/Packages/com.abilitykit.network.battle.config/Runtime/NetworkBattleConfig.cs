@@ -231,6 +231,14 @@ namespace AbilityKit.Network.Battle.Config
                 });
         }
 
+        /// <summary>Sets the request opcode used by the configured input serializer.</summary>
+        public NetworkBattleConfig WithInputOpCode(uint opCode)
+        {
+            if (opCode == 0) throw new ArgumentOutOfRangeException(nameof(opCode));
+            _o.OpSubmitInput = opCode;
+            return this;
+        }
+
         /// <summary>Sets the game-specific input serialize + response deserialize.</summary>
         public NetworkBattleConfig WithInputSerializer(
             Func<object, ArraySegment<byte>> serializeSubmitInput,

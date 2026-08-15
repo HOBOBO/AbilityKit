@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Collections;
 
 namespace AbilityKit.Ability.StateSync.Buffer
 {
@@ -11,7 +12,7 @@ namespace AbilityKit.Ability.StateSync.Buffer
 public sealed class InputBuffer<TInput> where TInput : class, IInputCommand
 {
     private readonly Dictionary<int, TInput> _inputs = new();
-    private readonly List<int> _frames = new();
+    private readonly SortedIntSet _frames;
     private readonly int _maxBufferSize;
     private readonly int _localPlayerId;
     private readonly object _lock = new();
@@ -24,6 +25,7 @@ public sealed class InputBuffer<TInput> where TInput : class, IInputCommand
         if (maxBufferSize <= 0) throw new ArgumentOutOfRangeException(nameof(maxBufferSize));
         _localPlayerId = localPlayerId;
         _maxBufferSize = maxBufferSize;
+        _frames = new SortedIntSet(maxBufferSize);
     }
 
     public void Store(int frame, TInput input)
@@ -31,11 +33,7 @@ public sealed class InputBuffer<TInput> where TInput : class, IInputCommand
         lock (_lock)
         {
             _inputs[frame] = input;
-            if (!_frames.Contains(frame))
-            {
-                _frames.Add(frame);
-                _frames.Sort();
-            }
+            _frames.Add(frame);
             TrimBuffer();
         }
     }
@@ -86,8 +84,10 @@ public sealed class InputBuffer<TInput> where TInput : class, IInputCommand
         lock (_lock)
         {
             var result = new List<TInput>();
-            foreach (var frame in _frames)
+            for (var index = _frames.LowerBound(startFrame); index < _frames.Count; index++)
             {
+                var frame = _frames[index];
+                if (frame > endFrame) break;
                 if (frame >= startFrame && frame <= endFrame && _inputs.TryGetValue(frame, out var input))
                 {
                     result.Add(input);
@@ -108,30 +108,27 @@ public sealed class InputBuffer<TInput> where TInput : class, IInputCommand
 
     public void RemoveBefore(int frame)
     {
-        lock (_lock)
-        {
-            var framesToRemove = new List<int>();
-            foreach (var f in _frames)
+            lock (_lock)
             {
-                if (f < frame) framesToRemove.Add(f);
-            }
+                var removeCount = _frames.LowerBound(frame);
+                for (var index = 0; index < removeCount; index++)
+                {
+                    _inputs.Remove(_frames[index]);
+                }
 
-            foreach (var f in framesToRemove)
-            {
-                _inputs.Remove(f);
-                _frames.Remove(f);
+                if (removeCount > 0) _frames.RemoveRange(0, removeCount);
             }
-        }
     }
 
     private void TrimBuffer()
     {
-        while (_frames.Count > _maxBufferSize)
+        var removeCount = _frames.Count - _maxBufferSize;
+        for (var index = 0; index < removeCount; index++)
         {
-            int earliestFrame = _frames[0];
-            _inputs.Remove(earliestFrame);
-            _frames.RemoveAt(0);
+            _inputs.Remove(_frames[index]);
         }
+
+        if (removeCount > 0) _frames.RemoveRange(0, removeCount);
     }
 
     public int GetInputCount()

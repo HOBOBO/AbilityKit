@@ -1,7 +1,7 @@
 using System;
-using System.Diagnostics;
 using System.Text;
 using AbilityKit.Core.Logging;
+using AbilityKit.Core.Timing;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime.Sync;
@@ -175,7 +175,7 @@ namespace AbilityKit.Network.Runtime
 
             // 驱动时间相关中间件（如网络调理模拟器），让到期包在每帧冲刷。
             // 使用高精度单调时钟，避免 32 位回绕。
-            MiddlewareTick?.Invoke(Stopwatch.GetTimestamp() * 1000L / Stopwatch.Frequency);
+            MiddlewareTick?.Invoke(MonotonicTime.GetMilliseconds());
         }
 
         public void Send(uint opCode, ArraySegment<byte> payload, ushort flags = 0, uint seq = 0)

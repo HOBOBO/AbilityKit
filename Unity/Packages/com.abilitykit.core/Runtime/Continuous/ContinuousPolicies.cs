@@ -6,6 +6,7 @@ namespace AbilityKit.Core.Continuous
     /// 持续体准入策略。
     /// 用于在注册或激活前处理标签阻止、互斥、替换等横切规则。
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public interface IContinuousAdmissionPolicy
     {
         /// <summary>
@@ -23,6 +24,7 @@ namespace AbilityKit.Core.Continuous
     /// 持续体生命周期绑定器。
     /// 用于在生命周期节点挂接 modifier、表现层状态、统计等横切能力。
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public interface IContinuousLifecycleBinder
     {
         /// <summary>
@@ -59,6 +61,7 @@ namespace AbilityKit.Core.Continuous
     /// <summary>
     /// 空生命周期绑定器。
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public sealed class NullContinuousLifecycleBinder : IContinuousLifecycleBinder
     {
         /// <summary>
@@ -92,6 +95,7 @@ namespace AbilityKit.Core.Continuous
     /// <summary>
     /// 默认准入策略。
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public sealed class AllowAllContinuousAdmissionPolicy : IContinuousAdmissionPolicy
     {
         /// <summary>
@@ -122,6 +126,7 @@ namespace AbilityKit.Core.Continuous
     /// 按标签阻止激活的准入策略。
     /// 当同一 owner 已存在匹配 blockedTags 的活跃持续体时，阻止目标持续体激活。
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public sealed class BlockByOwnerActiveTagsPolicy : IContinuousAdmissionPolicy
     {
         private readonly ITagContainer _blockedTags;

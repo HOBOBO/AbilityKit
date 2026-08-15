@@ -4,13 +4,13 @@
   "displayName": "AbilityKit GameplayTags",
   "unity": "2022.3",
   "description": "Gameplay Tag system for AbilityKit, aligned with Unreal Engine GAS naming conventions.",
-  "author": {
-    "name": "AbilityKit Team"
-  },
   "keywords": [
     "abilitykit",
     "gameplaytags",
     "gameplay"
   ],
+  "author": {
+    "name": "AbilityKit"
+  },
   "dependencies": {}
 }

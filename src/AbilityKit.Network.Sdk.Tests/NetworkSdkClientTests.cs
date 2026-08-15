@@ -355,6 +355,106 @@ public sealed class NetworkSdkClientTests
         Assert.Equal(1, connection.CloseCount);
     }
 
+    [Fact]
+    public void RecoveryBindingTranslatesReconnectLifecycleAndStopsAfterDispose()
+    {
+        var connection = new ReconnectableObservableConnection();
+        using var client = new NetworkSdkBuilder()
+            .UseConnectionFactory(() => connection)
+            .Build();
+        var coordinator = new NetworkSessionRecoveryCoordinator(
+            new NetworkSessionRecoveryOptions { DuplicateSignalWindow = TimeSpan.Zero });
+        var binding = client.BindRecoverySignals(
+            coordinator,
+            new NetworkSdkClientRecoveryBindingOptions
+            {
+                FrameProvider = () => 42,
+                CorrelationContextProvider = () => "battle-1"
+            });
+
+        connection.RaiseConnected();
+        Assert.False(coordinator.CurrentDecision.HasDecision);
+
+        connection.RaiseDisconnected();
+        Assert.Equal(NetworkSessionRecoveryAction.WaitForReconnect, coordinator.CurrentDecision.Action);
+        Assert.Equal(NetworkSessionRecoverySignalKind.ConnectionLost, coordinator.CurrentDecision.Signal.Kind);
+        Assert.Equal(42, coordinator.CurrentDecision.Signal.Frame);
+        Assert.Equal("battle-1", coordinator.CurrentDecision.Signal.CorrelationContext);
+
+        connection.RaiseReconnectScheduled(1, 0.5f);
+        connection.RaiseReconnectAttemptStarted(1);
+        connection.RaiseReconnectExhausted(3);
+
+        Assert.Equal(NetworkSessionRecoveryAction.RebuildSession, coordinator.CurrentDecision.Action);
+        Assert.Equal(NetworkSessionRecoverySignalKind.ReconnectExhausted, coordinator.CurrentDecision.Signal.Kind);
+        Assert.Equal(4, coordinator.GetDiagnostics().ReceivedSignalCount);
+
+        binding.Dispose();
+        connection.RaiseReconnectExhausted(4);
+        Assert.Equal(4, coordinator.GetDiagnostics().ReceivedSignalCount);
+    }
+
+    [Fact]
+    public void RecoveryBindingClearsOnlyReconnectWaitWhenConnectionReturns()
+    {
+        var connection = new ReconnectableObservableConnection();
+        using var client = new NetworkSdkBuilder()
+            .UseConnectionFactory(() => connection)
+            .Build();
+        var coordinator = new NetworkSessionRecoveryCoordinator();
+        using var binding = client.BindRecoverySignals(coordinator);
+
+        connection.RaiseDisconnected();
+        connection.RaiseConnected();
+
+        Assert.True(coordinator.CurrentDecision.HasDecision);
+        Assert.False(coordinator.CurrentDecision.HasAction);
+        Assert.Equal(NetworkSessionRecoverySignalKind.ConnectionRestored,
+            coordinator.CurrentDecision.Signal.Kind);
+    }
+
+    [Fact]
+    public void RecoveryBindingTreatsDisconnectWithoutReconnectAsExhausted()
+    {
+        var connection = new ObservableConnection();
+        using var client = new NetworkSdkBuilder()
+            .UseConnectionFactory(() => connection)
+            .Build();
+        var coordinator = new NetworkSessionRecoveryCoordinator();
+        using var binding = client.BindRecoverySignals(coordinator);
+
+        connection.RaiseDisconnected();
+
+        Assert.Equal(NetworkSessionRecoveryAction.RebuildSession, coordinator.CurrentDecision.Action);
+        Assert.Equal(NetworkSessionRecoverySignalKind.ReconnectExhausted,
+            coordinator.CurrentDecision.Signal.Kind);
+    }
+
+    [Fact]
+    public void RecoveryBindingResetPreventsIntentionalReconnectFromBeingReportedAsRecovery()
+    {
+        var connection = new ReconnectableObservableConnection();
+        using var client = new NetworkSdkBuilder()
+            .UseConnectionFactory(() => connection)
+            .Build();
+        var coordinator = new NetworkSessionRecoveryCoordinator(
+            new NetworkSessionRecoveryOptions { DuplicateSignalWindow = TimeSpan.Zero });
+        using var binding = client.BindRecoverySignals(coordinator);
+
+        connection.RaiseDisconnected();
+        Assert.Equal(NetworkSessionRecoverySignalKind.ConnectionLost,
+            coordinator.CurrentDecision.Signal.Kind);
+
+        coordinator.Reset();
+        binding.Enabled = false;
+        binding.Reset();
+        binding.Enabled = true;
+        connection.RaiseConnected();
+
+        Assert.False(coordinator.CurrentDecision.HasDecision);
+        Assert.Equal(1, coordinator.GetDiagnostics().ReceivedSignalCount);
+    }
+
     private static ArraySegment<byte> Bytes(params byte[] bytes) => new(bytes);
 
     private static ArraySegment<byte> Response(TcpGatewayStatusCode statusCode, params byte[] payload)

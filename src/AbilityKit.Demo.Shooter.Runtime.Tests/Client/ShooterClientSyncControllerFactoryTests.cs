@@ -2,6 +2,7 @@ using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Network.Sdk;
 using Xunit;
 
 namespace AbilityKit.Demo.Shooter.Runtime.Tests;
@@ -85,13 +86,16 @@ public sealed class ShooterClientSyncControllerFactoryTests
     [Fact]
     public void DefaultRegistryRejectsUnregisteredSyncModel()
     {
-        Assert.Throws<System.NotSupportedException>(() => ShooterClientSyncControllerFactory.Create(
-            NetworkSyncModel.Lockstep,
-            new ShooterBattleRuntimePort(),
-            new ShooterPresentationFacade(),
-            tickRate: 30,
-            decoder: null,
-            gateway: null));
+        var exception = Assert.Throws<NetworkSyncSessionBuildException>(() =>
+            ShooterClientSyncControllerFactory.Create(
+                NetworkSyncModel.Lockstep,
+                new ShooterBattleRuntimePort(),
+                new ShooterPresentationFacade(),
+                tickRate: 30,
+                decoder: null,
+                gateway: null));
+
+        Assert.Equal(NetworkSyncSessionBuildFailureReason.MissingControllerRegistration, exception.Reason);
     }
 
     [Theory]
@@ -145,12 +149,99 @@ public sealed class ShooterClientSyncControllerFactoryTests
             ShooterClientSyncControllerFactory.ResetToDefaults();
         }
 
-        Assert.Throws<System.NotSupportedException>(() => ShooterClientSyncControllerFactory.Create(
+        Assert.Throws<NetworkSyncSessionBuildException>(() => ShooterClientSyncControllerFactory.Create(
             NetworkSyncProfiles.Lockstep,
             new ShooterBattleRuntimePort(),
             new ShooterPresentationFacade(),
             tickRate: 30,
             decoder: null,
             gateway: null));
+    }
+
+    [Fact]
+    public void CreateSessionRejectsInsufficientCapabilitiesBeforeControllerConstruction()
+    {
+        var options = ShooterClientSyncAssemblyOptions.Default;
+        var insufficient = new NetworkSyncCapabilities(
+            options.MinimumSchemaVersion,
+            options.MaximumSchemaVersion,
+            ClientPlaybackCapabilities.PredictRollback,
+            InputPolicy.ImmediateSubmit,
+            SnapshotPolicy.FullSnapshot,
+            InterestPolicy.AllEntities,
+            RecoveryPolicy.RequestFullSnapshot,
+            ServerValidationPolicy.AuthoritativeOnly);
+        options = options.WithAvailableCapabilities(in insufficient);
+
+        var exception = Assert.Throws<NetworkSyncConfigurationException>(() =>
+            ShooterClientSyncControllerFactory.CreateSession(
+                in options,
+                new ShooterBattleRuntimePort(),
+                new ShooterPresentationFacade(),
+                tickRate: 30,
+                gateway: null));
+
+        Assert.Contains(exception.Report.Issues,
+            issue => issue.Code == NetworkSyncConfigurationIssueCode.MissingInputCapabilities);
+    }
+
+    [Fact]
+    public void CreateSessionExposesNegotiatedProfileAndSchemaVersion()
+    {
+        var options = ShooterClientSyncAssemblyOptions.Default;
+
+        var result = ShooterClientSyncControllerFactory.CreateSession(
+            in options,
+            new ShooterBattleRuntimePort(),
+            new ShooterPresentationFacade(),
+            tickRate: 30,
+            gateway: null);
+
+        Assert.Equal(options.ProfileName, result.Descriptor.ProfileName);
+        Assert.Equal(options.SyncProfile, result.Descriptor.Profile);
+        Assert.Equal(options.MinimumSchemaVersion, result.Descriptor.MinimumSchemaVersion);
+        Assert.Equal(options.MaximumSchemaVersion, result.Descriptor.MaximumSchemaVersion);
+        Assert.False(result.Descriptor.IsRemoteNegotiated);
+        Assert.Equal(NetworkSyncRemoteCapabilityPolicy.Ignore, result.Descriptor.RemoteCapabilityPolicy);
+    }
+
+    [Fact]
+    public void CreateSessionCanRequireRemoteCapabilityDeclaration()
+    {
+        var options = ShooterClientSyncAssemblyOptions.Default.WithRemoteCapabilities(
+            remoteCapabilities: null,
+            NetworkSyncRemoteCapabilityPolicy.Require);
+
+        var exception = Assert.Throws<NetworkSyncSessionBuildException>(() =>
+            ShooterClientSyncControllerFactory.CreateSession(
+                in options,
+                new ShooterBattleRuntimePort(),
+                new ShooterPresentationFacade(),
+                tickRate: 30,
+                gateway: null));
+
+        Assert.Equal(NetworkSyncSessionBuildFailureReason.MissingRemoteCapabilities, exception.Reason);
+    }
+
+    [Fact]
+    public void CreateSessionExposesRemoteNegotiationWhenGatewayCapabilitiesAreProvided()
+    {
+        var options = ShooterClientSyncAssemblyOptions.Default;
+        var remote = NetworkSyncCapabilities.FromProfile(
+            options.SyncProfile,
+            options.MinimumSchemaVersion,
+            options.MaximumSchemaVersion);
+        options = options.WithRemoteCapabilities(remote, NetworkSyncRemoteCapabilityPolicy.Require);
+
+        var result = ShooterClientSyncControllerFactory.CreateSession(
+            in options,
+            new ShooterBattleRuntimePort(),
+            new ShooterPresentationFacade(),
+            tickRate: 30,
+            gateway: null);
+
+        Assert.True(result.Descriptor.IsRemoteNegotiated);
+        Assert.True(result.Descriptor.RemoteCapabilities.HasValue);
+        Assert.True(result.Descriptor.Negotiation.IsCompatible);
     }
 }

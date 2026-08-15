@@ -2,7 +2,7 @@
   "triggers": [
     {
       "id": 10060211,
-      "name": "嬴政-战力和谐-范围爆炸伤害",
+      "name": "嬴政-王者守御-近身伤害减速",
       "event": "",
       "enabled": true,
       "allowExternal": false,
@@ -11,30 +11,38 @@
       "conditions": [],
       "actions": [
         {
+          "type": "pull",
+          "speed": 12.0,
+          "duration_ms": 300,
+          "direction_mode": 3,
+          "target_distance": 3.0,
+          "priority": 110,
+          "motion_group_id": 3,
+          "target_query_id": 50060201,
+          "target_max_count": 10
+        },
+        {
           "type": "give_damage",
-          "damage_value": 250,
+          "damage_value": 200,
+          "source_attack_ratio": 0.35,
           "damage_type": 2,
-          "source_attack_ratio": 0.45,
           "reason_param": 10060201,
           "target_query_id": 50060201,
           "target_max_count": 10
         },
         {
           "type": "add_buff",
-          "buffIds": [
-            10060202
-          ],
+          "buffIds": [10060211],
           "target_query_id": 50060201,
           "target_max_count": 10,
-          "duration_ms": 1500
+          "duration_ms": 1000
         },
         {
           "type": "debug_log",
-          "message": "嬴政二技能：范围爆炸造成法术伤害并减速目标",
+          "message": "嬴政二技能王者守御：击退近身敌人并造成法术伤害和减速",
           "dump_args": false
         }
-      ],
-      "scope": "owner"
+      ]
     }
   ]
 }

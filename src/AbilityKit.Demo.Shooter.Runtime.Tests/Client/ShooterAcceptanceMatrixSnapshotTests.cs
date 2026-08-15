@@ -1,6 +1,6 @@
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Network.Runtime;
-using AbilityKit.Network.Runtime.DemoHarness;
+using AbilityKit.Demo.Harness;
 using Xunit;
 
 namespace AbilityKit.Demo.Shooter.Runtime.Tests;

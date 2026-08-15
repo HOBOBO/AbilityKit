@@ -4,6 +4,7 @@
       "name": "OpenUPM",
       "url": "https://package.openupm.com",
       "scopes": [
+        "com.abilitykit",
         "com.cysharp"
       ]
     }

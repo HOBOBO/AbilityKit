@@ -78,10 +78,13 @@ public sealed class NetworkSyncProfilesTests
             NetworkSyncModel.BatchStateSync,
             ClientPlaybackPolicy.AuthoritativeInterpolation,
             InputPolicy.NoClientInput,
-            SnapshotPolicy.BatchSnapshot | SnapshotPolicy.KeyFrameSnapshot,
+            SnapshotPolicy.BatchSnapshot | SnapshotPolicy.KeyFrameSnapshot | SnapshotPolicy.EventStream,
             InterestPolicy.AllEntities,
             RecoveryPolicy.RequestKeyFrame | RecoveryPolicy.RequestFullSnapshot,
-            ServerValidationPolicy.AuthoritativeOnly);
+            ServerValidationPolicy.AuthoritativeOnly,
+            ReliableEventPolicy.OrderedDelivery | ReliableEventPolicy.ExternalAcknowledgement |
+            ReliableEventPolicy.PersistentCheckpoint | ReliableEventPolicy.BufferedOutOfOrder |
+            ReliableEventPolicy.AuthoritativeBaselineRecovery);
         var second = NetworkSyncProfiles.BatchStateSync;
 
         Assert.Equal(first, second);

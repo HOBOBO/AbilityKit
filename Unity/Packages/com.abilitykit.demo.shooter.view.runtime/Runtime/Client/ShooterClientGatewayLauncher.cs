@@ -4,6 +4,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Network.Room;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
@@ -185,7 +187,8 @@ namespace AbilityKit.Demo.Shooter.View
                 launched.GatewayClient,
                 launched.Session,
                 launched.Battle,
-                launched.Flow);
+                launched.Flow,
+                launched.SyncBinding);
         }
 
         public async Task<ShooterClientGatewayRestoreResult> RestoreRoomAsync(
@@ -222,7 +225,8 @@ namespace AbilityKit.Demo.Shooter.View
                 launched.GatewayClient,
                 launched.Session,
                 launched.Battle,
-                launched.Flow);
+                launched.Flow,
+                launched.SyncBinding);
         }
 
         public Task<ShooterClientGatewayLaunchResult> JoinReadyStartAndSubscribeAsync(
@@ -329,7 +333,13 @@ namespace AbilityKit.Demo.Shooter.View
                 : await flow.RestoreRoomAsync(sessionToken, restoreRegion, restoreServerId ?? string.Empty, launchSpec, playerId, timeout, cancellationToken).ConfigureAwait(false);
 
             var gatewayClient = _battleClientFactory?.Invoke(flowResult) ?? new ShooterRoomGatewayClient(_transport);
-            var session = new ShooterClientSession(runtime, presentationSession, tickRate, syncAssemblyOptions, gatewayClient);
+            var syncBinding = RoomGatewayNetworkSyncSessionBinding.Create(
+                flowResult.SyncCapabilities,
+                syncAssemblyOptions.ProfileName);
+            var negotiatedSyncOptions = syncAssemblyOptions.WithRemoteCapabilities(
+                syncBinding.RemoteCapabilities,
+                syncBinding.Policy);
+            var session = new ShooterClientSession(runtime, presentationSession, tickRate, negotiatedSyncOptions, gatewayClient);
             var alignedStartGame = startGame.WithWorldStartAnchor(
                 flowResult.WorldId,
                 flowResult.WorldStartAnchor.StartServerTicks,
@@ -349,7 +359,8 @@ namespace AbilityKit.Demo.Shooter.View
                 gatewayClient,
                 session,
                 battle,
-                flowResult);
+                flowResult,
+                syncBinding);
         }
 
     }
@@ -361,8 +372,9 @@ namespace AbilityKit.Demo.Shooter.View
             IShooterRoomGatewayClient gatewayClient,
             ShooterClientSession session,
             ShooterClientBattleHandle battle,
-            ShooterRoomGatewayFlowResult flow)
-            : base(roomClient, gatewayClient, session, battle, flow)
+            ShooterRoomGatewayFlowResult flow,
+            RoomGatewayNetworkSyncSessionBinding syncBinding = default)
+            : base(roomClient, gatewayClient, session, battle, flow, syncBinding)
         {
         }
     }
@@ -374,13 +386,15 @@ namespace AbilityKit.Demo.Shooter.View
             IShooterRoomGatewayClient gatewayClient,
             ShooterClientSession session,
             ShooterClientBattleHandle battle,
-            ShooterRoomGatewayFlowResult flow)
+            ShooterRoomGatewayFlowResult flow,
+            RoomGatewayNetworkSyncSessionBinding syncBinding = default)
         {
             RoomClient = roomClient ?? throw new ArgumentNullException(nameof(roomClient));
             GatewayClient = gatewayClient ?? throw new ArgumentNullException(nameof(gatewayClient));
             Session = session ?? throw new ArgumentNullException(nameof(session));
             Battle = battle ?? throw new ArgumentNullException(nameof(battle));
             Flow = flow;
+            SyncBinding = syncBinding;
             Summary = flow.ToSummary();
         }
 
@@ -393,6 +407,9 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterClientBattleHandle Battle { get; }
 
         public ShooterRoomGatewayFlowResult Flow { get; }
+
+        /// <summary>Room 能力元数据绑定到本次同步会话后的状态。</summary>
+        public RoomGatewayNetworkSyncSessionBinding SyncBinding { get; }
 
         public ShooterRoomGatewayLaunchSummary Summary { get; }
     }

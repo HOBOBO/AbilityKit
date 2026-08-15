@@ -10,6 +10,7 @@ namespace AbilityKit.Core.Continuous
     /// 
     /// 配置通过 IContinuousConfig 传入，支持可选扩展接口
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public interface IContinuous
     {
         /// <summary>

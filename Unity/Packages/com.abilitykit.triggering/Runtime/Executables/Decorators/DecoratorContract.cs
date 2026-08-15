@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Core.Markers;
 using AbilityKit.Modifiers;
 using AbilityKit.Triggering.Runtime.Context;

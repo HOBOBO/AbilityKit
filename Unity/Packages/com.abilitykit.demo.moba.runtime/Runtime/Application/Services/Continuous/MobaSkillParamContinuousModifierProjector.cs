@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Demo.Moba.Services

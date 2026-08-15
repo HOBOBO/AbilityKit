@@ -23,9 +23,9 @@ namespace AbilityKit.Game.Flow
             }
 
             IBattleAssetLookup assets = null;
-            if (ctx.Features.TryGet(out BattleSessionFeature battleSession))
+            if (ctx.Features.TryGet(out IBattleAssetLoadSessionPort assetSession))
             {
-                assets = battleSession?.AssetLease as IBattleAssetLookup;
+                assets = assetSession?.AssetLookup;
             }
 
             return BattlePresentationSessionContext.CreateDefault(configs, null, assets);

@@ -7,6 +7,7 @@ using UnityEngine;
 namespace AbilityKit.Core.Editor.Debugging
 {
     [InitializeOnLoad]
+    [Obsolete("Use AbilityKit.Diagnostics.Editor.DebugDraw.DebugDrawSceneViewDriver before the next major version.")]
     public static class DebugDrawSceneViewDriver
     {
         private static readonly List<IDebugDrawContributor> s_contributors = new List<IDebugDrawContributor>(32);

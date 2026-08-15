@@ -14,15 +14,16 @@
           "type": "give_damage",
           "damage_value": 80,
           "damage_type": 2,
-          "reason_param": 10020301
+          "reason_param": 10020301,
+          "target_query_id": 50020302,
+          "target_max_count": 1
         },
         {
           "type": "debug_log",
-          "message": "小乔三技能：落星区域延迟命中造成法术伤害（配置先行）",
+          "message": "小乔三技能：落星区域延迟命中造成法术伤害",
           "dump_args": false
         }
-      ],
-      "scope": "owner"
+      ]
     }
   ]
 }

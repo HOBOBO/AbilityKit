@@ -1,9 +1,17 @@
 {
   "name": "com.abilitykit.ai.abstractions",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit AI Abstractions",
   "unity": "2022.3",
   "description": "Model-neutral AI environment, observation, action, and policy contracts for AbilityKit gameplay training and inference.",
+  "keywords": [
+    "abilitykit",
+    "ai",
+    "machine-learning",
+    "reinforcement-learning",
+    "training",
+    "mlagents"
+  ],
   "author": {
     "name": "AbilityKit"
   },

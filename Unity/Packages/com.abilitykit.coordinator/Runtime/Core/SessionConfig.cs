@@ -288,7 +288,9 @@ namespace AbilityKit.Coordinator
                 requestedSyncMode: config.SyncMode,
                 effectiveSyncMode: effectiveSyncMode,
                 hostMode: config.HostMode,
-                requiresNetwork: effectiveSyncMode != SyncMode.Lockstep,
+                // Lockstep is a synchronization algorithm, not a transport decision.
+                // A Host/Client session still needs networking even when it uses lockstep.
+                requiresNetwork: config.HostMode != HostMode.Local,
                 supportsPrediction: supportsPrediction,
                 enableClientPrediction: enablePrediction,
                 maxPredictionAheadFrames: enablePrediction ? Math.Max(0, config.MaxPredictionAheadFrames) : 0,

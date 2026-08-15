@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
 using Xunit;
@@ -449,6 +451,47 @@ public sealed class ShooterClientBattleHandleTests
         Assert.False(repeated.Accepted);
         Assert.Equal("not requested", repeated.Message);
         Assert.Equal(1, roomClient.Calls.Count(call => call.StartsWith("request-full-state:")));
+    }
+
+    [Fact]
+    public async Task ClientBattleHandleExecutesFrameworkRecoveryDecisionThroughActionRouter()
+    {
+        var session = new ShooterClientSession(
+            new ShooterBattleRuntimePort(),
+            new ShooterPresentationFacade(),
+            tickRate: 30);
+        var roomClient = new ScriptedShooterRoomClient();
+        var anchor = new ShooterGatewayWorldStartAnchor(123456L, 10000000L, 0, 1d / 30d);
+        var flow = new ShooterRoomGatewayFlowResult(
+            "session-token",
+            "room-9",
+            1009ul,
+            "battle-9",
+            9009ul,
+            11u,
+            in anchor,
+            223456L,
+            ShooterRoomGatewayEntryKind.TeamLobby,
+            canStart: true,
+            started: true,
+            subscribed: true,
+            "ready");
+        var handle = new ShooterClientBattleHandle(session, flow, roomClient);
+        var signal = new NetworkSessionRecoverySignal(
+            NetworkSessionRecoverySignalKind.SnapshotResyncRequired,
+            SyncHealthSeverity.Error,
+            frame: 12,
+            correlationContext: "battle-9");
+        Assert.True(session.TryReportRecoverySignal(in signal, out _));
+
+        var execution = await handle.ExecuteRecoveryDecisionAsync();
+
+        Assert.Equal(NetworkSessionRecoveryExecutionStatus.Executed, execution.Status);
+        Assert.True(execution.HasValue);
+        Assert.True(execution.Value.Accepted);
+        Assert.Contains("request-full-state:room-9:battle-9:None", roomClient.Calls);
+        Assert.Equal(1, handle.RecoveryRuntimeDiagnostics.StartedExecutionCount);
+        Assert.Equal(1, handle.RecoveryRuntimeDiagnostics.CompletedExecutionCount);
     }
 
     private static ArraySegment<byte> CreatePureStateGatewayPayload(in ShooterPureStateSnapshotPayload pureState, int payloadOpCode, bool isFullSnapshot)

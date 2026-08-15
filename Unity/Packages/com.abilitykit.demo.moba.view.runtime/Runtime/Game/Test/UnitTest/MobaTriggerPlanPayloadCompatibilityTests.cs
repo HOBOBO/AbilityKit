@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;

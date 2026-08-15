@@ -6,14 +6,12 @@ namespace AbilityKit.Game
 {
     public readonly struct GameEntryModuleContext
     {
-        public readonly GameEntry Entry;
         public readonly IGameHost Host;
         public readonly IEntity Root;
 
-        public GameEntryModuleContext(GameEntry entry, IEntity root)
+        public GameEntryModuleContext(IGameHost host, IEntity root)
         {
-            Entry = entry;
-            Host = entry;
+            Host = host;
             Root = root;
         }
     }

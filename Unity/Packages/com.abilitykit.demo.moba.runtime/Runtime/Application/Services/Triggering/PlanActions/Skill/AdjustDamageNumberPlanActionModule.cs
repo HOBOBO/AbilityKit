@@ -1,5 +1,4 @@
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Numerics;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
@@ -46,7 +45,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     return;
                 }
 
-                modifierValue = args.Op == NumberModifierOp.Mul ? decayFactor - 1f : decayFactor;
+                modifierValue = args.Op == DamageNumberModifierOp.Mul ? decayFactor - 1f : decayFactor;
             }
 
             if (args.TargetMissingHpRatioCoefficient != 0f)
@@ -67,7 +66,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var sourceId = args.SourceId != 0 ? args.SourceId : (args.ReasonParam != 0 ? args.ReasonParam : attack.ReasonParam);
-            numberValue.Apply(new NumberModifier(args.Op, modifierValue, sourceId));
+            numberValue.Apply(new DamageNumberModifier(args.Op, modifierValue, sourceId));
             MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.AdjustDamageNumber, $"modifier applied. slot={args.NumberSlot} op={args.Op} value={modifierValue:0.###} target={attack.TargetActorId} hitCount={hitCount} decay={decayFactor:0.###} missingHpCoefficient={args.TargetMissingHpRatioCoefficient:0.###} reason={attack.ReasonKind}:{attack.ReasonParam}");
         }
 
@@ -140,7 +139,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 MobaSkillRuntimeBlackboardScope.Cast);
         }
 
-        private static bool TryResolveNumberValue(AttackInfo attack, DamageNumberSlot slot, out NumberValue numberValue)
+        private static bool TryResolveNumberValue(AttackInfo attack, DamageNumberSlot slot, out DamageNumberValue numberValue)
         {
             switch (slot)
             {

@@ -580,7 +580,8 @@ internal static class RoomStateMachine
         ulong worldId,
         WorldStartAnchor? worldStartAnchor,
         string initSpecHash,
-        long nowUnixMs)
+        long nowUnixMs,
+        NetworkSyncCapabilityMetadata? syncCapabilities = null)
     {
         if (state.Phase != RoomPhase.Starting)
         {
@@ -603,6 +604,7 @@ internal static class RoomStateMachine
                 BattleId = battleId,
                 WorldId = worldId,
                 WorldStartAnchor = worldStartAnchor,
+                SyncCapabilities = syncCapabilities,
                 InitSpecHash = initSpecHash,
                 LastError = null
             }

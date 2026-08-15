@@ -5,7 +5,7 @@ using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Protocol.Shooter;
 using AbilityKit.Network.Runtime.Conditioning;
-using AbilityKit.Network.Runtime.DemoHarness;
+using AbilityKit.Demo.Harness;
 using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Demo.Shooter.View

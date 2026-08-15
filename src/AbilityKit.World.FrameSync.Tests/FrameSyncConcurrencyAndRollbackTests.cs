@@ -69,6 +69,49 @@ public sealed class FrameCommandBufferTests
         Assert.Equal(100, original);
         Assert.False(buffer.TryGetCommand(10, 2, out _));
     }
+
+    [Fact]
+    public void Retained_frame_numbers_are_unique_sorted_and_trim_before_is_exclusive()
+    {
+        var buffer = new FrameCommandBuffer<int, int>();
+        buffer.SubmitCommand(30, 1, 30);
+        buffer.SubmitCommand(10, 1, 10);
+        buffer.SubmitCommand(20, 1, 20);
+        buffer.SubmitCommand(20, 2, 200);
+        var frames = new List<int>();
+
+        Assert.Equal(3, buffer.CopyRetainedFrameNumbers(frames));
+        Assert.Equal(new[] { 10, 20, 30 }, frames);
+
+        buffer.TrimBefore(20);
+
+        Assert.Equal(2, buffer.CopyRetainedFrameNumbers(frames));
+        Assert.Equal(new[] { 20, 30 }, frames);
+        Assert.False(buffer.TryGetCommand(10, 1, out _));
+        Assert.True(buffer.TryGetCommand(20, 2, out var replacement));
+        Assert.Equal(200, replacement);
+    }
+
+    [Fact]
+    public void Submit_and_trim_reuse_frame_index_and_command_storage_without_allocation()
+    {
+        var buffer = new FrameCommandBuffer<int, int>(8);
+        for (var frame = 0; frame < 16; frame++)
+        {
+            buffer.SubmitCommand(frame, 1, frame);
+            buffer.TrimBefore(frame);
+        }
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var frame = 16; frame < 128; frame++)
+        {
+            buffer.SubmitCommand(frame, 1, frame);
+            buffer.TrimBefore(frame);
+        }
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+    }
 }
 
 public sealed class RollbackSnapshotRingBufferTests

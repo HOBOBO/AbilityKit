@@ -27,8 +27,8 @@ namespace AbilityKit.Game.Flow
             runtime.VfxNode = _factory.CreateNode(runtime.Context, runtime.IsConfirmed);
             if (runtime.Context != null && !runtime.IsConfirmed)
             {
-                runtime.Context.ViewVfxManager = runtime.Vfx;
-                runtime.Context.ViewVfxNode = runtime.VfxNode;
+                runtime.ContextVfxBindingGeneration =
+                    runtime.Context.BindViewVfx(runtime.Vfx, runtime.VfxNode);
             }
 
             // If a stats overlay exists, register the VFX pool as a provider so the
@@ -45,12 +45,15 @@ namespace AbilityKit.Game.Flow
             var runtime = ctx.Feature;
             if (runtime == null) return;
 
-            if (runtime.Context != null && !runtime.IsConfirmed)
+            if (runtime.Context != null &&
+                !runtime.IsConfirmed &&
+                runtime.ContextVfxBindingGeneration != 0)
             {
-                runtime.Context.ViewVfxManager = null;
-                runtime.Context.ViewVfxNode = default;
+                runtime.Context.ClearViewVfx(
+                    runtime.ContextVfxBindingGeneration);
             }
 
+            runtime.ContextVfxBindingGeneration = 0;
             runtime.Vfx = null;
             runtime.VfxNode = default;
             runtime.Hierarchy = null;

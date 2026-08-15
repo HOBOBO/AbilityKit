@@ -15,7 +15,7 @@
         }
     ],
     "dependencies": {
-        "com.abilitykit.core": "0.0.1",
-        "com.abilitykit.combat.collision.abstractions": "0.0.1"
+        "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.combat.collision.abstractions": "0.1.0"
     }
 }

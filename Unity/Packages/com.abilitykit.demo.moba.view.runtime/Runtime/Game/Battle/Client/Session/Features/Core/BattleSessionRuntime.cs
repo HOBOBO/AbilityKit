@@ -58,11 +58,8 @@ namespace AbilityKit.Game.Flow
 
                 var previousContext = _recordContext;
                 _recordContext = context;
-                if (previousContext != null && ReferenceEquals(previousContext.InputRecordWriter, writer))
-                {
-                    previousContext.InputRecordWriter = null;
-                }
-                if (context != null) context.InputRecordWriter = writer;
+                previousContext?.ClearInputRecordWriter(writer);
+                context?.BindInputRecordWriter(writer);
                 return;
             }
 
@@ -89,7 +86,7 @@ namespace AbilityKit.Game.Flow
 
             _recordWriter = writer;
             _recordContext = context;
-            if (context != null) context.InputRecordWriter = writer;
+            context?.BindInputRecordWriter(writer);
         }
 
         internal void DisposeRecordWriter()
@@ -105,10 +102,7 @@ namespace AbilityKit.Game.Flow
             writer.Dispose();
             if (ReferenceEquals(_recordWriter, writer)) _recordWriter = null;
             if (ReferenceEquals(_recordContext, context)) _recordContext = null;
-            if (context != null && ReferenceEquals(context.InputRecordWriter, writer))
-            {
-                context.InputRecordWriter = null;
-            }
+            context?.ClearInputRecordWriter(writer);
         }
 
         public void Dispose()
@@ -128,8 +122,13 @@ namespace AbilityKit.Game.Flow
         internal BattleSnapshotRoutingRuntime SnapshotRouting { get; }
         internal GatewaySessionRuntime GatewayRoom { get; private set; }
         internal BattleReplicationRuntime Replication { get; }
+        internal ReliableBattleEventDeliveryRuntime ReliableEvents { get; private set; }
+        internal AuthoritativeStateRecoveryRuntime Recovery { get; private set; }
         internal BattleSessionDiagnostics Diagnostics { get; }
+        internal BattleInputRuntime Input { get; }
+        internal BattlePredictionRuntime Prediction { get; }
         internal BattlePresentationSessionResources Presentation { get; }
+        internal BattleAssetLeaseOwner Assets { get; }
         internal BattleReplayRuntime Replay { get; }
         internal SpectatorSessionRuntime Spectator { get; }
         internal BattleSimulationRuntime Simulation { get; private set; }
@@ -140,10 +139,25 @@ namespace AbilityKit.Game.Flow
             Handles = new BattleSessionHandles();
             Replication = new BattleReplicationRuntime();
             Diagnostics = new BattleSessionDiagnostics(Replication);
+            Input = new BattleInputRuntime();
+            Prediction = new BattlePredictionRuntime();
             SnapshotRouting = new BattleSnapshotRoutingRuntime(Handles, Diagnostics);
             Presentation = new BattlePresentationSessionResources();
+            Assets = new BattleAssetLeaseOwner();
             Replay = new BattleReplayRuntime();
             Spectator = new SpectatorSessionRuntime();
+        }
+
+        internal void BindContext(BattleContext context)
+        {
+            context?.BindInputRuntime(Input);
+            context?.BindPredictionRuntime(Prediction);
+        }
+
+        internal void UnbindContext(BattleContext context)
+        {
+            context?.UnbindPredictionRuntime(Prediction);
+            context?.UnbindInputRuntime(Input);
         }
 
         internal void ConfigureSimulation(IBattleSessionWorldInstaller worldInstaller)
@@ -160,6 +174,11 @@ namespace AbilityKit.Game.Flow
                 worldInstaller,
                 Presentation,
                 Diagnostics);
+            ReliableEvents = new ReliableBattleEventDeliveryRuntime();
+            Recovery = new AuthoritativeStateRecoveryRuntime(
+                Replication,
+                ReliableEvents,
+                new BattleAuthoritativeWorldRecoveryPort(Simulation, Handles));
         }
 
         internal void ConfigureGatewayRoom(
@@ -194,6 +213,7 @@ namespace AbilityKit.Game.Flow
 
         internal void DisposeReplication()
         {
+            Recovery?.Dispose();
             Replication.Dispose();
         }
     }

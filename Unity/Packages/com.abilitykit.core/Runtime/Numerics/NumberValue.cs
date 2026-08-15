@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Core.Numerics
 {
+    [Obsolete(NumericsDeprecation.Message)]
     public sealed class NumberValue
     {
         private float _baseValue;
@@ -200,9 +201,16 @@ namespace AbilityKit.Core.Numerics
             _override = 0f;
             _hasOverride = false;
 
-            foreach (var kv in _modifiers)
+            _tmpRemoveKeys.Clear();
+            foreach (var handle in _modifiers.Keys)
             {
-                ApplyModifier(kv.Value);
+                _tmpRemoveKeys.Add(handle);
+            }
+
+            _tmpRemoveKeys.Sort();
+            for (int i = 0; i < _tmpRemoveKeys.Count; i++)
+            {
+                ApplyModifier(_modifiers[_tmpRemoveKeys[i]]);
             }
         }
     }

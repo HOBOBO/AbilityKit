@@ -7,7 +7,7 @@ using AbilityKit.Game.Flow.Battle.Replay;
 
 namespace AbilityKit.Game.Flow
 {
-    internal sealed partial class SessionReplayController
+    internal sealed class SessionReplayController
     {
         private const int StateHashRecordIntervalFrames = 10;
 

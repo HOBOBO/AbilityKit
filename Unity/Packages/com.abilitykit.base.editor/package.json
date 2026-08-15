@@ -1,15 +1,15 @@
 {
   "name": "com.abilitykit.base.editor",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit Base Editor",
   "unity": "2022.3",
   "description": "Shared editor tooling for AbilityKit and demos.",
   "author": { "name": "AbilityKit" },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1",
-    "com.abilitykit.actioneditor.impl": "0.0.1",
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.actioneditor.impl": "0.1.0",
     "com.abilitykit.thirdparty.actioneditor": "0.0.1",
-    "com.abilitykit.world.ecs": "0.0.1",
-    "com.abilitykit.gameplaytags": "0.0.1"
+    "com.abilitykit.world.ecs": "0.1.0",
+    "com.abilitykit.gameplaytags": "0.1.0"
   }
 }

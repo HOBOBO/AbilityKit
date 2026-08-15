@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Flow;
+using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Room;
 using Xunit;
 
@@ -197,6 +199,35 @@ public sealed class GatewayMultiplayerRoomSessionTests
         Assert.Equal(0UL, session.CurrentNumericRoomId);
         Assert.Equal(0U, session.CurrentPlayerId);
         Assert.Null(store.Current);
+    }
+
+    [Fact]
+    public async Task LeaveRoom_SuccessRemovesCompletedBattleCheckpointAndFlushesStore()
+    {
+        var client = new StubGatewayRoomClient();
+        client.Snapshots.Enqueue(Snapshot(
+            ClientRoomPhase.InBattle,
+            revision: 6,
+            sequence: 1,
+            battleId: "battle-1",
+            worldId: 42));
+        var roomStore = new ClientRoomStore();
+        var checkpointStore = new TrackingCheckpointStore();
+        var checkpoint = new ReliableEventCheckpoint("battle-1", "epoch-1", 9);
+        checkpointStore.Save(in checkpoint);
+        var session = NewSession(client, roomStore, checkpointStore);
+        await session.JoinRoomAsync(NewSpec(), "room-1", CancellationToken.None);
+
+        await session.LeaveRoomAsync("room-1", CancellationToken.None);
+
+        Assert.False(checkpointStore.TryLoad("battle-1", out _));
+        Assert.Equal(1, checkpointStore.FlushCount);
+        Assert.Equal(
+            ReliableEventCheckpointFlushTrigger.RoomLeave,
+            session.ReliableEventCheckpointLifecycleDiagnostics.LastTrigger);
+        Assert.Equal(
+            ReliableEventCheckpointFlushStatus.Succeeded,
+            session.ReliableEventCheckpointLifecycleDiagnostics.LastStatus);
     }
 
     [Fact]
@@ -439,14 +470,40 @@ public sealed class GatewayMultiplayerRoomSessionTests
 
     private static GatewayMultiplayerRoomSession NewSession(
         StubGatewayRoomClient client,
-        ClientRoomStore store)
+        ClientRoomStore store,
+        IReliableEventCheckpointStore checkpointStore = null)
     {
         return new GatewayMultiplayerRoomSession(
             client,
             store,
             requestTimeout: TimeSpan.FromSeconds(1),
             pollInterval: TimeSpan.FromMilliseconds(1),
-            battleStartTimeout: TimeSpan.FromSeconds(1));
+            battleStartTimeout: TimeSpan.FromSeconds(1),
+            reliableEventCheckpointStore: checkpointStore);
+    }
+
+    private sealed class TrackingCheckpointStore :
+        IReliableEventCheckpointStore,
+        IReliableEventCheckpointStoreFlushable
+    {
+        private readonly InMemoryReliableEventCheckpointStore _inner = new();
+
+        public int FlushCount { get; private set; }
+
+        public bool TryLoad(string streamId, out ReliableEventCheckpoint checkpoint) =>
+            _inner.TryLoad(streamId, out checkpoint);
+
+        public void Save(in ReliableEventCheckpoint checkpoint) =>
+            _inner.Save(in checkpoint);
+
+        public bool Remove(string streamId) => _inner.Remove(streamId);
+
+        public Task FlushAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            FlushCount++;
+            return Task.CompletedTask;
+        }
     }
 
     private static MultiplayerRoomLaunchSpec NewSpec()

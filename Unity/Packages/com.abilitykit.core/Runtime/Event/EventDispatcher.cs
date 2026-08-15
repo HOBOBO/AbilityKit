@@ -58,36 +58,13 @@ namespace AbilityKit.Core.Eventing
             try
             {
                 var id = GetOrRegisterEventId(eventId);
-                Publish(id, in args, autoReleaseArgs);
+                Publish(id, in args, autoReleaseArgs: false);
             }
             finally
             {
                 if (autoReleaseArgs)
                 {
-                    if (args is IDisposable d)
-                    {
-                        try
-                        {
-                            d.Dispose();
-                        }
-                        catch
-                        {
-                        }
-                    }
-                    else
-                    {
-                        var boxed = (object)args;
-                        if (!Pools.TryRelease(boxed) && boxed is IPoolable p)
-                        {
-                            try
-                            {
-                                p.OnPoolRelease();
-                            }
-                            catch
-                            {
-                            }
-                        }
-                    }
+                    ReleaseArgs(in args);
                 }
             }
         }
@@ -109,30 +86,35 @@ namespace AbilityKit.Core.Eventing
             {
                 if (autoReleaseArgs)
                 {
-                    if (args is IDisposable d)
-                    {
-                        try
-                        {
-                            d.Dispose();
-                        }
-                        catch
-                        {
-                        }
-                    }
-                    else
-                    {
-                        var boxed = (object)args;
-                        if (!Pools.TryRelease(boxed) && boxed is IPoolable p)
-                        {
-                            try
-                            {
-                                p.OnPoolRelease();
-                            }
-                            catch
-                            {
-                            }
-                        }
-                    }
+                    ReleaseArgs(in args);
+                }
+            }
+        }
+
+        private static void ReleaseArgs<TArgs>(in TArgs args)
+        {
+            if (args is IDisposable disposable)
+            {
+                try
+                {
+                    disposable.Dispose();
+                }
+                catch
+                {
+                }
+
+                return;
+            }
+
+            var boxed = (object)args;
+            if (!Pools.TryRelease(boxed) && boxed is IPoolable poolable)
+            {
+                try
+                {
+                    poolable.OnPoolRelease();
+                }
+                catch
+                {
                 }
             }
         }

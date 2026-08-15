@@ -1,0 +1,17 @@
+{
+  "id": 10020001,
+  "name": "小乔-普通攻击-发射",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "shoot_projectile",
+      "launcher_id": 31020001,
+      "projectile_id": 30020001
+    }
+  ]
+}

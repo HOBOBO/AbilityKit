@@ -15,6 +15,7 @@
     <ProjectReference Include="..\AbilityKit.AI.Training.Runner\AbilityKit.AI.Training.Runner.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.AI\AbilityKit.Demo.Moba.AI.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.Continuous\AbilityKit.Continuous.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Host\AbilityKit.Demo.Moba.Host.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Share\AbilityKit.Demo.Moba.Share.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Infrastructure\AbilityKit.Demo.Moba.Infrastructure.csproj" />
@@ -22,6 +23,7 @@
     <ProjectReference Include="..\AbilityKit.Demo.ET.Logic\AbilityKit.Demo.ET.Logic.csproj" />
     <ProjectReference Include="..\AbilityKit.Context\AbilityKit.Context.csproj" />
     <ProjectReference Include="..\AbilityKit.Combat.Navigation\AbilityKit.Combat.Navigation.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Acceptance\AbilityKit.Demo.Moba.Acceptance.csproj" />
     <ProjectReference Include="..\AbilityKit.Trace\AbilityKit.Trace.csproj" />
   </ItemGroup>
 

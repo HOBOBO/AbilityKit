@@ -3,9 +3,9 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Diagnostics;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
+using AbilityKit.Core.Timing;
 
 namespace AbilityKit.Network.Runtime.Conditioning
 {
@@ -296,8 +296,7 @@ namespace AbilityKit.Network.Runtime.Conditioning
 
         private static long DefaultClock()
         {
-            // Unity 的 C# profile 下不可用 Environment.TickCount64，因此改从高精度计时器推导单调毫秒时钟，避免 32 位回绕。
-            return Stopwatch.GetTimestamp() * 1000L / Stopwatch.Frequency;
+            return MonotonicTime.GetMilliseconds();
         }
     }
 }

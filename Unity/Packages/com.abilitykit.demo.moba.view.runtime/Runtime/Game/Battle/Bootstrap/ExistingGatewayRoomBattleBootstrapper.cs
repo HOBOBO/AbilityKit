@@ -4,6 +4,7 @@ using System.Globalization;
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Demo.Common.Rooms;
+using AbilityKit.Network.Room;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.CreateWorld;
 
@@ -27,6 +28,7 @@ namespace AbilityKit.Game.Flow
         private readonly string _gatewayRegion;
         private readonly string _gatewayServerId;
         private readonly IReadOnlyList<MultiplayerRoomPlayerSnapshot> _players;
+        private readonly RoomGatewayNetworkSyncCapabilities _syncCapabilities;
 
         public ExistingGatewayRoomBattleBootstrapper(
             IBattleBootstrapper inner,
@@ -38,7 +40,8 @@ namespace AbilityKit.Game.Flow
             uint localPlayerId,
             IMobaReliableBattleEventCheckpointStore checkpointStore = null,
             DemoMultiplayerLaunchRequest launchRequest = null,
-            IReadOnlyList<MultiplayerRoomPlayerSnapshot> players = null)
+            IReadOnlyList<MultiplayerRoomPlayerSnapshot> players = null,
+            RoomGatewayNetworkSyncCapabilities syncCapabilities = null)
         {
             if (inner == null) throw new ArgumentNullException(nameof(inner));
 
@@ -63,6 +66,7 @@ namespace AbilityKit.Game.Flow
                 ? launchRequest.ServerId
                 : _sourcePlan.Gateway.ServerId;
             _players = players;
+            _syncCapabilities = syncCapabilities;
         }
 
         public bool IsAuthenticated => !string.IsNullOrWhiteSpace(_sessionToken);
@@ -153,7 +157,8 @@ namespace AbilityKit.Game.Flow
                 enabledSnapshotRegistryIds: plan.Sync.EnabledSnapshotRegistryIds,
                 launchSpec: launchSpec,
                 gatewayBattleId: _battleId,
-                reliableEventCheckpoint: checkpoint);
+                reliableEventCheckpoint: checkpoint,
+                remoteSyncCapabilities: _syncCapabilities);
         }
 
         private MobaBattleLaunchSpec BuildAuthoritativeLaunchSpec(in MobaBattleLaunchSpec source)

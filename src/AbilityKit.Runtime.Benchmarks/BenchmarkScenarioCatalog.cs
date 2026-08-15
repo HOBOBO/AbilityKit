@@ -30,6 +30,8 @@ public static class BenchmarkScenarioCatalog
             new ModifierComposeSortedScenario(modifierCount: 32),
             new RecordIdHashScenario(nameLength: 16),
             new RecordIdHashScenario(nameLength: 64),
+            new LegacyFrameIndexScenario(frameCount: 128),
+            new SortedIntSetFrameIndexScenario(frameCount: 128),
             new TargetingStreamingTopKScenario(candidateCount: 128, topK: 8),
             new TargetingStreamingTopKScenario(candidateCount: 1_024, topK: 16),
             new PipelineSynchronousScenario(4, batchSize: 100),
@@ -48,6 +50,8 @@ public static class BenchmarkScenarioCatalog
             scenarios.Add(new AttributeRecomputeScenario(modifierCount: 64));
             scenarios.Add(new ModifierComposeSortedScenario(modifierCount: 128));
             scenarios.Add(new RecordIdHashScenario(nameLength: 256));
+            scenarios.Add(new LegacyFrameIndexScenario(frameCount: 1_024));
+            scenarios.Add(new SortedIntSetFrameIndexScenario(frameCount: 1_024));
             scenarios.Add(new TargetingStreamingTopKScenario(candidateCount: 4_096, topK: 32));
             scenarios.Add(new PipelineSynchronousScenario(64, batchSize: 100));
             scenarios.Add(new PipelineActiveRunsScenario(5_000));

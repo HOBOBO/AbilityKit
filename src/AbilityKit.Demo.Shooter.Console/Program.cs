@@ -33,12 +33,18 @@ internal static class Program
     private static int RunLocal(ConsolePlatform platform)
     {
         var game = new ShooterConsoleApp(
-            new ShooterBattleRuntimePort(),
             new KeyboardShooterConsoleInputSource(platform.Input),
             new ShooterConsoleRenderer(platform.Output),
             platform.Log);
 
         var host = new FixedStepConsoleHost(game, ConsoleHostOptions.Default);
-        return host.Run();
+        try
+        {
+            return host.Run();
+        }
+        finally
+        {
+            game.Dispose();
+        }
     }
 }

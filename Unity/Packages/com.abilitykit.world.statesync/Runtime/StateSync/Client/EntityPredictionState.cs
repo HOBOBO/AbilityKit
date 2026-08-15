@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Collections;
 
 namespace AbilityKit.Ability.StateSync.Client
 {
@@ -14,6 +15,7 @@ namespace AbilityKit.Ability.StateSync.Client
         private readonly IPredictableEntity _entity;
         private readonly List<IClientPredictionHandler> _handlers = new List<IClientPredictionHandler>();
         private readonly Dictionary<int, AbilityKit.Ability.StateSync.Prediction.StateSlots> _snapshots = new Dictionary<int, AbilityKit.Ability.StateSync.Prediction.StateSlots>();
+        private readonly SortedIntSet _snapshotFrames = new SortedIntSet(32);
         private readonly List<StateChangeEvent> _pendingChanges = new List<StateChangeEvent>();
         private readonly Dictionary<string, object> _previousValues = new Dictionary<string, object>();
 
@@ -157,6 +159,7 @@ namespace AbilityKit.Ability.StateSync.Client
 
             // 保存当前状态的克隆
             _snapshots[frame] = _currentSlots.Clone();
+            _snapshotFrames.Add(frame);
         }
 
         public AbilityKit.Ability.StateSync.Prediction.StateSlots GetSnapshot(int frame)
@@ -266,19 +269,13 @@ namespace AbilityKit.Ability.StateSync.Client
         private void PruneOldSnapshots(int currentFrame)
         {
             // 保留最近 30 帧的快照
-            var framesToRemove = new List<int>();
-            foreach (var frame in _snapshots.Keys)
+            var removeCount = _snapshotFrames.LowerBound(currentFrame - 30);
+            for (var index = 0; index < removeCount; index++)
             {
-                if (frame < currentFrame - 30)
-                {
-                    framesToRemove.Add(frame);
-                }
+                _snapshots.Remove(_snapshotFrames[index]);
             }
 
-            foreach (var frame in framesToRemove)
-            {
-                _snapshots.Remove(frame);
-            }
+            if (removeCount > 0) _snapshotFrames.RemoveRange(0, removeCount);
         }
 
         private static bool ValuesEqual(object a, object b)

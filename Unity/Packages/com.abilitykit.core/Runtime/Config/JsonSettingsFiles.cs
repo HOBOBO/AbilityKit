@@ -4,6 +4,7 @@ using System.IO;
 
 namespace AbilityKit.Core.Configuration
 {
+    [Obsolete("Application settings no longer belong in Core. Move settings to the owning application package; this compatibility API will be removed in the next major version.")]
     public static class JsonSettingsFiles
     {
         public static FlatJsonSettings LoadFlatOrEmpty(string filePath, Func<string, Dictionary<string, object>> deserialize)

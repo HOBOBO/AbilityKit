@@ -84,6 +84,37 @@ public sealed class SnapshotStreamStateMachineTests
     }
 
     [Fact]
+    public void StrictDeltaSequenceGapRequestsBaselineRecovery()
+    {
+        var stream = new SnapshotStreamStateMachine(1);
+        Commit(stream, Envelope(7, 1, 10, 10, SnapshotStreamSnapshotKind.FullBaseline, 10, 100u, 100u));
+        var delta = Envelope(7, 1, 14, 14, SnapshotStreamSnapshotKind.Delta, 10, 100u, 140u);
+
+        var validation = stream.Validate(in delta, maximumDeltaSequenceAdvance: 2);
+
+        Assert.Equal(SnapshotStreamValidationStatus.SequenceGap, validation.Status);
+        Assert.Equal(3, validation.GapCount);
+        Assert.True(validation.NeedsFullBaseline);
+        Assert.True(stream.NeedsFullBaselineRecovery);
+        Assert.Equal(SnapshotStreamRecoveryReason.SequenceGap, stream.LastRecoveryReason);
+        Assert.Equal(10, stream.LastAppliedSequence);
+    }
+
+    [Fact]
+    public void StrictDeltaSequencePolicyAcceptsConfiguredBatchAdvance()
+    {
+        var stream = new SnapshotStreamStateMachine(1);
+        Commit(stream, Envelope(7, 1, 10, 10, SnapshotStreamSnapshotKind.FullBaseline, 10, 100u, 100u));
+        var delta = Envelope(7, 1, 12, 12, SnapshotStreamSnapshotKind.Delta, 10, 100u, 120u);
+
+        var validation = stream.Validate(in delta, maximumDeltaSequenceAdvance: 2);
+
+        Assert.Equal(SnapshotStreamValidationStatus.AcceptedDelta, validation.Status);
+        Assert.Equal(1, validation.GapCount);
+        Assert.False(validation.NeedsFullBaseline);
+    }
+
+    [Fact]
     public void DeltaWithoutBaselineRequestsRecovery()
     {
         var stream = new SnapshotStreamStateMachine(1);

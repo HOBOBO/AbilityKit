@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Core.Pooling;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;

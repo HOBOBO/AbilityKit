@@ -149,7 +149,8 @@ namespace AbilityKit.Demo.Shooter.View
                     Lerp(from.FacingX, to.FacingX, t),
                     Lerp(from.FacingY, to.FacingY, t),
                     Lerp(from.VelocityX, to.VelocityX, t),
-                    Lerp(from.VelocityY, to.VelocityY, t));
+                    Lerp(from.VelocityY, to.VelocityY, t),
+                    from.DeliveryHints | to.DeliveryHints);
                 isContinuousSample = true;
             }
 
@@ -181,7 +182,8 @@ namespace AbilityKit.Demo.Shooter.View
                     Lerp(from.FacingX, to.FacingX, t),
                     Lerp(from.FacingY, to.FacingY, t),
                     Lerp(from.VelocityX, to.VelocityX, t),
-                    Lerp(from.VelocityY, to.VelocityY, t));
+                    Lerp(from.VelocityY, to.VelocityY, t),
+                    from.DeliveryHints | to.DeliveryHints);
                 _transientTransformBuffer.Set(i, in sampled);
                 isContinuousSample = true;
             }

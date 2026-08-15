@@ -10,20 +10,9 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        {
-          "type": "spawn_area",
-          "area_id": 40010311,
-          "position_mode": 0,
-          "radius": 4.5,
-          "duration_ms": 300
-        },
-        {
-          "type": "debug_log",
-          "message": "廉颇三技能：第二段砸地区域",
-          "dump_args": false
-        }
-      ],
-      "scope": "owner"
+        { "type": "jump", "height": 1.6, "duration_ms": 350, "priority": 100, "apply_to_caster": true, "landing_trigger_ids": [10010312], "continuous_tag_template_id": 10000001 },
+        { "type": "debug_log", "message": "廉颇三技能：第二段在当前位置跳起，落地后触发区域", "dump_args": false }
+      ]
     }
   ]
 }

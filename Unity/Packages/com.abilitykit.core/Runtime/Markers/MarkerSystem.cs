@@ -18,6 +18,7 @@ namespace AbilityKit.Core.Markers
     /// MarkerSystem.ScanAll(new[] { typeof(MyAttribute).Assembly });
     /// </code>
     /// </example>
+    [Obsolete("Assembly-wide discovery does not belong to Core; migrate to an owner-controlled discovery or generated registration path before the next major version.")]
     public static class MarkerSystem
     {
         private static readonly List<MarkerRegistration> _registrations = new List<MarkerRegistration>();

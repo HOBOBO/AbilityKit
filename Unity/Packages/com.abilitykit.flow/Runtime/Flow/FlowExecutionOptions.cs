@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using AbilityKit.Core.Timing;
 
 namespace AbilityKit.Ability.Flow
 {
@@ -226,7 +226,7 @@ namespace AbilityKit.Ability.Flow
                 nodeName,
                 status,
                 deltaTime,
-                Stopwatch.GetTimestamp(),
+                MonotonicTime.GetTimestamp(),
                 elapsedTicks,
                 message,
                 exception);
@@ -258,9 +258,9 @@ namespace AbilityKit.Ability.Flow
 
         public static FlowStatus Tick(FlowContext context, IFlowNode node, float deltaTime)
         {
-            var start = Stopwatch.GetTimestamp();
+            var start = MonotonicTime.GetTimestamp();
             var result = node.Tick(context, deltaTime);
-            var elapsed = Stopwatch.GetTimestamp() - start;
+            var elapsed = MonotonicTime.GetTimestamp() - start;
             var diagnostics = Get(context);
             if (diagnostics != null)
             {

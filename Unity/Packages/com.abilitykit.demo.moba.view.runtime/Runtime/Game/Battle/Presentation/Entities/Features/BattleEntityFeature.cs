@@ -15,6 +15,7 @@ namespace AbilityKit.Game.Flow
         private IBattleEntityQuery _query;
 
         private EC.IEntity _node;
+        private long _bindingGeneration;
 
         public EC.IECWorld World => _world;
         public BattleEntityLookup Lookup => _lookup;
@@ -42,22 +43,20 @@ namespace AbilityKit.Game.Flow
                 _node.WithRef(_query);
             }
 
-            battleCtx.EntityNode = _node;
-            battleCtx.EntityWorld = _world;
-            battleCtx.EntityLookup = _lookup;
-            battleCtx.EntityFactory = _factory;
-            battleCtx.EntityQuery = _query;
+            _bindingGeneration = battleCtx.BindEntityRuntime(
+                _node,
+                _world,
+                _lookup,
+                _factory,
+                _query);
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            if (ctx.Features.TryGet(out BattleContext battleCtx))
+            if (_bindingGeneration != 0 &&
+                ctx.Features.TryGet(out BattleContext battleCtx))
             {
-                battleCtx.EntityNode = default;
-                battleCtx.EntityWorld = null;
-                battleCtx.EntityLookup = null;
-                battleCtx.EntityFactory = null;
-                battleCtx.EntityQuery = null;
+                battleCtx.ClearEntityRuntime(_bindingGeneration);
             }
 
             if (_node.IsValid)
@@ -66,6 +65,7 @@ namespace AbilityKit.Game.Flow
             }
 
             _lookup?.Clear();
+            _bindingGeneration = 0;
             _world = null;
             _lookup = null;
             _factory = null;

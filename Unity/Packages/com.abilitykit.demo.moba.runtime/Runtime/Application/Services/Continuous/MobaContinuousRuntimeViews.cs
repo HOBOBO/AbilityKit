@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.GameplayTags;
 using AbilityKit.Modifiers;
 

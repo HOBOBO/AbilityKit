@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Demo.Shooter.Host</RootNamespace>
+    <AssemblyName>AbilityKit.Demo.Shooter.Host</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.shooter.host/Runtime/**/*.cs"
+             Exclude="../../Unity/Packages/com.abilitykit.demo.shooter.host/Runtime/**/*.asmdef" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AbilityKit.Host/AbilityKit.Host.csproj" />
+    <ProjectReference Include="../AbilityKit.Host.Network/AbilityKit.Host.Network.csproj" />
+    <ProjectReference Include="../AbilityKit.Network.Host/AbilityKit.Network.Host.csproj" />
+    <ProjectReference Include="../AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
+    <ProjectReference Include="../AbilityKit.Demo.Shooter.Runtime/AbilityKit.Demo.Shooter.Runtime.csproj" />
+    <ProjectReference Include="../AbilityKit.Protocol.Shooter/AbilityKit.Protocol.Shooter.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 
 namespace AbilityKit.Demo.Moba.Services
 {

@@ -2,7 +2,7 @@
   "triggers": [
     {
       "id": 10060201,
-      "name": "嬴政-战力和谐-添加护盾与移速并生成范围",
+      "name": "嬴政-王者守御-净化护盾加速",
       "event": "",
       "enabled": true,
       "allowExternal": false,
@@ -11,9 +11,28 @@
       "conditions": [],
       "actions": [
         {
+          "type": "remove_buff",
+          "target_mode": 1,
+          "target_self": true,
+          "remove_slow": true,
+          "remove_all": true
+        },
+        {
+          "type": "add_buff",
+          "buffIds": [10060201],
+          "target_self": true
+        },
+        {
+          "type": "spawn_area",
+          "area_id": 40060201,
+          "position_mode": 0,
+          "radius": 4.0,
+          "duration_ms": 300
+        },
+        {
           "type": "add_shield",
           "shield_id": 10060201,
-          "shield_value": 400,
+          "shield_value": 300,
           "absorb_ratio": 1,
           "duration_ms": 3000,
           "priority": 20,
@@ -22,26 +41,11 @@
           "consume_policy": 0
         },
         {
-          "type": "add_buff",
-          "buffIds": [
-            10060201
-          ],
-          "target_self": true
-        },
-        {
-          "type": "spawn_area",
-          "area_id": 40060201,
-          "position_mode": 1,
-          "radius": 3.5,
-          "duration_ms": 700
-        },
-        {
           "type": "debug_log",
-          "message": "嬴政二技能：获得护盾与移速加成，并以目标点为中心生成范围爆炸",
+          "message": "嬴政二技能王者守御：清除减速，击退近身敌人并获得护盾和移速",
           "dump_args": false
         }
-      ],
-      "scope": "owner"
+      ]
     }
   ]
 }

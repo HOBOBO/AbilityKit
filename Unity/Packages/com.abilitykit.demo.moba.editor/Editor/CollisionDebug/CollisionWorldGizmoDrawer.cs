@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Combat.Collision;
-using AbilityKit.Core.Debugging;
+using AbilityKit.Diagnostics.DebugDraw;
 using AbilityKit.Core.Mathematics;
-using AbilityKit.Core.Editor.Debugging;
+using AbilityKit.Diagnostics.Editor.DebugDraw;
 using AbilityKit.Game.Battle;
 using UnityEditor;
 using UnityEngine;

@@ -1,0 +1,38 @@
+{
+  "triggers": [
+    {
+      "id": 10050211,
+      "name": "妲己-偶像魅力-命中伤害魅惑",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "give_damage",
+          "damage_value": 285,
+          "source_attack_ratio": 0.66,
+          "damage_type": 2,
+          "reason_param": 10050201
+        },
+        {
+          "type": "add_buff",
+          "buffIds": [10050201],
+          "duration_ms": 1500
+        },
+        {
+          "type": "add_buff",
+          "buffIds": [10050000],
+          "duration_ms": 3000
+        },
+        {
+          "type": "debug_log",
+          "message": "妲己二技能偶像魅力：命中造成法术伤害、魅惑并叠加失心",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

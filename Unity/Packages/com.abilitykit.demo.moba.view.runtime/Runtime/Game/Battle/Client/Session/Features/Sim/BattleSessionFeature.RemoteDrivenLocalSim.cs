@@ -10,7 +10,7 @@ namespace AbilityKit.Game.Flow
                 GetFixedDeltaSeconds(),
                 ResolveIdealFrameLimit,
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                () => DebugForceClientHashMismatch);
+                () => _runtime.Diagnostics.ShouldForceClientHashMismatch);
 #else
                 () => false);
 #endif

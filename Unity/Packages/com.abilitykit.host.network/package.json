@@ -1,0 +1,12 @@
+{
+  "name": "com.abilitykit.host.network",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Host Network Integration",
+  "unity": "2021.3",
+  "description": "Transport-neutral integration between AbilityKit authoritative hosts and NetworkHost sessions.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.host": "0.1.0",
+    "com.abilitykit.network.host": "0.1.0"
+  }
+}

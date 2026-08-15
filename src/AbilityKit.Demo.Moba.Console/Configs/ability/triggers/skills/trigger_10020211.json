@@ -12,7 +12,8 @@
       "actions": [
         {
           "type": "give_damage",
-          "damage_value": 100,
+          "damage_value": 300,
+          "source_attack_ratio": 0.50,
           "damage_type": 2,
           "reason_param": 10020201,
           "target_query_id": 50020201,
@@ -20,19 +21,22 @@
         },
         {
           "type": "pull",
-          "speed": 8,
+          "speed": 8.0,
           "duration_ms": 500,
           "direction_mode": 2,
           "target_distance": 0,
-          "priority": 110
+          "priority": 110,
+          "motion_group_id": 3,
+          "continuous_tag_template_id": 10000001,
+          "target_query_id": 50020201,
+          "target_max_count": 10
         },
         {
           "type": "debug_log",
           "message": "小乔二技能：区域命中造成法术伤害并击飞目标",
           "dump_args": false
         }
-      ],
-      "scope": "owner"
+      ]
     }
   ]
 }

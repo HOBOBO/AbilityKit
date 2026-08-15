@@ -131,6 +131,13 @@ public sealed class WebSocketTransportServer : IGatewayTransportServer
             while (!cancellationToken.IsCancellationRequested)
             {
                 var context = await listener.GetContextAsync().WaitAsync(cancellationToken);
+                if (!IsConfiguredPath(context.Request.Url?.AbsolutePath))
+                {
+                    context.Response.StatusCode = 404;
+                    context.Response.Close();
+                    continue;
+                }
+
                 if (!context.Request.IsWebSocketRequest)
                 {
                     context.Response.StatusCode = 400;
@@ -146,6 +153,8 @@ public sealed class WebSocketTransportServer : IGatewayTransportServer
             }
         }
         catch (OperationCanceledException) { }
+        catch (HttpListenerException) when (!ReferenceEquals(GetListener(), listener)) { }
+        catch (ObjectDisposedException) when (!ReferenceEquals(GetListener(), listener)) { }
         finally
         {
             lock (_lifecycleGate) { if (ReferenceEquals(_listener, listener)) _listener = null; }
@@ -163,6 +172,32 @@ public sealed class WebSocketTransportServer : IGatewayTransportServer
             try { if (socket.State == WebSocketState.Open) await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "stopping", cancellationToken); }
             catch { }
         }
+    }
+
+    private HttpListener? GetListener()
+    {
+        lock (_lifecycleGate)
+        {
+            return _listener;
+        }
+    }
+
+    private bool IsConfiguredPath(string? requestPath)
+    {
+        if (string.IsNullOrWhiteSpace(requestPath))
+        {
+            return false;
+        }
+
+        var configuredPath = string.IsNullOrWhiteSpace(_options.Path)
+            ? "/"
+            : _options.Path;
+        if (!configuredPath.StartsWith('/'))
+        {
+            configuredPath = "/" + configuredPath;
+        }
+
+        return string.Equals(requestPath, configuredPath, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task HandleWebSocketAsync(long connectionId, WebSocket socket, CancellationToken cancellationToken)

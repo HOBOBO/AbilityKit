@@ -1,4 +1,3 @@
-using AbilityKit.Core.Numerics;
 using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba
@@ -25,17 +24,17 @@ namespace AbilityKit.Demo.Moba
         public int FormulaKind;
         public string FormulaId;
 
-        public readonly NumberValue BaseDamage;
-        public readonly NumberValue DamageRate;
-        public readonly NumberValue FlatBonus;
-        public readonly NumberValue FinalDamage;
+        public readonly DamageNumberValue BaseDamage;
+        public readonly DamageNumberValue DamageRate;
+        public readonly DamageNumberValue FlatBonus;
+        public readonly DamageNumberValue FinalDamage;
 
         public AttackInfo()
         {
-            BaseDamage = new NumberValue(NumberValueMode.BaseAddMul);
-            DamageRate = new NumberValue(NumberValueMode.BaseAddMul, baseValue: 1f);
-            FlatBonus = new NumberValue(NumberValueMode.BaseAddMul);
-            FinalDamage = new NumberValue(NumberValueMode.OverrideOnly);
+            BaseDamage = new DamageNumberValue(DamageNumberValueMode.BaseAddMul);
+            DamageRate = new DamageNumberValue(DamageNumberValueMode.BaseAddMul, baseValue: 1f);
+            FlatBonus = new DamageNumberValue(DamageNumberValueMode.BaseAddMul);
+            FinalDamage = new DamageNumberValue(DamageNumberValueMode.OverrideOnly);
         }
 
         public override Services.EffectContextKind Kind => Services.EffectContextKind.Trigger;
@@ -131,19 +130,19 @@ namespace AbilityKit.Demo.Moba
     {
         public AttackInfo Attack;
 
-        public readonly NumberValue RawDamage;
-        public readonly NumberValue MitigatedDamage;
-        public readonly NumberValue ShieldAbsorb;
-        public readonly NumberValue HpDamage;
+        public readonly DamageNumberValue RawDamage;
+        public readonly DamageNumberValue MitigatedDamage;
+        public readonly DamageNumberValue ShieldAbsorb;
+        public readonly DamageNumberValue HpDamage;
         internal Services.ShieldAbsorbPlan ShieldPlan;
 
         public AttackCalcInfo(AttackInfo attack)
         {
             Attack = attack;
-            RawDamage = new NumberValue(NumberValueMode.BaseAddMul);
-            MitigatedDamage = new NumberValue(NumberValueMode.BaseAddMul);
-            ShieldAbsorb = new NumberValue(NumberValueMode.BaseAddMul);
-            HpDamage = new NumberValue(NumberValueMode.BaseAddMul);
+            RawDamage = new DamageNumberValue(DamageNumberValueMode.BaseAddMul);
+            MitigatedDamage = new DamageNumberValue(DamageNumberValueMode.BaseAddMul);
+            ShieldAbsorb = new DamageNumberValue(DamageNumberValueMode.BaseAddMul);
+            HpDamage = new DamageNumberValue(DamageNumberValueMode.BaseAddMul);
         }
 
         public override Services.EffectContextKind Kind => Services.EffectContextKind.Trigger;

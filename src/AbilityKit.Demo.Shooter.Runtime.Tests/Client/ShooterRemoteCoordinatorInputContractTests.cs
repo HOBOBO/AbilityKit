@@ -82,6 +82,8 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
         Assert.Contains("ThrowIfStaleLifecycle(generation);", playModeHost);
         Assert.Contains("ShooterReconnectLaunchOptionsBuilder.RestoreOnly(_options", playModeHost);
         Assert.Contains("ShooterRemoteStateSyncLaunchMode.RestoreOnly", reconnectLaunchOptionsBuilder);
+        Assert.Contains("source.ReliableEventCheckpointStore", reconnectLaunchOptionsBuilder);
+        Assert.Contains("source.ReliableEventCheckpointLifecycleOptions", reconnectLaunchOptionsBuilder);
         Assert.Contains("new ShooterInitialFullStateSyncCoordinator(", playModeHost);
         Assert.Contains("NotifyStateChangedIfCurrent(generation)).RequestIfNeededAsync(", playModeHost);
         Assert.Contains("RequiresInitialFullStateSync => EntryKind == ShooterRoomGatewayEntryKind.LateJoin", connectionFlow);

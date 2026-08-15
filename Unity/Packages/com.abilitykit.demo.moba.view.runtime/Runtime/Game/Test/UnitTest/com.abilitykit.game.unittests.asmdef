@@ -3,11 +3,13 @@
     "rootNamespace": "",
     "references": [
         "AbilityKit.Demo.Common",
+        "AbilityKit.Demo.Multiplayer.Starter",
         "AbilityKit.Demo.Moba.View.Runtime",
         "AbilityKit.Demo.Moba.Runtime",
         "AbilityKit.Demo.Moba.Share",
         "AbilityKit.Attributes",
         "AbilityKit.Core",
+        "AbilityKit.Continuous",
         "AbilityKit.Record",
         "AbilityKit.Modifiers",
         "AbilityKit.Host",

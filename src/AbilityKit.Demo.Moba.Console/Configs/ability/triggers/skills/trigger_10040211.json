@@ -13,13 +13,13 @@
                     {
                         "type":  "spawn_area",
                         "area_id":  40040201,
-                        "position_mode":  1,
+                        "position_mode":  2,
                         "radius":  3.5,
-                        "duration_ms":  300
+                        "duration_ms":  2000
                     },
                     {
                         "type":  "debug_log",
-                        "message":  "墨子二技能：炮弹命中后生成爆炸区域",
+                        "message":  "墨子二技能：炮弹结束后生成弹坑持续伤害区域",
                         "dump_args":  false
                     }
                 ]

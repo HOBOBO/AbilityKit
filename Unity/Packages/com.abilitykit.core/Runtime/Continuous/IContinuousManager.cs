@@ -13,6 +13,7 @@ namespace AbilityKit.Core.Continuous
     /// 1. 业务层实现 IContinuousManager 接口
     /// 2. 或继承/组合 DefaultContinuousManager（如果提供了默认实现）
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public interface IContinuousManager
     {
         /// <summary>

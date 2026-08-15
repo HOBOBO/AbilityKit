@@ -1,0 +1,33 @@
+{
+  "triggers": [
+    {
+      "id": 10050111,
+      "name": "妲己-灵魂冲击-命中伤害",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "give_damage",
+          "damage_value": 520,
+          "source_attack_ratio": 0.80,
+          "damage_type": 2,
+          "reason_param": 10050101
+        },
+        {
+          "type": "add_buff",
+          "buffIds": [10050000],
+          "duration_ms": 3000
+        },
+        {
+          "type": "debug_log",
+          "message": "妲己一技能灵魂冲击：命中造成法术伤害并叠加失心",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

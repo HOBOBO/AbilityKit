@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 /// </summary>
 public abstract class ConsoleMobaSmokeTestBase
 {
-    protected static ConsoleSmokeRunResult RunConsoleScenario(
+    public static ConsoleSmokeRunResult RunConsoleScenario(
         IBattleTestScenario scenario,
         Action<ConsoleBattleBootstrapper>? configure = null,
         AutoTestConfig? config = null,
@@ -58,7 +58,7 @@ public abstract class ConsoleMobaSmokeTestBase
         }
     }
 
-    protected static void AssertConsoleSmokePassed(ConsoleSmokeRunResult result)
+    public static void AssertConsoleSmokePassed(ConsoleSmokeRunResult result)
     {
         if (result == null) throw new ArgumentNullException(nameof(result));
 

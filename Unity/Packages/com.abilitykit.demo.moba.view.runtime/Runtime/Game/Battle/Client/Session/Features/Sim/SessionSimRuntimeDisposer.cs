@@ -49,7 +49,7 @@ namespace AbilityKit.Game.Flow
                 resetTickState,
                 handles.DisposeInput,
                 handles.DisposeViewEventPipeline,
-                () => ConfirmedAuthorityDebugStatsPublisher.Clear(diagnostics, ctx));
+                () => ConfirmedAuthorityDebugStatsPublisher.Clear(diagnostics));
         }
 
         internal static void ExecuteCleanupSteps(string message, params Action[] cleanupSteps)

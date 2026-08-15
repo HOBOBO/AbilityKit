@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using AbilityKit.Core.Collections;
 
 namespace AbilityKit.Triggering.Runtime
 {
@@ -9,7 +9,8 @@ namespace AbilityKit.Triggering.Runtime
     /// </summary>
     public sealed class CompositeContextSource<TCtx> : ITriggerContextSource<TCtx>
     {
-        private readonly List<ContextSourceEntry<TCtx>> _sources = new List<ContextSourceEntry<TCtx>>();
+        private readonly StablePriorityList<ITriggerContextSource<TCtx>> _sources =
+            new StablePriorityList<ITriggerContextSource<TCtx>>(PriorityDirection.Descending);
         private TCtx _lastContext;
         private int _currentIndex = -1;
 
@@ -20,8 +21,7 @@ namespace AbilityKit.Triggering.Runtime
         {
             if (source != null)
             {
-                _sources.Add(new ContextSourceEntry<TCtx>(source, priority));
-                _sources.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+                _sources.Add(source, priority);
             }
             return this;
         }
@@ -48,10 +48,10 @@ namespace AbilityKit.Triggering.Runtime
 
             for (int i = 0; i < _sources.Count; i++)
             {
-                var entry = _sources[i];
-                if (entry.Source == null) continue;
+                var source = _sources[i];
+                if (source == null) continue;
 
-                var ctx = entry.Source.GetContext();
+                var ctx = source.GetContext();
                 if (IsValidContext(ctx))
                 {
                     _currentIndex = i;
@@ -85,17 +85,6 @@ namespace AbilityKit.Triggering.Runtime
             return ctx != null;
         }
 
-        private readonly struct ContextSourceEntry<TSourceContext>
-        {
-            public readonly ITriggerContextSource<TSourceContext> Source;
-            public readonly int Priority;
-
-            public ContextSourceEntry(ITriggerContextSource<TSourceContext> source, int priority)
-            {
-                Source = source;
-                Priority = priority;
-            }
-        }
     }
 
     /// <summary>

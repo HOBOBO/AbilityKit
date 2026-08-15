@@ -1,4 +1,4 @@
-using AbilityKit.Core.Configuration;
+using AbilityKit.Demo.Moba.View.Settings;
 
 namespace AbilityKit.Game.Flow
 {

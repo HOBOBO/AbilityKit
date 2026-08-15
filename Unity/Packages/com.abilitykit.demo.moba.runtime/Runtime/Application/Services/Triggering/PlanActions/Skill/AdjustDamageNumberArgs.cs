@@ -1,5 +1,3 @@
-using AbilityKit.Core.Numerics;
-
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     public enum DamageNumberSlot
@@ -13,7 +11,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     public readonly struct AdjustDamageNumberArgs
     {
         public readonly DamageNumberSlot NumberSlot;
-        public readonly NumberModifierOp Op;
+        public readonly DamageNumberModifierOp Op;
         public readonly float Value;
         public readonly int SourceId;
         public readonly DamageReasonKind ReasonKind;
@@ -26,7 +24,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public AdjustDamageNumberArgs(
             DamageNumberSlot numberSlot,
-            NumberModifierOp op,
+            DamageNumberModifierOp op,
             float value,
             int sourceId,
             DamageReasonKind reasonKind,

@@ -68,16 +68,11 @@ public sealed class ShooterClientNetworkLauncherTests
         Assert.Equal(assetsIndex + 3, connection.SentOpCodes.Count);
 
         launcher.Tick(1f / 30f);
-        var submit = await launched.Battle.SubmitLocalInputToGatewayAsync(moveX: 1f, moveY: 0f, aimX: 1f, aimY: 0f, fire: true);
-
         Assert.Equal(1, connection.TickCount);
-        Assert.True(submit.Remote.Success);
-        Assert.Equal(RoomGatewayOpCodes.SubmitBattleInput, connection.SentOpCodes[connection.SentOpCodes.Count - 1]);
-        var inputWire = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputReq>(connection.LastSentPayload);
-        Assert.Equal("battle-launch", inputWire.BattleId);
-        Assert.Equal(9041ul, inputWire.WorldId);
-        Assert.Equal(51u, inputWire.PlayerId);
+        Assert.DoesNotContain(RoomGatewayOpCodes.SubmitBattleInput, connection.SentOpCodes);
 
+        // Room 连接只拥有控制面；战斗输入和快照由独立 BattleDataPlane 连接处理。
+        var frameBeforeRoomPush = launched.Session.CurrentFrame;
         var authority = new ShooterBattleRuntimePort();
         Assert.True(authority.StartGame(in start));
         authority.SubmitInput(0, new[] { new ShooterPlayerCommand(51, 0f, 1f, 1f, 0f, true) });
@@ -96,10 +91,8 @@ public sealed class ShooterClientNetworkLauncherTests
 
         connection.Push(RoomGatewayOpCodes.SnapshotPushed, WireRoomGatewayBinary.Serialize(in push));
 
-        Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, launcher.GatewayConnection.LastPushResult);
-        Assert.Equal(authority.CurrentFrame, launched.Session.CurrentFrame);
-        Assert.Equal(authority.ComputeStateHash(), runtime.ComputeStateHash());
-        Assert.Equal(authority.CurrentFrame, presentation.ViewModel.Frame);
+        Assert.Equal(ShooterSnapshotApplyResult.Ignored, launcher.GatewayConnection.LastPushResult);
+        Assert.Equal(frameBeforeRoomPush, launched.Session.CurrentFrame);
     }
 
     [Fact]

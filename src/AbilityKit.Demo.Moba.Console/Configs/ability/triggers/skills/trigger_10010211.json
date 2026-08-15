@@ -12,7 +12,8 @@
       "actions": [
         {
           "type": "give_damage",
-          "damage_value": 180,
+          "damage_value": 150,
+          "source_attack_ratio": 1.20,
           "damage_type": 1,
           "reason_param": 10010201,
           "target_query_id": 50010201,
@@ -20,9 +21,7 @@
         },
         {
           "type": "add_buff",
-          "buffIds": [
-            10010212
-          ],
+          "buffIds": [10010212],
           "target_query_id": 50010201,
           "target_max_count": 10,
           "duration_ms": 1500
@@ -32,8 +31,7 @@
           "message": "廉颇二技能：蓄力区域造成物理伤害并降低目标移速",
           "dump_args": false
         }
-      ],
-      "scope": "owner"
+      ]
     }
   ]
 }

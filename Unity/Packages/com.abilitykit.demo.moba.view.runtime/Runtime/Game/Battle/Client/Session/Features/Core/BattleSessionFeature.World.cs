@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using AbilityKit.Demo.Moba.Serialization;
-using AbilityKit.Core.Configuration;
+using AbilityKit.Demo.Moba.Bootstrap;
 using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World;

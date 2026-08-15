@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../AbilityKit.Core/AbilityKit.Core.csproj" />
     <ProjectReference Include="../AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
   </ItemGroup>
 

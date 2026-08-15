@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Logging;
+using AbilityKit.Core.Timing;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Blackboard;
@@ -273,19 +274,19 @@ namespace AbilityKit.Triggering.Runtime
             _observer.OnEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, false, in execCtx);
 
             bool ok;
-            var startTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+            var startTicks = MonotonicTime.GetTimestamp();
             try
             {
                 ok = entry.Trigger.Evaluate(in args, in execCtx);
             }
             catch (Exception ex)
             {
-                RecordTrace(key, in entry, TriggerRecordKind.Evaluated, false, null, System.Diagnostics.Stopwatch.GetTimestamp() - startTicks);
+                RecordTrace(key, in entry, TriggerRecordKind.Evaluated, false, null, MonotonicTime.GetTimestamp() - startTicks);
                 NotifyEvaluationException(key, in args, in entry, control, in execCtx, ex);
                 return DispatchEvaluationResult.FailedByException;
             }
 
-            var elapsedTicks = System.Diagnostics.Stopwatch.GetTimestamp() - startTicks;
+            var elapsedTicks = MonotonicTime.GetTimestamp() - startTicks;
             _lifecycle.OnAfterEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok);
             _observer.OnEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok, in execCtx);
             RecordTrace(key, in entry, TriggerRecordKind.Evaluated, ok, null, elapsedTicks);
@@ -515,16 +516,16 @@ namespace AbilityKit.Triggering.Runtime
 
         private bool TryExecuteTrigger<TArgs>(EventKey<TArgs> key, in TArgs args, in TriggerRunnerEntry<TArgs, TCtx> entry, in ExecCtx<TCtx> execCtx)
         {
-            var startTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+            var startTicks = MonotonicTime.GetTimestamp();
             try
             {
                 entry.Trigger.Execute(in args, in execCtx);
-                RecordTrace(key, in entry, TriggerRecordKind.Executed, null, null, System.Diagnostics.Stopwatch.GetTimestamp() - startTicks);
+                RecordTrace(key, in entry, TriggerRecordKind.Executed, null, null, MonotonicTime.GetTimestamp() - startTicks);
                 return true;
             }
             catch (Exception ex)
             {
-                RecordTrace(key, in entry, TriggerRecordKind.Executed, null, null, System.Diagnostics.Stopwatch.GetTimestamp() - startTicks);
+                RecordTrace(key, in entry, TriggerRecordKind.Executed, null, null, MonotonicTime.GetTimestamp() - startTicks);
                 NotifyActionFailed(key, in args, in entry, in execCtx, entry.Trigger.GetType().Name, 0, 1, ex.Message);
                 return false;
             }
@@ -628,7 +629,7 @@ namespace AbilityKit.Triggering.Runtime
                 kind,
                 predicateResult,
                 reason,
-                System.Diagnostics.Stopwatch.GetTimestamp(),
+                MonotonicTime.GetTimestamp(),
                 elapsedTicks,
                 string.Empty);
             _tracer.RecordTrigger<TArgs>(_currentTraceScope, record);

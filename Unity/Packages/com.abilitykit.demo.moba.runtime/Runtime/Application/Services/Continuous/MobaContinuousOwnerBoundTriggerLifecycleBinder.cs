@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
 using AbilityKit.Demo.Moba.Services.Triggering;

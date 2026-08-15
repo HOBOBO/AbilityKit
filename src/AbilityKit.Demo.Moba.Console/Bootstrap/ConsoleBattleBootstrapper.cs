@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
+using AbilityKit.Ability.Host.Extensions.Moba.Server.Network;
+using AbilityKit.Ability.Host.Framework;
+using AbilityKit.Ability.Host.Network;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Abstractions;
@@ -33,6 +36,7 @@ using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Systems.Bootstrap.Flow;
 using AbilityKit.Protocol.Moba;
+using AbilityKit.Network.Runtime;
 using BattleConfig = AbilityKit.Demo.Moba.Console.Battle.Config;
 using ShareBattleStartPlan = AbilityKit.Demo.Moba.Share.BattleStartPlan;
 using ShareSyncMode = AbilityKit.Demo.Moba.Share.SyncMode;
@@ -95,7 +99,10 @@ namespace AbilityKit.Demo.Moba.Console
         private IWorldResolver _worldResolver;
         private IWorld? _runtimeWorld;
         private WorldManager? _runtimeWorldManager;
-        private Bootstrap.RuntimePortInputSink? _runtimeInputSink;
+        private HostRuntime? _hostRuntime;
+        private InProcessHostNetwork? _hostNetwork;
+        private ConnectionManager? _hostClient;
+        private Bootstrap.HostNetworkInputSink? _runtimeInputSink;
 
         public PlatformComponents Platform { get; }
         public IBattleSyncAdapter? SyncAdapter => _syncAdapter;
@@ -111,6 +118,7 @@ namespace AbilityKit.Demo.Moba.Console
         public ShareReplayPlayer? ReplayPlayer => _replayPlayer;
         public IWorldResolver? RuntimeServices => _runtimeWorld?.Services;
         public bool RuntimeInputPortReady => _runtimeWorld?.Services?.TryResolve<IMobaBattleInputPort>(out var port) == true && port != null;
+        public bool HostNetworkReady => _hostNetwork?.Connections.IsListening == true && _hostClient?.IsConnected == true;
         public Bootstrap.RuntimeInputDiagnostics RuntimeInputDiagnostics => _runtimeInputSink?.Diagnostics ?? Bootstrap.RuntimeInputDiagnostics.Empty;
 
         BattleConfig.BattleStartConfig IBattleStartConfigProvider.Config => _config;
@@ -329,23 +337,42 @@ namespace AbilityKit.Demo.Moba.Console
             options.Modules.Add(new MobaWorldBootstrapModule());
             options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
 
-            _runtimeWorld = _runtimeWorldManager.Create(options);
+            _hostNetwork = new InProcessHostNetwork(
+                UnsupportedHostMessageCodec.Instance,
+                new MobaHostNetworkRequestHandler());
+            _hostRuntime = new HostRuntime(_runtimeWorldManager);
+            _hostNetwork.Connections.Attach(_hostRuntime);
+            _hostNetwork.Connections.OnClientConnected += OnHostClientConnected;
+            _hostNetwork.Start();
+
+            _runtimeWorld = _hostRuntime.CreateWorld(options);
+            _hostClient = _hostNetwork.CreateClientConnection();
+            _hostClient.Open("inprocess", 1);
             Log.System($"[Bootstrapper] Runtime world initialized: {_runtimeWorld.Id} ({_runtimeWorld.WorldType})");
         }
 
         private void CreateBattleSession()
         {
-            if (_worldResolver != null && _worldResolver.TryResolve<IMobaBattleInputPort>(out var inputPort) && inputPort != null)
+            if (_hostClient != null && _hostClient.IsConnected)
             {
-                _runtimeInputSink = new Bootstrap.RuntimePortInputSink(inputPort);
+                _runtimeInputSink = new Bootstrap.HostNetworkInputSink(_hostClient, _config.WorldId);
                 _inputFeature.SetInputSink(_runtimeInputSink);
-                Log.System($"[Bootstrapper] RuntimePort InputSink initialized");
+                Log.System("[Bootstrapper] Formal Host network InputSink initialized");
                 return;
             }
 
-            var inputSink = new Bootstrap.DirectCallInputSink();
-            _inputFeature.SetInputSink(inputSink);
-            Log.System($"[Bootstrapper] DirectCall InputSink initialized; runtime input port is not registered");
+            throw new InvalidOperationException("Formal Host network client is not connected.");
+        }
+
+        private void OnHostClientConnected(AbilityKit.Ability.Host.Transport.IServerConnection connection)
+        {
+            if (connection is not HostNetworkServerConnection networkConnection || _hostNetwork == null) return;
+
+            _hostNetwork.Connections.TryBindClient(
+                networkConnection.Session.Id,
+                new AbilityKit.Ability.Host.ServerClientId(_config.ClientId));
+            var binding = new MobaHostSessionBinding(_config.WorldId, _config.PlayerId);
+            MobaHostSessionBindings.Bind(networkConnection.Session, in binding);
         }
 
         private void LogBattleConfig()
@@ -446,7 +473,9 @@ namespace AbilityKit.Demo.Moba.Console
 
             // 由 PhaseHost -> InMatchPhase -> FeatureHost 管理 Features
             _flow.Tick((float)elapsed);
-            _runtimeWorld?.Tick((float)elapsed);
+            _hostNetwork?.Tick();
+            _hostClient?.Tick((float)elapsed);
+            _hostRuntime?.Tick((float)elapsed);
 
             // Features 现在由 FeatureHost.Tick() 自动管理；自动测试输入由共享 runner driver 显式 Apply，避免本地步骤机重复脚本语义。
             // _syncFeature.Tick(_context, (float)elapsed);
@@ -559,6 +588,8 @@ namespace AbilityKit.Demo.Moba.Console
             // _syncFeature?.OnDetach(_context);
 
             _runtimeInputSink?.Dispose();
+            _hostClient?.Dispose();
+            _hostNetwork?.Dispose();
             _runtimeWorldManager?.DisposeAll();
             _cuePresenter?.Dispose();
             _viewTimeline?.Dispose();

@@ -334,7 +334,8 @@ namespace AbilityKit.Network.Room
                 wire.Started,
                 ToWorldStartAnchor(in wireAnchor),
                 wire.ServerNowTicks,
-                wire.Message ?? string.Empty);
+                wire.Message ?? string.Empty,
+                RoomGatewayNetworkSyncCapabilitiesConverter.FromWire(wire.SyncCapabilities));
         }
 
         public async Task<RoomGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(
@@ -798,6 +799,7 @@ namespace AbilityKit.Network.Room
                 CanStart = wire.CanStart,
                 BattleId = wire.BattleId ?? string.Empty,
                 WorldId = wire.WorldId,
+                SyncCapabilities = RoomGatewayNetworkSyncCapabilitiesConverter.FromWire(wire.SyncCapabilities),
                 Members = members,
                 Players = players,
                 WorldStartAnchor = ToWorldStartAnchor(in wireAnchor)

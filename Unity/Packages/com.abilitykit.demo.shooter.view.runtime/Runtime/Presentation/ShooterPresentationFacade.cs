@@ -111,6 +111,7 @@ namespace AbilityKit.Demo.Shooter.View
 
         public void ApplyPureStateSnapshot(in ShooterPureStateSnapshotPayload snapshot)
         {
+            _stream.InterpolationDelayFrames = Math.Max(0, snapshot.Settings.InterpolationDelayFrames);
             var batch = _adapter.ApplyPureStateSnapshot(in snapshot, _controlledPlayerId);
             _stream.Publish(in batch);
         }

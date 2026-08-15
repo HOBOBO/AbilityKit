@@ -57,7 +57,7 @@ session.Dispose();
 | 包 | 客户端实现与局部测试 | 生产采用 / 服务端前提 |
 |---|---|---|
 | `network.runtime` / `TcpTransport` | 裸 TCP 实现；SDK 有契约测试 | Room、Battle、Moba、Shooter 和 Orleans Smoke 的默认或实际路径 |
-| `network.transport.websocket` | `ClientWebSocket`；本机 `HttpListener` echo round-trip | 未发现生产消费者；不支持 Unity WebGL；Orleans 服务端类存在，但 canonical Gateway 尚未注册或托管 |
+| `network.transport.websocket` | `ClientWebSocket`；本机 `HttpListener` echo round-trip；Orleans Gateway 服务端契约测试 | 未发现生产消费者；不支持 Unity WebGL；Orleans Gateway 已注册可配置服务端，但默认关闭 |
 | `network.transport.litenet` | LiteNetLib `ReliableOrdered`；本机 UDP echo round-trip | 未发现生产消费者和 AbilityKit UDP/LiteNet 网关；没有真实弱网或 TCP 性能对比证据 |
 | `network.transport.inmemory` | linked-pair 同步回环测试 | 仅适合进程内测试，不模拟 socket、时延、丢包、乱序或异步线程 |
 | `network.battle.config` | `NetworkBattleConfig` 高层配置 builder | 封装标准 room-gateway 协议预设，不改变 transport 的服务端前提 |
@@ -115,7 +115,7 @@ session.Dispose();
 
 ## 5. 服务端侧（Orleans）
 
-当前 TCP 主链的通用骨架已就绪，新示例只需注册游戏专属 handler。若选择 WebSocket 或 LiteNet，还必须先完成对应 listener 的启动注册、配置和端到端 smoke；仅客户端替换 factory 不会让服务端自动支持新协议。
+当前 TCP 主链的通用骨架已就绪，新示例只需注册游戏专属 handler。WebSocket 服务端已进入 canonical Gateway 注册链，但默认关闭；若选择 WebSocket，仍必须显式启用 `AbilityKit:Gateway:WebSocket` 并完成端到端 smoke。若选择 LiteNet，还必须先完成对应 listener 的启动注册、配置和端到端 smoke；仅客户端替换 factory 不会让服务端自动支持新协议。
 
 - 通用（白拿）：`GuestLoginHandler` / `CreateRoomHandler` / `JoinRoomHandler` / `LeaveRoomHandler` / `RoomReadyHandler` / `BeginLoadingHandler` / `ReportAssetsLoadedHandler` / `StartRoomBattleHandler` / `SubscribeStateSyncHandler` / `RestoreRoomHandler` / `GetSnapshotHandler` / `TimeSyncHandler` + grains（`RoomGrain` / `BattleLogicHostGrain`）。
 - 游戏专属（自写）：战斗数据 handler，如 `SubmitBattleInputHandler`（按 `roomType`/`worldType` 路由到该玩法的战斗逻辑）、快照构建。参考 shooter 的 `AddShooterSmokeGateway` 注册方式。

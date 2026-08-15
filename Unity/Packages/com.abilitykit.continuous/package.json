@@ -1,0 +1,16 @@
+{
+  "name": "com.abilitykit.continuous",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Continuous",
+  "unity": "2022.3",
+  "description": "Domain runtime for owner-scoped continuous processes, lifecycle policies, activation, pause, interruption, and termination.",
+  "keywords": [
+    "abilitykit",
+    "continuous",
+    "lifecycle",
+    "runtime"
+  ],
+  "author": {
+    "name": "AbilityKit"
+  }
+}

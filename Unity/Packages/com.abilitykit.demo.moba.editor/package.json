@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "com.abilitykit.demo.moba.editor",
   "version": "0.0.1",
   "displayName": "AbilityKit Demo MOBA Editor",
@@ -6,12 +6,14 @@
   "description": "MOBA demo editor tools.",
   "author": { "name": "AbilityKit" },
   "dependencies": {
-    "com.abilitykit.combat.navigation": "0.0.1",
+    "com.abilitykit.diagnostics": "0.1.0",
+    "com.abilitykit.combat.navigation": "0.1.0",
+    "com.abilitykit.continuous": "0.1.0",
     "com.abilitykit.demo.moba.runtime": "0.0.1",
     "com.abilitykit.demo.moba.view.runtime": "0.0.1",
-    "com.abilitykit.world.ecs": "0.0.1",
-    "com.abilitykit.world.entitas": "0.0.1",
-    "com.abilitykit.host": "0.0.1",
-    "com.abilitykit.hotreload": "0.0.1"
+    "com.abilitykit.world.ecs": "0.1.0",
+    "com.abilitykit.world.entitas": "0.1.0",
+    "com.abilitykit.host": "0.1.0",
+    "com.abilitykit.hotreload": "0.1.0"
   }
 }

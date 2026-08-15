@@ -147,6 +147,20 @@ public sealed class ShooterClientFrameSyncControllerTests
         Assert.Equal(3, reconciliation.PendingInputFramesBeforeCorrection);
         Assert.Equal(2, reconciliation.PendingInputFramesAfterTrim);
         Assert.Equal(2, reconciliation.PendingInputFramesAfterReplay);
+        Assert.Collection(
+            controller.LastReconciliationHealthEvents,
+            rollback =>
+            {
+                Assert.Equal(AbilityKit.Network.Runtime.Sync.SyncHealthEventKind.RollbackStarted, rollback.Kind);
+                Assert.Equal(reconciliation.AuthoritativeFrame, rollback.Frame);
+                Assert.Equal(reconciliation.ReplayTicks, rollback.Value);
+            },
+            replay =>
+            {
+                Assert.Equal(AbilityKit.Network.Runtime.Sync.SyncHealthEventKind.ReplayCompleted, replay.Kind);
+                Assert.Equal(reconciliation.FinalFrame, replay.Frame);
+                Assert.Equal(reconciliation.ReplayTicks, replay.Value);
+            });
         Assert.Equal(1, publishedDiagnosticsCount);
         Assert.Equal(reconciliation.ApplyResult, publishedDiagnostics.ApplyResult);
         Assert.Equal(reconciliation.PredictedFrameBeforeCorrection, publishedDiagnostics.PredictedFrameBeforeCorrection);

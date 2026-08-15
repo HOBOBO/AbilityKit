@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Protocol.Shooter;
 
@@ -8,13 +9,24 @@ namespace AbilityKit.Demo.Shooter.View
     public sealed class ShooterPureStateSnapshotSyncController
     {
         private static readonly SyncHealthEvent[] EmptyHealthEvents = Array.Empty<SyncHealthEvent>();
+        private static readonly NetworkSyncProfile PureStatePlaybackProfile = new NetworkSyncProfile(
+            NetworkSyncModel.AuthoritativeInterpolation,
+            ClientPlaybackPolicy.AuthoritativeInterpolation,
+            InputPolicy.NoClientInput,
+            SnapshotPolicy.FullSnapshot | SnapshotPolicy.DeltaSnapshot | SnapshotPolicy.FixedRateStateStream,
+            InterestPolicy.AllEntities,
+            RecoveryPolicy.RequestFullSnapshot,
+            ServerValidationPolicy.AuthoritativeOnly);
+        private static readonly NetworkSyncCapabilities PureStatePlaybackCapabilities =
+            NetworkSyncCapabilities.FromProfile(
+                in PureStatePlaybackProfile,
+                ShooterStateSyncCompatibilityPolicy.MinimumPureStateVersion,
+                ShooterPureStateSyncCodec.CurrentVersion);
 
         private readonly Action<ShooterPureStateSnapshotPayload> _applySnapshot;
         private readonly ShooterGatewaySnapshotDecoder _decoder;
-        private readonly SnapshotStreamStateMachine _snapshotStream = new SnapshotStreamStateMachine(
-            ShooterStateSyncCompatibilityPolicy.MinimumPureStateVersion,
-            ShooterPureStateSyncCodec.CurrentVersion);
-        private SyncHealthEvent[] _lastHealthEvents = EmptyHealthEvents;
+        private readonly ClientSnapshotSyncPipeline<ShooterPureStateSnapshotPayload> _pipeline;
+        private IReadOnlyList<SyncHealthEvent> _lastHealthEvents = EmptyHealthEvents;
 
         public ShooterPureStateSnapshotSyncController(ShooterPresentationFacade presentation)
             : this(presentation, new ShooterGatewaySnapshotDecoder())
@@ -30,29 +42,45 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _applySnapshot = applySnapshot ?? throw new ArgumentNullException(nameof(applySnapshot));
             _decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
+            _pipeline = new ClientSnapshotSyncPipeline<ShooterPureStateSnapshotPayload>(
+                new ClientSnapshotSyncOptions<ShooterPureStateSnapshotPayload>(
+                    ShooterStateSyncCompatibilityPolicy.MinimumPureStateVersion,
+                    ShooterPureStateSyncCodec.CurrentVersion,
+                    CreateStreamEnvelope,
+                    ApplyPresentationSnapshot)
+                {
+                    MaximumSequenceAdvance = ResolveMaximumSequenceAdvance,
+                    EntityCount = GetEntityCount,
+                    // PureState 管线只声明自身负责的权威快照播放能力，不继承外层会话的输入策略。
+                    RequiredProfile = PureStatePlaybackProfile,
+                    AvailableCapabilities = PureStatePlaybackCapabilities
+                });
         }
 
-        public int LastAppliedFrame => _snapshotStream.LastAppliedFrame;
+        /// <summary>PureState 快照管线完成的 Profile、能力与版本协商结果。</summary>
+        public NetworkSyncNegotiationResult? Negotiation => _pipeline.Negotiation;
 
-        public uint LastAppliedStateHash => _snapshotStream.LastAppliedStateHash;
+        public int LastAppliedFrame => _pipeline.State.LastAppliedFrame;
+
+        public uint LastAppliedStateHash => _pipeline.State.LastAppliedStateHash;
 
         public int LastAppliedSnapshotKind { get; private set; }
 
-        public int LastBaselineFrame => _snapshotStream.LastBaselineFrame;
+        public int LastBaselineFrame => _pipeline.State.LastBaselineFrame;
 
-        public uint LastBaselineHash => _snapshotStream.LastBaselineHash;
+        public uint LastBaselineHash => _pipeline.State.LastBaselineHash;
 
-        public bool NeedsFullBaselineResync => _snapshotStream.NeedsFullBaselineRecovery;
+        public bool NeedsFullBaselineResync => _pipeline.State.NeedsFullBaselineRecovery;
 
         public IReadOnlyList<SyncHealthEvent> LastHealthEvents => _lastHealthEvents;
 
-        public ShooterPureStateResyncReason LastResyncReason => ToShooterResyncReason(_snapshotStream.LastRecoveryReason);
+        public ShooterPureStateResyncReason LastResyncReason => ToShooterResyncReason(_pipeline.State.LastRecoveryReason);
 
-        public int LastIgnoredFrame => _snapshotStream.LastIgnoredFrame;
+        public int LastIgnoredFrame => _pipeline.State.LastIgnoredFrame;
 
-        public int LastResyncFrame => _snapshotStream.LastRecoveryFrame;
+        public int LastResyncFrame => _pipeline.State.LastRecoveryFrame;
 
-        public uint LastResyncStateHash => _snapshotStream.LastRecoveryStateHash;
+        public uint LastResyncStateHash => _pipeline.State.LastRecoveryStateHash;
 
         public ShooterPureStateSyncDiagnostics LastDiagnostics { get; private set; }
 
@@ -79,50 +107,14 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             var pureState = snapshot.PureStateSnapshot.Value;
-            var envelope = CreateStreamEnvelope(in pureState);
-            var validation = _snapshotStream.Validate(in envelope);
-            if (validation.Status == SnapshotStreamValidationStatus.IgnoredDuplicate ||
-                validation.Status == SnapshotStreamValidationStatus.IgnoredStale)
+            var pipelineResult = _pipeline.Apply(in pureState);
+            _lastHealthEvents = pipelineResult.HealthEvents;
+            var result = ToShooterApplyResult(pipelineResult.Status);
+            if (pipelineResult.Applied)
             {
-                return CompleteRejectedSnapshot(
-                    ShooterPureStateSnapshotApplyResult.IgnoredStaleSnapshot,
-                    SyncHealthEvent.Warning(SyncHealthEventKind.SnapshotStale, pureState.Frame, LastAppliedFrame),
-                    in pureState);
+                LastAppliedSnapshotKind = pureState.SnapshotKind;
             }
 
-            if (validation.Status == SnapshotStreamValidationStatus.UnsupportedVersion)
-            {
-                return CompleteRejectedSnapshot(
-                    ShooterPureStateSnapshotApplyResult.UnsupportedVersion,
-                    SyncHealthEvent.Warning(SyncHealthEventKind.SnapshotDropped, pureState.Frame, pureState.Version),
-                    in pureState);
-            }
-
-            if (validation.NeedsFullBaseline)
-            {
-                return CompleteRejectedSnapshot(
-                    ShooterPureStateSnapshotApplyResult.NeedsFullBaselineResync,
-                    SyncHealthEvent.Info(SyncHealthEventKind.FullSnapshotRequested, pureState.Frame, (long)LastResyncReason),
-                    in pureState);
-            }
-
-            _applySnapshot(pureState);
-            _snapshotStream.CommitApplied(in validation);
-            LastAppliedSnapshotKind = pureState.SnapshotKind;
-            if (envelope.IsFullBaseline)
-            {
-                SetHealthEvents(
-                    SyncHealthEvent.Info(SyncHealthEventKind.SnapshotReceived, pureState.Frame, pureState.EffectiveEntityCount),
-                    SyncHealthEvent.Info(SyncHealthEventKind.FullSnapshotApplied, pureState.Frame, pureState.BaselineFrame));
-            }
-            else
-            {
-                SetHealthEvents(SyncHealthEvent.Info(SyncHealthEventKind.SnapshotReceived, pureState.Frame, pureState.EffectiveEntityCount));
-            }
-
-            var result = envelope.IsFullBaseline
-                ? ShooterPureStateSnapshotApplyResult.AppliedFullBaseline
-                : ShooterPureStateSnapshotApplyResult.AppliedDelta;
             LastDiagnostics = ShooterPureStateSyncDiagnostics.FromSnapshot(
                 result,
                 in pureState,
@@ -136,23 +128,21 @@ namespace AbilityKit.Demo.Shooter.View
             return result;
         }
 
-        private ShooterPureStateSnapshotApplyResult CompleteRejectedSnapshot(
-            ShooterPureStateSnapshotApplyResult result,
-            SyncHealthEvent healthEvent,
-            in ShooterPureStateSnapshotPayload pureState)
+        private void ApplyPresentationSnapshot(in ShooterPureStateSnapshotPayload snapshot)
         {
-            SetHealthEvents(healthEvent);
-            LastDiagnostics = ShooterPureStateSyncDiagnostics.FromSnapshot(
-                result,
-                in pureState,
-                LastAppliedFrame,
-                LastAppliedStateHash,
-                NeedsFullBaselineResync,
-                LastResyncReason,
-                LastResyncFrame,
-                LastResyncStateHash,
-                LastIgnoredFrame);
-            return result;
+            _applySnapshot(snapshot);
+        }
+
+        private static int ResolveMaximumSequenceAdvance(in ShooterPureStateSnapshotPayload snapshot)
+        {
+            return snapshot.Settings.DeltaIntervalFrames > 0
+                ? snapshot.Settings.DeltaIntervalFrames
+                : ShooterPureStateSyncSettings.Default.DeltaIntervalFrames;
+        }
+
+        private static int GetEntityCount(in ShooterPureStateSnapshotPayload snapshot)
+        {
+            return snapshot.EffectiveEntityCount;
         }
 
         private static SnapshotStreamEnvelope CreateStreamEnvelope(in ShooterPureStateSnapshotPayload pureState)
@@ -182,20 +172,36 @@ namespace AbilityKit.Demo.Shooter.View
                     return ShooterPureStateResyncReason.WorldChanged;
                 case SnapshotStreamRecoveryReason.UnsupportedVersion:
                     return ShooterPureStateResyncReason.UnsupportedVersion;
+                case SnapshotStreamRecoveryReason.SequenceGap:
+                    return ShooterPureStateResyncReason.SequenceGap;
                 case SnapshotStreamRecoveryReason.None:
                 default:
                     return ShooterPureStateResyncReason.None;
             }
         }
 
+        private static ShooterPureStateSnapshotApplyResult ToShooterApplyResult(ClientSnapshotSyncStatus status)
+        {
+            switch (status)
+            {
+                case ClientSnapshotSyncStatus.AppliedFullBaseline:
+                    return ShooterPureStateSnapshotApplyResult.AppliedFullBaseline;
+                case ClientSnapshotSyncStatus.AppliedDelta:
+                    return ShooterPureStateSnapshotApplyResult.AppliedDelta;
+                case ClientSnapshotSyncStatus.IgnoredStale:
+                    return ShooterPureStateSnapshotApplyResult.IgnoredStaleSnapshot;
+                case ClientSnapshotSyncStatus.NeedsFullBaseline:
+                    return ShooterPureStateSnapshotApplyResult.NeedsFullBaselineResync;
+                case ClientSnapshotSyncStatus.UnsupportedVersion:
+                    return ShooterPureStateSnapshotApplyResult.UnsupportedVersion;
+                default:
+                    return ShooterPureStateSnapshotApplyResult.Ignored;
+            }
+        }
+
         private void ClearHealthEvents()
         {
             _lastHealthEvents = EmptyHealthEvents;
-        }
-
-        private void SetHealthEvents(params SyncHealthEvent[] events)
-        {
-            _lastHealthEvents = events == null || events.Length == 0 ? EmptyHealthEvents : events;
         }
     }
     
@@ -324,6 +330,7 @@ namespace AbilityKit.Demo.Shooter.View
         MissingBaseline = 1,
         BaselineMismatch = 2,
         WorldChanged = 3,
-        UnsupportedVersion = 4
+        UnsupportedVersion = 4,
+        SequenceGap = 5
     }
 }

@@ -56,39 +56,13 @@ namespace AbilityKit.Game.Flow
             if (disposeOwnedResources)
             {
                 InputRecordWriter?.Dispose();
-                LocalInputQueue?.Dispose();
             }
 
-            InputRecordWriter = null;
-            LocalInputQueue = null;
+            ResetInputRuntime();
+            ResetPredictionRuntime();
 
-            PredictionStats = null;
-            PredictionReconcileTarget = null;
-            PredictionReconcileControl = null;
-            PredictionTuningControl = null;
-
-            RuntimeWorldId = default;
-            HasRuntimeWorldId = false;
-            EnableRemoteInterpolation = false;
-
-            EntityNode = default;
-            EntityWorld = null;
-            EntityLookup = null;
-            EntityFactory = null;
-            EntityQuery = null;
-            ViewVfxManager = null;
-            ViewVfxNode = default;
-
-            if (destroyCollections)
-            {
-                DirtyEntities = null;
-            }
-            else
-            {
-                DirtyEntities?.Clear();
-            }
-
-            ResetHudInput();
+            _entities.Reset(destroyCollections);
+            _presentation.Reset();
         }
     }
 }

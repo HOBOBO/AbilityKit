@@ -7,6 +7,7 @@ using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View.Hosting;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Shooter;
 using UnityEngine;
 using UnityEngine.LowLevel;
@@ -217,6 +218,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             StopRunningSession();
             UninstallPlayerLoop();
             Application.quitting -= OnApplicationQuitting;
+            Application.focusChanged -= OnApplicationFocusChanged;
             _lastConnectionResult = null;
             _lastError = null;
             ViewSink.Clear();
@@ -256,6 +258,21 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             InstallPlayerLoop();
             Application.quitting -= OnApplicationQuitting;
             Application.quitting += OnApplicationQuitting;
+            Application.focusChanged -= OnApplicationFocusChanged;
+            Application.focusChanged += OnApplicationFocusChanged;
+        }
+
+        /// <summary>立即等待当前远程会话的可靠事件检查点完成持久化。</summary>
+        public static void FlushReliableEventCheckpoints()
+        {
+            _state?.Launcher.FlushReliableEventCheckpointsAsync(
+                ReliableEventCheckpointFlushTrigger.Manual).GetAwaiter().GetResult();
+        }
+
+        private static void FlushReliableEventCheckpoints(
+            ReliableEventCheckpointFlushTrigger trigger)
+        {
+            _state?.Launcher.FlushReliableEventCheckpointsAsync(trigger).GetAwaiter().GetResult();
         }
 
         private static async Task<ShooterRemoteStateSyncRuntimeState> StartSessionAsync(
@@ -598,7 +615,17 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private static void OnApplicationQuitting()
         {
+            FlushReliableEventCheckpoints(ReliableEventCheckpointFlushTrigger.ApplicationQuit);
             Uninstall();
+        }
+
+        private static void OnApplicationFocusChanged(bool hasFocus)
+        {
+            if (!hasFocus)
+            {
+                FlushReliableEventCheckpoints(
+                    ReliableEventCheckpointFlushTrigger.ApplicationPause);
+            }
         }
 
         private static void NotifyStateChanged()

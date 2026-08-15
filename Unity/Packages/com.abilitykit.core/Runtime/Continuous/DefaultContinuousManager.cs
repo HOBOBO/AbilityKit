@@ -7,6 +7,7 @@ namespace AbilityKit.Core.Continuous
     /// 默认持续体管理器。
     /// 提供按 owner 索引、生命周期批量操作、准入策略和生命周期绑定器。
     /// </summary>
+    [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public class DefaultContinuousManager : IContinuousManager
     {
         private readonly Dictionary<long, List<IContinuous>> _ownerContinuous = new Dictionary<long, List<IContinuous>>();

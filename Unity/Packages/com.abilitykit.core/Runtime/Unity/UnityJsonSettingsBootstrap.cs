@@ -7,6 +7,7 @@ using UnityEngine.Networking;
 
 namespace AbilityKit.Core.Configuration
 {
+    [Obsolete("Application settings bootstrap no longer belongs in Core.Unity. Move it to the owning application package; this compatibility API will be removed in the next major version.")]
     public static class UnityJsonSettingsBootstrap
     {
         public const string DefaultFileName = "abilitykit.settings.json";

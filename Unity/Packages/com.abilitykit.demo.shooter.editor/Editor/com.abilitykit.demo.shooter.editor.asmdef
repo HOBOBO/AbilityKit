@@ -5,6 +5,7 @@
     "AbilityKit.Demo.Shooter.Runtime",
     "AbilityKit.Demo.Shooter.View.Runtime",
     "AbilityKit.Demo.Shooter.Share",
+    "AbilityKit.Demo.Common",
     "AbilityKit.Network.Runtime",
     "AbilityKit.Network.Room",
     "AbilityKit.Core",

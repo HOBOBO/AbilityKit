@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "com.abilitykit.flow",
   "version": "0.1.0",
   "displayName": "AbilityKit Flow",
@@ -13,6 +13,7 @@
     }
   ],
   "dependencies": {
-    "com.abilitykit.core": "0.0.1"
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.hfsm": "0.1.0"
   }
 }

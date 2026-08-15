@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "manifest": "moba-hero-production",
+  "charactersPath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/characters.json",
+  "acceptanceCoveragePath": "tools/moba-hero-acceptance-coverage.json",
+  "requiredConfigPaths": [
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skills.json",
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skill_flows.json",
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skill_button_templates.json"
+  ],
+  "requiredPresentationPaths": [
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/models.json",
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/aoes.json",
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/projectiles.json",
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/presentation_templates.json"
+  ],
+  "heroes": [
+    {
+      "characterId": 1001,
+      "acceptanceHeroId": 1,
+      "heroName": "LianPo",
+      "fixture": "AbilityKit.Game.Test.UnitTest.LianPoSkillAcceptanceTests",
+      "fixturePath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/LianPo/LianPoSkillAcceptanceTests.cs"
+    },
+    {
+      "characterId": 1002,
+      "acceptanceHeroId": 1002,
+      "heroName": "XiaoQiao",
+      "fixture": "AbilityKit.Game.Test.UnitTest.XiaoQiaoSkillAcceptanceTests",
+      "fixturePath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/XiaoQiao/XiaoQiaoSkillAcceptanceTests.cs"
+    },
+    {
+      "characterId": 1003,
+      "acceptanceHeroId": 1003,
+      "heroName": "ZhaoYun",
+      "fixture": "AbilityKit.Game.Test.UnitTest.ZhaoYunSkillAcceptanceTests",
+      "fixturePath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/ZhaoYun/ZhaoYunSkillAcceptanceTests.cs"
+    },
+    {
+      "characterId": 1004,
+      "acceptanceHeroId": 1004,
+      "heroName": "Mozi",
+      "fixture": "AbilityKit.Game.Test.UnitTest.MoziSkillAcceptanceTests",
+      "fixturePath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/Mozi/MoziSkillAcceptanceTests.cs"
+    },
+    {
+      "characterId": 1005,
+      "acceptanceHeroId": 1005,
+      "heroName": "Daji",
+      "fixture": "AbilityKit.Game.Test.UnitTest.DajiSkillAcceptanceTests",
+      "fixturePath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/Daji/DajiSkillAcceptanceTests.cs"
+    },
+    {
+      "characterId": 1006,
+      "acceptanceHeroId": 1006,
+      "heroName": "YingZheng",
+      "fixture": "AbilityKit.Game.Test.UnitTest.YingZhengSkillAcceptanceTests",
+      "fixturePath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/YingZheng/YingZhengSkillAcceptanceTests.cs"
+    }
+  ]
+}

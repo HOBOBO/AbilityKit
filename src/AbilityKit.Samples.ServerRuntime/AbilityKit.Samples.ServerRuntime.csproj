@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Samples.ServerRuntime</RootNamespace>
+    <AssemblyName>AbilityKit.Samples.ServerRuntime</AssemblyName>
+  </PropertyGroup>
+
+  <!-- ServerRuntime 组合：host（权威服运行时）+ host.extension（帧同步驱动/服务器时间模块）+ world.di / framesync / networkfragments（传递）。
+       本地 Loopback 客户端演示闭环，不引入真实网络传输层。 -->
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
+    <ProjectReference Include="..\AbilityKit.Host.Extension\AbilityKit.Host.Extension.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.DI\AbilityKit.World.DI.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.FrameSync\AbilityKit.World.FrameSync.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.NetworkFragments\AbilityKit.World.NetworkFragments.csproj" />
+  </ItemGroup>
+
+</Project>

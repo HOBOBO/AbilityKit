@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "com.abilitykit.demo.shooter.share",
   "version": "0.0.1",
   "displayName": "AbilityKit Demo Shooter Shared",
@@ -8,8 +8,8 @@
     "name": "AbilityKit"
   },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.core": "0.1.0",
     "com.abilitykit.demo.common": "0.0.1",
-    "com.abilitykit.protocol.shooter": "0.0.1"
+    "com.abilitykit.protocol.shooter": "0.1.0"
   }
 }

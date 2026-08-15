@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    P0 SPIKE — 白盒测试 DSL 规范 IR 可移植性验证。
+    目标：证明验收系统的「IR + 序列化 + 判定」三层可在纯 dotnet 跑通，
+    无 UnityEngine.JsonUtility / 无模拟器依赖。
+    这是设计文档 (Docs/AbilityKit白盒测试DSL与测试平台设计.md) Phase 0 的最小验证。
+    独立工程，不进任何 .sln；用 `dotnet run` 直接跑。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>AbilityKit.Testing.IrSpike</RootNamespace>
+    <AssemblyName>AbilityKit.Testing.IrSpike</AssemblyName>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

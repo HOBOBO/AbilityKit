@@ -142,7 +142,7 @@ namespace AbilityKit.Game.Flow
                     typeof(AbilityKit.Ability.World.Services.WorldServiceContainerFactory).Assembly,
                     typeof(BattleLogicSession).Assembly,
                     typeof(AbilityKit.Demo.Moba.Systems.MobaWorldBootstrapModule).Assembly,
-                    typeof(BattleSessionFeature).Assembly,
+                    typeof(SessionOrchestrator).Assembly,
                 },
                 NamespacePrefixes = new[] { "AbilityKit" },
 

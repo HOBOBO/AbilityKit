@@ -2,7 +2,8 @@
     "name": "AbilityKit.Diagnostics.Editor",
     "rootNamespace": "AbilityKit.Diagnostics.Editor",
     "references": [
-        "AbilityKit.Diagnostics"
+        "AbilityKit.Diagnostics",
+        "AbilityKit.Core"
     ],
     "includePlatforms": [
         "Editor"

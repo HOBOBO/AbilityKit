@@ -18,6 +18,14 @@ namespace AbilityKit.Game.Flow
             return System.Math.Min(retainedWindowFloor, lastConsumedFrame + 1);
         }
 
+        public static int ResolveInputObservedFrame(
+            int sessionFrame,
+            int confirmedFrame,
+            int predictedFrame)
+        {
+            return System.Math.Max(sessionFrame, System.Math.Max(confirmedFrame, predictedFrame));
+        }
+
         public static int ResolveInputSubmitFrame(int lastObservedFrame, in BattleStartPlan plan)
         {
             if (plan.HostMode != BattleHostMode.GatewayRemote ||

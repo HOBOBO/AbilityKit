@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.StateSync.Snapshot;
+using AbilityKit.Core.Collections;
 
 namespace AbilityKit.Ability.StateSync.Buffer
 {
     public sealed class SnapshotBuffer
     {
         private readonly Dictionary<int, WorldStateSnapshot> _snapshots = new Dictionary<int, WorldStateSnapshot>();
-        private readonly List<int> _capturedFrames = new List<int>();
+        private readonly SortedIntSet _capturedFrames;
         private readonly int _maxBufferSize;
         private readonly object _lock = new object();
 
@@ -18,6 +19,7 @@ namespace AbilityKit.Ability.StateSync.Buffer
         {
             if (maxBufferSize <= 0) throw new ArgumentOutOfRangeException(nameof(maxBufferSize));
             _maxBufferSize = maxBufferSize;
+            _capturedFrames = new SortedIntSet(maxBufferSize);
         }
 
         public void Store(int frame, WorldStateSnapshot snapshot)
@@ -32,7 +34,6 @@ namespace AbilityKit.Ability.StateSync.Buffer
                 {
                     _snapshots[frame] = snapshot.Clone();
                     _capturedFrames.Add(frame);
-                    _capturedFrames.Sort();
 
                     TrimBuffer();
                 }
@@ -71,7 +72,12 @@ namespace AbilityKit.Ability.StateSync.Buffer
         {
             lock (_lock)
             {
-                return _capturedFrames.ToArray();
+                var result = new int[_capturedFrames.Count];
+                for (var index = 0; index < result.Length; index++)
+                {
+                    result[index] = _capturedFrames[index];
+                }
+                return result;
             }
         }
 
@@ -117,17 +123,13 @@ namespace AbilityKit.Ability.StateSync.Buffer
         {
             lock (_lock)
             {
-                var framesToRemove = new List<int>();
-                foreach (var f in _capturedFrames)
+                var removeCount = _capturedFrames.LowerBound(frame);
+                for (var index = 0; index < removeCount; index++)
                 {
-                    if (f < frame) framesToRemove.Add(f);
+                    _snapshots.Remove(_capturedFrames[index]);
                 }
 
-                foreach (var f in framesToRemove)
-                {
-                    _snapshots.Remove(f);
-                    _capturedFrames.Remove(f);
-                }
+                if (removeCount > 0) _capturedFrames.RemoveRange(0, removeCount);
             }
         }
 
@@ -135,27 +137,39 @@ namespace AbilityKit.Ability.StateSync.Buffer
         {
             lock (_lock)
             {
-                var framesToRemove = new List<int>();
-                foreach (var f in _capturedFrames)
+                var firstRemoval = _capturedFrames.UpperBound(frame);
+                for (var index = firstRemoval; index < _capturedFrames.Count; index++)
                 {
-                    if (f > frame) framesToRemove.Add(f);
+                    _snapshots.Remove(_capturedFrames[index]);
                 }
 
-                foreach (var f in framesToRemove)
-                {
-                    _snapshots.Remove(f);
-                    _capturedFrames.Remove(f);
-                }
+                var removeCount = _capturedFrames.Count - firstRemoval;
+                if (removeCount > 0) _capturedFrames.RemoveRange(firstRemoval, removeCount);
             }
         }
 
         private void TrimBuffer()
         {
-            while (_capturedFrames.Count > _maxBufferSize)
+            var removeCount = _capturedFrames.Count - _maxBufferSize;
+            for (var index = 0; index < removeCount; index++)
             {
-                int earliestFrame = _capturedFrames[0];
-                _snapshots.Remove(earliestFrame);
-                _capturedFrames.RemoveAt(0);
+                _snapshots.Remove(_capturedFrames[index]);
+            }
+
+            if (removeCount > 0) _capturedFrames.RemoveRange(0, removeCount);
+        }
+
+        internal void CopyCapturedFrames(List<int> destination)
+        {
+            if (destination == null) throw new ArgumentNullException(nameof(destination));
+
+            lock (_lock)
+            {
+                destination.Clear();
+                for (var index = 0; index < _capturedFrames.Count; index++)
+                {
+                    destination.Add(_capturedFrames[index]);
+                }
             }
         }
     }

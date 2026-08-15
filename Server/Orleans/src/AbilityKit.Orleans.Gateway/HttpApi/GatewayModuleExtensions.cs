@@ -18,6 +18,7 @@ public static class GatewayModuleExtensions
     {
         var gatewaySection = configuration.GetSection(AbilityKitServerConfigurationSections.Gateway);
         var tcpSection = gatewaySection.GetSection("Tcp");
+        var webSocketSection = gatewaySection.GetSection("WebSocket");
 
         services.AddOptions<AbilityKitGatewayOptions>()
             .Bind(gatewaySection);
@@ -25,6 +26,8 @@ public static class GatewayModuleExtensions
             .Bind(tcpSection);
         services.AddOptions<TcpTransportOptions>()
             .Bind(tcpSection);
+        services.AddOptions<WebSocketTransportOptions>()
+            .Bind(webSocketSection);
         services.AddOptions<BattleInputSecurityOptions>()
             .Bind(configuration.GetSection(BattleInputSecurityOptions.ConfigurationSection))
             .ValidateOnStart();
@@ -63,6 +66,8 @@ public static class GatewayModuleExtensions
             serviceProvider.GetRequiredService<GatewayTransportHandler>());
         services.AddSingleton<TcpTransportServer>();
         services.AddHostedService<TcpTransportHostedService>();
+        services.AddSingleton<WebSocketTransportServer>();
+        services.AddHostedService<WebSocketTransportHostedService>();
 
         services.AddSingleton<GatewayPushTargetGrain>();
         services.AddSingleton<IGatewayPushTargetGrain>(serviceProvider =>

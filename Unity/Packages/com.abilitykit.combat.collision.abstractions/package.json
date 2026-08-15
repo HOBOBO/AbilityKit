@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "com.abilitykit.combat.collision.abstractions",
   "version": "0.1.0",
   "displayName": "AbilityKit Combat Collision Abstractions",
@@ -6,7 +6,7 @@
   "description": "Collision interfaces and math-only implementation.",
   "author": { "name": "AbilityKit" },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1",
-    "com.abilitykit.world.di": "0.0.1"
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.world.di": "0.1.0"
   }
 }

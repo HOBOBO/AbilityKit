@@ -104,6 +104,9 @@ namespace AbilityKit.Starter
             GUILayout.EndArea();
         }
 
+        public string AuthenticatedAccountId => IsAuthenticated ? _accountId : string.Empty;
+        public string SessionToken => IsAuthenticated ? _sessionToken : string.Empty;
+
         private bool IsAuthenticated =>
             _accountState?.HasSessionToken(_sessionToken, _accountId) == true;
 
@@ -111,11 +114,48 @@ namespace AbilityKit.Starter
         {
             var selectedConfig = RequireConfig();
             _accountState!.EnsureUniqueDefaultIdentity(ref _accountId, ref _guestId);
-            var result = await DemoRoomGatewayAccountClient.LoginTcpAsync(
+            await AuthenticateAsync(
                 selectedConfig.Host,
                 selectedConfig.Port,
                 _accountId,
                 selectedConfig.RequestTimeout);
+        }
+
+        public async Task LaunchMobaAutomatedAsync(
+            string accountId,
+            string host,
+            int port,
+            string region,
+            string serverId,
+            TimeSpan requestTimeout)
+        {
+            var selectedConfig = RequireConfig();
+            _accountId = string.IsNullOrWhiteSpace(accountId)
+                ? throw new ArgumentException("Automated account id is required.", nameof(accountId))
+                : accountId.Trim();
+            await AuthenticateAsync(host, port, _accountId, requestTimeout);
+            DemoMultiplayerLaunchIntent.Request(DemoMultiplayerGameplay.Moba, new DemoMultiplayerLaunchRequest(
+                host,
+                port,
+                region,
+                serverId,
+                _accountId,
+                _sessionToken,
+                requestTimeout));
+            LoadGame(selectedConfig.MobaSceneName, "Opening MOBA (automated)");
+        }
+
+        private async Task AuthenticateAsync(
+            string host,
+            int port,
+            string accountId,
+            TimeSpan requestTimeout)
+        {
+            var result = await DemoRoomGatewayAccountClient.LoginTcpAsync(
+                host,
+                port,
+                accountId,
+                requestTimeout);
             if (!result.Success || string.IsNullOrWhiteSpace(result.SessionToken))
             {
                 throw new InvalidOperationException(result.Message);
@@ -123,10 +163,10 @@ namespace AbilityKit.Starter
 
             _sessionToken = result.SessionToken;
             _accountId = result.AccountId;
-            _accountState.RecordLogin(result.AccountId);
+            _accountState!.RecordLogin(result.AccountId);
             MultiplayerStarterSessionState.Record(
-                selectedConfig.Host,
-                selectedConfig.Port,
+                host,
+                port,
                 result.AccountId,
                 result.SessionToken);
             _status = "Select a game";

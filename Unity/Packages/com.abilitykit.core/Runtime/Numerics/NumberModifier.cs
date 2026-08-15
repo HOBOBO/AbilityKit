@@ -1,5 +1,6 @@
 namespace AbilityKit.Core.Numerics
 {
+    [System.Obsolete(NumericsDeprecation.Message)]
     public enum NumberModifierOp
     {
         Add = 0,
@@ -9,6 +10,7 @@ namespace AbilityKit.Core.Numerics
         Custom = 4
     }
 
+    [System.Obsolete(NumericsDeprecation.Message)]
     public readonly struct NumberModifier
     {
         public readonly NumberModifierOp Op;
@@ -23,6 +25,7 @@ namespace AbilityKit.Core.Numerics
         }
     }
 
+    [System.Obsolete(NumericsDeprecation.Message)]
     public readonly struct NumberModifierHandle
     {
         public readonly int Value;
@@ -35,6 +38,7 @@ namespace AbilityKit.Core.Numerics
         public bool IsValid => Value != 0;
     }
 
+    [System.Obsolete(NumericsDeprecation.Message)]
     public readonly struct NumberModifierSet
     {
         public readonly float Add;

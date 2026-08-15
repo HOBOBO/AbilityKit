@@ -53,7 +53,7 @@ Host/Session → WorldTypeRegistry → MobaWorldBlueprintsRegistration
 - [app_flow.md](app_flow.md) — Game/App/Flow 状态机 + GamePhase + IBattleSessionFeature
 - [editor_toolchain.md](editor_toolchain.md) — 14 BattleDebug 面板 + ConfigSync + SceneGizmos + NavigationGizmoDrawer + HotReload
 - [console_demo.md](console_demo.md) — src/ Console 项目结构 + Program 4 模式 + Phases/Steps
-- [testing.md](testing.md) — .NET/Unity 测试体系与 MOBA 验证入口
+- [testing.md](testing.md) — .NET/Unity 测试体系与 MOBA 验证入口（含白盒验收 dotnet 判定层 + LiveSim 系列，2026-08-14）
 - [configs.md](configs.md) — moba/luban/ability/battle_maps 四套配置分工 + 加载链
 - [src_dotnet_projects.md](src_dotnet_projects.md) — MOBA 相关 .NET 项目职责与依赖图
 - [navigation.md](navigation.md) — **NEW** 导航运行时：`com.abilitykit.combat.navigation` 纯包 + demo 烘焙 + Debug 状态

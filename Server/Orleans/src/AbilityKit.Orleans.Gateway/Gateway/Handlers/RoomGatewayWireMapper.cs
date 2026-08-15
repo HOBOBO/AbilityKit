@@ -196,7 +196,32 @@ internal static class RoomGatewayWireMapper
             LoadingDeadlineUnixMs = snapshot.LoadingDeadlineUnixMs,
             LaunchManifestHash = snapshot.LaunchManifestHash ?? string.Empty,
             LaunchManifestVersion = snapshot.LaunchManifestVersion,
-            LastStartFailureCode = snapshot.LastStartFailureCode ?? string.Empty
+            LastStartFailureCode = snapshot.LastStartFailureCode ?? string.Empty,
+            SyncCapabilities = ToWireSyncCapabilities(snapshot.SyncCapabilities)
+        };
+    }
+
+    /// <summary>将服务端最终同步能力映射为追加式 wire 元数据。</summary>
+    public static WireNetworkSyncCapabilities? ToWireSyncCapabilities(NetworkSyncCapabilityMetadata? capabilities)
+    {
+        if (capabilities is null)
+        {
+            return null;
+        }
+
+        return new WireNetworkSyncCapabilities
+        {
+            MetadataVersion = capabilities.MetadataVersion,
+            ProfileName = capabilities.ProfileName ?? string.Empty,
+            MinimumSchemaVersion = capabilities.MinimumSchemaVersion,
+            MaximumSchemaVersion = capabilities.MaximumSchemaVersion,
+            ClientPlayback = capabilities.ClientPlayback,
+            Input = capabilities.Input,
+            Snapshot = capabilities.Snapshot,
+            Interest = capabilities.Interest,
+            Recovery = capabilities.Recovery,
+            ServerValidation = capabilities.ServerValidation,
+            ReliableEvent = capabilities.ReliableEvent
         };
     }
 

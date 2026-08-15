@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Shooter.View;
+using AbilityKit.Network.Room;
+using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Protocol.Room;
 using Xunit;
 
 namespace AbilityKit.Demo.Shooter.Runtime.Tests;
@@ -66,7 +69,8 @@ public sealed class ShooterRoomGatewayFlowTests
     {
         var roomClient = new ScriptedShooterRoomClient
         {
-            JoinCurrentPlayerId = 121u
+            JoinCurrentPlayerId = 121u,
+            SyncCapabilities = CreateSyncCapabilities()
         };
         var flow = new ShooterRoomGatewayFlow(roomClient);
         var launchSpec = new ShooterRoomLaunchSpec(
@@ -147,6 +151,7 @@ public sealed class ShooterRoomGatewayFlowTests
         Assert.Equal(3, result.CatchUpFrames);
         Assert.Equal(ShooterRoomGatewayEntryKind.TeamLobby, result.EntryKind);
         Assert.Equal("subscribed", result.Message);
+        Assert.Same(roomClient.SyncCapabilities, result.SyncCapabilities);
 
         var inputContext = result.CreateBattleInputContext(frame: 8);
         Assert.Equal("session-token", inputContext.SessionToken);
@@ -154,6 +159,23 @@ public sealed class ShooterRoomGatewayFlowTests
         Assert.Equal(9001ul, inputContext.WorldId);
         Assert.Equal(8, inputContext.Frame);
         Assert.Equal(121u, inputContext.PlayerId);
+    }
+
+    private static RoomGatewayNetworkSyncCapabilities CreateSyncCapabilities()
+    {
+        return RoomGatewayNetworkSyncCapabilitiesConverter.FromWire(new WireNetworkSyncCapabilities
+        {
+            MetadataVersion = 1,
+            ProfileName = "Shooter.PureStateSnapshotInterpolation",
+            MinimumSchemaVersion = 1,
+            MaximumSchemaVersion = 1,
+            ClientPlayback = (int)ClientPlaybackCapabilities.AuthoritativeInterpolation,
+            Input = (int)InputPolicy.ImmediateSubmit,
+            Snapshot = (int)(SnapshotPolicy.FullSnapshot | SnapshotPolicy.FixedRateStateStream),
+            Interest = (int)InterestPolicy.AllEntities,
+            Recovery = (int)RecoveryPolicy.RequestFullSnapshot,
+            ServerValidation = (int)ServerValidationPolicy.AuthoritativeOnly
+        })!;
     }
 
     [Fact]
@@ -231,7 +253,7 @@ public sealed class ShooterRoomGatewayFlowTests
     }
 
     [Fact]
-    public async Task RoomGatewayFlowRestoreCarriesReliableEventCursorIntoSubscription()
+    public async Task RoomGatewayFlowRestoreLeavesReliableEventCursorToBattleDataPlane()
     {
         var roomClient = new ScriptedShooterRoomClient
         {
@@ -253,9 +275,9 @@ public sealed class ShooterRoomGatewayFlowTests
 
         Assert.Equal("restore:local:dev", roomClient.Calls[0]);
         Assert.Equal("get-snapshot:room-1", roomClient.Calls[1]);
-        Assert.Equal("subscribe:room-1:battle-restored", roomClient.Calls[2]);
-        Assert.Equal("epoch-restore", roomClient.LastSubscribeRequest.EventEpoch);
-        Assert.Equal(27L, roomClient.LastSubscribeRequest.LastEventAck);
+        Assert.Equal(2, roomClient.Calls.Count);
+        Assert.DoesNotContain(roomClient.Calls, call => call.StartsWith("subscribe:", StringComparison.Ordinal));
+        Assert.Equal("state sync subscription owned by battle data plane", result.Message);
         Assert.Equal("battle-restored", result.BattleId);
         Assert.Equal(9301ul, result.WorldId);
         Assert.Equal(143u, result.PlayerId);

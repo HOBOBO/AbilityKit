@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Network.Battle;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Network.Room;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Flow
@@ -13,6 +16,24 @@ namespace AbilityKit.Game.Flow
     /// </summary>
     internal sealed class BattleReplicationRuntime : IDisposable
     {
+        internal const string SyncProfileName = "Moba.AuthoritativeRemoteInterpolation";
+
+        private static readonly NetworkSyncProfile SyncProfile = new NetworkSyncProfile(
+            NetworkSyncModel.AuthoritativeInterpolation,
+            ClientPlaybackPolicy.AuthoritativeInterpolation,
+            InputPolicy.ImmediateSubmit,
+            SnapshotPolicy.FullSnapshot | SnapshotPolicy.DeltaSnapshot |
+            SnapshotPolicy.FixedRateStateStream | SnapshotPolicy.EventStream,
+            InterestPolicy.AllEntities,
+            RecoveryPolicy.RequestFullSnapshot,
+            ServerValidationPolicy.AuthoritativeOnly | ServerValidationPolicy.InputValidation,
+            ReliableEventPolicy.OrderedDelivery | ReliableEventPolicy.AutomaticAcknowledgement |
+            ReliableEventPolicy.PersistentCheckpoint |
+            ReliableEventPolicy.AuthoritativeBaselineRecovery);
+        private static readonly NetworkSyncProfileCatalog SyncProfileCatalog = CreateSyncProfileCatalog();
+        private static readonly NetworkSyncProfileControllerRegistry<MobaClientAuthoritativeInterpolationSyncController, MobaSyncControllerContext>
+            SyncControllerRegistry = CreateSyncControllerRegistry();
+
         private int _generation;
         private Action<object> _snapshotPushed;
         private Action<object> _reliableEventsPushed;
@@ -28,6 +49,9 @@ namespace AbilityKit.Game.Flow
 
         internal NetworkTransport Transport { get; private set; }
         internal MobaClientAuthoritativeInterpolationSyncController InterpolationController { get; private set; }
+        /// <summary>本次复制代际经过校验的同步会话描述。</summary>
+        internal NetworkSyncSessionDescriptor SyncSession { get; private set; }
+        internal RoomGatewayNetworkSyncSessionBinding SyncBinding { get; private set; }
         internal MobaClientReplicationPipeline ReplicationPipeline { get; private set; }
         internal MobaSynchronizationHealthEvaluator SynchronizationHealthEvaluator { get; private set; }
         internal MobaSynchronizationHealthSnapshot SynchronizationHealth { get; set; }
@@ -52,7 +76,8 @@ namespace AbilityKit.Game.Flow
             Action<object> onReliableEventsPushed,
             Action onConnectionClosed,
             Action onConnectionEstablished,
-            Action<Exception> onAuthenticationFailed = null)
+            Action<Exception> onAuthenticationFailed = null,
+            RoomGatewayNetworkSyncCapabilities remoteCapabilities = null)
         {
             if (transport == null) throw new ArgumentNullException(nameof(transport));
             if (onSnapshotPushed == null) throw new ArgumentNullException(nameof(onSnapshotPushed));
@@ -66,8 +91,30 @@ namespace AbilityKit.Game.Flow
             try
             {
                 Transport = transport;
-                InterpolationController = new MobaClientAuthoritativeInterpolationSyncController(
-                    MobaRemoteInterpolationPlayback.CreateFrameTimelineConfig(tickRate));
+                var controllerContext = new MobaSyncControllerContext(tickRate);
+                var capabilities = NetworkSyncCapabilities.FromProfile(
+                    in SyncProfile,
+                    minimumSchemaVersion: 0,
+                    maximumSchemaVersion: GatewayStateSyncSnapshot.CurrentSchemaVersion);
+                var syncBinding = RoomGatewayNetworkSyncSessionBinding.Create(
+                    remoteCapabilities,
+                    SyncProfileName);
+                var sessionOptions = new NetworkSyncSessionOptions
+                {
+                    ProfileCatalog = SyncProfileCatalog,
+                    RequiredProfileName = SyncProfileName,
+                    RequiredMinimumSchemaVersion = 0,
+                    RequiredMaximumSchemaVersion = GatewayStateSyncSnapshot.CurrentSchemaVersion,
+                    AvailableCapabilities = capabilities,
+                    ControllerSubjectName = "MOBA 客户端权威插值控制器"
+                };
+                syncBinding.ApplyTo(sessionOptions);
+                var session = new NetworkSyncSessionBuilder<MobaClientAuthoritativeInterpolationSyncController, MobaSyncControllerContext>(
+                    SyncControllerRegistry,
+                    sessionOptions).Build(in controllerContext);
+                InterpolationController = session.Controller;
+                SyncSession = session.Descriptor;
+                SyncBinding = syncBinding;
                 ReplicationPipeline = new MobaClientReplicationPipeline(InterpolationController);
                 SynchronizationHealthEvaluator = new MobaSynchronizationHealthEvaluator();
                 SnapshotAdmission = new MobaSnapshotAdmission();
@@ -137,6 +184,29 @@ namespace AbilityKit.Game.Flow
             }
         }
 
+#if UNITY_5_3_OR_NEWER
+        internal void TickPresentation(
+            BattleContext context,
+            BattleSessionHandles handles,
+            float deltaTime)
+        {
+            if (InterpolationController == null || ReplicationPipeline == null || context == null)
+            {
+                return;
+            }
+
+            ReplicationPipeline.Tick(deltaTime);
+            TickSynchronizationHealth(context, deltaTime);
+
+            if (!InterpolationController.TryProjectRemoteFrame(out var projected)) return;
+
+            var localActorId = handles?.RemoteDriven.World != null
+                ? context.LocalActorId
+                : 0;
+            BattleRemoteInterpolationApplier.Apply(context, in projected, localActorId);
+        }
+#endif
+
         public void Dispose()
         {
             _generation++;
@@ -177,6 +247,8 @@ namespace AbilityKit.Game.Flow
             PendingReliableEventBatches.Clear();
 
             InterpolationController = null;
+            SyncSession = null;
+            SyncBinding = default;
             ReplicationPipeline = null;
             SynchronizationHealthEvaluator = null;
             SynchronizationHealth = default;
@@ -200,9 +272,104 @@ namespace AbilityKit.Game.Flow
             _previousSubmitInputAck = null;
         }
 
+#if UNITY_5_3_OR_NEWER
+        private void TickSynchronizationHealth(BattleContext context, float deltaTime)
+        {
+            if (SynchronizationHealthEvaluator == null ||
+                InterpolationController == null ||
+                ReplicationPipeline == null)
+            {
+                return;
+            }
+
+            SynchronizationHealthSampleElapsed += Math.Max(0f, deltaTime);
+            if (SynchronizationHealthSampleElapsed < 0.5f) return;
+            SynchronizationHealthSampleElapsed = 0f;
+
+            var replication = ReplicationPipeline.GetDiagnostics();
+            SynchronizationHealthReport = replication.Health;
+            var interpolation = InterpolationController.GetInterpolationDiagnostics();
+            var prediction = context.PredictionStats;
+            var tuning = context.PredictionTuningControl;
+            var sample = new MobaSynchronizationHealthSample(
+                PendingStateImport || replication.Reconciliation.NeedsFullSnapshot,
+                replication.UnacknowledgedInputFrames,
+                Math.Max(0, replication.LastObservedFrame - replication.LastTick.Frame),
+                interpolation.IsRemotePlaybackStarved,
+                interpolation.BufferedRemoteSnapshotCount,
+                interpolation.PlaybackDelayTicks,
+                prediction?.CurrentBacklogEwma ?? 0f,
+                prediction?.IsPredictionStalledByWindow ?? false,
+                prediction?.IsPredictionStalledByIdealFrame ?? false,
+                prediction?.IsReplaying ?? false,
+                prediction?.TotalRollbackCount ?? 0L,
+                prediction?.TotalRollbackRestoreFailed ?? 0L,
+                prediction?.TotalReplayTimeout ?? 0L,
+                prediction?.TotalReconcileMismatch ?? 0L,
+                tuning?.MaxPredictionAheadFrames ?? prediction?.MaxPredictionAheadFrames ?? 6,
+                tuning?.MinPredictionWindow ?? prediction?.MinPredictionWindow ?? 2,
+                tuning?.BacklogEwmaAlpha ?? prediction?.BacklogEwmaAlpha ?? 0.2f);
+
+            SynchronizationHealth = SynchronizationHealthEvaluator.Evaluate(in sample);
+            ApplySynchronizationTuning(tuning, SynchronizationHealth.Tuning);
+        }
+
+        private static void ApplySynchronizationTuning(
+            AbilityKit.Ability.Host.Extensions.FrameSync.IClientPredictionTuningControl tuning,
+            MobaPredictionTuningRecommendation recommendation)
+        {
+            if (tuning == null || !recommendation.ShouldApply) return;
+            if (recommendation.ResetDefaults)
+            {
+                tuning.ResetDefaults();
+                return;
+            }
+
+            tuning.SetMaxPredictionAheadFrames(recommendation.MaxPredictionAheadFrames);
+            tuning.SetMinPredictionWindow(recommendation.MinPredictionWindow);
+            tuning.SetBacklogEwmaAlpha(recommendation.BacklogEwmaAlpha);
+        }
+#endif
+
+        private static NetworkSyncProfileCatalog CreateSyncProfileCatalog()
+        {
+            var catalog = NetworkSyncProfileRegistry.CreateMutableCatalog();
+            catalog.Register(SyncProfileName, SyncProfile);
+            catalog.Freeze();
+            return catalog;
+        }
+
+        private static NetworkSyncProfileControllerRegistry<MobaClientAuthoritativeInterpolationSyncController, MobaSyncControllerContext>
+            CreateSyncControllerRegistry()
+        {
+            return new NetworkSyncProfileControllerRegistry<MobaClientAuthoritativeInterpolationSyncController, MobaSyncControllerContext>(
+                new Dictionary<NetworkSyncProfile, NetworkSyncProfileControllerBuilder<MobaClientAuthoritativeInterpolationSyncController, MobaSyncControllerContext>>
+                {
+                    [SyncProfile] = CreateSyncController
+                });
+        }
+
+        private static MobaClientAuthoritativeInterpolationSyncController CreateSyncController(
+            in MobaSyncControllerContext context)
+        {
+            return new MobaClientAuthoritativeInterpolationSyncController(
+                MobaRemoteInterpolationPlayback.CreateFrameTimelineConfig(context.TickRate));
+        }
+
         private bool IsCurrent(int generation, NetworkTransport transport)
         {
             return generation == _generation && ReferenceEquals(Transport, transport);
+        }
+
+        /// <summary>MOBA 同步控制器装配所需的最小上下文。</summary>
+        private readonly struct MobaSyncControllerContext
+        {
+            public MobaSyncControllerContext(int tickRate)
+            {
+                TickRate = tickRate;
+            }
+
+            public int TickRate { get; }
         }
     }
 }

@@ -11,7 +11,11 @@ namespace AbilityKit.Game.Flow
     /// </summary>
     internal sealed class BattleSessionDiagnostics : IDisposable
     {
+        private static BattleSessionDiagnostics _debugControlOwner;
+        private static bool _debugForceClientHashMismatch;
+
         private readonly BattleReplicationRuntime _replication;
+        private bool _forceClientHashMismatch;
         private JitterBufferStatsSnapshot _jitterBufferStats;
         private TimeSyncStatsSnapshot _timeSyncStats;
         private Dictionary<string, TimeSyncStatsSnapshot> _timeSyncStatsByWorld;
@@ -22,11 +26,34 @@ namespace AbilityKit.Game.Flow
             _replication = replication ?? throw new ArgumentNullException(nameof(replication));
         }
 
+        internal static bool DebugForceClientHashMismatch
+        {
+            get => _debugControlOwner != null
+                ? _debugControlOwner._forceClientHashMismatch
+                : _debugForceClientHashMismatch;
+            set
+            {
+                _debugForceClientHashMismatch = value;
+                if (_debugControlOwner != null)
+                {
+                    _debugControlOwner._forceClientHashMismatch = value;
+                }
+            }
+        }
+
+        internal bool ShouldForceClientHashMismatch => _forceClientHashMismatch;
+
         internal MobaSynchronizationHealthSnapshot SynchronizationHealth =>
             _replication.SynchronizationHealth;
 
         internal SyncHealthReport SynchronizationHealthReport =>
             _replication.SynchronizationHealthReport;
+
+        internal void PublishDebugControls()
+        {
+            _forceClientHashMismatch = _debugForceClientHashMismatch;
+            _debugControlOwner = this;
+        }
 
         internal void PublishJitterBuffer(JitterBufferStatsSnapshot snapshot)
         {
@@ -114,6 +141,11 @@ namespace AbilityKit.Game.Flow
 
         public void Dispose()
         {
+            if (ReferenceEquals(_debugControlOwner, this))
+            {
+                _debugControlOwner = null;
+            }
+
             ClearJitterBuffer();
             ClearTimeSync();
             ClearConfirmedAuthority();

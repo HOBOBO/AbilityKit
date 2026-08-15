@@ -2,7 +2,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
-using AbilityKit.Network.Runtime.DemoHarness;
+using AbilityKit.Demo.Harness;
 using AbilityKit.Network.Runtime.Sync;
 using Xunit;
 

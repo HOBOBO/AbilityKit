@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "com.abilitykit.host.extension",
   "version": "0.1.0",
   "displayName": "AbilityKit Host Extensions",
@@ -6,12 +6,12 @@
   "description": "Generic host runtime extensions (FrameSync/Rollback/Session/Time/WorldStart). Moba-specific host adapter extracted to com.abilitykit.demo.moba.host as of 0.1.0.",
   "author": { "name": "AbilityKit" },
   "dependencies": {
-    "com.abilitykit.host": "0.0.1",
-    "com.abilitykit.core": "0.0.1",
-    "com.abilitykit.world.di": "0.0.1",
-    "com.abilitykit.world.framesync": "0.0.1",
-    "com.abilitykit.world.networkfragments": "0.0.1",
-    "com.abilitykit.world.snapshot": "0.0.1",
-    "com.abilitykit.network.runtime": "0.0.1"
+    "com.abilitykit.host": "0.1.0",
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.world.di": "0.1.0",
+    "com.abilitykit.world.framesync": "0.1.0",
+    "com.abilitykit.world.networkfragments": "0.1.0",
+    "com.abilitykit.world.snapshot": "0.1.0",
+    "com.abilitykit.network.runtime": "0.1.0"
   }
 }

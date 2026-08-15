@@ -1,4 +1,4 @@
-﻿using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Components;
 

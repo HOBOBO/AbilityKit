@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -8,7 +8,7 @@ using AbilityKit.Demo.Moba.Services.Buffs.Core;
 using AbilityKit.Demo.Moba.Services.Buffs.Presentation;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 using AbilityKit.Ability.Triggering.Runtime;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
 

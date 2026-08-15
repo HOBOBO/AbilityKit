@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Configuration;
+using AbilityKit.Demo.Moba.View.Settings;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.Flow;
 using NUnit.Framework;

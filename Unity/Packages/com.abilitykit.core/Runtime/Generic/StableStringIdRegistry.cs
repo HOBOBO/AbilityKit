@@ -17,7 +17,7 @@ namespace AbilityKit.Core.Identifiers
                 return id;
             }
 
-            id = StableHash32(name);
+            id = StableHashV1.Fnv1a32Utf16(name);
 
             if (_idToName.TryGetValue(id, out var existingName) && existingName != name)
             {
@@ -42,22 +42,5 @@ namespace AbilityKit.Core.Identifiers
 
         public bool TryGetName(int id, out string name) => _idToName.TryGetValue(id, out name);
 
-        private static int StableHash32(string s)
-        {
-            unchecked
-            {
-                const uint offsetBasis = 2166136261u;
-                const uint prime = 16777619u;
-
-                uint hash = offsetBasis;
-                for (int i = 0; i < s.Length; i++)
-                {
-                    hash ^= s[i];
-                    hash *= prime;
-                }
-
-                return (int)hash;
-            }
-        }
     }
 }

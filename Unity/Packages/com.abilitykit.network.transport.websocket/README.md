@@ -33,9 +33,24 @@ sdk.Open(host, port);
 
 ## 服务端配套与验证状态
 
-Orleans Gateway 源码中已经存在 `WebSocketTransportServer`，但当前 canonical `GatewayModuleExtensions` 只注册并托管 TCP server，没有注册 WebSocket options、server 或 hosted service。因此现状是“服务端 E0 实现存在”，不是“默认 Gateway 已经支持 WebSocket 端到端”。
+Orleans Gateway 已经注册并托管 `WebSocketTransportServer`，配置节点为 `AbilityKit:Gateway:WebSocket`。默认配置保持 `Enabled: false`，避免影响当前 TCP 生产与 smoke 主链；需要启用时显式配置端口与路径：
 
-`AbilityKit.Network.Transport.WebSocket.Tests` 使用本机 `HttpListener` 做 echo round-trip，只验证基础握手和二进制收发；它不覆盖 Orleans 启动链、TLS、反向代理、Unity 平台矩阵、WebGL、重连恢复或生产消费者。完成服务端注册、部署配置与 smoke 前，本包不标记为生产默认 transport。
+```json
+{
+  "AbilityKit": {
+    "Gateway": {
+      "WebSocket": {
+        "Enabled": true,
+        "Host": "0.0.0.0",
+        "Port": 4001,
+        "Path": "/gateway"
+      }
+    }
+  }
+}
+```
+
+`AbilityKit.Network.Transport.WebSocket.Tests` 使用本机 `HttpListener` 做 echo round-trip，验证基础握手和二进制收发；`AbilityKit.Orleans.Gateway.Tests` 额外覆盖 Gateway 服务端的配置路径、`NetworkFrameCodec` 收发、错误路径拒绝和 Stop/Restart 生命周期。它们仍不覆盖 TLS、反向代理、Unity 平台矩阵、WebGL、重连恢复或生产消费者。本包仍不标记为生产默认 transport。
 
 ## 相关
 

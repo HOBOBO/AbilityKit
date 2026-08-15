@@ -70,7 +70,9 @@ namespace AbilityKit.Game.Battle
                 {
                     if (useFrameSyncInput)
                     {
-                        config.WithInputSerializer(
+                        config
+                            .WithInputOpCode(OpCodes.SubmitFrameInput)
+                            .WithInputSerializer(
                             serializeSubmitInput: requestObj =>
                             {
                                 if (requestObj is not SequencedInput sequenced) return default;
@@ -96,14 +98,12 @@ namespace AbilityKit.Game.Battle
                     }
                     else
                     {
-                        // Standard room-gateway StateSync input preset. NOTE: retryAtAuthoritativeFrame is
-                        // mapped from ShouldResync for historical compatibility; new consumers usually
-                        // leave the engine retry off.
+                        // StateSync treats ShouldResync as a full-state recovery signal, not as an
+                        // authoritative-frame retry request. Engine-level input retry stays disabled here.
                         config.UseRoomGatewayStateSyncInput(
                             s.BattleId,
                             playerIdToUInt,
-                            worldIdToUlong,
-                            retryAtAuthoritativeFrame: wire => wire.ShouldResync);
+                            worldIdToUlong);
                     }
 
                     config

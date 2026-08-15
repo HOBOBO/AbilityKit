@@ -3,7 +3,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
+using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Battle;
 using AbilityKit.Network.Protocol;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
 using Xunit;
@@ -51,7 +54,7 @@ public sealed class ShooterRoomGatewayConnectionTests
     }
 
     [Fact]
-    public async Task GatewayConnectionUsesTransportNeutralConnectionForRequestsAndSnapshotPushes()
+    public async Task RoomConnectionHandlesRequestsWhileBattleDataPlaneHandlesSnapshotPushes()
     {
         var runtime = new ShooterBattleRuntimePort();
         var presentation = new ShooterPresentationFacade();
@@ -60,6 +63,8 @@ public sealed class ShooterRoomGatewayConnectionTests
         var gateway = new ShooterRoomGatewayClient(gatewayConnection);
         var session = new ShooterClientSession(runtime, presentation, tickRate: 30, decoder: null, gateway);
         gatewayConnection.AttachSession(session);
+        using var battleTransport = CreateBattleTransport(connection);
+        using var battleDataPlane = new ShooterBattleDataPlane(battleTransport);
 
         var start = new ShooterStartGamePayload(
             "connection-session",
@@ -71,6 +76,7 @@ public sealed class ShooterRoomGatewayConnectionTests
                 new ShooterStartPlayer(22, "P22", 5f, 0f)
             });
         Assert.True(session.StartGame(in start));
+        battleDataPlane.AttachBattle(CreateBattleHandle(session, new ScriptedShooterRoomClient()));
 
         var context = new ShooterGatewayBattleInputContext("session-token", "battle-2", 9010ul, frame: 2, playerId: 21u);
         var command = new ShooterPlayerCommand(21, 1f, 0f, 1f, 0f, false);
@@ -127,17 +133,18 @@ public sealed class ShooterRoomGatewayConnectionTests
         var pushPayload = WireRoomGatewayBinary.Serialize(in wire);
         var dispatchedCount = 0;
         var dispatchedResult = ShooterSnapshotApplyResult.Ignored;
-        gatewayConnection.SnapshotPushDispatched += (_, _, result) =>
+        battleDataPlane.SnapshotPushDispatched += (_, _, result) =>
         {
             dispatchedCount++;
             dispatchedResult = result;
         };
 
         connection.Push(RoomGatewayOpCodes.SnapshotPushed, pushPayload);
+        battleDataPlane.Drain();
 
         Assert.Equal(1, dispatchedCount);
         Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, dispatchedResult);
-        Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, gatewayConnection.LastPushResult);
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, battleDataPlane.LastPushResult);
         Assert.Equal(authority.CurrentFrame, session.CurrentFrame);
         Assert.Equal(authority.ComputeStateHash(), runtime.ComputeStateHash());
         Assert.Equal(authority.CurrentFrame, presentation.ViewModel.Frame);
@@ -146,7 +153,7 @@ public sealed class ShooterRoomGatewayConnectionTests
     }
 
     [Fact]
-    public void GatewayConnectionRequestsFullStateSyncWhenBattlePushNeedsPureStateBaseline()
+    public void BattleDataPlaneRequestsFullStateSyncWhenPushNeedsPureStateBaseline()
     {
         var source = new ShooterBattleRuntimePort();
         var start = new ShooterStartGamePayload(
@@ -165,6 +172,8 @@ public sealed class ShooterRoomGatewayConnectionTests
         var presentation = new ShooterPresentationFacade();
         var connection = new FakeGatewayConnection();
         using var gatewayConnection = new ShooterRoomGatewayConnection(connection);
+        using var battleTransport = CreateBattleTransport(connection);
+        using var battleDataPlane = new ShooterBattleDataPlane(battleTransport);
         var gateway = new ShooterRoomGatewayClient(gatewayConnection);
         var session = new ShooterClientSession(runtime, presentation, tickRate: 30, decoder: null, gateway);
         Assert.True(session.StartGame(in start));
@@ -187,42 +196,46 @@ public sealed class ShooterRoomGatewayConnectionTests
         var battle = new ShooterClientBattleHandle(session, flow, roomClient);
         var dispatchedCount = 0;
         var dispatchedResult = ShooterSnapshotApplyResult.Ignored;
-        gatewayConnection.SnapshotPushDispatched += (_, _, result) =>
+        battleDataPlane.SnapshotPushDispatched += (_, _, result) =>
         {
             dispatchedCount++;
             dispatchedResult = result;
         };
-        gatewayConnection.AttachBattle(battle);
+        battleDataPlane.AttachBattle(battle);
 
         connection.Push(
             RoomGatewayOpCodes.DeltaSnapshotPushed,
             CreatePureStateGatewayPayload(in delta, ShooterOpCodes.Snapshot.PureStateDelta, isFullSnapshot: false));
+        battleDataPlane.Drain();
 
         Assert.Equal(1, dispatchedCount);
         Assert.Equal(ShooterSnapshotApplyResult.PureStateBaselineResyncNeeded, dispatchedResult);
-        Assert.Equal(ShooterSnapshotApplyResult.PureStateBaselineResyncNeeded, gatewayConnection.LastPushResult);
+        Assert.Equal(ShooterSnapshotApplyResult.PureStateBaselineResyncNeeded, battleDataPlane.LastPushResult);
         Assert.True(presentation.NeedsPureStateFullBaselineResync);
         Assert.Equal("PureStateMissingBaseline", roomClient.LastFullStateSyncRequest.Reason);
         Assert.Equal(1, roomClient.Calls.Count(call => call.StartsWith("request-full-state:")));
     }
 
     [Fact]
-    public void GatewayConnectionAcknowledgesOnlyNewContiguousReliableEvents()
+    public void BattleDataPlaneAcknowledgesOnlyNewContiguousReliableEvents()
     {
         var start = CreateStartGamePayload("connection-reliable-events-session");
         var runtime = new ShooterBattleRuntimePort();
         var presentation = new ShooterPresentationFacade();
         var connection = new FakeGatewayConnection();
         using var gatewayConnection = new ShooterRoomGatewayConnection(connection);
+        using var battleTransport = CreateBattleTransport(connection);
+        using var battleDataPlane = new ShooterBattleDataPlane(battleTransport);
         var session = new ShooterClientSession(runtime, presentation, tickRate: 30);
         Assert.True(session.StartGame(in start));
         var roomClient = new ScriptedShooterRoomClient();
         var battle = CreateBattleHandle(session, roomClient);
-        gatewayConnection.AttachBattle(battle);
+        battleDataPlane.AttachBattle(battle);
 
         var push = CreateReliableEventPush("epoch-1", retentionGap: false, 1L, 2L);
         var payload = WireRoomGatewayBinary.Serialize(in push);
         connection.Push(RoomGatewayOpCodes.ReliableBattleEventsPushed, payload);
+        battleDataPlane.Drain();
 
         Assert.Equal(2L, session.LastReliableEventAck);
         Assert.Equal("epoch-1", session.ReliableEventEpoch);
@@ -230,19 +243,22 @@ public sealed class ShooterRoomGatewayConnectionTests
         Assert.Equal(1, roomClient.Calls.Count(call => call.StartsWith("ack-reliable-events:")));
 
         connection.Push(RoomGatewayOpCodes.ReliableBattleEventsPushed, payload);
+        battleDataPlane.Drain();
 
         Assert.Equal(1, roomClient.Calls.Count(call => call.StartsWith("ack-reliable-events:")));
         Assert.DoesNotContain(roomClient.Calls, call => call.StartsWith("request-full-state:"));
     }
 
     [Fact]
-    public void GatewayConnectionRequestsFullBaselineWhenReliableEventAckRequiresResync()
+    public void BattleDataPlaneRequestsFullBaselineWhenReliableEventAckRequiresResync()
     {
         var start = CreateStartGamePayload("connection-reliable-ack-failure-session");
         var runtime = new ShooterBattleRuntimePort();
         var presentation = new ShooterPresentationFacade();
         var connection = new FakeGatewayConnection();
         using var gatewayConnection = new ShooterRoomGatewayConnection(connection);
+        using var battleTransport = CreateBattleTransport(connection);
+        using var battleDataPlane = new ShooterBattleDataPlane(battleTransport);
         var session = new ShooterClientSession(runtime, presentation, tickRate: 30);
         Assert.True(session.StartGame(in start));
         var roomClient = new ScriptedShooterRoomClient
@@ -253,10 +269,11 @@ public sealed class ShooterRoomGatewayConnectionTests
                 message: "resync required")
         };
         var battle = CreateBattleHandle(session, roomClient);
-        gatewayConnection.AttachBattle(battle);
+        battleDataPlane.AttachBattle(battle);
 
         var push = CreateReliableEventPush("epoch-1", retentionGap: false, 1L, 2L);
         connection.Push(RoomGatewayOpCodes.ReliableBattleEventsPushed, WireRoomGatewayBinary.Serialize(in push));
+        battleDataPlane.Drain();
 
         Assert.Equal(2L, session.LastReliableEventAck);
         Assert.Equal(2L, roomClient.LastReliableBattleEventAckRequest.AckSequence);
@@ -266,21 +283,24 @@ public sealed class ShooterRoomGatewayConnectionTests
     }
 
     [Fact]
-    public void GatewayConnectionRestoresReliableCursorFromFullSnapshotWatermarkAfterGap()
+    public void BattleDataPlaneRestoresReliableCursorFromFullSnapshotWatermarkAfterGap()
     {
         var start = CreateStartGamePayload("connection-reliable-gap-session");
         var runtime = new ShooterBattleRuntimePort();
         var presentation = new ShooterPresentationFacade();
         var connection = new FakeGatewayConnection();
         using var gatewayConnection = new ShooterRoomGatewayConnection(connection);
+        using var battleTransport = CreateBattleTransport(connection);
+        using var battleDataPlane = new ShooterBattleDataPlane(battleTransport);
         var session = new ShooterClientSession(runtime, presentation, tickRate: 30);
         Assert.True(session.StartGame(in start));
         var roomClient = new ScriptedShooterRoomClient();
         var battle = CreateBattleHandle(session, roomClient);
-        gatewayConnection.AttachBattle(battle);
+        battleDataPlane.AttachBattle(battle);
 
         var gap = CreateReliableEventPush("epoch-2", retentionGap: true);
         connection.Push(RoomGatewayOpCodes.ReliableBattleEventsPushed, WireRoomGatewayBinary.Serialize(in gap));
+        battleDataPlane.Drain();
 
         Assert.True(session.NeedsReliableEventResync);
         Assert.Equal("ReliableEventGap", roomClient.LastFullStateSyncRequest.Reason);
@@ -302,6 +322,7 @@ public sealed class ShooterRoomGatewayConnectionTests
             EventWatermark = 6L
         };
         connection.Push(RoomGatewayOpCodes.SnapshotPushed, WireRoomGatewayBinary.Serialize(in baseline));
+        battleDataPlane.Drain();
 
         Assert.False(session.NeedsReliableEventResync);
         Assert.Equal("epoch-2", session.ReliableEventEpoch);
@@ -313,7 +334,7 @@ public sealed class ShooterRoomGatewayConnectionTests
     }
 
     [Fact]
-    public void GatewayConnectionRestoresReliableCursorFromDuplicateFullSnapshotAfterGap()
+    public void BattleDataPlaneRestoresReliableCursorFromDuplicateFullSnapshotAfterGap()
     {
         var start = CreateStartGamePayload("connection-reliable-duplicate-baseline-session");
         var authority = new ShooterBattleRuntimePort();
@@ -336,24 +357,29 @@ public sealed class ShooterRoomGatewayConnectionTests
         var presentation = new ShooterPresentationFacade();
         var connection = new FakeGatewayConnection();
         using var gatewayConnection = new ShooterRoomGatewayConnection(connection);
+        using var battleTransport = CreateBattleTransport(connection);
+        using var battleDataPlane = new ShooterBattleDataPlane(battleTransport);
         var session = new ShooterClientSession(runtime, presentation, tickRate: 30);
         Assert.True(session.StartGame(in start));
         var roomClient = new ScriptedShooterRoomClient();
         var battle = CreateBattleHandle(session, roomClient);
-        gatewayConnection.AttachBattle(battle);
+        battleDataPlane.AttachBattle(battle);
 
         connection.Push(RoomGatewayOpCodes.SnapshotPushed, baselinePayload);
+        battleDataPlane.Drain();
         var gap = CreateReliableEventPush("epoch-2", retentionGap: true);
         connection.Push(
             RoomGatewayOpCodes.ReliableBattleEventsPushed,
             WireRoomGatewayBinary.Serialize(in gap));
+        battleDataPlane.Drain();
 
         Assert.True(session.NeedsReliableEventResync);
         Assert.Equal("ReliableEventGap", roomClient.LastFullStateSyncRequest.Reason);
 
         connection.Push(RoomGatewayOpCodes.SnapshotPushed, baselinePayload);
+        battleDataPlane.Drain();
 
-        Assert.Equal(ShooterSnapshotApplyResult.IgnoredStaleSnapshot, gatewayConnection.LastPushResult);
+        Assert.Equal(ShooterSnapshotApplyResult.IgnoredStaleSnapshot, battleDataPlane.LastPushResult);
         Assert.False(session.NeedsReliableEventResync);
         Assert.Equal("epoch-2", session.ReliableEventEpoch);
         Assert.Equal(6L, session.LastReliableEventAck);
@@ -373,6 +399,19 @@ public sealed class ShooterRoomGatewayConnectionTests
                 new ShooterStartPlayer(21, "P21", 0f, 0f),
                 new ShooterStartPlayer(22, "P22", 5f, 0f)
             });
+    }
+
+    private static NetworkTransport CreateBattleTransport(FakeGatewayConnection connection)
+    {
+        return new NetworkTransport(
+            new NetworkTransportOptions
+            {
+                ConnectionFactory = () => connection,
+                OpSnapshotPushed = RoomGatewayOpCodes.SnapshotPushed,
+                OpDeltaSnapshotPushed = RoomGatewayOpCodes.DeltaSnapshotPushed,
+                OpReliableEventsPushed = RoomGatewayOpCodes.ReliableBattleEventsPushed
+            },
+            InlineDispatcher.Instance);
     }
 
     private static ShooterClientBattleHandle CreateBattleHandle(ShooterClientSession session, ScriptedShooterRoomClient roomClient)

@@ -47,10 +47,19 @@ namespace AbilityKit.Game.Flow
             var plan = _ctx.Plan;
             var playerId = BattleInputSessionIdentity.ResolvePlayerId(_ctx);
             var worldId = BattleInputSessionIdentity.ResolveWorldId(in plan);
-            var nextFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(_ctx.LastFrame, in plan);
-
-            _ctx.LocalInputQueue ??= new BattleLocalInputQueue();
-            var submitter = new BattleInputSubmitter(_ctx, playerId, worldId);
+            var inputObservedFrame = _ctx.LastFrame;
+            var prediction = _ctx.PredictionStats;
+            if (prediction != null &&
+                prediction.TryGetFrames(worldId, out var confirmedFrame, out var predictedFrame))
+            {
+                inputObservedFrame = SessionSimRuntimeTuning.ResolveInputObservedFrame(
+                    inputObservedFrame,
+                    confirmedFrame.Value,
+                    predictedFrame.Value);
+            }
+            var nextFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(inputObservedFrame, in plan);
+            var inputRuntime = _ctx.InputRuntime;
+            var submitter = new BattleInputSubmitter(inputRuntime, playerId, worldId);
 
             if (!BattleHudInputSource.TryReadMove(_ctx, out var dx, out var dz))
             {
@@ -101,7 +110,7 @@ namespace AbilityKit.Game.Flow
                 SubmitSkill(submitter, in aimCmd);
             }
 
-            _ctx.LocalInputQueue.Flush();
+            inputRuntime.LocalInputQueue.Flush();
         }
 
         private void SubmitSkill(BattleInputSubmitter submitter, in PlayerInputCommand command)
@@ -126,7 +135,7 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            var submitter = new BattleInputSubmitter(_ctx, opponentPlayerId, worldId);
+            var submitter = new BattleInputSubmitter(_ctx.InputRuntime, opponentPlayerId, worldId);
             var moveCmd = BattleInputCommandFactory.CreateMove(nextFrame, opponentPlayerId, submitDx, submitDz);
             submitter.Submit(in moveCmd);
         }

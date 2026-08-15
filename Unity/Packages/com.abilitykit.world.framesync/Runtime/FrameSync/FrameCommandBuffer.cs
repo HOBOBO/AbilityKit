@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Collections;
 
 namespace AbilityKit.Ability.FrameSync
 {
@@ -17,9 +18,8 @@ namespace AbilityKit.Ability.FrameSync
 
         private readonly object _sync = new object();
         private readonly Dictionary<int, Dictionary<TKey, TCommand>> _frames = new Dictionary<int, Dictionary<TKey, TCommand>>();
+        private readonly SortedIntSet _frameNumbers;
         private readonly IComparer<TCommand>? _commandComparer;
-        // Reused across trims (TrimBeforeLocked is always called under _sync, so single-threaded access).
-        private readonly List<int> _trimRemovals = new List<int>();
         // Pool of per-frame dictionaries retired by trim/clear; accessed only under _sync.
         private readonly Stack<Dictionary<TKey, TCommand>> _frameCommandPool = new Stack<Dictionary<TKey, TCommand>>();
         private int _oldestRetainedFrame;
@@ -29,6 +29,7 @@ namespace AbilityKit.Ability.FrameSync
         public FrameCommandBuffer(int retainedFrameWindow = 120, IComparer<TCommand>? commandComparer = null)
         {
             _retainedFrameWindow = retainedFrameWindow < 1 ? 1 : retainedFrameWindow;
+            _frameNumbers = new SortedIntSet(_retainedFrameWindow);
             _commandComparer = commandComparer;
         }
 
@@ -56,6 +57,7 @@ namespace AbilityKit.Ability.FrameSync
                     RetireFrameCommands(kv.Value);
                 }
                 _frames.Clear();
+                _frameNumbers.Clear();
                 _oldestRetainedFrame = 0;
                 _latestFrame = 0;
             }
@@ -93,6 +95,7 @@ namespace AbilityKit.Ability.FrameSync
                         ? _frameCommandPool.Pop()
                         : new Dictionary<TKey, TCommand>();
                     _frames[frame] = commands;
+                    _frameNumbers.Add(frame);
                 }
 
                 commands[key] = command;
@@ -167,16 +170,13 @@ namespace AbilityKit.Ability.FrameSync
             destination.Clear();
             lock (_sync)
             {
-                foreach (var kv in _frames)
+                var endIndex = _frameNumbers.LowerBound(endFrameExclusive);
+                for (var index = _frameNumbers.LowerBound(startFrameInclusive); index < endIndex; index++)
                 {
-                    if (kv.Key >= startFrameInclusive && kv.Key < endFrameExclusive)
-                    {
-                        destination.Add(kv.Key);
-                    }
+                    destination.Add(_frameNumbers[index]);
                 }
             }
 
-            destination.Sort();
             return destination.Count;
         }
 
@@ -203,24 +203,16 @@ namespace AbilityKit.Ability.FrameSync
                 return;
             }
 
-            // Reuse the field buffer instead of allocating a List per trim (this runs every tick).
-            var removed = _trimRemovals;
-            removed.Clear();
-            foreach (var kv in _frames)
+            var removeCount = _frameNumbers.LowerBound(frame);
+            for (var index = 0; index < removeCount; index++)
             {
-                if (kv.Key < frame)
-                {
-                    removed.Add(kv.Key);
-                }
-            }
-
-            for (var i = 0; i < removed.Count; i++)
-            {
-                if (_frames.Remove(removed[i], out var retired))
+                if (_frames.Remove(_frameNumbers[index], out var retired))
                 {
                     RetireFrameCommands(retired);
                 }
             }
+
+            if (removeCount > 0) _frameNumbers.RemoveRange(0, removeCount);
 
             _oldestRetainedFrame = frame;
         }

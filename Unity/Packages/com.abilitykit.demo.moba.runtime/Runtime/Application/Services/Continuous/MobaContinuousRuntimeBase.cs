@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 
 namespace AbilityKit.Demo.Moba.Services
 {

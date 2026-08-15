@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace AbilityKit.Core.Pooling
 {
@@ -17,6 +18,7 @@ namespace AbilityKit.Core.Pooling
 
         private readonly Stack<T> _stack;
         private readonly object _syncRoot = new object();
+        private readonly HashSet<T> _inactiveSet;
 
         private int _createdTotal;
         private int _destroyedTotal;
@@ -29,10 +31,6 @@ namespace AbilityKit.Core.Pooling
         private int _clearDestroyCount;
         private int _droppedInactiveCount;
         private int _trimDestroyCount;
-
-#if UNITY_EDITOR
-        private readonly HashSet<T> _inactiveSet;
-#endif
 
         public ObjectPool(ObjectPoolOptions<T> options)
         {
@@ -53,9 +51,9 @@ namespace AbilityKit.Core.Pooling
 
             _stack = new Stack<T>(options.DefaultCapacity);
 
-#if UNITY_EDITOR
-            _inactiveSet = _collectionCheck ? new HashSet<T>() : null;
-#endif
+            _inactiveSet = _collectionCheck
+                ? new HashSet<T>(ReferenceEqualityComparer.Instance)
+                : null;
 
             Prewarm(options.DefaultCapacity);
         }
@@ -132,9 +130,7 @@ namespace AbilityKit.Core.Pooling
                     _hitCount++;
                     var obj = _stack.Pop();
 
-#if UNITY_EDITOR
                     if (_collectionCheck) _inactiveSet.Remove(obj);
-#endif
 
                     UpdatePeakActiveCountUnsafe();
                     obj.TryOnPoolGet();
@@ -167,7 +163,6 @@ namespace AbilityKit.Core.Pooling
             {
                 _releaseTotal++;
 
-#if UNITY_EDITOR
                 if (_collectionCheck)
                 {
                     if (_inactiveSet.Contains(element))
@@ -175,7 +170,6 @@ namespace AbilityKit.Core.Pooling
                         throw new InvalidOperationException($"Trying to release an object that is already in the pool: {typeof(T).FullName}");
                     }
                 }
-#endif
 
                 element.TryOnPoolRelease();
                 _onRelease?.Invoke(element);
@@ -189,9 +183,26 @@ namespace AbilityKit.Core.Pooling
 
                 _stack.Push(element);
 
-#if UNITY_EDITOR
                 if (_collectionCheck) _inactiveSet.Add(element);
-#endif
+            }
+        }
+
+        private sealed class ReferenceEqualityComparer : IEqualityComparer<T>
+        {
+            public static readonly ReferenceEqualityComparer Instance = new ReferenceEqualityComparer();
+
+            private ReferenceEqualityComparer()
+            {
+            }
+
+            public bool Equals([AllowNull] T x, [AllowNull] T y)
+            {
+                return ReferenceEquals(x, y);
+            }
+
+            public int GetHashCode(T obj)
+            {
+                return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
             }
         }
 
@@ -203,18 +214,14 @@ namespace AbilityKit.Core.Pooling
                 {
                     _droppedInactiveCount += _stack.Count;
                     _stack.Clear();
-#if UNITY_EDITOR
                     _inactiveSet?.Clear();
-#endif
                     return;
                 }
 
                 while (_stack.Count > 0)
                 {
                     var obj = _stack.Pop();
-#if UNITY_EDITOR
                     _inactiveSet?.Remove(obj);
-#endif
                     DestroyElementUnsafe(obj);
                     _clearDestroyCount++;
                 }
@@ -238,9 +245,7 @@ namespace AbilityKit.Core.Pooling
                 while (_stack.Count > targetInactiveCount)
                 {
                     var obj = _stack.Pop();
-#if UNITY_EDITOR
                     _inactiveSet?.Remove(obj);
-#endif
                     DestroyElementUnsafe(obj);
                     _trimDestroyCount++;
                     trimmedCount++;
@@ -271,9 +276,7 @@ namespace AbilityKit.Core.Pooling
                     _onRelease?.Invoke(obj);
                     _stack.Push(obj);
 
-#if UNITY_EDITOR
                     if (_collectionCheck) _inactiveSet.Add(obj);
-#endif
                 }
             }
         }
@@ -288,9 +291,7 @@ namespace AbilityKit.Core.Pooling
                 while (_stack.Count > targetInactiveCount)
                 {
                     var obj = _stack.Pop();
-#if UNITY_EDITOR
                     _inactiveSet?.Remove(obj);
-#endif
                     DestroyElementUnsafe(obj);
                     _trimDestroyCount++;
                     trimmedCount++;

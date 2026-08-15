@@ -35,6 +35,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Share\AbilityKit.Demo.Moba.Share.csproj" />
     <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.Continuous\AbilityKit.Continuous.csproj" />
     <ProjectReference Include="..\AbilityKit.HFSM.Core\AbilityKit.HFSM.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Modifiers\AbilityKit.Modifiers.csproj" />
     <ProjectReference Include="..\AbilityKit.GameplayTags\AbilityKit.GameplayTags.csproj" />

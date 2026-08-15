@@ -20,6 +20,7 @@
     <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Shared\Snapshot\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Shared\Runtime\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Server\Room\MobaRoomOrchestrator.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Server\Network\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Client\RoomSync\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Server\RoomSync\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.host\Runtime\Moba\Server\StartGame\*.cs" />
@@ -28,6 +29,8 @@
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
     <ProjectReference Include="..\AbilityKit.Host.Extension\AbilityKit.Host.Extension.csproj" />
+    <ProjectReference Include="..\AbilityKit.Host.Network\AbilityKit.Host.Network.csproj" />
+    <ProjectReference Include="..\AbilityKit.Network.Host\AbilityKit.Network.Host.csproj" />
     <ProjectReference Include="..\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.World.NetworkFragments\AbilityKit.World.NetworkFragments.csproj" />
     <ProjectReference Include="..\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />

@@ -47,5 +47,7 @@
 ## 依赖方向建议
 - `network.runtime` 可以被 server 与 Unity client 同时复用
 - `network.runtime` 与 `world.snapshot` 之间建议保持“上层 glue 代码”连接，而非互相硬依赖
+- 服务端接入、Channel 生命周期和请求路由位于可选的 `com.abilitykit.network.host`
+- 权威世界适配位于 `com.abilitykit.host.network`；TCP 只是官方 Listener 实现之一
 
 若未来确实需要一层更通用的“网络消息路由”抽象（不仅快照），可考虑新增一个更轻量的 routing 包（例如 `com.abilitykit.network.routing` 或 `com.abilitykit.protocol.routing`），但这应优先通过最小改造验证必要性。

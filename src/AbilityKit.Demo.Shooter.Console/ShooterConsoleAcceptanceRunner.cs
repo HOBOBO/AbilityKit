@@ -1,7 +1,7 @@
 using AbilityKit.Demo.Host.Console;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Network.Runtime;
-using AbilityKit.Network.Runtime.DemoHarness;
+using AbilityKit.Demo.Harness;
 
 namespace AbilityKit.Demo.Shooter.Console;
 

@@ -7,6 +7,6 @@
   "author": { "name": "AbilityKit" },
   "dependencies": {
     "com.abilitykit.core": "0.1.0",
-    "com.abilitykit.world.networkfragments": "0.0.1"
+    "com.abilitykit.world.networkfragments": "0.1.0"
   }
 }

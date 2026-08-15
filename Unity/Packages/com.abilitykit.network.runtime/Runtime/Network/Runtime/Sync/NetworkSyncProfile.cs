@@ -70,6 +70,26 @@ namespace AbilityKit.Network.Runtime.Sync
         AntiCheatEnvelope = 1 << 4
     }
 
+    /// <summary>一次同步会话实际启用的可靠事件交付策略。</summary>
+    [Flags]
+    public enum ReliableEventPolicy
+    {
+        /// <summary>不要求可靠事件交付。</summary>
+        None = 0,
+        /// <summary>事件必须按单调序列交付。</summary>
+        OrderedDelivery = 1 << 0,
+        /// <summary>由框架在业务处理成功后自动提交 ACK。</summary>
+        AutomaticAcknowledgement = 1 << 1,
+        /// <summary>由接入方在事务或业务提交完成后显式提交 ACK。</summary>
+        ExternalAcknowledgement = 1 << 2,
+        /// <summary>保存已确认游标，以便重连后继续消费。</summary>
+        PersistentCheckpoint = 1 << 3,
+        /// <summary>在容量上限内缓存先到达的乱序事件。</summary>
+        BufferedOutOfOrder = 1 << 4,
+        /// <summary>时间线或保留窗口失效后通过权威基线重新建立游标。</summary>
+        AuthoritativeBaselineRecovery = 1 << 5
+    }
+
     public readonly struct NetworkSyncProfile : IEquatable<NetworkSyncProfile>
     {
         public NetworkSyncProfile(
@@ -80,6 +100,28 @@ namespace AbilityKit.Network.Runtime.Sync
             InterestPolicy interest,
             RecoveryPolicy recovery,
             ServerValidationPolicy serverValidation)
+            : this(
+                compatibilityModel,
+                clientPlayback,
+                input,
+                snapshot,
+                interest,
+                recovery,
+                serverValidation,
+                ReliableEventPolicy.None)
+        {
+        }
+
+        /// <summary>创建包含可靠事件策略的同步 Profile。</summary>
+        public NetworkSyncProfile(
+            NetworkSyncModel compatibilityModel,
+            ClientPlaybackPolicy clientPlayback,
+            InputPolicy input,
+            SnapshotPolicy snapshot,
+            InterestPolicy interest,
+            RecoveryPolicy recovery,
+            ServerValidationPolicy serverValidation,
+            ReliableEventPolicy reliableEvent)
         {
             CompatibilityModel = compatibilityModel;
             ClientPlayback = clientPlayback;
@@ -88,6 +130,7 @@ namespace AbilityKit.Network.Runtime.Sync
             Interest = interest;
             Recovery = recovery;
             ServerValidation = serverValidation;
+            ReliableEvent = reliableEvent;
         }
 
         public NetworkSyncModel CompatibilityModel { get; }
@@ -104,6 +147,9 @@ namespace AbilityKit.Network.Runtime.Sync
 
         public ServerValidationPolicy ServerValidation { get; }
 
+        /// <summary>本次会话要求启用的可靠事件交付策略。</summary>
+        public ReliableEventPolicy ReliableEvent { get; }
+
         public bool Equals(NetworkSyncProfile other)
         {
             return CompatibilityModel == other.CompatibilityModel &&
@@ -112,7 +158,8 @@ namespace AbilityKit.Network.Runtime.Sync
                    Snapshot == other.Snapshot &&
                    Interest == other.Interest &&
                    Recovery == other.Recovery &&
-                   ServerValidation == other.ServerValidation;
+                   ServerValidation == other.ServerValidation &&
+                   ReliableEvent == other.ReliableEvent;
         }
 
         public override bool Equals(object? obj)
@@ -129,7 +176,8 @@ namespace AbilityKit.Network.Runtime.Sync
                 Snapshot,
                 Interest,
                 Recovery,
-                ServerValidation);
+                ServerValidation,
+                ReliableEvent);
         }
 
         public static bool operator ==(NetworkSyncProfile left, NetworkSyncProfile right)

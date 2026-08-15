@@ -1,7 +1,7 @@
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Systems

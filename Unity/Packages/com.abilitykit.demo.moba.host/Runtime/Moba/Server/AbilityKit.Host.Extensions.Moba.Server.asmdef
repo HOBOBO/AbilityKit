@@ -7,6 +7,8 @@
         "AbilityKit.Host.Extensions",
         "AbilityKit.Protocol.Moba",
         "AbilityKit.Host",
+        "AbilityKit.Host.Network",
+        "AbilityKit.Network.Host",
         "AbilityKit.Core",
         "AbilityKit.World.DI",
         "AbilityKit.World.FrameSync",

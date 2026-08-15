@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Flow;
-using AbilityKit.Core.Configuration;
+using AbilityKit.Demo.Moba.View.Settings;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.View.Flow;
 using AbilityKit.World.ECS;

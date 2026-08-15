@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "com.abilitykit.combat.targeting",
   "version": "0.1.0",
   "displayName": "AbilityKit Combat Targeting",
@@ -17,6 +17,6 @@
     "name": "AbilityKit"
   },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1"
+    "com.abilitykit.core": "0.1.0"
   }
 }

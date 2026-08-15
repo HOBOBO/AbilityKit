@@ -118,6 +118,16 @@ Example:
 - `ServerFrameTimeModule`
 - `ServerRollbackModule`
 
+## 官方网络接入
+
+`com.abilitykit.host` 只定义权威运行时和连接契约，不内定 TCP。官方可选包：
+
+- `com.abilitykit.network.host`：传输无关的 Listener/Channel/Session/Pipeline，附带 TCP 与 InProcess 实现。
+- `com.abilitykit.host.network`：将 NetworkHost Session 适配为 `IServerConnection`。
+
+普通项目可以使用 `TcpHostNetwork` 快速装配；需要 WebSocket、KCP、平台 Relay 等传输时，
+替换 `IChannelListener` 即可，Host 和业务协议无需修改。
+
 ### Host module vs World module
 
 - Host module：横切型运行时能力，应与玩法无关。

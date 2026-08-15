@@ -81,6 +81,7 @@ powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate regressio
 | `core-stability` | P1 | Runtime Platform | Record、StateSync、FrameSync、Host、Triggering、Context、Attributes、Modifiers、核心 UPM 直接依赖与 Attributes 零分配契约 | 合并核心包、生命周期、同步或 Attributes/Modifiers 热路径改动前 |
 | `runtime-contracts` | P1 | Runtime Platform | 网络 runtime、World DI、Game View Runtime | 合并 runtime contract 变化前 |
 | `moba-content-contracts` | P1 | MOBA Content Pipeline | 包资源所有权、TriggerPlan 聚合漂移、配置资源可加载性、跨表有效时序 | 发布 MOBA 内容或合并配置/资源改动前 |
+| `moba-acceptance-dotnet` | P1 | MOBA Acceptance/Testing | 无 Unity 的 dotnet 验收判定（STJ 解析真实期望 + harness-free 判定器 + 批量 runner → batch_summary.json）、期望 schema、dsl-regression 核心 | 合并验收判定层（`AbilityKit.Demo.Moba.Acceptance`）或 `MobaAcceptanceModels`/期望 schema 改动前；行为覆盖随 trace fixture 增长 |
 | `regression` | P2 | AbilityKit Engineering | 核心包、MOBA、Shooter、runtime contracts 批量回归 | 大范围重构、候选发布、批量合并前 |
 | `moba-xiaoqiao-unity` | P1 | MOBA Runtime/Unity Test | 小乔四个 Unity EditMode 权威用例及其落盘产物 | 宣称最新小乔 Unity 结论前 |
 

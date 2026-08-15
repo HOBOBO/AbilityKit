@@ -5,7 +5,7 @@ using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Ability.Host;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Projectile.Launch;

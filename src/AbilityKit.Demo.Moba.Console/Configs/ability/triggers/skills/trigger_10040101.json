@@ -25,8 +25,7 @@
                         "buffIds":  [
                                         10040101
                                     ],
-                        "target_self":  true,
-                        "duration_ms":  5000
+                        "target_self":  true
                     },
                     {
                         "type":  "add_shield",
@@ -41,7 +40,7 @@
                     },
                     {
                         "type":  "debug_log",
-                        "message":  "墨子一技能和平漫步：向前突进并强化下一次普攻为机关炮击",
+                        "message":  "墨子一技能和平漫步：向前突进，获得强化普攻Buff，普攻技能ID临时替换为强化炮击",
                         "dump_args":  false
                     }
                 ]

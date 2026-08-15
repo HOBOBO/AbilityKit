@@ -1,10 +1,8 @@
 using System;
 using System.IO;
-using System.Reflection;
 using AbilityKit.Core.Logging;
-using AbilityKit.Core.Configuration;
+using AbilityKit.Demo.Moba.Bootstrap;
 using AbilityKit.Core.Recording.FrameRecord;
-using AbilityKit.Core.Reflection;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow.Battle.Replay
@@ -28,7 +26,7 @@ namespace AbilityKit.Game.Flow.Battle.Replay
 
             try
             {
-                if (!ReflectionInvokeUtils.TryInvokeStaticMethod(module.InstallerType, module.GetEffectiveMethod()))
+                if (!ModuleInstallerInvoker.TryInvoke(module))
                 {
                     Log.Info("[BattleRecordCodecBootstrap] Record codec installer not found/invokable; skip");
                     return false;

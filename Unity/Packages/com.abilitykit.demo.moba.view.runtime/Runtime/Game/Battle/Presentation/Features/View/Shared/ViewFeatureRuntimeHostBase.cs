@@ -18,6 +18,7 @@ namespace AbilityKit.Game.Flow
         private BattleViewBinder _binder;
         private BattleVfxManager _vfx;
         private EC.IEntity _vfxNode;
+        private long _contextVfxBindingGeneration;
         private ViewTimeline _timeline;
         private BattleFloatingTextSystem _floatingTexts;
         private BattleAreaViewSystem _areaViews;
@@ -112,6 +113,12 @@ namespace AbilityKit.Game.Flow
         {
             get => _vfxNode;
             set => _vfxNode = value;
+        }
+
+        long IViewFeatureRuntime.ContextVfxBindingGeneration
+        {
+            get => _contextVfxBindingGeneration;
+            set => _contextVfxBindingGeneration = value;
         }
 
         ViewTimeline IViewFeatureRuntime.Timeline

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Samples.Abstractions;
 
 namespace AbilityKit.Samples.Logic.Samples.Continuous

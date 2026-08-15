@@ -13,12 +13,17 @@ namespace AbilityKit.Game.Flow
     public sealed partial class BattleSessionFeature :
         IBattleSessionFeature,
         Battle.Replay.IBattleReplayControl,
+        IBattleAssetLoadSessionPort,
         ISessionLogicPort,
         ISessionPipelinePort,
         ISessionRuntimeResourcesPort
     {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-        public static bool DebugForceClientHashMismatch { get; set; }
+        public static bool DebugForceClientHashMismatch
+        {
+            get => BattleSessionDiagnostics.DebugForceClientHashMismatch;
+            set => BattleSessionDiagnostics.DebugForceClientHashMismatch = value;
+        }
 #endif
 
         private readonly IBattleBootstrapper _bootstrapper;

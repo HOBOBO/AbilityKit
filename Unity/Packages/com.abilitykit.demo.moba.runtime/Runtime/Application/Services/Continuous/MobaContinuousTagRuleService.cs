@@ -3,7 +3,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.GameplayTags;
 
 namespace AbilityKit.Demo.Moba.Services

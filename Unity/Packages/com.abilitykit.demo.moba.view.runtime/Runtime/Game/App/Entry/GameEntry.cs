@@ -6,6 +6,7 @@ using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Game.EntityCreation;
 using AbilityKit.Game.Flow;
 using AbilityKit.Game.View.Modules;
+using AbilityKit.Network.Sdk;
 using UnityEngine;
 
 namespace AbilityKit.Game
@@ -121,6 +122,42 @@ namespace AbilityKit.Game
             if (_runtimeGuiBridge == null)
             {
                 DispatchRuntimeGUI(drawBridgeStatus: false);
+            }
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused)
+            {
+                FlushReliableEventCheckpoints(
+                    ReliableEventCheckpointFlushTrigger.ApplicationPause);
+            }
+        }
+
+        private void OnApplicationQuit()
+        {
+            FlushReliableEventCheckpoints(
+                ReliableEventCheckpointFlushTrigger.ApplicationQuit);
+        }
+
+        /// <summary>在 Unity 暂停或退出前同步提交可靠事件检查点。</summary>
+        private void FlushReliableEventCheckpoints(
+            ReliableEventCheckpointFlushTrigger trigger)
+        {
+            if (!Root.IsValid ||
+                !Root.TryGetRef<GatewayMultiplayerRoomSession>(out var session) ||
+                session == null)
+            {
+                return;
+            }
+
+            try
+            {
+                session.FlushReliableEventCheckpointsAsync(trigger).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
             }
         }
 
@@ -368,6 +405,9 @@ namespace AbilityKit.Game
             _entry.TryGet(out IFlowCommandSink sink);
             var inBattle = sink != null && sink.CurrentRootPhase == MobaRootState.Battle;
             EnsureLocalDebugController();
+            var debugSnapshot = _localDebug != null
+                ? _localDebug.CaptureSnapshot()
+                : default;
 
             const float width = 300f;
             var height = Mathf.Min(520f, Screen.height - 20f);
@@ -385,19 +425,17 @@ namespace AbilityKit.Game
             }
             else
             {
-                GUILayout.Label($"状态：{(_localDebug.IsAvailable ? "就绪" : _localDebug.UnavailableReason)}");
-                GUILayout.Label($"模式：{_localDebug.HostModeName}");
-                GUILayout.Label($"玩家：{_localDebug.CurrentPlayerId}");
-                GUILayout.Label($"角色：{_localDebug.CurrentActorId}");
-                GUILayout.Label($"当前英雄：{_localDebug.CurrentHeroId}");
+                GUILayout.Label($"状态：{(debugSnapshot.IsAvailable ? "就绪" : debugSnapshot.UnavailableReason)}");
+                GUILayout.Label($"模式：{debugSnapshot.HostModeName}");
+                GUILayout.Label($"玩家：{debugSnapshot.CurrentPlayerId}");
+                GUILayout.Label($"角色：{debugSnapshot.CurrentActorId}");
+                GUILayout.Label($"当前英雄：{debugSnapshot.CurrentHeroId}");
             }
 
             var previousEnabled = GUI.enabled;
-            GUI.enabled = _localDebug != null && _localDebug.IsAvailable;
+            GUI.enabled = _localDebug != null && debugSnapshot.IsAvailable;
             GUILayout.Label("完整替换当前英雄");
-            var heroOptions = _localDebug != null
-                ? _localDebug.HeroOptions
-                : Array.Empty<BattleDebugHeroOption>();
+            var heroOptions = debugSnapshot.HeroOptions ?? Array.Empty<BattleDebugHeroOption>();
             if (heroOptions.Length == 0)
             {
                 GUILayout.Label("没有完整可用的战斗英雄配置");
@@ -445,7 +483,7 @@ namespace AbilityKit.Game
             {
                 RunLocalDebugAction(_localDebug.TryResetCooldowns);
             }
-            if (GUILayout.Button(_localDebug.IsEnemyAiEnabled ? "关闭敌方 AI" : "开启敌方 AI", GUILayout.Height(30f)))
+            if (GUILayout.Button(debugSnapshot.IsEnemyAiEnabled ? "关闭敌方 AI" : "开启敌方 AI", GUILayout.Height(30f)))
             {
                 RunLocalDebugAction(_localDebug.TryToggleEnemyAi);
             }

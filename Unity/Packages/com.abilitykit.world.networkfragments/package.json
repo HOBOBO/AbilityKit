@@ -1,15 +1,15 @@
-﻿{
+{
   "name": "com.abilitykit.world.networkfragments",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit World Network Fragments",
   "unity": "2022.3",
   "description": "Frame data structures and remote buffers for world synchronization.",
   "author": { "name": "AbilityKit" },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1",
-    "com.abilitykit.world.di": "0.0.1",
-    "com.abilitykit.world.framesync": "0.0.1",
-    "com.abilitykit.host": "0.0.1",
-    "com.abilitykit.network.runtime": "0.0.1"
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.world.di": "0.1.0",
+    "com.abilitykit.world.framesync": "0.1.0",
+    "com.abilitykit.host": "0.1.0",
+    "com.abilitykit.network.runtime": "0.1.0"
   }
 }

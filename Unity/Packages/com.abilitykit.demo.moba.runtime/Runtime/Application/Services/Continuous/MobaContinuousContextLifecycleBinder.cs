@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.Triggering.Runtime;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Core.Logging;
 using AbilityKit.Trace;
 

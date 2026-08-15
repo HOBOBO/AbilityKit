@@ -1,31 +1,22 @@
 using System;
-using System.Collections.Generic;
+using AbilityKit.Core.Collections;
 
 namespace AbilityKit.Ability.Host.Hooks
 {
     public sealed class Hook
     {
-        private readonly List<(int order, Action handler)> _handlers = new List<(int, Action)>(8);
+        private readonly StablePriorityList<Action> _handlers = new StablePriorityList<Action>(capacity: 8);
 
         public void Add(Action handler, int order = 0)
         {
             if (handler == null) throw new ArgumentNullException(nameof(handler));
-            _handlers.Add((order, handler));
-            _handlers.Sort((a, b) => a.order.CompareTo(b.order));
+            _handlers.Add(handler, order);
         }
 
         public bool Remove(Action handler)
         {
             if (handler == null) return false;
-            for (int i = 0; i < _handlers.Count; i++)
-            {
-                if (ReferenceEquals(_handlers[i].handler, handler))
-                {
-                    _handlers.RemoveAt(i);
-                    return true;
-                }
-            }
-            return false;
+            return _handlers.RemoveFirst(item => ReferenceEquals(item, handler));
         }
 
         public void Clear()
@@ -37,34 +28,25 @@ namespace AbilityKit.Ability.Host.Hooks
         {
             for (int i = 0; i < _handlers.Count; i++)
             {
-                _handlers[i].handler?.Invoke();
+                _handlers[i]?.Invoke();
             }
         }
     }
 
     public sealed class Hook<T>
     {
-        private readonly List<(int order, Action<T> handler)> _handlers = new List<(int, Action<T>)>(8);
+        private readonly StablePriorityList<Action<T>> _handlers = new StablePriorityList<Action<T>>(capacity: 8);
 
         public void Add(Action<T> handler, int order = 0)
         {
             if (handler == null) throw new ArgumentNullException(nameof(handler));
-            _handlers.Add((order, handler));
-            _handlers.Sort((a, b) => a.order.CompareTo(b.order));
+            _handlers.Add(handler, order);
         }
 
         public bool Remove(Action<T> handler)
         {
             if (handler == null) return false;
-            for (int i = 0; i < _handlers.Count; i++)
-            {
-                if (ReferenceEquals(_handlers[i].handler, handler))
-                {
-                    _handlers.RemoveAt(i);
-                    return true;
-                }
-            }
-            return false;
+            return _handlers.RemoveFirst(item => ReferenceEquals(item, handler));
         }
 
         public void Clear()
@@ -76,34 +58,25 @@ namespace AbilityKit.Ability.Host.Hooks
         {
             for (int i = 0; i < _handlers.Count; i++)
             {
-                _handlers[i].handler?.Invoke(arg);
+                _handlers[i]?.Invoke(arg);
             }
         }
     }
 
     public sealed class Hook<T1, T2>
     {
-        private readonly List<(int order, Action<T1, T2> handler)> _handlers = new List<(int, Action<T1, T2>)>(8);
+        private readonly StablePriorityList<Action<T1, T2>> _handlers = new StablePriorityList<Action<T1, T2>>(capacity: 8);
 
         public void Add(Action<T1, T2> handler, int order = 0)
         {
             if (handler == null) throw new ArgumentNullException(nameof(handler));
-            _handlers.Add((order, handler));
-            _handlers.Sort((a, b) => a.order.CompareTo(b.order));
+            _handlers.Add(handler, order);
         }
 
         public bool Remove(Action<T1, T2> handler)
         {
             if (handler == null) return false;
-            for (int i = 0; i < _handlers.Count; i++)
-            {
-                if (ReferenceEquals(_handlers[i].handler, handler))
-                {
-                    _handlers.RemoveAt(i);
-                    return true;
-                }
-            }
-            return false;
+            return _handlers.RemoveFirst(item => ReferenceEquals(item, handler));
         }
 
         public void Clear()
@@ -115,34 +88,25 @@ namespace AbilityKit.Ability.Host.Hooks
         {
             for (int i = 0; i < _handlers.Count; i++)
             {
-                _handlers[i].handler?.Invoke(a1, a2);
+                _handlers[i]?.Invoke(a1, a2);
             }
         }
     }
 
     public sealed class Hook<T1, T2, T3>
     {
-        private readonly List<(int order, Action<T1, T2, T3> handler)> _handlers = new List<(int, Action<T1, T2, T3>)>(8);
+        private readonly StablePriorityList<Action<T1, T2, T3>> _handlers = new StablePriorityList<Action<T1, T2, T3>>(capacity: 8);
 
         public void Add(Action<T1, T2, T3> handler, int order = 0)
         {
             if (handler == null) throw new ArgumentNullException(nameof(handler));
-            _handlers.Add((order, handler));
-            _handlers.Sort((a, b) => a.order.CompareTo(b.order));
+            _handlers.Add(handler, order);
         }
 
         public bool Remove(Action<T1, T2, T3> handler)
         {
             if (handler == null) return false;
-            for (int i = 0; i < _handlers.Count; i++)
-            {
-                if (ReferenceEquals(_handlers[i].handler, handler))
-                {
-                    _handlers.RemoveAt(i);
-                    return true;
-                }
-            }
-            return false;
+            return _handlers.RemoveFirst(item => ReferenceEquals(item, handler));
         }
 
         public void Clear()
@@ -154,7 +118,7 @@ namespace AbilityKit.Ability.Host.Hooks
         {
             for (int i = 0; i < _handlers.Count; i++)
             {
-                _handlers[i].handler?.Invoke(a1, a2, a3);
+                _handlers[i]?.Invoke(a1, a2, a3);
             }
         }
     }

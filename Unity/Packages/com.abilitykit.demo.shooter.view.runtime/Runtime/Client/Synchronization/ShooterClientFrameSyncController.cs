@@ -25,6 +25,8 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly ClientPredictionRunner _predictionRunner;
         private readonly ShooterClientDriftRecoveryPolicy _recoveryPolicy;
         private readonly ShooterClientRecoveryCoordinator _recovery;
+        private static readonly SyncHealthEvent[] EmptyReconciliationHealthEvents = Array.Empty<SyncHealthEvent>();
+        private SyncHealthEvent[] _lastReconciliationHealthEvents = EmptyReconciliationHealthEvents;
         private readonly float _fixedDeltaTime;
         private float _accumulator;
 
@@ -89,6 +91,7 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterClientRecoveryState RecoveryState => _recovery.State;
         public FastReconnectPhase FastReconnectPhase => _recovery.FastReconnectPhase;
         public IReadOnlyList<SyncHealthEvent> LastFastReconnectHealthEvents => _recovery.LastFastReconnectHealthEvents;
+        public IReadOnlyList<SyncHealthEvent> LastReconciliationHealthEvents => _lastReconciliationHealthEvents;
         public ShooterClientResyncReason LastResyncReason => _recovery.LastResyncReason;
         public int LastResyncClientFrame => _recovery.LastResyncClientFrame;
         public int LastResyncAuthoritativeFrame => _recovery.LastResyncAuthoritativeFrame;
@@ -229,6 +232,7 @@ namespace AbilityKit.Demo.Shooter.View
             if (!snapshotApply.IsSnapshotPush)
             {
                 LastReconciliationResult = ShooterClientReconciliationResult.None;
+                _lastReconciliationHealthEvents = EmptyReconciliationHealthEvents;
                 return LastSnapshotApplyResult;
             }
 
@@ -286,6 +290,7 @@ namespace AbilityKit.Demo.Shooter.View
                         StepReplayFrame));
 
                 LastReconciliationResult = reconciliation;
+                SetReconciliationHealthEvents(in reconciliation);
                 PreserveReasonableControlledPrediction(hasPredictedControlledPlayer, in predictedControlledPlayer, in reconciliation);
                 if (reconciliation.AuthoritativeHashMatched)
                 {
@@ -326,6 +331,7 @@ namespace AbilityKit.Demo.Shooter.View
             else
             {
                 LastReconciliationResult = ShooterClientReconciliationResult.None;
+                _lastReconciliationHealthEvents = EmptyReconciliationHealthEvents;
                 if (LastSnapshotApplyResult == ShooterSnapshotApplyResult.ImportFailed)
                 {
                     MarkFullSnapshotResyncNeeded(
@@ -549,6 +555,35 @@ namespace AbilityKit.Demo.Shooter.View
         {
             var snapshot = _runtime.GetSnapshotTransient();
             _presentation.ApplyLocalPredictionSnapshot(in snapshot);
+        }
+
+        private void SetReconciliationHealthEvents(in ShooterClientReconciliationResult reconciliation)
+        {
+            if (reconciliation.ReplayTicks <= 0)
+            {
+                _lastReconciliationHealthEvents = EmptyReconciliationHealthEvents;
+                return;
+            }
+
+            var rollback = reconciliation.AuthoritativeHashMatched
+                ? SyncHealthEvent.Warning(
+                    SyncHealthEventKind.RollbackStarted,
+                    reconciliation.AuthoritativeFrame,
+                    reconciliation.ReplayTicks)
+                : SyncHealthEvent.Error(
+                    SyncHealthEventKind.RollbackStarted,
+                    reconciliation.AuthoritativeFrame,
+                    reconciliation.ReplayTicks);
+            var replay = reconciliation.AuthoritativeHashMatched
+                ? SyncHealthEvent.Info(
+                    SyncHealthEventKind.ReplayCompleted,
+                    reconciliation.FinalFrame,
+                    reconciliation.ReplayTicks)
+                : SyncHealthEvent.Error(
+                    SyncHealthEventKind.ReplayCompleted,
+                    reconciliation.FinalFrame,
+                    reconciliation.ReplayTicks);
+            _lastReconciliationHealthEvents = new[] { rollback, replay };
         }
     }
 

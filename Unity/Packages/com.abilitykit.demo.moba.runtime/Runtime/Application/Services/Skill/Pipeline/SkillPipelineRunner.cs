@@ -9,7 +9,7 @@ using AbilityKit.Effect;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;
-using AbilityKit.Core.Continuous;
+using AbilityKit.Continuous;
 using AbilityKit.Pipeline;
 using AbilityKit.Trace;
 

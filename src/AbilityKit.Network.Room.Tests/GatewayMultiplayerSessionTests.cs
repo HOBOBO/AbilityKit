@@ -6,10 +6,11 @@ using Xunit;
 namespace AbilityKit.Network.Room.Tests;
 
 /// <summary>
-/// Argument-validation contract for <see cref="GatewayMultiplayerSession.CreateAsync"/>.
-/// These throw synchronously before any connection is opened, so no server harness is needed.
-/// (The full connect→login→create→ready→start→subscribe flow needs an in-process gateway fixture;
-/// see the integration guide's WIP section — adoption is gated on the room-flow staged-restore WIP.)
+/// Argument-validation + orchestration contract for <see cref="GatewayMultiplayerSession"/>.
+/// The arg-validation cases throw synchronously before any connection opens; the orchestration
+/// cases drive <see cref="GatewayMultiplayerSession.RunRoomFlowAsync"/> through the injectable
+/// <see cref="RoomGatewaySessionFlow"/> seam. The full connect→login→…→subscribe wire flow is
+/// covered separately in <see cref="GatewayMultiplayerSessionCreateTests"/>.
 /// </summary>
 public sealed class GatewayMultiplayerSessionTests
 {
@@ -167,11 +168,57 @@ public sealed class GatewayMultiplayerSessionTests
         Assert.Equal("room-1", result.RoomId);
     }
 
+    [Fact]
+    public async Task RunRoomFlowAsync_JoinExistingRoom_SkipsCreate()
+    {
+        // Re-joining a known room is the primary path for a second player — the facade
+        // must not fall through to CreateRoom when join succeeds.
+        var client = new FakeFlowClient();
+        var flow = new RoomGatewaySessionFlow(client);
+
+        var result = await GatewayMultiplayerSession.RunRoomFlowAsync(
+            flow, "session-token", Spec, joinRoomId: "room-1", waitForBattleStart: false, playerId: 1,
+            timeout: TimeSpan.FromSeconds(5), cancellationToken: default);
+
+        Assert.True(client.Joined);
+        Assert.False(client.Created, "successful join must skip room creation");
+        Assert.Equal("room-1", result.RoomId);
+        Assert.Equal(1ul, result.NumericRoomId);
+        Assert.True(result.Subscribed);
+    }
+
+    [Fact]
+    public async Task RunRoomFlowAsync_BattleNeverStarts_ThrowsIncomplete()
+    {
+        var client = new FakeFlowClient { SnapshotSucceeds = false };
+        var flow = new RoomGatewaySessionFlow(client);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            GatewayMultiplayerSession.RunRoomFlowAsync(
+                flow, "session-token", Spec, joinRoomId: null, waitForBattleStart: true, playerId: 1,
+                timeout: TimeSpan.FromSeconds(2), cancellationToken: default));
+    }
+
+    [Fact]
+    public async Task RunRoomFlowAsync_SubscribeFails_ThrowsIncomplete()
+    {
+        var client = new FakeFlowClient { SubscribeSucceeds = false };
+        var flow = new RoomGatewaySessionFlow(client);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            GatewayMultiplayerSession.RunRoomFlowAsync(
+                flow, "session-token", Spec, joinRoomId: null, waitForBattleStart: false, playerId: 1,
+                timeout: TimeSpan.FromSeconds(5), cancellationToken: default));
+        Assert.Contains("Subscribed=False", ex.Message);
+    }
+
     private sealed class FakeFlowClient : IRoomGatewaySessionClientBase, IRoomGatewayStateSyncSubscriptionCapability
     {
         public bool Created, Joined, Readied, Subscribed, SnapshotPolled;
         public bool JoinSucceeds = true;
         public bool JoinThrows;
+        public bool SnapshotSucceeds = true;
+        public bool SubscribeSucceeds = true;
 
         public Task<RoomGatewayCreateResult> CreateRoomAsync(RoomGatewayCreateRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
         { Created = true; return Task.FromResult(new RoomGatewayCreateResult(true, "room-1", 1ul, string.Empty)); }
@@ -200,12 +247,12 @@ public sealed class GatewayMultiplayerSessionTests
         {
             SnapshotPolled = true;
             return Task.FromResult(new RoomGatewayGetSnapshotResult(
-                true, "room-1", 1ul,
+                SnapshotSucceeds, "room-1", 1ul,
                 new RoomGatewaySnapshot { RoomId = "room-1", Phase = RoomGatewaySessionPhase.InBattle, BattleId = "battle-1" },
                 string.Empty));
         }
 
         public Task<RoomGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(RoomGatewayStateSyncSubscriptionRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-        { Subscribed = true; return Task.FromResult(new RoomGatewayStateSyncSubscriptionResult(true, string.Empty)); }
+        { Subscribed = true; return Task.FromResult(new RoomGatewayStateSyncSubscriptionResult(SubscribeSucceeds, string.Empty)); }
     }
 }

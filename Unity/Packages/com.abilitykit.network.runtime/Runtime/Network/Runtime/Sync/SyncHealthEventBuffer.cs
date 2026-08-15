@@ -400,16 +400,33 @@ namespace AbilityKit.Network.Runtime.Sync
     {
         private readonly Func<IReadOnlyList<SyncHealthEvent>> _getPrimary;
         private readonly Func<IReadOnlyList<SyncHealthEvent>> _getSecondary;
+        private readonly Func<IReadOnlyList<SyncHealthEvent>>? _getTertiary;
 
         public SyncHealthEventListView(
             Func<IReadOnlyList<SyncHealthEvent>> getPrimary,
             Func<IReadOnlyList<SyncHealthEvent>> getSecondary)
+            : this(getPrimary, getSecondary, null)
+        {
+        }
+
+        public SyncHealthEventListView(
+            Func<IReadOnlyList<SyncHealthEvent>> getPrimary,
+            Func<IReadOnlyList<SyncHealthEvent>> getSecondary,
+            Func<IReadOnlyList<SyncHealthEvent>>? getTertiary)
         {
             _getPrimary = getPrimary ?? throw new ArgumentNullException(nameof(getPrimary));
             _getSecondary = getSecondary ?? throw new ArgumentNullException(nameof(getSecondary));
+            _getTertiary = getTertiary;
         }
 
-        public int Count => _getPrimary().Count + _getSecondary().Count;
+        public int Count
+        {
+            get
+            {
+                var count = _getPrimary().Count + _getSecondary().Count;
+                return _getTertiary == null ? count : count + _getTertiary().Count;
+            }
+        }
 
         public SyncHealthEvent this[int index]
         {
@@ -430,7 +447,15 @@ namespace AbilityKit.Network.Runtime.Sync
                 var secondaryIndex = index - primary.Count;
                 if ((uint)secondaryIndex >= (uint)secondary.Count)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(index));
+                    if (_getTertiary == null)
+                        throw new ArgumentOutOfRangeException(nameof(index));
+
+                    var tertiary = _getTertiary();
+                    var tertiaryIndex = secondaryIndex - secondary.Count;
+                    if ((uint)tertiaryIndex >= (uint)tertiary.Count)
+                        throw new ArgumentOutOfRangeException(nameof(index));
+
+                    return tertiary[tertiaryIndex];
                 }
 
                 return secondary[secondaryIndex];
@@ -449,6 +474,15 @@ namespace AbilityKit.Network.Runtime.Sync
             for (var i = 0; i < secondary.Count; i++)
             {
                 yield return secondary[i];
+            }
+
+            if (_getTertiary == null)
+                yield break;
+
+            var tertiary = _getTertiary();
+            for (var i = 0; i < tertiary.Count; i++)
+            {
+                yield return tertiary[i];
             }
         }
 

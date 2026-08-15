@@ -555,7 +555,8 @@ namespace AbilityKit.Demo.Shooter.View
                 subscribed: true,
                 message: message,
                 metadata.RestoreStatus,
-                metadata.RestoreErrorCode);
+                metadata.RestoreErrorCode,
+                runningSnapshot.SyncCapabilities);
         }
 
         private static uint SelectPlayerId(uint serverPlayerId, uint fallbackPlayerId)
@@ -635,7 +636,8 @@ namespace AbilityKit.Demo.Shooter.View
                     subscribed: false,
                     restored.Message,
                     ToShooterRestoreStatus(restored.RestoreStatus),
-                    ToShooterRestoreErrorCode(restored.RestoreErrorCode));
+                    ToShooterRestoreErrorCode(restored.RestoreErrorCode),
+                    restored.Snapshot?.SyncCapabilities);
             }
 
             var metadata = new LaunchMetadata(
@@ -804,7 +806,8 @@ namespace AbilityKit.Demo.Shooter.View
                 result.Subscribed,
                 result.Message,
                 ToShooterRestoreStatus(result.RestoreStatus),
-                ToShooterRestoreErrorCode(result.RestoreErrorCode));
+                ToShooterRestoreErrorCode(result.RestoreErrorCode),
+                result.SyncCapabilities);
         }
 
         private sealed class ImmediateProgress<T> : IProgress<T>
@@ -1175,6 +1178,7 @@ namespace AbilityKit.Demo.Shooter.View
                     BattleId = snapshot.BattleId,
                     WorldId = snapshot.WorldId,
                     Players = ToRoomPlayers(snapshot.Players),
+                    SyncCapabilities = snapshot.SyncCapabilities,
                     WorldStartAnchor = ToRoomAnchor(in worldStartAnchor)
                 };
             }
@@ -1249,6 +1253,8 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly string Message;
         public readonly ShooterGatewayRoomRestoreStatus RestoreStatus;
         public readonly ShooterGatewayRoomRestoreErrorCode RestoreErrorCode;
+        /// <summary>服务端为本次战斗代际声明的同步能力；旧服务端可能不提供。</summary>
+        public readonly RoomGatewayNetworkSyncCapabilities? SyncCapabilities;
 
         public bool CanRetryRestore =>
             RestoreStatus == ShooterGatewayRoomRestoreStatus.Timeout ||
@@ -1288,7 +1294,8 @@ namespace AbilityKit.Demo.Shooter.View
             bool subscribed,
             string message,
             ShooterGatewayRoomRestoreStatus restoreStatus,
-            ShooterGatewayRoomRestoreErrorCode restoreErrorCode)
+            ShooterGatewayRoomRestoreErrorCode restoreErrorCode,
+            RoomGatewayNetworkSyncCapabilities? syncCapabilities = null)
         {
             SessionToken = sessionToken ?? string.Empty;
             RoomId = roomId ?? string.Empty;
@@ -1308,6 +1315,7 @@ namespace AbilityKit.Demo.Shooter.View
             Message = message ?? string.Empty;
             RestoreStatus = restoreStatus;
             RestoreErrorCode = restoreErrorCode;
+            SyncCapabilities = syncCapabilities;
         }
 
         public ShooterRoomGatewayLaunchSummary ToSummary()

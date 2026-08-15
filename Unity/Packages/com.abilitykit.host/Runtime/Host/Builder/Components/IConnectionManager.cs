@@ -22,16 +22,6 @@ namespace AbilityKit.Ability.Host.Builder.Components
         void Detach();
 
         /// <summary>
-        /// 启动监听
-        /// </summary>
-        void StartListen(string address, int port);
-
-        /// <summary>
-        /// 停止监听
-        /// </summary>
-        void StopListen();
-
-        /// <summary>
         /// 获取所有连接
         /// </summary>
         IReadOnlyCollection<IServerConnection> Connections { get; }
@@ -41,5 +31,22 @@ namespace AbilityKit.Ability.Host.Builder.Components
         /// </summary>
         event Action<IServerConnection> OnClientConnected;
         event Action<ServerClientId> OnClientDisconnected;
+    }
+
+    /// <summary>
+    /// 传输无关的连接接入生命周期。具体 endpoint 由实现自己的配置持有。
+    /// </summary>
+    public interface IConnectionManagerLifecycle
+    {
+        void Start();
+        void Stop();
+    }
+
+    /// <summary>
+    /// 可选的 address/port 端点能力，只适用于 TCP、UDP 等 IP 传输。
+    /// </summary>
+    public interface IEndpointConnectionManager
+    {
+        void StartListen(string address, int port);
     }
 }

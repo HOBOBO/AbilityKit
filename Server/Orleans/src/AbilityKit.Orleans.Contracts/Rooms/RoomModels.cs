@@ -155,7 +155,23 @@ public sealed record RoomSnapshot(
     [property: Id(14)] long LoadingDeadlineUnixMs = 0,
     [property: Id(15)] string? LaunchManifestHash = null,
     [property: Id(16)] int LaunchManifestVersion = 0,
-    [property: Id(17)] string? LastStartFailureCode = null);
+    [property: Id(17)] string? LastStartFailureCode = null,
+    [property: Id(18)] NetworkSyncCapabilityMetadata? SyncCapabilities = null);
+
+/// <summary>服务端最终选择的战斗同步能力，字段值与通用网络运行时策略枚举保持一致。</summary>
+[GenerateSerializer]
+public sealed record NetworkSyncCapabilityMetadata(
+    [property: Id(0)] int MetadataVersion,
+    [property: Id(1)] string ProfileName,
+    [property: Id(2)] int MinimumSchemaVersion,
+    [property: Id(3)] int MaximumSchemaVersion,
+    [property: Id(4)] int ClientPlayback,
+    [property: Id(5)] int Input,
+    [property: Id(6)] int Snapshot,
+    [property: Id(7)] int Interest,
+    [property: Id(8)] int Recovery,
+    [property: Id(9)] int ServerValidation,
+    [property: Id(10)] int ReliableEvent = 0);
 
 [GenerateSerializer]
 public sealed record RoomRuntimeState(
@@ -260,7 +276,8 @@ public sealed record StartRoomBattleResponse(
     [property: Id(1)] ulong WorldId,
     [property: Id(2)] bool Started,
     [property: Id(3)] WorldStartAnchor? WorldStartAnchor,
-    [property: Id(4)] long ServerNowTicks);
+    [property: Id(4)] long ServerNowTicks,
+    [property: Id(5)] NetworkSyncCapabilityMetadata? SyncCapabilities = null);
 
 [GenerateSerializer]
 public sealed record ListRoomsRequest(

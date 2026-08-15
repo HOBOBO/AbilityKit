@@ -1,0 +1,23 @@
+{
+  "name": "AbilityKit.Demo.Shooter.Host",
+  "rootNamespace": "AbilityKit.Demo.Shooter.Host",
+  "references": [
+    "AbilityKit.Host",
+    "AbilityKit.Host.Network",
+    "AbilityKit.Network.Host",
+    "AbilityKit.Network.Runtime",
+    "AbilityKit.World.DI",
+    "AbilityKit.Game.Battle.Runtime",
+    "AbilityKit.Demo.Shooter.Runtime",
+    "AbilityKit.Protocol.Shooter"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

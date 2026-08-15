@@ -1,6 +1,6 @@
 {
   "name": "com.abilitykit.ai.mlagents.bridge",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit AI ML-Agents Bridge",
   "unity": "2022.3",
   "description": "Optional Unity ML-Agents bridge for AbilityKit model-neutral AI environments. This package does not force ML-Agents into core runtime packages.",
@@ -8,7 +8,7 @@
     "name": "AbilityKit"
   },
   "dependencies": {
-    "com.abilitykit.ai.abstractions": "0.0.1"
+    "com.abilitykit.ai.abstractions": "0.1.0"
   },
   "samples": [
     {

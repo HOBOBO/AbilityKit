@@ -31,16 +31,9 @@ namespace AbilityKit.Game.Flow
                 viewEventSink?.GetRecentLines());
         }
 
-        public static void Clear(
-            BattleSessionDiagnostics diagnostics,
-            BattleContext ctx)
+        public static void Clear(BattleSessionDiagnostics diagnostics)
         {
             diagnostics?.ClearConfirmedAuthority();
-
-            if (ctx != null)
-            {
-                ctx.PredictionStats = null;
-            }
         }
     }
 }

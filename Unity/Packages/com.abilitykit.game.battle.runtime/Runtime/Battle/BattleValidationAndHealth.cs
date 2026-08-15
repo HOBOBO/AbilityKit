@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Collections;
 
 namespace AbilityKit.Game.Battle
 {
@@ -87,9 +88,9 @@ namespace AbilityKit.Game.Battle
 
     public sealed class BattleValidationRegistry<TContext>
     {
-        private readonly List<Entry> _validators = new List<Entry>();
+        private readonly StablePriorityList<IBattleValidator<TContext>> _validators =
+            new StablePriorityList<IBattleValidator<TContext>>();
         private readonly HashSet<string> _names = new HashSet<string>(StringComparer.Ordinal);
-        private int _nextSourceIndex;
 
         public void Register(IBattleValidator<TContext> validator)
         {
@@ -100,44 +101,20 @@ namespace AbilityKit.Game.Battle
                 throw new InvalidOperationException($"Duplicate battle validator name '{validator.Name}'.");
             }
 
-            _validators.Add(new Entry(validator, _nextSourceIndex++));
-            _validators.Sort(EntryComparer.Instance);
+            _validators.Add(validator, validator.Order);
         }
 
         public BattleValidationReport Validate(TContext context)
         {
             var report = new BattleValidationReport();
-            foreach (var entry in _validators)
+            foreach (var validator in _validators)
             {
-                entry.Validator.Validate(context, report);
+                validator.Validate(context, report);
             }
 
             return report;
         }
 
-        private readonly struct Entry
-        {
-            public Entry(IBattleValidator<TContext> validator, int sourceIndex)
-            {
-                Validator = validator;
-                SourceIndex = sourceIndex;
-            }
-
-            public IBattleValidator<TContext> Validator { get; }
-
-            public int SourceIndex { get; }
-        }
-
-        private sealed class EntryComparer : IComparer<Entry>
-        {
-            public static EntryComparer Instance { get; } = new EntryComparer();
-
-            public int Compare(Entry left, Entry right)
-            {
-                var byOrder = left.Validator.Order.CompareTo(right.Validator.Order);
-                return byOrder != 0 ? byOrder : left.SourceIndex.CompareTo(right.SourceIndex);
-            }
-        }
     }
 
     public enum BattleHealthLevel

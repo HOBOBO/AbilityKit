@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Samples.Foundation</RootNamespace>
+    <AssemblyName>AbilityKit.Samples.Foundation</AssemblyName>
+  </PropertyGroup>
+
+  <!-- Foundation 组合：只依赖 core + world.di，不依赖任何 demo / combat / network 包 -->
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.DI\AbilityKit.World.DI.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Lifetime;
 
 namespace AbilityKit.World.ECS
 {
@@ -83,7 +84,9 @@ namespace AbilityKit.World.ECS
                 handlers.Add(handler);
             }
 
-            return new EventSubscription<TEvent>(this, handler);
+            return DisposableRegistration.Create(
+                new EventSubscriptionState<TEvent>(this, handler),
+                static state => state.Bus.Unsubscribe(state.Handler));
         }
 
         public int GetSubscriberCount<TEvent>() where TEvent : struct
@@ -121,24 +124,16 @@ namespace AbilityKit.World.ECS
 
         #region 内部类型
 
-        private sealed class EventSubscription<TEvent> : IDisposable
+        private readonly struct EventSubscriptionState<TEvent>
             where TEvent : struct
         {
-            private readonly WorldEventBus _bus;
-            private readonly Action<TEvent> _handler;
-            private bool _disposed;
+            public readonly WorldEventBus Bus;
+            public readonly Action<TEvent> Handler;
 
-            public EventSubscription(WorldEventBus bus, Action<TEvent> handler)
+            public EventSubscriptionState(WorldEventBus bus, Action<TEvent> handler)
             {
-                _bus = bus;
-                _handler = handler;
-            }
-
-            public void Dispose()
-            {
-                if (_disposed) return;
-                _disposed = true;
-                _bus.Unsubscribe(_handler);
+                Bus = bus;
+                Handler = handler;
             }
         }
 

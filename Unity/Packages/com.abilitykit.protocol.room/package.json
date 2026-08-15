@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "com.abilitykit.protocol.room",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "AbilityKit Protocol (Room)",
   "unity": "2022.3",
   "description": "Shared room gateway and gateway time sync protocol assets for multi-gameplay demos.",
@@ -8,7 +8,7 @@
     "name": "AbilityKit"
   },
   "dependencies": {
-    "com.abilitykit.core": "0.0.1",
-    "com.abilitykit.protocol": "0.0.1"
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.protocol": "0.1.0"
   }
 }

@@ -26,6 +26,7 @@ namespace AbilityKit.Demo.Shooter.View
         private NetworkTransport? _battleTransport;
         private ShooterBattleDataPlane? _battleData;
         private ShooterClientSession? _battleSession;
+        private NetworkSdkClientRecoveryBinding? _sessionRecoveryBinding;
         private bool _disposed;
 
         public ShooterClientNetworkLauncher(IConnection connection)
@@ -64,6 +65,7 @@ namespace AbilityKit.Demo.Shooter.View
         public void Open(string host, int port)
         {
             ThrowIfDisposed();
+            if (_sessionRecoveryBinding != null) _sessionRecoveryBinding.Enabled = true;
             _sdkClient.Open(host, port);
         }
 
@@ -74,8 +76,42 @@ namespace AbilityKit.Demo.Shooter.View
                 return;
             }
 
-            _sdkClient.Close();
+            try
+            {
+                if (_sessionRecoveryBinding != null) _sessionRecoveryBinding.Enabled = false;
+                FlushReliableEventCheckpointsAsync(
+                    ReliableEventCheckpointFlushTrigger.Disconnect).GetAwaiter().GetResult();
+            }
+            finally
+            {
+                _sdkClient.Close();
+            }
         }
+
+        /// <summary>等待当前战斗会话的可靠事件检查点完成持久化。</summary>
+        public Task FlushReliableEventCheckpointsAsync(CancellationToken cancellationToken = default)
+        {
+            return _battleSession?.FlushReliableEventCheckpointsAsync(cancellationToken)
+                ?? Task.CompletedTask;
+        }
+
+        /// <summary>按指定生命周期原因等待当前检查点完成持久化。</summary>
+        public Task<ReliableEventCheckpointFlushResult> FlushReliableEventCheckpointsAsync(
+            ReliableEventCheckpointFlushTrigger trigger,
+            CancellationToken cancellationToken = default)
+        {
+            return _battleSession?.FlushReliableEventCheckpointsAsync(trigger, cancellationToken)
+                ?? Task.FromResult(new ReliableEventCheckpointFlushResult(
+                    0,
+                    trigger,
+                    ReliableEventCheckpointFlushStatus.Skipped,
+                    TimeSpan.Zero,
+                    null));
+        }
+
+        /// <summary>获取当前战斗会话的检查点生命周期诊断。</summary>
+        public ReliableEventCheckpointLifecycleDiagnostics ReliableEventCheckpointLifecycleDiagnostics =>
+            _battleSession?.ReliableEventCheckpointLifecycleDiagnostics ?? default;
 
         public void Tick(float deltaTime)
         {
@@ -309,7 +345,7 @@ namespace AbilityKit.Demo.Shooter.View
                 timeout,
                 cancellationToken).ConfigureAwait(false);
 
-            _battleSession = launched.Session;
+            AttachBattleSessionRecovery(launched.Session);
             _battleData?.AttachBattle(launched.Battle);
             _gatewayConnection.AttachBattle(launched.Battle);
             _battleTransport?.Connect();
@@ -455,7 +491,7 @@ namespace AbilityKit.Demo.Shooter.View
                 timeout,
                 cancellationToken).ConfigureAwait(false);
 
-            _battleSession = launched.Session;
+            AttachBattleSessionRecovery(launched.Session);
             _battleData?.AttachBattle(launched.Battle);
             _gatewayConnection.AttachBattle(launched.Battle);
             _battleTransport?.Connect();
@@ -639,7 +675,7 @@ namespace AbilityKit.Demo.Shooter.View
                 timeout,
                 cancellationToken).ConfigureAwait(false);
 
-            _battleSession = launched.Session;
+            AttachBattleSessionRecovery(launched.Session);
             _battleData?.AttachBattle(launched.Battle);
             _gatewayConnection.AttachBattle(launched.Battle);
             _battleTransport?.Connect();
@@ -706,7 +742,21 @@ namespace AbilityKit.Demo.Shooter.View
 
         private void OpenIfNeeded(string host, int port)
         {
+            if (_sessionRecoveryBinding != null) _sessionRecoveryBinding.Enabled = true;
             _sdkClient.OpenIfDisconnected(host, port);
+        }
+
+        private void AttachBattleSessionRecovery(ShooterClientSession session)
+        {
+            _sessionRecoveryBinding?.Dispose();
+            _battleSession = session ?? throw new ArgumentNullException(nameof(session));
+            _sessionRecoveryBinding = _sdkClient.BindRecoverySignals(
+                session,
+                new NetworkSdkClientRecoveryBindingOptions
+                {
+                    FrameProvider = () => session.CurrentFrame,
+                    CorrelationContextProvider = () => session.ReliableEventEpoch
+                });
         }
 
         private void ThrowIfDisposed()
@@ -725,18 +775,28 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             _disposed = true;
-            _battleData?.Dispose();
-            // The host disposes the battle transport and the room connection; if no battle was ever
-            // attached, the room connection is still ours to release.
-            if (_battleHost != null)
+            try
             {
-                _battleHost.Dispose();
+                FlushReliableEventCheckpointsAsync(
+                    ReliableEventCheckpointFlushTrigger.Dispose).GetAwaiter().GetResult();
             }
-            else
+            finally
             {
-                _sdkClient.Dispose();
+                _sessionRecoveryBinding?.Dispose();
+                _sessionRecoveryBinding = null;
+                _battleData?.Dispose();
+                // The host disposes the battle transport and the room connection; if no battle was ever
+                // attached, the room connection is still ours to release.
+                if (_battleHost != null)
+                {
+                    _battleHost.Dispose();
+                }
+                else
+                {
+                    _sdkClient.Dispose();
+                }
+                _gatewayConnection.Dispose();
             }
-            _gatewayConnection.Dispose();
         }
     }
 

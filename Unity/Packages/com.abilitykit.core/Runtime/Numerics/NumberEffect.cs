@@ -2,6 +2,7 @@ using System;
 
 namespace AbilityKit.Core.Numerics
 {
+    [Obsolete(NumericsDeprecation.Message)]
     public sealed class NumberEffect
     {
         public readonly Entry[] Entries;

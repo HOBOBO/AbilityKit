@@ -1,130 +1,15 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Network.Room;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Flow
 {
-    /// <summary>
-    /// 将权威 <see cref="ClientRoomStore"/> 投影为多人流程使用的稳定视图。
-    /// </summary>
-    public sealed class ClientRoomSnapshotProvider : IRoomSnapshotProvider, IDisposable
-    {
-        private readonly ClientRoomStore _store;
-
-        public ClientRoomSnapshotProvider(ClientRoomStore store)
-        {
-            _store = store ?? throw new ArgumentNullException(nameof(store));
-            _store.OnSnapshotChanged += HandleSnapshotChanged;
-        }
-
-        public MultiplayerRoomSnapshot? Current => Project(_store.Current);
-
-        public event Action<MultiplayerRoomSnapshot>? OnSnapshotChanged;
-
-        public void Dispose()
-        {
-            _store.OnSnapshotChanged -= HandleSnapshotChanged;
-        }
-
-        private void HandleSnapshotChanged(ClientRoomSnapshot snapshot)
-        {
-            var projected = Project(snapshot);
-            if (projected != null)
-            {
-                OnSnapshotChanged?.Invoke(projected);
-            }
-        }
-
-        private static MultiplayerRoomSnapshot? Project(ClientRoomSnapshot? snapshot)
-        {
-            if (snapshot == null)
-            {
-                return null;
-            }
-
-            return new MultiplayerRoomSnapshot
-            {
-                RoomId = snapshot.RoomId,
-                OwnerAccountId = snapshot.OwnerAccountId,
-                NumericRoomId = snapshot.NumericRoomId,
-                Phase = (MultiplayerRoomPhase)snapshot.Phase,
-                PhaseReason = snapshot.PhaseReason,
-                CanStart = snapshot.CanStart,
-                BattleId = snapshot.BattleId,
-                WorldId = snapshot.WorldId,
-                LaunchGeneration = snapshot.LaunchGeneration,
-                LaunchManifestVersion = snapshot.LaunchManifestVersion,
-                LaunchManifestHash = snapshot.LaunchManifestHash,
-                LoadingDeadlineUnixMs = snapshot.LoadingDeadlineUnixMs,
-                RoomRevision = snapshot.RoomRevision,
-                LastEventSequence = snapshot.LastEventSequence,
-                LastStartFailureCode = snapshot.LastStartFailureCode,
-                Members = CopyStrings(snapshot.Members),
-                Players = ToMultiplayerPlayers(snapshot.Players)
-            };
-        }
-
-        private static IReadOnlyList<MultiplayerRoomPlayerSnapshot> ToMultiplayerPlayers(
-            IReadOnlyList<ClientRoomPlayer> players)
-        {
-            if (players == null || players.Count == 0)
-            {
-                return Array.Empty<MultiplayerRoomPlayerSnapshot>();
-            }
-
-            var result = new MultiplayerRoomPlayerSnapshot[players.Count];
-            for (var i = 0; i < players.Count; i++)
-            {
-                var player = players[i];
-                result[i] = new MultiplayerRoomPlayerSnapshot
-                {
-                    AccountId = player.AccountId,
-                    PlayerId = player.PlayerId,
-                    TeamId = player.TeamId,
-                    HeroId = player.HeroId,
-                    SpawnPointId = player.SpawnPointId,
-                    Level = player.Level,
-                    AttributeTemplateId = player.AttributeTemplateId,
-                    BasicAttackSkillId = player.BasicAttackSkillId,
-                    SkillIds = CopyInts(player.SkillIds),
-                    LobbyReady = player.LobbyReady,
-                    AssetsLoaded = player.AssetsLoaded,
-                    LoadingProgress = player.LoadingProgress,
-                    IsOnline = player.IsOnline,
-                    JoinOrdinal = player.JoinOrdinal,
-                    LoadedManifestVersion = player.LoadedManifestVersion,
-                    LoadedManifestHash = player.LoadedManifestHash,
-                    LastSeenTicks = player.LastSeenTicks,
-                    OfflineSinceTicks = player.OfflineSinceTicks
-                };
-            }
-
-            return result;
-        }
-
-        private static IReadOnlyList<string> CopyStrings(IReadOnlyList<string> source)
-        {
-            if (source == null || source.Count == 0) return Array.Empty<string>();
-            var result = new string[source.Count];
-            for (var i = 0; i < source.Count; i++) result[i] = source[i] ?? string.Empty;
-            return result;
-        }
-
-        private static IReadOnlyList<int> CopyInts(IReadOnlyList<int> source)
-        {
-            if (source == null || source.Count == 0) return Array.Empty<int>();
-            var result = new int[source.Count];
-            for (var i = 0; i < source.Count; i++) result[i] = source[i];
-            return result;
-        }
-    }
-
     /// <summary>
     /// 基于 MOBA 原生 Gateway API 的正式多人房间会话适配器。
     /// 每个写命令完成后补拉权威快照并写入 <see cref="ClientRoomStore"/>。
@@ -140,48 +25,29 @@ namespace AbilityKit.Game.Flow
         private readonly RoomGatewaySessionFlow _flow;
         private readonly IDisposable _sessionClient;
         private readonly ClientRoomStore _store;
+        private readonly GatewayRoomMembership _membership = new GatewayRoomMembership();
+        private readonly MobaReliableBattleEventCheckpointStore _checkpointStore;
         private readonly uint _guestLoginOpCode;
         private readonly TimeSpan _requestTimeout;
         private readonly TimeSpan _pollInterval;
         private readonly TimeSpan _battleStartTimeout;
-        private readonly object _checkpointGate = new object();
         private string _sessionToken = string.Empty;
-        private string _currentRoomId = string.Empty;
-        private ulong _currentNumericRoomId;
-        private uint _currentPlayerId;
-        private MobaReliableBattleEventCheckpoint _reliableEventCheckpoint;
 
         public string SessionToken => _sessionToken;
-        public string CurrentRoomId => _currentRoomId;
-        public ulong CurrentNumericRoomId => _currentNumericRoomId;
-        public uint CurrentPlayerId => _currentPlayerId;
+        public string CurrentRoomId => _membership.RoomId;
+        public ulong CurrentNumericRoomId => _membership.NumericRoomId;
+        public uint CurrentPlayerId => _membership.PlayerId;
 
         public bool TryLoad(
             string battleId,
             out MobaReliableBattleEventCheckpoint checkpoint)
         {
-            lock (_checkpointGate)
-            {
-                checkpoint = _reliableEventCheckpoint;
-                return checkpoint.IsValid &&
-                       string.Equals(
-                           checkpoint.BattleId,
-                           battleId,
-                           StringComparison.Ordinal);
-            }
+            return _checkpointStore.TryLoad(battleId, out checkpoint);
         }
 
         public void Save(in MobaReliableBattleEventCheckpoint checkpoint)
         {
-            if (!checkpoint.IsValid)
-            {
-                return;
-            }
-
-            lock (_checkpointGate)
-            {
-                _reliableEventCheckpoint = checkpoint;
-            }
+            _checkpointStore.Save(in checkpoint);
         }
 
         public GatewayMultiplayerRoomSession(
@@ -190,10 +56,17 @@ namespace AbilityKit.Game.Flow
             uint guestLoginOpCode = 100u,
             TimeSpan? requestTimeout = null,
             TimeSpan? pollInterval = null,
-            TimeSpan? battleStartTimeout = null)
+            TimeSpan? battleStartTimeout = null,
+            IReliableEventCheckpointStore reliableEventCheckpointStore = null,
+            bool ownsReliableEventCheckpointStore = false,
+            ReliableEventCheckpointLifecycleOptions reliableEventCheckpointLifecycleOptions = null)
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _store = store ?? throw new ArgumentNullException(nameof(store));
+            _checkpointStore = new MobaReliableBattleEventCheckpointStore(
+                reliableEventCheckpointStore,
+                ownsReliableEventCheckpointStore,
+                reliableEventCheckpointLifecycleOptions);
 
             IRoomGatewaySessionClientBase sessionClient;
             if (client is IRoomGatewayRequestTransport requestTransport)
@@ -239,7 +112,7 @@ namespace AbilityKit.Game.Flow
                     _requestTimeout,
                     cancellationToken).ConfigureAwait(false);
 
-                var result = ToRestoreResult(in restored);
+                var result = GatewayRoomProtocolMapper.ToRestoreResult(in restored);
                 if (!result.HasActiveRoom)
                 {
                     ClearMembership();
@@ -249,32 +122,37 @@ namespace AbilityKit.Game.Flow
 
                 if (restored.Snapshot == null)
                 {
-                    ClearMembership();
-                    _store.Reset();
                     return new MultiplayerRoomRestoreResult(
                         restored.RoomId,
                         restored.NumericRoomId,
                         restored.PlayerId,
                         (MultiplayerRoomPhase)restored.Phase,
                         MultiplayerRoomRestoreNextStep.None,
-                        ToEntryKind(restored.EntryKind),
+                        GatewayRoomProtocolMapper.ToEntryKind(restored.EntryKind),
                         restored.CanStart,
                         "Room restore did not produce an authoritative snapshot.",
                         MultiplayerRoomRestoreStatus.Failed,
                         MultiplayerRoomRestoreErrorCode.InternalError);
                 }
 
+                var restoredSnapshot = GatewayRoomProtocolMapper.ToClientSnapshot(
+                    restored.Snapshot,
+                    restored.NumericRoomId);
+                var candidateMembership = new GatewayRoomMembership();
+                candidateMembership.Commit(result.RoomId, result.NumericRoomId, result.PlayerId);
+
                 var current = _store.Current;
-                if (current != null &&
-                    !string.Equals(current.RoomId, restored.RoomId, StringComparison.Ordinal))
+                var replacesCurrentRoom = current != null &&
+                    !string.Equals(current.RoomId, result.RoomId, StringComparison.Ordinal);
+                ApplyMembership(
+                    candidateMembership.RoomId,
+                    candidateMembership.NumericRoomId,
+                    candidateMembership.PlayerId);
+                if (replacesCurrentRoom)
                 {
                     _store.Reset();
                 }
-
-                ApplyMembership(result.RoomId, result.NumericRoomId, result.PlayerId);
-                ApplyAuthoritativeSnapshot(
-                    ToClientSnapshot(restored.Snapshot, restored.NumericRoomId),
-                    restored.NumericRoomId);
+                ApplyAuthoritativeSnapshot(restoredSnapshot, restored.NumericRoomId);
                 return result;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -283,7 +161,7 @@ namespace AbilityKit.Game.Flow
             }
             catch (OperationCanceledException ex)
             {
-                return CreateRestoreFailure(
+                return GatewayRoomProtocolMapper.CreateRestoreFailure(
                     fallbackPlayerId,
                     ex.Message,
                     MultiplayerRoomRestoreStatus.Timeout,
@@ -291,7 +169,7 @@ namespace AbilityKit.Game.Flow
             }
             catch (TimeoutException ex)
             {
-                return CreateRestoreFailure(
+                return GatewayRoomProtocolMapper.CreateRestoreFailure(
                     fallbackPlayerId,
                     ex.Message,
                     MultiplayerRoomRestoreStatus.Timeout,
@@ -307,7 +185,7 @@ namespace AbilityKit.Game.Flow
             var token = await EnsureSessionTokenAsync(spec.SessionToken, cancellationToken).ConfigureAwait(false);
             return await _flow.CreateRoomAsync(
                 token,
-                ToLaunchSpec(spec),
+                GatewayRoomProtocolMapper.ToLaunchSpec(spec),
                 _requestTimeout,
                 cancellationToken).ConfigureAwait(false);
         }
@@ -344,35 +222,19 @@ namespace AbilityKit.Game.Flow
 
         private void ApplyMembership(string roomId, ulong numericRoomId, uint playerId)
         {
-            if (string.IsNullOrWhiteSpace(roomId))
-            {
-                throw new InvalidOperationException("Authoritative room membership has no room id.");
-            }
-            if (numericRoomId == 0UL)
-            {
-                throw new InvalidOperationException("Authoritative room membership has no numeric room id.");
-            }
-            if (playerId == 0u)
-            {
-                throw new InvalidOperationException("Authoritative room membership has no player id.");
-            }
-
-            _currentRoomId = roomId;
-            _currentNumericRoomId = numericRoomId;
-            _currentPlayerId = playerId;
+            _membership.Commit(roomId, numericRoomId, playerId);
         }
 
         private void ClearMembership()
         {
-            _currentRoomId = string.Empty;
-            _currentNumericRoomId = 0UL;
-            _currentPlayerId = 0u;
+            _membership.Clear();
         }
 
         public async Task LeaveRoomAsync(string roomId, CancellationToken cancellationToken)
         {
             ValidateActiveSession(roomId);
             var current = RequireCurrentSnapshot(roomId);
+            var completedBattleId = current.BattleId;
             var result = await _flow.LeaveRoomAsync(
                 new RoomGatewayLeaveRequest(
                     _sessionToken,
@@ -385,6 +247,40 @@ namespace AbilityKit.Game.Flow
 
             ClearMembership();
             _store.Reset();
+            if (!string.IsNullOrWhiteSpace(completedBattleId))
+            {
+                _checkpointStore.Remove(completedBattleId);
+            }
+            // 远端离房已不可逆完成，后续本地持久化不能再被原操作取消令牌中断。
+            await _checkpointStore.FlushAsync(
+                ReliableEventCheckpointFlushTrigger.RoomLeave,
+                CancellationToken.None).ConfigureAwait(false);
+        }
+
+        /// <summary>等待可靠战斗事件检查点完成持久化。</summary>
+        public Task FlushReliableEventCheckpointsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return _checkpointStore.FlushAsync(cancellationToken);
+        }
+
+        /// <summary>按指定生命周期原因等待可靠战斗事件检查点完成持久化。</summary>
+        public Task<ReliableEventCheckpointFlushResult> FlushReliableEventCheckpointsAsync(
+            ReliableEventCheckpointFlushTrigger trigger,
+            CancellationToken cancellationToken = default)
+        {
+            return _checkpointStore.FlushAsync(trigger, cancellationToken);
+        }
+
+        /// <summary>获取可靠事件检查点生命周期的累计诊断。</summary>
+        public ReliableEventCheckpointLifecycleDiagnostics ReliableEventCheckpointLifecycleDiagnostics =>
+            _checkpointStore.LifecycleDiagnostics;
+
+        /// <summary>可靠事件检查点 flush 失败且完成诊断记录后触发。</summary>
+        public event Action<ReliableEventCheckpointLifecycleFailure> ReliableEventCheckpointLifecycleFailure
+        {
+            add => _checkpointStore.LifecycleFailure += value;
+            remove => _checkpointStore.LifecycleFailure -= value;
         }
 
         public async Task ConfigureLoadoutAsync(
@@ -446,7 +342,7 @@ namespace AbilityKit.Game.Flow
             if (result.Snapshot != null && !string.IsNullOrWhiteSpace(result.Snapshot.RoomId))
             {
                 ApplyAuthoritativeSnapshot(
-                    ToClientSnapshot(result.Snapshot, current.NumericRoomId),
+                    GatewayRoomProtocolMapper.ToClientSnapshot(result.Snapshot, current.NumericRoomId),
                     current.NumericRoomId);
             }
             else
@@ -478,7 +374,7 @@ namespace AbilityKit.Game.Flow
             if (result.Snapshot != null && !string.IsNullOrWhiteSpace(result.Snapshot.RoomId))
             {
                 ApplyAuthoritativeSnapshot(
-                    ToClientSnapshot(result.Snapshot, current.NumericRoomId),
+                    GatewayRoomProtocolMapper.ToClientSnapshot(result.Snapshot, current.NumericRoomId),
                     current.NumericRoomId);
             }
             else
@@ -504,7 +400,7 @@ namespace AbilityKit.Game.Flow
             }
 
             ApplyAuthoritativeSnapshot(
-                ToClientSnapshot(result.Snapshot, result.NumericRoomId),
+                GatewayRoomProtocolMapper.ToClientSnapshot(result.Snapshot, result.NumericRoomId),
                 result.NumericRoomId);
         }
 
@@ -534,7 +430,7 @@ namespace AbilityKit.Game.Flow
             if (result.Snapshot != null && !string.IsNullOrWhiteSpace(result.Snapshot.RoomId))
             {
                 ApplyAuthoritativeSnapshot(
-                    ToClientSnapshot(result.Snapshot, current.NumericRoomId),
+                    GatewayRoomProtocolMapper.ToClientSnapshot(result.Snapshot, current.NumericRoomId),
                     current.NumericRoomId);
             }
         }
@@ -587,7 +483,9 @@ namespace AbilityKit.Game.Flow
                     $"Gateway get snapshot returned an invalid numeric room id for room {roomId}.");
             }
 
-            var snapshot = ToClientSnapshot(result.Snapshot, result.NumericRoomId);
+            var snapshot = GatewayRoomProtocolMapper.ToClientSnapshot(
+                result.Snapshot,
+                result.NumericRoomId);
             ApplyAuthoritativeSnapshot(snapshot, result.NumericRoomId);
             return snapshot;
         }
@@ -641,7 +539,7 @@ namespace AbilityKit.Game.Flow
             if (result.Snapshot != null && !string.IsNullOrWhiteSpace(result.Snapshot.RoomId))
             {
                 ApplyAuthoritativeSnapshot(
-                    ToClientSnapshot(result.Snapshot, current.NumericRoomId),
+                    GatewayRoomProtocolMapper.ToClientSnapshot(result.Snapshot, current.NumericRoomId),
                     current.NumericRoomId);
             }
             else
@@ -652,218 +550,20 @@ namespace AbilityKit.Game.Flow
 
         public void Dispose()
         {
-            _sessionClient.Dispose();
-        }
-
-        private static RoomGatewayLaunchSpec ToLaunchSpec(MultiplayerRoomLaunchSpec spec)
-        {
-            return new RoomGatewayLaunchSpec(
-                spec.Region,
-                spec.ServerId,
-                spec.RoomType,
-                spec.RoomTitle,
-                spec.MaxPlayers,
-                spec.GameplayId,
-                spec.RuleSetId,
-                spec.ConfigVersion,
-                spec.ProtocolVersion,
-                spec.WorldType,
-                spec.ClientId,
-                tags: BuildLaunchTags(spec));
+            try
+            {
+                _checkpointStore.Dispose();
+            }
+            finally
+            {
+                _sessionClient.Dispose();
+            }
         }
 
         internal static IReadOnlyDictionary<string, string> BuildLaunchTags(
             MultiplayerRoomLaunchSpec spec)
         {
-            return new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                [RoomTagKeys.Gameplay] = spec.RoomType,
-                [RoomTagKeys.GameplayId] = spec.GameplayId.ToString(CultureInfo.InvariantCulture),
-                [RoomTagKeys.RuleSetId] = spec.RuleSetId.ToString(CultureInfo.InvariantCulture),
-                [RoomTagKeys.ConfigVersion] = spec.ConfigVersion.ToString(CultureInfo.InvariantCulture),
-                [RoomTagKeys.ProtocolVersion] = spec.ProtocolVersion.ToString(CultureInfo.InvariantCulture),
-                [RoomTagKeys.WorldType] = spec.WorldType,
-                [RoomTagKeys.ClientId] = spec.ClientId,
-                [RoomTagKeys.MinPlayers] = spec.MinPlayers.ToString(CultureInfo.InvariantCulture)
-            };
-        }
-
-        private static MultiplayerRoomRestoreResult ToRestoreResult(
-            in RoomGatewayStagedRestoreResult restored)
-        {
-            return new MultiplayerRoomRestoreResult(
-                restored.RoomId,
-                restored.NumericRoomId,
-                restored.PlayerId,
-                (MultiplayerRoomPhase)restored.Phase,
-                ToNextStep(restored.NextStep),
-                ToEntryKind(restored.EntryKind),
-                restored.CanStart,
-                restored.Message,
-                ToRestoreStatus(restored.RestoreStatus),
-                ToRestoreErrorCode(restored.RestoreErrorCode));
-        }
-
-        private static MultiplayerRoomRestoreResult CreateRestoreFailure(
-            uint playerId,
-            string message,
-            MultiplayerRoomRestoreStatus status,
-            MultiplayerRoomRestoreErrorCode errorCode)
-        {
-            return new MultiplayerRoomRestoreResult(
-                string.Empty,
-                0UL,
-                playerId,
-                MultiplayerRoomPhase.Closed,
-                MultiplayerRoomRestoreNextStep.None,
-                MultiplayerRoomEntryKind.TeamLobby,
-                false,
-                message,
-                status,
-                errorCode);
-        }
-
-        private static ClientRoomSnapshot ToClientSnapshot(
-            RoomGatewaySnapshot snapshot,
-            ulong numericRoomId)
-        {
-            var anchor = snapshot.WorldStartAnchor;
-            return new ClientRoomSnapshot
-            {
-                RoomId = snapshot.RoomId,
-                OwnerAccountId = snapshot.OwnerAccountId,
-                NumericRoomId = numericRoomId,
-                Phase = (ClientRoomPhase)snapshot.Phase,
-                PhaseReason = snapshot.PhaseReason,
-                LaunchGeneration = snapshot.LaunchGeneration,
-                LoadingDeadlineUnixMs = snapshot.LoadingDeadlineUnixMs,
-                LaunchManifestHash = snapshot.LaunchManifestHash,
-                LaunchManifestVersion = snapshot.LaunchManifestVersion,
-                LastStartFailureCode = snapshot.LastStartFailureCode,
-                RoomRevision = snapshot.RoomRevision,
-                LastEventSequence = snapshot.LastEventSequence,
-                CanStart = snapshot.CanStart,
-                BattleId = snapshot.BattleId,
-                WorldId = snapshot.WorldId,
-                Members = CopyStrings(snapshot.Members),
-                Players = ToClientPlayers(snapshot.Players),
-                WorldStartAnchor = new GatewayWorldStartAnchor(
-                    anchor.StartServerTicks,
-                    anchor.ServerTickFrequency,
-                    anchor.StartFrame,
-                    anchor.FixedDeltaSeconds)
-            };
-        }
-
-        private static IReadOnlyList<ClientRoomPlayer> ToClientPlayers(
-            IReadOnlyList<RoomGatewayPlayerSnapshot> players)
-        {
-            if (players == null || players.Count == 0) return Array.Empty<ClientRoomPlayer>();
-            var result = new ClientRoomPlayer[players.Count];
-            for (var i = 0; i < players.Count; i++)
-            {
-                var player = players[i];
-                result[i] = new ClientRoomPlayer
-                {
-                    AccountId = player.AccountId,
-                    PlayerId = player.PlayerId,
-                    TeamId = player.TeamId,
-                    HeroId = player.HeroId,
-                    SpawnPointId = player.SpawnPointId,
-                    Level = player.Level,
-                    AttributeTemplateId = player.AttributeTemplateId,
-                    BasicAttackSkillId = player.BasicAttackSkillId,
-                    SkillIds = CopyInts(player.SkillIds),
-                    LobbyReady = player.LobbyReady,
-                    Ready = player.LobbyReady,
-                    AssetsLoaded = player.AssetsLoaded,
-                    LoadingProgress = player.LoadingProgress,
-                    IsOnline = player.IsOnline,
-                    JoinOrdinal = player.JoinOrdinal,
-                    LoadedManifestVersion = player.LoadedManifestVersion,
-                    LoadedManifestHash = player.LoadedManifestHash,
-                    LastSeenTicks = player.LastSeenTicks,
-                    OfflineSinceTicks = player.OfflineSinceTicks
-                };
-            }
-
-            return result;
-        }
-
-        private static IReadOnlyList<string> CopyStrings(IReadOnlyList<string> source)
-        {
-            if (source == null || source.Count == 0) return Array.Empty<string>();
-            var result = new string[source.Count];
-            for (var i = 0; i < source.Count; i++) result[i] = source[i] ?? string.Empty;
-            return result;
-        }
-
-        private static IReadOnlyList<int> CopyInts(IReadOnlyList<int> source)
-        {
-            if (source == null || source.Count == 0) return Array.Empty<int>();
-            var result = new int[source.Count];
-            for (var i = 0; i < source.Count; i++) result[i] = source[i];
-            return result;
-        }
-
-        private static MultiplayerRoomRestoreNextStep ToNextStep(
-            RoomGatewayStagedRestoreNextStep nextStep)
-        {
-            switch (nextStep)
-            {
-                case RoomGatewayStagedRestoreNextStep.SetReadyAndBeginLoading:
-                    return MultiplayerRoomRestoreNextStep.SetReadyAndBeginLoading;
-                case RoomGatewayStagedRestoreNextStep.ReportAssetsLoaded:
-                    return MultiplayerRoomRestoreNextStep.ReportAssetsLoaded;
-                case RoomGatewayStagedRestoreNextStep.WaitForBattleStart:
-                    return MultiplayerRoomRestoreNextStep.WaitForBattleStart;
-                case RoomGatewayStagedRestoreNextStep.SubscribeStateSync:
-                    return MultiplayerRoomRestoreNextStep.EnterBattle;
-                default:
-                    return MultiplayerRoomRestoreNextStep.None;
-            }
-        }
-
-        private static MultiplayerRoomEntryKind ToEntryKind(RoomGatewaySessionEntryKind entryKind)
-        {
-            return entryKind switch
-            {
-                RoomGatewaySessionEntryKind.Reconnect => MultiplayerRoomEntryKind.Reconnect,
-                RoomGatewaySessionEntryKind.LateJoin => MultiplayerRoomEntryKind.LateJoin,
-                _ => MultiplayerRoomEntryKind.TeamLobby
-            };
-        }
-
-        private static MultiplayerRoomRestoreStatus ToRestoreStatus(
-            RoomGatewaySessionRestoreStatus status)
-        {
-            return status switch
-            {
-                RoomGatewaySessionRestoreStatus.NoActiveRoom => MultiplayerRoomRestoreStatus.NoActiveRoom,
-                RoomGatewaySessionRestoreStatus.NotMember => MultiplayerRoomRestoreStatus.NotMember,
-                RoomGatewaySessionRestoreStatus.RoomClosed => MultiplayerRoomRestoreStatus.RoomClosed,
-                RoomGatewaySessionRestoreStatus.RoomExpired => MultiplayerRoomRestoreStatus.RoomExpired,
-                RoomGatewaySessionRestoreStatus.InvalidSession => MultiplayerRoomRestoreStatus.InvalidSession,
-                RoomGatewaySessionRestoreStatus.Timeout => MultiplayerRoomRestoreStatus.Timeout,
-                RoomGatewaySessionRestoreStatus.Failed => MultiplayerRoomRestoreStatus.Failed,
-                _ => MultiplayerRoomRestoreStatus.Restored
-            };
-        }
-
-        private static MultiplayerRoomRestoreErrorCode ToRestoreErrorCode(
-            RoomGatewaySessionRestoreErrorCode errorCode)
-        {
-            return errorCode switch
-            {
-                RoomGatewaySessionRestoreErrorCode.NoAccountRoomMapping => MultiplayerRoomRestoreErrorCode.NoAccountRoomMapping,
-                RoomGatewaySessionRestoreErrorCode.AccountNotInRoom => MultiplayerRoomRestoreErrorCode.AccountNotInRoom,
-                RoomGatewaySessionRestoreErrorCode.RoomClosed => MultiplayerRoomRestoreErrorCode.RoomClosed,
-                RoomGatewaySessionRestoreErrorCode.RoomExpired => MultiplayerRoomRestoreErrorCode.RoomExpired,
-                RoomGatewaySessionRestoreErrorCode.InvalidSession => MultiplayerRoomRestoreErrorCode.InvalidSession,
-                RoomGatewaySessionRestoreErrorCode.Timeout => MultiplayerRoomRestoreErrorCode.Timeout,
-                RoomGatewaySessionRestoreErrorCode.InternalError => MultiplayerRoomRestoreErrorCode.InternalError,
-                _ => MultiplayerRoomRestoreErrorCode.None
-            };
+            return GatewayRoomProtocolMapper.BuildLaunchTags(spec);
         }
 
         private void ValidateActiveSession(string roomId)

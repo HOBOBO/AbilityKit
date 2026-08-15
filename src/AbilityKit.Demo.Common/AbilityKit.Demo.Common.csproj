@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Demo.Common</RootNamespace>
+    <AssemblyName>AbilityKit.Demo.Common</AssemblyName>
+  </PropertyGroup>
+
+  <!-- 只投影 DemoHarness 子目录：demo.common 的 Rooms/Gameplay 文件仍由消费方逐文件 include，
+       这里只承载迁移过来的同步 DemoHarness（命名空间 AbilityKit.Demo.Harness）。 -->
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.common/Runtime/DemoHarness/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />
+  </ItemGroup>
+
+</Project>
